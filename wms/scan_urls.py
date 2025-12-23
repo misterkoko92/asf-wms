@@ -15,5 +15,6 @@ urlpatterns = [
     path("pack/", views.scan_pack, name="scan_pack"),
     path("shipment/", views.scan_shipment_create, name="scan_shipment_create"),
     path("out/", views.scan_out, name="scan_out"),
+    path("sync/", views.scan_sync, name="scan_sync"),
     path("service-worker.js", views.scan_service_worker, name="scan_service_worker"),
 ]

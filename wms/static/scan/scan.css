@@ -439,6 +439,35 @@ body {
   margin-bottom: 12px;
 }
 
+.scan-sync-banner {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-accent);
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.scan-sync-banner.active {
+  display: flex;
+  animation: fade-in 0.2s ease-out;
+}
+
+.scan-sync-banner button {
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 12px;
+}
+
 .scan-message {
   padding: 8px 10px;
   border-radius: 10px;

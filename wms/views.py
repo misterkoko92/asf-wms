@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
@@ -41,6 +41,7 @@ from .models import (
     Shipment,
     ShipmentStatus,
     Warehouse,
+    WmsChange,
 )
 from .scan_helpers import (
     build_available_cartons,
@@ -842,7 +843,19 @@ def scan_out(request):
     return render(request, "scan/out.html", {"form": form, "active": "out"})
 
 
-SERVICE_WORKER_JS = """const CACHE_NAME = 'wms-scan-v16';
+@login_required
+@require_http_methods(["GET"])
+def scan_sync(request):
+    state = WmsChange.get_state()
+    return JsonResponse(
+        {
+            "version": state.version,
+            "changed_at": state.last_changed_at.isoformat(),
+        }
+    )
+
+
+SERVICE_WORKER_JS = """const CACHE_NAME = 'wms-scan-v17';
 const ASSETS = [
   '/scan/',
   '/static/scan/scan.css',

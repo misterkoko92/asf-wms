@@ -10,6 +10,7 @@ from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.validators import MinValueValidator
 from django.db import IntegrityError, connection, models, transaction
+from django.db.models import F
 from django.db.models.functions import Length
 from django.utils import timezone
 
@@ -640,6 +641,33 @@ class Document(models.Model):
 
     def __str__(self) -> str:
         return f"{self.doc_type} - {self.shipment}"
+
+
+class WmsChange(models.Model):
+    version = models.PositiveBigIntegerField(default=1)
+    last_changed_at = models.DateTimeField(default=timezone.now)
+
+    def __str__(self) -> str:
+        return f"WMS change v{self.version}"
+
+    @classmethod
+    def bump(cls) -> None:
+        now = timezone.now()
+        updated = cls.objects.filter(pk=1).update(
+            version=F("version") + 1,
+            last_changed_at=now,
+        )
+        if not updated:
+            cls.objects.create(pk=1, version=1, last_changed_at=now)
+
+    @classmethod
+    def get_state(cls):
+        now = timezone.now()
+        obj, _ = cls.objects.get_or_create(
+            pk=1,
+            defaults={"version": 1, "last_changed_at": now},
+        )
+        return obj
 
 
 RECEIPT_REFERENCE_RE = re.compile(

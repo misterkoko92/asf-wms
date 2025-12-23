@@ -51,6 +51,8 @@ Notes:
 - `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS` (comma-separated)
 - `ORG_NAME`, `ORG_ADDRESS`, `ORG_CONTACT`, `ORG_SIGNATORY`
 - `SKU_PREFIX`
+- MySQL (optional): `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_ENGINE`
+  - If `DB_NAME` is set, Django uses MySQL; otherwise it uses SQLite.
 
 ## Scan PWA
 - URL: `http://localhost:8000/scan/`
@@ -74,3 +76,4 @@ Notes:
 - Install deps: `pip install -r requirements.txt`
 - Set WSGI to `asf_wms.wsgi`
 - Run migrations from a Bash console
+- For MySQL: create the database in the Databases tab, then set `DB_*` env vars in WSGI

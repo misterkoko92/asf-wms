@@ -41,6 +41,10 @@
         {% endfor %}
       </div>
     {% endif %}
+    <div id="scan-sync-banner" class="scan-sync-banner" data-sync-url="{% url 'scan:scan_sync' %}" data-sync-interval="8000">
+      <span>Des changements sont disponibles. Recharge pour synchroniser.</span>
+      <button type="button" id="scan-sync-reload">Recharger</button>
+    </div>
 
     {% block content %}{% endblock %}
   </div>
