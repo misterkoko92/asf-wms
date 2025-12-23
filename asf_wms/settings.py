@@ -1,12 +1,26 @@
+import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = "dev-secret-key-change-this"
 
-DEBUG = True
+def _env_bool(name: str, default: bool = False) -> bool:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "y", "on"}
 
-ALLOWED_HOSTS: list[str] = []
+
+def _env_list(name: str) -> list[str]:
+    value = os.environ.get(name, "")
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-secret-key-change-this")
+
+DEBUG = _env_bool("DJANGO_DEBUG", True)
+
+ALLOWED_HOSTS: list[str] = _env_list("DJANGO_ALLOWED_HOSTS")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -15,8 +29,10 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "rest_framework",
     "contacts",
     "wms",
+    "api",
 ]
 
 MIDDLEWARE = [
@@ -88,12 +104,20 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-ORG_NAME = "ORG_NAME"
-ORG_ADDRESS = "ORG_ADDRESS"
-ORG_CONTACT = "ORG_CONTACT"
-ORG_SIGNATORY = "ORG_SIGNATORY"
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework.authentication.SessionAuthentication",
+        "rest_framework.authentication.BasicAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+}
+
+ORG_NAME = os.environ.get("ORG_NAME", "ORG_NAME")
+ORG_ADDRESS = os.environ.get("ORG_ADDRESS", "ORG_ADDRESS")
+ORG_CONTACT = os.environ.get("ORG_CONTACT", "ORG_CONTACT")
+ORG_SIGNATORY = os.environ.get("ORG_SIGNATORY", "ORG_SIGNATORY")
 
 LOGIN_URL = "/admin/login/"
 LOGIN_REDIRECT_URL = "/scan/"
 
-SKU_PREFIX = "ASF"
+SKU_PREFIX = os.environ.get("SKU_PREFIX", "ASF")

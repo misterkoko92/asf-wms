@@ -3,10 +3,51 @@
   --ink-soft: #4a4033;
   --bg: #f6f0e6;
   --bg-2: #efe3d1;
+  --bg-accent: #fff6d8;
+  --bg-accent-2: #f2e9db;
   --accent: #0f5f4f;
   --accent-2: #e79d2e;
+  --accent-2-ink: #3c2d0c;
   --card: #fffaf2;
+  --panel: #fffdf6;
+  --input-bg: #fff;
+  --border: #e6d7c4;
+  --border-strong: #d7c6b0;
+  --table-header: #f3eadc;
+  --scan-btn-bg: #e9f4ef;
+  --shadow: rgba(20, 15, 10, 0.08);
+  --success-bg: #e7f5ec;
+  --success-border: #a8d5b8;
+  --error-bg: #fdecea;
+  --error-border: #f1b0a7;
   --danger: #b84a3f;
+  --overlay: rgba(20, 20, 20, 0.7);
+}
+
+:root[data-theme="atelier"] {
+  --ink: #1c2430;
+  --ink-soft: #4b5563;
+  --bg: #e8edf3;
+  --bg-2: #d8e0ea;
+  --bg-accent: #f4f7fb;
+  --bg-accent-2: #dfe8f3;
+  --accent: #1d4ed8;
+  --accent-2: #f59e0b;
+  --accent-2-ink: #1c2430;
+  --card: #f7f9fc;
+  --panel: #edf2f8;
+  --input-bg: #fff;
+  --border: #c8d3e0;
+  --border-strong: #b5c2d4;
+  --table-header: #e1e9f5;
+  --scan-btn-bg: #e4efff;
+  --shadow: rgba(15, 23, 42, 0.12);
+  --success-bg: #e6f6ed;
+  --success-border: #9fd2b1;
+  --error-bg: #feeceb;
+  --error-border: #f2b0a8;
+  --danger: #b45309;
+  --overlay: rgba(20, 20, 20, 0.7);
 }
 
 * { box-sizing: border-box; }
@@ -15,8 +56,8 @@ body {
   margin: 0;
   font-family: "Trebuchet MS", "Lucida Sans Unicode", "Lucida Grande", sans-serif;
   color: var(--ink);
-  background: radial-gradient(1200px 800px at 10% -20%, #fff6d8 0%, var(--bg) 55%)
-              , radial-gradient(900px 600px at 110% 10%, #f2e9db 0%, var(--bg-2) 50%);
+  background: radial-gradient(1200px 800px at 10% -20%, var(--bg-accent) 0%, var(--bg) 55%)
+              , radial-gradient(900px 600px at 110% 10%, var(--bg-accent-2) 0%, var(--bg-2) 50%);
   min-height: 100vh;
 }
 
@@ -33,6 +74,7 @@ body {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 18px;
+  flex-wrap: wrap;
 }
 
 .scan-title {
@@ -47,6 +89,39 @@ body {
   margin: 4px 0 0 0;
 }
 
+.scan-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  white-space: nowrap;
+}
+
+.scan-theme-label {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.scan-theme-button {
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.scan-theme-button:focus {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
+}
+
 .scan-nav {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -58,7 +133,7 @@ body {
   display: block;
   padding: 10px 12px;
   background: var(--card);
-  border: 2px solid #e6d7c4;
+  border: 2px solid var(--border);
   border-radius: 12px;
   text-decoration: none;
   color: var(--ink);
@@ -75,10 +150,10 @@ body {
 
 .scan-card {
   background: var(--card);
-  border: 1px solid #e6d7c4;
+  border: 1px solid var(--border);
   border-radius: 16px;
   padding: 16px;
-  box-shadow: 0 8px 20px rgba(20, 15, 10, 0.08);
+  box-shadow: 0 8px 20px var(--shadow);
 }
 
 .scan-card + .scan-card {
@@ -111,9 +186,9 @@ body {
   width: 100%;
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid #d7c6b0;
+  border: 1px solid var(--border-strong);
   font-size: 15px;
-  background: #fff;
+  background: var(--input-bg);
 }
 
 .scan-field textarea { resize: vertical; }
@@ -125,10 +200,10 @@ body {
 }
 
 .shipment-line {
-  border: 1px dashed #d7c6b0;
+  border: 1px dashed var(--border-strong);
   border-radius: 12px;
   padding: 12px;
-  background: #fffdf6;
+  background: var(--panel);
 }
 
 .shipment-line-title {
@@ -152,9 +227,9 @@ body {
   width: 100%;
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid #d7c6b0;
+  border: 1px solid var(--border-strong);
   font-size: 15px;
-  background: #fff;
+  background: var(--input-bg);
 }
 
 .pack-lines {
@@ -164,10 +239,10 @@ body {
 }
 
 .pack-line {
-  border: 1px dashed #d7c6b0;
+  border: 1px dashed var(--border-strong);
   border-radius: 12px;
   padding: 12px;
-  background: #fffdf6;
+  background: var(--panel);
 }
 
 .pack-line-title {
@@ -190,14 +265,19 @@ body {
   width: 100%;
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid #d7c6b0;
+  border: 1px solid var(--border-strong);
   font-size: 15px;
-  background: #fff;
+  background: var(--input-bg);
 }
 
 .pack-line-metrics {
   font-size: 12px;
   color: var(--ink-soft);
+}
+
+.pack-line-metrics .metric-negative {
+  color: var(--danger);
+  font-weight: 700;
 }
 
 .pack-list {
@@ -212,13 +292,13 @@ body {
 
 .pack-list th,
 .pack-list td {
-  border: 1px solid #e6d7c4;
+  border: 1px solid var(--border);
   padding: 6px 8px;
   text-align: left;
 }
 
 .scan-divider {
-  border-top: 1px dashed #e6d7c4;
+  border-top: 1px dashed var(--border);
   margin: 16px 0;
 }
 
@@ -228,10 +308,10 @@ body {
 }
 
 .scan-meta-item {
-  border: 1px dashed #e6d7c4;
+  border: 1px dashed var(--border);
   border-radius: 10px;
   padding: 8px 10px;
-  background: #fffdf6;
+  background: var(--panel);
   font-size: 14px;
 }
 
@@ -264,9 +344,9 @@ body {
 }
 
 .scan-table-wrap {
-  border: 1px solid #e6d7c4;
+  border: 1px solid var(--border);
   border-radius: 12px;
-  background: #fffdf6;
+  background: var(--panel);
   overflow-x: auto;
 }
 
@@ -280,7 +360,7 @@ body {
 .scan-table th,
 .scan-table td {
   padding: 8px 10px;
-  border-bottom: 1px solid #e6d7c4;
+  border-bottom: 1px solid var(--border);
   vertical-align: top;
 }
 
@@ -289,7 +369,7 @@ body {
   font-size: 12px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  background: #f3eadc;
+  background: var(--table-header);
 }
 
 .scan-table td small {
@@ -325,7 +405,7 @@ body {
 
 .scan-scan-btn {
   border: 2px solid var(--accent);
-  background: #e9f4ef;
+  background: var(--scan-btn-bg);
   color: var(--accent);
   padding: 9px 10px;
   border-radius: 10px;
@@ -352,7 +432,7 @@ body {
 
 .scan-submit.secondary {
   background: var(--accent-2);
-  color: #3c2d0c;
+  color: var(--accent-2-ink);
 }
 
 .scan-messages {
@@ -367,13 +447,13 @@ body {
 }
 
 .scan-message.success {
-  background: #e7f5ec;
-  border: 1px solid #a8d5b8;
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
 }
 
 .scan-message.error {
-  background: #fdecea;
-  border: 1px solid #f1b0a7;
+  background: var(--error-bg);
+  border: 1px solid var(--error-border);
   color: var(--danger);
 }
 
@@ -386,7 +466,7 @@ body {
 .scan-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(20, 20, 20, 0.7);
+  background: var(--overlay);
   display: none;
   align-items: center;
   justify-content: center;

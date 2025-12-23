@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
@@ -840,7 +842,7 @@ def scan_out(request):
     return render(request, "scan/out.html", {"form": form, "active": "out"})
 
 
-SERVICE_WORKER_JS = """const CACHE_NAME = 'wms-scan-v15';
+SERVICE_WORKER_JS = """const CACHE_NAME = 'wms-scan-v16';
 const ASSETS = [
   '/scan/',
   '/static/scan/scan.css',

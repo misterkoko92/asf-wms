@@ -9,6 +9,46 @@
   let detector = null;
   let scanning = false;
 
+  function setupThemeToggle() {
+    const toggle = document.getElementById('theme-toggle');
+    if (!toggle) {
+      return;
+    }
+    const root = document.documentElement;
+    const THEME_KEY = 'scan-theme';
+    const normalize = value => (value === 'atelier' ? 'atelier' : 'classic');
+    let initialTheme = root.dataset.theme || 'classic';
+    try {
+      const stored = localStorage.getItem(THEME_KEY);
+      if (stored) {
+        initialTheme = stored;
+      }
+    } catch (err) {
+      // Ignore storage errors.
+    }
+
+    const applyTheme = theme => {
+      const normalized = normalize(theme);
+      root.dataset.theme = normalized;
+      toggle.textContent = normalized === 'atelier' ? 'Atelier' : 'Classique';
+      toggle.setAttribute('aria-pressed', normalized === 'atelier' ? 'true' : 'false');
+      toggle.title =
+        normalized === 'atelier' ? 'Basculer vers Classique' : 'Basculer vers Atelier';
+    };
+
+    applyTheme(initialTheme);
+
+    toggle.addEventListener('click', () => {
+      const nextTheme = root.dataset.theme === 'atelier' ? 'classic' : 'atelier';
+      applyTheme(nextTheme);
+      try {
+        localStorage.setItem(THEME_KEY, nextTheme);
+      } catch (err) {
+        // Ignore storage errors.
+      }
+    });
+  }
+
   function setStatus(text) {
     if (statusEl) {
       statusEl.textContent = text;
@@ -275,7 +315,9 @@
         skuLower: normalize(product.sku || ''),
         barcode: product.barcode || '',
         barcodeLower: normalize(product.barcode || ''),
+        key: normalize(product.sku) || normalize(product.barcode) || normalize(product.name),
         weightG: parseNumber(product.weight_g) || 0,
+        availableStock: parseNumber(product.available_stock),
         volumeCm3: parseNumber(product.volume_cm3),
         lengthCm: parseNumber(product.length_cm),
         widthCm: parseNumber(product.width_cm),
@@ -380,29 +422,81 @@
         quantity: line.querySelector('.pack-line-quantity')?.value || ''
       }));
 
+    const sumPlannedQuantity = product => {
+      if (!product) {
+        return null;
+      }
+      const targetKey = product.key;
+      if (!targetKey) {
+        return null;
+      }
+      let total = 0;
+      Array.from(container.querySelectorAll('.pack-line')).forEach(line => {
+        const productInput = line.querySelector('.pack-line-product');
+        const quantityInput = line.querySelector('.pack-line-quantity');
+        const lineProduct = findProduct(productInput ? productInput.value : '');
+        if (!lineProduct || lineProduct.key !== targetKey) {
+          return;
+        }
+        const qty = parseInt(quantityInput ? quantityInput.value : '', 10);
+        if (Number.isFinite(qty) && qty > 0) {
+          total += qty;
+        }
+      });
+      return total;
+    };
+
     const updateLineMetrics = line => {
       const productInput = line.querySelector('.pack-line-product');
       const quantityInput = line.querySelector('.pack-line-quantity');
       const maxUnitsEl = line.querySelector('.pack-line-max');
       const equivEl = line.querySelector('.pack-line-equivalent');
-      if (!productInput || !quantityInput || !maxUnitsEl || !equivEl) {
+      const availableEl = line.querySelector('.pack-line-available');
+      const remainingEl = line.querySelector('.pack-line-remaining');
+      if (!productInput || !quantityInput || !maxUnitsEl || !equivEl || !availableEl || !remainingEl) {
         return;
       }
       const product = findProduct(productInput.value);
+      if (!product) {
+        maxUnitsEl.textContent = 'N/A';
+        equivEl.textContent = 'N/A';
+        availableEl.textContent = 'N/A';
+        remainingEl.textContent = 'N/A';
+        remainingEl.classList.remove('metric-negative');
+        return;
+      }
       const carton = getCartonSize();
       const maxUnits = computeMaxUnits(product, carton);
       if (!maxUnits) {
         maxUnitsEl.textContent = 'N/A';
         equivEl.textContent = 'N/A';
+      } else {
+        maxUnitsEl.textContent = `${maxUnits} u.`;
+        const qty = parseInt(quantityInput.value, 10);
+        if (Number.isFinite(qty) && qty > 0) {
+          equivEl.textContent = `${Math.ceil(qty / maxUnits)} carton(s)`;
+        } else {
+          equivEl.textContent = '-';
+        }
+      }
+      const availableStock = Number.isFinite(product.availableStock)
+        ? Math.floor(product.availableStock)
+        : null;
+      const planned = sumPlannedQuantity(product) ?? 0;
+      if (availableStock === null) {
+        availableEl.textContent = 'N/A';
+        remainingEl.textContent = 'N/A';
+        remainingEl.classList.remove('metric-negative');
         return;
       }
-      maxUnitsEl.textContent = `${maxUnits} u.`;
-      const qty = parseInt(quantityInput.value, 10);
-      if (Number.isFinite(qty) && qty > 0) {
-        equivEl.textContent = `${Math.ceil(qty / maxUnits)} carton(s)`;
-      } else {
-        equivEl.textContent = '-';
-      }
+      const remaining = availableStock - planned;
+      availableEl.textContent = `${availableStock} u.`;
+      remainingEl.textContent = `${remaining} u.`;
+      remainingEl.classList.toggle('metric-negative', remaining < 0);
+    };
+
+    const updateAllLineMetrics = () => {
+      Array.from(container.querySelectorAll('.pack-line')).forEach(updateLineMetrics);
     };
 
     const buildLine = (index, value, errors) => {
@@ -463,7 +557,7 @@
 
       const metrics = document.createElement('div');
       metrics.className = 'pack-line-metrics';
-      metrics.innerHTML = '<div>Max carton mono-produit: <span class=\"pack-line-max\">-</span></div><div>Equivalent cartons: <span class=\"pack-line-equivalent\">-</span></div>';
+      metrics.innerHTML = '<div>Max carton mono-produit: <span class=\"pack-line-max\">-</span></div><div>Equivalent cartons: <span class=\"pack-line-equivalent\">-</span></div><div>Quantite disponible en stock: <span class=\"pack-line-available\">-</span></div><div>Quantite restante apres preparation: <span class=\"pack-line-remaining\">-</span></div>';
       grid.appendChild(metrics);
 
       line.appendChild(grid);
@@ -477,11 +571,10 @@
         });
       }
 
-      productInput.addEventListener('input', () => updateLineMetrics(line));
-      quantityInput.addEventListener('input', () => updateLineMetrics(line));
-      productInput.addEventListener('change', () => updateLineMetrics(line));
+      productInput.addEventListener('input', updateAllLineMetrics);
+      quantityInput.addEventListener('input', updateAllLineMetrics);
+      productInput.addEventListener('change', updateAllLineMetrics);
 
-      updateLineMetrics(line);
       return line;
     };
 
@@ -497,6 +590,7 @@
       if (lineCountInput) {
         lineCountInput.value = String(count);
       }
+      updateAllLineMetrics();
     };
 
     const toggleCustomFields = () => {
@@ -528,7 +622,7 @@
     if (formatSelect) {
       formatSelect.addEventListener('change', () => {
         toggleCustomFields();
-        Array.from(container.querySelectorAll('.pack-line')).forEach(updateLineMetrics);
+        updateAllLineMetrics();
       });
     }
 
@@ -537,7 +631,7 @@
         return;
       }
       input.addEventListener('input', () => {
-        Array.from(container.querySelectorAll('.pack-line')).forEach(updateLineMetrics);
+        updateAllLineMetrics();
       });
     });
   }
@@ -1085,6 +1179,7 @@
     startScan(input);
   });
 
+  setupThemeToggle();
   setupProductDatalist();
   setupPackLines();
   setupShipmentBuilder();

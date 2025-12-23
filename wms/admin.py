@@ -299,7 +299,7 @@ class ReceiptLineAdmin(admin.ModelAdmin):
             self.message_user(request, error, level=messages.ERROR)
 
     receive_selected_lines.short_description = "Receptionner les lignes selectionnees"
-    list_select_related = ("warehouse",)
+    list_select_related = ("receipt", "receipt__warehouse", "product", "location", "received_lot")
 
 
 @admin.register(models.CartonFormat)

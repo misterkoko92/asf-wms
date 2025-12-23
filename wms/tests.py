@@ -6,6 +6,7 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from .models import (
+    Carton,
     CartonFormat,
     CartonStatus,
     Location,
@@ -24,7 +25,14 @@ from .models import (
     StockMovement,
     Warehouse,
 )
-from .services import consume_stock, pack_carton, prepare_order, receive_receipt_line, reserve_stock_for_order
+from .services import (
+    StockError,
+    consume_stock,
+    pack_carton,
+    prepare_order,
+    receive_receipt_line,
+    reserve_stock_for_order,
+)
 
 
 class StockFlowTests(TestCase):
@@ -122,6 +130,20 @@ class StockFlowTests(TestCase):
             )
         )
         self.assertEqual(movement_types, {MovementType.OUT})
+
+    def test_pack_carton_rolls_back_on_insufficient_stock(self):
+        with self.assertRaises(StockError):
+            pack_carton(
+                user=self.user,
+                product=self.product,
+                quantity=1,
+                carton=None,
+                carton_code=None,
+                shipment=None,
+                current_location=self.location,
+            )
+        self.assertEqual(Carton.objects.count(), 0)
+        self.assertEqual(StockMovement.objects.count(), 0)
 
 
 class ShipmentReferenceTests(TestCase):

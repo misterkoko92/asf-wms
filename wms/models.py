@@ -6,6 +6,7 @@ from io import BytesIO
 
 import qrcode
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.validators import MinValueValidator
 from django.db import IntegrityError, connection, models, transaction
@@ -458,6 +459,16 @@ class OrderLine(models.Model):
     class Meta:
         ordering = ["order", "product"]
         unique_together = ("order", "product")
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.reserved_quantity > self.quantity:
+            errors["reserved_quantity"] = "Quantite reservee superieure a la quantite demandee."
+        if self.prepared_quantity > self.quantity:
+            errors["prepared_quantity"] = "Quantite preparee superieure a la quantite demandee."
+        if errors:
+            raise ValidationError(errors)
 
     def __str__(self) -> str:
         return f"{self.order} - {self.product} ({self.quantity})"

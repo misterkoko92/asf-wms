@@ -47,15 +47,26 @@ Notes:
 - Contacts: gestion des donateurs/transporteurs/expediteurs avec adresses
 - Commandes: creation, reservation stock, preparation automatique
 
-## Print settings
-- Configure `ORG_NAME`, `ORG_ADDRESS`, `ORG_CONTACT`, `ORG_SIGNATORY` in `asf_wms/settings.py`
- - SKU prefix: `SKU_PREFIX` in `asf_wms/settings.py`
+## Configuration
+- `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS` (comma-separated)
+- `ORG_NAME`, `ORG_ADDRESS`, `ORG_CONTACT`, `ORG_SIGNATORY`
+- `SKU_PREFIX`
 
 ## Scan PWA
 - URL: `http://localhost:8000/scan/`
 - Camera scan uses the browser BarcodeDetector (Chrome/Android recommended)
 - For desktop: USB/Bluetooth scanners work as keyboard input
 - Login uses the admin credentials at `/admin/login/`
+
+## API (v1)
+- Base URL: `http://localhost:8000/api/v1/`
+- Auth: session (admin login) or basic auth
+- Endpoints:
+  - `GET /api/v1/products/`
+  - `POST /api/v1/stock/receive/`
+  - `POST /api/v1/pack/`
+  - `POST /api/v1/orders/{id}/reserve/`
+  - `POST /api/v1/orders/{id}/prepare/`
 
 ## PythonAnywhere (free tier)
 - Create a new web app (Manual config)

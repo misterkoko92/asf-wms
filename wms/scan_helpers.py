@@ -1,11 +1,16 @@
 from decimal import Decimal, InvalidOperation
 
+from django.db.models import F, IntegerField, Q, Sum
+from django.db.models.expressions import ExpressionWrapper
+from django.db.models.functions import Coalesce
+
 from .models import (
     Carton,
     CartonFormat,
     CartonStatus,
     Location,
     Product,
+    ProductLotStatus,
     Shipment,
     Warehouse,
 )
@@ -33,8 +38,21 @@ def resolve_product(code: str):
 
 
 def build_product_options():
+    available_expr = ExpressionWrapper(
+        F("productlot__quantity_on_hand") - F("productlot__quantity_reserved"),
+        output_field=IntegerField(),
+    )
     return list(
         Product.objects.filter(is_active=True)
+        .annotate(
+            available_stock=Coalesce(
+                Sum(
+                    available_expr,
+                    filter=Q(productlot__status=ProductLotStatus.AVAILABLE),
+                ),
+                0,
+            )
+        )
         .order_by("name")
         .values(
             "name",
@@ -48,6 +66,7 @@ def build_product_options():
             "length_cm",
             "width_cm",
             "height_cm",
+            "available_stock",
         )
     )
 
