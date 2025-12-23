@@ -1,0 +1,17 @@
+{% extends "admin/change_list.html" %}
+
+{% block object-tools-items %}
+  {{ block.super }}
+  <li>
+    <a href="{% url 'admin:wms_stockmovement_receive' %}" class="addlink">Reception stock</a>
+  </li>
+  <li>
+    <a href="{% url 'admin:wms_stockmovement_adjust' %}" class="addlink">Ajuster stock</a>
+  </li>
+  <li>
+    <a href="{% url 'admin:wms_stockmovement_transfer' %}" class="addlink">Transferer stock</a>
+  </li>
+  <li>
+    <a href="{% url 'admin:wms_stockmovement_pack' %}" class="addlink">Preparer carton</a>
+  </li>
+{% endblock %}

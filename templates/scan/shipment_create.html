@@ -1,0 +1,74 @@
+{% extends "scan/base.html" %}
+
+{% block title %}WMS Scan - Creer expedition{% endblock %}
+
+{% block content %}
+  <div class="scan-card">
+    <h2>Creer une expedition</h2>
+    {% if form.non_field_errors %}
+      <div class="scan-message error">{{ form.non_field_errors }}</div>
+    {% endif %}
+    <form method="post" novalidate id="shipment-form">
+      {% csrf_token %}
+
+      <div class="scan-field">
+        <label for="id_shipper_name">Expediteur</label>
+        {{ form.shipper_name }}
+        {% for error in form.shipper_name.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="scan-field">
+        <label for="id_recipient_name">Destinataire</label>
+        {{ form.recipient_name }}
+        {% for error in form.recipient_name.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="scan-field">
+        <label for="id_correspondent_name">Correspondant</label>
+        {{ form.correspondent_name }}
+        {% for error in form.correspondent_name.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="scan-field">
+        <label for="id_destination_address">Destination</label>
+        {{ form.destination_address }}
+        {% for error in form.destination_address.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="scan-field">
+        <label for="id_carton_count">Nombre de colis</label>
+        {{ form.carton_count }}
+        {% for error in form.carton_count.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="shipment-lines" id="shipment-lines"></div>
+
+      <div class="scan-field">
+        <label for="id_total_weight">Poids total (g)</label>
+        <input type="text" id="id_total_weight" readonly>
+      </div>
+
+      <button type="submit" class="scan-submit">Creer expedition</button>
+      <p class="scan-help">Chaque ligne: selectionnez un colis prepare ou creez-en un depuis un produit.</p>
+    </form>
+    {{ products_json|json_script:"product-data" }}
+    {{ cartons_json|json_script:"carton-data" }}
+    {{ line_values|json_script:"shipment-lines-data" }}
+    {{ line_errors|json_script:"shipment-lines-errors" }}
+    <datalist id="product-options">
+      {% for product in products_json %}
+        <option value="{{ product.name }}" label="{{ product.sku }}{% if product.barcode %} | {{ product.barcode }}{% endif %}"></option>
+      {% endfor %}
+    </datalist>
+  </div>
+{% endblock %}

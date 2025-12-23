@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Attestation de donation</title>
+  <style>
+    @page { size: A5; margin: 10mm; }
+    body { font-family: Arial, sans-serif; font-size: 12pt; color: #000; }
+    h1 { font-size: 16pt; margin: 0 0 8mm 0; }
+    .meta { font-size: 10pt; color: #444; }
+    .block { margin: 6mm 0; }
+    .signature { margin-top: 12mm; }
+  </style>
+</head>
+<body>
+  <h1>Attestation de donation</h1>
+
+  <div class="meta">Document ref: {{ document_ref }}</div>
+  <div class="meta">Date: {{ document_date }}</div>
+
+  <div class="block">
+    Organisation: {{ org_name }}
+  </div>
+
+  <div class="block">
+    Donateur: {{ donor_name }}
+  </div>
+
+  <div class="block">
+    Destinataire: {{ recipient_name }}
+  </div>
+
+  <div class="block">
+    Destination: {{ destination_address }}
+  </div>
+
+  <div class="block">
+    Description du don: {{ donation_description }}
+  </div>
+
+  <div class="signature">
+    Signature: ________________________________
+  </div>
+</body>
+</html>

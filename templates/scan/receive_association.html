@@ -1,0 +1,155 @@
+{% extends "scan/base.html" %}
+
+{% block title %}WMS Scan - Reception association{% endblock %}
+
+{% block content %}
+  <div class="scan-card">
+    <h2>Reception association</h2>
+    {% if create_form.non_field_errors %}
+      <div class="scan-message error">{{ create_form.non_field_errors }}</div>
+    {% endif %}
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      <div class="scan-field">
+        <label for="id_received_on">Date reception</label>
+        {{ create_form.received_on }}
+        {% for error in create_form.received_on.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="scan-field">
+        <label for="id_carton_count">Nombre de cartons</label>
+        {{ create_form.carton_count }}
+        {% for error in create_form.carton_count.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="scan-field">
+        <label for="id_hors_format_count">Nombre de hors format</label>
+        {{ create_form.hors_format_count }}
+        {% for error in create_form.hors_format_count.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="scan-field">
+        <label for="id_source_contact">Nom de l'association</label>
+        {{ create_form.source_contact }}
+        {% for error in create_form.source_contact.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="scan-field">
+        <label for="id_carrier_contact">Transporteur</label>
+        {{ create_form.carrier_contact }}
+        {% for error in create_form.carrier_contact.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="scan-divider"></div>
+
+      <h3>Hors format</h3>
+      <div class="pack-lines" id="association-lines"></div>
+
+      <div class="scan-field scan-field-gap">
+        <button type="submit" class="scan-submit">Enregistrer la reception association</button>
+      </div>
+    </form>
+    <p class="scan-help">La reference est generee automatiquement (format YY-XX-WWW-ZZ).</p>
+  </div>
+
+  {{ line_values|json_script:"association-lines-data" }}
+  {{ line_errors|json_script:"association-lines-errors" }}
+  <script>
+    (function () {
+      const countInput = document.getElementById('id_hors_format_count');
+      const linesContainer = document.getElementById('association-lines');
+      const valuesEl = document.getElementById('association-lines-data');
+      const errorsEl = document.getElementById('association-lines-errors');
+      let values = [];
+      let errors = {};
+
+      try {
+        values = JSON.parse(valuesEl ? valuesEl.textContent : '[]');
+      } catch (err) {
+        values = [];
+      }
+      try {
+        errors = JSON.parse(errorsEl ? errorsEl.textContent : '{}') || {};
+      } catch (err) {
+        errors = {};
+      }
+
+      const parseCount = value => {
+        const parsed = parseInt(value || '0', 10);
+        if (!Number.isFinite(parsed) || parsed < 0) {
+          return 0;
+        }
+        return parsed;
+      };
+
+      const renderLines = count => {
+        linesContainer.innerHTML = '';
+        for (let index = 1; index <= count; index += 1) {
+          const line = document.createElement('div');
+          line.className = 'pack-line';
+
+          const title = document.createElement('div');
+          title.className = 'pack-line-title';
+          title.textContent = `Hors Format No ${index}`;
+          line.appendChild(title);
+
+          const grid = document.createElement('div');
+          grid.className = 'pack-line-grid';
+
+          const field = document.createElement('div');
+          field.className = 'pack-line-field';
+
+          const label = document.createElement('label');
+          label.textContent = 'Description';
+          label.setAttribute('for', `id_line_${index}_description`);
+
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.name = `line_${index}_description`;
+          input.id = `id_line_${index}_description`;
+          input.required = true;
+          input.value = values[index - 1] ? values[index - 1].description || '' : '';
+
+          field.appendChild(label);
+          field.appendChild(input);
+          grid.appendChild(field);
+          line.appendChild(grid);
+
+          const lineErrors = errors[String(index)] || [];
+          lineErrors.forEach(error => {
+            const errorEl = document.createElement('div');
+            errorEl.className = 'scan-message error';
+            errorEl.textContent = error;
+            line.appendChild(errorEl);
+          });
+
+          linesContainer.appendChild(line);
+        }
+      };
+
+      const initialCount = parseCount(countInput ? countInput.value : 0);
+      renderLines(initialCount);
+
+      if (countInput) {
+        const handleCountChange = event => {
+          const nextCount = parseCount(event.target.value);
+          event.target.value = String(nextCount);
+          renderLines(nextCount);
+        };
+        countInput.addEventListener('input', handleCountChange);
+        countInput.addEventListener('change', handleCountChange);
+      }
+    })();
+  </script>
+{% endblock %}

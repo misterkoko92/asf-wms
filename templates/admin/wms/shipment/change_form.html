@@ -1,0 +1,29 @@
+{% extends "admin/change_form.html" %}
+
+{% block after_field_sets %}
+  {{ block.super }}
+  {% if change and original %}
+    <fieldset class="module">
+      <h2>Impression A5</h2>
+      <div class="block">
+        <a href="{% url 'admin:wms_shipment_print_doc' original.pk 'shipment_note' %}" target="_blank" rel="noopener">Bon d'expedition</a>
+        |
+        <a href="{% url 'admin:wms_shipment_print_doc' original.pk 'donation_certificate' %}" target="_blank" rel="noopener">Attestation donation</a>
+        |
+        <a href="{% url 'admin:wms_shipment_print_doc' original.pk 'humanitarian_certificate' %}" target="_blank" rel="noopener">Attestation aide humanitaire</a>
+        |
+        <a href="{% url 'admin:wms_shipment_print_doc' original.pk 'customs' %}" target="_blank" rel="noopener">Attestation douane</a>
+        |
+        <a href="{% url 'admin:wms_shipment_print_doc' original.pk 'packing_list_shipment' %}" target="_blank" rel="noopener">Liste colisage lot</a>
+      </div>
+      {% if original.carton_set.exists %}
+        <div class="block">
+          <strong>Listes colisage par carton:</strong>
+          {% for carton in original.carton_set.all %}
+            <a href="{% url 'admin:wms_shipment_print_carton' original.pk carton.pk %}" target="_blank" rel="noopener">{{ carton.code }}</a>{% if not forloop.last %} | {% endif %}
+          {% endfor %}
+        </div>
+      {% endif %}
+    </fieldset>
+  {% endif %}
+{% endblock %}

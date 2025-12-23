@@ -1,0 +1,29 @@
+{% extends "print/base_a5.html" %}
+
+{% block title %}Liste colisage lot{% endblock %}
+
+{% block body %}
+  <h1>Liste de colisage - lot</h1>
+
+  <div class="meta">Shipment ref: {{ shipment_ref }}</div>
+  <div class="meta">Cartons: {{ carton_count }}</div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Produit</th>
+        <th>Total qty</th>
+        <th>Lots</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in item_rows %}
+        <tr>
+          <td>{{ row.product }}</td>
+          <td>{{ row.quantity }}</td>
+          <td>{{ row.lots }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

@@ -1,0 +1,176 @@
+{% extends "scan/base.html" %}
+
+{% block title %}WMS Scan - Commandes{% endblock %}
+
+{% block content %}
+  <div class="scan-card">
+    <h2>Commandes</h2>
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <input type="hidden" name="action" value="select_order">
+      <div class="scan-field">
+        <label for="id_order">Commande existante</label>
+        {{ select_form.order }}
+        {% for error in select_form.order.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+      <button type="submit" class="scan-submit secondary scan-submit-inline">Ouvrir commande</button>
+    </form>
+
+    <div class="scan-divider"></div>
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <input type="hidden" name="action" value="create_order">
+      <div class="scan-field">
+        <label for="id_shipper_name">Expediteur</label>
+        {{ create_form.shipper_name }}
+      </div>
+      <div class="scan-field">
+        <label for="id_recipient_name">Destinataire</label>
+        {{ create_form.recipient_name }}
+      </div>
+      <div class="scan-field">
+        <label for="id_correspondent_name">Correspondant</label>
+        {{ create_form.correspondent_name }}
+      </div>
+      <div class="scan-field">
+        <label for="id_shipper_contact">Expediteur (contact)</label>
+        {{ create_form.shipper_contact }}
+      </div>
+      <div class="scan-field">
+        <label for="id_recipient_contact">Destinataire (contact)</label>
+        {{ create_form.recipient_contact }}
+      </div>
+      <div class="scan-field">
+        <label for="id_correspondent_contact">Correspondant (contact)</label>
+        {{ create_form.correspondent_contact }}
+      </div>
+      <div class="scan-field">
+        <label for="id_destination_address">Adresse destination</label>
+        {{ create_form.destination_address }}
+      </div>
+      <div class="scan-field">
+        <label for="id_destination_city">Ville destination</label>
+        {{ create_form.destination_city }}
+      </div>
+      <div class="scan-field">
+        <label for="id_destination_country">Pays destination</label>
+        {{ create_form.destination_country }}
+      </div>
+      <div class="scan-field">
+        <label for="id_requested_delivery_date">Date souhaitee</label>
+        {{ create_form.requested_delivery_date }}
+      </div>
+      <div class="scan-field">
+        <label for="id_notes">Notes</label>
+        {{ create_form.notes }}
+      </div>
+      <button type="submit" class="scan-submit">Creer commande</button>
+    </form>
+  </div>
+
+  {% if selected_order %}
+    <div class="scan-card">
+      <h2>Commande active</h2>
+      <div class="scan-meta-grid">
+        <div class="scan-meta-item">
+          <strong>Reference</strong>
+          {{ selected_order.reference|default:"-" }}
+        </div>
+        <div class="scan-meta-item">
+          <strong>Statut</strong>
+          {{ selected_order.get_status_display }}
+        </div>
+        <div class="scan-meta-item">
+          <strong>Expedition</strong>
+          {% if selected_order.shipment %}{{ selected_order.shipment.reference }}{% else %}-{% endif %}
+        </div>
+        <div class="scan-meta-item">
+          <strong>Destination</strong>
+          {{ selected_order.destination_address }}
+          {% if selected_order.destination_city %}<br>{{ selected_order.destination_city }}{% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="scan-card">
+      <h2>Ajouter une ligne</h2>
+      {% if line_form.non_field_errors %}
+        <div class="scan-message error">{{ line_form.non_field_errors }}</div>
+      {% endif %}
+      <form method="post" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_line">
+        {{ line_form.order_id }}
+        <div class="scan-field">
+          <label for="id_product_code">Code produit</label>
+          <div class="scan-inline">
+            {{ line_form.product_code }}
+            <button type="button" class="scan-scan-btn" data-scan-target="id_product_code">Scan</button>
+          </div>
+          {% for error in line_form.product_code.errors %}
+            <div class="scan-message error">{{ error }}</div>
+          {% endfor %}
+        </div>
+        <div class="scan-field">
+          <label for="id_quantity">Quantite</label>
+          {{ line_form.quantity }}
+        </div>
+        <button type="submit" class="scan-submit">Ajouter ligne et reserver</button>
+      </form>
+      {{ products_json|json_script:"product-data" }}
+      <datalist id="product-options">
+        {% for product in products_json %}
+          <option value="{{ product.name }}" label="{{ product.sku }}{% if product.barcode %} | {{ product.barcode }}{% endif %}"></option>
+        {% endfor %}
+      </datalist>
+    </div>
+
+    <div class="scan-card">
+      <h2>Lignes de commande</h2>
+      {% if order_lines %}
+        <div class="scan-table-wrap">
+          <table class="scan-table">
+            <thead>
+              <tr>
+                <th>Produit</th>
+                <th>Quantite</th>
+                <th>Reserve</th>
+                <th>Prepare</th>
+                <th>Restant</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for line in order_lines %}
+                <tr>
+                  <td>{{ line.product.name }}</td>
+                  <td class="qty">{{ line.quantity }}</td>
+                  <td class="qty">{{ line.reserved_quantity }}</td>
+                  <td class="qty">{{ line.prepared_quantity }}</td>
+                  <td class="qty">{{ line.remaining_quantity }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <form method="post" class="scan-field">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="prepare_order">
+          <input type="hidden" name="order_id" value="{{ selected_order.id }}">
+          <button type="submit" class="scan-submit secondary scan-submit-inline">
+            Preparer commande (reste {{ remaining_total }})
+          </button>
+        </form>
+      {% else %}
+        <p class="scan-help">Aucune ligne pour cette commande.</p>
+      {% endif %}
+    </div>
+  {% else %}
+    <div class="scan-card">
+      <h2>Aucune commande selectionnee</h2>
+      <p class="scan-help">Creez une commande ou selectionnez-en une pour ajouter des lignes.</p>
+    </div>
+  {% endif %}
+{% endblock %}

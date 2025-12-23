@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Bon d'expedition</title>
+  <style>
+    @page { size: A5; margin: 10mm; }
+    body { font-family: Arial, sans-serif; font-size: 11pt; color: #000; }
+    h1 { font-size: 16pt; margin: 0 0 6mm 0; }
+    .meta { font-size: 10pt; color: #444; }
+    .block { margin: 5mm 0; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #000; padding: 3px; font-size: 10pt; }
+  </style>
+</head>
+<body>
+  <h1>Bon d'expedition</h1>
+
+  <div class="meta">Shipment ref: {{ shipment_ref }}</div>
+  <div class="meta">Date: {{ document_date }}</div>
+
+  <div class="block">
+    Expediteur: {{ shipper_name }}
+  </div>
+  <div class="block">
+    Destinataire: {{ recipient_name }}
+  </div>
+  <div class="block">
+    Destination: {{ destination_address }}
+  </div>
+  <div class="block">
+    Nombre de cartons: {{ carton_count }}
+  </div>
+
+  <div class="block">
+    <table>
+      <thead>
+        <tr>
+          <th>Carton</th>
+          <th>Poids (g)</th>
+          <th>Volume (cm3)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{ carton_rows }}
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

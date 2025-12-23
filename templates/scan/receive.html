@@ -1,0 +1,249 @@
+{% extends "scan/base.html" %}
+
+{% block title %}WMS Scan - Reception{% endblock %}
+
+{% block content %}
+  <div class="scan-card">
+    <h2>Reception don/palette</h2>
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <input type="hidden" name="action" value="select_receipt">
+      <div class="scan-field">
+        <label for="id_receipt">Reception existante</label>
+        {{ select_form.receipt }}
+        {% for error in select_form.receipt.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+      <button type="submit" class="scan-submit secondary scan-submit-inline">Ouvrir reception</button>
+    </form>
+
+    <div class="scan-divider"></div>
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <input type="hidden" name="action" value="create_receipt">
+      <div class="scan-field">
+        <label for="id_receipt_type">Type reception</label>
+        {{ create_form.receipt_type }}
+        {% for error in create_form.receipt_type.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="scan-field">
+        <label for="id_source_contact">Provenance</label>
+        {{ create_form.source_contact }}
+      </div>
+
+      <div class="scan-field">
+        <label for="id_carrier_contact">Transporteur</label>
+        {{ create_form.carrier_contact }}
+      </div>
+
+      <div class="scan-field">
+        <label for="id_origin_reference">Reference provenance</label>
+        {{ create_form.origin_reference }}
+      </div>
+
+      <div class="scan-field">
+        <label for="id_carrier_reference">Reference transport</label>
+        {{ create_form.carrier_reference }}
+      </div>
+
+      <div class="scan-field">
+        <label for="id_received_on">Date reception</label>
+        {{ create_form.received_on }}
+        {% for error in create_form.received_on.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="scan-field">
+        <label for="id_warehouse">Entrepot</label>
+        {{ create_form.warehouse }}
+        {% for error in create_form.warehouse.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="scan-field">
+        <label for="id_notes">Notes</label>
+        {{ create_form.notes }}
+      </div>
+
+      <button type="submit" class="scan-submit">Creer reception</button>
+      <p class="scan-help">Contacts geres dans l'admin.</p>
+    </form>
+  </div>
+
+  {% if selected_receipt %}
+    <div class="scan-card">
+      <h2>Reception active</h2>
+      <div class="scan-meta-grid">
+        <div class="scan-meta-item">
+          <strong>Reference</strong>
+          {{ selected_receipt.reference|default:"-" }}
+        </div>
+        <div class="scan-meta-item">
+          <strong>Type</strong>
+          {{ selected_receipt.get_receipt_type_display }}
+        </div>
+        <div class="scan-meta-item">
+          <strong>Statut</strong>
+          {{ selected_receipt.get_status_display }}
+        </div>
+        <div class="scan-meta-item">
+          <strong>Date reception</strong>
+          {{ selected_receipt.received_on|date:"d/m/Y" }}
+        </div>
+        <div class="scan-meta-item">
+          <strong>Entrepot</strong>
+          {{ selected_receipt.warehouse }}
+        </div>
+        <div class="scan-meta-item">
+          <strong>Provenance</strong>
+          {{ selected_receipt.source_contact|default:"-" }}
+        </div>
+        <div class="scan-meta-item">
+          <strong>Transporteur</strong>
+          {{ selected_receipt.carrier_contact|default:"-" }}
+        </div>
+      </div>
+    </div>
+
+    <div class="scan-card">
+      <h2>Ajouter une ligne</h2>
+      {% if line_form.non_field_errors %}
+        <div class="scan-message error">{{ line_form.non_field_errors }}</div>
+      {% endif %}
+      <form method="post" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_line">
+        {{ line_form.receipt_id }}
+
+        <div class="scan-field">
+          <label for="id_product_code">Code produit</label>
+          <div class="scan-inline">
+            {{ line_form.product_code }}
+            <button type="button" class="scan-scan-btn" data-scan-target="id_product_code">Scan</button>
+          </div>
+          {% for error in line_form.product_code.errors %}
+            <div class="scan-message error">{{ error }}</div>
+          {% endfor %}
+          {% if "Produit introuvable." in line_form.product_code.errors %}
+            <a class="scan-submit secondary" href="{% url 'admin:wms_product_add' %}">Ajouter un nouveau produit</a>
+          {% endif %}
+        </div>
+
+        <div class="scan-field">
+          <label for="id_quantity">Quantite</label>
+          {{ line_form.quantity }}
+          {% for error in line_form.quantity.errors %}
+            <div class="scan-message error">{{ error }}</div>
+          {% endfor %}
+        </div>
+
+        <div class="scan-field">
+          <label for="id_lot_code">Lot</label>
+          {{ line_form.lot_code }}
+        </div>
+
+        <div class="scan-field">
+          <label for="id_expires_on">Date peremption</label>
+          {{ line_form.expires_on }}
+        </div>
+
+        <div class="scan-field">
+          <label for="id_lot_status">Statut lot</label>
+          {{ line_form.lot_status }}
+        </div>
+
+        <div class="scan-field">
+          <label for="id_location">Emplacement</label>
+          {{ line_form.location }}
+          {% for error in line_form.location.errors %}
+            <div class="scan-message error">{{ error }}</div>
+          {% endfor %}
+          <p class="scan-help">Laissez vide pour utiliser l'emplacement par defaut du produit.</p>
+        </div>
+
+        <div class="scan-field">
+          <label for="id_storage_conditions">Conditions stockage</label>
+          {{ line_form.storage_conditions }}
+        </div>
+
+        <div class="scan-field">
+          <label>
+            {{ line_form.receive_now }}
+            Receptionner maintenant
+          </label>
+        </div>
+
+        <button type="submit" class="scan-submit">Ajouter la ligne</button>
+        <p class="scan-help">Astuce: le statut auto applique la quarantaine par defaut du produit.</p>
+      </form>
+      {{ products_json|json_script:"product-data" }}
+      <datalist id="product-options">
+        {% for product in products_json %}
+          <option value="{{ product.name }}" label="{{ product.sku }}{% if product.barcode %} | {{ product.barcode }}{% endif %}"></option>
+        {% endfor %}
+      </datalist>
+    </div>
+
+    <div class="scan-card">
+      <h2>Lignes de reception</h2>
+      {% if receipt_lines %}
+        <div class="scan-table-wrap">
+          <table class="scan-table">
+            <thead>
+              <tr>
+                <th>Produit</th>
+                <th>Quantite</th>
+                <th>Lot</th>
+                <th>Peremption</th>
+                <th>Emplacement</th>
+                <th>Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for line in receipt_lines %}
+                <tr>
+                  <td>{{ line.product.name }}</td>
+                  <td class="qty">{{ line.quantity }}</td>
+                  <td>{{ line.lot_code|default:"-" }}</td>
+                  <td>{% if line.expires_on %}{{ line.expires_on|date:"d/m/Y" }}{% else %}-{% endif %}</td>
+                  <td>{{ line.location|default:"-" }}</td>
+                  <td class="status">
+                    {% if line.received_lot_id %}
+                      Receptionne
+                    {% else %}
+                      En attente
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% if pending_count %}
+          <form method="post" class="scan-field">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="receive_lines">
+            <input type="hidden" name="receipt_id" value="{{ selected_receipt.id }}">
+            <button type="submit" class="scan-submit secondary scan-submit-inline">
+              Receptionner {{ pending_count }} ligne(s)
+            </button>
+          </form>
+        {% endif %}
+      {% else %}
+        <p class="scan-help">Aucune ligne pour cette reception.</p>
+      {% endif %}
+    </div>
+  {% else %}
+    <div class="scan-card">
+      <h2>Aucune reception selectionnee</h2>
+      <p class="scan-help">Creez une reception ou selectionnez-en une pour ajouter des lignes.</p>
+    </div>
+  {% endif %}
+{% endblock %}

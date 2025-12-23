@@ -1,0 +1,15 @@
+{
+  "name": "ASF WMS Scan",
+  "short_name": "WMS Scan",
+  "start_url": "/scan/",
+  "display": "standalone",
+  "background_color": "#f6f0e6",
+  "theme_color": "#0f5f4f",
+  "icons": [
+    {
+      "src": "/static/scan/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

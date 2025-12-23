@@ -1,0 +1,91 @@
+{% extends "scan/base.html" %}
+
+{% block title %}WMS Scan - Vue stock{% endblock %}
+
+{% block content %}
+  <div class="scan-card">
+    <h2>Vue stock</h2>
+    <form method="get" class="scan-filters">
+      <div class="scan-field">
+        <label for="id_q">Recherche</label>
+        <input type="text" id="id_q" name="q" value="{{ query }}" placeholder="Nom, reference, code-barres">
+      </div>
+
+      <div class="scan-field">
+        <label for="id_category">Categorie</label>
+        <select id="id_category" name="category">
+          <option value="">Toutes categories</option>
+          {% for category in categories %}
+            <option value="{{ category.id }}" {% if category_id == category.id|stringformat:"s" %}selected{% endif %}>{{ category }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="scan-field">
+        <label for="id_warehouse">Entrepot</label>
+        <select id="id_warehouse" name="warehouse">
+          <option value="">Tous entrepots</option>
+          {% for warehouse in warehouses %}
+            <option value="{{ warehouse.id }}" {% if warehouse_id == warehouse.id|stringformat:"s" %}selected{% endif %}>{{ warehouse.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="scan-field">
+        <label for="id_sort">Tri</label>
+        <select id="id_sort" name="sort">
+          <option value="name" {% if sort == "name" %}selected{% endif %}>Nom</option>
+          <option value="sku" {% if sort == "sku" %}selected{% endif %}>Reference</option>
+          <option value="qty_desc" {% if sort == "qty_desc" %}selected{% endif %}>Stock decroissant</option>
+          <option value="qty_asc" {% if sort == "qty_asc" %}selected{% endif %}>Stock croissant</option>
+          <option value="category" {% if sort == "category" %}selected{% endif %}>Categorie</option>
+        </select>
+      </div>
+
+      <div class="scan-filter-actions">
+        <button type="submit" class="scan-submit secondary scan-submit-inline">Filtrer</button>
+        <a href="{% url 'scan:scan_stock' %}">Reinitialiser</a>
+      </div>
+    </form>
+  </div>
+
+  <div class="scan-card">
+    <h2>Produits en stock ({{ products|length }})</h2>
+    {% if products %}
+      <div class="scan-table-wrap">
+        <table class="scan-table">
+          <thead>
+            <tr>
+              <th>Reference</th>
+              <th>Produit</th>
+              <th>Categorie</th>
+              <th>Stock</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for product in products %}
+              <tr>
+                <td>
+                  {{ product.sku }}
+                  {% if product.barcode %}
+                    <small>{{ product.barcode }}</small>
+                  {% endif %}
+                </td>
+                <td>
+                  {{ product.name }}
+                  {% if product.brand %}
+                    <small>{{ product.brand }}</small>
+                  {% endif %}
+                </td>
+                <td>{{ product.category|default:"-" }}</td>
+                <td class="qty">{{ product.stock_total }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="scan-help">Aucun produit en stock pour ces filtres.</p>
+    {% endif %}
+  </div>
+{% endblock %}

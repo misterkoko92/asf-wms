@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}Document{% endblock %}</title>
+  <style>
+    @page { size: A5; margin: 10mm; }
+    body { font-family: Arial, sans-serif; font-size: 11pt; color: #000; }
+    h1 { font-size: 16pt; margin: 0 0 6mm 0; }
+    h2 { font-size: 12pt; margin: 4mm 0; }
+    .meta { font-size: 10pt; color: #444; }
+    .block { margin: 5mm 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 3mm; }
+    th, td { border: 1px solid #000; padding: 3px; font-size: 10pt; }
+    .signature { margin-top: 10mm; }
+    {% block extra_style %}{% endblock %}
+  </style>
+</head>
+<body>
+  {% block body %}{% endblock %}
+</body>
+</html>

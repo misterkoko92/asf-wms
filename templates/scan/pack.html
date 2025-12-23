@@ -1,0 +1,120 @@
+{% extends "scan/base.html" %}
+
+{% block title %}WMS Scan - Preparation{% endblock %}
+
+{% block content %}
+  <div class="scan-card">
+    <h2>Preparation cartons</h2>
+    {% if form.non_field_errors %}
+      <div class="scan-message error">{{ form.non_field_errors }}</div>
+    {% endif %}
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      <div class="scan-field">
+        <label for="id_carton_format">Format carton</label>
+        <select id="id_carton_format" name="carton_format_id">
+          {% for format in carton_formats %}
+            {% with format_id=format.id|stringformat:"s" %}
+              <option value="{{ format.id }}" {% if format_id == carton_format_id %}selected{% endif %}>
+                {{ format.name }} ({{ format.length_cm }}x{{ format.width_cm }}x{{ format.height_cm }} cm, {{ format.max_weight_g }} g)
+              </option>
+            {% endwith %}
+          {% endfor %}
+          <option value="custom" {% if carton_format_id == "custom" %}selected{% endif %}>Personnalise</option>
+        </select>
+      </div>
+
+      <div id="custom-carton-fields" class="scan-field">
+        <label>Dimensions carton (cm) et poids max (g)</label>
+        <div class="scan-inline scan-inline-equal">
+          <input type="number" step="0.01" name="carton_length_cm" id="id_carton_length_cm" placeholder="Longueur" value="{{ carton_custom.length_cm }}">
+          <input type="number" step="0.01" name="carton_width_cm" id="id_carton_width_cm" placeholder="Largeur" value="{{ carton_custom.width_cm }}">
+        </div>
+        <div class="scan-inline scan-inline-equal scan-inline-gap">
+          <input type="number" step="0.01" name="carton_height_cm" id="id_carton_height_cm" placeholder="Hauteur" value="{{ carton_custom.height_cm }}">
+          <input type="number" step="1" name="carton_max_weight_g" id="id_carton_max_weight_g" placeholder="Poids max" value="{{ carton_custom.max_weight_g }}">
+        </div>
+      </div>
+
+      <div class="pack-lines" id="pack-lines"></div>
+      <button type="button" class="scan-submit secondary" id="pack-add-line">+ Ajouter un produit</button>
+      <input type="hidden" id="pack_line_count" name="line_count" value="{{ line_count }}">
+
+      <div class="scan-field scan-field-gap">
+        <label for="id_shipment_reference">Reference expedition (optionnel)</label>
+        <div class="scan-inline">
+          {{ form.shipment_reference }}
+          <button type="button" class="scan-scan-btn" data-scan-target="id_shipment_reference">Scan</button>
+        </div>
+        {% for error in form.shipment_reference.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="scan-field">
+        <label for="id_current_location">Emplacement (optionnel)</label>
+        {{ form.current_location }}
+      </div>
+
+      <button type="submit" class="scan-submit">Preparer</button>
+      <p class="scan-help">Si reference expedition vide, les cartons sont pre-conditionnes.</p>
+    </form>
+    {{ products_json|json_script:"product-data" }}
+    {{ carton_formats|json_script:"carton-format-data" }}
+    {{ line_values|json_script:"pack-lines-data" }}
+    {{ line_errors|json_script:"pack-lines-errors" }}
+    <datalist id="product-options">
+      {% for product in products_json %}
+        <option value="{{ product.name }}" label="{{ product.sku }}{% if product.barcode %} | {{ product.barcode }}{% endif %}"></option>
+      {% endfor %}
+    </datalist>
+  </div>
+  {% if packing_result %}
+    <div class="scan-card">
+      <h2>Liste de colisage</h2>
+      <h3 class="scan-subtitle">Par carton</h3>
+      {% for carton in packing_result.cartons %}
+        <div class="pack-list">
+          <strong>Carton {{ carton.code }}</strong>
+          <table>
+            <thead>
+              <tr>
+                <th>Produit</th>
+                <th>Quantite</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in carton.items %}
+                <tr>
+                  <td>{{ item.product }}</td>
+                  <td>{{ item.quantity }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endfor %}
+
+      <h3 class="scan-subtitle">Liste generale</h3>
+      <div class="pack-list">
+        <table>
+          <thead>
+            <tr>
+              <th>Produit</th>
+              <th>Quantite</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in packing_result.aggregate %}
+              <tr>
+                <td>{{ item.product }}</td>
+                <td>{{ item.quantity }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,154 @@
+[
+  {
+    "model": "contacts.contacttag",
+    "pk": 1,
+    "fields": {
+      "name": "donateur"
+    }
+  },
+  {
+    "model": "contacts.contacttag",
+    "pk": 2,
+    "fields": {
+      "name": "transporteur"
+    }
+  },
+  {
+    "model": "contacts.contacttag",
+    "pk": 3,
+    "fields": {
+      "name": "expediteur"
+    }
+  },
+  {
+    "model": "contacts.contacttag",
+    "pk": 4,
+    "fields": {
+      "name": "destinataire"
+    }
+  },
+  {
+    "model": "contacts.contact",
+    "pk": 1,
+    "fields": {
+      "contact_type": "organization",
+      "name": "Donateur A",
+      "email": "donateur@example.org",
+      "phone": "+33 1 00 00 00 01",
+      "notes": "",
+      "is_active": true,
+      "tags": [1]
+    }
+  },
+  {
+    "model": "contacts.contact",
+    "pk": 2,
+    "fields": {
+      "contact_type": "organization",
+      "name": "Transporteur X",
+      "email": "transport@example.org",
+      "phone": "+33 1 00 00 00 02",
+      "notes": "",
+      "is_active": true,
+      "tags": [2]
+    }
+  },
+  {
+    "model": "contacts.contact",
+    "pk": 3,
+    "fields": {
+      "contact_type": "organization",
+      "name": "Expediteur Y",
+      "email": "expediteur@example.org",
+      "phone": "+33 1 00 00 00 03",
+      "notes": "",
+      "is_active": true,
+      "tags": [3]
+    }
+  },
+  {
+    "model": "contacts.contact",
+    "pk": 4,
+    "fields": {
+      "contact_type": "organization",
+      "name": "Destinataire Z",
+      "email": "destinataire@example.org",
+      "phone": "+33 1 00 00 00 04",
+      "notes": "",
+      "is_active": true,
+      "tags": [4]
+    }
+  },
+  {
+    "model": "contacts.contactaddress",
+    "pk": 1,
+    "fields": {
+      "contact": 1,
+      "label": "Depot principal",
+      "address_line1": "10 Rue de l'Exemple",
+      "address_line2": "",
+      "postal_code": "75001",
+      "city": "Paris",
+      "region": "Ile-de-France",
+      "country": "France",
+      "phone": "",
+      "email": "",
+      "is_default": true,
+      "notes": ""
+    }
+  },
+  {
+    "model": "contacts.contactaddress",
+    "pk": 2,
+    "fields": {
+      "contact": 2,
+      "label": "Hub logistique",
+      "address_line1": "25 Avenue du Transport",
+      "address_line2": "",
+      "postal_code": "69002",
+      "city": "Lyon",
+      "region": "Auvergne-Rhone-Alpes",
+      "country": "France",
+      "phone": "",
+      "email": "",
+      "is_default": true,
+      "notes": ""
+    }
+  },
+  {
+    "model": "contacts.contactaddress",
+    "pk": 3,
+    "fields": {
+      "contact": 3,
+      "label": "Siege",
+      "address_line1": "45 Quai Central",
+      "address_line2": "",
+      "postal_code": "13002",
+      "city": "Marseille",
+      "region": "Provence-Alpes-Cote d'Azur",
+      "country": "France",
+      "phone": "",
+      "email": "",
+      "is_default": true,
+      "notes": ""
+    }
+  },
+  {
+    "model": "contacts.contactaddress",
+    "pk": 4,
+    "fields": {
+      "contact": 4,
+      "label": "Centre reception",
+      "address_line1": "8 Boulevard de la Solidarite",
+      "address_line2": "",
+      "postal_code": "33000",
+      "city": "Bordeaux",
+      "region": "Nouvelle-Aquitaine",
+      "country": "France",
+      "phone": "",
+      "email": "",
+      "is_default": true,
+      "notes": ""
+    }
+  }
+]

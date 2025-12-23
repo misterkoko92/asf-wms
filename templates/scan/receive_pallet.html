@@ -1,0 +1,60 @@
+{% extends "scan/base.html" %}
+
+{% block title %}WMS Scan - Reception palette{% endblock %}
+
+{% block content %}
+  <div class="scan-card">
+    <h2>Reception palette</h2>
+    {% if create_form.non_field_errors %}
+      <div class="scan-message error">{{ create_form.non_field_errors }}</div>
+    {% endif %}
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      <div class="scan-field">
+        <label for="id_received_on">Date reception</label>
+        {{ create_form.received_on }}
+        {% for error in create_form.received_on.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="scan-field">
+        <label for="id_pallet_count">Nombre de palettes</label>
+        {{ create_form.pallet_count }}
+        {% for error in create_form.pallet_count.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="scan-field">
+        <label for="id_source_contact">Donateur</label>
+        {{ create_form.source_contact }}
+        {% for error in create_form.source_contact.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="scan-field">
+        <label for="id_carrier_contact">Transporteur</label>
+        {{ create_form.carrier_contact }}
+        {% for error in create_form.carrier_contact.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="scan-field">
+        <label for="id_transport_request_date">Date demande transport</label>
+        {{ create_form.transport_request_date }}
+        {% for error in create_form.transport_request_date.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="scan-field scan-field-gap">
+        <button type="submit" class="scan-submit">Enregistrer la reception palette</button>
+      </div>
+    </form>
+    <p class="scan-help">La reference est generee automatiquement (format YY-XX-WWW-ZZ).</p>
+  </div>
+{% endblock %}

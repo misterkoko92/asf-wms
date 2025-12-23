@@ -1,0 +1,62 @@
+{% load static %}
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f5f4f">
+  <link rel="manifest" href="{% static 'scan/manifest.json' %}">
+  <link rel="stylesheet" href="{% static 'scan/scan.css' %}">
+  <title>{% block title %}WMS Scan{% endblock %}</title>
+</head>
+<body>
+  <div class="scan-shell">
+    <header class="scan-header">
+      <div>
+        <h1 class="scan-title">ASF WMS Scan</h1>
+        <p class="scan-subtitle">Flux rapides pour mobile et scanner.</p>
+      </div>
+    </header>
+
+    <nav class="scan-nav">
+      <a href="{% url 'scan:scan_stock' %}" class="{% if active == 'stock' %}active{% endif %}">Vue stock</a>
+      <a href="{% url 'scan:scan_receive_pallet' %}" class="{% if active == 'receive_pallet' %}active{% endif %}">Reception palette</a>
+      <a href="{% url 'scan:scan_receive_association' %}" class="{% if active == 'receive_association' %}active{% endif %}">Reception association</a>
+      <a href="{% url 'scan:scan_stock_update' %}" class="{% if active == 'stock_update' %}active{% endif %}">MAJ stock</a>
+      <a href="{% url 'scan:scan_receive' %}" class="{% if active == 'receive' %}active{% endif %}">Reception</a>
+      <a href="{% url 'scan:scan_order' %}" class="{% if active == 'order' %}active{% endif %}">Commandes</a>
+      <a href="{% url 'scan:scan_pack' %}" class="{% if active == 'pack' %}active{% endif %}">Preparation</a>
+      <a href="{% url 'scan:scan_shipment_create' %}" class="{% if active == 'shipment' %}active{% endif %}">Creer expedition</a>
+      <a href="{% url 'scan:scan_out' %}" class="{% if active == 'out' %}active{% endif %}">Supprimer produit</a>
+    </nav>
+
+    {% if messages %}
+      <div class="scan-messages">
+        {% for message in messages %}
+          <div class="scan-message {% if message.tags %}{{ message.tags }}{% endif %}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    {% block content %}{% endblock %}
+  </div>
+
+  <div id="scan-overlay" class="scan-overlay">
+    <div class="scan-modal">
+      <div class="scan-modal-header">
+        <strong>Camera scan</strong>
+        <button type="button" id="scan-close">Fermer</button>
+      </div>
+      <video id="scan-video" class="scan-video" playsinline></video>
+      <div class="scan-help" id="scan-status">Scan en cours...</div>
+    </div>
+  </div>
+
+  <script src="{% static 'scan/scan.js' %}"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register("{% url 'scan:scan_service_worker' %}");
+    }
+  </script>
+</body>
+</html>

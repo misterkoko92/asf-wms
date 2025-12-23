@@ -1,0 +1,21 @@
+{% extends "print/base_a5.html" %}
+
+{% block title %}Attestation de donation{% endblock %}
+
+{% block body %}
+  <h1>Attestation de donation</h1>
+
+  <div class="meta">Document ref: {{ document_ref }}</div>
+  <div class="meta">Date: {{ document_date|date:"d/m/Y" }}</div>
+
+  <div class="block">Organisation: {{ org_name }}</div>
+  <div class="block">Adresse: {{ org_address }}</div>
+  <div class="block">Contact: {{ org_contact }}</div>
+  <div class="block">Donateur: {{ donor_name }}</div>
+  <div class="block">Destinataire: {{ recipient_name }}</div>
+  <div class="block">Destination: {{ destination_address }}</div>
+  <div class="block">Description du don: {{ donation_description }}</div>
+
+  <div class="signature">Signataire: {{ org_signatory }}</div>
+  <div class="signature">Signature: ________________________________</div>
+{% endblock %}

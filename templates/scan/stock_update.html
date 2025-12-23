@@ -1,0 +1,190 @@
+{% extends "scan/base.html" %}
+
+{% block title %}WMS Scan - MAJ stock{% endblock %}
+
+{% block content %}
+  <div class="scan-card">
+    <h2>MAJ stock</h2>
+    {% if create_form.non_field_errors %}
+      <div class="scan-message error">{{ create_form.non_field_errors }}</div>
+    {% endif %}
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      <div class="scan-field">
+        <label for="id_product_code">Nom du produit</label>
+        <div class="scan-inline">
+          {{ create_form.product_code }}
+          <button type="button" class="scan-scan-btn" data-scan-target="id_product_code">Scan</button>
+        </div>
+        {% for error in create_form.product_code.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div id="product-create-actions" class="scan-field" style="display:none;">
+        <a class="scan-submit secondary" href="{% url 'admin:wms_product_add' %}">Creer le produit dans la base</a>
+      </div>
+
+      <div id="stock-update-fields">
+        <div class="scan-field">
+          <label for="id_quantity">Quantite</label>
+          {{ create_form.quantity }}
+          {% for error in create_form.quantity.errors %}
+            <div class="scan-message error">{{ error }}</div>
+          {% endfor %}
+        </div>
+
+        <div class="scan-field">
+          <label for="id_expires_on">Date peremption</label>
+          {{ create_form.expires_on }}
+          {% for error in create_form.expires_on.errors %}
+            <div class="scan-message error">{{ error }}</div>
+          {% endfor %}
+        </div>
+
+        <div class="scan-field">
+          <label for="id_lot_code">Numero de lot</label>
+          {{ create_form.lot_code }}
+          {% for error in create_form.lot_code.errors %}
+            <div class="scan-message error">{{ error }}</div>
+          {% endfor %}
+        </div>
+
+        <div class="scan-field">
+          <label for="id_donor_receipt">Donateur</label>
+          {{ create_form.donor_receipt }}
+          {% for error in create_form.donor_receipt.errors %}
+            <div class="scan-message error">{{ error }}</div>
+          {% endfor %}
+        </div>
+
+        <div class="scan-divider"></div>
+
+        <div class="scan-field">
+          <label for="id_brand_display">Marque</label>
+          <input type="text" id="id_brand_display" readonly>
+        </div>
+
+        <div class="scan-field">
+          <label for="id_location_display">Emplacement</label>
+          <input type="text" id="id_location_display" readonly>
+        </div>
+
+        <div class="scan-field">
+          <label for="id_warehouse_display">Entrepot</label>
+          <input type="text" id="id_warehouse_display" readonly>
+        </div>
+
+        <div class="scan-field scan-field-gap">
+          <button type="submit" class="scan-submit">Enregistrer</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  {{ products_json|json_script:"product-data" }}
+  {{ location_data|json_script:"location-data" }}
+  <datalist id="product-options">
+    {% for product in products_json %}
+      <option value="{{ product.name }}" label="{{ product.sku }}{% if product.barcode %} | {{ product.barcode }}{% endif %}"></option>
+    {% endfor %}
+  </datalist>
+  <script>
+    (function () {
+      const productInput = document.getElementById('id_product_code');
+      const brandDisplay = document.getElementById('id_brand_display');
+      const locationDisplay = document.getElementById('id_location_display');
+      const warehouseDisplay = document.getElementById('id_warehouse_display');
+      const fieldsBlock = document.getElementById('stock-update-fields');
+      const createActions = document.getElementById('product-create-actions');
+      const productDataEl = document.getElementById('product-data');
+      const locationDataEl = document.getElementById('location-data');
+      let products = [];
+      let locations = [];
+
+      try {
+        products = JSON.parse(productDataEl ? productDataEl.textContent : '[]');
+      } catch (err) {
+        products = [];
+      }
+      try {
+        locations = JSON.parse(locationDataEl ? locationDataEl.textContent : '[]');
+      } catch (err) {
+        locations = [];
+      }
+
+      const locationMap = new Map(
+        locations.map(location => [String(location.id), location])
+      );
+
+      const normalize = value => (value || '').trim().toLowerCase();
+
+      const findProduct = value => {
+        const code = normalize(value);
+        if (!code) {
+          return null;
+        }
+        const exact = products.find(product => {
+          return (
+            normalize(product.name) === code ||
+            normalize(product.sku) === code ||
+            normalize(product.barcode) === code
+          );
+        });
+        if (exact) {
+          return exact;
+        }
+        const candidates = products.filter(product => normalize(product.name).startsWith(code));
+        if (candidates.length === 1) {
+          return candidates[0];
+        }
+        return null;
+      };
+
+      const setVisibility = (mode) => {
+        if (mode === 'hidden') {
+          fieldsBlock.style.display = 'none';
+          createActions.style.display = 'none';
+          return;
+        }
+        if (mode === 'unknown') {
+          fieldsBlock.style.display = 'none';
+          createActions.style.display = 'block';
+          return;
+        }
+        fieldsBlock.style.display = 'block';
+        createActions.style.display = 'none';
+      };
+
+      const updateDisplay = () => {
+        if (!productInput.value.trim()) {
+          brandDisplay.value = '';
+          locationDisplay.value = '';
+          warehouseDisplay.value = '';
+          setVisibility('hidden');
+          return;
+        }
+        const product = findProduct(productInput.value);
+        if (!product) {
+          brandDisplay.value = '';
+          locationDisplay.value = '';
+          warehouseDisplay.value = '';
+          setVisibility('unknown');
+          return;
+        }
+        brandDisplay.value = product.brand || '';
+        const location = locationMap.get(String(product.default_location_id || ''));
+        locationDisplay.value = location ? location.label : '';
+        warehouseDisplay.value = location ? location.warehouse : '';
+        setVisibility('known');
+      };
+
+      if (productInput) {
+        productInput.addEventListener('input', updateDisplay);
+        productInput.addEventListener('change', updateDisplay);
+      }
+      updateDisplay();
+    })();
+  </script>
+{% endblock %}

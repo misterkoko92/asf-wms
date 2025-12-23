@@ -1,0 +1,16 @@
+sku;name;brand;category_l1;category_l2;category_l3;category_l4;tags;warehouse;zone;aisle;shelf;barcode;length_cm;width_cm;height_cm;weight_g;volume_cm3;storage_conditions;perishable;quarantine_default;notes
+ASF-TST001;Seringue 10ml;Meditech;Medical;Seringues;10ml;;sterile|disposable;Reception;A;01;001;3000000000011;10;2;2;10;40;dry;true;true;Lot test
+ASF-TST002;Seringue 60ml;Meditech;Medical;Seringues;60ml;;sterile|disposable;Reception;A;01;002;3000000000028;14;3;3;20;126;dry;true;true;
+ASF-TST003;Gants latex M;SafeHands;Medical;Gants;Latex;M;ppe;Reception;A;02;001;3000000000035;24;12;4;35;1152;dry;false;false;
+ASF-TST004;Gants latex L;SafeHands;Medical;Gants;Latex;L;ppe;Reception;A;02;002;3000000000042;26;12;4;38;1248;dry;false;false;
+ASF-TST005;Bandage 10cm;CareMed;Medical;Bandages;10cm;;sterile;Reception;B;01;001;3000000000059;10;10;4;45;400;dry;false;false;
+ASF-TST006;Bandage 5cm;CareMed;Medical;Bandages;5cm;;sterile;Reception;B;01;002;3000000000066;6;6;4;30;144;dry;false;false;
+ASF-TST007;Paracetamol 500mg;PharmaOne;Pharma;Analgesiques;Comprime;;medicine;Stock;C;01;001;3000000000073;8;5;3;60;120;dry;true;false;
+ASF-TST008;Ibuprofen 200mg;PharmaOne;Pharma;Analgesiques;Comprime;;antiinflam;Stock;C;01;002;3000000000080;8;5;3;55;120;dry;true;false;
+ASF-TST009;Solution saline 500ml;Hydra;Medical;Liquides;Saline;500ml;fragile;Stock;C;02;001;3000000000097;20;8;8;540;1280;cold;true;false;
+ASF-TST010;Masque chirurgical;Protect;Medical;PPE;Masques;Chirurgical;ppe;Stock;C;02;002;3000000000103;18;10;8;25;1440;dry;false;false;
+ASF-TST011;Savon liquide 500ml;Hygiena;Hygiene;Savons;Liquide;500ml;fragile;Stock;D;01;001;3000000000110;20;8;8;520;1280;dry;false;false;
+ASF-TST012;Couverture thermique;WarmAid;Logistique;Couvertures;Thermique;;fragile;Stock;D;01;002;3000000000127;30;20;2;220;1200;dry;false;false;
+ASF-TST013;Kit hygiene;Hygiena;Hygiene;Kits;Standard;;kit|ppe;Stock;D;02;001;3000000000134;25;15;10;800;3750;dry;false;false;
+ASF-TST014;Serum glucose 250ml;Hydra;Medical;Liquides;Glucose;250ml;fragile;Reception;B;02;001;3000000000141;15;6;6;280;540;cold;true;true;
+ASF-TST015;Thermometre digital;Meditech;Medical;Diagnostic;Thermometre;;fragile;Reception;B;02;002;3000000000158;14;4;3;90;168;dry;false;false;

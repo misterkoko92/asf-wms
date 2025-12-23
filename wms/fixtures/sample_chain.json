@@ -1,0 +1,760 @@
+[
+  {
+    "model": "wms.warehouse",
+    "pk": 1,
+    "fields": {
+      "name": "Reception",
+      "code": "REC"
+    }
+  },
+  {
+    "model": "wms.warehouse",
+    "pk": 2,
+    "fields": {
+      "name": "Stock",
+      "code": "STK"
+    }
+  },
+  {
+    "model": "wms.location",
+    "pk": 1,
+    "fields": {
+      "warehouse": 1,
+      "zone": "A",
+      "aisle": "01",
+      "shelf": "001",
+      "notes": ""
+    }
+  },
+  {
+    "model": "wms.location",
+    "pk": 2,
+    "fields": {
+      "warehouse": 1,
+      "zone": "A",
+      "aisle": "01",
+      "shelf": "002",
+      "notes": ""
+    }
+  },
+  {
+    "model": "wms.location",
+    "pk": 3,
+    "fields": {
+      "warehouse": 1,
+      "zone": "B",
+      "aisle": "01",
+      "shelf": "001",
+      "notes": ""
+    }
+  },
+  {
+    "model": "wms.location",
+    "pk": 4,
+    "fields": {
+      "warehouse": 2,
+      "zone": "C",
+      "aisle": "01",
+      "shelf": "001",
+      "notes": ""
+    }
+  },
+  {
+    "model": "wms.location",
+    "pk": 5,
+    "fields": {
+      "warehouse": 2,
+      "zone": "C",
+      "aisle": "02",
+      "shelf": "001",
+      "notes": ""
+    }
+  },
+  {
+    "model": "wms.location",
+    "pk": 6,
+    "fields": {
+      "warehouse": 2,
+      "zone": "D",
+      "aisle": "01",
+      "shelf": "001",
+      "notes": ""
+    }
+  },
+  {
+    "model": "wms.productcategory",
+    "pk": 1,
+    "fields": {
+      "name": "Medical",
+      "parent": null
+    }
+  },
+  {
+    "model": "wms.productcategory",
+    "pk": 2,
+    "fields": {
+      "name": "Seringues",
+      "parent": 1
+    }
+  },
+  {
+    "model": "wms.productcategory",
+    "pk": 3,
+    "fields": {
+      "name": "10ml",
+      "parent": 2
+    }
+  },
+  {
+    "model": "wms.productcategory",
+    "pk": 4,
+    "fields": {
+      "name": "60ml",
+      "parent": 2
+    }
+  },
+  {
+    "model": "wms.productcategory",
+    "pk": 5,
+    "fields": {
+      "name": "Gants",
+      "parent": 1
+    }
+  },
+  {
+    "model": "wms.productcategory",
+    "pk": 6,
+    "fields": {
+      "name": "Latex",
+      "parent": 5
+    }
+  },
+  {
+    "model": "wms.productcategory",
+    "pk": 7,
+    "fields": {
+      "name": "Pharma",
+      "parent": null
+    }
+  },
+  {
+    "model": "wms.productcategory",
+    "pk": 8,
+    "fields": {
+      "name": "Analgesiques",
+      "parent": 7
+    }
+  },
+  {
+    "model": "wms.productcategory",
+    "pk": 9,
+    "fields": {
+      "name": "Hygiene",
+      "parent": null
+    }
+  },
+  {
+    "model": "wms.productcategory",
+    "pk": 10,
+    "fields": {
+      "name": "Savons",
+      "parent": 9
+    }
+  },
+  {
+    "model": "wms.productcategory",
+    "pk": 11,
+    "fields": {
+      "name": "Logistique",
+      "parent": null
+    }
+  },
+  {
+    "model": "wms.productcategory",
+    "pk": 12,
+    "fields": {
+      "name": "Couvertures",
+      "parent": 11
+    }
+  },
+  {
+    "model": "wms.productcategory",
+    "pk": 13,
+    "fields": {
+      "name": "Liquides",
+      "parent": 1
+    }
+  },
+  {
+    "model": "wms.productcategory",
+    "pk": 14,
+    "fields": {
+      "name": "Saline",
+      "parent": 13
+    }
+  },
+  {
+    "model": "wms.productcategory",
+    "pk": 15,
+    "fields": {
+      "name": "Glucose",
+      "parent": 13
+    }
+  },
+  {
+    "model": "wms.productcategory",
+    "pk": 16,
+    "fields": {
+      "name": "PPE",
+      "parent": 1
+    }
+  },
+  {
+    "model": "wms.productcategory",
+    "pk": 17,
+    "fields": {
+      "name": "Masques",
+      "parent": 16
+    }
+  },
+  {
+    "model": "wms.productcategory",
+    "pk": 18,
+    "fields": {
+      "name": "Chirurgical",
+      "parent": 17
+    }
+  },
+  {
+    "model": "wms.productcategory",
+    "pk": 19,
+    "fields": {
+      "name": "Diagnostic",
+      "parent": 1
+    }
+  },
+  {
+    "model": "wms.productcategory",
+    "pk": 20,
+    "fields": {
+      "name": "Thermometre",
+      "parent": 19
+    }
+  },
+  {
+    "model": "wms.product",
+    "pk": 1,
+    "fields": {
+      "sku": "FIX-001",
+      "name": "Seringue 10ml",
+      "brand": "Meditech",
+      "category": 3,
+      "tags": [],
+      "barcode": "4000000000011",
+      "qr_code_image": "",
+      "default_location": 1,
+      "length_cm": "10.00",
+      "width_cm": "2.00",
+      "height_cm": "2.00",
+      "weight_g": 10,
+      "volume_cm3": 40,
+      "storage_conditions": "dry",
+      "perishable": true,
+      "quarantine_default": true,
+      "is_active": true,
+      "notes": ""
+    }
+  },
+  {
+    "model": "wms.product",
+    "pk": 2,
+    "fields": {
+      "sku": "FIX-002",
+      "name": "Seringue 60ml",
+      "brand": "Meditech",
+      "category": 4,
+      "tags": [],
+      "barcode": "4000000000028",
+      "qr_code_image": "",
+      "default_location": 2,
+      "length_cm": "14.00",
+      "width_cm": "3.00",
+      "height_cm": "3.00",
+      "weight_g": 20,
+      "volume_cm3": 126,
+      "storage_conditions": "dry",
+      "perishable": true,
+      "quarantine_default": true,
+      "is_active": true,
+      "notes": ""
+    }
+  },
+  {
+    "model": "wms.product",
+    "pk": 3,
+    "fields": {
+      "sku": "FIX-003",
+      "name": "Gants latex M",
+      "brand": "SafeHands",
+      "category": 6,
+      "tags": [],
+      "barcode": "4000000000035",
+      "qr_code_image": "",
+      "default_location": 1,
+      "length_cm": "24.00",
+      "width_cm": "12.00",
+      "height_cm": "4.00",
+      "weight_g": 35,
+      "volume_cm3": 1152,
+      "storage_conditions": "dry",
+      "perishable": false,
+      "quarantine_default": false,
+      "is_active": true,
+      "notes": ""
+    }
+  },
+  {
+    "model": "wms.product",
+    "pk": 4,
+    "fields": {
+      "sku": "FIX-004",
+      "name": "Paracetamol 500mg",
+      "brand": "PharmaOne",
+      "category": 8,
+      "tags": [],
+      "barcode": "4000000000042",
+      "qr_code_image": "",
+      "default_location": 4,
+      "length_cm": "8.00",
+      "width_cm": "5.00",
+      "height_cm": "3.00",
+      "weight_g": 60,
+      "volume_cm3": 120,
+      "storage_conditions": "dry",
+      "perishable": true,
+      "quarantine_default": false,
+      "is_active": true,
+      "notes": ""
+    }
+  },
+  {
+    "model": "wms.product",
+    "pk": 5,
+    "fields": {
+      "sku": "FIX-005",
+      "name": "Ibuprofen 200mg",
+      "brand": "PharmaOne",
+      "category": 8,
+      "tags": [],
+      "barcode": "4000000000059",
+      "qr_code_image": "",
+      "default_location": 4,
+      "length_cm": "8.00",
+      "width_cm": "5.00",
+      "height_cm": "3.00",
+      "weight_g": 55,
+      "volume_cm3": 120,
+      "storage_conditions": "dry",
+      "perishable": true,
+      "quarantine_default": false,
+      "is_active": true,
+      "notes": ""
+    }
+  },
+  {
+    "model": "wms.product",
+    "pk": 6,
+    "fields": {
+      "sku": "FIX-006",
+      "name": "Solution saline 500ml",
+      "brand": "Hydra",
+      "category": 14,
+      "tags": [],
+      "barcode": "4000000000066",
+      "qr_code_image": "",
+      "default_location": 5,
+      "length_cm": "20.00",
+      "width_cm": "8.00",
+      "height_cm": "8.00",
+      "weight_g": 540,
+      "volume_cm3": 1280,
+      "storage_conditions": "cold",
+      "perishable": true,
+      "quarantine_default": false,
+      "is_active": true,
+      "notes": ""
+    }
+  },
+  {
+    "model": "wms.product",
+    "pk": 7,
+    "fields": {
+      "sku": "FIX-007",
+      "name": "Masque chirurgical",
+      "brand": "Protect",
+      "category": 18,
+      "tags": [],
+      "barcode": "4000000000073",
+      "qr_code_image": "",
+      "default_location": 5,
+      "length_cm": "18.00",
+      "width_cm": "10.00",
+      "height_cm": "8.00",
+      "weight_g": 25,
+      "volume_cm3": 1440,
+      "storage_conditions": "dry",
+      "perishable": false,
+      "quarantine_default": false,
+      "is_active": true,
+      "notes": ""
+    }
+  },
+  {
+    "model": "wms.product",
+    "pk": 8,
+    "fields": {
+      "sku": "FIX-008",
+      "name": "Savon liquide 500ml",
+      "brand": "Hygiena",
+      "category": 10,
+      "tags": [],
+      "barcode": "4000000000080",
+      "qr_code_image": "",
+      "default_location": 6,
+      "length_cm": "20.00",
+      "width_cm": "8.00",
+      "height_cm": "8.00",
+      "weight_g": 520,
+      "volume_cm3": 1280,
+      "storage_conditions": "dry",
+      "perishable": false,
+      "quarantine_default": false,
+      "is_active": true,
+      "notes": ""
+    }
+  },
+  {
+    "model": "wms.product",
+    "pk": 9,
+    "fields": {
+      "sku": "FIX-009",
+      "name": "Couverture thermique",
+      "brand": "WarmAid",
+      "category": 12,
+      "tags": [],
+      "barcode": "4000000000097",
+      "qr_code_image": "",
+      "default_location": 6,
+      "length_cm": "30.00",
+      "width_cm": "20.00",
+      "height_cm": "2.00",
+      "weight_g": 220,
+      "volume_cm3": 1200,
+      "storage_conditions": "dry",
+      "perishable": false,
+      "quarantine_default": false,
+      "is_active": true,
+      "notes": ""
+    }
+  },
+  {
+    "model": "wms.product",
+    "pk": 10,
+    "fields": {
+      "sku": "FIX-010",
+      "name": "Serum glucose 250ml",
+      "brand": "Hydra",
+      "category": 15,
+      "tags": [],
+      "barcode": "4000000000103",
+      "qr_code_image": "",
+      "default_location": 3,
+      "length_cm": "15.00",
+      "width_cm": "6.00",
+      "height_cm": "6.00",
+      "weight_g": 280,
+      "volume_cm3": 540,
+      "storage_conditions": "cold",
+      "perishable": true,
+      "quarantine_default": true,
+      "is_active": true,
+      "notes": ""
+    }
+  },
+  {
+    "model": "wms.product",
+    "pk": 11,
+    "fields": {
+      "sku": "FIX-011",
+      "name": "Thermometre digital",
+      "brand": "Meditech",
+      "category": 20,
+      "tags": [],
+      "barcode": "4000000000110",
+      "qr_code_image": "",
+      "default_location": 3,
+      "length_cm": "14.00",
+      "width_cm": "4.00",
+      "height_cm": "3.00",
+      "weight_g": 90,
+      "volume_cm3": 168,
+      "storage_conditions": "dry",
+      "perishable": false,
+      "quarantine_default": false,
+      "is_active": true,
+      "notes": ""
+    }
+  },
+  {
+    "model": "wms.productlot",
+    "pk": 1,
+    "fields": {
+      "product": 1,
+      "lot_code": "LOT-001",
+      "expires_on": "2026-01-10",
+      "received_on": "2025-12-01",
+      "status": "available",
+      "quantity_on_hand": 30,
+      "location": 1,
+      "storage_conditions": "dry",
+      "quarantine_reason": "",
+      "released_by": null,
+      "released_at": null
+    }
+  },
+  {
+    "model": "wms.productlot",
+    "pk": 2,
+    "fields": {
+      "product": 2,
+      "lot_code": "LOT-002",
+      "expires_on": "2026-02-10",
+      "received_on": "2025-12-01",
+      "status": "available",
+      "quantity_on_hand": 25,
+      "location": 2,
+      "storage_conditions": "dry",
+      "quarantine_reason": "",
+      "released_by": null,
+      "released_at": null
+    }
+  },
+  {
+    "model": "wms.productlot",
+    "pk": 3,
+    "fields": {
+      "product": 3,
+      "lot_code": "LOT-003",
+      "expires_on": "2026-03-01",
+      "received_on": "2025-12-05",
+      "status": "available",
+      "quantity_on_hand": 80,
+      "location": 1,
+      "storage_conditions": "dry",
+      "quarantine_reason": "",
+      "released_by": null,
+      "released_at": null
+    }
+  },
+  {
+    "model": "wms.productlot",
+    "pk": 4,
+    "fields": {
+      "product": 4,
+      "lot_code": "LOT-004",
+      "expires_on": "2026-06-01",
+      "received_on": "2025-12-10",
+      "status": "available",
+      "quantity_on_hand": 200,
+      "location": 4,
+      "storage_conditions": "dry",
+      "quarantine_reason": "",
+      "released_by": null,
+      "released_at": null
+    }
+  },
+  {
+    "model": "wms.productlot",
+    "pk": 5,
+    "fields": {
+      "product": 5,
+      "lot_code": "LOT-005",
+      "expires_on": "2026-06-15",
+      "received_on": "2025-12-10",
+      "status": "available",
+      "quantity_on_hand": 150,
+      "location": 4,
+      "storage_conditions": "dry",
+      "quarantine_reason": "",
+      "released_by": null,
+      "released_at": null
+    }
+  },
+  {
+    "model": "wms.productlot",
+    "pk": 6,
+    "fields": {
+      "product": 6,
+      "lot_code": "LOT-006",
+      "expires_on": "2026-05-01",
+      "received_on": "2025-12-12",
+      "status": "available",
+      "quantity_on_hand": 80,
+      "location": 5,
+      "storage_conditions": "cold",
+      "quarantine_reason": "",
+      "released_by": null,
+      "released_at": null
+    }
+  },
+  {
+    "model": "wms.productlot",
+    "pk": 7,
+    "fields": {
+      "product": 7,
+      "lot_code": "LOT-007",
+      "expires_on": "2027-01-01",
+      "received_on": "2025-12-12",
+      "status": "available",
+      "quantity_on_hand": 300,
+      "location": 5,
+      "storage_conditions": "dry",
+      "quarantine_reason": "",
+      "released_by": null,
+      "released_at": null
+    }
+  },
+  {
+    "model": "wms.productlot",
+    "pk": 8,
+    "fields": {
+      "product": 8,
+      "lot_code": "LOT-008",
+      "expires_on": "2026-09-01",
+      "received_on": "2025-12-12",
+      "status": "available",
+      "quantity_on_hand": 60,
+      "location": 6,
+      "storage_conditions": "dry",
+      "quarantine_reason": "",
+      "released_by": null,
+      "released_at": null
+    }
+  },
+  {
+    "model": "wms.productlot",
+    "pk": 9,
+    "fields": {
+      "product": 9,
+      "lot_code": "LOT-009",
+      "expires_on": "2027-03-01",
+      "received_on": "2025-12-12",
+      "status": "available",
+      "quantity_on_hand": 40,
+      "location": 6,
+      "storage_conditions": "dry",
+      "quarantine_reason": "",
+      "released_by": null,
+      "released_at": null
+    }
+  },
+  {
+    "model": "wms.productlot",
+    "pk": 10,
+    "fields": {
+      "product": 10,
+      "lot_code": "LOT-010",
+      "expires_on": "2026-05-20",
+      "received_on": "2025-12-15",
+      "status": "available",
+      "quantity_on_hand": 90,
+      "location": 3,
+      "storage_conditions": "cold",
+      "quarantine_reason": "",
+      "released_by": null,
+      "released_at": null
+    }
+  },
+  {
+    "model": "wms.productlot",
+    "pk": 11,
+    "fields": {
+      "product": 11,
+      "lot_code": "LOT-011",
+      "expires_on": "2027-05-20",
+      "received_on": "2025-12-15",
+      "status": "available",
+      "quantity_on_hand": 70,
+      "location": 3,
+      "storage_conditions": "dry",
+      "quarantine_reason": "",
+      "released_by": null,
+      "released_at": null
+    }
+  },
+  {
+    "model": "wms.cartonformat",
+    "pk": 1,
+    "fields": {
+      "name": "Carton standard 40x30x30",
+      "length_cm": "40.00",
+      "width_cm": "30.00",
+      "height_cm": "30.00",
+      "max_weight_g": 8000,
+      "is_default": true
+    }
+  },
+  {
+    "model": "wms.carton",
+    "pk": 1,
+    "fields": {
+      "code": "C-TEST-001",
+      "status": "ready",
+      "current_location": 5,
+      "shipment": null,
+      "prepared_by": null,
+      "created_at": "2025-12-15T10:00:00Z",
+      "notes": ""
+    }
+  },
+  {
+    "model": "wms.carton",
+    "pk": 2,
+    "fields": {
+      "code": "C-TEST-002",
+      "status": "ready",
+      "current_location": 6,
+      "shipment": null,
+      "prepared_by": null,
+      "created_at": "2025-12-15T10:30:00Z",
+      "notes": ""
+    }
+  },
+  {
+    "model": "wms.cartonitem",
+    "pk": 1,
+    "fields": {
+      "carton": 1,
+      "product_lot": 1,
+      "quantity": 10
+    }
+  },
+  {
+    "model": "wms.cartonitem",
+    "pk": 2,
+    "fields": {
+      "carton": 1,
+      "product_lot": 2,
+      "quantity": 5
+    }
+  },
+  {
+    "model": "wms.cartonitem",
+    "pk": 3,
+    "fields": {
+      "carton": 2,
+      "product_lot": 3,
+      "quantity": 20
+    }
+  }
+]

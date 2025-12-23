@@ -1,0 +1,37 @@
+{% extends "print/base_a5.html" %}
+
+{% block title %}Bon expedition{% endblock %}
+
+{% block body %}
+  <h1>Bon d'expedition</h1>
+
+  <div class="meta">Shipment ref: {{ shipment_ref }}</div>
+  <div class="meta">Date: {{ document_date|date:"d/m/Y" }}</div>
+
+  <div class="block">Expediteur: {{ shipper_name }}</div>
+  <div class="block">Destinataire: {{ recipient_name }}</div>
+  {% if correspondent_name %}
+    <div class="block">Correspondant: {{ correspondent_name }}</div>
+  {% endif %}
+  <div class="block">Destination: {{ destination_address }}</div>
+  <div class="block">Nombre de cartons: {{ carton_count }}</div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Carton</th>
+        <th>Poids (g)</th>
+        <th>Volume (cm3)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in carton_rows %}
+        <tr>
+          <td>{{ row.code }}</td>
+          <td>{{ row.weight_g }}</td>
+          <td>{{ row.volume_cm3 }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}
