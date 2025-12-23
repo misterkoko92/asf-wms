@@ -7,7 +7,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 from django.db import connection, transaction
-from django.db.models import F, Q, Sum, IntegerField
+from django.db.models import DateTimeField, F, IntegerField, Max, OuterRef, Q, Subquery, Sum
 from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Coalesce
 from django.utils import timezone
@@ -32,6 +32,7 @@ from .models import (
     MovementType,
     Product,
     ProductCategory,
+    ProductLot,
     Receipt,
     ReceiptHorsFormat,
     ReceiptStatus,
@@ -40,6 +41,7 @@ from .models import (
     OrderStatus,
     Shipment,
     ShipmentStatus,
+    StockMovement,
     Warehouse,
     WmsChange,
 )
@@ -88,16 +90,37 @@ def scan_stock(request):
     if category_id:
         products = products.filter(category_id=category_id)
 
-    lot_filter = Q(productlot__quantity_on_hand__gt=0)
-    if warehouse_id:
-        lot_filter &= Q(productlot__location__warehouse_id=warehouse_id)
-
     available_expr = ExpressionWrapper(
-        F("productlot__quantity_on_hand") - F("productlot__quantity_reserved"),
+        F("quantity_on_hand") - F("quantity_reserved"),
         output_field=IntegerField(),
     )
+    stock_lots = ProductLot.objects.filter(
+        product_id=OuterRef("pk"),
+        quantity_on_hand__gt=0,
+    )
+    if warehouse_id:
+        stock_lots = stock_lots.filter(location__warehouse_id=warehouse_id)
+    stock_total_subquery = (
+        stock_lots.values("product_id")
+        .annotate(total=Sum(available_expr))
+        .values("total")
+    )
+
+    movements = StockMovement.objects.filter(product_id=OuterRef("pk"))
+    if warehouse_id:
+        movements = movements.filter(
+            Q(to_location__warehouse_id=warehouse_id)
+            | Q(from_location__warehouse_id=warehouse_id)
+        )
+    last_movement_subquery = (
+        movements.values("product_id")
+        .annotate(last=Max("created_at"))
+        .values("last")
+    )
+
     products = products.annotate(
-        stock_total=Coalesce(Sum(available_expr, filter=lot_filter), 0)
+        stock_total=Coalesce(Subquery(stock_total_subquery, output_field=IntegerField()), 0),
+        last_movement_at=Subquery(last_movement_subquery, output_field=DateTimeField()),
     ).filter(stock_total__gt=0)
 
     sort_map = {

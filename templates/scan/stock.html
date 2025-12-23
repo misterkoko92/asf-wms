@@ -60,6 +60,7 @@
               <th>Produit</th>
               <th>Categorie</th>
               <th>Stock</th>
+              <th>Derniere modification</th>
             </tr>
           </thead>
           <tbody>
@@ -79,6 +80,7 @@
                 </td>
                 <td>{{ product.category|default:"-" }}</td>
                 <td class="qty">{{ product.stock_total }}</td>
+                <td>{{ product.last_movement_at|date:"d/m/y H\\hi"|default:"-" }}</td>
               </tr>
             {% endfor %}
           </tbody>
