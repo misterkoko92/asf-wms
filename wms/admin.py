@@ -491,9 +491,6 @@ class CartonAdmin(admin.ModelAdmin):
                     related_carton=obj, movement_type=models.MovementType.OUT
                 ).update(related_shipment=None)
         if obj.shipment:
-            if obj.status in {models.CartonStatus.DRAFT, models.CartonStatus.READY}:
-                obj.status = models.CartonStatus.ASSIGNED
-                obj.save(update_fields=["status"])
             if not models.StockMovement.objects.filter(
                 related_carton=obj, movement_type=models.MovementType.OUT
             ).exists():
@@ -514,9 +511,6 @@ class CartonAdmin(admin.ModelAdmin):
                             related_shipment=obj.shipment,
                             created_by=request.user,
                         )
-        elif original and original.shipment:
-            obj.status = models.CartonStatus.READY
-            obj.save(update_fields=["status"])
 
     def unpack_cartons(self, request, queryset):
         unpacked = 0

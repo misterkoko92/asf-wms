@@ -1,10 +1,10 @@
 {% extends "scan/base.html" %}
 
-{% block title %}WMS Scan - Vue expeditions pretes{% endblock %}
+{% block title %}WMS Scan - Vue Expeditions{% endblock %}
 
 {% block content %}
   <div class="scan-card">
-    <h2>Vue expeditions pretes ({{ shipments|length }})</h2>
+    <h2>Vue Expeditions ({{ shipments|length }})</h2>
     {% if shipments %}
       <div class="scan-table-wrap">
         <table class="scan-table">
@@ -30,17 +30,7 @@
                 <td>{{ shipment.recipient_name }}</td>
                 <td>{{ shipment.created_at|date:"d/m/y H\\hi" }}</td>
                 <td>{{ shipment.ready_at|date:"d/m/y H\\hi"|default:"-" }}</td>
-                <td class="status">
-                  <form method="post" class="scan-toggle-form">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="toggle_shipment_ready">
-                    <input type="hidden" name="shipment_id" value="{{ shipment.id }}">
-                    <label class="scan-toggle">
-                      <input type="checkbox" name="ready" {% if shipment.is_ready %}checked{% endif %}{% if not shipment.can_toggle %} disabled{% endif %} onchange="this.form.submit()">
-                      <span>{{ shipment.status_label }}</span>
-                    </label>
-                  </form>
-                </td>
+                <td class="status">{{ shipment.status_label }}</td>
               </tr>
             {% endfor %}
           </tbody>

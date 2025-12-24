@@ -93,7 +93,7 @@ class StockFlowTests(TestCase):
             current_location=self.location,
         )
         carton.refresh_from_db()
-        self.assertEqual(carton.status, CartonStatus.DRAFT)
+        self.assertEqual(carton.status, CartonStatus.PICKING)
         movement_types = set(
             StockMovement.objects.filter(related_carton=carton).values_list(
                 "movement_type", flat=True
@@ -122,7 +122,7 @@ class StockFlowTests(TestCase):
             current_location=self.location,
         )
         carton.refresh_from_db()
-        self.assertEqual(carton.status, CartonStatus.ASSIGNED)
+        self.assertEqual(carton.status, CartonStatus.PICKING)
         self.assertEqual(carton.shipment_id, shipment.id)
         movement_types = set(
             StockMovement.objects.filter(related_carton=carton).values_list(

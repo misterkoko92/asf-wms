@@ -93,7 +93,7 @@ def build_location_data():
 
 def build_available_cartons():
     cartons = (
-        Carton.objects.filter(status=CartonStatus.READY, shipment__isnull=True)
+        Carton.objects.filter(status=CartonStatus.PACKED, shipment__isnull=True)
         .prefetch_related("cartonitem_set__product_lot__product")
         .order_by("code")
     )

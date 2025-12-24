@@ -709,7 +709,7 @@
     "pk": 1,
     "fields": {
       "code": "C-TEST-001",
-      "status": "ready",
+      "status": "packed",
       "current_location": 5,
       "shipment": null,
       "prepared_by": null,
@@ -722,7 +722,7 @@
     "pk": 2,
     "fields": {
       "code": "C-TEST-002",
-      "status": "ready",
+      "status": "packed",
       "current_location": 6,
       "shipment": null,
       "prepared_by": null,

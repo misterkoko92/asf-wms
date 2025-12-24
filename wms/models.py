@@ -563,10 +563,10 @@ class CartonFormat(models.Model):
 
 
 class CartonStatus(models.TextChoices):
-    DRAFT = "draft", "Draft"
-    READY = "ready", "Ready"
-    ASSIGNED = "assigned", "Assigned"
-    SHIPPED = "shipped", "Shipped"
+    DRAFT = "draft", "Cree"
+    PICKING = "picking", "En preparation"
+    PACKED = "packed", "Pret"
+    SHIPPED = "shipped", "Expedie"
 
 
 class Carton(models.Model):

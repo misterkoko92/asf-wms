@@ -7,7 +7,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 from django.db import connection, transaction
-from django.db.models import Count, DateTimeField, F, IntegerField, Max, OuterRef, Q, Subquery, Sum
+from django.db.models import DateTimeField, F, IntegerField, Max, OuterRef, Q, Subquery, Sum
 from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Coalesce
 from django.utils import timezone
@@ -72,6 +72,38 @@ from .services import (
     receive_stock,
     reserve_stock_for_order,
 )
+
+
+def _compute_shipment_progress(shipment):
+    cartons = shipment.carton_set.all()
+    total = cartons.count()
+    ready = cartons.filter(
+        status__in=[CartonStatus.PACKED, CartonStatus.SHIPPED]
+    ).count()
+    if total == 0 or ready == 0:
+        return total, ready, ShipmentStatus.DRAFT, "DRAFT"
+    if ready < total:
+        return total, ready, ShipmentStatus.PICKING, f"PARTIEL ({ready}/{total})"
+    return total, ready, ShipmentStatus.PACKED, "READY"
+
+
+def _sync_shipment_ready_state(shipment):
+    if shipment.status in {ShipmentStatus.SHIPPED, ShipmentStatus.DELIVERED}:
+        return
+    total, ready, new_status, _ = _compute_shipment_progress(shipment)
+    was_packed = shipment.status == ShipmentStatus.PACKED
+    updates = {}
+    if shipment.status != new_status:
+        updates["status"] = new_status
+    if new_status == ShipmentStatus.PACKED:
+        if not was_packed or shipment.ready_at is None:
+            updates["ready_at"] = timezone.now()
+    elif shipment.ready_at is not None:
+        updates["ready_at"] = None
+    if updates:
+        shipment.status = updates.get("status", shipment.status)
+        shipment.ready_at = updates.get("ready_at", shipment.ready_at)
+        shipment.save(update_fields=list(updates))
 
 
 @login_required
@@ -156,20 +188,25 @@ def scan_stock(request):
 @login_required
 @require_http_methods(["GET", "POST"])
 def scan_cartons_ready(request):
-    if request.method == "POST" and request.POST.get("action") == "toggle_carton_ready":
+    if request.method == "POST" and request.POST.get("action") == "update_carton_status":
         carton_id = request.POST.get("carton_id")
-        carton = Carton.objects.filter(pk=carton_id).first()
-        if carton and carton.shipment_id is None and carton.status != CartonStatus.SHIPPED:
-            ready = bool(request.POST.get("ready"))
-            new_status = CartonStatus.READY if ready else CartonStatus.DRAFT
-            if carton.status != new_status:
-                carton.status = new_status
+        status_value = (request.POST.get("status") or "").strip()
+        carton = Carton.objects.filter(pk=carton_id).select_related("shipment").first()
+        allowed = {
+            CartonStatus.DRAFT,
+            CartonStatus.PICKING,
+            CartonStatus.PACKED,
+        }
+        if carton and carton.status != CartonStatus.SHIPPED and status_value in allowed:
+            if carton.status != status_value:
+                carton.status = status_value
                 carton.save(update_fields=["status"])
+                if carton.shipment_id:
+                    _sync_shipment_ready_state(carton.shipment)
         return redirect("scan:scan_cartons_ready")
 
     cartons_qs = (
         Carton.objects.filter(cartonitem__isnull=False)
-        .exclude(status=CartonStatus.SHIPPED)
         .select_related("shipment", "current_location")
         .prefetch_related("cartonitem_set__product_lot__product")
         .distinct()
@@ -185,15 +222,18 @@ def scan_cartons_ready(request):
             {"name": name, "quantity": qty}
             for name, qty in sorted(product_totals.items(), key=lambda row: row[0])
         ]
-        is_ready = carton.status in {CartonStatus.READY, CartonStatus.ASSIGNED}
+        try:
+            status_label = CartonStatus(carton.status).label
+        except ValueError:
+            status_label = carton.status
         cartons.append(
             {
                 "id": carton.id,
                 "code": carton.code,
                 "created_at": carton.created_at,
-                "status_label": "Pret" if is_ready else "En preparation",
-                "is_ready": is_ready,
-                "can_toggle": carton.shipment_id is None,
+                "status_label": status_label,
+                "status_value": carton.status,
+                "can_toggle": carton.status != CartonStatus.SHIPPED,
                 "shipment_reference": carton.shipment.reference if carton.shipment else "",
                 "location": carton.current_location,
                 "packing_list": packing_list,
@@ -206,46 +246,38 @@ def scan_cartons_ready(request):
         {
             "active": "cartons_ready",
             "cartons": cartons,
+            "carton_status_choices": [
+                (CartonStatus.DRAFT, CartonStatus.DRAFT.label),
+                (CartonStatus.PICKING, CartonStatus.PICKING.label),
+                (CartonStatus.PACKED, CartonStatus.PACKED.label),
+            ],
         },
     )
 
 
 @login_required
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["GET"])
 def scan_shipments_ready(request):
-    if request.method == "POST" and request.POST.get("action") == "toggle_shipment_ready":
-        shipment_id = request.POST.get("shipment_id")
-        shipment = Shipment.objects.filter(pk=shipment_id).first()
-        if shipment and shipment.status in {
-            ShipmentStatus.DRAFT,
-            ShipmentStatus.PICKING,
-            ShipmentStatus.PACKED,
-        }:
-            ready = bool(request.POST.get("ready"))
-            new_status = ShipmentStatus.PACKED if ready else ShipmentStatus.DRAFT
-            if shipment.status != new_status:
-                shipment.status = new_status
-                shipment.ready_at = timezone.now() if ready else None
-                shipment.save(update_fields=["status", "ready_at"])
-        return redirect("scan:scan_shipments_ready")
-
     shipments_qs = (
         Shipment.objects.select_related("destination")
-        .annotate(carton_count=Count("carton"))
+        .prefetch_related("carton_set")
         .order_by("-created_at")
     )
     shipments = []
     for shipment in shipments_qs:
-        is_ready = shipment.status in {
-            ShipmentStatus.PACKED,
-            ShipmentStatus.SHIPPED,
-            ShipmentStatus.DELIVERED,
-        }
+        total, ready, computed_status, status_label = _compute_shipment_progress(
+            shipment
+        )
+        if shipment.status in {ShipmentStatus.DRAFT, ShipmentStatus.PICKING, ShipmentStatus.PACKED}:
+            if shipment.status != computed_status or (
+                computed_status == ShipmentStatus.PACKED and shipment.ready_at is None
+            ):
+                _sync_shipment_ready_state(shipment)
         shipments.append(
             {
                 "id": shipment.id,
                 "reference": shipment.reference,
-                "carton_count": shipment.carton_count,
+                "carton_count": total,
                 "destination_iata": shipment.destination.iata_code
                 if shipment.destination
                 else "",
@@ -253,14 +285,7 @@ def scan_shipments_ready(request):
                 "recipient_name": shipment.recipient_name,
                 "created_at": shipment.created_at,
                 "ready_at": shipment.ready_at,
-                "status_label": "Pret" if is_ready else "En preparation",
-                "is_ready": is_ready,
-                "can_toggle": shipment.status
-                in {
-                    ShipmentStatus.DRAFT,
-                    ShipmentStatus.PICKING,
-                    ShipmentStatus.PACKED,
-                },
+                "status_label": status_label,
             }
         )
 
@@ -920,7 +945,7 @@ def scan_shipment_create(request):
                         if carton_id:
                             carton_query = Carton.objects.filter(
                                 id=carton_id,
-                                status=CartonStatus.READY,
+                                status=CartonStatus.PACKED,
                                 shipment__isnull=True,
                             )
                             if connection.features.has_select_for_update:
@@ -929,8 +954,7 @@ def scan_shipment_create(request):
                             if carton is None:
                                 raise StockError("Carton indisponible.")
                             carton.shipment = shipment
-                            carton.status = CartonStatus.ASSIGNED
-                            carton.save(update_fields=["shipment", "status"])
+                            carton.save(update_fields=["shipment"])
                         else:
                             pack_carton(
                                 user=request.user,
@@ -940,6 +964,7 @@ def scan_shipment_create(request):
                                 carton_code=None,
                                 shipment=shipment,
                             )
+                _sync_shipment_ready_state(shipment)
                 messages.success(
                     request,
                     f"Expedition creee: {shipment.reference}.",
@@ -1047,7 +1072,7 @@ def scan_sync(request):
     )
 
 
-SERVICE_WORKER_JS = """const CACHE_NAME = 'wms-scan-v21';
+SERVICE_WORKER_JS = """const CACHE_NAME = 'wms-scan-v22';
 const ASSETS = [
   '/scan/',
   '/static/scan/scan.css',

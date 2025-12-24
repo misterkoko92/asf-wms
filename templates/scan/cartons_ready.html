@@ -1,10 +1,10 @@
 {% extends "scan/base.html" %}
 
-{% block title %}WMS Scan - Vue colis conditionnes{% endblock %}
+{% block title %}WMS Scan - Vue Colis{% endblock %}
 
 {% block content %}
   <div class="scan-card">
-    <h2>Vue colis conditionnes ({{ cartons|length }})</h2>
+    <h2>Vue Colis ({{ cartons|length }})</h2>
     {% if cartons %}
       <div class="scan-table-wrap">
         <table class="scan-table">
@@ -24,15 +24,24 @@
                 <td>{{ carton.code }}</td>
                 <td>{{ carton.created_at|date:"d/m/y H\\hi" }}</td>
                 <td class="status">
-                  <form method="post" class="scan-toggle-form">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="toggle_carton_ready">
-                    <input type="hidden" name="carton_id" value="{{ carton.id }}">
-                    <label class="scan-toggle">
-                      <input type="checkbox" name="ready" {% if carton.is_ready %}checked{% endif %}{% if not carton.can_toggle %} disabled{% endif %} onchange="this.form.submit()">
-                      <span>{{ carton.status_label }}</span>
-                    </label>
-                  </form>
+                  {% if carton.can_toggle %}
+                    <form method="post" class="scan-toggle-form">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="update_carton_status">
+                      <input type="hidden" name="carton_id" value="{{ carton.id }}">
+                      <label class="scan-toggle">
+                        <select name="status" onchange="this.form.submit()">
+                          {% for value, label in carton_status_choices %}
+                            <option value="{{ value }}" {% if value == carton.status_value %}selected{% endif %}>
+                              {{ label }}
+                            </option>
+                          {% endfor %}
+                        </select>
+                      </label>
+                    </form>
+                  {% else %}
+                    {{ carton.status_label }}
+                  {% endif %}
                 </td>
                 <td>{{ carton.shipment_reference|default:"-" }}</td>
                 <td>{{ carton.location|default:"-" }}</td>
