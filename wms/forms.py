@@ -3,7 +3,6 @@ from django.utils import timezone
 
 from contacts.models import Contact
 from .contact_filters import (
-    TAG_ASSOCIATION,
     TAG_CORRESPONDENT,
     TAG_DONOR,
     TAG_RECIPIENT,
@@ -199,6 +198,8 @@ class ScanReceiptPalletForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.fields["source_contact"].queryset = contacts_with_tags(TAG_DONOR)
         self.fields["carrier_contact"].queryset = contacts_with_tags(TAG_TRANSPORTER)
+        _select_single_choice(self.fields["source_contact"])
+        _select_single_choice(self.fields["carrier_contact"])
 
 
 class ScanReceiptAssociationForm(forms.Form):
@@ -232,8 +233,10 @@ class ScanReceiptAssociationForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["source_contact"].queryset = contacts_with_tags(TAG_ASSOCIATION)
+        self.fields["source_contact"].queryset = contacts_with_tags(TAG_SHIPPER)
         self.fields["carrier_contact"].queryset = contacts_with_tags(TAG_TRANSPORTER)
+        _select_single_choice(self.fields["source_contact"])
+        _select_single_choice(self.fields["carrier_contact"])
 
 
 class ScanStockUpdateForm(forms.Form):
@@ -347,6 +350,8 @@ class ScanShipmentForm(forms.Form):
         )
         self.fields["destination"].queryset = destinations
         self.fields["shipper_contact"].queryset = contacts_with_tags(TAG_SHIPPER)
+        _select_single_choice(self.fields["destination"])
+        _select_single_choice(self.fields["shipper_contact"])
 
         recipients = contacts_with_tags(TAG_RECIPIENT)
         correspondents = contacts_with_tags(TAG_CORRESPONDENT)
@@ -372,6 +377,8 @@ class ScanShipmentForm(forms.Form):
 
         self.fields["recipient_contact"].queryset = recipients.distinct()
         self.fields["correspondent_contact"].queryset = correspondents.distinct()
+        _select_single_choice(self.fields["recipient_contact"])
+        _select_single_choice(self.fields["correspondent_contact"])
 
     def clean(self):
         cleaned = super().clean()
@@ -394,6 +401,16 @@ class ScanShipmentForm(forms.Form):
                     "Correspondant non lie a la destination.",
                 )
         return cleaned
+
+
+def _select_single_choice(field: forms.ModelChoiceField) -> None:
+    queryset = field.queryset
+    if queryset is None:
+        return
+    items = list(queryset[:2])
+    if len(items) == 1:
+        field.initial = items[0].pk
+        field.empty_label = None
 
 
 class ScanOrderSelectForm(forms.Form):

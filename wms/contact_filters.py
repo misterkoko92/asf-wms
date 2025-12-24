@@ -4,7 +4,6 @@ from contacts.models import Contact
 
 TAG_DONOR = ("donateur",)
 TAG_TRANSPORTER = ("transporteur",)
-TAG_ASSOCIATION = ("nom association", "association")
 TAG_SHIPPER = ("expediteur", "expediteurs")
 TAG_RECIPIENT = ("destinataire", "destinataires")
 TAG_CORRESPONDENT = ("correspondant", "correspondants")
