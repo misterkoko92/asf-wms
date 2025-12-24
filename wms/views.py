@@ -222,10 +222,14 @@ def scan_cartons_ready(request):
             {"name": name, "quantity": qty}
             for name, qty in sorted(product_totals.items(), key=lambda row: row[0])
         ]
-        try:
-            status_label = CartonStatus(carton.status).label
-        except ValueError:
-            status_label = carton.status
+        is_assigned = carton.shipment_id is not None
+        if is_assigned and carton.status != CartonStatus.SHIPPED:
+            status_label = "Affecte"
+        else:
+            try:
+                status_label = CartonStatus(carton.status).label
+            except ValueError:
+                status_label = carton.status
         cartons.append(
             {
                 "id": carton.id,
@@ -233,7 +237,7 @@ def scan_cartons_ready(request):
                 "created_at": carton.created_at,
                 "status_label": status_label,
                 "status_value": carton.status,
-                "can_toggle": carton.status != CartonStatus.SHIPPED,
+                "can_toggle": (not is_assigned) and carton.status != CartonStatus.SHIPPED,
                 "shipment_reference": carton.shipment.reference if carton.shipment else "",
                 "location": carton.current_location,
                 "packing_list": packing_list,
