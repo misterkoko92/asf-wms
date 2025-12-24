@@ -371,9 +371,6 @@ class ScanShipmentForm(forms.Form):
                 )
             else:
                 correspondents = correspondents.none()
-        else:
-            recipients = recipients.none()
-            correspondents = correspondents.none()
 
         self.fields["recipient_contact"].queryset = recipients.distinct()
         self.fields["correspondent_contact"].queryset = correspondents.distinct()

@@ -966,8 +966,8 @@
       const destination = destinationMap.get(String(destinationSelect.value));
       const selectedRecipient = recipientSelect.value;
       const selectedCorrespondent = correspondentSelect.value;
-      let recipientOptions = [];
-      let correspondentOptions = [];
+      let recipientOptions = recipients;
+      let correspondentOptions = correspondents;
 
       if (destination) {
         const country = normalize(destination.country);
@@ -975,12 +975,16 @@
           recipientOptions = recipients.filter(recipient =>
             (recipient.countries || []).some(entry => normalize(entry) === country)
           );
+        } else {
+          recipientOptions = [];
         }
         if (destination.correspondent_contact_id) {
           correspondentOptions = correspondents.filter(
             correspondent =>
               String(correspondent.id) === String(destination.correspondent_contact_id)
           );
+        } else {
+          correspondentOptions = [];
         }
       }
 
