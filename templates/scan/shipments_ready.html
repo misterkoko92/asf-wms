@@ -18,6 +18,7 @@
               <th>Date creation</th>
               <th>Date mise en disponible</th>
               <th>Statut</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -31,6 +32,13 @@
                 <td>{{ shipment.created_at|date:"d/m/y H\\hi" }}</td>
                 <td>{{ shipment.ready_at|date:"d/m/y H\\hi"|default:"-" }}</td>
                 <td class="status">{{ shipment.status_label }}</td>
+                <td>
+                  {% if shipment.can_edit %}
+                    <a class="scan-scan-btn" href="{% url 'scan:scan_shipment_edit' shipment.id %}">Modifier</a>
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
               </tr>
             {% endfor %}
           </tbody>

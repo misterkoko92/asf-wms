@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, JsonResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 from django.db import connection, transaction
@@ -26,7 +26,12 @@ from .forms import (
     ScanOrderSelectForm,
     ScanShipmentForm,
 )
-from .contact_filters import TAG_CORRESPONDENT, TAG_RECIPIENT, contacts_with_tags
+from .contact_filters import (
+    TAG_CORRESPONDENT,
+    TAG_RECIPIENT,
+    TAG_SHIPPER,
+    contacts_with_tags,
+)
 from .models import (
     Carton,
     CartonStatus,
@@ -104,6 +109,29 @@ def _sync_shipment_ready_state(shipment):
         shipment.status = updates.get("status", shipment.status)
         shipment.ready_at = updates.get("ready_at", shipment.ready_at)
         shipment.save(update_fields=list(updates))
+
+
+def _resolve_contact_by_name(tag, name):
+    if not name:
+        return None
+    return contacts_with_tags(tag).filter(name__iexact=name).first()
+
+
+def _build_carton_options(cartons):
+    options = []
+    for carton in cartons:
+        weight_total = 0
+        for item in carton.cartonitem_set.all():
+            product_weight = item.product_lot.product.weight_g or 0
+            weight_total += product_weight * item.quantity
+        options.append(
+            {
+                "id": carton.id,
+                "code": carton.code,
+                "weight_g": weight_total,
+            }
+        )
+    return options
 
 
 @login_required
@@ -290,6 +318,8 @@ def scan_shipments_ready(request):
                 "created_at": shipment.created_at,
                 "ready_at": shipment.ready_at,
                 "status_label": status_label,
+                "can_edit": shipment.status
+                not in {ShipmentStatus.SHIPPED, ShipmentStatus.DELIVERED},
             }
         )
 
@@ -1020,6 +1050,243 @@ def scan_shipment_create(request):
             "active": "shipment",
             "products_json": product_options,
             "cartons_json": available_cartons,
+            "carton_count": carton_count,
+            "line_values": line_values,
+            "line_errors": line_errors,
+            "destinations_json": destinations_json,
+            "recipient_contacts_json": recipient_contacts_json,
+            "correspondent_contacts_json": correspondent_contacts_json,
+        },
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def scan_shipment_edit(request, shipment_id):
+    shipment = get_object_or_404(
+        Shipment.objects.select_related("destination__correspondent_contact"),
+        pk=shipment_id,
+    )
+    if shipment.status in {ShipmentStatus.SHIPPED, ShipmentStatus.DELIVERED}:
+        messages.error(request, "Expedition non modifiable.")
+        return redirect("scan:scan_shipments_ready")
+
+    assigned_cartons_qs = shipment.carton_set.prefetch_related(
+        "cartonitem_set__product_lot__product"
+    ).order_by("code")
+    assigned_cartons = list(assigned_cartons_qs)
+    assigned_carton_options = _build_carton_options(assigned_cartons)
+
+    shipper_contact = _resolve_contact_by_name(TAG_SHIPPER, shipment.shipper_name)
+    recipient_contact = _resolve_contact_by_name(TAG_RECIPIENT, shipment.recipient_name)
+    correspondent_contact = None
+    if shipment.destination and shipment.destination.correspondent_contact_id:
+        correspondent_contact = shipment.destination.correspondent_contact
+    else:
+        correspondent_contact = _resolve_contact_by_name(
+            TAG_CORRESPONDENT, shipment.correspondent_name
+        )
+
+    destination_id = request.POST.get("destination") or shipment.destination_id
+    initial = {
+        "destination": shipment.destination_id,
+        "shipper_contact": shipper_contact.id if shipper_contact else None,
+        "recipient_contact": recipient_contact.id if recipient_contact else None,
+        "correspondent_contact": correspondent_contact.id
+        if correspondent_contact
+        else None,
+        "carton_count": max(1, len(assigned_cartons)),
+    }
+    form = ScanShipmentForm(
+        request.POST or None, destination_id=destination_id, initial=initial
+    )
+    product_options = build_product_options()
+    available_cartons = build_available_cartons()
+    cartons_by_id = {str(carton["id"]): carton for carton in available_cartons}
+    for carton in assigned_carton_options:
+        cartons_by_id.setdefault(str(carton["id"]), carton)
+    cartons_json = list(cartons_by_id.values())
+    allowed_carton_ids = set(cartons_by_id.keys())
+    line_errors = {}
+    line_items = []
+
+    if request.method == "POST":
+        carton_count = form.cleaned_data["carton_count"] if form.is_valid() else 1
+        if not form.is_valid():
+            try:
+                carton_count = max(1, int(request.POST.get("carton_count", 1)))
+            except (TypeError, ValueError):
+                carton_count = 1
+        line_values = build_shipment_line_values(carton_count, request.POST)
+
+        for index in range(1, carton_count + 1):
+            prefix = f"line_{index}_"
+            carton_id = (request.POST.get(prefix + "carton_id") or "").strip()
+            product_code = (request.POST.get(prefix + "product_code") or "").strip()
+            quantity_raw = (request.POST.get(prefix + "quantity") or "").strip()
+            errors = []
+
+            if carton_id and (product_code or quantity_raw):
+                errors.append("Choisissez un carton OU creez un colis depuis un produit.")
+            elif carton_id:
+                if carton_id not in allowed_carton_ids:
+                    errors.append("Carton indisponible.")
+                else:
+                    line_items.append({"carton_id": int(carton_id)})
+            elif product_code or quantity_raw:
+                if not product_code:
+                    errors.append("Produit requis.")
+                quantity = None
+                if not quantity_raw:
+                    errors.append("Quantite requise.")
+                else:
+                    try:
+                        quantity = int(quantity_raw)
+                        if quantity <= 0:
+                            errors.append("Quantite invalide.")
+                    except ValueError:
+                        errors.append("Quantite invalide.")
+                if product_code:
+                    product = resolve_product(product_code)
+                    if not product:
+                        errors.append("Produit introuvable.")
+                else:
+                    product = None
+                if not errors and product and quantity:
+                    line_items.append({"product": product, "quantity": quantity})
+            else:
+                errors.append("Renseignez un carton ou un produit.")
+
+            if errors:
+                line_errors[str(index)] = errors
+
+        if form.is_valid() and not line_errors:
+            try:
+                with transaction.atomic():
+                    destination = form.cleaned_data["destination"]
+                    shipper_contact = form.cleaned_data["shipper_contact"]
+                    recipient_contact = form.cleaned_data["recipient_contact"]
+                    correspondent_contact = form.cleaned_data["correspondent_contact"]
+                    destination_label = destination.city
+                    if destination.iata_code:
+                        destination_label = f"{destination_label} ({destination.iata_code})"
+                    if destination.country:
+                        destination_label = f"{destination_label} - {destination.country}"
+
+                    shipment.destination = destination
+                    shipment.shipper_name = shipper_contact.name
+                    shipment.recipient_name = recipient_contact.name
+                    shipment.correspondent_name = correspondent_contact.name
+                    shipment.destination_address = destination_label
+                    shipment.destination_country = destination.country
+                    shipment.save(
+                        update_fields=[
+                            "destination",
+                            "shipper_name",
+                            "recipient_name",
+                            "correspondent_name",
+                            "destination_address",
+                            "destination_country",
+                        ]
+                    )
+
+                    selected_carton_ids = {
+                        item["carton_id"]
+                        for item in line_items
+                        if "carton_id" in item
+                    }
+                    cartons_to_remove = shipment.carton_set.exclude(
+                        id__in=selected_carton_ids
+                    )
+                    for carton in cartons_to_remove:
+                        if carton.status == CartonStatus.SHIPPED:
+                            raise StockError("Impossible de retirer un carton expedie.")
+                        carton.shipment = None
+                        carton.save(update_fields=["shipment"])
+
+                    for carton_id in selected_carton_ids:
+                        carton_query = Carton.objects.filter(id=carton_id)
+                        if connection.features.has_select_for_update:
+                            carton_query = carton_query.select_for_update()
+                        carton = carton_query.first()
+                        if carton is None:
+                            raise StockError("Carton introuvable.")
+                        if carton.shipment_id and carton.shipment_id != shipment.id:
+                            raise StockError("Carton indisponible.")
+                        if carton.shipment_id != shipment.id:
+                            carton.shipment = shipment
+                            carton.save(update_fields=["shipment"])
+
+                    for item in line_items:
+                        if "product" in item:
+                            pack_carton(
+                                user=request.user,
+                                product=item["product"],
+                                quantity=item["quantity"],
+                                carton=None,
+                                carton_code=None,
+                                shipment=shipment,
+                            )
+                _sync_shipment_ready_state(shipment)
+                messages.success(
+                    request,
+                    f"Expedition mise a jour: {shipment.reference}.",
+                )
+                return redirect("scan:scan_shipments_ready")
+            except StockError as exc:
+                form.add_error(None, str(exc))
+    else:
+        carton_count = max(1, len(assigned_cartons))
+        if assigned_cartons:
+            line_values = [
+                {"carton_id": carton.id, "product_code": "", "quantity": ""}
+                for carton in assigned_cartons
+            ]
+        else:
+            line_values = build_shipment_line_values(carton_count)
+
+    destinations = Destination.objects.filter(is_active=True).select_related(
+        "correspondent_contact"
+    )
+    recipient_contacts = contacts_with_tags(TAG_RECIPIENT).prefetch_related("addresses")
+    correspondent_contacts = contacts_with_tags(TAG_CORRESPONDENT)
+    destinations_json = [
+        {
+            "id": destination.id,
+            "country": destination.country,
+            "correspondent_contact_id": destination.correspondent_contact_id,
+        }
+        for destination in destinations
+    ]
+    recipient_contacts_json = []
+    for contact in recipient_contacts:
+        countries = {
+            address.country
+            for address in contact.addresses.all()
+            if address.country
+        }
+        recipient_contacts_json.append(
+            {
+                "id": contact.id,
+                "name": contact.name,
+                "countries": sorted(countries),
+            }
+        )
+    correspondent_contacts_json = [
+        {"id": contact.id, "name": contact.name}
+        for contact in correspondent_contacts
+    ]
+
+    return render(
+        request,
+        "scan/shipment_create.html",
+        {
+            "form": form,
+            "active": "shipments_ready",
+            "is_edit": True,
+            "shipment": shipment,
+            "products_json": product_options,
+            "cartons_json": cartons_json,
             "carton_count": carton_count,
             "line_values": line_values,
             "line_errors": line_errors,

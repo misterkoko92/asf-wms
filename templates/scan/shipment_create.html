@@ -1,10 +1,16 @@
 {% extends "scan/base.html" %}
 
-{% block title %}WMS Scan - Creer expedition{% endblock %}
+{% block title %}WMS Scan - {% if is_edit %}Modifier expedition{% else %}Creer expedition{% endif %}{% endblock %}
 
 {% block content %}
   <div class="scan-card">
-    <h2>Creer une expedition</h2>
+    <h2>
+      {% if is_edit %}
+        Modifier l'expedition {{ shipment.reference }}
+      {% else %}
+        Creer une expedition
+      {% endif %}
+    </h2>
     {% if form.non_field_errors %}
       <div class="scan-message error">{{ form.non_field_errors }}</div>
     {% endif %}
@@ -78,8 +84,17 @@
         <input type="text" id="id_total_weight" readonly>
       </div>
 
-      <button type="submit" class="scan-submit">Creer expedition</button>
-      <p class="scan-help">Chaque ligne: selectionnez un colis prepare ou creez-en un depuis un produit.</p>
+      <button type="submit" class="scan-submit">
+        {% if is_edit %}Enregistrer modifications{% else %}Creer expedition{% endif %}
+      </button>
+      {% if is_edit %}
+        <p class="scan-help">
+          Chaque ligne: selectionnez un colis prepare ou creez-en un depuis un produit.
+          Pour retirer un colis, reduisez le nombre de lignes.
+        </p>
+      {% else %}
+        <p class="scan-help">Chaque ligne: selectionnez un colis prepare ou creez-en un depuis un produit.</p>
+      {% endif %}
     </form>
     {{ products_json|json_script:"product-data" }}
     {{ cartons_json|json_script:"carton-data" }}
