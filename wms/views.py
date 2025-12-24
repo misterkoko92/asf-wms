@@ -1,8 +1,9 @@
 from decimal import Decimal
+from pathlib import Path
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse, JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
@@ -32,9 +33,17 @@ from .contact_filters import (
     TAG_SHIPPER,
     contacts_with_tags,
 )
+from .documents import (
+    build_carton_rows,
+    build_org_context,
+    build_shipment_aggregate_rows,
+    build_shipment_item_rows,
+)
 from .models import (
     Carton,
     CartonStatus,
+    Document,
+    DocumentType,
     MovementType,
     Destination,
     Product,
@@ -132,6 +141,18 @@ def _build_carton_options(cartons):
             }
         )
     return options
+
+
+ALLOWED_UPLOAD_EXTENSIONS = {
+    ".pdf",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".xlsx",
+    ".xls",
+    ".doc",
+    ".docx",
+}
 
 
 @login_required
@@ -1245,6 +1266,11 @@ def scan_shipment_edit(request, shipment_id):
         else:
             line_values = build_shipment_line_values(carton_count)
 
+    documents = Document.objects.filter(
+        shipment=shipment, doc_type=DocumentType.ADDITIONAL
+    ).order_by("-generated_at")
+    carton_docs = [{"id": carton.id, "code": carton.code} for carton in assigned_cartons]
+
     destinations = Destination.objects.filter(is_active=True).select_related(
         "correspondent_contact"
     )
@@ -1285,6 +1311,8 @@ def scan_shipment_edit(request, shipment_id):
             "active": "shipments_ready",
             "is_edit": True,
             "shipment": shipment,
+            "documents": documents,
+            "carton_docs": carton_docs,
             "products_json": product_options,
             "cartons_json": cartons_json,
             "carton_count": carton_count,
@@ -1295,6 +1323,119 @@ def scan_shipment_edit(request, shipment_id):
             "correspondent_contacts_json": correspondent_contacts_json,
         },
     )
+
+
+@login_required
+@require_http_methods(["GET"])
+def scan_shipment_document(request, shipment_id, doc_type):
+    shipment = get_object_or_404(Shipment, pk=shipment_id)
+    allowed = {
+        "donation_certificate": "print/attestation_donation.html",
+        "shipment_note": "print/bon_expedition.html",
+        "packing_list_shipment": "print/liste_colisage_lot.html",
+    }
+    template = allowed.get(doc_type)
+    if template is None:
+        raise Http404("Document type not found")
+
+    cartons = shipment.carton_set.all().order_by("code")
+    item_rows = build_shipment_item_rows(shipment)
+    aggregate_rows = build_shipment_aggregate_rows(shipment)
+    carton_rows = build_carton_rows(cartons)
+
+    description = f"{cartons.count()} cartons, {len(aggregate_rows)} produits"
+    if shipment.requested_delivery_date:
+        description += (
+            f", livraison souhaitee {shipment.requested_delivery_date.strftime('%d/%m/%Y')}"
+        )
+    rows_for_template = (
+        aggregate_rows if doc_type == "packing_list_shipment" else item_rows
+    )
+
+    context = {
+        **build_org_context(),
+        "document_ref": f"DOC-{shipment.reference}-{doc_type}".upper(),
+        "document_date": timezone.localdate(),
+        "shipment_ref": shipment.reference,
+        "shipper_name": shipment.shipper_name,
+        "shipper_contact": shipment.shipper_contact,
+        "recipient_name": shipment.recipient_name,
+        "recipient_contact": shipment.recipient_contact,
+        "correspondent_name": shipment.correspondent_name,
+        "destination_address": shipment.destination_address,
+        "destination_country": shipment.destination_country,
+        "carton_count": cartons.count(),
+        "carton_rows": carton_rows,
+        "item_rows": rows_for_template,
+        "donor_name": shipment.shipper_name,
+        "donation_description": shipment.notes or description,
+        "humanitarian_purpose": shipment.notes or "Aide humanitaire",
+        "shipment_description": description,
+    }
+    return render(request, template, context)
+
+
+@login_required
+@require_http_methods(["GET"])
+def scan_shipment_carton_document(request, shipment_id, carton_id):
+    shipment = get_object_or_404(Shipment, pk=shipment_id)
+    carton = shipment.carton_set.filter(pk=carton_id).first()
+    if carton is None:
+        raise Http404("Carton not found for shipment")
+
+    item_rows = []
+    for item in carton.cartonitem_set.select_related(
+        "product_lot", "product_lot__product"
+    ):
+        item_rows.append(
+            {
+                "product": item.product_lot.product.name,
+                "lot": item.product_lot.lot_code or "N/A",
+                "quantity": item.quantity,
+            }
+        )
+
+    context = {
+        "shipment_ref": shipment.reference,
+        "carton_code": carton.code,
+        "item_rows": item_rows,
+    }
+    return render(request, "print/liste_colisage_carton.html", context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def scan_shipment_document_upload(request, shipment_id):
+    shipment = get_object_or_404(Shipment, pk=shipment_id)
+    uploaded = request.FILES.get("document_file")
+    if not uploaded:
+        messages.error(request, "Fichier requis.")
+        return redirect("scan:scan_shipment_edit", shipment_id=shipment.id)
+
+    extension = Path(uploaded.name).suffix.lower()
+    if extension not in ALLOWED_UPLOAD_EXTENSIONS:
+        messages.error(request, "Format de fichier non autorise.")
+        return redirect("scan:scan_shipment_edit", shipment_id=shipment.id)
+
+    Document.objects.create(
+        shipment=shipment, doc_type=DocumentType.ADDITIONAL, file=uploaded
+    )
+    messages.success(request, "Document ajoute.")
+    return redirect("scan:scan_shipment_edit", shipment_id=shipment.id)
+
+
+@login_required
+@require_http_methods(["POST"])
+def scan_shipment_document_delete(request, shipment_id, document_id):
+    shipment = get_object_or_404(Shipment, pk=shipment_id)
+    document = get_object_or_404(
+        Document, pk=document_id, shipment=shipment, doc_type=DocumentType.ADDITIONAL
+    )
+    if document.file:
+        document.file.delete(save=False)
+    document.delete()
+    messages.success(request, "Document supprime.")
+    return redirect("scan:scan_shipment_edit", shipment_id=shipment.id)
 
 
 @login_required
@@ -1343,7 +1484,7 @@ def scan_sync(request):
     )
 
 
-SERVICE_WORKER_JS = """const CACHE_NAME = 'wms-scan-v22';
+SERVICE_WORKER_JS = """const CACHE_NAME = 'wms-scan-v23';
 const ASSETS = [
   '/scan/',
   '/static/scan/scan.css',

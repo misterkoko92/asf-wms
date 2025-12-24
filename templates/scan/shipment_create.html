@@ -96,6 +96,73 @@
         <p class="scan-help">Chaque ligne: selectionnez un colis prepare ou creez-en un depuis un produit.</p>
       {% endif %}
     </form>
+
+    {% if is_edit %}
+      <hr class="scan-divider">
+
+      <div class="scan-field">
+        <label>Documents generes</label>
+        <div class="scan-docs">
+          <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'shipment_note' %}" target="_blank" rel="noopener">
+            Bon d'expedition
+          </a>
+          <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'packing_list_shipment' %}" target="_blank" rel="noopener">
+            Liste colisage (lot)
+          </a>
+          <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'donation_certificate' %}" target="_blank" rel="noopener">
+            Attestation donation
+          </a>
+        </div>
+      </div>
+
+      <div class="scan-field">
+        <label>Liste colisage par carton</label>
+        {% if carton_docs %}
+          <div class="scan-docs">
+            {% for carton in carton_docs %}
+              <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_carton_document' shipment.id carton.id %}" target="_blank" rel="noopener">
+                {{ carton.code }}
+              </a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="scan-help">Aucun colis associe.</div>
+        {% endif %}
+      </div>
+
+      <div class="scan-field">
+        <label>Ajouter un document</label>
+        <form method="post" enctype="multipart/form-data" action="{% url 'scan:scan_shipment_document_upload' shipment.id %}">
+          {% csrf_token %}
+          <div class="scan-inline">
+            <input type="file" name="document_file" required>
+            <button type="submit" class="scan-scan-btn">Uploader</button>
+          </div>
+          <div class="scan-help">Formats autorises: PDF, JPG, PNG, XLSX, DOCX.</div>
+        </form>
+      </div>
+
+      <div class="scan-field">
+        <label>Documents additionnels</label>
+        {% if documents %}
+          <div class="scan-docs">
+            {% for document in documents %}
+              <div class="scan-inline">
+                <a class="scan-scan-btn scan-doc-btn" href="{{ document.file.url }}" target="_blank" rel="noopener">
+                  {{ document.file.name|default:"Document" }}
+                </a>
+                <form method="post" action="{% url 'scan:scan_shipment_document_delete' shipment.id document.id %}">
+                  {% csrf_token %}
+                  <button type="submit" class="scan-scan-btn scan-doc-btn">Supprimer</button>
+                </form>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="scan-help">Aucun document additionnel.</div>
+        {% endif %}
+      </div>
+    {% endif %}
     {{ products_json|json_script:"product-data" }}
     {{ cartons_json|json_script:"carton-data" }}
     {{ line_values|json_script:"shipment-lines-data" }}

@@ -21,6 +21,26 @@ urlpatterns = [
         views.scan_shipment_edit,
         name="scan_shipment_edit",
     ),
+    path(
+        "shipment/<int:shipment_id>/doc/<str:doc_type>/",
+        views.scan_shipment_document,
+        name="scan_shipment_document",
+    ),
+    path(
+        "shipment/<int:shipment_id>/carton/<int:carton_id>/doc/",
+        views.scan_shipment_carton_document,
+        name="scan_shipment_carton_document",
+    ),
+    path(
+        "shipment/<int:shipment_id>/documents/upload/",
+        views.scan_shipment_document_upload,
+        name="scan_shipment_document_upload",
+    ),
+    path(
+        "shipment/<int:shipment_id>/documents/<int:document_id>/delete/",
+        views.scan_shipment_document_delete,
+        name="scan_shipment_document_delete",
+    ),
     path("out/", views.scan_out, name="scan_out"),
     path("sync/", views.scan_sync, name="scan_sync"),
     path("service-worker.js", views.scan_service_worker, name="scan_service_worker"),

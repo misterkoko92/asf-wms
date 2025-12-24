@@ -660,6 +660,7 @@ class DocumentType(models.TextChoices):
     SHIPMENT_NOTE = "shipment_note", "Shipment note"
     PACKING_LIST_CARTON = "packing_list_carton", "Packing list carton"
     PACKING_LIST_SHIPMENT = "packing_list_shipment", "Packing list shipment"
+    ADDITIONAL = "additional", "Document additionnel"
 
 
 class Document(models.Model):

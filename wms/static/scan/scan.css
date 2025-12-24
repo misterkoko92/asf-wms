@@ -433,6 +433,23 @@ body {
   color: var(--ink-soft);
 }
 
+.scan-docs {
+  display: grid;
+  gap: 6px;
+}
+
+.scan-doc-btn {
+  min-width: auto;
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
+.scan-divider {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 16px 0;
+}
+
 .scan-scan-btn {
   border: 2px solid var(--accent);
   background: var(--scan-btn-bg);
