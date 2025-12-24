@@ -13,7 +13,12 @@
 
       <div class="scan-field">
         <label for="id_destination">Destination</label>
-        {{ form.destination }}
+        <div class="scan-inline">
+          {{ form.destination }}
+          <a class="scan-scan-btn" href="{% url 'admin:wms_destination_add' %}" target="_blank" rel="noopener">
+            Ajouter destination
+          </a>
+        </div>
         {% for error in form.destination.errors %}
           <div class="scan-message error">{{ error }}</div>
         {% endfor %}
@@ -21,7 +26,12 @@
 
       <div class="scan-field">
         <label for="id_shipper_contact">Expediteur</label>
-        {{ form.shipper_contact }}
+        <div class="scan-inline">
+          {{ form.shipper_contact }}
+          <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+            Ajouter expediteur
+          </a>
+        </div>
         {% for error in form.shipper_contact.errors %}
           <div class="scan-message error">{{ error }}</div>
         {% endfor %}
@@ -29,7 +39,12 @@
 
       <div class="scan-field">
         <label for="id_recipient_contact">Destinataire</label>
-        {{ form.recipient_contact }}
+        <div class="scan-inline">
+          {{ form.recipient_contact }}
+          <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+            Ajouter destinataire
+          </a>
+        </div>
         {% for error in form.recipient_contact.errors %}
           <div class="scan-message error">{{ error }}</div>
         {% endfor %}
@@ -37,7 +52,12 @@
 
       <div class="scan-field">
         <label for="id_correspondent_contact">Correspondant</label>
-        {{ form.correspondent_contact }}
+        <div class="scan-inline">
+          {{ form.correspondent_contact }}
+          <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+            Ajouter correspondant
+          </a>
+        </div>
         {% for error in form.correspondent_contact.errors %}
           <div class="scan-message error">{{ error }}</div>
         {% endfor %}

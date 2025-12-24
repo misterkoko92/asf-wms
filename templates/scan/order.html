@@ -37,15 +37,30 @@
       </div>
       <div class="scan-field">
         <label for="id_shipper_contact">Expediteur (contact)</label>
-        {{ create_form.shipper_contact }}
+        <div class="scan-inline">
+          {{ create_form.shipper_contact }}
+          <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+            Ajouter expediteur
+          </a>
+        </div>
       </div>
       <div class="scan-field">
         <label for="id_recipient_contact">Destinataire (contact)</label>
-        {{ create_form.recipient_contact }}
+        <div class="scan-inline">
+          {{ create_form.recipient_contact }}
+          <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+            Ajouter destinataire
+          </a>
+        </div>
       </div>
       <div class="scan-field">
         <label for="id_correspondent_contact">Correspondant (contact)</label>
-        {{ create_form.correspondent_contact }}
+        <div class="scan-inline">
+          {{ create_form.correspondent_contact }}
+          <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+            Ajouter correspondant
+          </a>
+        </div>
       </div>
       <div class="scan-field">
         <label for="id_destination_address">Adresse destination</label>
