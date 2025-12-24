@@ -18,6 +18,7 @@ db.sqlite3
 *.sqlite3-shm
 *.sqlite3-wal
 media/
+data/
 
 # Logs and env files
 *.log
