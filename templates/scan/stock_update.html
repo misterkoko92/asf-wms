@@ -53,7 +53,12 @@
 
         <div class="scan-field">
           <label for="id_donor_receipt">Donateur</label>
-          {{ create_form.donor_receipt }}
+          <div class="scan-inline">
+            {{ create_form.donor_receipt }}
+            <a class="scan-scan-btn" href="{% url 'admin:wms_receipt_add' %}" target="_blank" rel="noopener">
+              Ajouter reception
+            </a>
+          </div>
           {% for error in create_form.donor_receipt.errors %}
             <div class="scan-message error">{{ error }}</div>
           {% endfor %}

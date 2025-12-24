@@ -10,7 +10,12 @@
       <input type="hidden" name="action" value="select_order">
       <div class="scan-field">
         <label for="id_order">Commande existante</label>
-        {{ select_form.order }}
+        <div class="scan-inline">
+          {{ select_form.order }}
+          <a class="scan-scan-btn" href="{% url 'admin:wms_order_add' %}" target="_blank" rel="noopener">
+            Ajouter commande
+          </a>
+        </div>
         {% for error in select_form.order.errors %}
           <div class="scan-message error">{{ error }}</div>
         {% endfor %}

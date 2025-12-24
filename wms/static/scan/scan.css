@@ -403,6 +403,28 @@ body {
   margin-top: 8px;
 }
 
+.scan-toggle-form {
+  margin: 0;
+}
+
+.scan-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.scan-toggle input[type="checkbox"] {
+  width: auto;
+}
+
+.scan-packing-list {
+  display: grid;
+  gap: 2px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
 .scan-scan-btn {
   border: 2px solid var(--accent);
   background: var(--scan-btn-bg);

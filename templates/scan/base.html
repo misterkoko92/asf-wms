@@ -26,6 +26,8 @@
 
     <nav class="scan-nav">
       <a href="{% url 'scan:scan_stock' %}" class="{% if active == 'stock' %}active{% endif %}">Vue stock</a>
+      <a href="{% url 'scan:scan_cartons_ready' %}" class="{% if active == 'cartons_ready' %}active{% endif %}">Vue colis conditionnes</a>
+      <a href="{% url 'scan:scan_shipments_ready' %}" class="{% if active == 'shipments_ready' %}active{% endif %}">Vue expeditions pretes</a>
       <a href="{% url 'scan:scan_receive_pallet' %}" class="{% if active == 'receive_pallet' %}active{% endif %}">Reception palette</a>
       <a href="{% url 'scan:scan_receive_association' %}" class="{% if active == 'receive_association' %}active{% endif %}">Reception association</a>
       <a href="{% url 'scan:scan_stock_update' %}" class="{% if active == 'stock_update' %}active{% endif %}">MAJ stock</a>

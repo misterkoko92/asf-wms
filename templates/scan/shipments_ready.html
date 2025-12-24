@@ -1,0 +1,53 @@
+{% extends "scan/base.html" %}
+
+{% block title %}WMS Scan - Vue expeditions pretes{% endblock %}
+
+{% block content %}
+  <div class="scan-card">
+    <h2>Vue expeditions pretes ({{ shipments|length }})</h2>
+    {% if shipments %}
+      <div class="scan-table-wrap">
+        <table class="scan-table">
+          <thead>
+            <tr>
+              <th>No expedition</th>
+              <th>Nb colis</th>
+              <th>Destination (IATA)</th>
+              <th>Expediteur</th>
+              <th>Destinataire</th>
+              <th>Date creation</th>
+              <th>Date mise en disponible</th>
+              <th>Statut</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for shipment in shipments %}
+              <tr>
+                <td>{{ shipment.reference }}</td>
+                <td class="qty">{{ shipment.carton_count }}</td>
+                <td>{{ shipment.destination_iata|default:"-" }}</td>
+                <td>{{ shipment.shipper_name }}</td>
+                <td>{{ shipment.recipient_name }}</td>
+                <td>{{ shipment.created_at|date:"d/m/y H\\hi" }}</td>
+                <td>{{ shipment.ready_at|date:"d/m/y H\\hi"|default:"-" }}</td>
+                <td class="status">
+                  <form method="post" class="scan-toggle-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="toggle_shipment_ready">
+                    <input type="hidden" name="shipment_id" value="{{ shipment.id }}">
+                    <label class="scan-toggle">
+                      <input type="checkbox" name="ready" {% if shipment.is_ready %}checked{% endif %}{% if not shipment.can_toggle %} disabled{% endif %} onchange="this.form.submit()">
+                      <span>{{ shipment.status_label }}</span>
+                    </label>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="scan-help">Aucune expedition.</p>
+    {% endif %}
+  </div>
+{% endblock %}

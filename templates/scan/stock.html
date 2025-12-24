@@ -13,22 +13,32 @@
 
       <div class="scan-field">
         <label for="id_category">Categorie</label>
-        <select id="id_category" name="category">
-          <option value="">Toutes categories</option>
-          {% for category in categories %}
-            <option value="{{ category.id }}" {% if category_id == category.id|stringformat:"s" %}selected{% endif %}>{{ category }}</option>
-          {% endfor %}
-        </select>
+        <div class="scan-inline">
+          <select id="id_category" name="category">
+            <option value="">Toutes categories</option>
+            {% for category in categories %}
+              <option value="{{ category.id }}" {% if category_id == category.id|stringformat:"s" %}selected{% endif %}>{{ category }}</option>
+            {% endfor %}
+          </select>
+          <a class="scan-scan-btn" href="{% url 'admin:wms_productcategory_add' %}" target="_blank" rel="noopener">
+            Ajouter categorie
+          </a>
+        </div>
       </div>
 
       <div class="scan-field">
         <label for="id_warehouse">Entrepot</label>
-        <select id="id_warehouse" name="warehouse">
-          <option value="">Tous entrepots</option>
-          {% for warehouse in warehouses %}
-            <option value="{{ warehouse.id }}" {% if warehouse_id == warehouse.id|stringformat:"s" %}selected{% endif %}>{{ warehouse.name }}</option>
-          {% endfor %}
-        </select>
+        <div class="scan-inline">
+          <select id="id_warehouse" name="warehouse">
+            <option value="">Tous entrepots</option>
+            {% for warehouse in warehouses %}
+              <option value="{{ warehouse.id }}" {% if warehouse_id == warehouse.id|stringformat:"s" %}selected{% endif %}>{{ warehouse.name }}</option>
+            {% endfor %}
+          </select>
+          <a class="scan-scan-btn" href="{% url 'admin:wms_warehouse_add' %}" target="_blank" rel="noopener">
+            Ajouter entrepot
+          </a>
+        </div>
       </div>
 
       <div class="scan-field">

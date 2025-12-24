@@ -29,7 +29,12 @@
 
       <div class="scan-field">
         <label for="id_source_contact">Donateur</label>
-        {{ create_form.source_contact }}
+        <div class="scan-inline">
+          {{ create_form.source_contact }}
+          <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+            Ajouter donateur
+          </a>
+        </div>
         {% for error in create_form.source_contact.errors %}
           <div class="scan-message error">{{ error }}</div>
         {% endfor %}
@@ -37,7 +42,12 @@
 
       <div class="scan-field">
         <label for="id_carrier_contact">Transporteur</label>
-        {{ create_form.carrier_contact }}
+        <div class="scan-inline">
+          {{ create_form.carrier_contact }}
+          <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+            Ajouter transporteur
+          </a>
+        </div>
         {% for error in create_form.carrier_contact.errors %}
           <div class="scan-message error">{{ error }}</div>
         {% endfor %}

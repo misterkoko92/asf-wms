@@ -10,7 +10,12 @@
       <input type="hidden" name="action" value="select_receipt">
       <div class="scan-field">
         <label for="id_receipt">Reception existante</label>
-        {{ select_form.receipt }}
+        <div class="scan-inline">
+          {{ select_form.receipt }}
+          <a class="scan-scan-btn" href="{% url 'admin:wms_receipt_add' %}" target="_blank" rel="noopener">
+            Ajouter reception
+          </a>
+        </div>
         {% for error in select_form.receipt.errors %}
           <div class="scan-message error">{{ error }}</div>
         {% endfor %}
@@ -33,12 +38,22 @@
 
       <div class="scan-field">
         <label for="id_source_contact">Provenance</label>
-        {{ create_form.source_contact }}
+        <div class="scan-inline">
+          {{ create_form.source_contact }}
+          <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+            Ajouter provenance
+          </a>
+        </div>
       </div>
 
       <div class="scan-field">
         <label for="id_carrier_contact">Transporteur</label>
-        {{ create_form.carrier_contact }}
+        <div class="scan-inline">
+          {{ create_form.carrier_contact }}
+          <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+            Ajouter transporteur
+          </a>
+        </div>
       </div>
 
       <div class="scan-field">
@@ -61,7 +76,12 @@
 
       <div class="scan-field">
         <label for="id_warehouse">Entrepot</label>
-        {{ create_form.warehouse }}
+        <div class="scan-inline">
+          {{ create_form.warehouse }}
+          <a class="scan-scan-btn" href="{% url 'admin:wms_warehouse_add' %}" target="_blank" rel="noopener">
+            Ajouter entrepot
+          </a>
+        </div>
         {% for error in create_form.warehouse.errors %}
           <div class="scan-message error">{{ error }}</div>
         {% endfor %}
@@ -161,7 +181,12 @@
 
         <div class="scan-field">
           <label for="id_location">Emplacement</label>
-          {{ line_form.location }}
+          <div class="scan-inline">
+            {{ line_form.location }}
+            <a class="scan-scan-btn" href="{% url 'admin:wms_location_add' %}" target="_blank" rel="noopener">
+              Ajouter emplacement
+            </a>
+          </div>
           {% for error in line_form.location.errors %}
             <div class="scan-message error">{{ error }}</div>
           {% endfor %}

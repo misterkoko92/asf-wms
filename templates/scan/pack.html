@@ -13,16 +13,21 @@
 
       <div class="scan-field">
         <label for="id_carton_format">Format carton</label>
-        <select id="id_carton_format" name="carton_format_id">
-          {% for format in carton_formats %}
-            {% with format_id=format.id|stringformat:"s" %}
-              <option value="{{ format.id }}" {% if format_id == carton_format_id %}selected{% endif %}>
-                {{ format.name }} ({{ format.length_cm }}x{{ format.width_cm }}x{{ format.height_cm }} cm, {{ format.max_weight_g }} g)
-              </option>
-            {% endwith %}
-          {% endfor %}
-          <option value="custom" {% if carton_format_id == "custom" %}selected{% endif %}>Personnalise</option>
-        </select>
+        <div class="scan-inline">
+          <select id="id_carton_format" name="carton_format_id">
+            {% for format in carton_formats %}
+              {% with format_id=format.id|stringformat:"s" %}
+                <option value="{{ format.id }}" {% if format_id == carton_format_id %}selected{% endif %}>
+                  {{ format.name }} ({{ format.length_cm }}x{{ format.width_cm }}x{{ format.height_cm }} cm, {{ format.max_weight_g }} g)
+                </option>
+              {% endwith %}
+            {% endfor %}
+            <option value="custom" {% if carton_format_id == "custom" %}selected{% endif %}>Personnalise</option>
+          </select>
+          <a class="scan-scan-btn" href="{% url 'admin:wms_cartonformat_add' %}" target="_blank" rel="noopener">
+            Ajouter format
+          </a>
+        </div>
       </div>
 
       <div id="custom-carton-fields" class="scan-field">
@@ -54,7 +59,12 @@
 
       <div class="scan-field">
         <label for="id_current_location">Emplacement (optionnel)</label>
-        {{ form.current_location }}
+        <div class="scan-inline">
+          {{ form.current_location }}
+          <a class="scan-scan-btn" href="{% url 'admin:wms_location_add' %}" target="_blank" rel="noopener">
+            Ajouter emplacement
+          </a>
+        </div>
       </div>
 
       <button type="submit" class="scan-submit">Preparer</button>

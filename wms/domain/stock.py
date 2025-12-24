@@ -58,7 +58,7 @@ def _prepare_carton(
         code = carton_code or generate_carton_code()
         carton = Carton.objects.create(
             code=code,
-            status=CartonStatus.ASSIGNED if shipment else CartonStatus.READY,
+            status=CartonStatus.ASSIGNED if shipment else CartonStatus.DRAFT,
             shipment=shipment,
             current_location=current_location,
             prepared_by=user,
@@ -71,7 +71,7 @@ def _prepare_carton(
         if current_location is not None:
             carton.current_location = current_location
         if carton.status in {CartonStatus.DRAFT, CartonStatus.READY}:
-            carton.status = CartonStatus.ASSIGNED if shipment else CartonStatus.READY
+            carton.status = CartonStatus.ASSIGNED if shipment else CartonStatus.DRAFT
         carton.save()
     return carton
 
