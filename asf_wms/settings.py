@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -65,8 +66,12 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "asf_wms.wsgi.application"
 
+RUNNING_TESTS = "test" in sys.argv
+USE_MYSQL_FOR_TESTS = _env_bool("USE_MYSQL_FOR_TESTS")
+USE_SQLITE_FOR_TESTS = RUNNING_TESTS and not USE_MYSQL_FOR_TESTS
+
 DB_NAME = os.environ.get("DB_NAME")
-if DB_NAME:
+if DB_NAME and not USE_SQLITE_FOR_TESTS:
     DATABASES = {
         "default": {
             "ENGINE": os.environ.get(
