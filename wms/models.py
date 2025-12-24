@@ -350,6 +350,30 @@ class ShipmentSequence(models.Model):
         return f"{self.year}: {self.last_number}"
 
 
+class Destination(models.Model):
+    city = models.CharField(max_length=120)
+    iata_code = models.CharField(max_length=10, unique=True)
+    country = models.CharField(max_length=80)
+    correspondent_contact = models.ForeignKey(
+        "contacts.Contact",
+        on_delete=models.PROTECT,
+        related_name="destinations_as_correspondent",
+    )
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["city"]
+        unique_together = ("city", "country")
+
+    def __str__(self) -> str:
+        label = self.city
+        if self.iata_code:
+            label = f"{label} ({self.iata_code})"
+        if self.country:
+            label = f"{label} - {self.country}"
+        return label
+
+
 class ShipmentStatus(models.TextChoices):
     DRAFT = "draft", "Draft"
     PICKING = "picking", "Picking"
@@ -368,6 +392,13 @@ class Shipment(models.Model):
     recipient_name = models.CharField(max_length=200)
     recipient_contact = models.CharField(max_length=200, blank=True)
     correspondent_name = models.CharField(max_length=200, blank=True)
+    destination = models.ForeignKey(
+        Destination,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="shipments",
+    )
     destination_address = models.TextField()
     destination_country = models.CharField(max_length=80, default="France")
     requested_delivery_date = models.DateField(null=True, blank=True)

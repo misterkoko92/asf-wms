@@ -26,10 +26,12 @@ from .forms import (
     ScanOrderSelectForm,
     ScanShipmentForm,
 )
+from .contact_filters import TAG_CORRESPONDENT, TAG_RECIPIENT, contacts_with_tags
 from .models import (
     Carton,
     CartonStatus,
     MovementType,
+    Destination,
     Product,
     ProductCategory,
     ProductLot,
@@ -712,7 +714,8 @@ def scan_pack(request):
 @login_required
 @require_http_methods(["GET", "POST"])
 def scan_shipment_create(request):
-    form = ScanShipmentForm(request.POST or None)
+    destination_id = request.POST.get("destination") or request.GET.get("destination")
+    form = ScanShipmentForm(request.POST or None, destination_id=destination_id)
     product_options = build_product_options()
     available_cartons = build_available_cartons()
     available_carton_ids = {str(carton["id"]) for carton in available_cartons}
@@ -772,13 +775,23 @@ def scan_shipment_create(request):
         if form.is_valid() and not line_errors:
             try:
                 with transaction.atomic():
+                    destination = form.cleaned_data["destination"]
+                    shipper_contact = form.cleaned_data["shipper_contact"]
+                    recipient_contact = form.cleaned_data["recipient_contact"]
+                    correspondent_contact = form.cleaned_data["correspondent_contact"]
+                    destination_label = destination.city
+                    if destination.iata_code:
+                        destination_label = f"{destination_label} ({destination.iata_code})"
+                    if destination.country:
+                        destination_label = f"{destination_label} - {destination.country}"
                     shipment = Shipment.objects.create(
                         status=ShipmentStatus.DRAFT,
-                        shipper_name=form.cleaned_data["shipper_name"],
-                        recipient_name=form.cleaned_data["recipient_name"],
-                        correspondent_name=form.cleaned_data["correspondent_name"],
-                        destination_address=form.cleaned_data["destination_address"],
-                        destination_country="France",
+                        shipper_name=shipper_contact.name,
+                        recipient_name=recipient_contact.name,
+                        correspondent_name=correspondent_contact.name,
+                        destination=destination,
+                        destination_address=destination_label,
+                        destination_country=destination.country,
                         created_by=request.user,
                     )
                     for item in line_items:
@@ -817,6 +830,38 @@ def scan_shipment_create(request):
         carton_count = form.initial.get("carton_count", 1)
         line_values = build_shipment_line_values(carton_count)
 
+    destinations = Destination.objects.filter(is_active=True).select_related(
+        "correspondent_contact"
+    )
+    recipient_contacts = contacts_with_tags(TAG_RECIPIENT).prefetch_related("addresses")
+    correspondent_contacts = contacts_with_tags(TAG_CORRESPONDENT)
+    destinations_json = [
+        {
+            "id": destination.id,
+            "country": destination.country,
+            "correspondent_contact_id": destination.correspondent_contact_id,
+        }
+        for destination in destinations
+    ]
+    recipient_contacts_json = []
+    for contact in recipient_contacts:
+        countries = {
+            address.country
+            for address in contact.addresses.all()
+            if address.country
+        }
+        recipient_contacts_json.append(
+            {
+                "id": contact.id,
+                "name": contact.name,
+                "countries": sorted(countries),
+            }
+        )
+    correspondent_contacts_json = [
+        {"id": contact.id, "name": contact.name}
+        for contact in correspondent_contacts
+    ]
+
     return render(
         request,
         "scan/shipment_create.html",
@@ -828,6 +873,9 @@ def scan_shipment_create(request):
             "carton_count": carton_count,
             "line_values": line_values,
             "line_errors": line_errors,
+            "destinations_json": destinations_json,
+            "recipient_contacts_json": recipient_contacts_json,
+            "correspondent_contacts_json": correspondent_contacts_json,
         },
     )
 
@@ -878,7 +926,7 @@ def scan_sync(request):
     )
 
 
-SERVICE_WORKER_JS = """const CACHE_NAME = 'wms-scan-v17';
+SERVICE_WORKER_JS = """const CACHE_NAME = 'wms-scan-v18';
 const ASSETS = [
   '/scan/',
   '/static/scan/scan.css',

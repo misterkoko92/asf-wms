@@ -12,33 +12,33 @@
       {% csrf_token %}
 
       <div class="scan-field">
-        <label for="id_shipper_name">Expediteur</label>
-        {{ form.shipper_name }}
-        {% for error in form.shipper_name.errors %}
+        <label for="id_destination">Destination</label>
+        {{ form.destination }}
+        {% for error in form.destination.errors %}
           <div class="scan-message error">{{ error }}</div>
         {% endfor %}
       </div>
 
       <div class="scan-field">
-        <label for="id_recipient_name">Destinataire</label>
-        {{ form.recipient_name }}
-        {% for error in form.recipient_name.errors %}
+        <label for="id_shipper_contact">Expediteur</label>
+        {{ form.shipper_contact }}
+        {% for error in form.shipper_contact.errors %}
           <div class="scan-message error">{{ error }}</div>
         {% endfor %}
       </div>
 
       <div class="scan-field">
-        <label for="id_correspondent_name">Correspondant</label>
-        {{ form.correspondent_name }}
-        {% for error in form.correspondent_name.errors %}
+        <label for="id_recipient_contact">Destinataire</label>
+        {{ form.recipient_contact }}
+        {% for error in form.recipient_contact.errors %}
           <div class="scan-message error">{{ error }}</div>
         {% endfor %}
       </div>
 
       <div class="scan-field">
-        <label for="id_destination_address">Destination</label>
-        {{ form.destination_address }}
-        {% for error in form.destination_address.errors %}
+        <label for="id_correspondent_contact">Correspondant</label>
+        {{ form.correspondent_contact }}
+        {% for error in form.correspondent_contact.errors %}
           <div class="scan-message error">{{ error }}</div>
         {% endfor %}
       </div>
@@ -65,6 +65,9 @@
     {{ cartons_json|json_script:"carton-data" }}
     {{ line_values|json_script:"shipment-lines-data" }}
     {{ line_errors|json_script:"shipment-lines-errors" }}
+    {{ destinations_json|json_script:"destination-data" }}
+    {{ recipient_contacts_json|json_script:"recipient-contacts-data" }}
+    {{ correspondent_contacts_json|json_script:"correspondent-contacts-data" }}
     <datalist id="product-options">
       {% for product in products_json %}
         <option value="{{ product.name }}" label="{{ product.sku }}{% if product.barcode %} | {{ product.barcode }}{% endif %}"></option>

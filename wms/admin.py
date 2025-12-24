@@ -10,6 +10,7 @@ from . import models
 from django.utils.html import format_html
 
 from .forms import AdjustStockForm, PackCartonForm, ReceiveStockForm, TransferStockForm
+from .contact_filters import TAG_CORRESPONDENT, contacts_with_tags
 from .services import (
     StockError,
     adjust_stock,
@@ -551,6 +552,18 @@ class CartonInline(admin.TabularInline):
 class DocumentInline(admin.TabularInline):
     model = models.Document
     extra = 0
+
+
+@admin.register(models.Destination)
+class DestinationAdmin(admin.ModelAdmin):
+    list_display = ("city", "iata_code", "country", "correspondent_contact", "is_active")
+    list_filter = ("country", "is_active")
+    search_fields = ("city", "iata_code", "country", "correspondent_contact__name")
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "correspondent_contact":
+            kwargs["queryset"] = contacts_with_tags(TAG_CORRESPONDENT)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 @admin.register(models.Shipment)

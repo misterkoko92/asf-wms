@@ -2,10 +2,20 @@ from django import forms
 from django.utils import timezone
 
 from contacts.models import Contact
+from .contact_filters import (
+    TAG_ASSOCIATION,
+    TAG_CORRESPONDENT,
+    TAG_DONOR,
+    TAG_RECIPIENT,
+    TAG_SHIPPER,
+    TAG_TRANSPORTER,
+    contacts_with_tags,
+)
 from .scan_helpers import resolve_product
 from .models import (
     Carton,
     CartonStatus,
+    Destination,
     Location,
     Product,
     ProductLot,
@@ -185,6 +195,11 @@ class ScanReceiptPalletForm(forms.Form):
         widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
     )
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["source_contact"].queryset = contacts_with_tags(TAG_DONOR)
+        self.fields["carrier_contact"].queryset = contacts_with_tags(TAG_TRANSPORTER)
+
 
 class ScanReceiptAssociationForm(forms.Form):
     received_on = forms.DateField(
@@ -214,6 +229,11 @@ class ScanReceiptAssociationForm(forms.Form):
         queryset=Contact.objects.filter(is_active=True),
         required=False,
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["source_contact"].queryset = contacts_with_tags(TAG_ASSOCIATION)
+        self.fields["carrier_contact"].queryset = contacts_with_tags(TAG_TRANSPORTER)
 
 
 class ScanStockUpdateForm(forms.Form):
@@ -297,11 +317,21 @@ class ScanOutForm(forms.Form):
 
 
 class ScanShipmentForm(forms.Form):
-    shipper_name = forms.CharField(label="Expediteur")
-    recipient_name = forms.CharField(label="Destinataire")
-    correspondent_name = forms.CharField(label="Correspondant")
-    destination_address = forms.CharField(
-        label="Destination", widget=forms.Textarea(attrs={"rows": 3})
+    destination = forms.ModelChoiceField(
+        label="Destination",
+        queryset=Destination.objects.none(),
+    )
+    shipper_contact = forms.ModelChoiceField(
+        label="Expediteur",
+        queryset=Contact.objects.none(),
+    )
+    recipient_contact = forms.ModelChoiceField(
+        label="Destinataire",
+        queryset=Contact.objects.none(),
+    )
+    correspondent_contact = forms.ModelChoiceField(
+        label="Correspondant",
+        queryset=Contact.objects.none(),
     )
     carton_count = forms.IntegerField(
         label="Nombre de colis",
@@ -309,6 +339,61 @@ class ScanShipmentForm(forms.Form):
         initial=1,
         widget=forms.NumberInput(attrs={"min": 1}),
     )
+
+    def __init__(self, *args, destination_id=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        destinations = Destination.objects.filter(is_active=True).select_related(
+            "correspondent_contact"
+        )
+        self.fields["destination"].queryset = destinations
+        self.fields["shipper_contact"].queryset = contacts_with_tags(TAG_SHIPPER)
+
+        recipients = contacts_with_tags(TAG_RECIPIENT)
+        correspondents = contacts_with_tags(TAG_CORRESPONDENT)
+
+        selected_destination = None
+        destination_value = destination_id or self.data.get("destination")
+        if destination_value:
+            selected_destination = destinations.filter(pk=destination_value).first()
+
+        if selected_destination:
+            recipients = recipients.filter(
+                addresses__country__iexact=selected_destination.country
+            )
+            if selected_destination.correspondent_contact_id:
+                correspondents = correspondents.filter(
+                    pk=selected_destination.correspondent_contact_id
+                )
+            else:
+                correspondents = correspondents.none()
+        else:
+            recipients = recipients.none()
+            correspondents = correspondents.none()
+
+        self.fields["recipient_contact"].queryset = recipients.distinct()
+        self.fields["correspondent_contact"].queryset = correspondents.distinct()
+
+    def clean(self):
+        cleaned = super().clean()
+        destination = cleaned.get("destination")
+        recipient = cleaned.get("recipient_contact")
+        correspondent = cleaned.get("correspondent_contact")
+        if destination and recipient:
+            in_country = recipient.addresses.filter(
+                country__iexact=destination.country
+            ).exists()
+            if not in_country:
+                self.add_error(
+                    "recipient_contact",
+                    "Destinataire incompatible avec le pays de destination.",
+                )
+        if destination and destination.correspondent_contact_id:
+            if correspondent and correspondent.id != destination.correspondent_contact_id:
+                self.add_error(
+                    "correspondent_contact",
+                    "Correspondant non lie a la destination.",
+                )
+        return cleaned
 
 
 class ScanOrderSelectForm(forms.Form):

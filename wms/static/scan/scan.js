@@ -900,6 +900,98 @@
     }
   }
 
+  function setupShipmentContactFilters() {
+    const destinationSelect = document.getElementById('id_destination');
+    const recipientSelect = document.getElementById('id_recipient_contact');
+    const correspondentSelect = document.getElementById('id_correspondent_contact');
+    const destinationsEl = document.getElementById('destination-data');
+    const recipientsEl = document.getElementById('recipient-contacts-data');
+    const correspondentsEl = document.getElementById('correspondent-contacts-data');
+
+    if (!destinationSelect || !recipientSelect || !correspondentSelect || !destinationsEl) {
+      return;
+    }
+
+    let destinations = [];
+    let recipients = [];
+    let correspondents = [];
+
+    try {
+      destinations = JSON.parse(destinationsEl.textContent || '[]');
+    } catch (err) {
+      destinations = [];
+    }
+    try {
+      recipients = JSON.parse(recipientsEl ? recipientsEl.textContent || '[]' : '[]');
+    } catch (err) {
+      recipients = [];
+    }
+    try {
+      correspondents = JSON.parse(
+        correspondentsEl ? correspondentsEl.textContent || '[]' : '[]'
+      );
+    } catch (err) {
+      correspondents = [];
+    }
+
+    const destinationMap = new Map(
+      destinations.map(destination => [String(destination.id), destination])
+    );
+    const normalize = value => (value || '').toString().trim().toLowerCase();
+
+    const renderOptions = (select, options, selectedValue) => {
+      const fragment = document.createDocumentFragment();
+      const empty = document.createElement('option');
+      empty.value = '';
+      empty.textContent = '---';
+      fragment.appendChild(empty);
+      options.forEach(option => {
+        const optionEl = document.createElement('option');
+        optionEl.value = String(option.id);
+        optionEl.textContent = option.name;
+        fragment.appendChild(optionEl);
+      });
+      select.innerHTML = '';
+      select.appendChild(fragment);
+      if (selectedValue && options.some(option => String(option.id) === String(selectedValue))) {
+        select.value = String(selectedValue);
+      } else if (options.length === 1) {
+        select.value = String(options[0].id);
+      } else {
+        select.value = '';
+      }
+    };
+
+    const updateContacts = () => {
+      const destination = destinationMap.get(String(destinationSelect.value));
+      const selectedRecipient = recipientSelect.value;
+      const selectedCorrespondent = correspondentSelect.value;
+      let recipientOptions = [];
+      let correspondentOptions = [];
+
+      if (destination) {
+        const country = normalize(destination.country);
+        if (country) {
+          recipientOptions = recipients.filter(recipient =>
+            (recipient.countries || []).some(entry => normalize(entry) === country)
+          );
+        }
+        if (destination.correspondent_contact_id) {
+          correspondentOptions = correspondents.filter(
+            correspondent =>
+              String(correspondent.id) === String(destination.correspondent_contact_id)
+          );
+        }
+      }
+
+      renderOptions(recipientSelect, recipientOptions, selectedRecipient);
+      renderOptions(correspondentSelect, correspondentOptions, selectedCorrespondent);
+    };
+
+    destinationSelect.addEventListener('change', updateContacts);
+    updateContacts();
+  }
+
   function setupReceiptLines() {
     const container = document.getElementById('receipt-lines');
     if (!container) {
@@ -1281,6 +1373,7 @@
   setupProductDatalist();
   setupPackLines();
   setupShipmentBuilder();
+  setupShipmentContactFilters();
   setupReceiptLines();
   setupLiveSync();
 
