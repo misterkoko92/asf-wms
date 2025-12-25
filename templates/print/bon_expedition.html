@@ -8,6 +8,12 @@
   .doc-label { font-weight: 700; }
   .doc-value { border-bottom: 1px solid #000; padding-bottom: 1mm; min-height: 5mm; }
   .doc-row.two-col { grid-template-columns: 48mm 1fr 40mm 1fr; }
+  .contact-section { display: grid; gap: 2mm; }
+  .contact-block { border: 1px solid #000; padding: 2mm 3mm; }
+  .contact-title { font-weight: 700; margin-bottom: 1mm; }
+  .contact-grid { display: grid; grid-template-columns: 26mm 1fr; gap: 1mm 3mm; font-size: 9pt; }
+  .contact-label { font-weight: 700; }
+  .contact-value { border-bottom: 1px solid #000; min-height: 4mm; padding-bottom: 0.5mm; white-space: pre-line; }
   .signature-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; margin-top: 6mm; }
   .signature-box { border-bottom: 1px solid #000; padding-bottom: 2mm; min-height: 8mm; }
 {% endblock %}
@@ -23,19 +29,52 @@
       <div class="doc-value">{{ shipment_ref }}</div>
     </div>
 
-    <div class="doc-row">
-      <div class="doc-label">Expediteur</div>
-      <div class="doc-value">{{ shipper_name }}</div>
-    </div>
-
-    <div class="doc-row">
-      <div class="doc-label">Destinataire</div>
-      <div class="doc-value">{{ recipient_name }}</div>
-    </div>
-
-    <div class="doc-row">
-      <div class="doc-label">Correspondant</div>
-      <div class="doc-value">{{ correspondent_name|default:"-" }}</div>
+    <div class="contact-section">
+      <div class="contact-block">
+        <div class="contact-title">Expediteur</div>
+        <div class="contact-grid">
+          <div class="contact-label">Societe</div>
+          <div class="contact-value">{{ shipper_info.company|default:"-" }}</div>
+          <div class="contact-label">Nom</div>
+          <div class="contact-value">{{ shipper_info.person|default:"-" }}</div>
+          <div class="contact-label">Adresse</div>
+          <div class="contact-value">{{ shipper_info.address|default:"-" }}</div>
+          <div class="contact-label">Telephone</div>
+          <div class="contact-value">{{ shipper_info.phone|default:"-" }}</div>
+          <div class="contact-label">Mail</div>
+          <div class="contact-value">{{ shipper_info.email|default:"-" }}</div>
+        </div>
+      </div>
+      <div class="contact-block">
+        <div class="contact-title">Destinataire</div>
+        <div class="contact-grid">
+          <div class="contact-label">Societe</div>
+          <div class="contact-value">{{ recipient_info.company|default:"-" }}</div>
+          <div class="contact-label">Nom</div>
+          <div class="contact-value">{{ recipient_info.person|default:"-" }}</div>
+          <div class="contact-label">Adresse</div>
+          <div class="contact-value">{{ recipient_info.address|default:"-" }}</div>
+          <div class="contact-label">Telephone</div>
+          <div class="contact-value">{{ recipient_info.phone|default:"-" }}</div>
+          <div class="contact-label">Mail</div>
+          <div class="contact-value">{{ recipient_info.email|default:"-" }}</div>
+        </div>
+      </div>
+      <div class="contact-block">
+        <div class="contact-title">Correspondant</div>
+        <div class="contact-grid">
+          <div class="contact-label">Societe</div>
+          <div class="contact-value">{{ correspondent_info.company|default:"-" }}</div>
+          <div class="contact-label">Nom</div>
+          <div class="contact-value">{{ correspondent_info.person|default:"-" }}</div>
+          <div class="contact-label">Adresse</div>
+          <div class="contact-value">{{ correspondent_info.address|default:"-" }}</div>
+          <div class="contact-label">Telephone</div>
+          <div class="contact-value">{{ correspondent_info.phone|default:"-" }}</div>
+          <div class="contact-label">Mail</div>
+          <div class="contact-value">{{ correspondent_info.email|default:"-" }}</div>
+        </div>
+      </div>
     </div>
 
     <div class="doc-row two-col">

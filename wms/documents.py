@@ -1,5 +1,8 @@
 from django.conf import settings
 
+from contacts.models import Contact, ContactType
+
+from .contact_filters import contacts_with_tags
 from .models import CartonItem
 
 
@@ -95,3 +98,61 @@ def build_shipment_type_labels(shipment):
         if category:
             roots.add(category.name)
     return ", ".join(sorted(roots)) if roots else "-"
+
+
+def _resolve_contact(tag_names, fallback_name):
+    if not fallback_name:
+        return None
+    contact = contacts_with_tags(tag_names).filter(name__iexact=fallback_name).first()
+    if contact:
+        return contact
+    return Contact.objects.filter(name__iexact=fallback_name).first()
+
+
+def _format_contact_address(address):
+    if not address:
+        return ""
+    lines = [address.address_line1]
+    if address.address_line2:
+        lines.append(address.address_line2)
+    city_line = " ".join(part for part in [address.postal_code, address.city] if part)
+    if city_line:
+        lines.append(city_line)
+    if address.region:
+        lines.append(address.region)
+    if address.country:
+        lines.append(address.country)
+    return "\n".join(lines)
+
+
+def build_contact_info(tag_names, fallback_name):
+    contact = _resolve_contact(tag_names, fallback_name)
+    if contact:
+        address = (
+            contact.addresses.filter(is_default=True).first()
+            or contact.addresses.first()
+        )
+        phone = contact.phone or (address.phone if address else "")
+        email = contact.email or (address.email if address else "")
+        if contact.contact_type == ContactType.PERSON:
+            person_name = contact.name
+            company_name = ""
+        else:
+            person_name = contact.notes or ""
+            company_name = contact.name
+        return {
+            "name": contact.name,
+            "person": person_name,
+            "company": company_name,
+            "address": _format_contact_address(address),
+            "phone": phone,
+            "email": email,
+        }
+    return {
+        "name": fallback_name or "",
+        "person": fallback_name or "",
+        "company": fallback_name or "",
+        "address": "",
+        "phone": "",
+        "email": "",
+    }

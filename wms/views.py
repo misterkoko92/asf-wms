@@ -35,6 +35,7 @@ from .contact_filters import (
 )
 from .documents import (
     build_carton_rows,
+    build_contact_info,
     build_org_context,
     build_shipment_aggregate_rows,
     build_shipment_item_rows,
@@ -1353,6 +1354,11 @@ def scan_shipment_document(request, shipment_id, doc_type):
             destination_label = f"{destination_label} ({shipment.destination.iata_code})"
     else:
         destination_label = shipment.destination_address
+    shipper_info = build_contact_info(TAG_SHIPPER, shipment.shipper_name)
+    recipient_info = build_contact_info(TAG_RECIPIENT, shipment.recipient_name)
+    correspondent_info = build_contact_info(
+        TAG_CORRESPONDENT, shipment.correspondent_name
+    )
 
     description = f"{cartons.count()} cartons, {len(aggregate_rows)} produits"
     if shipment.requested_delivery_date:
@@ -1382,6 +1388,9 @@ def scan_shipment_document(request, shipment_id, doc_type):
         "weight_total_g": weight_total_g,
         "weight_total_kg": weight_total_kg,
         "type_labels": type_labels,
+        "shipper_info": shipper_info,
+        "recipient_info": recipient_info,
+        "correspondent_info": correspondent_info,
         "donor_name": shipment.shipper_name,
         "donation_description": shipment.notes or description,
         "humanitarian_purpose": shipment.notes or "Aide humanitaire",

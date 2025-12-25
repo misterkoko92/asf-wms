@@ -10,6 +10,7 @@ from django.utils.html import format_html
 
 from .documents import (
     build_carton_rows,
+    build_contact_info,
     build_org_context,
     build_shipment_aggregate_rows,
     build_shipment_item_rows,
@@ -17,7 +18,12 @@ from .documents import (
     compute_weight_total_g,
 )
 from .forms import AdjustStockForm, PackCartonForm, ReceiveStockForm, TransferStockForm
-from .contact_filters import TAG_CORRESPONDENT, contacts_with_tags
+from .contact_filters import (
+    TAG_CORRESPONDENT,
+    TAG_RECIPIENT,
+    TAG_SHIPPER,
+    contacts_with_tags,
+)
 from .services import (
     StockError,
     adjust_stock,
@@ -549,6 +555,11 @@ class ShipmentAdmin(admin.ModelAdmin):
                 )
         else:
             destination_label = shipment.destination_address
+        shipper_info = build_contact_info(TAG_SHIPPER, shipment.shipper_name)
+        recipient_info = build_contact_info(TAG_RECIPIENT, shipment.recipient_name)
+        correspondent_info = build_contact_info(
+            TAG_CORRESPONDENT, shipment.correspondent_name
+        )
 
         description = f"{cartons.count()} cartons, {len(aggregate_rows)} produits"
         if shipment.requested_delivery_date:
@@ -579,6 +590,9 @@ class ShipmentAdmin(admin.ModelAdmin):
             "weight_total_g": weight_total_g,
             "weight_total_kg": weight_total_kg,
             "type_labels": type_labels,
+            "shipper_info": shipper_info,
+            "recipient_info": recipient_info,
+            "correspondent_info": correspondent_info,
             "donor_name": shipment.shipper_name,
             "donation_description": shipment.notes or description,
             "humanitarian_purpose": shipment.notes or "Aide humanitaire",
