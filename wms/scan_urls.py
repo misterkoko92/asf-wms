@@ -41,6 +41,16 @@ urlpatterns = [
         views.scan_shipment_document_delete,
         name="scan_shipment_document_delete",
     ),
+    path(
+        "shipment/<int:shipment_id>/labels/",
+        views.scan_shipment_labels,
+        name="scan_shipment_labels",
+    ),
+    path(
+        "shipment/<int:shipment_id>/labels/<int:carton_id>/",
+        views.scan_shipment_label,
+        name="scan_shipment_label",
+    ),
     path("out/", views.scan_out, name="scan_out"),
     path("sync/", views.scan_sync, name="scan_sync"),
     path("service-worker.js", views.scan_service_worker, name="scan_service_worker"),

@@ -44,6 +44,9 @@
                     <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'donation_certificate' %}" target="_blank" rel="noopener">
                       Attestation donation
                     </a>
+                    <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_labels' shipment.id %}" target="_blank" rel="noopener">
+                      Etiquettes colis
+                    </a>
                   </div>
                 </td>
                 <td>

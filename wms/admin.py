@@ -13,6 +13,8 @@ from .documents import (
     build_org_context,
     build_shipment_aggregate_rows,
     build_shipment_item_rows,
+    build_shipment_type_labels,
+    compute_weight_total_g,
 )
 from .forms import AdjustStockForm, PackCartonForm, ReceiveStockForm, TransferStockForm
 from .contact_filters import TAG_CORRESPONDENT, contacts_with_tags
@@ -536,6 +538,17 @@ class ShipmentAdmin(admin.ModelAdmin):
         item_rows = build_shipment_item_rows(shipment)
         aggregate_rows = build_shipment_aggregate_rows(shipment)
         carton_rows = build_carton_rows(cartons)
+        weight_total_g = compute_weight_total_g(carton_rows)
+        weight_total_kg = weight_total_g / 1000 if weight_total_g else 0
+        type_labels = build_shipment_type_labels(shipment)
+        if shipment.destination and shipment.destination.city:
+            destination_label = shipment.destination.city
+            if shipment.destination.iata_code:
+                destination_label = (
+                    f"{destination_label} ({shipment.destination.iata_code})"
+                )
+        else:
+            destination_label = shipment.destination_address
 
         description = f"{cartons.count()} cartons, {len(aggregate_rows)} produits"
         if shipment.requested_delivery_date:
@@ -559,9 +572,13 @@ class ShipmentAdmin(admin.ModelAdmin):
             "correspondent_name": shipment.correspondent_name,
             "destination_address": shipment.destination_address,
             "destination_country": shipment.destination_country,
+            "destination_label": destination_label,
             "carton_count": cartons.count(),
             "carton_rows": carton_rows,
             "item_rows": rows_for_template,
+            "weight_total_g": weight_total_g,
+            "weight_total_kg": weight_total_kg,
+            "type_labels": type_labels,
             "donor_name": shipment.shipper_name,
             "donation_description": shipment.notes or description,
             "humanitarian_purpose": shipment.notes or "Aide humanitaire",

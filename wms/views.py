@@ -38,6 +38,8 @@ from .documents import (
     build_org_context,
     build_shipment_aggregate_rows,
     build_shipment_item_rows,
+    build_shipment_type_labels,
+    compute_weight_total_g,
 )
 from .models import (
     Carton,
@@ -1342,6 +1344,15 @@ def scan_shipment_document(request, shipment_id, doc_type):
     item_rows = build_shipment_item_rows(shipment)
     aggregate_rows = build_shipment_aggregate_rows(shipment)
     carton_rows = build_carton_rows(cartons)
+    weight_total_g = compute_weight_total_g(carton_rows)
+    weight_total_kg = weight_total_g / 1000 if weight_total_g else 0
+    type_labels = build_shipment_type_labels(shipment)
+    if shipment.destination and shipment.destination.city:
+        destination_label = shipment.destination.city
+        if shipment.destination.iata_code:
+            destination_label = f"{destination_label} ({shipment.destination.iata_code})"
+    else:
+        destination_label = shipment.destination_address
 
     description = f"{cartons.count()} cartons, {len(aggregate_rows)} produits"
     if shipment.requested_delivery_date:
@@ -1364,9 +1375,13 @@ def scan_shipment_document(request, shipment_id, doc_type):
         "correspondent_name": shipment.correspondent_name,
         "destination_address": shipment.destination_address,
         "destination_country": shipment.destination_country,
+        "destination_label": destination_label,
         "carton_count": cartons.count(),
         "carton_rows": carton_rows,
         "item_rows": rows_for_template,
+        "weight_total_g": weight_total_g,
+        "weight_total_kg": weight_total_kg,
+        "type_labels": type_labels,
         "donor_name": shipment.shipper_name,
         "donation_description": shipment.notes or description,
         "humanitarian_purpose": shipment.notes or "Aide humanitaire",
@@ -1401,6 +1416,61 @@ def scan_shipment_carton_document(request, shipment_id, carton_id):
         "item_rows": item_rows,
     }
     return render(request, "print/liste_colisage_carton.html", context)
+
+
+@login_required
+@require_http_methods(["GET"])
+def scan_shipment_labels(request, shipment_id):
+    shipment = get_object_or_404(
+        Shipment.objects.select_related("destination"), pk=shipment_id
+    )
+    cartons = list(shipment.carton_set.order_by("code"))
+    total = len(cartons)
+    city = shipment.destination.city if shipment.destination else shipment.destination_address
+    iata = shipment.destination.iata_code if shipment.destination else ""
+    labels = []
+    for index, carton in enumerate(cartons, start=1):
+        labels.append(
+            {
+                "city": (city or "").upper(),
+                "iata": (iata or "").upper(),
+                "shipment_ref": shipment.reference,
+                "position": index,
+                "total": total,
+                "carton_id": carton.id,
+            }
+        )
+    return render(request, "print/etiquette_expedition.html", {"labels": labels})
+
+
+@login_required
+@require_http_methods(["GET"])
+def scan_shipment_label(request, shipment_id, carton_id):
+    shipment = get_object_or_404(
+        Shipment.objects.select_related("destination"), pk=shipment_id
+    )
+    cartons = list(shipment.carton_set.order_by("code"))
+    total = len(cartons)
+    position = None
+    for index, carton in enumerate(cartons, start=1):
+        if carton.id == carton_id:
+            position = index
+            break
+    if position is None:
+        raise Http404("Carton not found for shipment")
+    city = shipment.destination.city if shipment.destination else shipment.destination_address
+    iata = shipment.destination.iata_code if shipment.destination else ""
+    labels = [
+        {
+            "city": (city or "").upper(),
+            "iata": (iata or "").upper(),
+            "shipment_ref": shipment.reference,
+            "position": position,
+            "total": total,
+            "carton_id": carton_id,
+        }
+    ]
+    return render(request, "print/etiquette_expedition.html", {"labels": labels})
 
 
 @login_required

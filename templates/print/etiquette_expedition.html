@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Etiquette expedition</title>
+  <style>
+    @page { size: A5 landscape; margin: 10mm; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      color: #000;
+    }
+    .label-page {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: calc(100vh - 20mm);
+      page-break-after: always;
+    }
+    .label-page:last-child {
+      page-break-after: auto;
+    }
+    .label-city {
+      border: 5px solid #333;
+      padding: 10mm 6mm;
+      text-align: center;
+      font-size: 36pt;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+    .label-iata {
+      align-self: center;
+      border: 8px solid #d11;
+      color: #d11;
+      padding: 6mm 10mm;
+      font-size: 54pt;
+      font-weight: 900;
+      letter-spacing: 4px;
+    }
+    .label-footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 8mm;
+    }
+    .label-box {
+      border: 5px solid #333;
+      padding: 6mm 8mm;
+      font-size: 26pt;
+      font-weight: 800;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-transform: uppercase;
+    }
+    .label-box.small {
+      max-width: 45%;
+      letter-spacing: 2px;
+    }
+  </style>
+</head>
+<body>
+  {% for label in labels %}
+    <div class="label-page">
+      <div class="label-city">{{ label.city|default:"" }}</div>
+      <div class="label-iata">{{ label.iata|default:"" }}</div>
+      <div class="label-footer">
+        <div class="label-box">{{ label.shipment_ref }}</div>
+        <div class="label-box small">{{ label.position }} / {{ label.total }}</div>
+      </div>
+    </div>
+  {% endfor %}
+</body>
+</html>

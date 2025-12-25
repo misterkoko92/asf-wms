@@ -2,36 +2,86 @@
 
 {% block title %}Bon expedition{% endblock %}
 
+{% block extra_style %}
+  .doc-grid { display: grid; gap: 3mm; margin-top: 4mm; }
+  .doc-row { display: grid; grid-template-columns: 48mm 1fr; gap: 4mm; }
+  .doc-label { font-weight: 700; }
+  .doc-value { border-bottom: 1px solid #000; padding-bottom: 1mm; min-height: 5mm; }
+  .doc-row.two-col { grid-template-columns: 48mm 1fr 40mm 1fr; }
+  .signature-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; margin-top: 6mm; }
+  .signature-box { border-bottom: 1px solid #000; padding-bottom: 2mm; min-height: 8mm; }
+{% endblock %}
+
 {% block body %}
   <h1>Bon d'expedition</h1>
 
-  <div class="meta">Shipment ref: {{ shipment_ref }}</div>
   <div class="meta">Date: {{ document_date|date:"d/m/Y" }}</div>
 
-  <div class="block">Expediteur: {{ shipper_name }}</div>
-  <div class="block">Destinataire: {{ recipient_name }}</div>
-  {% if correspondent_name %}
-    <div class="block">Correspondant: {{ correspondent_name }}</div>
-  {% endif %}
-  <div class="block">Destination: {{ destination_address }}</div>
-  <div class="block">Nombre de cartons: {{ carton_count }}</div>
+  <div class="doc-grid">
+    <div class="doc-row">
+      <div class="doc-label">Numero d'expedition</div>
+      <div class="doc-value">{{ shipment_ref }}</div>
+    </div>
 
-  <table>
-    <thead>
-      <tr>
-        <th>Carton</th>
-        <th>Poids (g)</th>
-        <th>Volume (cm3)</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in carton_rows %}
-        <tr>
-          <td>{{ row.code }}</td>
-          <td>{{ row.weight_g }}</td>
-          <td>{{ row.volume_cm3 }}</td>
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+    <div class="doc-row">
+      <div class="doc-label">Expediteur</div>
+      <div class="doc-value">{{ shipper_name }}</div>
+    </div>
+
+    <div class="doc-row">
+      <div class="doc-label">Destinataire</div>
+      <div class="doc-value">{{ recipient_name }}</div>
+    </div>
+
+    <div class="doc-row">
+      <div class="doc-label">Correspondant</div>
+      <div class="doc-value">{{ correspondent_name|default:"-" }}</div>
+    </div>
+
+    <div class="doc-row two-col">
+      <div class="doc-label">Nombre de colis</div>
+      <div class="doc-value">{{ carton_count }}</div>
+      <div class="doc-label">Poids total</div>
+      <div class="doc-value">
+        {% if weight_total_g %}
+          {{ weight_total_kg|floatformat:2 }} kg
+        {% else %}
+          -
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="doc-row">
+      <div class="doc-label">Type de colis</div>
+      <div class="doc-value">{{ type_labels }}</div>
+    </div>
+
+    <div class="doc-row">
+      <div class="doc-label">Destination (Ville + IATA)</div>
+      <div class="doc-value">{{ destination_label|default:destination_address }}</div>
+    </div>
+
+    <div class="doc-row two-col">
+      <div class="doc-label">Date de vol</div>
+      <div class="doc-value"></div>
+      <div class="doc-label">Numero de vol</div>
+      <div class="doc-value"></div>
+    </div>
+
+    <div class="doc-row">
+      <div class="doc-label">No declaration douane</div>
+      <div class="doc-value"></div>
+    </div>
+  </div>
+
+  <div class="signature-row">
+    <div>
+      <div class="doc-label">Signature ASF</div>
+      <div class="signature-box"></div>
+    </div>
+    <div>
+      <div class="doc-label">Signature CDB</div>
+      <div class="signature-box"></div>
+    </div>
+  </div>
 {% endblock %}

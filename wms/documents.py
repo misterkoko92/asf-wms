@@ -75,3 +75,23 @@ def build_carton_rows(cartons):
             }
         )
     return rows
+
+
+def compute_weight_total_g(carton_rows):
+    return sum(row.get("weight_g") or 0 for row in carton_rows)
+
+
+def build_shipment_type_labels(shipment):
+    items = (
+        CartonItem.objects.filter(carton__shipment=shipment)
+        .select_related("product_lot__product__category__parent")
+        .order_by("id")
+    )
+    roots = set()
+    for item in items:
+        category = item.product_lot.product.category
+        while category and category.parent_id:
+            category = category.parent
+        if category:
+            roots.add(category.name)
+    return ", ".join(sorted(roots)) if roots else "-"

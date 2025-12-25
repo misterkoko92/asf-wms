@@ -112,6 +112,9 @@
           <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'donation_certificate' %}" target="_blank" rel="noopener">
             Attestation donation
           </a>
+          <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_labels' shipment.id %}" target="_blank" rel="noopener">
+            Etiquettes colis
+          </a>
         </div>
       </div>
 
@@ -121,6 +124,21 @@
           <div class="scan-docs">
             {% for carton in carton_docs %}
               <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_carton_document' shipment.id carton.id %}" target="_blank" rel="noopener">
+                {{ carton.code }}
+              </a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="scan-help">Aucun colis associe.</div>
+        {% endif %}
+      </div>
+
+      <div class="scan-field">
+        <label>Etiquettes par carton</label>
+        {% if carton_docs %}
+          <div class="scan-docs">
+            {% for carton in carton_docs %}
+              <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_label' shipment.id carton.id %}" target="_blank" rel="noopener">
                 {{ carton.code }}
               </a>
             {% endfor %}

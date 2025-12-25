@@ -1,3 +1,4 @@
+{% load static %}
 <!doctype html>
 <html lang="fr">
 <head>
@@ -5,11 +6,23 @@
   <title>{% block title %}Document{% endblock %}</title>
   <style>
     @page { size: A5; margin: 10mm; }
-    body { font-family: Arial, sans-serif; font-size: 11pt; color: #000; }
+    body { font-family: Arial, sans-serif; font-size: 11pt; color: #000; margin: 0; }
     h1 { font-size: 16pt; margin: 0 0 6mm 0; }
     h2 { font-size: 12pt; margin: 4mm 0; }
     .meta { font-size: 10pt; color: #444; }
     .block { margin: 5mm 0; }
+    .print-header { display: flex; align-items: flex-start; justify-content: flex-start; margin-bottom: 6mm; }
+    .print-logo { height: 18mm; }
+    .print-body { padding-bottom: 26mm; }
+    .print-footer {
+      position: fixed;
+      left: 10mm;
+      right: 10mm;
+      bottom: 10mm;
+      font-size: 8.5pt;
+      color: #444;
+      line-height: 1.25;
+    }
     table { width: 100%; border-collapse: collapse; margin-top: 3mm; }
     th, td { border: 1px solid #000; padding: 3px; font-size: 10pt; }
     .signature { margin-top: 10mm; }
@@ -17,6 +30,17 @@
   </style>
 </head>
 <body>
-  {% block body %}{% endblock %}
+  <div class="print-header">
+    <img class="print-logo" src="{% static 'scan/logo.jpg' %}" alt="Logo">
+  </div>
+  <div class="print-body">
+    {% block body %}{% endblock %}
+  </div>
+  <footer class="print-footer">
+    <div>https://aviation-sans-frontieres.org/messmed // messmed@aviation-sans-fronti&egrave;res-fr.org</div>
+    <div>Siege : Bat 293, Porte 1150, Orly Fret 768 - 94398 Orly A&eacute;rogare Cedex - Tel: (33) 1 49 75 74 36</div>
+    <div>Magasin : Bat. 7200, Porte 2D520, rue de la Remise - 95700 ROISSY en France - T&eacute;l : (33) 1 74 25 03 22</div>
+    <div>Association reconnue d'utilit&eacute; publique par d&eacute;cret du 12 novembre 1993</div>
+  </footer>
 </body>
 </html>
