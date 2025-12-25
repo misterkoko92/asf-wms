@@ -1349,10 +1349,14 @@ def scan_shipment_document(request, shipment_id, doc_type):
     weight_total_kg = weight_total_g / 1000 if weight_total_g else 0
     type_labels = build_shipment_type_labels(shipment)
     if shipment.destination and shipment.destination.city:
-        destination_label = shipment.destination.city
-        if shipment.destination.iata_code:
-            destination_label = f"{destination_label} ({shipment.destination.iata_code})"
+        destination_city = shipment.destination.city
+        destination_iata = shipment.destination.iata_code or ""
+        destination_label = destination_city
+        if destination_iata:
+            destination_label = f"{destination_label} ({destination_iata})"
     else:
+        destination_city = ""
+        destination_iata = ""
         destination_label = shipment.destination_address
     shipper_info = build_contact_info(TAG_SHIPPER, shipment.shipper_name)
     recipient_info = build_contact_info(TAG_RECIPIENT, shipment.recipient_name)
@@ -1382,6 +1386,8 @@ def scan_shipment_document(request, shipment_id, doc_type):
         "destination_address": shipment.destination_address,
         "destination_country": shipment.destination_country,
         "destination_label": destination_label,
+        "destination_city": destination_city,
+        "destination_iata": destination_iata,
         "carton_count": cartons.count(),
         "carton_rows": carton_rows,
         "item_rows": rows_for_template,

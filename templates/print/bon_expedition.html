@@ -3,35 +3,73 @@
 {% block title %}Bon expedition{% endblock %}
 
 {% block extra_style %}
-  .doc-grid { display: grid; gap: 3mm; margin-top: 4mm; }
-  .doc-row { display: grid; grid-template-columns: 48mm 1fr; gap: 4mm; }
-  .doc-label { font-weight: 700; }
-  .doc-value { border-bottom: 1px solid #000; padding-bottom: 1mm; min-height: 5mm; }
-  .doc-row.two-col { grid-template-columns: 48mm 1fr 40mm 1fr; }
-  .contact-section { display: grid; gap: 2mm; }
-  .contact-block { border: 1px solid #000; padding: 2mm 3mm; }
-  .contact-title { font-weight: 700; margin-bottom: 1mm; }
-  .contact-grid { display: grid; grid-template-columns: 26mm 1fr; gap: 1mm 3mm; font-size: 9pt; }
+  .doc-block { display: grid; gap: 3mm; margin-top: 2mm; }
+  .doc-line { display: flex; align-items: center; flex-wrap: wrap; gap: 4mm; }
+  .doc-strong { font-weight: 800; }
+  .doc-red { color: #d11; font-weight: 800; }
+  .doc-sep { color: #000; font-weight: 700; }
+  .doc-fill { display: inline-block; min-width: 28mm; border-bottom: 1px solid #000; height: 4mm; }
+  .doc-summary { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6mm; }
+  .doc-summary-item { font-weight: 800; }
+  .doc-summary-value { border-bottom: 1px solid #000; min-height: 5mm; padding-bottom: 0.5mm; }
+  .contact-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4mm; }
+  .contact-block { border: 1px solid #000; padding: 2mm 3mm; font-size: 9pt; }
+  .contact-title { font-weight: 800; margin-bottom: 1mm; }
+  .contact-grid { display: grid; grid-template-columns: 20mm 1fr; gap: 1mm 2mm; }
   .contact-label { font-weight: 700; }
   .contact-value { border-bottom: 1px solid #000; min-height: 4mm; padding-bottom: 0.5mm; white-space: pre-line; }
-  .signature-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; margin-top: 6mm; }
+  .signature-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; margin-top: 4mm; }
   .signature-box { border-bottom: 1px solid #000; padding-bottom: 2mm; min-height: 8mm; }
 {% endblock %}
 
 {% block body %}
-  <h1>Bon d'expedition</h1>
-
-  <div class="meta">Date: {{ document_date|date:"d/m/Y" }}</div>
-
-  <div class="doc-grid">
-    <div class="doc-row">
-      <div class="doc-label">Numero d'expedition</div>
-      <div class="doc-value">{{ shipment_ref }}</div>
+  <div class="doc-block">
+    <div class="doc-line">
+      <span class="doc-strong">BON D'EXPEDITION</span>
+      <span class="doc-sep">/</span>
+      <span class="doc-strong">N&#176; <span class="doc-red">{{ shipment_ref }}</span></span>
+      <span class="doc-sep">/</span>
+      <span class="doc-strong">N&#176; DECLARATION DOUANE</span>
+      <span class="doc-fill"></span>
     </div>
 
-    <div class="contact-section">
+    <div class="doc-line">
+      <span class="doc-strong">DESTINATION :</span>
+      <span>{{ destination_city|default:destination_address }}</span>
+      <span class="doc-sep">/</span>
+      <span class="doc-strong doc-red">{{ destination_iata|default:"-" }}</span>
+      <span class="doc-sep">/</span>
+      <span>Date de vol</span>
+      <span class="doc-fill"></span>
+      <span class="doc-sep">/</span>
+      <span>N&#176; Vol</span>
+      <span class="doc-fill"></span>
+    </div>
+
+    <div class="doc-summary">
+      <div>
+        <div class="doc-summary-item">NOMBRE DE COLIS</div>
+        <div class="doc-summary-value">{{ carton_count }}</div>
+      </div>
+      <div>
+        <div class="doc-summary-item">POIDS TOTAL (KG)</div>
+        <div class="doc-summary-value">
+          {% if weight_total_g %}
+            {{ weight_total_kg|floatformat:2 }}
+          {% else %}
+            -
+          {% endif %}
+        </div>
+      </div>
+      <div>
+        <div class="doc-summary-item">TYPE DE COLIS</div>
+        <div class="doc-summary-value">{{ type_labels }}</div>
+      </div>
+    </div>
+
+    <div class="contact-row">
       <div class="contact-block">
-        <div class="contact-title">Expediteur</div>
+        <div class="contact-title">EXPEDITEUR</div>
         <div class="contact-grid">
           <div class="contact-label">Societe</div>
           <div class="contact-value">{{ shipper_info.company|default:"-" }}</div>
@@ -39,14 +77,14 @@
           <div class="contact-value">{{ shipper_info.person|default:"-" }}</div>
           <div class="contact-label">Adresse</div>
           <div class="contact-value">{{ shipper_info.address|default:"-" }}</div>
-          <div class="contact-label">Telephone</div>
+          <div class="contact-label">Tel</div>
           <div class="contact-value">{{ shipper_info.phone|default:"-" }}</div>
           <div class="contact-label">Mail</div>
           <div class="contact-value">{{ shipper_info.email|default:"-" }}</div>
         </div>
       </div>
       <div class="contact-block">
-        <div class="contact-title">Destinataire</div>
+        <div class="contact-title">DESTINATAIRE</div>
         <div class="contact-grid">
           <div class="contact-label">Societe</div>
           <div class="contact-value">{{ recipient_info.company|default:"-" }}</div>
@@ -54,14 +92,14 @@
           <div class="contact-value">{{ recipient_info.person|default:"-" }}</div>
           <div class="contact-label">Adresse</div>
           <div class="contact-value">{{ recipient_info.address|default:"-" }}</div>
-          <div class="contact-label">Telephone</div>
+          <div class="contact-label">Tel</div>
           <div class="contact-value">{{ recipient_info.phone|default:"-" }}</div>
           <div class="contact-label">Mail</div>
           <div class="contact-value">{{ recipient_info.email|default:"-" }}</div>
         </div>
       </div>
       <div class="contact-block">
-        <div class="contact-title">Correspondant</div>
+        <div class="contact-title">CORRESPONDANT</div>
         <div class="contact-grid">
           <div class="contact-label">Societe</div>
           <div class="contact-value">{{ correspondent_info.company|default:"-" }}</div>
@@ -69,7 +107,7 @@
           <div class="contact-value">{{ correspondent_info.person|default:"-" }}</div>
           <div class="contact-label">Adresse</div>
           <div class="contact-value">{{ correspondent_info.address|default:"-" }}</div>
-          <div class="contact-label">Telephone</div>
+          <div class="contact-label">Tel</div>
           <div class="contact-value">{{ correspondent_info.phone|default:"-" }}</div>
           <div class="contact-label">Mail</div>
           <div class="contact-value">{{ correspondent_info.email|default:"-" }}</div>
@@ -77,50 +115,15 @@
       </div>
     </div>
 
-    <div class="doc-row two-col">
-      <div class="doc-label">Nombre de colis</div>
-      <div class="doc-value">{{ carton_count }}</div>
-      <div class="doc-label">Poids total</div>
-      <div class="doc-value">
-        {% if weight_total_g %}
-          {{ weight_total_kg|floatformat:2 }} kg
-        {% else %}
-          -
-        {% endif %}
+    <div class="signature-row">
+      <div>
+        <div class="doc-strong">Signature ASF</div>
+        <div class="signature-box"></div>
       </div>
-    </div>
-
-    <div class="doc-row">
-      <div class="doc-label">Type de colis</div>
-      <div class="doc-value">{{ type_labels }}</div>
-    </div>
-
-    <div class="doc-row">
-      <div class="doc-label">Destination (Ville + IATA)</div>
-      <div class="doc-value">{{ destination_label|default:destination_address }}</div>
-    </div>
-
-    <div class="doc-row two-col">
-      <div class="doc-label">Date de vol</div>
-      <div class="doc-value"></div>
-      <div class="doc-label">Numero de vol</div>
-      <div class="doc-value"></div>
-    </div>
-
-    <div class="doc-row">
-      <div class="doc-label">No declaration douane</div>
-      <div class="doc-value"></div>
-    </div>
-  </div>
-
-  <div class="signature-row">
-    <div>
-      <div class="doc-label">Signature ASF</div>
-      <div class="signature-box"></div>
-    </div>
-    <div>
-      <div class="doc-label">Signature CDB</div>
-      <div class="signature-box"></div>
+      <div>
+        <div class="doc-strong">Signature CDB</div>
+        <div class="signature-box"></div>
+      </div>
     </div>
   </div>
 {% endblock %}
