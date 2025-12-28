@@ -1,8 +1,10 @@
+import json
 from decimal import Decimal
 from pathlib import Path
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -33,15 +35,6 @@ from .contact_filters import (
     TAG_SHIPPER,
     contacts_with_tags,
 )
-from .documents import (
-    build_carton_rows,
-    build_contact_info,
-    build_org_context,
-    build_shipment_aggregate_rows,
-    build_shipment_item_rows,
-    build_shipment_type_labels,
-    compute_weight_total_g,
-)
 from .models import (
     Carton,
     CartonStatus,
@@ -58,12 +51,23 @@ from .models import (
     ReceiptType,
     Order,
     OrderStatus,
+    PrintTemplate,
+    PrintTemplateVersion,
     Shipment,
     ShipmentStatus,
     StockMovement,
     Warehouse,
     WmsChange,
 )
+from .print_context import (
+    build_carton_document_context,
+    build_label_context,
+    build_preview_context,
+    build_sample_label_context,
+    build_shipment_document_context,
+)
+from .print_layouts import BLOCK_LIBRARY, DEFAULT_LAYOUTS, DOCUMENT_TEMPLATES
+from .print_renderer import get_template_layout, layout_changed, render_layout_from_layout
 from .scan_helpers import (
     build_available_cartons,
     build_carton_formats,
@@ -121,6 +125,11 @@ def _sync_shipment_ready_state(shipment):
         shipment.status = updates.get("status", shipment.status)
         shipment.ready_at = updates.get("ready_at", shipment.ready_at)
         shipment.save(update_fields=list(updates))
+
+
+def _require_superuser(request):
+    if not request.user.is_superuser:
+        raise PermissionDenied
 
 
 def _resolve_contact_by_name(tag, name):
@@ -1340,68 +1349,11 @@ def scan_shipment_document(request, shipment_id, doc_type):
     template = allowed.get(doc_type)
     if template is None:
         raise Http404("Document type not found")
-
-    cartons = shipment.carton_set.all().order_by("code")
-    item_rows = build_shipment_item_rows(shipment)
-    aggregate_rows = build_shipment_aggregate_rows(shipment)
-    carton_rows = build_carton_rows(cartons)
-    weight_total_g = compute_weight_total_g(carton_rows)
-    weight_total_kg = weight_total_g / 1000 if weight_total_g else 0
-    type_labels = build_shipment_type_labels(shipment)
-    if shipment.destination and shipment.destination.city:
-        destination_city = shipment.destination.city
-        destination_iata = shipment.destination.iata_code or ""
-        destination_label = destination_city
-        if destination_iata:
-            destination_label = f"{destination_label} ({destination_iata})"
-    else:
-        destination_city = ""
-        destination_iata = ""
-        destination_label = shipment.destination_address
-    shipper_info = build_contact_info(TAG_SHIPPER, shipment.shipper_name)
-    recipient_info = build_contact_info(TAG_RECIPIENT, shipment.recipient_name)
-    correspondent_info = build_contact_info(
-        TAG_CORRESPONDENT, shipment.correspondent_name
-    )
-
-    description = f"{cartons.count()} cartons, {len(aggregate_rows)} produits"
-    if shipment.requested_delivery_date:
-        description += (
-            f", livraison souhaitee {shipment.requested_delivery_date.strftime('%d/%m/%Y')}"
-        )
-    rows_for_template = (
-        aggregate_rows if doc_type == "packing_list_shipment" else item_rows
-    )
-
-    context = {
-        **build_org_context(),
-        "document_ref": f"DOC-{shipment.reference}-{doc_type}".upper(),
-        "document_date": timezone.localdate(),
-        "shipment_ref": shipment.reference,
-        "shipper_name": shipment.shipper_name,
-        "shipper_contact": shipment.shipper_contact,
-        "recipient_name": shipment.recipient_name,
-        "recipient_contact": shipment.recipient_contact,
-        "correspondent_name": shipment.correspondent_name,
-        "destination_address": shipment.destination_address,
-        "destination_country": shipment.destination_country,
-        "destination_label": destination_label,
-        "destination_city": destination_city,
-        "destination_iata": destination_iata,
-        "carton_count": cartons.count(),
-        "carton_rows": carton_rows,
-        "item_rows": rows_for_template,
-        "weight_total_g": weight_total_g,
-        "weight_total_kg": weight_total_kg,
-        "type_labels": type_labels,
-        "shipper_info": shipper_info,
-        "recipient_info": recipient_info,
-        "correspondent_info": correspondent_info,
-        "donor_name": shipment.shipper_name,
-        "donation_description": shipment.notes or description,
-        "humanitarian_purpose": shipment.notes or "Aide humanitaire",
-        "shipment_description": description,
-    }
+    context = build_shipment_document_context(shipment, doc_type)
+    layout_override = get_template_layout(doc_type)
+    if layout_override:
+        blocks = render_layout_from_layout(layout_override, context)
+        return render(request, "print/dynamic_document.html", {"blocks": blocks})
     return render(request, template, context)
 
 
@@ -1412,24 +1364,12 @@ def scan_shipment_carton_document(request, shipment_id, carton_id):
     carton = shipment.carton_set.filter(pk=carton_id).first()
     if carton is None:
         raise Http404("Carton not found for shipment")
-
-    item_rows = []
-    for item in carton.cartonitem_set.select_related(
-        "product_lot", "product_lot__product"
-    ):
-        item_rows.append(
-            {
-                "product": item.product_lot.product.name,
-                "lot": item.product_lot.lot_code or "N/A",
-                "quantity": item.quantity,
-            }
-        )
-
-    context = {
-        "shipment_ref": shipment.reference,
-        "carton_code": carton.code,
-        "item_rows": item_rows,
-    }
+    context = build_carton_document_context(shipment, carton)
+    doc_type = "packing_list_carton"
+    layout_override = get_template_layout(doc_type)
+    if layout_override:
+        blocks = render_layout_from_layout(layout_override, context)
+        return render(request, "print/dynamic_document.html", {"blocks": blocks})
     return render(request, "print/liste_colisage_carton.html", context)
 
 
@@ -1441,20 +1381,34 @@ def scan_shipment_labels(request, shipment_id):
     )
     cartons = list(shipment.carton_set.order_by("code"))
     total = len(cartons)
-    city = shipment.destination.city if shipment.destination else shipment.destination_address
-    iata = shipment.destination.iata_code if shipment.destination else ""
     labels = []
     for index, carton in enumerate(cartons, start=1):
+        label_context = build_label_context(shipment, position=index, total=total)
         labels.append(
             {
-                "city": (city or "").upper(),
-                "iata": (iata or "").upper(),
-                "shipment_ref": shipment.reference,
-                "position": index,
-                "total": total,
+                "city": label_context["label_city"],
+                "iata": label_context["label_iata"],
+                "shipment_ref": label_context["label_shipment_ref"],
+                "position": label_context["label_position"],
+                "total": label_context["label_total"],
                 "carton_id": carton.id,
             }
         )
+
+    layout_override = get_template_layout("shipment_label")
+    if layout_override:
+        rendered_labels = []
+        for label in labels:
+            label_context = {
+                "label_city": label["city"],
+                "label_iata": label["iata"],
+                "label_shipment_ref": label["shipment_ref"],
+                "label_position": label["position"],
+                "label_total": label["total"],
+            }
+            blocks = render_layout_from_layout(layout_override, label_context)
+            rendered_labels.append({"blocks": blocks})
+        return render(request, "print/dynamic_labels.html", {"labels": rendered_labels})
     return render(request, "print/etiquette_expedition.html", {"labels": labels})
 
 
@@ -1473,19 +1427,223 @@ def scan_shipment_label(request, shipment_id, carton_id):
             break
     if position is None:
         raise Http404("Carton not found for shipment")
-    city = shipment.destination.city if shipment.destination else shipment.destination_address
-    iata = shipment.destination.iata_code if shipment.destination else ""
+    label_context = build_label_context(shipment, position=position, total=total)
     labels = [
         {
-            "city": (city or "").upper(),
-            "iata": (iata or "").upper(),
-            "shipment_ref": shipment.reference,
-            "position": position,
-            "total": total,
+            "city": label_context["label_city"],
+            "iata": label_context["label_iata"],
+            "shipment_ref": label_context["label_shipment_ref"],
+            "position": label_context["label_position"],
+            "total": label_context["label_total"],
             "carton_id": carton_id,
         }
     ]
+    layout_override = get_template_layout("shipment_label")
+    if layout_override:
+        blocks = render_layout_from_layout(layout_override, label_context)
+        return render(
+            request, "print/dynamic_labels.html", {"labels": [{"blocks": blocks}]}
+        )
     return render(request, "print/etiquette_expedition.html", {"labels": labels})
+
+
+@login_required
+@require_http_methods(["GET"])
+def scan_print_templates(request):
+    _require_superuser(request)
+    template_map = {
+        template.doc_type: template
+        for template in PrintTemplate.objects.select_related("updated_by")
+    }
+    items = []
+    for doc_type, label in DOCUMENT_TEMPLATES:
+        template = template_map.get(doc_type)
+        items.append(
+            {
+                "doc_type": doc_type,
+                "label": label,
+                "has_override": bool(template and template.layout),
+                "updated_at": template.updated_at if template else None,
+                "updated_by": template.updated_by if template else None,
+            }
+        )
+    return render(
+        request,
+        "scan/print_template_list.html",
+        {
+            "active": "print_templates",
+            "shell_class": "scan-shell-wide",
+            "templates": items,
+        },
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def scan_print_template_edit(request, doc_type):
+    _require_superuser(request)
+    doc_map = dict(DOCUMENT_TEMPLATES)
+    if doc_type not in doc_map:
+        raise Http404("Template not found")
+
+    template = (
+        PrintTemplate.objects.filter(doc_type=doc_type)
+        .select_related("updated_by")
+        .first()
+    )
+
+    if request.method == "POST":
+        action = (request.POST.get("action") or "save").strip()
+        layout_data = None
+
+        if action == "restore":
+            version_id = request.POST.get("version_id")
+            if not version_id:
+                messages.error(request, "Version requise.")
+                return redirect("scan:scan_print_template_edit", doc_type=doc_type)
+            version = get_object_or_404(
+                PrintTemplateVersion, pk=version_id, template__doc_type=doc_type
+            )
+            layout_data = version.layout or {}
+        elif action == "reset":
+            if template is None:
+                messages.info(request, "Ce modele est deja sur la version par defaut.")
+                return redirect("scan:scan_print_template_edit", doc_type=doc_type)
+            layout_data = {}
+        else:
+            layout_json = request.POST.get("layout_json") or ""
+            try:
+                layout_data = json.loads(layout_json) if layout_json else {}
+            except json.JSONDecodeError:
+                messages.error(request, "Le layout fourni est invalide.")
+                return redirect("scan:scan_print_template_edit", doc_type=doc_type)
+
+        previous_layout = template.layout if template else None
+        if not layout_changed(previous_layout, layout_data):
+            messages.info(request, "Aucun changement detecte.")
+            return redirect("scan:scan_print_template_edit", doc_type=doc_type)
+
+        with transaction.atomic():
+            if template is None:
+                template = PrintTemplate.objects.create(
+                    doc_type=doc_type,
+                    layout=layout_data,
+                    updated_by=request.user,
+                )
+            else:
+                template.layout = layout_data
+                template.updated_by = request.user
+                template.save(update_fields=["layout", "updated_by", "updated_at"])
+
+            next_version = (
+                template.versions.aggregate(max_version=Max("version"))["max_version"]
+                or 0
+            ) + 1
+            PrintTemplateVersion.objects.create(
+                template=template,
+                version=next_version,
+                layout=layout_data,
+                created_by=request.user,
+            )
+
+        if action == "reset":
+            messages.success(request, "Modele remis par defaut.")
+        elif action == "restore":
+            messages.success(request, "Version restauree.")
+        else:
+            messages.success(request, "Modele enregistre.")
+        return redirect("scan:scan_print_template_edit", doc_type=doc_type)
+
+    default_layout = DEFAULT_LAYOUTS.get(doc_type, {"blocks": []})
+    layout = template.layout if template and template.layout else default_layout
+
+    shipments = []
+    for shipment in Shipment.objects.select_related("destination").order_by(
+        "-created_at"
+    )[:30]:
+        dest = (
+            shipment.destination.city
+            if shipment.destination and shipment.destination.city
+            else shipment.destination_address
+        )
+        label = shipment.reference
+        if dest:
+            label = f"{label} - {dest}"
+        shipments.append({"id": shipment.id, "label": label})
+
+    versions = []
+    if template:
+        versions = list(
+            template.versions.select_related("created_by").order_by("-version")
+        )
+
+    return render(
+        request,
+        "scan/print_template_edit.html",
+        {
+            "active": "print_templates",
+            "shell_class": "scan-shell-wide",
+            "doc_type": doc_type,
+            "doc_label": doc_map[doc_type],
+            "template": template,
+            "layout": layout,
+            "block_library": BLOCK_LIBRARY,
+            "shipments": shipments,
+            "versions": versions,
+        },
+    )
+
+
+@login_required
+@require_http_methods(["POST"])
+def scan_print_template_preview(request):
+    _require_superuser(request)
+    doc_type = (request.POST.get("doc_type") or "").strip()
+    if doc_type not in dict(DOCUMENT_TEMPLATES):
+        raise Http404("Template not found")
+
+    layout_json = request.POST.get("layout_json") or ""
+    try:
+        layout_data = json.loads(layout_json) if layout_json else {"blocks": []}
+    except json.JSONDecodeError:
+        return HttpResponse(status=400)
+
+    shipment_id = request.POST.get("shipment_id") or ""
+    shipment = None
+    if shipment_id.isdigit():
+        shipment = (
+            Shipment.objects.select_related("destination")
+            .prefetch_related("carton_set")
+            .filter(pk=int(shipment_id))
+            .first()
+        )
+
+    if doc_type == "shipment_label":
+        labels = []
+        if shipment:
+            cartons = list(shipment.carton_set.order_by("code")[:6])
+            total = shipment.carton_set.count() or 1
+            if not cartons:
+                label_context = build_sample_label_context()
+                blocks = render_layout_from_layout(layout_data, label_context)
+                labels.append({"blocks": blocks})
+            else:
+                for index, _carton in enumerate(cartons, start=1):
+                    label_context = build_label_context(
+                        shipment, position=index, total=total
+                    )
+                    blocks = render_layout_from_layout(layout_data, label_context)
+                    labels.append({"blocks": blocks})
+        else:
+            label_context = build_sample_label_context()
+            blocks = render_layout_from_layout(layout_data, label_context)
+            labels.append({"blocks": blocks})
+
+        return render(request, "print/dynamic_labels.html", {"labels": labels})
+
+    context = build_preview_context(doc_type, shipment=shipment)
+    blocks = render_layout_from_layout(layout_data, context)
+    return render(request, "print/dynamic_document.html", {"blocks": blocks})
 
 
 @login_required

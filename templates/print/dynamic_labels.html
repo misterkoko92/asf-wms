@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Etiquettes expedition</title>
+  <style>
+    @page { size: A5 landscape; margin: 10mm; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      color: #000;
+    }
+    .label-page {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: calc(100vh - 20mm);
+      page-break-after: always;
+    }
+    .label-page:last-child {
+      page-break-after: auto;
+    }
+  </style>
+</head>
+<body>
+  {% for label in labels %}
+    <div class="label-page">
+      {% for block in label.blocks %}
+        {{ block|safe }}
+      {% endfor %}
+    </div>
+  {% endfor %}
+</body>
+</html>

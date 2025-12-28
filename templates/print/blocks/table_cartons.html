@@ -1,0 +1,18 @@
+<table>
+  <thead>
+    <tr>
+      <th>Carton</th>
+      <th>Poids (g)</th>
+      <th>Volume (cm3)</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in carton_rows %}
+      <tr>
+        <td>{{ row.code }}</td>
+        <td>{{ row.weight_g }}</td>
+        <td>{{ row.volume_cm3 }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>

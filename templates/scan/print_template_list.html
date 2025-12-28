@@ -1,0 +1,63 @@
+{% extends "scan/base.html" %}
+
+{% block title %}Templates documents{% endblock %}
+
+{% block content %}
+  <div class="scan-card">
+    <h2>Templates documents</h2>
+    <p>Gestion des templates visuels pour les impressions (superuser uniquement).</p>
+
+    <div class="scan-table-wrap">
+      <table class="scan-table">
+        <thead>
+          <tr>
+            <th>Document</th>
+            <th>Type</th>
+            <th>Statut</th>
+            <th>Derniere maj</th>
+            <th>Par</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in templates %}
+            <tr>
+              <td>{{ item.label }}</td>
+              <td><small>{{ item.doc_type }}</small></td>
+              <td>
+                {% if item.has_override %}
+                  Personnalise
+                {% else %}
+                  Par defaut
+                {% endif %}
+              </td>
+              <td>
+                {% if item.updated_at %}
+                  {{ item.updated_at|date:"d/m/Y H:i" }}
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+              <td>
+                {% if item.updated_by %}
+                  {{ item.updated_by.get_full_name|default:item.updated_by.username }}
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+              <td>
+                <a class="scan-scan-btn" href="{% url 'scan:scan_print_template_edit' doc_type=item.doc_type %}">
+                  Modifier
+                </a>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="6">Aucun template disponible.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}

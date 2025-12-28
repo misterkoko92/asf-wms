@@ -1,0 +1,8 @@
+{% extends "print/base_a5.html" %}
+{% load static %}
+
+{% block body %}
+  {% for block in blocks %}
+    {{ block|safe }}
+  {% endfor %}
+{% endblock %}

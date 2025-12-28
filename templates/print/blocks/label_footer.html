@@ -1,0 +1,8 @@
+<div style="display:flex; justify-content:space-between; gap:8mm;">
+  <div style="border:5px solid #333; padding:6mm 8mm; font-size:26pt; font-weight:800; flex:1; display:flex; align-items:center; justify-content:center; text-transform:uppercase;">
+    {{ label_shipment_ref|default:"" }}
+  </div>
+  <div style="border:5px solid #333; padding:6mm 8mm; font-size:26pt; font-weight:800; flex:1; display:flex; align-items:center; justify-content:center; text-transform:uppercase; max-width:45%; letter-spacing:2px;">
+    {{ label_position|default:"-" }} / {{ label_total|default:"-" }}
+  </div>
+</div>

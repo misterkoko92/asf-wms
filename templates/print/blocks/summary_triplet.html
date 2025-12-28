@@ -1,0 +1,20 @@
+<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6mm; margin:3mm 0;">
+  <div>
+    <div style="font-weight:800;">NOMBRE DE COLIS</div>
+    <div style="border-bottom:1px solid #000; min-height:5mm; padding-bottom:0.5mm;">{{ carton_count }}</div>
+  </div>
+  <div>
+    <div style="font-weight:800;">POIDS TOTAL (KG)</div>
+    <div style="border-bottom:1px solid #000; min-height:5mm; padding-bottom:0.5mm;">
+      {% if weight_total_g %}
+        {{ weight_total_kg|floatformat:2 }}
+      {% else %}
+        -
+      {% endif %}
+    </div>
+  </div>
+  <div>
+    <div style="font-weight:800;">TYPE DE COLIS</div>
+    <div style="border-bottom:1px solid #000; min-height:5mm; padding-bottom:0.5mm;">{{ type_labels }}</div>
+  </div>
+</div>

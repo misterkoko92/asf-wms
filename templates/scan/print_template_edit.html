@@ -1,0 +1,113 @@
+{% extends "scan/base.html" %}
+{% load static %}
+
+{% block title %}Template {{ doc_label }}{% endblock %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'scan/print_template_editor.css' %}">
+{% endblock %}
+
+{% block content %}
+
+  <div class="scan-card template-card">
+    <div class="template-header">
+      <div>
+        <h2>Template: {{ doc_label }}</h2>
+        <div class="template-meta">Type: <code>{{ doc_type }}</code></div>
+      </div>
+      <div class="template-status">
+        <a class="scan-scan-btn" href="{% url 'scan:scan_print_templates' %}">Retour</a>
+        {% if template and template.layout %}
+          <span class="template-badge template-badge-custom">Personnalise</span>
+        {% else %}
+          <span class="template-badge">Par defaut</span>
+        {% endif %}
+      </div>
+    </div>
+    <p class="template-help">
+      Glisser-deposer les blocs pour reorganiser. Editez le contenu et les styles a gauche,
+      puis enregistrez. Les changements s'appliquent aux impressions.
+    </p>
+  </div>
+
+  <div id="template-editor" class="template-editor" data-preview-url="{% url 'scan:scan_print_template_preview' %}">
+    <aside class="template-panel">
+      <div class="template-panel-section">
+        <h3>Bibliotheque de blocs</h3>
+        <div class="template-block-library" id="block-library"></div>
+      </div>
+
+      <div class="template-panel-section">
+        <h3>Blocs du document</h3>
+        <ul class="template-block-list" id="block-list"></ul>
+      </div>
+
+      <div class="template-panel-section">
+        <h3>Proprietes</h3>
+        <div id="block-editor" class="template-block-editor">
+          <p class="template-muted">Selectionnez un bloc pour le modifier.</p>
+        </div>
+      </div>
+
+      <div class="template-panel-section">
+        <h3>Versions</h3>
+        <div class="template-versions">
+          {% if versions %}
+            {% for version in versions %}
+              <form method="post" class="template-version-row">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="restore">
+                <input type="hidden" name="version_id" value="{{ version.id }}">
+                <div>
+                  <strong>v{{ version.version }}</strong>
+                  <div class="template-version-meta">
+                    {{ version.created_at|date:"d/m/Y H:i" }}
+                    {% if version.created_by %} - {{ version.created_by.get_full_name|default:version.created_by.username }}{% endif %}
+                  </div>
+                </div>
+                <button type="submit" class="scan-scan-btn">Restaurer</button>
+              </form>
+            {% endfor %}
+          {% else %}
+            <div class="template-muted">Aucune version sauvegardee.</div>
+          {% endif %}
+        </div>
+      </div>
+    </aside>
+
+    <main class="template-preview">
+      <form id="template-form" method="post" class="template-toolbar">
+        {% csrf_token %}
+        <input type="hidden" name="layout_json" id="layout-json">
+        <input type="hidden" name="action" id="layout-action" value="save">
+
+        <button type="submit" class="scan-submit scan-submit-inline">Enregistrer</button>
+        <button type="button" class="scan-submit scan-submit-inline secondary" id="reset-layout">
+          Revenir par defaut
+        </button>
+        <button type="button" class="scan-submit scan-submit-inline" id="preview-layout">
+          Actualiser apercu
+        </button>
+
+        <label class="template-preview-label" for="preview-shipment">Apercu avec exp.</label>
+        <select id="preview-shipment" class="template-preview-select">
+          <option value="">Exemple</option>
+          {% for shipment in shipments %}
+            <option value="{{ shipment.id }}">{{ shipment.label }}</option>
+          {% endfor %}
+        </select>
+      </form>
+
+      <div class="template-preview-frame">
+        <iframe id="template-preview" title="Apercu document"></iframe>
+      </div>
+      <div id="preview-status" class="template-muted"></div>
+    </main>
+  </div>
+
+  {{ layout|json_script:"layout-data" }}
+  {{ block_library|json_script:"block-library-data" }}
+  {{ doc_type|json_script:"doc-type-data" }}
+
+  <script src="{% static 'scan/print_template_editor.js' %}"></script>
+{% endblock %}

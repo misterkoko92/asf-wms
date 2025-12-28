@@ -1,0 +1,12 @@
+{% with labels=block.labels %}
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:10mm; margin-top:4mm;">
+  <div>
+    <div style="font-weight:800;">{{ labels.0|default:"Signature ASF" }}</div>
+    <div style="border-bottom:1px solid #000; padding-bottom:2mm; min-height:8mm;"></div>
+  </div>
+  <div>
+    <div style="font-weight:800;">{{ labels.1|default:"Signature CDB" }}</div>
+    <div style="border-bottom:1px solid #000; padding-bottom:2mm; min-height:8mm;"></div>
+  </div>
+</div>
+{% endwith %}

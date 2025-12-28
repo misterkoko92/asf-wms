@@ -8,15 +8,6 @@ from django.utils import timezone
 from . import models
 from django.utils.html import format_html
 
-from .documents import (
-    build_carton_rows,
-    build_contact_info,
-    build_org_context,
-    build_shipment_aggregate_rows,
-    build_shipment_item_rows,
-    build_shipment_type_labels,
-    compute_weight_total_g,
-)
 from .forms import AdjustStockForm, PackCartonForm, ReceiveStockForm, TransferStockForm
 from .contact_filters import (
     TAG_CORRESPONDENT,
@@ -36,6 +27,8 @@ from .services import (
     transfer_stock,
     unpack_carton,
 )
+from .print_context import build_carton_document_context, build_shipment_document_context
+from .print_renderer import get_template_layout, render_layout_from_layout
 
 
 @admin.register(models.ProductCategory)
@@ -539,69 +532,11 @@ class ShipmentAdmin(admin.ModelAdmin):
         template = allowed.get(doc_type)
         if template is None:
             raise Http404("Document type not found")
-
-        cartons = shipment.carton_set.all().order_by("code")
-        item_rows = build_shipment_item_rows(shipment)
-        aggregate_rows = build_shipment_aggregate_rows(shipment)
-        carton_rows = build_carton_rows(cartons)
-        weight_total_g = compute_weight_total_g(carton_rows)
-        weight_total_kg = weight_total_g / 1000 if weight_total_g else 0
-        type_labels = build_shipment_type_labels(shipment)
-        if shipment.destination and shipment.destination.city:
-            destination_city = shipment.destination.city
-            destination_iata = shipment.destination.iata_code or ""
-            destination_label = destination_city
-            if destination_iata:
-                destination_label = f"{destination_label} ({destination_iata})"
-        else:
-            destination_city = ""
-            destination_iata = ""
-            destination_label = shipment.destination_address
-        shipper_info = build_contact_info(TAG_SHIPPER, shipment.shipper_name)
-        recipient_info = build_contact_info(TAG_RECIPIENT, shipment.recipient_name)
-        correspondent_info = build_contact_info(
-            TAG_CORRESPONDENT, shipment.correspondent_name
-        )
-
-        description = f"{cartons.count()} cartons, {len(aggregate_rows)} produits"
-        if shipment.requested_delivery_date:
-            description += (
-                f", livraison souhaitee "
-                f"{shipment.requested_delivery_date.strftime('%d/%m/%Y')}"
-            )
-        rows_for_template = (
-            aggregate_rows if doc_type == "packing_list_shipment" else item_rows
-        )
-
-        context = {
-            **build_org_context(),
-            "document_ref": f"DOC-{shipment.reference}-{doc_type}".upper(),
-            "document_date": timezone.localdate(),
-            "shipment_ref": shipment.reference,
-            "shipper_name": shipment.shipper_name,
-            "shipper_contact": shipment.shipper_contact,
-            "recipient_name": shipment.recipient_name,
-            "recipient_contact": shipment.recipient_contact,
-            "correspondent_name": shipment.correspondent_name,
-            "destination_address": shipment.destination_address,
-            "destination_country": shipment.destination_country,
-            "destination_label": destination_label,
-            "destination_city": destination_city,
-            "destination_iata": destination_iata,
-            "carton_count": cartons.count(),
-            "carton_rows": carton_rows,
-            "item_rows": rows_for_template,
-            "weight_total_g": weight_total_g,
-            "weight_total_kg": weight_total_kg,
-            "type_labels": type_labels,
-            "shipper_info": shipper_info,
-            "recipient_info": recipient_info,
-            "correspondent_info": correspondent_info,
-            "donor_name": shipment.shipper_name,
-            "donation_description": shipment.notes or description,
-            "humanitarian_purpose": shipment.notes or "Aide humanitaire",
-            "shipment_description": description,
-        }
+        context = build_shipment_document_context(shipment, doc_type)
+        layout_override = get_template_layout(doc_type)
+        if layout_override:
+            blocks = render_layout_from_layout(layout_override, context)
+            return render(request, "print/dynamic_document.html", {"blocks": blocks})
         return render(request, template, context)
 
     def print_carton_packing_list(self, request, shipment_id, carton_id):
@@ -611,24 +546,11 @@ class ShipmentAdmin(admin.ModelAdmin):
         carton = shipment.carton_set.filter(pk=carton_id).first()
         if carton is None:
             raise Http404("Carton not found for shipment")
-
-        item_rows = []
-        for item in carton.cartonitem_set.select_related(
-            "product_lot", "product_lot__product"
-        ):
-            item_rows.append(
-                {
-                    "product": item.product_lot.product.name,
-                    "lot": item.product_lot.lot_code or "N/A",
-                    "quantity": item.quantity,
-                }
-            )
-
-        context = {
-            "shipment_ref": shipment.reference,
-            "carton_code": carton.code,
-            "item_rows": item_rows,
-        }
+        context = build_carton_document_context(shipment, carton)
+        layout_override = get_template_layout("packing_list_carton")
+        if layout_override:
+            blocks = render_layout_from_layout(layout_override, context)
+            return render(request, "print/dynamic_document.html", {"blocks": blocks})
         return render(request, "print/liste_colisage_carton.html", context)
 
 

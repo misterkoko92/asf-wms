@@ -51,6 +51,13 @@ urlpatterns = [
         views.scan_shipment_label,
         name="scan_shipment_label",
     ),
+    path("templates/preview/", views.scan_print_template_preview, name="scan_print_template_preview"),
+    path("templates/", views.scan_print_templates, name="scan_print_templates"),
+    path(
+        "templates/<str:doc_type>/",
+        views.scan_print_template_edit,
+        name="scan_print_template_edit",
+    ),
     path("out/", views.scan_out, name="scan_out"),
     path("sync/", views.scan_sync, name="scan_sync"),
     path("service-worker.js", views.scan_service_worker, name="scan_service_worker"),

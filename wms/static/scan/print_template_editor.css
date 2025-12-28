@@ -1,0 +1,261 @@
+.scan-shell-wide {
+  max-width: 1200px;
+}
+
+.template-card h2 {
+  margin: 0;
+}
+
+.template-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.template-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.template-meta {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin-top: 4px;
+}
+
+.template-meta code {
+  background: var(--bg-accent-2);
+  border-radius: 6px;
+  padding: 2px 6px;
+}
+
+.template-help {
+  margin-top: 8px;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.template-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-accent);
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.template-badge-custom {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--scan-btn-bg);
+}
+
+.template-editor {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.template-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: 0 8px 18px var(--shadow);
+  display: grid;
+  gap: 12px;
+}
+
+.template-panel-section {
+  padding-bottom: 12px;
+  border-bottom: 1px dashed var(--border-strong);
+}
+
+.template-panel-section:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.template-block-library {
+  display: grid;
+  gap: 6px;
+}
+
+.template-block-library button {
+  border: 1px solid var(--border-strong);
+  background: var(--card);
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+}
+
+.template-block-library button:hover {
+  border-color: var(--accent);
+}
+
+.template-block-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.template-block-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  cursor: pointer;
+}
+
+.template-block-item.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(15, 95, 79, 0.2);
+}
+
+.template-block-handle {
+  font-weight: 900;
+  cursor: grab;
+  color: var(--ink-soft);
+}
+
+.template-block-title {
+  font-weight: 700;
+}
+
+.template-block-sub {
+  display: block;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+.template-block-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+
+.template-block-remove {
+  border: 0;
+  background: var(--error-bg);
+  color: var(--danger);
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.template-block-editor .template-field {
+  margin-bottom: 10px;
+}
+
+.template-block-editor label {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.template-block-editor input,
+.template-block-editor select,
+.template-block-editor textarea {
+  width: 100%;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 14px;
+  background: var(--input-bg);
+}
+
+.template-preview {
+  display: grid;
+  gap: 12px;
+}
+
+.template-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.template-preview-label {
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.template-preview-select {
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: var(--input-bg);
+}
+
+.template-preview-frame {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: #fff;
+  min-height: 760px;
+  padding: 6px;
+}
+
+#template-preview {
+  width: 100%;
+  height: 760px;
+  border: 0;
+  background: #fff;
+}
+
+.template-muted {
+  color: var(--ink-soft);
+  font-size: 12px;
+  margin: 4px 0 0;
+}
+
+.template-versions {
+  display: grid;
+  gap: 8px;
+}
+
+.template-version-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px 10px;
+  background: var(--card);
+}
+
+.template-version-meta {
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 900px) {
+  .template-editor {
+    grid-template-columns: 1fr;
+  }
+
+  .template-preview-frame {
+    min-height: 640px;
+  }
+
+  #template-preview {
+    height: 640px;
+  }
+}

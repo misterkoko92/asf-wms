@@ -7,10 +7,11 @@
   <meta name="theme-color" content="#0f5f4f">
   <link rel="manifest" href="{% static 'scan/manifest.json' %}">
   <link rel="stylesheet" href="{% static 'scan/scan.css' %}">
+  {% block extra_head %}{% endblock %}
   <title>{% block title %}WMS Scan{% endblock %}</title>
 </head>
 <body>
-  <div class="scan-shell">
+  <div class="scan-shell{% if shell_class %} {{ shell_class }}{% endif %}">
     <header class="scan-header">
       <div>
         <h1 class="scan-title">ASF WMS Scan</h1>
@@ -34,6 +35,9 @@
       <a href="{% url 'scan:scan_pack' %}" class="{% if active == 'pack' %}active{% endif %}">Preparation</a>
       <a href="{% url 'scan:scan_shipment_create' %}" class="{% if active == 'shipment' %}active{% endif %}">Creer expedition</a>
       <a href="{% url 'scan:scan_out' %}" class="{% if active == 'out' %}active{% endif %}">Supprimer produit</a>
+      {% if request.user.is_superuser %}
+        <a href="{% url 'scan:scan_print_templates' %}" class="{% if active == 'print_templates' %}active{% endif %}">Templates</a>
+      {% endif %}
     </nav>
 
     {% if messages %}

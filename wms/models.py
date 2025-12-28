@@ -676,6 +676,40 @@ class Document(models.Model):
         return f"{self.doc_type} - {self.shipment}"
 
 
+class PrintTemplate(models.Model):
+    doc_type = models.CharField(max_length=60, unique=True)
+    layout = models.JSONField(default=dict, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
+    )
+
+    class Meta:
+        ordering = ["doc_type"]
+
+    def __str__(self) -> str:
+        return self.doc_type
+
+
+class PrintTemplateVersion(models.Model):
+    template = models.ForeignKey(
+        PrintTemplate, on_delete=models.CASCADE, related_name="versions"
+    )
+    version = models.PositiveIntegerField()
+    layout = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+        unique_together = ("template", "version")
+
+    def __str__(self) -> str:
+        return f"{self.template.doc_type} v{self.version}"
+
+
 class WmsChange(models.Model):
     version = models.PositiveBigIntegerField(default=1)
     last_changed_at = models.DateTimeField(default=timezone.now)

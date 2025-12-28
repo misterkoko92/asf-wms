@@ -1,0 +1,30 @@
+{% with mode=block.mode|default:"carton" %}
+<table>
+  <thead>
+    <tr>
+      <th>Produit</th>
+      {% if mode == "aggregate" %}
+        <th>Total qty</th>
+        <th>Lots</th>
+      {% else %}
+        <th>Lot</th>
+        <th>Qty</th>
+      {% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in item_rows %}
+      <tr>
+        <td>{{ row.product }}</td>
+        {% if mode == "aggregate" %}
+          <td>{{ row.quantity }}</td>
+          <td>{{ row.lots }}</td>
+        {% else %}
+          <td>{{ row.lot }}</td>
+          <td>{{ row.quantity }}</td>
+        {% endif %}
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endwith %}
