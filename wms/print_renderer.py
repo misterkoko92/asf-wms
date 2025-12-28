@@ -57,7 +57,30 @@ def _render_block(block, context):
     if block_type == "summary_triplet":
         return render_to_string("print/blocks/summary_triplet.html", context)
     if block_type == "contacts_row":
-        return render_to_string("print/blocks/contacts_row.html", context)
+        block_data = dict(block)
+        block_data.setdefault("title_shipper", "EXPEDITEUR")
+        block_data.setdefault("title_recipient", "DESTINATAIRE")
+        block_data.setdefault("title_correspondent", "CORRESPONDANT")
+        block_data.setdefault("show_company", True)
+        block_data.setdefault("show_person", True)
+        block_data.setdefault("show_address", True)
+        block_data.setdefault("show_phone", True)
+        block_data.setdefault("show_email", True)
+        labels = dict(block.get("labels") or {})
+        labels.setdefault("company", "Societe")
+        labels.setdefault("person", "Nom")
+        labels.setdefault("address", "Adresse")
+        labels.setdefault("phone", "Tel")
+        labels.setdefault("email", "Mail")
+        return render_to_string(
+            "print/blocks/contacts_row.html",
+            {
+                "block": block_data,
+                "style": block.get("style", {}),
+                "labels": labels,
+                **context,
+            },
+        )
     if block_type == "signatures":
         return render_to_string(
             "print/blocks/signatures.html", {"block": block, **context}
@@ -74,11 +97,20 @@ def _render_block(block, context):
     if block_type == "table_cartons":
         return render_to_string("print/blocks/table_cartons.html", context)
     if block_type == "label_city":
-        return render_to_string("print/blocks/label_city.html", context)
+        return render_to_string(
+            "print/blocks/label_city.html",
+            {"block": block, "style": block.get("style", {}), **context},
+        )
     if block_type == "label_iata":
-        return render_to_string("print/blocks/label_iata.html", context)
+        return render_to_string(
+            "print/blocks/label_iata.html",
+            {"block": block, "style": block.get("style", {}), **context},
+        )
     if block_type == "label_footer":
-        return render_to_string("print/blocks/label_footer.html", context)
+        return render_to_string(
+            "print/blocks/label_footer.html",
+            {"block": block, "style": block.get("style", {}), **context},
+        )
     return ""
 
 

@@ -1,47 +1,79 @@
-<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:4mm; margin:3mm 0;">
-  <div style="border:1px solid #000; padding:2mm 3mm; font-size:9pt;">
-    <div style="font-weight:800; margin-bottom:1mm;">EXPEDITEUR</div>
-    <div style="display:grid; grid-template-columns:20mm 1fr; gap:1mm 2mm;">
-      <div style="font-weight:700;">Societe</div>
-      <div style="border-bottom:1px solid #000; min-height:4mm;">{{ shipper_info.company|default:"-" }}</div>
-      <div style="font-weight:700;">Nom</div>
-      <div style="border-bottom:1px solid #000; min-height:4mm;">{{ shipper_info.person|default:"-" }}</div>
-      <div style="font-weight:700;">Adresse</div>
-      <div style="border-bottom:1px solid #000; min-height:4mm; white-space:pre-line;">{{ shipper_info.address|default:"-" }}</div>
-      <div style="font-weight:700;">Tel</div>
-      <div style="border-bottom:1px solid #000; min-height:4mm;">{{ shipper_info.phone|default:"-" }}</div>
-      <div style="font-weight:700;">Mail</div>
-      <div style="border-bottom:1px solid #000; min-height:4mm;">{{ shipper_info.email|default:"-" }}</div>
+{% with border_color=style.border_color|default:"#000" border_width=style.border_width|default:"1px" font_size=style.font_size|default:"9pt" label_width=style.label_width|default:"20mm" column_gap=style.column_gap|default:"4mm" inner_gap_row=style.inner_gap_row|default:"1mm" inner_gap_col=style.inner_gap_col|default:"2mm" title_weight=style.title_weight|default:"800" label_weight=style.label_weight|default:"700" %}
+<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:{{ column_gap }}; margin:3mm 0;">
+  <div style="border:{{ border_width }} solid {{ border_color }}; padding:2mm 3mm; font-size:{{ font_size }};">
+    <div style="font-weight:{{ title_weight }}; margin-bottom:1mm;">{{ block.title_shipper|default:"EXPEDITEUR" }}</div>
+    <div style="display:grid; grid-template-columns:{{ label_width }} 1fr; gap:{{ inner_gap_row }} {{ inner_gap_col }};">
+      {% if block.show_company %}
+        <div style="font-weight:{{ label_weight }};">{{ labels.company|default:"Societe" }}</div>
+        <div style="border-bottom:1px solid {{ border_color }}; min-height:4mm;">{{ shipper_info.company|default:"-" }}</div>
+      {% endif %}
+      {% if block.show_person %}
+        <div style="font-weight:{{ label_weight }};">{{ labels.person|default:"Nom" }}</div>
+        <div style="border-bottom:1px solid {{ border_color }}; min-height:4mm;">{{ shipper_info.person|default:"-" }}</div>
+      {% endif %}
+      {% if block.show_address %}
+        <div style="font-weight:{{ label_weight }};">{{ labels.address|default:"Adresse" }}</div>
+        <div style="border-bottom:1px solid {{ border_color }}; min-height:4mm; white-space:pre-line;">{{ shipper_info.address|default:"-" }}</div>
+      {% endif %}
+      {% if block.show_phone %}
+        <div style="font-weight:{{ label_weight }};">{{ labels.phone|default:"Tel" }}</div>
+        <div style="border-bottom:1px solid {{ border_color }}; min-height:4mm;">{{ shipper_info.phone|default:"-" }}</div>
+      {% endif %}
+      {% if block.show_email %}
+        <div style="font-weight:{{ label_weight }};">{{ labels.email|default:"Mail" }}</div>
+        <div style="border-bottom:1px solid {{ border_color }}; min-height:4mm;">{{ shipper_info.email|default:"-" }}</div>
+      {% endif %}
     </div>
   </div>
-  <div style="border:1px solid #000; padding:2mm 3mm; font-size:9pt;">
-    <div style="font-weight:800; margin-bottom:1mm;">DESTINATAIRE</div>
-    <div style="display:grid; grid-template-columns:20mm 1fr; gap:1mm 2mm;">
-      <div style="font-weight:700;">Societe</div>
-      <div style="border-bottom:1px solid #000; min-height:4mm;">{{ recipient_info.company|default:"-" }}</div>
-      <div style="font-weight:700;">Nom</div>
-      <div style="border-bottom:1px solid #000; min-height:4mm;">{{ recipient_info.person|default:"-" }}</div>
-      <div style="font-weight:700;">Adresse</div>
-      <div style="border-bottom:1px solid #000; min-height:4mm; white-space:pre-line;">{{ recipient_info.address|default:"-" }}</div>
-      <div style="font-weight:700;">Tel</div>
-      <div style="border-bottom:1px solid #000; min-height:4mm;">{{ recipient_info.phone|default:"-" }}</div>
-      <div style="font-weight:700;">Mail</div>
-      <div style="border-bottom:1px solid #000; min-height:4mm;">{{ recipient_info.email|default:"-" }}</div>
+  <div style="border:{{ border_width }} solid {{ border_color }}; padding:2mm 3mm; font-size:{{ font_size }};">
+    <div style="font-weight:{{ title_weight }}; margin-bottom:1mm;">{{ block.title_recipient|default:"DESTINATAIRE" }}</div>
+    <div style="display:grid; grid-template-columns:{{ label_width }} 1fr; gap:{{ inner_gap_row }} {{ inner_gap_col }};">
+      {% if block.show_company %}
+        <div style="font-weight:{{ label_weight }};">{{ labels.company|default:"Societe" }}</div>
+        <div style="border-bottom:1px solid {{ border_color }}; min-height:4mm;">{{ recipient_info.company|default:"-" }}</div>
+      {% endif %}
+      {% if block.show_person %}
+        <div style="font-weight:{{ label_weight }};">{{ labels.person|default:"Nom" }}</div>
+        <div style="border-bottom:1px solid {{ border_color }}; min-height:4mm;">{{ recipient_info.person|default:"-" }}</div>
+      {% endif %}
+      {% if block.show_address %}
+        <div style="font-weight:{{ label_weight }};">{{ labels.address|default:"Adresse" }}</div>
+        <div style="border-bottom:1px solid {{ border_color }}; min-height:4mm; white-space:pre-line;">{{ recipient_info.address|default:"-" }}</div>
+      {% endif %}
+      {% if block.show_phone %}
+        <div style="font-weight:{{ label_weight }};">{{ labels.phone|default:"Tel" }}</div>
+        <div style="border-bottom:1px solid {{ border_color }}; min-height:4mm;">{{ recipient_info.phone|default:"-" }}</div>
+      {% endif %}
+      {% if block.show_email %}
+        <div style="font-weight:{{ label_weight }};">{{ labels.email|default:"Mail" }}</div>
+        <div style="border-bottom:1px solid {{ border_color }}; min-height:4mm;">{{ recipient_info.email|default:"-" }}</div>
+      {% endif %}
     </div>
   </div>
-  <div style="border:1px solid #000; padding:2mm 3mm; font-size:9pt;">
-    <div style="font-weight:800; margin-bottom:1mm;">CORRESPONDANT</div>
-    <div style="display:grid; grid-template-columns:20mm 1fr; gap:1mm 2mm;">
-      <div style="font-weight:700;">Societe</div>
-      <div style="border-bottom:1px solid #000; min-height:4mm;">{{ correspondent_info.company|default:"-" }}</div>
-      <div style="font-weight:700;">Nom</div>
-      <div style="border-bottom:1px solid #000; min-height:4mm;">{{ correspondent_info.person|default:"-" }}</div>
-      <div style="font-weight:700;">Adresse</div>
-      <div style="border-bottom:1px solid #000; min-height:4mm; white-space:pre-line;">{{ correspondent_info.address|default:"-" }}</div>
-      <div style="font-weight:700;">Tel</div>
-      <div style="border-bottom:1px solid #000; min-height:4mm;">{{ correspondent_info.phone|default:"-" }}</div>
-      <div style="font-weight:700;">Mail</div>
-      <div style="border-bottom:1px solid #000; min-height:4mm;">{{ correspondent_info.email|default:"-" }}</div>
+  <div style="border:{{ border_width }} solid {{ border_color }}; padding:2mm 3mm; font-size:{{ font_size }};">
+    <div style="font-weight:{{ title_weight }}; margin-bottom:1mm;">{{ block.title_correspondent|default:"CORRESPONDANT" }}</div>
+    <div style="display:grid; grid-template-columns:{{ label_width }} 1fr; gap:{{ inner_gap_row }} {{ inner_gap_col }};">
+      {% if block.show_company %}
+        <div style="font-weight:{{ label_weight }};">{{ labels.company|default:"Societe" }}</div>
+        <div style="border-bottom:1px solid {{ border_color }}; min-height:4mm;">{{ correspondent_info.company|default:"-" }}</div>
+      {% endif %}
+      {% if block.show_person %}
+        <div style="font-weight:{{ label_weight }};">{{ labels.person|default:"Nom" }}</div>
+        <div style="border-bottom:1px solid {{ border_color }}; min-height:4mm;">{{ correspondent_info.person|default:"-" }}</div>
+      {% endif %}
+      {% if block.show_address %}
+        <div style="font-weight:{{ label_weight }};">{{ labels.address|default:"Adresse" }}</div>
+        <div style="border-bottom:1px solid {{ border_color }}; min-height:4mm; white-space:pre-line;">{{ correspondent_info.address|default:"-" }}</div>
+      {% endif %}
+      {% if block.show_phone %}
+        <div style="font-weight:{{ label_weight }};">{{ labels.phone|default:"Tel" }}</div>
+        <div style="border-bottom:1px solid {{ border_color }}; min-height:4mm;">{{ correspondent_info.phone|default:"-" }}</div>
+      {% endif %}
+      {% if block.show_email %}
+        <div style="font-weight:{{ label_weight }};">{{ labels.email|default:"Mail" }}</div>
+        <div style="border-bottom:1px solid {{ border_color }}; min-height:4mm;">{{ correspondent_info.email|default:"-" }}</div>
+      {% endif %}
     </div>
   </div>
 </div>
+{% endwith %}

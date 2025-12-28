@@ -1,3 +1,5 @@
-<div style="border:5px solid #333; padding:10mm 6mm; text-align:center; font-size:36pt; font-weight:800; letter-spacing:2px; text-transform:uppercase;">
+{% with border_color=style.border_color|default:"#333" border_width=style.border_width|default:"5px" padding=style.padding|default:"10mm 6mm" font_size=style.font_size|default:"36pt" font_weight=style.font_weight|default:"800" letter_spacing=style.letter_spacing|default:"2px" align=style.align|default:"center" text_transform=style.text_transform|default:"uppercase" %}
+<div style="border:{{ border_width }} solid {{ border_color }}; padding:{{ padding }}; text-align:{{ align }}; font-size:{{ font_size }}; font-weight:{{ font_weight }}; letter-spacing:{{ letter_spacing }}; text-transform:{{ text_transform }};">
   {{ label_city|default:"" }}
 </div>
+{% endwith %}

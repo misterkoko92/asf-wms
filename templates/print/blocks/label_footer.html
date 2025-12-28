@@ -1,8 +1,10 @@
-<div style="display:flex; justify-content:space-between; gap:8mm;">
-  <div style="border:5px solid #333; padding:6mm 8mm; font-size:26pt; font-weight:800; flex:1; display:flex; align-items:center; justify-content:center; text-transform:uppercase;">
+{% with border_color=style.border_color|default:"#333" border_width=style.border_width|default:"5px" padding=style.padding|default:"6mm 8mm" font_size=style.font_size|default:"26pt" font_weight=style.font_weight|default:"800" letter_spacing=style.letter_spacing|default:"2px" gap=style.gap|default:"8mm" right_max_width=style.right_max_width|default:"45%" align=style.align|default:"center" text_transform=style.text_transform|default:"uppercase" %}
+<div style="display:flex; justify-content:space-between; gap:{{ gap }};">
+  <div style="border:{{ border_width }} solid {{ border_color }}; padding:{{ padding }}; font-size:{{ font_size }}; font-weight:{{ font_weight }}; flex:1; display:flex; align-items:center; justify-content:{{ align }}; text-transform:{{ text_transform }}; letter-spacing:{{ letter_spacing }};">
     {{ label_shipment_ref|default:"" }}
   </div>
-  <div style="border:5px solid #333; padding:6mm 8mm; font-size:26pt; font-weight:800; flex:1; display:flex; align-items:center; justify-content:center; text-transform:uppercase; max-width:45%; letter-spacing:2px;">
+  <div style="border:{{ border_width }} solid {{ border_color }}; padding:{{ padding }}; font-size:{{ font_size }}; font-weight:{{ font_weight }}; flex:1; display:flex; align-items:center; justify-content:{{ align }}; text-transform:{{ text_transform }}; max-width:{{ right_max_width }}; letter-spacing:{{ letter_spacing }};">
     {{ label_position|default:"-" }} / {{ label_total|default:"-" }}
   </div>
 </div>
+{% endwith %}

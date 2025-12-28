@@ -30,6 +30,10 @@
   const csrfToken = form.querySelector("input[name=csrfmiddlewaretoken]").value;
   const previewUrl = editorRoot.dataset.previewUrl;
 
+  function deepClone(value) {
+    return JSON.parse(JSON.stringify(value || {}));
+  }
+
   function normalizeBlocks() {
     if (!Array.isArray(blocks)) {
       blocks = [];
@@ -88,13 +92,17 @@
       id: `block-${Date.now()}-${Math.random().toString(16).slice(2)}`,
       type,
     };
+    const info = blockLibrary[type] || {};
+    if (info.defaults) {
+      Object.assign(block, deepClone(info.defaults));
+    }
     if (type === "text") {
-      block.text = "Nouveau bloc";
-      block.tag = "div";
-      block.style = {};
+      block.text = block.text || "Nouveau bloc";
+      block.tag = block.tag || "div";
+      block.style = block.style || {};
     }
     if (type === "table_items") {
-      block.mode = "carton";
+      block.mode = block.mode || "carton";
     }
     blocks.push(block);
     selectedIndex = blocks.length - 1;
