@@ -51,6 +51,46 @@
     });
   }
 
+  function setupUiToggle() {
+    const toggle = document.getElementById('ui-toggle');
+    if (!toggle) {
+      return;
+    }
+    const root = document.documentElement;
+    const UI_KEY = 'wms-ui';
+    const normalize = value => (value === 'nova' ? 'nova' : 'classic');
+    let initialUi = root.dataset.ui || 'classic';
+    try {
+      const stored = localStorage.getItem(UI_KEY);
+      if (stored) {
+        initialUi = stored;
+      }
+    } catch (err) {
+      // Ignore storage errors.
+    }
+
+    const applyUi = ui => {
+      const normalized = normalize(ui);
+      root.dataset.ui = normalized;
+      toggle.textContent = normalized === 'nova' ? 'Nouveau' : 'Classique';
+      toggle.setAttribute('aria-pressed', normalized === 'nova' ? 'true' : 'false');
+      toggle.title =
+        normalized === 'nova' ? 'Basculer vers Classique' : 'Basculer vers Nouveau';
+    };
+
+    applyUi(initialUi);
+
+    toggle.addEventListener('click', () => {
+      const nextUi = root.dataset.ui === 'nova' ? 'classic' : 'nova';
+      applyUi(nextUi);
+      try {
+        localStorage.setItem(UI_KEY, nextUi);
+      } catch (err) {
+        // Ignore storage errors.
+      }
+    });
+  }
+
   function setStatus(text) {
     if (statusEl) {
       statusEl.textContent = text;
@@ -1485,6 +1525,7 @@
   });
 
   setupThemeToggle();
+  setupUiToggle();
   setupProductDatalist();
   setupPackLines();
   setupShipmentBuilder();

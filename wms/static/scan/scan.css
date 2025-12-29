@@ -77,6 +77,13 @@ body {
   flex-wrap: wrap;
 }
 
+.scan-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .scan-title {
   font-family: "Georgia", "Times New Roman", serif;
   font-size: 28px;
@@ -89,7 +96,8 @@ body {
   margin: 4px 0 0 0;
 }
 
-.scan-theme-toggle {
+.scan-theme-toggle,
+.scan-ui-toggle {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -107,7 +115,8 @@ body {
   color: var(--ink-soft);
 }
 
-.scan-theme-button {
+.scan-theme-button,
+.scan-ui-button {
   border: 0;
   border-radius: 999px;
   padding: 6px 12px;
@@ -117,9 +126,18 @@ body {
   cursor: pointer;
 }
 
-.scan-theme-button:focus {
+.scan-theme-button:focus,
+.scan-ui-button:focus {
   outline: 2px solid var(--accent-2);
   outline-offset: 2px;
+}
+
+.scan-body {
+  display: block;
+}
+
+.scan-main {
+  display: block;
 }
 
 .scan-nav {
@@ -626,5 +644,234 @@ body {
 
   .scan-meta-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+:root[data-ui="nova"] {
+  --ink: #111827;
+  --ink-soft: #556274;
+  --bg: #f2f6fb;
+  --bg-2: #e6edf5;
+  --bg-accent: #e7f3ff;
+  --bg-accent-2: #fff3e2;
+  --accent: #0f4c81;
+  --accent-2: #f6b042;
+  --accent-2-ink: #3f2a0a;
+  --card: #ffffff;
+  --panel: #f8fbff;
+  --input-bg: #ffffff;
+  --border: #d5dee8;
+  --border-strong: #bac7d6;
+  --table-header: #eaf1f8;
+  --scan-btn-bg: #e7f1ff;
+  --shadow: rgba(15, 23, 42, 0.12);
+  --success-bg: #e6f6ed;
+  --success-border: #9fd2b1;
+  --error-bg: #fdecea;
+  --error-border: #f1b0a7;
+  --danger: #b45309;
+  --overlay: rgba(12, 18, 24, 0.75);
+}
+
+:root[data-ui="nova"][data-theme="atelier"] {
+  --accent: #0f766e;
+  --accent-2: #f97316;
+  --bg-accent: #e6fffb;
+  --bg-accent-2: #fff7ed;
+  --scan-btn-bg: #e8fffb;
+}
+
+:root[data-ui="nova"] body {
+  font-family: "Avenir Next", "Gill Sans", "Trebuchet MS", sans-serif;
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(900px 700px at -10% -20%, var(--bg-accent) 0%, transparent 60%),
+    radial-gradient(900px 700px at 110% 10%, var(--bg-accent-2) 0%, transparent 55%),
+    repeating-linear-gradient(0deg, rgba(15, 23, 42, 0.04) 0 1px, transparent 1px 24px),
+    repeating-linear-gradient(90deg, rgba(15, 23, 42, 0.04) 0 1px, transparent 1px 24px);
+}
+
+:root[data-ui="nova"] .scan-shell {
+  padding: 26px 32px 60px;
+}
+
+:root[data-ui="nova"] .scan-header {
+  padding: 18px 22px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: linear-gradient(135deg, #ffffff 0%, #f4f8ff 100%);
+  box-shadow: 0 16px 30px var(--shadow);
+  margin-bottom: 24px;
+}
+
+:root[data-ui="nova"] .scan-title {
+  font-family: "Palatino Linotype", "Book Antiqua", "Palatino", serif;
+  font-size: 34px;
+  letter-spacing: 0.02em;
+}
+
+:root[data-ui="nova"] .scan-subtitle {
+  font-size: 14px;
+}
+
+:root[data-ui="nova"] .scan-ui-toggle,
+:root[data-ui="nova"] .scan-theme-toggle {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: var(--border-strong);
+}
+
+:root[data-ui="nova"] .scan-ui-button {
+  background: var(--accent-2);
+  color: var(--accent-2-ink);
+}
+
+:root[data-ui="nova"] .scan-body {
+  display: grid;
+  grid-template-columns: minmax(210px, 260px) minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+
+:root[data-ui="nova"] .scan-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 12px;
+  background: var(--card);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+  position: sticky;
+  top: 20px;
+  margin: 0;
+}
+
+:root[data-ui="nova"] .scan-nav a {
+  border-radius: 12px;
+  border: 1px solid transparent;
+  padding: 10px 12px 10px 18px;
+  text-align: left;
+  font-weight: 600;
+  position: relative;
+  background: transparent;
+}
+
+:root[data-ui="nova"] .scan-nav a::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  bottom: 8px;
+  width: 4px;
+  border-radius: 999px;
+  background: transparent;
+}
+
+:root[data-ui="nova"] .scan-nav a.active,
+:root[data-ui="nova"] .scan-nav a:hover {
+  transform: none;
+  background: var(--scan-btn-bg);
+  border-color: var(--border);
+}
+
+:root[data-ui="nova"] .scan-nav a.active::before {
+  background: var(--accent);
+}
+
+:root[data-ui="nova"] .scan-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+:root[data-ui="nova"] .scan-card {
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, #ffffff 0%, #f7faff 100%);
+  box-shadow: 0 14px 26px var(--shadow);
+}
+
+:root[data-ui="nova"] .scan-card + .scan-card {
+  margin-top: 0;
+}
+
+:root[data-ui="nova"] .scan-card h2 {
+  font-family: "Palatino Linotype", "Book Antiqua", "Palatino", serif;
+  letter-spacing: 0.01em;
+}
+
+:root[data-ui="nova"] .scan-field input,
+:root[data-ui="nova"] .scan-field select,
+:root[data-ui="nova"] .scan-field textarea,
+:root[data-ui="nova"] .shipment-line-field input,
+:root[data-ui="nova"] .shipment-line-field select,
+:root[data-ui="nova"] .shipment-line-field textarea,
+:root[data-ui="nova"] .pack-line-field input,
+:root[data-ui="nova"] .pack-line-field select,
+:root[data-ui="nova"] .pack-line-field textarea,
+:root[data-ui="nova"] .receipt-line-field input,
+:root[data-ui="nova"] .receipt-line-field select,
+:root[data-ui="nova"] .receipt-line-field textarea {
+  border-radius: 12px;
+  border-color: var(--border);
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.02);
+}
+
+:root[data-ui="nova"] .scan-submit {
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--accent) 0%, #1f6fb2 100%);
+  box-shadow: 0 10px 20px rgba(15, 76, 129, 0.2);
+}
+
+:root[data-ui="nova"] .scan-submit.secondary {
+  background: linear-gradient(135deg, var(--accent-2) 0%, #f4a12d 100%);
+  box-shadow: 0 10px 20px rgba(246, 176, 66, 0.2);
+}
+
+:root[data-ui="nova"] .scan-scan-btn {
+  border-radius: 12px;
+  border-color: var(--accent);
+  box-shadow: 0 8px 16px rgba(15, 76, 129, 0.15);
+}
+
+:root[data-ui="nova"] .scan-table-wrap {
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  box-shadow: 0 12px 20px rgba(15, 23, 42, 0.08);
+  background: #fff;
+}
+
+:root[data-ui="nova"] .scan-table th {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+:root[data-ui="nova"] .scan-message {
+  border-radius: 12px;
+}
+
+:root[data-ui="nova"] .scan-sync-banner {
+  border-radius: 14px;
+}
+
+@media (max-width: 1100px) {
+  :root[data-ui="nova"] .scan-body {
+    grid-template-columns: 1fr;
+  }
+
+  :root[data-ui="nova"] .scan-nav {
+    position: static;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  :root[data-ui="nova"] .scan-shell {
+    padding: 18px 16px 40px;
+  }
+
+  :root[data-ui="nova"] .scan-header {
+    align-items: flex-start;
   }
 }

@@ -259,3 +259,18 @@
     height: 640px;
   }
 }
+
+:root[data-ui="nova"] .template-editor {
+  gap: 20px;
+}
+
+:root[data-ui="nova"] .template-panel {
+  border-radius: 18px;
+  border-color: var(--border-strong);
+  background: linear-gradient(180deg, #ffffff 0%, #f7faff 100%);
+  box-shadow: 0 14px 24px rgba(15, 23, 42, 0.08);
+}
+
+:root[data-ui="nova"] .template-badge {
+  background: var(--scan-btn-bg);
+}
