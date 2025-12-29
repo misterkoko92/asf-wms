@@ -9,6 +9,7 @@
   let detector = null;
   let zxingReader = null;
   let scanning = false;
+  const ZXING_SRC = '/static/scan/zxing.min.js';
 
   function setupThemeToggle() {
     const toggle = document.getElementById('theme-toggle');
@@ -121,7 +122,7 @@
     if (window.ZXing) {
       return window.ZXing;
     }
-    await loadScript('https://unpkg.com/@zxing/browser@0.1.4/umd/index.min.js');
+    await loadScript(ZXING_SRC);
     return window.ZXing;
   }
 
