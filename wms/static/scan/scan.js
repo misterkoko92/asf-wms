@@ -119,11 +119,14 @@
   }
 
   async function ensureZXing() {
-    if (window.ZXing) {
+    if (window.ZXing && window.ZXing.BrowserMultiFormatReader) {
       return window.ZXing;
     }
+    if (window.ZXingBrowser && window.ZXingBrowser.BrowserMultiFormatReader) {
+      return window.ZXingBrowser;
+    }
     await loadScript(ZXING_SRC);
-    return window.ZXing;
+    return window.ZXing || window.ZXingBrowser;
   }
 
   function handleDetectedCode(code) {

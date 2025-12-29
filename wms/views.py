@@ -1727,7 +1727,7 @@ def scan_sync(request):
     )
 
 
-SERVICE_WORKER_JS = """const CACHE_NAME = 'wms-scan-v26';
+SERVICE_WORKER_JS = """const CACHE_NAME = 'wms-scan-v27';
 const ASSETS = [
   '/scan/',
   '/static/scan/scan.css',
