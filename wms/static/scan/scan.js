@@ -134,9 +134,22 @@
   }
 
   async function startZXingScan() {
-    const ZXing = await ensureZXing();
+    let ZXing;
+    try {
+      setStatus('Chargement du scanner...');
+      if (overlay) {
+        overlay.classList.add('active');
+      }
+      ZXing = await ensureZXing();
+    } catch (err) {
+      setStatus('Chargement du scanner impossible.');
+      alert('Impossible de charger le module de scan. Verifiez la connexion.');
+      await stopScan();
+      return;
+    }
     if (!ZXing || !ZXing.BrowserMultiFormatReader) {
       alert('Scan camera non supporte. Utilisez un scanner ou saisissez le code.');
+      await stopScan();
       return;
     }
     zxingReader = new ZXing.BrowserMultiFormatReader();
@@ -176,11 +189,16 @@
   }
 
   async function startScan(input) {
+    activeInput = input;
+    setStatus('Chargement du scanner...');
+    if (overlay) {
+      overlay.classList.add('active');
+    }
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       alert('Scan camera non supporte. Utilisez un scanner ou saisissez le code.');
+      await stopScan();
       return;
     }
-    activeInput = input;
     if ('BarcodeDetector' in window) {
       detector = new BarcodeDetector({
         formats: ['qr_code', 'code_128', 'ean_13', 'ean_8', 'code_39', 'upc_a', 'upc_e']
@@ -192,6 +210,7 @@
         });
       } catch (err) {
         setStatus('Acces camera refuse.');
+        await stopScan();
         return;
       }
       if (video) {
