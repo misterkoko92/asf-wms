@@ -1689,6 +1689,19 @@ def scan_sync(request):
     )
 
 
+@login_required
+@require_http_methods(["GET"])
+def scan_faq(request):
+    return render(
+        request,
+        "scan/faq.html",
+        {
+            "active": "faq",
+            "shell_class": "scan-shell-wide",
+        },
+    )
+
+
 SERVICE_WORKER_JS = """const CACHE_NAME = 'wms-scan-v29';
 const ASSETS = [
   '/scan/',

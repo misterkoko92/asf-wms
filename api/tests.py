@@ -5,7 +5,12 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from wms.models import (
+    Carton,
+    CartonFormat,
     Location,
+    Order,
+    OrderLine,
+    OrderStatus,
     Product,
     ProductLot,
     ProductLotStatus,
@@ -34,17 +39,21 @@ class ApiTests(TestCase):
             qr_code_image="qr_codes/test.png",
         )
 
-    def test_products_list_includes_available_stock(self):
-        ProductLot.objects.create(
+    def _create_lot(self, quantity):
+        return ProductLot.objects.create(
             product=self.product,
             lot_code="LOT-API",
             expires_on=date(2026, 1, 1),
             received_on=date(2025, 12, 1),
             status=ProductLotStatus.AVAILABLE,
-            quantity_on_hand=10,
-            quantity_reserved=2,
+            quantity_on_hand=quantity,
             location=self.location,
         )
+
+    def test_products_list_includes_available_stock(self):
+        lot = self._create_lot(quantity=10)
+        lot.quantity_reserved = 2
+        lot.save(update_fields=["quantity_reserved"])
         response = self.client.get("/api/v1/products/")
         self.assertEqual(response.status_code, 200)
         data = response.json()
@@ -62,3 +71,44 @@ class ApiTests(TestCase):
         self.assertEqual(response.status_code, 201)
         self.assertEqual(ProductLot.objects.count(), 1)
         self.assertEqual(StockMovement.objects.count(), 1)
+
+    def test_pack_carton_creates_carton(self):
+        self._create_lot(quantity=5)
+        payload = {
+            "product_id": self.product.id,
+            "quantity": 2,
+        }
+        response = self.client.post("/api/v1/pack/", payload, format="json")
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(Carton.objects.count(), 1)
+
+    def test_order_reserve_and_prepare(self):
+        self._create_lot(quantity=10)
+        CartonFormat.objects.create(
+            name="API format",
+            length_cm=40,
+            width_cm=30,
+            height_cm=30,
+            max_weight_g=8000,
+            is_default=True,
+        )
+        order = Order.objects.create(
+            status=OrderStatus.DRAFT,
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            correspondent_name="Contact",
+            destination_address="10 Rue Test",
+            destination_country="France",
+            created_by=self.user,
+        )
+        OrderLine.objects.create(order=order, product=self.product, quantity=4)
+        response = self.client.post(f"/api/v1/orders/{order.id}/reserve/")
+        self.assertEqual(response.status_code, 200)
+        order.refresh_from_db()
+        self.assertEqual(order.status, OrderStatus.RESERVED)
+        response = self.client.post(f"/api/v1/orders/{order.id}/prepare/")
+        self.assertEqual(response.status_code, 200)
+        order.refresh_from_db()
+        self.assertIn(order.status, {OrderStatus.READY, OrderStatus.PREPARING})
+        line = order.lines.first()
+        self.assertEqual(line.prepared_quantity, 4)

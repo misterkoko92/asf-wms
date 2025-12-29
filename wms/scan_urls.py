@@ -58,6 +58,7 @@ urlpatterns = [
         views.scan_print_template_edit,
         name="scan_print_template_edit",
     ),
+    path("faq/", views.scan_faq, name="scan_faq"),
     path("out/", views.scan_out, name="scan_out"),
     path("sync/", views.scan_sync, name="scan_sync"),
     path("service-worker.js", views.scan_service_worker, name="scan_service_worker"),

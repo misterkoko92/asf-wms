@@ -1,0 +1,149 @@
+{% extends "scan/base.html" %}
+
+{% block title %}WMS Scan - FAQ & Documentation{% endblock %}
+
+{% block content %}
+  <div class="scan-card">
+    <h2>Vue d'ensemble</h2>
+    <p>
+      Cette page decrit le fonctionnement complet du WMS Scan, du stock a
+      l'expedition. Les flux sont concus pour etre rapides sur mobile et
+      pour rester coherents en base.
+    </p>
+    <ul>
+      <li><strong>Produit</strong> : fiche article (SKU, nom, poids, emplacement).</li>
+      <li><strong>Lot</strong> : stock reel par produit, avec quantites et peremption.</li>
+      <li><strong>Carton</strong> : unite de preparation (DRAFT, PICKING, PACKED).</li>
+      <li><strong>Expedition</strong> : regroupe des cartons pour une destination.</li>
+    </ul>
+  </div>
+
+  <div class="scan-card">
+    <h2>Donnees de reference</h2>
+    <p>Avant utilisation, verifier ces donnees dans l'admin :</p>
+    <ul>
+      <li><strong>Contacts</strong> avec tags : expediteur, destinataire, correspondant, donateur, transporteur.</li>
+      <li><strong>Destinations</strong> : ville, code IATA, pays, correspondant lie.</li>
+      <li><strong>Formats de carton</strong> : un format par defaut pour la preparation.</li>
+    </ul>
+    <p>
+      Quand un selecteur n'a qu'un seul choix, il est auto-selectionne.
+    </p>
+  </div>
+
+  <div class="scan-card">
+    <h2>Flux reception</h2>
+    <h3>Reception palette</h3>
+    <ul>
+      <li>Enregistre une reception avec donateur + transporteur.</li>
+      <li>Le stock n'est pas modifie ici : c'est un suivi logistique.</li>
+    </ul>
+    <h3>Reception association</h3>
+    <ul>
+      <li>Enregistre cartons + hors format.</li>
+      <li>Utiliser la liste de descriptions pour les hors format.</li>
+    </ul>
+    <h3>Reception standard</h3>
+    <ul>
+      <li>Creer une reception, puis ajouter des lignes produits.</li>
+      <li>Option <strong>Receptionner maintenant</strong> pour creer le lot stock.</li>
+    </ul>
+  </div>
+
+  <div class="scan-card">
+    <h2>MAJ stock</h2>
+    <ul>
+      <li>Scanner ou saisir le produit, puis quantite et peremption.</li>
+      <li>Le lot est cree et stocke a l'emplacement par defaut du produit.</li>
+      <li>Si le produit est inconnu, un lien permet de le creer dans l'admin.</li>
+    </ul>
+    <h3>Suppression produit</h3>
+    <ul>
+      <li>Retire du stock pour casse, perte ou correction.</li>
+      <li>Optionnel : lier a une expedition et ajouter un motif.</li>
+    </ul>
+  </div>
+
+  <div class="scan-card">
+    <h2>Preparation (cartons)</h2>
+    <ul>
+      <li>Choisir un format de carton (ou personnaliser).</li>
+      <li>Ajouter des lignes produit + quantite.</li>
+      <li>Le carton passe a <strong>PICKING</strong> puis a <strong>PACKED</strong>.</li>
+    </ul>
+    <p>
+      Un carton assigne a une expedition affiche le statut <strong>Affecte</strong>
+      dans la Vue Colis.
+    </p>
+  </div>
+
+  <div class="scan-card">
+    <h2>Creer une expedition</h2>
+    <ul>
+      <li>Selectionner une destination en premier.</li>
+      <li>Les destinataires sont filtres par pays.</li>
+      <li>Le correspondant est filtre par la destination choisie.</li>
+      <li>Ajouter des cartons deja prepares ou creer des cartons depuis des produits.</li>
+    </ul>
+  </div>
+
+  <div class="scan-card">
+    <h2>Vue Colis</h2>
+    <ul>
+      <li>Liste tous les cartons prepares avec leur statut et contenu.</li>
+      <li>Un carton assigne a une expedition est marque <strong>Affecte</strong>.</li>
+      <li>Un carton <strong>SHIPPED</strong> n'est plus modifiable.</li>
+    </ul>
+  </div>
+
+  <div class="scan-card">
+    <h2>Vue Expeditions</h2>
+    <ul>
+      <li><strong>DRAFT</strong> : aucun carton pret.</li>
+      <li><strong>PARTIEL</strong> : une partie des cartons est prete.</li>
+      <li><strong>READY</strong> : tous les cartons sont prets.</li>
+    </ul>
+    <p>
+      La date <strong>mise en disponible</strong> est renseignee a chaque passage en READY,
+      puis effacee si l'expedition repasse en preparation.
+    </p>
+  </div>
+
+  <div class="scan-card">
+    <h2>Documents</h2>
+    <ul>
+      <li>Bon d'expedition, listes de colisage et attestations sont generes par expedition.</li>
+      <li>Les etiquettes sont generees par carton.</li>
+      <li>Des documents additionnels peuvent etre uploades (PDF, JPG, PNG, XLSX, DOCX).</li>
+    </ul>
+  </div>
+
+  <div class="scan-card">
+    <h2>Templates (admin)</h2>
+    <ul>
+      <li>Page reservee aux superusers.</li>
+      <li>Permet de personnaliser visuellement les documents.</li>
+      <li>Apres modification, recharger la page pour voir le rendu.</li>
+    </ul>
+  </div>
+
+  <div class="scan-card">
+    <h2>Scanner & synchronisation</h2>
+    <ul>
+      <li>Le bouton <strong>Scan</strong> ouvre la camera et remplit le champ cible.</li>
+      <li>Si la camera est bloquee, autoriser l'acces dans le navigateur.</li>
+      <li>Si le scan n'est pas supporte, saisir le code manuellement.</li>
+      <li>La banniere de synchro indique qu'une mise a jour est disponible.</li>
+    </ul>
+  </div>
+
+  <div class="scan-card">
+    <h2>FAQ rapide</h2>
+    <ul>
+      <li><strong>Mes listes sont vides</strong> : verifier les tags des contacts et la destination choisie.</li>
+      <li><strong>Stock a zero</strong> : verifier les lots disponibles et leur emplacement.</li>
+      <li><strong>Camera ne s'ouvre pas</strong> : autoriser la camera, tester un autre navigateur.</li>
+      <li><strong>Un carton est bloque</strong> : un carton SHIPPED est non modifiable.</li>
+    </ul>
+  </div>
+{% endblock %}
