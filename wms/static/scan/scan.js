@@ -7,6 +7,7 @@
   let activeInput = null;
   let stream = null;
   let detector = null;
+  let zxingReader = null;
   let scanning = false;
 
   function setupThemeToggle() {
@@ -57,9 +58,23 @@
 
   async function stopScan() {
     scanning = false;
+    if (zxingReader) {
+      try {
+        zxingReader.reset();
+      } catch (err) {
+        // Ignore reset errors.
+      }
+      zxingReader = null;
+    }
     if (stream) {
       stream.getTracks().forEach(track => track.stop());
       stream = null;
+    }
+    if (video && video.srcObject && !stream) {
+      const videoStream = video.srcObject;
+      if (videoStream && videoStream.getTracks) {
+        videoStream.getTracks().forEach(track => track.stop());
+      }
     }
     if (video) {
       video.srcObject = null;
@@ -91,34 +106,107 @@
     requestAnimationFrame(detectLoop);
   }
 
-  async function startScan(input) {
-    if (!('BarcodeDetector' in window)) {
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = src;
+      script.async = true;
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  }
+
+  async function ensureZXing() {
+    if (window.ZXing) {
+      return window.ZXing;
+    }
+    await loadScript('https://unpkg.com/@zxing/browser@0.1.4/umd/index.min.js');
+    return window.ZXing;
+  }
+
+  function handleDetectedCode(code) {
+    if (activeInput) {
+      activeInput.value = code;
+      activeInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    setStatus('Code detecte: ' + code);
+  }
+
+  async function startZXingScan() {
+    const ZXing = await ensureZXing();
+    if (!ZXing || !ZXing.BrowserMultiFormatReader) {
       alert('Scan camera non supporte. Utilisez un scanner ou saisissez le code.');
       return;
     }
-    activeInput = input;
-    detector = new BarcodeDetector({
-      formats: ['qr_code', 'code_128', 'ean_13', 'ean_8', 'code_39', 'upc_a', 'upc_e']
-    });
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
-        audio: false
-      });
-    } catch (err) {
-      setStatus('Acces camera refuse.');
-      return;
-    }
-    if (video) {
-      video.srcObject = stream;
-      await video.play();
-    }
+    zxingReader = new ZXing.BrowserMultiFormatReader();
     scanning = true;
     setStatus('Scan en cours...');
     if (overlay) {
       overlay.classList.add('active');
     }
-    requestAnimationFrame(detectLoop);
+    const callback = (result, err) => {
+      if (!scanning) {
+        return;
+      }
+      if (result) {
+        const code = result.getText ? result.getText() : result.text || result;
+        handleDetectedCode(code || '');
+        stopScan();
+        return;
+      }
+      if (err && err.name && err.name !== 'NotFoundException') {
+        setStatus('Erreur scan: ' + (err.message || err.name));
+      }
+    };
+    try {
+      if (typeof zxingReader.decodeFromConstraints === 'function') {
+        await zxingReader.decodeFromConstraints(
+          { audio: false, video: { facingMode: { ideal: 'environment' } } },
+          video,
+          callback
+        );
+      } else {
+        await zxingReader.decodeFromVideoDevice(null, video, callback);
+      }
+    } catch (err) {
+      setStatus('Acces camera refuse.');
+      await stopScan();
+    }
+  }
+
+  async function startScan(input) {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert('Scan camera non supporte. Utilisez un scanner ou saisissez le code.');
+      return;
+    }
+    activeInput = input;
+    if ('BarcodeDetector' in window) {
+      detector = new BarcodeDetector({
+        formats: ['qr_code', 'code_128', 'ean_13', 'ean_8', 'code_39', 'upc_a', 'upc_e']
+      });
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' },
+          audio: false
+        });
+      } catch (err) {
+        setStatus('Acces camera refuse.');
+        return;
+      }
+      if (video) {
+        video.srcObject = stream;
+        await video.play();
+      }
+      scanning = true;
+      setStatus('Scan en cours...');
+      if (overlay) {
+        overlay.classList.add('active');
+      }
+      requestAnimationFrame(detectLoop);
+    } else {
+      await startZXingScan();
+    }
   }
 
   function setupProductDatalist() {
