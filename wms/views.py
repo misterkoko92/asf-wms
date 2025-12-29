@@ -155,6 +155,89 @@ def _build_carton_options(cartons):
     return options
 
 
+def _build_destination_label(destination):
+    if not destination:
+        return ""
+    return str(destination)
+
+
+def _build_shipment_contact_payload():
+    destinations = Destination.objects.filter(is_active=True).select_related(
+        "correspondent_contact"
+    )
+    recipient_contacts = contacts_with_tags(TAG_RECIPIENT).prefetch_related("addresses")
+    correspondent_contacts = contacts_with_tags(TAG_CORRESPONDENT)
+
+    destinations_json = [
+        {
+            "id": destination.id,
+            "country": destination.country,
+            "correspondent_contact_id": destination.correspondent_contact_id,
+        }
+        for destination in destinations
+    ]
+    recipient_contacts_json = []
+    for contact in recipient_contacts:
+        countries = {
+            address.country
+            for address in contact.addresses.all()
+            if address.country
+        }
+        recipient_contacts_json.append(
+            {
+                "id": contact.id,
+                "name": contact.name,
+                "countries": sorted(countries),
+            }
+        )
+    correspondent_contacts_json = [
+        {"id": contact.id, "name": contact.name}
+        for contact in correspondent_contacts
+    ]
+    return destinations_json, recipient_contacts_json, correspondent_contacts_json
+
+
+def _parse_shipment_lines(*, carton_count, data, allowed_carton_ids):
+    line_values = build_shipment_line_values(carton_count, data)
+    line_errors = {}
+    line_items = []
+    for index in range(1, carton_count + 1):
+        prefix = f"line_{index}_"
+        carton_id = (data.get(prefix + "carton_id") or "").strip()
+        product_code = (data.get(prefix + "product_code") or "").strip()
+        quantity_raw = (data.get(prefix + "quantity") or "").strip()
+        errors = []
+
+        if carton_id and (product_code or quantity_raw):
+            errors.append("Choisissez un carton OU creez un colis depuis un produit.")
+        elif carton_id:
+            if carton_id not in allowed_carton_ids:
+                errors.append("Carton indisponible.")
+            else:
+                line_items.append({"carton_id": int(carton_id)})
+        elif product_code or quantity_raw:
+            if not product_code:
+                errors.append("Produit requis.")
+            quantity = None
+            if not quantity_raw:
+                errors.append("Quantite requise.")
+            else:
+                quantity = parse_int(quantity_raw)
+                if quantity is None or quantity <= 0:
+                    errors.append("Quantite invalide.")
+            product = resolve_product(product_code) if product_code else None
+            if product_code and not product:
+                errors.append("Produit introuvable.")
+            if not errors and product and quantity:
+                line_items.append({"product": product, "quantity": quantity})
+        else:
+            errors.append("Renseignez un carton ou un produit.")
+
+        if errors:
+            line_errors[str(index)] = errors
+    return line_values, line_items, line_errors
+
+
 ALLOWED_UPLOAD_EXTENSIONS = {
     ".pdf",
     ".png",
@@ -258,12 +341,15 @@ def scan_cartons_ready(request):
             CartonStatus.PICKING,
             CartonStatus.PACKED,
         }
-        if carton and carton.status != CartonStatus.SHIPPED and status_value in allowed:
+        if (
+            carton
+            and carton.status != CartonStatus.SHIPPED
+            and status_value in allowed
+            and carton.shipment_id is None
+        ):
             if carton.status != status_value:
                 carton.status = status_value
                 carton.save(update_fields=["status"])
-                if carton.shipment_id:
-                    _sync_shipment_ready_state(carton.shipment)
         return redirect("scan:scan_cartons_ready")
 
     cartons_qs = (
@@ -500,6 +586,14 @@ def scan_receive(request):
                                 )
                             except StockError as exc:
                                 line_form.add_error(None, str(exc))
+                                receipt_lines = list(
+                                    selected_receipt.lines.select_related(
+                                        "product", "location", "received_lot"
+                                    ).all()
+                                )
+                                pending_count = sum(
+                                    1 for line in receipt_lines if not line.received_lot_id
+                                )
                                 return render(
                                     request,
                                     "scan/receive.html",
@@ -747,6 +841,12 @@ def scan_order(request):
                         else:
                             line.save(update_fields=["quantity"])
                         line_form.add_error(None, str(exc))
+                        order_lines = list(
+                            selected_order.lines.select_related("product")
+                        )
+                        remaining_total = sum(
+                            line.remaining_quantity for line in order_lines
+                        )
                         return render(
                             request,
                             "scan/order.html",
@@ -942,48 +1042,11 @@ def scan_shipment_create(request):
                 carton_count = max(1, int(request.POST.get("carton_count", 1)))
             except (TypeError, ValueError):
                 carton_count = 1
-        line_values = build_shipment_line_values(carton_count, request.POST)
-
-        for index in range(1, carton_count + 1):
-            prefix = f"line_{index}_"
-            carton_id = (request.POST.get(prefix + "carton_id") or "").strip()
-            product_code = (request.POST.get(prefix + "product_code") or "").strip()
-            quantity_raw = (request.POST.get(prefix + "quantity") or "").strip()
-            errors = []
-
-            if carton_id and (product_code or quantity_raw):
-                errors.append("Choisissez un carton OU creez un colis depuis un produit.")
-            elif carton_id:
-                if carton_id not in available_carton_ids:
-                    errors.append("Carton indisponible.")
-                else:
-                    line_items.append({"carton_id": int(carton_id)})
-            elif product_code or quantity_raw:
-                if not product_code:
-                    errors.append("Produit requis.")
-                quantity = None
-                if not quantity_raw:
-                    errors.append("Quantite requise.")
-                else:
-                    try:
-                        quantity = int(quantity_raw)
-                        if quantity <= 0:
-                            errors.append("Quantite invalide.")
-                    except ValueError:
-                        errors.append("Quantite invalide.")
-                if product_code:
-                    product = resolve_product(product_code)
-                    if not product:
-                        errors.append("Produit introuvable.")
-                else:
-                    product = None
-                if not errors and product and quantity:
-                    line_items.append({"product": product, "quantity": quantity})
-            else:
-                errors.append("Renseignez un carton ou un produit.")
-
-            if errors:
-                line_errors[str(index)] = errors
+        line_values, line_items, line_errors = _parse_shipment_lines(
+            carton_count=carton_count,
+            data=request.POST,
+            allowed_carton_ids=available_carton_ids,
+        )
 
         if form.is_valid() and not line_errors:
             try:
@@ -992,11 +1055,7 @@ def scan_shipment_create(request):
                     shipper_contact = form.cleaned_data["shipper_contact"]
                     recipient_contact = form.cleaned_data["recipient_contact"]
                     correspondent_contact = form.cleaned_data["correspondent_contact"]
-                    destination_label = destination.city
-                    if destination.iata_code:
-                        destination_label = f"{destination_label} ({destination.iata_code})"
-                    if destination.country:
-                        destination_label = f"{destination_label} - {destination.country}"
+                    destination_label = _build_destination_label(destination)
                     shipment = Shipment.objects.create(
                         status=ShipmentStatus.DRAFT,
                         shipper_name=shipper_contact.name,
@@ -1043,37 +1102,9 @@ def scan_shipment_create(request):
         carton_count = form.initial.get("carton_count", 1)
         line_values = build_shipment_line_values(carton_count)
 
-    destinations = Destination.objects.filter(is_active=True).select_related(
-        "correspondent_contact"
+    destinations_json, recipient_contacts_json, correspondent_contacts_json = (
+        _build_shipment_contact_payload()
     )
-    recipient_contacts = contacts_with_tags(TAG_RECIPIENT).prefetch_related("addresses")
-    correspondent_contacts = contacts_with_tags(TAG_CORRESPONDENT)
-    destinations_json = [
-        {
-            "id": destination.id,
-            "country": destination.country,
-            "correspondent_contact_id": destination.correspondent_contact_id,
-        }
-        for destination in destinations
-    ]
-    recipient_contacts_json = []
-    for contact in recipient_contacts:
-        countries = {
-            address.country
-            for address in contact.addresses.all()
-            if address.country
-        }
-        recipient_contacts_json.append(
-            {
-                "id": contact.id,
-                "name": contact.name,
-                "countries": sorted(countries),
-            }
-        )
-    correspondent_contacts_json = [
-        {"id": contact.id, "name": contact.name}
-        for contact in correspondent_contacts
-    ]
 
     return render(
         request,
@@ -1150,48 +1181,11 @@ def scan_shipment_edit(request, shipment_id):
                 carton_count = max(1, int(request.POST.get("carton_count", 1)))
             except (TypeError, ValueError):
                 carton_count = 1
-        line_values = build_shipment_line_values(carton_count, request.POST)
-
-        for index in range(1, carton_count + 1):
-            prefix = f"line_{index}_"
-            carton_id = (request.POST.get(prefix + "carton_id") or "").strip()
-            product_code = (request.POST.get(prefix + "product_code") or "").strip()
-            quantity_raw = (request.POST.get(prefix + "quantity") or "").strip()
-            errors = []
-
-            if carton_id and (product_code or quantity_raw):
-                errors.append("Choisissez un carton OU creez un colis depuis un produit.")
-            elif carton_id:
-                if carton_id not in allowed_carton_ids:
-                    errors.append("Carton indisponible.")
-                else:
-                    line_items.append({"carton_id": int(carton_id)})
-            elif product_code or quantity_raw:
-                if not product_code:
-                    errors.append("Produit requis.")
-                quantity = None
-                if not quantity_raw:
-                    errors.append("Quantite requise.")
-                else:
-                    try:
-                        quantity = int(quantity_raw)
-                        if quantity <= 0:
-                            errors.append("Quantite invalide.")
-                    except ValueError:
-                        errors.append("Quantite invalide.")
-                if product_code:
-                    product = resolve_product(product_code)
-                    if not product:
-                        errors.append("Produit introuvable.")
-                else:
-                    product = None
-                if not errors and product and quantity:
-                    line_items.append({"product": product, "quantity": quantity})
-            else:
-                errors.append("Renseignez un carton ou un produit.")
-
-            if errors:
-                line_errors[str(index)] = errors
+        line_values, line_items, line_errors = _parse_shipment_lines(
+            carton_count=carton_count,
+            data=request.POST,
+            allowed_carton_ids=allowed_carton_ids,
+        )
 
         if form.is_valid() and not line_errors:
             try:
@@ -1200,11 +1194,7 @@ def scan_shipment_edit(request, shipment_id):
                     shipper_contact = form.cleaned_data["shipper_contact"]
                     recipient_contact = form.cleaned_data["recipient_contact"]
                     correspondent_contact = form.cleaned_data["correspondent_contact"]
-                    destination_label = destination.city
-                    if destination.iata_code:
-                        destination_label = f"{destination_label} ({destination.iata_code})"
-                    if destination.country:
-                        destination_label = f"{destination_label} - {destination.country}"
+                    destination_label = _build_destination_label(destination)
 
                     shipment.destination = destination
                     shipment.shipper_name = shipper_contact.name
@@ -1283,37 +1273,9 @@ def scan_shipment_edit(request, shipment_id):
     ).order_by("-generated_at")
     carton_docs = [{"id": carton.id, "code": carton.code} for carton in assigned_cartons]
 
-    destinations = Destination.objects.filter(is_active=True).select_related(
-        "correspondent_contact"
+    destinations_json, recipient_contacts_json, correspondent_contacts_json = (
+        _build_shipment_contact_payload()
     )
-    recipient_contacts = contacts_with_tags(TAG_RECIPIENT).prefetch_related("addresses")
-    correspondent_contacts = contacts_with_tags(TAG_CORRESPONDENT)
-    destinations_json = [
-        {
-            "id": destination.id,
-            "country": destination.country,
-            "correspondent_contact_id": destination.correspondent_contact_id,
-        }
-        for destination in destinations
-    ]
-    recipient_contacts_json = []
-    for contact in recipient_contacts:
-        countries = {
-            address.country
-            for address in contact.addresses.all()
-            if address.country
-        }
-        recipient_contacts_json.append(
-            {
-                "id": contact.id,
-                "name": contact.name,
-                "countries": sorted(countries),
-            }
-        )
-    correspondent_contacts_json = [
-        {"id": contact.id, "name": contact.name}
-        for contact in correspondent_contacts
-    ]
 
     return render(
         request,

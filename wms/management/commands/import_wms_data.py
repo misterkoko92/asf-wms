@@ -284,7 +284,11 @@ class Command(BaseCommand):
             last = normalize_text(get_cell(row, header_map, "ASSOCIATION_PRESIDENT_NOM"))
             president = " ".join(part for part in [title, first, last] if part)
             notes = f"President: {president}" if president else ""
-            email = extract_email(last)
+            email = extract_email(
+                get_cell(row, header_map, "ASSOCIATION_EMAIL")
+                or get_cell(row, header_map, "ASSOCIATION_MAIL")
+                or ""
+            )
             phone = normalize_text(get_cell(row, header_map, "ASSOCIATION_TEL_1"))
             phone2 = normalize_text(get_cell(row, header_map, "ASSOCIATION_TEL_2"))
             if phone2:
