@@ -62,7 +62,7 @@ body {
 }
 
 .scan-shell {
-  max-width: 720px;
+  max-width: 100%;
   margin: 0 auto;
   padding: 20px 16px 40px;
   animation: fade-in 0.35s ease-out;
@@ -593,6 +593,14 @@ body {
 
 @media (max-width: 520px) {
   .scan-title { font-size: 24px; }
+}
+
+@media (min-width: 900px) {
+  .scan-shell { padding: 24px 32px 48px; }
+}
+
+@media (min-width: 1200px) {
+  .scan-shell { padding: 28px 48px 56px; }
 }
 
 @media (min-width: 640px) {
