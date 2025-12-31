@@ -58,6 +58,7 @@ from .models import (
     Shipment,
     ShipmentStatus,
     ShipmentTrackingEvent,
+    ShipmentTrackingStatus,
     StockMovement,
     Warehouse,
     WmsChange,
@@ -265,6 +266,18 @@ def _build_shipment_document_links(shipment, *, public=False):
         shipment=shipment, doc_type=DocumentType.ADDITIONAL
     ).order_by("-generated_at")
     return documents, carton_docs, additional_docs
+
+
+def _next_tracking_status(last_status):
+    choices = [choice[0] for choice in ShipmentTrackingStatus.choices]
+    if not choices:
+        return None
+    if not last_status or last_status not in choices:
+        return choices[0]
+    index = choices.index(last_status)
+    if index + 1 < len(choices):
+        return choices[index + 1]
+    return last_status
 
 
 def _parse_shipment_lines(*, carton_count, data, allowed_carton_ids):
@@ -1422,7 +1435,9 @@ def scan_shipment_track(request, shipment_ref):
     documents, carton_docs, additional_docs = _build_shipment_document_links(
         shipment, public=True
     )
-    form = ShipmentTrackingForm(request.POST or None)
+    last_event = shipment.tracking_events.order_by("-created_at").first()
+    next_status = _next_tracking_status(last_event.status if last_event else None)
+    form = ShipmentTrackingForm(request.POST or None, initial_status=next_status)
     if request.method == "POST" and form.is_valid():
         ShipmentTrackingEvent.objects.create(
             shipment=shipment,

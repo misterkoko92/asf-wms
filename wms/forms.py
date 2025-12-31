@@ -415,10 +415,13 @@ class ShipmentTrackingForm(forms.Form):
     )
 
     def __init__(self, *args, **kwargs):
+        initial_status = kwargs.pop("initial_status", None)
         super().__init__(*args, **kwargs)
         choices = list(ShipmentTrackingStatus.choices)
         self.fields["status"].choices = choices
-        if choices:
+        if initial_status and any(choice[0] == initial_status for choice in choices):
+            self.fields["status"].initial = initial_status
+        elif choices:
             self.fields["status"].initial = choices[0][0]
 
 
