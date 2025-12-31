@@ -23,9 +23,15 @@
         <p class="scan-help">
           Votre demande sera verifiee par un superuser ASF avant activation.
         </p>
-        <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_public_order' link.token %}">
-          Retour a la commande
-        </a>
+        {% if link %}
+          <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_public_order' link.token %}">
+            Retour a la commande
+          </a>
+        {% else %}
+          <a class="scan-scan-btn scan-doc-btn" href="{% url 'portal:portal_login' %}">
+            Retour au portail
+          </a>
+        {% endif %}
       </div>
 
       <div class="scan-card">

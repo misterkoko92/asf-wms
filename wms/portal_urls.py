@@ -12,6 +12,7 @@ urlpatterns = [
         views.portal_set_password,
         name="portal_set_password",
     ),
+    path("request-account/", views.portal_account_request, name="portal_account_request"),
     path("", views.portal_dashboard, name="portal_dashboard"),
     path("orders/new/", views.portal_order_create, name="portal_order_create"),
     path("orders/<int:order_id>/", views.portal_order_detail, name="portal_order_detail"),

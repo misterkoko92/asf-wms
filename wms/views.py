@@ -987,25 +987,13 @@ def scan_public_order_summary(request, token, order_id):
     )
 
 
-@require_http_methods(["GET", "POST"])
-def scan_public_account_request(request, token):
-    link = (
-        PublicOrderLink.objects.filter(token=token, is_active=True)
-        .order_by("-created_at")
-        .first()
-    )
-    if not link or (link.expires_at and link.expires_at < timezone.now()):
-        raise Http404
-
+def _handle_account_request_form(request, *, link=None, redirect_url=""):
     contacts = list(
         contacts_with_tags(TAG_SHIPPER).prefetch_related("addresses").order_by("name")
     )
     contact_payload = []
     for contact in contacts:
-        address = (
-            contact.addresses.filter(is_default=True).first()
-            or contact.addresses.first()
-        )
+        address = _get_contact_address(contact)
         contact_payload.append(
             {
                 "id": contact.id,
@@ -1033,14 +1021,6 @@ def scan_public_account_request(request, token):
         "contact_id": "",
     }
     errors = []
-
-    summary_url = None
-    if request.method == "GET":
-        order_id = parse_int(request.GET.get("order"))
-        if order_id:
-            order = Order.objects.filter(id=order_id, public_link=link).first()
-            if order:
-                summary_url = reverse("scan:scan_public_order_summary", args=[token, order.id])
 
     if request.method == "POST":
         form_data.update(
@@ -1155,7 +1135,7 @@ def scan_public_account_request(request, token):
                 request,
                 "Demande envoyee. Un superuser ASF validera votre compte.",
             )
-            return redirect(reverse("scan:scan_public_account_request", args=[token]))
+            return redirect(redirect_url)
 
     return render(
         request,
@@ -1166,6 +1146,32 @@ def scan_public_account_request(request, token):
             "form_data": form_data,
             "errors": errors,
         },
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def scan_public_account_request(request, token):
+    link = (
+        PublicOrderLink.objects.filter(token=token, is_active=True)
+        .order_by("-created_at")
+        .first()
+    )
+    if not link or (link.expires_at and link.expires_at < timezone.now()):
+        raise Http404
+
+    return _handle_account_request_form(
+        request,
+        link=link,
+        redirect_url=reverse("scan:scan_public_account_request", args=[token]),
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def portal_account_request(request):
+    return _handle_account_request_form(
+        request,
+        link=None,
+        redirect_url=reverse("portal:portal_account_request"),
     )
 
 
