@@ -15,6 +15,7 @@ from .models import (
     OrderLine,
     OrderStatus,
     Product,
+    ProductKitItem,
     ProductLot,
     ProductLotStatus,
     Receipt,
@@ -144,6 +145,92 @@ class StockFlowTests(TestCase):
             )
         self.assertEqual(Carton.objects.count(), 0)
         self.assertEqual(StockMovement.objects.count(), 0)
+
+
+class KitPackingTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="kit-user", password="pass1234"
+        )
+        self.warehouse = Warehouse.objects.create(name="Kit WH", code="KWH")
+        self.location = Location.objects.create(
+            warehouse=self.warehouse, zone="K", aisle="01", shelf="001"
+        )
+        self.component_a = Product.objects.create(
+            name="Component A",
+            brand="Kit",
+            weight_g=100,
+            volume_cm3=120,
+            default_location=self.location,
+            qr_code_image="qr_codes/test.png",
+        )
+        self.component_b = Product.objects.create(
+            name="Component B",
+            brand="Kit",
+            weight_g=200,
+            volume_cm3=200,
+            default_location=self.location,
+            qr_code_image="qr_codes/test.png",
+        )
+        self.kit = Product.objects.create(
+            name="Kit Enfant",
+            brand="Kit",
+            default_location=self.location,
+            qr_code_image="qr_codes/test.png",
+        )
+        ProductKitItem.objects.create(kit=self.kit, component=self.component_a, quantity=2)
+        ProductKitItem.objects.create(kit=self.kit, component=self.component_b, quantity=3)
+
+    def _create_lot(self, product, quantity):
+        return ProductLot.objects.create(
+            product=product,
+            lot_code="LOT",
+            expires_on=date(2026, 1, 10),
+            received_on=date(2025, 12, 1),
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=quantity,
+            location=self.location,
+            storage_conditions="dry",
+        )
+
+    def test_pack_carton_with_kit_consumes_components(self):
+        lot_a = self._create_lot(self.component_a, 10)
+        lot_b = self._create_lot(self.component_b, 10)
+
+        carton = pack_carton(
+            user=self.user,
+            product=self.kit,
+            quantity=2,
+            carton=None,
+            carton_code=None,
+            shipment=None,
+            current_location=self.location,
+        )
+
+        lot_a.refresh_from_db()
+        lot_b.refresh_from_db()
+        self.assertEqual(lot_a.quantity_on_hand, 6)
+        self.assertEqual(lot_b.quantity_on_hand, 4)
+        items = list(carton.cartonitem_set.select_related("product_lot__product"))
+        self.assertEqual(len(items), 2)
+        item_products = {item.product_lot.product for item in items}
+        self.assertEqual(item_products, {self.component_a, self.component_b})
+
+    def test_pack_carton_kit_blocks_when_insufficient_components(self):
+        self._create_lot(self.component_a, 1)
+        self._create_lot(self.component_b, 10)
+
+        with self.assertRaises(StockError):
+            pack_carton(
+                user=self.user,
+                product=self.kit,
+                quantity=1,
+                carton=None,
+                carton_code=None,
+                shipment=None,
+                current_location=self.location,
+            )
+        self.assertEqual(Carton.objects.count(), 0)
 
 
 class ShipmentReferenceTests(TestCase):

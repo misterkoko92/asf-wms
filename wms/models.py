@@ -134,6 +134,28 @@ class Product(models.Model):
         super().save(*args, **kwargs)
 
 
+class ProductKitItem(models.Model):
+    kit = models.ForeignKey(
+        Product, on_delete=models.CASCADE, related_name="kit_items"
+    )
+    component = models.ForeignKey(
+        Product, on_delete=models.PROTECT, related_name="kit_components"
+    )
+    quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
+
+    class Meta:
+        unique_together = ("kit", "component")
+        ordering = ["kit", "component"]
+        verbose_name = "Product kit item"
+        verbose_name_plural = "Product kit items"
+
+    def clean(self):
+        if self.kit_id and self.component_id and self.kit_id == self.component_id:
+            raise ValidationError("Un kit ne peut pas contenir le produit lui-meme.")
+        if self.component_id and self.component.kit_items.exists():
+            raise ValidationError("Un composant ne peut pas etre un kit.")
+
+
 class Warehouse(models.Model):
     name = models.CharField(max_length=120, unique=True)
     code = models.CharField(max_length=20, blank=True)

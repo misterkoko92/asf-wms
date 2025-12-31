@@ -16,34 +16,37 @@ from .models import (
 )
 
 
-def resolve_product(code: str):
+def resolve_product(code: str, *, include_kits: bool = False):
     code = (code or "").strip()
     if not code:
         return None
-    product = Product.objects.filter(is_active=True, barcode__iexact=code).first()
+    products = Product.objects.filter(is_active=True)
+    if not include_kits:
+        products = products.filter(kit_items__isnull=True)
+    product = products.filter(barcode__iexact=code).first()
     if product:
         return product
-    product = Product.objects.filter(is_active=True, sku__iexact=code).first()
+    product = products.filter(sku__iexact=code).first()
     if product:
         return product
-    product = Product.objects.filter(is_active=True, name__iexact=code).first()
+    product = products.filter(name__iexact=code).first()
     if product:
         return product
     candidates = list(
-        Product.objects.filter(is_active=True, name__istartswith=code).order_by("name")[:2]
+        products.filter(name__istartswith=code).order_by("name")[:2]
     )
     if len(candidates) == 1:
         return candidates[0]
     return None
 
 
-def build_product_options():
+def build_product_options(*, include_kits: bool = False):
     available_expr = ExpressionWrapper(
         F("productlot__quantity_on_hand") - F("productlot__quantity_reserved"),
         output_field=IntegerField(),
     )
-    return list(
-        Product.objects.filter(is_active=True)
+    base_qs = (
+        Product.objects.filter(is_active=True, kit_items__isnull=True)
         .annotate(
             available_stock=Coalesce(
                 Sum(
@@ -54,7 +57,9 @@ def build_product_options():
             )
         )
         .order_by("name")
-        .values(
+    )
+    base_products = list(
+        base_qs.values(
             "name",
             "sku",
             "barcode",
@@ -69,6 +74,47 @@ def build_product_options():
             "available_stock",
         )
     )
+    if not include_kits:
+        return base_products
+
+    available_by_id = dict(base_qs.values_list("id", "available_stock"))
+    kit_products = (
+        Product.objects.filter(is_active=True, kit_items__isnull=False)
+        .prefetch_related("kit_items__component")
+        .order_by("name")
+    )
+    kit_options = []
+    for kit in kit_products:
+        kit_items = list(kit.kit_items.all())
+        if not kit_items:
+            continue
+        max_units = []
+        for item in kit_items:
+            if item.quantity <= 0:
+                continue
+            available = int(available_by_id.get(item.component_id, 0) or 0)
+            max_units.append(available // item.quantity)
+        available_stock = min(max_units) if max_units else 0
+        kit_options.append(
+            {
+                "name": kit.name,
+                "sku": kit.sku,
+                "barcode": kit.barcode,
+                "brand": kit.brand,
+                "default_location_id": kit.default_location_id,
+                "storage_conditions": kit.storage_conditions,
+                "weight_g": get_product_weight_g(kit),
+                "volume_cm3": get_product_volume_cm3(kit),
+                "length_cm": None,
+                "width_cm": None,
+                "height_cm": None,
+                "available_stock": available_stock,
+            }
+        )
+
+    combined = base_products + kit_options
+    combined.sort(key=lambda item: (item["name"] or "").lower())
+    return combined
 
 
 def resolve_default_warehouse():
@@ -159,12 +205,49 @@ def parse_int(value):
         return None
 
 
-def get_product_volume_cm3(product: Product):
+def _get_kit_items(product: Product):
+    cached = getattr(product, "_prefetched_objects_cache", {}).get("kit_items")
+    if cached is not None:
+        return cached
+    return list(product.kit_items.select_related("component"))
+
+
+def get_product_weight_g(product: Product):
+    kit_items = _get_kit_items(product)
+    if kit_items:
+        total = 0
+        for item in kit_items:
+            weight_g = (
+                item.component.weight_g
+                if item.component.weight_g and item.component.weight_g > 0
+                else None
+            )
+            if weight_g is None:
+                return None
+            total += weight_g * item.quantity
+        return total if total > 0 else None
+    return product.weight_g if product.weight_g and product.weight_g > 0 else None
+
+
+def _get_base_product_volume_cm3(product: Product):
     if product.volume_cm3:
         return Decimal(product.volume_cm3)
     if product.length_cm and product.width_cm and product.height_cm:
         return product.length_cm * product.width_cm * product.height_cm
     return None
+
+
+def get_product_volume_cm3(product: Product):
+    kit_items = _get_kit_items(product)
+    if kit_items:
+        total = Decimal("0")
+        for item in kit_items:
+            volume = _get_base_product_volume_cm3(item.component)
+            if volume is None or volume <= 0:
+                return None
+            total += volume * item.quantity
+        return total if total > 0 else None
+    return _get_base_product_volume_cm3(product)
 
 
 def get_carton_volume_cm3(carton_size):
@@ -256,7 +339,7 @@ def build_packing_bins(line_items, carton_size):
     for line in line_items:
         product = line["product"]
         quantity = line["quantity"]
-        weight_g = product.weight_g if product.weight_g and product.weight_g > 0 else None
+        weight_g = get_product_weight_g(product)
         volume = get_product_volume_cm3(product)
         volume_f = float(volume) if volume and volume > 0 else None
 

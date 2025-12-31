@@ -492,20 +492,39 @@ def pack_carton(
     )
 
     movement_type = MovementType.OUT if shipment else MovementType.PRECONDITION
-    consumed = consume_stock(
-        user=user,
-        product=product,
-        quantity=quantity,
-        movement_type=movement_type,
-        shipment=shipment,
-        carton=carton,
-    )
-    for entry in consumed:
-        item, _ = CartonItem.objects.get_or_create(
-            carton=carton, product_lot=entry.lot, defaults={"quantity": 0}
+    kit_items = list(product.kit_items.select_related("component"))
+    if kit_items:
+        for kit_item in kit_items:
+            component_qty = quantity * kit_item.quantity
+            consumed = consume_stock(
+                user=user,
+                product=kit_item.component,
+                quantity=component_qty,
+                movement_type=movement_type,
+                shipment=shipment,
+                carton=carton,
+            )
+            for entry in consumed:
+                item, _ = CartonItem.objects.get_or_create(
+                    carton=carton, product_lot=entry.lot, defaults={"quantity": 0}
+                )
+                item.quantity += entry.quantity
+                item.save(update_fields=["quantity"])
+    else:
+        consumed = consume_stock(
+            user=user,
+            product=product,
+            quantity=quantity,
+            movement_type=movement_type,
+            shipment=shipment,
+            carton=carton,
         )
-        item.quantity += entry.quantity
-        item.save(update_fields=["quantity"])
+        for entry in consumed:
+            item, _ = CartonItem.objects.get_or_create(
+                carton=carton, product_lot=entry.lot, defaults={"quantity": 0}
+            )
+            item.quantity += entry.quantity
+            item.save(update_fields=["quantity"])
     if carton.status == CartonStatus.DRAFT:
         carton.status = CartonStatus.PICKING
         carton.save(update_fields=["status"])

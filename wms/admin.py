@@ -43,6 +43,14 @@ class ProductTagAdmin(admin.ModelAdmin):
     search_fields = ("name",)
 
 
+class ProductKitItemInline(admin.TabularInline):
+    model = models.ProductKitItem
+    extra = 0
+    autocomplete_fields = ("component",)
+    fields = ("component", "quantity")
+    fk_name = "kit"
+
+
 @admin.register(models.Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = (
@@ -88,6 +96,7 @@ class ProductAdmin(admin.ModelAdmin):
         "qr_code_image",
         "notes",
     )
+    inlines = (ProductKitItemInline,)
     actions = ("archive_products", "unarchive_products", "generate_qr_codes")
 
     def qr_code_preview(self, obj):

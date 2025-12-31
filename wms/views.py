@@ -1078,7 +1078,7 @@ def scan_order(request):
 @require_http_methods(["GET", "POST"])
 def scan_pack(request):
     form = ScanPackForm(request.POST or None)
-    product_options = build_product_options()
+    product_options = build_product_options(include_kits=True)
     carton_formats, default_format = build_carton_formats()
     carton_errors = []
     line_errors = {}
@@ -1132,7 +1132,9 @@ def scan_pack(request):
                     quantity = parse_int(quantity_raw)
                     if quantity is None or quantity <= 0:
                         errors.append("Quantite invalide.")
-                product = resolve_product(product_code) if product_code else None
+                product = (
+                    resolve_product(product_code, include_kits=True) if product_code else None
+                )
                 if product_code and not product:
                     errors.append("Produit introuvable.")
                 if errors:
