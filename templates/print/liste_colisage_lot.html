@@ -7,10 +7,25 @@
 {% endblock %}
 
 {% block body %}
-  <h1>Liste de colisage - lot</h1>
+  <h1>
+    LISTE DE COLISAGE - EXPEDITION N&deg; {{ shipment_ref }} - DESTINATION
+    {% if destination_city %}
+      {{ destination_city|upper }}{% if destination_iata %} / {{ destination_iata|upper }}{% endif %}
+    {% else %}
+      {{ destination_label|upper }}
+    {% endif %}
+  </h1>
 
   <div class="meta">Shipment ref: {{ shipment_ref }}</div>
   <div class="meta">Cartons: {{ carton_count }}</div>
+  <div class="meta">
+    Poids total:
+    {% if weight_total_kg is not None and weight_total_kg > 0 %}
+      {{ weight_total_kg|floatformat:2 }} kg
+    {% else %}
+      -
+    {% endif %}
+  </div>
 
   <table>
     <thead>
@@ -18,6 +33,7 @@
         <th>Produit</th>
         <th>Quantite</th>
         <th>Date de peremption</th>
+        <th>Numero de carton</th>
       </tr>
     </thead>
     <tbody>
@@ -28,6 +44,41 @@
           <td>
             {% if row.expires_on %}
               {{ row.expires_on|date:"d/m/Y" }}
+            {% else %}
+              -
+            {% endif %}
+          </td>
+          <td>{{ row.carton_label|default:"-" }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>Resume colis</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>N° Colis</th>
+        <th>Poids Colis en KG</th>
+        <th>Dimensions en CM</th>
+        <th>Volume en m3</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in carton_rows %}
+        <tr>
+          <td>{{ row.label }}</td>
+          <td>
+            {% if row.weight_kg is not None %}
+              {{ row.weight_kg|floatformat:2 }}
+            {% else %}
+              -
+            {% endif %}
+          </td>
+          <td>{{ row.dimensions_cm|default:"-" }}</td>
+          <td>
+            {% if row.volume_m3 is not None %}
+              {{ row.volume_m3|floatformat:3 }}
             {% else %}
               -
             {% endif %}

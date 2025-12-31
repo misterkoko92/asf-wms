@@ -10,6 +10,7 @@ from .documents import (
     build_shipment_type_labels,
     compute_weight_total_g,
 )
+from .models import CartonFormat
 
 
 def _build_destination_info(shipment):
@@ -27,10 +28,31 @@ def _build_destination_info(shipment):
 
 
 def build_shipment_document_context(shipment, doc_type):
-    cartons = shipment.carton_set.all().order_by("code")
-    item_rows = build_shipment_item_rows(shipment)
+    cartons = list(shipment.carton_set.all().order_by("code"))
+    carton_labels = {
+        carton.id: f"Colis N°{index}"
+        for index, carton in enumerate(cartons, start=1)
+    }
+    item_rows = build_shipment_item_rows(shipment, carton_labels=carton_labels)
     aggregate_rows = build_shipment_aggregate_rows(shipment)
     carton_rows = build_carton_rows(cartons)
+    default_format = CartonFormat.objects.filter(is_default=True).first()
+    if default_format is None:
+        default_format = CartonFormat.objects.first()
+    if default_format:
+        dimensions_cm = (
+            f"{default_format.length_cm} x {default_format.width_cm} x "
+            f"{default_format.height_cm}"
+        )
+    else:
+        dimensions_cm = None
+    for index, row in enumerate(carton_rows, start=1):
+        row["label"] = f"Colis N°{index}"
+        row["weight_kg"] = row["weight_g"] / 1000 if row.get("weight_g") else None
+        row["volume_m3"] = (
+            row["volume_cm3"] / 1_000_000 if row.get("volume_cm3") else None
+        )
+        row["dimensions_cm"] = dimensions_cm
     weight_total_g = compute_weight_total_g(carton_rows)
     weight_total_kg = weight_total_g / 1000 if weight_total_g else 0
     type_labels = build_shipment_type_labels(shipment)
@@ -41,7 +63,7 @@ def build_shipment_document_context(shipment, doc_type):
     recipient_info = build_contact_info(TAG_RECIPIENT, shipment.recipient_name)
     correspondent_info = build_contact_info(TAG_CORRESPONDENT, shipment.correspondent_name)
 
-    description = f"{cartons.count()} cartons, {len(aggregate_rows)} produits"
+    description = f"{len(cartons)} cartons, {len(aggregate_rows)} produits"
     if shipment.requested_delivery_date:
         description += (
             f", livraison souhaitee "
@@ -64,7 +86,7 @@ def build_shipment_document_context(shipment, doc_type):
         "destination_label": destination_label,
         "destination_city": destination_city,
         "destination_iata": destination_iata,
-        "carton_count": cartons.count(),
+        "carton_count": len(cartons),
         "carton_rows": carton_rows,
         "item_rows": rows_for_template,
         "aggregate_rows": aggregate_rows,
@@ -79,14 +101,19 @@ def build_shipment_document_context(shipment, doc_type):
         "humanitarian_purpose": shipment.notes or "Aide humanitaire",
         "shipment_description": description,
         "hide_footer": doc_type == "packing_list_shipment",
+        "show_carton_column": doc_type == "packing_list_shipment",
     }
 
 
 def build_carton_document_context(shipment, carton):
     item_rows = []
+    weight_total_g = 0
     for item in carton.cartonitem_set.select_related(
         "product_lot", "product_lot__product"
     ):
+        product = item.product_lot.product
+        if product.weight_g:
+            weight_total_g += product.weight_g * item.quantity
         item_rows.append(
             {
                 "product": item.product_lot.product.name,
@@ -101,6 +128,7 @@ def build_carton_document_context(shipment, carton):
         "shipment_ref": shipment.reference,
         "carton_code": carton.code,
         "item_rows": item_rows,
+        "carton_weight_kg": weight_total_g / 1000 if weight_total_g else None,
         "hide_footer": True,
     }
 
@@ -123,23 +151,16 @@ def build_label_context(shipment, *, position, total):
 
 def build_sample_document_context(doc_type):
     today = timezone.localdate()
-    item_rows = [
-        {"product": "Compresses", "lot": "LOT-01", "quantity": 12},
-        {"product": "Seringues", "lot": "LOT-02", "quantity": 8},
-    ]
     aggregate_rows = [
         {"product": "Compresses", "quantity": 20, "lots": "LOT-01, LOT-02"},
         {"product": "Seringues", "quantity": 8, "lots": "LOT-02"},
     ]
-    carton_rows = [
+    raw_carton_rows = [
         {"code": "C001", "weight_g": 1200, "volume_cm3": 800},
         {"code": "C002", "weight_g": 900, "volume_cm3": 600},
     ]
-    weight_total_g = compute_weight_total_g(carton_rows)
+    weight_total_g = compute_weight_total_g(raw_carton_rows)
     weight_total_kg = weight_total_g / 1000 if weight_total_g else 0
-    rows_for_template = (
-        aggregate_rows if doc_type == "packing_list_shipment" else item_rows
-    )
     shipper_info = {
         "company": "ASF",
         "person": "Jean Dupont",
@@ -162,6 +183,32 @@ def build_sample_document_context(doc_type):
         "email": "correspondant@example.org",
     }
 
+    carton_rows = []
+    for index, row in enumerate(raw_carton_rows, start=1):
+        carton_rows.append(
+            {
+                "label": f"Colis N°{index}",
+                "weight_kg": row["weight_g"] / 1000 if row["weight_g"] else None,
+                "dimensions_cm": "40 x 30 x 30",
+                "volume_m3": row["volume_cm3"] / 1_000_000 if row["volume_cm3"] else None,
+            }
+        )
+    item_rows = [
+        {
+            "product": "Compresses",
+            "lot": "LOT-01",
+            "quantity": 12,
+            "expires_on": today,
+            "carton_label": "Colis N°1",
+        },
+        {
+            "product": "Seringues",
+            "lot": "LOT-02",
+            "quantity": 8,
+            "expires_on": today,
+            "carton_label": "Colis N°2",
+        },
+    ]
     return {
         **build_org_context(),
         "document_ref": "DOC-TEST",
@@ -179,7 +226,7 @@ def build_sample_document_context(doc_type):
         "destination_iata": "ABJ",
         "carton_count": len(carton_rows),
         "carton_rows": carton_rows,
-        "item_rows": rows_for_template,
+        "item_rows": item_rows,
         "aggregate_rows": aggregate_rows,
         "weight_total_g": weight_total_g,
         "weight_total_kg": weight_total_kg,
@@ -192,6 +239,7 @@ def build_sample_document_context(doc_type):
         "humanitarian_purpose": "Aide humanitaire",
         "shipment_description": "Exemple de description",
         "hide_footer": doc_type in {"packing_list_shipment", "packing_list_carton"},
+        "show_carton_column": doc_type == "packing_list_shipment",
     }
 
 

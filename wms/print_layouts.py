@@ -61,17 +61,40 @@ DEFAULT_LAYOUTS = {
     },
     "packing_list_shipment": {
         "blocks": [
-            {"id": "heading", "type": "text", "tag": "h1", "text": "Liste de colisage - lot"},
+            {
+                "id": "heading",
+                "type": "text",
+                "tag": "h1",
+                "text": (
+                    "LISTE DE COLISAGE - EXPEDITION N&deg; {{ shipment_ref }} - DESTINATION "
+                    "{% if destination_city %}{{ destination_city|upper }}{% if destination_iata %} / "
+                    "{{ destination_iata|upper }}{% endif %}{% else %}{{ destination_label|upper }}{% endif %}"
+                ),
+            },
             {"id": "meta1", "type": "text", "text": "Shipment ref: {{ shipment_ref }}"},
             {"id": "meta2", "type": "text", "text": "Cartons: {{ carton_count }}"},
-            {"id": "items", "type": "table_items", "mode": "aggregate"},
+            {
+                "id": "meta3",
+                "type": "text",
+                "text": "Poids total: {% if weight_total_kg %}{{ weight_total_kg|floatformat:2 }} kg{% else %}-{% endif %}",
+            },
+            {"id": "items", "type": "table_items", "mode": "carton"},
+            {"id": "carton_title", "type": "text", "tag": "h2", "text": "Resume colis"},
+            {"id": "cartons", "type": "table_cartons"},
         ]
     },
     "packing_list_carton": {
         "blocks": [
             {"id": "heading", "type": "text", "tag": "h1", "text": "Liste de colisage - carton"},
             {"id": "meta1", "type": "text", "text": "Shipment ref: {{ shipment_ref }}"},
-            {"id": "meta2", "type": "text", "text": "Carton code: {{ carton_code }}"},
+            {
+                "id": "meta2",
+                "type": "text",
+                "text": (
+                    "Carton code: {{ carton_code }}<br>"
+                    "Poids: {% if carton_weight_kg %}{{ carton_weight_kg|floatformat:2 }} kg{% else %}-{% endif %}"
+                ),
+            },
             {"id": "items", "type": "table_items", "mode": "carton"},
         ]
     },

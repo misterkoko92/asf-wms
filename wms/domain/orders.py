@@ -1,6 +1,12 @@
 from django.db import connection, transaction
 
-from .stock import StockConsumeResult, StockError, _prepare_carton, fefo_lots
+from .stock import (
+    StockConsumeResult,
+    StockError,
+    _prepare_carton,
+    ensure_carton_code,
+    fefo_lots,
+)
 from ..models import (
     Carton,
     CartonFormat,
@@ -194,6 +200,7 @@ def pack_carton_from_reserved(
     if carton.status == CartonStatus.DRAFT:
         carton.status = CartonStatus.PICKING
         carton.save(update_fields=["status"])
+    ensure_carton_code(carton)
     return carton
 
 

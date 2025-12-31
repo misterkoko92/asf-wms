@@ -15,20 +15,24 @@ def build_org_context():
     }
 
 
-def build_shipment_item_rows(shipment):
+def build_shipment_item_rows(shipment, *, carton_labels=None):
     items = (
         CartonItem.objects.filter(carton__shipment=shipment)
-        .select_related("product_lot", "product_lot__product")
-        .order_by("product_lot__product__name")
+        .select_related("carton", "product_lot", "product_lot__product")
+        .order_by("carton__code", "product_lot__product__name")
     )
     rows = []
     for item in items:
+        carton_label = None
+        if carton_labels is not None:
+            carton_label = carton_labels.get(item.carton_id)
         rows.append(
             {
                 "product": item.product_lot.product.name,
                 "lot": item.product_lot.lot_code or "N/A",
                 "quantity": item.quantity,
                 "expires_on": item.product_lot.expires_on,
+                "carton_label": carton_label,
             }
         )
     return rows
@@ -73,6 +77,7 @@ def build_carton_rows(cartons):
                 volume_total += product.volume_cm3 * item.quantity
         rows.append(
             {
+                "carton_id": carton.id,
                 "code": carton.code,
                 "weight_g": weight_total,
                 "volume_cm3": volume_total,

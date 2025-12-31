@@ -1,7 +1,8 @@
-import secrets
+import re
+import unicodedata
 from dataclasses import dataclass
 
-from django.db import connection, transaction
+from django.db import IntegrityError, connection, transaction
 from django.db.models import Case, F, IntegerField, Value, When
 from django.db.models.expressions import ExpressionWrapper
 from django.utils import timezone
@@ -35,9 +36,105 @@ class StockConsumeResult:
     quantity: int
 
 
-def generate_carton_code() -> str:
-    timestamp = timezone.now().strftime("%Y%m%d%H%M%S")
-    return f"C-{timestamp}-{secrets.token_hex(2).upper()}"
+CARTON_CODE_RE = re.compile(r"^(?P<type>[A-Z0-9]{2})-(?P<date>\d{8})-(?P<seq>\d+)$")
+
+
+def _carton_date_str(carton):
+    if carton.created_at:
+        return timezone.localdate(carton.created_at).strftime("%Y%m%d")
+    return timezone.localdate().strftime("%Y%m%d")
+
+
+def _normalize_type_code(label):
+    normalized = unicodedata.normalize("NFKD", label or "")
+    ascii_value = normalized.encode("ascii", "ignore").decode("ascii")
+    words = [word for word in re.split(r"[^A-Za-z0-9]+", ascii_value) if word]
+    if not words:
+        return "XX"
+    if len(words) >= 2:
+        code = f"{words[0][0]}{words[1][0]}"
+    else:
+        code = words[0][:2]
+    code = code.upper()
+    return code.ljust(2, "X")[:2]
+
+
+def _root_category_name(product):
+    category = product.category
+    while category and category.parent_id:
+        category = category.parent
+    return category.name if category else ""
+
+
+def _dominant_type_code(carton):
+    weight_by_type = {}
+    qty_by_type = {}
+    items = carton.cartonitem_set.select_related(
+        "product_lot__product__category__parent"
+    )
+    for item in items:
+        product = item.product_lot.product
+        type_label = _root_category_name(product)
+        type_code = _normalize_type_code(type_label)
+        weight = (product.weight_g or 0) * item.quantity
+        weight_by_type[type_code] = weight_by_type.get(type_code, 0) + weight
+        qty_by_type[type_code] = qty_by_type.get(type_code, 0) + item.quantity
+    if not weight_by_type:
+        return "XX"
+    max_weight = max(weight_by_type.values())
+    if max_weight > 0:
+        return max(weight_by_type, key=weight_by_type.get)
+    return max(qty_by_type, key=qty_by_type.get)
+
+
+def _next_carton_sequence(date_str):
+    max_seq = 0
+    for code in Carton.objects.filter(code__contains=f"-{date_str}-").values_list(
+        "code", flat=True
+    ):
+        match = CARTON_CODE_RE.match(code or "")
+        if match and match.group("date") == date_str:
+            try:
+                seq = int(match.group("seq"))
+            except ValueError:
+                continue
+            max_seq = max(max_seq, seq)
+    return max_seq + 1
+
+
+def _format_carton_code(type_code, date_str, sequence):
+    return f"{type_code}-{date_str}-{sequence}"
+
+
+def generate_carton_code(*, type_code=None, date_str=None) -> str:
+    date_str = date_str or timezone.localdate().strftime("%Y%m%d")
+    type_code = type_code or "XX"
+    sequence = _next_carton_sequence(date_str)
+    return _format_carton_code(type_code, date_str, sequence)
+
+
+def ensure_carton_code(carton):
+    if getattr(carton, "_manual_code", False):
+        return
+    current = carton.code or ""
+    match = CARTON_CODE_RE.match(current)
+    date_str = _carton_date_str(carton)
+    is_legacy_auto = current.startswith("C-") and not match
+    if not match and not is_legacy_auto:
+        return
+    type_code = _dominant_type_code(carton)
+    if match and match.group("date") == date_str:
+        sequence = int(match.group("seq"))
+    else:
+        sequence = _next_carton_sequence(date_str)
+    new_code = _format_carton_code(type_code, date_str, sequence)
+    if new_code == current:
+        return
+    if Carton.objects.filter(code=new_code).exclude(pk=carton.pk).exists():
+        sequence = _next_carton_sequence(date_str)
+        new_code = _format_carton_code(type_code, date_str, sequence)
+    carton.code = new_code
+    carton.save(update_fields=["code"])
 
 
 def _prepare_carton(
@@ -55,15 +152,29 @@ def _prepare_carton(
     if shipment and shipment.status in {ShipmentStatus.SHIPPED, ShipmentStatus.DELIVERED}:
         raise StockError("Impossible de modifier une expedition expediee ou livree.")
     if carton is None:
-        code = carton_code or generate_carton_code()
-        carton = Carton.objects.create(
-            code=code,
-            status=CartonStatus.DRAFT,
-            shipment=shipment,
-            current_location=current_location,
-            prepared_by=user,
-        )
+        date_str = timezone.localdate().strftime("%Y%m%d")
+        while True:
+            code = carton_code or generate_carton_code(
+                type_code="XX", date_str=date_str
+            )
+            try:
+                carton = Carton.objects.create(
+                    code=code,
+                    status=CartonStatus.DRAFT,
+                    shipment=shipment,
+                    current_location=current_location,
+                    prepared_by=user,
+                )
+            except IntegrityError:
+                if carton_code:
+                    raise
+                continue
+            break
+        if carton_code:
+            carton._manual_code = True
     else:
+        if carton_code:
+            carton._manual_code = True
         if shipment and carton.shipment and carton.shipment != shipment:
             raise StockError("Carton deja lie a une autre expedition.")
         if shipment and carton.shipment is None:
@@ -362,6 +473,7 @@ def pack_carton(
     if carton.status == CartonStatus.DRAFT:
         carton.status = CartonStatus.PICKING
         carton.save(update_fields=["status"])
+    ensure_carton_code(carton)
     return carton
 
 

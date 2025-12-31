@@ -1390,14 +1390,19 @@ def scan_carton_document(request, carton_id):
         context = build_carton_document_context(shipment, carton)
     else:
         item_rows = []
+        weight_total_g = 0
         for item in carton.cartonitem_set.select_related(
             "product_lot", "product_lot__product"
         ):
+            product = item.product_lot.product
+            if product.weight_g:
+                weight_total_g += product.weight_g * item.quantity
             item_rows.append(
                 {
                     "product": item.product_lot.product.name,
                     "lot": item.product_lot.lot_code or "N/A",
                     "quantity": item.quantity,
+                    "expires_on": item.product_lot.expires_on,
                 }
             )
         context = {
@@ -1405,6 +1410,7 @@ def scan_carton_document(request, carton_id):
             "shipment_ref": "-",
             "carton_code": carton.code,
             "item_rows": item_rows,
+            "carton_weight_kg": weight_total_g / 1000 if weight_total_g else None,
             "hide_footer": True,
         }
     layout_override = get_template_layout("packing_list_carton")

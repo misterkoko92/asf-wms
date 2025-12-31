@@ -11,6 +11,14 @@
 
   <div class="meta">Shipment ref: {{ shipment_ref }}</div>
   <div class="meta">Carton code: {{ carton_code }}</div>
+  <div class="meta">
+    Poids:
+    {% if carton_weight_kg is not None %}
+      {{ carton_weight_kg|floatformat:2 }} kg
+    {% else %}
+      -
+    {% endif %}
+  </div>
 
   <table>
     <thead>
