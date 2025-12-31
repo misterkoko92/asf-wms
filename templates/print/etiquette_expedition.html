@@ -30,13 +30,24 @@
       text-transform: uppercase;
     }
     .label-iata {
-      align-self: center;
       border: 8px solid #d11;
       color: #d11;
       padding: 6mm 10mm;
       font-size: 54pt;
       font-weight: 900;
       letter-spacing: 4px;
+    }
+    .label-iata-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8mm;
+    }
+    .label-qr {
+      border: 3px solid #333;
+      height: 36mm;
+      width: 36mm;
+      object-fit: contain;
     }
     .label-footer {
       display: flex;
@@ -64,7 +75,12 @@
   {% for label in labels %}
     <div class="label-page">
       <div class="label-city">{{ label.city|default:"" }}</div>
-      <div class="label-iata">{{ label.iata|default:"" }}</div>
+      <div class="label-iata-row">
+        <div class="label-iata">{{ label.iata|default:"" }}</div>
+        {% if label.qr_url %}
+          <img class="label-qr" src="{{ label.qr_url }}" alt="QR expedition {{ label.shipment_ref|default:"" }}">
+        {% endif %}
+      </div>
       <div class="label-footer">
         <div class="label-box">{{ label.shipment_ref }}</div>
         <div class="label-box small">{{ label.position }} / {{ label.total }}</div>

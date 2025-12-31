@@ -1,5 +1,10 @@
 {% with border_color=style.border_color|default:"#d11" border_width=style.border_width|default:"8px" padding=style.padding|default:"6mm 10mm" font_size=style.font_size|default:"54pt" font_weight=style.font_weight|default:"900" letter_spacing=style.letter_spacing|default:"4px" align=style.align|default:"center" text_transform=style.text_transform|default:"uppercase" text_color=style.color|default:"#d11" %}
-<div style="align-self:center; border:{{ border_width }} solid {{ border_color }}; color:{{ text_color }}; padding:{{ padding }}; font-size:{{ font_size }}; font-weight:{{ font_weight }}; letter-spacing:{{ letter_spacing }}; text-transform:{{ text_transform }}; text-align:{{ align }};">
-  {{ label_iata|default:"" }}
+<div style="display:flex; align-items:center; justify-content:center; gap:8mm; width:100%;">
+  <div style="border:{{ border_width }} solid {{ border_color }}; color:{{ text_color }}; padding:{{ padding }}; font-size:{{ font_size }}; font-weight:{{ font_weight }}; letter-spacing:{{ letter_spacing }}; text-transform:{{ text_transform }}; text-align:{{ align }};">
+    {{ label_iata|default:"" }}
+  </div>
+  {% if label_qr_url %}
+    <img src="{{ label_qr_url }}" alt="QR expedition {{ label_shipment_ref|default:"" }}" style="height:36mm; width:36mm; object-fit:contain; border:3px solid #333;">
+  {% endif %}
 </div>
 {% endwith %}

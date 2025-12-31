@@ -140,12 +140,14 @@ def build_label_context(shipment, *, position, total):
     city, iata, _label = _build_destination_info(shipment)
     label_city = (city or shipment.destination_address or "").upper()
     label_iata = (iata or "").upper()
+    label_qr_url = shipment.qr_code_image.url if shipment.qr_code_image else ""
     return {
         "label_city": label_city,
         "label_iata": label_iata,
         "label_shipment_ref": shipment.reference,
         "label_position": position,
         "label_total": total,
+        "label_qr_url": label_qr_url,
         "shipment_ref": shipment.reference,
         "position": position,
         "total": total,
@@ -257,6 +259,7 @@ def build_sample_label_context():
         "label_shipment_ref": "BE 240316",
         "label_position": 1,
         "label_total": 10,
+        "label_qr_url": "",
         "shipment_ref": "BE 240316",
         "position": 1,
         "total": 10,
