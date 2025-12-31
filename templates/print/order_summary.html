@@ -1,0 +1,82 @@
+{% load static %}
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Recapitulatif commande</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="{% static 'scan/scan.css' %}">
+  <style>
+    @media print {
+      .no-print { display: none; }
+      body { background: #fff; }
+      .scan-shell { box-shadow: none; }
+    }
+    .summary-header { display: flex; justify-content: space-between; align-items: center; }
+    .summary-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 12px 0; }
+  </style>
+</head>
+<body>
+  <div class="scan-shell">
+    <main class="scan-main">
+      <div class="scan-card">
+        <div class="summary-header">
+          <h2>Recapitulatif commande</h2>
+          <button type="button" class="scan-scan-btn no-print" onclick="window.print()">Imprimer / PDF</button>
+        </div>
+        <div class="summary-meta">
+          <div>
+            <strong>Reference</strong>
+            <div>{{ order.reference|default:"Commande" }}{% if not order.reference %} {{ order.id }}{% endif %}</div>
+          </div>
+          <div>
+            <strong>Association</strong>
+            <div>{{ order.recipient_name }}</div>
+          </div>
+          <div>
+            <strong>Adresse</strong>
+            <div>{{ order.destination_address|linebreaksbr }}</div>
+          </div>
+          <div>
+            <strong>Statut</strong>
+            <div>{{ order.get_status_display }}</div>
+          </div>
+        </div>
+        {% if carton_format %}
+          <div class="scan-help">
+            Estimation basee sur le format: {{ carton_format.name }} ({{ carton_format.length_cm }}x{{ carton_format.width_cm }}x{{ carton_format.height_cm }} cm).
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="scan-card">
+        <h3>Produits demandes</h3>
+        <div class="scan-table-wrap">
+          <table class="scan-table">
+            <thead>
+              <tr>
+                <th>Produit</th>
+                <th>Quantite</th>
+                <th>Cartons estimes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in line_rows %}
+                <tr>
+                  <td>{{ row.product }}</td>
+                  <td class="qty">{{ row.quantity }}</td>
+                  <td class="qty">{{ row.cartons_estimated|default:"-" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="scan-field">
+          <label>Total cartons estimes</label>
+          <div class="scan-help">{{ total_cartons|default:"-" }}</div>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

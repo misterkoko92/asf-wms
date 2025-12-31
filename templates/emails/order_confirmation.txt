@@ -1,0 +1,13 @@
+Bonjour {{ association_name }},
+
+Votre commande a bien ete recue par ASF WMS.
+
+Reference: {{ order_reference }}
+
+Recapitulatif PDF:
+{{ summary_url }}
+
+Nous reviendrons vers vous des que la preparation sera planifiee.
+
+Merci,
+ASF WMS

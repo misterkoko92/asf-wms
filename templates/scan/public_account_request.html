@@ -1,0 +1,163 @@
+{% load static %}
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Creation de compte association</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="{% static 'scan/scan.css' %}">
+</head>
+<body>
+  <div class="scan-shell">
+    <main class="scan-main">
+      {% if messages %}
+        <div class="scan-messages">
+          {% for message in messages %}
+            <div class="scan-message {% if message.tags %}{{ message.tags }}{% endif %}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="scan-card">
+        <h2>Creation de compte</h2>
+        <p class="scan-help">
+          Votre demande sera verifiee par un superuser ASF avant activation.
+        </p>
+        <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_public_order' link.token %}">
+          Retour a la commande
+        </a>
+      </div>
+
+      <div class="scan-card">
+        {% if errors %}
+          <div class="scan-message error">
+            {% for error in errors %}
+              <div>{{ error }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <form method="post" novalidate>
+          {% csrf_token %}
+          <div class="scan-field">
+            <label for="association_name">Nom de l'association</label>
+            <input
+              type="text"
+              id="association_name"
+              name="association_name"
+              list="association-list"
+              value="{{ form_data.association_name }}"
+              autocomplete="off"
+              required
+            >
+            <input type="hidden" id="contact_id" name="contact_id" value="{{ form_data.contact_id }}">
+          </div>
+          <div class="scan-field">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" value="{{ form_data.email }}" required>
+          </div>
+          <div class="scan-field">
+            <label for="phone">Telephone</label>
+            <input type="text" id="phone" name="phone" value="{{ form_data.phone }}">
+          </div>
+          <div class="scan-field">
+            <label for="line1">Adresse</label>
+            <input type="text" id="line1" name="line1" value="{{ form_data.line1 }}" required>
+          </div>
+          <div class="scan-field">
+            <label for="line2">Complement adresse</label>
+            <input type="text" id="line2" name="line2" value="{{ form_data.line2 }}">
+          </div>
+          <div class="scan-field">
+            <label for="postal_code">Code postal</label>
+            <input type="text" id="postal_code" name="postal_code" value="{{ form_data.postal_code }}">
+          </div>
+          <div class="scan-field">
+            <label for="city">Ville</label>
+            <input type="text" id="city" name="city" value="{{ form_data.city }}">
+          </div>
+          <div class="scan-field">
+            <label for="country">Pays</label>
+            <input type="text" id="country" name="country" value="{{ form_data.country|default:'France' }}">
+          </div>
+          <div class="scan-field">
+            <label for="notes">Notes</label>
+            <textarea id="notes" name="notes" rows="3">{{ form_data.notes }}</textarea>
+          </div>
+          <button type="submit" class="scan-submit">Envoyer la demande</button>
+        </form>
+      </div>
+    </main>
+  </div>
+
+  {{ contacts|json_script:"association-data" }}
+  <datalist id="association-list">
+    {% for contact in contacts %}
+      <option value="{{ contact.name }}"></option>
+    {% endfor %}
+  </datalist>
+
+  <script>
+    (function() {
+      const contacts = JSON.parse(document.getElementById('association-data').textContent || '[]');
+      const nameInput = document.getElementById('association_name');
+      const contactIdInput = document.getElementById('contact_id');
+      const emailInput = document.getElementById('email');
+      const phoneInput = document.getElementById('phone');
+      const line1Input = document.getElementById('line1');
+      const line2Input = document.getElementById('line2');
+      const postalInput = document.getElementById('postal_code');
+      const cityInput = document.getElementById('city');
+      const countryInput = document.getElementById('country');
+
+      const findContact = name => {
+        const normalized = (name || '').trim().toLowerCase();
+        if (!normalized) {
+          return null;
+        }
+        return contacts.find(contact => (contact.name || '').toLowerCase() === normalized) || null;
+      };
+
+      const fillContact = contact => {
+        if (!contact) {
+          contactIdInput.value = '';
+          return;
+        }
+        contactIdInput.value = contact.id;
+        if (emailInput && !emailInput.value) {
+          emailInput.value = contact.email || '';
+        }
+        if (phoneInput && !phoneInput.value) {
+          phoneInput.value = contact.phone || '';
+        }
+        if (line1Input && !line1Input.value) {
+          line1Input.value = contact.address_line1 || '';
+        }
+        if (line2Input && !line2Input.value) {
+          line2Input.value = contact.address_line2 || '';
+        }
+        if (postalInput && !postalInput.value) {
+          postalInput.value = contact.postal_code || '';
+        }
+        if (cityInput && !cityInput.value) {
+          cityInput.value = contact.city || '';
+        }
+        if (countryInput && !countryInput.value) {
+          countryInput.value = contact.country || 'France';
+        }
+      };
+
+      if (nameInput) {
+        nameInput.addEventListener('input', () => {
+          const match = findContact(nameInput.value);
+          if (match) {
+            fillContact(match);
+          } else {
+            contactIdInput.value = '';
+          }
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

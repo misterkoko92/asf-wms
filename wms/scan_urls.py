@@ -77,6 +77,21 @@ urlpatterns = [
         views.scan_shipment_label,
         name="scan_shipment_label",
     ),
+    path(
+        "public-order/<uuid:token>/",
+        views.scan_public_order,
+        name="scan_public_order",
+    ),
+    path(
+        "public-order/<uuid:token>/account/",
+        views.scan_public_account_request,
+        name="scan_public_account_request",
+    ),
+    path(
+        "public-order/<uuid:token>/summary/<int:order_id>/",
+        views.scan_public_order_summary,
+        name="scan_public_order_summary",
+    ),
     path("templates/preview/", views.scan_print_template_preview, name="scan_print_template_preview"),
     path("templates/", views.scan_print_templates, name="scan_print_templates"),
     path(

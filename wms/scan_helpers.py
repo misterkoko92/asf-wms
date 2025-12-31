@@ -60,6 +60,7 @@ def build_product_options(*, include_kits: bool = False):
     )
     base_products = list(
         base_qs.values(
+            "id",
             "name",
             "sku",
             "barcode",
@@ -97,6 +98,7 @@ def build_product_options(*, include_kits: bool = False):
         available_stock = min(max_units) if max_units else 0
         kit_options.append(
             {
+                "id": kit.id,
                 "name": kit.name,
                 "sku": kit.sku,
                 "barcode": kit.barcode,

@@ -1,0 +1,8 @@
+Nouvelle demande de compte
+
+Association: {{ association_name }}
+Email: {{ email }}
+Telephone: {{ phone|default:"-" }}
+
+Voir dans l'admin:
+{{ admin_url }}

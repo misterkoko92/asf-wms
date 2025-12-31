@@ -133,6 +133,47 @@ class ProductAdmin(admin.ModelAdmin):
     generate_qr_codes.short_description = "Generer les QR codes"
 
 
+@admin.register(models.PublicOrderLink)
+class PublicOrderLinkAdmin(admin.ModelAdmin):
+    list_display = ("label", "token", "is_active", "expires_at", "created_at")
+    list_filter = ("is_active",)
+    search_fields = ("label", "token")
+
+
+@admin.register(models.PublicAccountRequest)
+class PublicAccountRequestAdmin(admin.ModelAdmin):
+    list_display = (
+        "association_name",
+        "email",
+        "status",
+        "created_at",
+        "reviewed_at",
+    )
+    list_filter = ("status",)
+    search_fields = ("association_name", "email")
+    actions = ("approve_requests", "reject_requests")
+
+    def approve_requests(self, request, queryset):
+        updated = queryset.update(
+            status=models.PublicAccountRequestStatus.APPROVED,
+            reviewed_at=timezone.now(),
+            reviewed_by=request.user,
+        )
+        self.message_user(request, f"{updated} demande(s) approuvee(s).")
+
+    approve_requests.short_description = "Approuver les demandes"
+
+    def reject_requests(self, request, queryset):
+        updated = queryset.update(
+            status=models.PublicAccountRequestStatus.REJECTED,
+            reviewed_at=timezone.now(),
+            reviewed_by=request.user,
+        )
+        self.message_user(request, f"{updated} demande(s) refusee(s).")
+
+    reject_requests.short_description = "Refuser les demandes"
+
+
 @admin.register(models.Warehouse)
 class WarehouseAdmin(admin.ModelAdmin):
     list_display = ("name", "code")

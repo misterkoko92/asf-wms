@@ -1,12 +1,16 @@
 import json
+import math
 from decimal import Decimal
 from pathlib import Path
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied
+from django.core.mail import send_mail
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 from django.db import connection, transaction
@@ -14,6 +18,9 @@ from django.db.models import DateTimeField, F, IntegerField, Max, OuterRef, Q, S
 from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Coalesce
 from django.utils import timezone
+from django.conf import settings
+
+from contacts.models import Contact, ContactAddress, ContactTag
 
 from .forms import (
     ScanOutForm,
@@ -53,6 +60,9 @@ from .models import (
     ReceiptType,
     Order,
     OrderStatus,
+    PublicAccountRequest,
+    PublicAccountRequestStatus,
+    PublicOrderLink,
     PrintTemplate,
     PrintTemplateVersion,
     Shipment,
@@ -81,6 +91,9 @@ from .scan_helpers import (
     build_packing_result,
     build_product_options,
     build_shipment_line_values,
+    get_carton_volume_cm3,
+    get_product_volume_cm3,
+    get_product_weight_g,
     parse_int,
     resolve_default_warehouse,
     resolve_carton_size,
@@ -319,6 +332,581 @@ def _parse_shipment_lines(*, carton_count, data, allowed_carton_ids):
         if errors:
             line_errors[str(index)] = errors
     return line_values, line_items, line_errors
+
+
+def _build_destination_address(*, line1, line2, postal_code, city, country):
+    parts = [line1, line2]
+    city_line = " ".join(part for part in [postal_code, city] if part)
+    if city_line:
+        parts.append(city_line)
+    if country:
+        parts.append(country)
+    return "\n".join(part for part in parts if part)
+
+
+def _get_default_carton_format():
+    return (
+        CartonFormat.objects.filter(is_default=True).first()
+        or CartonFormat.objects.order_by("name").first()
+    )
+
+
+def _build_public_base_url(request):
+    base = settings.SITE_BASE_URL
+    if base:
+        return base.rstrip("/")
+    return request.build_absolute_uri("/").rstrip("/")
+
+
+def _send_email_safe(*, subject, message, recipient):
+    recipients = recipient
+    if isinstance(recipients, str):
+        recipients = [recipients]
+    recipients = [item for item in recipients if item]
+    if not recipients:
+        return False
+    try:
+        send_mail(
+            subject,
+            message,
+            settings.DEFAULT_FROM_EMAIL,
+            recipients,
+            fail_silently=False,
+        )
+    except Exception:
+        return False
+    return True
+
+
+def _get_admin_emails():
+    User = get_user_model()
+    return list(
+        User.objects.filter(is_superuser=True, is_active=True)
+        .exclude(email="")
+        .values_list("email", flat=True)
+    )
+
+
+def _estimate_cartons_for_line(*, product, quantity, carton_format):
+    if not carton_format:
+        return None
+    weight_g = get_product_weight_g(product)
+    volume = get_product_volume_cm3(product)
+    carton_volume = get_carton_volume_cm3(
+        {
+            "length_cm": carton_format.length_cm,
+            "width_cm": carton_format.width_cm,
+            "height_cm": carton_format.height_cm,
+        }
+    )
+    max_by_volume = None
+    if volume and volume > 0 and carton_volume and carton_volume > 0:
+        max_by_volume = int(carton_volume // volume)
+        max_by_volume = max(1, max_by_volume)
+    max_by_weight = None
+    if weight_g and weight_g > 0 and carton_format.max_weight_g:
+        max_by_weight = int(carton_format.max_weight_g // weight_g)
+        max_by_weight = max(1, max_by_weight)
+    if max_by_volume and max_by_weight:
+        max_units = min(max_by_volume, max_by_weight)
+    else:
+        max_units = max_by_volume or max_by_weight
+    if not max_units:
+        return None
+    return int(math.ceil(quantity / max_units))
+
+
+@require_http_methods(["GET"])
+def scan_public_order_summary(request, token, order_id):
+    link = (
+        PublicOrderLink.objects.filter(token=token, is_active=True)
+        .order_by("-created_at")
+        .first()
+    )
+    if not link or (link.expires_at and link.expires_at < timezone.now()):
+        raise Http404
+
+    order = (
+        Order.objects.select_related("recipient_contact")
+        .prefetch_related("lines__product")
+        .filter(id=order_id, public_link=link)
+        .first()
+    )
+    if not order:
+        raise Http404
+
+    carton_format = _get_default_carton_format()
+    line_rows = []
+    total_cartons = 0
+    for line in order.lines.all():
+        estimate = _estimate_cartons_for_line(
+            product=line.product,
+            quantity=line.quantity,
+            carton_format=carton_format,
+        )
+        if estimate:
+            total_cartons += estimate
+        line_rows.append(
+            {
+                "product": line.product.name,
+                "quantity": line.quantity,
+                "cartons_estimated": estimate,
+            }
+        )
+
+    return render(
+        request,
+        "print/order_summary.html",
+        {
+            "order": order,
+            "line_rows": line_rows,
+            "total_cartons": total_cartons or None,
+            "carton_format": carton_format,
+        },
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def scan_public_account_request(request, token):
+    link = (
+        PublicOrderLink.objects.filter(token=token, is_active=True)
+        .order_by("-created_at")
+        .first()
+    )
+    if not link or (link.expires_at and link.expires_at < timezone.now()):
+        raise Http404
+
+    contacts = list(
+        contacts_with_tags(TAG_SHIPPER).prefetch_related("addresses").order_by("name")
+    )
+    contact_payload = []
+    for contact in contacts:
+        address = (
+            contact.addresses.filter(is_default=True).first()
+            or contact.addresses.first()
+        )
+        contact_payload.append(
+            {
+                "id": contact.id,
+                "name": contact.name,
+                "email": contact.email or "",
+                "phone": contact.phone or "",
+                "address_line1": address.address_line1 if address else "",
+                "address_line2": address.address_line2 if address else "",
+                "postal_code": address.postal_code if address else "",
+                "city": address.city if address else "",
+                "country": address.country if address else "",
+            }
+        )
+
+    form_data = {
+        "association_name": "",
+        "email": "",
+        "phone": "",
+        "line1": "",
+        "line2": "",
+        "postal_code": "",
+        "city": "",
+        "country": "France",
+        "notes": "",
+        "contact_id": "",
+    }
+    errors = []
+
+    summary_url = None
+    if request.method == "GET":
+        order_id = parse_int(request.GET.get("order"))
+        if order_id:
+            order = Order.objects.filter(id=order_id, public_link=link).first()
+            if order:
+                summary_url = reverse("scan:scan_public_order_summary", args=[token, order.id])
+
+    if request.method == "POST":
+        form_data.update(
+            {
+                "association_name": (request.POST.get("association_name") or "").strip(),
+                "email": (request.POST.get("email") or "").strip(),
+                "phone": (request.POST.get("phone") or "").strip(),
+                "line1": (request.POST.get("line1") or "").strip(),
+                "line2": (request.POST.get("line2") or "").strip(),
+                "postal_code": (request.POST.get("postal_code") or "").strip(),
+                "city": (request.POST.get("city") or "").strip(),
+                "country": (request.POST.get("country") or "France").strip(),
+                "notes": (request.POST.get("notes") or "").strip(),
+                "contact_id": (request.POST.get("contact_id") or "").strip(),
+            }
+        )
+        if not form_data["association_name"]:
+            errors.append("Nom de l'association requis.")
+        if not form_data["email"]:
+            errors.append("Email requis.")
+        if not form_data["line1"]:
+            errors.append("Adresse requise.")
+
+        existing = PublicAccountRequest.objects.filter(
+            email__iexact=form_data["email"],
+            status=PublicAccountRequestStatus.PENDING,
+        ).first()
+        if existing:
+            errors.append("Une demande est deja en attente pour cet email.")
+
+        if not errors:
+            contact = None
+            contact_id = parse_int(form_data["contact_id"])
+            if contact_id:
+                contact = Contact.objects.filter(id=contact_id, is_active=True).first()
+            if not contact:
+                contact = Contact.objects.filter(
+                    name__iexact=form_data["association_name"], is_active=True
+                ).first()
+            PublicAccountRequest.objects.create(
+                link=link,
+                contact=contact,
+                association_name=form_data["association_name"],
+                email=form_data["email"],
+                phone=form_data["phone"],
+                address_line1=form_data["line1"],
+                address_line2=form_data["line2"],
+                postal_code=form_data["postal_code"],
+                city=form_data["city"],
+                country=form_data["country"] or "France",
+                notes=form_data["notes"],
+            )
+            base_url = _build_public_base_url(request)
+            admin_message = render_to_string(
+                "emails/account_request_admin_notification.txt",
+                {
+                    "association_name": form_data["association_name"],
+                    "email": form_data["email"],
+                    "phone": form_data["phone"],
+                    "admin_url": f"{base_url}{reverse('admin:wms_publicaccountrequest_changelist')}",
+                },
+            )
+            _send_email_safe(
+                subject="ASF WMS - Nouvelle demande de compte",
+                message=admin_message,
+                recipient=_get_admin_emails(),
+            )
+            message = render_to_string(
+                "emails/account_request_received.txt",
+                {"association_name": form_data["association_name"]},
+            )
+            _send_email_safe(
+                subject="ASF WMS - Demande de compte recue",
+                message=message,
+                recipient=form_data["email"],
+            )
+            messages.success(
+                request,
+                "Demande envoyee. Un superuser ASF validera votre compte.",
+            )
+            return redirect(reverse("scan:scan_public_account_request", args=[token]))
+
+    return render(
+        request,
+        "scan/public_account_request.html",
+        {
+            "link": link,
+            "contacts": contact_payload,
+            "form_data": form_data,
+            "errors": errors,
+        },
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def scan_public_order(request, token):
+    link = (
+        PublicOrderLink.objects.filter(token=token, is_active=True)
+        .order_by("-created_at")
+        .first()
+    )
+    if not link or (link.expires_at and link.expires_at < timezone.now()):
+        raise Http404
+
+    product_options = build_product_options()
+    product_ids = [item["id"] for item in product_options if item.get("id")]
+    products = Product.objects.filter(id__in=product_ids, is_active=True)
+    product_by_id = {product.id: product for product in products}
+    available_by_id = {
+        item["id"]: int(item.get("available_stock") or 0) for item in product_options
+    }
+
+    contacts = list(
+        contacts_with_tags(TAG_SHIPPER).prefetch_related("addresses").order_by("name")
+    )
+    contact_payload = []
+    for contact in contacts:
+        address = (
+            contact.addresses.filter(is_default=True).first()
+            or contact.addresses.first()
+        )
+        contact_payload.append(
+            {
+                "id": contact.id,
+                "name": contact.name,
+                "email": contact.email or "",
+                "phone": contact.phone or "",
+                "address_line1": address.address_line1 if address else "",
+                "address_line2": address.address_line2 if address else "",
+                "postal_code": address.postal_code if address else "",
+                "city": address.city if address else "",
+                "country": address.country if address else "",
+            }
+        )
+
+    form_data = {
+        "association_name": "",
+        "association_email": "",
+        "association_phone": "",
+        "association_line1": "",
+        "association_line2": "",
+        "association_postal_code": "",
+        "association_city": "",
+        "association_country": "France",
+        "association_notes": "",
+        "association_contact_id": "",
+    }
+    errors = []
+    line_errors = {}
+    line_quantities = {}
+
+    if request.method == "POST":
+        form_data.update(
+            {
+                "association_name": (request.POST.get("association_name") or "").strip(),
+                "association_email": (request.POST.get("association_email") or "").strip(),
+                "association_phone": (request.POST.get("association_phone") or "").strip(),
+                "association_line1": (request.POST.get("association_line1") or "").strip(),
+                "association_line2": (request.POST.get("association_line2") or "").strip(),
+                "association_postal_code": (
+                    request.POST.get("association_postal_code") or ""
+                ).strip(),
+                "association_city": (request.POST.get("association_city") or "").strip(),
+                "association_country": (
+                    request.POST.get("association_country") or "France"
+                ).strip(),
+                "association_notes": (request.POST.get("association_notes") or "").strip(),
+                "association_contact_id": (
+                    request.POST.get("association_contact_id") or ""
+                ).strip(),
+            }
+        )
+        if not form_data["association_name"]:
+            errors.append("Nom de l'association requis.")
+        if not form_data["association_line1"]:
+            errors.append("Adresse requise.")
+
+        line_items = []
+        for item in product_options:
+            product_id = item.get("id")
+            if not product_id:
+                continue
+            raw_qty = (request.POST.get(f"product_{product_id}_qty") or "").strip()
+            if raw_qty:
+                line_quantities[str(product_id)] = raw_qty
+            if not raw_qty:
+                continue
+            quantity = parse_int(raw_qty)
+            if quantity is None or quantity <= 0:
+                line_errors[str(product_id)] = "Quantite invalide."
+                continue
+            available = available_by_id.get(product_id, 0)
+            if quantity > available:
+                line_errors[str(product_id)] = "Stock insuffisant."
+                continue
+            product = product_by_id.get(product_id)
+            if product:
+                line_items.append((product, quantity))
+
+        if not line_items:
+            errors.append("Ajoutez au moins un produit.")
+
+        if not errors and not line_errors:
+            contact = None
+            contact_id = parse_int(form_data["association_contact_id"])
+            if contact_id:
+                contact = Contact.objects.filter(id=contact_id, is_active=True).first()
+            if not contact:
+                contact = Contact.objects.filter(
+                    name__iexact=form_data["association_name"], is_active=True
+                ).first()
+
+            try:
+                with transaction.atomic():
+                    if not contact:
+                        contact = Contact.objects.create(
+                            name=form_data["association_name"],
+                            email=form_data["association_email"],
+                            phone=form_data["association_phone"],
+                            is_active=True,
+                        )
+                        tag, _ = ContactTag.objects.get_or_create(name=TAG_SHIPPER[0])
+                        contact.tags.add(tag)
+                        ContactAddress.objects.create(
+                            contact=contact,
+                            address_line1=form_data["association_line1"],
+                            address_line2=form_data["association_line2"],
+                            postal_code=form_data["association_postal_code"],
+                            city=form_data["association_city"],
+                            country=form_data["association_country"] or "France",
+                            phone=form_data["association_phone"],
+                            email=form_data["association_email"],
+                            is_default=True,
+                        )
+                    else:
+                        updated_fields = []
+                        if form_data["association_email"] and contact.email != form_data[
+                            "association_email"
+                        ]:
+                            contact.email = form_data["association_email"]
+                            updated_fields.append("email")
+                        if form_data["association_phone"] and contact.phone != form_data[
+                            "association_phone"
+                        ]:
+                            contact.phone = form_data["association_phone"]
+                            updated_fields.append("phone")
+                        if updated_fields:
+                            contact.save(update_fields=updated_fields)
+
+                        address = (
+                            contact.addresses.filter(is_default=True).first()
+                            or contact.addresses.first()
+                        )
+                        if address:
+                            address.address_line1 = form_data["association_line1"]
+                            address.address_line2 = form_data["association_line2"]
+                            address.postal_code = form_data["association_postal_code"]
+                            address.city = form_data["association_city"]
+                            address.country = form_data["association_country"] or "France"
+                            address.phone = form_data["association_phone"]
+                            address.email = form_data["association_email"]
+                            address.save(
+                                update_fields=[
+                                    "address_line1",
+                                    "address_line2",
+                                    "postal_code",
+                                    "city",
+                                    "country",
+                                    "phone",
+                                    "email",
+                                ]
+                            )
+                        else:
+                            ContactAddress.objects.create(
+                                contact=contact,
+                                address_line1=form_data["association_line1"],
+                                address_line2=form_data["association_line2"],
+                                postal_code=form_data["association_postal_code"],
+                                city=form_data["association_city"],
+                                country=form_data["association_country"] or "France",
+                                phone=form_data["association_phone"],
+                                email=form_data["association_email"],
+                                is_default=True,
+                            )
+
+                    destination_address = _build_destination_address(
+                        line1=form_data["association_line1"],
+                        line2=form_data["association_line2"],
+                        postal_code=form_data["association_postal_code"],
+                        city=form_data["association_city"],
+                        country=form_data["association_country"],
+                    )
+
+                    order = Order.objects.create(
+                        reference="",
+                        status=OrderStatus.DRAFT,
+                        public_link=link,
+                        shipper_name="Aviation Sans Frontieres",
+                        recipient_name=form_data["association_name"],
+                        recipient_contact=contact,
+                        destination_address=destination_address,
+                        destination_city=form_data["association_city"] or "",
+                        destination_country=form_data["association_country"] or "France",
+                        requested_delivery_date=None,
+                        created_by=None,
+                        notes=form_data["association_notes"] or "",
+                    )
+                    for product, quantity in line_items:
+                        order.lines.create(product=product, quantity=quantity)
+                    create_shipment_for_order(order=order)
+                    reserve_stock_for_order(order=order)
+            except StockError as exc:
+                errors.append(str(exc))
+            else:
+                summary_url = reverse("scan:scan_public_order_summary", args=[token, order.id])
+                base_url = _build_public_base_url(request)
+                summary_abs = f"{base_url}{summary_url}"
+                email_message = render_to_string(
+                    "emails/order_confirmation.txt",
+                    {
+                        "association_name": form_data["association_name"],
+                        "order_reference": order.reference or f"Commande {order.id}",
+                        "summary_url": summary_abs,
+                    },
+                )
+                admin_message = render_to_string(
+                    "emails/order_admin_notification.txt",
+                    {
+                        "association_name": form_data["association_name"],
+                        "email": form_data["association_email"] or contact.email,
+                        "phone": form_data["association_phone"] or contact.phone,
+                        "order_reference": order.reference or f"Commande {order.id}",
+                        "summary_url": summary_abs,
+                        "admin_url": f"{base_url}{reverse('admin:wms_order_change', args=[order.id])}",
+                    },
+                )
+                _send_email_safe(
+                    subject="ASF WMS - Nouvelle commande publique",
+                    message=admin_message,
+                    recipient=_get_admin_emails(),
+                )
+                if not _send_email_safe(
+                    subject="ASF WMS - Confirmation de commande",
+                    message=email_message,
+                    recipient=form_data["association_email"] or contact.email,
+                ):
+                    messages.warning(
+                        request,
+                        "Commande envoyee, mais l'email de confirmation n'a pas pu etre envoye.",
+                    )
+                messages.success(
+                    request,
+                    "Commande envoyee. L'equipe ASF va la traiter rapidement.",
+                )
+                return redirect(
+                    f"{reverse('scan:scan_public_order', args=[token])}?order={order.id}"
+                )
+
+    carton_format = _get_default_carton_format()
+    carton_data = (
+        {
+            "length_cm": float(carton_format.length_cm),
+            "width_cm": float(carton_format.width_cm),
+            "height_cm": float(carton_format.height_cm),
+            "max_weight_g": float(carton_format.max_weight_g),
+            "name": carton_format.name,
+        }
+        if carton_format
+        else None
+    )
+
+    return render(
+        request,
+        "scan/public_order.html",
+        {
+            "link": link,
+            "products": product_options,
+            "product_data": product_options,
+            "contacts": contact_payload,
+            "form_data": form_data,
+            "errors": errors,
+            "line_errors": line_errors,
+            "line_quantities": line_quantities,
+            "carton_format": carton_data,
+            "summary_url": summary_url,
+        },
+    )
 
 
 ALLOWED_UPLOAD_EXTENSIONS = {

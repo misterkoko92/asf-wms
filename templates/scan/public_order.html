@@ -1,0 +1,385 @@
+{% load static %}
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Commande association</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="{% static 'scan/scan.css' %}">
+</head>
+<body>
+  <div class="scan-shell">
+    <main class="scan-main">
+      {% if messages %}
+        <div class="scan-messages">
+          {% for message in messages %}
+            <div class="scan-message {% if message.tags %}{{ message.tags }}{% endif %}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="scan-card">
+        <h2>Demande de commande</h2>
+        <p class="scan-help">
+          Lien prive reserve aux associations. Un espace avec compte et validation sera ajoute ensuite.
+        </p>
+        <div class="scan-inline">
+          <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_public_account_request' link.token %}">
+            Creer un compte
+          </a>
+          {% if summary_url %}
+            <a class="scan-scan-btn scan-doc-btn" href="{{ summary_url }}" target="_blank" rel="noopener">
+              Telecharger recapitulatif PDF
+            </a>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="scan-card">
+        {% if errors %}
+          <div class="scan-message error">
+            {% for error in errors %}
+              <div>{{ error }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <form method="post" novalidate id="public-order-form">
+          {% csrf_token %}
+
+          <h3>Association</h3>
+          <div class="scan-field">
+            <label for="association_name">Nom de l'association</label>
+            <input
+              type="text"
+              id="association_name"
+              name="association_name"
+              list="association-list"
+              value="{{ form_data.association_name }}"
+              autocomplete="off"
+              required
+            >
+            <input type="hidden" id="association_contact_id" name="association_contact_id" value="{{ form_data.association_contact_id }}">
+          </div>
+          <div class="scan-field">
+            <label for="association_email">Email</label>
+            <input type="email" id="association_email" name="association_email" value="{{ form_data.association_email }}">
+          </div>
+          <div class="scan-field">
+            <label for="association_phone">Telephone</label>
+            <input type="text" id="association_phone" name="association_phone" value="{{ form_data.association_phone }}">
+          </div>
+          <div class="scan-field">
+            <label for="association_line1">Adresse</label>
+            <input type="text" id="association_line1" name="association_line1" value="{{ form_data.association_line1 }}" required>
+          </div>
+          <div class="scan-field">
+            <label for="association_line2">Complement adresse</label>
+            <input type="text" id="association_line2" name="association_line2" value="{{ form_data.association_line2 }}">
+          </div>
+          <div class="scan-field">
+            <label for="association_postal_code">Code postal</label>
+            <input type="text" id="association_postal_code" name="association_postal_code" value="{{ form_data.association_postal_code }}">
+          </div>
+          <div class="scan-field">
+            <label for="association_city">Ville</label>
+            <input type="text" id="association_city" name="association_city" value="{{ form_data.association_city }}">
+          </div>
+          <div class="scan-field">
+            <label for="association_country">Pays</label>
+            <input type="text" id="association_country" name="association_country" value="{{ form_data.association_country|default:'France' }}">
+          </div>
+          <div class="scan-field">
+            <label for="association_notes">Notes</label>
+            <textarea id="association_notes" name="association_notes" rows="3">{{ form_data.association_notes }}</textarea>
+          </div>
+
+          <h3>Produits disponibles</h3>
+          <div class="scan-help">
+            Estimation des cartons basee sur le format par defaut{% if carton_format %} : {{ carton_format.name }}{% endif %}.
+          </div>
+          <div class="scan-table-wrap">
+            <table class="scan-table">
+              <thead>
+                <tr>
+                  <th>Produit</th>
+                  <th>Stock disponible</th>
+                  <th>Quantite demandee</th>
+                  <th>Cartons estimes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for product in products %}
+                  {% with available=product.available_stock|default:0 %}
+                  <tr
+                    data-product-id="{{ product.id }}"
+                    data-weight-g="{{ product.weight_g|default_if_none:'' }}"
+                    data-volume-cm3="{{ product.volume_cm3|default_if_none:'' }}"
+                    data-length-cm="{{ product.length_cm|default_if_none:'' }}"
+                    data-width-cm="{{ product.width_cm|default_if_none:'' }}"
+                    data-height-cm="{{ product.height_cm|default_if_none:'' }}"
+                  >
+                    <td>{{ product.name }}</td>
+                    <td class="qty">{{ available }}</td>
+                    <td>
+                      <input
+                        type="number"
+                        name="product_{{ product.id }}_qty"
+                        min="0"
+                        max="{{ available }}"
+                        value=""
+                        {% if available <= 0 %}disabled{% endif %}
+                      >
+                      <div class="scan-message error line-error" style="display: none;"></div>
+                    </td>
+                    <td class="carton-estimate">-</td>
+                  </tr>
+                  {% endwith %}
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="scan-field">
+            <label>Total cartons estimes</label>
+            <div id="carton-estimate-total" class="scan-help">-</div>
+          </div>
+
+          <button type="submit" class="scan-submit" id="public-order-submit">Envoyer la commande</button>
+        </form>
+      </div>
+    </main>
+  </div>
+
+  {{ product_data|json_script:"product-data" }}
+  {{ contacts|json_script:"association-data" }}
+  {{ line_quantities|json_script:"line-quantities" }}
+  {{ line_errors|json_script:"line-errors" }}
+  {% if carton_format %}
+    {{ carton_format|json_script:"carton-data" }}
+  {% endif %}
+
+  <datalist id="association-list">
+    {% for contact in contacts %}
+      <option value="{{ contact.name }}"></option>
+    {% endfor %}
+  </datalist>
+
+  <script>
+    (function() {
+      const contacts = JSON.parse(document.getElementById('association-data').textContent || '[]');
+      const nameInput = document.getElementById('association_name');
+      const contactIdInput = document.getElementById('association_contact_id');
+      const emailInput = document.getElementById('association_email');
+      const phoneInput = document.getElementById('association_phone');
+      const line1Input = document.getElementById('association_line1');
+      const line2Input = document.getElementById('association_line2');
+      const postalInput = document.getElementById('association_postal_code');
+      const cityInput = document.getElementById('association_city');
+      const countryInput = document.getElementById('association_country');
+
+      const findContact = name => {
+        const normalized = (name || '').trim().toLowerCase();
+        if (!normalized) {
+          return null;
+        }
+        return contacts.find(contact => (contact.name || '').toLowerCase() === normalized) || null;
+      };
+
+      const fillContact = contact => {
+        if (!contact) {
+          contactIdInput.value = '';
+          return;
+        }
+        contactIdInput.value = contact.id;
+        if (emailInput && !emailInput.value) {
+          emailInput.value = contact.email || '';
+        }
+        if (phoneInput && !phoneInput.value) {
+          phoneInput.value = contact.phone || '';
+        }
+        if (line1Input && !line1Input.value) {
+          line1Input.value = contact.address_line1 || '';
+        }
+        if (line2Input && !line2Input.value) {
+          line2Input.value = contact.address_line2 || '';
+        }
+        if (postalInput && !postalInput.value) {
+          postalInput.value = contact.postal_code || '';
+        }
+        if (cityInput && !cityInput.value) {
+          cityInput.value = contact.city || '';
+        }
+        if (countryInput && !countryInput.value) {
+          countryInput.value = contact.country || 'France';
+        }
+      };
+
+      if (nameInput) {
+        nameInput.addEventListener('input', () => {
+          const match = findContact(nameInput.value);
+          if (match) {
+            fillContact(match);
+          } else {
+            contactIdInput.value = '';
+          }
+        });
+      }
+
+      const cartonDataEl = document.getElementById('carton-data');
+      const carton = cartonDataEl ? JSON.parse(cartonDataEl.textContent || 'null') : null;
+      const productDataEl = document.getElementById('product-data');
+      let products = [];
+      try {
+        products = JSON.parse(productDataEl ? productDataEl.textContent || '[]' : '[]');
+      } catch (err) {
+        products = [];
+      }
+      let lineQuantities = {};
+      try {
+        lineQuantities = JSON.parse(
+          document.getElementById('line-quantities').textContent || '{}'
+        );
+      } catch (err) {
+        lineQuantities = {};
+      }
+      let lineErrors = {};
+      try {
+        lineErrors = JSON.parse(
+          document.getElementById('line-errors').textContent || '{}'
+        );
+      } catch (err) {
+        lineErrors = {};
+      }
+
+      const productMap = new Map();
+      products.forEach(product => {
+        if (product && product.id) {
+          productMap.set(String(product.id), product);
+        }
+      });
+
+      const parseNumber = value => {
+        const parsed = parseFloat((value || '').toString().replace(',', '.'));
+        return Number.isFinite(parsed) ? parsed : null;
+      };
+
+      const getProductVolume = product => {
+        if (!product) {
+          return null;
+        }
+        if (product.volume_cm3) {
+          return parseNumber(product.volume_cm3);
+        }
+        const length = parseNumber(product.length_cm);
+        const width = parseNumber(product.width_cm);
+        const height = parseNumber(product.height_cm);
+        if (length && width && height) {
+          return length * width * height;
+        }
+        return null;
+      };
+
+      const computeMaxUnits = (product, carton) => {
+        if (!product || !carton) {
+          return null;
+        }
+        const cartonVolume =
+          carton.length_cm && carton.width_cm && carton.height_cm
+            ? carton.length_cm * carton.width_cm * carton.height_cm
+            : null;
+        const productVolume = getProductVolume(product);
+        let maxByVolume = null;
+        if (cartonVolume && productVolume && productVolume > 0) {
+          maxByVolume = Math.floor(cartonVolume / productVolume);
+          if (maxByVolume < 1) {
+            maxByVolume = 1;
+          }
+        }
+        let maxByWeight = null;
+        const weight = parseNumber(product.weight_g);
+        if (weight && carton.max_weight_g) {
+          maxByWeight = Math.floor(carton.max_weight_g / weight);
+          if (maxByWeight < 1) {
+            maxByWeight = 1;
+          }
+        }
+        if (maxByVolume && maxByWeight) {
+          return Math.min(maxByVolume, maxByWeight);
+        }
+        return maxByVolume || maxByWeight;
+      };
+
+      const rows = Array.from(document.querySelectorAll('tr[data-product-id]'));
+      const totalEl = document.getElementById('carton-estimate-total');
+      const submitBtn = document.getElementById('public-order-submit');
+
+      const updateRow = row => {
+        const productId = row.dataset.productId;
+        const product = productMap.get(productId);
+        const input = row.querySelector('input[type="number"]');
+        const estimateEl = row.querySelector('.carton-estimate');
+        const availableText = row.querySelector('td.qty');
+        const available = parseInt(availableText ? availableText.textContent : '0', 10) || 0;
+        const qty = parseInt(input && input.value ? input.value : '0', 10) || 0;
+        const maxUnits = computeMaxUnits(product, carton);
+        if (!qty) {
+          estimateEl.textContent = '-';
+        } else if (!maxUnits) {
+          estimateEl.textContent = 'N/A';
+        } else {
+          estimateEl.textContent = Math.ceil(qty / maxUnits);
+        }
+        const isInvalid = qty > available;
+        row.classList.toggle('metric-negative', isInvalid);
+        return isInvalid ? null : (estimateEl.textContent === 'N/A' ? null : parseInt(estimateEl.textContent, 10));
+      };
+
+      const updateTotals = () => {
+        let total = 0;
+        let hasInvalid = false;
+        rows.forEach(row => {
+          const rowTotal = updateRow(row);
+          if (rowTotal === null) {
+            const input = row.querySelector('input[type="number"]');
+            const availableText = row.querySelector('td.qty');
+            const available = parseInt(availableText ? availableText.textContent : '0', 10) || 0;
+            const qty = parseInt(input && input.value ? input.value : '0', 10) || 0;
+            if (qty > available) {
+              hasInvalid = true;
+            }
+          } else {
+            total += rowTotal;
+          }
+        });
+        if (totalEl) {
+          totalEl.textContent = total || '-';
+        }
+        if (submitBtn) {
+          submitBtn.disabled = hasInvalid;
+        }
+      };
+
+      rows.forEach(row => {
+        const input = row.querySelector('input[type="number"]');
+        if (input) {
+          const preset = lineQuantities[row.dataset.productId];
+          if (preset !== undefined) {
+            input.value = preset;
+          }
+        }
+        const error = lineErrors[row.dataset.productId];
+        const errorEl = row.querySelector('.line-error');
+        if (error && errorEl) {
+          errorEl.textContent = error;
+          errorEl.style.display = 'block';
+        }
+        if (input) {
+          input.addEventListener('input', updateTotals);
+        }
+      });
+      updateTotals();
+    })();
+  </script>
+</body>
+</html>

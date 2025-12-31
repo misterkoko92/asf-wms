@@ -534,6 +534,13 @@ class Order(models.Model):
     status = models.CharField(
         max_length=20, choices=OrderStatus.choices, default=OrderStatus.DRAFT
     )
+    public_link = models.ForeignKey(
+        "PublicOrderLink",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="orders",
+    )
     shipper_name = models.CharField(max_length=200)
     recipient_name = models.CharField(max_length=200)
     correspondent_name = models.CharField(max_length=200, blank=True)
@@ -576,6 +583,60 @@ class Order(models.Model):
 
     def __str__(self) -> str:
         return self.reference or f"Order {self.id}"
+
+
+class PublicOrderLink(models.Model):
+    label = models.CharField(max_length=200, blank=True)
+    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    is_active = models.BooleanField(default=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return self.label or f"Lien commande {self.token}"
+
+
+class PublicAccountRequestStatus(models.TextChoices):
+    PENDING = "pending", "Pending"
+    APPROVED = "approved", "Approved"
+    REJECTED = "rejected", "Rejected"
+
+
+class PublicAccountRequest(models.Model):
+    link = models.ForeignKey(
+        PublicOrderLink, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    contact = models.ForeignKey(
+        "contacts.Contact", on_delete=models.SET_NULL, null=True, blank=True
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=PublicAccountRequestStatus.choices,
+        default=PublicAccountRequestStatus.PENDING,
+    )
+    association_name = models.CharField(max_length=200)
+    email = models.EmailField()
+    phone = models.CharField(max_length=40, blank=True)
+    address_line1 = models.CharField(max_length=200)
+    address_line2 = models.CharField(max_length=200, blank=True)
+    postal_code = models.CharField(max_length=20, blank=True)
+    city = models.CharField(max_length=120, blank=True)
+    country = models.CharField(max_length=80, default="France")
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.association_name} ({self.get_status_display()})"
 
 
 class OrderLine(models.Model):
