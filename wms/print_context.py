@@ -47,9 +47,7 @@ def build_shipment_document_context(shipment, doc_type):
             f", livraison souhaitee "
             f"{shipment.requested_delivery_date.strftime('%d/%m/%Y')}"
         )
-    rows_for_template = (
-        aggregate_rows if doc_type == "packing_list_shipment" else item_rows
-    )
+    rows_for_template = item_rows
 
     return {
         **build_org_context(),
@@ -80,6 +78,7 @@ def build_shipment_document_context(shipment, doc_type):
         "donation_description": shipment.notes or description,
         "humanitarian_purpose": shipment.notes or "Aide humanitaire",
         "shipment_description": description,
+        "hide_footer": doc_type == "packing_list_shipment",
     }
 
 
@@ -93,6 +92,7 @@ def build_carton_document_context(shipment, carton):
                 "product": item.product_lot.product.name,
                 "lot": item.product_lot.lot_code or "N/A",
                 "quantity": item.quantity,
+                "expires_on": item.product_lot.expires_on,
             }
         )
 
@@ -101,6 +101,7 @@ def build_carton_document_context(shipment, carton):
         "shipment_ref": shipment.reference,
         "carton_code": carton.code,
         "item_rows": item_rows,
+        "hide_footer": True,
     }
 
 
@@ -190,6 +191,7 @@ def build_sample_document_context(doc_type):
         "donation_description": "Materiel medical",
         "humanitarian_purpose": "Aide humanitaire",
         "shipment_description": "Exemple de description",
+        "hide_footer": doc_type in {"packing_list_shipment", "packing_list_carton"},
     }
 
 

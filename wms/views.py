@@ -1405,6 +1405,7 @@ def scan_carton_document(request, carton_id):
             "shipment_ref": "-",
             "carton_code": carton.code,
             "item_rows": item_rows,
+            "hide_footer": True,
         }
     layout_override = get_template_layout("packing_list_carton")
     if layout_override:

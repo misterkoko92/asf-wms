@@ -36,11 +36,13 @@
   <div class="print-body">
     {% block body %}{% endblock %}
   </div>
-  <footer class="print-footer">
-    <div>https://aviation-sans-frontieres.org/messmed // messmed@aviation-sans-fronti&egrave;res-fr.org</div>
-    <div>Siege : Bat 293, Porte 1150, Orly Fret 768 - 94398 Orly A&eacute;rogare Cedex - Tel: (33) 1 49 75 74 36</div>
-    <div>Magasin : Bat. 7200, Porte 2D520, rue de la Remise - 95700 ROISSY en France - T&eacute;l : (33) 1 74 25 03 22</div>
-    <div>Association reconnue d'utilit&eacute; publique par d&eacute;cret du 12 novembre 1993</div>
-  </footer>
+  {% if not hide_footer %}
+    <footer class="print-footer">
+      <div>https://aviation-sans-frontieres.org/messmed // messmed@aviation-sans-fronti&egrave;res-fr.org</div>
+      <div>Siege : Bat 293, Porte 1150, Orly Fret 768 - 94398 Orly A&eacute;rogare Cedex - Tel: (33) 1 49 75 74 36</div>
+      <div>Magasin : Bat. 7200, Porte 2D520, rue de la Remise - 95700 ROISSY en France - T&eacute;l : (33) 1 74 25 03 22</div>
+      <div>Association reconnue d'utilit&eacute; publique par d&eacute;cret du 12 novembre 1993</div>
+    </footer>
+  {% endif %}
 </body>
 </html>

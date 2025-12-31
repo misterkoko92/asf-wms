@@ -2,6 +2,10 @@
 
 {% block title %}Liste colisage lot{% endblock %}
 
+{% block extra_style %}
+  .print-body { padding-bottom: 0; }
+{% endblock %}
+
 {% block body %}
   <h1>Liste de colisage - lot</h1>
 
@@ -12,8 +16,8 @@
     <thead>
       <tr>
         <th>Produit</th>
-        <th>Total qty</th>
-        <th>Lots</th>
+        <th>Quantite</th>
+        <th>Date de peremption</th>
       </tr>
     </thead>
     <tbody>
@@ -21,7 +25,13 @@
         <tr>
           <td>{{ row.product }}</td>
           <td>{{ row.quantity }}</td>
-          <td>{{ row.lots }}</td>
+          <td>
+            {% if row.expires_on %}
+              {{ row.expires_on|date:"d/m/Y" }}
+            {% else %}
+              -
+            {% endif %}
+          </td>
         </tr>
       {% endfor %}
     </tbody>

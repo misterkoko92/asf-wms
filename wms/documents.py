@@ -28,6 +28,7 @@ def build_shipment_item_rows(shipment):
                 "product": item.product_lot.product.name,
                 "lot": item.product_lot.lot_code or "N/A",
                 "quantity": item.quantity,
+                "expires_on": item.product_lot.expires_on,
             }
         )
     return rows
