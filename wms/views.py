@@ -37,6 +37,7 @@ from .contact_filters import (
 )
 from .models import (
     Carton,
+    CartonFormat,
     CartonStatus,
     Document,
     DocumentType,
@@ -352,6 +353,15 @@ def scan_cartons_ready(request):
                 carton.save(update_fields=["status"])
         return redirect("scan:scan_cartons_ready")
 
+    default_format = CartonFormat.objects.filter(is_default=True).first()
+    if default_format is None:
+        default_format = CartonFormat.objects.first()
+    carton_capacity_cm3 = None
+    if default_format:
+        carton_capacity_cm3 = (
+            default_format.length_cm * default_format.width_cm * default_format.height_cm
+        )
+
     cartons_qs = (
         Carton.objects.filter(cartonitem__isnull=False)
         .select_related("shipment", "current_location")
@@ -362,13 +372,36 @@ def scan_cartons_ready(request):
     cartons = []
     for carton in cartons_qs:
         product_totals = {}
+        weight_total_g = 0
+        volume_total_cm3 = 0
+        missing_weight = False
+        missing_volume = False
         for item in carton.cartonitem_set.all():
             name = item.product_lot.product.name
             product_totals[name] = product_totals.get(name, 0) + item.quantity
+            product = item.product_lot.product
+            if product.weight_g:
+                weight_total_g += product.weight_g * item.quantity
+            else:
+                missing_weight = True
+            if product.volume_cm3:
+                volume_total_cm3 += product.volume_cm3 * item.quantity
+            else:
+                missing_volume = True
         packing_list = [
             {"name": name, "quantity": qty}
             for name, qty in sorted(product_totals.items(), key=lambda row: row[0])
         ]
+        if weight_total_g == 0 and missing_weight:
+            weight_kg = None
+        else:
+            weight_kg = weight_total_g / 1000 if weight_total_g else None
+        if carton_capacity_cm3 and volume_total_cm3 and not missing_volume:
+            volume_percent = round(
+                float(volume_total_cm3) / float(carton_capacity_cm3) * 100
+            )
+        else:
+            volume_percent = None
         is_assigned = carton.shipment_id is not None
         if is_assigned and carton.status != CartonStatus.SHIPPED:
             status_label = "Affecte"
@@ -377,6 +410,13 @@ def scan_cartons_ready(request):
                 status_label = CartonStatus(carton.status).label
             except ValueError:
                 status_label = carton.status
+        if carton.shipment_id:
+            packing_list_url = reverse(
+                "scan:scan_shipment_carton_document",
+                args=[carton.shipment_id, carton.id],
+            )
+        else:
+            packing_list_url = reverse("scan:scan_carton_document", args=[carton.id])
         cartons.append(
             {
                 "id": carton.id,
@@ -388,6 +428,9 @@ def scan_cartons_ready(request):
                 "shipment_reference": carton.shipment.reference if carton.shipment else "",
                 "location": carton.current_location,
                 "packing_list": packing_list,
+                "packing_list_url": packing_list_url,
+                "weight_kg": weight_kg,
+                "volume_percent": volume_percent,
             }
         )
 
@@ -1329,6 +1372,41 @@ def scan_shipment_carton_document(request, shipment_id, carton_id):
     context = build_carton_document_context(shipment, carton)
     doc_type = "packing_list_carton"
     layout_override = get_template_layout(doc_type)
+    if layout_override:
+        blocks = render_layout_from_layout(layout_override, context)
+        return render(request, "print/dynamic_document.html", {"blocks": blocks})
+    return render(request, "print/liste_colisage_carton.html", context)
+
+
+@login_required
+@require_http_methods(["GET"])
+def scan_carton_document(request, carton_id):
+    carton = get_object_or_404(
+        Carton.objects.select_related("shipment"),
+        pk=carton_id,
+    )
+    if carton.shipment_id:
+        shipment = carton.shipment
+        context = build_carton_document_context(shipment, carton)
+    else:
+        item_rows = []
+        for item in carton.cartonitem_set.select_related(
+            "product_lot", "product_lot__product"
+        ):
+            item_rows.append(
+                {
+                    "product": item.product_lot.product.name,
+                    "lot": item.product_lot.lot_code or "N/A",
+                    "quantity": item.quantity,
+                }
+            )
+        context = {
+            "document_date": timezone.localdate(),
+            "shipment_ref": "-",
+            "carton_code": carton.code,
+            "item_rows": item_rows,
+        }
+    layout_override = get_template_layout("packing_list_carton")
     if layout_override:
         blocks = render_layout_from_layout(layout_override, context)
         return render(request, "print/dynamic_document.html", {"blocks": blocks})

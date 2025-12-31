@@ -32,6 +32,11 @@ urlpatterns = [
         name="scan_shipment_carton_document",
     ),
     path(
+        "carton/<int:carton_id>/doc/",
+        views.scan_carton_document,
+        name="scan_carton_document",
+    ),
+    path(
         "shipment/<int:shipment_id>/documents/upload/",
         views.scan_shipment_document_upload,
         name="scan_shipment_document_upload",

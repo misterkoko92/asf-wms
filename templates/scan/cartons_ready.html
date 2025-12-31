@@ -15,6 +15,7 @@
               <th>Statut</th>
               <th>No expedition</th>
               <th>Emplacement</th>
+              <th>Remplissage</th>
               <th>Liste de colisage</th>
             </tr>
           </thead>
@@ -46,11 +47,32 @@
                 <td>{{ carton.shipment_reference|default:"-" }}</td>
                 <td>{{ carton.location|default:"-" }}</td>
                 <td>
+                  <div><strong>Poids</strong> :
+                    {% if carton.weight_kg is not None %}
+                      {{ carton.weight_kg|floatformat:2 }} kg
+                    {% else %}
+                      -
+                    {% endif %}
+                  </div>
+                  <div><strong>Volume</strong> :
+                    {% if carton.volume_percent is not None %}
+                      {{ carton.volume_percent }}%
+                    {% else %}
+                      -
+                    {% endif %}
+                  </div>
+                </td>
+                <td>
                   {% if carton.packing_list %}
                     <div class="scan-packing-list">
                       {% for item in carton.packing_list %}
                         <div>{{ item.name }} ({{ item.quantity }})</div>
                       {% endfor %}
+                    </div>
+                    <div class="scan-field scan-field-gap">
+                      <a class="scan-scan-btn" href="{{ carton.packing_list_url }}" target="_blank" rel="noopener">
+                        Imprimer / telecharger
+                      </a>
                     </div>
                   {% else %}
                     -
