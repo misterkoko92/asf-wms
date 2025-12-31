@@ -1,142 +1,144 @@
-{% extends "scan/base.html" %}
-
-{% block title %}WMS Scan - Suivi expedition{% endblock %}
-
-{% block content %}
-  <div class="scan-card">
-    <h2>Suivi expedition {{ shipment.reference }}</h2>
-
-    <div class="scan-field">
-      <label>QR code expedition</label>
-      <div class="scan-inline">
-        {% if shipment.qr_code_image %}
-          <img src="{{ shipment.qr_code_image.url }}" alt="QR expedition {{ shipment.reference }}" style="height: 120px; border: 1px solid #ccc;">
-        {% else %}
-          <div class="scan-help">QR code non disponible.</div>
-        {% endif %}
-        <a class="scan-scan-btn" href="{{ tracking_url }}" target="_blank" rel="noopener">Ouvrir lien</a>
-      </div>
-      <div class="scan-help">
-        Lien suivi:
-        <a href="{{ tracking_url }}" target="_blank" rel="noopener">{{ tracking_url }}</a>
-      </div>
-    </div>
-
-    <div class="scan-field">
-      <label>Documents lies</label>
-      <div class="scan-docs">
-        {% for doc in documents %}
-          <a class="scan-scan-btn scan-doc-btn" href="{{ doc.url }}" target="_blank" rel="noopener">
-            {{ doc.label }}
-          </a>
-        {% endfor %}
-      </div>
-    </div>
-
-    <div class="scan-field">
-      <label>Liste colisage par carton</label>
-      {% if carton_docs %}
-        <div class="scan-docs">
-          {% for doc in carton_docs %}
-            <a class="scan-scan-btn scan-doc-btn" href="{{ doc.url }}" target="_blank" rel="noopener">
-              {{ doc.label }}
-            </a>
+{% load static %}
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Suivi expedition</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="{% static 'scan/scan.css' %}">
+</head>
+<body>
+  <div class="scan-shell">
+    <main class="scan-main">
+      {% if messages %}
+        <div class="scan-messages">
+          {% for message in messages %}
+            <div class="scan-message {% if message.tags %}{{ message.tags }}{% endif %}">{{ message }}</div>
           {% endfor %}
         </div>
-      {% else %}
-        <div class="scan-help">Aucun colis associe.</div>
-      {% endif %}
-    </div>
-
-    <div class="scan-field">
-      <label>Documents additionnels</label>
-      {% if additional_docs %}
-        <div class="scan-docs">
-          {% for document in additional_docs %}
-            <a class="scan-scan-btn scan-doc-btn" href="{{ document.file.url }}" target="_blank" rel="noopener">
-              {{ document.file.name|default:"Document" }}
-            </a>
-          {% endfor %}
-        </div>
-      {% else %}
-        <div class="scan-help">Aucun document additionnel.</div>
-      {% endif %}
-    </div>
-
-    <hr class="scan-divider">
-
-    <h3>Mettre a jour le suivi</h3>
-    <form method="post">
-      {% csrf_token %}
-      {% if form.non_field_errors %}
-        <div class="scan-message error">{{ form.non_field_errors }}</div>
       {% endif %}
 
-      <div class="scan-field">
-        <label for="id_status">Etape</label>
-        {{ form.status }}
-        {% for error in form.status.errors %}
-          <div class="scan-message error">{{ error }}</div>
-        {% endfor %}
-      </div>
+      <div class="scan-card">
+        <h2>Suivi expedition {{ shipment.reference }}</h2>
 
-      <div class="scan-field">
-        <label for="id_actor_name">Nom</label>
-        {{ form.actor_name }}
-        {% for error in form.actor_name.errors %}
-          <div class="scan-message error">{{ error }}</div>
-        {% endfor %}
-      </div>
-
-      <div class="scan-field">
-        <label for="id_actor_structure">Structure</label>
-        {{ form.actor_structure }}
-        {% for error in form.actor_structure.errors %}
-          <div class="scan-message error">{{ error }}</div>
-        {% endfor %}
-      </div>
-
-      <div class="scan-field">
-        <label for="id_comments">Commentaires</label>
-        {{ form.comments }}
-        {% for error in form.comments.errors %}
-          <div class="scan-message error">{{ error }}</div>
-        {% endfor %}
-      </div>
-
-      <button type="submit" class="scan-submit">Enregistrer</button>
-    </form>
-
-    <hr class="scan-divider">
-
-    <h3>Historique</h3>
-    {% if events %}
-      <div class="scan-table-wrap">
-        <table class="scan-table">
-          <thead>
-            <tr>
-              <th>Horodatage</th>
-              <th>Etape</th>
-              <th>Nom</th>
-              <th>Structure</th>
-              <th>Commentaires</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for event in events %}
-              <tr>
-                <td>{{ event.created_at|date:"Y/m/d H\\hi" }}</td>
-                <td>{{ event.get_status_display }}</td>
-                <td>{{ event.actor_name }}</td>
-                <td>{{ event.actor_structure }}</td>
-                <td>{{ event.comments|default:"-" }}</td>
-              </tr>
+        <div class="scan-field">
+          <label>Documents lies</label>
+          <div class="scan-docs">
+            {% for doc in documents %}
+              <a class="scan-scan-btn scan-doc-btn" href="{{ doc.url }}" target="_blank" rel="noopener">
+                {{ doc.label }}
+              </a>
             {% endfor %}
-          </tbody>
-        </table>
+          </div>
+        </div>
+
+        <div class="scan-field">
+          <label>Liste colisage par carton</label>
+          {% if carton_docs %}
+            <div class="scan-docs">
+              {% for doc in carton_docs %}
+                <a class="scan-scan-btn scan-doc-btn" href="{{ doc.url }}" target="_blank" rel="noopener">
+                  {{ doc.label }}
+                </a>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="scan-help">Aucun colis associe.</div>
+          {% endif %}
+        </div>
+
+        <div class="scan-field">
+          <label>Documents additionnels</label>
+          {% if additional_docs %}
+            <div class="scan-docs">
+              {% for document in additional_docs %}
+                <a class="scan-scan-btn scan-doc-btn" href="{{ document.file.url }}" target="_blank" rel="noopener">
+                  {{ document.file.name|default:"Document" }}
+                </a>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="scan-help">Aucun document additionnel.</div>
+          {% endif %}
+        </div>
+
+        <hr class="scan-divider">
+
+        <h3>Mettre a jour le suivi</h3>
+        <form method="post">
+          {% csrf_token %}
+          {% if form.non_field_errors %}
+            <div class="scan-message error">{{ form.non_field_errors }}</div>
+          {% endif %}
+
+          <div class="scan-field">
+            <label for="id_status">Etape</label>
+            {{ form.status }}
+            {% for error in form.status.errors %}
+              <div class="scan-message error">{{ error }}</div>
+            {% endfor %}
+          </div>
+
+          <div class="scan-field">
+            <label for="id_actor_name">Nom</label>
+            {{ form.actor_name }}
+            {% for error in form.actor_name.errors %}
+              <div class="scan-message error">{{ error }}</div>
+            {% endfor %}
+          </div>
+
+          <div class="scan-field">
+            <label for="id_actor_structure">Structure</label>
+            {{ form.actor_structure }}
+            {% for error in form.actor_structure.errors %}
+              <div class="scan-message error">{{ error }}</div>
+            {% endfor %}
+          </div>
+
+          <div class="scan-field">
+            <label for="id_comments">Commentaires</label>
+            {{ form.comments }}
+            {% for error in form.comments.errors %}
+              <div class="scan-message error">{{ error }}</div>
+            {% endfor %}
+          </div>
+
+          <button type="submit" class="scan-submit">Enregistrer</button>
+        </form>
+
+        <hr class="scan-divider">
+
+        <h3>Historique</h3>
+        {% if events %}
+          <div class="scan-table-wrap">
+            <table class="scan-table">
+              <thead>
+                <tr>
+                  <th>Horodatage</th>
+                  <th>Etape</th>
+                  <th>Nom</th>
+                  <th>Structure</th>
+                  <th>Commentaires</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for event in events %}
+                  <tr>
+                    <td>{{ event.created_at|date:"Y/m/d H\\hi" }}</td>
+                    <td>{{ event.get_status_display }}</td>
+                    <td>{{ event.actor_name }}</td>
+                    <td>{{ event.actor_structure }}</td>
+                    <td>{{ event.comments|default:"-" }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="scan-help">Aucun suivi enregistre.</div>
+        {% endif %}
       </div>
-    {% else %}
-      <div class="scan-help">Aucun suivi enregistre.</div>
-    {% endif %}
+    </main>
   </div>
-{% endblock %}
+</body>
+</html>

@@ -200,47 +200,64 @@ def _build_shipment_contact_payload():
     return destinations_json, recipient_contacts_json, correspondent_contacts_json
 
 
-def _build_shipment_document_links(shipment):
+def _build_shipment_document_links(shipment, *, public=False):
+    doc_route = (
+        "scan:scan_shipment_document_public"
+        if public
+        else "scan:scan_shipment_document"
+    )
+    carton_route = (
+        "scan:scan_shipment_carton_document_public"
+        if public
+        else "scan:scan_shipment_carton_document"
+    )
+    label_route = (
+        "scan:scan_shipment_labels_public"
+        if public
+        else "scan:scan_shipment_labels"
+    )
+    doc_args = (
+        lambda doc_type: [shipment.reference, doc_type]
+        if public
+        else [shipment.id, doc_type]
+    )
+    carton_args = (
+        lambda carton_id: [shipment.reference, carton_id]
+        if public
+        else [shipment.id, carton_id]
+    )
     documents = [
         {
             "label": "Bon d'expedition",
-            "url": reverse("scan:scan_shipment_document", args=[shipment.id, "shipment_note"]),
+            "url": reverse(doc_route, args=doc_args("shipment_note")),
         },
         {
             "label": "Liste colisage (lot)",
-            "url": reverse(
-                "scan:scan_shipment_document", args=[shipment.id, "packing_list_shipment"]
-            ),
+            "url": reverse(doc_route, args=doc_args("packing_list_shipment")),
         },
         {
             "label": "Attestation donation",
-            "url": reverse(
-                "scan:scan_shipment_document", args=[shipment.id, "donation_certificate"]
-            ),
+            "url": reverse(doc_route, args=doc_args("donation_certificate")),
         },
         {
             "label": "Attestation aide humanitaire",
-            "url": reverse(
-                "scan:scan_shipment_document", args=[shipment.id, "humanitarian_certificate"]
-            ),
+            "url": reverse(doc_route, args=doc_args("humanitarian_certificate")),
         },
         {
             "label": "Attestation douane",
-            "url": reverse(
-                "scan:scan_shipment_document", args=[shipment.id, "customs"]
-            ),
+            "url": reverse(doc_route, args=doc_args("customs")),
         },
         {
             "label": "Etiquettes colis",
-            "url": reverse("scan:scan_shipment_labels", args=[shipment.id]),
+            "url": reverse(
+                label_route, args=[shipment.reference if public else shipment.id]
+            ),
         },
     ]
     carton_docs = [
         {
             "label": carton.code,
-            "url": reverse(
-                "scan:scan_shipment_carton_document", args=[shipment.id, carton.id]
-            ),
+            "url": reverse(carton_route, args=carton_args(carton.id)),
         }
         for carton in shipment.carton_set.all().order_by("code")
     ]
@@ -1398,12 +1415,13 @@ def scan_shipment_edit(request, shipment_id):
     )
 
 
-@login_required
 @require_http_methods(["GET", "POST"])
 def scan_shipment_track(request, shipment_ref):
     shipment = get_object_or_404(Shipment, reference=shipment_ref)
     shipment.ensure_qr_code(request=request)
-    documents, carton_docs, additional_docs = _build_shipment_document_links(shipment)
+    documents, carton_docs, additional_docs = _build_shipment_document_links(
+        shipment, public=True
+    )
     form = ShipmentTrackingForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         ShipmentTrackingEvent.objects.create(
@@ -1412,7 +1430,7 @@ def scan_shipment_track(request, shipment_ref):
             actor_name=form.cleaned_data["actor_name"],
             actor_structure=form.cleaned_data["actor_structure"],
             comments=form.cleaned_data["comments"] or "",
-            created_by=request.user,
+            created_by=request.user if request.user.is_authenticated else None,
         )
         messages.success(request, "Suivi mis a jour.")
         return redirect("scan:scan_shipment_track", shipment_ref=shipment.reference)
@@ -1438,22 +1456,13 @@ def scan_shipment_track(request, shipment_ref):
 @require_http_methods(["GET"])
 def scan_shipment_document(request, shipment_id, doc_type):
     shipment = get_object_or_404(Shipment, pk=shipment_id)
-    allowed = {
-        "donation_certificate": "print/attestation_donation.html",
-        "humanitarian_certificate": "print/attestation_aide_humanitaire.html",
-        "customs": "print/attestation_douane.html",
-        "shipment_note": "print/bon_expedition.html",
-        "packing_list_shipment": "print/liste_colisage_lot.html",
-    }
-    template = allowed.get(doc_type)
-    if template is None:
-        raise Http404("Document type not found")
-    context = build_shipment_document_context(shipment, doc_type)
-    layout_override = get_template_layout(doc_type)
-    if layout_override:
-        blocks = render_layout_from_layout(layout_override, context)
-        return render(request, "print/dynamic_document.html", {"blocks": blocks})
-    return render(request, template, context)
+    return _render_shipment_document(request, shipment, doc_type)
+
+
+@require_http_methods(["GET"])
+def scan_shipment_document_public(request, shipment_ref, doc_type):
+    shipment = get_object_or_404(Shipment, reference=shipment_ref)
+    return _render_shipment_document(request, shipment, doc_type)
 
 
 @login_required
@@ -1463,13 +1472,16 @@ def scan_shipment_carton_document(request, shipment_id, carton_id):
     carton = shipment.carton_set.filter(pk=carton_id).first()
     if carton is None:
         raise Http404("Carton not found for shipment")
-    context = build_carton_document_context(shipment, carton)
-    doc_type = "packing_list_carton"
-    layout_override = get_template_layout(doc_type)
-    if layout_override:
-        blocks = render_layout_from_layout(layout_override, context)
-        return render(request, "print/dynamic_document.html", {"blocks": blocks})
-    return render(request, "print/liste_colisage_carton.html", context)
+    return _render_carton_document(request, shipment, carton)
+
+
+@require_http_methods(["GET"])
+def scan_shipment_carton_document_public(request, shipment_ref, carton_id):
+    shipment = get_object_or_404(Shipment, reference=shipment_ref)
+    carton = shipment.carton_set.filter(pk=carton_id).first()
+    if carton is None:
+        raise Http404("Carton not found for shipment")
+    return _render_carton_document(request, shipment, carton)
 
 
 @login_required
@@ -1514,12 +1526,36 @@ def scan_carton_document(request, carton_id):
     return render(request, "print/liste_colisage_carton.html", context)
 
 
-@login_required
-@require_http_methods(["GET"])
-def scan_shipment_labels(request, shipment_id):
-    shipment = get_object_or_404(
-        Shipment.objects.select_related("destination"), pk=shipment_id
-    )
+def _render_shipment_document(request, shipment, doc_type):
+    allowed = {
+        "donation_certificate": "print/attestation_donation.html",
+        "humanitarian_certificate": "print/attestation_aide_humanitaire.html",
+        "customs": "print/attestation_douane.html",
+        "shipment_note": "print/bon_expedition.html",
+        "packing_list_shipment": "print/liste_colisage_lot.html",
+    }
+    template = allowed.get(doc_type)
+    if template is None:
+        raise Http404("Document type not found")
+    context = build_shipment_document_context(shipment, doc_type)
+    layout_override = get_template_layout(doc_type)
+    if layout_override:
+        blocks = render_layout_from_layout(layout_override, context)
+        return render(request, "print/dynamic_document.html", {"blocks": blocks})
+    return render(request, template, context)
+
+
+def _render_carton_document(request, shipment, carton):
+    context = build_carton_document_context(shipment, carton)
+    doc_type = "packing_list_carton"
+    layout_override = get_template_layout(doc_type)
+    if layout_override:
+        blocks = render_layout_from_layout(layout_override, context)
+        return render(request, "print/dynamic_document.html", {"blocks": blocks})
+    return render(request, "print/liste_colisage_carton.html", context)
+
+
+def _render_shipment_labels(request, shipment):
     shipment.ensure_qr_code(request=request)
     cartons = list(shipment.carton_set.order_by("code"))
     total = len(cartons)
@@ -1555,6 +1591,23 @@ def scan_shipment_labels(request, shipment_id):
             rendered_labels.append({"blocks": blocks})
         return render(request, "print/dynamic_labels.html", {"labels": rendered_labels})
     return render(request, "print/etiquette_expedition.html", {"labels": labels})
+
+
+@login_required
+@require_http_methods(["GET"])
+def scan_shipment_labels(request, shipment_id):
+    shipment = get_object_or_404(
+        Shipment.objects.select_related("destination"), pk=shipment_id
+    )
+    return _render_shipment_labels(request, shipment)
+
+
+@require_http_methods(["GET"])
+def scan_shipment_labels_public(request, shipment_ref):
+    shipment = get_object_or_404(
+        Shipment.objects.select_related("destination"), reference=shipment_ref
+    )
+    return _render_shipment_labels(request, shipment)
 
 
 @login_required

@@ -27,6 +27,21 @@ urlpatterns = [
         name="scan_shipment_track",
     ),
     path(
+        "shipment/track/<str:shipment_ref>/doc/<str:doc_type>/",
+        views.scan_shipment_document_public,
+        name="scan_shipment_document_public",
+    ),
+    path(
+        "shipment/track/<str:shipment_ref>/carton/<int:carton_id>/doc/",
+        views.scan_shipment_carton_document_public,
+        name="scan_shipment_carton_document_public",
+    ),
+    path(
+        "shipment/track/<str:shipment_ref>/labels/",
+        views.scan_shipment_labels_public,
+        name="scan_shipment_labels_public",
+    ),
+    path(
         "shipment/<int:shipment_id>/doc/<str:doc_type>/",
         views.scan_shipment_document,
         name="scan_shipment_document",
