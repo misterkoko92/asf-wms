@@ -1,0 +1,49 @@
+{% load static %}
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}Portail association{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="{% static 'scan/scan.css' %}">
+  <style>
+    .portal-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+    .portal-nav { display: flex; flex-wrap: wrap; gap: 10px; }
+    .portal-nav a { text-decoration: none; font-weight: 600; }
+    .portal-card { margin-bottom: 16px; }
+    .portal-table { width: 100%; border-collapse: collapse; }
+    .portal-table th, .portal-table td { padding: 8px 10px; border-bottom: 1px solid #ddd; text-align: left; }
+    .portal-table th { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    .portal-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #eee; font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+  <div class="scan-shell">
+    <header class="scan-card portal-card portal-header">
+      <div>
+        <strong>ASF WMS</strong><br>
+        Portail association
+      </div>
+      <nav class="portal-nav">
+        <a href="{% url 'portal:portal_dashboard' %}">Commandes</a>
+        <a href="{% url 'portal:portal_order_create' %}">Nouvelle commande</a>
+        <a href="{% url 'portal:portal_recipients' %}">Destinataires</a>
+        <a href="{% url 'portal:portal_account' %}">Compte</a>
+        <a href="{% url 'portal:portal_logout' %}">Deconnexion</a>
+      </nav>
+    </header>
+
+    <main class="scan-main">
+      {% if messages %}
+        <div class="scan-messages">
+          {% for message in messages %}
+            <div class="scan-message {% if message.tags %}{{ message.tags }}{% endif %}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</body>
+</html>

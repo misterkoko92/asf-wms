@@ -541,6 +541,13 @@ class Order(models.Model):
         blank=True,
         related_name="orders",
     )
+    association_contact = models.ForeignKey(
+        "contacts.Contact",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="orders_as_association",
+    )
     shipper_name = models.CharField(max_length=200)
     recipient_name = models.CharField(max_length=200)
     correspondent_name = models.CharField(max_length=200, blank=True)
@@ -639,6 +646,114 @@ class PublicAccountRequest(models.Model):
         return f"{self.association_name} ({self.get_status_display()})"
 
 
+class AssociationProfile(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="association_profile"
+    )
+    contact = models.ForeignKey(
+        "contacts.Contact",
+        on_delete=models.PROTECT,
+        related_name="association_profiles",
+    )
+    notification_emails = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.contact} - {self.user}"
+
+    def get_notification_emails(self) -> list[str]:
+        raw = self.notification_emails or ""
+        emails = []
+        for item in raw.replace("\n", ",").split(","):
+            value = item.strip()
+            if value:
+                emails.append(value)
+        return emails
+
+
+class AssociationRecipient(models.Model):
+    association_contact = models.ForeignKey(
+        "contacts.Contact",
+        on_delete=models.CASCADE,
+        related_name="association_recipients",
+    )
+    name = models.CharField(max_length=200)
+    email = models.EmailField(blank=True)
+    phone = models.CharField(max_length=40, blank=True)
+    address_line1 = models.CharField(max_length=200)
+    address_line2 = models.CharField(max_length=200, blank=True)
+    postal_code = models.CharField(max_length=20, blank=True)
+    city = models.CharField(max_length=120, blank=True)
+    country = models.CharField(max_length=80, default="France")
+    notes = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["association_contact__name", "name"]
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.association_contact})"
+
+
+class DocumentReviewStatus(models.TextChoices):
+    PENDING = "pending", "Pending"
+    APPROVED = "approved", "Approved"
+    REJECTED = "rejected", "Rejected"
+
+
+class AccountDocumentType(models.TextChoices):
+    STATUTES = "statutes", "Statuts"
+    REGISTRATION_PROOF = "registration_proof", "Preuve enregistrement"
+    ACTIVITY_REPORT = "activity_report", "Rapport d'activite"
+    OTHER = "other", "Autre"
+
+
+class AccountDocument(models.Model):
+    association_contact = models.ForeignKey(
+        "contacts.Contact",
+        on_delete=models.CASCADE,
+        related_name="account_documents",
+        null=True,
+        blank=True,
+    )
+    account_request = models.ForeignKey(
+        PublicAccountRequest,
+        on_delete=models.CASCADE,
+        related_name="documents",
+        null=True,
+        blank=True,
+    )
+    doc_type = models.CharField(max_length=40, choices=AccountDocumentType.choices)
+    status = models.CharField(
+        max_length=20,
+        choices=DocumentReviewStatus.choices,
+        default=DocumentReviewStatus.PENDING,
+    )
+    file = models.FileField(upload_to="account_documents/")
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="account_documents_reviewed",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-uploaded_at"]
+
+    def __str__(self) -> str:
+        return f"{self.get_doc_type_display()} - {self.status}"
+
+
 class OrderLine(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="lines")
     product = models.ForeignKey(Product, on_delete=models.PROTECT)
@@ -685,6 +800,42 @@ class OrderReservation(models.Model):
 
     def __str__(self) -> str:
         return f"{self.order_line} - {self.product_lot} ({self.quantity})"
+
+
+class OrderDocumentType(models.TextChoices):
+    DONATION_ATTESTATION = "donation_attestation", "Attestation donation"
+    HUMANITARIAN_ATTESTATION = "humanitarian_attestation", "Attestation aide humanitaire"
+    INVOICE = "invoice", "Facture"
+    OTHER = "other", "Autre"
+
+
+class OrderDocument(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="documents")
+    doc_type = models.CharField(max_length=40, choices=OrderDocumentType.choices)
+    status = models.CharField(
+        max_length=20,
+        choices=DocumentReviewStatus.choices,
+        default=DocumentReviewStatus.PENDING,
+    )
+    file = models.FileField(upload_to="order_documents/")
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="order_documents_reviewed",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-uploaded_at"]
+
+    def __str__(self) -> str:
+        return f"{self.get_doc_type_display()} - {self.order}"
 
 
 class CartonFormat(models.Model):

@@ -4,8 +4,12 @@ from decimal import Decimal
 from pathlib import Path
 
 from django.contrib import messages
+from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth import get_user_model
+from django.contrib.auth.forms import SetPasswordForm
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_decode
+from django.utils.encoding import force_bytes
 from django.core.exceptions import PermissionDenied
 from django.core.mail import send_mail
 from django.http import Http404, HttpResponse, JsonResponse
@@ -60,6 +64,13 @@ from .models import (
     ReceiptType,
     Order,
     OrderStatus,
+    AssociationProfile,
+    AssociationRecipient,
+    AccountDocument,
+    AccountDocumentType,
+    DocumentReviewStatus,
+    OrderDocument,
+    OrderDocumentType,
     PublicAccountRequest,
     PublicAccountRequestStatus,
     PublicOrderLink,
@@ -344,6 +355,12 @@ def _build_destination_address(*, line1, line2, postal_code, city, country):
     return "\n".join(part for part in parts if part)
 
 
+def _get_contact_address(contact):
+    if not contact:
+        return None
+    return contact.addresses.filter(is_default=True).first() or contact.addresses.first()
+
+
 def _get_default_carton_format():
     return (
         CartonFormat.objects.filter(is_default=True).first()
@@ -387,6 +404,37 @@ def _get_admin_emails():
     )
 
 
+def _validate_upload(file_obj):
+    suffix = Path(file_obj.name).suffix.lower()
+    if suffix not in ALLOWED_UPLOAD_EXTENSIONS:
+        return f"Format non autorise: {file_obj.name}"
+    max_size = PORTAL_MAX_FILE_SIZE_MB * 1024 * 1024
+    if file_obj.size > max_size:
+        return f"Fichier trop volumineux: {file_obj.name}"
+    return None
+
+
+def _get_association_profile(user):
+    if not user or not user.is_authenticated:
+        return None
+    return (
+        AssociationProfile.objects.select_related("contact")
+        .filter(user=user)
+        .first()
+    )
+
+
+def association_required(view):
+    def wrapped(request, *args, **kwargs):
+        profile = _get_association_profile(request.user)
+        if not profile:
+            raise PermissionDenied
+        request.association_profile = profile
+        return view(request, *args, **kwargs)
+
+    return wrapped
+
+
 def _estimate_cartons_for_line(*, product, quantity, carton_format):
     if not carton_format:
         return None
@@ -414,6 +462,479 @@ def _estimate_cartons_for_line(*, product, quantity, carton_format):
     if not max_units:
         return None
     return int(math.ceil(quantity / max_units))
+
+
+@require_http_methods(["GET", "POST"])
+def portal_login(request):
+    if request.user.is_authenticated:
+        profile = _get_association_profile(request.user)
+        if profile:
+            return redirect("portal:portal_dashboard")
+
+    errors = []
+    identifier = ""
+    next_url = request.GET.get("next") or ""
+    if request.method == "POST":
+        identifier = (request.POST.get("identifier") or "").strip()
+        password = request.POST.get("password") or ""
+        next_url = (request.POST.get("next") or "").strip()
+        if not identifier or not password:
+            errors.append("Email et mot de passe requis.")
+        else:
+            user = get_user_model().objects.filter(email__iexact=identifier).first()
+            username = user.username if user else identifier
+            user = authenticate(request, username=username, password=password)
+            if not user:
+                errors.append("Identifiants invalides.")
+            elif not user.is_active:
+                errors.append("Compte inactif.")
+            elif not _get_association_profile(user):
+                errors.append("Compte non active par ASF.")
+            else:
+                login(request, user)
+                return redirect(next_url or "portal:portal_dashboard")
+
+    return render(
+        request,
+        "portal/login.html",
+        {"errors": errors, "identifier": identifier, "next": next_url},
+    )
+
+
+@login_required(login_url="portal:portal_login")
+def portal_logout(request):
+    logout(request)
+    return redirect("portal:portal_login")
+
+
+@require_http_methods(["GET", "POST"])
+def portal_set_password(request, uidb64, token):
+    user = None
+    try:
+        uid = urlsafe_base64_decode(uidb64).decode()
+        user = get_user_model().objects.filter(pk=uid).first()
+    except (TypeError, ValueError, OverflowError):
+        user = None
+
+    if not user or not default_token_generator.check_token(user, token):
+        return render(request, "portal/set_password.html", {"invalid": True})
+
+    form = SetPasswordForm(user, request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        login(request, user)
+        return redirect("portal:portal_dashboard")
+
+    return render(request, "portal/set_password.html", {"form": form, "invalid": False})
+
+
+@login_required(login_url="portal:portal_login")
+@association_required
+@require_http_methods(["GET"])
+def portal_dashboard(request):
+    profile = request.association_profile
+    orders = (
+        Order.objects.filter(association_contact=profile.contact)
+        .order_by("-created_at")[:50]
+    )
+    return render(request, "portal/dashboard.html", {"orders": orders})
+
+
+@login_required(login_url="portal:portal_login")
+@association_required
+@require_http_methods(["GET", "POST"])
+def portal_order_create(request):
+    profile = request.association_profile
+    recipients = list(
+        AssociationRecipient.objects.filter(
+            association_contact=profile.contact, is_active=True
+        ).order_by("name")
+    )
+    recipient_options = [
+        {"id": "self", "label": f"{profile.contact.name} (association)"},
+        *[{"id": str(rec.id), "label": rec.name} for rec in recipients],
+    ]
+
+    product_options = build_product_options()
+    product_ids = [item["id"] for item in product_options if item.get("id")]
+    products = Product.objects.filter(id__in=product_ids, is_active=True)
+    product_by_id = {product.id: product for product in products}
+    available_by_id = {
+        item["id"]: int(item.get("available_stock") or 0) for item in product_options
+    }
+
+    form_data = {"recipient_id": "self", "notes": ""}
+    errors = []
+    line_errors = {}
+    line_quantities = {}
+    line_items = []
+
+    if request.method == "POST":
+        form_data["recipient_id"] = (request.POST.get("recipient_id") or "").strip()
+        form_data["notes"] = (request.POST.get("notes") or "").strip()
+        if not form_data["recipient_id"]:
+            errors.append("Destinataire requis.")
+
+        for item in product_options:
+            product_id = item.get("id")
+            if not product_id:
+                continue
+            raw_qty = (request.POST.get(f"product_{product_id}_qty") or "").strip()
+            if raw_qty:
+                line_quantities[str(product_id)] = raw_qty
+            if not raw_qty:
+                continue
+            quantity = parse_int(raw_qty)
+            if quantity is None or quantity <= 0:
+                line_errors[str(product_id)] = "Quantite invalide."
+                continue
+            available = available_by_id.get(product_id, 0)
+            if quantity > available:
+                line_errors[str(product_id)] = "Stock insuffisant."
+                continue
+            product = product_by_id.get(product_id)
+            if product:
+                line_items.append((product, quantity))
+
+        if not line_items:
+            errors.append("Ajoutez au moins un produit.")
+
+        recipient_name = ""
+        destination_city = ""
+        destination_country = "France"
+        destination_address = ""
+        recipient_contact = None
+
+        if form_data["recipient_id"] == "self":
+            recipient_contact = profile.contact
+            recipient_name = profile.contact.name
+            address = _get_contact_address(profile.contact)
+            if not address:
+                errors.append("Adresse association manquante.")
+            else:
+                destination_address = _build_destination_address(
+                    line1=address.address_line1,
+                    line2=address.address_line2,
+                    postal_code=address.postal_code,
+                    city=address.city,
+                    country=address.country,
+                )
+                destination_city = address.city or ""
+                destination_country = address.country or "France"
+        else:
+            recipient_id = parse_int(form_data["recipient_id"])
+            recipient = (
+                AssociationRecipient.objects.filter(
+                    id=recipient_id, association_contact=profile.contact
+                )
+                .order_by("name")
+                .first()
+            )
+            if not recipient:
+                errors.append("Destinataire invalide.")
+            else:
+                recipient_name = recipient.name
+                destination_address = _build_destination_address(
+                    line1=recipient.address_line1,
+                    line2=recipient.address_line2,
+                    postal_code=recipient.postal_code,
+                    city=recipient.city,
+                    country=recipient.country,
+                )
+                destination_city = recipient.city or ""
+                destination_country = recipient.country or "France"
+
+        if not errors and not line_errors:
+            try:
+                with transaction.atomic():
+                    order = Order.objects.create(
+                        reference="",
+                        status=OrderStatus.DRAFT,
+                        association_contact=profile.contact,
+                        shipper_name="Aviation Sans Frontieres",
+                        recipient_name=recipient_name,
+                        recipient_contact=recipient_contact,
+                        destination_address=destination_address,
+                        destination_city=destination_city,
+                        destination_country=destination_country or "France",
+                        created_by=request.user,
+                        notes=form_data["notes"],
+                    )
+                    for product, quantity in line_items:
+                        order.lines.create(product=product, quantity=quantity)
+                    create_shipment_for_order(order=order)
+                    reserve_stock_for_order(order=order)
+            except StockError as exc:
+                errors.append(str(exc))
+            else:
+                base_url = _build_public_base_url(request)
+                summary_url = f"{base_url}{reverse('portal:portal_order_detail', args=[order.id])}"
+                admin_message = render_to_string(
+                    "emails/order_admin_notification.txt",
+                    {
+                        "association_name": profile.contact.name,
+                        "email": profile.contact.email or request.user.email,
+                        "phone": profile.contact.phone,
+                        "order_reference": order.reference or f"Commande {order.id}",
+                        "summary_url": summary_url,
+                        "admin_url": f"{base_url}{reverse('admin:wms_order_changelist')}",
+                    },
+                )
+                _send_email_safe(
+                    subject="ASF WMS - Nouvelle commande",
+                    message=admin_message,
+                    recipient=_get_admin_emails(),
+                )
+                confirmation_message = render_to_string(
+                    "emails/order_confirmation.txt",
+                    {
+                        "association_name": profile.contact.name,
+                        "order_reference": order.reference or f"Commande {order.id}",
+                        "summary_url": summary_url,
+                    },
+                )
+                recipients = [profile.contact.email or request.user.email]
+                recipients += profile.get_notification_emails()
+                _send_email_safe(
+                    subject="ASF WMS - Commande recue",
+                    message=confirmation_message,
+                    recipient=recipients,
+                )
+                messages.success(request, "Commande envoyee.")
+                return redirect("portal:portal_order_detail", order_id=order.id)
+
+    carton_format = _get_default_carton_format()
+    total_estimated_cartons = 0
+    product_rows = []
+    for item in product_options:
+        product_id = item.get("id")
+        if not product_id:
+            continue
+        quantity_raw = line_quantities.get(str(product_id), "")
+        quantity_value = parse_int(quantity_raw) if quantity_raw else None
+        estimate = None
+        product = product_by_id.get(product_id)
+        if product and quantity_value and quantity_value > 0:
+            estimate = _estimate_cartons_for_line(
+                product=product,
+                quantity=quantity_value,
+                carton_format=carton_format,
+            )
+            if estimate:
+                total_estimated_cartons += estimate
+        product_rows.append(
+            {
+                "id": product_id,
+                "name": item.get("name"),
+                "available_stock": int(item.get("available_stock") or 0),
+                "quantity": quantity_raw,
+                "estimate": estimate,
+            }
+        )
+    if total_estimated_cartons <= 0:
+        total_estimated_cartons = None
+
+    return render(
+        request,
+        "portal/order_create.html",
+        {
+            "recipient_options": recipient_options,
+            "form_data": form_data,
+            "products": product_rows,
+            "errors": errors,
+            "line_errors": line_errors,
+            "total_estimated_cartons": total_estimated_cartons,
+        },
+    )
+
+
+@login_required(login_url="portal:portal_login")
+@association_required
+@require_http_methods(["GET", "POST"])
+def portal_order_detail(request, order_id):
+    profile = request.association_profile
+    order = get_object_or_404(
+        Order.objects.select_related("association_contact"),
+        id=order_id,
+        association_contact=profile.contact,
+    )
+
+    if request.method == "POST" and request.POST.get("action") == "upload_doc":
+        doc_type = (request.POST.get("doc_type") or "").strip()
+        uploaded = request.FILES.get("doc_file")
+        valid_types = {choice[0] for choice in OrderDocumentType.choices}
+        if doc_type not in valid_types:
+            messages.error(request, "Type de document invalide.")
+            return redirect("portal:portal_order_detail", order_id=order.id)
+        if not uploaded:
+            messages.error(request, "Fichier requis.")
+            return redirect("portal:portal_order_detail", order_id=order.id)
+        validation_error = _validate_upload(uploaded)
+        if validation_error:
+            messages.error(request, validation_error)
+            return redirect("portal:portal_order_detail", order_id=order.id)
+        OrderDocument.objects.create(
+            order=order,
+            doc_type=doc_type,
+            status=DocumentReviewStatus.PENDING,
+            file=uploaded,
+            uploaded_by=request.user,
+        )
+        messages.success(request, "Document ajoute.")
+        return redirect("portal:portal_order_detail", order_id=order.id)
+
+    carton_format = _get_default_carton_format()
+    line_rows = []
+    total_estimated_cartons = 0
+    for line in order.lines.select_related("product"):
+        estimate = _estimate_cartons_for_line(
+            product=line.product,
+            quantity=line.quantity,
+            carton_format=carton_format,
+        )
+        if estimate:
+            total_estimated_cartons += estimate
+        line_rows.append(
+            {
+                "product": line.product.name,
+                "quantity": line.quantity,
+                "estimate": estimate,
+            }
+        )
+    if total_estimated_cartons <= 0:
+        total_estimated_cartons = None
+
+    return render(
+        request,
+        "portal/order_detail.html",
+        {
+            "order": order,
+            "line_rows": line_rows,
+            "total_estimated_cartons": total_estimated_cartons,
+            "order_documents": order.documents.all(),
+            "order_doc_types": OrderDocumentType.choices,
+        },
+    )
+
+
+@login_required(login_url="portal:portal_login")
+@association_required
+@require_http_methods(["GET", "POST"])
+def portal_recipients(request):
+    profile = request.association_profile
+    errors = []
+    form_data = {
+        "name": "",
+        "email": "",
+        "phone": "",
+        "address_line1": "",
+        "address_line2": "",
+        "postal_code": "",
+        "city": "",
+        "country": "France",
+        "notes": "",
+    }
+
+    if request.method == "POST" and request.POST.get("action") == "create_recipient":
+        form_data.update(
+            {
+                "name": (request.POST.get("name") or "").strip(),
+                "email": (request.POST.get("email") or "").strip(),
+                "phone": (request.POST.get("phone") or "").strip(),
+                "address_line1": (request.POST.get("address_line1") or "").strip(),
+                "address_line2": (request.POST.get("address_line2") or "").strip(),
+                "postal_code": (request.POST.get("postal_code") or "").strip(),
+                "city": (request.POST.get("city") or "").strip(),
+                "country": (request.POST.get("country") or "France").strip(),
+                "notes": (request.POST.get("notes") or "").strip(),
+            }
+        )
+        if not form_data["name"]:
+            errors.append("Nom requis.")
+        if not form_data["address_line1"]:
+            errors.append("Adresse requise.")
+        if not errors:
+            AssociationRecipient.objects.create(
+                association_contact=profile.contact,
+                name=form_data["name"],
+                email=form_data["email"],
+                phone=form_data["phone"],
+                address_line1=form_data["address_line1"],
+                address_line2=form_data["address_line2"],
+                postal_code=form_data["postal_code"],
+                city=form_data["city"],
+                country=form_data["country"] or "France",
+                notes=form_data["notes"],
+            )
+            messages.success(request, "Destinataire ajoute.")
+            return redirect("portal:portal_recipients")
+
+    recipients = AssociationRecipient.objects.filter(
+        association_contact=profile.contact, is_active=True
+    ).order_by("name")
+    return render(
+        request,
+        "portal/recipients.html",
+        {"recipients": recipients, "errors": errors, "form_data": form_data},
+    )
+
+
+@login_required(login_url="portal:portal_login")
+@association_required
+@require_http_methods(["GET", "POST"])
+def portal_account(request):
+    profile = request.association_profile
+    association = profile.contact
+    address = _get_contact_address(association)
+
+    if request.method == "POST":
+        action = request.POST.get("action") or ""
+        if action == "update_notifications":
+            profile.notification_emails = (
+                request.POST.get("notification_emails") or ""
+            ).strip()
+            profile.save(update_fields=["notification_emails"])
+            messages.success(request, "Contacts mis a jour.")
+            return redirect("portal:portal_account")
+        if action == "upload_account_doc":
+            doc_type = (request.POST.get("doc_type") or "").strip()
+            uploaded = request.FILES.get("doc_file")
+            valid_types = {choice[0] for choice in AccountDocumentType.choices}
+            if doc_type not in valid_types:
+                messages.error(request, "Type de document invalide.")
+                return redirect("portal:portal_account")
+            if not uploaded:
+                messages.error(request, "Fichier requis.")
+                return redirect("portal:portal_account")
+            validation_error = _validate_upload(uploaded)
+            if validation_error:
+                messages.error(request, validation_error)
+                return redirect("portal:portal_account")
+            AccountDocument.objects.create(
+                association_contact=association,
+                doc_type=doc_type,
+                status=DocumentReviewStatus.PENDING,
+                file=uploaded,
+                uploaded_by=request.user,
+            )
+            messages.success(request, "Document ajoute.")
+            return redirect("portal:portal_account")
+
+    account_documents = AccountDocument.objects.filter(
+        association_contact=association
+    ).order_by("-uploaded_at")
+    return render(
+        request,
+        "portal/account.html",
+        {
+            "association": association,
+            "address": address,
+            "notification_emails": profile.notification_emails,
+            "account_documents": account_documents,
+            "account_doc_types": AccountDocumentType.choices,
+            "user": request.user,
+        },
+    )
 
 
 @require_http_methods(["GET"])
@@ -543,6 +1064,32 @@ def scan_public_account_request(request, token):
         if not form_data["line1"]:
             errors.append("Adresse requise.")
 
+        uploads = []
+        doc_files = [
+            (AccountDocumentType.STATUTES, request.FILES.get("doc_statutes")),
+            (
+                AccountDocumentType.REGISTRATION_PROOF,
+                request.FILES.get("doc_registration"),
+            ),
+            (AccountDocumentType.ACTIVITY_REPORT, request.FILES.get("doc_report")),
+        ]
+        for doc_type, file_obj in doc_files:
+            if not file_obj:
+                continue
+            validation_error = _validate_upload(file_obj)
+            if validation_error:
+                errors.append(validation_error)
+            else:
+                uploads.append((doc_type, file_obj))
+        for file_obj in request.FILES.getlist("doc_other"):
+            if not file_obj:
+                continue
+            validation_error = _validate_upload(file_obj)
+            if validation_error:
+                errors.append(validation_error)
+            else:
+                uploads.append((AccountDocumentType.OTHER, file_obj))
+
         existing = PublicAccountRequest.objects.filter(
             email__iexact=form_data["email"],
             status=PublicAccountRequestStatus.PENDING,
@@ -559,7 +1106,7 @@ def scan_public_account_request(request, token):
                 contact = Contact.objects.filter(
                     name__iexact=form_data["association_name"], is_active=True
                 ).first()
-            PublicAccountRequest.objects.create(
+            account_request = PublicAccountRequest.objects.create(
                 link=link,
                 contact=contact,
                 association_name=form_data["association_name"],
@@ -572,6 +1119,14 @@ def scan_public_account_request(request, token):
                 country=form_data["country"] or "France",
                 notes=form_data["notes"],
             )
+            for doc_type, file_obj in uploads:
+                AccountDocument.objects.create(
+                    association_contact=contact,
+                    account_request=account_request,
+                    doc_type=doc_type,
+                    status=DocumentReviewStatus.PENDING,
+                    file=file_obj,
+                )
             base_url = _build_public_base_url(request)
             admin_message = render_to_string(
                 "emails/account_request_admin_notification.txt",
@@ -919,6 +1474,7 @@ ALLOWED_UPLOAD_EXTENSIONS = {
     ".doc",
     ".docx",
 }
+PORTAL_MAX_FILE_SIZE_MB = 10
 
 
 @login_required

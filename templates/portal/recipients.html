@@ -1,0 +1,89 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Destinataires{% endblock %}
+
+{% block content %}
+  <div class="scan-card portal-card">
+    <h2>Destinataires</h2>
+    <p class="scan-help">Liste privee de vos destinataires.</p>
+  </div>
+
+  <div class="scan-card portal-card">
+    {% if recipients %}
+      <table class="portal-table">
+        <thead>
+          <tr>
+            <th>Nom</th>
+            <th>Adresse</th>
+            <th>Pays</th>
+            <th>Telephone</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for recipient in recipients %}
+            <tr>
+              <td>{{ recipient.name }}</td>
+              <td>{{ recipient.address_line1 }}{% if recipient.city %}, {{ recipient.city }}{% endif %}</td>
+              <td>{{ recipient.country }}</td>
+              <td>{{ recipient.phone|default:"-" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>Aucun destinataire enregistre.</p>
+    {% endif %}
+  </div>
+
+  <div class="scan-card portal-card">
+    <h3>Ajouter un destinataire</h3>
+    {% if errors %}
+      <div class="scan-message error">
+        {% for error in errors %}
+          <div>{{ error }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <input type="hidden" name="action" value="create_recipient">
+      <div class="scan-field">
+        <label for="name">Nom</label>
+        <input type="text" id="name" name="name" value="{{ form_data.name }}" required>
+      </div>
+      <div class="scan-field">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" value="{{ form_data.email }}">
+      </div>
+      <div class="scan-field">
+        <label for="phone">Telephone</label>
+        <input type="text" id="phone" name="phone" value="{{ form_data.phone }}">
+      </div>
+      <div class="scan-field">
+        <label for="address_line1">Adresse</label>
+        <input type="text" id="address_line1" name="address_line1" value="{{ form_data.address_line1 }}" required>
+      </div>
+      <div class="scan-field">
+        <label for="address_line2">Complement adresse</label>
+        <input type="text" id="address_line2" name="address_line2" value="{{ form_data.address_line2 }}">
+      </div>
+      <div class="scan-field">
+        <label for="postal_code">Code postal</label>
+        <input type="text" id="postal_code" name="postal_code" value="{{ form_data.postal_code }}">
+      </div>
+      <div class="scan-field">
+        <label for="city">Ville</label>
+        <input type="text" id="city" name="city" value="{{ form_data.city }}">
+      </div>
+      <div class="scan-field">
+        <label for="country">Pays</label>
+        <input type="text" id="country" name="country" value="{{ form_data.country|default:'France' }}">
+      </div>
+      <div class="scan-field">
+        <label for="notes">Notes</label>
+        <textarea id="notes" name="notes" rows="3">{{ form_data.notes }}</textarea>
+      </div>
+      <button type="submit" class="scan-submit">Ajouter</button>
+    </form>
+  </div>
+{% endblock %}

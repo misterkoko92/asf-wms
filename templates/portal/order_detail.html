@@ -1,0 +1,89 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Commande{% endblock %}
+
+{% block content %}
+  <div class="scan-card portal-card">
+    <h2>Commande {{ order.reference|default:"" }}{% if not order.reference %}#{{ order.id }}{% endif %}</h2>
+    <p class="scan-help">Destinataire: {{ order.recipient_name }}</p>
+    <p class="scan-help">Statut: {{ order.get_status_display }}</p>
+    <p class="scan-help">Date: {{ order.created_at|date:"d/m/Y" }}</p>
+  </div>
+
+  <div class="scan-card portal-card">
+    <h3>Lignes de commande</h3>
+    <table class="portal-table">
+      <thead>
+        <tr>
+          <th>Produit</th>
+          <th>Quantite</th>
+          <th>Cartons estimes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for line in line_rows %}
+          <tr>
+            <td>{{ line.product }}</td>
+            <td>{{ line.quantity }}</td>
+            <td>{{ line.estimate|default:"-" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if total_estimated_cartons %}
+      <p class="scan-help">Total estime: {{ total_estimated_cartons }} carton(s).</p>
+    {% endif %}
+  </div>
+
+  <div class="scan-card portal-card">
+    <h3>Documents de commande</h3>
+    {% if order_documents %}
+      <table class="portal-table">
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Statut</th>
+            <th>Ajoute le</th>
+            <th>Fichier</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for doc in order_documents %}
+            <tr>
+              <td>{{ doc.get_doc_type_display }}</td>
+              <td>{{ doc.get_status_display }}</td>
+              <td>{{ doc.uploaded_at|date:"d/m/Y" }}</td>
+              <td>
+                {% if doc.file %}
+                  <a href="{{ doc.file.url }}" target="_blank">Telecharger</a>
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>Aucun document pour le moment.</p>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data" novalidate>
+      {% csrf_token %}
+      <input type="hidden" name="action" value="upload_doc">
+      <div class="scan-field">
+        <label for="doc_type">Type de document</label>
+        <select id="doc_type" name="doc_type" required>
+          {% for value, label in order_doc_types %}
+            <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="scan-field">
+        <label for="doc_file">Fichier</label>
+        <input type="file" id="doc_file" name="doc_file" required>
+      </div>
+      <button type="submit" class="scan-submit">Ajouter le document</button>
+    </form>
+  </div>
+{% endblock %}

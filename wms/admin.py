@@ -1,9 +1,16 @@
 from django.contrib import admin, messages
+from django.contrib.auth import get_user_model
+from django.contrib.auth.tokens import default_token_generator
+from django.core.mail import send_mail
 from django.db import transaction
 from django.http import Http404
 from django.shortcuts import redirect, render
-from django.urls import path
+from django.urls import path, reverse
 from django.utils import timezone
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
+from django.template.loader import render_to_string
+from django.conf import settings
 
 from . import models
 from django.utils.html import format_html
@@ -15,6 +22,7 @@ from .contact_filters import (
     TAG_SHIPPER,
     contacts_with_tags,
 )
+from contacts.models import Contact, ContactAddress, ContactTag
 from .services import (
     StockError,
     adjust_stock,
@@ -154,12 +162,117 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
     actions = ("approve_requests", "reject_requests")
 
     def approve_requests(self, request, queryset):
-        updated = queryset.update(
-            status=models.PublicAccountRequestStatus.APPROVED,
-            reviewed_at=timezone.now(),
-            reviewed_by=request.user,
-        )
-        self.message_user(request, f"{updated} demande(s) approuvee(s).")
+        User = get_user_model()
+        approved = 0
+        skipped = 0
+        for account_request in queryset.select_related("contact"):
+            if account_request.status == models.PublicAccountRequestStatus.APPROVED:
+                skipped += 1
+                continue
+            with transaction.atomic():
+                contact = account_request.contact
+                if not contact:
+                    contact = Contact.objects.create(
+                        name=account_request.association_name,
+                        email=account_request.email,
+                        phone=account_request.phone,
+                        is_active=True,
+                    )
+                    account_request.contact = contact
+                tag, _ = ContactTag.objects.get_or_create(name=TAG_SHIPPER[0])
+                contact.tags.add(tag)
+
+                contact_updates = []
+                if account_request.email and contact.email != account_request.email:
+                    contact.email = account_request.email
+                    contact_updates.append("email")
+                if account_request.phone and contact.phone != account_request.phone:
+                    contact.phone = account_request.phone
+                    contact_updates.append("phone")
+                if contact_updates:
+                    contact.save(update_fields=contact_updates)
+
+                address = (
+                    contact.addresses.filter(is_default=True).first()
+                    or contact.addresses.first()
+                )
+                if not address:
+                    ContactAddress.objects.create(
+                        contact=contact,
+                        address_line1=account_request.address_line1,
+                        address_line2=account_request.address_line2,
+                        postal_code=account_request.postal_code,
+                        city=account_request.city,
+                        country=account_request.country or "France",
+                        phone=account_request.phone,
+                        email=account_request.email,
+                        is_default=True,
+                    )
+
+                user = User.objects.filter(email__iexact=account_request.email).first()
+                if user and (user.is_staff or user.is_superuser):
+                    skipped += 1
+                    continue
+                if not user:
+                    user = User.objects.create_user(
+                        username=account_request.email,
+                        email=account_request.email,
+                    )
+                    user.set_unusable_password()
+                    user.save(update_fields=["password"])
+
+                profile, created = models.AssociationProfile.objects.get_or_create(
+                    user=user, defaults={"contact": contact}
+                )
+                if not created and profile.contact_id != contact.id:
+                    profile.contact = contact
+                    profile.save(update_fields=["contact"])
+
+                models.AccountDocument.objects.filter(
+                    account_request=account_request,
+                    association_contact__isnull=True,
+                ).update(association_contact=contact)
+
+                account_request.status = models.PublicAccountRequestStatus.APPROVED
+                account_request.reviewed_at = timezone.now()
+                account_request.reviewed_by = request.user
+                account_request.save(
+                    update_fields=["status", "reviewed_at", "reviewed_by", "contact"]
+                )
+
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            token = default_token_generator.make_token(user)
+            set_password_url = request.build_absolute_uri(
+                reverse("portal:portal_set_password", args=[uid, token])
+            )
+            message = render_to_string(
+                "emails/account_request_approved.txt",
+                {
+                    "association_name": contact.name,
+                    "email": account_request.email,
+                    "set_password_url": set_password_url,
+                },
+            )
+            try:
+                send_mail(
+                    "ASF WMS - Compte valide",
+                    message,
+                    settings.DEFAULT_FROM_EMAIL,
+                    [account_request.email],
+                    fail_silently=False,
+                )
+            except Exception:
+                pass
+            approved += 1
+
+        if approved:
+            self.message_user(request, f"{approved} demande(s) approuvee(s).")
+        if skipped:
+            self.message_user(
+                request,
+                f"{skipped} demande(s) ignoree(s) (deja approuvees ou email reserve).",
+                level=messages.WARNING,
+            )
 
     approve_requests.short_description = "Approuver les demandes"
 
@@ -172,6 +285,57 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
         self.message_user(request, f"{updated} demande(s) refusee(s).")
 
     reject_requests.short_description = "Refuser les demandes"
+
+
+@admin.register(models.AssociationProfile)
+class AssociationProfileAdmin(admin.ModelAdmin):
+    list_display = ("contact", "user", "created_at")
+    search_fields = ("contact__name", "user__username", "user__email")
+
+
+@admin.register(models.AssociationRecipient)
+class AssociationRecipientAdmin(admin.ModelAdmin):
+    list_display = ("name", "association_contact", "city", "country", "is_active")
+    list_filter = ("is_active", "country")
+    search_fields = ("name", "association_contact__name", "city")
+
+
+class _DocumentStatusMixin:
+    actions = ("mark_approved", "mark_rejected")
+
+    def mark_approved(self, request, queryset):
+        updated = queryset.update(
+            status=models.DocumentReviewStatus.APPROVED,
+            reviewed_at=timezone.now(),
+            reviewed_by=request.user,
+        )
+        self.message_user(request, f"{updated} document(s) approuve(s).")
+
+    mark_approved.short_description = "Marquer comme approuve"
+
+    def mark_rejected(self, request, queryset):
+        updated = queryset.update(
+            status=models.DocumentReviewStatus.REJECTED,
+            reviewed_at=timezone.now(),
+            reviewed_by=request.user,
+        )
+        self.message_user(request, f"{updated} document(s) refuse(s).")
+
+    mark_rejected.short_description = "Marquer comme refuse"
+
+
+@admin.register(models.AccountDocument)
+class AccountDocumentAdmin(_DocumentStatusMixin, admin.ModelAdmin):
+    list_display = ("doc_type", "association_contact", "status", "uploaded_at")
+    list_filter = ("status", "doc_type")
+    search_fields = ("association_contact__name",)
+
+
+@admin.register(models.OrderDocument)
+class OrderDocumentAdmin(_DocumentStatusMixin, admin.ModelAdmin):
+    list_display = ("doc_type", "order", "status", "uploaded_at")
+    list_filter = ("status", "doc_type")
+    search_fields = ("order__reference",)
 
 
 @admin.register(models.Warehouse)

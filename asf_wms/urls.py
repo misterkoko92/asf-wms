@@ -8,6 +8,7 @@ urlpatterns = [
     path("", TemplateView.as_view(template_name="home.html"), name="home"),
     path("admin/", admin.site.urls),
     path("scan/", include("wms.scan_urls")),
+    path("portal/", include("wms.portal_urls")),
     path("api/", include("api.urls")),
 ]
 

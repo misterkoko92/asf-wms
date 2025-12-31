@@ -1,0 +1,46 @@
+{% load static %}
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Connexion association</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="{% static 'scan/scan.css' %}">
+</head>
+<body>
+  <div class="scan-shell">
+    <main class="scan-main">
+      <div class="scan-card">
+        <h2>Connexion association</h2>
+        <p class="scan-help">Utilisez votre email et votre mot de passe.</p>
+      </div>
+
+      <div class="scan-card">
+        {% if errors %}
+          <div class="scan-message error">
+            {% for error in errors %}
+              <div>{{ error }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% if next %}
+            <input type="hidden" name="next" value="{{ next }}">
+          {% endif %}
+          <div class="scan-field">
+            <label for="identifier">Email</label>
+            <input type="text" id="identifier" name="identifier" value="{{ identifier|default:'' }}" required>
+          </div>
+          <div class="scan-field">
+            <label for="password">Mot de passe</label>
+            <input type="password" id="password" name="password" required>
+          </div>
+          <button type="submit" class="scan-submit">Se connecter</button>
+        </form>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

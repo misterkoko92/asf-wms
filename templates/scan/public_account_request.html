@@ -37,7 +37,7 @@
           </div>
         {% endif %}
 
-        <form method="post" novalidate>
+        <form method="post" enctype="multipart/form-data" novalidate>
           {% csrf_token %}
           <div class="scan-field">
             <label for="association_name">Nom de l'association</label>
@@ -83,6 +83,23 @@
           <div class="scan-field">
             <label for="notes">Notes</label>
             <textarea id="notes" name="notes" rows="3">{{ form_data.notes }}</textarea>
+          </div>
+          <h3>Documents de verification</h3>
+          <div class="scan-field">
+            <label for="doc_statutes">Statuts de l'association</label>
+            <input type="file" id="doc_statutes" name="doc_statutes" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.doc,.docx">
+          </div>
+          <div class="scan-field">
+            <label for="doc_registration">Preuve d'enregistrement</label>
+            <input type="file" id="doc_registration" name="doc_registration" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.doc,.docx">
+          </div>
+          <div class="scan-field">
+            <label for="doc_report">Dernier rapport d'activite</label>
+            <input type="file" id="doc_report" name="doc_report" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.doc,.docx">
+          </div>
+          <div class="scan-field">
+            <label for="doc_other">Autres documents</label>
+            <input type="file" id="doc_other" name="doc_other" multiple accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.doc,.docx">
           </div>
           <button type="submit" class="scan-submit">Envoyer la demande</button>
         </form>

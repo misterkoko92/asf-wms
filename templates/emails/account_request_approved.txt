@@ -1,0 +1,11 @@
+Bonjour {{ association_name }},
+
+Votre compte association a ete valide par ASF.
+
+Identifiant: {{ email }}
+Definir votre mot de passe:
+{{ set_password_url }}
+
+Si vous n'etes pas a l'origine de cette demande, merci de contacter ASF.
+
+ASF WMS
