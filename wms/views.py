@@ -28,6 +28,7 @@ from .forms import (
     ScanOrderLineForm,
     ScanOrderSelectForm,
     ScanShipmentForm,
+    ShipmentTrackingForm,
 )
 from .contact_filters import (
     TAG_CORRESPONDENT,
@@ -56,6 +57,7 @@ from .models import (
     PrintTemplateVersion,
     Shipment,
     ShipmentStatus,
+    ShipmentTrackingEvent,
     StockMovement,
     Warehouse,
     WmsChange,
@@ -196,6 +198,56 @@ def _build_shipment_contact_payload():
         for contact in correspondent_contacts
     ]
     return destinations_json, recipient_contacts_json, correspondent_contacts_json
+
+
+def _build_shipment_document_links(shipment):
+    documents = [
+        {
+            "label": "Bon d'expedition",
+            "url": reverse("scan:scan_shipment_document", args=[shipment.id, "shipment_note"]),
+        },
+        {
+            "label": "Liste colisage (lot)",
+            "url": reverse(
+                "scan:scan_shipment_document", args=[shipment.id, "packing_list_shipment"]
+            ),
+        },
+        {
+            "label": "Attestation donation",
+            "url": reverse(
+                "scan:scan_shipment_document", args=[shipment.id, "donation_certificate"]
+            ),
+        },
+        {
+            "label": "Attestation aide humanitaire",
+            "url": reverse(
+                "scan:scan_shipment_document", args=[shipment.id, "humanitarian_certificate"]
+            ),
+        },
+        {
+            "label": "Attestation douane",
+            "url": reverse(
+                "scan:scan_shipment_document", args=[shipment.id, "customs"]
+            ),
+        },
+        {
+            "label": "Etiquettes colis",
+            "url": reverse("scan:scan_shipment_labels", args=[shipment.id]),
+        },
+    ]
+    carton_docs = [
+        {
+            "label": carton.code,
+            "url": reverse(
+                "scan:scan_shipment_carton_document", args=[shipment.id, carton.id]
+            ),
+        }
+        for carton in shipment.carton_set.all().order_by("code")
+    ]
+    additional_docs = Document.objects.filter(
+        shipment=shipment, doc_type=DocumentType.ADDITIONAL
+    ).order_by("-generated_at")
+    return documents, carton_docs, additional_docs
 
 
 def _parse_shipment_lines(*, carton_count, data, allowed_carton_ids):
@@ -1022,6 +1074,7 @@ def scan_pack(request):
                                             current_location=form.cleaned_data[
                                                 "current_location"
                                             ],
+                                            carton_size=carton_size,
                                         )
                                     if carton:
                                         created_cartons.append(carton)
@@ -1178,6 +1231,8 @@ def scan_shipment_edit(request, shipment_id):
         messages.error(request, "Expedition non modifiable.")
         return redirect("scan:scan_shipments_ready")
 
+    shipment.ensure_qr_code(request=request)
+
     assigned_cartons_qs = shipment.carton_set.prefetch_related(
         "cartonitem_set__product_lot__product"
     ).order_by("code")
@@ -1328,6 +1383,7 @@ def scan_shipment_edit(request, shipment_id):
             "active": "shipments_ready",
             "is_edit": True,
             "shipment": shipment,
+            "tracking_url": shipment.get_tracking_url(request=request),
             "documents": documents,
             "carton_docs": carton_docs,
             "products_json": product_options,
@@ -1343,11 +1399,49 @@ def scan_shipment_edit(request, shipment_id):
 
 
 @login_required
+@require_http_methods(["GET", "POST"])
+def scan_shipment_track(request, shipment_ref):
+    shipment = get_object_or_404(Shipment, reference=shipment_ref)
+    shipment.ensure_qr_code(request=request)
+    documents, carton_docs, additional_docs = _build_shipment_document_links(shipment)
+    form = ShipmentTrackingForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        ShipmentTrackingEvent.objects.create(
+            shipment=shipment,
+            status=form.cleaned_data["status"],
+            actor_name=form.cleaned_data["actor_name"],
+            actor_structure=form.cleaned_data["actor_structure"],
+            comments=form.cleaned_data["comments"] or "",
+            created_by=request.user,
+        )
+        messages.success(request, "Suivi mis a jour.")
+        return redirect("scan:scan_shipment_track", shipment_ref=shipment.reference)
+    events = shipment.tracking_events.select_related("created_by").all()
+    tracking_url = shipment.get_tracking_url(request=request)
+    return render(
+        request,
+        "scan/shipment_tracking.html",
+        {
+            "shipment": shipment,
+            "active": "shipments_ready",
+            "tracking_url": tracking_url,
+            "documents": documents,
+            "carton_docs": carton_docs,
+            "additional_docs": additional_docs,
+            "events": events,
+            "form": form,
+        },
+    )
+
+
+@login_required
 @require_http_methods(["GET"])
 def scan_shipment_document(request, shipment_id, doc_type):
     shipment = get_object_or_404(Shipment, pk=shipment_id)
     allowed = {
         "donation_certificate": "print/attestation_donation.html",
+        "humanitarian_certificate": "print/attestation_aide_humanitaire.html",
+        "customs": "print/attestation_douane.html",
         "shipment_note": "print/bon_expedition.html",
         "packing_list_shipment": "print/liste_colisage_lot.html",
     }

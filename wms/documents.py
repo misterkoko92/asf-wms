@@ -61,26 +61,32 @@ def build_shipment_aggregate_rows(shipment):
     return ordered
 
 
-def build_carton_rows(cartons):
+def build_carton_rows(cartons, *, default_format=None):
     rows = []
     for carton in cartons:
         items = carton.cartonitem_set.select_related(
             "product_lot", "product_lot__product"
         )
         weight_total = 0
-        volume_total = 0
+        volume_total = None
         for item in items:
             product = item.product_lot.product
             if product.weight_g:
                 weight_total += product.weight_g * item.quantity
-            if product.volume_cm3:
-                volume_total += product.volume_cm3 * item.quantity
+        length_cm = carton.length_cm or (default_format.length_cm if default_format else None)
+        width_cm = carton.width_cm or (default_format.width_cm if default_format else None)
+        height_cm = carton.height_cm or (default_format.height_cm if default_format else None)
+        if length_cm and width_cm and height_cm:
+            volume_total = length_cm * width_cm * height_cm
         rows.append(
             {
                 "carton_id": carton.id,
                 "code": carton.code,
                 "weight_g": weight_total,
                 "volume_cm3": volume_total,
+                "length_cm": length_cm,
+                "width_cm": width_cm,
+                "height_cm": height_cm,
             }
         )
     return rows

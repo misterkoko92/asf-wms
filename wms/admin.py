@@ -480,6 +480,20 @@ class DocumentInline(admin.TabularInline):
     extra = 0
 
 
+class ShipmentTrackingEventInline(admin.TabularInline):
+    model = models.ShipmentTrackingEvent
+    extra = 0
+    can_delete = False
+    readonly_fields = (
+        "status",
+        "actor_name",
+        "actor_structure",
+        "comments",
+        "created_by",
+        "created_at",
+    )
+    fields = readonly_fields
+
 @admin.register(models.Destination)
 class DestinationAdmin(admin.ModelAdmin):
     list_display = ("city", "iata_code", "country", "correspondent_contact", "is_active")
@@ -495,11 +509,40 @@ class DestinationAdmin(admin.ModelAdmin):
 @admin.register(models.Shipment)
 class ShipmentAdmin(admin.ModelAdmin):
     change_form_template = "admin/wms/shipment/change_form.html"
-    readonly_fields = ("reference",)
+    readonly_fields = ("reference", "qr_code_preview")
+    fields = (
+        "reference",
+        "status",
+        "shipper_name",
+        "shipper_contact",
+        "recipient_name",
+        "recipient_contact",
+        "correspondent_name",
+        "destination",
+        "destination_address",
+        "destination_country",
+        "requested_delivery_date",
+        "created_at",
+        "ready_at",
+        "created_by",
+        "qr_code_preview",
+        "qr_code_image",
+        "notes",
+    )
     list_display = ("reference", "status", "shipper_name", "recipient_name", "created_at")
     list_filter = ("status", "destination_country")
     search_fields = ("reference", "shipper_name", "recipient_name")
-    inlines = (CartonInline, DocumentInline)
+    inlines = (CartonInline, DocumentInline, ShipmentTrackingEventInline)
+
+    def qr_code_preview(self, obj):
+        if obj.qr_code_image:
+            return format_html(
+                '<img src="{}" style="height: 120px; border: 1px solid #ccc;" />',
+                obj.qr_code_image.url,
+            )
+        return "-"
+
+    qr_code_preview.short_description = "QR code"
 
     def get_urls(self):
         urls = super().get_urls()

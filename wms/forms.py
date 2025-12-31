@@ -24,6 +24,7 @@ from .models import (
     Order,
     Shipment,
     ShipmentStatus,
+    ShipmentTrackingStatus,
     Warehouse,
 )
 
@@ -398,6 +399,27 @@ class ScanShipmentForm(forms.Form):
                     "Correspondant non lie a la destination.",
                 )
         return cleaned
+
+
+class ShipmentTrackingForm(forms.Form):
+    status = forms.ChoiceField(
+        label="Etape",
+        choices=[],
+    )
+    actor_name = forms.CharField(label="Nom", max_length=120)
+    actor_structure = forms.CharField(label="Structure", max_length=120)
+    comments = forms.CharField(
+        label="Commentaires",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 3}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        choices = list(ShipmentTrackingStatus.choices)
+        self.fields["status"].choices = choices
+        if choices:
+            self.fields["status"].initial = choices[0][0]
 
 
 def _select_single_choice(field: forms.ModelChoiceField) -> None:

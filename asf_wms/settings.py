@@ -22,6 +22,7 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-secret-key-change-this")
 DEBUG = _env_bool("DJANGO_DEBUG", True)
 
 ALLOWED_HOSTS: list[str] = _env_list("DJANGO_ALLOWED_HOSTS")
+SITE_BASE_URL = os.environ.get("SITE_BASE_URL", "").strip()
 
 INSTALLED_APPS = [
     "django.contrib.admin",

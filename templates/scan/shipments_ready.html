@@ -50,11 +50,14 @@
                   </div>
                 </td>
                 <td>
-                  {% if shipment.can_edit %}
-                    <a class="scan-scan-btn" href="{% url 'scan:scan_shipment_edit' shipment.id %}">Modifier</a>
-                  {% else %}
-                    -
-                  {% endif %}
+                  <div class="scan-inline">
+                    <a class="scan-scan-btn" href="{% url 'scan:scan_shipment_track' shipment.reference %}">
+                      Suivi
+                    </a>
+                    {% if shipment.can_edit %}
+                      <a class="scan-scan-btn" href="{% url 'scan:scan_shipment_edit' shipment.id %}">Modifier</a>
+                    {% endif %}
+                  </div>
                 </td>
               </tr>
             {% endfor %}

@@ -35,26 +35,28 @@ def build_shipment_document_context(shipment, doc_type):
     }
     item_rows = build_shipment_item_rows(shipment, carton_labels=carton_labels)
     aggregate_rows = build_shipment_aggregate_rows(shipment)
-    carton_rows = build_carton_rows(cartons)
     default_format = CartonFormat.objects.filter(is_default=True).first()
     if default_format is None:
         default_format = CartonFormat.objects.first()
-    if default_format:
-        dimensions_cm = (
-            f"{default_format.length_cm} x {default_format.width_cm} x "
-            f"{default_format.height_cm}"
-        )
-    else:
-        dimensions_cm = None
+    carton_rows = build_carton_rows(cartons, default_format=default_format)
     for index, row in enumerate(carton_rows, start=1):
         row["label"] = f"Colis N°{index}"
         row["weight_kg"] = row["weight_g"] / 1000 if row.get("weight_g") else None
         row["volume_m3"] = (
             row["volume_cm3"] / 1_000_000 if row.get("volume_cm3") else None
         )
-        row["dimensions_cm"] = dimensions_cm
+        if row.get("length_cm") and row.get("width_cm") and row.get("height_cm"):
+            row["dimensions_cm"] = (
+                f"{row['length_cm']} x {row['width_cm']} x {row['height_cm']}"
+            )
+        else:
+            row["dimensions_cm"] = None
     weight_total_g = compute_weight_total_g(carton_rows)
     weight_total_kg = weight_total_g / 1000 if weight_total_g else 0
+    volume_total_m3 = sum(
+        row["volume_cm3"] for row in carton_rows if row.get("volume_cm3")
+    )
+    volume_total_m3 = volume_total_m3 / 1_000_000 if volume_total_m3 else None
     type_labels = build_shipment_type_labels(shipment)
     destination_city, destination_iata, destination_label = _build_destination_info(
         shipment
@@ -92,6 +94,7 @@ def build_shipment_document_context(shipment, doc_type):
         "aggregate_rows": aggregate_rows,
         "weight_total_g": weight_total_g,
         "weight_total_kg": weight_total_kg,
+        "volume_total_m3": volume_total_m3,
         "type_labels": type_labels,
         "shipper_info": shipper_info,
         "recipient_info": recipient_info,
@@ -230,6 +233,10 @@ def build_sample_document_context(doc_type):
         "aggregate_rows": aggregate_rows,
         "weight_total_g": weight_total_g,
         "weight_total_kg": weight_total_kg,
+        "volume_total_m3": sum(
+            row["volume_cm3"] for row in raw_carton_rows if row.get("volume_cm3")
+        )
+        / 1_000_000,
         "type_labels": "Pharmacie",
         "shipper_info": shipper_info,
         "recipient_info": recipient_info,

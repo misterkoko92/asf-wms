@@ -12,6 +12,7 @@ from ..models import (
     Carton,
     CartonItem,
     CartonStatus,
+    CartonFormat,
     Location,
     MovementType,
     Product,
@@ -87,6 +88,25 @@ def _dominant_type_code(carton):
     return max(qty_by_type, key=qty_by_type.get)
 
 
+def _resolve_carton_dimensions(*, carton_size=None):
+    if carton_size:
+        return (
+            carton_size.get("length_cm"),
+            carton_size.get("width_cm"),
+            carton_size.get("height_cm"),
+        )
+    default_format = CartonFormat.objects.filter(is_default=True).first()
+    if default_format is None:
+        default_format = CartonFormat.objects.first()
+    if default_format:
+        return (
+            default_format.length_cm,
+            default_format.width_cm,
+            default_format.height_cm,
+        )
+    return (None, None, None)
+
+
 def _next_carton_sequence(date_str):
     max_seq = 0
     for code in Carton.objects.filter(code__contains=f"-{date_str}-").values_list(
@@ -144,6 +164,7 @@ def _prepare_carton(
     shipment: Shipment | None,
     current_location=None,
     carton_code: str | None = None,
+    carton_size=None,
 ):
     if carton is None and carton_code:
         carton = Carton.objects.filter(code=carton_code).first()
@@ -182,6 +203,19 @@ def _prepare_carton(
         if current_location is not None:
             carton.current_location = current_location
         carton.save()
+    length_cm, width_cm, height_cm = _resolve_carton_dimensions(carton_size=carton_size)
+    updates = {}
+    if carton.length_cm is None and length_cm is not None:
+        updates["length_cm"] = length_cm
+        carton.length_cm = length_cm
+    if carton.width_cm is None and width_cm is not None:
+        updates["width_cm"] = width_cm
+        carton.width_cm = width_cm
+    if carton.height_cm is None and height_cm is not None:
+        updates["height_cm"] = height_cm
+        carton.height_cm = height_cm
+    if updates:
+        carton.save(update_fields=list(updates))
     return carton
 
 
@@ -446,6 +480,7 @@ def pack_carton(
     carton_code: str | None = None,
     shipment: Shipment | None = None,
     current_location=None,
+    carton_size=None,
 ):
     carton = _prepare_carton(
         user=user,
@@ -453,6 +488,7 @@ def pack_carton(
         shipment=shipment,
         current_location=current_location,
         carton_code=carton_code,
+        carton_size=carton_size,
     )
 
     movement_type = MovementType.OUT if shipment else MovementType.PRECONDITION

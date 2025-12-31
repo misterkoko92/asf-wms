@@ -12,6 +12,7 @@ from django.core.validators import MinValueValidator
 from django.db import IntegrityError, connection, models, transaction
 from django.db.models import F
 from django.db.models.functions import Length
+from django.urls import reverse
 from django.utils import timezone
 
 
@@ -407,6 +408,7 @@ class Shipment(models.Model):
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True
     )
+    qr_code_image = models.ImageField(upload_to="qr_codes/shipments/", blank=True)
     notes = models.TextField(blank=True)
 
     class Meta:
@@ -415,10 +417,80 @@ class Shipment(models.Model):
     def __str__(self) -> str:
         return self.reference
 
+    def get_tracking_path(self) -> str:
+        if not self.reference:
+            return ""
+        return reverse("scan:scan_shipment_track", args=[self.reference])
+
+    def get_tracking_url(self, request=None) -> str:
+        path = self.get_tracking_path()
+        if not path:
+            return ""
+        if request is not None:
+            return request.build_absolute_uri(path)
+        base_url = getattr(settings, "SITE_BASE_URL", "").strip()
+        if base_url:
+            if not base_url.startswith(("http://", "https://")):
+                base_url = f"https://{base_url}"
+            return f"{base_url.rstrip('/')}{path}"
+        return path
+
+    def generate_qr_code(self, *, request=None) -> None:
+        payload = self.get_tracking_url(request=request)
+        if not payload:
+            return
+        qr = qrcode.QRCode(border=2)
+        qr.add_data(payload)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        buffer = BytesIO()
+        img.save(buffer, format="PNG")
+        filename = f"qr_shipment_{self.reference}.png"
+        self.qr_code_image.save(filename, ContentFile(buffer.getvalue()), save=False)
+
+    def ensure_qr_code(self, *, request=None) -> None:
+        if self.qr_code_image:
+            return
+        self.generate_qr_code(request=request)
+        if self.qr_code_image:
+            self.save(update_fields=["qr_code_image"])
+
     def save(self, *args, **kwargs):
         if not self.reference:
             self.reference = generate_shipment_reference()
+        creating = self.pk is None
+        if creating and not self.qr_code_image:
+            self.generate_qr_code()
         super().save(*args, **kwargs)
+
+
+class ShipmentTrackingStatus(models.TextChoices):
+    PLANNING_OK = "planning_ok", "OK pour planification"
+    PLANNED = "planned", "Planifie"
+    MOVED_EXPORT = "moved_export", "Deplace au magasin export"
+    BOARDING_OK = "boarding_ok", "OK mise a bord"
+    RECEIVED_CORRESPONDENT = "received_correspondent", "Recu correspondant"
+    RECEIVED_RECIPIENT = "received_recipient", "Recu destinataire"
+
+
+class ShipmentTrackingEvent(models.Model):
+    shipment = models.ForeignKey(
+        Shipment, on_delete=models.CASCADE, related_name="tracking_events"
+    )
+    status = models.CharField(max_length=40, choices=ShipmentTrackingStatus.choices)
+    actor_name = models.CharField(max_length=120)
+    actor_structure = models.CharField(max_length=120)
+    comments = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.shipment} - {self.get_status_display()}"
 
 
 class OrderStatus(models.TextChoices):
@@ -573,6 +645,27 @@ class Carton(models.Model):
     code = models.CharField(max_length=80, unique=True)
     status = models.CharField(
         max_length=20, choices=CartonStatus.choices, default=CartonStatus.DRAFT
+    )
+    length_cm = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0.01"))],
+    )
+    width_cm = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0.01"))],
+    )
+    height_cm = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0.01"))],
     )
     current_location = models.ForeignKey(
         Location, on_delete=models.PROTECT, null=True, blank=True

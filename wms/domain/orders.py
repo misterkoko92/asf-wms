@@ -174,12 +174,14 @@ def pack_carton_from_reserved(
     carton: Carton | None = None,
     shipment: Shipment | None = None,
     current_location=None,
+    carton_size=None,
 ):
     carton = _prepare_carton(
         user=user,
         carton=carton,
         shipment=shipment,
         current_location=current_location,
+        carton_size=carton_size,
     )
 
     movement_type = MovementType.OUT if shipment else MovementType.PRECONDITION
@@ -289,6 +291,7 @@ def prepare_order(*, user, order: Order):
                     quantity=entry["quantity"],
                     carton=carton,
                     shipment=shipment,
+                    carton_size=carton_size,
                 )
     order.refresh_from_db()
     if all(line.remaining_quantity == 0 for line in order.lines.all()):

@@ -22,6 +22,11 @@ urlpatterns = [
         name="scan_shipment_edit",
     ),
     path(
+        "shipment/track/<str:shipment_ref>/",
+        views.scan_shipment_track,
+        name="scan_shipment_track",
+    ),
+    path(
         "shipment/<int:shipment_id>/doc/<str:doc_type>/",
         views.scan_shipment_document,
         name="scan_shipment_document",

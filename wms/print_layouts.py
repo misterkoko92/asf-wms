@@ -71,22 +71,21 @@ DEFAULT_LAYOUTS = {
                     "{{ destination_iata|upper }}{% endif %}{% else %}{{ destination_label|upper }}{% endif %}"
                 ),
             },
-            {"id": "meta1", "type": "text", "text": "Shipment ref: {{ shipment_ref }}"},
             {"id": "meta2", "type": "text", "text": "Cartons: {{ carton_count }}"},
             {
                 "id": "meta3",
                 "type": "text",
-                "text": "Poids total: {% if weight_total_kg %}{{ weight_total_kg|floatformat:2 }} kg{% else %}-{% endif %}",
+                "text": (
+                    "Poids total: {% if weight_total_kg %}{{ weight_total_kg|floatformat:2 }} kg{% else %}-{% endif %}"
+                    " | Volume total: {% if volume_total_m3 %}{{ volume_total_m3|floatformat:2 }} m3{% else %}-{% endif %}"
+                ),
             },
             {"id": "items", "type": "table_items", "mode": "carton"},
-            {"id": "carton_title", "type": "text", "tag": "h2", "text": "Resume colis"},
-            {"id": "cartons", "type": "table_cartons"},
         ]
     },
     "packing_list_carton": {
         "blocks": [
             {"id": "heading", "type": "text", "tag": "h1", "text": "Liste de colisage - carton"},
-            {"id": "meta1", "type": "text", "text": "Shipment ref: {{ shipment_ref }}"},
             {
                 "id": "meta2",
                 "type": "text",

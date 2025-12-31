@@ -16,12 +16,17 @@
     {% endif %}
   </h1>
 
-  <div class="meta">Shipment ref: {{ shipment_ref }}</div>
   <div class="meta">Cartons: {{ carton_count }}</div>
   <div class="meta">
     Poids total:
     {% if weight_total_kg is not None and weight_total_kg > 0 %}
       {{ weight_total_kg|floatformat:2 }} kg
+    {% else %}
+      -
+    {% endif %}
+    &nbsp;&nbsp;|&nbsp;&nbsp;Volume total:
+    {% if volume_total_m3 %}
+      {{ volume_total_m3|floatformat:2 }} m3
     {% else %}
       -
     {% endif %}
@@ -54,37 +59,4 @@
     </tbody>
   </table>
 
-  <h2>Resume colis</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>N° Colis</th>
-        <th>Poids Colis en KG</th>
-        <th>Dimensions en CM</th>
-        <th>Volume en m3</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in carton_rows %}
-        <tr>
-          <td>{{ row.label }}</td>
-          <td>
-            {% if row.weight_kg is not None %}
-              {{ row.weight_kg|floatformat:2 }}
-            {% else %}
-              -
-            {% endif %}
-          </td>
-          <td>{{ row.dimensions_cm|default:"-" }}</td>
-          <td>
-            {% if row.volume_m3 is not None %}
-              {{ row.volume_m3|floatformat:3 }}
-            {% else %}
-              -
-            {% endif %}
-          </td>
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
 {% endblock %}
