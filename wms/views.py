@@ -578,6 +578,69 @@ def scan_shipments_ready(request):
 
 
 @login_required
+@require_http_methods(["GET"])
+def scan_receipts_view(request):
+    filter_value = (request.GET.get("type") or "all").strip().lower()
+    receipts_qs = (
+        Receipt.objects.select_related("source_contact", "carrier_contact")
+        .prefetch_related("hors_format_items")
+        .order_by("-received_on", "-created_at")
+    )
+    if filter_value == "pallet":
+        receipts_qs = receipts_qs.filter(receipt_type=ReceiptType.PALLET)
+    elif filter_value == "association":
+        receipts_qs = receipts_qs.filter(receipt_type=ReceiptType.ASSOCIATION)
+    else:
+        filter_value = "all"
+
+    receipts = []
+    for receipt in receipts_qs:
+        name = receipt.source_contact.name if receipt.source_contact else "-"
+        quantity = "-"
+        if receipt.pallet_count:
+            quantity = f"{receipt.pallet_count} palettes"
+        elif receipt.carton_count:
+            quantity = f"{receipt.carton_count} colis"
+
+        hors_format_count = receipt.hors_format_count
+        hors_format_desc = "; ".join(
+            item.description.strip()
+            for item in receipt.hors_format_items.all()
+            if item.description
+        )
+        if hors_format_count and hors_format_desc:
+            hors_format = f"{hors_format_count} : {hors_format_desc}"
+        elif hors_format_count:
+            hors_format = str(hors_format_count)
+        elif hors_format_desc:
+            hors_format = hors_format_desc
+        else:
+            hors_format = "-"
+
+        carrier = receipt.carrier_contact.name if receipt.carrier_contact else "-"
+
+        receipts.append(
+            {
+                "received_on": receipt.received_on,
+                "name": name,
+                "quantity": quantity,
+                "hors_format": hors_format,
+                "carrier": carrier,
+            }
+        )
+
+    return render(
+        request,
+        "scan/receipts_view.html",
+        {
+            "active": "receipts_view",
+            "filter_value": filter_value,
+            "receipts": receipts,
+        },
+    )
+
+
+@login_required
 @require_http_methods(["GET", "POST"])
 def scan_stock_update(request):
     product_options = build_product_options()

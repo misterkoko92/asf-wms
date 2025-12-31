@@ -15,6 +15,7 @@
       <li><strong>Lot</strong> : stock reel par produit, avec quantites et peremption.</li>
       <li><strong>Carton</strong> : unite de preparation (DRAFT, PICKING, PACKED).</li>
       <li><strong>Expedition</strong> : regroupe des cartons pour une destination.</li>
+      <li><strong>Suivi expedition</strong> : journal des scans (QR) avec horodatage.</li>
     </ul>
   </div>
 
@@ -51,6 +52,14 @@
   </div>
 
   <div class="scan-card">
+    <h2>Vue reception</h2>
+    <ul>
+      <li>Filtre rapide : Palette, Association ou Tout.</li>
+      <li>Colonnes : date, nom (association ou donateur), quantite palettes/colis, hors format, transporteur.</li>
+    </ul>
+  </div>
+
+  <div class="scan-card">
     <h2>MAJ stock</h2>
     <ul>
       <li>Scanner ou saisir le produit, puis quantite et peremption.</li>
@@ -75,6 +84,10 @@
       Un carton assigne a une expedition affiche le statut <strong>Affecte</strong>
       dans la Vue Colis.
     </p>
+    <p>
+      Le code carton suit le format <strong>TYPE-AAAAMMJJ-N</strong> (type dominant par poids).
+      Le volume est calcule avec les dimensions du carton (format par defaut si non renseigne).
+    </p>
   </div>
 
   <div class="scan-card">
@@ -93,6 +106,7 @@
       <li>Liste tous les cartons prepares avec leur statut et contenu.</li>
       <li>Un carton assigne a une expedition est marque <strong>Affecte</strong>.</li>
       <li>Un carton <strong>SHIPPED</strong> n'est plus modifiable.</li>
+      <li>Poids et remplissage sont affiches quand les dimensions sont disponibles.</li>
     </ul>
   </div>
 
@@ -107,6 +121,25 @@
       La date <strong>mise en disponible</strong> est renseignee a chaque passage en READY,
       puis effacee si l'expedition repasse en preparation.
     </p>
+    <p>
+      Le bouton <strong>Suivi</strong> ouvre la page publique de suivi via QR.
+    </p>
+  </div>
+
+  <div class="scan-card">
+    <h2>Suivi expedition (QR)</h2>
+    <ul>
+      <li>Un QR code est genere a la creation de l'expedition.</li>
+      <li>Le scan ouvre une page publique avec documents + historique.</li>
+      <li>Champs obligatoires : <strong>Nom</strong> et <strong>Structure</strong>.</li>
+      <li>Commentaires optionnels et horodatage automatique (AAAA/MM/JJ HHhMM).</li>
+      <li>Le selecteur propose automatiquement l'etape suivante.</li>
+      <li>Etapes : OK pour planification, Planifie, Deplace au magasin export, OK mise a bord, Recu correspondant, Recu destinataire.</li>
+    </ul>
+    <p>
+      Pour que le QR fonctionne depuis un telephone, definir <strong>SITE_BASE_URL</strong>
+      sur l'environnement de deploiement.
+    </p>
   </div>
 
   <div class="scan-card">
@@ -114,6 +147,7 @@
     <ul>
       <li>Bon d'expedition, listes de colisage et attestations sont generes par expedition.</li>
       <li>Les etiquettes sont generees par carton.</li>
+      <li>Le QR code apparait sur l'etiquette expedition, a droite de l'IATA.</li>
       <li>Des documents additionnels peuvent etre uploades (PDF, JPG, PNG, XLSX, DOCX).</li>
     </ul>
   </div>
@@ -133,6 +167,7 @@
       <li>Le bouton <strong>Scan</strong> ouvre la camera et remplit le champ cible.</li>
       <li>Si la camera est bloquee, autoriser l'acces dans le navigateur.</li>
       <li>Si le scan n'est pas supporte, saisir le code manuellement.</li>
+      <li>Le QR expedition ouvre uniquement la page de suivi + documents (sans login).</li>
       <li>La banniere de synchro indique qu'une mise a jour est disponible.</li>
     </ul>
   </div>
@@ -144,6 +179,7 @@
       <li><strong>Stock a zero</strong> : verifier les lots disponibles et leur emplacement.</li>
       <li><strong>Camera ne s'ouvre pas</strong> : autoriser la camera, tester un autre navigateur.</li>
       <li><strong>Un carton est bloque</strong> : un carton SHIPPED est non modifiable.</li>
+      <li><strong>Le QR n'ouvre rien</strong> : verifier SITE_BASE_URL et relancer l'app.</li>
     </ul>
   </div>
 {% endblock %}
