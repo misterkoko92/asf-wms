@@ -7,7 +7,7 @@ import django.core.validators
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("wms", "0018_printtemplateversion"),
+        ("wms", "0018_print_templates"),
     ]
 
     operations = [
