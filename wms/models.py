@@ -29,6 +29,8 @@ class ProductCategory(models.Model):
     class Meta:
         unique_together = ("parent", "name")
         ordering = ["name"]
+        verbose_name = "Product category"
+        verbose_name_plural = "Product categories"
 
     def __str__(self) -> str:
         if self.parent:
@@ -41,6 +43,8 @@ class ProductTag(models.Model):
 
     class Meta:
         ordering = ["name"]
+        verbose_name = "Product"
+        verbose_name_plural = "Product List"
 
     def __str__(self) -> str:
         return self.name
@@ -192,6 +196,8 @@ class ProductLot(models.Model):
 
     class Meta:
         ordering = ["product", "expires_on"]
+        verbose_name = "Product Availability"
+        verbose_name_plural = "Product Availability"
 
     def __str__(self) -> str:
         return f"{self.product} ({self.lot_code or 'lot'})"
