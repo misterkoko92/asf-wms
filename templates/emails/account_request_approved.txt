@@ -3,7 +3,14 @@ Bonjour {{ association_name }},
 Votre compte association a ete valide par ASF.
 
 Identifiant: {{ email }}
-Definir votre mot de passe:
+Mot de passe temporaire: {{ temp_password }}
+
+Connectez-vous ici:
+{{ login_url }}
+
+Un changement de mot de passe est obligatoire a la premiere connexion.
+
+Lien direct pour definir le mot de passe:
 {{ set_password_url }}
 
 Si vous n'etes pas a l'origine de cette demande, merci de contacter ASF.

@@ -429,6 +429,10 @@ def association_required(view):
         profile = _get_association_profile(request.user)
         if not profile:
             raise PermissionDenied
+        if profile.must_change_password:
+            change_url = reverse("portal:portal_change_password")
+            if request.path != change_url:
+                return redirect(change_url)
         request.association_profile = profile
         return view(request, *args, **kwargs)
 
@@ -492,6 +496,9 @@ def portal_login(request):
                 errors.append("Compte non active par ASF.")
             else:
                 login(request, user)
+                profile = _get_association_profile(user)
+                if profile and profile.must_change_password:
+                    return redirect("portal:portal_change_password")
                 return redirect(next_url or "portal:portal_dashboard")
 
     return render(
@@ -522,10 +529,30 @@ def portal_set_password(request, uidb64, token):
     form = SetPasswordForm(user, request.POST or None)
     if request.method == "POST" and form.is_valid():
         form.save()
+        profile = _get_association_profile(user)
+        if profile and profile.must_change_password:
+            profile.must_change_password = False
+            profile.save(update_fields=["must_change_password"])
         login(request, user)
         return redirect("portal:portal_dashboard")
 
     return render(request, "portal/set_password.html", {"form": form, "invalid": False})
+
+
+@login_required(login_url="portal:portal_login")
+@association_required
+@require_http_methods(["GET", "POST"])
+def portal_change_password(request):
+    form = SetPasswordForm(request.user, request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        profile = request.association_profile
+        if profile.must_change_password:
+            profile.must_change_password = False
+            profile.save(update_fields=["must_change_password"])
+        messages.success(request, "Mot de passe mis a jour.")
+        return redirect("portal:portal_dashboard")
+    return render(request, "portal/change_password.html", {"form": form})
 
 
 @login_required(login_url="portal:portal_login")

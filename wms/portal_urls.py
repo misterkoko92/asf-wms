@@ -7,6 +7,7 @@ app_name = "portal"
 urlpatterns = [
     path("login/", views.portal_login, name="portal_login"),
     path("logout/", views.portal_logout, name="portal_logout"),
+    path("change-password/", views.portal_change_password, name="portal_change_password"),
     path(
         "set-password/<uidb64>/<token>/",
         views.portal_set_password,

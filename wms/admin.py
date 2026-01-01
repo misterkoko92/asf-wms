@@ -163,6 +163,7 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
 
     def approve_requests(self, request, queryset):
         User = get_user_model()
+        temp_password = "TempPWD!"
         approved = 0
         skipped = 0
         for account_request in queryset.select_related("contact"):
@@ -218,15 +219,16 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
                         username=account_request.email,
                         email=account_request.email,
                     )
-                    user.set_unusable_password()
-                    user.save(update_fields=["password"])
+                user.set_password(temp_password)
+                user.save(update_fields=["password"])
 
                 profile, created = models.AssociationProfile.objects.get_or_create(
                     user=user, defaults={"contact": contact}
                 )
                 if not created and profile.contact_id != contact.id:
                     profile.contact = contact
-                    profile.save(update_fields=["contact"])
+                profile.must_change_password = True
+                profile.save(update_fields=["contact", "must_change_password"])
 
                 models.AccountDocument.objects.filter(
                     account_request=account_request,
@@ -245,12 +247,15 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
             set_password_url = request.build_absolute_uri(
                 reverse("portal:portal_set_password", args=[uid, token])
             )
+            login_url = request.build_absolute_uri(reverse("portal:portal_login"))
             message = render_to_string(
                 "emails/account_request_approved.txt",
                 {
                     "association_name": contact.name,
                     "email": account_request.email,
                     "set_password_url": set_password_url,
+                    "login_url": login_url,
+                    "temp_password": temp_password,
                 },
             )
             try:

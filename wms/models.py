@@ -656,6 +656,7 @@ class AssociationProfile(models.Model):
         related_name="association_profiles",
     )
     notification_emails = models.TextField(blank=True)
+    must_change_password = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
