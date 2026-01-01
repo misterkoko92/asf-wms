@@ -13,7 +13,7 @@ from django.template.loader import render_to_string
 from django.conf import settings
 
 from . import models
-from django.utils.html import format_html
+from django.utils.html import format_html, format_html_join
 
 from .forms import AdjustStockForm, PackCartonForm, ReceiveStockForm, TransferStockForm
 from .contact_filters import (
@@ -23,6 +23,8 @@ from .contact_filters import (
     contacts_with_tags,
 )
 from contacts.models import Contact, ContactAddress, ContactTag
+
+TEMP_PORTAL_PASSWORD = "TempPWD!"
 from .services import (
     StockError,
     adjust_stock,
@@ -163,7 +165,6 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
 
     def approve_requests(self, request, queryset):
         User = get_user_model()
-        temp_password = "TempPWD!"
         approved = 0
         skipped = 0
         for account_request in queryset.select_related("contact"):
@@ -219,7 +220,7 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
                         username=account_request.email,
                         email=account_request.email,
                     )
-                user.set_password(temp_password)
+                user.set_password(TEMP_PORTAL_PASSWORD)
                 user.save(update_fields=["password"])
 
                 profile, created = models.AssociationProfile.objects.get_or_create(
@@ -255,7 +256,7 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
                     "email": account_request.email,
                     "set_password_url": set_password_url,
                     "login_url": login_url,
-                    "temp_password": temp_password,
+                    "temp_password": TEMP_PORTAL_PASSWORD,
                 },
             )
             try:
@@ -280,6 +281,64 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
             )
 
     approve_requests.short_description = "Approuver les demandes"
+
+    def account_access_info(self, obj):
+        if not obj or obj.status != models.PublicAccountRequestStatus.APPROVED:
+            return "Disponible apres validation."
+        User = get_user_model()
+        user = User.objects.filter(email__iexact=obj.email).first()
+        if not user:
+            return "Utilisateur introuvable."
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        base_url = settings.SITE_BASE_URL.rstrip("/") if settings.SITE_BASE_URL else ""
+        login_url = f"{base_url}{reverse('portal:portal_login')}"
+        set_password_url = f"{base_url}{reverse('portal:portal_set_password', args=[uid, token])}"
+        lines = [
+            f"Email: {obj.email or '-'}",
+            f"Mot de passe temporaire: {TEMP_PORTAL_PASSWORD}",
+            f"Login: {login_url}",
+            f"Lien definir mot de passe: {set_password_url}",
+        ]
+        if not base_url:
+            lines.append("SITE_BASE_URL non configuree, utiliser l'URL du site.")
+        return format_html_join("<br>", "{}", ((line,) for line in lines))
+
+    account_access_info.short_description = "Acces portail"
+
+    readonly_fields = ("created_at", "reviewed_at", "account_access_info")
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "association_name",
+                    "email",
+                    "phone",
+                    "status",
+                    "link",
+                    "contact",
+                    "notes",
+                )
+            },
+        ),
+        (
+            "Adresse",
+            {
+                "fields": (
+                    "address_line1",
+                    "address_line2",
+                    "postal_code",
+                    "city",
+                    "country",
+                )
+            },
+        ),
+        (
+            "Validation",
+            {"fields": ("created_at", "reviewed_at", "reviewed_by", "account_access_info")},
+        ),
+    )
 
     def reject_requests(self, request, queryset):
         updated = queryset.update(
