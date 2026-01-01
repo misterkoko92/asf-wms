@@ -63,6 +63,7 @@ from .models import (
     ReceiptStatus,
     ReceiptType,
     Order,
+    OrderReviewStatus,
     OrderStatus,
     AssociationProfile,
     AssociationRecipient,
@@ -422,6 +423,62 @@ def _get_association_profile(user):
         .filter(user=user)
         .first()
     )
+
+
+def _build_order_creator_info(order):
+    contact = None
+    if order.created_by:
+        profile = _get_association_profile(order.created_by)
+        if profile:
+            contact = profile.contact
+    if not contact:
+        contact = order.association_contact or order.recipient_contact
+
+    name = "-"
+    phone = ""
+    email = ""
+    if contact:
+        name = contact.name
+        phone = contact.phone or ""
+        email = contact.email or ""
+        address = _get_contact_address(contact)
+        if address:
+            phone = phone or address.phone or ""
+            email = email or address.email or ""
+    if order.created_by and name == "-":
+        name = (
+            order.created_by.get_full_name()
+            or order.created_by.username
+            or order.created_by.email
+            or "-"
+        )
+    if order.created_by and not email:
+        email = order.created_by.email or ""
+    return {"name": name, "phone": phone, "email": email}
+
+
+def _attach_order_documents_to_shipment(order, shipment):
+    if not order or not shipment:
+        return
+    wanted_types = {
+        OrderDocumentType.DONATION_ATTESTATION,
+        OrderDocumentType.HUMANITARIAN_ATTESTATION,
+    }
+    existing_files = set(
+        Document.objects.filter(
+            shipment=shipment, doc_type=DocumentType.ADDITIONAL
+        ).values_list("file", flat=True)
+    )
+    for doc in order.documents.filter(doc_type__in=wanted_types):
+        if not doc.file:
+            continue
+        if doc.file.name in existing_files:
+            continue
+        Document.objects.create(
+            shipment=shipment,
+            doc_type=DocumentType.ADDITIONAL,
+            file=doc.file,
+        )
 
 
 def association_required(view):
@@ -801,6 +858,12 @@ def portal_order_detail(request, order_id):
     )
 
     if request.method == "POST" and request.POST.get("action") == "upload_doc":
+        if order.review_status != OrderReviewStatus.APPROVED:
+            messages.error(
+                request,
+                "Documents disponibles apres validation de la commande.",
+            )
+            return redirect("portal:portal_order_detail", order_id=order.id)
         doc_type = (request.POST.get("doc_type") or "").strip()
         uploaded = request.FILES.get("doc_file")
         valid_types = {choice[0] for choice in OrderDocumentType.choices}
@@ -854,6 +917,7 @@ def portal_order_detail(request, order_id):
             "total_estimated_cartons": total_estimated_cartons,
             "order_documents": order.documents.all(),
             "order_doc_types": OrderDocumentType.choices,
+            "can_upload_docs": order.review_status == OrderReviewStatus.APPROVED,
         },
     )
 
@@ -2261,6 +2325,89 @@ def scan_order(request):
             "selected_order": selected_order,
             "order_lines": order_lines,
             "remaining_total": remaining_total,
+        },
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def scan_orders_view(request):
+    orders_qs = (
+        Order.objects.select_related(
+            "association_contact",
+            "recipient_contact",
+            "created_by",
+            "shipment",
+        )
+        .prefetch_related("documents")
+        .order_by("-created_at")
+    )
+
+    if request.method == "POST":
+        action = (request.POST.get("action") or "").strip()
+        order_id = parse_int(request.POST.get("order_id"))
+        order = orders_qs.filter(id=order_id).first() if order_id else None
+        if not order:
+            messages.error(request, "Commande introuvable.")
+            return redirect("scan:scan_orders_view")
+
+        if action == "update_status":
+            status = (request.POST.get("review_status") or "").strip()
+            valid = {choice[0] for choice in OrderReviewStatus.choices}
+            if status not in valid:
+                messages.error(request, "Statut invalide.")
+            else:
+                order.review_status = status
+                order.save(update_fields=["review_status"])
+                messages.success(request, "Statut de validation mis a jour.")
+            return redirect("scan:scan_orders_view")
+
+        if action == "create_shipment":
+            if order.review_status != OrderReviewStatus.APPROVED:
+                messages.error(request, "Commande non validee.")
+                return redirect("scan:scan_orders_view")
+            shipment = order.shipment or create_shipment_for_order(order=order)
+            _attach_order_documents_to_shipment(order, shipment)
+            return redirect("scan:scan_shipment_edit", shipment_id=shipment.id)
+
+    wanted_docs = {
+        OrderDocumentType.DONATION_ATTESTATION,
+        OrderDocumentType.HUMANITARIAN_ATTESTATION,
+    }
+    rows = []
+    for order in orders_qs:
+        association_contact = order.association_contact or order.recipient_contact
+        association_name = (
+            association_contact.name
+            if association_contact
+            else order.recipient_name
+            or "-"
+        )
+        creator = _build_order_creator_info(order)
+        docs = [
+            {"label": doc.get_doc_type_display(), "url": doc.file.url}
+            for doc in order.documents.all()
+            if doc.doc_type in wanted_docs and doc.file
+        ]
+        rows.append(
+            {
+                "order": order,
+                "association_name": association_name,
+                "creator": creator,
+                "documents": docs,
+            }
+        )
+
+    return render(
+        request,
+        "scan/orders_view.html",
+        {
+            "active": "orders_view",
+            "orders": rows,
+            "review_status_choices": OrderReviewStatus.choices,
+            "approved_status": OrderReviewStatus.APPROVED,
+            "rejected_status": OrderReviewStatus.REJECTED,
+            "changes_status": OrderReviewStatus.CHANGES_REQUESTED,
         },
     )
 

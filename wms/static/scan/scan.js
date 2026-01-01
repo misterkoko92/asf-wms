@@ -912,6 +912,26 @@
       totalWeightInput.value = String(total);
     };
 
+    const updateCartonAvailability = () => {
+      const selected = new Set();
+      container.querySelectorAll('.shipment-line-carton').forEach(select => {
+        const value = select.value || '';
+        if (value) {
+          selected.add(value);
+        }
+      });
+      container.querySelectorAll('.shipment-line-carton').forEach(select => {
+        const current = select.value || '';
+        Array.from(select.options).forEach(option => {
+          if (!option.value) {
+            option.disabled = false;
+            return;
+          }
+          option.disabled = selected.has(option.value) && option.value !== current;
+        });
+      });
+    };
+
     const syncLineState = line => {
       const cartonSelect = line.querySelector('.shipment-line-carton');
       const productInput = line.querySelector('.shipment-line-product');
@@ -1007,6 +1027,7 @@
         cartonSelect.addEventListener('change', () => {
           syncLineState(line);
           updateTotalWeight();
+          updateCartonAvailability();
         });
         productInput.addEventListener('input', () => {
           if (productInput.value || quantityInput.value) {
@@ -1014,6 +1035,7 @@
           }
           syncLineState(line);
           updateTotalWeight();
+          updateCartonAvailability();
         });
         quantityInput.addEventListener('input', () => {
           if (productInput.value || quantityInput.value) {
@@ -1021,11 +1043,13 @@
           }
           syncLineState(line);
           updateTotalWeight();
+          updateCartonAvailability();
         });
 
         syncLineState(line);
         container.appendChild(line);
       }
+      updateCartonAvailability();
       updateTotalWeight();
     };
 

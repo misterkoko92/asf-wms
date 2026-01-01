@@ -529,10 +529,22 @@ class OrderStatus(models.TextChoices):
     CANCELLED = "cancelled", "Cancelled"
 
 
+class OrderReviewStatus(models.TextChoices):
+    PENDING = "pending_validation", "En attente validation"
+    APPROVED = "approved", "Valider"
+    REJECTED = "rejected", "Refuser"
+    CHANGES_REQUESTED = "changes_requested", "Modifier"
+
+
 class Order(models.Model):
     reference = models.CharField(max_length=80, blank=True)
     status = models.CharField(
         max_length=20, choices=OrderStatus.choices, default=OrderStatus.DRAFT
+    )
+    review_status = models.CharField(
+        max_length=30,
+        choices=OrderReviewStatus.choices,
+        default=OrderReviewStatus.PENDING,
     )
     public_link = models.ForeignKey(
         "PublicOrderLink",

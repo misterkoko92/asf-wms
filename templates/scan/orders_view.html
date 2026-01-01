@@ -1,0 +1,105 @@
+{% extends "scan/base.html" %}
+
+{% block title %}WMS Scan - Vue Commande{% endblock %}
+
+{% block content %}
+  <div class="scan-card">
+    <h2>Vue Commande</h2>
+    <p class="scan-help">Suivi des commandes des associations.</p>
+  </div>
+
+  <div class="scan-card">
+    {% if orders %}
+      <div class="scan-table-wrap">
+        <table class="scan-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Association</th>
+              <th>Contact</th>
+              <th>Statut commande</th>
+              <th>Expedition</th>
+              <th>Documents</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in orders %}
+              <tr>
+                <td>{{ row.order.created_at|date:"Y/m/d" }}</td>
+                <td>{{ row.association_name }}</td>
+                <td>
+                  <div>{{ row.creator.name }}</div>
+                  <div class="scan-help">
+                    {% if row.creator.phone %}{{ row.creator.phone }}{% else %}-{% endif %}
+                  </div>
+                  <div class="scan-help">
+                    {% if row.creator.email %}{{ row.creator.email }}{% else %}-{% endif %}
+                  </div>
+                </td>
+                <td>
+                  <form method="post" class="scan-inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="update_status">
+                    <input type="hidden" name="order_id" value="{{ row.order.id }}">
+                    <select name="review_status">
+                      {% for value, label in review_status_choices %}
+                        <option value="{{ value }}" {% if value == row.order.review_status %}selected{% endif %}>
+                          {{ label }}
+                        </option>
+                      {% endfor %}
+                    </select>
+                    <button type="submit" class="scan-scan-btn">Mettre a jour</button>
+                  </form>
+                </td>
+                <td>
+                  {% if row.order.review_status == approved_status %}
+                    <form method="post">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="create_shipment">
+                      <input type="hidden" name="order_id" value="{{ row.order.id }}">
+                      <button type="submit" class="scan-scan-btn">Creer l'expedition</button>
+                    </form>
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+                <td>
+                  {% if row.order.review_status == approved_status %}
+                    {% if row.documents %}
+                      <div class="scan-docs">
+                        {% for doc in row.documents %}
+                          <a class="scan-scan-btn scan-doc-btn" href="{{ doc.url }}" target="_blank" rel="noopener">
+                            {{ doc.label }}
+                          </a>
+                        {% endfor %}
+                      </div>
+                    {% else %}
+                      <span class="scan-help">Aucun document</span>
+                    {% endif %}
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+              </tr>
+              {% if row.order.review_status == rejected_status %}
+                <tr>
+                  <td colspan="6" class="scan-help">
+                    Refus: contactez {{ row.creator.name }}{% if row.creator.email %} ({{ row.creator.email }}){% endif %}{% if row.creator.phone %} / {{ row.creator.phone }}{% endif %} pour expliquer le motif.
+                  </td>
+                </tr>
+              {% elif row.order.review_status == changes_status %}
+                <tr>
+                  <td colspan="6" class="scan-help">
+                    Modifier: contactez {{ row.creator.name }}{% if row.creator.email %} ({{ row.creator.email }}){% endif %}{% if row.creator.phone %} / {{ row.creator.phone }}{% endif %} pour confirmer les changements.
+                  </td>
+                </tr>
+              {% endif %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="scan-help">Aucune commande pour le moment.</p>
+    {% endif %}
+  </div>
+{% endblock %}
