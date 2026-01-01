@@ -731,6 +731,17 @@ def portal_order_create(request):
                 return redirect("portal:portal_order_detail", order_id=order.id)
 
     carton_format = _get_default_carton_format()
+    carton_data = (
+        {
+            "length_cm": float(carton_format.length_cm),
+            "width_cm": float(carton_format.width_cm),
+            "height_cm": float(carton_format.height_cm),
+            "max_weight_g": float(carton_format.max_weight_g),
+            "name": carton_format.name,
+        }
+        if carton_format
+        else None
+    )
     total_estimated_cartons = 0
     product_rows = []
     for item in product_options:
@@ -768,9 +779,12 @@ def portal_order_create(request):
             "recipient_options": recipient_options,
             "form_data": form_data,
             "products": product_rows,
+            "product_data": product_options,
             "errors": errors,
             "line_errors": line_errors,
+            "line_quantities": line_quantities,
             "total_estimated_cartons": total_estimated_cartons,
+            "carton_format": carton_data,
         },
     )
 

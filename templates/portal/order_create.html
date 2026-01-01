@@ -52,7 +52,7 @@
           </thead>
           <tbody>
             {% for product in products %}
-              <tr>
+              <tr data-product-id="{{ product.id }}">
                 <td>{{ product.name }}</td>
                 <td>{{ product.available_stock }}</td>
                 <td>
@@ -71,7 +71,7 @@
                     {% endfor %}
                   {% endif %}
                 </td>
-                <td>
+                <td class="carton-estimate">
                   {% if product.estimate %}
                     {{ product.estimate }}
                   {% else %}
@@ -82,12 +82,130 @@
             {% endfor %}
           </tbody>
         </table>
-        {% if total_estimated_cartons %}
-          <p class="scan-help">Total estime: {{ total_estimated_cartons }} carton(s).</p>
-        {% endif %}
+        <p class="scan-help">
+          Total estime: <span id="carton-estimate-total">{% if total_estimated_cartons %}{{ total_estimated_cartons }}{% else %}-{% endif %}</span> carton(s).
+        </p>
       </div>
 
       <button type="submit" class="scan-submit">Envoyer la commande</button>
     </form>
   </div>
+
+  {{ product_data|json_script:"portal-product-data" }}
+  {% if carton_format %}
+    {{ carton_format|json_script:"portal-carton-data" }}
+  {% endif %}
+
+  <script>
+    (function() {
+      const cartonDataEl = document.getElementById('portal-carton-data');
+      const carton = cartonDataEl ? JSON.parse(cartonDataEl.textContent || 'null') : null;
+      const productDataEl = document.getElementById('portal-product-data');
+      let products = [];
+      try {
+        products = JSON.parse(productDataEl ? productDataEl.textContent || '[]' : '[]');
+      } catch (err) {
+        products = [];
+      }
+
+      const productMap = new Map();
+      products.forEach(product => {
+        if (product && product.id) {
+          productMap.set(String(product.id), product);
+        }
+      });
+
+      const parseNumber = value => {
+        const parsed = parseFloat((value || '').toString().replace(',', '.'));
+        return Number.isFinite(parsed) ? parsed : null;
+      };
+
+      const getProductVolume = product => {
+        if (!product) {
+          return null;
+        }
+        if (product.volume_cm3) {
+          return parseNumber(product.volume_cm3);
+        }
+        const length = parseNumber(product.length_cm);
+        const width = parseNumber(product.width_cm);
+        const height = parseNumber(product.height_cm);
+        if (length && width && height) {
+          return length * width * height;
+        }
+        return null;
+      };
+
+      const computeMaxUnits = (product, carton) => {
+        if (!product || !carton) {
+          return null;
+        }
+        const cartonVolume =
+          carton.length_cm && carton.width_cm && carton.height_cm
+            ? carton.length_cm * carton.width_cm * carton.height_cm
+            : null;
+        const productVolume = getProductVolume(product);
+        let maxByVolume = null;
+        if (cartonVolume && productVolume && productVolume > 0) {
+          maxByVolume = Math.floor(cartonVolume / productVolume);
+          if (maxByVolume < 1) {
+            maxByVolume = 1;
+          }
+        }
+        let maxByWeight = null;
+        const weight = parseNumber(product.weight_g);
+        if (weight && carton.max_weight_g) {
+          maxByWeight = Math.floor(carton.max_weight_g / weight);
+          if (maxByWeight < 1) {
+            maxByWeight = 1;
+          }
+        }
+        if (maxByVolume && maxByWeight) {
+          return Math.min(maxByVolume, maxByWeight);
+        }
+        return maxByVolume || maxByWeight;
+      };
+
+      const rows = Array.from(document.querySelectorAll('tr[data-product-id]'));
+      const totalEl = document.getElementById('carton-estimate-total');
+
+      const updateRow = row => {
+        const productId = row.dataset.productId;
+        const product = productMap.get(productId);
+        const input = row.querySelector('input[type="number"]');
+        const estimateEl = row.querySelector('.carton-estimate');
+        const qty = parseInt(input && input.value ? input.value : '0', 10) || 0;
+        const maxUnits = computeMaxUnits(product, carton);
+        if (!qty) {
+          estimateEl.textContent = '-';
+          return 0;
+        }
+        if (!maxUnits) {
+          estimateEl.textContent = 'N/A';
+          return 0;
+        }
+        const estimate = Math.ceil(qty / maxUnits);
+        estimateEl.textContent = estimate;
+        return estimate;
+      };
+
+      const updateTotals = () => {
+        let total = 0;
+        rows.forEach(row => {
+          total += updateRow(row);
+        });
+        if (totalEl) {
+          totalEl.textContent = total || '-';
+        }
+      };
+
+      rows.forEach(row => {
+        const input = row.querySelector('input[type="number"]');
+        if (input) {
+          input.addEventListener('input', updateTotals);
+        }
+      });
+      updateTotals();
+    })();
+  </script>
 {% endblock %}
