@@ -28,6 +28,10 @@ class ContactAdmin(admin.ModelAdmin):
     filter_horizontal = ("tags",)
     inlines = [ContactAddressInline]
 
+    class Media:
+        css = {"all": ("scan/address_autocomplete.css",)}
+        js = ("scan/address_autocomplete.js",)
+
 
 @admin.register(ContactTag)
 class ContactTagAdmin(admin.ModelAdmin):

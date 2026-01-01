@@ -6,6 +6,7 @@
   <title>Creation de compte association</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="{% static 'scan/scan.css' %}">
+  <link rel="stylesheet" href="{% static 'scan/address_autocomplete.css' %}">
 </head>
 <body>
   <div class="scan-shell">
@@ -68,23 +69,60 @@
           </div>
           <div class="scan-field">
             <label for="line1">Adresse</label>
-            <input type="text" id="line1" name="line1" value="{{ form_data.line1 }}" required>
+            <input
+              type="text"
+              id="line1"
+              name="line1"
+              value="{{ form_data.line1 }}"
+              data-address-field="line1"
+              data-address-group="account"
+              data-autocomplete-geo="1"
+              required
+            >
           </div>
           <div class="scan-field">
             <label for="line2">Complement adresse</label>
-            <input type="text" id="line2" name="line2" value="{{ form_data.line2 }}">
+            <input
+              type="text"
+              id="line2"
+              name="line2"
+              value="{{ form_data.line2 }}"
+              data-address-field="line2"
+              data-address-group="account"
+            >
           </div>
           <div class="scan-field">
             <label for="postal_code">Code postal</label>
-            <input type="text" id="postal_code" name="postal_code" value="{{ form_data.postal_code }}">
+            <input
+              type="text"
+              id="postal_code"
+              name="postal_code"
+              value="{{ form_data.postal_code }}"
+              data-address-field="postal_code"
+              data-address-group="account"
+            >
           </div>
           <div class="scan-field">
             <label for="city">Ville</label>
-            <input type="text" id="city" name="city" value="{{ form_data.city }}">
+            <input
+              type="text"
+              id="city"
+              name="city"
+              value="{{ form_data.city }}"
+              data-address-field="city"
+              data-address-group="account"
+            >
           </div>
           <div class="scan-field">
             <label for="country">Pays</label>
-            <input type="text" id="country" name="country" value="{{ form_data.country|default:'France' }}">
+            <input
+              type="text"
+              id="country"
+              name="country"
+              value="{{ form_data.country|default:'France' }}"
+              data-address-field="country"
+              data-address-group="account"
+            >
           </div>
           <div class="scan-field">
             <label for="notes">Notes</label>
@@ -182,5 +220,6 @@
       }
     })();
   </script>
+  <script src="{% static 'scan/address_autocomplete.js' %}"></script>
 </body>
 </html>

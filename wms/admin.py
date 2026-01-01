@@ -163,113 +163,126 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
     search_fields = ("association_name", "email")
     actions = ("approve_requests", "reject_requests")
 
-    def approve_requests(self, request, queryset):
+    def _approve_request(self, request, account_request):
         User = get_user_model()
+        user = User.objects.filter(email__iexact=account_request.email).first()
+        if user and (user.is_staff or user.is_superuser):
+            return False, "email reserve"
+
+        with transaction.atomic():
+            contact = account_request.contact
+            if not contact:
+                contact = Contact.objects.create(
+                    name=account_request.association_name,
+                    email=account_request.email,
+                    phone=account_request.phone,
+                    is_active=True,
+                )
+                account_request.contact = contact
+            tag, _ = ContactTag.objects.get_or_create(name=TAG_SHIPPER[0])
+            contact.tags.add(tag)
+
+            contact_updates = []
+            if account_request.email and contact.email != account_request.email:
+                contact.email = account_request.email
+                contact_updates.append("email")
+            if account_request.phone and contact.phone != account_request.phone:
+                contact.phone = account_request.phone
+                contact_updates.append("phone")
+            if contact_updates:
+                contact.save(update_fields=contact_updates)
+
+            address = (
+                contact.addresses.filter(is_default=True).first()
+                or contact.addresses.first()
+            )
+            if not address:
+                ContactAddress.objects.create(
+                    contact=contact,
+                    address_line1=account_request.address_line1,
+                    address_line2=account_request.address_line2,
+                    postal_code=account_request.postal_code,
+                    city=account_request.city,
+                    country=account_request.country or "France",
+                    phone=account_request.phone,
+                    email=account_request.email,
+                    is_default=True,
+                )
+
+            if not user:
+                user = User.objects.create_user(
+                    username=account_request.email,
+                    email=account_request.email,
+                )
+            user.set_password(TEMP_PORTAL_PASSWORD)
+            user.save(update_fields=["password"])
+
+            profile, created = models.AssociationProfile.objects.get_or_create(
+                user=user, defaults={"contact": contact}
+            )
+            if not created and profile.contact_id != contact.id:
+                profile.contact = contact
+            profile.must_change_password = True
+            profile.save(update_fields=["contact", "must_change_password"])
+
+            models.AccountDocument.objects.filter(
+                account_request=account_request,
+                association_contact__isnull=True,
+            ).update(association_contact=contact)
+
+            account_request.status = models.PublicAccountRequestStatus.APPROVED
+            account_request.reviewed_at = timezone.now()
+            account_request.reviewed_by = request.user
+            account_request.save(
+                update_fields=["status", "reviewed_at", "reviewed_by", "contact"]
+            )
+
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        set_password_url = request.build_absolute_uri(
+            reverse("portal:portal_set_password", args=[uid, token])
+        )
+        login_url = request.build_absolute_uri(reverse("portal:portal_login"))
+        message = render_to_string(
+            "emails/account_request_approved.txt",
+            {
+                "association_name": contact.name,
+                "email": account_request.email,
+                "set_password_url": set_password_url,
+                "login_url": login_url,
+                "temp_password": TEMP_PORTAL_PASSWORD,
+            },
+        )
+        try:
+            send_mail(
+                "ASF WMS - Compte valide",
+                message,
+                settings.DEFAULT_FROM_EMAIL,
+                [account_request.email],
+                fail_silently=False,
+            )
+        except Exception:
+            pass
+        return True, ""
+
+    def approve_requests(self, request, queryset):
         approved = 0
         skipped = 0
         for account_request in queryset.select_related("contact"):
             if account_request.status == models.PublicAccountRequestStatus.APPROVED:
-                skipped += 1
-                continue
-            with transaction.atomic():
-                contact = account_request.contact
-                if not contact:
-                    contact = Contact.objects.create(
-                        name=account_request.association_name,
-                        email=account_request.email,
-                        phone=account_request.phone,
-                        is_active=True,
-                    )
-                    account_request.contact = contact
-                tag, _ = ContactTag.objects.get_or_create(name=TAG_SHIPPER[0])
-                contact.tags.add(tag)
-
-                contact_updates = []
-                if account_request.email and contact.email != account_request.email:
-                    contact.email = account_request.email
-                    contact_updates.append("email")
-                if account_request.phone and contact.phone != account_request.phone:
-                    contact.phone = account_request.phone
-                    contact_updates.append("phone")
-                if contact_updates:
-                    contact.save(update_fields=contact_updates)
-
-                address = (
-                    contact.addresses.filter(is_default=True).first()
-                    or contact.addresses.first()
+                user_exists = (
+                    get_user_model()
+                    .objects.filter(email__iexact=account_request.email)
+                    .exists()
                 )
-                if not address:
-                    ContactAddress.objects.create(
-                        contact=contact,
-                        address_line1=account_request.address_line1,
-                        address_line2=account_request.address_line2,
-                        postal_code=account_request.postal_code,
-                        city=account_request.city,
-                        country=account_request.country or "France",
-                        phone=account_request.phone,
-                        email=account_request.email,
-                        is_default=True,
-                    )
-
-                user = User.objects.filter(email__iexact=account_request.email).first()
-                if user and (user.is_staff or user.is_superuser):
+                if user_exists:
                     skipped += 1
                     continue
-                if not user:
-                    user = User.objects.create_user(
-                        username=account_request.email,
-                        email=account_request.email,
-                    )
-                user.set_password(TEMP_PORTAL_PASSWORD)
-                user.save(update_fields=["password"])
-
-                profile, created = models.AssociationProfile.objects.get_or_create(
-                    user=user, defaults={"contact": contact}
-                )
-                if not created and profile.contact_id != contact.id:
-                    profile.contact = contact
-                profile.must_change_password = True
-                profile.save(update_fields=["contact", "must_change_password"])
-
-                models.AccountDocument.objects.filter(
-                    account_request=account_request,
-                    association_contact__isnull=True,
-                ).update(association_contact=contact)
-
-                account_request.status = models.PublicAccountRequestStatus.APPROVED
-                account_request.reviewed_at = timezone.now()
-                account_request.reviewed_by = request.user
-                account_request.save(
-                    update_fields=["status", "reviewed_at", "reviewed_by", "contact"]
-                )
-
-            uid = urlsafe_base64_encode(force_bytes(user.pk))
-            token = default_token_generator.make_token(user)
-            set_password_url = request.build_absolute_uri(
-                reverse("portal:portal_set_password", args=[uid, token])
-            )
-            login_url = request.build_absolute_uri(reverse("portal:portal_login"))
-            message = render_to_string(
-                "emails/account_request_approved.txt",
-                {
-                    "association_name": contact.name,
-                    "email": account_request.email,
-                    "set_password_url": set_password_url,
-                    "login_url": login_url,
-                    "temp_password": TEMP_PORTAL_PASSWORD,
-                },
-            )
-            try:
-                send_mail(
-                    "ASF WMS - Compte valide",
-                    message,
-                    settings.DEFAULT_FROM_EMAIL,
-                    [account_request.email],
-                    fail_silently=False,
-                )
-            except Exception:
-                pass
-            approved += 1
+            ok, _ = self._approve_request(request, account_request)
+            if ok:
+                approved += 1
+            else:
+                skipped += 1
 
         if approved:
             self.message_user(request, f"{approved} demande(s) approuvee(s).")
@@ -281,6 +294,36 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
             )
 
     approve_requests.short_description = "Approuver les demandes"
+
+    def save_model(self, request, obj, form, change):
+        previous_status = None
+        if change and obj.pk:
+            previous_status = (
+                self.model.objects.filter(pk=obj.pk)
+                .values_list("status", flat=True)
+                .first()
+            )
+        super().save_model(request, obj, form, change)
+        if obj.status != models.PublicAccountRequestStatus.APPROVED:
+            return
+        user_exists = (
+            get_user_model().objects.filter(email__iexact=obj.email).exists()
+        )
+        if previous_status == models.PublicAccountRequestStatus.APPROVED and user_exists:
+            return
+        ok, reason = self._approve_request(request, obj)
+        if ok:
+            self.message_user(
+                request,
+                "Compte cree automatiquement apres validation.",
+                level=messages.SUCCESS,
+            )
+        else:
+            self.message_user(
+                request,
+                f"Validation ignoree ({reason}).",
+                level=messages.WARNING,
+            )
 
     def account_access_info(self, obj):
         if not obj or obj.status != models.PublicAccountRequestStatus.APPROVED:
