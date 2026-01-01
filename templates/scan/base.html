@@ -71,6 +71,12 @@
             {% endfor %}
           </div>
         {% endif %}
+        {% if admin_pending_account_requests %}
+          <div class="scan-message warning">
+            Nouvelles demandes de compte en attente: {{ admin_pending_account_requests }}
+            (<a href="{% url 'admin:wms_publicaccountrequest_changelist' %}">voir</a>)
+          </div>
+        {% endif %}
         <div id="scan-sync-banner" class="scan-sync-banner" data-sync-url="{% url 'scan:scan_sync' %}" data-sync-interval="8000">
           <span>Des changements sont disponibles. Recharge pour synchroniser.</span>
           <button type="button" id="scan-sync-reload">Recharger</button>
