@@ -954,12 +954,20 @@ body {
   font-weight: 600;
   color: #374151;
   background: transparent;
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 :root[data-ui="studio"] .scan-nav a.active,
 :root[data-ui="studio"] .scan-nav a:hover {
   background: var(--accent);
   color: #ffffff;
+  transform: none;
 }
 
 :root[data-ui="studio"] .scan-main {
