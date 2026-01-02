@@ -1084,3 +1084,189 @@ body {
     align-items: flex-start;
   }
 }
+
+:root[data-ui="benev"] {
+  --ink: #1f1d1b;
+  --ink-soft: #615a4f;
+  --bg: #f6f1e7;
+  --bg-2: #efe7db;
+  --bg-accent: #d9e4f0;
+  --bg-accent-2: #fef6e9;
+  --accent: #1c6a5b;
+  --accent-2: #e08a3c;
+  --accent-2-ink: #1f1d1b;
+  --card: #fffaf3;
+  --panel: #fffdf8;
+  --input-bg: #ffffff;
+  --border: rgba(31, 29, 27, 0.12);
+  --border-strong: rgba(31, 29, 27, 0.2);
+  --table-header: rgba(28, 106, 91, 0.08);
+  --scan-btn-bg: rgba(28, 106, 91, 0.08);
+  --shadow: rgba(34, 27, 16, 0.12);
+  --success-bg: rgba(28, 106, 91, 0.12);
+  --success-border: rgba(28, 106, 91, 0.3);
+  --error-bg: #fdecea;
+  --error-border: #f1b0a7;
+  --danger: #b43d2f;
+  --overlay: rgba(20, 20, 20, 0.7);
+}
+
+:root[data-ui="benev"] body {
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  background: radial-gradient(circle at top left, var(--bg-accent), var(--bg) 50%),
+    linear-gradient(135deg, #fef6e9 0%, #f4efe5 60%, #e8f2f6 100%);
+  color: var(--ink);
+}
+
+:root[data-ui="benev"] .scan-shell {
+  padding: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+:root[data-ui="benev"] .scan-header {
+  margin: 0;
+  padding: 1.5rem 3rem;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255, 250, 243, 0.9);
+  backdrop-filter: blur(8px);
+}
+
+:root[data-ui="benev"] .scan-title {
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 20px;
+}
+
+:root[data-ui="benev"] .scan-subtitle {
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+:root[data-ui="benev"] .scan-theme-toggle,
+:root[data-ui="benev"] .scan-ui-toggle {
+  background: rgba(255, 250, 243, 0.9);
+  border-color: var(--border);
+}
+
+:root[data-ui="benev"] .scan-theme-button,
+:root[data-ui="benev"] .scan-ui-button {
+  background: var(--accent);
+}
+
+:root[data-ui="benev"] .scan-body {
+  padding: 0 3rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+:root[data-ui="benev"] .scan-shell > .scan-main {
+  padding: 2rem 3rem 3rem;
+}
+
+:root[data-ui="benev"] .scan-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1.5rem 0 0;
+}
+
+:root[data-ui="benev"] .scan-nav a {
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  text-align: left;
+  font-weight: 600;
+  background: transparent;
+}
+
+:root[data-ui="benev"] .scan-nav a.active,
+:root[data-ui="benev"] .scan-nav a:hover {
+  border-color: var(--accent);
+  color: #ffffff;
+  background: var(--accent);
+  transform: none;
+}
+
+:root[data-ui="benev"] .scan-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+:root[data-ui="benev"] .scan-card {
+  border-radius: 24px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  box-shadow: 0 18px 45px var(--shadow);
+  padding: 1.75rem;
+}
+
+:root[data-ui="benev"] .scan-card h2 {
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+}
+
+:root[data-ui="benev"] .scan-table-wrap {
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  box-shadow: 0 12px 24px var(--shadow);
+}
+
+:root[data-ui="benev"] .scan-table th {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  background: var(--table-header);
+}
+
+:root[data-ui="benev"] .scan-submit {
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+:root[data-ui="benev"] .scan-submit.secondary {
+  background: var(--accent-2);
+  color: var(--accent-2-ink);
+}
+
+:root[data-ui="benev"] .scan-scan-btn {
+  border-radius: 999px;
+  border-color: var(--accent);
+  background: var(--scan-btn-bg);
+}
+
+:root[data-ui="benev"] .scan-message.success {
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+}
+
+:root[data-ui="benev"] .portal-nav a {
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  color: var(--ink);
+}
+
+:root[data-ui="benev"] .portal-nav a:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+@media (max-width: 900px) {
+  :root[data-ui="benev"] .scan-header {
+    padding: 1.25rem 1.5rem;
+  }
+
+  :root[data-ui="benev"] .scan-body {
+    padding: 0 1.5rem 2rem;
+  }
+
+  :root[data-ui="benev"] .scan-shell > .scan-main {
+    padding: 1.5rem;
+  }
+}

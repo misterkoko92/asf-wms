@@ -1,14 +1,34 @@
 {% load static %}
 <!doctype html>
-<html lang="fr">
+<html lang="fr" data-ui="classic" data-theme="classic">
 <head>
   <meta charset="utf-8">
   <title>{% block title %}Portail association{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+  <script>
+    (function() {
+      try {
+        var storedUi = localStorage.getItem('wms-ui');
+        if (storedUi) {
+          document.documentElement.setAttribute('data-ui', storedUi);
+        }
+        var storedTheme = localStorage.getItem('scan-theme');
+        if (storedTheme) {
+          document.documentElement.setAttribute('data-theme', storedTheme);
+        }
+      } catch (err) {
+        // Ignore storage errors.
+      }
+    })();
+  </script>
   <link rel="stylesheet" href="{% static 'scan/scan.css' %}">
   <style>
     .portal-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
     .portal-nav { display: flex; flex-wrap: wrap; gap: 10px; }
+    .portal-actions { display: flex; align-items: center; gap: 10px; }
     .portal-nav a { text-decoration: none; font-weight: 600; }
     .portal-card { margin-bottom: 16px; }
     .portal-table { width: 100%; border-collapse: collapse; }
@@ -31,6 +51,14 @@
         <a href="{% url 'portal:portal_account' %}">Compte</a>
         <a href="{% url 'portal:portal_logout' %}">Deconnexion</a>
       </nav>
+      <div class="portal-actions">
+        <div class="scan-ui-toggle">
+          <span class="scan-theme-label">Interface</span>
+          <button type="button" id="portal-ui-toggle" class="scan-ui-button" aria-pressed="false">
+            Classique
+          </button>
+        </div>
+      </div>
     </header>
 
     <main class="scan-main">
@@ -45,5 +73,52 @@
       {% block content %}{% endblock %}
     </main>
   </div>
+  <script>
+    (function() {
+      var toggle = document.getElementById('portal-ui-toggle');
+      if (!toggle) {
+        return;
+      }
+      var root = document.documentElement;
+      var UI_KEY = 'wms-ui';
+      var UI_OPTIONS = ['classic', 'nova', 'studio', 'benev'];
+      var UI_LABELS = {
+        classic: 'Classique',
+        nova: 'Nouveau',
+        studio: 'Studio',
+        benev: 'Benev'
+      };
+      var normalize = function(value) {
+        return UI_OPTIONS.indexOf(value) !== -1 ? value : 'classic';
+      };
+      var applyUi = function(ui) {
+        var normalized = normalize(ui);
+        root.dataset.ui = normalized;
+        toggle.textContent = UI_LABELS[normalized] || 'Classique';
+        toggle.setAttribute('aria-pressed', normalized === 'classic' ? 'false' : 'true');
+      };
+      var initialUi = root.dataset.ui || 'classic';
+      try {
+        var stored = localStorage.getItem(UI_KEY);
+        if (stored) {
+          initialUi = stored;
+        }
+      } catch (err) {
+        // Ignore storage errors.
+      }
+      applyUi(initialUi);
+      toggle.addEventListener('click', function() {
+        var current = normalize(root.dataset.ui);
+        var currentIndex = UI_OPTIONS.indexOf(current);
+        var nextUi = UI_OPTIONS[(currentIndex + 1) % UI_OPTIONS.length];
+        applyUi(nextUi);
+        try {
+          localStorage.setItem(UI_KEY, nextUi);
+        } catch (err) {
+          // Ignore storage errors.
+        }
+      });
+    })();
+  </script>
 </body>
 </html>

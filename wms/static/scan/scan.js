@@ -58,16 +58,18 @@
     }
     const root = document.documentElement;
     const UI_KEY = 'wms-ui';
-    const UI_OPTIONS = ['classic', 'nova', 'studio'];
+    const UI_OPTIONS = ['classic', 'nova', 'studio', 'benev'];
     const UI_LABELS = {
       classic: 'Classique',
       nova: 'Nouveau',
-      studio: 'Studio'
+      studio: 'Studio',
+      benev: 'Benev'
     };
     const UI_TITLES = {
       classic: 'Basculer vers Nouveau',
       nova: 'Basculer vers Studio',
-      studio: 'Basculer vers Classique'
+      studio: 'Basculer vers Benev',
+      benev: 'Basculer vers Classique'
     };
     const normalize = value => (UI_OPTIONS.includes(value) ? value : 'classic');
     let initialUi = root.dataset.ui || 'classic';
