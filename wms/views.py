@@ -3360,7 +3360,7 @@ def scan_faq(request):
     )
 
 
-SERVICE_WORKER_JS = """const CACHE_NAME = 'wms-scan-v30';
+SERVICE_WORKER_JS = """const CACHE_NAME = 'wms-scan-v31';
 const ASSETS = [
   '/scan/',
   '/static/scan/scan.css',
