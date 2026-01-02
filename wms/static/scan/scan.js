@@ -58,7 +58,18 @@
     }
     const root = document.documentElement;
     const UI_KEY = 'wms-ui';
-    const normalize = value => (value === 'nova' ? 'nova' : 'classic');
+    const UI_OPTIONS = ['classic', 'nova', 'studio'];
+    const UI_LABELS = {
+      classic: 'Classique',
+      nova: 'Nouveau',
+      studio: 'Studio'
+    };
+    const UI_TITLES = {
+      classic: 'Basculer vers Nouveau',
+      nova: 'Basculer vers Studio',
+      studio: 'Basculer vers Classique'
+    };
+    const normalize = value => (UI_OPTIONS.includes(value) ? value : 'classic');
     let initialUi = root.dataset.ui || 'classic';
     try {
       const stored = localStorage.getItem(UI_KEY);
@@ -72,16 +83,17 @@
     const applyUi = ui => {
       const normalized = normalize(ui);
       root.dataset.ui = normalized;
-      toggle.textContent = normalized === 'nova' ? 'Nouveau' : 'Classique';
-      toggle.setAttribute('aria-pressed', normalized === 'nova' ? 'true' : 'false');
-      toggle.title =
-        normalized === 'nova' ? 'Basculer vers Classique' : 'Basculer vers Nouveau';
+      toggle.textContent = UI_LABELS[normalized] || 'Classique';
+      toggle.setAttribute('aria-pressed', normalized === 'classic' ? 'false' : 'true');
+      toggle.title = UI_TITLES[normalized] || 'Basculer vers Nouveau';
     };
 
     applyUi(initialUi);
 
     toggle.addEventListener('click', () => {
-      const nextUi = root.dataset.ui === 'nova' ? 'classic' : 'nova';
+      const current = normalize(root.dataset.ui);
+      const currentIndex = UI_OPTIONS.indexOf(current);
+      const nextUi = UI_OPTIONS[(currentIndex + 1) % UI_OPTIONS.length];
       applyUi(nextUi);
       try {
         localStorage.setItem(UI_KEY, nextUi);
