@@ -1,0 +1,14 @@
+Nouveau scan de suivi expedition
+
+Expedition: {{ shipment_reference }}
+Statut: {{ status }}
+Date: {{ event_time|date:"d/m/Y H:i" }}
+Nom: {{ actor_name }}
+Structure: {{ actor_structure }}
+Commentaires: {{ comments }}
+
+Suivi public:
+{{ tracking_url }}
+
+Admin:
+{{ admin_url }}

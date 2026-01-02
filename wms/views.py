@@ -11,7 +11,6 @@ from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_decode
 from django.utils.encoding import force_bytes
 from django.core.exceptions import PermissionDenied
-from django.core.mail import send_mail
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -122,6 +121,7 @@ from .services import (
     receive_stock,
     reserve_stock_for_order,
 )
+from .emailing import get_admin_emails, send_email_safe
 
 
 def _compute_shipment_progress(shipment):
@@ -377,32 +377,11 @@ def _build_public_base_url(request):
 
 
 def _send_email_safe(*, subject, message, recipient):
-    recipients = recipient
-    if isinstance(recipients, str):
-        recipients = [recipients]
-    recipients = [item for item in recipients if item]
-    if not recipients:
-        return False
-    try:
-        send_mail(
-            subject,
-            message,
-            settings.DEFAULT_FROM_EMAIL,
-            recipients,
-            fail_silently=False,
-        )
-    except Exception:
-        return False
-    return True
+    return send_email_safe(subject=subject, message=message, recipient=recipient)
 
 
 def _get_admin_emails():
-    User = get_user_model()
-    return list(
-        User.objects.filter(is_superuser=True, is_active=True)
-        .exclude(email="")
-        .values_list("email", flat=True)
-    )
+    return get_admin_emails()
 
 
 def _validate_upload(file_obj):

@@ -1,0 +1,13 @@
+Changement de statut expedition
+
+Expedition: {{ shipment_reference }}
+Ancien statut: {{ old_status }}
+Nouveau statut: {{ new_status }}
+Destination: {{ destination_label|default:"-" }}
+Date: {{ changed_at|date:"d/m/Y H:i" }}
+
+Suivi:
+{{ tracking_url }}
+
+Admin:
+{{ admin_url }}

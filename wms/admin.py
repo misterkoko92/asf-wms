@@ -1,7 +1,6 @@
 from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
-from django.core.mail import send_mail
 from django.db import transaction
 from django.http import Http404
 from django.shortcuts import redirect, render
@@ -37,6 +36,7 @@ from .services import (
     transfer_stock,
     unpack_carton,
 )
+from .emailing import send_email_safe
 from .print_context import build_carton_document_context, build_shipment_document_context
 from .print_renderer import get_template_layout, render_layout_from_layout
 
@@ -253,16 +253,11 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
                 "temp_password": TEMP_PORTAL_PASSWORD,
             },
         )
-        try:
-            send_mail(
-                "ASF WMS - Compte valide",
-                message,
-                settings.DEFAULT_FROM_EMAIL,
-                [account_request.email],
-                fail_silently=False,
-            )
-        except Exception:
-            pass
+        send_email_safe(
+            subject="ASF WMS - Compte valide",
+            message=message,
+            recipient=[account_request.email],
+        )
         return True, ""
 
     def approve_requests(self, request, queryset):
