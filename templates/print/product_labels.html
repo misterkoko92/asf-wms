@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Etiquettes produit</title>
+  <style>
+    @page { size: A4; margin: {{ page_style.page_margin|default:"8mm" }}; }
+    body {
+      margin: 0;
+      color: #000;
+    }
+    .product-label-page {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: {{ page_style.page_gap|default:"1.5mm" }};
+      page-break-after: always;
+    }
+    .product-label-page:last-child {
+      page-break-after: auto;
+    }
+    .product-label {
+      width: var(--label-width, 18.8cm);
+      height: var(--label-height, 6.9cm);
+      padding: var(--label-padding, 3mm);
+      border: var(--label-border-width, 2px) solid var(--label-border-color, #1C8BC0);
+      box-sizing: border-box;
+      font-family: var(--font-family, Aptos, Arial, sans-serif);
+      display: grid;
+      grid-template-rows: 1fr auto;
+      gap: var(--label-gap, 2mm);
+      break-inside: avoid;
+    }
+    .product-label-grid {
+      display: grid;
+      grid-template-columns: var(--title-col-width, 28%) var(--value-col-width, 42%) var(--photo-col-width, 30%);
+      grid-template-rows: repeat(3, 1fr);
+      gap: var(--grid-gap, 2mm);
+    }
+    .pl-title {
+      background: var(--title-bg, #1C8BC0);
+      color: var(--title-color, #fff);
+      font-weight: var(--title-font-weight, 700);
+      font-size: var(--title-font-size, 14pt);
+      text-transform: var(--title-text-transform, uppercase);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--title-padding, 2mm);
+      text-align: center;
+    }
+    .pl-value {
+      font-weight: var(--value-font-weight, 700);
+      font-size: var(--value-font-size, 14pt);
+      color: var(--value-color, #000);
+      text-transform: var(--value-text-transform, capitalize);
+      display: flex;
+      align-items: center;
+    }
+    .pl-photo {
+      grid-row: 1 / span 3;
+      grid-column: 3;
+      border: var(--photo-border, 1px solid #d0d0d0);
+      padding: var(--photo-padding, 2mm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+    }
+    .pl-photo img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+    .product-label-footer {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--footer-gap, 4mm);
+      align-items: center;
+    }
+    .pl-foot {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .pl-pill {
+      background: var(--title-bg, #1C8BC0);
+      color: var(--title-color, #fff);
+      font-weight: var(--title-font-weight, 700);
+      font-size: var(--title-font-size, 14pt);
+      text-transform: var(--title-text-transform, uppercase);
+      padding: var(--pill-padding, 1mm 3mm);
+      border-radius: var(--pill-radius, 12mm);
+      text-align: center;
+      min-width: 60%;
+    }
+    .pl-foot-value {
+      margin-top: var(--pill-gap, 1mm);
+      font-weight: var(--value-font-weight, 700);
+      font-size: var(--value-font-size, 14pt);
+      color: var(--value-color, #000);
+      text-transform: var(--code-text-transform, uppercase);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  {% for page in pages %}
+    <div class="product-label-page">
+      {% for label in page %}
+        {% for block in label.blocks %}
+          {{ block|safe }}
+        {% endfor %}
+      {% endfor %}
+    </div>
+  {% endfor %}
+</body>
+</html>

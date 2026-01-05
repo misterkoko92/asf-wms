@@ -24,6 +24,20 @@ from .contact_filters import (
 from contacts.models import Contact, ContactAddress, ContactTag
 
 TEMP_PORTAL_PASSWORD = "TempPWD!"
+
+
+def _chunked(items, size):
+    return [items[i : i + size] for i in range(0, len(items), size)]
+
+
+def _extract_product_label_style(layout):
+    if not isinstance(layout, dict):
+        return {}
+    blocks = layout.get("blocks") or []
+    for block in blocks:
+        if block.get("type") == "product_label":
+            return block.get("style") or {}
+    return {}
 from .services import (
     StockError,
     adjust_stock,
@@ -37,7 +51,12 @@ from .services import (
     unpack_carton,
 )
 from .emailing import send_email_safe
-from .print_context import build_carton_document_context, build_shipment_document_context
+from .print_context import (
+    build_carton_document_context,
+    build_product_label_context,
+    build_shipment_document_context,
+)
+from .print_layouts import DEFAULT_LAYOUTS
 from .print_renderer import get_template_layout, render_layout_from_layout
 
 
@@ -67,6 +86,7 @@ class ProductAdmin(admin.ModelAdmin):
         "sku",
         "name",
         "brand",
+        "color",
         "category",
         "default_location",
         "perishable",
@@ -84,11 +104,13 @@ class ProductAdmin(admin.ModelAdmin):
     search_fields = ("sku", "name", "barcode", "brand")
     filter_horizontal = ("tags",)
     list_select_related = ("category", "default_location")
-    readonly_fields = ("sku", "qr_code_preview")
+    readonly_fields = ("sku", "photo_preview", "qr_code_preview")
     fields = (
         "sku",
         "name",
         "brand",
+        "color",
+        "photo",
         "category",
         "tags",
         "barcode",
@@ -102,12 +124,18 @@ class ProductAdmin(admin.ModelAdmin):
         "perishable",
         "quarantine_default",
         "is_active",
+        "photo_preview",
         "qr_code_preview",
         "qr_code_image",
         "notes",
     )
     inlines = (ProductKitItemInline,)
-    actions = ("archive_products", "unarchive_products", "generate_qr_codes")
+    actions = (
+        "archive_products",
+        "unarchive_products",
+        "generate_qr_codes",
+        "print_product_labels",
+    )
 
     def qr_code_preview(self, obj):
         if obj.qr_code_image:
@@ -118,6 +146,16 @@ class ProductAdmin(admin.ModelAdmin):
         return "-"
 
     qr_code_preview.short_description = "QR code"
+
+    def photo_preview(self, obj):
+        if obj.photo:
+            return format_html(
+                '<img src="{}" style="height: 120px; border: 1px solid #ccc;" />',
+                obj.photo.url,
+            )
+        return "-"
+
+    photo_preview.short_description = "Photo"
 
     def archive_products(self, request, queryset):
         updated = queryset.update(is_active=False)
@@ -141,6 +179,49 @@ class ProductAdmin(admin.ModelAdmin):
         self.message_user(request, f"{count} QR code(s) generes.")
 
     generate_qr_codes.short_description = "Generer les QR codes"
+
+    def print_product_labels(self, request, queryset):
+        products = (
+            queryset.select_related("default_location", "default_location__warehouse")
+            .order_by("name")
+            .all()
+        )
+        if not products:
+            self.message_user(request, "Aucun produit selectionne.", level=messages.WARNING)
+            return None
+        warehouse_ids = set()
+        for product in products:
+            if product.default_location_id:
+                warehouse_ids.add(product.default_location.warehouse_id)
+        rack_color_map = {}
+        if warehouse_ids:
+            rack_colors = models.RackColor.objects.filter(warehouse_id__in=warehouse_ids)
+            rack_color_map = {
+                (color.warehouse_id, color.zone.lower()): color.color
+                for color in rack_colors
+            }
+        layout_override = get_template_layout("product_label")
+        layout = layout_override or DEFAULT_LAYOUTS.get("product_label", {"blocks": []})
+        page_style = _extract_product_label_style(layout)
+        labels = []
+        for product in products:
+            rack_color = None
+            location = product.default_location
+            if location:
+                rack_color = rack_color_map.get(
+                    (location.warehouse_id, location.zone.lower())
+                )
+            context = build_product_label_context(product, rack_color=rack_color)
+            blocks = render_layout_from_layout(layout, context)
+            labels.append({"blocks": blocks})
+        pages = _chunked(labels, 4)
+        return render(
+            request,
+            "print/product_labels.html",
+            {"pages": pages, "page_style": page_style},
+        )
+
+    print_product_labels.short_description = "Imprimer etiquettes produit"
 
 
 @admin.register(models.PublicOrderLink)
@@ -451,6 +532,13 @@ class LocationAdmin(admin.ModelAdmin):
     list_display = ("warehouse", "zone", "aisle", "shelf")
     list_filter = ("warehouse",)
     search_fields = ("warehouse__name", "zone", "aisle", "shelf")
+
+
+@admin.register(models.RackColor)
+class RackColorAdmin(admin.ModelAdmin):
+    list_display = ("warehouse", "zone", "color")
+    list_filter = ("warehouse",)
+    search_fields = ("warehouse__name", "zone", "color")
 
 
 class ReceiptLineInline(admin.TabularInline):

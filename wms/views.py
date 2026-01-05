@@ -87,6 +87,7 @@ from .models import (
 from .print_context import (
     build_carton_document_context,
     build_label_context,
+    build_product_label_context,
     build_preview_context,
     build_sample_label_context,
     build_shipment_document_context,
@@ -188,6 +189,20 @@ def _build_destination_label(destination):
     if not destination:
         return ""
     return str(destination)
+
+
+def _chunked(items, size):
+    return [items[i : i + size] for i in range(0, len(items), size)]
+
+
+def _extract_product_label_style(layout):
+    if not isinstance(layout, dict):
+        return {}
+    blocks = layout.get("blocks") or []
+    for block in blocks:
+        if block.get("type") == "product_label":
+            return block.get("style") or {}
+    return {}
 
 
 def _build_shipment_contact_payload():
@@ -3170,6 +3185,14 @@ def scan_print_template_edit(request, doc_type):
             label = f"{label} - {dest}"
         shipments.append({"id": shipment.id, "label": label})
 
+    products = []
+    if doc_type == "product_label":
+        for product in Product.objects.order_by("name")[:30]:
+            label = product.name
+            if product.sku:
+                label = f"{product.sku} - {label}"
+            products.append({"id": product.id, "label": label})
+
     versions = []
     if template:
         versions = list(
@@ -3188,6 +3211,7 @@ def scan_print_template_edit(request, doc_type):
             "layout": layout,
             "block_library": BLOCK_LIBRARY,
             "shipments": shipments,
+            "products": products,
             "versions": versions,
         },
     )
@@ -3239,6 +3263,31 @@ def scan_print_template_preview(request):
             labels.append({"blocks": blocks})
 
         return render(request, "print/dynamic_labels.html", {"labels": labels})
+
+    if doc_type == "product_label":
+        product_id = request.POST.get("product_id") or ""
+        product = None
+        if product_id.isdigit():
+            product = (
+                Product.objects.select_related("default_location", "default_location__warehouse")
+                .filter(pk=int(product_id))
+                .first()
+            )
+        labels = []
+        sample_context = build_preview_context(doc_type)
+        for _ in range(4):
+            context = (
+                build_product_label_context(product) if product else sample_context
+            )
+            blocks = render_layout_from_layout(layout_data, context)
+            labels.append({"blocks": blocks})
+        page_style = _extract_product_label_style(layout_data)
+        pages = _chunked(labels, 4)
+        return render(
+            request,
+            "print/product_labels.html",
+            {"pages": pages, "page_style": page_style},
+        )
 
     context = build_preview_context(doc_type, shipment=shipment)
     blocks = render_layout_from_layout(layout_data, context)

@@ -1,0 +1,63 @@
+<div
+  class="product-label"
+  style="
+    --label-width: {{ style.label_width|default:'18.8cm' }};
+    --label-height: {{ style.label_height|default:'6.9cm' }};
+    --label-padding: {{ style.label_padding|default:'3mm' }};
+    --label-gap: {{ style.label_gap|default:'2mm' }};
+    --grid-gap: {{ style.grid_gap|default:'2mm' }};
+    --label-border-width: {{ style.label_border_width|default:'2px' }};
+    --label-border-color: {{ style.label_border_color|default:'#1C8BC0' }};
+    --title-bg: {{ rack_color|default:style.title_bg_color|default:'#1C8BC0' }};
+    --title-color: {{ style.title_text_color|default:'#ffffff' }};
+    --title-font-size: {{ style.title_font_size|default:'14pt' }};
+    --title-font-weight: {{ style.title_font_weight|default:'700' }};
+    --title-text-transform: {{ style.title_text_transform|default:'uppercase' }};
+    --value-font-size: {{ style.value_font_size|default:'14pt' }};
+    --value-font-weight: {{ style.value_font_weight|default:'700' }};
+    --value-color: {{ style.value_text_color|default:'#000000' }};
+    --value-text-transform: {{ style.value_text_transform|default:'capitalize' }};
+    --code-text-transform: {{ style.code_text_transform|default:'uppercase' }};
+    --font-family: {{ style.font_family|default:'Aptos, Arial, sans-serif' }};
+    --title-col-width: {{ style.title_col_width|default:'28%' }};
+    --value-col-width: {{ style.value_col_width|default:'42%' }};
+    --photo-col-width: {{ style.photo_col_width|default:'30%' }};
+    --photo-border: {{ style.photo_border|default:'1px solid #d0d0d0' }};
+    --photo-padding: {{ style.photo_padding|default:'2mm' }};
+    --pill-radius: {{ style.pill_radius|default:'12mm' }};
+    --pill-padding: {{ style.pill_padding|default:'1mm 3mm' }};
+    --pill-gap: {{ style.pill_gap|default:'1mm' }};
+    --footer-gap: {{ style.footer_gap|default:'4mm' }};
+  "
+>
+  <div class="product-label-grid">
+    <div class="pl-title">{{ block.title_product|default:"PRODUIT" }}</div>
+    <div class="pl-value">{{ product_name|default:"-" }}</div>
+    <div class="pl-photo">
+      {% if product_photo_url %}
+        <img src="{{ product_photo_url }}" alt="Photo {{ product_name|default:'Produit' }}">
+      {% endif %}
+    </div>
+
+    <div class="pl-title">{{ block.title_brand|default:"MARQUE" }}</div>
+    <div class="pl-value">{{ product_brand|default:"-" }}</div>
+
+    <div class="pl-title">{{ block.title_color|default:"COULEUR" }}</div>
+    <div class="pl-value">{{ product_color|default:"-" }}</div>
+  </div>
+
+  <div class="product-label-footer">
+    <div class="pl-foot">
+      <div class="pl-pill">{{ block.title_rack|default:"RACK" }}</div>
+      <div class="pl-foot-value">{{ product_rack|default:"-" }}</div>
+    </div>
+    <div class="pl-foot">
+      <div class="pl-pill">{{ block.title_aisle|default:"ETAGERE" }}</div>
+      <div class="pl-foot-value">{{ product_aisle|default:"-" }}</div>
+    </div>
+    <div class="pl-foot">
+      <div class="pl-pill">{{ block.title_shelf|default:"BAC" }}</div>
+      <div class="pl-foot-value">{{ product_shelf|default:"-" }}</div>
+    </div>
+  </div>
+</div>

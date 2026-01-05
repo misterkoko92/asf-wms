@@ -54,6 +54,8 @@ class Product(models.Model):
     sku = models.CharField(max_length=40, unique=True, blank=True)
     name = models.CharField(max_length=200)
     brand = models.CharField(max_length=120, blank=True)
+    color = models.CharField(max_length=120, blank=True)
+    photo = models.ImageField(upload_to="product_photos/", blank=True)
     category = models.ForeignKey(
         ProductCategory, on_delete=models.PROTECT, null=True, blank=True
     )
@@ -180,6 +182,19 @@ class Location(models.Model):
 
     def __str__(self) -> str:
         return f"{self.warehouse} {self.zone}-{self.aisle}-{self.shelf}"
+
+
+class RackColor(models.Model):
+    warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT)
+    zone = models.CharField(max_length=40)
+    color = models.CharField(max_length=40)
+
+    class Meta:
+        unique_together = ("warehouse", "zone")
+        ordering = ["warehouse", "zone"]
+
+    def __str__(self) -> str:
+        return f"{self.warehouse} {self.zone} - {self.color}"
 
 
 class ProductLotStatus(models.TextChoices):

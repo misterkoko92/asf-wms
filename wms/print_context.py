@@ -10,7 +10,7 @@ from .documents import (
     build_shipment_type_labels,
     compute_weight_total_g,
 )
-from .models import CartonFormat
+from .models import CartonFormat, RackColor
 
 
 def _build_destination_info(shipment):
@@ -266,11 +266,59 @@ def build_sample_label_context():
     }
 
 
-def build_preview_context(doc_type, shipment=None, carton=None):
+def resolve_rack_color(location):
+    if location is None:
+        return None
+    match = RackColor.objects.filter(
+        warehouse=location.warehouse, zone__iexact=location.zone
+    ).first()
+    if match:
+        return match.color
+    return None
+
+
+def build_product_label_context(product, rack_color=None):
+    location = product.default_location
+    rack = location.zone if location else ""
+    aisle = location.aisle if location else ""
+    shelf = location.shelf if location else ""
+    if rack_color is None:
+        rack_color = resolve_rack_color(location)
+    return {
+        "product_name": product.name,
+        "product_brand": product.brand,
+        "product_color": product.color,
+        "product_photo_url": product.photo.url if product.photo else "",
+        "product_rack": rack,
+        "product_aisle": aisle,
+        "product_shelf": shelf,
+        "rack_color": rack_color,
+    }
+
+
+def build_sample_product_label_context():
+    return {
+        "product_name": "Seringue Luer Tip 1/3/5ml",
+        "product_brand": "Divers",
+        "product_color": "Blanc / Transparent",
+        "product_photo_url": "",
+        "product_rack": "4",
+        "product_aisle": "IV - A1",
+        "product_shelf": "A",
+        "rack_color": "#1C8BC0",
+    }
+
+
+def build_preview_context(doc_type, shipment=None, carton=None, product=None):
     if doc_type == "shipment_label":
         if shipment:
             return build_label_context(shipment, position=1, total=10)
         return build_sample_label_context()
+
+    if doc_type == "product_label":
+        if product:
+            return build_product_label_context(product)
+        return build_sample_product_label_context()
 
     if shipment:
         if doc_type == "packing_list_carton":

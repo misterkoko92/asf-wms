@@ -1,11 +1,14 @@
 import csv
+import re
+import unicodedata
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
+from django.core.files import File
 from django.db import transaction
 
-from wms.models import Location, Product, ProductCategory, ProductTag, Warehouse
+from wms.models import Location, Product, ProductCategory, ProductTag, RackColor, Warehouse
 
 try:
     from openpyxl import load_workbook
@@ -18,7 +21,20 @@ FALSE_VALUES = {"false", "0", "no", "n", "non", "faux"}
 
 
 def normalize_header(value: str) -> str:
-    return value.strip().lower()
+    text = str(value or "").strip().lower()
+    if not text:
+        return ""
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(char for char in text if not unicodedata.combining(char))
+    text = re.sub(r"[^a-z0-9]+", "_", text)
+    return text.strip("_")
+
+
+def get_value(row, *keys):
+    for key in keys:
+        if key in row:
+            return row.get(key)
+    return None
 
 
 def parse_str(value):
@@ -67,6 +83,30 @@ def parse_bool(value):
     raise CommandError(f"Invalid boolean value: {value}")
 
 
+def resolve_photo_path(raw_value, base_dir: Path):
+    if raw_value is None:
+        return None
+    text = str(raw_value).strip()
+    if not text:
+        return None
+    photo_path = Path(text).expanduser()
+    if not photo_path.is_absolute():
+        photo_path = base_dir / photo_path
+    return photo_path
+
+
+def attach_photo(product, photo_path: Path, dry_run: bool) -> bool:
+    if not photo_path:
+        return False
+    if not photo_path.exists():
+        raise CommandError(f"Photo not found: {photo_path}")
+    if dry_run:
+        return False
+    with photo_path.open("rb") as handle:
+        product.photo.save(photo_path.name, File(handle), save=False)
+    return True
+
+
 def build_category_path(parts):
     parent = None
     for name in parts:
@@ -95,7 +135,8 @@ def get_or_create_location(warehouse_name, zone, aisle, shelf, row_number, stder
         return None
     if not all([warehouse_name, zone, aisle, shelf]):
         stderr.write(
-            f"Row {row_number}: incomplete location (warehouse/zone/aisle/shelf)."
+            "Row {}: incomplete location (warehouse/zone/aisle/shelf or "
+            "entrepot/rack/etagere/bac).".format(row_number)
         )
         return None
     warehouse, _ = Warehouse.objects.get_or_create(name=warehouse_name)
@@ -175,12 +216,15 @@ class Command(BaseCommand):
         updated = 0
         skipped = 0
         errors = 0
+        base_dir = path.parent
 
         with transaction.atomic():
             for index, row in enumerate(rows, start=2):
                 try:
-                    sku = parse_str(row.get("sku"))
-                    name = parse_str(row.get("name"))
+                    sku = parse_str(get_value(row, "sku"))
+                    name = parse_str(
+                        get_value(row, "name", "nom", "nom_produit", "produit")
+                    )
                     if not name:
                         raise CommandError("Missing required field: name")
                     if options["update"] and not sku:
@@ -192,27 +236,78 @@ class Command(BaseCommand):
                         continue
 
                     category_parts = [
-                        parse_str(row.get("category_l1")),
-                        parse_str(row.get("category_l2")),
-                        parse_str(row.get("category_l3")),
-                        parse_str(row.get("category_l4")),
+                        parse_str(
+                            get_value(
+                                row,
+                                "category_l1",
+                                "categorie_l1",
+                                "category_1",
+                                "categorie_1",
+                            )
+                        ),
+                        parse_str(
+                            get_value(
+                                row,
+                                "category_l2",
+                                "categorie_l2",
+                                "category_2",
+                                "categorie_2",
+                            )
+                        ),
+                        parse_str(
+                            get_value(
+                                row,
+                                "category_l3",
+                                "categorie_l3",
+                                "category_3",
+                                "categorie_3",
+                            )
+                        ),
+                        parse_str(
+                            get_value(
+                                row,
+                                "category_l4",
+                                "categorie_l4",
+                                "category_4",
+                                "categorie_4",
+                            )
+                        ),
                     ]
                     category = build_category_path([p for p in category_parts if p])
                     category_provided = any(category_parts)
 
-                    tags, tags_provided = build_tags(parse_str(row.get("tags")))
+                    tags, tags_provided = build_tags(
+                        parse_str(get_value(row, "tags", "etiquettes", "etiquette"))
+                    )
 
-                    warehouse_name = parse_str(row.get("warehouse"))
-                    zone = parse_str(row.get("zone"))
-                    aisle = parse_str(row.get("aisle"))
-                    shelf = parse_str(row.get("shelf"))
+                    warehouse_name = parse_str(get_value(row, "warehouse", "entrepot"))
+                    zone = parse_str(get_value(row, "zone", "rack"))
+                    aisle = parse_str(get_value(row, "aisle", "etagere"))
+                    shelf = parse_str(get_value(row, "shelf", "bac", "emplacement"))
                     default_location = get_or_create_location(
                         warehouse_name, zone, aisle, shelf, index, self.stderr
                     )
                     location_provided = default_location is not None
 
-                    barcode = parse_str(row.get("barcode"))
-                    brand = parse_str(row.get("brand"))
+                    rack_color = parse_str(
+                        get_value(row, "rack_color", "couleur_rack", "color_rack")
+                    )
+                    if rack_color and default_location is not None:
+                        RackColor.objects.update_or_create(
+                            warehouse=default_location.warehouse,
+                            zone=default_location.zone,
+                            defaults={"color": rack_color},
+                        )
+
+                    barcode = parse_str(
+                        get_value(row, "barcode", "code_barre", "codebarre")
+                    )
+                    brand = parse_str(get_value(row, "brand", "marque"))
+                    color = parse_str(get_value(row, "color", "couleur"))
+                    photo_path = resolve_photo_path(
+                        get_value(row, "photo", "image", "photo_path", "image_path"),
+                        base_dir,
+                    )
                     length_cm = parse_decimal(row.get("length_cm"))
                     width_cm = parse_decimal(row.get("width_cm"))
                     height_cm = parse_decimal(row.get("height_cm"))
@@ -222,10 +317,14 @@ class Command(BaseCommand):
                         computed = compute_volume(length_cm, width_cm, height_cm)
                         volume_cm3 = computed
 
-                    storage_conditions = parse_str(row.get("storage_conditions"))
-                    perishable = parse_bool(row.get("perishable"))
-                    quarantine_default = parse_bool(row.get("quarantine_default"))
-                    notes = parse_str(row.get("notes"))
+                    storage_conditions = parse_str(
+                        get_value(row, "storage_conditions", "conditions_stockage")
+                    )
+                    perishable = parse_bool(get_value(row, "perishable", "perissable"))
+                    quarantine_default = parse_bool(
+                        get_value(row, "quarantine_default", "quarantaine_defaut")
+                    )
+                    notes = parse_str(get_value(row, "notes", "note"))
 
                     if product is None:
                         product = Product(sku=sku or "", name=name)
@@ -235,6 +334,8 @@ class Command(BaseCommand):
                             product.barcode = barcode
                         if brand is not None:
                             product.brand = brand
+                        if color is not None:
+                            product.color = color
                         if location_provided:
                             product.default_location = default_location
                         if length_cm is not None:
@@ -255,6 +356,7 @@ class Command(BaseCommand):
                             product.quarantine_default = quarantine_default
                         if notes is not None:
                             product.notes = notes
+                        attach_photo(product, photo_path, options["dry_run"])
                         product.save()
                         if tags_provided:
                             product.tags.set(tags)
@@ -270,6 +372,8 @@ class Command(BaseCommand):
                         updates["barcode"] = barcode
                     if brand is not None:
                         updates["brand"] = brand
+                    if color is not None:
+                        updates["color"] = color
                     if location_provided:
                         updates["default_location"] = default_location
                     if length_cm is not None:
@@ -290,6 +394,12 @@ class Command(BaseCommand):
                         updates["quarantine_default"] = quarantine_default
                     if notes is not None:
                         updates["notes"] = notes
+
+                    photo_updated = attach_photo(
+                        product, photo_path, options["dry_run"]
+                    )
+                    if photo_updated:
+                        updates["photo"] = product.photo
 
                     if updates:
                         for field, value in updates.items():

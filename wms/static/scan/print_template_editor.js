@@ -21,7 +21,9 @@
   const blockEditor = document.getElementById("block-editor");
   const previewFrame = document.getElementById("template-preview");
   const previewStatus = document.getElementById("preview-status");
-  const previewSelect = document.getElementById("preview-shipment");
+  const previewSelect =
+    document.getElementById("preview-shipment") ||
+    document.getElementById("preview-product");
   const previewButton = document.getElementById("preview-layout");
   const resetButton = document.getElementById("reset-layout");
   const form = document.getElementById("template-form");
@@ -277,7 +279,11 @@
     payload.append("doc_type", docType);
     payload.append("layout_json", JSON.stringify({ blocks }));
     if (previewSelect && previewSelect.value) {
-      payload.append("shipment_id", previewSelect.value);
+      if (docType === "product_label") {
+        payload.append("product_id", previewSelect.value);
+      } else {
+        payload.append("shipment_id", previewSelect.value);
+      }
     }
 
     previewStatus.textContent = "Chargement...";

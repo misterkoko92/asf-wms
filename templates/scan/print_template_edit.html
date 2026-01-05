@@ -89,13 +89,23 @@
           Actualiser apercu
         </button>
 
-        <label class="template-preview-label" for="preview-shipment">Apercu avec exp.</label>
-        <select id="preview-shipment" class="template-preview-select">
-          <option value="">Exemple</option>
-          {% for shipment in shipments %}
-            <option value="{{ shipment.id }}">{{ shipment.label }}</option>
-          {% endfor %}
-        </select>
+        {% if doc_type == "product_label" %}
+          <label class="template-preview-label" for="preview-product">Apercu avec produit</label>
+          <select id="preview-product" class="template-preview-select">
+            <option value="">Exemple</option>
+            {% for product in products %}
+              <option value="{{ product.id }}">{{ product.label }}</option>
+            {% endfor %}
+          </select>
+        {% else %}
+          <label class="template-preview-label" for="preview-shipment">Apercu avec exp.</label>
+          <select id="preview-shipment" class="template-preview-select">
+            <option value="">Exemple</option>
+            {% for shipment in shipments %}
+              <option value="{{ shipment.id }}">{{ shipment.label }}</option>
+            {% endfor %}
+          </select>
+        {% endif %}
       </form>
 
       <div class="template-preview-frame">
