@@ -64,6 +64,7 @@
         <a href="{% url 'scan:scan_faq' %}" class="{% if active == 'faq' %}active{% endif %}">FAQ / Docs</a>
         {% if request.user.is_superuser %}
           <a href="{% url 'scan:scan_print_templates' %}" class="{% if active == 'print_templates' %}active{% endif %}">Templates</a>
+          <a href="{% url 'scan:scan_import' %}" class="{% if active == 'imports' %}active{% endif %}">Imports</a>
         {% endif %}
       </nav>
 

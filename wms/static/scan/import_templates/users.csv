@@ -1,0 +1,2 @@
+username;email;first_name;last_name;is_staff;is_superuser;is_active;password
+admin2;admin2@example.org;Admin;User;true;true;true;TempPWD!

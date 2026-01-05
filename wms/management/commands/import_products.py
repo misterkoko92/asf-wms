@@ -15,6 +15,11 @@ try:
 except ImportError:  # pragma: no cover - optional dependency at runtime
     load_workbook = None
 
+try:
+    import xlrd
+except ImportError:  # pragma: no cover - optional dependency at runtime
+    xlrd = None
+
 
 TRUE_VALUES = {"true", "1", "yes", "y", "oui", "o", "vrai"}
 FALSE_VALUES = {"false", "0", "no", "n", "non", "faux"}
@@ -162,6 +167,23 @@ def iter_csv_rows(path):
 
 
 def iter_excel_rows(path):
+    if path.suffix.lower() == ".xls":
+        if xlrd is None:
+            raise CommandError("xlrd is required to import .xls files.")
+        workbook = xlrd.open_workbook(path)
+        sheet = workbook.sheet_by_index(0)
+        if sheet.nrows == 0:
+            raise CommandError("Excel file is empty.")
+        headers = [normalize_header(cell.value) for cell in sheet.row(0)]
+        for row_index in range(1, sheet.nrows):
+            data = {}
+            for col_index, header in enumerate(headers):
+                if not header:
+                    continue
+                data[header] = sheet.cell_value(row_index, col_index)
+            yield data
+        return
+
     if load_workbook is None:
         raise CommandError("openpyxl is required to import Excel files.")
     workbook = load_workbook(path, data_only=True)
@@ -207,7 +229,7 @@ class Command(BaseCommand):
         if not path.exists():
             raise CommandError(f"File not found: {path}")
 
-        if path.suffix.lower() in {".xlsx", ".xlsm"}:
+        if path.suffix.lower() in {".xlsx", ".xlsm", ".xls"}:
             rows = iter_excel_rows(path)
         else:
             rows = iter_csv_rows(path)

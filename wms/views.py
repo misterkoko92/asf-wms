@@ -1,8 +1,11 @@
+import io
 import json
 import math
+import tempfile
 from decimal import Decimal
 from pathlib import Path
 
+from django.core.management import call_command
 from django.contrib import messages
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.decorators import login_required
@@ -95,6 +98,15 @@ from .print_context import (
 from .print_layouts import BLOCK_LIBRARY, DEFAULT_LAYOUTS, DOCUMENT_TEMPLATES
 from .print_renderer import get_template_layout, layout_changed, render_layout_from_layout
 from .print_utils import build_label_pages
+from .import_utils import decode_text, iter_import_rows
+from .import_services import (
+    import_categories,
+    import_contacts,
+    import_locations,
+    import_products_single,
+    import_users,
+    import_warehouses,
+)
 from .scan_helpers import (
     build_available_cartons,
     build_carton_formats,
@@ -3280,6 +3292,127 @@ def scan_print_template_preview(request):
     context = build_preview_context(doc_type, shipment=shipment)
     blocks = render_layout_from_layout(layout_data, context)
     return render(request, "print/dynamic_document.html", {"blocks": blocks})
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def scan_import(request):
+    _require_superuser(request)
+    default_password = "TempPWD!"
+    if request.method == "POST":
+        action = (request.POST.get("action") or "").strip()
+        if action == "product_single":
+            try:
+                import_products_single(request.POST)
+                messages.success(request, "Produit cree.")
+            except ValueError as exc:
+                messages.error(request, f"Import produit: {exc}")
+            return redirect("scan:scan_import")
+        if action == "product_file":
+            uploaded = request.FILES.get("import_file")
+            update_existing = bool(request.POST.get("update_existing"))
+            if not uploaded:
+                messages.error(request, "Fichier requis pour importer les produits.")
+                return redirect("scan:scan_import")
+            extension = Path(uploaded.name).suffix.lower()
+            data = uploaded.read()
+            if extension == ".csv":
+                data = decode_text(data).encode("utf-8")
+            if extension not in {".csv", ".xlsx", ".xlsm", ".xls"}:
+                messages.error(request, "Format non supporte. Utilisez CSV/XLS/XLSX.")
+                return redirect("scan:scan_import")
+            with tempfile.NamedTemporaryFile(delete=False, suffix=extension) as temp:
+                temp.write(data)
+                temp_path = temp.name
+            out = io.StringIO()
+            err = io.StringIO()
+            try:
+                call_command(
+                    "import_products",
+                    temp_path,
+                    update=update_existing,
+                    stdout=out,
+                    stderr=err,
+                )
+            except Exception as exc:  # pragma: no cover - surface error in UI
+                messages.error(request, f"Import produits: {exc}")
+            else:
+                summary = out.getvalue().strip()
+                if summary:
+                    messages.success(request, summary)
+                warnings = err.getvalue().strip()
+                if warnings:
+                    messages.warning(request, warnings)
+            finally:
+                Path(temp_path).unlink(missing_ok=True)
+            return redirect("scan:scan_import")
+
+        import_file_actions = {
+            "location_file": ("emplacements", import_locations),
+            "category_file": ("categories", import_categories),
+            "warehouse_file": ("entrepots", import_warehouses),
+            "contact_file": ("contacts", import_contacts),
+            "user_file": ("utilisateurs", import_users),
+        }
+        if action in import_file_actions:
+            label, importer = import_file_actions[action]
+            uploaded = request.FILES.get("import_file")
+            if not uploaded:
+                messages.error(request, f"Fichier requis pour importer les {label}.")
+                return redirect("scan:scan_import")
+            extension = Path(uploaded.name).suffix.lower()
+            data = uploaded.read()
+            try:
+                rows = iter_import_rows(data, extension)
+                if action == "user_file":
+                    created, updated, errors = importer(rows, default_password)
+                else:
+                    created, updated, errors = importer(rows)
+            except ValueError as exc:
+                messages.error(request, f"Import {label}: {exc}")
+                return redirect("scan:scan_import")
+            if errors:
+                messages.warning(request, f"Import {label}: {len(errors)} erreur(s).")
+                for message in errors[:3]:
+                    messages.warning(request, message)
+            messages.success(
+                request,
+                f"Import {label}: {created} cree(s), {updated} maj.",
+            )
+            return redirect("scan:scan_import")
+
+        single_actions = {
+            "location_single": ("emplacement", import_locations),
+            "category_single": ("categorie", import_categories),
+            "warehouse_single": ("entrepot", import_warehouses),
+            "contact_single": ("contact", import_contacts),
+            "user_single": ("utilisateur", import_users),
+        }
+        if action in single_actions:
+            label, importer = single_actions[action]
+            row = dict(request.POST.items())
+            try:
+                if action == "user_single":
+                    created, updated, errors = importer([row], default_password)
+                else:
+                    created, updated, errors = importer([row])
+            except ValueError as exc:
+                messages.error(request, f"Ajout {label}: {exc}")
+                return redirect("scan:scan_import")
+            if errors:
+                messages.error(request, errors[0])
+            else:
+                messages.success(request, f"{label.capitalize()} ajoute.")
+            return redirect("scan:scan_import")
+
+    return render(
+        request,
+        "scan/imports.html",
+        {
+            "active": "imports",
+            "shell_class": "scan-shell-wide",
+        },
+    )
 
 
 @login_required

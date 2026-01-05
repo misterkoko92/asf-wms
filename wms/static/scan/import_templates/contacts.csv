@@ -1,0 +1,2 @@
+contact_type;name;email;phone;tags;address_label;address_line1;address_line2;postal_code;city;region;country;address_phone;address_email;address_is_default;notes
+organization;Meditech;contact@meditech.org;0102030405;donor|partner;HQ;12 rue de Paris;;75000;Paris;;France;;;true;main contact

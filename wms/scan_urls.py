@@ -100,6 +100,7 @@ urlpatterns = [
         views.scan_print_template_edit,
         name="scan_print_template_edit",
     ),
+    path("import/", views.scan_import, name="scan_import"),
     path("faq/", views.scan_faq, name="scan_faq"),
     path("out/", views.scan_out, name="scan_out"),
     path("sync/", views.scan_sync, name="scan_sync"),

@@ -1,0 +1,2 @@
+sku;nom;marque;couleur;category_l1;category_l2;category_l3;category_l4;tags;entrepot;rack;etagere;bac;rack_color;barcode;length_cm;width_cm;height_cm;weight_g;volume_cm3;storage_conditions;perishable;quarantine_default;notes;photo
+ASF-000001;Seringue 10ml;Meditech;Blanc / Transparent;Medical;Seringues;10ml;;sterile|disposable;Reception;IV;A1;A;#1C8BC0;1234567890123;10;2;2;10;40;dry;true;true;example note;photos/seringue.png
