@@ -1,43 +1,36 @@
+from django.conf import settings
 from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from django.db import transaction
 from django.http import Http404
 from django.shortcuts import redirect, render
+from django.template.loader import render_to_string
 from django.urls import path, reverse
 from django.utils import timezone
 from django.utils.encoding import force_bytes
+from django.utils.html import format_html, format_html_join
 from django.utils.http import urlsafe_base64_encode
-from django.template.loader import render_to_string
-from django.conf import settings
+
+from contacts.models import Contact, ContactAddress, ContactTag
 
 from . import models
-from django.utils.html import format_html, format_html_join
-
-from .forms import AdjustStockForm, PackCartonForm, ReceiveStockForm, TransferStockForm
 from .contact_filters import (
     TAG_CORRESPONDENT,
     TAG_RECIPIENT,
     TAG_SHIPPER,
     contacts_with_tags,
 )
-from contacts.models import Contact, ContactAddress, ContactTag
-
-TEMP_PORTAL_PASSWORD = "TempPWD!"
-
-
-def _chunked(items, size):
-    return [items[i : i + size] for i in range(0, len(items), size)]
-
-
-def _extract_product_label_style(layout):
-    if not isinstance(layout, dict):
-        return {}
-    blocks = layout.get("blocks") or []
-    for block in blocks:
-        if block.get("type") == "product_label":
-            return block.get("style") or {}
-    return {}
+from .emailing import send_email_safe
+from .forms import AdjustStockForm, PackCartonForm, ReceiveStockForm, TransferStockForm
+from .print_context import (
+    build_carton_document_context,
+    build_product_label_context,
+    build_shipment_document_context,
+)
+from .print_layouts import DEFAULT_LAYOUTS
+from .print_renderer import get_template_layout, render_layout_from_layout
+from .print_utils import build_label_pages
 from .services import (
     StockError,
     adjust_stock,
@@ -50,14 +43,8 @@ from .services import (
     transfer_stock,
     unpack_carton,
 )
-from .emailing import send_email_safe
-from .print_context import (
-    build_carton_document_context,
-    build_product_label_context,
-    build_shipment_document_context,
-)
-from .print_layouts import DEFAULT_LAYOUTS
-from .print_renderer import get_template_layout, render_layout_from_layout
+
+TEMP_PORTAL_PASSWORD = "TempPWD!"
 
 
 @admin.register(models.ProductCategory)
@@ -202,8 +189,7 @@ class ProductAdmin(admin.ModelAdmin):
             }
         layout_override = get_template_layout("product_label")
         layout = layout_override or DEFAULT_LAYOUTS.get("product_label", {"blocks": []})
-        page_style = _extract_product_label_style(layout)
-        labels = []
+        contexts = []
         for product in products:
             rack_color = None
             location = product.default_location
@@ -211,10 +197,13 @@ class ProductAdmin(admin.ModelAdmin):
                 rack_color = rack_color_map.get(
                     (location.warehouse_id, location.zone.lower())
                 )
-            context = build_product_label_context(product, rack_color=rack_color)
-            blocks = render_layout_from_layout(layout, context)
-            labels.append({"blocks": blocks})
-        pages = _chunked(labels, 4)
+            contexts.append(build_product_label_context(product, rack_color=rack_color))
+        pages, page_style = build_label_pages(
+            layout,
+            contexts,
+            block_type="product_label",
+            labels_per_page=4,
+        )
         return render(
             request,
             "print/product_labels.html",

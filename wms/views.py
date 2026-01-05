@@ -94,6 +94,7 @@ from .print_context import (
 )
 from .print_layouts import BLOCK_LIBRARY, DEFAULT_LAYOUTS, DOCUMENT_TEMPLATES
 from .print_renderer import get_template_layout, layout_changed, render_layout_from_layout
+from .print_utils import build_label_pages
 from .scan_helpers import (
     build_available_cartons,
     build_carton_formats,
@@ -189,20 +190,6 @@ def _build_destination_label(destination):
     if not destination:
         return ""
     return str(destination)
-
-
-def _chunked(items, size):
-    return [items[i : i + size] for i in range(0, len(items), size)]
-
-
-def _extract_product_label_style(layout):
-    if not isinstance(layout, dict):
-        return {}
-    blocks = layout.get("blocks") or []
-    for block in blocks:
-        if block.get("type") == "product_label":
-            return block.get("style") or {}
-    return {}
 
 
 def _build_shipment_contact_payload():
@@ -3273,16 +3260,17 @@ def scan_print_template_preview(request):
                 .filter(pk=int(product_id))
                 .first()
             )
-        labels = []
-        sample_context = build_preview_context(doc_type)
-        for _ in range(4):
-            context = (
-                build_product_label_context(product) if product else sample_context
-            )
-            blocks = render_layout_from_layout(layout_data, context)
-            labels.append({"blocks": blocks})
-        page_style = _extract_product_label_style(layout_data)
-        pages = _chunked(labels, 4)
+        if product:
+            base_context = build_product_label_context(product)
+        else:
+            base_context = build_preview_context(doc_type)
+        contexts = [dict(base_context) for _ in range(4)]
+        pages, page_style = build_label_pages(
+            layout_data,
+            contexts,
+            block_type="product_label",
+            labels_per_page=4,
+        )
         return render(
             request,
             "print/product_labels.html",
