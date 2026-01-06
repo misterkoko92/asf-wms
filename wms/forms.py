@@ -1,7 +1,7 @@
 from django import forms
 from django.utils import timezone
 
-from contacts.models import Contact
+from contacts.models import Contact, ContactType
 from .contact_filters import (
     TAG_CORRESPONDENT,
     TAG_DONOR,
@@ -28,6 +28,10 @@ from .models import (
     ShipmentTrackingStatus,
     Warehouse,
 )
+
+
+def _contact_label(contact):
+    return contact.organization.name if contact.organization else contact.name
 
 
 class ReceiveStockForm(forms.Form):
@@ -167,6 +171,11 @@ class ScanReceiptCreateForm(forms.Form):
             cleaned["received_on"] = timezone.localdate()
         return cleaned
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["source_contact"].label_from_instance = _contact_label
+        self.fields["carrier_contact"].label_from_instance = _contact_label
+
 
 class ScanReceiptPalletForm(forms.Form):
     received_on = forms.DateField(
@@ -200,6 +209,8 @@ class ScanReceiptPalletForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.fields["source_contact"].queryset = contacts_with_tags(TAG_DONOR)
         self.fields["carrier_contact"].queryset = contacts_with_tags(TAG_TRANSPORTER)
+        self.fields["source_contact"].label_from_instance = _contact_label
+        self.fields["carrier_contact"].label_from_instance = _contact_label
         _select_single_choice(self.fields["source_contact"])
         _select_single_choice(self.fields["carrier_contact"])
 
@@ -237,6 +248,8 @@ class ScanReceiptAssociationForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.fields["source_contact"].queryset = contacts_with_tags(TAG_SHIPPER)
         self.fields["carrier_contact"].queryset = contacts_with_tags(TAG_TRANSPORTER)
+        self.fields["source_contact"].label_from_instance = _contact_label
+        self.fields["carrier_contact"].label_from_instance = _contact_label
         _select_single_choice(self.fields["source_contact"])
         _select_single_choice(self.fields["carrier_contact"])
 
@@ -254,21 +267,21 @@ class ScanStockUpdateForm(forms.Form):
         widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
     )
     lot_code = forms.CharField(label="Numero de lot", required=False)
-    donor_receipt = forms.ModelChoiceField(
+    donor_contact = forms.ModelChoiceField(
         label="Donateur",
-        queryset=Receipt.objects.none(),
+        queryset=Contact.objects.none(),
         required=False,
     )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["donor_receipt"].queryset = (
-            Receipt.objects.filter(receipt_type=ReceiptType.PALLET)
-            .order_by("-received_on", "-created_at")
+        self.fields["donor_contact"].queryset = (
+            contacts_with_tags(TAG_DONOR)
+            .filter(contact_type=ContactType.ORGANIZATION)
+            .order_by("name")
         )
-        self.fields["donor_receipt"].label_from_instance = (
-            lambda obj: obj.reference or f"Reception {obj.id}"
-        )
+        self.fields["donor_contact"].label_from_instance = _contact_label
+        _select_single_choice(self.fields["donor_contact"])
 
     def clean_product_code(self):
         code = self.cleaned_data["product_code"]
@@ -312,7 +325,10 @@ class ScanPackForm(forms.Form):
 
 
 class ScanOutForm(forms.Form):
-    product_code = forms.CharField(label="Code produit")
+    product_code = forms.CharField(
+        label="Code produit",
+        widget=forms.TextInput(attrs={"list": "product-options", "autocomplete": "off"}),
+    )
     quantity = forms.IntegerField(label="Quantite", min_value=1)
     shipment_reference = forms.CharField(label="Reference expedition", required=False)
     reason_code = forms.CharField(label="Motif", required=False)
@@ -351,7 +367,9 @@ class ScanShipmentForm(forms.Form):
             "correspondent_contact"
         )
         self.fields["destination"].queryset = destinations
-        shipper_contacts = contacts_with_tags(TAG_SHIPPER)
+        shipper_contacts = contacts_with_tags(TAG_SHIPPER).filter(
+            contact_type=ContactType.ORGANIZATION
+        )
         _select_single_choice(self.fields["destination"])
 
         selected_destination = None
@@ -366,7 +384,9 @@ class ScanShipmentForm(forms.Form):
         self.fields["shipper_contact"].queryset = shipper_contacts
         _select_single_choice(self.fields["shipper_contact"])
 
-        recipients = contacts_with_tags(TAG_RECIPIENT)
+        recipients = contacts_with_tags(TAG_RECIPIENT).filter(
+            contact_type=ContactType.ORGANIZATION
+        )
         correspondents = contacts_with_tags(TAG_CORRESPONDENT)
 
         if selected_destination:

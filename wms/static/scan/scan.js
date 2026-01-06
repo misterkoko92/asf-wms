@@ -680,7 +680,7 @@
       const productField = document.createElement('div');
       productField.className = 'pack-line-field';
       const productLabel = document.createElement('label');
-      productLabel.textContent = 'Code produit';
+      productLabel.textContent = 'Produit';
       productField.appendChild(productLabel);
 
       const productInline = document.createElement('div');
@@ -960,6 +960,10 @@
       }
       productInput.disabled = hasCarton;
       quantityInput.disabled = hasCarton;
+      const scanBtn = line.querySelector('.shipment-line-scan');
+      if (scanBtn) {
+        scanBtn.disabled = hasCarton;
+      }
     };
 
     const buildField = (labelText, control) => {
@@ -1011,9 +1015,21 @@
         productInput.type = 'text';
         productInput.name = `line_${index}_product_code`;
         productInput.className = 'shipment-line-product';
+        productInput.id = `id_shipment_line_${index}_product_code`;
         productInput.setAttribute('list', 'product-options');
         productInput.setAttribute('autocomplete', 'off');
         productInput.value = lineValue.product_code || '';
+
+        const scanBtn = document.createElement('button');
+        scanBtn.type = 'button';
+        scanBtn.className = 'scan-scan-btn shipment-line-scan';
+        scanBtn.dataset.scanTarget = productInput.id;
+        scanBtn.textContent = 'Scan';
+
+        const productWrap = document.createElement('div');
+        productWrap.className = 'scan-inline';
+        productWrap.appendChild(productInput);
+        productWrap.appendChild(scanBtn);
 
         const quantityInput = document.createElement('input');
         quantityInput.type = 'number';
@@ -1024,7 +1040,7 @@
         quantityInput.value = lineValue.quantity || '';
 
         grid.appendChild(buildField('Colis prepare', cartonSelect));
-        grid.appendChild(buildField('Produit (si creation)', productInput));
+        grid.appendChild(buildField('Produit', productWrap));
         grid.appendChild(buildField('Quantite', quantityInput));
         line.appendChild(grid);
 

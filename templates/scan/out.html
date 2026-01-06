@@ -55,4 +55,10 @@
       <p class="scan-help">Utilisez la suppression rapide pour des flux sans carton.</p>
     </form>
   </div>
+  {{ products_json|json_script:"product-data" }}
+  <datalist id="product-options">
+    {% for product in products_json %}
+      <option value="{{ product.name }}" label="{{ product.sku }}{% if product.barcode %} | {{ product.barcode }}{% endif %}"></option>
+    {% endfor %}
+  </datalist>
 {% endblock %}

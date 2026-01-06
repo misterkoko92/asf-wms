@@ -27,7 +27,7 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.conf import settings
 
-from contacts.models import Contact, ContactAddress, ContactTag
+from contacts.models import Contact, ContactAddress, ContactTag, ContactType
 
 from .forms import (
     ScanOutForm,
@@ -212,9 +212,12 @@ def _build_shipment_contact_payload():
     destinations = Destination.objects.filter(is_active=True).select_related(
         "correspondent_contact"
     )
-    recipient_contacts = contacts_with_tags(TAG_RECIPIENT).select_related(
-        "destination"
-    ).prefetch_related("addresses")
+    recipient_contacts = (
+        contacts_with_tags(TAG_RECIPIENT)
+        .filter(contact_type=ContactType.ORGANIZATION)
+        .select_related("destination")
+        .prefetch_related("addresses")
+    )
     correspondent_contacts = contacts_with_tags(TAG_CORRESPONDENT).select_related(
         "destination"
     )
@@ -1915,6 +1918,18 @@ def scan_stock_update(request):
             create_form.add_error(None, "Emplacement requis pour ce produit.")
         else:
             try:
+                source_receipt = None
+                donor_contact = create_form.cleaned_data.get("donor_contact")
+                if donor_contact:
+                    source_receipt = Receipt.objects.create(
+                        receipt_type=ReceiptType.DONATION,
+                        status=ReceiptStatus.RECEIVED,
+                        source_contact=donor_contact,
+                        received_on=timezone.localdate(),
+                        warehouse=location.warehouse,
+                        created_by=request.user,
+                        notes="Auto MAJ stock",
+                    )
                 receive_stock(
                     user=request.user,
                     product=product,
@@ -1923,7 +1938,7 @@ def scan_stock_update(request):
                     lot_code=create_form.cleaned_data["lot_code"] or "",
                     received_on=timezone.localdate(),
                     expires_on=create_form.cleaned_data["expires_on"],
-                    source_receipt=create_form.cleaned_data["donor_receipt"],
+                    source_receipt=source_receipt,
                 )
                 messages.success(request, "Stock mis a jour.")
                 return redirect("scan:scan_stock_update")
@@ -3793,6 +3808,7 @@ def scan_shipment_document_delete(request, shipment_id, document_id):
 @require_http_methods(["GET", "POST"])
 def scan_out(request):
     form = ScanOutForm(request.POST or None)
+    product_options = build_product_options()
     if request.method == "POST" and form.is_valid():
         product = resolve_product(form.cleaned_data["product_code"])
         if not product:
@@ -3820,7 +3836,11 @@ def scan_out(request):
                     return redirect("scan:scan_out")
                 except StockError as exc:
                     form.add_error(None, str(exc))
-    return render(request, "scan/out.html", {"form": form, "active": "out"})
+    return render(
+        request,
+        "scan/out.html",
+        {"form": form, "active": "out", "products_json": product_options},
+    )
 
 
 @login_required
