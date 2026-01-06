@@ -50,12 +50,24 @@
       text-align: center;
     }
     .pl-value {
-      font-weight: var(--value-font-weight, 700);
-      font-size: var(--value-font-size, 14pt);
-      color: var(--value-color, #000);
-      text-transform: var(--value-text-transform, capitalize);
       display: flex;
       align-items: center;
+      min-width: 0;
+    }
+    .pl-value-text {
+      font-weight: var(--value-font-weight, 700);
+      font-size: var(--grid-value-font-size, var(--value-font-size, 14pt));
+      color: var(--value-color, #000);
+      text-transform: var(--value-text-transform, capitalize);
+      line-height: var(--grid-value-line-height, 1.15);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      word-break: break-word;
+      max-height: calc(2 * var(--grid-value-line-height, 1.15) * 1em);
+      width: 100%;
     }
     .pl-photo {
       grid-row: 1 / span 3;

@@ -17,6 +17,8 @@
     --value-font-weight: {{ style.value_font_weight|default:'700' }};
     --value-color: {{ style.value_text_color|default:'#000000' }};
     --value-text-transform: {{ style.value_text_transform|default:'capitalize' }};
+    --grid-value-font-size: {{ style.grid_value_font_size|default:'12pt' }};
+    --grid-value-line-height: {{ style.grid_value_line_height|default:'1.15' }};
     --code-text-transform: {{ style.code_text_transform|default:'uppercase' }};
     --font-family: {{ style.font_family|default:'Aptos, Arial, sans-serif' }};
     --title-col-width: {{ style.title_col_width|default:'28%' }};
@@ -32,7 +34,7 @@
 >
   <div class="product-label-grid">
     <div class="pl-title">{{ block.title_product|default:"PRODUIT" }}</div>
-    <div class="pl-value">{{ product_name|default:"-" }}</div>
+    <div class="pl-value"><span class="pl-value-text">{{ product_name|default:"-" }}</span></div>
     <div class="pl-photo">
       {% if product_photo_url %}
         <img src="{{ product_photo_url }}" alt="Photo {{ product_name|default:'Produit' }}">
@@ -40,10 +42,10 @@
     </div>
 
     <div class="pl-title">{{ block.title_brand|default:"MARQUE" }}</div>
-    <div class="pl-value">{{ product_brand|default:"-" }}</div>
+    <div class="pl-value"><span class="pl-value-text">{{ product_brand|default:"-" }}</span></div>
 
     <div class="pl-title">{{ block.title_color|default:"COULEUR" }}</div>
-    <div class="pl-value">{{ product_color|default:"-" }}</div>
+    <div class="pl-value"><span class="pl-value-text">{{ product_color|default:"-" }}</span></div>
   </div>
 
   <div class="product-label-footer">
