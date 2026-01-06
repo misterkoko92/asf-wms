@@ -1,3 +1,3 @@
-contact_type;title;first_name;last_name;name;organization;role;email;email2;phone;phone2;use_organization_address;tags;siret;vat_number;legal_registration_number;asf_id;address_label;address_line1;address_line2;postal_code;city;region;country;address_phone;address_email;address_is_default;notes
-organization;;;;Meditech;;;contact@meditech.org;;0102030405;;false;donateur;12345678901234;FR12345678901;RCS-Paris-12345;;HQ;12 rue de Paris;;75000;Paris;;France;;;true;main contact
-person;M.;Jean;Dupont;Jean Dupont;Meditech;Logisticien;jean.dupont@meditech.org;;0601020304;;true;;;;;;;;;;;;;;;false;
+contact_type;title;first_name;last_name;name;organization;role;email;email2;phone;phone2;use_organization_address;tags;destination;siret;vat_number;legal_registration_number;asf_id;address_label;address_line1;address_line2;postal_code;city;region;country;address_phone;address_email;address_is_default;notes
+organization;;;;Meditech;;;contact@meditech.org;;0102030405;;false;donateur;Paris (CDG) - France;12345678901234;FR12345678901;RCS-Paris-12345;;HQ;12 rue de Paris;;75000;Paris;;France;;;true;main contact
+person;M.;Jean;Dupont;Jean Dupont;Meditech;Logisticien;jean.dupont@meditech.org;;0601020304;;true;;;;;;;;;;;;;;;;false;

@@ -36,6 +36,15 @@ class Contact(models.Model):
         related_name="members",
         limit_choices_to={"contact_type": ContactType.ORGANIZATION},
     )
+    destination = models.ForeignKey(
+        "wms.Destination",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="contacts",
+        limit_choices_to={"is_active": True},
+        help_text="Laisser vide pour toutes les destinations.",
+    )
     role = models.CharField(max_length=120, blank=True)
     email = models.EmailField(blank=True)
     email2 = models.EmailField(blank=True)

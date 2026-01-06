@@ -1127,6 +1127,15 @@
       destinations.map(destination => [String(destination.id), destination])
     );
     const normalize = value => (value || '').toString().trim().toLowerCase();
+    const matchesDestination = (contact, destinationId) => {
+      if (!contact || !destinationId) {
+        return true;
+      }
+      if (!contact.destination_id) {
+        return true;
+      }
+      return String(contact.destination_id) === String(destinationId);
+    };
 
     const renderOptions = (select, options, selectedValue) => {
       const fragment = document.createDocumentFragment();
@@ -1159,16 +1168,23 @@
       let correspondentOptions = correspondents;
 
       if (destination) {
+        const destinationId = String(destination.id);
+        recipientOptions = recipients.filter(recipient =>
+          matchesDestination(recipient, destinationId)
+        );
+        correspondentOptions = correspondents.filter(correspondent =>
+          matchesDestination(correspondent, destinationId)
+        );
         const country = normalize(destination.country);
         if (country) {
-          recipientOptions = recipients.filter(recipient =>
+          recipientOptions = recipientOptions.filter(recipient =>
             (recipient.countries || []).some(entry => normalize(entry) === country)
           );
         } else {
           recipientOptions = [];
         }
         if (destination.correspondent_contact_id) {
-          correspondentOptions = correspondents.filter(
+          correspondentOptions = correspondentOptions.filter(
             correspondent =>
               String(correspondent.id) === String(destination.correspondent_contact_id)
           );

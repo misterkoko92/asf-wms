@@ -9,6 +9,7 @@ from .contact_filters import (
     TAG_SHIPPER,
     TAG_TRANSPORTER,
     contacts_with_tags,
+    filter_contacts_for_destination,
 )
 from .scan_helpers import resolve_product
 from .models import (
@@ -350,12 +351,8 @@ class ScanShipmentForm(forms.Form):
             "correspondent_contact"
         )
         self.fields["destination"].queryset = destinations
-        self.fields["shipper_contact"].queryset = contacts_with_tags(TAG_SHIPPER)
+        shipper_contacts = contacts_with_tags(TAG_SHIPPER)
         _select_single_choice(self.fields["destination"])
-        _select_single_choice(self.fields["shipper_contact"])
-
-        recipients = contacts_with_tags(TAG_RECIPIENT)
-        correspondents = contacts_with_tags(TAG_CORRESPONDENT)
 
         selected_destination = None
         destination_value = destination_id or self.data.get("destination")
@@ -363,6 +360,20 @@ class ScanShipmentForm(forms.Form):
             selected_destination = destinations.filter(pk=destination_value).first()
 
         if selected_destination:
+            shipper_contacts = filter_contacts_for_destination(
+                shipper_contacts, selected_destination
+            )
+        self.fields["shipper_contact"].queryset = shipper_contacts
+        _select_single_choice(self.fields["shipper_contact"])
+
+        recipients = contacts_with_tags(TAG_RECIPIENT)
+        correspondents = contacts_with_tags(TAG_CORRESPONDENT)
+
+        if selected_destination:
+            recipients = filter_contacts_for_destination(recipients, selected_destination)
+            correspondents = filter_contacts_for_destination(
+                correspondents, selected_destination
+            )
             recipients = recipients.filter(
                 addresses__country__iexact=selected_destination.country
             )
@@ -381,8 +392,24 @@ class ScanShipmentForm(forms.Form):
     def clean(self):
         cleaned = super().clean()
         destination = cleaned.get("destination")
+        shipper = cleaned.get("shipper_contact")
         recipient = cleaned.get("recipient_contact")
         correspondent = cleaned.get("correspondent_contact")
+        if destination:
+            for field_name, contact in (
+                ("shipper_contact", shipper),
+                ("recipient_contact", recipient),
+                ("correspondent_contact", correspondent),
+            ):
+                if (
+                    contact
+                    and contact.destination_id
+                    and contact.destination_id != destination.id
+                ):
+                    self.add_error(
+                        field_name,
+                        "Contact non disponible pour cette destination.",
+                    )
         if destination and recipient:
             in_country = recipient.addresses.filter(
                 country__iexact=destination.country

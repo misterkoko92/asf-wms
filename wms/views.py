@@ -212,8 +212,12 @@ def _build_shipment_contact_payload():
     destinations = Destination.objects.filter(is_active=True).select_related(
         "correspondent_contact"
     )
-    recipient_contacts = contacts_with_tags(TAG_RECIPIENT).prefetch_related("addresses")
-    correspondent_contacts = contacts_with_tags(TAG_CORRESPONDENT)
+    recipient_contacts = contacts_with_tags(TAG_RECIPIENT).select_related(
+        "destination"
+    ).prefetch_related("addresses")
+    correspondent_contacts = contacts_with_tags(TAG_CORRESPONDENT).select_related(
+        "destination"
+    )
 
     destinations_json = [
         {
@@ -236,10 +240,11 @@ def _build_shipment_contact_payload():
                 "id": contact.id,
                 "name": contact.name,
                 "countries": sorted(countries),
+                "destination_id": contact.destination_id,
             }
         )
     correspondent_contacts_json = [
-        {"id": contact.id, "name": contact.name}
+        {"id": contact.id, "name": contact.name, "destination_id": contact.destination_id}
         for contact in correspondent_contacts
     ]
     return destinations_json, recipient_contacts_json, correspondent_contacts_json
@@ -3484,6 +3489,7 @@ def _export_contacts_csv():
         "phone2",
         "use_organization_address",
         "tags",
+        "destination",
         "siret",
         "vat_number",
         "legal_registration_number",
@@ -3501,11 +3507,12 @@ def _export_contacts_csv():
         "notes",
     ]
     rows = []
-    contacts = Contact.objects.select_related("organization").prefetch_related(
+    contacts = Contact.objects.select_related("organization", "destination").prefetch_related(
         "tags", "addresses"
     )
     for contact in contacts:
         tags = "|".join(sorted(tag.name for tag in contact.tags.all()))
+        destination = str(contact.destination) if contact.destination else ""
         address_source = (
             contact.get_effective_addresses()
             if hasattr(contact, "get_effective_addresses")
@@ -3528,6 +3535,7 @@ def _export_contacts_csv():
                     contact.phone2 or "",
                     _bool_to_csv(contact.use_organization_address),
                     tags,
+                    destination,
                     contact.siret or "",
                     contact.vat_number or "",
                     contact.legal_registration_number or "",
@@ -3561,6 +3569,7 @@ def _export_contacts_csv():
                     contact.phone2 or "",
                     _bool_to_csv(contact.use_organization_address),
                     tags,
+                    destination,
                     contact.siret or "",
                     contact.vat_number or "",
                     contact.legal_registration_number or "",

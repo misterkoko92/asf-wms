@@ -17,3 +17,11 @@ def contacts_with_tags(tag_names):
     for name in tag_names:
         tag_query |= Q(tags__name__iexact=name)
     return queryset.filter(tag_query).distinct()
+
+
+def filter_contacts_for_destination(queryset, destination):
+    if not destination:
+        return queryset
+    return queryset.filter(
+        Q(destination__isnull=True) | Q(destination=destination)
+    )

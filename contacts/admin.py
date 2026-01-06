@@ -1,6 +1,8 @@
 from django import forms
 from django.contrib import admin
 
+from wms.models import Destination
+
 from .models import Contact, ContactAddress, ContactTag, ContactType
 
 
@@ -30,6 +32,9 @@ class ContactAdminForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["use_organization_address"].help_text = (
             "Utilise l'adresse par defaut de la societe et se met a jour automatiquement."
+        )
+        self.fields["destination"].help_text = (
+            "Laisser vide pour toutes les destinations."
         )
 
     def clean(self):
@@ -69,8 +74,17 @@ class ContactTagAdminForm(forms.ModelForm):
 @admin.register(Contact)
 class ContactAdmin(admin.ModelAdmin):
     form = ContactAdminForm
-    list_display = ("name", "contact_type", "organization", "email", "phone", "asf_id", "is_active")
-    list_filter = ("contact_type", "is_active", "tags")
+    list_display = (
+        "name",
+        "contact_type",
+        "organization",
+        "destination",
+        "email",
+        "phone",
+        "asf_id",
+        "is_active",
+    )
+    list_filter = ("contact_type", "is_active", "tags", "destination")
     search_fields = (
         "name",
         "first_name",
@@ -105,6 +119,7 @@ class ContactAdmin(admin.ModelAdmin):
                 "fields": (
                     "organization",
                     "role",
+                    "destination",
                     "siret",
                     "vat_number",
                     "legal_registration_number",
@@ -127,6 +142,16 @@ class ContactAdmin(admin.ModelAdmin):
         ),
         ("Statut", {"fields": ("is_active", "notes")}),
     )
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "destination":
+            kwargs["queryset"] = Destination.objects.filter(is_active=True)
+        field = super().formfield_for_foreignkey(db_field, request, **kwargs)
+        if db_field.name == "destination":
+            field.widget.can_add_related = False
+            field.widget.can_change_related = False
+            field.widget.can_delete_related = False
+        return field
 
     class Media:
         css = {"all": ("scan/address_autocomplete.css",)}
