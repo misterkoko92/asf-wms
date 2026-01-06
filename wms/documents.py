@@ -140,10 +140,13 @@ def _format_contact_address(address):
 def build_contact_info(tag_names, fallback_name):
     contact = _resolve_contact(tag_names, fallback_name)
     if contact:
-        address = (
-            contact.addresses.filter(is_default=True).first()
-            or contact.addresses.first()
-        )
+        if hasattr(contact, "get_effective_address"):
+            address = contact.get_effective_address()
+        else:
+            address = (
+                contact.addresses.filter(is_default=True).first()
+                or contact.addresses.first()
+            )
         phone = contact.phone or (address.phone if address else "")
         email = contact.email or (address.email if address else "")
         if contact.contact_type == ContactType.PERSON:

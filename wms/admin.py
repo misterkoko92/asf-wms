@@ -1,3 +1,6 @@
+import re
+
+from django import forms
 from django.conf import settings
 from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
@@ -263,7 +266,9 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
                 contact.save(update_fields=contact_updates)
 
             address = (
-                contact.addresses.filter(is_default=True).first()
+                contact.get_effective_address()
+                if hasattr(contact, "get_effective_address")
+                else contact.addresses.filter(is_default=True).first()
                 or contact.addresses.first()
             )
             if not address:
@@ -523,11 +528,85 @@ class LocationAdmin(admin.ModelAdmin):
     search_fields = ("warehouse__name", "zone", "aisle", "shelf")
 
 
+class RackColorAdminForm(forms.ModelForm):
+    zone = forms.ChoiceField(label="Rack", required=True)
+    color_picker = forms.CharField(
+        label="Palette",
+        required=False,
+        widget=forms.TextInput(attrs={"type": "color"}),
+    )
+
+    class Meta:
+        model = models.RackColor
+        fields = ("warehouse", "zone", "color", "color_picker")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["color"].help_text = "Format attendu: #RRGGBB (ex: #1C8BC0)."
+        self.fields["color"].widget.attrs.setdefault("placeholder", "#1C8BC0")
+        warehouse_id = None
+        if self.data.get("warehouse"):
+            try:
+                warehouse_id = int(self.data.get("warehouse"))
+            except (TypeError, ValueError):
+                warehouse_id = None
+        elif self.instance and self.instance.warehouse_id:
+            warehouse_id = self.instance.warehouse_id
+
+        zones_qs = models.Location.objects.all()
+        if warehouse_id:
+            zones_qs = zones_qs.filter(warehouse_id=warehouse_id)
+        zones = list(
+            zones_qs.order_by("zone").values_list("zone", flat=True).distinct()
+        )
+        current_zone = self.instance.zone if self.instance else None
+        if current_zone and current_zone not in zones:
+            zones.insert(0, current_zone)
+        self.fields["zone"].choices = [("", "---")] + [(z, z) for z in zones]
+
+        current_color = (self.initial.get("color") or "").strip()
+        if not current_color and self.instance:
+            current_color = (self.instance.color or "").strip()
+        if re.fullmatch(r"#[0-9a-fA-F]{6}", current_color):
+            self.fields["color_picker"].initial = current_color
+
+    def clean_color(self):
+        color = (self.cleaned_data.get("color") or "").strip()
+        picker = (self.cleaned_data.get("color_picker") or "").strip()
+        if color:
+            return color
+        if picker:
+            return picker
+        raise forms.ValidationError("Couleur requise.")
+
+    def clean(self):
+        cleaned_data = super().clean()
+        warehouse = cleaned_data.get("warehouse")
+        zone = cleaned_data.get("zone")
+        if warehouse and zone:
+            exists = models.Location.objects.filter(
+                warehouse=warehouse, zone=zone
+            ).exists()
+            if not exists:
+                self.add_error("zone", "Rack inexistant pour cet entrepot.")
+        return cleaned_data
+
+
 @admin.register(models.RackColor)
 class RackColorAdmin(admin.ModelAdmin):
-    list_display = ("warehouse", "zone", "color")
+    form = RackColorAdminForm
+    list_display = ("warehouse", "rack", "color")
     list_filter = ("warehouse",)
     search_fields = ("warehouse__name", "zone", "color")
+    fields = ("warehouse", "zone", "color", "color_picker")
+
+    def rack(self, obj):
+        return obj.zone
+
+    rack.short_description = "Rack"
+
+    class Media:
+        js = ("wms/rack_color_admin.js",)
 
 
 class ReceiptLineInline(admin.TabularInline):

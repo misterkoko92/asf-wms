@@ -123,6 +123,9 @@
         <a href="{% static 'scan/import_templates/products.csv' %}" class="scan-scan-btn" download>
           Template produits
         </a>
+        <a href="{% url 'scan:scan_import' %}?export=products" class="scan-scan-btn" download>
+          Exporter produits
+        </a>
       </div>
     </form>
   </div>
@@ -179,6 +182,9 @@
         <a href="{% static 'scan/import_templates/locations.csv' %}" class="scan-scan-btn" download>
           Template emplacements
         </a>
+        <a href="{% url 'scan:scan_import' %}?export=locations" class="scan-scan-btn" download>
+          Exporter emplacements
+        </a>
       </div>
     </form>
   </div>
@@ -215,6 +221,9 @@
         <a href="{% static 'scan/import_templates/categories.csv' %}" class="scan-scan-btn" download>
           Template categories
         </a>
+        <a href="{% url 'scan:scan_import' %}?export=categories" class="scan-scan-btn" download>
+          Exporter categories
+        </a>
       </div>
     </form>
   </div>
@@ -250,6 +259,9 @@
         <button type="submit" class="scan-submit secondary">Importer entrepots</button>
         <a href="{% static 'scan/import_templates/warehouses.csv' %}" class="scan-scan-btn" download>
           Template entrepots
+        </a>
+        <a href="{% url 'scan:scan_import' %}?export=warehouses" class="scan-scan-btn" download>
+          Exporter entrepots
         </a>
       </div>
     </form>
@@ -313,6 +325,9 @@
         <button type="submit" class="scan-submit secondary">Importer contacts</button>
         <a href="{% static 'scan/import_templates/contacts.csv' %}" class="scan-scan-btn" download>
           Template contacts
+        </a>
+        <a href="{% url 'scan:scan_import' %}?export=contacts" class="scan-scan-btn" download>
+          Exporter contacts
         </a>
       </div>
     </form>
@@ -391,6 +406,9 @@
         <button type="submit" class="scan-submit secondary">Importer utilisateurs</button>
         <a href="{% static 'scan/import_templates/users.csv' %}" class="scan-scan-btn" download>
           Template utilisateurs
+        </a>
+        <a href="{% url 'scan:scan_import' %}?export=users" class="scan-scan-btn" download>
+          Exporter utilisateurs
         </a>
       </div>
     </form>

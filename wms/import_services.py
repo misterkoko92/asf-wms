@@ -166,27 +166,96 @@ def import_contacts(rows):
         if _row_is_empty(row):
             continue
         try:
-            name = parse_str(get_value(row, "name", "nom"))
-            if not name:
-                raise ValueError("Nom contact requis.")
             raw_type = parse_str(get_value(row, "contact_type", "type"))
             contact_type = ContactType.ORGANIZATION
             if raw_type:
                 normalized = raw_type.strip().lower()
-                if normalized.startswith("p"):
+                if normalized.startswith(("p", "indiv", "pers")):
                     contact_type = ContactType.PERSON
-            email = parse_str(get_value(row, "email"))
-            phone = parse_str(get_value(row, "phone", "telephone"))
+                elif normalized.startswith(("o", "soc", "org")):
+                    contact_type = ContactType.ORGANIZATION
+
+            name = parse_str(get_value(row, "name", "nom", "raison_sociale"))
+            first_name = parse_str(get_value(row, "first_name", "prenom", "prénom"))
+            last_name = parse_str(get_value(row, "last_name", "nom_personne", "nom_famille"))
+            title = parse_str(get_value(row, "title", "titre"))
+            role = parse_str(get_value(row, "role", "fonction"))
+            email = parse_str(get_value(row, "email", "mail"))
+            email2 = parse_str(get_value(row, "email2", "mail2"))
+            phone = parse_str(get_value(row, "phone", "telephone", "tel"))
+            phone2 = parse_str(get_value(row, "phone2", "telephone2", "tel2"))
             notes = parse_str(get_value(row, "notes", "note"))
             is_active = parse_bool(get_value(row, "is_active", "actif"))
-            contact, was_created = Contact.objects.get_or_create(name=name)
+            use_org_address = parse_bool(
+                get_value(row, "use_organization_address", "adresse_societe")
+            )
+            siret = parse_str(get_value(row, "siret"))
+            vat_number = parse_str(get_value(row, "vat_number", "tva", "vat"))
+            legal_registration_number = parse_str(
+                get_value(row, "legal_registration_number", "numero_enregistrement_legal")
+            )
+            asf_id = parse_str(get_value(row, "asf_id", "id_asf"))
+
+            if contact_type == ContactType.PERSON and not last_name and name and first_name:
+                last_name = name
+                name = None
+            if contact_type == ContactType.ORGANIZATION and not name and last_name:
+                name = last_name
+            if contact_type == ContactType.ORGANIZATION and not name:
+                name = parse_str(get_value(row, "societe", "company", "organisation"))
+
+            if not name and contact_type == ContactType.ORGANIZATION:
+                raise ValueError("Nom contact requis.")
+            if contact_type == ContactType.PERSON and not (name or first_name or last_name):
+                raise ValueError("Nom ou prenom requis pour un individu.")
+
+            contact_lookup = name or " ".join(
+                part for part in [first_name, last_name] if part
+            ).strip()
+            if not contact_lookup:
+                raise ValueError("Nom contact requis.")
+            contact = (
+                Contact.objects.filter(name=contact_lookup, contact_type=contact_type)
+                .first()
+            )
+            was_created = False
+            if not contact:
+                contact = Contact.objects.create(
+                    name=contact_lookup,
+                    contact_type=contact_type,
+                )
+                was_created = True
             updates = {}
             if contact.contact_type != contact_type:
                 updates["contact_type"] = contact_type
+            if title is not None:
+                updates["title"] = title
+            if first_name is not None:
+                updates["first_name"] = first_name
+            if last_name is not None:
+                updates["last_name"] = last_name
+            if name is not None:
+                updates["name"] = name
+            if role is not None:
+                updates["role"] = role
             if email is not None:
                 updates["email"] = email
+            if email2 is not None:
+                updates["email2"] = email2
             if phone is not None:
                 updates["phone"] = phone
+            if phone2 is not None:
+                updates["phone2"] = phone2
+            if use_org_address is not None:
+                updates["use_organization_address"] = use_org_address
+            if siret is not None:
+                updates["siret"] = siret
+            if vat_number is not None:
+                updates["vat_number"] = vat_number
+            if legal_registration_number is not None:
+                updates["legal_registration_number"] = legal_registration_number
+            if asf_id is not None and not contact.asf_id:
+                updates["asf_id"] = asf_id
             if notes is not None:
                 updates["notes"] = notes
             if is_active is not None:
@@ -200,11 +269,28 @@ def import_contacts(rows):
                 created += 1
 
             tags = build_contact_tags(get_value(row, "tags", "etiquettes"))
+            if contact.contact_type == ContactType.ORGANIZATION and not tags:
+                raise ValueError("Tag requis pour une societe.")
             if tags:
                 contact.tags.set(tags)
 
+            if contact_type == ContactType.PERSON:
+                organization_name = parse_str(
+                    get_value(row, "organization", "societe", "company", "organisation")
+                )
+                if use_org_address and not (organization_name or contact.organization):
+                    raise ValueError("Societe requise pour utiliser l'adresse.")
+                if organization_name:
+                    organization, org_created = Contact.objects.get_or_create(
+                        name=organization_name,
+                        contact_type=ContactType.ORGANIZATION,
+                        defaults={"notes": "cree a l'ajout de Contact"},
+                    )
+                    contact.organization = organization
+                    contact.save(update_fields=["organization"])
+
             address_line1 = parse_str(get_value(row, "address_line1", "adresse"))
-            if address_line1:
+            if address_line1 and not contact.use_organization_address:
                 ContactAddress.objects.create(
                     contact=contact,
                     label=parse_str(get_value(row, "address_label", "label")) or "",
