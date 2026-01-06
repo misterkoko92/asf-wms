@@ -3303,7 +3303,7 @@ def scan_import(request):
         action = (request.POST.get("action") or "").strip()
         if action == "product_single":
             try:
-                import_products_single(request.POST)
+                import_products_single(request.POST, user=request.user)
                 messages.success(request, "Produit cree.")
             except ValueError as exc:
                 messages.error(request, f"Import produit: {exc}")

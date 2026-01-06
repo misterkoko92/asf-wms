@@ -9,6 +9,7 @@ from django.core.files import File
 from django.db import transaction
 
 from wms.models import Location, Product, ProductCategory, ProductTag, RackColor, Warehouse
+from wms.services import StockError, receive_stock
 
 try:
     from openpyxl import load_workbook
@@ -110,6 +111,29 @@ def attach_photo(product, photo_path: Path, dry_run: bool) -> bool:
     with photo_path.open("rb") as handle:
         product.photo.save(photo_path.name, File(handle), save=False)
     return True
+
+
+def apply_quantity(product, quantity, location, dry_run: bool, row_number: int):
+    if quantity is None:
+        return
+    if quantity <= 0:
+        raise CommandError(f"Row {row_number}: invalid quantity value.")
+    stock_location = location or product.default_location
+    if stock_location is None:
+        raise CommandError(
+            f"Row {row_number}: location required to import quantity."
+        )
+    if dry_run:
+        return
+    try:
+        receive_stock(
+            user=None,
+            product=product,
+            quantity=quantity,
+            location=stock_location,
+        )
+    except StockError as exc:
+        raise CommandError(f"Row {row_number}: {exc}") from exc
 
 
 def build_category_path(parts):
@@ -347,6 +371,9 @@ class Command(BaseCommand):
                         get_value(row, "quarantine_default", "quarantaine_defaut")
                     )
                     notes = parse_str(get_value(row, "notes", "note"))
+                    quantity = parse_int(
+                        get_value(row, "quantity", "quantite", "stock", "qty")
+                    )
 
                     if product is None:
                         product = Product(sku=sku or "", name=name)
@@ -382,6 +409,13 @@ class Command(BaseCommand):
                         product.save()
                         if tags_provided:
                             product.tags.set(tags)
+                        apply_quantity(
+                            product,
+                            quantity,
+                            default_location if location_provided else None,
+                            options["dry_run"],
+                            index,
+                        )
                         created += 1
                         continue
 
@@ -429,6 +463,13 @@ class Command(BaseCommand):
                         product.save(update_fields=list(updates.keys()))
                     if tags_provided:
                         product.tags.set(tags)
+                    apply_quantity(
+                        product,
+                        quantity,
+                        default_location if location_provided else None,
+                        options["dry_run"],
+                        index,
+                    )
                     updated += 1
                 except CommandError as exc:
                     errors += 1

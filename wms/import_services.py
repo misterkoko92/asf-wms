@@ -4,7 +4,8 @@ from django.contrib.auth import get_user_model
 
 from contacts.models import Contact, ContactAddress, ContactTag, ContactType
 
-from .import_utils import get_value, parse_bool, parse_str, parse_tokens
+from .import_utils import get_value, parse_bool, parse_int, parse_str, parse_tokens
+from .services import receive_stock
 from .models import (
     Location,
     Product,
@@ -277,7 +278,7 @@ def import_users(rows, default_password):
     return created, updated, errors
 
 
-def import_products_single(row):
+def import_products_single(row, user=None):
     name = parse_str(get_value(row, "name", "nom", "nom_produit", "produit"))
     if not name:
         raise ValueError("Nom produit requis.")
@@ -288,6 +289,7 @@ def import_products_single(row):
     barcode = parse_str(get_value(row, "barcode", "code_barre", "codebarre"))
     color = parse_str(get_value(row, "color", "couleur"))
     notes = parse_str(get_value(row, "notes", "note"))
+    quantity = parse_int(get_value(row, "quantity", "quantite", "stock"))
 
     category_parts = [
         parse_str(get_value(row, "category_l1", "categorie_l1")),
@@ -323,4 +325,16 @@ def import_products_single(row):
     )
     if tags:
         product.tags.set(tags)
+    if quantity is not None:
+        if quantity <= 0:
+            raise ValueError("Quantite invalide.")
+        stock_location = location or product.default_location
+        if stock_location is None:
+            raise ValueError("Emplacement requis pour la quantite.")
+        receive_stock(
+            user=user,
+            product=product,
+            quantity=quantity,
+            location=stock_location,
+        )
     return product
