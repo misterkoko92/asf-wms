@@ -1255,3 +1255,18 @@ class DocumentAdmin(admin.ModelAdmin):
     list_display = ("doc_type", "shipment", "generated_at")
     list_filter = ("doc_type",)
     search_fields = ("shipment__reference",)
+
+
+@admin.register(models.IntegrationEvent)
+class IntegrationEventAdmin(admin.ModelAdmin):
+    list_display = (
+        "created_at",
+        "direction",
+        "source",
+        "target",
+        "event_type",
+        "status",
+    )
+    list_filter = ("direction", "status", "source", "event_type")
+    search_fields = ("source", "target", "event_type", "external_id")
+    readonly_fields = ("created_at", "processed_at")

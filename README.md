@@ -52,6 +52,7 @@ Notes:
 - `ORG_NAME`, `ORG_ADDRESS`, `ORG_CONTACT`, `ORG_SIGNATORY`
 - `SKU_PREFIX`
 - `IMPORT_DEFAULT_PASSWORD` (optional, for user imports when CSV password is empty)
+- `INTEGRATION_API_KEY` (optional, for integration endpoints)
 - MySQL (optional): `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_ENGINE`
   - If `DB_NAME` is set, Django uses MySQL; otherwise it uses SQLite.
 
@@ -66,6 +67,7 @@ export ORG_CONTACT="contact@example.com"
 export ORG_SIGNATORY="Jean Dupont"
 export SKU_PREFIX="ASF"
 export IMPORT_DEFAULT_PASSWORD="TempPWD!"
+export INTEGRATION_API_KEY="change-me"
 ```
 
 ## Scan PWA
@@ -83,6 +85,11 @@ export IMPORT_DEFAULT_PASSWORD="TempPWD!"
   - `POST /api/v1/pack/`
   - `POST /api/v1/orders/{id}/reserve/`
   - `POST /api/v1/orders/{id}/prepare/`
+- Integration endpoints (require admin user or `INTEGRATION_API_KEY` via `X-ASF-Integration-Key`):
+  - `GET /api/v1/integrations/shipments/`
+  - `GET /api/v1/integrations/destinations/`
+  - `GET /api/v1/integrations/events/`
+  - `POST /api/v1/integrations/events/`
 
 ## PythonAnywhere (free tier)
 - Create a new web app (Manual config)
@@ -104,6 +111,7 @@ ORG_CONTACT=contact@example.com
 ORG_SIGNATORY=Jean Dupont
 SKU_PREFIX=ASF
 IMPORT_DEFAULT_PASSWORD=TempPWD!
+INTEGRATION_API_KEY=change-me
 DB_NAME=youruser$asf_wms
 DB_USER=youruser
 DB_PASSWORD=yourpassword

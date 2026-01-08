@@ -1098,6 +1098,48 @@ class WmsChange(models.Model):
         return obj
 
 
+class IntegrationDirection(models.TextChoices):
+    INBOUND = "inbound", "Inbound"
+    OUTBOUND = "outbound", "Outbound"
+
+
+class IntegrationStatus(models.TextChoices):
+    PENDING = "pending", "Pending"
+    PROCESSED = "processed", "Processed"
+    FAILED = "failed", "Failed"
+
+
+class IntegrationEvent(models.Model):
+    direction = models.CharField(
+        max_length=20,
+        choices=IntegrationDirection.choices,
+        default=IntegrationDirection.INBOUND,
+    )
+    source = models.CharField(max_length=80)
+    target = models.CharField(max_length=80, blank=True)
+    event_type = models.CharField(max_length=120)
+    external_id = models.CharField(max_length=120, blank=True)
+    payload = models.JSONField(default=dict, blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=IntegrationStatus.choices,
+        default=IntegrationStatus.PENDING,
+    )
+    error_message = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["direction", "status", "created_at"]),
+            models.Index(fields=["source", "event_type"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.source}:{self.event_type} ({self.direction})"
+
+
 RECEIPT_REFERENCE_RE = re.compile(
     r"^(?P<year>\d{2})-(?P<seq>\d{2,})-(?P<donor>[A-Z0-9]{3})-(?P<count>\d{2,})$"
 )

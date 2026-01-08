@@ -1,12 +1,15 @@
 from datetime import date
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
+from contacts.models import Contact
 from wms.models import (
     Carton,
     CartonFormat,
+    Destination,
+    IntegrationEvent,
     Location,
     Order,
     OrderLine,
@@ -14,6 +17,7 @@ from wms.models import (
     Product,
     ProductLot,
     ProductLotStatus,
+    Shipment,
     StockMovement,
     Warehouse,
 )
@@ -112,3 +116,47 @@ class ApiTests(TestCase):
         self.assertIn(order.status, {OrderStatus.READY, OrderStatus.PREPARING})
         line = order.lines.first()
         self.assertEqual(line.prepared_quantity, 4)
+
+    @override_settings(INTEGRATION_API_KEY="test-key")
+    def test_integration_shipments_with_api_key(self):
+        contact = Contact.objects.create(name="Dest Contact")
+        destination = Destination.objects.create(
+            city="Paris",
+            iata_code="PAR",
+            country="France",
+            correspondent_contact=contact,
+        )
+        Shipment.objects.create(
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            destination=destination,
+            destination_address="10 Rue Test",
+            destination_country="France",
+        )
+        client = APIClient()
+        response = client.get("/api/v1/integrations/shipments/")
+        self.assertEqual(response.status_code, 403)
+        response = client.get(
+            "/api/v1/integrations/shipments/",
+            HTTP_X_ASF_INTEGRATION_KEY="test-key",
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(len(data), 1)
+
+    @override_settings(INTEGRATION_API_KEY="test-key")
+    def test_integration_event_create(self):
+        client = APIClient()
+        payload = {
+            "source": "asf-scheduler",
+            "event_type": "planning.assignment",
+            "payload": {"foo": "bar"},
+        }
+        response = client.post(
+            "/api/v1/integrations/events/",
+            payload,
+            format="json",
+            HTTP_X_ASF_INTEGRATION_KEY="test-key",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(IntegrationEvent.objects.count(), 1)

@@ -1,6 +1,14 @@
 from rest_framework import serializers
 
-from wms.models import Order, OrderLine, Product, ProductLotStatus
+from wms.models import (
+    Destination,
+    IntegrationEvent,
+    Order,
+    OrderLine,
+    Product,
+    ProductLotStatus,
+    Shipment,
+)
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -91,3 +99,86 @@ class PackCartonSerializer(serializers.Serializer):
         if attrs.get("carton_id") and attrs.get("carton_code"):
             raise serializers.ValidationError("Choisissez carton_id ou carton_code.")
         return attrs
+
+
+class IntegrationEventSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = IntegrationEvent
+        fields = (
+            "id",
+            "direction",
+            "source",
+            "target",
+            "event_type",
+            "external_id",
+            "payload",
+            "status",
+            "error_message",
+            "created_at",
+            "processed_at",
+        )
+        read_only_fields = (
+            "id",
+            "direction",
+            "status",
+            "error_message",
+            "created_at",
+            "processed_at",
+        )
+        extra_kwargs = {
+            "source": {"required": False},
+            "target": {"required": False},
+        }
+
+
+class IntegrationEventStatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = IntegrationEvent
+        fields = ("status", "error_message", "processed_at")
+
+
+class IntegrationShipmentSerializer(serializers.ModelSerializer):
+    destination_iata = serializers.CharField(source="destination.iata_code", allow_null=True)
+    destination_city = serializers.CharField(source="destination.city", allow_null=True)
+    destination_country = serializers.CharField(source="destination.country", allow_null=True)
+    carton_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Shipment
+        fields = (
+            "id",
+            "reference",
+            "status",
+            "shipper_name",
+            "shipper_contact",
+            "recipient_name",
+            "recipient_contact",
+            "correspondent_name",
+            "destination_id",
+            "destination_iata",
+            "destination_city",
+            "destination_country",
+            "destination_address",
+            "requested_delivery_date",
+            "created_at",
+            "ready_at",
+            "notes",
+            "carton_count",
+        )
+
+
+class IntegrationDestinationSerializer(serializers.ModelSerializer):
+    correspondent_name = serializers.CharField(
+        source="correspondent_contact.name", allow_null=True
+    )
+
+    class Meta:
+        model = Destination
+        fields = (
+            "id",
+            "city",
+            "iata_code",
+            "country",
+            "correspondent_name",
+            "is_active",
+        )

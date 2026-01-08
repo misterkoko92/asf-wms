@@ -162,3 +162,4 @@ LOGIN_REDIRECT_URL = "/scan/"
 
 SKU_PREFIX = os.environ.get("SKU_PREFIX", "ASF")
 IMPORT_DEFAULT_PASSWORD = os.environ.get("IMPORT_DEFAULT_PASSWORD", "").strip()
+INTEGRATION_API_KEY = os.environ.get("INTEGRATION_API_KEY", "").strip()
