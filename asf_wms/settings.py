@@ -161,3 +161,4 @@ LOGIN_URL = "/admin/login/"
 LOGIN_REDIRECT_URL = "/scan/"
 
 SKU_PREFIX = os.environ.get("SKU_PREFIX", "ASF")
+IMPORT_DEFAULT_PASSWORD = os.environ.get("IMPORT_DEFAULT_PASSWORD", "").strip()

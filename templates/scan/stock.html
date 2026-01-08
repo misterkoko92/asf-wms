@@ -44,11 +44,11 @@
       <div class="scan-field">
         <label for="id_sort">Tri</label>
         <select id="id_sort" name="sort">
+          <option value="category" {% if sort == "category" %}selected{% endif %}>Categorie</option>
           <option value="name" {% if sort == "name" %}selected{% endif %}>Nom</option>
           <option value="sku" {% if sort == "sku" %}selected{% endif %}>Reference</option>
-          <option value="qty_desc" {% if sort == "qty_desc" %}selected{% endif %}>Stock decroissant</option>
           <option value="qty_asc" {% if sort == "qty_asc" %}selected{% endif %}>Stock croissant</option>
-          <option value="category" {% if sort == "category" %}selected{% endif %}>Categorie</option>
+          <option value="qty_desc" {% if sort == "qty_desc" %}selected{% endif %}>Stock decroissant</option>
         </select>
       </div>
 

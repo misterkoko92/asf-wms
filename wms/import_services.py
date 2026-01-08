@@ -275,6 +275,7 @@ def import_contacts(rows):
     created = 0
     updated = 0
     errors = []
+    warnings = []
     for index, row in enumerate(rows, start=2):
         if _row_is_empty(row):
             continue
@@ -333,7 +334,7 @@ def import_contacts(rows):
             if not contact_lookup:
                 raise ValueError("Nom contact requis.")
             contact = (
-                Contact.objects.filter(name=contact_lookup, contact_type=contact_type)
+                Contact.objects.filter(name__iexact=contact_lookup, contact_type=contact_type)
                 .first()
             )
             was_created = False
@@ -387,10 +388,29 @@ def import_contacts(rows):
                 created += 1
 
             tags = build_contact_tags(get_value(row, "tags", "etiquettes"))
-            if contact.contact_type == ContactType.ORGANIZATION and not tags:
+            if (
+                contact.contact_type == ContactType.ORGANIZATION
+                and not tags
+                and not contact.tags.exists()
+            ):
                 raise ValueError("Tag requis pour une societe.")
             if tags:
-                contact.tags.set(tags)
+                if was_created:
+                    contact.tags.set(tags)
+                else:
+                    existing_tag_names = set(
+                        contact.tags.values_list("name", flat=True)
+                    )
+                    new_tags = [tag for tag in tags if tag.name not in existing_tag_names]
+                    if new_tags:
+                        contact.tags.add(*new_tags)
+                        warnings.append(
+                            "Ligne {}: tags fusionnes (ajoutes: {}).".format(
+                                index, ", ".join(sorted(tag.name for tag in new_tags))
+                            )
+                        )
+                    else:
+                        contact.tags.add(*tags)
 
             if contact_type == ContactType.PERSON:
                 organization_name = parse_str(
@@ -399,11 +419,18 @@ def import_contacts(rows):
                 if use_org_address and not (organization_name or contact.organization):
                     raise ValueError("Societe requise pour utiliser l'adresse.")
                 if organization_name:
-                    organization, org_created = Contact.objects.get_or_create(
-                        name=organization_name,
-                        contact_type=ContactType.ORGANIZATION,
-                        defaults={"notes": "cree a l'ajout de Contact"},
+                    organization = (
+                        Contact.objects.filter(
+                            name__iexact=organization_name,
+                            contact_type=ContactType.ORGANIZATION,
+                        ).first()
                     )
+                    if not organization:
+                        organization = Contact.objects.create(
+                            name=organization_name,
+                            contact_type=ContactType.ORGANIZATION,
+                            notes="cree a l'ajout de Contact",
+                        )
                     contact.organization = organization
                     contact.save(update_fields=["organization"])
 
@@ -421,25 +448,64 @@ def import_contacts(rows):
 
             address_line1 = parse_str(get_value(row, "address_line1", "adresse"))
             if address_line1 and not contact.use_organization_address:
-                ContactAddress.objects.create(
-                    contact=contact,
-                    label=parse_str(get_value(row, "address_label", "label")) or "",
-                    address_line1=address_line1,
-                    address_line2=parse_str(get_value(row, "address_line2")) or "",
-                    postal_code=parse_str(get_value(row, "postal_code", "code_postal"))
-                    or "",
-                    city=parse_str(get_value(row, "city", "ville")) or "",
-                    region=parse_str(get_value(row, "region")) or "",
-                    country=parse_str(get_value(row, "country", "pays")) or "France",
-                    phone=parse_str(get_value(row, "address_phone")) or "",
-                    email=parse_str(get_value(row, "address_email")) or "",
-                    is_default=parse_bool(get_value(row, "address_is_default", "default"))
-                    or False,
-                    notes=parse_str(get_value(row, "address_notes")) or "",
+                address_label = parse_str(get_value(row, "address_label", "label")) or ""
+                address_line2 = parse_str(get_value(row, "address_line2")) or ""
+                postal_code = (
+                    parse_str(get_value(row, "postal_code", "code_postal")) or ""
                 )
+                city = parse_str(get_value(row, "city", "ville")) or ""
+                region = parse_str(get_value(row, "region")) or ""
+                country = parse_str(get_value(row, "country", "pays")) or "France"
+                phone = parse_str(get_value(row, "address_phone")) or ""
+                email = parse_str(get_value(row, "address_email")) or ""
+                is_default = parse_bool(
+                    get_value(row, "address_is_default", "default")
+                )
+                notes = parse_str(get_value(row, "address_notes")) or ""
+                existing_address = ContactAddress.objects.filter(
+                    contact=contact,
+                    address_line1__iexact=address_line1,
+                    address_line2__iexact=address_line2,
+                    postal_code__iexact=postal_code,
+                    city__iexact=city,
+                    country__iexact=country,
+                ).first()
+                if existing_address:
+                    updates = {}
+                    if address_label and existing_address.label != address_label:
+                        updates["label"] = address_label
+                    if region and existing_address.region != region:
+                        updates["region"] = region
+                    if phone and existing_address.phone != phone:
+                        updates["phone"] = phone
+                    if email and existing_address.email != email:
+                        updates["email"] = email
+                    if notes and existing_address.notes != notes:
+                        updates["notes"] = notes
+                    if is_default is not None and existing_address.is_default != is_default:
+                        updates["is_default"] = is_default
+                    if updates:
+                        for field, value in updates.items():
+                            setattr(existing_address, field, value)
+                        existing_address.save(update_fields=list(updates.keys()))
+                else:
+                    ContactAddress.objects.create(
+                        contact=contact,
+                        label=address_label,
+                        address_line1=address_line1,
+                        address_line2=address_line2,
+                        postal_code=postal_code,
+                        city=city,
+                        region=region,
+                        country=country,
+                        phone=phone,
+                        email=email,
+                        is_default=is_default or False,
+                        notes=notes,
+                    )
         except ValueError as exc:
             errors.append(f"Ligne {index}: {exc}")
-    return created, updated, errors
+    return created, updated, errors, warnings
 
 
 def import_users(rows, default_password):
@@ -487,6 +553,10 @@ def import_users(rows, default_password):
                 user.set_password(password)
                 user.save(update_fields=["password"])
             elif was_created:
+                if not default_password:
+                    raise ValueError(
+                        "Mot de passe requis (colonne password ou IMPORT_DEFAULT_PASSWORD)."
+                    )
                 user.set_password(default_password)
                 user.save(update_fields=["password"])
         except ValueError as exc:

@@ -344,6 +344,7 @@
 
   <div class="scan-card">
     <h2>Import utilisateurs</h2>
+    <p class="scan-help">Mot de passe obligatoire si IMPORT_DEFAULT_PASSWORD est vide.</p>
     <form method="post" class="scan-filters">
       {% csrf_token %}
       <input type="hidden" name="action" value="user_single">
@@ -376,8 +377,8 @@
           <label for="user_flags">Statut</label>
           <select id="user_flags" name="is_staff">
             <option value="">--</option>
-            <option value="true">Staff</option>
             <option value="false">Non staff</option>
+            <option value="true">Staff</option>
           </select>
         </div>
       </div>
@@ -386,16 +387,16 @@
           <label for="user_superuser">Superuser</label>
           <select id="user_superuser" name="is_superuser">
             <option value="">--</option>
-            <option value="true">Oui</option>
             <option value="false">Non</option>
+            <option value="true">Oui</option>
           </select>
         </div>
         <div class="scan-field">
           <label for="user_active">Actif</label>
           <select id="user_active" name="is_active">
             <option value="">--</option>
-            <option value="true">Oui</option>
             <option value="false">Non</option>
+            <option value="true">Oui</option>
           </select>
         </div>
       </div>

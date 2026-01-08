@@ -11,8 +11,8 @@
       <form method="get" id="receipt-filter-form">
         <select id="receipt-filter" name="type" onchange="this.form.submit()">
           <option value="all" {% if filter_value == 'all' %}selected{% endif %}>Tout</option>
-          <option value="pallet" {% if filter_value == 'pallet' %}selected{% endif %}>Palette</option>
           <option value="association" {% if filter_value == 'association' %}selected{% endif %}>Association</option>
+          <option value="pallet" {% if filter_value == 'pallet' %}selected{% endif %}>Palette</option>
         </select>
       </form>
     </div>

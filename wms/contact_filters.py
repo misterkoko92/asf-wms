@@ -12,11 +12,11 @@ TAG_CORRESPONDENT = ("correspondant", "correspondants")
 def contacts_with_tags(tag_names):
     queryset = Contact.objects.filter(is_active=True)
     if not tag_names:
-        return queryset
+        return queryset.order_by("name")
     tag_query = Q()
     for name in tag_names:
         tag_query |= Q(tags__name__iexact=name)
-    return queryset.filter(tag_query).distinct()
+    return queryset.filter(tag_query).distinct().order_by("name")
 
 
 def filter_contacts_for_destination(queryset, destination):

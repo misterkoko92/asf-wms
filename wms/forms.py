@@ -34,12 +34,18 @@ def _contact_label(contact):
     return contact.organization.name if contact.organization else contact.name
 
 
+def _sorted_choices(choices):
+    return sorted(choices, key=lambda choice: str(choice[1] or "").lower())
+
+
 class ReceiveStockForm(forms.Form):
-    product = forms.ModelChoiceField(queryset=Product.objects.filter(is_active=True))
+    product = forms.ModelChoiceField(
+        queryset=Product.objects.filter(is_active=True).order_by("name")
+    )
     lot_code = forms.CharField(required=False)
     quantity = forms.IntegerField(min_value=1)
     location = forms.ModelChoiceField(
-        queryset=Location.objects.all(),
+        queryset=Location.objects.all().order_by("warehouse__name", "zone", "aisle", "shelf"),
         required=False,
         help_text="Laissez vide pour utiliser l'emplacement par defaut.",
     )
@@ -52,13 +58,16 @@ class ReceiveStockForm(forms.Form):
         required=False, widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")
     )
     status = forms.ChoiceField(
-        choices=[("", "Auto")] + list(ProductLotStatus.choices), required=False
+        choices=[("", "Auto")] + _sorted_choices(ProductLotStatus.choices),
+        required=False,
     )
     storage_conditions = forms.CharField(required=False)
 
 
 class AdjustStockForm(forms.Form):
-    product_lot = forms.ModelChoiceField(queryset=ProductLot.objects.all())
+    product_lot = forms.ModelChoiceField(
+        queryset=ProductLot.objects.all().order_by("product__name", "lot_code", "expires_on")
+    )
     quantity_delta = forms.IntegerField()
     reason_code = forms.CharField(required=False)
     reason_notes = forms.CharField(widget=forms.Textarea, required=False)
@@ -71,27 +80,38 @@ class AdjustStockForm(forms.Form):
 
 
 class TransferStockForm(forms.Form):
-    product_lot = forms.ModelChoiceField(queryset=ProductLot.objects.all())
-    to_location = forms.ModelChoiceField(queryset=Location.objects.all())
+    product_lot = forms.ModelChoiceField(
+        queryset=ProductLot.objects.all().order_by("product__name", "lot_code", "expires_on")
+    )
+    to_location = forms.ModelChoiceField(
+        queryset=Location.objects.all().order_by("warehouse__name", "zone", "aisle", "shelf")
+    )
 
 
 class PackCartonForm(forms.Form):
-    product = forms.ModelChoiceField(queryset=Product.objects.filter(is_active=True))
+    product = forms.ModelChoiceField(
+        queryset=Product.objects.filter(is_active=True).order_by("name")
+    )
     quantity = forms.IntegerField(min_value=1)
-    carton = forms.ModelChoiceField(queryset=Carton.objects.all(), required=False)
+    carton = forms.ModelChoiceField(queryset=Carton.objects.all().order_by("code"), required=False)
     carton_code = forms.CharField(required=False)
-    shipment = forms.ModelChoiceField(queryset=Shipment.objects.all(), required=False)
+    shipment = forms.ModelChoiceField(
+        queryset=Shipment.objects.all().order_by("reference"),
+        required=False,
+    )
     current_location = forms.ModelChoiceField(
-        queryset=Location.objects.all(), required=False
+        queryset=Location.objects.all().order_by("warehouse__name", "zone", "aisle", "shelf"),
+        required=False,
     )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["carton"].queryset = Carton.objects.exclude(
-            status=CartonStatus.SHIPPED
+        self.fields["carton"].queryset = (
+            Carton.objects.exclude(status=CartonStatus.SHIPPED).order_by("code")
         )
-        self.fields["shipment"].queryset = Shipment.objects.exclude(
-            status__in=[ShipmentStatus.SHIPPED, ShipmentStatus.DELIVERED]
+        self.fields["shipment"].queryset = (
+            Shipment.objects.exclude(status__in=[ShipmentStatus.SHIPPED, ShipmentStatus.DELIVERED])
+            .order_by("reference")
         )
 
     def clean(self):
@@ -114,6 +134,8 @@ class ScanReceiptSelectForm(forms.Form):
     def __init__(self, *args, receipts_qs=None, **kwargs):
         super().__init__(*args, **kwargs)
         queryset = receipts_qs if receipts_qs is not None else Receipt.objects.all()
+        if not queryset.query.is_sliced:
+            queryset = queryset.order_by("reference", "id")
         field = self.fields["receipt"]
         field.queryset = queryset
         field.label_from_instance = (
@@ -126,18 +148,18 @@ class ScanReceiptSelectForm(forms.Form):
 class ScanReceiptCreateForm(forms.Form):
     receipt_type = forms.ChoiceField(
         label="Type reception",
-        choices=ReceiptType.choices,
+        choices=_sorted_choices(ReceiptType.choices),
         required=False,
         initial=ReceiptType.DONATION,
     )
     source_contact = forms.ModelChoiceField(
         label="Provenance",
-        queryset=Contact.objects.filter(is_active=True),
+        queryset=Contact.objects.filter(is_active=True).order_by("name"),
         required=False,
     )
     carrier_contact = forms.ModelChoiceField(
         label="Transporteur",
-        queryset=Contact.objects.filter(is_active=True),
+        queryset=Contact.objects.filter(is_active=True).order_by("name"),
         required=False,
     )
     origin_reference = forms.CharField(label="Reference provenance", required=False)
@@ -150,7 +172,7 @@ class ScanReceiptCreateForm(forms.Form):
     )
     warehouse = forms.ModelChoiceField(
         label="Entrepot",
-        queryset=Warehouse.objects.all(),
+        queryset=Warehouse.objects.all().order_by("name"),
         required=False,
     )
     notes = forms.CharField(label="Notes", required=False, widget=forms.Textarea(attrs={"rows": 3}))
@@ -191,12 +213,12 @@ class ScanReceiptPalletForm(forms.Form):
     )
     source_contact = forms.ModelChoiceField(
         label="Donateur",
-        queryset=Contact.objects.filter(is_active=True),
+        queryset=Contact.objects.filter(is_active=True).order_by("name"),
         required=True,
     )
     carrier_contact = forms.ModelChoiceField(
         label="Transporteur",
-        queryset=Contact.objects.filter(is_active=True),
+        queryset=Contact.objects.filter(is_active=True).order_by("name"),
         required=True,
     )
     transport_request_date = forms.DateField(
@@ -235,12 +257,12 @@ class ScanReceiptAssociationForm(forms.Form):
     )
     source_contact = forms.ModelChoiceField(
         label="Association",
-        queryset=Contact.objects.filter(is_active=True),
+        queryset=Contact.objects.filter(is_active=True).order_by("name"),
         required=True,
     )
     carrier_contact = forms.ModelChoiceField(
         label="Transporteur",
-        queryset=Contact.objects.filter(is_active=True),
+        queryset=Contact.objects.filter(is_active=True).order_by("name"),
         required=False,
     )
 
@@ -307,11 +329,13 @@ class ScanReceiptLineForm(forms.Form):
     )
     lot_status = forms.ChoiceField(
         label="Statut lot",
-        choices=[("", "Auto")] + list(ProductLotStatus.choices),
+        choices=[("", "Auto")] + _sorted_choices(ProductLotStatus.choices),
         required=False,
     )
     location = forms.ModelChoiceField(
-        label="Emplacement", queryset=Location.objects.all(), required=False
+        label="Emplacement",
+        queryset=Location.objects.all().order_by("warehouse__name", "zone", "aisle", "shelf"),
+        required=False,
     )
     storage_conditions = forms.CharField(label="Conditions stockage", required=False)
     receive_now = forms.BooleanField(label="Receptionner maintenant", required=False)
@@ -320,7 +344,9 @@ class ScanReceiptLineForm(forms.Form):
 class ScanPackForm(forms.Form):
     shipment_reference = forms.CharField(label="Reference expedition", required=False)
     current_location = forms.ModelChoiceField(
-        label="Emplacement", queryset=Location.objects.all(), required=False
+        label="Emplacement",
+        queryset=Location.objects.all().order_by("warehouse__name", "zone", "aisle", "shelf"),
+        required=False,
     )
 
 
@@ -365,7 +391,7 @@ class ScanShipmentForm(forms.Form):
         super().__init__(*args, **kwargs)
         destinations = Destination.objects.filter(is_active=True).select_related(
             "correspondent_contact"
-        )
+        ).order_by("city")
         self.fields["destination"].queryset = destinations
         shipper_contacts = contacts_with_tags(TAG_SHIPPER).filter(
             contact_type=ContactType.ORGANIZATION
@@ -381,7 +407,7 @@ class ScanShipmentForm(forms.Form):
             shipper_contacts = filter_contacts_for_destination(
                 shipper_contacts, selected_destination
             )
-        self.fields["shipper_contact"].queryset = shipper_contacts
+        self.fields["shipper_contact"].queryset = shipper_contacts.order_by("name")
         _select_single_choice(self.fields["shipper_contact"])
 
         recipients = contacts_with_tags(TAG_RECIPIENT).filter(
@@ -404,8 +430,8 @@ class ScanShipmentForm(forms.Form):
             else:
                 correspondents = correspondents.none()
 
-        self.fields["recipient_contact"].queryset = recipients.distinct()
-        self.fields["correspondent_contact"].queryset = correspondents.distinct()
+        self.fields["recipient_contact"].queryset = recipients.distinct().order_by("name")
+        self.fields["correspondent_contact"].queryset = correspondents.distinct().order_by("name")
         _select_single_choice(self.fields["recipient_contact"])
         _select_single_choice(self.fields["correspondent_contact"])
 
@@ -464,7 +490,7 @@ class ShipmentTrackingForm(forms.Form):
     def __init__(self, *args, **kwargs):
         initial_status = kwargs.pop("initial_status", None)
         super().__init__(*args, **kwargs)
-        choices = list(ShipmentTrackingStatus.choices)
+        choices = _sorted_choices(ShipmentTrackingStatus.choices)
         self.fields["status"].choices = choices
         if initial_status and any(choice[0] == initial_status for choice in choices):
             self.fields["status"].initial = initial_status
@@ -491,6 +517,8 @@ class ScanOrderSelectForm(forms.Form):
     def __init__(self, *args, orders_qs=None, **kwargs):
         super().__init__(*args, **kwargs)
         queryset = orders_qs if orders_qs is not None else Order.objects.none()
+        if queryset and not queryset.query.is_sliced:
+            queryset = queryset.order_by("reference", "id")
         field = self.fields["order"]
         field.queryset = queryset
         field.label_from_instance = (
@@ -505,17 +533,17 @@ class ScanOrderCreateForm(forms.Form):
     correspondent_name = forms.CharField(label="Correspondant", required=False)
     shipper_contact = forms.ModelChoiceField(
         label="Expediteur (contact)",
-        queryset=Contact.objects.filter(is_active=True),
+        queryset=Contact.objects.filter(is_active=True).order_by("name"),
         required=False,
     )
     recipient_contact = forms.ModelChoiceField(
         label="Destinataire (contact)",
-        queryset=Contact.objects.filter(is_active=True),
+        queryset=Contact.objects.filter(is_active=True).order_by("name"),
         required=False,
     )
     correspondent_contact = forms.ModelChoiceField(
         label="Correspondant (contact)",
-        queryset=Contact.objects.filter(is_active=True),
+        queryset=Contact.objects.filter(is_active=True).order_by("name"),
         required=False,
     )
     destination_address = forms.CharField(

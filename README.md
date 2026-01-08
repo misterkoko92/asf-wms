@@ -51,8 +51,22 @@ Notes:
 - `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS` (comma-separated)
 - `ORG_NAME`, `ORG_ADDRESS`, `ORG_CONTACT`, `ORG_SIGNATORY`
 - `SKU_PREFIX`
+- `IMPORT_DEFAULT_PASSWORD` (optional, for user imports when CSV password is empty)
 - MySQL (optional): `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_ENGINE`
   - If `DB_NAME` is set, Django uses MySQL; otherwise it uses SQLite.
+
+Example (bash):
+```bash
+export DJANGO_SECRET_KEY="change-me"
+export DJANGO_DEBUG="false"
+export DJANGO_ALLOWED_HOSTS="example.com,www.example.com"
+export ORG_NAME="Aviation Sans Frontieres"
+export ORG_ADDRESS="10 Rue Exemple, 75000 Paris"
+export ORG_CONTACT="contact@example.com"
+export ORG_SIGNATORY="Jean Dupont"
+export SKU_PREFIX="ASF"
+export IMPORT_DEFAULT_PASSWORD="TempPWD!"
+```
 
 ## Scan PWA
 - URL: `http://localhost:8000/scan/`
@@ -77,3 +91,22 @@ Notes:
 - Set WSGI to `asf_wms.wsgi`
 - Run migrations from a Bash console
 - For MySQL: create the database in the Databases tab, then set `DB_*` env vars in WSGI
+
+Example env vars (Web tab -> WSGI configuration):
+```
+DJANGO_SECRET_KEY=change-me
+DJANGO_DEBUG=false
+DJANGO_ALLOWED_HOSTS=yourdomain.pythonanywhere.com
+SITE_BASE_URL=https://yourdomain.pythonanywhere.com
+ORG_NAME=Aviation Sans Frontieres
+ORG_ADDRESS=10 Rue Exemple, 75000 Paris
+ORG_CONTACT=contact@example.com
+ORG_SIGNATORY=Jean Dupont
+SKU_PREFIX=ASF
+IMPORT_DEFAULT_PASSWORD=TempPWD!
+DB_NAME=youruser$asf_wms
+DB_USER=youruser
+DB_PASSWORD=yourpassword
+DB_HOST=youruser.mysql.pythonanywhere-services.com
+DB_PORT=3306
+```

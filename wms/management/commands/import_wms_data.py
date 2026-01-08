@@ -119,7 +119,10 @@ def upsert_contact(name, tag_name, contact_type, email="", phone="", notes="", a
     name = normalize_text(name)
     if not name:
         return None, False, False
-    contact = Contact.objects.filter(name__iexact=name).first()
+    contact = Contact.objects.filter(
+        name__iexact=name,
+        contact_type=contact_type,
+    ).first()
     created = False
     updated = False
     if not contact:

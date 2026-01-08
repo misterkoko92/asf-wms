@@ -153,8 +153,18 @@ def ensure_carton_code(carton):
     if Carton.objects.filter(code=new_code).exclude(pk=carton.pk).exists():
         sequence = _next_carton_sequence(date_str)
         new_code = _format_carton_code(type_code, date_str, sequence)
-    carton.code = new_code
-    carton.save(update_fields=["code"])
+    last_error = None
+    for _ in range(2):
+        try:
+            carton.code = new_code
+            carton.save(update_fields=["code"])
+            return
+        except IntegrityError as exc:
+            last_error = exc
+            sequence = _next_carton_sequence(date_str)
+            new_code = _format_carton_code(type_code, date_str, sequence)
+    if last_error:
+        raise last_error
 
 
 def _prepare_carton(

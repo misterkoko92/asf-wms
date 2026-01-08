@@ -185,6 +185,10 @@ def _resolve_contact_by_name(tag, name):
     return contacts_with_tags(tag).filter(name__iexact=name).first()
 
 
+def _sorted_choices(choices):
+    return sorted(choices, key=lambda choice: str(choice[1] or "").lower())
+
+
 def _build_carton_options(cartons):
     options = []
     for carton in cartons:
@@ -646,6 +650,9 @@ def portal_order_create(request):
         {"id": "self", "label": f"{profile.contact.name} (association)"},
         *[{"id": str(rec.id), "label": rec.name} for rec in recipients],
     ]
+    recipient_options = sorted(
+        recipient_options, key=lambda item: str(item["label"] or "").lower()
+    )
 
     product_options = build_product_options()
     product_ids = [item["id"] for item in product_options if item.get("id")]
@@ -924,7 +931,7 @@ def portal_order_detail(request, order_id):
             "line_rows": line_rows,
             "total_estimated_cartons": total_estimated_cartons,
             "order_documents": order.documents.all(),
-            "order_doc_types": OrderDocumentType.choices,
+            "order_doc_types": _sorted_choices(OrderDocumentType.choices),
             "can_upload_docs": order.review_status == OrderReviewStatus.APPROVED,
         },
     )
@@ -1044,7 +1051,7 @@ def portal_account(request):
             "address": address,
             "notification_emails": profile.notification_emails,
             "account_documents": account_documents,
-            "account_doc_types": AccountDocumentType.choices,
+            "account_doc_types": _sorted_choices(AccountDocumentType.choices),
             "user": request.user,
         },
     )
@@ -1787,11 +1794,13 @@ def scan_cartons_ready(request):
         {
             "active": "cartons_ready",
             "cartons": cartons,
-            "carton_status_choices": [
-                (CartonStatus.DRAFT, CartonStatus.DRAFT.label),
-                (CartonStatus.PICKING, CartonStatus.PICKING.label),
-                (CartonStatus.PACKED, CartonStatus.PACKED.label),
-            ],
+            "carton_status_choices": _sorted_choices(
+                [
+                    (CartonStatus.DRAFT, CartonStatus.DRAFT.label),
+                    (CartonStatus.PICKING, CartonStatus.PICKING.label),
+                    (CartonStatus.PACKED, CartonStatus.PACKED.label),
+                ]
+            ),
         },
     )
 
@@ -1962,7 +1971,7 @@ def scan_receive(request):
     product_options = build_product_options()
     action = request.POST.get("action", "")
     receipts_qs = Receipt.objects.select_related("warehouse").order_by(
-        "-received_on", "-created_at"
+        "reference", "id"
     )[:50]
     select_form = ScanReceiptSelectForm(
         request.POST if action == "select_receipt" else None, receipts_qs=receipts_qs
@@ -2219,7 +2228,7 @@ def scan_receive_association(request):
 def scan_order(request):
     product_options = build_product_options()
     action = request.POST.get("action", "")
-    orders_qs = Order.objects.select_related("shipment").order_by("-created_at")[:50]
+    orders_qs = Order.objects.select_related("shipment").order_by("reference", "id")[:50]
     select_form = ScanOrderSelectForm(
         request.POST if action == "select_order" else None, orders_qs=orders_qs
     )
@@ -2426,7 +2435,7 @@ def scan_orders_view(request):
         {
             "active": "orders_view",
             "orders": rows,
-            "review_status_choices": OrderReviewStatus.choices,
+            "review_status_choices": _sorted_choices(OrderReviewStatus.choices),
             "approved_status": OrderReviewStatus.APPROVED,
             "rejected_status": OrderReviewStatus.REJECTED,
             "changes_status": OrderReviewStatus.CHANGES_REQUESTED,
@@ -3201,7 +3210,7 @@ def scan_print_template_edit(request, doc_type):
 
     shipments = []
     for shipment in Shipment.objects.select_related("destination").order_by(
-        "-created_at"
+        "reference", "id"
     )[:30]:
         dest = (
             shipment.destination.city
@@ -3212,6 +3221,7 @@ def scan_print_template_edit(request, doc_type):
         if dest:
             label = f"{label} - {dest}"
         shipments.append({"id": shipment.id, "label": label})
+    shipments.sort(key=lambda item: str(item["label"] or "").lower())
 
     products = []
     if doc_type == "product_label":
@@ -3220,6 +3230,7 @@ def scan_print_template_edit(request, doc_type):
             if product.sku:
                 label = f"{product.sku} - {label}"
             products.append({"id": product.id, "label": label})
+        products.sort(key=lambda item: str(item["label"] or "").lower())
 
     versions = []
     if template:
@@ -3652,7 +3663,7 @@ def scan_import(request):
         if handler is None:
             raise Http404
         return handler()
-    default_password = "TempPWD!"
+    default_password = getattr(settings, "IMPORT_DEFAULT_PASSWORD", None)
     if request.method == "POST":
         action = (request.POST.get("action") or "").strip()
         if action == "product_single":
@@ -3719,15 +3730,24 @@ def scan_import(request):
             try:
                 rows = iter_import_rows(data, extension)
                 if action == "user_file":
-                    created, updated, errors = importer(rows, default_password)
+                    result = importer(rows, default_password)
                 else:
-                    created, updated, errors = importer(rows)
+                    result = importer(rows)
             except ValueError as exc:
                 messages.error(request, f"Import {label}: {exc}")
                 return redirect("scan:scan_import")
+            if len(result) == 4:
+                created, updated, errors, warnings = result
+            else:
+                created, updated, errors = result
+                warnings = []
             if errors:
                 messages.warning(request, f"Import {label}: {len(errors)} erreur(s).")
                 for message in errors[:3]:
+                    messages.warning(request, message)
+            if warnings:
+                messages.warning(request, f"Import {label}: {len(warnings)} alerte(s).")
+                for message in warnings[:3]:
                     messages.warning(request, message)
             messages.success(
                 request,
@@ -3747,14 +3767,22 @@ def scan_import(request):
             row = dict(request.POST.items())
             try:
                 if action == "user_single":
-                    created, updated, errors = importer([row], default_password)
+                    result = importer([row], default_password)
                 else:
-                    created, updated, errors = importer([row])
+                    result = importer([row])
             except ValueError as exc:
                 messages.error(request, f"Ajout {label}: {exc}")
                 return redirect("scan:scan_import")
+            if len(result) == 4:
+                created, updated, errors, warnings = result
+            else:
+                created, updated, errors = result
+                warnings = []
             if errors:
                 messages.error(request, errors[0])
+            elif warnings:
+                for message in warnings[:3]:
+                    messages.warning(request, message)
             else:
                 messages.success(request, f"{label.capitalize()} ajoute.")
             return redirect("scan:scan_import")
