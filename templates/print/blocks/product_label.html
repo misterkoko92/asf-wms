@@ -33,19 +33,25 @@
   "
 >
   <div class="product-label-grid">
-    <div class="pl-title">{{ block.title_product|default:"PRODUIT" }}</div>
-    <div class="pl-value"><span class="pl-value-text">{{ product_name|default:"-" }}</span></div>
+    <div class="pl-title pl-title-product">{{ block.title_product|default:"PRODUIT" }}</div>
+    <div class="pl-value pl-value-product">
+      <span class="pl-value-text pl-value-text-product">{{ product_name|default:"-" }}</span>
+    </div>
     <div class="pl-photo">
       {% if product_photo_url %}
         <img src="{{ product_photo_url }}" alt="Photo {{ product_name|default:'Produit' }}">
       {% endif %}
     </div>
 
-    <div class="pl-title">{{ block.title_brand|default:"MARQUE" }}</div>
-    <div class="pl-value"><span class="pl-value-text">{{ product_brand|default:"-" }}</span></div>
+    <div class="pl-title pl-title-brand">{{ block.title_brand|default:"MARQUE" }}</div>
+    <div class="pl-value pl-value-brand">
+      <span class="pl-value-text pl-value-text-brand">{{ product_brand|default:"-" }}</span>
+    </div>
 
-    <div class="pl-title">{{ block.title_color|default:"COULEUR" }}</div>
-    <div class="pl-value"><span class="pl-value-text">{{ product_color|default:"-" }}</span></div>
+    <div class="pl-title pl-title-color">{{ block.title_color|default:"COULEUR" }}</div>
+    <div class="pl-value pl-value-color">
+      <span class="pl-value-text pl-value-text-color">{{ product_color|default:"-" }}</span>
+    </div>
   </div>
 
   <div class="product-label-footer">

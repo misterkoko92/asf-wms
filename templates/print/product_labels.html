@@ -40,7 +40,7 @@
     .product-label-grid {
       display: grid;
       grid-template-columns: var(--title-col-width, 28%) var(--value-col-width, 42%) var(--photo-col-width, 30%);
-      grid-template-rows: repeat(3, 1fr);
+      grid-template-rows: var(--row-product-height, 1.5fr) var(--row-brand-height, 0.75fr) var(--row-color-height, 0.75fr);
       gap: var(--grid-gap, 2mm);
     }
     .pl-title {
@@ -75,6 +75,15 @@
       word-break: break-word;
       max-height: calc(2 * var(--grid-value-line-height, 1.15) * 1em);
       width: 100%;
+    }
+    .pl-value-text-product {
+      -webkit-line-clamp: 3;
+      max-height: calc(3 * var(--grid-value-line-height, 1.15) * 1em);
+    }
+    .pl-value-text-brand,
+    .pl-value-text-color {
+      -webkit-line-clamp: 1;
+      max-height: calc(1 * var(--grid-value-line-height, 1.15) * 1em);
     }
     .pl-photo {
       grid-row: 1 / span 3;
