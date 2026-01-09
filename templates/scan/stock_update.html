@@ -178,6 +178,12 @@
           setVisibility('unknown');
           return;
         }
+        const normalizedValue = normalize(productInput.value);
+        const normalizedSku = normalize(product.sku);
+        const normalizedBarcode = normalize(product.barcode);
+        if (normalizedValue && (normalizedValue === normalizedSku || normalizedValue === normalizedBarcode)) {
+          productInput.value = product.name || productInput.value;
+        }
         brandDisplay.value = product.brand || '';
         const location = locationMap.get(String(product.default_location_id || ''));
         locationDisplay.value = location ? location.label : '';
