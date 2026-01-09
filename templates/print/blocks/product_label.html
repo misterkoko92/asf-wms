@@ -7,7 +7,7 @@
     --label-gap: {{ style.label_gap|default:'2mm' }};
     --grid-gap: {{ style.grid_gap|default:'2mm' }};
     --label-border-width: {{ style.label_border_width|default:'2px' }};
-    --label-border-color: {{ style.label_border_color|default:'#1C8BC0' }};
+    --label-border-color: {{ rack_color|default:style.label_border_color|default:'#1C8BC0' }};
     --title-bg: {{ rack_color|default:style.title_bg_color|default:'#1C8BC0' }};
     --title-color: {{ style.title_text_color|default:'#ffffff' }};
     --title-font-size: {{ style.title_font_size|default:'14pt' }};
