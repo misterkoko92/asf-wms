@@ -5,6 +5,12 @@
   <title>Etiquettes produit</title>
   <style>
     @page { size: A4; margin: {{ page_style.page_margin|default:"8mm" }}; }
+    @media print {
+      * {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
     body {
       margin: 0;
       color: #000;
@@ -39,6 +45,7 @@
     }
     .pl-title {
       background: var(--title-bg, #1C8BC0);
+      background-color: var(--title-bg, #1C8BC0);
       color: var(--title-color, #fff);
       font-weight: var(--title-font-weight, 700);
       font-size: var(--title-font-size, 14pt);
@@ -97,6 +104,7 @@
     }
     .pl-pill {
       background: var(--title-bg, #1C8BC0);
+      background-color: var(--title-bg, #1C8BC0);
       color: var(--title-color, #fff);
       font-weight: var(--title-font-weight, 700);
       font-size: var(--title-font-size, 14pt);
