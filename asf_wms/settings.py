@@ -74,6 +74,10 @@ USE_SQLITE_FOR_TESTS = RUNNING_TESTS and not USE_MYSQL_FOR_TESTS
 
 DB_NAME = os.environ.get("DB_NAME")
 if DB_NAME and not USE_SQLITE_FOR_TESTS:
+    db_options = {"charset": "utf8mb4"}
+    db_ssl_ca = os.environ.get("DB_SSL_CA", "").strip()
+    if db_ssl_ca:
+        db_options["ssl"] = {"ca": db_ssl_ca}
     DATABASES = {
         "default": {
             "ENGINE": os.environ.get(
@@ -85,7 +89,7 @@ if DB_NAME and not USE_SQLITE_FOR_TESTS:
             "PASSWORD": os.environ.get("DB_PASSWORD", ""),
             "HOST": os.environ.get("DB_HOST", "localhost"),
             "PORT": os.environ.get("DB_PORT", "3306"),
-            "OPTIONS": {"charset": "utf8mb4"},
+            "OPTIONS": db_options,
         }
     }
 else:
