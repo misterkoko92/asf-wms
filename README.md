@@ -53,9 +53,8 @@ Notes:
 - `SKU_PREFIX`
 - `IMPORT_DEFAULT_PASSWORD` (optional, for user imports when CSV password is empty)
 - `INTEGRATION_API_KEY` (optional, for integration endpoints)
-- MySQL (optional): `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_ENGINE`, `DB_SSL_CA`
+- MySQL (optional): `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_ENGINE`
   - If `DB_NAME` is set, Django uses MySQL; otherwise it uses SQLite.
-  - Azure MySQL requires SSL. Use `DB_SSL_CA=/etc/ssl/certs/ca-certificates.crt`.
 
 Example (bash):
 ```bash
@@ -69,11 +68,7 @@ export ORG_SIGNATORY="Jean Dupont"
 export SKU_PREFIX="ASF"
 export IMPORT_DEFAULT_PASSWORD="TempPWD!"
 export INTEGRATION_API_KEY="change-me"
-export DB_SSL_CA="/etc/ssl/certs/ca-certificates.crt"
 ```
-
-Azure App Service note: if you need to run `manage.py` via SSH in `/home/site/wwwroot`,
-set `WEBSITE_RUN_FROM_PACKAGE=0` so the code is extracted on the filesystem.
 
 ## Scan PWA
 - URL: `http://localhost:8000/scan/`
