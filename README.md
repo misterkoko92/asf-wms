@@ -72,6 +72,9 @@ export INTEGRATION_API_KEY="change-me"
 export DB_SSL_CA="/etc/ssl/certs/ca-certificates.crt"
 ```
 
+Azure App Service note: if you need to run `manage.py` via SSH in `/home/site/wwwroot`,
+set `WEBSITE_RUN_FROM_PACKAGE=0` so the code is extracted on the filesystem.
+
 ## Scan PWA
 - URL: `http://localhost:8000/scan/`
 - Camera scan uses the browser BarcodeDetector (Chrome/Android recommended)
