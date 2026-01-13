@@ -29,7 +29,9 @@ class Command(BaseCommand):
         for category in ProductCategory.objects.all():
             if not category.name:
                 continue
-            normalized = normalize_category_name(category.name)
+            normalized = normalize_category_name(
+                category.name, is_root=category.parent_id is None
+            )
             if normalized != category.name:
                 category.name = normalized
                 category.save(update_fields=["name"])

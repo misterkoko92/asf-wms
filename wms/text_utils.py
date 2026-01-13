@@ -48,5 +48,7 @@ def normalize_title(value, *, keep_upper=None):
     return "".join(formatted)
 
 
-def normalize_category_name(value):
+def normalize_category_name(value, *, is_root=False):
+    if is_root:
+        return normalize_upper(value)
     return normalize_title(value, keep_upper=CATEGORY_ACRONYMS)

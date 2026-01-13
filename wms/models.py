@@ -41,7 +41,9 @@ class ProductCategory(models.Model):
     def save(self, *args, **kwargs):
         update_fields = kwargs.get("update_fields")
         if self.name:
-            normalized = normalize_category_name(self.name)
+            normalized = normalize_category_name(
+                self.name, is_root=self.parent_id is None
+            )
             if normalized != self.name:
                 self.name = normalized
                 if update_fields is not None:
