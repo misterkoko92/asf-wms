@@ -3,10 +3,10 @@ import io
 import json
 import math
 import tempfile
+import uuid
 from decimal import Decimal
 from pathlib import Path
 
-from django.core.management import call_command
 from django.contrib import messages
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.decorators import login_required
@@ -102,12 +102,14 @@ from .print_context import (
 from .print_layouts import BLOCK_LIBRARY, DEFAULT_LAYOUTS, DOCUMENT_TEMPLATES
 from .print_renderer import get_template_layout, layout_changed, render_layout_from_layout
 from .print_utils import build_label_pages
-from .import_utils import decode_text, iter_import_rows
+from .import_utils import decode_text, get_value, iter_import_rows, parse_int, parse_str
 from .import_services import (
     import_categories,
     import_contacts,
     import_locations,
-    import_products_single,
+    extract_product_identity,
+    find_product_matches,
+    import_products_rows,
     import_users,
     import_warehouses,
 )
@@ -3664,14 +3666,224 @@ def scan_import(request):
             raise Http404
         return handler()
     default_password = getattr(settings, "IMPORT_DEFAULT_PASSWORD", None)
+    pending_import = request.session.get("product_import_pending")
+
+    def clear_pending_import():
+        pending = request.session.pop("product_import_pending", None)
+        if pending and pending.get("temp_path"):
+            Path(pending["temp_path"]).unlink(missing_ok=True)
+
+    def row_is_empty(row):
+        return all(not str(value or "").strip() for value in row.values())
+
+    def format_import_location(row):
+        warehouse = parse_str(get_value(row, "warehouse", "entrepot"))
+        zone = parse_str(get_value(row, "zone", "rack"))
+        aisle = parse_str(get_value(row, "aisle", "etagere"))
+        shelf = parse_str(get_value(row, "shelf", "bac", "emplacement"))
+        if all([warehouse, zone, aisle, shelf]):
+            return f"{warehouse} {zone}-{aisle}-{shelf}"
+        return "-"
+
+    def summarize_import_row(row):
+        quantity = parse_int(get_value(row, "quantity", "quantite", "stock", "qty"))
+        return {
+            "sku": parse_str(get_value(row, "sku")) or "",
+            "name": parse_str(get_value(row, "name", "nom", "nom_produit", "produit")) or "",
+            "brand": parse_str(get_value(row, "brand", "marque")) or "",
+            "quantity": quantity if quantity is not None else "-",
+            "location": format_import_location(row),
+        }
+
+    def build_match_context(pending):
+        if not pending:
+            return None
+        match_ids = {
+            match_id
+            for item in pending.get("matches", [])
+            for match_id in item.get("match_ids", [])
+        }
+        if match_ids:
+            available_expr = ExpressionWrapper(
+                F("productlot__quantity_on_hand") - F("productlot__quantity_reserved"),
+                output_field=IntegerField(),
+            )
+            products = (
+                Product.objects.filter(id__in=match_ids)
+                .select_related("default_location")
+                .annotate(
+                    available_stock=Coalesce(
+                        Sum(
+                            available_expr,
+                            filter=Q(productlot__status=ProductLotStatus.AVAILABLE),
+                        ),
+                        0,
+                    )
+                )
+            )
+            products_by_id = {
+                product.id: {
+                    "id": product.id,
+                    "sku": product.sku or "",
+                    "name": product.name,
+                    "brand": product.brand or "",
+                    "available_stock": int(product.available_stock or 0),
+                    "location": str(product.default_location)
+                    if product.default_location
+                    else "-",
+                }
+                for product in products
+            }
+        else:
+            products_by_id = {}
+
+        matches = []
+        match_labels = {"sku": "SKU", "name_brand": "Nom + Marque"}
+        for item in pending.get("matches", []):
+            match_products = [
+                products_by_id[match_id]
+                for match_id in item.get("match_ids", [])
+                if match_id in products_by_id
+            ]
+            matches.append(
+                {
+                    "row_index": item.get("row_index"),
+                    "match_type": match_labels.get(item.get("match_type"), ""),
+                    "row": item.get("row_summary", {}),
+                    "products": match_products,
+                }
+            )
+        return {
+            "token": pending.get("token"),
+            "matches": matches,
+            "default_action": pending.get("default_action", "update"),
+        }
     if request.method == "POST":
         action = (request.POST.get("action") or "").strip()
+        if action == "product_confirm":
+            pending = request.session.get("product_import_pending")
+            token = (request.POST.get("pending_token") or "").strip()
+            if not pending or token != pending.get("token"):
+                messages.error(request, "Import produit: confirmation invalide.")
+                return redirect("scan:scan_import")
+            if request.POST.get("cancel"):
+                clear_pending_import()
+                messages.info(request, "Import produit annule.")
+                return redirect("scan:scan_import")
+
+            decisions = {}
+            for item in pending.get("matches", []):
+                row_index = item.get("row_index")
+                action_choice = request.POST.get(f"decision_{row_index}") or pending.get(
+                    "default_action", "update"
+                )
+                if action_choice == "create":
+                    decisions[row_index] = {"action": "create"}
+                    continue
+                match_id = request.POST.get(f"match_id_{row_index}")
+                if not match_id:
+                    messages.error(
+                        request,
+                        "Import produit: selection requise pour la mise a jour.",
+                    )
+                    return redirect("scan:scan_import")
+                if str(match_id) not in {str(mid) for mid in item.get("match_ids", [])}:
+                    messages.error(
+                        request,
+                        "Import produit: produit cible invalide.",
+                    )
+                    return redirect("scan:scan_import")
+                decisions[row_index] = {
+                    "action": "update",
+                    "product_id": int(match_id),
+                }
+
+            if pending.get("source") == "file":
+                temp_path = Path(pending["temp_path"])
+                if not temp_path.exists():
+                    clear_pending_import()
+                    messages.error(request, "Import produit: fichier temporaire introuvable.")
+                    return redirect("scan:scan_import")
+                extension = pending.get("extension", "")
+                data = temp_path.read_bytes()
+                rows = list(iter_import_rows(data, extension))
+                base_dir = temp_path.parent
+                start_index = pending.get("start_index", 2)
+            else:
+                rows = pending.get("rows", [])
+                base_dir = None
+                start_index = pending.get("start_index", 1)
+
+            created, updated, errors, warnings = import_products_rows(
+                rows,
+                user=request.user,
+                decisions=decisions,
+                base_dir=base_dir,
+                start_index=start_index,
+            )
+            clear_pending_import()
+            if errors:
+                messages.warning(request, f"Import produits: {len(errors)} erreur(s).")
+                for message in errors[:3]:
+                    messages.warning(request, message)
+            if warnings:
+                messages.warning(request, f"Import produits: {len(warnings)} alerte(s).")
+                for message in warnings[:3]:
+                    messages.warning(request, message)
+            messages.success(
+                request,
+                f"Import produits: {created} cree(s), {updated} maj.",
+            )
+            return redirect("scan:scan_import")
+
         if action == "product_single":
-            try:
-                import_products_single(request.POST, user=request.user)
+            row = {
+                key: value
+                for key, value in request.POST.items()
+                if key not in {"csrfmiddlewaretoken", "action"}
+            }
+            sku, name, brand = extract_product_identity(row)
+            matches, match_type = find_product_matches(
+                sku=sku, name=name, brand=brand
+            )
+            if matches:
+                pending = {
+                    "token": uuid.uuid4().hex,
+                    "source": "single",
+                    "rows": [row],
+                    "start_index": 1,
+                    "default_action": "update",
+                    "matches": [
+                        {
+                            "row_index": 1,
+                            "match_type": match_type,
+                            "match_ids": [product.id for product in matches],
+                            "row_summary": summarize_import_row(row),
+                        }
+                    ],
+                }
+                request.session["product_import_pending"] = pending
+                return render(
+                    request,
+                    "scan/imports.html",
+                    {
+                        "active": "imports",
+                        "shell_class": "scan-shell-wide",
+                        "product_match_pending": build_match_context(pending),
+                    },
+                )
+            created, updated, errors, warnings = import_products_rows(
+                [row],
+                user=request.user,
+                start_index=1,
+            )
+            if errors:
+                messages.error(request, errors[0])
+            else:
+                if warnings:
+                    for message in warnings[:3]:
+                        messages.warning(request, message)
                 messages.success(request, "Produit cree.")
-            except ValueError as exc:
-                messages.error(request, f"Import produit: {exc}")
             return redirect("scan:scan_import")
         if action == "product_file":
             uploaded = request.FILES.get("import_file")
@@ -3689,27 +3901,64 @@ def scan_import(request):
             with tempfile.NamedTemporaryFile(delete=False, suffix=extension) as temp:
                 temp.write(data)
                 temp_path = temp.name
-            out = io.StringIO()
-            err = io.StringIO()
-            try:
-                call_command(
-                    "import_products",
-                    temp_path,
-                    update=update_existing,
-                    stdout=out,
-                    stderr=err,
+            rows = list(iter_import_rows(data, extension))
+            matches = []
+            for index, row in enumerate(rows, start=2):
+                if row_is_empty(row):
+                    continue
+                sku, name, brand = extract_product_identity(row)
+                matched, match_type = find_product_matches(
+                    sku=sku, name=name, brand=brand
                 )
-            except Exception as exc:  # pragma: no cover - surface error in UI
-                messages.error(request, f"Import produits: {exc}")
-            else:
-                summary = out.getvalue().strip()
-                if summary:
-                    messages.success(request, summary)
-                warnings = err.getvalue().strip()
-                if warnings:
-                    messages.warning(request, warnings)
-            finally:
-                Path(temp_path).unlink(missing_ok=True)
+                if matched:
+                    matches.append(
+                        {
+                            "row_index": index,
+                            "match_type": match_type,
+                            "match_ids": [product.id for product in matched],
+                            "row_summary": summarize_import_row(row),
+                        }
+                    )
+            if matches:
+                pending = {
+                    "token": uuid.uuid4().hex,
+                    "source": "file",
+                    "temp_path": temp_path,
+                    "extension": extension,
+                    "start_index": 2,
+                    "default_action": "update" if update_existing else "create",
+                    "matches": matches,
+                }
+                request.session["product_import_pending"] = pending
+                return render(
+                    request,
+                    "scan/imports.html",
+                    {
+                        "active": "imports",
+                        "shell_class": "scan-shell-wide",
+                        "product_match_pending": build_match_context(pending),
+                    },
+                )
+
+            created, updated, errors, warnings = import_products_rows(
+                rows,
+                user=request.user,
+                base_dir=Path(temp_path).parent,
+                start_index=2,
+            )
+            Path(temp_path).unlink(missing_ok=True)
+            if errors:
+                messages.warning(request, f"Import produits: {len(errors)} erreur(s).")
+                for message in errors[:3]:
+                    messages.warning(request, message)
+            if warnings:
+                messages.warning(request, f"Import produits: {len(warnings)} alerte(s).")
+                for message in warnings[:3]:
+                    messages.warning(request, message)
+            messages.success(
+                request,
+                f"Import produits: {created} cree(s), {updated} maj.",
+            )
             return redirect("scan:scan_import")
 
         import_file_actions = {
@@ -3793,6 +4042,7 @@ def scan_import(request):
         {
             "active": "imports",
             "shell_class": "scan-shell-wide",
+            "product_match_pending": build_match_context(pending_import),
         },
     )
 

@@ -12,6 +12,102 @@
     </p>
   </div>
 
+  {% if product_match_pending %}
+    <div class="scan-card">
+      <h2>Confirmation import produits</h2>
+      <p class="scan-help">
+        Des produits existent deja. Confirmez l'action a appliquer pour chaque correspondance.
+      </p>
+      <form method="post" class="scan-filters">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="product_confirm">
+        <input type="hidden" name="pending_token" value="{{ product_match_pending.token }}">
+        {% for item in product_match_pending.matches %}
+          <div class="scan-divider"></div>
+          <h3>Ligne {{ item.row_index }} (match {{ item.match_type }})</h3>
+          <div class="scan-table-wrap">
+            <table class="scan-table">
+              <thead>
+                <tr>
+                  <th>Source</th>
+                  <th>SKU</th>
+                  <th>Nom</th>
+                  <th>Marque</th>
+                  <th>Quantite</th>
+                  <th>Emplacement</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Import</td>
+                  <td>{{ item.row.sku }}</td>
+                  <td>{{ item.row.name }}</td>
+                  <td>{{ item.row.brand }}</td>
+                  <td>{{ item.row.quantity }}</td>
+                  <td>{{ item.row.location }}</td>
+                </tr>
+                {% for product in item.products %}
+                  <tr>
+                    <td>Existant</td>
+                    <td>{{ product.sku }}</td>
+                    <td>{{ product.name }}</td>
+                    <td>{{ product.brand }}</td>
+                    <td>{{ product.available_stock }}</td>
+                    <td>{{ product.location }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="scan-field">
+            <label>Action</label>
+            <div class="scan-inline">
+              <label>
+                <input
+                  type="radio"
+                  name="decision_{{ item.row_index }}"
+                  value="update"
+                  {% if product_match_pending.default_action == "update" %}checked{% endif %}
+                >
+                Mettre a jour le produit existant
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="decision_{{ item.row_index }}"
+                  value="create"
+                  {% if product_match_pending.default_action != "update" %}checked{% endif %}
+                >
+                Creer un nouveau produit
+              </label>
+            </div>
+          </div>
+
+          {% if item.products|length > 1 %}
+            <div class="scan-field">
+              <label for="match_id_{{ item.row_index }}">Produit existant</label>
+              <select id="match_id_{{ item.row_index }}" name="match_id_{{ item.row_index }}">
+                {% for product in item.products %}
+                  <option value="{{ product.id }}">
+                    {{ product.sku }} - {{ product.name }}{% if product.brand %} ({{ product.brand }}){% endif %}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+          {% elif item.products|length == 1 %}
+            <input type="hidden" name="match_id_{{ item.row_index }}" value="{{ item.products.0.id }}">
+          {% endif %}
+        {% endfor %}
+
+        <div class="scan-filter-actions">
+          <button type="submit" class="scan-submit">Confirmer</button>
+          <button type="submit" name="cancel" value="1" class="scan-submit secondary">Annuler</button>
+        </div>
+      </form>
+    </div>
+  {% endif %}
+
   <div class="scan-card">
     <h2>Import produits</h2>
     <p class="scan-help">Ajout rapide d'un produit ou import massif.</p>
@@ -115,7 +211,7 @@
       <div class="scan-field">
         <label for="product_update">
           <input type="checkbox" id="product_update" name="update_existing" value="1">
-          Mettre a jour si SKU existe
+          Preselectionner "Mettre a jour" si un produit existe
         </label>
       </div>
       <div class="scan-filter-actions">

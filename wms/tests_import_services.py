@@ -1,7 +1,8 @@
 from django.test import TestCase
 
 from contacts.models import Contact, ContactAddress, ContactTag, ContactType
-from wms.import_services import import_contacts
+from wms.import_services import import_contacts, import_products_rows
+from wms.models import Product
 
 
 class ImportContactsTests(TestCase):
@@ -79,3 +80,41 @@ class ImportContactsTests(TestCase):
         contact.refresh_from_db()
         tag_names = sorted(contact.tags.values_list("name", flat=True))
         self.assertEqual(tag_names, ["donateur", "transporteur"])
+
+
+class ImportProductsTests(TestCase):
+    def test_import_products_rows_creates_product(self):
+        rows = [{"name": "Thermometre", "sku": "TH-001", "brand": "ACME"}]
+        created, updated, errors, warnings = import_products_rows(rows, start_index=1)
+        self.assertEqual(errors, [])
+        self.assertEqual(warnings, [])
+        self.assertEqual(created, 1)
+        self.assertEqual(updated, 0)
+        self.assertEqual(Product.objects.count(), 1)
+
+    def test_import_products_rows_updates_existing_product(self):
+        product = Product.objects.create(name="Gants", sku="GNT-1", brand="Old")
+        rows = [{"name": "Gants", "sku": "GNT-1", "brand": "New"}]
+        decisions = {1: {"action": "update", "product_id": product.id}}
+        created, updated, errors, warnings = import_products_rows(
+            rows, start_index=1, decisions=decisions
+        )
+        self.assertEqual(errors, [])
+        self.assertEqual(warnings, [])
+        self.assertEqual(created, 0)
+        self.assertEqual(updated, 1)
+        product.refresh_from_db()
+        self.assertEqual(product.brand, "New")
+
+    def test_import_products_rows_create_with_duplicate_sku_warns(self):
+        Product.objects.create(name="Seringue", sku="SRG-1", brand="ACME")
+        rows = [{"name": "Seringue", "sku": "SRG-1", "brand": "ACME"}]
+        decisions = {1: {"action": "create"}}
+        created, updated, errors, warnings = import_products_rows(
+            rows, start_index=1, decisions=decisions
+        )
+        self.assertEqual(errors, [])
+        self.assertEqual(created, 1)
+        self.assertEqual(updated, 0)
+        self.assertTrue(warnings)
+        self.assertEqual(Product.objects.filter(sku="SRG-1").count(), 1)
