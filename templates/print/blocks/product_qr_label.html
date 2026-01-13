@@ -19,6 +19,9 @@
     {% endif %}
   </div>
   <div class="product-qr-text">
-    {{ product_name|default:"-" }}{% if product_brand %} - {{ product_brand }}{% endif %}
+    <span class="product-qr-line product-qr-name">{{ product_name|default:"-" }}</span>
+    <span class="product-qr-line product-qr-brand">
+      {% if product_brand %}{{ product_brand }}{% else %}&nbsp;{% endif %}
+    </span>
   </div>
 </div>

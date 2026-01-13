@@ -71,13 +71,18 @@
       font-size: var(--text-size, 12pt);
       font-weight: var(--text-weight, 600);
       line-height: 1.15;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-height: calc(2 * 1.15em);
       width: 100%;
+    }
+    .product-qr-line {
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .product-qr-brand {
+      font-weight: 600;
     }
   </style>
 </head>
