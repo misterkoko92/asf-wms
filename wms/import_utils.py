@@ -1,3 +1,4 @@
+import codecs
 import csv
 import io
 import re
@@ -30,7 +31,50 @@ def normalize_header(value):
     return text.strip("_")
 
 
+def _guess_utf16_encoding(data):
+    sample = data[:2000]
+    if len(sample) < 4:
+        return None
+    even_zeros = sum(1 for idx in range(0, len(sample), 2) if sample[idx] == 0)
+    odd_zeros = sum(1 for idx in range(1, len(sample), 2) if sample[idx] == 0)
+    if even_zeros > odd_zeros * 2:
+        return "utf-16-be"
+    if odd_zeros > even_zeros * 2:
+        return "utf-16-le"
+    return None
+
+
 def decode_text(data):
+    if data is None:
+        return ""
+    if isinstance(data, str):
+        return data
+    if not isinstance(data, (bytes, bytearray)):
+        return str(data)
+    data = bytes(data)
+    if not data:
+        return ""
+
+    for bom, encoding in (
+        (codecs.BOM_UTF8, "utf-8-sig"),
+        (codecs.BOM_UTF16_LE, "utf-16-le"),
+        (codecs.BOM_UTF16_BE, "utf-16-be"),
+        (codecs.BOM_UTF32_LE, "utf-32-le"),
+        (codecs.BOM_UTF32_BE, "utf-32-be"),
+    ):
+        if data.startswith(bom):
+            return data.decode(encoding)
+
+    if b"\x00" in data[:2000]:
+        guessed = _guess_utf16_encoding(data)
+        if guessed:
+            return data.decode(guessed)
+        for encoding in ("utf-16", "utf-32"):
+            try:
+                return data.decode(encoding)
+            except UnicodeDecodeError:
+                continue
+
     for encoding in ("utf-8-sig", "utf-8", "cp1252", "latin-1"):
         try:
             return data.decode(encoding)
