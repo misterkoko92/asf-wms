@@ -17,6 +17,7 @@ from .import_utils import (
     parse_str,
     parse_tokens,
 )
+from .text_utils import normalize_category_name, normalize_title, normalize_upper
 from .services import StockError, receive_stock
 from .models import (
     Destination,
@@ -43,7 +44,10 @@ def build_category_path(parts):
     for name in parts:
         if not name:
             continue
-        category, _ = ProductCategory.objects.get_or_create(name=name, parent=parent)
+        normalized = normalize_category_name(name)
+        category, _ = ProductCategory.objects.get_or_create(
+            name=normalized, parent=parent
+        )
         parent = category
     return parent
 
@@ -180,6 +184,9 @@ def get_or_create_location(warehouse_name, zone, aisle, shelf):
     if not all([warehouse_name, zone, aisle, shelf]):
         return None
     warehouse, _ = Warehouse.objects.get_or_create(name=warehouse_name)
+    zone = normalize_upper(zone)
+    aisle = normalize_upper(aisle)
+    shelf = normalize_upper(shelf)
     location, _ = Location.objects.get_or_create(
         warehouse=warehouse, zone=zone, aisle=aisle, shelf=shelf
     )
@@ -190,6 +197,10 @@ def extract_product_identity(row):
     sku = parse_str(get_value(row, "sku"))
     name = parse_str(get_value(row, "name", "nom", "nom_produit", "produit"))
     brand = parse_str(get_value(row, "brand", "marque"))
+    if name:
+        name = normalize_title(name)
+    if brand:
+        brand = normalize_upper(brand)
     return sku, name, brand
 
 
@@ -261,10 +272,13 @@ def import_product_row(row, *, user=None, existing_product=None, base_dir: Path 
     name = parse_str(get_value(row, "name", "nom", "nom_produit", "produit"))
     if not name:
         raise ValueError("Nom produit requis.")
+    name = normalize_title(name)
     sku = parse_str(get_value(row, "sku"))
     if existing_product is None and sku and Product.objects.filter(sku__iexact=sku).exists():
         raise ValueError("SKU deja utilise.")
     brand = parse_str(get_value(row, "brand", "marque"))
+    if brand:
+        brand = normalize_upper(brand)
     barcode = parse_str(get_value(row, "barcode", "code_barre", "codebarre"))
     color = parse_str(get_value(row, "color", "couleur"))
     notes = parse_str(get_value(row, "notes", "note"))
@@ -476,6 +490,9 @@ def import_locations(rows):
             if not all([warehouse_name, zone, aisle, shelf]):
                 raise ValueError("Champs requis: entrepot, rack, etagere, bac.")
             warehouse, _ = Warehouse.objects.get_or_create(name=warehouse_name)
+            zone = normalize_upper(zone)
+            aisle = normalize_upper(aisle)
+            shelf = normalize_upper(shelf)
             location, was_created = Location.objects.get_or_create(
                 warehouse=warehouse, zone=zone, aisle=aisle, shelf=shelf
             )
@@ -509,15 +526,17 @@ def import_categories(rows):
                 parts = [p.strip() for p in re.split(r"[>/]", path) if p.strip()]
                 if not parts:
                     raise ValueError("Chemin categorie vide.")
-                build_category_path(parts)
+                build_category_path([normalize_category_name(p) for p in parts])
                 created += 1
                 continue
             name = parse_str(get_value(row, "name", "categorie", "category"))
             parent_name = parse_str(get_value(row, "parent", "parent_name"))
             if not name:
                 raise ValueError("Nom categorie requis.")
+            name = normalize_category_name(name)
             parent = None
             if parent_name:
+                parent_name = normalize_category_name(parent_name)
                 parent, _ = ProductCategory.objects.get_or_create(
                     name=parent_name, parent=None
                 )

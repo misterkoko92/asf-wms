@@ -15,6 +15,7 @@ from django.db.models.functions import Length
 from django.urls import reverse
 from django.utils import timezone
 
+from .text_utils import normalize_category_name, normalize_title, normalize_upper
 
 class ProductCategory(models.Model):
     name = models.CharField(max_length=120)
@@ -36,6 +37,18 @@ class ProductCategory(models.Model):
         if self.parent:
             return f"{self.parent} > {self.name}"
         return self.name
+
+    def save(self, *args, **kwargs):
+        update_fields = kwargs.get("update_fields")
+        if self.name:
+            normalized = normalize_category_name(self.name)
+            if normalized != self.name:
+                self.name = normalized
+                if update_fields is not None:
+                    update_fields = set(update_fields)
+                    update_fields.add("name")
+                    kwargs["update_fields"] = list(update_fields)
+        super().save(*args, **kwargs)
 
 
 class ProductTag(models.Model):
@@ -128,11 +141,27 @@ class Product(models.Model):
         self.qr_code_image.save(filename, ContentFile(buffer.getvalue()), save=False)
 
     def save(self, *args, **kwargs):
+        update_fields = kwargs.get("update_fields")
+        update_set = set(update_fields) if update_fields is not None else None
         creating = self.pk is None
+        if self.name:
+            normalized = normalize_title(self.name)
+            if normalized != self.name:
+                self.name = normalized
+                if update_set is not None:
+                    update_set.add("name")
+        if self.brand:
+            normalized = normalize_upper(self.brand)
+            if normalized != self.brand:
+                self.brand = normalized
+                if update_set is not None:
+                    update_set.add("brand")
         if not self.sku:
             self.sku = self.generate_sku()
         if creating and not self.qr_code_image:
             self.generate_qr_code()
+        if update_set is not None:
+            kwargs["update_fields"] = list(update_set)
         super().save(*args, **kwargs)
 
 
@@ -183,6 +212,31 @@ class Location(models.Model):
     def __str__(self) -> str:
         return f"{self.warehouse} {self.zone}-{self.aisle}-{self.shelf}"
 
+    def save(self, *args, **kwargs):
+        update_fields = kwargs.get("update_fields")
+        update_set = set(update_fields) if update_fields is not None else None
+        if self.zone:
+            normalized = normalize_upper(self.zone)
+            if normalized != self.zone:
+                self.zone = normalized
+                if update_set is not None:
+                    update_set.add("zone")
+        if self.aisle:
+            normalized = normalize_upper(self.aisle)
+            if normalized != self.aisle:
+                self.aisle = normalized
+                if update_set is not None:
+                    update_set.add("aisle")
+        if self.shelf:
+            normalized = normalize_upper(self.shelf)
+            if normalized != self.shelf:
+                self.shelf = normalized
+                if update_set is not None:
+                    update_set.add("shelf")
+        if update_set is not None:
+            kwargs["update_fields"] = list(update_set)
+        super().save(*args, **kwargs)
+
 
 class RackColor(models.Model):
     warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT)
@@ -195,6 +249,18 @@ class RackColor(models.Model):
 
     def __str__(self) -> str:
         return f"{self.warehouse} {self.zone} - {self.color}"
+
+    def save(self, *args, **kwargs):
+        update_fields = kwargs.get("update_fields")
+        if self.zone:
+            normalized = normalize_upper(self.zone)
+            if normalized != self.zone:
+                self.zone = normalized
+                if update_fields is not None:
+                    update_fields = set(update_fields)
+                    update_fields.add("zone")
+                    kwargs["update_fields"] = list(update_fields)
+        super().save(*args, **kwargs)
 
 
 class ProductLotStatus(models.TextChoices):

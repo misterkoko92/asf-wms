@@ -104,7 +104,7 @@ class ImportProductsTests(TestCase):
         self.assertEqual(created, 0)
         self.assertEqual(updated, 1)
         product.refresh_from_db()
-        self.assertEqual(product.brand, "New")
+        self.assertEqual(product.brand, "NEW")
 
     def test_import_products_rows_create_with_duplicate_sku_warns(self):
         Product.objects.create(name="Seringue", sku="SRG-1", brand="ACME")
