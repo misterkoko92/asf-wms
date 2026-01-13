@@ -1,7 +1,7 @@
 import re
 
 
-_WORD_SPLIT_RE = re.compile(r"([\\-/'’])")
+_WORD_SPLIT_RE = re.compile(r"([-/'’])")
 CATEGORY_ACRONYMS = {"EPI", "PCA"}
 
 
