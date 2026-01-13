@@ -29,11 +29,12 @@ from .forms import AdjustStockForm, PackCartonForm, ReceiveStockForm, TransferSt
 from .print_context import (
     build_carton_document_context,
     build_product_label_context,
+    build_product_qr_label_context,
     build_shipment_document_context,
 )
 from .print_layouts import DEFAULT_LAYOUTS
 from .print_renderer import get_template_layout, render_layout_from_layout
-from .print_utils import build_label_pages
+from .print_utils import build_label_pages, extract_block_style
 from .services import (
     StockError,
     adjust_stock,
@@ -125,6 +126,7 @@ class ProductAdmin(admin.ModelAdmin):
         "unarchive_products",
         "generate_qr_codes",
         "print_product_labels",
+        "print_product_qr_labels",
     )
 
     def qr_code_preview(self, obj):
@@ -214,6 +216,39 @@ class ProductAdmin(admin.ModelAdmin):
         )
 
     print_product_labels.short_description = "Imprimer etiquettes produit"
+
+    def print_product_qr_labels(self, request, queryset):
+        products = queryset.order_by("name").all()
+        if not products:
+            self.message_user(request, "Aucun produit selectionne.", level=messages.WARNING)
+            return None
+        for product in products:
+            if not product.qr_code_image:
+                product.generate_qr_code()
+                product.save(update_fields=["qr_code_image"])
+        layout_override = get_template_layout("product_qr")
+        layout = layout_override or DEFAULT_LAYOUTS.get("product_qr", {"blocks": []})
+        page_style = extract_block_style(layout, "product_qr_label")
+        try:
+            rows = int(page_style.get("page_rows") or 5)
+            cols = int(page_style.get("page_columns") or 3)
+        except (TypeError, ValueError):
+            rows, cols = 5, 3
+        labels_per_page = max(1, rows * cols)
+        contexts = [build_product_qr_label_context(product) for product in products]
+        pages, page_style = build_label_pages(
+            layout,
+            contexts,
+            block_type="product_qr_label",
+            labels_per_page=labels_per_page,
+        )
+        return render(
+            request,
+            "print/product_qr_labels.html",
+            {"pages": pages, "page_style": page_style},
+        )
+
+    print_product_qr_labels.short_description = "Imprimer QR produits"
 
 
 @admin.register(models.PublicOrderLink)

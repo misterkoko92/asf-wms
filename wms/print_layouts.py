@@ -226,6 +226,28 @@ DEFAULT_LAYOUTS = {
             }
         ]
     },
+    "product_qr": {
+        "blocks": [
+            {
+                "id": "product_qr_label",
+                "type": "product_qr_label",
+                "style": {
+                    "label_padding": "2mm",
+                    "label_border_width": "0",
+                    "label_border_color": "#000000",
+                    "qr_size": "45mm",
+                    "text_gap": "2mm",
+                    "text_font_size": "12pt",
+                    "text_font_weight": "600",
+                    "font_family": "Aptos, Arial, sans-serif",
+                    "page_margin": "5mm",
+                    "page_gap": "2mm",
+                    "page_rows": 5,
+                    "page_columns": 3,
+                },
+            }
+        ]
+    },
 }
 
 DOCUMENT_TEMPLATES = [
@@ -237,6 +259,7 @@ DOCUMENT_TEMPLATES = [
     ("customs", "Attestation douane"),
     ("shipment_label", "Etiquette expedition"),
     ("product_label", "Etiquettes produit"),
+    ("product_qr", "QR produits"),
 ]
 
 BLOCK_LIBRARY = {
@@ -480,6 +503,39 @@ BLOCK_LIBRARY = {
                 "footer_gap": "4mm",
                 "page_margin": "8mm",
                 "page_gap": "1.5mm",
+            },
+        },
+    },
+    "product_qr_label": {
+        "label": "QR produit",
+        "fields": [
+            {"name": "style.label_padding", "label": "Padding etiquette", "type": "text"},
+            {"name": "style.label_border_width", "label": "Bordure largeur", "type": "text"},
+            {"name": "style.label_border_color", "label": "Bordure couleur", "type": "text"},
+            {"name": "style.qr_size", "label": "Taille QR", "type": "text"},
+            {"name": "style.text_gap", "label": "Ecart texte", "type": "text"},
+            {"name": "style.text_font_size", "label": "Taille texte", "type": "text"},
+            {"name": "style.text_font_weight", "label": "Graisse texte", "type": "text"},
+            {"name": "style.font_family", "label": "Police", "type": "text"},
+            {"name": "style.page_margin", "label": "Marge page", "type": "text"},
+            {"name": "style.page_gap", "label": "Ecart page", "type": "text"},
+            {"name": "style.page_rows", "label": "Lignes/page", "type": "text"},
+            {"name": "style.page_columns", "label": "Colonnes/page", "type": "text"},
+        ],
+        "defaults": {
+            "style": {
+                "label_padding": "2mm",
+                "label_border_width": "0",
+                "label_border_color": "#000000",
+                "qr_size": "45mm",
+                "text_gap": "2mm",
+                "text_font_size": "12pt",
+                "text_font_weight": "600",
+                "font_family": "Aptos, Arial, sans-serif",
+                "page_margin": "5mm",
+                "page_gap": "2mm",
+                "page_rows": 5,
+                "page_columns": 3,
             },
         },
     },

@@ -1,0 +1,24 @@
+<div
+  class="product-qr-label"
+  style="
+    --label-padding: {{ style.label_padding|default:'2mm' }};
+    --label-border-width: {{ style.label_border_width|default:'0' }};
+    --label-border-color: {{ style.label_border_color|default:'#000' }};
+    --qr-size: {{ style.qr_size|default:'45mm' }};
+    --text-gap: {{ style.text_gap|default:'2mm' }};
+    --text-size: {{ style.text_font_size|default:'12pt' }};
+    --text-weight: {{ style.text_font_weight|default:'600' }};
+    --font-family: {{ style.font_family|default:'Aptos, Arial, sans-serif' }};
+  "
+>
+  <div class="product-qr-code">
+    {% if product_qr_url %}
+      <img src="{{ product_qr_url }}" alt="QR {{ product_name|default:'Produit' }}">
+    {% else %}
+      <div class="product-qr-placeholder">QR</div>
+    {% endif %}
+  </div>
+  <div class="product-qr-text">
+    {{ product_name|default:"-" }}{% if product_brand %} - {{ product_brand }}{% endif %}
+  </div>
+</div>

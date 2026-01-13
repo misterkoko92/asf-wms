@@ -309,6 +309,22 @@ def build_sample_product_label_context():
     }
 
 
+def build_product_qr_label_context(product):
+    return {
+        "product_name": product.name,
+        "product_brand": product.brand,
+        "product_qr_url": product.qr_code_image.url if product.qr_code_image else "",
+    }
+
+
+def build_sample_product_qr_label_context():
+    return {
+        "product_name": "Seringue Luer Tip 1/3/5ml",
+        "product_brand": "Divers",
+        "product_qr_url": "",
+    }
+
+
 def build_preview_context(doc_type, shipment=None, carton=None, product=None):
     if doc_type == "shipment_label":
         if shipment:
@@ -319,6 +335,10 @@ def build_preview_context(doc_type, shipment=None, carton=None, product=None):
         if product:
             return build_product_label_context(product)
         return build_sample_product_label_context()
+    if doc_type == "product_qr":
+        if product:
+            return build_product_qr_label_context(product)
+        return build_sample_product_qr_label_context()
 
     if shipment:
         if doc_type == "packing_list_carton":

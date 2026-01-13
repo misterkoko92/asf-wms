@@ -101,7 +101,7 @@ from .print_context import (
 )
 from .print_layouts import BLOCK_LIBRARY, DEFAULT_LAYOUTS, DOCUMENT_TEMPLATES
 from .print_renderer import get_template_layout, layout_changed, render_layout_from_layout
-from .print_utils import build_label_pages
+from .print_utils import build_label_pages, extract_block_style
 from .import_utils import decode_text, get_value, iter_import_rows, parse_int, parse_str
 from .import_services import (
     import_categories,
@@ -3226,7 +3226,7 @@ def scan_print_template_edit(request, doc_type):
     shipments.sort(key=lambda item: str(item["label"] or "").lower())
 
     products = []
-    if doc_type == "product_label":
+    if doc_type in {"product_label", "product_qr"}:
         for product in Product.objects.order_by("name")[:30]:
             label = product.name
             if product.sku:
@@ -3328,6 +3328,41 @@ def scan_print_template_preview(request):
         return render(
             request,
             "print/product_labels.html",
+            {"pages": pages, "page_style": page_style},
+        )
+    if doc_type == "product_qr":
+        product_id = request.POST.get("product_id") or ""
+        product = None
+        if product_id.isdigit():
+            product = (
+                Product.objects.select_related("default_location", "default_location__warehouse")
+                .filter(pk=int(product_id))
+                .first()
+            )
+        if product:
+            if not product.qr_code_image:
+                product.generate_qr_code()
+                product.save(update_fields=["qr_code_image"])
+            base_context = build_preview_context(doc_type, product=product)
+        else:
+            base_context = build_preview_context(doc_type)
+        page_style = extract_block_style(layout_data, "product_qr_label")
+        try:
+            rows = int(page_style.get("page_rows") or 5)
+            cols = int(page_style.get("page_columns") or 3)
+        except (TypeError, ValueError):
+            rows, cols = 5, 3
+        labels_per_page = max(1, rows * cols)
+        contexts = [dict(base_context) for _ in range(labels_per_page)]
+        pages, page_style = build_label_pages(
+            layout_data,
+            contexts,
+            block_type="product_qr_label",
+            labels_per_page=labels_per_page,
+        )
+        return render(
+            request,
+            "print/product_qr_labels.html",
             {"pages": pages, "page_style": page_style},
         )
 

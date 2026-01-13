@@ -279,7 +279,7 @@
     payload.append("doc_type", docType);
     payload.append("layout_json", JSON.stringify({ blocks }));
     if (previewSelect && previewSelect.value) {
-      if (docType === "product_label") {
+      if (docType === "product_label" || docType === "product_qr") {
         payload.append("product_id", previewSelect.value);
       } else {
         payload.append("shipment_id", previewSelect.value);

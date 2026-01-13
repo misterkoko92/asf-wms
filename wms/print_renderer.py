@@ -116,6 +116,11 @@ def _render_block(block, context):
             "print/blocks/product_label.html",
             {"block": block, "style": block.get("style", {}), **context},
         )
+    if block_type == "product_qr_label":
+        return render_to_string(
+            "print/blocks/product_qr_label.html",
+            {"block": block, "style": block.get("style", {}), **context},
+        )
     return ""
 
 
