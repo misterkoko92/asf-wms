@@ -102,13 +102,24 @@ from .print_context import (
 from .print_layouts import BLOCK_LIBRARY, DEFAULT_LAYOUTS, DOCUMENT_TEMPLATES
 from .print_renderer import get_template_layout, layout_changed, render_layout_from_layout
 from .print_utils import build_label_pages, extract_block_style
-from .import_utils import decode_text, get_value, iter_import_rows, parse_int, parse_str
+from .import_utils import (
+    decode_text,
+    extract_tabular_data,
+    get_value,
+    iter_import_rows,
+    normalize_header,
+    parse_bool,
+    parse_decimal,
+    parse_int,
+    parse_str,
+)
 from .import_services import (
     import_categories,
     import_contacts,
     import_locations,
     extract_product_identity,
     find_product_matches,
+    import_product_row,
     import_products_rows,
     import_users,
     import_warehouses,
@@ -2126,11 +2137,547 @@ def scan_receive(request):
     )
 
 
+PALLET_LISTING_MAPPING_FIELDS = [
+    ("name", "Nom produit"),
+    ("brand", "Marque"),
+    ("color", "Couleur"),
+    ("category_l1", "Categorie L1"),
+    ("category_l2", "Categorie L2"),
+    ("category_l3", "Categorie L3"),
+    ("category_l4", "Categorie L4"),
+    ("barcode", "Barcode"),
+    ("tags", "Tags"),
+    ("warehouse", "Entrepot"),
+    ("zone", "Rack"),
+    ("aisle", "Etagere"),
+    ("shelf", "Bac"),
+    ("rack_color", "Couleur rack"),
+    ("notes", "Notes"),
+    ("length_cm", "Longueur cm"),
+    ("width_cm", "Largeur cm"),
+    ("height_cm", "Hauteur cm"),
+    ("weight_g", "Poids g"),
+    ("volume_cm3", "Volume cm3"),
+    ("storage_conditions", "Conditions stockage"),
+    ("perishable", "Perissable"),
+    ("quarantine_default", "Quarantaine par defaut"),
+    ("quantity", "Quantite"),
+]
+
+PALLET_LISTING_REQUIRED_FIELDS = {"name", "quantity"}
+
+PALLET_LISTING_HEADER_MAP = {
+    "nom": "name",
+    "nom_produit": "name",
+    "produit": "name",
+    "designation": "name",
+    "marque": "brand",
+    "brand": "brand",
+    "couleur": "color",
+    "categorie_l1": "category_l1",
+    "categorie_1": "category_l1",
+    "category_l1": "category_l1",
+    "category_1": "category_l1",
+    "categorie_l2": "category_l2",
+    "categorie_2": "category_l2",
+    "category_l2": "category_l2",
+    "category_2": "category_l2",
+    "categorie_l3": "category_l3",
+    "categorie_3": "category_l3",
+    "category_l3": "category_l3",
+    "category_3": "category_l3",
+    "categorie_l4": "category_l4",
+    "categorie_4": "category_l4",
+    "category_l4": "category_l4",
+    "category_4": "category_l4",
+    "code_barre": "barcode",
+    "barcode": "barcode",
+    "tags": "tags",
+    "etiquettes": "tags",
+    "entrepot": "warehouse",
+    "warehouse": "warehouse",
+    "zone": "zone",
+    "rack": "zone",
+    "etagere": "aisle",
+    "aisle": "aisle",
+    "bac": "shelf",
+    "shelf": "shelf",
+    "couleur_rack": "rack_color",
+    "rack_color": "rack_color",
+    "notes": "notes",
+    "longueur_cm": "length_cm",
+    "length_cm": "length_cm",
+    "largeur_cm": "width_cm",
+    "width_cm": "width_cm",
+    "hauteur_cm": "height_cm",
+    "height_cm": "height_cm",
+    "poids_g": "weight_g",
+    "weight_g": "weight_g",
+    "volume_cm3": "volume_cm3",
+    "conditions_stockage": "storage_conditions",
+    "storage_conditions": "storage_conditions",
+    "perissable": "perishable",
+    "perishable": "perishable",
+    "quarantaine_defaut": "quarantine_default",
+    "quarantine_default": "quarantine_default",
+    "quantite": "quantity",
+    "qty": "quantity",
+    "stock": "quantity",
+}
+
+PALLET_REVIEW_FIELDS = [
+    ("name", "Nom"),
+    ("brand", "Marque"),
+    ("color", "Couleur"),
+    ("category_l1", "Cat L1"),
+    ("category_l2", "Cat L2"),
+    ("category_l3", "Cat L3"),
+    ("category_l4", "Cat L4"),
+    ("barcode", "Barcode"),
+    ("tags", "Tags"),
+    ("length_cm", "L cm"),
+    ("width_cm", "l cm"),
+    ("height_cm", "h cm"),
+    ("weight_g", "Poids g"),
+    ("volume_cm3", "Volume"),
+    ("storage_conditions", "Stockage"),
+    ("perishable", "Perissable"),
+    ("quarantine_default", "Quarantaine"),
+    ("notes", "Notes"),
+]
+
+PALLET_LOCATION_FIELDS = [
+    ("warehouse", "Entrepot"),
+    ("zone", "Rack"),
+    ("aisle", "Etagere"),
+    ("shelf", "Bac"),
+]
+
+
+def _listing_row_empty(row):
+    return all(not str(value or "").strip() for value in row)
+
+
+def _build_listing_mapping_defaults(headers):
+    mapping = {}
+    for idx, header in enumerate(headers):
+        normalized = normalize_header(header)
+        mapped = PALLET_LISTING_HEADER_MAP.get(normalized)
+        if mapped:
+            mapping[idx] = mapped
+    return mapping
+
+
+def _apply_listing_mapping(rows, mapping):
+    mapped_rows = []
+    for row in rows:
+        if _listing_row_empty(row):
+            continue
+        mapped = {}
+        for idx, field in mapping.items():
+            if idx < len(row):
+                mapped[field] = row[idx]
+        mapped_rows.append(mapped)
+    return mapped_rows
+
+
+def _clean_listing_value(value):
+    return parse_str(value) or ""
+
+
+def _build_product_display(product):
+    category_levels = _category_levels(product.category)
+    tags = " | ".join(product.tags.values_list("name", flat=True))
+    location = product.default_location
+    return {
+        "id": product.id,
+        "sku": product.sku,
+        "name": product.name,
+        "brand": product.brand,
+        "color": product.color,
+        "category_l1": category_levels[0],
+        "category_l2": category_levels[1],
+        "category_l3": category_levels[2],
+        "category_l4": category_levels[3],
+        "barcode": product.barcode,
+        "tags": tags,
+        "length_cm": product.length_cm or "",
+        "width_cm": product.width_cm or "",
+        "height_cm": product.height_cm or "",
+        "weight_g": product.weight_g or "",
+        "volume_cm3": product.volume_cm3 or "",
+        "storage_conditions": product.storage_conditions or "",
+        "perishable": "Oui" if product.perishable else "Non",
+        "quarantine_default": "Oui" if product.quarantine_default else "Non",
+        "notes": product.notes or "",
+        "warehouse": location.warehouse.name if location else "",
+        "zone": location.zone if location else "",
+        "aisle": location.aisle if location else "",
+        "shelf": location.shelf if location else "",
+    }
+
+
+def _resolve_listing_location(row, default_warehouse):
+    warehouse_name = parse_str(row.get("warehouse")) or (
+        default_warehouse.name if default_warehouse else None
+    )
+    zone = parse_str(row.get("zone"))
+    aisle = parse_str(row.get("aisle"))
+    shelf = parse_str(row.get("shelf"))
+    if any([zone, aisle, shelf]):
+        if not all([warehouse_name, zone, aisle, shelf]):
+            raise ValueError("Emplacement incomplet (entrepot/rack/etagere/bac).")
+        warehouse, _ = Warehouse.objects.get_or_create(name=warehouse_name)
+        location, _ = Location.objects.get_or_create(
+            warehouse=warehouse, zone=zone, aisle=aisle, shelf=shelf
+        )
+        return location
+    return None
+
+
 @login_required
 @require_http_methods(["GET", "POST"])
 def scan_receive_pallet(request):
-    create_form = ScanReceiptPalletForm(request.POST or None)
-    if request.method == "POST" and create_form.is_valid():
+    action = request.POST.get("action", "")
+    create_form = ScanReceiptPalletForm(
+        request.POST
+        if request.method == "POST" and action in ("", "pallet_create")
+        else None
+    )
+    listing_form = ScanReceiptPalletForm(
+        request.POST if action == "listing_upload" else None,
+        prefix="listing",
+    )
+    listing_stage = None
+    listing_columns = []
+    listing_rows = []
+    listing_errors = []
+    pending = request.session.get("pallet_listing_pending")
+
+    def clear_pending():
+        pending_data = request.session.pop("pallet_listing_pending", None)
+        if pending_data and pending_data.get("file_path"):
+            try:
+                Path(pending_data["file_path"]).unlink(missing_ok=True)
+            except OSError:
+                pass
+
+    def build_review_rows(headers, rows, mapping):
+        mapped_rows = _apply_listing_mapping(rows, mapping)
+        match_labels = {"name_brand": "Nom + Marque"}
+        review = []
+        for row_index, row in enumerate(mapped_rows, start=2):
+            values = {field: _clean_listing_value(row.get(field)) for field, _ in PALLET_REVIEW_FIELDS}
+            for key, _ in PALLET_LOCATION_FIELDS:
+                values[key] = _clean_listing_value(row.get(key))
+            values["quantity"] = _clean_listing_value(row.get("quantity"))
+            values["rack_color"] = _clean_listing_value(row.get("rack_color"))
+
+            _, name, brand = extract_product_identity(row)
+            matches, match_type = find_product_matches(sku=None, name=name, brand=brand)
+            match_options = []
+            for product in matches:
+                label = f"{product.sku} - {product.name}"
+                if product.brand:
+                    label = f"{label} ({product.brand})"
+                match_options.append(
+                    {
+                        "id": product.id,
+                        "value": f"product:{product.id}",
+                        "label": label,
+                        "data": _build_product_display(product),
+                    }
+                )
+            existing = match_options[0]["data"] if match_options else None
+            default_match = f"product:{match_options[0]['id']}" if match_options else "new"
+
+            if existing:
+                for key, _ in PALLET_LOCATION_FIELDS:
+                    if not values.get(key):
+                        values[key] = existing.get(key, "")
+
+            fields = []
+            for field, label in PALLET_REVIEW_FIELDS:
+                fields.append(
+                    {
+                        "name": field,
+                        "label": label,
+                        "value": values.get(field, ""),
+                        "existing": existing.get(field, "") if existing else "",
+                    }
+                )
+            locations = []
+            for key, label in PALLET_LOCATION_FIELDS:
+                locations.append(
+                    {
+                        "name": key,
+                        "label": label,
+                        "value": values.get(key, ""),
+                        "existing": existing.get(key, "") if existing else "",
+                    }
+                )
+
+            review.append(
+                {
+                    "index": row_index,
+                    "values": values,
+                    "fields": fields,
+                    "locations": locations,
+                    "existing": existing,
+                    "match_type": match_labels.get(match_type, "-"),
+                    "match_options": match_options,
+                    "default_match": default_match,
+                }
+            )
+        return review
+
+    if action == "listing_cancel":
+        clear_pending()
+        return redirect("scan:scan_receive_pallet")
+
+    if action == "listing_upload":
+        if not listing_form.is_valid():
+            listing_errors.append("Renseignez les informations de reception.")
+        uploaded = request.FILES.get("listing_file")
+        if not uploaded:
+            listing_errors.append("Fichier requis pour importer le listing.")
+        else:
+            extension = Path(uploaded.name).suffix.lower()
+            if extension not in {".csv", ".xlsx", ".xls", ".pdf"}:
+                listing_errors.append("Format de fichier non supporte.")
+            else:
+                data = uploaded.read()
+                try:
+                    headers, rows = extract_tabular_data(data, extension)
+                    if not rows:
+                        listing_errors.append("Fichier vide ou sans lignes exploitables.")
+                except ValueError as exc:
+                    listing_errors.append(str(exc))
+                if not listing_errors:
+                    temp_file = tempfile.NamedTemporaryFile(
+                        delete=False, suffix=extension
+                    )
+                    temp_file.write(data)
+                    temp_file.close()
+                    mapping_defaults = _build_listing_mapping_defaults(headers)
+                    pending = {
+                        "token": uuid.uuid4().hex,
+                        "file_path": temp_file.name,
+                        "extension": extension,
+                        "headers": headers,
+                        "mapping": mapping_defaults,
+                        "receipt_meta": {
+                            "received_on": listing_form.cleaned_data["received_on"].isoformat(),
+                            "pallet_count": listing_form.cleaned_data["pallet_count"],
+                            "source_contact_id": listing_form.cleaned_data["source_contact"].id,
+                            "carrier_contact_id": listing_form.cleaned_data["carrier_contact"].id,
+                            "transport_request_date": (
+                                listing_form.cleaned_data["transport_request_date"].isoformat()
+                                if listing_form.cleaned_data["transport_request_date"]
+                                else ""
+                            ),
+                        },
+                    }
+                    request.session["pallet_listing_pending"] = pending
+                    listing_stage = "mapping"
+                    for idx, header in enumerate(headers):
+                        sample = ""
+                        for row in rows:
+                            if idx < len(row) and str(row[idx] or "").strip():
+                                sample = row[idx]
+                                break
+                        listing_columns.append(
+                            {
+                                "index": idx,
+                                "name": header,
+                                "sample": sample,
+                                "mapped": mapping_defaults.get(idx, ""),
+                            }
+                        )
+
+    if action == "listing_map":
+        pending = request.session.get("pallet_listing_pending")
+        token = request.POST.get("pending_token")
+        if not pending or pending.get("token") != token:
+            messages.error(request, "Session d'import expirée.")
+            return redirect("scan:scan_receive_pallet")
+        headers = pending.get("headers") or []
+        mapping = {}
+        used_fields = {}
+        for idx, _header in enumerate(headers):
+            field = (request.POST.get(f"map_{idx}") or "").strip()
+            if not field:
+                continue
+            if field in used_fields:
+                listing_errors.append(
+                    f"Champ {field} assigne deux fois ({used_fields[field]})."
+                )
+                continue
+            mapping[idx] = field
+            used_fields[field] = idx + 1
+        missing_fields = PALLET_LISTING_REQUIRED_FIELDS - set(mapping.values())
+        if missing_fields:
+            listing_errors.append(
+                "Champs requis manquants: " + ", ".join(sorted(missing_fields))
+            )
+        if listing_errors:
+            listing_stage = "mapping"
+            data = Path(pending["file_path"]).read_bytes()
+            headers, rows = extract_tabular_data(data, pending["extension"])
+            for idx, header in enumerate(headers):
+                sample = ""
+                for row in rows:
+                    if idx < len(row) and str(row[idx] or "").strip():
+                        sample = row[idx]
+                        break
+                listing_columns.append(
+                    {
+                        "index": idx,
+                        "name": header,
+                        "sample": sample,
+                        "mapped": mapping.get(idx, ""),
+                    }
+                )
+        else:
+            pending["mapping"] = mapping
+            request.session["pallet_listing_pending"] = pending
+            data = Path(pending["file_path"]).read_bytes()
+            headers, rows = extract_tabular_data(data, pending["extension"])
+            listing_rows = build_review_rows(headers, rows, mapping)
+            listing_stage = "review"
+
+    if action == "listing_confirm":
+        pending = request.session.get("pallet_listing_pending")
+        token = request.POST.get("pending_token")
+        if not pending or pending.get("token") != token:
+            messages.error(request, "Session d'import expirée.")
+            return redirect("scan:scan_receive_pallet")
+        data = Path(pending["file_path"]).read_bytes()
+        headers, rows = extract_tabular_data(data, pending["extension"])
+        mapping = pending.get("mapping") or {}
+        mapped_rows = _apply_listing_mapping(rows, mapping)
+        receipt_meta = pending.get("receipt_meta") or {}
+
+        warehouse = resolve_default_warehouse()
+        if not warehouse:
+            messages.error(request, "Aucun entrepot configure.")
+            return redirect("scan:scan_receive_pallet")
+
+        receipt = Receipt.objects.create(
+            receipt_type=ReceiptType.PALLET,
+            status=ReceiptStatus.DRAFT,
+            source_contact=Contact.objects.filter(
+                id=receipt_meta.get("source_contact_id")
+            ).first(),
+            carrier_contact=Contact.objects.filter(
+                id=receipt_meta.get("carrier_contact_id")
+            ).first(),
+            received_on=receipt_meta.get("received_on") or timezone.localdate(),
+            pallet_count=receipt_meta.get("pallet_count") or 0,
+            transport_request_date=receipt_meta.get("transport_request_date") or None,
+            warehouse=warehouse,
+            created_by=request.user,
+        )
+
+        created = 0
+        skipped = 0
+        errors = []
+        for row_index, row in enumerate(mapped_rows, start=2):
+            if not request.POST.get(f"row_{row_index}_apply"):
+                skipped += 1
+                continue
+            override_code = (request.POST.get(f"row_{row_index}_match_override") or "").strip()
+            product = None
+            if override_code:
+                product = resolve_product(override_code)
+                if not product:
+                    errors.append(
+                        f"Ligne {row_index}: produit introuvable pour {override_code}."
+                    )
+                    continue
+            selection = (request.POST.get(f"row_{row_index}_match") or "").strip()
+            if not product and selection.startswith("product:"):
+                product_id = selection.split("product:", 1)[1]
+                if product_id.isdigit():
+                    product = Product.objects.filter(id=int(product_id)).first()
+                if not product:
+                    errors.append(f"Ligne {row_index}: produit cible introuvable.")
+                    continue
+
+            row_data = {}
+            for field, _ in PALLET_REVIEW_FIELDS:
+                row_data[field] = request.POST.get(
+                    f"row_{row_index}_{field}"
+                ) or row.get(field)
+            for key, _ in PALLET_LOCATION_FIELDS:
+                row_data[key] = request.POST.get(
+                    f"row_{row_index}_{key}"
+                ) or row.get(key)
+            row_data["quantity"] = request.POST.get(
+                f"row_{row_index}_quantity"
+            ) or row.get("quantity")
+            row_data["rack_color"] = request.POST.get(
+                f"row_{row_index}_rack_color"
+            ) or row.get("rack_color")
+
+            quantity = parse_int(row_data.get("quantity"))
+            if not quantity or quantity <= 0:
+                errors.append(f"Ligne {row_index}: quantite invalide.")
+                continue
+
+            if product is None and selection == "new":
+                new_row = dict(row_data)
+                new_row.pop("quantity", None)
+                try:
+                    product, _created, _warnings = import_product_row(
+                        new_row,
+                        user=request.user,
+                    )
+                except ValueError as exc:
+                    errors.append(f"Ligne {row_index}: {exc}")
+                    continue
+
+            if product is None:
+                errors.append(f"Ligne {row_index}: produit non determine.")
+                continue
+
+            try:
+                location = _resolve_listing_location(row_data, warehouse)
+                if location is None:
+                    location = product.default_location
+                if location is None:
+                    raise ValueError("Emplacement requis pour reception.")
+                line = ReceiptLine.objects.create(
+                    receipt=receipt,
+                    product=product,
+                    quantity=quantity,
+                    location=location,
+                    storage_conditions=product.storage_conditions or "",
+                )
+                receive_receipt_line(user=request.user, line=line)
+                created += 1
+            except (ValueError, StockError) as exc:
+                errors.append(f"Ligne {row_index}: {exc}")
+
+        if errors:
+            messages.error(request, f"Import termine avec {len(errors)} erreur(s).")
+            for error in errors[:10]:
+                messages.error(request, error)
+        if created:
+            messages.success(
+                request,
+                f"{created} ligne(s) receptionnee(s) (ref {receipt.reference}).",
+            )
+        if skipped:
+            messages.warning(request, f"{skipped} ligne(s) ignoree(s).")
+        clear_pending()
+        return redirect("scan:scan_receive_pallet")
+
+    if (
+        request.method == "POST"
+        and action in ("", "pallet_create")
+        and create_form.is_valid()
+    ):
         warehouse = resolve_default_warehouse()
         if not warehouse:
             create_form.add_error(None, "Aucun entrepot configure.")
@@ -2154,12 +2701,39 @@ def scan_receive_pallet(request):
             )
             return redirect("scan:scan_receive_pallet")
 
+    listing_meta = None
+    if pending:
+        receipt_meta = pending.get("receipt_meta") or {}
+        source_contact = Contact.objects.filter(
+            id=receipt_meta.get("source_contact_id")
+        ).first()
+        carrier_contact = Contact.objects.filter(
+            id=receipt_meta.get("carrier_contact_id")
+        ).first()
+        listing_meta = {
+            "received_on": receipt_meta.get("received_on"),
+            "pallet_count": receipt_meta.get("pallet_count"),
+            "source_contact": source_contact.name if source_contact else "",
+            "carrier_contact": carrier_contact.name if carrier_contact else "",
+            "transport_request_date": receipt_meta.get("transport_request_date") or "",
+        }
+
     return render(
         request,
         "scan/receive_pallet.html",
         {
             "active": "receive_pallet",
             "create_form": create_form,
+            "listing_form": listing_form,
+            "listing_stage": listing_stage,
+            "listing_columns": listing_columns,
+            "listing_rows": listing_rows,
+            "listing_errors": listing_errors,
+            "listing_token": pending.get("token") if pending else "",
+            "listing_meta": listing_meta,
+            "mapping_fields": PALLET_LISTING_MAPPING_FIELDS,
+            "review_fields": PALLET_REVIEW_FIELDS,
+            "location_fields": PALLET_LOCATION_FIELDS,
         },
     )
 

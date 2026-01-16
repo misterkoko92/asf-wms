@@ -16,6 +16,11 @@ try:
 except ImportError:  # pragma: no cover - optional dependency at runtime
     xlrd = None
 
+try:
+    import pdfplumber
+except ImportError:  # pragma: no cover - optional dependency at runtime
+    pdfplumber = None
+
 
 TRUE_VALUES = {"true", "1", "yes", "y", "oui", "o", "vrai"}
 FALSE_VALUES = {"false", "0", "no", "n", "non", "faux"}
@@ -135,6 +140,131 @@ def iter_import_rows(data, extension):
         return iter_xlsx_rows(data)
     if extension == ".xls":
         return iter_xls_rows(data)
+    raise ValueError("Format de fichier non supporte.")
+
+
+def _sanitize_headers(headers, row_length=None):
+    cleaned = [str(value or "").strip() for value in (headers or [])]
+    if row_length is None:
+        row_length = len(cleaned)
+    if not cleaned or all(not value for value in cleaned):
+        return [f"Colonne {idx + 1}" for idx in range(row_length)]
+    while len(cleaned) < row_length:
+        cleaned.append("")
+    normalized = []
+    for idx, value in enumerate(cleaned, start=1):
+        normalized.append(value or f"Colonne {idx}")
+    return normalized
+
+
+def _coerce_cell(value):
+    if value is None:
+        return ""
+    if isinstance(value, float):
+        if value.is_integer():
+            return str(int(value))
+    return str(value).strip()
+
+
+def _extract_csv_table(data):
+    text = decode_text(data)
+    lines = [line for line in text.splitlines() if line.strip()]
+    if not lines:
+        raise ValueError("CSV vide.")
+    delimiter = ";"
+    if "," in lines[0] and ";" not in lines[0]:
+        delimiter = ","
+    reader = csv.reader(io.StringIO(text), delimiter=delimiter)
+    try:
+        headers = next(reader)
+    except StopIteration as exc:
+        raise ValueError("CSV vide.") from exc
+    rows = [[_coerce_cell(cell) for cell in row] for row in reader]
+    return _sanitize_headers(headers), rows
+
+
+def _extract_xlsx_table(data):
+    if load_workbook is None:
+        raise ValueError("openpyxl est requis pour importer .xlsx/.xlsm.")
+    workbook = load_workbook(BytesIO(data), data_only=True)
+    sheet = workbook.active
+    rows = sheet.iter_rows(values_only=True)
+    try:
+        headers = next(rows)
+    except StopIteration as exc:
+        raise ValueError("Excel vide.") from exc
+    headers = _sanitize_headers(headers)
+    data_rows = []
+    for row in rows:
+        data_rows.append([_coerce_cell(cell) for cell in row])
+    workbook.close()
+    return headers, data_rows
+
+
+def _extract_xls_table(data):
+    if xlrd is None:
+        raise ValueError("xlrd est requis pour importer .xls.")
+    workbook = xlrd.open_workbook(file_contents=data)
+    sheet = workbook.sheet_by_index(0)
+    if sheet.nrows == 0:
+        raise ValueError("Excel vide.")
+    headers = [sheet.cell_value(0, col) for col in range(sheet.ncols)]
+    headers = _sanitize_headers(headers, row_length=sheet.ncols)
+    rows = []
+    for row_index in range(1, sheet.nrows):
+        row = [sheet.cell_value(row_index, col) for col in range(sheet.ncols)]
+        rows.append([_coerce_cell(cell) for cell in row])
+    return headers, rows
+
+
+def _extract_pdf_table(data):
+    if pdfplumber is None:
+        raise ValueError("pdfplumber est requis pour importer des PDF texte.")
+    with pdfplumber.open(BytesIO(data)) as pdf:
+        tables = []
+        for page in pdf.pages:
+            table = page.extract_table()
+            if table and len(table) > 1:
+                tables.append(table)
+                continue
+            text = page.extract_text() or ""
+            if text:
+                lines = [line for line in text.splitlines() if line.strip()]
+                if len(lines) > 1:
+                    split_rows = [re.split(r"\s{2,}", line.strip()) for line in lines]
+                    tables.append(split_rows)
+        if not tables:
+            raise ValueError("PDF scanne non supporte (aucun texte detecte).")
+    headers = None
+    rows = []
+    for table in tables:
+        if not table:
+            continue
+        if headers is None:
+            headers = table[0]
+            rows.extend(table[1:])
+        else:
+            rows.extend(table[1:] if table[0] == headers else table)
+    if headers is None:
+        raise ValueError("Impossible d'extraire un tableau du PDF.")
+    max_len = max(len(headers), *(len(row) for row in rows)) if rows else len(headers)
+    headers = _sanitize_headers(headers, row_length=max_len)
+    normalized_rows = []
+    for row in rows:
+        padded = list(row) + [""] * (max_len - len(row))
+        normalized_rows.append([_coerce_cell(cell) for cell in padded])
+    return headers, normalized_rows
+
+
+def extract_tabular_data(data, extension):
+    if extension == ".csv":
+        return _extract_csv_table(data)
+    if extension in {".xlsx", ".xlsm"}:
+        return _extract_xlsx_table(data)
+    if extension == ".xls":
+        return _extract_xls_table(data)
+    if extension == ".pdf":
+        return _extract_pdf_table(data)
     raise ValueError("Format de fichier non supporte.")
 
 
