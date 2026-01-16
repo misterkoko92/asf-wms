@@ -1,7 +1,7 @@
 import re
 import unicodedata
 import uuid
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from io import BytesIO
 
 import qrcode
@@ -76,6 +76,29 @@ class Product(models.Model):
     )
     tags = models.ManyToManyField(ProductTag, blank=True)
     barcode = models.CharField(max_length=80, blank=True)
+    ean = models.CharField(max_length=32, blank=True)
+    pu_ht = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    tva = models.DecimalField(
+        max_digits=6,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0.0000"))],
+        help_text="TVA en taux (ex: 0.2 pour 20%).",
+    )
+    pu_ttc = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        editable=False,
+    )
     qr_code_image = models.ImageField(upload_to="qr_codes/", blank=True)
     default_location = models.ForeignKey(
         "Location",
@@ -142,6 +165,18 @@ class Product(models.Model):
         filename = f"qr_{self.sku}.png"
         self.qr_code_image.save(filename, ContentFile(buffer.getvalue()), save=False)
 
+    def _compute_pu_ttc(self):
+        if self.pu_ht is None or self.tva is None:
+            return None
+        tva_rate = self.tva
+        if tva_rate > Decimal("1"):
+            tva_rate = (tva_rate / Decimal("100")).quantize(
+                Decimal("0.0001"), rounding=ROUND_HALF_UP
+            )
+        return (self.pu_ht * (Decimal("1") + tva_rate)).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
+
     def save(self, *args, **kwargs):
         update_fields = kwargs.get("update_fields")
         update_set = set(update_fields) if update_fields is not None else None
@@ -162,6 +197,19 @@ class Product(models.Model):
             self.sku = self.generate_sku()
         if creating and not self.qr_code_image:
             self.generate_qr_code()
+        if self.tva is not None and self.tva > Decimal("1"):
+            normalized = (self.tva / Decimal("100")).quantize(
+                Decimal("0.0001"), rounding=ROUND_HALF_UP
+            )
+            if normalized != self.tva:
+                self.tva = normalized
+                if update_set is not None:
+                    update_set.add("tva")
+        computed_ttc = self._compute_pu_ttc()
+        if computed_ttc != self.pu_ttc:
+            self.pu_ttc = computed_ttc
+            if update_set is not None:
+                update_set.add("pu_ttc")
         if update_set is not None:
             kwargs["update_fields"] = list(update_set)
         super().save(*args, **kwargs)

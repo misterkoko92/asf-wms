@@ -279,10 +279,13 @@ def import_product_row(row, *, user=None, existing_product=None, base_dir: Path 
     brand = parse_str(get_value(row, "brand", "marque"))
     if brand:
         brand = normalize_upper(brand)
+    ean = parse_str(get_value(row, "ean"))
     barcode = parse_str(get_value(row, "barcode", "code_barre", "codebarre"))
     color = parse_str(get_value(row, "color", "couleur"))
     notes = parse_str(get_value(row, "notes", "note"))
     quantity = parse_int(get_value(row, "quantity", "quantite", "stock", "qty"))
+    pu_ht = parse_decimal(get_value(row, "pu_ht", "price_ht", "unit_price_ht"))
+    tva = parse_decimal(get_value(row, "tva", "vat"))
 
     category_parts = [
         parse_str(get_value(row, "category_l1", "categorie_l1", "category_1", "categorie_1")),
@@ -336,12 +339,18 @@ def import_product_row(row, *, user=None, existing_product=None, base_dir: Path 
         product = Product(sku=sku or "", name=name)
         if category is not None:
             product.category = category
+        if ean is not None:
+            product.ean = ean
         if barcode is not None:
             product.barcode = barcode
         if brand is not None:
             product.brand = brand
         if color is not None:
             product.color = color
+        if pu_ht is not None:
+            product.pu_ht = pu_ht
+        if tva is not None:
+            product.tva = tva
         if location_provided:
             product.default_location = default_location
         if length_cm is not None:
@@ -377,12 +386,18 @@ def import_product_row(row, *, user=None, existing_product=None, base_dir: Path 
     updates = {"name": name}
     if category_provided:
         updates["category"] = category
+    if ean is not None:
+        updates["ean"] = ean
     if barcode is not None:
         updates["barcode"] = barcode
     if brand is not None:
         updates["brand"] = brand
     if color is not None:
         updates["color"] = color
+    if pu_ht is not None:
+        updates["pu_ht"] = pu_ht
+    if tva is not None:
+        updates["tva"] = tva
     if location_provided:
         updates["default_location"] = default_location
     if length_cm is not None:

@@ -210,7 +210,7 @@
     {{ correspondent_contacts_json|json_script:"correspondent-contacts-data" }}
     <datalist id="product-options">
       {% for product in products_json %}
-        <option value="{{ product.name }}" label="{{ product.sku }}{% if product.barcode %} | {{ product.barcode }}{% endif %}"></option>
+        <option value="{{ product.name }}" label="{{ product.sku }}{% if product.barcode %} | {{ product.barcode }}{% endif %}{% if product.ean %} | {{ product.ean }}{% endif %}"></option>
       {% endfor %}
     </datalist>
   </div>

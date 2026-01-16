@@ -26,6 +26,9 @@ def resolve_product(code: str, *, include_kits: bool = False):
     product = products.filter(barcode__iexact=code).first()
     if product:
         return product
+    product = products.filter(ean__iexact=code).first()
+    if product:
+        return product
     product = products.filter(sku__iexact=code).first()
     if product:
         return product
@@ -64,6 +67,7 @@ def build_product_options(*, include_kits: bool = False):
             "name",
             "sku",
             "barcode",
+            "ean",
             "brand",
             "default_location_id",
             "storage_conditions",
@@ -102,6 +106,7 @@ def build_product_options(*, include_kits: bool = False):
                 "name": kit.name,
                 "sku": kit.sku,
                 "barcode": kit.barcode,
+                "ean": kit.ean,
                 "brand": kit.brand,
                 "default_location_id": kit.default_location_id,
                 "storage_conditions": kit.storage_conditions,

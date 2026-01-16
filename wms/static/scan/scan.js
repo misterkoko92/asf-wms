@@ -308,6 +308,7 @@
         nameLower: product.name.toLowerCase(),
         sku: product.sku || '',
         barcode: product.barcode || '',
+        ean: product.ean || '',
         defaultLocationId: product.default_location_id || null,
         storageConditions: product.storage_conditions || ''
       }));
@@ -336,6 +337,9 @@
         }
         if (product.barcode) {
           labelParts.push(product.barcode);
+        }
+        if (product.ean) {
+          labelParts.push(product.ean);
         }
         if (labelParts.length) {
           option.label = labelParts.join(' | ');
@@ -370,6 +374,12 @@
       }
       match = products.find(
         product => product.barcode && product.barcode.toLowerCase() === codeLower
+      );
+      if (match) {
+        return match;
+      }
+      match = products.find(
+        product => product.ean && product.ean.toLowerCase() === codeLower
       );
       if (match) {
         return match;
@@ -480,7 +490,13 @@
         skuLower: normalize(product.sku || ''),
         barcode: product.barcode || '',
         barcodeLower: normalize(product.barcode || ''),
-        key: normalize(product.sku) || normalize(product.barcode) || normalize(product.name),
+        ean: product.ean || '',
+        eanLower: normalize(product.ean || ''),
+        key:
+          normalize(product.sku) ||
+          normalize(product.barcode) ||
+          normalize(product.ean) ||
+          normalize(product.name),
         weightG: parseNumber(product.weight_g) || 0,
         availableStock: parseNumber(product.available_stock),
         volumeCm3: parseNumber(product.volume_cm3),
@@ -505,6 +521,10 @@
       match = productEntries.find(
         product => product.barcodeLower && product.barcodeLower === code
       );
+      if (match) {
+        return match;
+      }
+      match = productEntries.find(product => product.eanLower && product.eanLower === code);
       if (match) {
         return match;
       }
@@ -853,6 +873,7 @@
         nameLower: product.name.toLowerCase(),
         sku: product.sku || '',
         barcode: product.barcode || '',
+        ean: product.ean || '',
         weightG: product.weight_g || 0
       }));
 
@@ -874,6 +895,12 @@
       }
       match = productEntries.find(
         product => product.barcode && product.barcode.toLowerCase() === codeLower
+      );
+      if (match) {
+        return match;
+      }
+      match = productEntries.find(
+        product => product.ean && product.ean.toLowerCase() === codeLower
       );
       if (match) {
         return match;
@@ -1265,6 +1292,7 @@
           nameLower: product.name.toLowerCase(),
           sku: product.sku || '',
           barcode: product.barcode || '',
+          ean: product.ean || '',
           defaultLocationId: product.default_location_id || null,
           storageConditions: product.storage_conditions || ''
         }));
@@ -1289,6 +1317,10 @@
       match = products.find(
         product => product.barcode && product.barcode.toLowerCase() === codeLower
       );
+      if (match) {
+        return match;
+      }
+      match = products.find(product => product.ean && product.ean.toLowerCase() === codeLower);
       if (match) {
         return match;
       }

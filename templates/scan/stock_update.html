@@ -92,7 +92,7 @@
   {{ location_data|json_script:"location-data" }}
   <datalist id="product-options">
     {% for product in products_json %}
-      <option value="{{ product.name }}" label="{{ product.sku }}{% if product.barcode %} | {{ product.barcode }}{% endif %}"></option>
+      <option value="{{ product.name }}" label="{{ product.sku }}{% if product.barcode %} | {{ product.barcode }}{% endif %}{% if product.ean %} | {{ product.ean }}{% endif %}"></option>
     {% endfor %}
   </datalist>
   <script>
@@ -134,7 +134,8 @@
           return (
             normalize(product.name) === code ||
             normalize(product.sku) === code ||
-            normalize(product.barcode) === code
+            normalize(product.barcode) === code ||
+            normalize(product.ean) === code
           );
         });
         if (exact) {
@@ -181,7 +182,13 @@
         const normalizedValue = normalize(productInput.value);
         const normalizedSku = normalize(product.sku);
         const normalizedBarcode = normalize(product.barcode);
-        if (normalizedValue && (normalizedValue === normalizedSku || normalizedValue === normalizedBarcode)) {
+        const normalizedEan = normalize(product.ean);
+        if (
+          normalizedValue &&
+          (normalizedValue === normalizedSku ||
+            normalizedValue === normalizedBarcode ||
+            normalizedValue === normalizedEan)
+        ) {
           productInput.value = product.name || productInput.value;
         }
         brandDisplay.value = product.brand || '';

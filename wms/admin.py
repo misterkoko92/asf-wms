@@ -92,10 +92,10 @@ class ProductAdmin(admin.ModelAdmin):
         "brand",
         "tags",
     )
-    search_fields = ("sku", "name", "barcode", "brand")
+    search_fields = ("sku", "name", "barcode", "ean", "brand")
     filter_horizontal = ("tags",)
     list_select_related = ("category", "default_location")
-    readonly_fields = ("sku", "photo_preview", "qr_code_preview")
+    readonly_fields = ("sku", "photo_preview", "qr_code_preview", "pu_ttc")
     fields = (
         "sku",
         "name",
@@ -105,6 +105,10 @@ class ProductAdmin(admin.ModelAdmin):
         "category",
         "tags",
         "barcode",
+        "ean",
+        "pu_ht",
+        "tva",
+        "pu_ttc",
         "default_location",
         "length_cm",
         "width_cm",
