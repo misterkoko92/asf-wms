@@ -208,7 +208,6 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
             queryset = queryset.filter(available_stock=available_stock)
 
         return queryset.order_by("name")
-        return queryset
 
 
 class OrderViewSet(viewsets.ReadOnlyModelViewSet):

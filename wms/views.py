@@ -21,7 +21,17 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 from django.db import connection, transaction
-from django.db.models import DateTimeField, F, IntegerField, Max, OuterRef, Q, Subquery, Sum
+from django.db.models import (
+    Count,
+    DateTimeField,
+    F,
+    IntegerField,
+    Max,
+    OuterRef,
+    Q,
+    Subquery,
+    Sum,
+)
 from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Coalesce
 from django.utils import timezone
@@ -1618,6 +1628,7 @@ ALLOWED_UPLOAD_EXTENSIONS = {
     ".docx",
 }
 PORTAL_MAX_FILE_SIZE_MB = 10
+LISTING_MAX_FILE_SIZE_MB = 10
 
 
 @login_required
@@ -1825,19 +1836,32 @@ def scan_cartons_ready(request):
 def scan_shipments_ready(request):
     shipments_qs = (
         Shipment.objects.select_related("destination")
-        .prefetch_related("carton_set")
+        .annotate(
+            carton_count=Count("carton", distinct=True),
+            ready_count=Count(
+                "carton",
+                filter=Q(
+                    carton__status__in=[CartonStatus.PACKED, CartonStatus.SHIPPED]
+                ),
+                distinct=True,
+            ),
+        )
         .order_by("-created_at")
     )
     shipments = []
     for shipment in shipments_qs:
-        total, ready, computed_status, status_label = _compute_shipment_progress(
-            shipment
-        )
-        if shipment.status in {ShipmentStatus.DRAFT, ShipmentStatus.PICKING, ShipmentStatus.PACKED}:
-            if shipment.status != computed_status or (
-                computed_status == ShipmentStatus.PACKED and shipment.ready_at is None
-            ):
-                _sync_shipment_ready_state(shipment)
+        total = shipment.carton_count or 0
+        ready = shipment.ready_count or 0
+        if total == 0 or ready == 0:
+            progress_label = "DRAFT"
+        elif ready < total:
+            progress_label = f"PARTIEL ({ready}/{total})"
+        else:
+            progress_label = "READY"
+        if shipment.status in {ShipmentStatus.SHIPPED, ShipmentStatus.DELIVERED}:
+            status_label = ShipmentStatus(shipment.status).label
+        else:
+            status_label = progress_label
         shipments.append(
             {
                 "id": shipment.id,
@@ -2507,6 +2531,11 @@ def scan_receive_pallet(request):
         if not uploaded:
             listing_errors.append("Fichier requis pour importer le listing.")
         else:
+            max_size_bytes = LISTING_MAX_FILE_SIZE_MB * 1024 * 1024
+            if uploaded.size and uploaded.size > max_size_bytes:
+                listing_errors.append(
+                    f"Fichier trop volumineux (> {LISTING_MAX_FILE_SIZE_MB} MB)."
+                )
             extension = Path(uploaded.name).suffix.lower()
             if extension == ".pdf":
                 listing_file_type = "pdf"
@@ -2516,6 +2545,8 @@ def scan_receive_pallet(request):
                 listing_file_type = "csv"
             if extension not in {".csv", ".xlsx", ".xls", ".pdf"}:
                 listing_errors.append("Format de fichier non supporte.")
+            elif listing_errors:
+                pass
             else:
                 data = uploaded.read()
                 sheet_names = []
@@ -2722,111 +2753,115 @@ def scan_receive_pallet(request):
             messages.error(request, "Aucun entrepot configure.")
             return redirect("scan:scan_receive_pallet")
 
-        receipt = Receipt.objects.create(
-            receipt_type=ReceiptType.PALLET,
-            status=ReceiptStatus.DRAFT,
-            source_contact=Contact.objects.filter(
-                id=receipt_meta.get("source_contact_id")
-            ).first(),
-            carrier_contact=Contact.objects.filter(
-                id=receipt_meta.get("carrier_contact_id")
-            ).first(),
-            received_on=receipt_meta.get("received_on") or timezone.localdate(),
-            pallet_count=receipt_meta.get("pallet_count") or 0,
-            transport_request_date=receipt_meta.get("transport_request_date") or None,
-            warehouse=warehouse,
-            created_by=request.user,
-        )
-
+        receipt = None
         created = 0
         skipped = 0
         errors = []
-        for row_index, row in enumerate(mapped_rows, start=2):
-            if not request.POST.get(f"row_{row_index}_apply"):
-                skipped += 1
-                continue
-            override_code = (request.POST.get(f"row_{row_index}_match_override") or "").strip()
-            product = None
-            if override_code:
-                product = resolve_product(override_code)
-                if not product:
-                    errors.append(
-                        f"Ligne {row_index}: produit introuvable pour {override_code}."
-                    )
+        with transaction.atomic():
+            for row_index, row in enumerate(mapped_rows, start=2):
+                if not request.POST.get(f"row_{row_index}_apply"):
+                    skipped += 1
                     continue
-            selection = (request.POST.get(f"row_{row_index}_match") or "").strip()
-            if not product and selection.startswith("product:"):
-                product_id = selection.split("product:", 1)[1]
-                if product_id.isdigit():
-                    product = Product.objects.filter(id=int(product_id)).first()
-                if not product:
-                    errors.append(f"Ligne {row_index}: produit cible introuvable.")
+                override_code = (request.POST.get(f"row_{row_index}_match_override") or "").strip()
+                product = None
+                if override_code:
+                    product = resolve_product(override_code)
+                    if not product:
+                        errors.append(
+                            f"Ligne {row_index}: produit introuvable pour {override_code}."
+                        )
+                        continue
+                selection = (request.POST.get(f"row_{row_index}_match") or "").strip()
+                if not product and selection.startswith("product:"):
+                    product_id = selection.split("product:", 1)[1]
+                    if product_id.isdigit():
+                        product = Product.objects.filter(id=int(product_id)).first()
+                    if not product:
+                        errors.append(f"Ligne {row_index}: produit cible introuvable.")
+                        continue
+
+                row_data = {}
+                for field, _ in PALLET_REVIEW_FIELDS:
+                    row_data[field] = request.POST.get(
+                        f"row_{row_index}_{field}"
+                    ) or row.get(field)
+                for key, _ in PALLET_LOCATION_FIELDS:
+                    row_data[key] = request.POST.get(
+                        f"row_{row_index}_{key}"
+                    ) or row.get(key)
+                row_data["quantity"] = request.POST.get(
+                    f"row_{row_index}_quantity"
+                ) or row.get("quantity")
+                row_data["rack_color"] = request.POST.get(
+                    f"row_{row_index}_rack_color"
+                ) or row.get("rack_color")
+
+                quantity = parse_int(row_data.get("quantity"))
+                if not quantity or quantity <= 0:
+                    errors.append(f"Ligne {row_index}: quantite invalide.")
                     continue
 
-            row_data = {}
-            for field, _ in PALLET_REVIEW_FIELDS:
-                row_data[field] = request.POST.get(
-                    f"row_{row_index}_{field}"
-                ) or row.get(field)
-            for key, _ in PALLET_LOCATION_FIELDS:
-                row_data[key] = request.POST.get(
-                    f"row_{row_index}_{key}"
-                ) or row.get(key)
-            row_data["quantity"] = request.POST.get(
-                f"row_{row_index}_quantity"
-            ) or row.get("quantity")
-            row_data["rack_color"] = request.POST.get(
-                f"row_{row_index}_rack_color"
-            ) or row.get("rack_color")
+                if product is None and selection == "new":
+                    new_row = dict(row_data)
+                    new_row.pop("quantity", None)
+                    try:
+                        product, _created, _warnings = import_product_row(
+                            new_row,
+                            user=request.user,
+                        )
+                    except ValueError as exc:
+                        errors.append(f"Ligne {row_index}: {exc}")
+                        continue
 
-            quantity = parse_int(row_data.get("quantity"))
-            if not quantity or quantity <= 0:
-                errors.append(f"Ligne {row_index}: quantite invalide.")
-                continue
+                if product is None:
+                    errors.append(f"Ligne {row_index}: produit non determine.")
+                    continue
 
-            if product is None and selection == "new":
-                new_row = dict(row_data)
-                new_row.pop("quantity", None)
                 try:
-                    product, _created, _warnings = import_product_row(
-                        new_row,
-                        user=request.user,
+                    location = _resolve_listing_location(row_data, warehouse)
+                    if location is None:
+                        location = product.default_location
+                    if location is None:
+                        raise ValueError("Emplacement requis pour reception.")
+                    if receipt is None:
+                        receipt = Receipt.objects.create(
+                            receipt_type=ReceiptType.PALLET,
+                            status=ReceiptStatus.DRAFT,
+                            source_contact=Contact.objects.filter(
+                                id=receipt_meta.get("source_contact_id")
+                            ).first(),
+                            carrier_contact=Contact.objects.filter(
+                                id=receipt_meta.get("carrier_contact_id")
+                            ).first(),
+                            received_on=receipt_meta.get("received_on") or timezone.localdate(),
+                            pallet_count=receipt_meta.get("pallet_count") or 0,
+                            transport_request_date=receipt_meta.get("transport_request_date") or None,
+                            warehouse=warehouse,
+                            created_by=request.user,
+                        )
+                    line = ReceiptLine.objects.create(
+                        receipt=receipt,
+                        product=product,
+                        quantity=quantity,
+                        location=location,
+                        storage_conditions=product.storage_conditions or "",
                     )
-                except ValueError as exc:
+                    receive_receipt_line(user=request.user, line=line)
+                    created += 1
+                except (ValueError, StockError) as exc:
                     errors.append(f"Ligne {row_index}: {exc}")
-                    continue
-
-            if product is None:
-                errors.append(f"Ligne {row_index}: produit non determine.")
-                continue
-
-            try:
-                location = _resolve_listing_location(row_data, warehouse)
-                if location is None:
-                    location = product.default_location
-                if location is None:
-                    raise ValueError("Emplacement requis pour reception.")
-                line = ReceiptLine.objects.create(
-                    receipt=receipt,
-                    product=product,
-                    quantity=quantity,
-                    location=location,
-                    storage_conditions=product.storage_conditions or "",
-                )
-                receive_receipt_line(user=request.user, line=line)
-                created += 1
-            except (ValueError, StockError) as exc:
-                errors.append(f"Ligne {row_index}: {exc}")
 
         if errors:
             messages.error(request, f"Import termine avec {len(errors)} erreur(s).")
             for error in errors[:10]:
                 messages.error(request, error)
-        if created:
+        if created and receipt:
             messages.success(
                 request,
                 f"{created} ligne(s) receptionnee(s) (ref {receipt.reference}).",
             )
+        elif not created:
+            messages.error(request, "Aucune ligne valide a importer.")
         if skipped:
             messages.warning(request, f"{skipped} ligne(s) ignoree(s).")
         clear_pending()

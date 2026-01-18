@@ -21,7 +21,7 @@ def normalize_title(value, *, keep_upper=None):
     if not text:
         return ""
     keep_upper = {item.upper() for item in (keep_upper or set())}
-    tokens = re.split(r"(\\s+)", text)
+    tokens = re.split(r"(\s+)", text)
     formatted = []
     for token in tokens:
         if not token or token.isspace():
