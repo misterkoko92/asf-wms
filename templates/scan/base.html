@@ -45,6 +45,25 @@
             Classique
           </button>
         </div>
+        <details class="scan-account">
+          <summary class="scan-account-toggle">
+            <span class="scan-account-label">Compte</span>
+            <span class="scan-account-value" title="{{ request.user.email|default:request.user.username }}">
+              {% if request.user.email %}{{ request.user.email }}{% else %}{{ request.user.username }}{% endif %}
+            </span>
+          </summary>
+          <div class="scan-account-menu">
+            <div class="scan-account-meta">
+              <span>Email: {{ request.user.email|default:"-" }}</span>
+              <span>Username: {{ request.user.username }}</span>
+            </div>
+            {% if request.user.is_staff %}
+              <a class="scan-account-link" href="/admin/">Admin</a>
+            {% endif %}
+            <a class="scan-account-link" href="/admin/logout/?next=/admin/login/?next=/scan/">Changer de compte</a>
+            <a class="scan-account-link" href="/admin/logout/?next=/">Deconnexion</a>
+          </div>
+        </details>
       </div>
     </header>
 
