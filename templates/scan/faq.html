@@ -11,11 +11,27 @@
       pour rester coherents en base.
     </p>
     <ul>
-      <li><strong>Produit</strong> : fiche article (SKU, nom, poids, emplacement).</li>
-      <li><strong>Lot</strong> : stock reel par produit, avec quantites et peremption.</li>
-      <li><strong>Carton</strong> : unite de preparation (DRAFT, PICKING, PACKED).</li>
+      <li><strong>Produit</strong> : fiche article (SKU, nom, marque, poids, emplacement).</li>
+      <li><strong>Lot</strong> : stock reel par produit (quantite, peremption, lot, emplacement).</li>
+      <li><strong>Carton</strong> : unite de preparation (DRAFT, PICKING, PACKED, SHIPPED).</li>
       <li><strong>Expedition</strong> : regroupe des cartons pour une destination.</li>
       <li><strong>Suivi expedition</strong> : journal des scans (QR) avec horodatage.</li>
+    </ul>
+    <h3>Statuts cle</h3>
+    <ul>
+      <li><strong>Carton</strong> : Cree (draft), En preparation (picking), Pret (packed), Expedie (shipped).</li>
+      <li><strong>Expedition</strong> : DRAFT / PARTIEL / READY (calcule sur les cartons), puis SHIPPED / DELIVERED.</li>
+      <li><strong>Reception</strong> : DRAFT tant que les lignes ne sont pas receptionnees.</li>
+    </ul>
+  </div>
+
+  <div class="scan-card">
+    <h2>Acces & roles</h2>
+    <ul>
+      <li>Les pages /scan sont protegees par login.</li>
+      <li>Le menu <strong>Compte</strong> affiche email/username, lien Admin (si staff), changer de compte, deconnexion.</li>
+      <li><strong>Imports</strong> et <strong>Templates</strong> sont reserves aux superusers.</li>
+      <li>Le suivi expedition (QR) est public et ne demande pas de login.</li>
     </ul>
   </div>
 
@@ -26,6 +42,9 @@
       <li><strong>Contacts</strong> avec tags : expediteur, destinataire, correspondant, donateur, transporteur.</li>
       <li><strong>Destinations</strong> : ville, code IATA, pays, correspondant lie.</li>
       <li><strong>Formats de carton</strong> : un format par defaut pour la preparation.</li>
+      <li><strong>Entrepots</strong> et <strong>Emplacements</strong> : entrepot / rack / etagere / bac.</li>
+      <li><strong>Couleurs rack</strong> : associees a un rack (entrepot + zone).</li>
+      <li><strong>Categories</strong> : hierarchie L1 -> L4 (creees a l'import si besoin).</li>
     </ul>
     <p>
       Quand un selecteur n'a qu'un seul choix, il est auto-selectionne.
@@ -33,52 +52,43 @@
   </div>
 
   <div class="scan-card">
-    <h2>Flux reception</h2>
-    <h3>Reception palette</h3>
+    <h2>Vue stock</h2>
     <ul>
-      <li>Enregistre une reception avec donateur + transporteur.</li>
-      <li>Le stock n'est pas modifie ici : c'est un suivi logistique.</li>
-    </ul>
-    <h3>Reception association</h3>
-    <ul>
-      <li>Enregistre cartons + hors format.</li>
-      <li>Utiliser la liste de descriptions pour les hors format.</li>
-    </ul>
-    <h3>Reception standard</h3>
-    <ul>
-      <li>Creer une reception, puis ajouter des lignes produits.</li>
-      <li>Option <strong>Receptionner maintenant</strong> pour creer le lot stock.</li>
-    </ul>
-  </div>
-
-  <div class="scan-card">
-    <h2>Vue reception</h2>
-    <ul>
-      <li>Filtre rapide : Palette, Association ou Tout.</li>
-      <li>Colonnes : date, nom (association ou donateur), quantite palettes/colis, hors format, transporteur.</li>
+      <li>Recherche multi-cles : nom, SKU, barcode, EAN.</li>
+      <li>Filtres : categorie, entrepot. Tri : categorie, nom, reference, stock.</li>
+      <li>Le stock affiche correspond aux lots disponibles.</li>
+      <li>La colonne <strong>Derniere modification</strong> suit les mouvements de stock.</li>
     </ul>
   </div>
 
   <div class="scan-card">
     <h2>MAJ stock</h2>
     <ul>
-      <li>Scanner ou saisir le produit, puis quantite et peremption.</li>
-      <li>Le lot est cree et stocke a l'emplacement par defaut du produit.</li>
-      <li>Si le produit est inconnu, un lien permet de le creer dans l'admin.</li>
+      <li>Selection produit par nom, SKU, barcode ou EAN (scan camera possible).</li>
+      <li>Si inconnu, le bouton propose de creer le produit dans l'admin.</li>
+      <li>Quantite, peremption et lot sont enregistres dans un nouveau lot.</li>
+      <li>Le lot est place sur l'emplacement par defaut du produit.</li>
+      <li>Les champs Marque / Emplacement / Entrepot s'affichent en lecture seule.</li>
     </ul>
-    <h3>Suppression produit</h3>
+  </div>
+
+  <div class="scan-card">
+    <h2>Supprimer produit</h2>
     <ul>
       <li>Retire du stock pour casse, perte ou correction.</li>
-      <li>Optionnel : lier a une expedition et ajouter un motif.</li>
+      <li>Reference expedition optionnelle pour tracer un flux.</li>
+      <li>Motif + notes permettent de justifier la sortie.</li>
     </ul>
   </div>
 
   <div class="scan-card">
     <h2>Preparation (cartons)</h2>
     <ul>
-      <li>Choisir un format de carton (ou personnaliser).</li>
-      <li>Ajouter des lignes produit + quantite.</li>
-      <li>Le carton passe a <strong>PICKING</strong> puis a <strong>PACKED</strong>.</li>
+      <li>Choisir un format de carton (ou personnaliser les dimensions).</li>
+      <li>Ajouter une ou plusieurs lignes produit + quantite (scan possible).</li>
+      <li>Le systeme peut creer plusieurs cartons selon la capacite (poids/volume).</li>
+      <li>Optionnel : reference expedition pour affecter directement les cartons.</li>
+      <li>Optionnel : emplacement courant pour tracer le stockage temporaire.</li>
     </ul>
     <p>
       Un carton assigne a une expedition affiche le statut <strong>Affecte</strong>
@@ -93,10 +103,11 @@
   <div class="scan-card">
     <h2>Creer une expedition</h2>
     <ul>
-      <li>Selectionner une destination en premier.</li>
-      <li>Les destinataires sont filtres par pays.</li>
-      <li>Le correspondant est filtre par la destination choisie.</li>
-      <li>Ajouter des cartons deja prepares ou creer des cartons depuis des produits.</li>
+      <li>Selectionner la destination en premier (filtre des contacts).</li>
+      <li>Expediteur, destinataire et correspondant viennent des contacts tagges.</li>
+      <li>Ajouter des cartons PACKED ou creer des cartons a partir de produits.</li>
+      <li>Le poids total est calcule automatiquement.</li>
+      <li>En modification: QR, documents, etiquettes et uploads additionnels.</li>
     </ul>
   </div>
 
@@ -127,6 +138,106 @@
   </div>
 
   <div class="scan-card">
+    <h2>Documents & etiquettes</h2>
+    <ul>
+      <li>Bon d'expedition, listes de colisage et attestation sont generes par expedition.</li>
+      <li>Etiquettes colis generees par carton (impression en masse possible).</li>
+      <li>Le QR code expedition apparait sur l'etiquette et ouvre le suivi public.</li>
+      <li>Documents additionnels uploadables (PDF, JPG, PNG, XLSX, DOCX).</li>
+    </ul>
+  </div>
+
+  <div class="scan-card">
+    <h2>Vue Commande (associations)</h2>
+    <ul>
+      <li>Liste des demandes associations avec statut de revue.</li>
+      <li>Changer le statut et informer le contact (refus / a modifier).</li>
+      <li>Si approuve, creation d'expedition en un clic.</li>
+      <li>Les documents sont disponibles une fois approuve.</li>
+    </ul>
+  </div>
+
+  <div class="scan-card">
+    <h2>Reception palette</h2>
+    <ul>
+      <li>Enregistre une reception avec donateur + transporteur.</li>
+      <li>Le stock n'est pas modifie ici : c'est un suivi logistique.</li>
+      <li>La reference est generee automatiquement.</li>
+      <li>La date demande transport est optionnelle.</li>
+    </ul>
+    <h3>Upload listing</h3>
+    <ul>
+      <li>Formats acceptes: CSV / XLS / XLSX / PDF texte (pas d'OCR image).</li>
+      <li>Conseil: privilegier .xlsx pour la gestion des accents.</li>
+      <li>CSV: encodage UTF-8 (BOM) + separateur ';'.</li>
+      <li>Detection auto du type, ou selection manuelle PDF/Excel/CSV.</li>
+      <li>PDF: choix des pages (toutes ou debut/fin). Debut vide = page 1, fin vide = derniere page.</li>
+      <li>Excel: choix de la feuille + ligne des titres.</li>
+      <li>Mapping des colonnes avec champs requis: <strong>nom + quantite</strong>.</li>
+      <li>Recap: choix du match produit, edition des champs, validation ligne par ligne.</li>
+      <li>Match auto sur <strong>Nom + Marque</strong> (liste modifiable).</li>
+      <li>Si produit existant: champs produit en lecture seule, seules quantite / emplacement changent.</li>
+      <li>Override possible via SKU / barcode / nom.</li>
+    </ul>
+    <p class="scan-help">
+      A la validation, une reception palette est creee puis les lignes sont receptionnees.
+      Emplacement requis (via listing ou emplacement par defaut du produit).
+    </p>
+  </div>
+
+  <div class="scan-card">
+    <h2>Reception association</h2>
+    <ul>
+      <li>Enregistre cartons + hors format pour une association.</li>
+      <li>Les hors format exigent une description pour chaque ligne.</li>
+      <li>La reference est generee automatiquement.</li>
+    </ul>
+  </div>
+
+  <div class="scan-card">
+    <h2>Reception standard (don/palette)</h2>
+    <ul>
+      <li>Creer une reception puis ajouter des lignes produits.</li>
+      <li><strong>Receptionner maintenant</strong> cree le lot stock immediatement.</li>
+      <li>Si emplacement vide, on utilise l'emplacement par defaut du produit.</li>
+      <li>Un bouton permet de receptionner toutes les lignes en attente.</li>
+    </ul>
+  </div>
+
+  <div class="scan-card">
+    <h2>Vue reception</h2>
+    <ul>
+      <li>Filtre rapide : Palette, Association ou Tout.</li>
+      <li>Colonnes : date, nom, quantite palettes/colis, hors format, transporteur.</li>
+    </ul>
+  </div>
+
+  <div class="scan-card">
+    <h2>Imports (admin)</h2>
+    <ul>
+      <li>Ajout unitaire ou import CSV/XLS/XLSX par bloc.</li>
+      <li>CSV: encodage UTF-8 (BOM) + separateur ';'.</li>
+      <li>Templates disponibles + export complet de chaque table.</li>
+      <li>Produit: match par SKU sinon Nom+Marque, confirmation avant update.</li>
+      <li>Si SKU deja utilise et creation forcee: SKU auto-genere.</li>
+      <li>Quantite initiale applique un mouvement de stock (emplacement requis).</li>
+      <li>Emplacements: entrepot/rack/etagere/bac requis, rack color optionnel.</li>
+      <li>Categories: chemin possible (L1 > L2 > L3).</li>
+      <li>Contacts: tags fusionnes (ajout), destination creee si absente.</li>
+      <li>Utilisateurs: mot de passe obligatoire si IMPORT_DEFAULT_PASSWORD est vide.</li>
+    </ul>
+  </div>
+
+  <div class="scan-card">
+    <h2>Templates (admin)</h2>
+    <ul>
+      <li>Personnaliser visuellement les documents.</li>
+      <li>Utiliser l'apercu pour verifier le rendu.</li>
+      <li>Apres modification, recharger la page si besoin.</li>
+    </ul>
+  </div>
+
+  <div class="scan-card">
     <h2>Suivi expedition (QR)</h2>
     <ul>
       <li>Un QR code est genere a la creation de l'expedition.</li>
@@ -140,25 +251,6 @@
       Pour que le QR fonctionne depuis un telephone, definir <strong>SITE_BASE_URL</strong>
       sur l'environnement de deploiement.
     </p>
-  </div>
-
-  <div class="scan-card">
-    <h2>Documents</h2>
-    <ul>
-      <li>Bon d'expedition, listes de colisage et attestations sont generes par expedition.</li>
-      <li>Les etiquettes sont generees par carton.</li>
-      <li>Le QR code apparait sur l'etiquette expedition, a droite de l'IATA.</li>
-      <li>Des documents additionnels peuvent etre uploades (PDF, JPG, PNG, XLSX, DOCX).</li>
-    </ul>
-  </div>
-
-  <div class="scan-card">
-    <h2>Templates (admin)</h2>
-    <ul>
-      <li>Page reservee aux superusers.</li>
-      <li>Permet de personnaliser visuellement les documents.</li>
-      <li>Apres modification, recharger la page pour voir le rendu.</li>
-    </ul>
   </div>
 
   <div class="scan-card">
