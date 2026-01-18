@@ -134,21 +134,50 @@
         {% endfor %}
       </div>
 
-      <div class="scan-field">
-        <label for="{{ listing_form.transport_request_date.id_for_label }}">Date demande transport</label>
-        {{ listing_form.transport_request_date }}
-        {% for error in listing_form.transport_request_date.errors %}
-          <div class="scan-message error">{{ error }}</div>
-        {% endfor %}
+      <div class="scan-inline scan-inline-equal">
+        <div class="scan-field">
+          <label for="listing_file">Fichier listing (CSV/XLS/XLSX/PDF)</label>
+          <input type="file" id="listing_file" name="listing_file" accept=".csv,.xlsx,.xls,.pdf" required>
+        </div>
+        <div class="scan-field">
+          <label>Type de fichier</label>
+          <div class="scan-inline" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
+            <label>
+              <input
+                type="radio"
+                name="listing_file_type"
+                value="pdf"
+                {% if listing_file_type == "pdf" %}checked{% endif %}
+              >
+              PDF
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="listing_file_type"
+                value="excel"
+                {% if listing_file_type == "excel" %}checked{% endif %}
+              >
+              Excel
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="listing_file_type"
+                value="csv"
+                {% if listing_file_type == "csv" %}checked{% endif %}
+              >
+              CSV
+            </label>
+          </div>
+        </div>
       </div>
 
-      <div class="scan-field">
-        <label for="listing_file">Fichier listing (CSV/XLS/XLSX/PDF)</label>
-        <input type="file" id="listing_file" name="listing_file" accept=".csv,.xlsx,.xls,.pdf" required>
-      </div>
-
-      <div class="scan-field">
+      <div class="scan-field" data-file-options="pdf">
         <label>Selectionner les pages du listing (PDF)</label>
+        {% if listing_pdf_total_pages %}
+          <div class="scan-help">Pages totales: {{ listing_pdf_total_pages }}</div>
+        {% endif %}
         <div class="scan-inline scan-inline-equal">
           <label>
             <input
@@ -191,9 +220,12 @@
             >
           </div>
         </div>
+        <div class="scan-help">
+          Si debut vide: page 1. Si fin vide: derniere page.
+        </div>
       </div>
 
-      <div class="scan-field">
+      <div class="scan-field" data-file-options="excel">
         <label for="listing_sheet_name">Feuille Excel</label>
         <select id="listing_sheet_name" name="listing_sheet_name">
           <option value="">Premiere feuille</option>
@@ -206,18 +238,29 @@
         {% if listing_sheet_names %}
           <div class="scan-help">Feuilles detectees: {{ listing_sheet_names|join:", " }}</div>
         {% endif %}
+        <div class="scan-inline scan-inline-equal scan-inline-gap">
+          <div>
+            <label for="listing_header_row">Ligne des titres (Excel)</label>
+            <input
+              type="number"
+              id="listing_header_row"
+              name="listing_header_row"
+              min="1"
+              value="{{ listing_header_row }}"
+            >
+          </div>
+          <div></div>
+        </div>
       </div>
 
       <div class="scan-field">
-        <label for="listing_header_row">Ligne des titres (Excel)</label>
-        <input
-          type="number"
-          id="listing_header_row"
-          name="listing_header_row"
-          min="1"
-          value="{{ listing_header_row }}"
-        >
+        <label for="{{ listing_form.transport_request_date.id_for_label }}">Date demande transport</label>
+        {{ listing_form.transport_request_date }}
+        {% for error in listing_form.transport_request_date.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
       </div>
+
     </form>
   </div>
 
@@ -556,4 +599,60 @@
       })();
     </script>
   {% endif %}
+
+  <script>
+    (function() {
+      var fileInput = document.getElementById('listing_file');
+      var typeInputs = document.querySelectorAll('input[name="listing_file_type"]');
+      var optionBlocks = document.querySelectorAll('[data-file-options]');
+      var defaultType = "{{ listing_file_type|default:'' }}";
+
+      function detectTypeFromName(name) {
+        if (!name) {
+          return "";
+        }
+        var lower = name.toLowerCase();
+        if (lower.endsWith('.pdf')) {
+          return 'pdf';
+        }
+        if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) {
+          return 'excel';
+        }
+        if (lower.endsWith('.csv')) {
+          return 'csv';
+        }
+        return '';
+      }
+
+      function setType(type) {
+        if (!type) {
+          return;
+        }
+        typeInputs.forEach(function(input) {
+          input.checked = input.value === type;
+        });
+        optionBlocks.forEach(function(block) {
+          block.hidden = block.dataset.fileOptions !== type;
+        });
+      }
+
+      typeInputs.forEach(function(input) {
+        input.addEventListener('change', function() {
+          setType(input.value);
+        });
+      });
+
+      if (fileInput) {
+        fileInput.addEventListener('change', function() {
+          var detected = detectTypeFromName(fileInput.value);
+          if (detected) {
+            setType(detected);
+          }
+        });
+      }
+
+      var initial = defaultType || detectTypeFromName(fileInput ? fileInput.value : "") || "excel";
+      setType(initial);
+    })();
+  </script>
 {% endblock %}

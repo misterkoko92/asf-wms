@@ -105,6 +105,7 @@ from .print_utils import build_label_pages, extract_block_style
 from .import_utils import (
     decode_text,
     extract_tabular_data,
+    get_pdf_page_count,
     get_value,
     iter_import_rows,
     list_excel_sheets,
@@ -2377,6 +2378,8 @@ def scan_receive_pallet(request):
     listing_pdf_pages_mode = "all"
     listing_pdf_page_start = ""
     listing_pdf_page_end = ""
+    listing_pdf_total_pages = ""
+    listing_file_type = ""
 
     def _build_listing_extract_options(extension, sheet_name, header_row, pdf_mode, page_start, page_end):
         options = {}
@@ -2504,6 +2507,12 @@ def scan_receive_pallet(request):
             listing_errors.append("Fichier requis pour importer le listing.")
         else:
             extension = Path(uploaded.name).suffix.lower()
+            if extension == ".pdf":
+                listing_file_type = "pdf"
+            elif extension in {".xlsx", ".xls"}:
+                listing_file_type = "excel"
+            elif extension == ".csv":
+                listing_file_type = "csv"
             if extension not in {".csv", ".xlsx", ".xls", ".pdf"}:
                 listing_errors.append("Format de fichier non supporte.")
             else:
@@ -2529,20 +2538,38 @@ def scan_receive_pallet(request):
                         else:
                             listing_sheet_name = sheet_names[0]
                 if extension == ".pdf" and listing_pdf_pages_mode == "custom" and not listing_errors:
-                    if not listing_pdf_page_start or not listing_pdf_page_end:
-                        listing_errors.append("Renseignez les pages PDF debut et fin.")
-                    else:
+                    try:
+                        listing_pdf_total_pages = get_pdf_page_count(data)
+                    except ValueError as exc:
+                        listing_errors.append(str(exc))
+                    if listing_pdf_page_start:
                         try:
                             pdf_page_start = parse_int(listing_pdf_page_start)
+                        except ValueError:
+                            listing_errors.append("Page PDF debut invalide.")
+                    if listing_pdf_page_end:
+                        try:
                             pdf_page_end = parse_int(listing_pdf_page_end)
                         except ValueError:
-                            listing_errors.append("Pages PDF invalides.")
+                            listing_errors.append("Page PDF fin invalide.")
+                    if not listing_errors:
+                        pdf_page_start = pdf_page_start or 1
+                        pdf_page_end = (
+                            pdf_page_end
+                            if pdf_page_end is not None
+                            else listing_pdf_total_pages
+                        )
                     if pdf_page_start is not None and pdf_page_end is not None:
                         if pdf_page_start < 1 or pdf_page_end < pdf_page_start:
                             listing_errors.append("Plage de pages PDF invalide.")
                     if listing_errors:
                         pdf_page_start = None
                         pdf_page_end = None
+                if extension == ".pdf" and listing_pdf_pages_mode != "custom" and not listing_errors:
+                    try:
+                        listing_pdf_total_pages = get_pdf_page_count(data)
+                    except ValueError as exc:
+                        listing_errors.append(str(exc))
                 if not listing_errors:
                     extract_options = _build_listing_extract_options(
                         extension,
@@ -2578,10 +2605,12 @@ def scan_receive_pallet(request):
                         "sheet_names": sheet_names,
                         "sheet_name": listing_sheet_name,
                         "header_row": listing_header_row,
+                        "file_type": listing_file_type,
                         "pdf_pages": {
                             "mode": listing_pdf_pages_mode,
                             "start": pdf_page_start,
                             "end": pdf_page_end,
+                            "total": listing_pdf_total_pages,
                         },
                         "receipt_meta": {
                             "received_on": listing_form.cleaned_data["received_on"].isoformat(),
@@ -2875,6 +2904,10 @@ def scan_receive_pallet(request):
             listing_pdf_page_start = str(pdf_pages.get("start"))
         if pdf_pages.get("end") is not None:
             listing_pdf_page_end = str(pdf_pages.get("end"))
+        if pdf_pages.get("total"):
+            listing_pdf_total_pages = str(pdf_pages.get("total"))
+        if pending.get("file_type"):
+            listing_file_type = pending.get("file_type")
 
     return render(
         request,

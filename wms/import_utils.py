@@ -300,6 +300,13 @@ def extract_tabular_data(data, extension, sheet_name=None, header_row=1, pdf_pag
     raise ValueError("Format de fichier non supporte.")
 
 
+def get_pdf_page_count(data):
+    if pdfplumber is None:
+        raise ValueError("pdfplumber est requis pour importer des PDF texte.")
+    with pdfplumber.open(BytesIO(data)) as pdf:
+        return len(pdf.pages)
+
+
 def list_excel_sheets(data, extension):
     if extension in {".xlsx", ".xlsm"}:
         if load_workbook is None:

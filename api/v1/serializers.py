@@ -13,6 +13,9 @@ from wms.models import (
 
 class ProductSerializer(serializers.ModelSerializer):
     available_stock = serializers.IntegerField(read_only=True)
+    category_id = serializers.IntegerField(source="category_id", read_only=True)
+    category_name = serializers.CharField(source="category.name", read_only=True)
+    tags = serializers.SlugRelatedField(many=True, read_only=True, slug_field="name")
 
     class Meta:
         model = Product
@@ -21,6 +24,10 @@ class ProductSerializer(serializers.ModelSerializer):
             "sku",
             "name",
             "brand",
+            "color",
+            "category_id",
+            "category_name",
+            "tags",
             "barcode",
             "ean",
             "pu_ht",
@@ -29,11 +36,16 @@ class ProductSerializer(serializers.ModelSerializer):
             "available_stock",
             "default_location_id",
             "storage_conditions",
+            "perishable",
+            "quarantine_default",
+            "notes",
+            "is_active",
             "weight_g",
             "volume_cm3",
             "length_cm",
             "width_cm",
             "height_cm",
+            "photo",
         )
 
 
