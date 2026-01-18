@@ -126,6 +126,7 @@ from .import_utils import (
     parse_str,
 )
 from .import_services import (
+    apply_pallet_listing_import,
     import_categories,
     import_contacts,
     import_locations,
@@ -1628,7 +1629,7 @@ ALLOWED_UPLOAD_EXTENSIONS = {
     ".docx",
 }
 PORTAL_MAX_FILE_SIZE_MB = 10
-LISTING_MAX_FILE_SIZE_MB = 10
+LISTING_MAX_FILE_SIZE_MB = getattr(settings, "LISTING_MAX_FILE_SIZE_MB", 10)
 
 
 @login_required
@@ -2360,24 +2361,6 @@ def _build_product_display(product):
     }
 
 
-def _resolve_listing_location(row, default_warehouse):
-    warehouse_name = parse_str(row.get("warehouse")) or (
-        default_warehouse.name if default_warehouse else None
-    )
-    zone = parse_str(row.get("zone"))
-    aisle = parse_str(row.get("aisle"))
-    shelf = parse_str(row.get("shelf"))
-    if any([zone, aisle, shelf]):
-        if not all([warehouse_name, zone, aisle, shelf]):
-            raise ValueError("Emplacement incomplet (entrepot/rack/etagere/bac).")
-        warehouse, _ = Warehouse.objects.get_or_create(name=warehouse_name)
-        location, _ = Location.objects.get_or_create(
-            warehouse=warehouse, zone=zone, aisle=aisle, shelf=shelf
-        )
-        return location
-    return None
-
-
 @login_required
 @require_http_methods(["GET", "POST"])
 def scan_receive_pallet(request):
@@ -2753,34 +2736,11 @@ def scan_receive_pallet(request):
             messages.error(request, "Aucun entrepot configure.")
             return redirect("scan:scan_receive_pallet")
 
-        receipt = None
-        created = 0
-        skipped = 0
-        errors = []
-        with transaction.atomic():
-            for row_index, row in enumerate(mapped_rows, start=2):
-                if not request.POST.get(f"row_{row_index}_apply"):
-                    skipped += 1
-                    continue
-                override_code = (request.POST.get(f"row_{row_index}_match_override") or "").strip()
-                product = None
-                if override_code:
-                    product = resolve_product(override_code)
-                    if not product:
-                        errors.append(
-                            f"Ligne {row_index}: produit introuvable pour {override_code}."
-                        )
-                        continue
-                selection = (request.POST.get(f"row_{row_index}_match") or "").strip()
-                if not product and selection.startswith("product:"):
-                    product_id = selection.split("product:", 1)[1]
-                    if product_id.isdigit():
-                        product = Product.objects.filter(id=int(product_id)).first()
-                    if not product:
-                        errors.append(f"Ligne {row_index}: produit cible introuvable.")
-                        continue
-
-                row_data = {}
+        row_payloads = []
+        for row_index, row in enumerate(mapped_rows, start=2):
+            apply_flag = bool(request.POST.get(f"row_{row_index}_apply"))
+            row_data = {}
+            if apply_flag:
                 for field, _ in PALLET_REVIEW_FIELDS:
                     row_data[field] = request.POST.get(
                         f"row_{row_index}_{field}"
@@ -2795,61 +2755,23 @@ def scan_receive_pallet(request):
                 row_data["rack_color"] = request.POST.get(
                     f"row_{row_index}_rack_color"
                 ) or row.get("rack_color")
+            row_payloads.append(
+                {
+                    "apply": apply_flag,
+                    "row_index": row_index,
+                    "row_data": row_data,
+                    "selection": request.POST.get(f"row_{row_index}_match") or "",
+                    "override_code": request.POST.get(f"row_{row_index}_match_override") or "",
+                }
+            )
 
-                quantity = parse_int(row_data.get("quantity"))
-                if not quantity or quantity <= 0:
-                    errors.append(f"Ligne {row_index}: quantite invalide.")
-                    continue
-
-                if product is None and selection == "new":
-                    new_row = dict(row_data)
-                    new_row.pop("quantity", None)
-                    try:
-                        product, _created, _warnings = import_product_row(
-                            new_row,
-                            user=request.user,
-                        )
-                    except ValueError as exc:
-                        errors.append(f"Ligne {row_index}: {exc}")
-                        continue
-
-                if product is None:
-                    errors.append(f"Ligne {row_index}: produit non determine.")
-                    continue
-
-                try:
-                    location = _resolve_listing_location(row_data, warehouse)
-                    if location is None:
-                        location = product.default_location
-                    if location is None:
-                        raise ValueError("Emplacement requis pour reception.")
-                    if receipt is None:
-                        receipt = Receipt.objects.create(
-                            receipt_type=ReceiptType.PALLET,
-                            status=ReceiptStatus.DRAFT,
-                            source_contact=Contact.objects.filter(
-                                id=receipt_meta.get("source_contact_id")
-                            ).first(),
-                            carrier_contact=Contact.objects.filter(
-                                id=receipt_meta.get("carrier_contact_id")
-                            ).first(),
-                            received_on=receipt_meta.get("received_on") or timezone.localdate(),
-                            pallet_count=receipt_meta.get("pallet_count") or 0,
-                            transport_request_date=receipt_meta.get("transport_request_date") or None,
-                            warehouse=warehouse,
-                            created_by=request.user,
-                        )
-                    line = ReceiptLine.objects.create(
-                        receipt=receipt,
-                        product=product,
-                        quantity=quantity,
-                        location=location,
-                        storage_conditions=product.storage_conditions or "",
-                    )
-                    receive_receipt_line(user=request.user, line=line)
-                    created += 1
-                except (ValueError, StockError) as exc:
-                    errors.append(f"Ligne {row_index}: {exc}")
+        with transaction.atomic():
+            created, skipped, errors, receipt = apply_pallet_listing_import(
+                row_payloads,
+                user=request.user,
+                warehouse=warehouse,
+                receipt_meta=receipt_meta,
+            )
 
         if errors:
             messages.error(request, f"Import termine avec {len(errors)} erreur(s).")

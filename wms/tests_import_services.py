@@ -1,8 +1,11 @@
 from django.test import TestCase
 
+from django.contrib.auth import get_user_model
+from django.utils import timezone
+
 from contacts.models import Contact, ContactAddress, ContactTag, ContactType
-from wms.import_services import import_contacts, import_products_rows
-from wms.models import Product
+from wms.import_services import apply_pallet_listing_import, import_contacts, import_products_rows
+from wms.models import Location, Product, ProductLot, ReceiptLine, Warehouse
 
 
 class ImportContactsTests(TestCase):
@@ -118,3 +121,58 @@ class ImportProductsTests(TestCase):
         self.assertEqual(updated, 0)
         self.assertTrue(warnings)
         self.assertEqual(Product.objects.filter(sku="SRG-1").count(), 1)
+
+
+class ListingImportTests(TestCase):
+    def test_apply_pallet_listing_import_creates_receipt_line(self):
+        user = get_user_model().objects.create_user(
+            username="tester",
+            password="pass",
+        )
+        warehouse = Warehouse.objects.create(name="Main")
+        location = Location.objects.create(
+            warehouse=warehouse, zone="A", aisle="1", shelf="1"
+        )
+        product = Product.objects.create(
+            name="Gants",
+            sku="GNT-1",
+            brand="ACME",
+            default_location=location,
+        )
+        donor = Contact.objects.create(
+            name="Donateur",
+            contact_type=ContactType.ORGANIZATION,
+        )
+        carrier = Contact.objects.create(
+            name="Transporteur",
+            contact_type=ContactType.ORGANIZATION,
+        )
+
+        row_payloads = [
+            {
+                "apply": True,
+                "row_index": 2,
+                "selection": f"product:{product.id}",
+                "override_code": "",
+                "row_data": {"quantity": "3"},
+            }
+        ]
+        created, skipped, errors, receipt = apply_pallet_listing_import(
+            row_payloads,
+            user=user,
+            warehouse=warehouse,
+            receipt_meta={
+                "received_on": timezone.localdate(),
+                "pallet_count": 1,
+                "source_contact_id": donor.id,
+                "carrier_contact_id": carrier.id,
+                "transport_request_date": "",
+            },
+        )
+
+        self.assertEqual(errors, [])
+        self.assertEqual(created, 1)
+        self.assertEqual(skipped, 0)
+        self.assertIsNotNone(receipt)
+        self.assertEqual(ReceiptLine.objects.count(), 1)
+        self.assertEqual(ProductLot.objects.count(), 1)
