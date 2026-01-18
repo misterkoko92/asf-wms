@@ -183,7 +183,7 @@
         {% csrf_token %}
         <input type="hidden" name="action" value="listing_map">
         <input type="hidden" name="pending_token" value="{{ listing_token }}">
-        <div class="scan-table-wrap" style="width: 100%">
+        <div class="scan-table-wrap" style="width: 100%; grid-column: 1 / -1;">
           <table class="scan-table" style="width: 100%">
             <thead>
               <tr>
