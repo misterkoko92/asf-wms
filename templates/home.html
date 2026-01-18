@@ -4,6 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ASF WMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script>
     (function() {
       try {
@@ -18,110 +21,291 @@
   </script>
   <style>
     :root {
-      --ink: #1f1b16;
-      --ink-soft: #4a4033;
-      --bg: #f6f0e6;
-      --card: #fffaf2;
+      --ink: #1a241c;
+      --ink-soft: #4c5a50;
+      --bg: #f3f1ea;
+      --bg-2: #e6ede2;
+      --card: #fffdf7;
       --accent: #0f5f4f;
-      --accent-2: #e79d2e;
-      --border: #e6d7c4;
+      --accent-2: #f0a43a;
+      --accent-3: #1e7f6a;
+      --border: #ded6c7;
+      --shadow: rgba(20, 24, 18, 0.12);
+      --shadow-soft: rgba(20, 24, 18, 0.06);
     }
 
     :root[data-ui="nova"] {
-      --ink: #111827;
-      --ink-soft: #556274;
-      --bg: #eef2f7;
+      --ink: #0f172a;
+      --ink-soft: #4b5b74;
+      --bg: #eef4fb;
+      --bg-2: #dde8f5;
       --card: #ffffff;
       --accent: #0f4c81;
       --accent-2: #f6b042;
-      --border: #d5dee8;
+      --accent-3: #0f7b6b;
+      --border: #d4ddea;
+      --shadow: rgba(15, 23, 42, 0.18);
+      --shadow-soft: rgba(15, 23, 42, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
     }
 
     body {
       margin: 0;
-      font-family: "Trebuchet MS", "Lucida Sans Unicode", "Lucida Grande", sans-serif;
+      font-family: "Sora", "Avenir Next", "Gill Sans", sans-serif;
       color: var(--ink);
-      background: radial-gradient(1200px 800px at 10% -20%, #fff6d8 0%, var(--bg) 55%);
+      background:
+        radial-gradient(1100px 720px at 5% -20%, rgba(255, 244, 214, 0.9) 0%, transparent 55%),
+        radial-gradient(900px 600px at 105% 10%, rgba(226, 246, 238, 0.9) 0%, transparent 55%),
+        linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
       min-height: 100vh;
       display: flex;
-      align-items: center;
+      align-items: stretch;
       justify-content: center;
-      padding: 20px;
+      padding: 24px;
     }
 
     .home-shell {
       width: 100%;
+      max-width: 1180px;
+      display: grid;
+      gap: 24px;
+    }
+
+    .home-top {
       display: flex;
-      justify-content: center;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .brand-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      background: var(--accent);
+      box-shadow: 0 0 0 6px rgba(15, 95, 79, 0.12);
+    }
+
+    .brand-sub {
+      font-size: 12px;
+      color: var(--ink-soft);
+      letter-spacing: 0.22em;
+    }
+
+    .home-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 22px;
+      align-items: start;
     }
 
     .card {
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 18px;
-      padding: 24px;
-      max-width: 520px;
-      width: 100%;
-      box-shadow: 0 10px 30px rgba(20, 15, 10, 0.08);
-      text-align: center;
+      border-radius: 24px;
+      padding: 28px;
+      box-shadow: 0 16px 36px var(--shadow-soft);
+      position: relative;
+      overflow: hidden;
     }
 
-    .home-grid {
-      display: block;
+    .hero-card {
+      padding: 36px;
+      box-shadow: 0 18px 40px var(--shadow);
     }
 
-    .home-kicker,
-    .home-tags {
-      display: none;
+    .hero-card::before {
+      content: "";
+      position: absolute;
+      inset: -30% 40% 40% -30%;
+      background: radial-gradient(circle, rgba(15, 95, 79, 0.18), transparent 70%);
+      z-index: 0;
+    }
+
+    .hero-card::after {
+      content: "";
+      position: absolute;
+      inset: 40% -20% -30% 60%;
+      background: radial-gradient(circle, rgba(240, 164, 58, 0.2), transparent 65%);
+      z-index: 0;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .home-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.7);
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 16px;
     }
 
     h1 {
-      font-family: "Georgia", "Times New Roman", serif;
-      margin: 0 0 10px;
-      font-size: 28px;
+      font-family: "Fraunces", "Georgia", serif;
+      font-size: 42px;
+      margin: 0 0 12px;
+      line-height: 1.1;
     }
 
     p {
       margin: 0 0 18px;
       color: var(--ink-soft);
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    .home-tags {
+      list-style: none;
+      padding: 0;
+      margin: 18px 0 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .home-tags li {
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.8);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .home-actions {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      margin-top: 28px;
+    }
+
+    .home-actions a {
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 18px;
+      border-radius: 16px;
+      font-weight: 700;
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 12px 26px rgba(15, 95, 79, 0.22);
+    }
+
+    .home-actions a.secondary {
+      background: var(--accent-2);
+      color: #3f2a0a;
+      box-shadow: 0 12px 26px rgba(240, 164, 58, 0.24);
+    }
+
+    .home-actions span.link-arrow {
+      font-weight: 800;
+    }
+
+    .side-stack {
+      display: grid;
+      gap: 18px;
+    }
+
+    .card h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+      font-weight: 700;
     }
 
     .links {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 12px;
+      gap: 10px;
+      margin-bottom: 16px;
     }
 
     .links a {
       text-decoration: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      color: var(--ink);
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.9);
+    }
+
+    .links a.primary {
       background: var(--accent);
       color: #fff;
-      padding: 12px 16px;
-      border-radius: 12px;
-      font-weight: 700;
-      display: block;
+      border-color: transparent;
     }
 
     .links a.secondary {
-      background: var(--accent-2);
-      color: #3c2d0c;
+      background: rgba(240, 164, 58, 0.18);
+      color: #3f2a0a;
+      border-color: rgba(240, 164, 58, 0.3);
     }
 
-    .home-actions {
-      margin-top: 16px;
+    .home-meta {
+      display: grid;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--ink-soft);
+    }
+
+    .home-points {
+      display: grid;
+      gap: 10px;
+    }
+
+    .home-point {
+      display: grid;
+      gap: 6px;
+      padding: 12px;
+      border-radius: 14px;
+      background: rgba(15, 95, 79, 0.08);
+    }
+
+    .home-point strong {
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
     }
 
     .home-ui {
-      margin-top: 14px;
       display: grid;
-      gap: 8px;
-      justify-items: center;
+      gap: 6px;
+      justify-items: end;
     }
 
     .home-ui-label {
       text-transform: uppercase;
       font-size: 11px;
-      letter-spacing: 0.18em;
+      letter-spacing: 0.2em;
       color: var(--ink-soft);
     }
 
@@ -131,13 +315,13 @@
       padding: 4px;
       border-radius: 999px;
       border: 1px solid var(--border);
-      background: #fff;
+      background: rgba(255, 255, 255, 0.8);
     }
 
     .home-ui button {
       border: 0;
       border-radius: 999px;
-      padding: 6px 12px;
+      padding: 6px 14px;
       background: transparent;
       font-weight: 700;
       cursor: pointer;
@@ -149,141 +333,139 @@
       color: #fff;
     }
 
-    :root[data-ui="nova"] body {
-      font-family: "Avenir Next", "Gill Sans", "Trebuchet MS", sans-serif;
-      background-color: var(--bg);
-      background-image:
-        radial-gradient(900px 700px at -10% -20%, rgba(231, 243, 255, 0.9) 0%, transparent 60%),
-        radial-gradient(900px 700px at 110% 10%, rgba(255, 243, 226, 0.9) 0%, transparent 55%),
-        repeating-linear-gradient(0deg, rgba(15, 23, 42, 0.04) 0 1px, transparent 1px 24px),
-        repeating-linear-gradient(90deg, rgba(15, 23, 42, 0.04) 0 1px, transparent 1px 24px);
-      align-items: stretch;
-      justify-content: center;
+    @keyframes float-in {
+      from {
+        opacity: 0;
+        transform: translateY(18px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
-    :root[data-ui="nova"] .home-shell {
-      max-width: 1100px;
-      padding: 32px;
+    .hero-card {
+      animation: float-in 0.6s ease both;
     }
 
-    :root[data-ui="nova"] .card {
-      border-radius: 24px;
-      padding: 34px;
-      text-align: left;
-      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
+    .side-stack .card {
+      animation: float-in 0.6s ease both;
     }
 
-    :root[data-ui="nova"] .home-grid {
-      display: grid;
-      grid-template-columns: 1.2fr 0.8fr;
-      gap: 32px;
-      align-items: center;
+    .side-stack .card:nth-child(1) {
+      animation-delay: 0.12s;
     }
 
-    :root[data-ui="nova"] .home-kicker {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 12px;
-      border-radius: 999px;
-      border: 1px solid var(--border);
-      background: #f1f6ff;
-      color: var(--accent);
-      font-size: 11px;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      margin-bottom: 12px;
-      font-weight: 700;
+    .side-stack .card:nth-child(2) {
+      animation-delay: 0.2s;
     }
 
-    :root[data-ui="nova"] h1 {
-      font-family: "Palatino Linotype", "Book Antiqua", "Palatino", serif;
-      font-size: 36px;
-      margin-bottom: 12px;
+    @media (prefers-reduced-motion: reduce) {
+      .hero-card,
+      .side-stack .card {
+        animation: none;
+      }
     }
 
-    :root[data-ui="nova"] p {
-      font-size: 16px;
-    }
-
-    :root[data-ui="nova"] .home-tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      list-style: none;
-      margin: 18px 0 0;
-      padding: 0;
-    }
-
-    :root[data-ui="nova"] .home-tags li {
-      padding: 6px 12px;
-      border-radius: 999px;
-      border: 1px solid var(--border);
-      background: #f7faff;
-      font-size: 12px;
-    }
-
-    :root[data-ui="nova"] .links {
-      grid-template-columns: 1fr;
-    }
-
-    :root[data-ui="nova"] .links a {
-      border-radius: 14px;
-      padding: 14px 18px;
-      box-shadow: 0 12px 22px rgba(15, 76, 129, 0.12);
-    }
-
-    :root[data-ui="nova"] .links a.secondary {
-      color: #3f2a0a;
-      box-shadow: 0 12px 22px rgba(246, 176, 66, 0.18);
-    }
-
-    :root[data-ui="nova"] .home-ui {
-      align-items: flex-start;
-      justify-items: start;
-    }
-
-    :root[data-ui="nova"] .home-ui-buttons {
-      background: #f2f6fb;
-      border-color: var(--border);
-    }
-
-    @media (max-width: 900px) {
-      :root[data-ui="nova"] .home-grid {
+    @media (max-width: 960px) {
+      .home-grid {
         grid-template-columns: 1fr;
+      }
+
+      .home-ui {
+        justify-items: start;
+      }
+    }
+
+    @media (max-width: 720px) {
+      body {
+        padding: 18px;
+      }
+
+      h1 {
+        font-size: 34px;
+      }
+
+      .hero-card,
+      .card {
+        padding: 24px;
       }
     }
   </style>
 </head>
 <body>
   <div class="home-shell">
-    <div class="card">
-      <div class="home-grid">
-        <div class="home-hero">
-          <div class="home-kicker">Plateforme logistique</div>
-          <h1>ASF WMS</h1>
-          <p>Choisissez votre entree.</p>
-          <ul class="home-tags">
-            <li>Stocks synchronises</li>
-            <li>Preparation rapide</li>
-            <li>Documents PDF</li>
-          </ul>
+    <header class="home-top">
+      <div class="brand">
+        <span class="brand-dot"></span>
+        <span>ASF WMS</span>
+        <span class="brand-sub">Logistique</span>
+      </div>
+      <div class="home-ui" role="group" aria-label="Interface">
+        <span class="home-ui-label">Interface</span>
+        <div class="home-ui-buttons">
+          <button type="button" data-ui-option="classic">Classique</button>
+          <button type="button" data-ui-option="nova">Nouveau</button>
         </div>
-        <div class="home-actions">
-          <div class="links">
-            <a href="/admin/">Administration</a>
-            <a class="secondary" href="/scan/">Scan PWA</a>
+      </div>
+    </header>
+
+    <main class="home-grid">
+      <section class="card hero-card">
+        <div class="hero-content">
+          <div class="home-kicker">Plateforme logistique</div>
+          <h1>Stocks, receptions et expeditions en un seul flux.</h1>
+          <p>
+            Pilotez les mouvements, les etiquettes et les documents en quelques clics.
+            Utilisez l interface Admin pour la configuration, et le Scan PWA pour le terrain.
+          </p>
+          <ul class="home-tags">
+            <li>Stock temps reel</li>
+            <li>Reception rapide</li>
+            <li>Preparation terrain</li>
+            <li>Expedition tracee</li>
+            <li>Docs PDF</li>
+            <li>Scan PWA</li>
+          </ul>
+          <div class="home-actions">
+            <a href="/scan/">Ouvrir Scan PWA <span class="link-arrow">></span></a>
+            <a class="secondary" href="/admin/">Aller a l administration <span class="link-arrow">></span></a>
           </div>
-          <div class="home-ui" role="group" aria-label="Interface">
-            <span class="home-ui-label">Interface</span>
-            <div class="home-ui-buttons">
-              <button type="button" data-ui-option="classic">Classique</button>
-              <button type="button" data-ui-option="nova">Nouveau</button>
+        </div>
+      </section>
+
+      <section class="side-stack">
+        <div class="card">
+          <h2>Acces rapide</h2>
+          <div class="links">
+            <a class="primary" href="/scan/">Scan mobile (PWA) <span class="link-arrow">></span></a>
+            <a class="secondary" href="/admin/">Administration <span class="link-arrow">></span></a>
+          </div>
+          <div class="home-meta">
+            <span>Conseil: ouvrez /scan sur mobile pour la camera.</span>
+            <span>Besoin d un compte? Contactez un administrateur.</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Flux recommande</h2>
+          <div class="home-points">
+            <div class="home-point">
+              <strong>1. Configurer</strong>
+              <span>Entrepots, emplacements, categories et contacts.</span>
+            </div>
+            <div class="home-point">
+              <strong>2. Importer</strong>
+              <span>Produits et listings, puis valider le mapping.</span>
+            </div>
+            <div class="home-point">
+              <strong>3. Operer</strong>
+              <span>Reception, preparation et expeditions en flux continu.</span>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   </div>
   <script>
     (function() {
