@@ -146,6 +146,78 @@
         <label for="listing_file">Fichier listing (CSV/XLS/XLSX/PDF)</label>
         <input type="file" id="listing_file" name="listing_file" accept=".csv,.xlsx,.xls,.pdf" required>
       </div>
+
+      <div class="scan-field">
+        <label>Selectionner les pages du listing (PDF)</label>
+        <div class="scan-inline scan-inline-equal">
+          <label>
+            <input
+              type="radio"
+              name="listing_pdf_pages_mode"
+              value="all"
+              {% if listing_pdf_pages_mode != "custom" %}checked{% endif %}
+            >
+            Toutes les pages
+          </label>
+          <label>
+            <input
+              type="radio"
+              name="listing_pdf_pages_mode"
+              value="custom"
+              {% if listing_pdf_pages_mode == "custom" %}checked{% endif %}
+            >
+            Personnalise
+          </label>
+        </div>
+        <div class="scan-inline scan-inline-equal scan-inline-gap">
+          <div>
+            <label for="listing_pdf_page_start">Debut</label>
+            <input
+              type="number"
+              id="listing_pdf_page_start"
+              name="listing_pdf_page_start"
+              min="1"
+              value="{{ listing_pdf_page_start }}"
+            >
+          </div>
+          <div>
+            <label for="listing_pdf_page_end">Fin</label>
+            <input
+              type="number"
+              id="listing_pdf_page_end"
+              name="listing_pdf_page_end"
+              min="1"
+              value="{{ listing_pdf_page_end }}"
+            >
+          </div>
+        </div>
+      </div>
+
+      <div class="scan-field">
+        <label for="listing_sheet_name">Feuille Excel</label>
+        <select id="listing_sheet_name" name="listing_sheet_name">
+          <option value="">Premiere feuille</option>
+          {% for sheet in listing_sheet_names %}
+            <option value="{{ sheet }}" {% if sheet == listing_sheet_name %}selected{% endif %}>
+              {{ sheet }}
+            </option>
+          {% endfor %}
+        </select>
+        {% if listing_sheet_names %}
+          <div class="scan-help">Feuilles detectees: {{ listing_sheet_names|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="scan-field">
+        <label for="listing_header_row">Ligne des titres (Excel)</label>
+        <input
+          type="number"
+          id="listing_header_row"
+          name="listing_header_row"
+          min="1"
+          value="{{ listing_header_row }}"
+        >
+      </div>
     </form>
   </div>
 
@@ -177,6 +249,30 @@
             <strong>Demande transport</strong>
             {{ listing_meta.transport_request_date }}
           </div>
+          {% if listing_meta.sheet_name %}
+            <div class="scan-meta-item">
+              <strong>Feuille</strong>
+              {{ listing_meta.sheet_name }}
+            </div>
+          {% endif %}
+          {% if listing_meta.header_row %}
+            <div class="scan-meta-item">
+              <strong>Ligne titres</strong>
+              {{ listing_meta.header_row }}
+            </div>
+          {% endif %}
+          {% if listing_meta.sheet_names %}
+            <div class="scan-meta-item">
+              <strong>Feuilles detectees</strong>
+              {{ listing_meta.sheet_names }}
+            </div>
+          {% endif %}
+          {% if listing_meta.pdf_pages %}
+            <div class="scan-meta-item">
+              <strong>Pages PDF</strong>
+              {{ listing_meta.pdf_pages }}
+            </div>
+          {% endif %}
         </div>
       {% endif %}
       <form method="post" class="scan-filters" style="grid-template-columns: 1fr;">
@@ -250,6 +346,30 @@
             <strong>Demande transport</strong>
             {{ listing_meta.transport_request_date }}
           </div>
+          {% if listing_meta.sheet_name %}
+            <div class="scan-meta-item">
+              <strong>Feuille</strong>
+              {{ listing_meta.sheet_name }}
+            </div>
+          {% endif %}
+          {% if listing_meta.header_row %}
+            <div class="scan-meta-item">
+              <strong>Ligne titres</strong>
+              {{ listing_meta.header_row }}
+            </div>
+          {% endif %}
+          {% if listing_meta.sheet_names %}
+            <div class="scan-meta-item">
+              <strong>Feuilles detectees</strong>
+              {{ listing_meta.sheet_names }}
+            </div>
+          {% endif %}
+          {% if listing_meta.pdf_pages %}
+            <div class="scan-meta-item">
+              <strong>Pages PDF</strong>
+              {{ listing_meta.pdf_pages }}
+            </div>
+          {% endif %}
         </div>
       {% endif %}
       <form method="post" class="scan-filters">

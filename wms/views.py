@@ -107,6 +107,7 @@ from .import_utils import (
     extract_tabular_data,
     get_value,
     iter_import_rows,
+    list_excel_sheets,
     normalize_header,
     parse_bool,
     parse_decimal,
@@ -2370,6 +2371,33 @@ def scan_receive_pallet(request):
     listing_rows = []
     listing_errors = []
     pending = request.session.get("pallet_listing_pending")
+    listing_sheet_names = []
+    listing_sheet_name = ""
+    listing_header_row = 1
+    listing_pdf_pages_mode = "all"
+    listing_pdf_page_start = ""
+    listing_pdf_page_end = ""
+
+    def _build_listing_extract_options(extension, sheet_name, header_row, pdf_mode, page_start, page_end):
+        options = {}
+        if extension in {".xlsx", ".xls"}:
+            if sheet_name:
+                options["sheet_name"] = sheet_name
+            options["header_row"] = header_row or 1
+        if extension == ".pdf" and pdf_mode == "custom":
+            options["pdf_pages"] = (page_start, page_end)
+        return options
+
+    def _pending_extract_options(pending_data):
+        pdf_pages = pending_data.get("pdf_pages") or {}
+        return _build_listing_extract_options(
+            pending_data.get("extension", ""),
+            pending_data.get("sheet_name", ""),
+            pending_data.get("header_row") or 1,
+            pdf_pages.get("mode") or "all",
+            pdf_pages.get("start"),
+            pdf_pages.get("end"),
+        )
 
     def clear_pending():
         pending_data = request.session.pop("pallet_listing_pending", None)
@@ -2453,6 +2481,22 @@ def scan_receive_pallet(request):
         return redirect("scan:scan_receive_pallet")
 
     if action == "listing_upload":
+        listing_pdf_pages_mode = (
+            request.POST.get("listing_pdf_pages_mode") or "all"
+        ).strip()
+        listing_pdf_page_start = (request.POST.get("listing_pdf_page_start") or "").strip()
+        listing_pdf_page_end = (request.POST.get("listing_pdf_page_end") or "").strip()
+        listing_sheet_name = (request.POST.get("listing_sheet_name") or "").strip()
+        header_row_raw = (request.POST.get("listing_header_row") or "").strip()
+        pdf_page_start = None
+        pdf_page_end = None
+        header_row_error = None
+
+        if header_row_raw:
+            try:
+                listing_header_row = parse_int(header_row_raw)
+            except ValueError:
+                header_row_error = "Ligne des titres invalide."
         if not listing_form.is_valid():
             listing_errors.append("Renseignez les informations de reception.")
         uploaded = request.FILES.get("listing_file")
@@ -2464,12 +2508,60 @@ def scan_receive_pallet(request):
                 listing_errors.append("Format de fichier non supporte.")
             else:
                 data = uploaded.read()
-                try:
-                    headers, rows = extract_tabular_data(data, extension)
-                    if not rows:
-                        listing_errors.append("Fichier vide ou sans lignes exploitables.")
-                except ValueError as exc:
-                    listing_errors.append(str(exc))
+                sheet_names = []
+                if extension in {".xlsx", ".xls"} and not listing_errors:
+                    if header_row_error:
+                        listing_errors.append(header_row_error)
+                    if listing_header_row < 1:
+                        listing_errors.append("Ligne des titres invalide (>= 1).")
+                        listing_header_row = 1
+                    try:
+                        sheet_names = list_excel_sheets(data, extension)
+                    except ValueError as exc:
+                        listing_errors.append(str(exc))
+                    if sheet_names:
+                        listing_sheet_names = sheet_names
+                        if listing_sheet_name:
+                            if listing_sheet_name not in sheet_names:
+                                listing_errors.append(
+                                    f"Feuille inconnue: {listing_sheet_name}."
+                                )
+                        else:
+                            listing_sheet_name = sheet_names[0]
+                if extension == ".pdf" and listing_pdf_pages_mode == "custom" and not listing_errors:
+                    if not listing_pdf_page_start or not listing_pdf_page_end:
+                        listing_errors.append("Renseignez les pages PDF debut et fin.")
+                    else:
+                        try:
+                            pdf_page_start = parse_int(listing_pdf_page_start)
+                            pdf_page_end = parse_int(listing_pdf_page_end)
+                        except ValueError:
+                            listing_errors.append("Pages PDF invalides.")
+                    if pdf_page_start is not None and pdf_page_end is not None:
+                        if pdf_page_start < 1 or pdf_page_end < pdf_page_start:
+                            listing_errors.append("Plage de pages PDF invalide.")
+                    if listing_errors:
+                        pdf_page_start = None
+                        pdf_page_end = None
+                if not listing_errors:
+                    extract_options = _build_listing_extract_options(
+                        extension,
+                        listing_sheet_name,
+                        listing_header_row,
+                        listing_pdf_pages_mode,
+                        pdf_page_start,
+                        pdf_page_end,
+                    )
+                    try:
+                        headers, rows = extract_tabular_data(
+                            data,
+                            extension,
+                            **extract_options,
+                        )
+                        if not rows:
+                            listing_errors.append("Fichier vide ou sans lignes exploitables.")
+                    except ValueError as exc:
+                        listing_errors.append(str(exc))
                 if not listing_errors:
                     temp_file = tempfile.NamedTemporaryFile(
                         delete=False, suffix=extension
@@ -2483,6 +2575,14 @@ def scan_receive_pallet(request):
                         "extension": extension,
                         "headers": headers,
                         "mapping": mapping_defaults,
+                        "sheet_names": sheet_names,
+                        "sheet_name": listing_sheet_name,
+                        "header_row": listing_header_row,
+                        "pdf_pages": {
+                            "mode": listing_pdf_pages_mode,
+                            "start": pdf_page_start,
+                            "end": pdf_page_end,
+                        },
                         "receipt_meta": {
                             "received_on": listing_form.cleaned_data["received_on"].isoformat(),
                             "pallet_count": listing_form.cleaned_data["pallet_count"],
@@ -2540,7 +2640,11 @@ def scan_receive_pallet(request):
         if listing_errors:
             listing_stage = "mapping"
             data = Path(pending["file_path"]).read_bytes()
-            headers, rows = extract_tabular_data(data, pending["extension"])
+            headers, rows = extract_tabular_data(
+                data,
+                pending["extension"],
+                **_pending_extract_options(pending),
+            )
             for idx, header in enumerate(headers):
                 sample = ""
                 for row in rows:
@@ -2559,7 +2663,11 @@ def scan_receive_pallet(request):
             pending["mapping"] = mapping
             request.session["pallet_listing_pending"] = pending
             data = Path(pending["file_path"]).read_bytes()
-            headers, rows = extract_tabular_data(data, pending["extension"])
+            headers, rows = extract_tabular_data(
+                data,
+                pending["extension"],
+                **_pending_extract_options(pending),
+            )
             listing_rows = build_review_rows(headers, rows, mapping)
             listing_stage = "review"
 
@@ -2570,7 +2678,11 @@ def scan_receive_pallet(request):
             messages.error(request, "Session d'import expirée.")
             return redirect("scan:scan_receive_pallet")
         data = Path(pending["file_path"]).read_bytes()
-        headers, rows = extract_tabular_data(data, pending["extension"])
+        headers, rows = extract_tabular_data(
+            data,
+            pending["extension"],
+            **_pending_extract_options(pending),
+        )
         mapping = pending.get("mapping") or {}
         mapped_rows = _apply_listing_mapping(rows, mapping)
         receipt_meta = pending.get("receipt_meta") or {}
@@ -2721,6 +2833,18 @@ def scan_receive_pallet(request):
     listing_meta = None
     if pending:
         receipt_meta = pending.get("receipt_meta") or {}
+        pdf_pages = pending.get("pdf_pages") or {}
+        extension = pending.get("extension")
+        sheet_names = pending.get("sheet_names") or []
+        sheet_names_display = ", ".join(sheet_names) if sheet_names else ""
+        sheet_name_value = pending.get("sheet_name") if extension in {".xlsx", ".xls"} else ""
+        header_row_value = pending.get("header_row") if extension in {".xlsx", ".xls"} else ""
+        pdf_pages_label = ""
+        if extension == ".pdf":
+            if pdf_pages.get("mode") == "custom" and pdf_pages.get("start") and pdf_pages.get("end"):
+                pdf_pages_label = f"{pdf_pages['start']} - {pdf_pages['end']}"
+            else:
+                pdf_pages_label = "Toutes les pages"
         source_contact = Contact.objects.filter(
             id=receipt_meta.get("source_contact_id")
         ).first()
@@ -2733,7 +2857,24 @@ def scan_receive_pallet(request):
             "source_contact": source_contact.name if source_contact else "",
             "carrier_contact": carrier_contact.name if carrier_contact else "",
             "transport_request_date": receipt_meta.get("transport_request_date") or "",
+            "sheet_name": sheet_name_value or "",
+            "header_row": header_row_value or "",
+            "sheet_names": sheet_names_display if extension in {".xlsx", ".xls"} else "",
+            "pdf_pages": pdf_pages_label,
         }
+
+        if extension in {".xlsx", ".xls"} and sheet_names and not listing_sheet_names:
+            listing_sheet_names = sheet_names
+        if sheet_name_value:
+            listing_sheet_name = sheet_name_value
+        if header_row_value:
+            listing_header_row = header_row_value
+        if pdf_pages.get("mode"):
+            listing_pdf_pages_mode = pdf_pages.get("mode")
+        if pdf_pages.get("start") is not None:
+            listing_pdf_page_start = str(pdf_pages.get("start"))
+        if pdf_pages.get("end") is not None:
+            listing_pdf_page_end = str(pdf_pages.get("end"))
 
     return render(
         request,
@@ -2751,6 +2892,12 @@ def scan_receive_pallet(request):
             "mapping_fields": PALLET_LISTING_MAPPING_FIELDS,
             "review_fields": PALLET_REVIEW_FIELDS,
             "location_fields": PALLET_LOCATION_FIELDS,
+            "listing_sheet_names": listing_sheet_names,
+            "listing_sheet_name": listing_sheet_name,
+            "listing_header_row": listing_header_row,
+            "listing_pdf_pages_mode": listing_pdf_pages_mode,
+            "listing_pdf_page_start": listing_pdf_page_start,
+            "listing_pdf_page_end": listing_pdf_page_end,
         },
     )
 

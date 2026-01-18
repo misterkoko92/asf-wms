@@ -183,46 +183,74 @@ def _extract_csv_table(data):
     return _sanitize_headers(headers), rows
 
 
-def _extract_xlsx_table(data):
+def _extract_xlsx_table(data, sheet_name=None, header_row=1):
     if load_workbook is None:
         raise ValueError("openpyxl est requis pour importer .xlsx/.xlsm.")
     workbook = load_workbook(BytesIO(data), data_only=True)
-    sheet = workbook.active
+    if sheet_name:
+        if sheet_name not in workbook.sheetnames:
+            workbook.close()
+            raise ValueError(f"Feuille inconnue: {sheet_name}")
+        sheet = workbook[sheet_name]
+    else:
+        sheet = workbook.active
+    if header_row < 1:
+        workbook.close()
+        raise ValueError("Ligne des titres invalide (doit etre >= 1).")
     rows = sheet.iter_rows(values_only=True)
-    try:
-        headers = next(rows)
-    except StopIteration as exc:
-        raise ValueError("Excel vide.") from exc
-    headers = _sanitize_headers(headers)
+    headers = None
     data_rows = []
-    for row in rows:
+    for index, row in enumerate(rows, start=1):
+        if index < header_row:
+            continue
+        if headers is None:
+            headers = _sanitize_headers(row)
+            continue
         data_rows.append([_coerce_cell(cell) for cell in row])
+    if headers is None:
+        workbook.close()
+        raise ValueError("Excel vide.")
     workbook.close()
     return headers, data_rows
 
 
-def _extract_xls_table(data):
+def _extract_xls_table(data, sheet_name=None, header_row=1):
     if xlrd is None:
         raise ValueError("xlrd est requis pour importer .xls.")
     workbook = xlrd.open_workbook(file_contents=data)
-    sheet = workbook.sheet_by_index(0)
+    if sheet_name:
+        try:
+            sheet = workbook.sheet_by_name(sheet_name)
+        except xlrd.biffh.XLRDError as exc:
+            raise ValueError(f"Feuille inconnue: {sheet_name}") from exc
+    else:
+        sheet = workbook.sheet_by_index(0)
     if sheet.nrows == 0:
         raise ValueError("Excel vide.")
-    headers = [sheet.cell_value(0, col) for col in range(sheet.ncols)]
+    if header_row < 1 or header_row > sheet.nrows:
+        raise ValueError("Ligne des titres invalide (hors limites).")
+    header_index = header_row - 1
+    headers = [sheet.cell_value(header_index, col) for col in range(sheet.ncols)]
     headers = _sanitize_headers(headers, row_length=sheet.ncols)
     rows = []
-    for row_index in range(1, sheet.nrows):
+    for row_index in range(header_index + 1, sheet.nrows):
         row = [sheet.cell_value(row_index, col) for col in range(sheet.ncols)]
         rows.append([_coerce_cell(cell) for cell in row])
     return headers, rows
 
 
-def _extract_pdf_table(data):
+def _extract_pdf_table(data, page_start=None, page_end=None):
     if pdfplumber is None:
         raise ValueError("pdfplumber est requis pour importer des PDF texte.")
     with pdfplumber.open(BytesIO(data)) as pdf:
+        total_pages = len(pdf.pages)
+        start = page_start or 1
+        end = page_end or total_pages
+        if start < 1 or end < start or end > total_pages:
+            raise ValueError("Plage de pages PDF invalide.")
+        pages = pdf.pages[start - 1 : end]
         tables = []
-        for page in pdf.pages:
+        for page in pages:
             table = page.extract_table()
             if table and len(table) > 1:
                 tables.append(table)
@@ -256,16 +284,36 @@ def _extract_pdf_table(data):
     return headers, normalized_rows
 
 
-def extract_tabular_data(data, extension):
+def extract_tabular_data(data, extension, sheet_name=None, header_row=1, pdf_pages=None):
     if extension == ".csv":
         return _extract_csv_table(data)
     if extension in {".xlsx", ".xlsm"}:
-        return _extract_xlsx_table(data)
+        return _extract_xlsx_table(data, sheet_name=sheet_name, header_row=header_row)
     if extension == ".xls":
-        return _extract_xls_table(data)
+        return _extract_xls_table(data, sheet_name=sheet_name, header_row=header_row)
     if extension == ".pdf":
-        return _extract_pdf_table(data)
+        page_start = None
+        page_end = None
+        if pdf_pages:
+            page_start, page_end = pdf_pages
+        return _extract_pdf_table(data, page_start=page_start, page_end=page_end)
     raise ValueError("Format de fichier non supporte.")
+
+
+def list_excel_sheets(data, extension):
+    if extension in {".xlsx", ".xlsm"}:
+        if load_workbook is None:
+            raise ValueError("openpyxl est requis pour importer .xlsx/.xlsm.")
+        workbook = load_workbook(BytesIO(data), data_only=True)
+        sheet_names = list(workbook.sheetnames)
+        workbook.close()
+        return sheet_names
+    if extension == ".xls":
+        if xlrd is None:
+            raise ValueError("xlrd est requis pour importer .xls.")
+        workbook = xlrd.open_workbook(file_contents=data)
+        return workbook.sheet_names()
+    return []
 
 
 def get_value(row, *keys):
