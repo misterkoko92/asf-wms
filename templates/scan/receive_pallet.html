@@ -88,19 +88,27 @@
       {% csrf_token %}
       <input type="hidden" name="action" value="listing_upload">
 
+      <div class="scan-field">
+        <label for="{{ listing_form.received_on.id_for_label }}">Date reception</label>
+        {{ listing_form.received_on }}
+        {% for error in listing_form.received_on.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
-          <label for="{{ listing_form.received_on.id_for_label }}">Date reception</label>
-          {{ listing_form.received_on }}
-          {% for error in listing_form.received_on.errors %}
+          <label for="{{ listing_form.pallet_count.id_for_label }}">Nombre de palettes</label>
+          {{ listing_form.pallet_count }}
+          {% for error in listing_form.pallet_count.errors %}
             <div class="scan-message error">{{ error }}</div>
           {% endfor %}
         </div>
 
         <div class="scan-field">
-          <label for="{{ listing_form.pallet_count.id_for_label }}">Nombre de palettes</label>
-          {{ listing_form.pallet_count }}
-          {% for error in listing_form.pallet_count.errors %}
+          <label for="{{ listing_form.transport_request_date.id_for_label }}">Date demande transport</label>
+          {{ listing_form.transport_request_date }}
+          {% for error in listing_form.transport_request_date.errors %}
             <div class="scan-message error">{{ error }}</div>
           {% endfor %}
         </div>
@@ -249,14 +257,6 @@
           </div>
           <div></div>
         </div>
-      </div>
-
-      <div class="scan-field">
-        <label for="{{ listing_form.transport_request_date.id_for_label }}">Date demande transport</label>
-        {{ listing_form.transport_request_date }}
-        {% for error in listing_form.transport_request_date.errors %}
-          <div class="scan-message error">{{ error }}</div>
-        {% endfor %}
       </div>
 
       <div class="scan-field scan-field-gap">
