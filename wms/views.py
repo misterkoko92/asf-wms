@@ -4780,9 +4780,8 @@ def scan_faq(request):
     )
 
 
-SERVICE_WORKER_JS = """const CACHE_NAME = 'wms-scan-v32';
+SERVICE_WORKER_JS = """const CACHE_NAME = 'wms-scan-v33';
 const ASSETS = [
-  '/scan/',
   '/static/scan/scan.css',
   '/static/scan/scan.js',
   '/static/scan/zxing.min.js',
@@ -4807,6 +4806,18 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') {
+    return;
+  }
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
     return;
   }
   event.respondWith(

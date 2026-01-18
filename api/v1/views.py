@@ -36,9 +36,18 @@ from .serializers import (
 )
 
 
+class ProductAccessPermission(IsAuthenticated):
+    def has_permission(self, request, view):
+        api_key = getattr(settings, "INTEGRATION_API_KEY", "").strip()
+        request_key = request.headers.get("X-ASF-Integration-Key", "").strip()
+        if api_key and request_key == api_key:
+            return True
+        return bool(request.user and request.user.is_authenticated)
+
+
 class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = ProductSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [ProductAccessPermission]
 
     def get_queryset(self):
         queryset = Product.objects.filter(is_active=True)
