@@ -132,10 +132,6 @@
         {% endfor %}
       </div>
 
-      <div class="scan-field scan-field-gap">
-        <button type="submit" class="scan-submit secondary">Analyser listing</button>
-      </div>
-
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
           <label for="listing_file">Fichier listing (CSV/XLS/XLSX/PDF)</label>
@@ -261,6 +257,10 @@
         {% for error in listing_form.transport_request_date.errors %}
           <div class="scan-message error">{{ error }}</div>
         {% endfor %}
+      </div>
+
+      <div class="scan-field scan-field-gap">
+        <button type="submit" class="scan-submit secondary">Analyser listing</button>
       </div>
 
     </form>
