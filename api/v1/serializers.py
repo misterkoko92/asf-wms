@@ -13,7 +13,7 @@ from wms.models import (
 
 class ProductSerializer(serializers.ModelSerializer):
     available_stock = serializers.IntegerField(read_only=True)
-    category_id = serializers.IntegerField(source="category_id", read_only=True)
+    category_id = serializers.IntegerField(read_only=True)
     category_name = serializers.CharField(source="category.name", read_only=True)
     tags = serializers.SlugRelatedField(many=True, read_only=True, slug_field="name")
 
