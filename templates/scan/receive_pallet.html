@@ -88,72 +88,63 @@
       {% csrf_token %}
       <input type="hidden" name="action" value="listing_upload">
 
-      <div class="scan-inline scan-inline-equal">
-        <div class="scan-field">
-          <label for="{{ listing_form.received_on.id_for_label }}">Date reception</label>
-          {{ listing_form.received_on }}
-          {% for error in listing_form.received_on.errors %}
-            <div class="scan-message error">{{ error }}</div>
-          {% endfor %}
-        </div>
-
-        <div class="scan-field">
-          <label for="{{ listing_form.pallet_count.id_for_label }}">Nombre de palettes</label>
-          {{ listing_form.pallet_count }}
-          {% for error in listing_form.pallet_count.errors %}
-            <div class="scan-message error">{{ error }}</div>
-          {% endfor %}
-        </div>
+      <div class="scan-field">
+        <label for="{{ listing_form.received_on.id_for_label }}">Date reception</label>
+        {{ listing_form.received_on }}
+        {% for error in listing_form.received_on.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
       </div>
 
-      <div class="scan-inline scan-inline-equal">
-        <div class="scan-field">
-          <label for="{{ listing_form.source_contact.id_for_label }}">Donateur</label>
-          <div class="scan-inline">
-            {{ listing_form.source_contact }}
-            <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
-              Ajouter donateur
-            </a>
-          </div>
-          {% for error in listing_form.source_contact.errors %}
-            <div class="scan-message error">{{ error }}</div>
-          {% endfor %}
-        </div>
-
-        <div class="scan-field">
-          <label for="{{ listing_form.carrier_contact.id_for_label }}">Transporteur</label>
-          <div class="scan-inline">
-            {{ listing_form.carrier_contact }}
-            <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
-              Ajouter transporteur
-            </a>
-          </div>
-          {% for error in listing_form.carrier_contact.errors %}
-            <div class="scan-message error">{{ error }}</div>
-          {% endfor %}
-        </div>
+      <div class="scan-field">
+        <label for="{{ listing_form.pallet_count.id_for_label }}">Nombre de palettes</label>
+        {{ listing_form.pallet_count }}
+        {% for error in listing_form.pallet_count.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
       </div>
 
-      <div class="scan-inline scan-inline-equal">
-        <div class="scan-field">
-          <label for="{{ listing_form.transport_request_date.id_for_label }}">Date demande transport</label>
-          {{ listing_form.transport_request_date }}
-          {% for error in listing_form.transport_request_date.errors %}
-            <div class="scan-message error">{{ error }}</div>
-          {% endfor %}
+      <div class="scan-field">
+        <label for="{{ listing_form.source_contact.id_for_label }}">Donateur</label>
+        <div class="scan-inline">
+          {{ listing_form.source_contact }}
+          <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+            Ajouter donateur
+          </a>
         </div>
-
-        <div class="scan-field">
-          <label for="listing_file">Fichier listing (CSV/XLS/XLSX/PDF)</label>
-          <input type="file" id="listing_file" name="listing_file" accept=".csv,.xlsx,.xls,.pdf" required>
-        </div>
+        {% for error in listing_form.source_contact.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
       </div>
 
-      <div class="scan-inline scan-inline-equal">
-        <div class="scan-field">
-          <button type="submit" class="scan-submit secondary">Analyser listing</button>
+      <div class="scan-field scan-field-gap">
+        <button type="submit" class="scan-submit secondary">Analyser listing</button>
+      </div>
+
+      <div class="scan-field">
+        <label for="{{ listing_form.carrier_contact.id_for_label }}">Transporteur</label>
+        <div class="scan-inline">
+          {{ listing_form.carrier_contact }}
+          <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+            Ajouter transporteur
+          </a>
         </div>
-        <div class="scan-field"></div>
+        {% for error in listing_form.carrier_contact.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="scan-field">
+        <label for="{{ listing_form.transport_request_date.id_for_label }}">Date demande transport</label>
+        {{ listing_form.transport_request_date }}
+        {% for error in listing_form.transport_request_date.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="scan-field">
+        <label for="listing_file">Fichier listing (CSV/XLS/XLSX/PDF)</label>
+        <input type="file" id="listing_file" name="listing_file" accept=".csv,.xlsx,.xls,.pdf" required>
       </div>
     </form>
   </div>
