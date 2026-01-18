@@ -106,7 +106,23 @@
   <script src="{% static 'scan/scan.js' %}"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register("{% url 'scan:scan_service_worker' %}");
+      navigator.serviceWorker.register("{% url 'scan:scan_service_worker' %}")
+        .then(function(registration) {
+          if (registration.update) {
+            registration.update();
+          }
+          registration.addEventListener('updatefound', function() {
+            var newWorker = registration.installing;
+            if (!newWorker) {
+              return;
+            }
+            newWorker.addEventListener('statechange', function() {
+              if (newWorker.state === 'activated' && navigator.serviceWorker.controller) {
+                window.location.reload();
+              }
+            });
+          });
+        });
     }
   </script>
 </body>
