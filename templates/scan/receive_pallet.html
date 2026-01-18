@@ -179,7 +179,7 @@
           </div>
         </div>
       {% endif %}
-      <form method="post" class="scan-filters">
+      <form method="post" class="scan-filters" style="grid-template-columns: 1fr;">
         {% csrf_token %}
         <input type="hidden" name="action" value="listing_map">
         <input type="hidden" name="pending_token" value="{{ listing_token }}">
