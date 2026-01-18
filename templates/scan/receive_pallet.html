@@ -84,24 +84,26 @@
     {% if listing_form.non_field_errors %}
       <div class="scan-message error">{{ listing_form.non_field_errors }}</div>
     {% endif %}
-    <form method="post" enctype="multipart/form-data" class="scan-filters" novalidate>
+    <form method="post" enctype="multipart/form-data" class="scan-filters" novalidate style="grid-template-columns: 1fr;">
       {% csrf_token %}
       <input type="hidden" name="action" value="listing_upload">
 
-      <div class="scan-field">
-        <label for="{{ listing_form.received_on.id_for_label }}">Date reception</label>
-        {{ listing_form.received_on }}
-        {% for error in listing_form.received_on.errors %}
-          <div class="scan-message error">{{ error }}</div>
-        {% endfor %}
-      </div>
+      <div class="scan-inline scan-inline-equal">
+        <div class="scan-field">
+          <label for="{{ listing_form.received_on.id_for_label }}">Date reception</label>
+          {{ listing_form.received_on }}
+          {% for error in listing_form.received_on.errors %}
+            <div class="scan-message error">{{ error }}</div>
+          {% endfor %}
+        </div>
 
-      <div class="scan-field">
-        <label for="{{ listing_form.pallet_count.id_for_label }}">Nombre de palettes</label>
-        {{ listing_form.pallet_count }}
-        {% for error in listing_form.pallet_count.errors %}
-          <div class="scan-message error">{{ error }}</div>
-        {% endfor %}
+        <div class="scan-field">
+          <label for="{{ listing_form.pallet_count.id_for_label }}">Nombre de palettes</label>
+          {{ listing_form.pallet_count }}
+          {% for error in listing_form.pallet_count.errors %}
+            <div class="scan-message error">{{ error }}</div>
+          {% endfor %}
+        </div>
       </div>
 
       <div class="scan-field">
@@ -117,10 +119,6 @@
         {% endfor %}
       </div>
 
-      <div class="scan-field scan-field-gap">
-        <button type="submit" class="scan-submit secondary">Analyser listing</button>
-      </div>
-
       <div class="scan-field">
         <label for="{{ listing_form.carrier_contact.id_for_label }}">Transporteur</label>
         <div class="scan-inline">
@@ -132,6 +130,10 @@
         {% for error in listing_form.carrier_contact.errors %}
           <div class="scan-message error">{{ error }}</div>
         {% endfor %}
+      </div>
+
+      <div class="scan-field scan-field-gap">
+        <button type="submit" class="scan-submit secondary">Analyser listing</button>
       </div>
 
       <div class="scan-inline scan-inline-equal">
@@ -316,6 +318,12 @@
               {{ listing_meta.pdf_pages }}
             </div>
           {% endif %}
+          {% if listing_meta.pdf_total_pages %}
+            <div class="scan-meta-item">
+              <strong>Pages totales</strong>
+              {{ listing_meta.pdf_total_pages }}
+            </div>
+          {% endif %}
         </div>
       {% endif %}
       <form method="post" class="scan-filters" style="grid-template-columns: 1fr;">
@@ -411,6 +419,12 @@
             <div class="scan-meta-item">
               <strong>Pages PDF</strong>
               {{ listing_meta.pdf_pages }}
+            </div>
+          {% endif %}
+          {% if listing_meta.pdf_total_pages %}
+            <div class="scan-meta-item">
+              <strong>Pages totales</strong>
+              {{ listing_meta.pdf_total_pages }}
             </div>
           {% endif %}
         </div>
@@ -626,6 +640,12 @@
 
       function setType(type) {
         if (!type) {
+          optionBlocks.forEach(function(block) {
+            block.hidden = true;
+          });
+          typeInputs.forEach(function(input) {
+            input.checked = false;
+          });
           return;
         }
         typeInputs.forEach(function(input) {
@@ -651,7 +671,7 @@
         });
       }
 
-      var initial = defaultType || detectTypeFromName(fileInput ? fileInput.value : "") || "excel";
+      var initial = defaultType || detectTypeFromName(fileInput ? fileInput.value : "");
       setType(initial);
     })();
   </script>

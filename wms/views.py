@@ -2484,6 +2484,7 @@ def scan_receive_pallet(request):
         return redirect("scan:scan_receive_pallet")
 
     if action == "listing_upload":
+        listing_file_type = (request.POST.get("listing_file_type") or "").strip()
         listing_pdf_pages_mode = (
             request.POST.get("listing_pdf_pages_mode") or "all"
         ).strip()
@@ -2890,6 +2891,7 @@ def scan_receive_pallet(request):
             "header_row": header_row_value or "",
             "sheet_names": sheet_names_display if extension in {".xlsx", ".xls"} else "",
             "pdf_pages": pdf_pages_label,
+            "pdf_total_pages": pdf_pages.get("total") if extension == ".pdf" else "",
         }
 
         if extension in {".xlsx", ".xls"} and sheet_names and not listing_sheet_names:
