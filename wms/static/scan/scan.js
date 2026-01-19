@@ -1430,6 +1430,11 @@
         sku: product.sku || '',
         barcode: product.barcode || '',
         ean: product.ean || '',
+        brand: product.brand || '',
+        codeValue: product.sku || product.barcode || product.ean || product.name || '',
+        codeLower: (product.sku || product.barcode || product.ean || product.name || '')
+          .toString()
+          .toLowerCase(),
         weightG: product.weight_g || 0
       }));
 
@@ -1533,6 +1538,7 @@
       const cartonSelect = line.querySelector('.shipment-line-carton');
       const productInput = line.querySelector('.shipment-line-product');
       const quantityInput = line.querySelector('.shipment-line-quantity');
+      const filterInput = line.querySelector('.scan-select-filter');
       if (!cartonSelect || !productInput || !quantityInput) {
         return;
       }
@@ -1540,9 +1546,15 @@
       if (hasCarton) {
         productInput.value = '';
         quantityInput.value = '';
+        if (filterInput) {
+          filterInput.value = '';
+        }
       }
       productInput.disabled = hasCarton;
       quantityInput.disabled = hasCarton;
+      if (filterInput) {
+        filterInput.disabled = hasCarton;
+      }
       const scanBtn = line.querySelector('.shipment-line-scan');
       if (scanBtn) {
         scanBtn.disabled = hasCarton;
@@ -1594,14 +1606,52 @@
         });
         cartonSelect.value = lineValue.carton_id || '';
 
-        const productInput = document.createElement('input');
-        productInput.type = 'text';
+        const productInput = document.createElement('select');
         productInput.name = `line_${index}_product_code`;
         productInput.className = 'shipment-line-product';
         productInput.id = `id_shipment_line_${index}_product_code`;
-        productInput.setAttribute('list', 'product-options');
-        productInput.setAttribute('autocomplete', 'off');
-        productInput.value = lineValue.product_code || '';
+
+        const filterInput = document.createElement('input');
+        filterInput.type = 'text';
+        filterInput.className = 'scan-select-filter';
+        filterInput.placeholder = 'Rechercher produit';
+        filterInput.setAttribute('autocomplete', 'off');
+
+        const productStack = document.createElement('div');
+        productStack.className = 'scan-select-stack';
+        productStack.appendChild(filterInput);
+        productStack.appendChild(productInput);
+
+        const optionLabel = product =>
+          product.brand ? `${product.name} — ${product.brand}` : product.name;
+
+        const rebuildOptions = query => {
+          const normalized = normalizeText(query);
+          const selectedValue = productInput.value;
+          productInput.innerHTML = '';
+          const baseOption = document.createElement('option');
+          baseOption.value = '';
+          baseOption.textContent = '---';
+          productInput.appendChild(baseOption);
+          productEntries.forEach(product => {
+            const label = optionLabel(product);
+            if (normalized) {
+              const labelNorm = normalizeText(label);
+              if (!labelNorm.includes(normalized)) {
+                return;
+              }
+            }
+            const option = document.createElement('option');
+            option.value = product.codeValue || product.name;
+            option.textContent = label;
+            productInput.appendChild(option);
+          });
+          if (selectedValue) {
+            productInput.value = selectedValue;
+          }
+        };
+
+        rebuildOptions('');
 
         const scanBtn = document.createElement('button');
         scanBtn.type = 'button';
@@ -1611,7 +1661,7 @@
 
         const productWrap = document.createElement('div');
         productWrap.className = 'scan-inline';
-        productWrap.appendChild(productInput);
+        productWrap.appendChild(productStack);
         productWrap.appendChild(scanBtn);
 
         const quantityInput = document.createElement('input');
@@ -1642,13 +1692,34 @@
           updateTotalWeight();
           updateCartonAvailability();
         });
-        productInput.addEventListener('input', () => {
+        if (lineValue.product_code) {
+          const initialMatch = findProductMatch(lineValue.product_code);
+          if (initialMatch && initialMatch.codeValue) {
+            productInput.value = initialMatch.codeValue;
+            filterInput.value = optionLabel(initialMatch);
+          } else {
+            productInput.value = lineValue.product_code;
+            filterInput.value = lineValue.product_code;
+          }
+        }
+
+        filterInput.addEventListener('input', event => {
+          rebuildOptions(event.target.value);
+        });
+
+        productInput.addEventListener('change', () => {
           if (productInput.value || quantityInput.value) {
             cartonSelect.value = '';
           }
           syncLineState(line);
           updateTotalWeight();
           updateCartonAvailability();
+          if (productInput.value) {
+            const match = findProductMatch(productInput.value);
+            if (match) {
+              filterInput.value = optionLabel(match);
+            }
+          }
         });
         quantityInput.addEventListener('input', () => {
           if (productInput.value || quantityInput.value) {
