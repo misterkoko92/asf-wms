@@ -28,7 +28,7 @@
   const OCR_WORKER_SRC = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js';
   const OCR_CORE_SRC = 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js';
   const OCR_LANG_PATH = 'https://cdn.jsdelivr.net/npm/tesseract.js-data@5.0.0';
-  const OCR_LANG = 'fra+eng';
+  const OCR_LANG = 'fra';
 
   function setupThemeToggle() {
     const toggle = document.getElementById('theme-toggle');
