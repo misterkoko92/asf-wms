@@ -75,6 +75,10 @@
         {% for error in form.carton_count.errors %}
           <div class="scan-message error">{{ error }}</div>
         {% endfor %}
+        <p class="scan-help">
+          Selectionner ci-dessous des colis deja prepares ou creer des colis mono-produit.
+          Pour des colis multi-produits, passer par l'onglet Preparation avant de creer l'expedition.
+        </p>
       </div>
 
       <div class="shipment-lines" id="shipment-lines"></div>
