@@ -22,6 +22,7 @@
   let ocrSessionId = 0;
   let ocrScriptPromise = null;
   let packProductResolver = null;
+  let productResolver = null;
   const ZXING_SRC = '/static/scan/zxing.min.js';
   const OCR_SRC = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
   const OCR_WORKER_SRC = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js';
@@ -142,8 +143,17 @@
     if (!input) {
       return;
     }
+    const tagName = input.tagName ? input.tagName.toLowerCase() : '';
     if (input.classList.contains('pack-line-product') && packProductResolver) {
       const matched = packProductResolver(code);
+      if (matched && matched.codeValue) {
+        input.value = matched.codeValue;
+        dispatchValueEvent(input);
+        return;
+      }
+    }
+    if (tagName === 'select' && productResolver) {
+      const matched = productResolver(code);
       if (matched && matched.codeValue) {
         input.value = matched.codeValue;
         dispatchValueEvent(input);
@@ -643,6 +653,8 @@
         sku: product.sku || '',
         barcode: product.barcode || '',
         ean: product.ean || '',
+        brand: product.brand || '',
+        codeValue: product.sku || product.barcode || product.ean || product.name || '',
         defaultLocationId: product.default_location_id || null,
         storageConditions: product.storage_conditions || ''
       }));
@@ -650,9 +662,6 @@
       return;
     }
     const inputs = document.querySelectorAll('input[list="product-options"]');
-    if (!inputs.length) {
-      return;
-    }
     const MAX_OPTIONS = 40;
     const renderOptions = query => {
       const queryLower = (query || '').trim().toLowerCase();
@@ -727,6 +736,57 @@
       return null;
     };
 
+    productResolver = value => findProductMatch(value);
+
+    if (!inputs.length) {
+      return;
+    }
+
+    const useNativeSelect = window.matchMedia
+      ? window.matchMedia('(pointer: coarse)').matches
+      : false;
+
+    const sortedProducts = [...products].sort((a, b) =>
+      (a.name || '').localeCompare(b.name || '', 'fr', { sensitivity: 'base' })
+    );
+
+    const replaceWithSelect = input => {
+      const select = document.createElement('select');
+      const attributes = Array.from(input.attributes);
+      attributes.forEach(attr => {
+        if (attr.name === 'type' || attr.name === 'list') {
+          return;
+        }
+        select.setAttribute(attr.name, attr.value);
+      });
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = '---';
+      select.appendChild(placeholder);
+      sortedProducts.forEach(product => {
+        const option = document.createElement('option');
+        option.value = product.codeValue || product.name;
+        option.textContent = product.brand
+          ? `${product.name} — ${product.brand}`
+          : product.name;
+        select.appendChild(option);
+      });
+      if (input.value) {
+        const match = findProductMatch(input.value);
+        if (match && match.codeValue) {
+          select.value = match.codeValue;
+        } else {
+          const fallback = document.createElement('option');
+          fallback.value = input.value;
+          fallback.textContent = input.value;
+          select.appendChild(fallback);
+          select.value = input.value;
+        }
+      }
+      input.replaceWith(select);
+      return select;
+    };
+
     const applyProductDefaults = product => {
       if (!product) {
         return;
@@ -747,20 +807,30 @@
 
     renderOptions('');
     inputs.forEach(input => {
-      applyDefaultsFromValue(input.value);
-      input.addEventListener('input', event => {
-        applyDefaultsFromValue(event.target.value);
-        renderOptions(event.target.value);
-      });
-      input.addEventListener('focus', event => {
-        renderOptions(event.target.value);
-      });
-      input.addEventListener('change', event => {
-        applyDefaultsFromValue(event.target.value);
-      });
-      input.addEventListener('blur', event => {
-        applyDefaultsFromValue(event.target.value);
-      });
+      let target = input;
+      if (useNativeSelect) {
+        target = replaceWithSelect(input);
+      }
+      applyDefaultsFromValue(target.value);
+      if (useNativeSelect) {
+        target.addEventListener('change', event => {
+          applyDefaultsFromValue(event.target.value);
+        });
+      } else {
+        target.addEventListener('input', event => {
+          applyDefaultsFromValue(event.target.value);
+          renderOptions(event.target.value);
+        });
+        target.addEventListener('focus', event => {
+          renderOptions(event.target.value);
+        });
+        target.addEventListener('change', event => {
+          applyDefaultsFromValue(event.target.value);
+        });
+        target.addEventListener('blur', event => {
+          applyDefaultsFromValue(event.target.value);
+        });
+      }
     });
   }
 

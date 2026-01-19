@@ -189,7 +189,9 @@
             normalizedValue === normalizedBarcode ||
             normalizedValue === normalizedEan)
         ) {
-          productInput.value = product.name || productInput.value;
+          if (productInput.tagName && productInput.tagName.toLowerCase() !== 'select') {
+            productInput.value = product.name || productInput.value;
+          }
         }
         brandDisplay.value = product.brand || '';
         const location = locationMap.get(String(product.default_location_id || ''));
