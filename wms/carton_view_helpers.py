@@ -65,6 +65,7 @@ def build_cartons_ready_rows(cartons_qs, *, carton_capacity_cm3):
             )
         else:
             packing_list_url = reverse("scan:scan_carton_document", args=[carton.id])
+        picking_url = reverse("scan:scan_carton_picking", args=[carton.id])
         cartons.append(
             {
                 "id": carton.id,
@@ -78,6 +79,7 @@ def build_cartons_ready_rows(cartons_qs, *, carton_capacity_cm3):
                 "location": carton.current_location,
                 "packing_list": packing_list,
                 "packing_list_url": packing_list_url,
+                "picking_url": picking_url,
                 "weight_kg": weight_kg,
                 "volume_percent": volume_percent,
             }

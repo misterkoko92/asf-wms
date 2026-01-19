@@ -53,6 +53,7 @@ from .models import (
 )
 from .print_context import (
     build_carton_document_context,
+    build_carton_picking_context,
     build_label_context,
     build_product_label_context,
     build_preview_context,
@@ -1306,6 +1307,20 @@ def scan_carton_document(request, carton_id):
         blocks = render_layout_from_layout(layout_override, context)
         return render(request, "print/dynamic_document.html", {"blocks": blocks})
     return render(request, "print/liste_colisage_carton.html", context)
+
+
+@login_required
+@require_http_methods(["GET"])
+def scan_carton_picking(request, carton_id):
+    carton = get_object_or_404(
+        Carton.objects.prefetch_related(
+            "cartonitem_set__product_lot__product",
+            "cartonitem_set__product_lot__location",
+        ),
+        pk=carton_id,
+    )
+    context = build_carton_picking_context(carton)
+    return render(request, "print/picking_list_carton.html", context)
 
 
 @login_required

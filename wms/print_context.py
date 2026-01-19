@@ -167,6 +167,39 @@ def build_carton_document_context(shipment, carton):
     }
 
 
+def build_carton_picking_context(carton):
+    rows_by_key = {}
+    for item in carton.cartonitem_set.select_related(
+        "product_lot__product",
+        "product_lot__location",
+    ):
+        product = item.product_lot.product
+        location = item.product_lot.location
+        if location:
+            location_label = f"{location.zone} - {location.aisle} - {location.shelf}"
+        else:
+            location_label = "-"
+        key = (product.id, location.id if location else None)
+        if key not in rows_by_key:
+            rows_by_key[key] = {
+                "product": product.name,
+                "quantity": item.quantity,
+                "location": location_label,
+            }
+        else:
+            rows_by_key[key]["quantity"] += item.quantity
+    item_rows = sorted(
+        rows_by_key.values(),
+        key=lambda row: (row["product"], row["location"]),
+    )
+    return {
+        "document_date": timezone.localdate(),
+        "carton_code": carton.code,
+        "item_rows": item_rows,
+        "hide_footer": True,
+    }
+
+
 def build_label_context(shipment, *, position, total):
     city, iata, _label = _build_destination_info(shipment)
     label_city = (city or shipment.destination_address or "").upper()
