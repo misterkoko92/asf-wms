@@ -97,7 +97,7 @@
   </datalist>
   <script>
     (function () {
-      const productInput = document.getElementById('id_product_code');
+      const getProductInput = () => document.getElementById('id_product_code');
       const brandDisplay = document.getElementById('id_brand_display');
       const locationDisplay = document.getElementById('id_location_display');
       const warehouseDisplay = document.getElementById('id_warehouse_display');
@@ -164,6 +164,10 @@
       };
 
       const updateDisplay = () => {
+        const productInput = getProductInput();
+        if (!productInput) {
+          return;
+        }
         if (!productInput.value.trim()) {
           brandDisplay.value = '';
           locationDisplay.value = '';
@@ -200,10 +204,13 @@
         setVisibility('known');
       };
 
-      if (productInput) {
-        productInput.addEventListener('input', updateDisplay);
-        productInput.addEventListener('change', updateDisplay);
-      }
+      const handleProductEvent = event => {
+        if (event.target && event.target.id === 'id_product_code') {
+          updateDisplay();
+        }
+      };
+      document.addEventListener('input', handleProductEvent);
+      document.addEventListener('change', handleProductEvent);
       updateDisplay();
     })();
   </script>

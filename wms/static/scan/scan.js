@@ -155,10 +155,38 @@
     if (tagName === 'select' && productResolver) {
       const matched = productResolver(code);
       if (matched && matched.codeValue) {
-        input.value = matched.codeValue;
+        const valueToSet = matched.codeValue;
+        const hasOption = Array.from(input.options || []).some(
+          option => option.value === valueToSet
+        );
+        if (!hasOption) {
+          const option = document.createElement('option');
+          option.value = valueToSet;
+          option.textContent = matched.name
+            ? matched.brand
+              ? `${matched.name} — ${matched.brand}`
+              : matched.name
+            : valueToSet;
+          input.appendChild(option);
+        }
+        input.value = valueToSet;
         dispatchValueEvent(input);
         return;
       }
+    }
+    if (tagName === 'select') {
+      const hasOption = Array.from(input.options || []).some(
+        option => option.value === code
+      );
+      if (!hasOption && code) {
+        const option = document.createElement('option');
+        option.value = code;
+        option.textContent = code;
+        input.appendChild(option);
+      }
+      input.value = code;
+      dispatchValueEvent(input);
+      return;
     }
     input.value = code;
     dispatchValueEvent(input);
@@ -742,9 +770,7 @@
       return;
     }
 
-    const useNativeSelect = window.matchMedia
-      ? window.matchMedia('(pointer: coarse)').matches
-      : false;
+    const useSelectFilter = true;
 
     const sortedProducts = [...products].sort((a, b) =>
       (a.name || '').localeCompare(b.name || '', 'fr', { sensitivity: 'base' })
@@ -821,13 +847,13 @@
     inputs.forEach(input => {
       let target = input;
       let filterInput = null;
-      if (useNativeSelect) {
+      if (useSelectFilter) {
         const replacement = replaceWithSelect(input);
         target = replacement.select;
         filterInput = replacement.filterInput;
       }
       applyDefaultsFromValue(target.value);
-      if (useNativeSelect) {
+      if (useSelectFilter) {
         const filterSelectOptions = query => {
           const normalized = normalizeText(query);
           const currentValue = target.value;
@@ -836,32 +862,51 @@
           placeholder.value = '';
           placeholder.textContent = '---';
           target.appendChild(placeholder);
+          let matched = false;
           sortedProducts.forEach(product => {
             const label = buildOptionLabel(product);
             const labelNorm = normalizeText(label);
             if (normalized && !labelNorm.includes(normalized)) {
               return;
             }
+            matched = true;
             const option = document.createElement('option');
             option.value = product.codeValue || product.name;
             option.textContent = label;
             target.appendChild(option);
           });
+          if (!matched && normalized) {
+            const customOption = document.createElement('option');
+            customOption.value = query;
+            customOption.textContent = `Nouveau : ${query}`;
+            target.appendChild(customOption);
+            target.value = query;
+            return true;
+          }
           if (currentValue) {
             target.value = currentValue;
           }
+          return false;
         };
         if (filterInput) {
           filterInput.addEventListener('input', event => {
-            filterSelectOptions(event.target.value);
+            const autoSelected = filterSelectOptions(event.target.value);
+            applyDefaultsFromValue(target.value);
+            if (autoSelected) {
+              dispatchValueEvent(target);
+            }
           });
         }
         target.addEventListener('change', event => {
           applyDefaultsFromValue(event.target.value);
-          if (filterInput && event.target.value) {
-            const match = findProductMatch(event.target.value);
-            if (match) {
-              filterInput.value = buildOptionLabel(match);
+          if (filterInput) {
+            if (event.target.value) {
+              const match = findProductMatch(event.target.value);
+              filterInput.value = match
+                ? buildOptionLabel(match)
+                : event.target.value;
+            } else {
+              filterInput.value = '';
             }
           }
         });
@@ -1538,6 +1583,8 @@
       const cartonSelect = line.querySelector('.shipment-line-carton');
       const productInput = line.querySelector('.shipment-line-product');
       const quantityInput = line.querySelector('.shipment-line-quantity');
+      const productField = line.querySelector('.shipment-line-product-field');
+      const quantityField = line.querySelector('.shipment-line-quantity-field');
       const filterInput = line.querySelector('.scan-select-filter');
       if (!cartonSelect || !productInput || !quantityInput) {
         return;
@@ -1554,6 +1601,12 @@
       quantityInput.disabled = hasCarton;
       if (filterInput) {
         filterInput.disabled = hasCarton;
+      }
+      if (productField) {
+        productField.style.display = hasCarton ? 'none' : '';
+      }
+      if (quantityField) {
+        quantityField.style.display = hasCarton ? 'none' : '';
       }
       const scanBtn = line.querySelector('.shipment-line-scan');
       if (scanBtn) {
@@ -1594,7 +1647,7 @@
         cartonSelect.className = 'shipment-line-carton';
         const defaultOption = document.createElement('option');
         defaultOption.value = '';
-        defaultOption.textContent = 'Choisir un colis prepare';
+        defaultOption.textContent = 'Entrer un produit ou choisir un colis pret';
         cartonSelect.appendChild(defaultOption);
         cartons.forEach(carton => {
           const option = document.createElement('option');
@@ -1673,8 +1726,12 @@
         quantityInput.value = lineValue.quantity || '';
 
         grid.appendChild(buildField('Colis prepare', cartonSelect));
-        grid.appendChild(buildField('Produit', productWrap));
-        grid.appendChild(buildField('Quantite', quantityInput));
+        const productField = buildField('Produit', productWrap);
+        productField.classList.add('shipment-line-product-field');
+        const quantityField = buildField('Quantite', quantityInput);
+        quantityField.classList.add('shipment-line-quantity-field');
+        grid.appendChild(productField);
+        grid.appendChild(quantityField);
         line.appendChild(grid);
 
         const errors = lineErrors[String(index)];
