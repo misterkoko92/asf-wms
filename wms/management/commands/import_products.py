@@ -1,7 +1,5 @@
 import csv
-import re
-import unicodedata
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
@@ -10,6 +8,14 @@ from django.db import transaction
 
 from wms.models import Location, Product, ProductCategory, ProductTag, RackColor, Warehouse
 from wms.services import StockError, receive_stock
+from wms.import_utils import (
+    get_value as get_value_base,
+    normalize_header as normalize_header_base,
+    parse_bool as parse_bool_base,
+    parse_decimal as parse_decimal_base,
+    parse_int as parse_int_base,
+    parse_str as parse_str_base,
+)
 
 try:
     from openpyxl import load_workbook
@@ -22,71 +28,37 @@ except ImportError:  # pragma: no cover - optional dependency at runtime
     xlrd = None
 
 
-TRUE_VALUES = {"true", "1", "yes", "y", "oui", "o", "vrai"}
-FALSE_VALUES = {"false", "0", "no", "n", "non", "faux"}
-
-
 def normalize_header(value: str) -> str:
-    text = str(value or "").strip().lower()
-    if not text:
-        return ""
-    text = unicodedata.normalize("NFKD", text)
-    text = "".join(char for char in text if not unicodedata.combining(char))
-    text = re.sub(r"[^a-z0-9]+", "_", text)
-    return text.strip("_")
+    return normalize_header_base(value)
 
 
 def get_value(row, *keys):
-    for key in keys:
-        if key in row:
-            return row.get(key)
-    return None
+    return get_value_base(row, *keys)
 
 
 def parse_str(value):
-    if value is None:
-        return None
-    text = str(value).strip()
-    return text or None
+    return parse_str_base(value)
 
 
 def parse_decimal(value):
-    if value is None:
-        return None
-    if isinstance(value, Decimal):
-        return value
-    if isinstance(value, (int, float)):
-        return Decimal(str(value))
-    text = str(value).strip()
-    if not text:
-        return None
-    text = text.replace(",", ".")
     try:
-        return Decimal(text)
-    except InvalidOperation as exc:
-        raise CommandError(f"Invalid decimal value: {value}") from exc
+        return parse_decimal_base(value)
+    except ValueError as exc:
+        raise CommandError(str(exc)) from exc
 
 
 def parse_int(value):
-    decimal_value = parse_decimal(value)
-    if decimal_value is None:
-        return None
-    return int(decimal_value.to_integral_value(rounding=ROUND_HALF_UP))
+    try:
+        return parse_int_base(value)
+    except ValueError as exc:
+        raise CommandError(str(exc)) from exc
 
 
 def parse_bool(value):
-    if value is None:
-        return None
-    if isinstance(value, bool):
-        return value
-    text = str(value).strip().lower()
-    if not text:
-        return None
-    if text in TRUE_VALUES:
-        return True
-    if text in FALSE_VALUES:
-        return False
-    raise CommandError(f"Invalid boolean value: {value}")
+    try:
+        return parse_bool_base(value)
+    except ValueError as exc:
+        raise CommandError(str(exc)) from exc
 
 
 def resolve_photo_path(raw_value, base_dir: Path):

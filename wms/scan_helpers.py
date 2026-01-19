@@ -1,6 +1,6 @@
 from decimal import Decimal, InvalidOperation
 
-from django.db.models import F, IntegerField, Q, Sum
+from django.db.models import Case, F, IntegerField, Q, Sum, Value, When
 from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Coalesce
 
@@ -23,16 +23,26 @@ def resolve_product(code: str, *, include_kits: bool = False):
     products = Product.objects.filter(is_active=True)
     if not include_kits:
         products = products.filter(kit_items__isnull=True)
-    product = products.filter(barcode__iexact=code).first()
-    if product:
-        return product
-    product = products.filter(ean__iexact=code).first()
-    if product:
-        return product
-    product = products.filter(sku__iexact=code).first()
-    if product:
-        return product
-    product = products.filter(name__iexact=code).first()
+    product = (
+        products.filter(
+            Q(barcode__iexact=code)
+            | Q(ean__iexact=code)
+            | Q(sku__iexact=code)
+            | Q(name__iexact=code)
+        )
+        .annotate(
+            match_rank=Case(
+                When(barcode__iexact=code, then=Value(1)),
+                When(ean__iexact=code, then=Value(2)),
+                When(sku__iexact=code, then=Value(3)),
+                When(name__iexact=code, then=Value(4)),
+                default=Value(5),
+                output_field=IntegerField(),
+            )
+        )
+        .order_by("match_rank", "name")
+        .first()
+    )
     if product:
         return product
     candidates = list(
@@ -122,6 +132,17 @@ def build_product_options(*, include_kits: bool = False):
     combined = base_products + kit_options
     combined.sort(key=lambda item: (item["name"] or "").lower())
     return combined
+
+
+def build_product_selection_data(*, include_kits: bool = False):
+    product_options = build_product_options(include_kits=include_kits)
+    product_ids = [item["id"] for item in product_options if item.get("id")]
+    products = Product.objects.filter(id__in=product_ids, is_active=True)
+    product_by_id = {product.id: product for product in products}
+    available_by_id = {
+        item["id"]: int(item.get("available_stock") or 0) for item in product_options
+    }
+    return product_options, product_by_id, available_by_id
 
 
 def resolve_default_warehouse():

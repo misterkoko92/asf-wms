@@ -18,6 +18,7 @@ from wms.models import (
     ProductLot,
     ProductLotStatus,
     Shipment,
+    ShipmentStatus,
     StockMovement,
     Warehouse,
 )
@@ -63,6 +64,26 @@ class ApiTests(TestCase):
         data = response.json()
         item = next(row for row in data if row["id"] == self.product.id)
         self.assertEqual(item["available_stock"], 8)
+
+    def test_products_default_filters_active_only(self):
+        inactive = Product.objects.create(
+            sku="API-002",
+            name="Inactive Product",
+            is_active=False,
+        )
+        response = self.client.get("/api/v1/products/")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        ids = {row["id"] for row in data}
+        self.assertIn(self.product.id, ids)
+        self.assertNotIn(inactive.id, ids)
+
+        response = self.client.get("/api/v1/products/?is_active=0")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        ids = {row["id"] for row in data}
+        self.assertIn(inactive.id, ids)
+        self.assertNotIn(self.product.id, ids)
 
     def test_receive_stock_creates_lot(self):
         payload = {
@@ -143,6 +164,56 @@ class ApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(len(data), 1)
+
+    @override_settings(INTEGRATION_API_KEY="test-key")
+    def test_integration_shipments_filters(self):
+        contact = Contact.objects.create(name="Filter Contact")
+        destination_paris = Destination.objects.create(
+            city="Paris",
+            iata_code="PAR",
+            country="France",
+            correspondent_contact=contact,
+        )
+        destination_lyon = Destination.objects.create(
+            city="Lyon",
+            iata_code="LYS",
+            country="France",
+            correspondent_contact=contact,
+        )
+        shipment_paris = Shipment.objects.create(
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            destination=destination_paris,
+            destination_address="10 Rue Test",
+            destination_country="France",
+            status=ShipmentStatus.PACKED,
+        )
+        Shipment.objects.create(
+            shipper_name="Sender 2",
+            recipient_name="Recipient 2",
+            destination=destination_lyon,
+            destination_address="20 Rue Test",
+            destination_country="France",
+            status=ShipmentStatus.SHIPPED,
+        )
+        client = APIClient()
+        response = client.get(
+            "/api/v1/integrations/shipments/?status=packed",
+            HTTP_X_ASF_INTEGRATION_KEY="test-key",
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["id"], shipment_paris.id)
+
+        response = client.get(
+            "/api/v1/integrations/shipments/?destination=PAR",
+            HTTP_X_ASF_INTEGRATION_KEY="test-key",
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]["id"], shipment_paris.id)
 
     @override_settings(INTEGRATION_API_KEY="test-key")
     def test_integration_event_create(self):
