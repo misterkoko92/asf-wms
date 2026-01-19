@@ -750,6 +750,9 @@
       (a.name || '').localeCompare(b.name || '', 'fr', { sensitivity: 'base' })
     );
 
+    const buildOptionLabel = product =>
+      product.brand ? `${product.name} — ${product.brand}` : product.name;
+
     const replaceWithSelect = input => {
       const select = document.createElement('select');
       const attributes = Array.from(input.attributes);
@@ -759,6 +762,17 @@
         }
         select.setAttribute(attr.name, attr.value);
       });
+      const filterInput = document.createElement('input');
+      filterInput.type = 'text';
+      filterInput.className = 'scan-select-filter';
+      filterInput.placeholder = 'Rechercher produit';
+      filterInput.setAttribute('autocomplete', 'off');
+
+      const stack = document.createElement('div');
+      stack.className = 'scan-select-stack';
+      stack.appendChild(filterInput);
+      stack.appendChild(select);
+
       const placeholder = document.createElement('option');
       placeholder.value = '';
       placeholder.textContent = '---';
@@ -766,9 +780,7 @@
       sortedProducts.forEach(product => {
         const option = document.createElement('option');
         option.value = product.codeValue || product.name;
-        option.textContent = product.brand
-          ? `${product.name} — ${product.brand}`
-          : product.name;
+        option.textContent = buildOptionLabel(product);
         select.appendChild(option);
       });
       if (input.value) {
@@ -783,8 +795,8 @@
           select.value = input.value;
         }
       }
-      input.replaceWith(select);
-      return select;
+      input.replaceWith(stack);
+      return { select, filterInput };
     };
 
     const applyProductDefaults = product => {
@@ -808,13 +820,50 @@
     renderOptions('');
     inputs.forEach(input => {
       let target = input;
+      let filterInput = null;
       if (useNativeSelect) {
-        target = replaceWithSelect(input);
+        const replacement = replaceWithSelect(input);
+        target = replacement.select;
+        filterInput = replacement.filterInput;
       }
       applyDefaultsFromValue(target.value);
       if (useNativeSelect) {
+        const filterSelectOptions = query => {
+          const normalized = normalizeText(query);
+          const currentValue = target.value;
+          target.innerHTML = '';
+          const placeholder = document.createElement('option');
+          placeholder.value = '';
+          placeholder.textContent = '---';
+          target.appendChild(placeholder);
+          sortedProducts.forEach(product => {
+            const label = buildOptionLabel(product);
+            const labelNorm = normalizeText(label);
+            if (normalized && !labelNorm.includes(normalized)) {
+              return;
+            }
+            const option = document.createElement('option');
+            option.value = product.codeValue || product.name;
+            option.textContent = label;
+            target.appendChild(option);
+          });
+          if (currentValue) {
+            target.value = currentValue;
+          }
+        };
+        if (filterInput) {
+          filterInput.addEventListener('input', event => {
+            filterSelectOptions(event.target.value);
+          });
+        }
         target.addEventListener('change', event => {
           applyDefaultsFromValue(event.target.value);
+          if (filterInput && event.target.value) {
+            const match = findProductMatch(event.target.value);
+            if (match) {
+              filterInput.value = buildOptionLabel(match);
+            }
+          }
         });
       } else {
         target.addEventListener('input', event => {

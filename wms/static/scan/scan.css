@@ -513,6 +513,17 @@ body {
   justify-content: flex-end;
 }
 
+.scan-select-stack {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+}
+
+.scan-select-stack input,
+.scan-select-stack select {
+  width: 100%;
+}
+
 .scan-inline.scan-inline-equal {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -828,6 +839,17 @@ body {
 
 @media (max-width: 520px) {
   .scan-title { font-size: 24px; }
+}
+
+@media (max-width: 720px) {
+  .scan-inline {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .scan-inline-actions {
+    justify-content: flex-start;
+  }
 }
 
 @media (min-width: 900px) {
