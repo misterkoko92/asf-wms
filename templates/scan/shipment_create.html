@@ -88,6 +88,17 @@
         <input type="text" id="id_total_weight" readonly>
       </div>
 
+      <div class="scan-field">
+        <label>Colis multi-produits</label>
+        <a class="scan-scan-btn" href="{% url 'scan:scan_pack' %}">
+          Creer des colis multi-produits
+        </a>
+        <p class="scan-help">
+          Utilisez l'onglet Preparation pour creer des colis multi-produits, puis revenez ici pour
+          les ajouter a l'expedition.
+        </p>
+      </div>
+
       <button type="submit" class="scan-submit">
         {% if is_edit %}Enregistrer modifications{% else %}Creer expedition{% endif %}
       </button>
