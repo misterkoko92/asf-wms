@@ -1178,6 +1178,17 @@
       productInput.name = `line_${index}_product_code`;
       productInput.className = 'pack-line-product';
 
+      const filterInput = document.createElement('input');
+      filterInput.type = 'text';
+      filterInput.className = 'scan-select-filter';
+      filterInput.placeholder = 'Rechercher produit';
+      filterInput.setAttribute('autocomplete', 'off');
+
+      const productStack = document.createElement('div');
+      productStack.className = 'scan-select-stack';
+      productStack.appendChild(filterInput);
+      productStack.appendChild(productInput);
+
       const placeholder = document.createElement('option');
       placeholder.value = '';
       placeholder.textContent = '---';
@@ -1186,15 +1197,39 @@
       const sortedProducts = [...productEntries].sort((a, b) =>
         a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
       );
-      sortedProducts.forEach(product => {
-        if (!product.name) {
-          return;
+      const optionLabel = product =>
+        product.brand ? `${product.name} — ${product.brand}` : product.name;
+
+      const rebuildOptions = query => {
+        const normalized = normalizeText(query);
+        const selectedValue = productInput.value;
+        productInput.innerHTML = '';
+        const baseOption = document.createElement('option');
+        baseOption.value = '';
+        baseOption.textContent = '---';
+        productInput.appendChild(baseOption);
+        sortedProducts.forEach(product => {
+          if (!product.name) {
+            return;
+          }
+          const label = optionLabel(product);
+          if (normalized) {
+            const labelNorm = normalizeText(label);
+            if (!labelNorm.includes(normalized)) {
+              return;
+            }
+          }
+          const option = document.createElement('option');
+          option.value = product.codeValue || product.name;
+          option.textContent = label;
+          productInput.appendChild(option);
+        });
+        if (selectedValue) {
+          productInput.value = selectedValue;
         }
-        const option = document.createElement('option');
-        option.value = product.codeValue || product.name;
-        option.textContent = product.brand ? `${product.name} — ${product.brand}` : product.name;
-        productInput.appendChild(option);
-      });
+      };
+
+      rebuildOptions('');
 
       if (value.product_code) {
         const initialMatch = findProduct(value.product_code);
@@ -1207,9 +1242,9 @@
             fallbackOption.value = value.product_code;
             fallbackOption.textContent = value.product_code;
             productInput.appendChild(fallbackOption);
-            productInput.value = value.product_code;
-          }
+          productInput.value = value.product_code;
         }
+      }
       }
 
       const scanBtn = document.createElement('button');
@@ -1229,7 +1264,7 @@
       actionWrap.appendChild(scanBtn);
       actionWrap.appendChild(ocrBtn);
 
-      productInline.appendChild(productInput);
+      productInline.appendChild(productStack);
       productInline.appendChild(actionWrap);
       productField.appendChild(productInline);
       grid.appendChild(productField);
@@ -1265,7 +1300,19 @@
         });
       }
 
-      productInput.addEventListener('change', updateAllLineMetrics);
+      filterInput.addEventListener('input', event => {
+        rebuildOptions(event.target.value);
+      });
+
+      productInput.addEventListener('change', event => {
+        updateAllLineMetrics();
+        if (event.target.value) {
+          const match = findProduct(event.target.value);
+          if (match) {
+            filterInput.value = optionLabel(match);
+          }
+        }
+      });
       quantityInput.addEventListener('input', updateAllLineMetrics);
       productInput.addEventListener('change', updateAllLineMetrics);
 
