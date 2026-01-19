@@ -3,13 +3,31 @@
   const video = document.getElementById('scan-video');
   const statusEl = document.getElementById('scan-status');
   const closeBtn = document.getElementById('scan-close');
+  const scanTitle = document.getElementById('scan-modal-title');
+  const captureBtn = document.getElementById('scan-capture');
 
   let activeInput = null;
   let stream = null;
   let detector = null;
   let zxingReader = null;
   let scanning = false;
+  let ocrActiveInput = null;
+  let ocrProducts = [];
+  let ocrOverlay = null;
+  let ocrStatusEl = null;
+  let ocrListEl = null;
+  let ocrRawEl = null;
+  let ocrRetryBtn = null;
+  let ocrCancelBtn = null;
+  let ocrSessionId = 0;
+  let ocrScriptPromise = null;
+  let packProductResolver = null;
   const ZXING_SRC = '/static/scan/zxing.min.js';
+  const OCR_SRC = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+  const OCR_WORKER_SRC = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js';
+  const OCR_CORE_SRC = 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js';
+  const OCR_LANG_PATH = 'https://cdn.jsdelivr.net/npm/tesseract.js-data@5.0.0';
+  const OCR_LANG = 'fra+eng';
 
   function setupThemeToggle() {
     const toggle = document.getElementById('theme-toggle');
@@ -111,6 +129,55 @@
     }
   }
 
+  function dispatchValueEvent(input) {
+    if (!input) {
+      return;
+    }
+    const tagName = input.tagName ? input.tagName.toLowerCase() : '';
+    const eventName = tagName === 'select' ? 'change' : 'input';
+    input.dispatchEvent(new Event(eventName, { bubbles: true }));
+  }
+
+  function applyScanValue(input, code) {
+    if (!input) {
+      return;
+    }
+    if (input.classList.contains('pack-line-product') && packProductResolver) {
+      const matched = packProductResolver(code);
+      if (matched && matched.codeValue) {
+        input.value = matched.codeValue;
+        dispatchValueEvent(input);
+        return;
+      }
+    }
+    input.value = code;
+    dispatchValueEvent(input);
+  }
+
+  function normalizeText(value) {
+    return (value || '')
+      .toString()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9\s-]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+  }
+
+  function setScanMode(mode) {
+    if (overlay) {
+      if (mode) {
+        overlay.dataset.mode = mode;
+      } else {
+        overlay.removeAttribute('data-mode');
+      }
+    }
+    if (scanTitle) {
+      scanTitle.textContent = mode === 'ocr' ? 'Camera OCR' : 'Camera scan';
+    }
+  }
+
   async function stopScan() {
     scanning = false;
     if (zxingReader) {
@@ -137,6 +204,7 @@
     if (overlay) {
       overlay.classList.remove('active');
     }
+    setScanMode('');
   }
 
   async function detectLoop() {
@@ -185,8 +253,7 @@
 
   function handleDetectedCode(code) {
     if (activeInput) {
-      activeInput.value = code;
-      activeInput.dispatchEvent(new Event('input', { bubbles: true }));
+      applyScanValue(activeInput, code);
     }
     setStatus('Code detecte: ' + code);
   }
@@ -248,6 +315,7 @@
 
   async function startScan(input) {
     activeInput = input;
+    setScanMode('barcode');
     setStatus('Chargement du scanner...');
     if (overlay) {
       overlay.classList.add('active');
@@ -283,6 +351,272 @@
       requestAnimationFrame(detectLoop);
     } else {
       await startZXingScan();
+    }
+  }
+
+  function ensureOcr() {
+    if (window.Tesseract && window.Tesseract.recognize) {
+      return Promise.resolve(window.Tesseract);
+    }
+    if (!ocrScriptPromise) {
+      ocrScriptPromise = loadScript(OCR_SRC).then(() => window.Tesseract);
+    }
+    return ocrScriptPromise;
+  }
+
+  function setOcrProducts(products) {
+    ocrProducts = Array.isArray(products) ? products : [];
+  }
+
+  function ensureOcrOverlay() {
+    if (ocrOverlay) {
+      return;
+    }
+    ocrOverlay = document.createElement('div');
+    ocrOverlay.id = 'scan-ocr-overlay';
+    ocrOverlay.className = 'scan-choice-overlay';
+    ocrOverlay.innerHTML = `
+      <div class="scan-choice-modal">
+        <div class="scan-choice-header">
+          <strong>Selection produit</strong>
+          <button type="button" class="scan-choice-close">Fermer</button>
+        </div>
+        <div class="scan-choice-status" id="scan-ocr-status"></div>
+        <div class="scan-choice-raw" id="scan-ocr-raw"></div>
+        <div class="scan-choice-list" id="scan-ocr-list"></div>
+        <div class="scan-choice-actions">
+          <button type="button" class="scan-scan-btn" id="scan-ocr-retry">Reprendre</button>
+          <button type="button" class="scan-submit secondary" id="scan-ocr-cancel">Annuler</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(ocrOverlay);
+    ocrStatusEl = ocrOverlay.querySelector('#scan-ocr-status');
+    ocrListEl = ocrOverlay.querySelector('#scan-ocr-list');
+    ocrRawEl = ocrOverlay.querySelector('#scan-ocr-raw');
+    ocrRetryBtn = ocrOverlay.querySelector('#scan-ocr-retry');
+    ocrCancelBtn = ocrOverlay.querySelector('#scan-ocr-cancel');
+
+    const close = () => closeOcrOverlay();
+    const closeBtn = ocrOverlay.querySelector('.scan-choice-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', close);
+    }
+    if (ocrCancelBtn) {
+      ocrCancelBtn.addEventListener('click', close);
+    }
+    if (ocrRetryBtn) {
+      ocrRetryBtn.addEventListener('click', () => {
+        closeOcrOverlay();
+        if (ocrActiveInput) {
+          startOcrScan(ocrActiveInput);
+        }
+      });
+    }
+    ocrOverlay.addEventListener('click', event => {
+      if (event.target === ocrOverlay) {
+        close();
+      }
+    });
+  }
+
+  function openOcrOverlay() {
+    ensureOcrOverlay();
+    if (ocrOverlay) {
+      ocrOverlay.classList.add('active');
+    }
+  }
+
+  function closeOcrOverlay() {
+    if (ocrOverlay) {
+      ocrOverlay.classList.remove('active');
+    }
+    ocrSessionId += 1;
+  }
+
+  function setOcrOverlayStatus(text) {
+    if (ocrStatusEl) {
+      ocrStatusEl.textContent = text || '';
+    }
+  }
+
+  function setOcrOverlayRaw(text) {
+    if (!ocrRawEl) {
+      return;
+    }
+    if (text) {
+      ocrRawEl.textContent = 'Texte detecte: ' + text;
+      ocrRawEl.style.display = 'block';
+    } else {
+      ocrRawEl.textContent = '';
+      ocrRawEl.style.display = 'none';
+    }
+  }
+
+  function renderOcrMatches(matches) {
+    if (!ocrListEl) {
+      return;
+    }
+    ocrListEl.innerHTML = '';
+    if (!matches.length) {
+      return;
+    }
+    const fragment = document.createDocumentFragment();
+    matches.forEach(match => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'scan-choice-item';
+      const nameEl = document.createElement('strong');
+      nameEl.textContent = match.name;
+      button.appendChild(nameEl);
+      const metaEl = document.createElement('span');
+      metaEl.textContent = match.brand ? match.brand : 'Marque inconnue';
+      button.appendChild(metaEl);
+      button.addEventListener('click', () => {
+        if (ocrActiveInput) {
+          applyScanValue(ocrActiveInput, match.codeValue || match.name);
+          ocrActiveInput.focus();
+        }
+        closeOcrOverlay();
+      });
+      fragment.appendChild(button);
+    });
+    ocrListEl.appendChild(fragment);
+  }
+
+  function buildOcrMatches(text) {
+    const normalized = normalizeText(text);
+    if (!normalized || !ocrProducts.length) {
+      return [];
+    }
+    const tokens = normalized.split(/\s+/).filter(token => token.length >= 3);
+    const matches = [];
+    ocrProducts.forEach(product => {
+      const nameNorm = product.nameNorm || normalizeText(product.name);
+      let score = 0;
+      if (nameNorm.includes(normalized)) {
+        score += 3;
+      }
+      tokens.forEach(token => {
+        if (nameNorm.includes(token)) {
+          score += 1;
+        }
+      });
+      if (score > 0) {
+        matches.push({ ...product, score });
+      }
+    });
+    matches.sort((a, b) => {
+      if (b.score !== a.score) {
+        return b.score - a.score;
+      }
+      return a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' });
+    });
+    return matches.slice(0, 30);
+  }
+
+  function captureOcrFrame() {
+    if (!video || !video.videoWidth || !video.videoHeight) {
+      return null;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      return null;
+    }
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    return canvas;
+  }
+
+  async function runOcrCapture(canvas) {
+    const sessionId = (ocrSessionId += 1);
+    openOcrOverlay();
+    setOcrOverlayStatus('OCR en cours...');
+    setOcrOverlayRaw('');
+    if (ocrListEl) {
+      ocrListEl.innerHTML = '';
+    }
+    try {
+      const Tesseract = await ensureOcr();
+      if (!Tesseract || !Tesseract.recognize) {
+        throw new Error('OCR indisponible');
+      }
+      const result = await Tesseract.recognize(canvas, OCR_LANG, {
+        workerPath: OCR_WORKER_SRC,
+        corePath: OCR_CORE_SRC,
+        langPath: OCR_LANG_PATH,
+        logger: info => {
+          if (sessionId !== ocrSessionId) {
+            return;
+          }
+          if (!info || !info.status) {
+            return;
+          }
+          if (info.status === 'recognizing text') {
+            const progress = info.progress ? Math.round(info.progress * 100) : null;
+            setOcrOverlayStatus(
+              progress ? `OCR en cours... ${progress}%` : 'OCR en cours...'
+            );
+          } else if (info.status === 'loading tesseract core') {
+            setOcrOverlayStatus('Chargement OCR...');
+          } else if (info.status === 'loading language traineddata') {
+            setOcrOverlayStatus('Chargement langue OCR...');
+          }
+        }
+      });
+      if (sessionId !== ocrSessionId) {
+        return;
+      }
+      const rawText = result && result.data ? result.data.text || '' : '';
+      const cleaned = rawText.replace(/\s+/g, ' ').trim();
+      setOcrOverlayRaw(cleaned);
+      const matches = buildOcrMatches(cleaned);
+      if (!matches.length) {
+        setOcrOverlayStatus('Aucun produit correspondant trouve.');
+        return;
+      }
+      setOcrOverlayStatus('Selectionnez le produit correspondant.');
+      renderOcrMatches(matches);
+    } catch (err) {
+      if (sessionId !== ocrSessionId) {
+        return;
+      }
+      setOcrOverlayStatus('OCR impossible: ' + (err.message || 'erreur'));
+    }
+  }
+
+  async function startOcrScan(input) {
+    if (!ocrProducts.length) {
+      alert('OCR indisponible: aucune liste produit chargee.');
+      return;
+    }
+    ocrActiveInput = input;
+    await stopScan();
+    setScanMode('ocr');
+    setStatus('Cadrez le nom du produit puis cliquez sur Capturer texte.');
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert('OCR camera non supporte. Utilisez la saisie manuelle.');
+      await stopScan();
+      return;
+    }
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+        audio: false
+      });
+    } catch (err) {
+      setStatus('Acces camera refuse.');
+      await stopScan();
+      return;
+    }
+    if (video) {
+      video.srcObject = stream;
+      await video.play();
+    }
+    if (overlay) {
+      overlay.classList.add('active');
     }
   }
 
@@ -485,13 +819,17 @@
       .filter(product => product && product.name)
       .map(product => ({
         name: product.name,
+        brand: product.brand || '',
         nameLower: normalize(product.name),
+        nameNorm: normalizeText(product.name),
         sku: product.sku || '',
         skuLower: normalize(product.sku || ''),
         barcode: product.barcode || '',
         barcodeLower: normalize(product.barcode || ''),
         ean: product.ean || '',
         eanLower: normalize(product.ean || ''),
+        codeValue: product.sku || product.barcode || product.ean || product.name || '',
+        codeLower: normalize(product.sku || product.barcode || product.ean || product.name || ''),
         key:
           normalize(product.sku) ||
           normalize(product.barcode) ||
@@ -504,6 +842,15 @@
         widthCm: parseNumber(product.width_cm),
         heightCm: parseNumber(product.height_cm)
       }));
+
+    setOcrProducts(
+      productEntries.map(product => ({
+        name: product.name,
+        brand: product.brand || '',
+        nameNorm: product.nameNorm || normalizeText(product.name),
+        codeValue: product.codeValue || product.name || ''
+      }))
+    );
 
     const findProduct = value => {
       const code = normalize(value);
@@ -536,6 +883,8 @@
       }
       return null;
     };
+
+    packProductResolver = value => findProduct(value);
 
     const getProductVolume = product => {
       if (!product) {
@@ -705,14 +1054,44 @@
 
       const productInline = document.createElement('div');
       productInline.className = 'scan-inline';
-      const productInput = document.createElement('input');
-      productInput.type = 'text';
+      const productInput = document.createElement('select');
       productInput.id = `id_pack_line_${index}_product_code`;
       productInput.name = `line_${index}_product_code`;
       productInput.className = 'pack-line-product';
-      productInput.setAttribute('list', 'product-options');
-      productInput.setAttribute('autocomplete', 'off');
-      productInput.value = value.product_code || '';
+
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = '---';
+      productInput.appendChild(placeholder);
+
+      const sortedProducts = [...productEntries].sort((a, b) =>
+        a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+      );
+      sortedProducts.forEach(product => {
+        if (!product.name) {
+          return;
+        }
+        const option = document.createElement('option');
+        option.value = product.codeValue || product.name;
+        option.textContent = product.brand ? `${product.name} — ${product.brand}` : product.name;
+        productInput.appendChild(option);
+      });
+
+      if (value.product_code) {
+        const initialMatch = findProduct(value.product_code);
+        if (initialMatch && initialMatch.codeValue) {
+          productInput.value = initialMatch.codeValue;
+        } else {
+          productInput.value = value.product_code;
+          if (productInput.value !== value.product_code) {
+            const fallbackOption = document.createElement('option');
+            fallbackOption.value = value.product_code;
+            fallbackOption.textContent = value.product_code;
+            productInput.appendChild(fallbackOption);
+            productInput.value = value.product_code;
+          }
+        }
+      }
 
       const scanBtn = document.createElement('button');
       scanBtn.type = 'button';
@@ -720,8 +1099,19 @@
       scanBtn.dataset.scanTarget = productInput.id;
       scanBtn.textContent = 'Scan';
 
+      const ocrBtn = document.createElement('button');
+      ocrBtn.type = 'button';
+      ocrBtn.className = 'scan-scan-btn scan-ocr-btn';
+      ocrBtn.dataset.ocrTarget = productInput.id;
+      ocrBtn.textContent = 'Texte';
+
+      const actionWrap = document.createElement('div');
+      actionWrap.className = 'scan-inline-actions';
+      actionWrap.appendChild(scanBtn);
+      actionWrap.appendChild(ocrBtn);
+
       productInline.appendChild(productInput);
-      productInline.appendChild(scanBtn);
+      productInline.appendChild(actionWrap);
       productField.appendChild(productInline);
       grid.appendChild(productField);
 
@@ -756,7 +1146,7 @@
         });
       }
 
-      productInput.addEventListener('input', updateAllLineMetrics);
+      productInput.addEventListener('change', updateAllLineMetrics);
       quantityInput.addEventListener('input', updateAllLineMetrics);
       productInput.addEventListener('change', updateAllLineMetrics);
 
@@ -1626,6 +2016,19 @@
     startScan(input);
   });
 
+  document.addEventListener('click', event => {
+    const trigger = event.target.closest('[data-ocr-target]');
+    if (!trigger) {
+      return;
+    }
+    const targetId = trigger.getAttribute('data-ocr-target');
+    const input = document.getElementById(targetId);
+    if (!input) {
+      return;
+    }
+    startOcrScan(input);
+  });
+
   setupThemeToggle();
   setupUiToggle();
   setupProductDatalist();
@@ -1638,6 +2041,27 @@
   const receivedOnInput = document.getElementById('id_received_on');
   if (receivedOnInput && !receivedOnInput.value) {
     receivedOnInput.value = new Date().toISOString().slice(0, 10);
+  }
+
+  if (captureBtn) {
+    captureBtn.addEventListener('click', async () => {
+      if (!ocrActiveInput) {
+        return;
+      }
+      const frame = captureOcrFrame();
+      if (!frame) {
+        setStatus('Capture impossible.');
+        return;
+      }
+      captureBtn.disabled = true;
+      setStatus('Capture en cours...');
+      await stopScan();
+      try {
+        await runOcrCapture(frame);
+      } finally {
+        captureBtn.disabled = false;
+      }
+    });
   }
 
   if (closeBtn) {

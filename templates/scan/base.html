@@ -114,11 +114,14 @@
   <div id="scan-overlay" class="scan-overlay">
     <div class="scan-modal">
       <div class="scan-modal-header">
-        <strong>Camera scan</strong>
+        <strong id="scan-modal-title">Camera scan</strong>
         <button type="button" id="scan-close">Fermer</button>
       </div>
       <video id="scan-video" class="scan-video" playsinline></video>
       <div class="scan-help" id="scan-status">Scan en cours...</div>
+      <div class="scan-modal-actions">
+        <button type="button" id="scan-capture" class="scan-scan-btn">Capturer texte</button>
+      </div>
     </div>
   </div>
 
