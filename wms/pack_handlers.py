@@ -7,6 +7,8 @@ from django.shortcuts import redirect
 from .scan_helpers import (
     build_pack_line_values,
     build_packing_bins,
+    get_product_volume_cm3,
+    get_product_weight_g,
     parse_int,
     resolve_carton_size,
     resolve_product,
@@ -53,6 +55,8 @@ def handle_pack_post(request, *, form, default_format):
 
     line_errors = {}
     line_items = []
+    missing_defaults = []
+    confirm_defaults = bool(request.POST.get("confirm_defaults"))
 
     if form.is_valid():
         shipment = resolve_shipment(form.cleaned_data["shipment_reference"])
@@ -96,8 +100,37 @@ def handle_pack_post(request, *, form, default_format):
             if not line_items:
                 form.add_error(None, "Ajoutez au moins un produit.")
             else:
+                missing_defaults = sorted(
+                    {
+                        item["product"].name
+                        for item in line_items
+                        if get_product_weight_g(item["product"]) is None
+                        and get_product_volume_cm3(item["product"]) is None
+                    }
+                )
+                if missing_defaults and not confirm_defaults:
+                    product_list = ", ".join(missing_defaults)
+                    form.add_error(
+                        None,
+                        "Attention : les produits suivants n'ont pas de dimensions "
+                        "ni de poids enregistres : "
+                        f"{product_list}. Si vous validez ces ajouts, des valeurs "
+                        "par defaut seront appliquees (1cm x 1cm x 1cm et 5g).",
+                    )
+                    return (
+                        None,
+                        {
+                            "carton_format_id": carton_format_id,
+                            "carton_custom": carton_custom,
+                            "line_count": line_count,
+                            "line_values": line_values,
+                            "line_errors": line_errors,
+                            "missing_defaults": missing_defaults,
+                            "confirm_defaults": confirm_defaults,
+                        },
+                    )
                 bins, pack_errors, pack_warnings = build_packing_bins(
-                    line_items, carton_size
+                    line_items, carton_size, apply_defaults=confirm_defaults
                 )
                 if pack_errors:
                     for error in pack_errors:
@@ -139,6 +172,8 @@ def handle_pack_post(request, *, form, default_format):
                                 "line_count": line_count,
                                 "line_values": line_values,
                                 "line_errors": line_errors,
+                                "missing_defaults": missing_defaults,
+                                "confirm_defaults": confirm_defaults,
                             },
                         )
                     except StockError as exc:
@@ -152,5 +187,7 @@ def handle_pack_post(request, *, form, default_format):
             "line_count": line_count,
             "line_values": line_values,
             "line_errors": line_errors,
+            "missing_defaults": missing_defaults,
+            "confirm_defaults": confirm_defaults,
         },
     )

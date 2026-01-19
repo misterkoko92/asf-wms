@@ -648,6 +648,12 @@ body {
   color: var(--danger);
 }
 
+.scan-message.warning {
+  background: var(--bg-accent);
+  border: 1px solid var(--border-strong);
+  color: var(--accent-2-ink);
+}
+
 .scan-help {
   font-size: 12px;
   color: var(--ink-soft);

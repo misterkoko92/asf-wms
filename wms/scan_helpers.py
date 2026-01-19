@@ -352,7 +352,14 @@ def build_pack_line_values(line_count, data=None):
     return lines
 
 
-def build_packing_bins(line_items, carton_size):
+def build_packing_bins(
+    line_items,
+    carton_size,
+    *,
+    apply_defaults=False,
+    default_weight_g=5,
+    default_volume_cm3=1,
+):
     errors = []
     warnings = []
     if not carton_size:
@@ -372,10 +379,17 @@ def build_packing_bins(line_items, carton_size):
         volume_f = float(volume) if volume and volume > 0 else None
 
         if weight_g is None and volume_f is None:
-            errors.append(
-                f"{product.name}: poids et volume manquants pour la preparation."
-            )
-            continue
+            if apply_defaults:
+                weight_g = default_weight_g
+                volume_f = float(default_volume_cm3)
+                warnings.append(
+                    f"{product.name}: poids/volume manquants, valeurs par defaut appliquees."
+                )
+            else:
+                errors.append(
+                    f"{product.name}: poids et volume manquants pour la preparation."
+                )
+                continue
         if weight_g is None:
             warnings.append(f"{product.name}: poids manquant, calcul sur volume uniquement.")
         if volume_f is None:

@@ -67,6 +67,20 @@
         </div>
       </div>
 
+      {% if missing_defaults %}
+        <div class="scan-message warning">
+          Attention : les produits suivants n'ont pas de dimensions ni de poids enregistres :
+          {{ missing_defaults|join:", " }}.
+          Si vous validez ces ajouts, des valeurs par defaut seront appliquees (1cm x 1cm x 1cm et 5g).
+        </div>
+      {% endif %}
+      <div class="scan-field">
+        <label class="scan-inline">
+          <input type="checkbox" name="confirm_defaults" value="1" {% if confirm_defaults %}checked{% endif %}>
+          Valider les ajouts avec dimensions/poids par defaut si necessaire.
+        </label>
+      </div>
+
       <button type="submit" class="scan-submit">Preparer</button>
       <p class="scan-help">Si reference expedition vide, les cartons sont pre-conditionnes.</p>
     </form>

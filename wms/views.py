@@ -1048,6 +1048,8 @@ def scan_pack(request):
         line_count = pack_state["line_count"]
         line_values = pack_state["line_values"]
         line_errors = pack_state["line_errors"]
+        missing_defaults = pack_state.get("missing_defaults", [])
+        confirm_defaults = pack_state.get("confirm_defaults", False)
         if response:
             return response
     else:
@@ -1057,6 +1059,8 @@ def scan_pack(request):
             line_count,
             line_values,
         ) = build_pack_defaults(default_format)
+        missing_defaults = []
+        confirm_defaults = False
     return render(
         request,
         "scan/pack.html",
@@ -1071,6 +1075,8 @@ def scan_pack(request):
             "line_values": line_values,
             "line_errors": line_errors,
             "packing_result": packing_result,
+            "missing_defaults": missing_defaults,
+            "confirm_defaults": confirm_defaults,
         },
     )
 
