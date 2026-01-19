@@ -69,12 +69,10 @@
                         <div>{{ item.name }} ({{ item.quantity }})</div>
                       {% endfor %}
                     </div>
-                    <div class="scan-field scan-field-gap">
+                    <div class="scan-field scan-field-gap scan-inline-actions">
                       <a class="scan-scan-btn" href="{{ carton.packing_list_url }}" target="_blank" rel="noopener">
                         Imprimer / telecharger
                       </a>
-                    </div>
-                    <div class="scan-field scan-field-gap">
                       <a class="scan-scan-btn" href="{{ carton.picking_url }}" target="_blank" rel="noopener">
                         Picking
                       </a>
