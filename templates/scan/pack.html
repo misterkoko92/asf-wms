@@ -58,7 +58,7 @@
       </div>
 
       <div class="scan-field">
-        <label for="id_current_location">Emplacement (optionnel)</label>
+        <label for="id_current_location">Choisir un emplacement de rangement du colis pret (optionnel)</label>
         <div class="scan-inline">
           {{ form.current_location }}
           <a class="scan-scan-btn" href="{% url 'admin:wms_location_add' %}" target="_blank" rel="noopener">
@@ -75,9 +75,14 @@
         </div>
       {% endif %}
       <div class="scan-field">
-        <label class="scan-inline">
+        <label class="scan-switch-row">
           <input type="checkbox" name="confirm_defaults" value="1" {% if confirm_defaults %}checked{% endif %}>
-          Valider les ajouts avec dimensions/poids par defaut si necessaire.
+          <span class="scan-switch" aria-hidden="true">
+            <span class="scan-switch-icon scan-switch-icon-off">x</span>
+            <span class="scan-switch-icon scan-switch-icon-on">OK</span>
+            <span class="scan-switch-knob"></span>
+          </span>
+          <span class="scan-switch-text">Valider les ajouts avec dimensions/poids par defaut si necessaire.</span>
         </label>
       </div>
 
