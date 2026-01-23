@@ -240,6 +240,18 @@ body {
   margin: 14px 0 22px;
 }
 
+.scan-nav-group {
+  display: contents;
+}
+
+.scan-nav-trigger {
+  display: none;
+}
+
+.scan-nav-menu {
+  display: contents;
+}
+
 .scan-nav a {
   display: block;
   padding: 10px 12px;
@@ -304,6 +316,79 @@ body {
 
 .scan-field textarea { resize: vertical; }
 
+.scan-switch-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 700;
+}
+
+.scan-switch-row input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.scan-switch {
+  position: relative;
+  width: 64px;
+  height: 32px;
+  border-radius: 16px;
+  background: var(--danger);
+  border: 1px solid var(--border-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+.scan-switch-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s ease;
+}
+
+.scan-switch-icon {
+  position: relative;
+  z-index: 1;
+}
+
+.scan-switch-row input:focus + .scan-switch {
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.2);
+}
+
+.scan-switch-row input:checked + .scan-switch {
+  background: var(--accent);
+}
+
+.scan-switch-row input:checked + .scan-switch .scan-switch-knob {
+  transform: translateX(32px);
+}
+
+.scan-switch-row input:checked + .scan-switch .scan-switch-icon-off {
+  opacity: 0.2;
+}
+
+.scan-switch-row input:not(:checked) + .scan-switch .scan-switch-icon-on {
+  opacity: 0.2;
+}
+
+.scan-switch-text {
+  font-weight: 700;
+}
+
 .shipment-lines {
   display: grid;
   gap: 14px;
@@ -341,6 +426,19 @@ body {
   border: 1px solid var(--border-strong);
   font-size: 15px;
   background: var(--input-bg);
+}
+
+.shipment-line-metrics {
+  font-size: 12px;
+  color: var(--ink-soft);
+  display: grid;
+  gap: 2px;
+  grid-column: 1 / -1;
+}
+
+.shipment-line-metrics .metric-negative {
+  color: var(--danger);
+  font-weight: 700;
 }
 
 .pack-lines {
@@ -1414,6 +1512,54 @@ body {
   margin: 1.5rem 0 0;
 }
 
+:root[data-ui="benev"] .scan-nav-group {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+:root[data-ui="benev"] .scan-nav-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--ink);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+:root[data-ui="benev"] .scan-nav-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  min-width: 240px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 10px;
+  box-shadow: 0 12px 24px var(--shadow);
+  z-index: 20;
+  gap: 6px;
+}
+
+:root[data-ui="benev"] .scan-nav-group:hover .scan-nav-menu,
+:root[data-ui="benev"] .scan-nav-group:focus-within .scan-nav-menu {
+  display: grid;
+}
+
+:root[data-ui="benev"] .scan-nav-menu a {
+  padding: 0.45rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: var(--panel);
+  text-align: left;
+}
+
 :root[data-ui="benev"] .scan-nav a {
   padding: 0.45rem 0.8rem;
   border-radius: 999px;
@@ -1421,6 +1567,12 @@ body {
   text-align: left;
   font-weight: 600;
   background: transparent;
+}
+
+:root[data-ui="benev"] .scan-nav-menu a {
+  border-radius: 12px;
+  border-color: var(--border);
+  background: var(--panel);
 }
 
 :root[data-ui="benev"] .scan-nav a.active,

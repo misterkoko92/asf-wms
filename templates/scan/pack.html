@@ -3,6 +3,63 @@
 {% block title %}WMS Scan - Preparation{% endblock %}
 
 {% block content %}
+  {% if packing_result %}
+    <div class="scan-card">
+      <h2>Liste de colisage</h2>
+      <h3 class="scan-subtitle">Par carton</h3>
+      {% for carton in packing_result.cartons %}
+        <div class="pack-list">
+          <div class="scan-inline scan-inline-gap">
+            <strong>Carton {{ carton.code }}</strong>
+            <div class="scan-inline-actions">
+              <a class="scan-scan-btn" href="{{ carton.packing_list_url }}" target="_blank" rel="noopener">
+                Imprimer / telecharger
+              </a>
+              <a class="scan-scan-btn" href="{{ carton.picking_url }}" target="_blank" rel="noopener">
+                Picking
+              </a>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Produit</th>
+                <th>Quantite</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in carton.items %}
+                <tr>
+                  <td>{{ item.product }}</td>
+                  <td>{{ item.quantity }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endfor %}
+
+      <h3 class="scan-subtitle">Liste generale</h3>
+      <div class="pack-list">
+        <table>
+          <thead>
+            <tr>
+              <th>Produit</th>
+              <th>Quantite</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in packing_result.aggregate %}
+              <tr>
+                <td>{{ item.product }}</td>
+                <td>{{ item.quantity }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% endif %}
   <div class="scan-card">
     <h2>Preparation cartons</h2>
     {% if form.non_field_errors %}
@@ -99,51 +156,4 @@
       {% endfor %}
     </datalist>
   </div>
-  {% if packing_result %}
-    <div class="scan-card">
-      <h2>Liste de colisage</h2>
-      <h3 class="scan-subtitle">Par carton</h3>
-      {% for carton in packing_result.cartons %}
-        <div class="pack-list">
-          <strong>Carton {{ carton.code }}</strong>
-          <table>
-            <thead>
-              <tr>
-                <th>Produit</th>
-                <th>Quantite</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for item in carton.items %}
-                <tr>
-                  <td>{{ item.product }}</td>
-                  <td>{{ item.quantity }}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      {% endfor %}
-
-      <h3 class="scan-subtitle">Liste generale</h3>
-      <div class="pack-list">
-        <table>
-          <thead>
-            <tr>
-              <th>Produit</th>
-              <th>Quantite</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for item in packing_result.aggregate %}
-              <tr>
-                <td>{{ item.product }}</td>
-                <td>{{ item.quantity }}</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  {% endif %}
 {% endblock %}
