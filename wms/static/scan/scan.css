@@ -1535,16 +1535,25 @@ body {
 :root[data-ui="benev"] .scan-nav-menu {
   display: none;
   position: absolute;
-  top: calc(100% + 10px);
+  top: calc(100% + 8px);
   left: 0;
   min-width: 240px;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 16px;
-  padding: 10px;
+  padding: 12px;
   box-shadow: 0 12px 24px var(--shadow);
   z-index: 20;
   gap: 6px;
+}
+
+:root[data-ui="benev"] .scan-nav-menu::before {
+  content: "";
+  position: absolute;
+  top: -12px;
+  left: 0;
+  right: 0;
+  height: 12px;
 }
 
 :root[data-ui="benev"] .scan-nav-group:hover .scan-nav-menu,
