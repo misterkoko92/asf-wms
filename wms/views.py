@@ -1734,7 +1734,7 @@ def scan_faq(request):
     )
 
 
-SERVICE_WORKER_JS = """const CACHE_NAME = 'wms-scan-v35';
+SERVICE_WORKER_JS = """const CACHE_NAME = 'wms-scan-v36';
 const ASSETS = [
   '/static/scan/scan.css',
   '/static/scan/scan.js',
@@ -1764,12 +1764,7 @@ self.addEventListener('fetch', event => {
   }
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request)
-        .then(response => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
-          return response;
-        })
+      fetch(event.request, { cache: 'no-store' })
         .catch(() => caches.match(event.request))
     );
     return;
