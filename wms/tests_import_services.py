@@ -4,7 +4,12 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 from contacts.models import Contact, ContactAddress, ContactTag, ContactType
-from wms.import_services import apply_pallet_listing_import, import_contacts, import_products_rows
+from wms.import_services import (
+    apply_pallet_listing_import,
+    import_contacts,
+    import_products_rows,
+    resolve_listing_location,
+)
 from wms.models import Location, Product, ProductLot, ReceiptLine, Warehouse
 
 
@@ -176,3 +181,12 @@ class ListingImportTests(TestCase):
         self.assertIsNotNone(receipt)
         self.assertEqual(ReceiptLine.objects.count(), 1)
         self.assertEqual(ProductLot.objects.count(), 1)
+
+    def test_resolve_listing_location_normalizes_fields(self):
+        warehouse = Warehouse.objects.create(name="Main")
+        row = {"warehouse": "Main", "zone": "a", "aisle": "b", "shelf": "c"}
+        location = resolve_listing_location(row, warehouse)
+        self.assertIsNotNone(location)
+        self.assertEqual(location.zone, "A")
+        self.assertEqual(location.aisle, "B")
+        self.assertEqual(location.shelf, "C")

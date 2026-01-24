@@ -66,7 +66,7 @@
                   {% if carton.packing_list %}
                     <div class="scan-packing-list">
                       {% for item in carton.packing_list %}
-                        <div>{{ item.name }} ({{ item.quantity }})</div>
+                        <div>{{ item.label }} ({{ item.quantity }})</div>
                       {% endfor %}
                     </div>
                     <div class="scan-field scan-field-gap scan-inline-actions">

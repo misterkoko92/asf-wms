@@ -1,0 +1,232 @@
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_http_methods
+
+from .document_uploads import validate_document_upload
+from .models import (
+
+    AssociationRecipient,
+    DocumentReviewStatus,
+    Order,
+    OrderDocument,
+    OrderDocumentType,
+    OrderReviewStatus,
+)
+from .order_helpers import (
+    build_carton_format_data,
+    build_order_line_estimates,
+    build_order_line_items,
+    build_order_product_rows,
+)
+from .order_notifications import send_portal_order_notifications
+from .portal_helpers import (
+    build_destination_address,
+    get_contact_address,
+    get_default_carton_format,
+)
+from .portal_order_handlers import create_portal_order
+from .scan_helpers import build_product_selection_data, parse_int as parse_int_safe
+from .services import StockError
+from .view_permissions import association_required
+from .view_utils import sorted_choices
+
+
+@login_required(login_url="portal:portal_login")
+@association_required
+@require_http_methods(["GET"])
+def portal_dashboard(request):
+    profile = request.association_profile
+    orders = (
+        Order.objects.filter(association_contact=profile.contact)
+        .order_by("-created_at")[:50]
+    )
+    return render(request, "portal/dashboard.html", {"orders": orders})
+
+
+@login_required(login_url="portal:portal_login")
+@association_required
+@require_http_methods(["GET", "POST"])
+def portal_order_create(request):
+    profile = request.association_profile
+    recipients = list(
+        AssociationRecipient.objects.filter(
+            association_contact=profile.contact, is_active=True
+        ).order_by("name")
+    )
+    recipient_options = [
+        {"id": "self", "label": f"{profile.contact.name} (association)"},
+        *[{"id": str(rec.id), "label": rec.name} for rec in recipients],
+    ]
+    recipient_options = sorted(
+        recipient_options, key=lambda item: str(item["label"] or "").lower()
+    )
+
+    product_options, product_by_id, available_by_id = build_product_selection_data()
+
+    form_data = {"recipient_id": "self", "notes": ""}
+    errors = []
+    line_errors = {}
+    line_quantities = {}
+    line_items = []
+
+    if request.method == "POST":
+        form_data["recipient_id"] = (request.POST.get("recipient_id") or "").strip()
+        form_data["notes"] = (request.POST.get("notes") or "").strip()
+        if not form_data["recipient_id"]:
+            errors.append("Destinataire requis.")
+        line_items, line_quantities, line_errors = build_order_line_items(
+            request.POST,
+            product_options=product_options,
+            product_by_id=product_by_id,
+            available_by_id=available_by_id,
+        )
+        if not line_items:
+            errors.append("Ajoutez au moins un produit.")
+
+        recipient_name = ""
+        destination_city = ""
+        destination_country = "France"
+        destination_address = ""
+        recipient_contact = None
+
+        if form_data["recipient_id"] == "self":
+            recipient_contact = profile.contact
+            recipient_name = profile.contact.name
+            address = get_contact_address(profile.contact)
+            if not address:
+                errors.append("Adresse association manquante.")
+            else:
+                destination_address = build_destination_address(
+                    line1=address.address_line1,
+                    line2=address.address_line2,
+                    postal_code=address.postal_code,
+                    city=address.city,
+                    country=address.country,
+                )
+                destination_city = address.city or ""
+                destination_country = address.country or "France"
+        else:
+            recipient_id = parse_int_safe(form_data["recipient_id"])
+            recipient = (
+                AssociationRecipient.objects.filter(
+                    id=recipient_id, association_contact=profile.contact
+                )
+                .order_by("name")
+                .first()
+            )
+            if not recipient:
+                errors.append("Destinataire invalide.")
+            else:
+                recipient_name = recipient.name
+                destination_address = build_destination_address(
+                    line1=recipient.address_line1,
+                    line2=recipient.address_line2,
+                    postal_code=recipient.postal_code,
+                    city=recipient.city,
+                    country=recipient.country,
+                )
+                destination_city = recipient.city or ""
+                destination_country = recipient.country or "France"
+
+        if not errors and not line_errors:
+            try:
+                order = create_portal_order(
+                    user=request.user,
+                    profile=profile,
+                    recipient_name=recipient_name,
+                    recipient_contact=recipient_contact,
+                    destination_address=destination_address,
+                    destination_city=destination_city,
+                    destination_country=destination_country,
+                    notes=form_data["notes"],
+                    line_items=line_items,
+                )
+            except StockError as exc:
+                errors.append(str(exc))
+            else:
+                send_portal_order_notifications(
+                    request,
+                    profile=profile,
+                    order=order,
+                )
+                messages.success(request, "Commande envoyee.")
+                return redirect("portal:portal_order_detail", order_id=order.id)
+
+    carton_format = get_default_carton_format()
+    carton_data = build_carton_format_data(carton_format)
+    product_rows, total_estimated_cartons = build_order_product_rows(
+        product_options, product_by_id, line_quantities, carton_format
+    )
+
+    return render(
+        request,
+        "portal/order_create.html",
+        {
+            "recipient_options": recipient_options,
+            "form_data": form_data,
+            "products": product_rows,
+            "product_data": product_options,
+            "errors": errors,
+            "line_errors": line_errors,
+            "line_quantities": line_quantities,
+            "total_estimated_cartons": total_estimated_cartons,
+            "carton_format": carton_data,
+        },
+    )
+
+
+@login_required(login_url="portal:portal_login")
+@association_required
+@require_http_methods(["GET", "POST"])
+def portal_order_detail(request, order_id):
+    profile = request.association_profile
+    order = get_object_or_404(
+        Order.objects.select_related("association_contact"),
+        id=order_id,
+        association_contact=profile.contact,
+    )
+
+    if request.method == "POST" and request.POST.get("action") == "upload_doc":
+        if order.review_status != OrderReviewStatus.APPROVED:
+            messages.error(
+                request,
+                "Documents disponibles apres validation de la commande.",
+            )
+            return redirect("portal:portal_order_detail", order_id=order.id)
+        payload, error = validate_document_upload(
+            request,
+            doc_type_choices=OrderDocumentType.choices,
+        )
+        if error:
+            messages.error(request, error)
+            return redirect("portal:portal_order_detail", order_id=order.id)
+        doc_type, uploaded = payload
+        OrderDocument.objects.create(
+            order=order,
+            doc_type=doc_type,
+            status=DocumentReviewStatus.PENDING,
+            file=uploaded,
+            uploaded_by=request.user,
+        )
+        messages.success(request, "Document ajoute.")
+        return redirect("portal:portal_order_detail", order_id=order.id)
+
+    carton_format = get_default_carton_format()
+    line_rows, total_estimated_cartons = build_order_line_estimates(
+        order.lines.select_related("product"),
+        carton_format,
+    )
+
+    return render(
+        request,
+        "portal/order_detail.html",
+        {
+            "order": order,
+            "line_rows": line_rows,
+            "total_estimated_cartons": total_estimated_cartons,
+            "order_documents": order.documents.all(),
+            "order_doc_types": sorted_choices(OrderDocumentType.choices),
+            "can_upload_docs": order.review_status == OrderReviewStatus.APPROVED,
+        },
+    )

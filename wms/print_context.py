@@ -10,7 +10,12 @@ from .documents import (
     build_shipment_type_labels,
     compute_weight_total_g,
 )
-from .scan_helpers import get_product_volume_cm3, get_product_weight_g
+from .scan_helpers import (
+    build_product_group_key,
+    build_product_label,
+    get_product_volume_cm3,
+    get_product_weight_g,
+)
 from .models import CartonFormat, CartonItem, RackColor
 
 
@@ -179,10 +184,12 @@ def build_carton_picking_context(carton):
             location_label = f"{location.zone} - {location.aisle} - {location.shelf}"
         else:
             location_label = "-"
-        key = (product.id, location.id if location else None)
+        lot_code = item.product_lot.lot_code
+        group_key = build_product_group_key(product, lot_code)
+        key = (group_key, location.id if location else None)
         if key not in rows_by_key:
             rows_by_key[key] = {
-                "product": product.name,
+                "label": build_product_label(product, lot_code),
                 "quantity": item.quantity,
                 "location": location_label,
             }
@@ -190,7 +197,7 @@ def build_carton_picking_context(carton):
             rows_by_key[key]["quantity"] += item.quantity
     item_rows = sorted(
         rows_by_key.values(),
-        key=lambda row: (row["product"], row["location"]),
+        key=lambda row: (row["label"], row["location"]),
     )
     return {
         "document_date": timezone.localdate(),

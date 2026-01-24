@@ -30,7 +30,7 @@
             <tbody>
               {% for item in carton.items %}
                 <tr>
-                  <td>{{ item.product }}</td>
+                  <td>{{ item.label }}</td>
                   <td>{{ item.quantity }}</td>
                 </tr>
               {% endfor %}
@@ -51,7 +51,7 @@
           <tbody>
             {% for item in packing_result.aggregate %}
               <tr>
-                <td>{{ item.product }}</td>
+                <td>{{ item.label }}</td>
                 <td>{{ item.quantity }}</td>
               </tr>
             {% endfor %}

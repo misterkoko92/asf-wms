@@ -999,7 +999,7 @@
           normalize(product.barcode) ||
           normalize(product.ean) ||
           normalize(product.name),
-        weightG: parseNumber(product.weight_g) || 0,
+        weightG: parseNumber(product.weight_g),
         availableStock: parseNumber(product.available_stock),
         volumeCm3: parseNumber(product.volume_cm3),
         lengthCm: parseNumber(product.length_cm),
@@ -1467,6 +1467,11 @@
       }
     });
 
+    const parseNumber = value => {
+      const parsed = parseFloat((value || '').toString().replace(',', '.'));
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+
     const productEntries = products
       .filter(product => product && product.name)
       .map(product => ({
@@ -1480,7 +1485,17 @@
         codeLower: (product.sku || product.barcode || product.ean || product.name || '')
           .toString()
           .toLowerCase(),
-        weightG: product.weight_g || 0
+        key:
+          (product.sku || '').toString().toLowerCase() ||
+          (product.barcode || '').toString().toLowerCase() ||
+          (product.ean || '').toString().toLowerCase() ||
+          (product.name || '').toString().toLowerCase(),
+        weightG: parseNumber(product.weight_g) || 0,
+        availableStock: parseNumber(product.available_stock),
+        volumeCm3: parseNumber(product.volume_cm3),
+        lengthCm: parseNumber(product.length_cm),
+        widthCm: parseNumber(product.width_cm),
+        heightCm: parseNumber(product.height_cm)
       }));
 
     const findProductMatch = value => {
@@ -1523,6 +1538,139 @@
     const getProductWeight = value => {
       const product = findProductMatch(value);
       return product ? product.weightG || 0 : 0;
+    };
+
+    const DEFAULT_CARTON = {
+      lengthCm: 40,
+      widthCm: 30,
+      heightCm: 30,
+      maxWeightG: 8000
+    };
+
+    const getProductVolume = product => {
+      if (!product) {
+        return null;
+      }
+      if (product.volumeCm3) {
+        return product.volumeCm3;
+      }
+      if (product.lengthCm && product.widthCm && product.heightCm) {
+        return product.lengthCm * product.widthCm * product.heightCm;
+      }
+      return null;
+    };
+
+    const computeMaxUnits = product => {
+      if (!product) {
+        return null;
+      }
+      const cartonVolume = DEFAULT_CARTON.lengthCm * DEFAULT_CARTON.widthCm * DEFAULT_CARTON.heightCm;
+      const productVolume = getProductVolume(product);
+      let maxByVolume = null;
+      if (cartonVolume && productVolume && productVolume > 0) {
+        maxByVolume = Math.floor(cartonVolume / productVolume);
+        if (maxByVolume < 1) {
+          maxByVolume = 1;
+        }
+      }
+      let maxByWeight = null;
+      if (product.weightG && DEFAULT_CARTON.maxWeightG) {
+        maxByWeight = Math.floor(DEFAULT_CARTON.maxWeightG / product.weightG);
+        if (maxByWeight < 1) {
+          maxByWeight = 1;
+        }
+      }
+      if (maxByVolume && maxByWeight) {
+        return Math.min(maxByVolume, maxByWeight);
+      }
+      return maxByVolume || maxByWeight;
+    };
+
+    const sumPlannedQuantity = product => {
+      if (!product || !product.key) {
+        return null;
+      }
+      let total = 0;
+      container.querySelectorAll('.shipment-line').forEach(line => {
+        const productInput = line.querySelector('.shipment-line-product');
+        const quantityInput = line.querySelector('.shipment-line-quantity');
+        const lineProduct = findProductMatch(productInput ? productInput.value : '');
+        if (!lineProduct || lineProduct.key !== product.key) {
+          return;
+        }
+        const qty = parseInt(quantityInput ? quantityInput.value : '', 10);
+        if (Number.isFinite(qty) && qty > 0) {
+          total += qty;
+        }
+      });
+      return total;
+    };
+
+    const updateLineMetrics = line => {
+      const productInput = line.querySelector('.shipment-line-product');
+      const quantityInput = line.querySelector('.shipment-line-quantity');
+      const maxEl = line.querySelector('.shipment-line-max');
+      const equivEl = line.querySelector('.shipment-line-equivalent');
+      const availableEl = line.querySelector('.shipment-line-available');
+      const remainingEl = line.querySelector('.shipment-line-remaining');
+      if (!productInput || !quantityInput || !maxEl || !equivEl || !availableEl || !remainingEl) {
+        return;
+      }
+      if (!productInput.value) {
+        maxEl.textContent = '-';
+        equivEl.textContent = '-';
+        availableEl.textContent = '-';
+        remainingEl.textContent = '-';
+        remainingEl.classList.remove('metric-negative');
+        return;
+      }
+      const product = findProductMatch(productInput.value);
+      if (!product) {
+        maxEl.textContent = 'indisponible';
+        equivEl.textContent = 'indisponible';
+        availableEl.textContent = 'indisponible';
+        remainingEl.textContent = 'indisponible';
+        remainingEl.classList.remove('metric-negative');
+        return;
+      }
+      const productVolume = getProductVolume(product);
+      const hasWeight = Number.isFinite(product.weightG) && product.weightG > 0;
+      if (!productVolume || !hasWeight) {
+        maxEl.textContent = 'indisponible';
+        equivEl.textContent = 'indisponible';
+      } else {
+        const maxUnits = computeMaxUnits(product);
+        if (!maxUnits) {
+          maxEl.textContent = 'indisponible';
+          equivEl.textContent = 'indisponible';
+        } else {
+          maxEl.textContent = `${maxUnits} u.`;
+          const qty = parseInt(quantityInput.value, 10);
+          if (Number.isFinite(qty) && qty > 0) {
+            equivEl.textContent = `${Math.ceil(qty / maxUnits)} carton(s)`;
+          } else {
+            equivEl.textContent = '-';
+          }
+        }
+      }
+      const availableStock = Number.isFinite(product.availableStock)
+        ? Math.floor(product.availableStock)
+        : null;
+      const planned = sumPlannedQuantity(product) ?? 0;
+      if (availableStock === null) {
+        availableEl.textContent = 'indisponible';
+        remainingEl.textContent = 'indisponible';
+        remainingEl.classList.remove('metric-negative');
+        return;
+      }
+      const remaining = availableStock - planned;
+      availableEl.textContent = `${availableStock} u.`;
+      remainingEl.textContent = `${remaining} u.`;
+      remainingEl.classList.toggle('metric-negative', remaining < 0);
+    };
+
+    const updateAllLineMetrics = () => {
+      container.querySelectorAll('.shipment-line').forEach(updateLineMetrics);
     };
 
     const readCurrentValues = () => {
@@ -1607,6 +1755,10 @@
       }
       if (quantityField) {
         quantityField.style.display = hasCarton ? 'none' : '';
+      }
+      const metrics = line.querySelector('.shipment-line-metrics');
+      if (metrics) {
+        metrics.style.display = hasCarton ? 'none' : '';
       }
       const scanBtn = line.querySelector('.shipment-line-scan');
       if (scanBtn) {
@@ -1732,6 +1884,15 @@
         quantityField.classList.add('shipment-line-quantity-field');
         grid.appendChild(productField);
         grid.appendChild(quantityField);
+
+        const metrics = document.createElement('div');
+        metrics.className = 'shipment-line-metrics';
+        metrics.innerHTML =
+          '<div>Max carton mono-produit (40x30x30cm): <span class="shipment-line-max">-</span></div>' +
+          '<div>Equivalent cartons (40x30x30cm): <span class="shipment-line-equivalent">-</span></div>' +
+          '<div>Quantite disponible en stock: <span class="shipment-line-available">-</span></div>' +
+          '<div>Quantite restante apres preparation: <span class="shipment-line-remaining">-</span></div>';
+        grid.appendChild(metrics);
         line.appendChild(grid);
 
         const errors = lineErrors[String(index)];
@@ -1748,6 +1909,7 @@
           syncLineState(line);
           updateTotalWeight();
           updateCartonAvailability();
+          updateAllLineMetrics();
         });
         if (lineValue.product_code) {
           const initialMatch = findProductMatch(lineValue.product_code);
@@ -1777,6 +1939,7 @@
               filterInput.value = optionLabel(match);
             }
           }
+          updateAllLineMetrics();
         });
         quantityInput.addEventListener('input', () => {
           if (productInput.value || quantityInput.value) {
@@ -1785,6 +1948,7 @@
           syncLineState(line);
           updateTotalWeight();
           updateCartonAvailability();
+          updateAllLineMetrics();
         });
 
         syncLineState(line);
@@ -1792,6 +1956,7 @@
       }
       updateCartonAvailability();
       updateTotalWeight();
+      updateAllLineMetrics();
     };
 
     const resolveCount = value => {

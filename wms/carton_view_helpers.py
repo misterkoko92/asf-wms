@@ -1,6 +1,7 @@
 from django.urls import reverse
 
 from .models import CartonFormat, CartonStatus
+from .scan_helpers import build_product_group_key, build_product_label
 
 
 def get_carton_capacity_cm3():
@@ -25,9 +26,15 @@ def build_cartons_ready_rows(cartons_qs, *, carton_capacity_cm3):
         missing_weight = False
         missing_volume = False
         for item in carton.cartonitem_set.all():
-            name = item.product_lot.product.name
-            product_totals[name] = product_totals.get(name, 0) + item.quantity
             product = item.product_lot.product
+            lot_code = item.product_lot.lot_code
+            key = build_product_group_key(product, lot_code)
+            if key not in product_totals:
+                product_totals[key] = {
+                    "label": build_product_label(product, lot_code),
+                    "quantity": 0,
+                }
+            product_totals[key]["quantity"] += item.quantity
             if product.weight_g:
                 weight_total_g += product.weight_g * item.quantity
             else:
@@ -36,10 +43,9 @@ def build_cartons_ready_rows(cartons_qs, *, carton_capacity_cm3):
                 volume_total_cm3 += product.volume_cm3 * item.quantity
             else:
                 missing_volume = True
-        packing_list = [
-            {"name": name, "quantity": qty}
-            for name, qty in sorted(product_totals.items(), key=lambda row: row[0])
-        ]
+        packing_list = sorted(
+            product_totals.values(), key=lambda row: row["label"]
+        )
         if weight_total_g == 0 and missing_weight:
             weight_kg = None
         else:

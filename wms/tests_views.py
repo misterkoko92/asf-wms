@@ -220,7 +220,10 @@ class ScanViewTests(TestCase):
             created_by=self.user,
         )
         url = reverse("scan:scan_receive")
-        with mock.patch("wms.views.receive_receipt_line", side_effect=StockError("x")):
+        with mock.patch(
+            "wms.receipt_handlers.receive_receipt_line",
+            side_effect=StockError("x"),
+        ):
             response = self.client.post(
                 url,
                 {
@@ -280,7 +283,10 @@ class ScanViewTests(TestCase):
             created_by=self.user,
         )
         url = reverse("scan:scan_order")
-        with mock.patch("wms.views.reserve_stock_for_order", side_effect=StockError("x")):
+        with mock.patch(
+            "wms.order_scan_handlers.reserve_stock_for_order",
+            side_effect=StockError("x"),
+        ):
             response = self.client.post(
                 url,
                 {
