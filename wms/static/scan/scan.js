@@ -203,6 +203,52 @@
       .toLowerCase();
   }
 
+  function createProductMatcher(entries) {
+    return value => {
+      const raw = (value || '').trim();
+      if (!raw) {
+        return null;
+      }
+      const rawLower = raw.toLowerCase();
+      const rawNorm = normalizeText(raw);
+      let match = entries.find(
+        product =>
+          product.nameLower === rawLower ||
+          (product.nameNorm && product.nameNorm === rawNorm)
+      );
+      if (match) {
+        return match;
+      }
+      match = entries.find(
+        product => product.skuLower && product.skuLower === rawLower
+      );
+      if (match) {
+        return match;
+      }
+      match = entries.find(
+        product => product.barcodeLower && product.barcodeLower === rawLower
+      );
+      if (match) {
+        return match;
+      }
+      match = entries.find(
+        product => product.eanLower && product.eanLower === rawLower
+      );
+      if (match) {
+        return match;
+      }
+      const prefixMatches = entries.filter(
+        product =>
+          product.nameLower.startsWith(rawLower) ||
+          (product.nameNorm && product.nameNorm.startsWith(rawNorm))
+      );
+      if (prefixMatches.length === 1) {
+        return prefixMatches[0];
+      }
+      return null;
+    };
+  }
+
   function setScanMode(mode) {
     if (overlay) {
       if (mode) {
@@ -678,9 +724,13 @@
       .map(product => ({
         name: product.name,
         nameLower: product.name.toLowerCase(),
+        nameNorm: normalizeText(product.name),
         sku: product.sku || '',
+        skuLower: (product.sku || '').toLowerCase(),
         barcode: product.barcode || '',
+        barcodeLower: (product.barcode || '').toLowerCase(),
         ean: product.ean || '',
+        eanLower: (product.ean || '').toLowerCase(),
         brand: product.brand || '',
         codeValue: product.sku || product.barcode || product.ean || product.name || '',
         defaultLocationId: product.default_location_id || null,
@@ -727,44 +777,8 @@
     const locationSelect = document.getElementById('id_location');
     const storageInput = document.getElementById('id_storage_conditions');
 
-    const findProductMatch = value => {
-      const code = (value || '').trim();
-      if (!code) {
-        return null;
-      }
-      const codeLower = code.toLowerCase();
-      let match = products.find(product => product.nameLower === codeLower);
-      if (match) {
-        return match;
-      }
-      match = products.find(
-        product => product.sku && product.sku.toLowerCase() === codeLower
-      );
-      if (match) {
-        return match;
-      }
-      match = products.find(
-        product => product.barcode && product.barcode.toLowerCase() === codeLower
-      );
-      if (match) {
-        return match;
-      }
-      match = products.find(
-        product => product.ean && product.ean.toLowerCase() === codeLower
-      );
-      if (match) {
-        return match;
-      }
-      const prefixMatches = products.filter(product =>
-        product.nameLower.startsWith(codeLower)
-      );
-      if (prefixMatches.length === 1) {
-        return prefixMatches[0];
-      }
-      return null;
-    };
-
-    productResolver = value => findProductMatch(value);
+    const productMatcher = createProductMatcher(products);
+    productResolver = value => productMatcher(value);
 
     if (!inputs.length) {
       return;
@@ -810,7 +824,7 @@
         select.appendChild(option);
       });
       if (input.value) {
-        const match = findProductMatch(input.value);
+        const match = productMatcher(input.value);
         if (match && match.codeValue) {
           select.value = match.codeValue;
         } else {
@@ -840,7 +854,7 @@
     };
 
     const applyDefaultsFromValue = value => {
-      applyProductDefaults(findProductMatch(value));
+      applyProductDefaults(productMatcher(value));
     };
 
     renderOptions('');
@@ -900,11 +914,11 @@
         target.addEventListener('change', event => {
           applyDefaultsFromValue(event.target.value);
           if (filterInput) {
-            if (event.target.value) {
-              const match = findProductMatch(event.target.value);
-              filterInput.value = match
-                ? buildOptionLabel(match)
-                : event.target.value;
+          if (event.target.value) {
+            const match = productMatcher(event.target.value);
+            filterInput.value = match
+              ? buildOptionLabel(match)
+              : event.target.value;
             } else {
               filterInput.value = '';
             }
@@ -1016,39 +1030,9 @@
       }))
     );
 
-    const findProduct = value => {
-      const code = normalize(value);
-      if (!code) {
-        return null;
-      }
-      let match = productEntries.find(product => product.nameLower === code);
-      if (match) {
-        return match;
-      }
-      match = productEntries.find(product => product.skuLower && product.skuLower === code);
-      if (match) {
-        return match;
-      }
-      match = productEntries.find(
-        product => product.barcodeLower && product.barcodeLower === code
-      );
-      if (match) {
-        return match;
-      }
-      match = productEntries.find(product => product.eanLower && product.eanLower === code);
-      if (match) {
-        return match;
-      }
-      const prefixMatches = productEntries.filter(product =>
-        product.nameLower.startsWith(code)
-      );
-      if (prefixMatches.length === 1) {
-        return prefixMatches[0];
-      }
-      return null;
-    };
-
-    packProductResolver = value => findProduct(value);
+    const productMatcher = createProductMatcher(productEntries);
+    const findProduct = value => productMatcher(value);
+    packProductResolver = value => productMatcher(value);
 
     const getProductVolume = product => {
       if (!product) {

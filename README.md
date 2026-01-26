@@ -22,6 +22,15 @@ python manage.py runserver
 - Import template: `docs/import/products_template.csv`
 - Print templates: `docs/templates/`
 
+## Architecture (refactor)
+- `wms/views.py`: re-exports used by URL routing/tests.
+- `wms/views_scan_*.py`, `wms/views_portal_*.py`, `wms/views_public_*.py`: thin views, mostly wiring.
+- `*_handlers.py`: request/form orchestration, error handling, redirects.
+- `*_state.py` / `*_helpers.py`: view model builders and UI data prep.
+- `wms/domain/*.py`: business logic (stock, orders) kept framework-light.
+- `wms/import_services_*.py`: import pipelines (facade: `wms/import_services.py`).
+- `wms/scan_*_helpers.py`: scan helpers (facade: `wms/scan_helpers.py`).
+
 ## Import products
 ```bash
 python manage.py import_products docs/import/products_template.csv
