@@ -24,6 +24,25 @@ DEBUG = _env_bool("DJANGO_DEBUG", True)
 ALLOWED_HOSTS: list[str] = _env_list("DJANGO_ALLOWED_HOSTS")
 SITE_BASE_URL = os.environ.get("SITE_BASE_URL", "").strip()
 
+SECURE_SSL_REDIRECT = _env_bool("SECURE_SSL_REDIRECT", not DEBUG)
+SESSION_COOKIE_SECURE = _env_bool("SESSION_COOKIE_SECURE", not DEBUG)
+CSRF_COOKIE_SECURE = _env_bool("CSRF_COOKIE_SECURE", not DEBUG)
+SECURE_HSTS_SECONDS = int(
+    os.environ.get("SECURE_HSTS_SECONDS", "0" if DEBUG else "31536000")
+)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = _env_bool(
+    "SECURE_HSTS_INCLUDE_SUBDOMAINS", not DEBUG
+)
+SECURE_HSTS_PRELOAD = _env_bool("SECURE_HSTS_PRELOAD", not DEBUG)
+SECURE_CONTENT_TYPE_NOSNIFF = _env_bool("SECURE_CONTENT_TYPE_NOSNIFF", True)
+X_FRAME_OPTIONS = os.environ.get("X_FRAME_OPTIONS", "DENY")
+SECURE_REFERRER_POLICY = os.environ.get(
+    "SECURE_REFERRER_POLICY", "same-origin"
+)
+CSRF_TRUSTED_ORIGINS = _env_list("CSRF_TRUSTED_ORIGINS")
+if _env_bool("USE_PROXY_SSL_HEADER", not DEBUG):
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -144,11 +163,17 @@ BREVO_REPLY_TO_EMAIL = os.environ.get("BREVO_REPLY_TO_EMAIL", "")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+ENABLE_BASIC_AUTH = _env_bool("ENABLE_BASIC_AUTH", DEBUG)
+_default_authentication_classes = [
+    "rest_framework.authentication.SessionAuthentication",
+]
+if ENABLE_BASIC_AUTH:
+    _default_authentication_classes.append(
+        "rest_framework.authentication.BasicAuthentication"
+    )
+
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework.authentication.SessionAuthentication",
-        "rest_framework.authentication.BasicAuthentication",
-    ),
+    "DEFAULT_AUTHENTICATION_CLASSES": tuple(_default_authentication_classes),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
 }
 

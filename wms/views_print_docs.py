@@ -8,7 +8,6 @@ from .models import Carton, Shipment
 from .print_context import build_carton_document_context, build_carton_picking_context
 from .print_renderer import get_template_layout, render_layout_from_layout
 from .shipment_document_handlers import (
-
     handle_shipment_document_delete,
     handle_shipment_document_upload,
 )
@@ -22,6 +21,7 @@ def scan_shipment_document(request, shipment_id, doc_type):
     return render_shipment_document(request, shipment, doc_type)
 
 
+@login_required
 @require_http_methods(["GET"])
 def scan_shipment_document_public(request, shipment_ref, doc_type):
     shipment = get_object_or_404(Shipment, reference=shipment_ref)
@@ -38,6 +38,7 @@ def scan_shipment_carton_document(request, shipment_id, carton_id):
     return render_carton_document(request, shipment, carton)
 
 
+@login_required
 @require_http_methods(["GET"])
 def scan_shipment_carton_document_public(request, shipment_ref, carton_id):
     shipment = get_object_or_404(Shipment, reference=shipment_ref)

@@ -4,16 +4,13 @@ from .views_print_docs import (
     scan_carton_document,
     scan_carton_picking,
     scan_shipment_carton_document,
-    scan_shipment_carton_document_public,
     scan_shipment_document,
     scan_shipment_document_delete,
-    scan_shipment_document_public,
     scan_shipment_document_upload,
 )
 from .views_print_labels import (
     scan_shipment_label,
     scan_shipment_labels,
-    scan_shipment_labels_public,
 )
 from .views_print_templates import (
     scan_print_template_edit,
@@ -23,13 +20,10 @@ from .views_print_templates import (
 
 __all__ = [
     "scan_shipment_document",
-    "scan_shipment_document_public",
     "scan_shipment_carton_document",
-    "scan_shipment_carton_document_public",
     "scan_carton_document",
     "scan_carton_picking",
     "scan_shipment_labels",
-    "scan_shipment_labels_public",
     "scan_shipment_label",
     "scan_print_templates",
     "scan_print_template_edit",

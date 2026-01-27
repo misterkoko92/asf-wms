@@ -29,30 +29,16 @@ def build_carton_options(cartons):
 
 
 def build_shipment_document_links(shipment, *, public=False):
-    doc_route = (
-        "scan:scan_shipment_document_public"
-        if public
-        else "scan:scan_shipment_document"
-    )
-    label_route = (
-        "scan:scan_shipment_labels_public"
-        if public
-        else "scan:scan_shipment_labels"
-    )
-    carton_route = (
-        "scan:scan_shipment_carton_document_public"
-        if public
-        else "scan:scan_shipment_carton_document"
-    )
+    if public:
+        return [], [], Document.objects.none()
+    doc_route = "scan:scan_shipment_document"
+    label_route = "scan:scan_shipment_labels"
+    carton_route = "scan:scan_shipment_carton_document"
 
     def doc_args(doc_type):
-        if public:
-            return [shipment.reference, doc_type]
         return [shipment.id, doc_type]
 
     def carton_args(carton_id):
-        if public:
-            return [shipment.reference, carton_id]
         return [shipment.id, carton_id]
 
     documents = [

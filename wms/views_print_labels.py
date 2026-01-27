@@ -17,6 +17,7 @@ def scan_shipment_labels(request, shipment_id):
     return render_shipment_labels(request, shipment)
 
 
+@login_required
 @require_http_methods(["GET"])
 def scan_shipment_labels_public(request, shipment_ref):
     shipment = get_object_or_404(

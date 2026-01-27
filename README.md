@@ -58,6 +58,10 @@ Notes:
 
 ## Configuration
 - `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS` (comma-separated)
+- `ENABLE_BASIC_AUTH` (optional, defaults to true in debug and false in production)
+- Security (optional): `SECURE_SSL_REDIRECT`, `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE`,
+  `SECURE_HSTS_SECONDS`, `SECURE_HSTS_INCLUDE_SUBDOMAINS`, `SECURE_HSTS_PRELOAD`,
+  `SECURE_REFERRER_POLICY`, `USE_PROXY_SSL_HEADER`, `CSRF_TRUSTED_ORIGINS`
 - `ORG_NAME`, `ORG_ADDRESS`, `ORG_CONTACT`, `ORG_SIGNATORY`
 - `SKU_PREFIX`
 - `IMPORT_DEFAULT_PASSWORD` (optional, for user imports when CSV password is empty)
@@ -70,6 +74,12 @@ Example (bash):
 export DJANGO_SECRET_KEY="change-me"
 export DJANGO_DEBUG="false"
 export DJANGO_ALLOWED_HOSTS="example.com,www.example.com"
+export ENABLE_BASIC_AUTH="false"
+export SECURE_SSL_REDIRECT="true"
+export SESSION_COOKIE_SECURE="true"
+export CSRF_COOKIE_SECURE="true"
+export USE_PROXY_SSL_HEADER="true"
+export CSRF_TRUSTED_ORIGINS="https://example.com,https://www.example.com"
 export ORG_NAME="Aviation Sans Frontieres"
 export ORG_ADDRESS="10 Rue Exemple, 75000 Paris"
 export ORG_CONTACT="contact@example.com"
@@ -87,7 +97,7 @@ export INTEGRATION_API_KEY="change-me"
 
 ## API (v1)
 - Base URL: `http://localhost:8000/api/v1/`
-- Auth: session (admin login) or basic auth
+- Auth: session (admin login) and basic auth when `ENABLE_BASIC_AUTH=true`
 - Endpoints:
   - `GET /api/v1/products/`
   - `POST /api/v1/stock/receive/`
@@ -114,6 +124,12 @@ DJANGO_SECRET_KEY=change-me
 DJANGO_DEBUG=false
 DJANGO_ALLOWED_HOSTS=yourdomain.pythonanywhere.com
 SITE_BASE_URL=https://yourdomain.pythonanywhere.com
+ENABLE_BASIC_AUTH=false
+SECURE_SSL_REDIRECT=true
+SESSION_COOKIE_SECURE=true
+CSRF_COOKIE_SECURE=true
+USE_PROXY_SSL_HEADER=true
+CSRF_TRUSTED_ORIGINS=https://yourdomain.pythonanywhere.com
 ORG_NAME=Aviation Sans Frontieres
 ORG_ADDRESS=10 Rue Exemple, 75000 Paris
 ORG_CONTACT=contact@example.com
