@@ -1,5 +1,3 @@
-import re
-import unicodedata
 import uuid
 from decimal import Decimal, ROUND_HALF_UP
 from io import BytesIO
@@ -15,6 +13,7 @@ from django.db.models.functions import Length
 from django.urls import reverse
 from django.utils import timezone
 
+from . import reference_sequences
 from .text_utils import normalize_category_name, normalize_title, normalize_upper
 
 class ProductCategory(models.Model):
@@ -1258,144 +1257,32 @@ class IntegrationEvent(models.Model):
         return f"{self.source}:{self.event_type} ({self.direction})"
 
 
-RECEIPT_REFERENCE_RE = re.compile(
-    r"^(?P<year>\d{2})-(?P<seq>\d{2,})-(?P<donor>[A-Z0-9]{3})-(?P<count>\d{2,})$"
-)
-
-
-def normalize_reference_fragment(value: str, length: int) -> str:
-    normalized = unicodedata.normalize("NFKD", value or "")
-    ascii_value = normalized.encode("ascii", "ignore").decode("ascii")
-    cleaned = "".join(ch for ch in ascii_value if ch.isalnum())
-    cleaned = cleaned.upper()
-    if not cleaned:
-        cleaned = "X" * length
-    if len(cleaned) < length:
-        cleaned = cleaned.ljust(length, "X")
-    return cleaned[:length]
+RECEIPT_REFERENCE_RE = reference_sequences.RECEIPT_REFERENCE_RE
+normalize_reference_fragment = reference_sequences.normalize_reference_fragment
 
 
 def generate_receipt_reference(*, received_on=None, source_contact=None) -> str:
-    received_on = received_on or timezone.localdate()
-    year = received_on.year
-    year_prefix = f"{year % 100:02d}"
-    donor_code = normalize_reference_fragment(
-        source_contact.name if source_contact else "", 3
+    return reference_sequences.generate_receipt_reference(
+        received_on=received_on,
+        source_contact=source_contact,
+        receipt_model=Receipt,
+        receipt_sequence_model=ReceiptSequence,
+        receipt_donor_sequence_model=ReceiptDonorSequence,
+        transaction_module=transaction,
+        connection_obj=connection,
+        integrity_error=IntegrityError,
+        receipt_reference_re=RECEIPT_REFERENCE_RE,
+        localdate_fn=timezone.localdate,
     )
-    with transaction.atomic():
-        try:
-            sequence_query = ReceiptSequence.objects.filter(year=year)
-            if connection.features.has_select_for_update:
-                sequence_query = sequence_query.select_for_update()
-            sequence = sequence_query.get()
-        except ReceiptSequence.DoesNotExist:
-            last_number = 0
-            references = Receipt.objects.filter(
-                reference__startswith=f"{year_prefix}-"
-            ).values_list("reference", flat=True)
-            for reference in references:
-                match = RECEIPT_REFERENCE_RE.match(reference or "")
-                if not match:
-                    continue
-                try:
-                    number = int(match.group("seq"))
-                except (TypeError, ValueError):
-                    continue
-                if number > last_number:
-                    last_number = number
-            if last_number == 0:
-                last_number = Receipt.objects.filter(received_on__year=year).count()
-            try:
-                sequence = ReceiptSequence.objects.create(
-                    year=year,
-                    last_number=last_number,
-                )
-            except IntegrityError:
-                sequence_query = ReceiptSequence.objects.filter(year=year)
-                if connection.features.has_select_for_update:
-                    sequence_query = sequence_query.select_for_update()
-                sequence = sequence_query.get()
-        sequence.last_number += 1
-        sequence.save(update_fields=["last_number"])
-
-        donor_number = 0
-        if source_contact:
-            try:
-                donor_query = ReceiptDonorSequence.objects.filter(
-                    year=year, donor=source_contact
-                )
-                if connection.features.has_select_for_update:
-                    donor_query = donor_query.select_for_update()
-                donor_sequence = donor_query.get()
-            except ReceiptDonorSequence.DoesNotExist:
-                donor_last_number = 0
-                donor_refs = Receipt.objects.filter(
-                    source_contact=source_contact, received_on__year=year
-                ).values_list("reference", flat=True)
-                for reference in donor_refs:
-                    match = RECEIPT_REFERENCE_RE.match(reference or "")
-                    if not match:
-                        continue
-                    try:
-                        number = int(match.group("count"))
-                    except (TypeError, ValueError):
-                        continue
-                    if number > donor_last_number:
-                        donor_last_number = number
-                if donor_last_number == 0:
-                    donor_last_number = Receipt.objects.filter(
-                        source_contact=source_contact, received_on__year=year
-                    ).count()
-                try:
-                    donor_sequence = ReceiptDonorSequence.objects.create(
-                        year=year,
-                        donor=source_contact,
-                        last_number=donor_last_number,
-                    )
-                except IntegrityError:
-                    donor_query = ReceiptDonorSequence.objects.filter(
-                        year=year, donor=source_contact
-                    )
-                    if connection.features.has_select_for_update:
-                        donor_query = donor_query.select_for_update()
-                    donor_sequence = donor_query.get()
-            donor_sequence.last_number += 1
-            donor_sequence.save(update_fields=["last_number"])
-            donor_number = donor_sequence.last_number
-
-    return f"{year_prefix}-{sequence.last_number:02d}-{donor_code}-{donor_number:02d}"
 
 
 def generate_shipment_reference() -> str:
-    year = timezone.localdate().year
-    year_prefix = f"{year % 100:02d}"
-    with transaction.atomic():
-        try:
-            sequence_query = ShipmentSequence.objects.filter(year=year)
-            if connection.features.has_select_for_update:
-                sequence_query = sequence_query.select_for_update()
-            sequence = sequence_query.get()
-        except ShipmentSequence.DoesNotExist:
-            last_ref = (
-                Shipment.objects.annotate(ref_len=Length("reference"))
-                .filter(reference__startswith=year_prefix, ref_len=6)
-                .order_by("-reference")
-                .values_list("reference", flat=True)
-                .first()
-            )
-            last_number = 0
-            if last_ref and last_ref.isdigit():
-                last_number = int(last_ref[2:])
-            try:
-                sequence = ShipmentSequence.objects.create(
-                    year=year,
-                    last_number=last_number,
-                )
-            except IntegrityError:
-                sequence_query = ShipmentSequence.objects.filter(year=year)
-                if connection.features.has_select_for_update:
-                    sequence_query = sequence_query.select_for_update()
-                sequence = sequence_query.get()
-        sequence.last_number += 1
-        sequence.save(update_fields=["last_number"])
-        return f"{year_prefix}{sequence.last_number:04d}"
+    return reference_sequences.generate_shipment_reference(
+        shipment_model=Shipment,
+        shipment_sequence_model=ShipmentSequence,
+        transaction_module=transaction,
+        connection_obj=connection,
+        integrity_error=IntegrityError,
+        length_cls=Length,
+        localdate_fn=timezone.localdate,
+    )

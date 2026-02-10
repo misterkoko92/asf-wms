@@ -4,24 +4,33 @@ from django import forms
 from django.conf import settings
 from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
-from django.contrib.auth.tokens import default_token_generator
 from django.db import transaction
 from django.http import Http404
 from django.shortcuts import redirect, render
-from django.template.loader import render_to_string
 from django.urls import path, reverse
 from django.utils import timezone
-from django.utils.encoding import force_bytes
 from django.utils.html import format_html, format_html_join
-from django.utils.http import urlsafe_base64_encode
-
-from contacts.models import Contact, ContactAddress, ContactTag
 
 from . import models
+from .admin_account_request_approval import (
+    approve_account_request,
+    build_account_access_lines,
+    build_portal_urls,
+)
+from .admin_carton_handlers import (
+    sync_carton_shipment_stock_movements,
+    unpack_cartons_batch,
+)
+from .admin_stockmovement_views import (
+    build_stockmovement_form_response,
+    handle_adjust_view,
+    handle_pack_view,
+    handle_receive_view,
+    handle_transfer_view,
+)
 from .contact_filters import (
     TAG_CORRESPONDENT,
     TAG_RECIPIENT,
-    TAG_SHIPPER,
     contacts_with_tags,
 )
 from .emailing import enqueue_email_safe
@@ -275,106 +284,15 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
 
     @staticmethod
     def _build_portal_urls(*, request, user):
-        uid = urlsafe_base64_encode(force_bytes(user.pk))
-        token = default_token_generator.make_token(user)
-        set_password_url = request.build_absolute_uri(
-            reverse("portal:portal_set_password", args=[uid, token])
-        )
-        login_url = request.build_absolute_uri(reverse("portal:portal_login"))
-        return login_url, set_password_url
+        return build_portal_urls(request=request, user=user)
 
     def _approve_request(self, request, account_request):
-        User = get_user_model()
-        user = User.objects.filter(email__iexact=account_request.email).first()
-        if user and (user.is_staff or user.is_superuser):
-            return False, "email reserve"
-
-        with transaction.atomic():
-            contact = account_request.contact
-            if not contact:
-                contact = Contact.objects.create(
-                    name=account_request.association_name,
-                    email=account_request.email,
-                    phone=account_request.phone,
-                    is_active=True,
-                )
-                account_request.contact = contact
-            tag, _ = ContactTag.objects.get_or_create(name=TAG_SHIPPER[0])
-            contact.tags.add(tag)
-
-            contact_updates = []
-            if account_request.email and contact.email != account_request.email:
-                contact.email = account_request.email
-                contact_updates.append("email")
-            if account_request.phone and contact.phone != account_request.phone:
-                contact.phone = account_request.phone
-                contact_updates.append("phone")
-            if contact_updates:
-                contact.save(update_fields=contact_updates)
-
-            address = (
-                contact.get_effective_address()
-                if hasattr(contact, "get_effective_address")
-                else contact.addresses.filter(is_default=True).first()
-                or contact.addresses.first()
-            )
-            if not address:
-                ContactAddress.objects.create(
-                    contact=contact,
-                    address_line1=account_request.address_line1,
-                    address_line2=account_request.address_line2,
-                    postal_code=account_request.postal_code,
-                    city=account_request.city,
-                    country=account_request.country or "France",
-                    phone=account_request.phone,
-                    email=account_request.email,
-                    is_default=True,
-                )
-
-            if not user:
-                user = User.objects.create_user(
-                    username=account_request.email,
-                    email=account_request.email,
-                )
-                user.set_unusable_password()
-                user.save(update_fields=["password"])
-
-            profile, created = models.AssociationProfile.objects.get_or_create(
-                user=user, defaults={"contact": contact}
-            )
-            if not created and profile.contact_id != contact.id:
-                profile.contact = contact
-            profile.must_change_password = True
-            profile.save(update_fields=["contact", "must_change_password"])
-
-            models.AccountDocument.objects.filter(
-                account_request=account_request,
-                association_contact__isnull=True,
-            ).update(association_contact=contact)
-
-            account_request.status = models.PublicAccountRequestStatus.APPROVED
-            account_request.reviewed_at = timezone.now()
-            account_request.reviewed_by = request.user
-            account_request.save(
-                update_fields=["status", "reviewed_at", "reviewed_by", "contact"]
-            )
-
-        login_url, set_password_url = self._build_portal_urls(request=request, user=user)
-        message = render_to_string(
-            "emails/account_request_approved.txt",
-            {
-                "association_name": contact.name,
-                "email": account_request.email,
-                "set_password_url": set_password_url,
-                "login_url": login_url,
-            },
+        return approve_account_request(
+            request=request,
+            account_request=account_request,
+            enqueue_email=enqueue_email_safe,
+            portal_url_builder=self._build_portal_urls,
         )
-        enqueue_email_safe(
-            subject="ASF WMS - Compte valide",
-            message=message,
-            recipient=[account_request.email],
-        )
-        return True, ""
 
     def approve_requests(self, request, queryset):
         approved = 0
@@ -437,30 +355,12 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
             )
 
     def account_access_info(self, obj):
-        if not obj or obj.status != models.PublicAccountRequestStatus.APPROVED:
-            return "Disponible apres validation."
-        User = get_user_model()
-        user = User.objects.filter(email__iexact=obj.email).first()
-        if not user:
-            return "Utilisateur introuvable."
-        uid = urlsafe_base64_encode(force_bytes(user.pk))
-        token = default_token_generator.make_token(user)
-        base_url = settings.SITE_BASE_URL.rstrip("/") if settings.SITE_BASE_URL else ""
-        login_url = f"{base_url}{reverse('portal:portal_login')}" if base_url else reverse(
-            "portal:portal_login"
+        lines, message = build_account_access_lines(
+            account_request=obj,
+            site_base_url=getattr(settings, "SITE_BASE_URL", ""),
         )
-        set_password_url = (
-            f"{base_url}{reverse('portal:portal_set_password', args=[uid, token])}"
-            if base_url
-            else reverse("portal:portal_set_password", args=[uid, token])
-        )
-        lines = [
-            f"Email: {obj.email or '-'}",
-            f"Login: {login_url}",
-            f"Lien definir mot de passe: {set_password_url}",
-        ]
-        if not base_url:
-            lines.append("SITE_BASE_URL non configuree, utiliser l'URL du site.")
+        if message:
+            return message
         return format_html_join("<br>", "{}", ((line,) for line in lines))
 
     account_access_info.short_description = "Acces portail"
@@ -931,47 +831,22 @@ class CartonAdmin(admin.ModelAdmin):
         if change:
             original = models.Carton.objects.filter(pk=obj.pk).first()
         super().save_model(request, obj, form, change)
-        if original and original.shipment_id != obj.shipment_id:
-            if obj.shipment:
-                models.StockMovement.objects.filter(
-                    related_carton=obj, movement_type=models.MovementType.OUT
-                ).update(related_shipment=obj.shipment)
-            else:
-                models.StockMovement.objects.filter(
-                    related_carton=obj, movement_type=models.MovementType.OUT
-                ).update(related_shipment=None)
-        if obj.shipment:
-            if not models.StockMovement.objects.filter(
-                related_carton=obj, movement_type=models.MovementType.OUT
-            ).exists():
-                items = list(
-                    obj.cartonitem_set.select_related(
-                        "product_lot", "product_lot__product"
-                    )
-                )
-                if items:
-                    for item in items:
-                        models.StockMovement.objects.create(
-                            movement_type=models.MovementType.OUT,
-                            product=item.product_lot.product,
-                            product_lot=item.product_lot,
-                            quantity=item.quantity,
-                            from_location=item.product_lot.location,
-                            related_carton=obj,
-                            related_shipment=obj.shipment,
-                            created_by=request.user,
-                        )
+        sync_carton_shipment_stock_movements(
+            obj=obj,
+            original=original,
+            stock_movement_model=models.StockMovement,
+            movement_type_out=models.MovementType.OUT,
+            created_by=request.user,
+        )
 
     def unpack_cartons(self, request, queryset):
-        unpacked = 0
-        skipped = 0
-        with transaction.atomic():
-            for carton in queryset.select_related("shipment"):
-                try:
-                    unpack_carton(user=request.user, carton=carton)
-                    unpacked += 1
-                except StockError:
-                    skipped += 1
+        unpacked, skipped = unpack_cartons_batch(
+            queryset=queryset,
+            user=request.user,
+            unpack_carton_fn=unpack_carton,
+            stock_error_cls=StockError,
+            transaction_module=transaction,
+        )
         if unpacked:
             self.message_user(request, f"{unpacked} carton(s) deconditionne(s).")
         if skipped:
@@ -1167,133 +1042,61 @@ class StockMovementAdmin(admin.ModelAdmin):
         return custom_urls + urls
 
     def receive_view(self, request):
-        if request.method == "POST":
-            form = ReceiveStockForm(request.POST)
-            if form.is_valid():
-                product = form.cleaned_data["product"]
-                status = form.cleaned_data["status"] or None
-                location = form.cleaned_data["location"] or product.default_location
-                if location is None:
-                    form.add_error(
-                        "location", "Emplacement requis ou definir un emplacement par defaut."
-                    )
-                    return self._render_form(request, form, "Reception stock")
-                with transaction.atomic():
-                    lot = receive_stock(
-                        user=request.user,
-                        product=product,
-                        quantity=form.cleaned_data["quantity"],
-                        location=location,
-                        lot_code=form.cleaned_data["lot_code"] or "",
-                        received_on=form.cleaned_data["received_on"],
-                        expires_on=form.cleaned_data["expires_on"],
-                        status=status,
-                        storage_conditions=form.cleaned_data["storage_conditions"],
-                    )
-                self.message_user(
-                    request, "Stock receptionne et lot cree avec succes."
-                )
-                return redirect("admin:wms_productlot_change", lot.id)
-        else:
-            form = ReceiveStockForm()
-        return self._render_form(request, form, "Reception stock")
+        return handle_receive_view(
+            request=request,
+            form_class=ReceiveStockForm,
+            render_form=self._render_form,
+            receive_stock_fn=receive_stock,
+            redirect_fn=redirect,
+            transaction_module=transaction,
+            message_user=self.message_user,
+        )
 
     def adjust_view(self, request):
-        if request.method == "POST":
-            form = AdjustStockForm(request.POST)
-            if form.is_valid():
-                lot = form.cleaned_data["product_lot"]
-                delta = form.cleaned_data["quantity_delta"]
-                try:
-                    with transaction.atomic():
-                        adjust_stock(
-                            user=request.user,
-                            lot=lot,
-                            delta=delta,
-                            reason_code=form.cleaned_data["reason_code"] or "",
-                            reason_notes=form.cleaned_data["reason_notes"] or "",
-                        )
-                    self.message_user(request, "Ajustement de stock enregistre.")
-                    return redirect("admin:wms_productlot_change", lot.id)
-                except StockError:
-                    form.add_error(
-                        "quantity_delta",
-                        "Stock insuffisant pour appliquer cette correction.",
-                    )
-        else:
-            form = AdjustStockForm()
-        return self._render_form(request, form, "Ajuster stock")
+        return handle_adjust_view(
+            request=request,
+            form_class=AdjustStockForm,
+            render_form=self._render_form,
+            adjust_stock_fn=adjust_stock,
+            stock_error_cls=StockError,
+            redirect_fn=redirect,
+            transaction_module=transaction,
+            message_user=self.message_user,
+        )
 
     def transfer_view(self, request):
-        if request.method == "POST":
-            form = TransferStockForm(request.POST)
-            if form.is_valid():
-                lot = form.cleaned_data["product_lot"]
-                to_location = form.cleaned_data["to_location"]
-                try:
-                    with transaction.atomic():
-                        transfer_stock(
-                            user=request.user,
-                            lot=lot,
-                            to_location=to_location,
-                        )
-                    self.message_user(request, "Transfert de stock enregistre.")
-                    return redirect("admin:wms_productlot_change", lot.id)
-                except StockError:
-                    form.add_error("to_location", "Le lot est deja a cet emplacement.")
-        else:
-            form = TransferStockForm()
-        return self._render_form(request, form, "Transferer stock")
+        return handle_transfer_view(
+            request=request,
+            form_class=TransferStockForm,
+            render_form=self._render_form,
+            transfer_stock_fn=transfer_stock,
+            stock_error_cls=StockError,
+            redirect_fn=redirect,
+            transaction_module=transaction,
+            message_user=self.message_user,
+        )
 
     def pack_view(self, request):
-        if request.method == "POST":
-            form = PackCartonForm(request.POST)
-            if form.is_valid():
-                with transaction.atomic():
-                    product = form.cleaned_data["product"]
-                    quantity = form.cleaned_data["quantity"]
-                    carton = form.cleaned_data["carton"]
-                    carton_code = form.cleaned_data["carton_code"]
-                    shipment = form.cleaned_data["shipment"]
-                    current_location = form.cleaned_data["current_location"]
-                    try:
-                        carton = pack_carton(
-                            user=request.user,
-                            product=product,
-                            quantity=quantity,
-                            carton=carton,
-                            carton_code=carton_code,
-                            shipment=shipment,
-                            current_location=current_location,
-                        )
-                    except StockError as exc:
-                        message = str(exc)
-                        if "Carton deja lie" in message:
-                            form.add_error("shipment", message)
-                        elif "Stock insuffisant" in message:
-                            form.add_error("quantity", message)
-                        elif "carton expedie" in message.lower():
-                            form.add_error("carton", message)
-                        elif "expedition expediee" in message.lower():
-                            form.add_error("shipment", message)
-                        else:
-                            form.add_error(None, message)
-                        return self._render_form(request, form, "Preparer carton")
-
-                self.message_user(request, "Carton prepare avec succes.")
-                return redirect("admin:wms_carton_change", carton.id)
-        else:
-            form = PackCartonForm()
-        return self._render_form(request, form, "Preparer carton")
+        return handle_pack_view(
+            request=request,
+            form_class=PackCartonForm,
+            render_form=self._render_form,
+            pack_carton_fn=pack_carton,
+            stock_error_cls=StockError,
+            redirect_fn=redirect,
+            transaction_module=transaction,
+            message_user=self.message_user,
+        )
 
     def _render_form(self, request, form, title):
-        context = {
-            **self.admin_site.each_context(request),
-            "opts": self.model._meta,
-            "form": form,
-            "title": title,
-        }
-        return render(request, "admin/wms/stockmovement/form.html", context)
+        return build_stockmovement_form_response(
+            request=request,
+            admin_site=self.admin_site,
+            model_meta=self.model._meta,
+            form=form,
+            title=title,
+            render_fn=render,
+        )
 
 
 @admin.register(models.Document)
