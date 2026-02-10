@@ -30,13 +30,23 @@ def _env_int(name: str, default: int) -> int:
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-secret-key-change-this")
 
 DEBUG = _env_bool("DJANGO_DEBUG", True)
+RUNNING_TESTS = "test" in sys.argv
 
 ALLOWED_HOSTS: list[str] = _env_list("DJANGO_ALLOWED_HOSTS")
 SITE_BASE_URL = os.environ.get("SITE_BASE_URL", "").strip()
 
-SECURE_SSL_REDIRECT = _env_bool("SECURE_SSL_REDIRECT", not DEBUG)
-SESSION_COOKIE_SECURE = _env_bool("SESSION_COOKIE_SECURE", not DEBUG)
-CSRF_COOKIE_SECURE = _env_bool("CSRF_COOKIE_SECURE", not DEBUG)
+SECURE_SSL_REDIRECT = _env_bool(
+    "SECURE_SSL_REDIRECT",
+    not DEBUG and not RUNNING_TESTS,
+)
+SESSION_COOKIE_SECURE = _env_bool(
+    "SESSION_COOKIE_SECURE",
+    not DEBUG and not RUNNING_TESTS,
+)
+CSRF_COOKIE_SECURE = _env_bool(
+    "CSRF_COOKIE_SECURE",
+    not DEBUG and not RUNNING_TESTS,
+)
 SECURE_HSTS_SECONDS = int(
     os.environ.get("SECURE_HSTS_SECONDS", "0" if DEBUG else "31536000")
 )
@@ -97,7 +107,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "asf_wms.wsgi.application"
 
-RUNNING_TESTS = "test" in sys.argv
 USE_MYSQL_FOR_TESTS = _env_bool("USE_MYSQL_FOR_TESTS")
 USE_SQLITE_FOR_TESTS = RUNNING_TESTS and not USE_MYSQL_FOR_TESTS
 
