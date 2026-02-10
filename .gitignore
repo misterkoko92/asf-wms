@@ -35,3 +35,5 @@ coverage.xml
 # Tooling caches
 .ruff_cache/
 .pytest_cache/
+.mypy_cache/
+.cache/

@@ -58,6 +58,14 @@ class PrintRendererTests(TestCase):
         self.assertIn("<h1", html_with_tag)
         self.assertIn("</h1>", html_with_tag)
 
+    def test_render_text_block_invalid_tag_falls_back_to_div(self):
+        html = print_renderer._render_text_block(
+            {"type": "text", "tag": "script", "text": "Titre"},
+            {},
+        )
+        self.assertIn("<div", html)
+        self.assertNotIn("<script", html)
+
     def test_render_block_summary_triplet(self):
         with mock.patch(
             "wms.print_renderer.render_to_string",

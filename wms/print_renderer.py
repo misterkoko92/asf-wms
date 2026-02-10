@@ -2,13 +2,27 @@ import json
 
 from django.template import Context, Template
 from django.template.loader import render_to_string
-from django.utils.safestring import mark_safe
+from django.utils.html import format_html
 
 from .models import PrintTemplate
 from .print_layouts import DEFAULT_LAYOUTS
 
 EMPTY_LAYOUT = {"blocks": []}
 TEXT_DEFAULT_TAG = "div"
+ALLOWED_TEXT_TAGS = {
+    "div",
+    "p",
+    "span",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "strong",
+    "em",
+    "small",
+}
 
 CONTACT_LABEL_DEFAULTS = {
     "company": "Societe",
@@ -82,11 +96,18 @@ def _build_style(style):
     return " ".join(rules)
 
 
+def _normalize_text_tag(tag):
+    value = (tag or TEXT_DEFAULT_TAG).strip().lower()
+    if value in ALLOWED_TEXT_TAGS:
+        return value
+    return TEXT_DEFAULT_TAG
+
+
 def _render_text_block(block, context):
-    tag = block.get("tag") or TEXT_DEFAULT_TAG
+    tag = _normalize_text_tag(block.get("tag"))
     text = _render_template_string(block.get("text", ""), context)
     style = _build_style(block.get("style", {}))
-    return mark_safe(f"<{tag} style=\"{style}\">{text}</{tag}>")
+    return format_html("<{tag} style=\"{style}\">{text}</{tag}>", tag=tag, style=style, text=text)
 
 
 def _render_simple_template_block(block_type, context):

@@ -1,0 +1,16 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.6
+    hooks:
+      - id: ruff
+        args: ["--config=.ruff.toml"]
+        files: ^(asf_wms|api|contacts|wms)/.*\.py$
+        exclude: ^(wms/migrations/|contacts/migrations/)
+
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.9.3
+    hooks:
+      - id: bandit
+        args: ["-q", "-x", "wms/migrations,contacts/migrations"]
+        files: ^(asf_wms|api|contacts|wms)/.*\.py$
+        exclude: ^(api/tests.*\.py|contacts/tests.*\.py|wms/tests.*\.py|wms/migrations/|contacts/migrations/)

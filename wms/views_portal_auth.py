@@ -11,14 +11,14 @@ from .portal_helpers import get_association_profile
 from .view_permissions import association_required
 
 TEMPLATE_LOGIN = "portal/login.html"
-TEMPLATE_SET_PASSWORD = "portal/set_password.html"
-TEMPLATE_CHANGE_PASSWORD = "portal/change_password.html"
+TEMPLATE_SET_PASSWORD = "portal/set_password.html"  # nosec B105
+TEMPLATE_CHANGE_PASSWORD = "portal/change_password.html"  # nosec B105
 
 ERROR_LOGIN_REQUIRED = "Email et mot de passe requis."
 ERROR_LOGIN_INVALID = "Identifiants invalides."
 ERROR_ACCOUNT_INACTIVE = "Compte inactif."
 ERROR_ACCOUNT_NOT_ACTIVE = "Compte non active par ASF."
-MESSAGE_PASSWORD_UPDATED = "Mot de passe mis a jour."
+MESSAGE_PASSWORD_UPDATED = "Mot de passe mis a jour."  # nosec B105
 
 
 def _build_login_context(*, errors, identifier, next_url):

@@ -201,6 +201,21 @@ class BrevoAndFallbackSendTests(TestCase):
         self.assertFalse(sent)
         warning_mock.assert_called_once()
 
+    @override_settings(BREVO_API_KEY="key-123", BREVO_SENDER_EMAIL="sender@example.com")
+    def test_send_with_brevo_rejects_unexpected_endpoint(self):
+        with mock.patch("wms.emailing.BREVO_API_URL", "http://evil.example/api"):
+            with mock.patch("wms.emailing.urlopen") as urlopen_mock:
+                with mock.patch("wms.emailing.LOGGER.warning") as warning_mock:
+                    sent = _send_with_brevo(
+                        subject="Subject",
+                        message="Message",
+                        recipients=["dest@example.com"],
+                    )
+
+        self.assertFalse(sent)
+        urlopen_mock.assert_not_called()
+        warning_mock.assert_called_once()
+
     @override_settings(DEFAULT_FROM_EMAIL="default@example.com")
     def test_send_email_safe_branches(self):
         self.assertFalse(send_email_safe(subject="S", message="M", recipient=None))

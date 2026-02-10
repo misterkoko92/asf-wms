@@ -3,6 +3,7 @@ import logging
 import os
 from datetime import timedelta
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 from django.conf import settings
@@ -20,6 +21,8 @@ from .models import (
 
 LOGGER = logging.getLogger(__name__)
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
+BREVO_API_EXPECTED_HOST = "api.brevo.com"
+BREVO_API_EXPECTED_PATH = "/v3/smtp/email"
 EMAIL_QUEUE_SOURCE = "wms.email"
 EMAIL_QUEUE_TARGET = "smtp"
 EMAIL_QUEUE_EVENT_TYPE = "send_email"
@@ -337,12 +340,19 @@ def _send_with_brevo(*, subject, message, recipients, html_message=None, tags=No
     if tags:
         payload["tags"] = list(tags)
     try:
+        parsed_url = urlparse(BREVO_API_URL)
+        if (
+            parsed_url.scheme != "https"
+            or parsed_url.netloc != BREVO_API_EXPECTED_HOST
+            or parsed_url.path != BREVO_API_EXPECTED_PATH
+        ):
+            raise ValueError("Invalid Brevo API URL configuration")
         request = Request(
             BREVO_API_URL,
             data=json.dumps(payload).encode("utf-8"),
             headers={"api-key": api_key, "Content-Type": "application/json"},
         )
-        with urlopen(request, timeout=10) as response:
+        with urlopen(request, timeout=10) as response:  # nosec B310
             response.read()
         return True
     except (HTTPError, URLError, ValueError) as exc:

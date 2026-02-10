@@ -31,6 +31,8 @@ python -m pip check
 python manage.py check --deploy --fail-level WARNING
 ruff check .
 pip-audit -r requirements.txt
+bandit -r asf_wms api contacts wms -x "wms/migrations,contacts/migrations,wms/tests.py,wms/tests_*.py,api/tests.py,api/tests_*.py,contacts/tests.py,contacts/tests_*.py"
+pre-commit run --all-files
 ```
 
 ## Docs
