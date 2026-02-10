@@ -1,4 +1,6 @@
+from django.conf import settings
 from django.contrib import messages
+from django.core.cache import cache
 from django.http import Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -26,6 +28,11 @@ MESSAGE_PUBLIC_ORDER_SENT = "Commande envoyee. L'equipe ASF va la traiter rapide
 ERROR_ASSOCIATION_NAME_REQUIRED = "Nom de l'association requis."
 ERROR_ASSOCIATION_ADDRESS_REQUIRED = "Adresse requise."
 ERROR_PRODUCTS_REQUIRED = "Ajoutez au moins un produit."
+ERROR_THROTTLE_LIMIT = (
+    "Une commande recente a deja ete envoyee. Merci de patienter quelques minutes."
+)
+
+PUBLIC_ORDER_THROTTLE_SECONDS_DEFAULT = 300
 
 
 def _get_public_order_or_404(link, order_id):
@@ -75,6 +82,70 @@ def _build_summary_url(token, order_query):
     if not summary_order_id:
         return None
     return reverse("scan:scan_public_order_summary", args=[token, summary_order_id])
+
+
+def _get_client_ip(request):
+    forwarded = (request.META.get("HTTP_X_FORWARDED_FOR") or "").strip()
+    if forwarded:
+        return forwarded.split(",")[0].strip() or "unknown"
+    return (request.META.get("REMOTE_ADDR") or "").strip() or "unknown"
+
+
+def _get_public_order_throttle_seconds():
+    raw_value = getattr(
+        settings,
+        "PUBLIC_ORDER_THROTTLE_SECONDS",
+        PUBLIC_ORDER_THROTTLE_SECONDS_DEFAULT,
+    )
+    try:
+        value = int(raw_value)
+    except (TypeError, ValueError):
+        return PUBLIC_ORDER_THROTTLE_SECONDS_DEFAULT
+    return max(0, value)
+
+
+def _get_throttle_keys(*, token, email, client_ip):
+    token_key = str(token)
+    normalized_email = (email or "").strip().lower() or "unknown"
+    normalized_ip = (client_ip or "").strip() or "unknown"
+    return (
+        f"public-order:{token_key}:email:{normalized_email}",
+        f"public-order:{token_key}:ip:{normalized_ip}",
+    )
+
+
+def _reserve_throttle_slot(*, token, email, client_ip):
+    timeout = _get_public_order_throttle_seconds()
+    if timeout <= 0:
+        return True
+
+    email_key, ip_key = _get_throttle_keys(
+        token=token,
+        email=email,
+        client_ip=client_ip,
+    )
+    email_reserved = cache.add(email_key, "1", timeout=timeout)
+    ip_reserved = cache.add(ip_key, "1", timeout=timeout)
+    if email_reserved and ip_reserved:
+        return True
+    if email_reserved and not ip_reserved:
+        cache.delete(email_key)
+    if ip_reserved and not email_reserved:
+        cache.delete(ip_key)
+    return False
+
+
+def _release_throttle_slot(*, token, email, client_ip):
+    timeout = _get_public_order_throttle_seconds()
+    if timeout <= 0:
+        return
+    email_key, ip_key = _get_throttle_keys(
+        token=token,
+        email=email,
+        client_ip=client_ip,
+    )
+    cache.delete(email_key)
+    cache.delete(ip_key)
 
 
 def _build_public_order_context(
@@ -159,6 +230,16 @@ def scan_public_order(request, token):
         if not line_items:
             errors.append(ERROR_PRODUCTS_REQUIRED)
 
+        client_ip = ""
+        if not errors and not line_errors:
+            client_ip = _get_client_ip(request)
+            if not _reserve_throttle_slot(
+                token=token,
+                email=form_data["association_email"],
+                client_ip=client_ip,
+            ):
+                errors.append(ERROR_THROTTLE_LIMIT)
+
         if not errors and not line_errors:
             try:
                 order, contact = create_public_order(
@@ -167,7 +248,19 @@ def scan_public_order(request, token):
                     line_items=line_items,
                 )
             except StockError as exc:
+                _release_throttle_slot(
+                    token=token,
+                    email=form_data["association_email"],
+                    client_ip=client_ip,
+                )
                 errors.append(str(exc))
+            except Exception:
+                _release_throttle_slot(
+                    token=token,
+                    email=form_data["association_email"],
+                    client_ip=client_ip,
+                )
+                raise
             else:
                 send_public_order_notifications(
                     request,

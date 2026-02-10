@@ -66,6 +66,7 @@ Notes:
 
 ## Configuration
 - `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS` (comma-separated)
+  - In production (`DJANGO_DEBUG=false`), `DJANGO_SECRET_KEY` must be a strong non-default value.
 - `ENABLE_BASIC_AUTH` (optional, defaults to true in debug and false in production)
 - Security (optional): `SECURE_SSL_REDIRECT`, `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE`,
   `SECURE_HSTS_SECONDS`, `SECURE_HSTS_INCLUDE_SUBDOMAINS`, `SECURE_HSTS_PRELOAD`,
@@ -74,6 +75,8 @@ Notes:
 - `SKU_PREFIX`
 - `IMPORT_DEFAULT_PASSWORD` (optional, for user imports when CSV password is empty)
 - `INTEGRATION_API_KEY` (optional, for integration endpoints)
+- `ACCOUNT_REQUEST_THROTTLE_SECONDS` (optional, default `300`)
+- `PUBLIC_ORDER_THROTTLE_SECONDS` (optional, default `300`)
 - MySQL (optional): `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_ENGINE`
   - If `DB_NAME` is set, Django uses MySQL; otherwise it uses SQLite.
 
@@ -95,6 +98,8 @@ export ORG_SIGNATORY="Jean Dupont"
 export SKU_PREFIX="ASF"
 export IMPORT_DEFAULT_PASSWORD="TempPWD!"
 export INTEGRATION_API_KEY="change-me"
+export ACCOUNT_REQUEST_THROTTLE_SECONDS="300"
+export PUBLIC_ORDER_THROTTLE_SECONDS="300"
 ```
 
 ## Scan PWA
@@ -145,6 +150,8 @@ ORG_SIGNATORY=Jean Dupont
 SKU_PREFIX=ASF
 IMPORT_DEFAULT_PASSWORD=TempPWD!
 INTEGRATION_API_KEY=change-me
+ACCOUNT_REQUEST_THROTTLE_SECONDS=300
+PUBLIC_ORDER_THROTTLE_SECONDS=300
 DB_NAME=youruser$asf_wms
 DB_USER=youruser
 DB_PASSWORD=yourpassword

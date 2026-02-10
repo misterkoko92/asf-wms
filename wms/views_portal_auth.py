@@ -4,7 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import SetPasswordForm
 from django.contrib.auth.tokens import default_token_generator
 from django.shortcuts import redirect, render
-from django.utils.http import urlsafe_base64_decode
+from django.utils.http import url_has_allowed_host_and_scheme, urlsafe_base64_decode
 from django.views.decorators.http import require_http_methods
 
 from .portal_helpers import get_association_profile
@@ -45,6 +45,19 @@ def _get_user_from_uidb64(uidb64):
     return get_user_model().objects.filter(pk=uid).first()
 
 
+def _safe_next_url(request, next_url):
+    candidate = (next_url or "").strip()
+    if not candidate:
+        return ""
+    if not url_has_allowed_host_and_scheme(
+        url=candidate,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return ""
+    return candidate
+
+
 @require_http_methods(["GET", "POST"])
 def portal_login(request):
     if request.user.is_authenticated:
@@ -54,11 +67,11 @@ def portal_login(request):
 
     errors = []
     identifier = ""
-    next_url = request.GET.get("next") or ""
+    next_url = _safe_next_url(request, request.GET.get("next"))
     if request.method == "POST":
         identifier = (request.POST.get("identifier") or "").strip()
         password = request.POST.get("password") or ""
-        next_url = (request.POST.get("next") or "").strip()
+        next_url = _safe_next_url(request, request.POST.get("next"))
         if not identifier or not password:
             errors.append(ERROR_LOGIN_REQUIRED)
         else:

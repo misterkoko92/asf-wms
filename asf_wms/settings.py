@@ -2,6 +2,8 @@ import os
 import sys
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -27,10 +29,27 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+def _is_secure_secret_key(secret_key: str) -> bool:
+    if not secret_key:
+        return False
+    if secret_key.startswith("django-insecure-"):
+        return False
+    if len(secret_key) < 50:
+        return False
+    if len(set(secret_key)) < 5:
+        return False
+    return True
+
+
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-secret-key-change-this")
 
 DEBUG = _env_bool("DJANGO_DEBUG", True)
 RUNNING_TESTS = "test" in sys.argv
+
+if not DEBUG and not RUNNING_TESTS and not _is_secure_secret_key(SECRET_KEY):
+    raise ImproperlyConfigured(
+        "DJANGO_SECRET_KEY must be a strong, non-default value when DJANGO_DEBUG=false."
+    )
 
 ALLOWED_HOSTS: list[str] = _env_list("DJANGO_ALLOWED_HOSTS")
 SITE_BASE_URL = os.environ.get("SITE_BASE_URL", "").strip()
@@ -209,6 +228,7 @@ IMPORT_DEFAULT_PASSWORD = os.environ.get("IMPORT_DEFAULT_PASSWORD", "").strip()
 INTEGRATION_API_KEY = os.environ.get("INTEGRATION_API_KEY", "").strip()
 LISTING_MAX_FILE_SIZE_MB = int(os.environ.get("LISTING_MAX_FILE_SIZE_MB", "10"))
 ACCOUNT_REQUEST_THROTTLE_SECONDS = _env_int("ACCOUNT_REQUEST_THROTTLE_SECONDS", 300)
+PUBLIC_ORDER_THROTTLE_SECONDS = _env_int("PUBLIC_ORDER_THROTTLE_SECONDS", 300)
 EMAIL_QUEUE_MAX_ATTEMPTS = _env_int("EMAIL_QUEUE_MAX_ATTEMPTS", 5)
 EMAIL_QUEUE_RETRY_BASE_SECONDS = _env_int("EMAIL_QUEUE_RETRY_BASE_SECONDS", 60)
 EMAIL_QUEUE_RETRY_MAX_SECONDS = _env_int("EMAIL_QUEUE_RETRY_MAX_SECONDS", 3600)

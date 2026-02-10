@@ -196,6 +196,28 @@ class PortalAuthViewsTests(PortalBaseTestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, next_url)
 
+    def test_portal_login_ignores_external_next_url(self):
+        user = self._create_portal_user("portal-auth-next", "next@example.com")
+        self._create_profile(user)
+        response = self.client.post(
+            self.login_url,
+            {
+                "identifier": user.email,
+                "password": "pass1234",
+                "next": "https://evil.example.org/phishing",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self.dashboard_url)
+
+    def test_portal_login_get_ignores_external_next_url_in_context(self):
+        response = self.client.get(
+            self.login_url,
+            {"next": "https://evil.example.org/phishing"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["next"], "")
+
     def test_portal_logout_redirects_to_login(self):
         user = self._create_portal_user("portal-auth-e", "e@example.com")
         self.client.force_login(user)

@@ -4,7 +4,7 @@ from unittest import mock
 from uuid import uuid4
 
 from django.http import Http404
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -235,6 +235,80 @@ class PublicOrderViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("Stock insuffisant", response.context["errors"])
         notify_mock.assert_not_called()
+
+    @override_settings(PUBLIC_ORDER_THROTTLE_SECONDS=300)
+    def test_scan_public_order_post_rejects_throttled_submission(self):
+        line_item = (SimpleNamespace(id=1), 2)
+        payload = {
+            "association_name": "Association Public",
+            "association_email": "asso@example.com",
+            "association_line1": "1 Rue Test",
+            "association_country": "France",
+        }
+        with mock.patch(
+            "wms.views_public_order.build_product_selection_data",
+            return_value=([], {}, {}),
+        ):
+            with mock.patch(
+                "wms.views_public_order.build_shipper_contact_payload",
+                return_value=[],
+            ):
+                with mock.patch(
+                    "wms.views_public_order.build_order_line_items",
+                    return_value=([line_item], {1: 2}, {}),
+                ):
+                    with mock.patch(
+                        "wms.views_public_order._reserve_throttle_slot",
+                        return_value=False,
+                    ):
+                        with mock.patch(
+                            "wms.views_public_order.create_public_order"
+                        ) as create_mock:
+                            response = self.client.post(self.public_order_url, payload)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            "Une commande recente a deja ete envoyee. Merci de patienter quelques minutes.",
+            response.context["errors"],
+        )
+        create_mock.assert_not_called()
+
+    @override_settings(PUBLIC_ORDER_THROTTLE_SECONDS=300)
+    def test_scan_public_order_post_releases_throttle_slot_on_stock_error(self):
+        line_item = (SimpleNamespace(id=1), 2)
+        payload = {
+            "association_name": "Association Public",
+            "association_email": "asso@example.com",
+            "association_line1": "1 Rue Test",
+            "association_country": "France",
+        }
+        with mock.patch(
+            "wms.views_public_order.build_product_selection_data",
+            return_value=([], {}, {}),
+        ):
+            with mock.patch(
+                "wms.views_public_order.build_shipper_contact_payload",
+                return_value=[],
+            ):
+                with mock.patch(
+                    "wms.views_public_order.build_order_line_items",
+                    return_value=([line_item], {1: 2}, {}),
+                ):
+                    with mock.patch(
+                        "wms.views_public_order._reserve_throttle_slot",
+                        return_value=True,
+                    ) as reserve_mock:
+                        with mock.patch(
+                            "wms.views_public_order._release_throttle_slot",
+                        ) as release_mock:
+                            with mock.patch(
+                                "wms.views_public_order.create_public_order",
+                                side_effect=StockError("Stock insuffisant"),
+                            ):
+                                response = self.client.post(self.public_order_url, payload)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Stock insuffisant", response.context["errors"])
+        reserve_mock.assert_called_once()
+        release_mock.assert_called_once()
 
     def test_scan_public_order_post_success_redirects_with_order_summary(self):
         line_item = (SimpleNamespace(id=1), 2)
