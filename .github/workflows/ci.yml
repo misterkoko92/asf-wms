@@ -9,7 +9,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     env:
-      DJANGO_SECRET_KEY: ci-secret-key-change-me-1234567890abcdef
+      DJANGO_SECRET_KEY: "ci-super-strong-secret-key-ABCDEFGHIJKLMNOPQRSTUVWXYZ-1234567890!@#$%^&*()"
       DJANGO_DEBUG: "false"
       DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
     steps:
@@ -28,20 +28,40 @@ jobs:
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
 
-      - name: Django check
-        run: python manage.py check
+      - name: Dependency consistency check
+        run: python -m pip check
+
+      - name: Django deploy check
+        run: python manage.py check --deploy --fail-level WARNING
 
       - name: Migration check
         run: python manage.py makemigrations --check --dry-run
 
+      - name: Lint (fatal rules)
+        run: ruff check .
+
       - name: Run tests with coverage
         run: |
-          coverage run --source=wms,api,contacts,asf_wms manage.py test
-          coverage report -m --fail-under=63
+          coverage run --rcfile=.coveragerc manage.py test
+          coverage report -m --fail-under=95
           coverage xml
+
+      - name: Dependency vulnerability audit (informational)
+        continue-on-error: true
+        run: |
+          pip-audit -r requirements.txt --format json --output pip-audit-report.json || true
+          test -f pip-audit-report.json || echo '{"error":"pip-audit did not produce output"}' > pip-audit-report.json
+          cat pip-audit-report.json
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
           name: coverage-xml
           path: coverage.xml
+
+      - name: Upload dependency audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pip-audit-report
+          path: pip-audit-report.json

@@ -1,0 +1,16 @@
+[run]
+source =
+    wms
+    api
+    contacts
+    asf_wms
+omit =
+    */tests*.py
+    */migrations/*
+    asf_wms/asgi.py
+    asf_wms/wsgi.py
+
+[report]
+show_missing = true
+skip_covered = false
+precision = 2

@@ -1,0 +1,10 @@
+target-version = "py311"
+line-length = 100
+exclude = [
+    ".venv",
+    "wms/migrations",
+    "contacts/migrations",
+]
+
+[lint]
+select = ["E9", "F63", "F7", "F82"]

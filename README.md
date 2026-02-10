@@ -18,10 +18,19 @@ python manage.py runserver
 
 ## Tests and coverage
 ```bash
+pip install -r requirements-dev.txt
 python manage.py test
-coverage run --source=wms,api,contacts,asf_wms manage.py test
-coverage report -m --fail-under=63
+coverage run --rcfile=.coveragerc manage.py test
+coverage report -m --fail-under=95
 coverage xml
+```
+
+## Quality and security checks
+```bash
+python -m pip check
+python manage.py check --deploy --fail-level WARNING
+ruff check .
+pip-audit -r requirements.txt
 ```
 
 ## Docs
@@ -82,7 +91,7 @@ Notes:
 
 Example (bash):
 ```bash
-export DJANGO_SECRET_KEY="change-me"
+export DJANGO_SECRET_KEY="replace-with-a-long-random-secret-key-of-at-least-50-characters"
 export DJANGO_DEBUG="false"
 export DJANGO_ALLOWED_HOSTS="example.com,www.example.com"
 export ENABLE_BASIC_AUTH="false"
@@ -133,7 +142,7 @@ export PUBLIC_ORDER_THROTTLE_SECONDS="300"
 
 Example env vars (Web tab -> WSGI configuration):
 ```
-DJANGO_SECRET_KEY=change-me
+DJANGO_SECRET_KEY=replace-with-a-long-random-secret-key-of-at-least-50-characters
 DJANGO_DEBUG=false
 DJANGO_ALLOWED_HOSTS=yourdomain.pythonanywhere.com
 SITE_BASE_URL=https://yourdomain.pythonanywhere.com

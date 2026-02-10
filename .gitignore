@@ -26,6 +26,12 @@ data/*
 *.log
 .env
 .env.*
+.coverage
+coverage.xml
 
 # OS files
 .DS_Store
+
+# Tooling caches
+.ruff_cache/
+.pytest_cache/
