@@ -53,6 +53,7 @@ python manage.py shell -c "from wms.models import IntegrationEvent, IntegrationD
 ```
 
 ## Docs
+- Index: `docs/README.md`
 - MVP spec: `docs/mvp_spec.md`
 - Backlog: `docs/backlog.md`
 - Operations runbook: `docs/operations.md`
