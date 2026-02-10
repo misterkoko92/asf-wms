@@ -35,9 +35,23 @@ bandit -r asf_wms api contacts wms -x "wms/migrations,contacts/migrations,wms/te
 pre-commit run --all-files
 ```
 
+## Operations quick commands
+```bash
+# Process outbound email queue (default: 100 events)
+python manage.py process_email_queue --limit=100
+
+# Retry events currently in failed status
+python manage.py process_email_queue --include-failed --limit=100
+
+# Inspect queue status counts
+python manage.py shell -c "from wms.models import IntegrationEvent, IntegrationDirection; qs=IntegrationEvent.objects.filter(direction=IntegrationDirection.OUTBOUND, source='wms.email', event_type='send_email'); print({s: qs.filter(status=s).count() for s in ['pending','processing','processed','failed']})"
+```
+
 ## Docs
 - MVP spec: `docs/mvp_spec.md`
 - Backlog: `docs/backlog.md`
+- Operations runbook: `docs/operations.md`
+- Release checklist: `docs/release_checklist.md`
 - Import template: `docs/import/products_template.csv`
 - Print templates: `docs/templates/`
 
