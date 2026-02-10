@@ -6,18 +6,19 @@ Use this checklist for each production release.
 
 - [ ] `python -m pip install -r requirements.txt`
 - [ ] `python -m pip install -r requirements-dev.txt`
-- [ ] `python -m pip check`
-- [ ] `python manage.py makemigrations --check --dry-run`
-- [ ] `python manage.py check --deploy --fail-level WARNING`
-- [ ] `ruff check .`
-- [ ] `bandit -r asf_wms api contacts wms -x "wms/migrations,contacts/migrations,wms/tests.py,wms/tests_*.py,api/tests.py,api/tests_*.py,contacts/tests.py,contacts/tests_*.py"`
-- [ ] `coverage run --rcfile=.coveragerc manage.py test`
-- [ ] `coverage report -m --fail-under=95`
-- [ ] `pip-audit -r requirements.txt` (if network allows)
+- [ ] `make check`
+- [ ] `make migrate-check`
+- [ ] `make deploy-check`
+- [ ] `make lint`
+- [ ] `make typecheck`
+- [ ] `make bandit`
+- [ ] `make coverage`
+- [ ] `make audit` (if network allows)
 
 ## B) Before deploy
 
 - [ ] Confirm production env vars are set (`DJANGO_SECRET_KEY`, `DJANGO_DEBUG=false`, `DJANGO_ALLOWED_HOSTS`, `SITE_BASE_URL`, security flags).
+- [ ] Validate env values against `.env.example` baseline.
 - [ ] Confirm mail provider env vars (`EMAIL_*` and/or `BREVO_*`).
 - [ ] Confirm `INTEGRATION_API_KEY` for integration endpoints.
 - [ ] Confirm backup available (SQLite file or MySQL dump).

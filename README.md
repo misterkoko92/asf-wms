@@ -6,6 +6,7 @@ MVP WMS for product catalog, lot-based stock, and shipments.
 - Python 3.11 or 3.12 recommended (Django 4.2 LTS)
 - Create venv and install deps
 - Run migrations and create admin user
+- See `.env.example` for a full list of expected environment variables
 
 ```bash
 python -m venv .venv
@@ -19,20 +20,24 @@ python manage.py runserver
 ## Tests and coverage
 ```bash
 pip install -r requirements-dev.txt
-python manage.py test
-coverage run --rcfile=.coveragerc manage.py test
-coverage report -m --fail-under=95
-coverage xml
+make test
+make coverage
 ```
 
 ## Quality and security checks
 ```bash
-python -m pip check
-python manage.py check --deploy --fail-level WARNING
-ruff check .
-pip-audit -r requirements.txt
-bandit -r asf_wms api contacts wms -x "wms/migrations,contacts/migrations,wms/tests.py,wms/tests_*.py,api/tests.py,api/tests_*.py,contacts/tests.py,contacts/tests_*.py"
-pre-commit run --all-files
+make ci
+
+# granular targets
+make check
+make deploy-check
+make migrate-check
+make lint
+# baseline typed modules (see mypy.ini)
+make typecheck
+make bandit
+make audit
+make pre-commit
 ```
 
 ## Operations quick commands
@@ -90,6 +95,7 @@ Notes:
 - Commandes: creation, reservation stock, preparation automatique
 
 ## Configuration
+- Env template: `.env.example` (reference file; variables must be set in the shell or process manager)
 - `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS` (comma-separated)
   - In production (`DJANGO_DEBUG=false`), `DJANGO_SECRET_KEY` must be a strong non-default value.
 - `ENABLE_BASIC_AUTH` (optional, defaults to true in debug and false in production)

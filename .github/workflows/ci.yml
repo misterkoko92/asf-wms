@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -39,6 +42,10 @@ jobs:
 
       - name: Lint (fatal rules)
         run: ruff check .
+
+      - name: Security scan (Bandit)
+        run: |
+          bandit -r asf_wms api contacts wms -x "wms/migrations,contacts/migrations,wms/tests.py,wms/tests_*.py,api/tests.py,api/tests_*.py,contacts/tests.py,contacts/tests_*.py"
 
       - name: Run tests with coverage
         run: |

@@ -4,6 +4,8 @@ This runbook is for day-to-day operations, releases, and incident handling.
 
 ## 1) Environment baseline
 
+Start from `.env.example` and adapt values for each environment.
+
 Set at minimum:
 
 - `DJANGO_SECRET_KEY` (strong random key)
@@ -44,17 +46,19 @@ Integration/security values:
 From repo root:
 
 ```bash
-python -m pip install -r requirements.txt
-python -m pip install -r requirements-dev.txt
-python -m pip check
-python manage.py makemigrations --check --dry-run
-python manage.py check --deploy --fail-level WARNING
-ruff check .
-bandit -r asf_wms api contacts wms -x "wms/migrations,contacts/migrations,wms/tests.py,wms/tests_*.py,api/tests.py,api/tests_*.py,contacts/tests.py,contacts/tests_*.py"
-coverage run --rcfile=.coveragerc manage.py test
-coverage report -m --fail-under=95
-pip-audit -r requirements.txt
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
+make check
+make migrate-check
+make deploy-check
+make lint
+make typecheck
+make bandit
+make coverage
+make audit
 ```
+
+`make typecheck` is intentionally scoped to selected core modules defined in `mypy.ini`.
 
 Notes:
 
