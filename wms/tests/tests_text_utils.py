@@ -1,6 +1,6 @@
 from django.test import SimpleTestCase
 
-from .text_utils import normalize_category_name, normalize_title, normalize_upper
+from wms.text_utils import normalize_category_name, normalize_title, normalize_upper
 
 
 class TextUtilsTests(SimpleTestCase):

@@ -8,8 +8,8 @@ from django.test import RequestFactory
 from django.test import TestCase
 from django.urls import reverse
 
-from .admin import PublicAccountRequestAdmin
-from .models import (
+from wms.admin import PublicAccountRequestAdmin
+from wms.models import (
     AssociationProfile,
     Carton,
     CartonFormat,
@@ -36,7 +36,7 @@ from .models import (
     StockMovement,
     Warehouse,
 )
-from .services import (
+from wms.services import (
     StockError,
     consume_stock,
     pack_carton,

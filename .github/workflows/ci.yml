@@ -45,7 +45,7 @@ jobs:
 
       - name: Security scan (Bandit)
         run: |
-          bandit -r asf_wms api contacts wms -x "wms/migrations,contacts/migrations,wms/tests.py,wms/tests_*.py,api/tests.py,api/tests_*.py,contacts/tests.py,contacts/tests_*.py"
+          bandit -r asf_wms api contacts wms -x "wms/migrations,contacts/migrations,wms/tests,api/tests,contacts/tests"
 
       - name: Run tests with coverage
         run: |

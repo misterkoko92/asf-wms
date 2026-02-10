@@ -68,6 +68,7 @@ python manage.py shell -c "from wms.models import IntegrationEvent, IntegrationD
 - `wms/domain/*.py`: business logic (stock, orders) kept framework-light.
 - `wms/import_services_*.py`: import pipelines (facade: `wms/import_services.py`).
 - `wms/scan_*_helpers.py`: scan helpers (facade: `wms/scan_helpers.py`).
+- Tests are grouped per app in dedicated packages: `wms/tests/`, `api/tests/`, `contacts/tests/`.
 
 ## Import products
 ```bash

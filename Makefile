@@ -7,7 +7,7 @@ PIP_AUDIT ?= $(shell [ -x .venv/bin/pip-audit ] && echo .venv/bin/pip-audit || e
 PRE_COMMIT ?= $(shell [ -x .venv/bin/pre-commit ] && echo .venv/bin/pre-commit || echo pre-commit)
 COVERAGE ?= $(shell [ -x .venv/bin/coverage ] && echo .venv/bin/coverage || echo coverage)
 
-BANDIT_EXCLUDES := wms/migrations,contacts/migrations,wms/tests.py,wms/tests_*.py,api/tests.py,api/tests_*.py,contacts/tests.py,contacts/tests_*.py
+BANDIT_EXCLUDES := wms/migrations,contacts/migrations,wms/tests,api/tests,contacts/tests
 
 .PHONY: install install-dev check deploy-check migrate-check lint typecheck bandit audit audit-soft security test coverage pre-commit ci
 

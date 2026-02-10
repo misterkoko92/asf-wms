@@ -21,4 +21,4 @@ repos:
       - id: bandit
         args: ["-q", "-x", "wms/migrations,contacts/migrations"]
         files: ^(asf_wms|api|contacts|wms)/.*\.py$
-        exclude: ^(api/tests.*\.py|contacts/tests.*\.py|wms/tests.*\.py|wms/migrations/|contacts/migrations/)
+        exclude: ^(api/tests/|contacts/tests/|wms/tests/|wms/migrations/|contacts/migrations/)
