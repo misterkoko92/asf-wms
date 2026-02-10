@@ -51,7 +51,7 @@
                 </td>
                 <td>
                   <div class="scan-inline">
-                    <a class="scan-scan-btn" href="{% url 'scan:scan_shipment_track' shipment.reference %}">
+                    <a class="scan-scan-btn" href="{% url 'scan:scan_shipment_track' shipment.tracking_token %}">
                       Suivi
                     </a>
                     {% if shipment.can_edit %}

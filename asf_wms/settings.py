@@ -17,6 +17,16 @@ def _env_list(name: str) -> list[str]:
     return [item.strip() for item in value.split(",") if item.strip()]
 
 
+def _env_int(name: str, default: int) -> int:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-secret-key-change-this")
 
 DEBUG = _env_bool("DJANGO_DEBUG", True)
@@ -189,3 +199,10 @@ SKU_PREFIX = os.environ.get("SKU_PREFIX", "ASF")
 IMPORT_DEFAULT_PASSWORD = os.environ.get("IMPORT_DEFAULT_PASSWORD", "").strip()
 INTEGRATION_API_KEY = os.environ.get("INTEGRATION_API_KEY", "").strip()
 LISTING_MAX_FILE_SIZE_MB = int(os.environ.get("LISTING_MAX_FILE_SIZE_MB", "10"))
+ACCOUNT_REQUEST_THROTTLE_SECONDS = _env_int("ACCOUNT_REQUEST_THROTTLE_SECONDS", 300)
+EMAIL_QUEUE_MAX_ATTEMPTS = _env_int("EMAIL_QUEUE_MAX_ATTEMPTS", 5)
+EMAIL_QUEUE_RETRY_BASE_SECONDS = _env_int("EMAIL_QUEUE_RETRY_BASE_SECONDS", 60)
+EMAIL_QUEUE_RETRY_MAX_SECONDS = _env_int("EMAIL_QUEUE_RETRY_MAX_SECONDS", 3600)
+EMAIL_QUEUE_PROCESSING_TIMEOUT_SECONDS = _env_int(
+    "EMAIL_QUEUE_PROCESSING_TIMEOUT_SECONDS", 900
+)

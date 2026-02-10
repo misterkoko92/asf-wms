@@ -47,13 +47,14 @@ from .views_scan import (
     scan_shipment_create,
     scan_shipment_edit,
     scan_shipment_track,
+    scan_shipment_track_legacy,
     scan_shipments_ready,
     scan_stock,
     scan_stock_update,
     scan_sync,
 )
 
-__all__ = [
+PORTAL_EXPORTS = (
     "portal_login",
     "portal_logout",
     "portal_set_password",
@@ -64,9 +65,15 @@ __all__ = [
     "portal_recipients",
     "portal_account",
     "portal_account_request",
+)
+
+PUBLIC_EXPORTS = (
     "scan_public_order_summary",
     "scan_public_account_request",
     "scan_public_order",
+)
+
+SCAN_FLOW_EXPORTS = (
     "scan_stock",
     "scan_cartons_ready",
     "scan_shipments_ready",
@@ -81,6 +88,10 @@ __all__ = [
     "scan_shipment_create",
     "scan_shipment_edit",
     "scan_shipment_track",
+    "scan_shipment_track_legacy",
+)
+
+PRINT_EXPORTS = (
     "scan_shipment_document",
     "scan_shipment_carton_document",
     "scan_carton_document",
@@ -90,13 +101,27 @@ __all__ = [
     "scan_print_templates",
     "scan_print_template_edit",
     "scan_print_template_preview",
-    "scan_import",
+)
+
+IMPORT_EXPORTS = ("scan_import",)
+
+SCAN_MISC_EXPORTS = (
     "scan_shipment_document_upload",
     "scan_shipment_document_delete",
     "scan_out",
     "scan_sync",
     "scan_faq",
     "scan_service_worker",
-    "receive_receipt_line",
-    "reserve_stock_for_order",
+)
+
+SERVICE_EXPORTS = ("receive_receipt_line", "reserve_stock_for_order")
+
+__all__ = [
+    *PORTAL_EXPORTS,
+    *PUBLIC_EXPORTS,
+    *SCAN_FLOW_EXPORTS,
+    *PRINT_EXPORTS,
+    *IMPORT_EXPORTS,
+    *SCAN_MISC_EXPORTS,
+    *SERVICE_EXPORTS,
 ]

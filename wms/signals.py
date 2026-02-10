@@ -1,11 +1,12 @@
 from django.apps import apps
 from django.conf import settings
+from django.db import transaction
 from django.db.models.signals import post_delete, post_save, pre_save
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 
-from .emailing import get_admin_emails, send_email_safe
+from .emailing import enqueue_email_safe, get_admin_emails
 from .models import Shipment, ShipmentStatus, ShipmentTrackingEvent, WmsChange
 
 
@@ -65,10 +66,12 @@ def _notify_shipment_status_change(sender, instance, created, **kwargs) -> None:
             "admin_url": admin_url,
         },
     )
-    send_email_safe(
-        subject=f"ASF WMS - Expedition {instance.reference} : statut mis a jour",
-        message=message,
-        recipient=recipients,
+    transaction.on_commit(
+        lambda: enqueue_email_safe(
+            subject=f"ASF WMS - Expedition {instance.reference} : statut mis a jour",
+            message=message,
+            recipient=recipients,
+        )
     )
 
 
@@ -95,10 +98,12 @@ def _notify_tracking_event(sender, instance, created, **kwargs) -> None:
             "admin_url": admin_url,
         },
     )
-    send_email_safe(
-        subject=f"ASF WMS - Suivi expedition {shipment.reference}",
-        message=message,
-        recipient=recipients,
+    transaction.on_commit(
+        lambda: enqueue_email_safe(
+            subject=f"ASF WMS - Suivi expedition {shipment.reference}",
+            message=message,
+            recipient=recipients,
+        )
     )
 
 

@@ -7,6 +7,45 @@ from django.utils.safestring import mark_safe
 from .models import PrintTemplate
 from .print_layouts import DEFAULT_LAYOUTS
 
+EMPTY_LAYOUT = {"blocks": []}
+TEXT_DEFAULT_TAG = "div"
+
+CONTACT_LABEL_DEFAULTS = {
+    "company": "Societe",
+    "person": "Nom",
+    "address": "Adresse",
+    "phone": "Tel",
+    "email": "Mail",
+}
+
+CONTACT_BLOCK_DEFAULTS = {
+    "title_shipper": "EXPEDITEUR",
+    "title_recipient": "DESTINATAIRE",
+    "title_correspondent": "CORRESPONDANT",
+    "show_company": True,
+    "show_person": True,
+    "show_address": True,
+    "show_phone": True,
+    "show_email": True,
+}
+
+SIMPLE_CONTEXT_BLOCK_TEMPLATES = {
+    "summary_triplet": "print/blocks/summary_triplet.html",
+    "table_cartons": "print/blocks/table_cartons.html",
+}
+
+BLOCK_CONTEXT_TEMPLATES = {
+    "signatures": "print/blocks/signatures.html",
+}
+
+BLOCK_STYLE_TEMPLATES = {
+    "label_city": "print/blocks/label_city.html",
+    "label_iata": "print/blocks/label_iata.html",
+    "label_footer": "print/blocks/label_footer.html",
+    "product_label": "print/blocks/product_label.html",
+    "product_qr_label": "print/blocks/product_qr_label.html",
+}
+
 
 def _render_template_string(value, context):
     template = Template(value or "")
@@ -44,89 +83,83 @@ def _build_style(style):
 
 
 def _render_text_block(block, context):
-    tag = block.get("tag") or "div"
+    tag = block.get("tag") or TEXT_DEFAULT_TAG
     text = _render_template_string(block.get("text", ""), context)
     style = _build_style(block.get("style", {}))
     return mark_safe(f"<{tag} style=\"{style}\">{text}</{tag}>")
+
+
+def _render_simple_template_block(block_type, context):
+    template_name = SIMPLE_CONTEXT_BLOCK_TEMPLATES[block_type]
+    return render_to_string(template_name, context)
+
+
+def _render_block_context_template(block_type, block, context):
+    template_name = BLOCK_CONTEXT_TEMPLATES[block_type]
+    return render_to_string(template_name, {"block": block, **context})
+
+
+def _render_block_style_template(block_type, block, context):
+    template_name = BLOCK_STYLE_TEMPLATES[block_type]
+    return render_to_string(
+        template_name,
+        {"block": block, "style": block.get("style", {}), **context},
+    )
+
+
+def _build_contacts_row_payload(block, context):
+    block_data = dict(block)
+    for key, value in CONTACT_BLOCK_DEFAULTS.items():
+        block_data.setdefault(key, value)
+    labels = dict(CONTACT_LABEL_DEFAULTS)
+    labels.update(block.get("labels") or {})
+    return {
+        "block": block_data,
+        "style": block.get("style", {}),
+        "labels": labels,
+        **context,
+    }
+
+
+def _render_contacts_row_block(block, context):
+    return render_to_string(
+        "print/blocks/contacts_row.html",
+        _build_contacts_row_payload(block, context),
+    )
+
+
+def _render_table_items_block(block, context):
+    context_for_block = dict(context)
+    if block.get("mode") == "aggregate":
+        aggregate_rows = context.get("aggregate_rows")
+        if aggregate_rows is not None:
+            context_for_block["item_rows"] = aggregate_rows
+    return render_to_string(
+        "print/blocks/table_items.html",
+        {"block": block, **context_for_block},
+    )
 
 
 def _render_block(block, context):
     block_type = block.get("type")
     if block_type == "text":
         return _render_text_block(block, context)
-    if block_type == "summary_triplet":
-        return render_to_string("print/blocks/summary_triplet.html", context)
+    if block_type in SIMPLE_CONTEXT_BLOCK_TEMPLATES:
+        return _render_simple_template_block(block_type, context)
     if block_type == "contacts_row":
-        block_data = dict(block)
-        block_data.setdefault("title_shipper", "EXPEDITEUR")
-        block_data.setdefault("title_recipient", "DESTINATAIRE")
-        block_data.setdefault("title_correspondent", "CORRESPONDANT")
-        block_data.setdefault("show_company", True)
-        block_data.setdefault("show_person", True)
-        block_data.setdefault("show_address", True)
-        block_data.setdefault("show_phone", True)
-        block_data.setdefault("show_email", True)
-        labels = dict(block.get("labels") or {})
-        labels.setdefault("company", "Societe")
-        labels.setdefault("person", "Nom")
-        labels.setdefault("address", "Adresse")
-        labels.setdefault("phone", "Tel")
-        labels.setdefault("email", "Mail")
-        return render_to_string(
-            "print/blocks/contacts_row.html",
-            {
-                "block": block_data,
-                "style": block.get("style", {}),
-                "labels": labels,
-                **context,
-            },
-        )
-    if block_type == "signatures":
-        return render_to_string(
-            "print/blocks/signatures.html", {"block": block, **context}
-        )
+        return _render_contacts_row_block(block, context)
+    if block_type in BLOCK_CONTEXT_TEMPLATES:
+        return _render_block_context_template(block_type, block, context)
     if block_type == "table_items":
-        context_for_block = dict(context)
-        if block.get("mode") == "aggregate":
-            aggregate_rows = context.get("aggregate_rows")
-            if aggregate_rows is not None:
-                context_for_block["item_rows"] = aggregate_rows
-        return render_to_string(
-            "print/blocks/table_items.html", {"block": block, **context_for_block}
-        )
-    if block_type == "table_cartons":
-        return render_to_string("print/blocks/table_cartons.html", context)
-    if block_type == "label_city":
-        return render_to_string(
-            "print/blocks/label_city.html",
-            {"block": block, "style": block.get("style", {}), **context},
-        )
-    if block_type == "label_iata":
-        return render_to_string(
-            "print/blocks/label_iata.html",
-            {"block": block, "style": block.get("style", {}), **context},
-        )
-    if block_type == "label_footer":
-        return render_to_string(
-            "print/blocks/label_footer.html",
-            {"block": block, "style": block.get("style", {}), **context},
-        )
-    if block_type == "product_label":
-        return render_to_string(
-            "print/blocks/product_label.html",
-            {"block": block, "style": block.get("style", {}), **context},
-        )
-    if block_type == "product_qr_label":
-        return render_to_string(
-            "print/blocks/product_qr_label.html",
-            {"block": block, "style": block.get("style", {}), **context},
-        )
+        return _render_table_items_block(block, context)
+    if block_type in BLOCK_STYLE_TEMPLATES:
+        return _render_block_style_template(block_type, block, context)
     return ""
 
 
 def _normalize_layout(layout):
     if not isinstance(layout, dict):
-        return {"blocks": []}
+        return dict(EMPTY_LAYOUT)
     blocks = layout.get("blocks") or []
     if not isinstance(blocks, list):
         blocks = []
@@ -134,7 +167,7 @@ def _normalize_layout(layout):
 
 
 def get_default_layout(doc_type):
-    return DEFAULT_LAYOUTS.get(doc_type, {"blocks": []})
+    return DEFAULT_LAYOUTS.get(doc_type, dict(EMPTY_LAYOUT))
 
 
 def get_template_layout(doc_type):

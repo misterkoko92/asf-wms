@@ -12,6 +12,7 @@ from .services import StockError, receive_stock
 from .text_utils import normalize_title, normalize_upper
 from .models import Product, RackColor
 
+
 def extract_product_identity(row):
     sku = parse_str(get_value(row, "sku"))
     name = parse_str(get_value(row, "name", "nom", "nom_produit", "produit"))
@@ -87,25 +88,25 @@ def _apply_quantity(*, product, quantity, location, user=None):
         raise ValueError(str(exc)) from exc
 
 
-def import_product_row(row, *, user=None, existing_product=None, base_dir: Path | None = None):
+def _parse_product_name(row):
     name = parse_str(get_value(row, "name", "nom", "nom_produit", "produit"))
     if not name:
         raise ValueError("Nom produit requis.")
-    name = normalize_title(name)
-    sku = parse_str(get_value(row, "sku"))
-    if existing_product is None and sku and Product.objects.filter(sku__iexact=sku).exists():
-        raise ValueError("SKU deja utilise.")
+    return normalize_title(name)
+
+
+def _parse_product_sku(row):
+    return parse_str(get_value(row, "sku"))
+
+
+def _parse_product_brand(row):
     brand = parse_str(get_value(row, "brand", "marque"))
     if brand:
-        brand = normalize_upper(brand)
-    ean = parse_str(get_value(row, "ean"))
-    barcode = parse_str(get_value(row, "barcode", "code_barre", "codebarre"))
-    color = parse_str(get_value(row, "color", "couleur"))
-    notes = parse_str(get_value(row, "notes", "note"))
-    quantity = parse_int(get_value(row, "quantity", "quantite", "stock", "qty"))
-    pu_ht = parse_decimal(get_value(row, "pu_ht", "price_ht", "unit_price_ht"))
-    tva = parse_decimal(get_value(row, "tva", "vat"))
+        return normalize_upper(brand)
+    return None
 
+
+def _parse_product_category(row):
     category_parts = [
         parse_str(get_value(row, "category_l1", "categorie_l1", "category_1", "categorie_1")),
         parse_str(get_value(row, "category_l2", "categorie_l2", "category_2", "categorie_2")),
@@ -113,18 +114,18 @@ def import_product_row(row, *, user=None, existing_product=None, base_dir: Path 
         parse_str(get_value(row, "category_l4", "categorie_l4", "category_4", "categorie_4")),
     ]
     category_provided = any(category_parts)
-    category = build_category_path([p for p in category_parts if p])
+    category = build_category_path([part for part in category_parts if part])
+    return category_provided, category
 
+
+def _parse_product_tags(row):
     tags_raw = parse_str(get_value(row, "tags", "etiquettes", "etiquette"))
     tags_provided = tags_raw is not None
     tags = build_product_tags(tags_raw) if tags_raw else []
+    return tags_provided, tags
 
-    warehouse_name = parse_str(get_value(row, "warehouse", "entrepot"))
-    zone = parse_str(get_value(row, "zone", "rack"))
-    aisle = parse_str(get_value(row, "aisle", "etagere"))
-    shelf = parse_str(get_value(row, "shelf", "bac", "emplacement"))
-    default_location = get_or_create_location(warehouse_name, zone, aisle, shelf)
-    location_provided = default_location is not None
+
+def _apply_rack_color(default_location, row):
     rack_color = parse_str(get_value(row, "rack_color", "couleur_rack", "color_rack"))
     if rack_color and default_location is not None:
         RackColor.objects.update_or_create(
@@ -133,125 +134,166 @@ def import_product_row(row, *, user=None, existing_product=None, base_dir: Path 
             defaults={"color": rack_color},
         )
 
-    photo_path = resolve_photo_path(
-        get_value(row, "photo", "image", "photo_path", "image_path"),
-        base_dir,
-    )
+
+def _parse_default_location(row):
+    warehouse_name = parse_str(get_value(row, "warehouse", "entrepot"))
+    zone = parse_str(get_value(row, "zone", "rack"))
+    aisle = parse_str(get_value(row, "aisle", "etagere"))
+    shelf = parse_str(get_value(row, "shelf", "bac", "emplacement"))
+    default_location = get_or_create_location(warehouse_name, zone, aisle, shelf)
+    _apply_rack_color(default_location, row)
+    return default_location is not None, default_location
+
+
+def _parse_volume_and_dimensions(row):
     length_cm = parse_decimal(get_value(row, "length_cm", "longueur_cm"))
     width_cm = parse_decimal(get_value(row, "width_cm", "largeur_cm"))
     height_cm = parse_decimal(get_value(row, "height_cm", "hauteur_cm"))
-    weight_g = parse_int(get_value(row, "weight_g", "poids_g"))
     volume_cm3 = parse_int(get_value(row, "volume_cm3", "volume_cm3"))
     if volume_cm3 is None:
         volume_cm3 = compute_volume(length_cm, width_cm, height_cm)
+    return {
+        "length_cm": length_cm,
+        "width_cm": width_cm,
+        "height_cm": height_cm,
+        "volume_cm3": volume_cm3,
+    }
 
-    storage_conditions = parse_str(
-        get_value(row, "storage_conditions", "conditions_stockage")
-    )
-    perishable = parse_bool(get_value(row, "perishable", "perissable"))
-    quarantine_default = parse_bool(
-        get_value(row, "quarantine_default", "quarantaine_defaut")
-    )
+
+def _parse_product_values(row, *, base_dir):
+    location_provided, default_location = _parse_default_location(row)
+    category_provided, category = _parse_product_category(row)
+    tags_provided, tags = _parse_product_tags(row)
+    values = {
+        "name": _parse_product_name(row),
+        "sku": _parse_product_sku(row),
+        "brand": _parse_product_brand(row),
+        "ean": parse_str(get_value(row, "ean")),
+        "barcode": parse_str(get_value(row, "barcode", "code_barre", "codebarre")),
+        "color": parse_str(get_value(row, "color", "couleur")),
+        "notes": parse_str(get_value(row, "notes", "note")),
+        "quantity": parse_int(get_value(row, "quantity", "quantite", "stock", "qty")),
+        "pu_ht": parse_decimal(get_value(row, "pu_ht", "price_ht", "unit_price_ht")),
+        "tva": parse_decimal(get_value(row, "tva", "vat")),
+        "category": category,
+        "category_provided": category_provided,
+        "tags": tags,
+        "tags_provided": tags_provided,
+        "default_location": default_location,
+        "location_provided": location_provided,
+        "photo_path": resolve_photo_path(
+            get_value(row, "photo", "image", "photo_path", "image_path"),
+            base_dir,
+        ),
+        "weight_g": parse_int(get_value(row, "weight_g", "poids_g")),
+        "storage_conditions": parse_str(
+            get_value(row, "storage_conditions", "conditions_stockage")
+        ),
+        "perishable": parse_bool(get_value(row, "perishable", "perissable")),
+        "quarantine_default": parse_bool(
+            get_value(row, "quarantine_default", "quarantaine_defaut")
+        ),
+    }
+    values.update(_parse_volume_and_dimensions(row))
+    return values
+
+
+def _build_create_updates(values):
+    updates = {}
+    if values["category"] is not None:
+        updates["category"] = values["category"]
+    for field in ("ean", "barcode", "brand", "color", "pu_ht", "tva"):
+        if values[field] is not None:
+            updates[field] = values[field]
+    if values["location_provided"]:
+        updates["default_location"] = values["default_location"]
+    for field in (
+        "length_cm",
+        "width_cm",
+        "height_cm",
+        "weight_g",
+        "volume_cm3",
+        "storage_conditions",
+        "perishable",
+        "quarantine_default",
+        "notes",
+    ):
+        if values[field] is not None:
+            updates[field] = values[field]
+    return updates
+
+
+def _build_update_fields(values):
+    updates = {"name": values["name"]}
+    if values["category_provided"]:
+        updates["category"] = values["category"]
+    for field in ("ean", "barcode", "brand", "color", "pu_ht", "tva"):
+        if values[field] is not None:
+            updates[field] = values[field]
+    if values["location_provided"]:
+        updates["default_location"] = values["default_location"]
+    for field in (
+        "length_cm",
+        "width_cm",
+        "height_cm",
+        "weight_g",
+        "volume_cm3",
+        "storage_conditions",
+        "perishable",
+        "quarantine_default",
+        "notes",
+    ):
+        if values[field] is not None:
+            updates[field] = values[field]
+    return updates
+
+
+def _apply_product_updates(product, updates):
+    if not updates:
+        return
+    for field, value in updates.items():
+        setattr(product, field, value)
+    product.save(update_fields=list(updates.keys()))
+
+
+def import_product_row(row, *, user=None, existing_product=None, base_dir: Path | None = None):
+    name = _parse_product_name(row)
+    sku = _parse_product_sku(row)
+    if existing_product is None and sku and Product.objects.filter(sku__iexact=sku).exists():
+        raise ValueError("SKU deja utilise.")
+    values = _parse_product_values(row, base_dir=base_dir)
+    values["name"] = name
+    values["sku"] = sku
 
     warnings = []
     if existing_product is None:
-        product = Product(sku=sku or "", name=name)
-        if category is not None:
-            product.category = category
-        if ean is not None:
-            product.ean = ean
-        if barcode is not None:
-            product.barcode = barcode
-        if brand is not None:
-            product.brand = brand
-        if color is not None:
-            product.color = color
-        if pu_ht is not None:
-            product.pu_ht = pu_ht
-        if tva is not None:
-            product.tva = tva
-        if location_provided:
-            product.default_location = default_location
-        if length_cm is not None:
-            product.length_cm = length_cm
-        if width_cm is not None:
-            product.width_cm = width_cm
-        if height_cm is not None:
-            product.height_cm = height_cm
-        if weight_g is not None:
-            product.weight_g = weight_g
-        if volume_cm3 is not None:
-            product.volume_cm3 = volume_cm3
-        if storage_conditions is not None:
-            product.storage_conditions = storage_conditions
-        if perishable is not None:
-            product.perishable = perishable
-        if quarantine_default is not None:
-            product.quarantine_default = quarantine_default
-        if notes is not None:
-            product.notes = notes
-        attach_photo(product, photo_path)
+        product = Product(sku=values["sku"] or "", name=values["name"])
+        for field, value in _build_create_updates(values).items():
+            setattr(product, field, value)
+        attach_photo(product, values["photo_path"])
         product.save()
-        if tags_provided:
-            product.tags.set(tags)
+        if values["tags_provided"]:
+            product.tags.set(values["tags"])
         _apply_quantity(
             product=product,
-            quantity=quantity,
-            location=default_location if location_provided else None,
+            quantity=values["quantity"],
+            location=values["default_location"] if values["location_provided"] else None,
             user=user,
         )
         return product, True, warnings
 
-    updates = {"name": name}
-    if category_provided:
-        updates["category"] = category
-    if ean is not None:
-        updates["ean"] = ean
-    if barcode is not None:
-        updates["barcode"] = barcode
-    if brand is not None:
-        updates["brand"] = brand
-    if color is not None:
-        updates["color"] = color
-    if pu_ht is not None:
-        updates["pu_ht"] = pu_ht
-    if tva is not None:
-        updates["tva"] = tva
-    if location_provided:
-        updates["default_location"] = default_location
-    if length_cm is not None:
-        updates["length_cm"] = length_cm
-    if width_cm is not None:
-        updates["width_cm"] = width_cm
-    if height_cm is not None:
-        updates["height_cm"] = height_cm
-    if weight_g is not None:
-        updates["weight_g"] = weight_g
-    if volume_cm3 is not None:
-        updates["volume_cm3"] = volume_cm3
-    if storage_conditions is not None:
-        updates["storage_conditions"] = storage_conditions
-    if perishable is not None:
-        updates["perishable"] = perishable
-    if quarantine_default is not None:
-        updates["quarantine_default"] = quarantine_default
-    if notes is not None:
-        updates["notes"] = notes
-
-    photo_updated = attach_photo(existing_product, photo_path)
+    updates = _build_update_fields(values)
+    photo_updated = attach_photo(existing_product, values["photo_path"])
     if photo_updated:
         updates["photo"] = existing_product.photo
 
-    if updates:
-        for field, value in updates.items():
-            setattr(existing_product, field, value)
-        existing_product.save(update_fields=list(updates.keys()))
-    if tags_provided:
-        existing_product.tags.set(tags)
+    _apply_product_updates(existing_product, updates)
+    if values["tags_provided"]:
+        existing_product.tags.set(values["tags"])
     _apply_quantity(
         product=existing_product,
-        quantity=quantity,
-        location=default_location if location_provided else None,
+        quantity=values["quantity"],
+        location=values["default_location"] if values["location_provided"] else None,
         user=user,
     )
     return existing_product, False, warnings
@@ -290,7 +332,7 @@ def import_products_rows(
                     f"Ligne {index}: SKU {sku} deja utilise, SKU auto-genere."
                 )
         try:
-            product, was_created, row_warnings = import_product_row(
+            _, was_created, row_warnings = import_product_row(
                 row,
                 user=user,
                 existing_product=existing_product,

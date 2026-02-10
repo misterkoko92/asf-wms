@@ -1,3 +1,6 @@
+from functools import wraps
+
+from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -8,6 +11,17 @@ from .portal_helpers import get_association_profile
 def require_superuser(request):
     if not request.user.is_superuser:
         raise PermissionDenied
+
+
+def scan_staff_required(view):
+    @login_required(login_url="admin:login")
+    @wraps(view)
+    def wrapped(request, *args, **kwargs):
+        if not request.user.is_staff:
+            raise PermissionDenied
+        return view(request, *args, **kwargs)
+
+    return wrapped
 
 
 def association_required(view):

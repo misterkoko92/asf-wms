@@ -544,6 +544,7 @@ class ShipmentStatus(models.TextChoices):
 
 class Shipment(models.Model):
     reference = models.CharField(max_length=80, unique=True, blank=True)
+    tracking_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     status = models.CharField(
         max_length=20, choices=ShipmentStatus.choices, default=ShipmentStatus.DRAFT
     )
@@ -577,9 +578,9 @@ class Shipment(models.Model):
         return self.reference
 
     def get_tracking_path(self) -> str:
-        if not self.reference:
+        if not self.tracking_token:
             return ""
-        return reverse("scan:scan_shipment_track", args=[self.reference])
+        return reverse("scan:scan_shipment_track", args=[self.tracking_token])
 
     def get_tracking_url(self, request=None) -> str:
         path = self.get_tracking_path()
@@ -1221,6 +1222,7 @@ class IntegrationDirection(models.TextChoices):
 
 class IntegrationStatus(models.TextChoices):
     PENDING = "pending", "Pending"
+    PROCESSING = "processing", "Processing"
     PROCESSED = "processed", "Processed"
     FAILED = "failed", "Failed"
 

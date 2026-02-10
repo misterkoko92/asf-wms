@@ -16,6 +16,14 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
+## Tests and coverage
+```bash
+python manage.py test
+coverage run --source=wms,api,contacts,asf_wms manage.py test
+coverage report -m --fail-under=63
+coverage xml
+```
+
 ## Docs
 - MVP spec: `docs/mvp_spec.md`
 - Backlog: `docs/backlog.md`

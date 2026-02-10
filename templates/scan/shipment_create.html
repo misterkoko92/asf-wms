@@ -123,7 +123,7 @@
           {% else %}
             <span class="scan-help">QR code non disponible.</span>
           {% endif %}
-          <a class="scan-scan-btn" href="{% url 'scan:scan_shipment_track' shipment.reference %}">
+          <a class="scan-scan-btn" href="{% url 'scan:scan_shipment_track' shipment.tracking_token %}">
             Ouvrir suivi
           </a>
         </div>

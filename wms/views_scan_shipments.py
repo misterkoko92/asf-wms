@@ -1,6 +1,6 @@
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 
@@ -41,10 +41,106 @@ from .shipment_view_helpers import (
     build_shipments_ready_rows,
     next_tracking_status,
 )
+from .view_permissions import scan_staff_required
 from .view_utils import sorted_choices
 
+TEMPLATE_CARTONS_READY = "scan/cartons_ready.html"
+TEMPLATE_SHIPMENTS_READY = "scan/shipments_ready.html"
+TEMPLATE_PACK = "scan/pack.html"
+TEMPLATE_SHIPMENT_FORM = "scan/shipment_create.html"
+TEMPLATE_SHIPMENT_TRACKING = "scan/shipment_tracking.html"
 
-@login_required
+ACTIVE_CARTONS_READY = "cartons_ready"
+ACTIVE_SHIPMENTS_READY = "shipments_ready"
+ACTIVE_PACK = "pack"
+ACTIVE_SHIPMENT = "shipment"
+
+
+def _build_shipment_form_support(*, extra_carton_options=None):
+    (
+        product_options,
+        available_cartons,
+        destinations_json,
+        recipient_contacts_json,
+        correspondent_contacts_json,
+    ) = build_shipment_form_payload()
+    cartons_json, allowed_carton_ids = build_carton_selection_data(
+        available_cartons,
+        extra_carton_options,
+    )
+    return {
+        "product_options": product_options,
+        "cartons_json": cartons_json,
+        "allowed_carton_ids": allowed_carton_ids,
+        "destinations_json": destinations_json,
+        "recipient_contacts_json": recipient_contacts_json,
+        "correspondent_contacts_json": correspondent_contacts_json,
+    }
+
+
+def _render_shipment_form(
+    request,
+    *,
+    form,
+    support,
+    carton_count,
+    line_values,
+    line_errors,
+    active,
+    extra_context=None,
+):
+    context = build_shipment_form_context(
+        form=form,
+        product_options=support["product_options"],
+        cartons_json=support["cartons_json"],
+        carton_count=carton_count,
+        line_values=line_values,
+        line_errors=line_errors,
+        destinations_json=support["destinations_json"],
+        recipient_contacts_json=support["recipient_contacts_json"],
+        correspondent_contacts_json=support["correspondent_contacts_json"],
+    )
+    context["active"] = active
+    if extra_context:
+        context.update(extra_context)
+    return render(request, TEMPLATE_SHIPMENT_FORM, context)
+
+
+def _build_tracking_page_data(shipment):
+    documents, carton_docs, additional_docs = build_shipment_document_links(
+        shipment, public=True
+    )
+    events = shipment.tracking_events.select_related("created_by").all()
+    return documents, carton_docs, additional_docs, events
+
+
+def _render_shipment_tracking(
+    request,
+    *,
+    shipment,
+    tracking_url,
+    form,
+    can_update_tracking,
+):
+    documents, carton_docs, additional_docs, events = _build_tracking_page_data(shipment)
+    return render(
+        request,
+        TEMPLATE_SHIPMENT_TRACKING,
+        {
+            "shipment": shipment,
+            "active": ACTIVE_SHIPMENTS_READY,
+            "tracking_url": tracking_url,
+            "documents": documents,
+            "carton_docs": carton_docs,
+            "additional_docs": additional_docs,
+            "events": events,
+            "form": form,
+            "can_update_tracking": can_update_tracking,
+        },
+    )
+
+
+@scan_staff_required
 @require_http_methods(["GET", "POST"])
 def scan_cartons_ready(request):
     response = handle_carton_status_update(request)
@@ -66,9 +162,9 @@ def scan_cartons_ready(request):
 
     return render(
         request,
-        "scan/cartons_ready.html",
+        TEMPLATE_CARTONS_READY,
         {
-            "active": "cartons_ready",
+            "active": ACTIVE_CARTONS_READY,
             "cartons": cartons,
             "carton_status_choices": sorted_choices(
                 [
@@ -81,7 +177,7 @@ def scan_cartons_ready(request):
     )
 
 
-@login_required
+@scan_staff_required
 @require_http_methods(["GET"])
 def scan_shipments_ready(request):
     shipments_qs = (
@@ -102,15 +198,15 @@ def scan_shipments_ready(request):
 
     return render(
         request,
-        "scan/shipments_ready.html",
+        TEMPLATE_SHIPMENTS_READY,
         {
-            "active": "shipments_ready",
+            "active": ACTIVE_SHIPMENTS_READY,
             "shipments": shipments,
         },
     )
 
 
-@login_required
+@scan_staff_required
 @require_http_methods(["GET", "POST"])
 def scan_pack(request):
     form = ScanPackForm(request.POST or None)
@@ -147,10 +243,10 @@ def scan_pack(request):
         confirm_defaults = False
     return render(
         request,
-        "scan/pack.html",
+        TEMPLATE_PACK,
         {
             "form": form,
-            "active": "pack",
+            "active": ACTIVE_PACK,
             "products_json": product_options,
             "carton_formats": carton_formats,
             "carton_format_id": carton_format_id,
@@ -165,19 +261,12 @@ def scan_pack(request):
     )
 
 
-@login_required
+@scan_staff_required
 @require_http_methods(["GET", "POST"])
 def scan_shipment_create(request):
     destination_id = request.POST.get("destination") or request.GET.get("destination")
     form = ScanShipmentForm(request.POST or None, destination_id=destination_id)
-    (
-        product_options,
-        available_cartons,
-        destinations_json,
-        recipient_contacts_json,
-        correspondent_contacts_json,
-    ) = build_shipment_form_payload()
-    cartons_json, available_carton_ids = build_carton_selection_data(available_cartons)
+    support = _build_shipment_form_support()
     line_errors = {}
     line_values = []
 
@@ -185,7 +274,7 @@ def scan_shipment_create(request):
         response, carton_count, line_values, line_errors = handle_shipment_create_post(
             request,
             form=form,
-            available_carton_ids=available_carton_ids,
+            available_carton_ids=support["allowed_carton_ids"],
         )
         if response:
             return response
@@ -193,22 +282,18 @@ def scan_shipment_create(request):
         carton_count = form.initial.get("carton_count", 1)
         line_values = build_shipment_line_values(carton_count)
 
-    context = build_shipment_form_context(
+    return _render_shipment_form(
+        request,
         form=form,
-        product_options=product_options,
-        cartons_json=cartons_json,
+        support=support,
         carton_count=carton_count,
         line_values=line_values,
         line_errors=line_errors,
-        destinations_json=destinations_json,
-        recipient_contacts_json=recipient_contacts_json,
-        correspondent_contacts_json=correspondent_contacts_json,
+        active=ACTIVE_SHIPMENT,
     )
-    context["active"] = "shipment"
-    return render(request, "scan/shipment_create.html", context)
 
 
-@login_required
+@scan_staff_required
 @require_http_methods(["GET", "POST"])
 def scan_shipment_edit(request, shipment_id):
     shipment = get_object_or_404(
@@ -232,15 +317,8 @@ def scan_shipment_edit(request, shipment_id):
     form = ScanShipmentForm(
         request.POST or None, destination_id=destination_id, initial=initial
     )
-    (
-        product_options,
-        available_cartons,
-        destinations_json,
-        recipient_contacts_json,
-        correspondent_contacts_json,
-    ) = build_shipment_form_payload()
-    cartons_json, allowed_carton_ids = build_carton_selection_data(
-        available_cartons, assigned_carton_options
+    support = _build_shipment_form_support(
+        extra_carton_options=assigned_carton_options
     )
     line_errors = {}
     line_values = []
@@ -250,7 +328,7 @@ def scan_shipment_edit(request, shipment_id):
             request,
             form=form,
             shipment=shipment,
-            allowed_carton_ids=allowed_carton_ids,
+            allowed_carton_ids=support["allowed_carton_ids"],
         )
         if response:
             return response
@@ -263,56 +341,53 @@ def scan_shipment_edit(request, shipment_id):
     ).order_by("-generated_at")
     carton_docs = [{"id": carton.id, "code": carton.code} for carton in assigned_cartons]
 
-    context = build_shipment_form_context(
+    return _render_shipment_form(
+        request,
         form=form,
-        product_options=product_options,
-        cartons_json=cartons_json,
+        support=support,
         carton_count=carton_count,
         line_values=line_values,
         line_errors=line_errors,
-        destinations_json=destinations_json,
-        recipient_contacts_json=recipient_contacts_json,
-        correspondent_contacts_json=correspondent_contacts_json,
-    )
-    context.update(
-        {
-            "active": "shipments_ready",
+        active=ACTIVE_SHIPMENTS_READY,
+        extra_context={
             "is_edit": True,
             "shipment": shipment,
             "tracking_url": shipment.get_tracking_url(request=request),
             "documents": documents,
             "carton_docs": carton_docs,
-        }
+        },
     )
-    return render(request, "scan/shipment_create.html", context)
 
 
 @require_http_methods(["GET", "POST"])
-def scan_shipment_track(request, shipment_ref):
-    shipment = get_object_or_404(Shipment, reference=shipment_ref)
+def scan_shipment_track(request, tracking_token):
+    shipment = get_object_or_404(Shipment, tracking_token=tracking_token)
     shipment.ensure_qr_code(request=request)
-    documents, carton_docs, additional_docs = build_shipment_document_links(
-        shipment, public=True
-    )
     last_event = shipment.tracking_events.order_by("-created_at").first()
     next_status = next_tracking_status(last_event.status if last_event else None)
     form = ShipmentTrackingForm(request.POST or None, initial_status=next_status)
     response = handle_shipment_tracking_post(request, shipment=shipment, form=form)
     if response:
         return response
-    events = shipment.tracking_events.select_related("created_by").all()
-    tracking_url = shipment.get_tracking_url(request=request)
-    return render(
+    return _render_shipment_tracking(
         request,
-        "scan/shipment_tracking.html",
-        {
-            "shipment": shipment,
-            "active": "shipments_ready",
-            "tracking_url": tracking_url,
-            "documents": documents,
-            "carton_docs": carton_docs,
-            "additional_docs": additional_docs,
-            "events": events,
-            "form": form,
-        },
+        shipment=shipment,
+        tracking_url=shipment.get_tracking_url(request=request),
+        form=form,
+        can_update_tracking=True,
+    )
+
+
+@require_http_methods(["GET"])
+def scan_shipment_track_legacy(request, shipment_ref):
+    if not request.user.is_authenticated or not request.user.is_staff:
+        raise Http404
+    shipment = get_object_or_404(Shipment, reference=shipment_ref)
+    shipment.ensure_qr_code(request=request)
+    return _render_shipment_tracking(
+        request,
+        shipment=shipment,
+        tracking_url="",
+        form=None,
+        can_update_tracking=False,
     )

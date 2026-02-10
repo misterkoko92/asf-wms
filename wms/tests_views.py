@@ -3,23 +3,29 @@ from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from contacts.models import Contact, ContactAddress, ContactTag, ContactType
 from wms.models import (
+    AssociationProfile,
     Carton,
     CartonItem,
     CartonFormat,
     CartonStatus,
     Destination,
     Document,
+    IntegrationDirection,
+    IntegrationEvent,
+    IntegrationStatus,
     Location,
     Order,
     OrderStatus,
     Product,
     ProductLot,
     ProductLotStatus,
+    PublicAccountRequest,
+    PublicOrderLink,
     Receipt,
     ReceiptHorsFormat,
     ReceiptLine,
@@ -27,6 +33,7 @@ from wms.models import (
     ReceiptType,
     Shipment,
     ShipmentStatus,
+    ShipmentTrackingEvent,
     Warehouse,
 )
 from wms.services import StockError
@@ -35,7 +42,9 @@ from wms.services import StockError
 class ScanViewTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(
-            username="scan-user", password="pass1234"
+            username="scan-user",
+            password="pass1234",
+            is_staff=True,
         )
         self.superuser = get_user_model().objects.create_superuser(
             username="scan-admin", password="pass1234", email="admin@example.com"
@@ -144,6 +153,92 @@ class ScanViewTests(TestCase):
         )
         return shipment, carton
 
+    def _request_scan_route(self, route_name, method="get", kwargs=None, data=None):
+        url = reverse(route_name, kwargs=kwargs or {})
+        client_method = getattr(self.client, method)
+        return client_method(url, data or {})
+
+    def _scan_internal_route_specs(self):
+        shipment, carton = self._create_shipment_with_carton()
+        document = Document.objects.create(shipment=shipment, doc_type="additional")
+        return [
+            ("scan:scan_root", "get", {}, None),
+            ("scan:scan_stock", "get", {}, None),
+            ("scan:scan_cartons_ready", "get", {}, None),
+            ("scan:scan_shipments_ready", "get", {}, None),
+            ("scan:scan_receipts_view", "get", {}, None),
+            ("scan:scan_receive", "get", {}, None),
+            ("scan:scan_receive_pallet", "get", {}, None),
+            ("scan:scan_receive_association", "get", {}, None),
+            ("scan:scan_stock_update", "get", {}, None),
+            ("scan:scan_orders_view", "get", {}, None),
+            ("scan:scan_order", "get", {}, None),
+            ("scan:scan_pack", "get", {}, None),
+            ("scan:scan_shipment_create", "get", {}, None),
+            ("scan:scan_shipment_edit", "get", {"shipment_id": shipment.id}, None),
+            (
+                "scan:scan_shipment_document",
+                "get",
+                {"shipment_id": shipment.id, "doc_type": "shipment_note"},
+                None,
+            ),
+            (
+                "scan:scan_shipment_carton_document",
+                "get",
+                {"shipment_id": shipment.id, "carton_id": carton.id},
+                None,
+            ),
+            ("scan:scan_carton_document", "get", {"carton_id": carton.id}, None),
+            ("scan:scan_carton_picking", "get", {"carton_id": carton.id}, None),
+            (
+                "scan:scan_shipment_document_upload",
+                "post",
+                {"shipment_id": shipment.id},
+                {},
+            ),
+            (
+                "scan:scan_shipment_document_delete",
+                "post",
+                {"shipment_id": shipment.id, "document_id": document.id},
+                {},
+            ),
+            ("scan:scan_shipment_labels", "get", {"shipment_id": shipment.id}, None),
+            (
+                "scan:scan_shipment_label",
+                "get",
+                {"shipment_id": shipment.id, "carton_id": carton.id},
+                None,
+            ),
+            ("scan:scan_print_templates", "get", {}, None),
+            (
+                "scan:scan_print_template_edit",
+                "get",
+                {"doc_type": "shipment_note"},
+                None,
+            ),
+            ("scan:scan_print_template_preview", "post", {}, {}),
+            ("scan:scan_import", "get", {}, None),
+            ("scan:scan_faq", "get", {}, None),
+            ("scan:scan_out", "get", {}, None),
+            ("scan:scan_sync", "get", {}, None),
+        ]
+
+    def _create_public_order_link_with_order(self):
+        link = PublicOrderLink.objects.create(label="Public test")
+        order = Order.objects.create(
+            status=OrderStatus.DRAFT,
+            public_link=link,
+            shipper_name=self.shipper.name,
+            recipient_name=self.recipient.name,
+            correspondent_name=self.correspondent.name,
+            destination_address="1 rue test",
+            destination_city="Paris",
+            destination_country="France",
+            created_by=self.user,
+        )
+        order.lines.create(product=self.product, quantity=1)
+        return link, order
+
     def test_scan_stock_update_creates_lot(self):
         url = reverse("scan:scan_stock_update")
         payload = {
@@ -155,6 +250,35 @@ class ScanViewTests(TestCase):
         response = self.client.post(url, payload)
         self.assertEqual(response.status_code, 302)
         self.assertEqual(ProductLot.objects.count(), 2)
+
+    def test_scan_internal_routes_require_staff(self):
+        non_staff = get_user_model().objects.create_user(
+            username="scan-non-staff",
+            password="pass1234",
+        )
+        self.client.force_login(non_staff)
+        for route_name, method, kwargs, data in self._scan_internal_route_specs():
+            with self.subTest(route_name=route_name, method=method):
+                response = self._request_scan_route(
+                    route_name,
+                    method=method,
+                    kwargs=kwargs,
+                    data=data,
+                )
+                self.assertEqual(response.status_code, 403)
+
+    def test_scan_internal_routes_redirect_anonymous_to_admin_login(self):
+        self.client.logout()
+        for route_name, method, kwargs, data in self._scan_internal_route_specs():
+            with self.subTest(route_name=route_name, method=method):
+                response = self._request_scan_route(
+                    route_name,
+                    method=method,
+                    kwargs=kwargs,
+                    data=data,
+                )
+                self.assertEqual(response.status_code, 302)
+                self.assertIn("/admin/login/", response.url)
 
     def test_scan_cartons_ready_blocks_assigned_update(self):
         shipment = Shipment.objects.create(
@@ -500,3 +624,213 @@ class ScanViewTests(TestCase):
         url = reverse("scan:scan_shipment_label", args=[shipment.id, carton.id])
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
+
+    def test_scan_shipment_track_accepts_token_route(self):
+        shipment, _carton = self._create_shipment_with_carton()
+        self.client.logout()
+        url = reverse("scan:scan_shipment_track", args=[shipment.tracking_token])
+        response = self.client.post(
+            url,
+            {
+                "status": "planning_ok",
+                "actor_name": "Test",
+                "actor_structure": "ASF",
+                "comments": "ok",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            ShipmentTrackingEvent.objects.filter(shipment=shipment).count(), 1
+        )
+
+    def test_scan_public_routes_allow_anonymous(self):
+        shipment, _carton = self._create_shipment_with_carton()
+        link, order = self._create_public_order_link_with_order()
+        self.client.logout()
+        routes = [
+            reverse("scan:scan_service_worker"),
+            reverse("scan:scan_shipment_track", args=[shipment.tracking_token]),
+            reverse("scan:scan_public_order", args=[link.token]),
+            reverse("scan:scan_public_account_request", args=[link.token]),
+            reverse("scan:scan_public_order_summary", args=[link.token, order.id]),
+        ]
+        for url in routes:
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 200)
+
+    def test_scan_shipment_track_legacy_blocks_anonymous(self):
+        shipment, _carton = self._create_shipment_with_carton()
+        self.client.logout()
+        legacy_url = reverse("scan:scan_shipment_track_legacy", args=[shipment.reference])
+        response = self.client.get(legacy_url)
+        self.assertEqual(response.status_code, 404)
+        response = self.client.post(
+            legacy_url,
+            {
+                "status": "planning_ok",
+                "actor_name": "Test",
+                "actor_structure": "ASF",
+                "comments": "ko",
+            },
+        )
+        self.assertEqual(response.status_code, 405)
+        self.assertEqual(
+            ShipmentTrackingEvent.objects.filter(shipment=shipment).count(), 0
+        )
+
+    def test_scan_shipment_track_legacy_blocks_non_staff(self):
+        shipment, _carton = self._create_shipment_with_carton()
+        non_staff = get_user_model().objects.create_user(
+            username="legacy-non-staff",
+            password="pass1234",
+        )
+        self.client.force_login(non_staff)
+        legacy_url = reverse("scan:scan_shipment_track_legacy", args=[shipment.reference])
+        response = self.client.get(legacy_url)
+        self.assertEqual(response.status_code, 404)
+
+    def test_scan_shipment_track_legacy_is_read_only_for_staff(self):
+        shipment, _carton = self._create_shipment_with_carton()
+        self.client.force_login(self.superuser)
+        legacy_url = reverse("scan:scan_shipment_track_legacy", args=[shipment.reference])
+        response = self.client.get(legacy_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "Mise a jour du suivi indisponible sur ce lien legacy.",
+        )
+        self.assertNotContains(response, str(shipment.tracking_token))
+        response = self.client.post(
+            legacy_url,
+            {
+                "status": "planning_ok",
+                "actor_name": "Test",
+                "actor_structure": "ASF",
+                "comments": "ko",
+            },
+        )
+        self.assertEqual(response.status_code, 405)
+        self.assertEqual(
+            ShipmentTrackingEvent.objects.filter(shipment=shipment).count(), 0
+        )
+
+
+class PortalPermissionTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="portal-user",
+            password="pass1234",
+            email="portal@example.com",
+        )
+        self.contact = Contact.objects.create(
+            name="Association Test",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+
+    def test_portal_dashboard_requires_association_profile(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("portal:portal_dashboard"))
+        self.assertEqual(response.status_code, 403)
+
+    def test_portal_routes_redirect_to_change_password_when_forced(self):
+        AssociationProfile.objects.create(
+            user=self.user,
+            contact=self.contact,
+            must_change_password=True,
+        )
+        self.client.force_login(self.user)
+
+        dashboard_response = self.client.get(reverse("portal:portal_dashboard"))
+        self.assertEqual(dashboard_response.status_code, 302)
+        self.assertEqual(
+            dashboard_response.url,
+            reverse("portal:portal_change_password"),
+        )
+
+        password_response = self.client.get(reverse("portal:portal_change_password"))
+        self.assertEqual(password_response.status_code, 200)
+
+    def test_portal_dashboard_allows_user_with_profile(self):
+        AssociationProfile.objects.create(
+            user=self.user,
+            contact=self.contact,
+            must_change_password=False,
+        )
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("portal:portal_dashboard"))
+        self.assertEqual(response.status_code, 200)
+
+
+class PublicAccountRequestViewTests(TestCase):
+    def setUp(self):
+        self.url = reverse("portal:portal_account_request")
+
+    def _payload(self, **overrides):
+        payload = {
+            "association_name": "Association Test",
+            "email": "association@example.com",
+            "phone": "0102030405",
+            "line1": "1 Rue Test",
+            "line2": "",
+            "postal_code": "75001",
+            "city": "Paris",
+            "country": "France",
+            "notes": "Demande de test",
+            "contact_id": "",
+        }
+        payload.update(overrides)
+        return payload
+
+    @override_settings(ACCOUNT_REQUEST_THROTTLE_SECONDS=300)
+    @mock.patch("wms.account_request_handlers.get_admin_emails")
+    def test_portal_account_request_creates_request_and_sends_notifications(
+        self,
+        get_admin_emails_mock,
+    ):
+        get_admin_emails_mock.return_value = ["admin@example.com"]
+
+        with self.captureOnCommitCallbacks(execute=True) as callbacks:
+            response = self.client.post(self.url, self._payload())
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(PublicAccountRequest.objects.count(), 1)
+        self.assertEqual(len(callbacks), 1)
+        queued_events = IntegrationEvent.objects.filter(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.email",
+            event_type="send_email",
+            status=IntegrationStatus.PENDING,
+        )
+        self.assertEqual(queued_events.count(), 2)
+
+    @override_settings(ACCOUNT_REQUEST_THROTTLE_SECONDS=3600)
+    def test_portal_account_request_throttles_repeated_submission_from_same_ip(self):
+        with self.captureOnCommitCallbacks(execute=True):
+            first_response = self.client.post(
+                self.url,
+                self._payload(email="first@example.com"),
+                REMOTE_ADDR="10.0.0.1",
+            )
+        self.assertEqual(first_response.status_code, 302)
+
+        with self.captureOnCommitCallbacks(execute=True):
+            second_response = self.client.post(
+                self.url,
+                self._payload(email="second@example.com"),
+                REMOTE_ADDR="10.0.0.1",
+            )
+        self.assertEqual(second_response.status_code, 200)
+        self.assertContains(
+            second_response,
+            "Une demande recente a deja ete envoyee. Merci de patienter quelques minutes.",
+        )
+        self.assertEqual(PublicAccountRequest.objects.count(), 1)
+        self.assertEqual(
+            IntegrationEvent.objects.filter(
+                source="wms.email",
+                event_type="send_email",
+            ).count(),
+            1,
+        )

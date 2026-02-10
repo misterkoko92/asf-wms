@@ -5,6 +5,19 @@ from wms.import_services import import_users
 
 
 class ImportUsersTests(TestCase):
+    def test_import_users_skips_empty_row_and_reports_missing_username(self):
+        rows = [
+            {},
+            {"email": "missing-username@example.com"},
+        ]
+
+        created, updated, errors = import_users(rows, default_password="Default123")
+
+        self.assertEqual(created, 0)
+        self.assertEqual(updated, 0)
+        self.assertEqual(errors, ["Ligne 3: Username requis."])
+        self.assertEqual(get_user_model().objects.count(), 0)
+
     def test_import_users_requires_password_for_new_user(self):
         rows = [{"username": "alice"}]
         created, updated, errors = import_users(rows, default_password="")
@@ -42,3 +55,33 @@ class ImportUsersTests(TestCase):
         self.assertEqual(created, 0)
         user = get_user_model().objects.get(username="dave")
         self.assertTrue(user.check_password("NewPass"))
+
+    def test_import_users_updates_additional_optional_fields(self):
+        user = get_user_model().objects.create_user(
+            username="eve",
+            password="OldPass",
+            first_name="Old",
+            last_name="Name",
+            is_superuser=False,
+            is_active=True,
+        )
+        rows = [
+            {
+                "username": "eve",
+                "first_name": "New",
+                "last_name": "User",
+                "is_superuser": "oui",
+                "is_active": "non",
+            }
+        ]
+
+        created, updated, errors = import_users(rows, default_password="")
+
+        self.assertEqual(errors, [])
+        self.assertEqual(created, 0)
+        self.assertEqual(updated, 1)
+        user.refresh_from_db()
+        self.assertEqual(user.first_name, "New")
+        self.assertEqual(user.last_name, "User")
+        self.assertTrue(user.is_superuser)
+        self.assertFalse(user.is_active)

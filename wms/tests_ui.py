@@ -20,7 +20,9 @@ except ImportError:  # pragma: no cover - optional test dependency
 class ScanUiTests(StaticLiveServerTestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(
-            username="ui-user", password="pass1234"
+            username="ui-user",
+            password="pass1234",
+            is_staff=True,
         )
         self.client.force_login(self.user)
         self.session_cookie = self.client.cookies[settings.SESSION_COOKIE_NAME]

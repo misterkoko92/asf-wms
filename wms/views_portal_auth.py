@@ -10,6 +10,41 @@ from django.views.decorators.http import require_http_methods
 from .portal_helpers import get_association_profile
 from .view_permissions import association_required
 
+TEMPLATE_LOGIN = "portal/login.html"
+TEMPLATE_SET_PASSWORD = "portal/set_password.html"
+TEMPLATE_CHANGE_PASSWORD = "portal/change_password.html"
+
+ERROR_LOGIN_REQUIRED = "Email et mot de passe requis."
+ERROR_LOGIN_INVALID = "Identifiants invalides."
+ERROR_ACCOUNT_INACTIVE = "Compte inactif."
+ERROR_ACCOUNT_NOT_ACTIVE = "Compte non active par ASF."
+MESSAGE_PASSWORD_UPDATED = "Mot de passe mis a jour."
+
+
+def _build_login_context(*, errors, identifier, next_url):
+    return {"errors": errors, "identifier": identifier, "next": next_url}
+
+
+def _authenticate_portal_user(request, identifier, password):
+    user = get_user_model().objects.filter(email__iexact=identifier).first()
+    username = user.username if user else identifier
+    return authenticate(request, username=username, password=password)
+
+
+def _set_profile_password_changed(profile):
+    if profile and profile.must_change_password:
+        profile.must_change_password = False
+        profile.save(update_fields=["must_change_password"])
+
+
+def _get_user_from_uidb64(uidb64):
+    try:
+        uid = urlsafe_base64_decode(uidb64).decode()
+    except (TypeError, ValueError, OverflowError, UnicodeDecodeError):
+        return None
+    return get_user_model().objects.filter(pk=uid).first()
+
+
 @require_http_methods(["GET", "POST"])
 def portal_login(request):
     if request.user.is_authenticated:
@@ -25,28 +60,35 @@ def portal_login(request):
         password = request.POST.get("password") or ""
         next_url = (request.POST.get("next") or "").strip()
         if not identifier or not password:
-            errors.append("Email et mot de passe requis.")
+            errors.append(ERROR_LOGIN_REQUIRED)
         else:
-            user = get_user_model().objects.filter(email__iexact=identifier).first()
-            username = user.username if user else identifier
-            user = authenticate(request, username=username, password=password)
+            user = _authenticate_portal_user(request, identifier, password)
             if not user:
-                errors.append("Identifiants invalides.")
+                errors.append(ERROR_LOGIN_INVALID)
             elif not user.is_active:
-                errors.append("Compte inactif.")
-            elif not get_association_profile(user):
-                errors.append("Compte non active par ASF.")
+                errors.append(ERROR_ACCOUNT_INACTIVE)
             else:
-                login(request, user)
                 profile = get_association_profile(user)
+                if not profile:
+                    errors.append(ERROR_ACCOUNT_NOT_ACTIVE)
+                    return render(
+                        request,
+                        TEMPLATE_LOGIN,
+                        _build_login_context(
+                            errors=errors,
+                            identifier=identifier,
+                            next_url=next_url,
+                        ),
+                    )
+                login(request, user)
                 if profile and profile.must_change_password:
                     return redirect("portal:portal_change_password")
                 return redirect(next_url or "portal:portal_dashboard")
 
     return render(
         request,
-        "portal/login.html",
-        {"errors": errors, "identifier": identifier, "next": next_url},
+        TEMPLATE_LOGIN,
+        _build_login_context(errors=errors, identifier=identifier, next_url=next_url),
     )
 
 
@@ -58,27 +100,19 @@ def portal_logout(request):
 
 @require_http_methods(["GET", "POST"])
 def portal_set_password(request, uidb64, token):
-    user = None
-    try:
-        uid = urlsafe_base64_decode(uidb64).decode()
-        user = get_user_model().objects.filter(pk=uid).first()
-    except (TypeError, ValueError, OverflowError):
-        user = None
+    user = _get_user_from_uidb64(uidb64)
 
     if not user or not default_token_generator.check_token(user, token):
-        return render(request, "portal/set_password.html", {"invalid": True})
+        return render(request, TEMPLATE_SET_PASSWORD, {"invalid": True})
 
     form = SetPasswordForm(user, request.POST or None)
     if request.method == "POST" and form.is_valid():
         form.save()
-        profile = get_association_profile(user)
-        if profile and profile.must_change_password:
-            profile.must_change_password = False
-            profile.save(update_fields=["must_change_password"])
+        _set_profile_password_changed(get_association_profile(user))
         login(request, user)
         return redirect("portal:portal_dashboard")
 
-    return render(request, "portal/set_password.html", {"form": form, "invalid": False})
+    return render(request, TEMPLATE_SET_PASSWORD, {"form": form, "invalid": False})
 
 
 @login_required(login_url="portal:portal_login")
@@ -88,10 +122,7 @@ def portal_change_password(request):
     form = SetPasswordForm(request.user, request.POST or None)
     if request.method == "POST" and form.is_valid():
         form.save()
-        profile = request.association_profile
-        if profile.must_change_password:
-            profile.must_change_password = False
-            profile.save(update_fields=["must_change_password"])
-        messages.success(request, "Mot de passe mis a jour.")
+        _set_profile_password_changed(request.association_profile)
+        messages.success(request, MESSAGE_PASSWORD_UPDATED)
         return redirect("portal:portal_dashboard")
-    return render(request, "portal/change_password.html", {"form": form})
+    return render(request, TEMPLATE_CHANGE_PASSWORD, {"form": form})

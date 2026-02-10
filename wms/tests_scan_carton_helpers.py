@@ -14,6 +14,7 @@ from wms.models import (
 from wms.scan_carton_helpers import (
     build_available_cartons,
     build_carton_formats,
+    get_carton_volume_cm3,
     resolve_carton_size,
 )
 
@@ -64,6 +65,29 @@ class ScanCartonHelpersTests(TestCase):
         self.assertEqual(default_format.id, fmt.id)
         self.assertEqual(len(data), 1)
 
+    def test_build_carton_formats_uses_first_when_no_default_flag(self):
+        first = CartonFormat.objects.create(
+            name="A-First",
+            length_cm=40,
+            width_cm=30,
+            height_cm=30,
+            max_weight_g=8000,
+            is_default=False,
+        )
+        CartonFormat.objects.create(
+            name="B-Second",
+            length_cm=50,
+            width_cm=40,
+            height_cm=40,
+            max_weight_g=9000,
+            is_default=False,
+        )
+
+        data, default_format = build_carton_formats()
+
+        self.assertEqual(len(data), 2)
+        self.assertEqual(default_format.id, first.id)
+
     def test_resolve_carton_size_from_format(self):
         fmt = CartonFormat.objects.create(
             name="Small",
@@ -79,12 +103,51 @@ class ScanCartonHelpersTests(TestCase):
         self.assertEqual(size["length_cm"], fmt.length_cm)
         self.assertEqual(size["max_weight_g"], fmt.max_weight_g)
 
+    def test_resolve_carton_size_uses_default_format_when_id_missing(self):
+        fmt = CartonFormat.objects.create(
+            name="DefaultSize",
+            length_cm=15,
+            width_cm=25,
+            height_cm=35,
+            max_weight_g=1500,
+        )
+
+        size, errors = resolve_carton_size(
+            carton_format_id="",
+            default_format=fmt,
+            data={},
+        )
+
+        self.assertEqual(errors, [])
+        self.assertEqual(size["length_cm"], fmt.length_cm)
+        self.assertEqual(size["max_weight_g"], fmt.max_weight_g)
+
     def test_resolve_carton_size_invalid_custom(self):
         size, errors = resolve_carton_size(
             carton_format_id="custom", default_format=None, data={}
         )
         self.assertIsNone(size)
         self.assertTrue(errors)
+
+    def test_resolve_carton_size_invalid_non_numeric_format_id(self):
+        size, errors = resolve_carton_size(
+            carton_format_id="not-a-number",
+            default_format=None,
+            data={},
+        )
+
+        self.assertIsNone(size)
+        self.assertEqual(errors, ["Format de carton invalide."])
+
+    def test_resolve_carton_size_invalid_unknown_format_id(self):
+        size, errors = resolve_carton_size(
+            carton_format_id="99999",
+            default_format=None,
+            data={},
+        )
+
+        self.assertIsNone(size)
+        self.assertEqual(errors, ["Format de carton invalide."])
 
     def test_resolve_carton_size_custom_valid(self):
         size, errors = resolve_carton_size(
@@ -100,3 +163,9 @@ class ScanCartonHelpersTests(TestCase):
         self.assertEqual(errors, [])
         self.assertEqual(size["length_cm"], 10)
         self.assertEqual(size["max_weight_g"], 1000)
+
+    def test_get_carton_volume_cm3_multiplies_dimensions(self):
+        volume = get_carton_volume_cm3(
+            {"length_cm": 10, "width_cm": 20, "height_cm": 30}
+        )
+        self.assertEqual(volume, 6000)

@@ -21,6 +21,18 @@ from .product_import_review import build_match_context, row_is_empty, summarize_
 
 IMPORT_TEMPLATE = "scan/imports.html"
 IMPORT_BASE_CONTEXT = {"active": "imports", "shell_class": "scan-shell-wide"}
+SUPPORTED_PRODUCT_EXTENSIONS = {".csv", ".xlsx", ".xlsm", ".xls"}
+PRODUCT_IMPORT_PENDING_KEY = "product_import_pending"
+MAX_IMPORT_MESSAGES = 3
+DEFAULT_PRODUCT_MATCH_ACTION = "update"
+CREATE_ACTION = "create"
+UPDATE_ACTION = "update"
+PRODUCT_IMPORT_START_INDEX_FILE = 2
+PRODUCT_IMPORT_START_INDEX_SINGLE = 1
+
+ACTION_PRODUCT_CONFIRM = "product_confirm"
+ACTION_PRODUCT_SINGLE = "product_single"
+ACTION_PRODUCT_FILE = "product_file"
 
 IMPORT_FILE_ACTIONS = {
     "location_file": ("emplacements", import_locations),
@@ -38,6 +50,11 @@ IMPORT_SINGLE_ACTIONS = {
     "user_single": ("utilisateur", import_users),
 }
 
+PRODUCT_ACTION_HANDLERS = {
+    ACTION_PRODUCT_SINGLE: lambda request, **_: _handle_product_single_action(request),
+    ACTION_PRODUCT_FILE: lambda request, **_: _handle_product_file_action(request),
+}
+
 
 def render_scan_import(request, pending_import):
     context = dict(IMPORT_BASE_CONTEXT)
@@ -45,246 +62,374 @@ def render_scan_import(request, pending_import):
     return render(request, IMPORT_TEMPLATE, context)
 
 
+def _redirect_scan_import():
+    return redirect("scan:scan_import")
+
+
+def _add_limited_message_list(request, *, title, entries, label):
+    if not entries:
+        return
+    messages.warning(request, f"{title}: {len(entries)} {label}(s).")
+    for message in entries[:MAX_IMPORT_MESSAGES]:
+        messages.warning(request, message)
+
+
+def _notify_import_result(request, *, title, created, updated, errors, warnings):
+    _add_limited_message_list(request, title=title, entries=errors, label="erreur")
+    _add_limited_message_list(request, title=title, entries=warnings, label="alerte")
+    messages.success(request, f"{title}: {created} cree(s), {updated} maj.")
+
+
+def _get_pending_import(request):
+    return request.session.get(PRODUCT_IMPORT_PENDING_KEY)
+
+
+def _set_pending_import(request, pending):
+    request.session[PRODUCT_IMPORT_PENDING_KEY] = pending
+
+
+def _importer_accepts_default_password(action):
+    return action in {"user_file", "user_single"}
+
+
+def _invoke_importer(importer, *, action, rows, default_password):
+    if _importer_accepts_default_password(action):
+        return importer(rows, default_password)
+    return importer(rows)
+
+
+def _build_pending_decisions(request, pending):
+    default_action = pending.get("default_action", DEFAULT_PRODUCT_MATCH_ACTION)
+    decisions = {}
+    for item in pending.get("matches", []):
+        row_index = item.get("row_index")
+        action_choice = request.POST.get(f"decision_{row_index}") or default_action
+        if action_choice == CREATE_ACTION:
+            decisions[row_index] = {"action": CREATE_ACTION}
+            continue
+        match_id = request.POST.get(f"match_id_{row_index}")
+        if not match_id:
+            messages.error(
+                request,
+                "Import produit: selection requise pour la mise a jour.",
+            )
+            return None
+        match_ids = {str(match_id_value) for match_id_value in item.get("match_ids", [])}
+        if str(match_id) not in match_ids:
+            messages.error(
+                request,
+                "Import produit: produit cible invalide.",
+            )
+            return None
+        decisions[row_index] = {
+            "action": UPDATE_ACTION,
+            "product_id": int(match_id),
+        }
+    return decisions
+
+
+def _load_pending_rows(*, pending, clear_pending_import):
+    if pending.get("source") != "file":
+        return pending.get("rows", []), None, pending.get("start_index", PRODUCT_IMPORT_START_INDEX_SINGLE)
+
+    temp_path = Path(pending.get("temp_path", ""))
+    if not temp_path.exists():
+        clear_pending_import()
+        return None, None, None
+
+    extension = pending.get("extension", "")
+    data = temp_path.read_bytes()
+    rows = list(iter_import_rows(data, extension))
+    return rows, temp_path.parent, pending.get("start_index", PRODUCT_IMPORT_START_INDEX_FILE)
+
+
+def _build_match_entry(*, row_index, match_type, matches, row):
+    return {
+        "row_index": row_index,
+        "match_type": match_type,
+        "match_ids": [product.id for product in matches],
+        "row_summary": summarize_import_row(row),
+    }
+
+
+def _collect_file_matches(rows):
+    matches = []
+    for index, row in enumerate(rows, start=PRODUCT_IMPORT_START_INDEX_FILE):
+        if row_is_empty(row):
+            continue
+        sku, name, brand = extract_product_identity(row)
+        matched, match_type = find_product_matches(
+            sku=sku, name=name, brand=brand
+        )
+        if matched:
+            matches.append(
+                _build_match_entry(
+                    row_index=index,
+                    match_type=match_type,
+                    matches=matched,
+                    row=row,
+                )
+            )
+    return matches
+
+
+def _build_product_pending(
+    *,
+    source,
+    matches,
+    default_action,
+    start_index,
+    rows=None,
+    temp_path=None,
+    extension="",
+):
+    pending = {
+        "token": uuid.uuid4().hex,
+        "source": source,
+        "start_index": start_index,
+        "default_action": default_action,
+        "matches": matches,
+    }
+    if rows is not None:
+        pending["rows"] = rows
+    if temp_path:
+        pending["temp_path"] = temp_path
+    if extension:
+        pending["extension"] = extension
+    return pending
+
+
+def _read_product_file_upload(uploaded):
+    extension = Path(uploaded.name).suffix.lower()
+    data = uploaded.read()
+    if extension == ".csv":
+        data = decode_text(data).encode("utf-8")
+    return extension, data
+
+
+def _unsupported_product_extension(extension):
+    return extension not in SUPPORTED_PRODUCT_EXTENSIONS
+
+
+def _handle_product_confirm_action(request, *, clear_pending_import):
+    pending = _get_pending_import(request)
+    token = (request.POST.get("pending_token") or "").strip()
+    if not pending or token != pending.get("token"):
+        messages.error(request, "Import produit: confirmation invalide.")
+        return _redirect_scan_import()
+    if request.POST.get("cancel"):
+        clear_pending_import()
+        messages.info(request, "Import produit annule.")
+        return _redirect_scan_import()
+
+    decisions = _build_pending_decisions(request, pending)
+    if decisions is None:
+        return _redirect_scan_import()
+
+    rows, base_dir, start_index = _load_pending_rows(
+        pending=pending,
+        clear_pending_import=clear_pending_import,
+    )
+    if rows is None:
+        messages.error(request, "Import produit: fichier temporaire introuvable.")
+        return _redirect_scan_import()
+
+    created, updated, errors, warnings = import_products_rows(
+        rows,
+        user=request.user,
+        decisions=decisions,
+        base_dir=base_dir,
+        start_index=start_index,
+    )
+    clear_pending_import()
+    _notify_import_result(
+        request,
+        title="Import produits",
+        created=created,
+        updated=updated,
+        errors=errors,
+        warnings=warnings,
+    )
+    return _redirect_scan_import()
+
+
+def _handle_product_single_action(request):
+    row = {
+        key: value
+        for key, value in request.POST.items()
+        if key not in {"csrfmiddlewaretoken", "action"}
+    }
+    sku, name, brand = extract_product_identity(row)
+    matches, match_type = find_product_matches(sku=sku, name=name, brand=brand)
+    if matches:
+        pending = _build_product_pending(
+            source="single",
+            rows=[row],
+            start_index=PRODUCT_IMPORT_START_INDEX_SINGLE,
+            default_action=DEFAULT_PRODUCT_MATCH_ACTION,
+            matches=[
+                _build_match_entry(
+                    row_index=PRODUCT_IMPORT_START_INDEX_SINGLE,
+                    match_type=match_type,
+                    matches=matches,
+                    row=row,
+                )
+            ],
+        )
+        _set_pending_import(request, pending)
+        return render_scan_import(request, pending)
+
+    created, updated, errors, warnings = import_products_rows(
+        [row],
+        user=request.user,
+        start_index=PRODUCT_IMPORT_START_INDEX_SINGLE,
+    )
+    if errors:
+        messages.error(request, errors[0])
+    else:
+        for message in warnings[:MAX_IMPORT_MESSAGES]:
+            messages.warning(request, message)
+        messages.success(request, "Produit cree.")
+    return _redirect_scan_import()
+
+
+def _handle_product_file_action(request):
+    uploaded = request.FILES.get("import_file")
+    update_existing = bool(request.POST.get("update_existing"))
+    if not uploaded:
+        messages.error(request, "Fichier requis pour importer les produits.")
+        return _redirect_scan_import()
+
+    extension, data = _read_product_file_upload(uploaded)
+    if _unsupported_product_extension(extension):
+        messages.error(request, "Format non supporte. Utilisez CSV/XLS/XLSX.")
+        return _redirect_scan_import()
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=extension) as temp:
+        temp.write(data)
+        temp_path = temp.name
+
+    rows = list(iter_import_rows(data, extension))
+    matches = _collect_file_matches(rows)
+    if matches:
+        pending = _build_product_pending(
+            source="file",
+            temp_path=temp_path,
+            extension=extension,
+            start_index=PRODUCT_IMPORT_START_INDEX_FILE,
+            default_action=UPDATE_ACTION if update_existing else CREATE_ACTION,
+            matches=matches,
+        )
+        _set_pending_import(request, pending)
+        return render_scan_import(request, pending)
+
+    created, updated, errors, warnings = import_products_rows(
+        rows,
+        user=request.user,
+        base_dir=Path(temp_path).parent,
+        start_index=PRODUCT_IMPORT_START_INDEX_FILE,
+    )
+    Path(temp_path).unlink(missing_ok=True)
+    _notify_import_result(
+        request,
+        title="Import produits",
+        created=created,
+        updated=updated,
+        errors=errors,
+        warnings=warnings,
+    )
+    return _redirect_scan_import()
+
+
+def _handle_import_file_action(request, *, action, default_password):
+    label, importer = IMPORT_FILE_ACTIONS[action]
+    uploaded = request.FILES.get("import_file")
+    if not uploaded:
+        messages.error(request, f"Fichier requis pour importer les {label}.")
+        return _redirect_scan_import()
+
+    extension = Path(uploaded.name).suffix.lower()
+    data = uploaded.read()
+    try:
+        rows = iter_import_rows(data, extension)
+        result = _invoke_importer(
+            importer,
+            action=action,
+            rows=rows,
+            default_password=default_password,
+        )
+    except ValueError as exc:
+        messages.error(request, f"Import {label}: {exc}")
+        return _redirect_scan_import()
+
+    created, updated, errors, warnings = normalize_import_result(result)
+    _notify_import_result(
+        request,
+        title=f"Import {label}",
+        created=created,
+        updated=updated,
+        errors=errors,
+        warnings=warnings,
+    )
+    return _redirect_scan_import()
+
+
+def _handle_import_single_action(request, *, action, default_password):
+    label, importer = IMPORT_SINGLE_ACTIONS[action]
+    row = dict(request.POST.items())
+    try:
+        result = _invoke_importer(
+            importer,
+            action=action,
+            rows=[row],
+            default_password=default_password,
+        )
+    except ValueError as exc:
+        messages.error(request, f"Ajout {label}: {exc}")
+        return _redirect_scan_import()
+
+    created, updated, errors, warnings = normalize_import_result(result)
+    if errors:
+        messages.error(request, errors[0])
+    elif warnings:
+        for message in warnings[:MAX_IMPORT_MESSAGES]:
+            messages.warning(request, message)
+    else:
+        messages.success(request, f"{label.capitalize()} ajoute.")
+    return _redirect_scan_import()
+
+
 def handle_scan_import_action(request, *, default_password, clear_pending_import):
     action = (request.POST.get("action") or "").strip()
     if not action:
         return None
 
-    if action == "product_confirm":
-        pending = request.session.get("product_import_pending")
-        token = (request.POST.get("pending_token") or "").strip()
-        if not pending or token != pending.get("token"):
-            messages.error(request, "Import produit: confirmation invalide.")
-            return redirect("scan:scan_import")
-        if request.POST.get("cancel"):
-            clear_pending_import()
-            messages.info(request, "Import produit annule.")
-            return redirect("scan:scan_import")
-
-        decisions = {}
-        for item in pending.get("matches", []):
-            row_index = item.get("row_index")
-            action_choice = request.POST.get(f"decision_{row_index}") or pending.get(
-                "default_action", "update"
-            )
-            if action_choice == "create":
-                decisions[row_index] = {"action": "create"}
-                continue
-            match_id = request.POST.get(f"match_id_{row_index}")
-            if not match_id:
-                messages.error(
-                    request,
-                    "Import produit: selection requise pour la mise a jour.",
-                )
-                return redirect("scan:scan_import")
-            if str(match_id) not in {str(mid) for mid in item.get("match_ids", [])}:
-                messages.error(
-                    request,
-                    "Import produit: produit cible invalide.",
-                )
-                return redirect("scan:scan_import")
-            decisions[row_index] = {
-                "action": "update",
-                "product_id": int(match_id),
-            }
-
-        if pending.get("source") == "file":
-            temp_path = Path(pending["temp_path"])
-            if not temp_path.exists():
-                clear_pending_import()
-                messages.error(request, "Import produit: fichier temporaire introuvable.")
-                return redirect("scan:scan_import")
-            extension = pending.get("extension", "")
-            data = temp_path.read_bytes()
-            rows = list(iter_import_rows(data, extension))
-            base_dir = temp_path.parent
-            start_index = pending.get("start_index", 2)
-        else:
-            rows = pending.get("rows", [])
-            base_dir = None
-            start_index = pending.get("start_index", 1)
-
-        created, updated, errors, warnings = import_products_rows(
-            rows,
-            user=request.user,
-            decisions=decisions,
-            base_dir=base_dir,
-            start_index=start_index,
-        )
-        clear_pending_import()
-        if errors:
-            messages.warning(request, f"Import produits: {len(errors)} erreur(s).")
-            for message in errors[:3]:
-                messages.warning(request, message)
-        if warnings:
-            messages.warning(request, f"Import produits: {len(warnings)} alerte(s).")
-            for message in warnings[:3]:
-                messages.warning(request, message)
-        messages.success(
+    if action == ACTION_PRODUCT_CONFIRM:
+        return _handle_product_confirm_action(
             request,
-            f"Import produits: {created} cree(s), {updated} maj.",
+            clear_pending_import=clear_pending_import,
         )
-        return redirect("scan:scan_import")
 
-    if action == "product_single":
-        row = {
-            key: value
-            for key, value in request.POST.items()
-            if key not in {"csrfmiddlewaretoken", "action"}
-        }
-        sku, name, brand = extract_product_identity(row)
-        matches, match_type = find_product_matches(sku=sku, name=name, brand=brand)
-        if matches:
-            pending = {
-                "token": uuid.uuid4().hex,
-                "source": "single",
-                "rows": [row],
-                "start_index": 1,
-                "default_action": "update",
-                "matches": [
-                    {
-                        "row_index": 1,
-                        "match_type": match_type,
-                        "match_ids": [product.id for product in matches],
-                        "row_summary": summarize_import_row(row),
-                    }
-                ],
-            }
-            request.session["product_import_pending"] = pending
-            return render_scan_import(request, pending)
-        created, updated, errors, warnings = import_products_rows(
-            [row],
-            user=request.user,
-            start_index=1,
-        )
-        if errors:
-            messages.error(request, errors[0])
-        else:
-            if warnings:
-                for message in warnings[:3]:
-                    messages.warning(request, message)
-            messages.success(request, "Produit cree.")
-        return redirect("scan:scan_import")
-
-    if action == "product_file":
-        uploaded = request.FILES.get("import_file")
-        update_existing = bool(request.POST.get("update_existing"))
-        if not uploaded:
-            messages.error(request, "Fichier requis pour importer les produits.")
-            return redirect("scan:scan_import")
-        extension = Path(uploaded.name).suffix.lower()
-        data = uploaded.read()
-        if extension == ".csv":
-            data = decode_text(data).encode("utf-8")
-        if extension not in {".csv", ".xlsx", ".xlsm", ".xls"}:
-            messages.error(request, "Format non supporte. Utilisez CSV/XLS/XLSX.")
-            return redirect("scan:scan_import")
-        with tempfile.NamedTemporaryFile(delete=False, suffix=extension) as temp:
-            temp.write(data)
-            temp_path = temp.name
-        rows = list(iter_import_rows(data, extension))
-        matches = []
-        for index, row in enumerate(rows, start=2):
-            if row_is_empty(row):
-                continue
-            sku, name, brand = extract_product_identity(row)
-            matched, match_type = find_product_matches(
-                sku=sku, name=name, brand=brand
-            )
-            if matched:
-                matches.append(
-                    {
-                        "row_index": index,
-                        "match_type": match_type,
-                        "match_ids": [product.id for product in matched],
-                        "row_summary": summarize_import_row(row),
-                    }
-                )
-        if matches:
-            pending = {
-                "token": uuid.uuid4().hex,
-                "source": "file",
-                "temp_path": temp_path,
-                "extension": extension,
-                "start_index": 2,
-                "default_action": "update" if update_existing else "create",
-                "matches": matches,
-            }
-            request.session["product_import_pending"] = pending
-            return render_scan_import(request, pending)
-
-        created, updated, errors, warnings = import_products_rows(
-            rows,
-            user=request.user,
-            base_dir=Path(temp_path).parent,
-            start_index=2,
-        )
-        Path(temp_path).unlink(missing_ok=True)
-        if errors:
-            messages.warning(request, f"Import produits: {len(errors)} erreur(s).")
-            for message in errors[:3]:
-                messages.warning(request, message)
-        if warnings:
-            messages.warning(request, f"Import produits: {len(warnings)} alerte(s).")
-            for message in warnings[:3]:
-                messages.warning(request, message)
-        messages.success(
+    product_handler = PRODUCT_ACTION_HANDLERS.get(action)
+    if product_handler:
+        return product_handler(
             request,
-            f"Import produits: {created} cree(s), {updated} maj.",
+            default_password=default_password,
+            clear_pending_import=clear_pending_import,
         )
-        return redirect("scan:scan_import")
 
     if action in IMPORT_FILE_ACTIONS:
-        label, importer = IMPORT_FILE_ACTIONS[action]
-        uploaded = request.FILES.get("import_file")
-        if not uploaded:
-            messages.error(request, f"Fichier requis pour importer les {label}.")
-            return redirect("scan:scan_import")
-        extension = Path(uploaded.name).suffix.lower()
-        data = uploaded.read()
-        try:
-            rows = iter_import_rows(data, extension)
-            if action == "user_file":
-                result = importer(rows, default_password)
-            else:
-                result = importer(rows)
-        except ValueError as exc:
-            messages.error(request, f"Import {label}: {exc}")
-            return redirect("scan:scan_import")
-        created, updated, errors, warnings = normalize_import_result(result)
-        if errors:
-            messages.warning(request, f"Import {label}: {len(errors)} erreur(s).")
-            for message in errors[:3]:
-                messages.warning(request, message)
-        if warnings:
-            messages.warning(request, f"Import {label}: {len(warnings)} alerte(s).")
-            for message in warnings[:3]:
-                messages.warning(request, message)
-        messages.success(
+        return _handle_import_file_action(
             request,
-            f"Import {label}: {created} cree(s), {updated} maj.",
+            action=action,
+            default_password=default_password,
         )
-        return redirect("scan:scan_import")
 
     if action in IMPORT_SINGLE_ACTIONS:
-        label, importer = IMPORT_SINGLE_ACTIONS[action]
-        row = dict(request.POST.items())
-        try:
-            if action == "user_single":
-                result = importer([row], default_password)
-            else:
-                result = importer([row])
-        except ValueError as exc:
-            messages.error(request, f"Ajout {label}: {exc}")
-            return redirect("scan:scan_import")
-        created, updated, errors, warnings = normalize_import_result(result)
-        if errors:
-            messages.error(request, errors[0])
-        elif warnings:
-            for message in warnings[:3]:
-                messages.warning(request, message)
-        else:
-            messages.success(request, f"{label.capitalize()} ajoute.")
-        return redirect("scan:scan_import")
+        return _handle_import_single_action(
+            request,
+            action=action,
+            default_password=default_password,
+        )
 
     return None

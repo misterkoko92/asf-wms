@@ -14,11 +14,12 @@ from .views_scan_shipments import (
     scan_shipment_create,
     scan_shipment_edit,
     scan_shipment_track,
+    scan_shipment_track_legacy,
     scan_shipments_ready,
 )
 from .views_scan_stock import scan_out, scan_stock, scan_stock_update, scan_sync
 
-__all__ = [
+SCAN_FLOW_EXPORTS = (
     "scan_stock",
     "scan_cartons_ready",
     "scan_shipments_ready",
@@ -33,8 +34,14 @@ __all__ = [
     "scan_shipment_create",
     "scan_shipment_edit",
     "scan_shipment_track",
+    "scan_shipment_track_legacy",
     "scan_out",
     "scan_sync",
+)
+
+SCAN_MISC_EXPORTS = (
     "scan_faq",
     "scan_service_worker",
-]
+)
+
+__all__ = [*SCAN_FLOW_EXPORTS, *SCAN_MISC_EXPORTS]

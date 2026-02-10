@@ -80,7 +80,7 @@ def decode_text(data):
             except UnicodeDecodeError:
                 continue
 
-    for encoding in ("utf-8-sig", "utf-8", "cp1252", "latin-1"):
+    for encoding in ("utf-8-sig", "utf-8", "cp1252"):
         try:
             return data.decode(encoding)
         except UnicodeDecodeError:

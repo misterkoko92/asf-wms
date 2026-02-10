@@ -24,7 +24,7 @@ from .contact_filters import (
     TAG_SHIPPER,
     contacts_with_tags,
 )
-from .emailing import send_email_safe
+from .emailing import enqueue_email_safe
 from .forms import AdjustStockForm, PackCartonForm, ReceiveStockForm, TransferStockForm
 from .print_context import (
     build_carton_document_context,
@@ -47,8 +47,6 @@ from .services import (
     transfer_stock,
     unpack_carton,
 )
-
-TEMP_PORTAL_PASSWORD = "TempPWD!"
 
 
 @admin.register(models.ProductCategory)
@@ -275,6 +273,16 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
     search_fields = ("association_name", "email")
     actions = ("approve_requests", "reject_requests")
 
+    @staticmethod
+    def _build_portal_urls(*, request, user):
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        set_password_url = request.build_absolute_uri(
+            reverse("portal:portal_set_password", args=[uid, token])
+        )
+        login_url = request.build_absolute_uri(reverse("portal:portal_login"))
+        return login_url, set_password_url
+
     def _approve_request(self, request, account_request):
         User = get_user_model()
         user = User.objects.filter(email__iexact=account_request.email).first()
@@ -328,8 +336,8 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
                     username=account_request.email,
                     email=account_request.email,
                 )
-            user.set_password(TEMP_PORTAL_PASSWORD)
-            user.save(update_fields=["password"])
+                user.set_unusable_password()
+                user.save(update_fields=["password"])
 
             profile, created = models.AssociationProfile.objects.get_or_create(
                 user=user, defaults={"contact": contact}
@@ -351,12 +359,7 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
                 update_fields=["status", "reviewed_at", "reviewed_by", "contact"]
             )
 
-        uid = urlsafe_base64_encode(force_bytes(user.pk))
-        token = default_token_generator.make_token(user)
-        set_password_url = request.build_absolute_uri(
-            reverse("portal:portal_set_password", args=[uid, token])
-        )
-        login_url = request.build_absolute_uri(reverse("portal:portal_login"))
+        login_url, set_password_url = self._build_portal_urls(request=request, user=user)
         message = render_to_string(
             "emails/account_request_approved.txt",
             {
@@ -364,10 +367,9 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
                 "email": account_request.email,
                 "set_password_url": set_password_url,
                 "login_url": login_url,
-                "temp_password": TEMP_PORTAL_PASSWORD,
             },
         )
-        send_email_safe(
+        enqueue_email_safe(
             subject="ASF WMS - Compte valide",
             message=message,
             recipient=[account_request.email],
@@ -444,11 +446,16 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
         uid = urlsafe_base64_encode(force_bytes(user.pk))
         token = default_token_generator.make_token(user)
         base_url = settings.SITE_BASE_URL.rstrip("/") if settings.SITE_BASE_URL else ""
-        login_url = f"{base_url}{reverse('portal:portal_login')}"
-        set_password_url = f"{base_url}{reverse('portal:portal_set_password', args=[uid, token])}"
+        login_url = f"{base_url}{reverse('portal:portal_login')}" if base_url else reverse(
+            "portal:portal_login"
+        )
+        set_password_url = (
+            f"{base_url}{reverse('portal:portal_set_password', args=[uid, token])}"
+            if base_url
+            else reverse("portal:portal_set_password", args=[uid, token])
+        )
         lines = [
             f"Email: {obj.email or '-'}",
-            f"Mot de passe temporaire: {TEMP_PORTAL_PASSWORD}",
             f"Login: {login_url}",
             f"Lien definir mot de passe: {set_password_url}",
         ]

@@ -2,13 +2,21 @@ from datetime import date
 from unittest import mock
 
 from django.contrib.auth import get_user_model
+from django.contrib.admin.sites import AdminSite
 from django.core.exceptions import ValidationError
+from django.test import RequestFactory
 from django.test import TestCase
+from django.urls import reverse
 
+from .admin import PublicAccountRequestAdmin
 from .models import (
+    AssociationProfile,
     Carton,
     CartonFormat,
     CartonStatus,
+    IntegrationDirection,
+    IntegrationEvent,
+    IntegrationStatus,
     Location,
     MovementType,
     Order,
@@ -18,6 +26,8 @@ from .models import (
     ProductKitItem,
     ProductLot,
     ProductLotStatus,
+    PublicAccountRequest,
+    PublicAccountRequestStatus,
     Receipt,
     ReceiptLine,
     ReceiptStatus,
@@ -263,6 +273,17 @@ class ShipmentReferenceTests(TestCase):
             shipment = self._create_shipment(user)
         self.assertEqual(shipment.reference, "270001")
 
+    def test_tracking_path_uses_tracking_token(self):
+        user = get_user_model().objects.create_user(
+            username="sequser3", password="pass1234"
+        )
+        shipment = self._create_shipment(user)
+        self.assertEqual(
+            shipment.get_tracking_path(),
+            reverse("scan:scan_shipment_track", args=[shipment.tracking_token]),
+        )
+        self.assertNotIn(shipment.reference, shipment.get_tracking_path())
+
 
 class ModelValidationTests(TestCase):
     def test_product_validators_reject_negative_values(self):
@@ -405,3 +426,48 @@ class OrderReservationTests(TestCase):
         self.assertEqual(line.prepared_quantity, 6)
         self.assertEqual(line.reserved_quantity, 0)
         self.assertEqual(self.lot.quantity_reserved, 0)
+
+
+class PublicAccountApprovalTests(TestCase):
+    def setUp(self):
+        self.reviewer = get_user_model().objects.create_superuser(
+            username="admin-approve",
+            email="admin-approve@example.com",
+            password="pass1234",
+        )
+        self.account_request = PublicAccountRequest.objects.create(
+            association_name="Association Test",
+            email="association@example.com",
+            phone="+33123456789",
+            address_line1="10 Rue Test",
+            address_line2="",
+            postal_code="75000",
+            city="Paris",
+            country="France",
+            status=PublicAccountRequestStatus.PENDING,
+        )
+
+    def test_approve_request_creates_user_without_temp_password(self):
+        request = RequestFactory().get("/admin/wms/publicaccountrequest/")
+        request.user = self.reviewer
+
+        admin = PublicAccountRequestAdmin(PublicAccountRequest, AdminSite())
+        ok, reason = admin._approve_request(request, self.account_request)
+
+        self.assertTrue(ok)
+        self.assertEqual(reason, "")
+        user = get_user_model().objects.get(email__iexact=self.account_request.email)
+        self.assertFalse(user.has_usable_password())
+
+        profile = AssociationProfile.objects.get(user=user)
+        self.assertTrue(profile.must_change_password)
+        events = IntegrationEvent.objects.filter(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.email",
+            event_type="send_email",
+            status=IntegrationStatus.PENDING,
+        )
+        self.assertEqual(events.count(), 1)
+        event = events.first()
+        self.assertEqual(event.payload.get("subject"), "ASF WMS - Compte valide")
+        self.assertEqual(event.payload.get("recipient"), [self.account_request.email])

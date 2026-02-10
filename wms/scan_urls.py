@@ -24,9 +24,14 @@ urlpatterns = [
         name="scan_shipment_edit",
     ),
     path(
-        "shipment/track/<str:shipment_ref>/",
+        "shipment/track/<uuid:tracking_token>/",
         views.scan_shipment_track,
         name="scan_shipment_track",
+    ),
+    path(
+        "shipment/track/<str:shipment_ref>/",
+        views.scan_shipment_track_legacy,
+        name="scan_shipment_track_legacy",
     ),
     path(
         "shipment/<int:shipment_id>/doc/<str:doc_type>/",
