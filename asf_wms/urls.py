@@ -6,6 +6,11 @@ from django.views.generic import TemplateView
 
 urlpatterns = [
     path("", TemplateView.as_view(template_name="home.html"), name="home"),
+    path(
+        "password-help/",
+        TemplateView.as_view(template_name="password_help.html"),
+        name="password_help",
+    ),
     path("admin/", admin.site.urls),
     path("scan/", include("wms.scan_urls")),
     path("portal/", include("wms.portal_urls")),

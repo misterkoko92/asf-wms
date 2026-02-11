@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="fr" data-ui="classic">
+<html lang="fr">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,18 +7,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script>
-    (function() {
-      try {
-        var storedUi = localStorage.getItem('wms-ui');
-        if (storedUi) {
-          document.documentElement.setAttribute('data-ui', storedUi);
-        }
-      } catch (err) {
-        // Ignore storage errors.
-      }
-    })();
-  </script>
   <style>
     :root {
       --ink: #1a241c;
@@ -27,25 +15,9 @@
       --bg-2: #e6ede2;
       --card: #fffdf7;
       --accent: #0f5f4f;
-      --accent-2: #f0a43a;
-      --accent-3: #1e7f6a;
       --border: #ded6c7;
       --shadow: rgba(20, 24, 18, 0.12);
       --shadow-soft: rgba(20, 24, 18, 0.06);
-    }
-
-    :root[data-ui="nova"] {
-      --ink: #0f172a;
-      --ink-soft: #4b5b74;
-      --bg: #eef4fb;
-      --bg-2: #dde8f5;
-      --card: #ffffff;
-      --accent: #0f4c81;
-      --accent-2: #f6b042;
-      --accent-3: #0f7b6b;
-      --border: #d4ddea;
-      --shadow: rgba(15, 23, 42, 0.18);
-      --shadow-soft: rgba(15, 23, 42, 0.08);
     }
 
     * {
@@ -61,28 +33,18 @@
         radial-gradient(900px 600px at 105% 10%, rgba(226, 246, 238, 0.9) 0%, transparent 55%),
         linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
       min-height: 100vh;
-      display: flex;
-      align-items: stretch;
-      justify-content: center;
       padding: 24px;
     }
 
     .home-shell {
       width: 100%;
-      max-width: 1180px;
+      max-width: 980px;
+      margin: 0 auto;
       display: grid;
-      gap: 24px;
+      gap: 20px;
     }
 
     .home-top {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-    }
-
-    .brand {
       display: flex;
       align-items: center;
       gap: 12px;
@@ -105,47 +67,16 @@
       letter-spacing: 0.22em;
     }
 
-    .home-grid {
-      display: grid;
-      grid-template-columns: 1.2fr 0.8fr;
-      gap: 22px;
-      align-items: start;
-    }
-
     .card {
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 24px;
+      border-radius: 20px;
       padding: 28px;
       box-shadow: 0 16px 36px var(--shadow-soft);
-      position: relative;
-      overflow: hidden;
     }
 
     .hero-card {
-      padding: 36px;
       box-shadow: 0 18px 40px var(--shadow);
-    }
-
-    .hero-card::before {
-      content: "";
-      position: absolute;
-      inset: -30% 40% 40% -30%;
-      background: radial-gradient(circle, rgba(15, 95, 79, 0.18), transparent 70%);
-      z-index: 0;
-    }
-
-    .hero-card::after {
-      content: "";
-      position: absolute;
-      inset: 40% -20% -30% 60%;
-      background: radial-gradient(circle, rgba(240, 164, 58, 0.2), transparent 65%);
-      z-index: 0;
-    }
-
-    .hero-content {
-      position: relative;
-      z-index: 1;
     }
 
     .home-kicker {
@@ -166,215 +97,72 @@
 
     h1 {
       font-family: "Fraunces", "Georgia", serif;
-      font-size: 42px;
-      margin: 0 0 12px;
-      line-height: 1.1;
+      font-size: 38px;
+      margin: 0;
+      line-height: 1.15;
     }
 
-    p {
-      margin: 0 0 18px;
+    .login-card h2 {
+      margin: 0 0 10px;
+      font-size: 22px;
+    }
+
+    .scan-help {
+      margin: 0 0 14px;
       color: var(--ink-soft);
-      font-size: 16px;
-      line-height: 1.6;
+      font-size: 14px;
+      line-height: 1.5;
     }
 
-    .home-tags {
-      list-style: none;
-      padding: 0;
-      margin: 18px 0 0;
+    .scan-field {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .scan-field label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink-soft);
+    }
+
+    .scan-field input {
+      border: 1px solid #b8c8bc;
+      border-radius: 10px;
+      min-height: 42px;
+      padding: 9px 12px;
+      font-size: 15px;
+      background: #fff;
+    }
+
+    .scan-submit {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 0;
+      border-radius: 12px;
+      min-height: 44px;
+      padding: 10px 16px;
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      background: var(--accent);
+      cursor: pointer;
+      width: 100%;
+    }
+
+    .home-links {
+      margin-top: 12px;
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .home-tags li {
-      padding: 6px 12px;
-      border-radius: 999px;
-      border: 1px solid var(--border);
-      background: rgba(255, 255, 255, 0.8);
-      font-size: 12px;
-      font-weight: 600;
-    }
-
-    .home-actions {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 12px;
-      margin-top: 28px;
+      font-size: 14px;
     }
 
-    .home-actions a {
+    .home-links a {
+      color: var(--accent);
       text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 14px 18px;
-      border-radius: 16px;
-      font-weight: 700;
-      background: var(--accent);
-      color: #fff;
-      box-shadow: 0 12px 26px rgba(15, 95, 79, 0.22);
-    }
-
-    .home-actions a.secondary {
-      background: var(--accent-2);
-      color: #3f2a0a;
-      box-shadow: 0 12px 26px rgba(240, 164, 58, 0.24);
-    }
-
-    .home-actions span.link-arrow {
-      font-weight: 800;
-    }
-
-    .side-stack {
-      display: grid;
-      gap: 18px;
-    }
-
-    .card h2 {
-      margin: 0 0 12px;
-      font-size: 18px;
-      font-weight: 700;
-    }
-
-    .links {
-      display: grid;
-      gap: 10px;
-      margin-bottom: 16px;
-    }
-
-    .links a {
-      text-decoration: none;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      padding: 12px 14px;
-      border-radius: 14px;
-      border: 1px solid var(--border);
-      color: var(--ink);
       font-weight: 600;
-      background: rgba(255, 255, 255, 0.9);
-    }
-
-    .links a.primary {
-      background: var(--accent);
-      color: #fff;
-      border-color: transparent;
-    }
-
-    .links a.secondary {
-      background: rgba(240, 164, 58, 0.18);
-      color: #3f2a0a;
-      border-color: rgba(240, 164, 58, 0.3);
-    }
-
-    .home-meta {
-      display: grid;
-      gap: 8px;
-      font-size: 13px;
-      color: var(--ink-soft);
-    }
-
-    .home-points {
-      display: grid;
-      gap: 10px;
-    }
-
-    .home-point {
-      display: grid;
-      gap: 6px;
-      padding: 12px;
-      border-radius: 14px;
-      background: rgba(15, 95, 79, 0.08);
-    }
-
-    .home-point strong {
-      font-size: 13px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .home-ui {
-      display: grid;
-      gap: 6px;
-      justify-items: end;
-    }
-
-    .home-ui-label {
-      text-transform: uppercase;
-      font-size: 11px;
-      letter-spacing: 0.2em;
-      color: var(--ink-soft);
-    }
-
-    .home-ui-buttons {
-      display: inline-flex;
-      gap: 6px;
-      padding: 4px;
-      border-radius: 999px;
-      border: 1px solid var(--border);
-      background: rgba(255, 255, 255, 0.8);
-    }
-
-    .home-ui button {
-      border: 0;
-      border-radius: 999px;
-      padding: 6px 14px;
-      background: transparent;
-      font-weight: 700;
-      cursor: pointer;
-      color: var(--ink);
-    }
-
-    .home-ui button.active {
-      background: var(--accent);
-      color: #fff;
-    }
-
-    @keyframes float-in {
-      from {
-        opacity: 0;
-        transform: translateY(18px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    .hero-card {
-      animation: float-in 0.6s ease both;
-    }
-
-    .side-stack .card {
-      animation: float-in 0.6s ease both;
-    }
-
-    .side-stack .card:nth-child(1) {
-      animation-delay: 0.12s;
-    }
-
-    .side-stack .card:nth-child(2) {
-      animation-delay: 0.2s;
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      .hero-card,
-      .side-stack .card {
-        animation: none;
-      }
-    }
-
-    @media (max-width: 960px) {
-      .home-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .home-ui {
-        justify-items: start;
-      }
     }
 
     @media (max-width: 720px) {
@@ -382,13 +170,12 @@
         padding: 18px;
       }
 
-      h1 {
-        font-size: 34px;
+      .card {
+        padding: 22px;
       }
 
-      .hero-card,
-      .card {
-        padding: 24px;
+      h1 {
+        font-size: 31px;
       }
     }
   </style>
@@ -396,114 +183,52 @@
 <body>
   <div class="home-shell">
     <header class="home-top">
-      <div class="brand">
-        <span class="brand-dot"></span>
-        <span>ASF WMS</span>
-        <span class="brand-sub">Logistique</span>
-      </div>
-      <div class="home-ui" role="group" aria-label="Interface">
-        <span class="home-ui-label">Interface</span>
-        <div class="home-ui-buttons">
-          <button type="button" data-ui-option="classic">Classique</button>
-          <button type="button" data-ui-option="nova">Nouveau</button>
-        </div>
-      </div>
+      <span class="brand-dot"></span>
+      <span>ASF WMS</span>
+      <span class="brand-sub">Logistique</span>
     </header>
 
-    <main class="home-grid">
-      <section class="card hero-card">
-        <div class="hero-content">
-          <div class="home-kicker">Plateforme logistique</div>
-          <h1>Stocks, receptions et expeditions en un seul flux.</h1>
-          <p>
-            Pilotez les mouvements, les etiquettes et les documents en quelques clics.
-            Utilisez l interface Admin pour la configuration, et le Scan PWA pour le terrain.
-          </p>
-          <ul class="home-tags">
-            <li>Stock temps reel</li>
-            <li>Reception rapide</li>
-            <li>Preparation terrain</li>
-            <li>Expedition tracee</li>
-            <li>Docs PDF</li>
-            <li>Scan PWA</li>
-          </ul>
-          <div class="home-actions">
-            <a href="/scan/">Ouvrir Scan PWA <span class="link-arrow">></span></a>
-            <a class="secondary" href="/admin/">Aller a l administration <span class="link-arrow">></span></a>
-          </div>
-        </div>
-      </section>
+    <section class="card hero-card">
+      <div class="home-kicker">Plateforme logistique</div>
+      <h1>Gestion des stocks, reception de produits et preparation des expedition</h1>
+    </section>
 
-      <section class="side-stack">
-        <div class="card">
-          <h2>Acces rapide</h2>
-          <div class="links">
-            <a class="primary" href="/scan/">Scan mobile (PWA) <span class="link-arrow">></span></a>
-            <a class="secondary" href="/admin/">Administration <span class="link-arrow">></span></a>
-          </div>
-          <div class="home-meta">
-            <span>Conseil: ouvrez /scan sur mobile pour la camera.</span>
-            <span>Besoin d un compte? Contactez un administrateur.</span>
-          </div>
+    <section class="card login-card">
+      <h2>Connexion</h2>
+      <p class="scan-help">Connectez-vous avec votre compte pour acceder a l interface scan.</p>
+      <form method="post" action="/admin/login/?next=/scan/" id="home-login-form" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="next" value="/scan/">
+        <div class="scan-field">
+          <label for="username">Nom d utilisateur</label>
+          <input type="text" id="username" name="username" autocomplete="username" required>
         </div>
-
-        <div class="card">
-          <h2>Flux recommande</h2>
-          <div class="home-points">
-            <div class="home-point">
-              <strong>1. Configurer</strong>
-              <span>Entrepots, emplacements, categories et contacts.</span>
-            </div>
-            <div class="home-point">
-              <strong>2. Importer</strong>
-              <span>Produits et listings, puis valider le mapping.</span>
-            </div>
-            <div class="home-point">
-              <strong>3. Operer</strong>
-              <span>Reception, preparation et expeditions en flux continu.</span>
-            </div>
-          </div>
+        <div class="scan-field">
+          <label for="password">Mot de passe</label>
+          <input type="password" id="password" name="password" autocomplete="current-password" required>
         </div>
-      </section>
-    </main>
+        <button type="submit" class="scan-submit">Se connecter</button>
+      </form>
+      <div class="home-links">
+        <a href="{% url 'password_help' %}">Mot de passe oublie ?</a>
+        <a href="{% url 'portal:portal_account_request' %}">Creer un compte</a>
+      </div>
+    </section>
   </div>
+
   <script>
     (function() {
-      var root = document.documentElement;
-      var buttons = Array.from(document.querySelectorAll('[data-ui-option]'));
-      if (!buttons.length) {
+      var form = document.getElementById("home-login-form");
+      if (!form) {
         return;
       }
-      var UI_KEY = 'wms-ui';
-      var normalize = function(value) {
-        return value === 'nova' ? 'nova' : 'classic';
-      };
-      var applyUi = function(value) {
-        var ui = normalize(value);
-        root.setAttribute('data-ui', ui);
-        buttons.forEach(function(button) {
-          var isActive = button.getAttribute('data-ui-option') === ui;
-          button.classList.toggle('active', isActive);
-          button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
-        });
-      };
-      var initialUi = 'classic';
-      try {
-        initialUi = localStorage.getItem(UI_KEY) || 'classic';
-      } catch (err) {
-        // Ignore storage errors.
-      }
-      applyUi(initialUi);
-      buttons.forEach(function(button) {
-        button.addEventListener('click', function() {
-          var ui = button.getAttribute('data-ui-option');
-          applyUi(ui);
-          try {
-            localStorage.setItem(UI_KEY, normalize(ui));
-          } catch (err) {
-            // Ignore storage errors.
-          }
-        });
+      form.addEventListener("submit", function() {
+        try {
+          localStorage.setItem("wms-ui", "benev");
+          localStorage.setItem("scan-theme", "classic");
+        } catch (err) {
+          // Ignore storage errors.
+        }
       });
     })();
   </script>

@@ -140,6 +140,12 @@ class PortalAuthViewsTests(PortalBaseTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("Email et mot de passe requis.", response.context["errors"])
 
+    def test_portal_login_get_shows_account_request_link(self):
+        response = self.client.get(self.login_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse("portal:portal_account_request"))
+        self.assertContains(response, "Demander un compte")
+
     def test_portal_login_rejects_invalid_credentials(self):
         response = self.client.post(
             self.login_url,
