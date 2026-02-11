@@ -73,10 +73,10 @@ def _apply_quantity(*, product, quantity, location, user=None):
     if quantity is None:
         return
     if quantity <= 0:
-        raise ValueError("Quantite invalide.")
+        raise ValueError("Quantité invalide.")
     stock_location = location or product.default_location
     if stock_location is None:
-        raise ValueError("Emplacement requis pour la quantite.")
+        raise ValueError("Emplacement requis pour la quantité.")
     try:
         receive_stock(
             user=user,
@@ -260,7 +260,7 @@ def import_product_row(row, *, user=None, existing_product=None, base_dir: Path 
     name = _parse_product_name(row)
     sku = _parse_product_sku(row)
     if existing_product is None and sku and Product.objects.filter(sku__iexact=sku).exists():
-        raise ValueError("SKU deja utilise.")
+        raise ValueError("SKU déjà utilisé.")
     values = _parse_product_values(row, base_dir=base_dir)
     values["name"] = name
     values["sku"] = sku
@@ -329,7 +329,7 @@ def import_products_rows(
                 row = dict(row)
                 row["sku"] = ""
                 warnings.append(
-                    f"Ligne {index}: SKU {sku} deja utilise, SKU auto-genere."
+                    f"Ligne {index}: SKU {sku} déjà utilisé, SKU auto-généré."
                 )
         try:
             _, was_created, row_warnings = import_product_row(

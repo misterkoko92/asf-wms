@@ -25,7 +25,7 @@ def resolve_listing_location(row, default_warehouse):
     shelf = parse_str(row.get("shelf"))
     if any([zone, aisle, shelf]):
         if not all([warehouse_name, zone, aisle, shelf]):
-            raise ValueError("Emplacement incomplet (entrepot/rack/etagere/bac).")
+            raise ValueError("Emplacement incomplet (entrepôt/rack/étagère/bac).")
         warehouse, _ = Warehouse.objects.get_or_create(name=warehouse_name)
         zone = normalize_upper(zone)
         aisle = normalize_upper(aisle)
@@ -52,7 +52,7 @@ def import_locations(rows):
             notes = parse_str(get_value(row, "notes", "note"))
             rack_color = parse_str(get_value(row, "rack_color", "couleur_rack"))
             if not all([warehouse_name, zone, aisle, shelf]):
-                raise ValueError("Champs requis: entrepot, rack, etagere, bac.")
+                raise ValueError("Champs requis: entrepôt, rack, étagère, bac.")
             warehouse, _ = Warehouse.objects.get_or_create(name=warehouse_name)
             zone = normalize_upper(zone)
             aisle = normalize_upper(aisle)
@@ -88,7 +88,7 @@ def import_warehouses(rows):
             name = parse_str(get_value(row, "name", "warehouse", "entrepot"))
             code = parse_str(get_value(row, "code"))
             if not name:
-                raise ValueError("Nom entrepot requis.")
+                raise ValueError("Nom entrepôt requis.")
             warehouse, was_created = Warehouse.objects.get_or_create(
                 name=name, defaults={"code": code or ""}
             )

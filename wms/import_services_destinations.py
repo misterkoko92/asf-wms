@@ -12,8 +12,8 @@ DESTINATION_LABEL_RE = re.compile(
 )
 DESTINATION_IATA_FALLBACK = "DEST"
 DEFAULT_DESTINATION_COUNTRY = "France"
-DEFAULT_CORRESPONDENT_NAME = "Correspondant par defaut"
-DEFAULT_CORRESPONDENT_NOTES = "cree a l'import destination"
+DEFAULT_CORRESPONDENT_NAME = "Correspondant par défaut"
+DEFAULT_CORRESPONDENT_NOTES = "créé à l'import destination"
 
 
 def _normalize_label_value(value):

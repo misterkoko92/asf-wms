@@ -8,7 +8,7 @@ TEMPLATE_ORDER_ADMIN_NOTIFICATION = "emails/order_admin_notification.txt"
 TEMPLATE_ORDER_CONFIRMATION = "emails/order_confirmation.txt"
 
 SUBJECT_NEW_ORDER = "ASF WMS - Nouvelle commande"
-SUBJECT_ORDER_CONFIRMATION = "ASF WMS - Commande recue"
+SUBJECT_ORDER_CONFIRMATION = "ASF WMS - Commande reçue"
 
 ROUTE_PORTAL_ORDER_DETAIL = "portal:portal_order_detail"
 ROUTE_ADMIN_ORDER_CHANGELIST = "admin:wms_order_changelist"

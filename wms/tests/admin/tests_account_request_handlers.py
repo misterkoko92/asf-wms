@@ -155,7 +155,7 @@ class AccountRequestFormHandlerTests(TestCase):
         response = self.client.post(self.url, self._payload())
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Une demande est deja en attente pour cet email.")
+        self.assertContains(response, "Une demande est déjà en attente pour cet email.")
 
     @override_settings(ACCOUNT_REQUEST_THROTTLE_SECONDS=0)
     @mock.patch("wms.account_request_handlers.get_admin_emails", return_value=[])
@@ -202,7 +202,7 @@ class AccountRequestFormHandlerTests(TestCase):
         self.assertContains(response, "Format non autorise: invalid.exe")
         self.assertEqual(PublicAccountRequest.objects.count(), 0)
 
-    def test_form_ignores_empty_other_upload_entries(self):
+    def test_form_ignorés_empty_other_upload_entries(self):
         request = RequestFactory().post(
             self.url,
             self._payload(association_name="", email="", line1=""),
@@ -258,7 +258,7 @@ class AccountRequestFormHandlerTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(
-            "Une demande est deja en attente pour ce nom d'utilisateur.",
+            "Une demande est déjà en attente pour ce nom d'utilisateur.",
             response.context["errors"],
         )
 

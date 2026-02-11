@@ -68,7 +68,7 @@ def _notify_shipment_status_change(sender, instance, created, **kwargs) -> None:
     )
     transaction.on_commit(
         lambda: enqueue_email_safe(
-            subject=f"ASF WMS - Expedition {instance.reference} : statut mis a jour",
+            subject=f"ASF WMS - Expédition {instance.reference} : statut mis à jour",
             message=message,
             recipient=recipients,
         )
@@ -100,7 +100,7 @@ def _notify_tracking_event(sender, instance, created, **kwargs) -> None:
     )
     transaction.on_commit(
         lambda: enqueue_email_safe(
-            subject=f"ASF WMS - Suivi expedition {shipment.reference}",
+            subject=f"ASF WMS - Suivi expédition {shipment.reference}",
             message=message,
             recipient=recipients,
         )

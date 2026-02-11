@@ -42,10 +42,10 @@ ERROR_RECIPIENT_REQUIRED = "Destinataire requis."
 ERROR_PRODUCT_REQUIRED = "Ajoutez au moins un produit."
 ERROR_ASSOCIATION_ADDRESS_REQUIRED = "Adresse association manquante."
 ERROR_RECIPIENT_INVALID = "Destinataire invalide."
-ERROR_ORDER_UPLOAD_NOT_APPROVED = "Documents disponibles apres validation de la commande."
+ERROR_ORDER_UPLOAD_NOT_APPROVED = "Documents disponibles après validation de la commande."
 
-MESSAGE_ORDER_SENT = "Commande envoyee."
-MESSAGE_ORDER_DOCUMENT_ADDED = "Document ajoute."
+MESSAGE_ORDER_SENT = "Commande envoyée."
+MESSAGE_ORDER_DOCUMENT_ADDED = "Document ajouté."
 
 
 def _get_dashboard_orders(profile):

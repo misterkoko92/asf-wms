@@ -75,7 +75,7 @@ def parse_shipment_lines(*, carton_count, data, allowed_carton_ids):
         errors = []
 
         if carton_id and (product_code or quantity_raw):
-            errors.append("Choisissez un carton OU creez un colis depuis un produit.")
+            errors.append("Choisissez un carton OU créez un colis depuis un produit.")
         elif carton_id:
             if carton_id not in allowed_carton_ids:
                 errors.append("Carton indisponible.")
@@ -86,11 +86,11 @@ def parse_shipment_lines(*, carton_count, data, allowed_carton_ids):
                 errors.append("Produit requis.")
             quantity = None
             if not quantity_raw:
-                errors.append("Quantite requise.")
+                errors.append("Quantité requise.")
             else:
                 quantity = parse_int(quantity_raw)
                 if quantity is None or quantity <= 0:
-                    errors.append("Quantite invalide.")
+                    errors.append("Quantité invalide.")
             product = resolve_product(product_code) if product_code else None
             if product_code and not product:
                 errors.append("Produit introuvable.")

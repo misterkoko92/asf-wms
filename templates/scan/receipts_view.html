@@ -1,10 +1,10 @@
 {% extends "scan/base.html" %}
 
-{% block title %}WMS Scan - Vue reception{% endblock %}
+{% block title %}WMS Scan - Vue r&eacute;ception{% endblock %}
 
 {% block content %}
   <div class="scan-card">
-    <h2>Vue reception ({{ receipts|length }})</h2>
+    <h2>Vue r&eacute;ception ({{ receipts|length }})</h2>
 
     <div class="scan-field">
       <label for="receipt-filter">Filtre</label>
@@ -22,10 +22,10 @@
         <table class="scan-table">
           <thead>
             <tr>
-              <th>Date de reception</th>
+              <th>Date de r&eacute;ception</th>
               <th>Nom</th>
-              <th>Quantite</th>
-              <th>Quantite Hors Format</th>
+              <th>Quantit&eacute;</th>
+              <th>Quantit&eacute; Hors Format</th>
               <th>Transporteur</th>
             </tr>
           </thead>
@@ -43,7 +43,7 @@
         </table>
       </div>
     {% else %}
-      <p class="scan-help">Aucune reception.</p>
+      <p class="scan-help">Aucune r&eacute;ception.</p>
     {% endif %}
   </div>
 {% endblock %}

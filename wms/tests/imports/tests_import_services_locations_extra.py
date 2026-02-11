@@ -54,7 +54,7 @@ class ImportLocationsExtraTests(TestCase):
         self.assertEqual(created, 1)
         self.assertEqual(updated, 1)
         self.assertEqual(len(errors), 1)
-        self.assertIn("Champs requis: entrepot, rack, etagere, bac.", errors[0])
+        self.assertIn("Champs requis: entrepôt, rack, étagère, bac.", errors[0])
 
         existing.refresh_from_db()
         self.assertEqual(existing.notes, "NEW")
@@ -78,6 +78,6 @@ class ImportLocationsExtraTests(TestCase):
         self.assertEqual(created, 1)
         self.assertEqual(updated, 1)
         self.assertEqual(len(errors), 1)
-        self.assertIn("Nom entrepot requis.", errors[0])
+        self.assertIn("Nom entrepôt requis.", errors[0])
         self.assertEqual(Warehouse.objects.get(name="Main").code, "NEW")
         self.assertEqual(Warehouse.objects.get(name="Secondary").code, "")

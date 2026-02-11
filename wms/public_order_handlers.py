@@ -18,7 +18,7 @@ TEMPLATE_ORDER_ADMIN_NOTIFICATION = "emails/order_admin_notification.txt"
 SUBJECT_PUBLIC_ORDER_ADMIN = "ASF WMS - Nouvelle commande publique"
 SUBJECT_PUBLIC_ORDER_CONFIRMATION = "ASF WMS - Confirmation de commande"
 MESSAGE_CONFIRMATION_WARNING = (
-    "Commande envoyee, mais la confirmation email n'a pas pu etre planifiee."
+    "Commande envoyée, mais la confirmation email n'a pas pu être planifiée."
 )
 
 ROUTE_PUBLIC_ORDER_SUMMARY = "scan:scan_public_order_summary"

@@ -17,7 +17,7 @@ class ReceiveStockInput:
 
     def validate(self) -> None:
         if self.quantity <= 0:
-            raise ValueError("Quantite invalide.")
+            raise ValueError("Quantité invalide.")
 
 
 @dataclass(frozen=True)
@@ -31,6 +31,6 @@ class PackCartonInput:
 
     def validate(self) -> None:
         if self.quantity <= 0:
-            raise ValueError("Quantite invalide.")
+            raise ValueError("Quantité invalide.")
         if self.carton_id and self.carton_code:
             raise ValueError("Choisissez carton_id ou carton_code.")

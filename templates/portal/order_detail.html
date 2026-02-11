@@ -17,7 +17,7 @@
       <thead>
         <tr>
           <th>Produit</th>
-          <th>Quantite</th>
+          <th>Quantit&eacute;</th>
           <th>Cartons estimes</th>
         </tr>
       </thead>
@@ -44,7 +44,7 @@
           <tr>
             <th>Type</th>
             <th>Statut</th>
-            <th>Ajoute le</th>
+            <th>Ajout&eacute; le</th>
             <th>Fichier</th>
           </tr>
         </thead>
@@ -56,7 +56,7 @@
               <td>{{ doc.uploaded_at|date:"d/m/Y" }}</td>
               <td>
                 {% if doc.file %}
-                  <a href="{{ doc.file.url }}" target="_blank">Telecharger</a>
+                  <a href="{{ doc.file.url }}" target="_blank">T&eacute;l&eacute;charger</a>
                 {% else %}
                   -
                 {% endif %}

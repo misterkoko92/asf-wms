@@ -107,7 +107,7 @@ def release_reserved_stock(*, line: OrderLine, quantity: int):
     line.reserved_quantity = max(0, line.reserved_quantity - (quantity - remaining))
     line.save(update_fields=["reserved_quantity"])
     if remaining > 0:
-        raise StockError("Reservation insuffisante pour liberer.")
+        raise StockError("Réservation insuffisante pour libérer.")
 
 
 @transaction.atomic
@@ -121,7 +121,7 @@ def consume_reserved_stock(
     carton: Carton | None = None,
 ):
     if quantity <= 0:
-        raise StockError("Quantite invalide.")
+        raise StockError("Quantité invalide.")
     remaining = quantity
     consumed: list[StockConsumeResult] = []
     reservations_query = line.reservations.select_related("product_lot").order_by(
@@ -250,7 +250,7 @@ def assign_ready_cartons_to_order(*, order: Order):
 @transaction.atomic
 def prepare_order(*, user, order: Order):
     if order.status not in {OrderStatus.RESERVED, OrderStatus.PREPARING}:
-        raise StockError("Commande non reservee.")
+        raise StockError("Commande non réservée.")
     shipment = create_shipment_for_order(order=order)
     assigned = assign_ready_cartons_to_order(order=order)
 

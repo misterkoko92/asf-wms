@@ -12,10 +12,10 @@ from contacts.models import Contact, ContactAddress, ContactTag
 from . import models
 from .contact_filters import TAG_SHIPPER
 
-ACCOUNT_ACCESS_PENDING = "Disponible apres validation."
+ACCOUNT_ACCESS_PENDING = "Disponible après validation."
 ACCOUNT_ACCESS_USER_NOT_FOUND = "Utilisateur introuvable."
 ACCOUNT_ACCESS_MISSING_BASE_URL = (
-    "SITE_BASE_URL non configuree, utiliser l'URL du site."
+    "SITE_BASE_URL non configurée, utiliser l'URL du site."
 )
 
 

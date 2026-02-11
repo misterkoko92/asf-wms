@@ -1,6 +1,6 @@
 {% extends "scan/base.html" %}
 
-{% block title %}WMS Scan - Preparation{% endblock %}
+{% block title %}WMS Scan - Pr&eacute;paration{% endblock %}
 
 {% block content %}
   {% if packing_result %}
@@ -24,7 +24,7 @@
             <thead>
               <tr>
                 <th>Produit</th>
-                <th>Quantite</th>
+                <th>Quantit&eacute;</th>
               </tr>
             </thead>
             <tbody>
@@ -45,7 +45,7 @@
           <thead>
             <tr>
               <th>Produit</th>
-              <th>Quantite</th>
+              <th>Quantit&eacute;</th>
             </tr>
           </thead>
           <tbody>
@@ -61,7 +61,7 @@
     </div>
   {% endif %}
   <div class="scan-card">
-    <h2>Preparation cartons</h2>
+    <h2>Pr&eacute;paration cartons</h2>
     {% if form.non_field_errors %}
       <div class="scan-message error">{{ form.non_field_errors }}</div>
     {% endif %}
@@ -104,7 +104,7 @@
       <input type="hidden" id="pack_line_count" name="line_count" value="{{ line_count }}">
 
       <div class="scan-field scan-field-gap">
-        <label for="id_shipment_reference">Reference expedition (optionnel)</label>
+        <label for="id_shipment_reference">Référence expédition (optionnel)</label>
         <div class="scan-inline">
           {{ form.shipment_reference }}
           <button type="button" class="scan-scan-btn" data-scan-target="id_shipment_reference">Scan</button>
@@ -126,9 +126,9 @@
 
       {% if missing_defaults %}
         <div class="scan-message warning">
-          Attention : les produits suivants n'ont pas de dimensions ni de poids enregistres :
+          Attention : les produits suivants n'ont pas de dimensions ni de poids enregistr&eacute;s :
           {{ missing_defaults|join:", " }}.
-          Si vous validez ces ajouts, des valeurs par defaut seront appliquees (1cm x 1cm x 1cm et 5g).
+          Si vous validez ces ajouts, des valeurs par d&eacute;faut seront appliqu&eacute;es (1cm x 1cm x 1cm et 5g).
         </div>
       {% endif %}
       <div class="scan-field">
@@ -139,12 +139,12 @@
             <span class="scan-switch-icon scan-switch-icon-on">OK</span>
             <span class="scan-switch-knob"></span>
           </span>
-          <span class="scan-switch-text">Valider les ajouts avec dimensions/poids par defaut si necessaire.</span>
+          <span class="scan-switch-text">Valider les ajouts avec dimensions/poids par d&eacute;faut si n&eacute;cessaire.</span>
         </label>
       </div>
 
-      <button type="submit" class="scan-submit">Preparer</button>
-      <p class="scan-help">Si reference expedition vide, les cartons sont pre-conditionnes.</p>
+      <button type="submit" class="scan-submit">Pr&eacute;parer</button>
+      <p class="scan-help">Si la référence d'expédition est vide, les cartons sont pré-conditionnés.</p>
     </form>
     {{ products_json|json_script:"product-data" }}
     {{ carton_formats|json_script:"carton-format-data" }}

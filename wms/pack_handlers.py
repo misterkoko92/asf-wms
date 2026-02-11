@@ -61,7 +61,7 @@ def handle_pack_post(request, *, form, default_format):
     if form.is_valid():
         shipment = resolve_shipment(form.cleaned_data["shipment_reference"])
         if form.cleaned_data["shipment_reference"] and not shipment:
-            form.add_error("shipment_reference", "Expedition introuvable.")
+            form.add_error("shipment_reference", "Expédition introuvable.")
         if carton_errors:
             for error in carton_errors:
                 form.add_error(None, error)
@@ -77,11 +77,11 @@ def handle_pack_post(request, *, form, default_format):
                 errors.append("Produit requis.")
             quantity = None
             if not quantity_raw:
-                errors.append("Quantite requise.")
+                errors.append("Quantité requise.")
             else:
                 quantity = parse_int(quantity_raw)
                 if quantity is None or quantity <= 0:
-                    errors.append("Quantite invalide.")
+                    errors.append("Quantité invalide.")
             product = (
                 resolve_product(product_code, include_kits=True)
                 if product_code
@@ -113,9 +113,9 @@ def handle_pack_post(request, *, form, default_format):
                     form.add_error(
                         None,
                         "Attention : les produits suivants n'ont pas de dimensions "
-                        "ni de poids enregistres : "
+                        "ni de poids enregistrés : "
                         f"{product_list}. Si vous validez ces ajouts, des valeurs "
-                        "par defaut seront appliquees (1cm x 1cm x 1cm et 5g).",
+                        "par défaut seront appliquées (1cm x 1cm x 1cm et 5g).",
                     )
                     return (
                         None,
@@ -162,7 +162,7 @@ def handle_pack_post(request, *, form, default_format):
                             carton.id for carton in created_cartons
                         ]
                         messages.success(
-                            request, f"{len(created_cartons)} carton(s) prepare(s)."
+                            request, f"{len(created_cartons)} carton(s) préparé(s)."
                         )
                         return (
                             redirect("scan:scan_pack"),

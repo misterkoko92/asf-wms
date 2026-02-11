@@ -335,7 +335,7 @@ class DomainOrdersExtraTests(TestCase):
         )
         self._create_reservation(line=line, lot=lot, quantity=1)
 
-        with self.assertRaisesMessage(StockError, "Reservation insuffisante pour liberer."):
+        with self.assertRaisesMessage(StockError, "Réservation insuffisante pour libérer."):
             release_reserved_stock(line=line, quantity=3)
 
         line.refresh_from_db()
@@ -346,7 +346,7 @@ class DomainOrdersExtraTests(TestCase):
 
     def test_consume_reserved_stock_rejects_non_positive_quantity(self):
         _order, line = self._create_order(status=OrderStatus.RESERVED, quantity=2, reserved_quantity=2)
-        with self.assertRaisesMessage(StockError, "Quantite invalide."):
+        with self.assertRaisesMessage(StockError, "Quantité invalide."):
             consume_reserved_stock(
                 user=self.user,
                 line=line,
@@ -522,7 +522,7 @@ class DomainOrdersExtraTests(TestCase):
 
     def test_prepare_order_rejects_status_other_than_reserved_or_preparing(self):
         order, _line = self._create_order(status=OrderStatus.DRAFT, quantity=1)
-        with self.assertRaisesMessage(StockError, "Commande non reservee."):
+        with self.assertRaisesMessage(StockError, "Commande non réservée."):
             prepare_order(user=self.user, order=order)
 
     def test_prepare_order_requires_carton_format_when_lines_remain(self):

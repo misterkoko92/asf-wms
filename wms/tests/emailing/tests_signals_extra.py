@@ -62,7 +62,7 @@ class SignalsExtraTests(SimpleTestCase):
                 _notify_shipment_status_change(None, instance, created=False)
         render_mock.assert_not_called()
 
-    def test_notify_tracking_event_ignores_non_created_events(self):
+    def test_notify_tracking_event_ignorés_non_created_events(self):
         with mock.patch("wms.signals.get_admin_emails") as emails_mock:
             _notify_tracking_event(None, SimpleNamespace(), created=False)
         emails_mock.assert_not_called()

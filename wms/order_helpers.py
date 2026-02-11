@@ -124,7 +124,7 @@ def build_order_line_items(
             continue
         quantity = parse_int(raw_qty)
         if quantity is None or quantity <= 0:
-            line_errors[str(product_id)] = "Quantite invalide."
+            line_errors[str(product_id)] = "Quantité invalide."
             continue
         available = available_by_id.get(product_id, 0)
         if quantity > available:

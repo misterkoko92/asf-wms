@@ -4,7 +4,7 @@
     <div style="font-weight:{{ title_weight }}; margin-bottom:1mm;">{{ block.title_shipper|default:"EXPEDITEUR" }}</div>
     <div style="display:grid; grid-template-columns:{{ label_width }} 1fr; gap:{{ inner_gap_row }} {{ inner_gap_col }};">
       {% if block.show_company %}
-        <div style="font-weight:{{ label_weight }};">{{ labels.company|default:"Societe" }}</div>
+        <div style="font-weight:{{ label_weight }};">{{ labels.company|default:"Soci&eacute;t&eacute;" }}</div>
         <div style="border-bottom:1px solid {{ border_color }}; min-height:4mm;">{{ shipper_info.company|default:"-" }}</div>
       {% endif %}
       {% if block.show_person %}
@@ -29,7 +29,7 @@
     <div style="font-weight:{{ title_weight }}; margin-bottom:1mm;">{{ block.title_recipient|default:"DESTINATAIRE" }}</div>
     <div style="display:grid; grid-template-columns:{{ label_width }} 1fr; gap:{{ inner_gap_row }} {{ inner_gap_col }};">
       {% if block.show_company %}
-        <div style="font-weight:{{ label_weight }};">{{ labels.company|default:"Societe" }}</div>
+        <div style="font-weight:{{ label_weight }};">{{ labels.company|default:"Soci&eacute;t&eacute;" }}</div>
         <div style="border-bottom:1px solid {{ border_color }}; min-height:4mm;">{{ recipient_info.company|default:"-" }}</div>
       {% endif %}
       {% if block.show_person %}
@@ -54,7 +54,7 @@
     <div style="font-weight:{{ title_weight }}; margin-bottom:1mm;">{{ block.title_correspondent|default:"CORRESPONDANT" }}</div>
     <div style="display:grid; grid-template-columns:{{ label_width }} 1fr; gap:{{ inner_gap_row }} {{ inner_gap_col }};">
       {% if block.show_company %}
-        <div style="font-weight:{{ label_weight }};">{{ labels.company|default:"Societe" }}</div>
+        <div style="font-weight:{{ label_weight }};">{{ labels.company|default:"Soci&eacute;t&eacute;" }}</div>
         <div style="border-bottom:1px solid {{ border_color }}; min-height:4mm;">{{ correspondent_info.company|default:"-" }}</div>
       {% endif %}
       {% if block.show_person %}

@@ -179,9 +179,9 @@ def _prepare_carton(
     if carton is None and carton_code:
         carton = Carton.objects.filter(code=carton_code).first()
     if carton and carton.status == CartonStatus.SHIPPED:
-        raise StockError("Impossible de modifier un carton expedie.")
+        raise StockError("Impossible de modifier un carton expédié.")
     if shipment and shipment.status in {ShipmentStatus.SHIPPED, ShipmentStatus.DELIVERED}:
-        raise StockError("Impossible de modifier une expedition expediee ou livree.")
+        raise StockError("Impossible de modifier une expédition expédiée ou livrée.")
     if carton is None:
         date_str = timezone.localdate().strftime("%Y%m%d")
         while True:
@@ -207,7 +207,7 @@ def _prepare_carton(
         if carton_code:
             carton._manual_code = True
         if shipment and carton.shipment and carton.shipment != shipment:
-            raise StockError("Carton deja lie a une autre expedition.")
+            raise StockError("Carton déjà lié à une autre expédition.")
         if shipment and carton.shipment is None:
             carton.shipment = shipment
         if current_location is not None:
@@ -295,7 +295,7 @@ def pack_carton_from_input(*, user, payload: PackCartonInput):
     payload.validate()
     product = _get_required(Product, payload.product_id, "Produit")
     carton = _get_optional(Carton, payload.carton_id, "Carton")
-    shipment = _get_optional(Shipment, payload.shipment_id, "Expedition")
+    shipment = _get_optional(Shipment, payload.shipment_id, "Expédition")
     current_location = _get_optional(Location, payload.current_location_id, "Emplacement")
     return pack_carton(
         user=user,
@@ -323,7 +323,7 @@ def receive_stock(
     source_receipt=None,
 ):
     if quantity <= 0:
-        raise StockError("Quantite invalide.")
+        raise StockError("Quantité invalide.")
     if status is None:
         status = (
             ProductLotStatus.QUARANTINED
@@ -356,12 +356,12 @@ def receive_stock(
 @transaction.atomic
 def receive_receipt_line(*, user, line: ReceiptLine):
     if line.received_lot_id:
-        raise StockError("Ligne de reception deja traitee.")
+        raise StockError("Ligne de réception déjà traitée.")
     if line.receipt.status == ReceiptStatus.CANCELLED:
-        raise StockError("Reception annulee.")
+        raise StockError("Réception annulée.")
     location = line.location or line.product.default_location
     if location is None:
-        raise StockError("Emplacement requis pour reception.")
+        raise StockError("Emplacement requis pour réception.")
     status = line.lot_status or None
     lot = receive_stock(
         user=user,
@@ -392,11 +392,11 @@ def receive_receipt_line(*, user, line: ReceiptLine):
 @transaction.atomic
 def adjust_stock(*, user, lot: ProductLot, delta: int, reason_code: str, reason_notes: str):
     if delta == 0:
-        raise StockError("Quantite nulle.")
+        raise StockError("Quantité nulle.")
     if lot.quantity_on_hand + delta < 0:
         raise StockError("Stock insuffisant pour ajustement.")
     if delta < 0 and lot.quantity_on_hand + delta < lot.quantity_reserved:
-        raise StockError("Ajustement impossible: stock reserve.")
+        raise StockError("Ajustement impossible: stock réservé.")
     lot.quantity_on_hand += delta
     lot.save(update_fields=["quantity_on_hand"])
     StockMovement.objects.create(
@@ -416,7 +416,7 @@ def adjust_stock(*, user, lot: ProductLot, delta: int, reason_code: str, reason_
 @transaction.atomic
 def transfer_stock(*, user, lot: ProductLot, to_location):
     if lot.location_id == to_location.id:
-        raise StockError("Le lot est deja a cet emplacement.")
+        raise StockError("Le lot est déjà à cet emplacement.")
     from_location = lot.location
     lot.location = to_location
     lot.save(update_fields=["location"])
@@ -444,7 +444,7 @@ def consume_stock(
     reason_notes: str = "",
 ):
     if quantity <= 0:
-        raise StockError("Quantite invalide.")
+        raise StockError("Quantité invalide.")
     with transaction.atomic():
         lots = list(fefo_lots(product, for_update=True))
         available_total = sum(
@@ -545,7 +545,7 @@ def pack_carton(
 @transaction.atomic
 def unpack_carton(*, user, carton: Carton):
     if carton.status == CartonStatus.SHIPPED:
-        raise StockError("Impossible de modifier un carton expedie.")
+        raise StockError("Impossible de modifier un carton expédié.")
     items = list(carton.cartonitem_set.select_related("product_lot", "product_lot__product"))
     if not items:
         raise StockError("Carton vide.")

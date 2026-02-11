@@ -6,69 +6,69 @@
   <div class="scan-card">
     <h2>Vue d'ensemble</h2>
     <p>
-      Cette page decrit le fonctionnement complet du WMS Scan, du stock a
-      l'expedition. Les flux sont concus pour etre rapides sur mobile et
-      pour rester coherents en base.
+      Cette page d&eacute;crit le fonctionnement complet du WMS Scan, du stock &agrave;
+      l'exp&eacute;dition. Les flux sont con&ccedil;us pour &ecirc;tre rapides sur mobile et
+      pour rester coh&eacute;rents en base.
     </p>
     <ul>
       <li><strong>Produit</strong> : fiche article (SKU, nom, marque, poids, emplacement).</li>
-      <li><strong>Lot</strong> : stock reel par produit (quantite, peremption, lot, emplacement).</li>
-      <li><strong>Carton</strong> : unite de preparation (DRAFT, PICKING, PACKED, SHIPPED).</li>
-      <li><strong>Expedition</strong> : regroupe des cartons pour une destination.</li>
-      <li><strong>Suivi expedition</strong> : journal des scans (QR) avec horodatage.</li>
+      <li><strong>Lot</strong> : stock r&eacute;el par produit (quantit&eacute;, p&eacute;remption, lot, emplacement).</li>
+      <li><strong>Carton</strong> : unit&eacute; de pr&eacute;paration (DRAFT, PICKING, PACKED, SHIPPED).</li>
+      <li><strong>Exp&eacute;dition</strong> : regroupe des cartons pour une destination.</li>
+      <li><strong>Suivi exp&eacute;dition</strong> : journal des scans (QR) avec horodatage.</li>
     </ul>
     <h3>Statuts cle</h3>
     <ul>
-      <li><strong>Carton</strong> : Cree (draft), En preparation (picking), Pret (packed), Expedie (shipped).</li>
-      <li><strong>Expedition</strong> : DRAFT / PARTIEL / READY (calcule sur les cartons), puis SHIPPED / DELIVERED.</li>
-      <li><strong>Reception</strong> : DRAFT tant que les lignes ne sont pas receptionnees.</li>
+      <li><strong>Carton</strong> : Cr&eacute;&eacute; (draft), En pr&eacute;paration (picking), Pr&ecirc;t (packed), Exp&eacute;di&eacute; (shipped).</li>
+      <li><strong>Exp&eacute;dition</strong> : DRAFT / PARTIEL / READY (calcul&eacute; sur les cartons), puis SHIPPED / DELIVERED.</li>
+      <li><strong>R&eacute;ception</strong> : DRAFT tant que les lignes ne sont pas r&eacute;ceptionn&eacute;es.</li>
     </ul>
   </div>
 
   <div class="scan-card">
-    <h2>Acces & roles</h2>
+    <h2>Acc&egrave;s & r&ocirc;les</h2>
     <ul>
-      <li>Les pages /scan sont protegees par login.</li>
-      <li>Le menu <strong>Compte</strong> affiche email/username, lien Admin (si staff), changer de compte, deconnexion.</li>
-      <li><strong>Imports</strong> et <strong>Templates</strong> sont reserves aux superusers.</li>
-      <li>Le suivi expedition (QR) est public et ne demande pas de login.</li>
+      <li>Les pages /scan sont prot&eacute;g&eacute;es par login.</li>
+      <li>Le menu <strong>Compte</strong> affiche email/username, lien Admin (si staff), changer de compte, d&eacute;connexion.</li>
+      <li><strong>Imports</strong> et <strong>Templates</strong> sont r&eacute;serv&eacute;s aux superusers.</li>
+      <li>Le suivi exp&eacute;dition (QR) est public et ne demande pas de login.</li>
     </ul>
   </div>
 
   <div class="scan-card">
-    <h2>Donnees de reference</h2>
-    <p>Avant utilisation, verifier ces donnees dans l'admin :</p>
+    <h2>Donn&eacute;es de r&eacute;f&eacute;rence</h2>
+    <p>Avant utilisation, vérifier ces données dans l'admin :</p>
     <ul>
-      <li><strong>Contacts</strong> avec tags : expediteur, destinataire, correspondant, donateur, transporteur.</li>
-      <li><strong>Destinations</strong> : ville, code IATA, pays, correspondant lie.</li>
-      <li><strong>Formats de carton</strong> : un format par defaut pour la preparation.</li>
-      <li><strong>Entrepots</strong> et <strong>Emplacements</strong> : entrepot / rack / etagere / bac.</li>
-      <li><strong>Couleurs rack</strong> : associees a un rack (entrepot + zone).</li>
-      <li><strong>Categories</strong> : hierarchie L1 -> L4 (creees a l'import si besoin).</li>
+      <li><strong>Contacts</strong> avec tags : exp&eacute;diteur, destinataire, correspondant, donateur, transporteur.</li>
+      <li><strong>Destinations</strong> : ville, code IATA, pays, correspondant li&eacute;.</li>
+      <li><strong>Formats de carton</strong> : un format par d&eacute;faut pour la pr&eacute;paration.</li>
+      <li><strong>Entrep&ocirc;ts</strong> et <strong>Emplacements</strong> : entrep&ocirc;t / rack / &eacute;tag&egrave;re / bac.</li>
+      <li><strong>Couleurs rack</strong> : associées à un rack (entrepôt + zone).</li>
+      <li><strong>Cat&eacute;gories</strong> : hi&eacute;rarchie L1 -> L4 (cr&eacute;&eacute;es &agrave; l'import si besoin).</li>
     </ul>
     <p>
-      Quand un selecteur n'a qu'un seul choix, il est auto-selectionne.
+      Quand un s&eacute;lecteur n'a qu'un seul choix, il est auto-s&eacute;lectionn&eacute;.
     </p>
   </div>
 
   <div class="scan-card">
     <h2>Vue stock</h2>
     <ul>
-      <li>Recherche multi-cles : nom, SKU, barcode, EAN.</li>
-      <li>Filtres : categorie, entrepot. Tri : categorie, nom, reference, stock.</li>
+      <li>Recherche multi-cl&eacute;s : nom, SKU, barcode, EAN.</li>
+      <li>Filtres : catégorie, entrepôt. Tri : catégorie, nom, référence, stock.</li>
       <li>Le stock affiche correspond aux lots disponibles.</li>
-      <li>La colonne <strong>Derniere modification</strong> suit les mouvements de stock.</li>
+      <li>La colonne <strong>Derni&egrave;re modification</strong> suit les mouvements de stock.</li>
     </ul>
   </div>
 
   <div class="scan-card">
     <h2>MAJ stock</h2>
     <ul>
-      <li>Selection produit par nom, SKU, barcode ou EAN (scan camera possible).</li>
-      <li>Si inconnu, le bouton propose de creer le produit dans l'admin.</li>
-      <li>Quantite, peremption et lot sont enregistres dans un nouveau lot.</li>
-      <li>Le lot est place sur l'emplacement par defaut du produit.</li>
-      <li>Les champs Marque / Emplacement / Entrepot s'affichent en lecture seule.</li>
+      <li>S&eacute;lection produit par nom, SKU, barcode ou EAN (scan camera possible).</li>
+      <li>Si inconnu, le bouton propose de cr&eacute;er le produit dans l'admin.</li>
+      <li>Quantit&eacute;, p&eacute;remption et lot sont enregistr&eacute;s dans un nouveau lot.</li>
+      <li>Le lot est plac&eacute; sur l'emplacement par d&eacute;faut du produit.</li>
+      <li>Les champs Marque / Emplacement / Entrep&ocirc;t s'affichent en lecture seule.</li>
     </ul>
   </div>
 
@@ -76,61 +76,61 @@
     <h2>Supprimer produit</h2>
     <ul>
       <li>Retire du stock pour casse, perte ou correction.</li>
-      <li>Reference expedition optionnelle pour tracer un flux.</li>
+      <li>Référence expédition optionnelle pour tracer un flux.</li>
       <li>Motif + notes permettent de justifier la sortie.</li>
     </ul>
   </div>
 
   <div class="scan-card">
-    <h2>Preparation (cartons)</h2>
+    <h2>Pr&eacute;paration (cartons)</h2>
     <ul>
       <li>Choisir un format de carton (ou personnaliser les dimensions).</li>
-      <li>Ajouter une ou plusieurs lignes produit + quantite (scan possible).</li>
-      <li>Le systeme peut creer plusieurs cartons selon la capacite (poids/volume).</li>
-      <li>Optionnel : reference expedition pour affecter directement les cartons.</li>
+      <li>Ajouter une ou plusieurs lignes produit + quantit&eacute; (scan possible).</li>
+      <li>Le syst&egrave;me peut cr&eacute;er plusieurs cartons selon la capacit&eacute; (poids/volume).</li>
+      <li>Optionnel : r&eacute;f&eacute;rence exp&eacute;dition pour affecter directement les cartons.</li>
       <li>Optionnel : emplacement courant pour tracer le stockage temporaire.</li>
     </ul>
     <p>
-      Un carton assigne a une expedition affiche le statut <strong>Affecte</strong>
+      Un carton assigné à une expédition affiche le statut <strong>Affecté</strong>
       dans la Vue Colis.
     </p>
     <p>
       Le code carton suit le format <strong>TYPE-AAAAMMJJ-N</strong> (type dominant par poids).
-      Le volume est calcule avec les dimensions du carton (format par defaut si non renseigne).
+      Le volume est calcul&eacute; avec les dimensions du carton (format par d&eacute;faut si non renseign&eacute;).
     </p>
   </div>
 
   <div class="scan-card">
-    <h2>Creer une expedition</h2>
+    <h2>Cr&eacute;er une exp&eacute;dition</h2>
     <ul>
-      <li>Selectionner la destination en premier (filtre des contacts).</li>
-      <li>Expediteur, destinataire et correspondant viennent des contacts tagges.</li>
-      <li>Ajouter des cartons PACKED ou creer des cartons a partir de produits.</li>
-      <li>Le poids total est calcule automatiquement.</li>
-      <li>En modification: QR, documents, etiquettes et uploads additionnels.</li>
+      <li>S&eacute;lectionner la destination en premier (filtre des contacts).</li>
+      <li>Exp&eacute;diteur, destinataire et correspondant viennent des contacts tagg&eacute;s.</li>
+      <li>Ajouter des cartons PACKED ou créer des cartons à partir de produits.</li>
+      <li>Le poids total est calcul&eacute; automatiquement.</li>
+      <li>En modification: QR, documents, &eacute;tiquettes et uploads additionnels.</li>
     </ul>
   </div>
 
   <div class="scan-card">
     <h2>Vue Colis</h2>
     <ul>
-      <li>Liste tous les cartons prepares avec leur statut et contenu.</li>
-      <li>Un carton assigne a une expedition est marque <strong>Affecte</strong>.</li>
+      <li>Liste tous les cartons pr&eacute;par&eacute;s avec leur statut et contenu.</li>
+      <li>Un carton assigné à une expédition est marqué <strong>Affecté</strong>.</li>
       <li>Un carton <strong>SHIPPED</strong> n'est plus modifiable.</li>
-      <li>Poids et remplissage sont affiches quand les dimensions sont disponibles.</li>
+      <li>Poids et remplissage sont affich&eacute;s quand les dimensions sont disponibles.</li>
     </ul>
   </div>
 
   <div class="scan-card">
-    <h2>Vue Expeditions</h2>
+    <h2>Vue Exp&eacute;ditions</h2>
     <ul>
-      <li><strong>DRAFT</strong> : aucun carton pret.</li>
-      <li><strong>PARTIEL</strong> : une partie des cartons est prete.</li>
-      <li><strong>READY</strong> : tous les cartons sont prets.</li>
+      <li><strong>DRAFT</strong> : aucun carton pr&ecirc;t.</li>
+      <li><strong>PARTIEL</strong> : une partie des cartons est pr&ecirc;te.</li>
+      <li><strong>READY</strong> : tous les cartons sont pr&ecirc;ts.</li>
     </ul>
     <p>
-      La date <strong>mise en disponible</strong> est renseignee a chaque passage en READY,
-      puis effacee si l'expedition repasse en preparation.
+      La date <strong>mise en disponible</strong> est renseignée à chaque passage en READY,
+      puis effac&eacute;e si l'exp&eacute;dition repasse en pr&eacute;paration.
     </p>
     <p>
       Le bouton <strong>Suivi</strong> ouvre la page publique de suivi via QR.
@@ -138,11 +138,11 @@
   </div>
 
   <div class="scan-card">
-    <h2>Documents & etiquettes</h2>
+    <h2>Documents & &eacute;tiquettes</h2>
     <ul>
-      <li>Bon d'expedition, listes de colisage et attestation sont generes par expedition.</li>
-      <li>Etiquettes colis generees par carton (impression en masse possible).</li>
-      <li>Le QR code expedition apparait sur l'etiquette et ouvre le suivi public.</li>
+      <li>Bon d'exp&eacute;dition, listes de colisage et attestation sont g&eacute;n&eacute;r&eacute;s par exp&eacute;dition.</li>
+      <li>&Eacute;tiquettes colis g&eacute;n&eacute;r&eacute;es par carton (impression en masse possible).</li>
+      <li>Le QR code exp&eacute;dition apparait sur l'&eacute;tiquette et ouvre le suivi public.</li>
       <li>Documents additionnels uploadables (PDF, JPG, PNG, XLSX, DOCX).</li>
     </ul>
   </div>
@@ -151,64 +151,64 @@
     <h2>Vue Commande (associations)</h2>
     <ul>
       <li>Liste des demandes associations avec statut de revue.</li>
-      <li>Changer le statut et informer le contact (refus / a modifier).</li>
-      <li>Si approuve, creation d'expedition en un clic.</li>
-      <li>Les documents sont disponibles une fois approuve.</li>
+      <li>Changer le statut et informer le contact (refus / à modifier).</li>
+      <li>Si approuv&eacute;, cr&eacute;ation d'exp&eacute;dition en un clic.</li>
+      <li>Les documents sont disponibles une fois approuv&eacute;.</li>
     </ul>
   </div>
 
   <div class="scan-card">
-    <h2>Reception palette</h2>
+    <h2>R&eacute;ception palette</h2>
     <ul>
-      <li>Enregistre une reception avec donateur + transporteur.</li>
-      <li>Le stock n'est pas modifie ici : c'est un suivi logistique.</li>
-      <li>La reference est generee automatiquement.</li>
+      <li>Enregistre une r&eacute;ception avec donateur + transporteur.</li>
+      <li>Le stock n'est pas modifi&eacute; ici : c'est un suivi logistique.</li>
+      <li>La r&eacute;f&eacute;rence est g&eacute;n&eacute;r&eacute;e automatiquement.</li>
       <li>La date demande transport est optionnelle.</li>
     </ul>
     <h3>Upload listing</h3>
     <ul>
-      <li>Formats acceptes: CSV / XLS / XLSX / PDF texte (pas d'OCR image).</li>
-      <li>Conseil: privilegier .xlsx pour la gestion des accents.</li>
-      <li>CSV: encodage UTF-8 (BOM) + separateur ';'.</li>
-      <li>Detection auto du type, ou selection manuelle PDF/Excel/CSV.</li>
-      <li>PDF: choix des pages (toutes ou debut/fin). Debut vide = page 1, fin vide = derniere page.</li>
+      <li>Formats accept&eacute;s: CSV / XLS / XLSX / PDF texte (pas d'OCR image).</li>
+      <li>Conseil: privil&eacute;gier .xlsx pour la gestion des accents.</li>
+      <li>CSV: encodage UTF-8 (BOM) + s&eacute;parateur ';'.</li>
+      <li>D&eacute;tection auto du type, ou s&eacute;lection manuelle PDF/Excel/CSV.</li>
+      <li>PDF: choix des pages (toutes ou d&eacute;but/fin). D&eacute;but vide = page 1, fin vide = derni&egrave;re page.</li>
       <li>Excel: choix de la feuille + ligne des titres.</li>
-      <li>Mapping des colonnes avec champs requis: <strong>nom + quantite</strong>.</li>
-      <li>Recap: choix du match produit, edition des champs, validation ligne par ligne.</li>
+      <li>Mapping des colonnes avec champs requis: <strong>nom + quantit&eacute;</strong>.</li>
+      <li>R&eacute;cap: choix du match produit, &eacute;dition des champs, validation ligne par ligne.</li>
       <li>Match auto sur <strong>Nom + Marque</strong> (liste modifiable).</li>
-      <li>Si produit existant: champs produit en lecture seule, seules quantite / emplacement changent.</li>
+      <li>Si produit existant: champs produit en lecture seule, seules quantit&eacute; / emplacement changent.</li>
       <li>Override possible via SKU / barcode / nom.</li>
     </ul>
     <p class="scan-help">
-      A la validation, une reception palette est creee puis les lignes sont receptionnees.
-      Emplacement requis (via listing ou emplacement par defaut du produit).
+      À la validation, une réception palette est créée puis les lignes sont réceptionnées.
+      Emplacement requis (via listing ou emplacement par d&eacute;faut du produit).
     </p>
   </div>
 
   <div class="scan-card">
-    <h2>Reception association</h2>
+    <h2>R&eacute;ception association</h2>
     <ul>
       <li>Enregistre cartons + hors format pour une association.</li>
       <li>Les hors format exigent une description pour chaque ligne.</li>
-      <li>La reference est generee automatiquement.</li>
+      <li>La r&eacute;f&eacute;rence est g&eacute;n&eacute;r&eacute;e automatiquement.</li>
     </ul>
   </div>
 
   <div class="scan-card">
-    <h2>Reception standard (don/palette)</h2>
+    <h2>R&eacute;ception standard (don/palette)</h2>
     <ul>
-      <li>Creer une reception puis ajouter des lignes produits.</li>
-      <li><strong>Receptionner maintenant</strong> cree le lot stock immediatement.</li>
-      <li>Si emplacement vide, on utilise l'emplacement par defaut du produit.</li>
-      <li>Un bouton permet de receptionner toutes les lignes en attente.</li>
+      <li>Cr&eacute;er une r&eacute;ception puis ajouter des lignes produits.</li>
+      <li><strong>R&eacute;ceptionner maintenant</strong> cr&eacute;&eacute; le lot stock imm&eacute;diatement.</li>
+      <li>Si emplacement vide, on utilise l'emplacement par d&eacute;faut du produit.</li>
+      <li>Un bouton permet de r&eacute;ceptionner toutes les lignes en attente.</li>
     </ul>
   </div>
 
   <div class="scan-card">
-    <h2>Vue reception</h2>
+    <h2>Vue r&eacute;ception</h2>
     <ul>
       <li>Filtre rapide : Palette, Association ou Tout.</li>
-      <li>Colonnes : date, nom, quantite palettes/colis, hors format, transporteur.</li>
+      <li>Colonnes : date, nom, quantit&eacute; palettes/colis, hors format, transporteur.</li>
     </ul>
   </div>
 
@@ -216,14 +216,14 @@
     <h2>Imports (admin)</h2>
     <ul>
       <li>Ajout unitaire ou import CSV/XLS/XLSX par bloc.</li>
-      <li>CSV: encodage UTF-8 (BOM) + separateur ';'.</li>
+      <li>CSV: encodage UTF-8 (BOM) + s&eacute;parateur ';'.</li>
       <li>Templates disponibles + export complet de chaque table.</li>
       <li>Produit: match par SKU sinon Nom+Marque, confirmation avant update.</li>
-      <li>Si SKU deja utilise et creation forcee: SKU auto-genere.</li>
-      <li>Quantite initiale applique un mouvement de stock (emplacement requis).</li>
-      <li>Emplacements: entrepot/rack/etagere/bac requis, rack color optionnel.</li>
-      <li>Categories: chemin possible (L1 > L2 > L3).</li>
-      <li>Contacts: tags fusionnes (ajout), destination creee si absente.</li>
+      <li>Si SKU d&eacute;j&agrave; utilise et cr&eacute;ation forc&eacute;e: SKU auto-g&eacute;n&eacute;r&eacute;.</li>
+      <li>Quantit&eacute; initiale applique un mouvement de stock (emplacement requis).</li>
+      <li>Emplacements: entrep&ocirc;t/rack/&eacute;tag&egrave;re/bac requis, rack color optionnel.</li>
+      <li>Cat&eacute;gories: chemin possible (L1 > L2 > L3).</li>
+      <li>Contacts: tags fusionn&eacute;s (ajout), destination cr&eacute;&eacute;e si absente.</li>
       <li>Utilisateurs: mot de passe obligatoire si IMPORT_DEFAULT_PASSWORD est vide.</li>
     </ul>
   </div>
@@ -232,24 +232,24 @@
     <h2>Templates (admin)</h2>
     <ul>
       <li>Personnaliser visuellement les documents.</li>
-      <li>Utiliser l'apercu pour verifier le rendu.</li>
-      <li>Apres modification, recharger la page si besoin.</li>
+      <li>Utiliser l'aper&ccedil;u pour v&eacute;rifier le rendu.</li>
+      <li>Apr&egrave;s modification, recharger la page si besoin.</li>
     </ul>
   </div>
 
   <div class="scan-card">
-    <h2>Suivi expedition (QR)</h2>
+    <h2>Suivi exp&eacute;dition (QR)</h2>
     <ul>
-      <li>Un QR code est genere a la creation de l'expedition.</li>
+      <li>Un QR code est généré à la création de l'expédition.</li>
       <li>Le scan ouvre une page publique avec documents + historique.</li>
       <li>Champs obligatoires : <strong>Nom</strong> et <strong>Structure</strong>.</li>
       <li>Commentaires optionnels et horodatage automatique (AAAA/MM/JJ HHhMM).</li>
-      <li>Le selecteur propose automatiquement l'etape suivante.</li>
-      <li>Etapes : OK pour planification, Planifie, Deplace au magasin export, OK mise a bord, Recu correspondant, Recu destinataire.</li>
+      <li>Le s&eacute;lecteur propose automatiquement l'&eacute;tape suivante.</li>
+      <li>Étapes : OK pour planification, Planifié, Déplacé au magasin export, OK mise à bord, Reçu correspondant, Reçu destinataire.</li>
     </ul>
     <p>
-      Pour que le QR fonctionne depuis un telephone, definir <strong>SITE_BASE_URL</strong>
-      sur l'environnement de deploiement.
+      Pour que le QR fonctionne depuis un téléphone, définir <strong>SITE_BASE_URL</strong>
+      sur l'environnement de déploiement.
     </p>
   </div>
 
@@ -257,21 +257,21 @@
     <h2>Scanner & synchronisation</h2>
     <ul>
       <li>Le bouton <strong>Scan</strong> ouvre la camera et remplit le champ cible.</li>
-      <li>Si la camera est bloquee, autoriser l'acces dans le navigateur.</li>
-      <li>Si le scan n'est pas supporte, saisir le code manuellement.</li>
-      <li>Le QR expedition ouvre uniquement la page de suivi + documents (sans login).</li>
-      <li>La banniere de synchro indique qu'une mise a jour est disponible.</li>
+      <li>Si la camera est bloqu&eacute;e, autoriser l'acc&egrave;s dans le navigateur.</li>
+      <li>Si le scan n'est pas support&eacute;, saisir le code manuellement.</li>
+      <li>Le QR exp&eacute;dition ouvre uniquement la page de suivi + documents (sans login).</li>
+      <li>La bannière de synchro indique qu'une mise à jour est disponible.</li>
     </ul>
   </div>
 
   <div class="scan-card">
     <h2>FAQ rapide</h2>
     <ul>
-      <li><strong>Mes listes sont vides</strong> : verifier les tags des contacts et la destination choisie.</li>
-      <li><strong>Stock a zero</strong> : verifier les lots disponibles et leur emplacement.</li>
+      <li><strong>Mes listes sont vides</strong> : v&eacute;rifier les tags des contacts et la destination choisie.</li>
+      <li><strong>Stock à zéro</strong> : vérifier les lots disponibles et leur emplacement.</li>
       <li><strong>Camera ne s'ouvre pas</strong> : autoriser la camera, tester un autre navigateur.</li>
-      <li><strong>Un carton est bloque</strong> : un carton SHIPPED est non modifiable.</li>
-      <li><strong>Le QR n'ouvre rien</strong> : verifier SITE_BASE_URL et relancer l'app.</li>
+      <li><strong>Un carton est bloqu&eacute;</strong> : un carton SHIPPED est non modifiable.</li>
+      <li><strong>Le QR n'ouvre rien</strong> : v&eacute;rifier SITE_BASE_URL et relancer l'app.</li>
     </ul>
   </div>
 {% endblock %}

@@ -24,9 +24,9 @@ ACTION_UPDATE_NOTIFICATIONS = "update_notifications"
 ACTION_UPLOAD_ACCOUNT_DOC = "upload_account_doc"
 
 DEFAULT_COUNTRY = "France"
-MESSAGE_RECIPIENT_ADDED = "Destinataire ajoute."
-MESSAGE_CONTACTS_UPDATED = "Contacts mis a jour."
-MESSAGE_DOCUMENT_ADDED = "Document ajoute."
+MESSAGE_RECIPIENT_ADDED = "Destinataire ajouté."
+MESSAGE_CONTACTS_UPDATED = "Contacts mis à jour."
+MESSAGE_DOCUMENT_ADDED = "Document ajouté."
 ERROR_RECIPIENT_NAME_REQUIRED = "Nom requis."
 ERROR_RECIPIENT_ADDRESS_REQUIRED = "Adresse requise."
 

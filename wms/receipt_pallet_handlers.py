@@ -10,7 +10,7 @@ def handle_pallet_create_post(request, *, form):
         return None
     warehouse = resolve_default_warehouse()
     if not warehouse:
-        form.add_error(None, "Aucun entrepot configure.")
+        form.add_error(None, "Aucun entrepôt configuré.")
         return None
     receipt = Receipt.objects.create(
         receipt_type=ReceiptType.PALLET,
@@ -25,6 +25,6 @@ def handle_pallet_create_post(request, *, form):
     )
     messages.success(
         request,
-        f"Reception palette enregistree (ref {receipt.reference}).",
+        f"Réception palette enregistrée (ref {receipt.reference}).",
     )
     return redirect("scan:scan_receive_pallet")

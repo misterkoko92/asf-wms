@@ -37,7 +37,7 @@ ACTION_PRODUCT_FILE = "product_file"
 IMPORT_FILE_ACTIONS = {
     "location_file": ("emplacements", import_locations),
     "category_file": ("categories", import_categories),
-    "warehouse_file": ("entrepots", import_warehouses),
+    "warehouse_file": ("entrepôts", import_warehouses),
     "contact_file": ("contacts", import_contacts),
     "user_file": ("utilisateurs", import_users),
 }
@@ -45,7 +45,7 @@ IMPORT_FILE_ACTIONS = {
 IMPORT_SINGLE_ACTIONS = {
     "location_single": ("emplacement", import_locations),
     "category_single": ("categorie", import_categories),
-    "warehouse_single": ("entrepot", import_warehouses),
+    "warehouse_single": ("entrepôt", import_warehouses),
     "contact_single": ("contact", import_contacts),
     "user_single": ("utilisateur", import_users),
 }
@@ -77,7 +77,7 @@ def _add_limited_message_list(request, *, title, entries, label):
 def _notify_import_result(request, *, title, created, updated, errors, warnings):
     _add_limited_message_list(request, title=title, entries=errors, label="erreur")
     _add_limited_message_list(request, title=title, entries=warnings, label="alerte")
-    messages.success(request, f"{title}: {created} cree(s), {updated} maj.")
+    messages.success(request, f"{title}: {created} créé(s), {updated} maj.")
 
 
 def _get_pending_import(request):
@@ -111,7 +111,7 @@ def _build_pending_decisions(request, pending):
         if not match_id:
             messages.error(
                 request,
-                "Import produit: selection requise pour la mise a jour.",
+                "Import produit: sélection requise pour la mise à jour.",
             )
             return None
         match_ids = {str(match_id_value) for match_id_value in item.get("match_ids", [])}
@@ -289,7 +289,7 @@ def _handle_product_single_action(request):
     else:
         for message in warnings[:MAX_IMPORT_MESSAGES]:
             messages.warning(request, message)
-        messages.success(request, "Produit cree.")
+        messages.success(request, "Produit créé.")
     return _redirect_scan_import()
 
 
@@ -395,7 +395,7 @@ def _handle_import_single_action(request, *, action, default_password):
         for message in warnings[:MAX_IMPORT_MESSAGES]:
             messages.warning(request, message)
     else:
-        messages.success(request, f"{label.capitalize()} ajoute.")
+        messages.success(request, f"{label.capitalize()} ajouté.")
     return _redirect_scan_import()
 
 

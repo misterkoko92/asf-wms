@@ -129,7 +129,7 @@ class ScanImportHandlersTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, self.scan_import_url)
         self.assertIn(
-            "Import produit: selection requise pour la mise a jour.",
+            "Import produit: sélection requise pour la mise à jour.",
             self._messages(request),
         )
 
@@ -258,7 +258,7 @@ class ScanImportHandlersTests(TestCase):
         self.assertIn("e1", messages)
         self.assertIn("Import produits: 4 alerte(s).", messages)
         self.assertIn("w1", messages)
-        self.assertIn("Import produits: 1 cree(s), 1 maj.", messages)
+        self.assertIn("Import produits: 1 créé(s), 1 maj.", messages)
 
     def test_product_confirm_single_source_imports_rows(self):
         request = self._build_post_request(
@@ -356,7 +356,7 @@ class ScanImportHandlersTests(TestCase):
         self.assertEqual(response.status_code, 302)
         messages = self._messages(request)
         self.assertIn("w1", messages)
-        self.assertIn("Produit cree.", messages)
+        self.assertIn("Produit créé.", messages)
 
     def test_product_single_without_matches_reports_error(self):
         request = self._build_post_request(
@@ -384,7 +384,7 @@ class ScanImportHandlersTests(TestCase):
         self.assertEqual(response.status_code, 302)
         messages = self._messages(request)
         self.assertIn("erreur prioritaire", messages)
-        self.assertNotIn("Produit cree.", messages)
+        self.assertNotIn("Produit créé.", messages)
 
     def test_product_file_requires_uploaded_file(self):
         request = self._build_post_request({"action": "product_file"})
@@ -503,7 +503,7 @@ class ScanImportHandlersTests(TestCase):
         messages = self._messages(request)
         self.assertIn("Import produits: 1 erreur(s).", messages)
         self.assertIn("Import produits: 1 alerte(s).", messages)
-        self.assertIn("Import produits: 2 cree(s), 0 maj.", messages)
+        self.assertIn("Import produits: 2 créé(s), 0 maj.", messages)
 
     def test_product_file_skips_empty_rows_before_match_detection(self):
         uploaded = SimpleUploadedFile("produits.csv", b"sku,name\n,\nA,Produit A\n")
@@ -567,7 +567,7 @@ class ScanImportHandlersTests(TestCase):
         messages = self._messages(request)
         self.assertIn("Import utilisateurs: 1 erreur(s).", messages)
         self.assertIn("Import utilisateurs: 1 alerte(s).", messages)
-        self.assertIn("Import utilisateurs: 1 cree(s), 2 maj.", messages)
+        self.assertIn("Import utilisateurs: 1 créé(s), 2 maj.", messages)
 
     def test_file_action_requires_upload_for_non_user_action(self):
         request = self._build_post_request({"action": "location_file"})
@@ -667,7 +667,7 @@ class ScanImportHandlersTests(TestCase):
         importer.assert_called_once()
         importer_args = importer.call_args.args
         self.assertEqual(importer_args[1], "TempPwd!")
-        self.assertIn("Utilisateur ajoute.", self._messages(request))
+        self.assertIn("Utilisateur ajouté.", self._messages(request))
 
     def test_single_action_reports_value_error(self):
         request = self._build_post_request(

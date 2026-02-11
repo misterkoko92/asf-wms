@@ -21,15 +21,15 @@
       <div class="scan-card">
         <h2>Demande de commande</h2>
         <p class="scan-help">
-          Lien prive reserve aux associations. Un espace avec compte et validation sera ajoute ensuite.
+          Lien priv&eacute; r&eacute;serv&eacute; aux associations. Un espace avec compte et validation sera ajoute ensuite.
         </p>
         <div class="scan-inline">
           <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_public_account_request' link.token %}">
-            Creer un compte
+            Cr&eacute;er un compte
           </a>
           {% if summary_url %}
             <a class="scan-scan-btn scan-doc-btn" href="{{ summary_url }}" target="_blank" rel="noopener">
-              Telecharger recapitulatif PDF
+              T&eacute;l&eacute;charger recapitulatif PDF
             </a>
           {% endif %}
         </div>
@@ -66,7 +66,7 @@
             <input type="email" id="association_email" name="association_email" value="{{ form_data.association_email }}">
           </div>
           <div class="scan-field">
-            <label for="association_phone">Telephone</label>
+            <label for="association_phone">T&eacute;l&eacute;phone</label>
             <input type="text" id="association_phone" name="association_phone" value="{{ form_data.association_phone }}">
           </div>
           <div class="scan-field">
@@ -74,7 +74,7 @@
             <input type="text" id="association_line1" name="association_line1" value="{{ form_data.association_line1 }}" required>
           </div>
           <div class="scan-field">
-            <label for="association_line2">Complement adresse</label>
+            <label for="association_line2">Compl&eacute;ment adresse</label>
             <input type="text" id="association_line2" name="association_line2" value="{{ form_data.association_line2 }}">
           </div>
           <div class="scan-field">
@@ -96,7 +96,7 @@
 
           <h3>Produits disponibles</h3>
           <div class="scan-help">
-            Estimation des cartons basee sur le format par defaut{% if carton_format %} : {{ carton_format.name }}{% endif %}.
+            Estimation des cartons basee sur le format par d&eacute;faut{% if carton_format %} : {{ carton_format.name }}{% endif %}.
           </div>
           <div class="scan-table-wrap">
             <table class="scan-table">
@@ -104,7 +104,7 @@
                 <tr>
                   <th>Produit</th>
                   <th>Stock disponible</th>
-                  <th>Quantite demandee</th>
+                  <th>Quantit&eacute; demandee</th>
                   <th>Cartons estimes</th>
                 </tr>
               </thead>

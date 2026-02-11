@@ -23,7 +23,7 @@
       </div>
 
       <div class="scan-field">
-        <label for="id_quantity">Quantite</label>
+        <label for="id_quantity">Quantit&eacute;</label>
         {{ form.quantity }}
         {% for error in form.quantity.errors %}
           <div class="scan-message error">{{ error }}</div>
@@ -31,7 +31,7 @@
       </div>
 
       <div class="scan-field">
-        <label for="id_shipment_reference">Reference expedition (optionnel)</label>
+        <label for="id_shipment_reference">Référence expédition (optionnel)</label>
         <div class="scan-inline">
           {{ form.shipment_reference }}
           <button type="button" class="scan-scan-btn" data-scan-target="id_shipment_reference">Scan</button>

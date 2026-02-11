@@ -65,9 +65,9 @@ class ImportProductsHelperTests(TestCase):
     def test_apply_quantity_validates_quantity_location_and_stock_errors(self):
         product = Product.objects.create(name="Qty Product", sku="QTY-1")
 
-        with self.assertRaisesMessage(ValueError, "Quantite invalide."):
+        with self.assertRaisesMessage(ValueError, "Quantité invalide."):
             _apply_quantity(product=product, quantity=0, location=None)
-        with self.assertRaisesMessage(ValueError, "Emplacement requis pour la quantite."):
+        with self.assertRaisesMessage(ValueError, "Emplacement requis pour la quantité."):
             _apply_quantity(product=product, quantity=1, location=None)
 
         warehouse = Warehouse.objects.create(name="Main")
@@ -92,7 +92,7 @@ class ImportProductRowDeepTests(TestCase):
 
     def test_import_product_row_rejects_duplicate_sku_without_existing_product(self):
         Product.objects.create(name="Existing", sku="SKU-EXIST")
-        with self.assertRaisesMessage(ValueError, "SKU deja utilise."):
+        with self.assertRaisesMessage(ValueError, "SKU déjà utilisé."):
             import_product_row({"name": "New", "sku": "SKU-EXIST"})
 
     def test_import_product_row_create_sets_optional_fields_tags_and_photo(self):

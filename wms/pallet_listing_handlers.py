@@ -147,7 +147,7 @@ def handle_pallet_listing_action(
             except ValueError:
                 header_row_error = "Ligne des titres invalide."
         if not listing_form.is_valid():
-            listing_errors.append("Renseignez les informations de reception.")
+            listing_errors.append("Renseignez les informations de réception.")
         uploaded = request.FILES.get("listing_file")
         if not uploaded:
             listing_errors.append("Fichier requis pour importer le listing.")
@@ -165,7 +165,7 @@ def handle_pallet_listing_action(
             elif extension == ".csv":
                 listing_file_type = "csv"
             if extension not in {".csv", ".xlsx", ".xls", ".pdf"}:
-                listing_errors.append("Format de fichier non supporte.")
+                listing_errors.append("Format de fichier non supporté.")
             elif listing_errors:
                 pass
             else:
@@ -199,7 +199,7 @@ def handle_pallet_listing_action(
                         try:
                             pdf_page_start = parse_int(listing_pdf_page_start)
                         except ValueError:
-                            listing_errors.append("Page PDF debut invalide.")
+                            listing_errors.append("Page PDF début invalide.")
                     if listing_pdf_page_end:
                         try:
                             pdf_page_end = parse_int(listing_pdf_page_end)
@@ -340,7 +340,7 @@ def handle_pallet_listing_action(
 
         warehouse = resolve_default_warehouse()
         if not warehouse:
-            messages.error(request, "Aucun entrepot configure.")
+            messages.error(request, "Aucun entrepôt configuré.")
             return redirect("scan:scan_receive_pallet")
 
         row_payloads = []
@@ -381,18 +381,18 @@ def handle_pallet_listing_action(
             )
 
         if errors:
-            messages.error(request, f"Import termine avec {len(errors)} erreur(s).")
+            messages.error(request, f"Import terminé avec {len(errors)} erreur(s).")
             for error in errors[:10]:
                 messages.error(request, error)
         if created and receipt:
             messages.success(
                 request,
-                f"{created} ligne(s) receptionnee(s) (ref {receipt.reference}).",
+                f"{created} ligne(s) réceptionnée(s) (ref {receipt.reference}).",
             )
         elif not created:
-            messages.error(request, "Aucune ligne valide a importer.")
+            messages.error(request, "Aucune ligne valide à importer.")
         if skipped:
-            messages.warning(request, f"{skipped} ligne(s) ignoree(s).")
+            messages.warning(request, f"{skipped} ligne(s) ignorée(s).")
         clear_pending_listing(request)
         return redirect("scan:scan_receive_pallet")
 

@@ -29,7 +29,7 @@
       {% csrf_token %}
       <input type="hidden" name="action" value="create_order">
       <div class="scan-field">
-        <label for="id_shipper_name">Expediteur</label>
+        <label for="id_shipper_name">Exp&eacute;diteur</label>
         {{ create_form.shipper_name }}
       </div>
       <div class="scan-field">
@@ -41,11 +41,11 @@
         {{ create_form.correspondent_name }}
       </div>
       <div class="scan-field">
-        <label for="id_shipper_contact">Expediteur (contact)</label>
+        <label for="id_shipper_contact">Exp&eacute;diteur (contact)</label>
         <div class="scan-inline">
           {{ create_form.shipper_contact }}
           <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
-            Ajouter expediteur
+            Ajouter exp&eacute;diteur
           </a>
         </div>
       </div>
@@ -87,7 +87,7 @@
         <label for="id_notes">Notes</label>
         {{ create_form.notes }}
       </div>
-      <button type="submit" class="scan-submit">Creer commande</button>
+      <button type="submit" class="scan-submit">Cr&eacute;er commande</button>
     </form>
   </div>
 
@@ -96,7 +96,7 @@
       <h2>Commande active</h2>
       <div class="scan-meta-grid">
         <div class="scan-meta-item">
-          <strong>Reference</strong>
+          <strong>R&eacute;f&eacute;rence</strong>
           {{ selected_order.reference|default:"-" }}
         </div>
         <div class="scan-meta-item">
@@ -104,7 +104,7 @@
           {{ selected_order.get_status_display }}
         </div>
         <div class="scan-meta-item">
-          <strong>Expedition</strong>
+          <strong>Exp&eacute;dition</strong>
           {% if selected_order.shipment %}{{ selected_order.shipment.reference }}{% else %}-{% endif %}
         </div>
         <div class="scan-meta-item">
@@ -135,7 +135,7 @@
           {% endfor %}
         </div>
         <div class="scan-field">
-          <label for="id_quantity">Quantite</label>
+          <label for="id_quantity">Quantit&eacute;</label>
           {{ line_form.quantity }}
         </div>
         <button type="submit" class="scan-submit">Ajouter ligne et reserver</button>
@@ -156,7 +156,7 @@
             <thead>
               <tr>
                 <th>Produit</th>
-                <th>Quantite</th>
+                <th>Quantit&eacute;</th>
                 <th>Reserve</th>
                 <th>Prepare</th>
                 <th>Restant</th>
@@ -180,7 +180,7 @@
           <input type="hidden" name="action" value="prepare_order">
           <input type="hidden" name="order_id" value="{{ selected_order.id }}">
           <button type="submit" class="scan-submit secondary scan-submit-inline">
-            Preparer commande (reste {{ remaining_total }})
+            Pr&eacute;parer commande (reste {{ remaining_total }})
           </button>
         </form>
       {% else %}
@@ -189,8 +189,8 @@
     </div>
   {% else %}
     <div class="scan-card">
-      <h2>Aucune commande selectionnee</h2>
-      <p class="scan-help">Creez une commande ou selectionnez-en une pour ajouter des lignes.</p>
+      <h2>Aucune commande s&eacute;lectionn&eacute;e</h2>
+      <p class="scan-help">Cr&eacute;ez une commande ou s&eacute;lectionnez-en une pour ajouter des lignes.</p>
     </div>
   {% endif %}
 {% endblock %}

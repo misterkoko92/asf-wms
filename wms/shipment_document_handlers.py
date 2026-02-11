@@ -16,13 +16,13 @@ def handle_shipment_document_upload(request, *, shipment_id):
 
     extension = Path(uploaded.name).suffix.lower()
     if extension not in ALLOWED_UPLOAD_EXTENSIONS:
-        messages.error(request, "Format de fichier non autorise.")
+        messages.error(request, "Format de fichier non autorisé.")
         return redirect("scan:scan_shipment_edit", shipment_id=shipment.id)
 
     Document.objects.create(
         shipment=shipment, doc_type=DocumentType.ADDITIONAL, file=uploaded
     )
-    messages.success(request, "Document ajoute.")
+    messages.success(request, "Document ajouté.")
     return redirect("scan:scan_shipment_edit", shipment_id=shipment.id)
 
 

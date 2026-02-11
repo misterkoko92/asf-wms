@@ -70,7 +70,7 @@ class StockHandlersTests(TestCase):
             with mock.patch("wms.stock_out_handlers.resolve_shipment", return_value=None):
                 response = handle_stock_out_post(self._request(), form=form)
         self.assertIsNone(response)
-        self.assertIn(("shipment_reference", "Expedition introuvable."), form.errors)
+        self.assertIn(("shipment_reference", "Expédition introuvable."), form.errors)
 
     def test_handle_stock_out_post_success(self):
         form = _FakeForm(
@@ -160,7 +160,7 @@ class StockHandlersTests(TestCase):
         self.assertEqual(response.status_code, 302)
         receive_mock.assert_called_once()
         self.assertIsNone(receive_mock.call_args.kwargs["source_receipt"])
-        success_mock.assert_called_once_with(mock.ANY, "Stock mis a jour.")
+        success_mock.assert_called_once_with(mock.ANY, "Stock mis à jour.")
         redirect_mock.assert_called_once_with("scan:scan_stock_update")
 
     def test_handle_stock_update_post_creates_receipt_when_donor_present(self):

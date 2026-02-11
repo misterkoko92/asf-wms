@@ -315,11 +315,11 @@ class OrderHelpersTests(TestCase):
         self.assertEqual(line_quantities[str(product_stock.id)], "5")
         self.assertEqual(line_quantities[str(product_valid.id)], "2")
         self.assertEqual(line_quantities["999999"], "1")
-        self.assertEqual(line_errors[str(product_invalid.id)], "Quantite invalide.")
+        self.assertEqual(line_errors[str(product_invalid.id)], "Quantité invalide.")
         self.assertEqual(line_errors[str(product_stock.id)], "Stock insuffisant.")
         self.assertEqual(line_items, [(product_valid, 2)])
 
-    def test_build_order_line_items_ignores_empty_quantities(self):
+    def test_build_order_line_items_ignorés_empty_quantities(self):
         product = self._create_product("ORDER-LINE-EMPTY", "Produit Vide", weight_g=100)
         line_items, line_quantities, line_errors = build_order_line_items(
             {},

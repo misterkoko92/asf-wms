@@ -8,7 +8,7 @@
     <p class="scan-help">Informations principales</p>
     <p><strong>Association:</strong> {{ association.name }}</p>
     <p><strong>Email:</strong> {{ association.email|default:user.email }}</p>
-    <p><strong>Telephone:</strong> {{ association.phone|default:"-" }}</p>
+    <p><strong>T&eacute;l&eacute;phone:</strong> {{ association.phone|default:"-" }}</p>
     <p>
       <strong>Adresse:</strong>
       {% if address %}
@@ -34,14 +34,14 @@
   </div>
 
   <div class="scan-card portal-card">
-    <h3>Documents de verification</h3>
+    <h3>Documents de v&eacute;rification</h3>
     {% if account_documents %}
       <table class="portal-table">
         <thead>
           <tr>
             <th>Type</th>
             <th>Statut</th>
-            <th>Ajoute le</th>
+            <th>Ajout&eacute; le</th>
             <th>Fichier</th>
           </tr>
         </thead>
@@ -53,7 +53,7 @@
               <td>{{ doc.uploaded_at|date:"d/m/Y" }}</td>
               <td>
                 {% if doc.file %}
-                  <a href="{{ doc.file.url }}" target="_blank">Telecharger</a>
+                  <a href="{{ doc.file.url }}" target="_blank">T&eacute;l&eacute;charger</a>
                 {% else %}
                   -
                 {% endif %}

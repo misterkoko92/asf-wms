@@ -15,5 +15,5 @@ def handle_shipment_tracking_post(request, *, shipment, form):
         comments=form.cleaned_data["comments"] or "",
         created_by=request.user if request.user.is_authenticated else None,
     )
-    messages.success(request, "Suivi mis a jour.")
+    messages.success(request, "Suivi mis à jour.")
     return redirect("scan:scan_shipment_track", tracking_token=shipment.tracking_token)

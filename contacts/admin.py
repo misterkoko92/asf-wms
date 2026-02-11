@@ -31,7 +31,7 @@ class ContactAdminForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["use_organization_address"].help_text = (
-            "Utilise l'adresse par defaut de la societe et se met a jour automatiquement."
+            "Utilise l'adresse par défaut de la société et se met à jour automatiquement."
         )
         self.fields["destination"].help_text = (
             "Laisser vide pour toutes les destinations."
@@ -45,10 +45,10 @@ class ContactAdminForm(forms.ModelForm):
         use_org_address = cleaned_data.get("use_organization_address")
 
         if contact_type == ContactType.ORGANIZATION and not tags:
-            self.add_error("tags", "Au moins un tag est requis pour une societe.")
+            self.add_error("tags", "Au moins un tag est requis pour une société.")
         if contact_type == ContactType.PERSON and use_org_address and not organization:
             self.add_error(
-                "organization", "Selectionnez une societe pour utiliser son adresse."
+                "organization", "Sélectionnez une société pour utiliser son adresse."
             )
         return cleaned_data
 

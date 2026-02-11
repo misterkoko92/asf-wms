@@ -933,9 +933,9 @@ class OrderLine(models.Model):
         super().clean()
         errors = {}
         if self.reserved_quantity > self.quantity:
-            errors["reserved_quantity"] = "Quantite reservee superieure a la quantite demandee."
+            errors["reserved_quantity"] = "Quantité réservée supérieure à la quantité demandée."
         if self.prepared_quantity > self.quantity:
-            errors["prepared_quantity"] = "Quantite preparee superieure a la quantite demandee."
+            errors["prepared_quantity"] = "Quantité préparée supérieure à la quantité demandée."
         if errors:
             raise ValidationError(errors)
 

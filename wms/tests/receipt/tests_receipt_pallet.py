@@ -75,7 +75,7 @@ class ReceiptPalletFlowTests(TestCase):
         with mock.patch("wms.receipt_pallet_handlers.resolve_default_warehouse", return_value=None):
             response = handle_pallet_create_post(request, form=form)
         self.assertIsNone(response)
-        self.assertIn((None, "Aucun entrepot configure."), form.errors)
+        self.assertIn((None, "Aucun entrepôt configuré."), form.errors)
 
     def test_handle_pallet_create_post_success_creates_receipt_and_redirects(self):
         request = self._request()

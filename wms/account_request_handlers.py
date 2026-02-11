@@ -45,15 +45,15 @@ ERROR_PASSWORD_CONFIRMATION_REQUIRED = (  # nosec B105
     "Confirmation du mot de passe requise."
 )
 ERROR_PASSWORD_MISMATCH = "Les mots de passe ne correspondent pas."  # nosec B105
-ERROR_PENDING_REQUEST_EXISTS = "Une demande est deja en attente pour cet email."
+ERROR_PENDING_REQUEST_EXISTS = "Une demande est déjà en attente pour cet email."
 ERROR_PENDING_REQUEST_EXISTS_FOR_USERNAME = (
-    "Une demande est deja en attente pour ce nom d'utilisateur."
+    "Une demande est déjà en attente pour ce nom d'utilisateur."
 )
 ERROR_THROTTLE_LIMIT = (
-    "Une demande recente a deja ete envoyee. Merci de patienter quelques minutes."
+    "Une demande récente a déjà été envoyée. Merci de patienter quelques minutes."
 )
 
-SUCCESS_ACCOUNT_REQUEST_SENT = "Demande envoyee. Un superuser ASF validera votre compte."
+SUCCESS_ACCOUNT_REQUEST_SENT = "Demande envoyée. Un superuser ASF validera votre compte."
 
 DOC_UPLOAD_FIELD_MAPPINGS = (
     (AccountDocumentType.STATUTES, "doc_statutes"),
@@ -368,7 +368,7 @@ def _queue_account_request_emails(
                 recipient=admin_recipients,
             )
         requester_sent = enqueue_email_safe(
-            subject="ASF WMS - Demande de compte recue",
+            subject="ASF WMS - Demande de compte reçue",
             message=requester_message,
             recipient=email,
         )

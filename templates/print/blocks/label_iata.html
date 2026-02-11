@@ -4,7 +4,7 @@
     {{ label_iata|default:"" }}
   </div>
   {% if label_qr_url %}
-    <img src="{{ label_qr_url }}" alt="QR expedition {{ label_shipment_ref|default:"" }}" style="height:36mm; width:36mm; object-fit:contain; border:3px solid #333;">
+    <img src="{{ label_qr_url }}" alt="QR exp&eacute;dition {{ label_shipment_ref|default:"" }}" style="height:36mm; width:36mm; object-fit:contain; border:3px solid #333;">
   {% endif %}
 </div>
 {% endwith %}

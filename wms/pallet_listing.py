@@ -93,13 +93,13 @@ PALLET_REVIEW_FIELDS = [
     ("weight_g", "Poids g"),
     ("volume_cm3", "Volume"),
     ("storage_conditions", "Stockage"),
-    ("perishable", "Perissable"),
+    ("perishable", "Périssable"),
     ("quarantine_default", "Quarantaine"),
     ("notes", "Notes"),
 ]
 
 PALLET_LOCATION_FIELDS = [
-    ("warehouse", "Entrepot"),
+    ("warehouse", "Entrepôt"),
     ("zone", "Rack"),
     ("aisle", "Etagere"),
     ("shelf", "Bac"),
@@ -130,9 +130,9 @@ PALLET_LISTING_MAPPING_FIELDS = [
     ("weight_g", "Poids g"),
     ("volume_cm3", "Volume cm3"),
     ("storage_conditions", "Conditions stockage"),
-    ("perishable", "Perissable"),
-    ("quarantine_default", "Quarantaine par defaut"),
-    ("quantity", "Quantite"),
+    ("perishable", "Périssable"),
+    ("quarantine_default", "Quarantaine par défaut"),
+    ("quantity", "Quantité"),
 ]
 
 

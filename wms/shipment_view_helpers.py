@@ -28,7 +28,7 @@ SHIPMENT_DOCUMENT_TEMPLATES = {
 }
 
 SHIPMENT_DOCUMENT_LINKS = (
-    ("Bon d'expedition", "shipment_note"),
+    ("Bon d'expédition", "shipment_note"),
     ("Liste colisage (lot)", "packing_list_shipment"),
     ("Attestation donation", "donation_certificate"),
     ("Attestation aide humanitaire", "humanitarian_certificate"),

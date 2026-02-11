@@ -35,5 +35,5 @@ class ScanShipmentHelpersTests(TestCase):
         )
         self.assertEqual(resolve_shipment(shipment.reference.lower()).id, shipment.id)
 
-    def test_resolve_shipment_ignores_blank(self):
+    def test_resolve_shipment_ignorés_blank(self):
         self.assertIsNone(resolve_shipment(""))

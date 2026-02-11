@@ -175,7 +175,7 @@ class PortalAuthViewsTests(PortalBaseTestCase):
             {"identifier": user.email, "password": "pass1234"},
         )
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Compte non active par ASF.", response.context["errors"])
+        self.assertIn("Compte non activé par ASF.", response.context["errors"])
 
     def test_portal_login_redirects_to_change_password_when_forced(self):
         user = self._create_portal_user("portal-auth-c", "c@example.com")
@@ -202,7 +202,7 @@ class PortalAuthViewsTests(PortalBaseTestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, next_url)
 
-    def test_portal_login_ignores_external_next_url(self):
+    def test_portal_login_ignorés_external_next_url(self):
         user = self._create_portal_user("portal-auth-next", "next@example.com")
         self._create_profile(user)
         response = self.client.post(
@@ -216,7 +216,7 @@ class PortalAuthViewsTests(PortalBaseTestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, self.dashboard_url)
 
-    def test_portal_login_get_ignores_external_next_url_in_context(self):
+    def test_portal_login_get_ignorés_external_next_url_in_context(self):
         response = self.client.get(
             self.login_url,
             {"next": "https://evil.example.org/phishing"},

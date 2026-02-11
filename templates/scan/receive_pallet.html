@@ -1,10 +1,10 @@
 {% extends "scan/base.html" %}
 
-{% block title %}WMS Scan - Reception palette{% endblock %}
+{% block title %}WMS Scan - R&eacute;ception palette{% endblock %}
 
 {% block content %}
   <div class="scan-card">
-    <h2>Reception palette</h2>
+    <h2>R&eacute;ception palette</h2>
     {% if create_form.non_field_errors %}
       <div class="scan-message error">{{ create_form.non_field_errors }}</div>
     {% endif %}
@@ -13,7 +13,7 @@
       <input type="hidden" name="action" value="pallet_create">
 
       <div class="scan-field">
-        <label for="{{ create_form.received_on.id_for_label }}">Date reception</label>
+        <label for="{{ create_form.received_on.id_for_label }}">Date r&eacute;ception</label>
         {{ create_form.received_on }}
         {% for error in create_form.received_on.errors %}
           <div class="scan-message error">{{ error }}</div>
@@ -63,17 +63,17 @@
       </div>
 
       <div class="scan-field scan-field-gap">
-        <button type="submit" class="scan-submit">Enregistrer la reception palette</button>
+        <button type="submit" class="scan-submit">Enregistrer la r&eacute;ception palette</button>
       </div>
     </form>
-    <p class="scan-help">La reference est generee automatiquement (format YY-XX-WWW-ZZ).</p>
+    <p class="scan-help">La r&eacute;f&eacute;rence est g&eacute;n&eacute;r&eacute;e automatiquement (format YY-XX-WWW-ZZ).</p>
   </div>
 
   <div class="scan-card">
     <h2>Upload listing</h2>
     <p class="scan-help">
-      Import CSV/XLS/XLSX ou PDF texte. Le mapping des colonnes est propose ensuite.
-      Conseil: privilegier le format .xlsx (meilleure gestion des accents).
+      Import CSV/XLS/XLSX ou PDF texte. Le mapping des colonnes est propos&eacute; ensuite.
+      Conseil: privil&eacute;gier le format .xlsx (meilleure gestion des accents).
     </p>
     <p class="scan-help">Les PDF scans (image) ne sont pas pris en charge pour le moment.</p>
     {% if listing_errors %}
@@ -89,7 +89,7 @@
       <input type="hidden" name="action" value="listing_upload">
 
       <div class="scan-field">
-        <label for="{{ listing_form.received_on.id_for_label }}">Date reception</label>
+        <label for="{{ listing_form.received_on.id_for_label }}">Date r&eacute;ception</label>
         {{ listing_form.received_on }}
         {% for error in listing_form.received_on.errors %}
           <div class="scan-message error">{{ error }}</div>
@@ -180,7 +180,7 @@
       </div>
 
       <div class="scan-field" data-file-options="pdf">
-        <label>Selectionner les pages du listing (PDF)</label>
+        <label>S&eacute;lectionner les pages du listing (PDF)</label>
         {% if listing_pdf_total_pages %}
           <div class="scan-help">Pages totales: {{ listing_pdf_total_pages }}</div>
         {% endif %}
@@ -270,12 +270,12 @@
     <div class="scan-card">
       <h2>Mapping colonnes</h2>
       <p class="scan-help">
-        Assignez les colonnes du fichier aux champs WMS. Champs requis: nom + quantite.
+        Assignez les colonnes du fichier aux champs WMS. Champs requis: nom + quantit&eacute;.
       </p>
       {% if listing_meta %}
         <div class="scan-meta-grid">
           <div class="scan-meta-item">
-            <strong>Date reception</strong>
+            <strong>Date r&eacute;ception</strong>
             {{ listing_meta.received_on }}
           </div>
           <div class="scan-meta-item">
@@ -371,14 +371,14 @@
 
   {% if listing_stage == "review" %}
     <div class="scan-card">
-      <h2>Recap import listing</h2>
+      <h2>R&eacute;cap import listing</h2>
       <p class="scan-help">
-        Verifiez les correspondances. Si un produit existe, seules quantite et emplacement seront mis a jour.
+        V&eacute;rifiez les correspondances. Si un produit existe, seules quantit&eacute; et emplacement seront mis &agrave; jour.
       </p>
       {% if listing_meta %}
         <div class="scan-meta-grid">
           <div class="scan-meta-item">
-            <strong>Date reception</strong>
+            <strong>Date r&eacute;ception</strong>
             {{ listing_meta.received_on }}
           </div>
           <div class="scan-meta-item">
@@ -447,7 +447,7 @@
                   <th>{{ location.1 }}</th>
                 {% endfor %}
                 <th>Couleur rack</th>
-                <th>Quantite</th>
+                <th>Quantit&eacute;</th>
               </tr>
             </thead>
             <tbody>

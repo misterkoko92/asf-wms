@@ -23,12 +23,12 @@ def handle_orders_view_action(request, *, orders_qs):
         else:
             order.review_status = status
             order.save(update_fields=["review_status"])
-            messages.success(request, "Statut de validation mis a jour.")
+            messages.success(request, "Statut de validation mis à jour.")
         return redirect("scan:scan_orders_view")
 
     if action == "create_shipment":
         if order.review_status != OrderReviewStatus.APPROVED:
-            messages.error(request, "Commande non validee.")
+            messages.error(request, "Commande non validée.")
             return redirect("scan:scan_orders_view")
         shipment = order.shipment or create_shipment_for_order(order=order)
         attach_order_documents_to_shipment(order, shipment)

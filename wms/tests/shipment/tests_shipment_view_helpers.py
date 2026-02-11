@@ -88,7 +88,7 @@ class ShipmentViewHelpersTests(TestCase):
         documents, carton_docs, additional_docs = build_shipment_document_links(shipment)
 
         self.assertEqual(len(documents), 6)
-        self.assertEqual(documents[0]["label"], "Bon d'expedition")
+        self.assertEqual(documents[0]["label"], "Bon d'expédition")
         self.assertIn(f"/scan/shipment/{shipment.id}/doc/shipment_note/", documents[0]["url"])
         self.assertEqual(carton_docs, [{"label": carton.code, "url": f"/scan/shipment/{shipment.id}/carton/{carton.id}/doc/"}])
         self.assertEqual(additional_docs.count(), 1)

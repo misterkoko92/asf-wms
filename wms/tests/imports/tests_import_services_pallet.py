@@ -124,7 +124,7 @@ class ImportServicesPalletTests(SimpleTestCase):
                 )
         self.assertEqual(created, 0)
         self.assertEqual(skipped, 0)
-        self.assertEqual(errors, ["Ligne 7: Emplacement requis pour reception."])
+        self.assertEqual(errors, ["Ligne 7: Emplacement requis pour réception."])
         self.assertIsNone(receipt)
 
     def test_apply_pallet_listing_import_success_reuses_receipt_and_defaults_dates(self):

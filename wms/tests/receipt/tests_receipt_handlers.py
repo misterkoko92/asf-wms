@@ -103,7 +103,7 @@ class ReceiptHandlersTests(TestCase):
             )
         self.assertIsNone(response)
         self.assertEqual(line_errors, {})
-        self.assertIn((None, "Aucun entrepot configure."), form.errors)
+        self.assertIn((None, "Aucun entrepôt configuré."), form.errors)
 
     def test_handle_receipt_association_post_success_creates_receipt_and_lines(self):
         form = _FakeForm(
@@ -204,7 +204,7 @@ class ReceiptHandlersTests(TestCase):
         self.assertIsNone(response)
         self.assertIsNone(lines)
         self.assertIsNone(pending)
-        self.assertIn((None, "Selectionnez une reception."), line_form.errors)
+        self.assertIn((None, "Sélectionnez une réception."), line_form.errors)
 
     def test_handle_receipt_action_add_line_rejects_closed_receipt(self):
         line_form = _FakeForm(valid=True, cleaned_data={})
@@ -220,7 +220,7 @@ class ReceiptHandlersTests(TestCase):
         self.assertIsNone(response)
         self.assertIsNone(lines)
         self.assertIsNone(pending)
-        self.assertIn((None, "Reception deja cloturee."), line_form.errors)
+        self.assertIn((None, "Réception déjà clôturée."), line_form.errors)
 
     def test_handle_receipt_action_add_line_validates_product_and_location(self):
         selected_receipt = SimpleNamespace(
@@ -278,7 +278,7 @@ class ReceiptHandlersTests(TestCase):
             )
         self.assertIsNone(response)
         self.assertIn(
-            ("location", "Emplacement requis ou definir un emplacement par defaut."),
+            ("location", "Emplacement requis ou définir un emplacement par défaut."),
             line_form_missing_location.errors,
         )
 
@@ -378,7 +378,7 @@ class ReceiptHandlersTests(TestCase):
         receive_mock.assert_called_once_with(user=self.user, line=line_model)
         success_mock.assert_called_once_with(
             mock.ANY,
-            "Ligne receptionnee: Gloves (3).",
+            "Ligne réceptionnée: Gloves (3).",
         )
 
     def test_handle_receipt_action_receive_lines_processes_and_reports_errors(self):
@@ -406,7 +406,7 @@ class ReceiptHandlersTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIsNone(lines)
         self.assertIsNone(pending)
-        success_mock.assert_called_once_with(mock.ANY, "1 ligne(s) receptionnee(s).")
+        success_mock.assert_called_once_with(mock.ANY, "1 ligne(s) réceptionnée(s).")
         error_mock.assert_called_once_with(mock.ANY, "Line error")
 
     def test_handle_receipt_action_returns_none_for_unhandled_action(self):

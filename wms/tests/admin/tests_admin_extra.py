@@ -315,7 +315,7 @@ class PublicAccountRequestAdminTests(_AdminTestBase):
                 change=True,
             )
         approve_mock.assert_called_once()
-        self.assertTrue(any("Compte cree automatiquement" in str(args) for args, _ in message_user_mock.call_args_list))
+        self.assertTrue(any("Compte créé automatiquement" in str(args) for args, _ in message_user_mock.call_args_list))
 
         with mock.patch.object(self.admin_obj, "_approve_request", return_value=(False, "email reserve")) as approve_mock, mock.patch.object(
             self.admin_obj, "message_user"
@@ -328,7 +328,7 @@ class PublicAccountRequestAdminTests(_AdminTestBase):
                 change=True,
             )
         approve_mock.assert_called_once()
-        self.assertTrue(any("Validation ignoree" in str(args) for args, _ in message_user_mock.call_args_list))
+        self.assertTrue(any("Validation ignorée" in str(args) for args, _ in message_user_mock.call_args_list))
 
         not_approved = models.PublicAccountRequest(
             association_name="Tmp",
@@ -336,7 +336,7 @@ class PublicAccountRequestAdminTests(_AdminTestBase):
             address_line1="X",
             status=models.PublicAccountRequestStatus.PENDING,
         )
-        self.assertIn("Disponible apres validation", self.admin_obj.account_access_info(not_approved))
+        self.assertIn("Disponible après validation", self.admin_obj.account_access_info(not_approved))
 
         approved_no_user = models.PublicAccountRequest(
             association_name="Tmp2",
@@ -359,7 +359,7 @@ class PublicAccountRequestAdminTests(_AdminTestBase):
         )
         with override_settings(SITE_BASE_URL=""):
             info = str(self.admin_obj.account_access_info(approved_with_user))
-        self.assertIn("SITE_BASE_URL non configuree", info)
+        self.assertIn("SITE_BASE_URL non configurée", info)
 
     def test_approve_request_updates_existing_contact_and_profile_contact(self):
         old_contact = Contact.objects.create(
@@ -420,7 +420,7 @@ class PublicAccountRequestAdminTests(_AdminTestBase):
                 models.PublicAccountRequest.objects.filter(pk=pending.pk),
             )
         approve_mock.assert_called_once()
-        self.assertTrue(any("ignoree" in str(args) for args, _ in message_user_mock.call_args_list))
+        self.assertTrue(any("ignorée" in str(args) for args, _ in message_user_mock.call_args_list))
 
         not_approved = models.PublicAccountRequest.objects.create(
             association_name="Association Save Early",
@@ -639,7 +639,7 @@ class DocumentAndReceiptAdminTests(_AdminTestBase):
             receipt_admin, "message_user"
         ) as message_user_mock:
             receipt_admin.receive_lines(request, models.Receipt.objects.filter(pk=receipt.pk))
-        self.assertTrue(any("ligne(s) receptionnee(s)" in str(args) for args, _ in message_user_mock.call_args_list))
+        self.assertTrue(any("ligne(s) réceptionnée(s)" in str(args) for args, _ in message_user_mock.call_args_list))
         self.assertTrue(any("boom" in str(args) for args, _ in message_user_mock.call_args_list))
 
         receipt_line_admin = ReceiptLineAdmin(models.ReceiptLine, self.site)
@@ -650,7 +650,7 @@ class DocumentAndReceiptAdminTests(_AdminTestBase):
                 request,
                 models.ReceiptLine.objects.filter(pk__in=[line_ok.pk, line_err.pk]),
             )
-        self.assertTrue(any("ligne(s) receptionnee(s)" in str(args) for args, _ in message_user_mock.call_args_list))
+        self.assertTrue(any("ligne(s) réceptionnée(s)" in str(args) for args, _ in message_user_mock.call_args_list))
         self.assertTrue(any("boom2" in str(args) for args, _ in message_user_mock.call_args_list))
 
         received_lot = models.ProductLot.objects.create(
@@ -861,7 +861,7 @@ class OrderAndCartonAdminTests(_AdminTestBase):
                 models.Order.objects.filter(pk__in=[order_with_shipment.pk, order_without_shipment.pk]),
             )
         create_shipment_mock.assert_called_once_with(order=order_without_shipment)
-        self.assertTrue(any("expedition(s) creee(s)" in str(args) for args, _ in message_user_mock.call_args_list))
+        self.assertTrue(any("expédition(s) créée(s)" in str(args) for args, _ in message_user_mock.call_args_list))
 
         with mock.patch("wms.admin.reserve_stock_for_order", side_effect=[None, StockError("reserve-error")]), mock.patch.object(
             admin_obj, "message_user"
@@ -870,7 +870,7 @@ class OrderAndCartonAdminTests(_AdminTestBase):
                 request,
                 models.Order.objects.filter(pk__in=[order_with_shipment.pk, order_without_shipment.pk]),
             )
-        self.assertTrue(any("reservee(s)" in str(args) for args, _ in message_user_mock.call_args_list))
+        self.assertTrue(any("réservée(s)" in str(args) for args, _ in message_user_mock.call_args_list))
         self.assertTrue(any("reserve-error" in str(args) for args, _ in message_user_mock.call_args_list))
 
         with mock.patch("wms.admin.prepare_order", side_effect=[None, StockError("prepare-error")]), mock.patch.object(
@@ -880,7 +880,7 @@ class OrderAndCartonAdminTests(_AdminTestBase):
                 request,
                 models.Order.objects.filter(pk__in=[order_with_shipment.pk, order_without_shipment.pk]),
             )
-        self.assertTrue(any("preparee(s)" in str(args) for args, _ in message_user_mock.call_args_list))
+        self.assertTrue(any("préparée(s)" in str(args) for args, _ in message_user_mock.call_args_list))
         self.assertTrue(any("prepare-error" in str(args) for args, _ in message_user_mock.call_args_list))
 
     def test_carton_admin_save_model_and_unpack_action(self):
@@ -942,8 +942,8 @@ class OrderAndCartonAdminTests(_AdminTestBase):
                 request,
                 models.Carton.objects.filter(pk__in=[carton.pk, carton_new.pk]),
             )
-        self.assertTrue(any("deconditionne(s)" in str(args) for args, _ in message_user_mock.call_args_list))
-        self.assertTrue(any("ignores" in str(args) for args, _ in message_user_mock.call_args_list))
+        self.assertTrue(any("déconditionné(s)" in str(args) for args, _ in message_user_mock.call_args_list))
+        self.assertTrue(any("ignorés" in str(args) for args, _ in message_user_mock.call_args_list))
 
 
 class StockMovementAdminViewsTests(_AdminTestBase):

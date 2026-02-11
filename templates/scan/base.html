@@ -74,24 +74,24 @@
           <div class="scan-nav-menu">
             <a href="{% url 'scan:scan_stock' %}" class="{% if active == 'stock' %}active{% endif %}">Vue stock</a>
             <a href="{% url 'scan:scan_cartons_ready' %}" class="{% if active == 'cartons_ready' %}active{% endif %}">Vue Colis</a>
-            <a href="{% url 'scan:scan_shipments_ready' %}" class="{% if active == 'shipments_ready' %}active{% endif %}">Vue Expeditions</a>
+            <a href="{% url 'scan:scan_shipments_ready' %}" class="{% if active == 'shipments_ready' %}active{% endif %}">Vue Exp&eacute;ditions</a>
             <a href="{% url 'scan:scan_orders_view' %}" class="{% if active == 'orders_view' %}active{% endif %}">Vue Commande</a>
-            <a href="{% url 'scan:scan_receipts_view' %}" class="{% if active == 'receipts_view' %}active{% endif %}">Vue reception</a>
+            <a href="{% url 'scan:scan_receipts_view' %}" class="{% if active == 'receipts_view' %}active{% endif %}">Vue r&eacute;ception</a>
           </div>
         </div>
         <div class="scan-nav-group">
-          <button type="button" class="scan-nav-trigger">Reception de produits</button>
+          <button type="button" class="scan-nav-trigger">R&eacute;ception de produits</button>
           <div class="scan-nav-menu">
-            <a href="{% url 'scan:scan_receive_pallet' %}" class="{% if active == 'receive_pallet' %}active{% endif %}">Reception palette</a>
-            <a href="{% url 'scan:scan_receive_association' %}" class="{% if active == 'receive_association' %}active{% endif %}">Reception association / Ajouter des produits au stock</a>
+            <a href="{% url 'scan:scan_receive_pallet' %}" class="{% if active == 'receive_pallet' %}active{% endif %}">R&eacute;ception palette</a>
+            <a href="{% url 'scan:scan_receive_association' %}" class="{% if active == 'receive_association' %}active{% endif %}">R&eacute;ception association / Ajouter des produits au stock</a>
             <a href="{% url 'scan:scan_stock_update' %}" class="{% if active == 'stock_update' %}active{% endif %}">MAJ stock</a>
           </div>
         </div>
         <div class="scan-nav-group">
-          <button type="button" class="scan-nav-trigger">Preparation</button>
+          <button type="button" class="scan-nav-trigger">Pr&eacute;paration</button>
           <div class="scan-nav-menu">
-            <a href="{% url 'scan:scan_pack' %}" class="{% if active == 'pack' %}active{% endif %}">Preparer des colis</a>
-            <a href="{% url 'scan:scan_shipment_create' %}" class="{% if active == 'shipment' %}active{% endif %}">Preparation expedition</a>
+            <a href="{% url 'scan:scan_pack' %}" class="{% if active == 'pack' %}active{% endif %}">Pr&eacute;parer des colis</a>
+            <a href="{% url 'scan:scan_shipment_create' %}" class="{% if active == 'shipment' %}active{% endif %}">Pr&eacute;paration exp&eacute;dition</a>
           </div>
         </div>
         <div class="scan-nav-group">

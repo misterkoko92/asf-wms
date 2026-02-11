@@ -1,14 +1,14 @@
 {% extends "scan/base.html" %}
 
-{% block title %}WMS Scan - {% if is_edit %}Modifier expedition{% else %}Creer expedition{% endif %}{% endblock %}
+{% block title %}WMS Scan - {% if is_edit %}Modifier exp&eacute;dition{% else %}Cr&eacute;er exp&eacute;dition{% endif %}{% endblock %}
 
 {% block content %}
   <div class="scan-card">
     <h2>
       {% if is_edit %}
-        Modifier l'expedition {{ shipment.reference }}
+        Modifier l'exp&eacute;dition {{ shipment.reference }}
       {% else %}
-        Creer une expedition
+        Cr&eacute;er une exp&eacute;dition
       {% endif %}
     </h2>
     {% if form.non_field_errors %}
@@ -31,11 +31,11 @@
       </div>
 
       <div class="scan-field">
-        <label for="id_shipper_contact">Expediteur</label>
+        <label for="id_shipper_contact">Exp&eacute;diteur</label>
         <div class="scan-inline">
           {{ form.shipper_contact }}
           <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
-            Ajouter expediteur
+            Ajouter exp&eacute;diteur
           </a>
         </div>
         {% for error in form.shipper_contact.errors %}
@@ -76,8 +76,8 @@
           <div class="scan-message error">{{ error }}</div>
         {% endfor %}
         <p class="scan-help">
-          Selectionner ci-dessous des colis deja prepares ou creer des colis mono-produit.
-          Pour des colis multi-produits, passer par l'onglet Preparation avant de creer l'expedition.
+          S&eacute;lectionner ci-dessous des colis d&eacute;j&agrave; pr&eacute;par&eacute;s ou cr&eacute;er des colis mono-produit.
+          Pour des colis multi-produits, passer par l'onglet Pr&eacute;paration avant de cr&eacute;er l'exp&eacute;dition.
         </p>
       </div>
 
@@ -91,24 +91,24 @@
       <div class="scan-field">
         <label>Colis multi-produits</label>
         <a class="scan-scan-btn" href="{% url 'scan:scan_pack' %}">
-          Creer des colis multi-produits
+          Cr&eacute;er des colis multi-produits
         </a>
         <p class="scan-help">
-          Utilisez l'onglet Preparation pour creer des colis multi-produits, puis revenez ici pour
-          les ajouter a l'expedition.
+          Utilisez l'onglet Pr&eacute;paration pour cr&eacute;er des colis multi-produits, puis revenez ici pour
+          les ajouter à l'expédition.
         </p>
       </div>
 
       <button type="submit" class="scan-submit">
-        {% if is_edit %}Enregistrer modifications{% else %}Creer expedition{% endif %}
+        {% if is_edit %}Enregistrer modifications{% else %}Cr&eacute;er exp&eacute;dition{% endif %}
       </button>
       {% if is_edit %}
         <p class="scan-help">
-          Chaque ligne: selectionnez un colis prepare ou creez-en un depuis un produit.
-          Pour retirer un colis, reduisez le nombre de lignes.
+          Chaque ligne: sélectionnez un colis préparé ou créez-en un depuis un produit.
+          Pour retirer un colis, r&eacute;duisez le nombre de lignes.
         </p>
       {% else %}
-        <p class="scan-help">Chaque ligne: selectionnez un colis prepare ou creez-en un depuis un produit.</p>
+        <p class="scan-help">Chaque ligne: sélectionnez un colis préparé ou créez-en un depuis un produit.</p>
       {% endif %}
     </form>
 
@@ -116,10 +116,10 @@
       <hr class="scan-divider">
 
       <div class="scan-field">
-        <label>Suivi expedition</label>
+        <label>Suivi exp&eacute;dition</label>
         <div class="scan-inline">
           {% if shipment.qr_code_image %}
-            <img src="{{ shipment.qr_code_image.url }}" alt="QR expedition {{ shipment.reference }}" style="height: 120px; border: 1px solid #ccc;">
+            <img src="{{ shipment.qr_code_image.url }}" alt="QR exp&eacute;dition {{ shipment.reference }}" style="height: 120px; border: 1px solid #ccc;">
           {% else %}
             <span class="scan-help">QR code non disponible.</span>
           {% endif %}
@@ -136,10 +136,10 @@
       </div>
 
       <div class="scan-field">
-        <label>Documents generes</label>
+        <label>Documents g&eacute;n&eacute;r&eacute;s</label>
         <div class="scan-docs">
           <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'shipment_note' %}" target="_blank" rel="noopener">
-            Bon d'expedition
+            Bon d'exp&eacute;dition
           </a>
           <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'packing_list_shipment' %}" target="_blank" rel="noopener">
             Liste colisage (lot)
@@ -148,7 +148,7 @@
             Attestation donation
           </a>
           <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_labels' shipment.id %}" target="_blank" rel="noopener">
-            Etiquettes colis
+            &Eacute;tiquettes colis
           </a>
         </div>
       </div>
@@ -164,12 +164,12 @@
             {% endfor %}
           </div>
         {% else %}
-          <div class="scan-help">Aucun colis associe.</div>
+          <div class="scan-help">Aucun colis associ&eacute;.</div>
         {% endif %}
       </div>
 
       <div class="scan-field">
-        <label>Etiquettes par carton</label>
+        <label>&Eacute;tiquettes par carton</label>
         {% if carton_docs %}
           <div class="scan-docs">
             {% for carton in carton_docs %}
@@ -179,7 +179,7 @@
             {% endfor %}
           </div>
         {% else %}
-          <div class="scan-help">Aucun colis associe.</div>
+          <div class="scan-help">Aucun colis associ&eacute;.</div>
         {% endif %}
       </div>
 

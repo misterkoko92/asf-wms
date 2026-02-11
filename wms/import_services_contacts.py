@@ -139,7 +139,7 @@ def import_contacts(rows):
                     if new_tags:
                         contact.tags.add(*new_tags)
                         warnings.append(
-                            "Ligne {}: tags fusionnes (ajoutes: {}).".format(
+                            "Ligne {}: tags fusionnés (ajoutés: {}).".format(
                                 index, ", ".join(sorted(tag.name for tag in new_tags))
                             )
                         )
@@ -151,7 +151,7 @@ def import_contacts(rows):
                     get_value(row, "organization", "societe", "company", "organisation")
                 )
                 if use_org_address and not (organization_name or contact.organization):
-                    raise ValueError("Societe requise pour utiliser l'adresse.")
+                    raise ValueError("Société requise pour utiliser l'adresse.")
                 if organization_name:
                     organization = (
                         Contact.objects.filter(
@@ -163,7 +163,7 @@ def import_contacts(rows):
                         organization = Contact.objects.create(
                             name=organization_name,
                             contact_type=ContactType.ORGANIZATION,
-                            notes="cree a l'ajout de Contact",
+                            notes="créé à l'ajout de Contact",
                         )
                     contact.organization = organization
                     contact.save(update_fields=["organization"])

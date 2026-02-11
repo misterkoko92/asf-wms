@@ -168,9 +168,9 @@ class ProductAdmin(admin.ModelAdmin):
 
     def unarchive_products(self, request, queryset):
         updated = queryset.update(is_active=True)
-        self.message_user(request, f"{updated} produit(s) reactives.")
+        self.message_user(request, f"{updated} produit(s) réactivés.")
 
-    unarchive_products.short_description = "Reactiver les produits"
+    unarchive_products.short_description = "Réactiver les produits"
 
     def generate_qr_codes(self, request, queryset):
         count = 0
@@ -179,9 +179,9 @@ class ProductAdmin(admin.ModelAdmin):
                 product.generate_qr_code()
                 product.save(update_fields=["qr_code_image"])
                 count += 1
-        self.message_user(request, f"{count} QR code(s) generes.")
+        self.message_user(request, f"{count} QR code(s) générés.")
 
-    generate_qr_codes.short_description = "Generer les QR codes"
+    generate_qr_codes.short_description = "Générer les QR codes"
 
     def print_product_labels(self, request, queryset):
         products = (
@@ -190,7 +190,7 @@ class ProductAdmin(admin.ModelAdmin):
             .all()
         )
         if not products:
-            self.message_user(request, "Aucun produit selectionne.", level=messages.WARNING)
+            self.message_user(request, "Aucun produit sélectionné.", level=messages.WARNING)
             return None
         warehouse_ids = set()
         for product in products:
@@ -226,12 +226,12 @@ class ProductAdmin(admin.ModelAdmin):
             {"pages": pages, "page_style": page_style},
         )
 
-    print_product_labels.short_description = "Imprimer etiquettes produit"
+    print_product_labels.short_description = "Imprimer étiquettes produit"
 
     def print_product_qr_labels(self, request, queryset):
         products = queryset.order_by("name").all()
         if not products:
-            self.message_user(request, "Aucun produit selectionne.", level=messages.WARNING)
+            self.message_user(request, "Aucun produit sélectionné.", level=messages.WARNING)
             return None
         for product in products:
             if not product.qr_code_image:
@@ -320,7 +320,7 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
         if skipped:
             self.message_user(
                 request,
-                f"{skipped} demande(s) ignoree(s) (deja approuvees ou identifiant reserve).",
+                f"{skipped} demande(s) ignorée(s) (déjà approuvées ou identifiant réservé).",
                 level=messages.WARNING,
             )
 
@@ -346,13 +346,13 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
         if ok:
             self.message_user(
                 request,
-                "Compte cree automatiquement apres validation.",
+                "Compte créé automatiquement après validation.",
                 level=messages.SUCCESS,
             )
         else:
             self.message_user(
                 request,
-                f"Validation ignoree ({reason}).",
+                f"Validation ignorée ({reason}).",
                 level=messages.WARNING,
             )
 
@@ -538,7 +538,7 @@ class RackColorAdminForm(forms.ModelForm):
                 warehouse=warehouse, zone=zone
             ).exists()
             if not exists:
-                self.add_error("zone", "Rack inexistant pour cet entrepot.")
+                self.add_error("zone", "Rack inexistant pour cet entrepôt.")
         return cleaned_data
 
 
@@ -622,11 +622,11 @@ class ReceiptAdmin(admin.ModelAdmin):
                 except StockError as exc:
                     errors.append(f"{receipt}: {exc}")
         if processed:
-            self.message_user(request, f"{processed} ligne(s) receptionnee(s).")
+            self.message_user(request, f"{processed} ligne(s) réceptionnée(s).")
         for error in errors:
             self.message_user(request, error, level=messages.ERROR)
 
-    receive_lines.short_description = "Receptionner les lignes"
+    receive_lines.short_description = "Réceptionner les lignes"
 
 
 @admin.register(models.ReceiptLine)
@@ -649,11 +649,11 @@ class ReceiptLineAdmin(admin.ModelAdmin):
             except StockError as exc:
                 errors.append(f"{line.receipt}: {exc}")
         if processed:
-            self.message_user(request, f"{processed} ligne(s) receptionnee(s).")
+            self.message_user(request, f"{processed} ligne(s) réceptionnée(s).")
         for error in errors:
             self.message_user(request, error, level=messages.ERROR)
 
-    receive_selected_lines.short_description = "Receptionner les lignes selectionnees"
+    receive_selected_lines.short_description = "Réceptionner les lignes sélectionnées"
     list_select_related = ("receipt", "receipt__warehouse", "product", "location", "received_lot")
 
 
@@ -759,7 +759,7 @@ class OrderAdmin(admin.ModelAdmin):
     def shipment_reference(self, obj):
         return obj.shipment.reference if obj.shipment else "-"
 
-    shipment_reference.short_description = "Expedition"
+    shipment_reference.short_description = "Expédition"
 
     def create_shipment(self, request, queryset):
         created = 0
@@ -769,9 +769,9 @@ class OrderAdmin(admin.ModelAdmin):
             create_shipment_for_order(order=order)
             created += 1
         if created:
-            self.message_user(request, f"{created} expedition(s) creee(s).")
+            self.message_user(request, f"{created} expédition(s) créée(s).")
 
-    create_shipment.short_description = "Creer expedition"
+    create_shipment.short_description = "Créer une expédition"
 
     def reserve_order(self, request, queryset):
         processed = 0
@@ -783,11 +783,11 @@ class OrderAdmin(admin.ModelAdmin):
             except StockError as exc:
                 errors.append(f"{order}: {exc}")
         if processed:
-            self.message_user(request, f"{processed} commande(s) reservee(s).")
+            self.message_user(request, f"{processed} commande(s) réservée(s).")
         for error in errors:
             self.message_user(request, error, level=messages.ERROR)
 
-    reserve_order.short_description = "Reserver le stock"
+    reserve_order.short_description = "Réserver le stock"
 
     def prepare_order_action(self, request, queryset):
         processed = 0
@@ -799,11 +799,11 @@ class OrderAdmin(admin.ModelAdmin):
             except StockError as exc:
                 errors.append(f"{order}: {exc}")
         if processed:
-            self.message_user(request, f"{processed} commande(s) preparee(s).")
+            self.message_user(request, f"{processed} commande(s) préparée(s).")
         for error in errors:
             self.message_user(request, error, level=messages.ERROR)
 
-    prepare_order_action.short_description = "Preparer les commandes"
+    prepare_order_action.short_description = "Préparer les commandes"
 
 
 @admin.register(models.OrderReservation)
@@ -852,15 +852,15 @@ class CartonAdmin(admin.ModelAdmin):
             transaction_module=transaction,
         )
         if unpacked:
-            self.message_user(request, f"{unpacked} carton(s) deconditionne(s).")
+            self.message_user(request, f"{unpacked} carton(s) déconditionné(s).")
         if skipped:
             self.message_user(
                 request,
-                f"{skipped} carton(s) ignores (deja expedies ou vides).",
+                f"{skipped} carton(s) ignorés (déjà expédiés ou vides).",
                 level=messages.WARNING,
             )
 
-    unpack_cartons.short_description = "Deconditionner les cartons"
+    unpack_cartons.short_description = "Déconditionner les cartons"
 
 
 class CartonInline(admin.TabularInline):

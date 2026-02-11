@@ -1,10 +1,10 @@
 {% extends "scan/base.html" %}
 
-{% block title %}WMS Scan - Reception association{% endblock %}
+{% block title %}WMS Scan - R&eacute;ception association{% endblock %}
 
 {% block content %}
   <div class="scan-card">
-    <h2>Reception association</h2>
+    <h2>R&eacute;ception association</h2>
     {% if create_form.non_field_errors %}
       <div class="scan-message error">{{ create_form.non_field_errors }}</div>
     {% endif %}
@@ -12,7 +12,7 @@
       {% csrf_token %}
 
       <div class="scan-field">
-        <label for="id_received_on">Date reception</label>
+        <label for="id_received_on">Date r&eacute;ception</label>
         {{ create_form.received_on }}
         {% for error in create_form.received_on.errors %}
           <div class="scan-message error">{{ error }}</div>
@@ -67,10 +67,10 @@
       <div class="pack-lines" id="association-lines"></div>
 
       <div class="scan-field scan-field-gap">
-        <button type="submit" class="scan-submit">Enregistrer la reception association</button>
+        <button type="submit" class="scan-submit">Enregistrer la r&eacute;ception association</button>
       </div>
     </form>
-    <p class="scan-help">La reference est generee automatiquement (format YY-XX-WWW-ZZ).</p>
+    <p class="scan-help">La r&eacute;f&eacute;rence est g&eacute;n&eacute;r&eacute;e automatiquement (format YY-XX-WWW-ZZ).</p>
   </div>
 
   {{ line_values|json_script:"association-lines-data" }}

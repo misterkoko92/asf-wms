@@ -698,7 +698,7 @@ class ScanViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(
             response,
-            "Mise a jour du suivi indisponible sur ce lien legacy.",
+            "Mise &agrave; jour du suivi indisponible sur ce lien legacy.",
         )
         self.assertNotContains(response, str(shipment.tracking_token))
         response = self.client.post(
@@ -824,7 +824,7 @@ class PublicAccountRequestViewTests(TestCase):
         self.assertEqual(second_response.status_code, 200)
         self.assertContains(
             second_response,
-            "Une demande recente a deja ete envoyee. Merci de patienter quelques minutes.",
+            "Une demande récente a déjà été envoyée. Merci de patienter quelques minutes.",
         )
         self.assertEqual(PublicAccountRequest.objects.count(), 1)
         self.assertEqual(

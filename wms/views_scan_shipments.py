@@ -301,7 +301,7 @@ def scan_shipment_edit(request, shipment_id):
         pk=shipment_id,
     )
     if shipment.status in {ShipmentStatus.SHIPPED, ShipmentStatus.DELIVERED}:
-        messages.error(request, "Expedition non modifiable.")
+        messages.error(request, "Expédition non modifiable.")
         return redirect("scan:scan_shipments_ready")
 
     shipment.ensure_qr_code(request=request)

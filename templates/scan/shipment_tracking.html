@@ -3,7 +3,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <title>Suivi expedition</title>
+  <title>Suivi exp&eacute;dition</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="{% static 'scan/scan.css' %}">
 </head>
@@ -19,7 +19,7 @@
       {% endif %}
 
       <div class="scan-card">
-        <h2>Suivi expedition {{ shipment.reference }}</h2>
+        <h2>Suivi exp&eacute;dition {{ shipment.reference }}</h2>
 
         <div class="scan-field">
           <label>Documents lies</label>
@@ -43,7 +43,7 @@
               {% endfor %}
             </div>
           {% else %}
-            <div class="scan-help">Aucun colis associe.</div>
+            <div class="scan-help">Aucun colis associ&eacute;.</div>
           {% endif %}
         </div>
 
@@ -65,7 +65,7 @@
         <hr class="scan-divider">
 
         {% if can_update_tracking %}
-          <h3>Mettre a jour le suivi</h3>
+          <h3>Mettre &agrave; jour le suivi</h3>
           <form method="post">
             {% csrf_token %}
             {% if form.non_field_errors %}
@@ -108,7 +108,7 @@
           </form>
         {% else %}
           <div class="scan-help">
-            Mise a jour du suivi indisponible sur ce lien legacy. Utilisez le QR code le plus recent.
+            Mise &agrave; jour du suivi indisponible sur ce lien legacy. Utilisez le QR code le plus r&eacute;cent.
           </div>
         {% endif %}
 

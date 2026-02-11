@@ -18,7 +18,7 @@
               <th>Association</th>
               <th>Contact</th>
               <th>Statut commande</th>
-              <th>Expedition</th>
+              <th>Exp&eacute;dition</th>
               <th>Documents</th>
             </tr>
           </thead>
@@ -48,7 +48,7 @@
                         </option>
                       {% endfor %}
                     </select>
-                    <button type="submit" class="scan-scan-btn">Mettre a jour</button>
+                    <button type="submit" class="scan-scan-btn">Mettre &agrave; jour</button>
                   </form>
                 </td>
                 <td>
@@ -57,7 +57,7 @@
                       {% csrf_token %}
                       <input type="hidden" name="action" value="create_shipment">
                       <input type="hidden" name="order_id" value="{{ row.order.id }}">
-                      <button type="submit" class="scan-scan-btn">Creer l'expedition</button>
+                      <button type="submit" class="scan-scan-btn">Cr&eacute;er l'exp&eacute;dition</button>
                     </form>
                   {% else %}
                     -

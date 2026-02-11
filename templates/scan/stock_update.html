@@ -23,12 +23,12 @@
       </div>
 
       <div id="product-create-actions" class="scan-field" style="display:none;">
-        <a class="scan-submit secondary" href="{% url 'admin:wms_product_add' %}">Creer le produit dans la base</a>
+        <a class="scan-submit secondary" href="{% url 'admin:wms_product_add' %}">Cr&eacute;er le produit dans la base</a>
       </div>
 
       <div id="stock-update-fields">
         <div class="scan-field">
-          <label for="id_quantity">Quantite</label>
+          <label for="id_quantity">Quantit&eacute;</label>
           {{ create_form.quantity }}
           {% for error in create_form.quantity.errors %}
             <div class="scan-message error">{{ error }}</div>
@@ -36,7 +36,7 @@
         </div>
 
         <div class="scan-field">
-          <label for="id_expires_on">Date peremption</label>
+          <label for="id_expires_on">Date p&eacute;remption</label>
           {{ create_form.expires_on }}
           {% for error in create_form.expires_on.errors %}
             <div class="scan-message error">{{ error }}</div>
@@ -77,7 +77,7 @@
         </div>
 
         <div class="scan-field">
-          <label for="id_warehouse_display">Entrepot</label>
+          <label for="id_warehouse_display">Entrep&ocirc;t</label>
           <input type="text" id="id_warehouse_display" readonly>
         </div>
 

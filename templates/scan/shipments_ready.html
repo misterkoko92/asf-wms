@@ -1,21 +1,21 @@
 {% extends "scan/base.html" %}
 
-{% block title %}WMS Scan - Vue Expeditions{% endblock %}
+{% block title %}WMS Scan - Vue Exp&eacute;ditions{% endblock %}
 
 {% block content %}
   <div class="scan-card">
-    <h2>Vue Expeditions ({{ shipments|length }})</h2>
+    <h2>Vue Exp&eacute;ditions ({{ shipments|length }})</h2>
     {% if shipments %}
       <div class="scan-table-wrap">
         <table class="scan-table">
           <thead>
             <tr>
-              <th>No expedition</th>
+              <th>N° expédition</th>
               <th>Nb colis</th>
               <th>Destination (IATA)</th>
-              <th>Expediteur</th>
+              <th>Exp&eacute;diteur</th>
               <th>Destinataire</th>
-              <th>Date creation</th>
+              <th>Date cr&eacute;ation</th>
               <th>Date mise en disponible</th>
               <th>Statut</th>
               <th>Documents</th>
@@ -36,7 +36,7 @@
                 <td>
                   <div class="scan-docs">
                     <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'shipment_note' %}" target="_blank" rel="noopener">
-                      Bon d'expedition
+                      Bon d'exp&eacute;dition
                     </a>
                     <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'packing_list_shipment' %}" target="_blank" rel="noopener">
                       Liste colisage (lot)
@@ -45,7 +45,7 @@
                       Attestation donation
                     </a>
                     <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_labels' shipment.id %}" target="_blank" rel="noopener">
-                      Etiquettes colis
+                      &Eacute;tiquettes colis
                     </a>
                   </div>
                 </td>
@@ -65,7 +65,7 @@
         </table>
       </div>
     {% else %}
-      <p class="scan-help">Aucune expedition.</p>
+      <p class="scan-help">Aucune exp&eacute;dition.</p>
     {% endif %}
   </div>
 {% endblock %}

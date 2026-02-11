@@ -21,12 +21,12 @@
     <main class="scan-main">
       <div class="scan-card">
         <div class="summary-header">
-          <h2>Recapitulatif commande</h2>
+          <h2>R&eacute;capitulatif commande</h2>
           <button type="button" class="scan-scan-btn no-print" onclick="window.print()">Imprimer / PDF</button>
         </div>
         <div class="summary-meta">
           <div>
-            <strong>Reference</strong>
+            <strong>R&eacute;f&eacute;rence</strong>
             <div>{{ order.reference|default:"Commande" }}{% if not order.reference %} {{ order.id }}{% endif %}</div>
           </div>
           <div>
@@ -56,7 +56,7 @@
             <thead>
               <tr>
                 <th>Produit</th>
-                <th>Quantite</th>
+                <th>Quantit&eacute;</th>
                 <th>Cartons estimes</th>
               </tr>
             </thead>

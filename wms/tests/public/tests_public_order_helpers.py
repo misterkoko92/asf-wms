@@ -103,7 +103,7 @@ class PublicOrderHelpersTests(TestCase):
         address = contact.addresses.get()
         self.assertEqual(address.address_line1, "3 Rue Name")
 
-    def test_upsert_ignores_inactive_contact_id_and_creates_new_contact(self):
+    def test_upsert_ignorés_inactive_contact_id_and_creates_new_contact(self):
         inactive = Contact.objects.create(
             name="Association Inactive",
             is_active=False,

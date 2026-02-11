@@ -61,7 +61,7 @@ def _resolve_edit_layout_data(request, *, action, doc_type, template):
 
     if action == "reset":
         if template is None:
-            messages.info(request, "Ce modele est deja sur la version par defaut.")
+            messages.info(request, "Ce modèle est déjà sur la version par défaut.")
             return None, _redirect_template_edit(doc_type)
         return {}, None
 
@@ -100,11 +100,11 @@ def _save_template_layout(*, template, doc_type, layout_data, user):
 
 def _notify_edit_success(request, *, action):
     if action == "reset":
-        messages.success(request, "Modele remis par defaut.")
+        messages.success(request, "Modèle remis par défaut.")
     elif action == "restore":
-        messages.success(request, "Version restauree.")
+        messages.success(request, "Version restaurée.")
     else:
-        messages.success(request, "Modele enregistre.")
+        messages.success(request, "Modèle enregistré.")
 
 
 def _build_template_list_items():

@@ -132,11 +132,11 @@ class ShipmentHelpersTests(TestCase):
         self.assertEqual(
             line_errors,
             {
-                "1": ["Choisissez un carton OU creez un colis depuis un produit."],
+                "1": ["Choisissez un carton OU créez un colis depuis un produit."],
                 "2": ["Carton indisponible."],
                 "3": ["Produit requis."],
-                "4": ["Quantite requise."],
-                "5": ["Quantite invalide."],
+                "4": ["Quantité requise."],
+                "5": ["Quantité invalide."],
                 "6": ["Produit introuvable."],
                 "7": ["Renseignez un carton ou un produit."],
             },

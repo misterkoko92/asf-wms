@@ -1,26 +1,26 @@
 {% extends "scan/base.html" %}
 
-{% block title %}WMS Scan - Reception{% endblock %}
+{% block title %}WMS Scan - R&eacute;ception{% endblock %}
 
 {% block content %}
   <div class="scan-card">
-    <h2>Reception don/palette</h2>
+    <h2>R&eacute;ception don/palette</h2>
     <form method="post" novalidate>
       {% csrf_token %}
       <input type="hidden" name="action" value="select_receipt">
       <div class="scan-field">
-        <label for="id_receipt">Reception existante</label>
+        <label for="id_receipt">R&eacute;ception existante</label>
         <div class="scan-inline">
           {{ select_form.receipt }}
           <a class="scan-scan-btn" href="{% url 'admin:wms_receipt_add' %}" target="_blank" rel="noopener">
-            Ajouter reception
+            Ajouter r&eacute;ception
           </a>
         </div>
         {% for error in select_form.receipt.errors %}
           <div class="scan-message error">{{ error }}</div>
         {% endfor %}
       </div>
-      <button type="submit" class="scan-submit secondary scan-submit-inline">Ouvrir reception</button>
+      <button type="submit" class="scan-submit secondary scan-submit-inline">Ouvrir r&eacute;ception</button>
     </form>
 
     <div class="scan-divider"></div>
@@ -29,7 +29,7 @@
       {% csrf_token %}
       <input type="hidden" name="action" value="create_receipt">
       <div class="scan-field">
-        <label for="id_receipt_type">Type reception</label>
+        <label for="id_receipt_type">Type r&eacute;ception</label>
         {{ create_form.receipt_type }}
         {% for error in create_form.receipt_type.errors %}
           <div class="scan-message error">{{ error }}</div>
@@ -57,17 +57,17 @@
       </div>
 
       <div class="scan-field">
-        <label for="id_origin_reference">Reference provenance</label>
+        <label for="id_origin_reference">R&eacute;f&eacute;rence provenance</label>
         {{ create_form.origin_reference }}
       </div>
 
       <div class="scan-field">
-        <label for="id_carrier_reference">Reference transport</label>
+        <label for="id_carrier_reference">R&eacute;f&eacute;rence transport</label>
         {{ create_form.carrier_reference }}
       </div>
 
       <div class="scan-field">
-        <label for="id_received_on">Date reception</label>
+        <label for="id_received_on">Date r&eacute;ception</label>
         {{ create_form.received_on }}
         {% for error in create_form.received_on.errors %}
           <div class="scan-message error">{{ error }}</div>
@@ -75,11 +75,11 @@
       </div>
 
       <div class="scan-field">
-        <label for="id_warehouse">Entrepot</label>
+        <label for="id_warehouse">Entrep&ocirc;t</label>
         <div class="scan-inline">
           {{ create_form.warehouse }}
           <a class="scan-scan-btn" href="{% url 'admin:wms_warehouse_add' %}" target="_blank" rel="noopener">
-            Ajouter entrepot
+            Ajouter entrep&ocirc;t
           </a>
         </div>
         {% for error in create_form.warehouse.errors %}
@@ -92,17 +92,17 @@
         {{ create_form.notes }}
       </div>
 
-      <button type="submit" class="scan-submit">Creer reception</button>
-      <p class="scan-help">Contacts geres dans l'admin.</p>
+      <button type="submit" class="scan-submit">Cr&eacute;er r&eacute;ception</button>
+      <p class="scan-help">Contacts g&eacute;r&eacute;s dans l'admin.</p>
     </form>
   </div>
 
   {% if selected_receipt %}
     <div class="scan-card">
-      <h2>Reception active</h2>
+      <h2>R&eacute;ception active</h2>
       <div class="scan-meta-grid">
         <div class="scan-meta-item">
-          <strong>Reference</strong>
+          <strong>R&eacute;f&eacute;rence</strong>
           {{ selected_receipt.reference|default:"-" }}
         </div>
         <div class="scan-meta-item">
@@ -114,11 +114,11 @@
           {{ selected_receipt.get_status_display }}
         </div>
         <div class="scan-meta-item">
-          <strong>Date reception</strong>
+          <strong>Date r&eacute;ception</strong>
           {{ selected_receipt.received_on|date:"d/m/Y" }}
         </div>
         <div class="scan-meta-item">
-          <strong>Entrepot</strong>
+          <strong>Entrep&ocirc;t</strong>
           {{ selected_receipt.warehouse }}
         </div>
         <div class="scan-meta-item">
@@ -157,7 +157,7 @@
         </div>
 
         <div class="scan-field">
-          <label for="id_quantity">Quantite</label>
+          <label for="id_quantity">Quantit&eacute;</label>
           {{ line_form.quantity }}
           {% for error in line_form.quantity.errors %}
             <div class="scan-message error">{{ error }}</div>
@@ -170,7 +170,7 @@
         </div>
 
         <div class="scan-field">
-          <label for="id_expires_on">Date peremption</label>
+          <label for="id_expires_on">Date p&eacute;remption</label>
           {{ line_form.expires_on }}
         </div>
 
@@ -190,7 +190,7 @@
           {% for error in line_form.location.errors %}
             <div class="scan-message error">{{ error }}</div>
           {% endfor %}
-          <p class="scan-help">Laissez vide pour utiliser l'emplacement par defaut du produit.</p>
+          <p class="scan-help">Laissez vide pour utiliser l'emplacement par d&eacute;faut du produit.</p>
         </div>
 
         <div class="scan-field">
@@ -201,12 +201,12 @@
         <div class="scan-field">
           <label>
             {{ line_form.receive_now }}
-            Receptionner maintenant
+            R&eacute;ceptionner maintenant
           </label>
         </div>
 
         <button type="submit" class="scan-submit">Ajouter la ligne</button>
-        <p class="scan-help">Astuce: le statut auto applique la quarantaine par defaut du produit.</p>
+        <p class="scan-help">Astuce: le statut auto applique la quarantaine par d&eacute;faut du produit.</p>
       </form>
       {{ products_json|json_script:"product-data" }}
       <datalist id="product-options">
@@ -217,14 +217,14 @@
     </div>
 
     <div class="scan-card">
-      <h2>Lignes de reception</h2>
+      <h2>Lignes de r&eacute;ception</h2>
       {% if receipt_lines %}
         <div class="scan-table-wrap">
           <table class="scan-table">
             <thead>
               <tr>
                 <th>Produit</th>
-                <th>Quantite</th>
+                <th>Quantit&eacute;</th>
                 <th>Lot</th>
                 <th>Peremption</th>
                 <th>Emplacement</th>
@@ -241,7 +241,7 @@
                   <td>{{ line.location|default:"-" }}</td>
                   <td class="status">
                     {% if line.received_lot_id %}
-                      Receptionne
+                      R&eacute;ceptionn&eacute;
                     {% else %}
                       En attente
                     {% endif %}
@@ -257,18 +257,18 @@
             <input type="hidden" name="action" value="receive_lines">
             <input type="hidden" name="receipt_id" value="{{ selected_receipt.id }}">
             <button type="submit" class="scan-submit secondary scan-submit-inline">
-              Receptionner {{ pending_count }} ligne(s)
+              R&eacute;ceptionner {{ pending_count }} ligne(s)
             </button>
           </form>
         {% endif %}
       {% else %}
-        <p class="scan-help">Aucune ligne pour cette reception.</p>
+        <p class="scan-help">Aucune ligne pour cette r&eacute;ception.</p>
       {% endif %}
     </div>
   {% else %}
     <div class="scan-card">
-      <h2>Aucune reception selectionnee</h2>
-      <p class="scan-help">Creez une reception ou selectionnez-en une pour ajouter des lignes.</p>
+      <h2>Aucune r&eacute;ception s&eacute;lectionn&eacute;e</h2>
+      <p class="scan-help">Cr&eacute;ez une r&eacute;ception ou s&eacute;lectionnez-en une pour ajouter des lignes.</p>
     </div>
   {% endif %}
 {% endblock %}

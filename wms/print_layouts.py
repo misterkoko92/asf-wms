@@ -251,13 +251,13 @@ DEFAULT_LAYOUTS = {
 }
 
 DOCUMENT_TEMPLATES = [
-    ("shipment_note", "Bon d'expedition"),
+    ("shipment_note", "Bon d'expédition"),
     ("packing_list_shipment", "Liste colisage (lot)"),
     ("packing_list_carton", "Liste colisage (carton)"),
     ("donation_certificate", "Attestation donation"),
     ("humanitarian_certificate", "Attestation aide humanitaire"),
     ("customs", "Attestation douane"),
-    ("shipment_label", "Etiquette expedition"),
+    ("shipment_label", "Étiquette expédition"),
     ("product_label", "Etiquettes produit"),
     ("product_qr", "QR produits"),
 ]

@@ -17,7 +17,7 @@ def handle_stock_out_post(request, *, form):
 
     shipment = resolve_shipment(form.cleaned_data["shipment_reference"])
     if form.cleaned_data["shipment_reference"] and not shipment:
-        form.add_error("shipment_reference", "Expedition introuvable.")
+        form.add_error("shipment_reference", "Expédition introuvable.")
         return None
 
     try:

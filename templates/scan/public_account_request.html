@@ -3,7 +3,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <title>Creation de compte</title>
+  <title>Cr&eacute;ation de compte</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="{% static 'scan/scan.css' %}">
   <link rel="stylesheet" href="{% static 'scan/address_autocomplete.css' %}">
@@ -20,13 +20,13 @@
       {% endif %}
 
       <div class="scan-card">
-        <h2>Creation de compte</h2>
+        <h2>Cr&eacute;ation de compte</h2>
         <p class="scan-help">
           Choisissez votre profil puis envoyez votre demande. Un administrateur ASF doit valider le compte.
         </p>
         {% if link %}
           <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_public_order' link.token %}">
-            Retour a la commande
+            Retour &agrave; la commande
           </a>
         {% else %}
           <a class="scan-scan-btn scan-doc-btn" href="{% url 'portal:portal_login' %}">
@@ -74,7 +74,7 @@
               <input type="hidden" id="contact_id" name="contact_id" value="{{ form_data.contact_id }}">
             </div>
             <div class="scan-field">
-              <label for="phone">Telephone</label>
+              <label for="phone">T&eacute;l&eacute;phone</label>
               <input type="text" id="phone" name="phone" value="{{ form_data.phone }}">
             </div>
             <div class="scan-field">
@@ -90,7 +90,7 @@
               >
             </div>
             <div class="scan-field">
-              <label for="line2">Complement adresse</label>
+              <label for="line2">Compl&eacute;ment adresse</label>
               <input
                 type="text"
                 id="line2"
@@ -138,7 +138,7 @@
               <textarea id="notes" name="notes" rows="3">{{ form_data.notes }}</textarea>
             </div>
 
-            <h3>Documents de verification</h3>
+            <h3>Documents de v&eacute;rification</h3>
             <div class="scan-field">
               <label for="doc_statutes">Statuts de l'association</label>
               <input type="file" id="doc_statutes" name="doc_statutes" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.doc,.docx">
@@ -148,7 +148,7 @@
               <input type="file" id="doc_registration" name="doc_registration" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.doc,.docx">
             </div>
             <div class="scan-field">
-              <label for="doc_report">Dernier rapport d'activite</label>
+              <label for="doc_report">Dernier rapport d'activit&eacute;</label>
               <input type="file" id="doc_report" name="doc_report" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.doc,.docx">
             </div>
             <div class="scan-field">

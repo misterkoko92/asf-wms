@@ -26,7 +26,7 @@ def handle_receive_view(
     transaction_module,
     message_user,
 ):
-    title = "Reception stock"
+    title = "Réception stock"
     if request.method == "POST":
         form = form_class(request.POST)
         if form.is_valid():
@@ -36,7 +36,7 @@ def handle_receive_view(
             if location is None:
                 form.add_error(
                     "location",
-                    "Emplacement requis ou definir un emplacement par defaut.",
+                    "Emplacement requis ou définir un emplacement par défaut.",
                 )
                 return render_form(request, form, title)
             with transaction_module.atomic():
@@ -51,7 +51,7 @@ def handle_receive_view(
                     status=status,
                     storage_conditions=form.cleaned_data["storage_conditions"],
                 )
-            message_user(request, "Stock receptionne et lot cree avec succes.")
+            message_user(request, "Stock réceptionné et lot créé avec succès.")
             return redirect_fn("admin:wms_productlot_change", lot.id)
     else:
         form = form_class()
@@ -84,7 +84,7 @@ def handle_adjust_view(
                         reason_code=form.cleaned_data["reason_code"] or "",
                         reason_notes=form.cleaned_data["reason_notes"] or "",
                     )
-                message_user(request, "Ajustement de stock enregistre.")
+                message_user(request, "Ajustement de stock enregistré.")
                 return redirect_fn("admin:wms_productlot_change", lot.id)
             except stock_error_cls:
                 form.add_error(
@@ -107,7 +107,7 @@ def handle_transfer_view(
     transaction_module,
     message_user,
 ):
-    title = "Transferer stock"
+    title = "Transférer stock"
     if request.method == "POST":
         form = form_class(request.POST)
         if form.is_valid():
@@ -120,24 +120,24 @@ def handle_transfer_view(
                         lot=lot,
                         to_location=to_location,
                     )
-                message_user(request, "Transfert de stock enregistre.")
+                message_user(request, "Transfert de stock enregistré.")
                 return redirect_fn("admin:wms_productlot_change", lot.id)
             except stock_error_cls:
-                form.add_error("to_location", "Le lot est deja a cet emplacement.")
+                form.add_error("to_location", "Le lot est déjà à cet emplacement.")
     else:
         form = form_class()
     return render_form(request, form, title)
 
 
 def _map_pack_error_to_field(error_message):
-    if "Carton deja lie" in error_message:
+    if "Carton deja lie" in error_message or "Carton déjà lié" in error_message:
         return "shipment"
     if "Stock insuffisant" in error_message:
         return "quantity"
     lowered = error_message.lower()
-    if "carton expedie" in lowered:
+    if "carton expedie" in lowered or "carton expédié" in lowered:
         return "carton"
-    if "expedition expediee" in lowered:
+    if "expedition expediee" in lowered or "expédition expédiée" in lowered:
         return "shipment"
     return None
 
@@ -153,7 +153,7 @@ def handle_pack_view(
     transaction_module,
     message_user,
 ):
-    title = "Preparer carton"
+    title = "Préparer carton"
     if request.method == "POST":
         form = form_class(request.POST)
         if form.is_valid():
@@ -179,7 +179,7 @@ def handle_pack_view(
                     form.add_error(_map_pack_error_to_field(message), message)
                     return render_form(request, form, title)
 
-            message_user(request, "Carton prepare avec succes.")
+            message_user(request, "Carton préparé avec succès.")
             return redirect_fn("admin:wms_carton_change", carton.id)
     else:
         form = form_class()

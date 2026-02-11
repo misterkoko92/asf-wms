@@ -179,7 +179,7 @@ class ImportUtilsTests(SimpleTestCase):
         self.assertEqual(rows, [{"x": 2}])
         xls_mock.assert_called_once()
 
-        with self.assertRaisesMessage(ValueError, "Format de fichier non supporte."):
+        with self.assertRaisesMessage(ValueError, "Format de fichier non supporté."):
             import_utils.iter_import_rows(b"x", ".pdf")
 
     def test_sanitize_headers_and_coerce_cell(self):
@@ -358,7 +358,7 @@ class ImportUtilsTests(SimpleTestCase):
                 import_utils.extract_tabular_data(b"x", ".pdf", pdf_pages=(1, 2)),
                 (["a"], [["1"]]),
             )
-        with self.assertRaisesMessage(ValueError, "Format de fichier non supporte."):
+        with self.assertRaisesMessage(ValueError, "Format de fichier non supporté."):
             import_utils.extract_tabular_data(b"x", ".doc")
 
     def test_get_pdf_page_count_and_list_excel_sheets(self):

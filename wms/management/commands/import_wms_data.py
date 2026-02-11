@@ -241,13 +241,13 @@ class Command(BaseCommand):
                 self.stdout.write("Dry run complete; no changes were saved.")
 
         self.stdout.write(
-            "Import termine: "
-            f"{stats['contacts_created']} contacts crees, "
-            f"{stats['contacts_updated']} contacts mis a jour, "
-            f"{stats['addresses_created']} adresses crees, "
-            f"{stats['destinations_created']} destinations crees, "
-            f"{stats['destinations_updated']} destinations mises a jour, "
-            f"{stats['rows_skipped']} lignes ignorees, "
+            "Import terminé: "
+            f"{stats['contacts_created']} contacts créés, "
+            f"{stats['contacts_updated']} contacts mis à jour, "
+            f"{stats['addresses_created']} adresses créées, "
+            f"{stats['destinations_created']} destinations créées, "
+            f"{stats['destinations_updated']} destinations mises à jour, "
+            f"{stats['rows_skipped']} lignes ignorées, "
             f"{stats['warnings']} avertissements."
         )
 

@@ -117,7 +117,7 @@ class OrderScanHandlersTests(TestCase):
         self.assertIsNone(response)
         self.assertIsNone(order_lines)
         self.assertIsNone(remaining_total)
-        self.assertIn((None, "Selectionnez une commande."), line_form.errors)
+        self.assertIn((None, "Sélectionnez une commande."), line_form.errors)
 
     def test_handle_order_action_add_line_rejects_cancelled_or_ready_order(self):
         for status in (OrderStatus.CANCELLED, OrderStatus.READY):
@@ -140,7 +140,7 @@ class OrderScanHandlersTests(TestCase):
                 self.assertIsNone(response)
                 self.assertIsNone(order_lines)
                 self.assertIsNone(remaining_total)
-                self.assertIn((None, "Commande annulee."), line_form.errors)
+                self.assertIn((None, "Commande annulée."), line_form.errors)
 
     def test_handle_order_action_add_line_rejects_preparing_order(self):
         line_form = _DummyForm(
@@ -161,7 +161,7 @@ class OrderScanHandlersTests(TestCase):
         self.assertIsNone(response)
         self.assertIsNone(order_lines)
         self.assertIsNone(remaining_total)
-        self.assertIn((None, "Commande en preparation."), line_form.errors)
+        self.assertIn((None, "Commande en préparation."), line_form.errors)
 
     def test_handle_order_action_add_line_adds_error_when_product_not_found(self):
         line_form = _DummyForm(

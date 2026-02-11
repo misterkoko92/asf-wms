@@ -62,7 +62,7 @@ class FormsTests(TestCase):
         form = AdjustStockForm(data={"quantity_delta": "0"})
 
         self.assertFalse(form.is_valid())
-        self.assertEqual(form.errors["quantity_delta"], ["La quantite doit etre non nulle."])
+        self.assertEqual(form.errors["quantity_delta"], ["La quantité doit être non nulle."])
 
     def test_adjust_stock_form_clean_quantity_delta_accepts_non_zero(self):
         form = AdjustStockForm()
@@ -101,7 +101,7 @@ class FormsTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertEqual(
             form.non_field_errors(),
-            ["Selectionnez un carton existant ou indiquez un code, pas les deux."],
+            ["Sélectionnez un carton existant ou indiquez un code, pas les deux."],
         )
 
     def test_pack_carton_form_accepts_single_carton_source(self):
@@ -136,7 +136,7 @@ class FormsTests(TestCase):
         )
 
         self.assertFalse(form.is_valid())
-        self.assertEqual(form.errors["receipt_type"], ["Type de reception requis."])
+        self.assertEqual(form.errors["receipt_type"], ["Type de réception requis."])
 
     def test_scan_receipt_create_form_requires_pallet_contacts_and_warehouse_and_sets_default_date(
         self,
@@ -152,7 +152,7 @@ class FormsTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertEqual(form.errors["source_contact"], ["Provenance requise."])
         self.assertEqual(form.errors["carrier_contact"], ["Transporteur requis."])
-        self.assertEqual(form.errors["warehouse"], ["Entrepot requis."])
+        self.assertEqual(form.errors["warehouse"], ["Entrepôt requis."])
         self.assertEqual(form.cleaned_data.get("received_on"), timezone.localdate())
 
     def test_scan_stock_update_form_reports_missing_product(self):

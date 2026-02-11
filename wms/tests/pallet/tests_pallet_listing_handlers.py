@@ -76,7 +76,7 @@ class PalletListingHandlersTests(TestCase):
         self.assertEqual(state["listing_pdf_total_pages"], "")
         self.assertEqual(state["listing_file_type"], "")
 
-    def test_clear_pending_listing_unlinks_file_and_ignores_oserror(self):
+    def test_clear_pending_listing_unlinks_file_and_ignorés_oserror(self):
         request = self._request()
         request.session["pallet_listing_pending"] = {"file_path": "/tmp/pending-listing.csv"}
         with mock.patch("wms.pallet_listing_handlers.Path.unlink") as unlink_mock:
@@ -198,7 +198,7 @@ class PalletListingHandlersTests(TestCase):
         self.assertEqual(
             state["listing_errors"],
             [
-                "Renseignez les informations de reception.",
+                "Renseignez les informations de réception.",
                 "Fichier requis pour importer le listing.",
             ],
         )
@@ -217,7 +217,7 @@ class PalletListingHandlersTests(TestCase):
             state=state,
         )
         self.assertIsNone(response)
-        self.assertIn("Format de fichier non supporte.", state["listing_errors"])
+        self.assertIn("Format de fichier non supporté.", state["listing_errors"])
 
     def test_handle_listing_upload_skips_processing_when_file_too_big(self):
         request = self._request(
@@ -436,7 +436,7 @@ class PalletListingHandlersTests(TestCase):
                 state=state,
             )
         self.assertIsNone(response)
-        self.assertIn("Page PDF debut invalide.", state["listing_errors"])
+        self.assertIn("Page PDF début invalide.", state["listing_errors"])
         self.assertIn("Page PDF fin invalide.", state["listing_errors"])
 
     def test_handle_listing_upload_pdf_all_pages_extract_error(self):
@@ -589,7 +589,7 @@ class PalletListingHandlersTests(TestCase):
             {0: "name", 1: "quantity"},
         )
 
-    def test_handle_listing_map_ignores_empty_mapping_fields(self):
+    def test_handle_listing_map_ignorés_empty_mapping_fields(self):
         request = self._request(
             {
                 "pending_token": "tok-empty-map",
@@ -664,7 +664,7 @@ class PalletListingHandlersTests(TestCase):
                         )
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse("scan:scan_receive_pallet"))
-        error_mock.assert_called_once_with(request, "Aucun entrepot configure.")
+        error_mock.assert_called_once_with(request, "Aucun entrepôt configuré.")
 
     def test_handle_listing_confirm_import_reports_results_and_clears_pending(self):
         request = self._request(
@@ -741,12 +741,12 @@ class PalletListingHandlersTests(TestCase):
         self.assertEqual(payload["row_data"]["quantity"], "2")
         self.assertEqual(payload["selection"], "product:42")
         self.assertEqual(payload["override_code"], "ALT-001")
-        error_mock.assert_any_call(request, "Import termine avec 2 erreur(s).")
+        error_mock.assert_any_call(request, "Import terminé avec 2 erreur(s).")
         success_mock.assert_called_once_with(
             request,
-            "2 ligne(s) receptionnee(s) (ref RCP-777).",
+            "2 ligne(s) réceptionnée(s) (ref RCP-777).",
         )
-        warning_mock.assert_called_once_with(request, "1 ligne(s) ignoree(s).")
+        warning_mock.assert_called_once_with(request, "1 ligne(s) ignorée(s).")
         clear_mock.assert_called_once_with(request)
 
     def test_handle_listing_confirm_when_nothing_created_adds_error(self):
@@ -787,7 +787,7 @@ class PalletListingHandlersTests(TestCase):
                                 )
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse("scan:scan_receive_pallet"))
-        error_mock.assert_called_once_with(request, "Aucune ligne valide a importer.")
+        error_mock.assert_called_once_with(request, "Aucune ligne valide à importer.")
 
     def test_handle_listing_action_returns_none_for_unknown_action(self):
         request = self._request()

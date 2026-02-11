@@ -10,7 +10,7 @@ class ContactAdminFormTests(TestCase):
     def test_form_init_sets_help_texts(self):
         form = ContactAdminForm()
 
-        self.assertIn("adresse par defaut", form.fields["use_organization_address"].help_text)
+        self.assertIn("adresse par défaut", form.fields["use_organization_address"].help_text)
         self.assertIn("Laisser vide", form.fields["destination"].help_text)
 
     def test_clean_requires_tag_for_organization(self):
@@ -38,7 +38,7 @@ class ContactAdminFormTests(TestCase):
 
         self.assertFalse(form.is_valid())
         self.assertIn("organization", form.errors)
-        self.assertIn("Selectionnez une societe", form.errors["organization"][0])
+        self.assertIn("Sélectionnez une société", form.errors["organization"][0])
 
     def test_clean_valid_person_form(self):
         organization = Contact.objects.create(

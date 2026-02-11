@@ -8,35 +8,35 @@
     <form method="get" class="scan-filters">
       <div class="scan-field">
         <label for="id_q">Recherche</label>
-        <input type="text" id="id_q" name="q" value="{{ query }}" placeholder="Nom, reference, code-barres">
+        <input type="text" id="id_q" name="q" value="{{ query }}" placeholder="Nom, r&eacute;f&eacute;rence, code-barres">
       </div>
 
       <div class="scan-field">
-        <label for="id_category">Categorie</label>
+        <label for="id_category">Cat&eacute;gorie</label>
         <div class="scan-inline">
           <select id="id_category" name="category">
-            <option value="">Toutes categories</option>
+            <option value="">Toutes cat&eacute;gories</option>
             {% for category in categories %}
               <option value="{{ category.id }}" {% if category_id == category.id|stringformat:"s" %}selected{% endif %}>{{ category }}</option>
             {% endfor %}
           </select>
           <a class="scan-scan-btn" href="{% url 'admin:wms_productcategory_add' %}" target="_blank" rel="noopener">
-            Ajouter categorie
+            Ajouter cat&eacute;gorie
           </a>
         </div>
       </div>
 
       <div class="scan-field">
-        <label for="id_warehouse">Entrepot</label>
+        <label for="id_warehouse">Entrep&ocirc;t</label>
         <div class="scan-inline">
           <select id="id_warehouse" name="warehouse">
-            <option value="">Tous entrepots</option>
+            <option value="">Tous entrep&ocirc;ts</option>
             {% for warehouse in warehouses %}
               <option value="{{ warehouse.id }}" {% if warehouse_id == warehouse.id|stringformat:"s" %}selected{% endif %}>{{ warehouse.name }}</option>
             {% endfor %}
           </select>
           <a class="scan-scan-btn" href="{% url 'admin:wms_warehouse_add' %}" target="_blank" rel="noopener">
-            Ajouter entrepot
+            Ajouter entrep&ocirc;t
           </a>
         </div>
       </div>
@@ -44,17 +44,17 @@
       <div class="scan-field">
         <label for="id_sort">Tri</label>
         <select id="id_sort" name="sort">
-          <option value="category" {% if sort == "category" %}selected{% endif %}>Categorie</option>
+          <option value="category" {% if sort == "category" %}selected{% endif %}>Cat&eacute;gorie</option>
           <option value="name" {% if sort == "name" %}selected{% endif %}>Nom</option>
-          <option value="sku" {% if sort == "sku" %}selected{% endif %}>Reference</option>
+          <option value="sku" {% if sort == "sku" %}selected{% endif %}>R&eacute;f&eacute;rence</option>
           <option value="qty_asc" {% if sort == "qty_asc" %}selected{% endif %}>Stock croissant</option>
-          <option value="qty_desc" {% if sort == "qty_desc" %}selected{% endif %}>Stock decroissant</option>
+          <option value="qty_desc" {% if sort == "qty_desc" %}selected{% endif %}>Stock d&eacute;croissant</option>
         </select>
       </div>
 
       <div class="scan-filter-actions">
         <button type="submit" class="scan-submit secondary scan-submit-inline">Filtrer</button>
-        <a href="{% url 'scan:scan_stock' %}">Reinitialiser</a>
+        <a href="{% url 'scan:scan_stock' %}">R&eacute;initialiser</a>
       </div>
     </form>
   </div>
@@ -66,11 +66,11 @@
         <table class="scan-table">
           <thead>
             <tr>
-              <th>Reference</th>
+              <th>R&eacute;f&eacute;rence</th>
               <th>Produit</th>
-              <th>Categorie</th>
+              <th>Cat&eacute;gorie</th>
               <th>Stock</th>
-              <th>Derniere modification</th>
+              <th>Derni&egrave;re modification</th>
             </tr>
           </thead>
           <tbody>

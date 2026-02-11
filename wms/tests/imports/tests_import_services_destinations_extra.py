@@ -57,7 +57,7 @@ class ImportDestinationsExtraTests(TestCase):
         Contact.objects.all().delete()
         ContactTag.objects.all().delete()
         created = _select_default_correspondent()
-        self.assertEqual(created.name, "Correspondant par defaut")
+        self.assertEqual(created.name, "Correspondant par défaut")
         self.assertTrue(created.tags.filter(name__iexact=TAG_CORRESPONDENT[0]).exists())
 
     def test_get_or_create_destination_core_paths(self):

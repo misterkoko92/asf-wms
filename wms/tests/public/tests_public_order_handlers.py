@@ -184,7 +184,7 @@ class PublicOrderHandlersTests(TestCase):
         self.assertEqual(enqueue_mock.call_count, 2)
         warning_messages = [message.message for message in get_messages(request)]
         self.assertIn(
-            "Commande envoyee, mais la confirmation email n'a pas pu etre planifiee.",
+            "Commande envoyée, mais la confirmation email n'a pas pu être planifiée.",
             warning_messages,
         )
 

@@ -70,7 +70,7 @@ def handle_shipment_create_post(request, *, form, available_carton_ids):
             sync_shipment_ready_state(shipment)
             messages.success(
                 request,
-                f"Expedition creee: {shipment.reference}.",
+                f"Expédition créée: {shipment.reference}.",
             )
             response = redirect("scan:scan_shipment_create")
         except StockError as exc:
@@ -120,7 +120,7 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
                 )
                 for carton in cartons_to_remove:
                     if carton.status == CartonStatus.SHIPPED:
-                        raise StockError("Impossible de retirer un carton expedie.")
+                        raise StockError("Impossible de retirer un carton expédié.")
                     carton.shipment = None
                     carton.save(update_fields=["shipment"])
 
@@ -150,7 +150,7 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
             sync_shipment_ready_state(shipment)
             messages.success(
                 request,
-                f"Expedition mise a jour: {shipment.reference}.",
+                f"Expédition mise à jour: {shipment.reference}.",
             )
             response = redirect("scan:scan_shipments_ready")
         except StockError as exc:

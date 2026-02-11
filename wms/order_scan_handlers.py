@@ -59,17 +59,17 @@ def handle_order_action(
         create_shipment_for_order(order=order)
         messages.success(
             request,
-            f"Commande creee: {order.reference or f'Commande {order.id}'}",
+            f"Commande créée: {order.reference or f'Commande {order.id}'}",
         )
         return redirect(f"{reverse('scan:scan_order')}?order={order.id}"), None, None
 
     if action == "add_line":
         if not selected_order:
-            line_form.add_error(None, "Selectionnez une commande.")
+            line_form.add_error(None, "Sélectionnez une commande.")
         elif selected_order.status in {OrderStatus.CANCELLED, OrderStatus.READY}:
-            line_form.add_error(None, "Commande annulee.")
+            line_form.add_error(None, "Commande annulée.")
         elif selected_order.status == OrderStatus.PREPARING:
-            line_form.add_error(None, "Commande en preparation.")
+            line_form.add_error(None, "Commande en préparation.")
         elif line_form.is_valid():
             product = resolve_product(line_form.cleaned_data["product_code"])
             if not product:
@@ -85,7 +85,7 @@ def handle_order_action(
                     reserve_stock_for_order(order=selected_order)
                     messages.success(
                         request,
-                        f"Ligne reservee: {product.name} ({line_form.cleaned_data['quantity']}).",
+                        f"Ligne réservée: {product.name} ({line_form.cleaned_data['quantity']}).",
                     )
                 except StockError as exc:
                     line.quantity = previous_qty
@@ -107,7 +107,7 @@ def handle_order_action(
     if action == "prepare_order" and selected_order:
         try:
             prepare_order(user=request.user, order=selected_order)
-            messages.success(request, "Commande preparee.")
+            messages.success(request, "Commande préparée.")
         except StockError as exc:
             messages.error(request, str(exc))
         return (

@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <title>Etiquette expedition</title>
+  <title>&Eacute;tiquette exp&eacute;dition</title>
   <style>
     @page { size: A5 landscape; margin: 10mm; }
     body {
@@ -78,7 +78,7 @@
       <div class="label-iata-row">
         <div class="label-iata">{{ label.iata|default:"" }}</div>
         {% if label.qr_url %}
-          <img class="label-qr" src="{{ label.qr_url }}" alt="QR expedition {{ label.shipment_ref|default:"" }}">
+          <img class="label-qr" src="{{ label.qr_url }}" alt="QR exp&eacute;dition {{ label.shipment_ref|default:"" }}">
         {% endif %}
       </div>
       <div class="label-footer">

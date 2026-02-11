@@ -31,7 +31,7 @@ def apply_pallet_listing_import(
 
         quantity = parse_int(row_data.get("quantity"))
         if not quantity or quantity <= 0:
-            errors.append(f"Ligne {row_index}: quantite invalide.")
+            errors.append(f"Ligne {row_index}: quantité invalide.")
             continue
 
         product = None
@@ -61,7 +61,7 @@ def apply_pallet_listing_import(
                 errors.append(f"Ligne {row_index}: {exc}")
                 continue
         if not product:
-            errors.append(f"Ligne {row_index}: produit non determine.")
+            errors.append(f"Ligne {row_index}: produit non déterminé.")
             continue
 
         try:
@@ -69,7 +69,7 @@ def apply_pallet_listing_import(
             if location is None:
                 location = product.default_location
             if location is None:
-                raise ValueError("Emplacement requis pour reception.")
+                raise ValueError("Emplacement requis pour réception.")
             if receipt is None:
                 receipt = Receipt.objects.create(
                     receipt_type=ReceiptType.PALLET,

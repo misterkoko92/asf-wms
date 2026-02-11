@@ -37,7 +37,7 @@ def handle_stock_update_post(request, *, form):
             expires_on=form.cleaned_data["expires_on"],
             source_receipt=source_receipt,
         )
-        messages.success(request, "Stock mis a jour.")
+        messages.success(request, "Stock mis à jour.")
         return redirect("scan:scan_stock_update")
     except StockError as exc:
         form.add_error(None, str(exc))

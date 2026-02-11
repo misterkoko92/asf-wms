@@ -50,7 +50,7 @@ class ShipmentSignalEmailQueueTests(TestCase):
         event = events.first()
         self.assertEqual(
             event.payload.get("subject"),
-            f"ASF WMS - Expedition {self.shipment.reference} : statut mis a jour",
+            f"ASF WMS - Expédition {self.shipment.reference} : statut mis à jour",
         )
         self.assertEqual(event.payload.get("recipient"), ["admin@example.com"])
 
@@ -75,6 +75,6 @@ class ShipmentSignalEmailQueueTests(TestCase):
         event = events.first()
         self.assertEqual(
             event.payload.get("subject"),
-            f"ASF WMS - Suivi expedition {self.shipment.reference}",
+            f"ASF WMS - Suivi expédition {self.shipment.reference}",
         )
         self.assertEqual(event.payload.get("recipient"), ["admin@example.com"])

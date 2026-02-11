@@ -171,14 +171,14 @@ class DomainStockExtraTests(TestCase):
 
         self.assertEqual(_dominant_type_code(carton), "BE")
 
-    def test_next_carton_sequence_ignores_invalid_code_and_increments(self):
+    def test_next_carton_sequence_ignorés_invalid_code_and_increments(self):
         Carton.objects.create(code="XX-20260101-2", status=CartonStatus.DRAFT)
         Carton.objects.create(code="BAD-CODE", status=CartonStatus.DRAFT)
         Carton.objects.create(code="XX-20260102-7", status=CartonStatus.DRAFT)
 
         self.assertEqual(_next_carton_sequence("20260101"), 3)
 
-    def test_next_carton_sequence_ignores_non_integer_seq_values(self):
+    def test_next_carton_sequence_ignorés_non_integer_seq_values(self):
         fake_match = SimpleNamespace(
             group=lambda key: {"date": "20260101", "seq": "NaN"}[key]
         )
@@ -206,7 +206,7 @@ class DomainStockExtraTests(TestCase):
             _get_optional(Product, 999999, "Produit")
 
     def test_receive_stock_rejects_non_positive_quantity(self):
-        with self.assertRaisesMessage(StockError, "Quantite invalide."):
+        with self.assertRaisesMessage(StockError, "Quantité invalide."):
             receive_stock(
                 user=self.user,
                 product=self.product,
@@ -225,7 +225,7 @@ class DomainStockExtraTests(TestCase):
             received_lot=lot,
         )
 
-        with self.assertRaisesMessage(StockError, "Ligne de reception deja traitee."):
+        with self.assertRaisesMessage(StockError, "Ligne de réception déjà traitée."):
             receive_receipt_line(user=self.user, line=line)
 
     def test_receive_receipt_line_rejects_cancelled_receipt(self):
@@ -237,7 +237,7 @@ class DomainStockExtraTests(TestCase):
             location=self.location,
         )
 
-        with self.assertRaisesMessage(StockError, "Reception annulee."):
+        with self.assertRaisesMessage(StockError, "Réception annulée."):
             receive_receipt_line(user=self.user, line=line)
 
     def test_receive_receipt_line_requires_location_when_missing_everywhere(self):
@@ -255,17 +255,17 @@ class DomainStockExtraTests(TestCase):
             location=None,
         )
 
-        with self.assertRaisesMessage(StockError, "Emplacement requis pour reception."):
+        with self.assertRaisesMessage(StockError, "Emplacement requis pour réception."):
             receive_receipt_line(user=self.user, line=line)
 
     def test_adjust_stock_validation_errors(self):
         lot = self._create_lot(code="LOT-ADJ-ERR", quantity_on_hand=5, quantity_reserved=3)
 
-        with self.assertRaisesMessage(StockError, "Quantite nulle."):
+        with self.assertRaisesMessage(StockError, "Quantité nulle."):
             adjust_stock(user=self.user, lot=lot, delta=0, reason_code="", reason_notes="")
         with self.assertRaisesMessage(StockError, "Stock insuffisant pour ajustement."):
             adjust_stock(user=self.user, lot=lot, delta=-6, reason_code="", reason_notes="")
-        with self.assertRaisesMessage(StockError, "Ajustement impossible: stock reserve."):
+        with self.assertRaisesMessage(StockError, "Ajustement impossible: stock réservé."):
             adjust_stock(user=self.user, lot=lot, delta=-3, reason_code="", reason_notes="")
 
     def test_adjust_stock_creates_movement_for_negative_and_positive_delta(self):
@@ -288,7 +288,7 @@ class DomainStockExtraTests(TestCase):
     def test_transfer_stock_rejects_same_location_and_moves_lot(self):
         lot = self._create_lot(code="LOT-TRANSFER", quantity_on_hand=6)
 
-        with self.assertRaisesMessage(StockError, "Le lot est deja a cet emplacement."):
+        with self.assertRaisesMessage(StockError, "Le lot est déjà à cet emplacement."):
             transfer_stock(user=self.user, lot=lot, to_location=self.location)
 
         transfer_stock(user=self.user, lot=lot, to_location=self.other_location)
@@ -300,7 +300,7 @@ class DomainStockExtraTests(TestCase):
         self.assertEqual(movement.to_location_id, self.other_location.id)
 
     def test_consume_stock_rejects_non_positive_quantity(self):
-        with self.assertRaisesMessage(StockError, "Quantite invalide."):
+        with self.assertRaisesMessage(StockError, "Quantité invalide."):
             consume_stock(
                 user=self.user,
                 product=self.product,
@@ -350,7 +350,7 @@ class DomainStockExtraTests(TestCase):
         shipped_carton = Carton.objects.create(code="CT-SHIPPED", status=CartonStatus.SHIPPED)
         empty_carton = Carton.objects.create(code="CT-EMPTY-2", status=CartonStatus.DRAFT)
 
-        with self.assertRaisesMessage(StockError, "Impossible de modifier un carton expedie."):
+        with self.assertRaisesMessage(StockError, "Impossible de modifier un carton expédié."):
             unpack_carton(user=self.user, carton=shipped_carton)
         with self.assertRaisesMessage(StockError, "Carton vide."):
             unpack_carton(user=self.user, carton=empty_carton)
@@ -404,13 +404,13 @@ class DomainStockExtraTests(TestCase):
 
     def test_prepare_carton_rejects_shipped_carton_shipment_or_conflict(self):
         shipped_carton = Carton.objects.create(code="CT-SHIPPED-2", status=CartonStatus.SHIPPED)
-        with self.assertRaisesMessage(StockError, "Impossible de modifier un carton expedie."):
+        with self.assertRaisesMessage(StockError, "Impossible de modifier un carton expédié."):
             _prepare_carton(user=self.user, carton=shipped_carton, shipment=None)
 
         shipped_shipment = self._create_shipment(status=ShipmentStatus.SHIPPED)
         with self.assertRaisesMessage(
             StockError,
-            "Impossible de modifier une expedition expediee ou livree.",
+            "Impossible de modifier une expédition expédiée ou livrée.",
         ):
             _prepare_carton(user=self.user, carton=None, shipment=shipped_shipment)
 
@@ -421,7 +421,7 @@ class DomainStockExtraTests(TestCase):
             status=CartonStatus.DRAFT,
             shipment=shipment_a,
         )
-        with self.assertRaisesMessage(StockError, "Carton deja lie a une autre expedition."):
+        with self.assertRaisesMessage(StockError, "Carton déjà lié à une autre expédition."):
             _prepare_carton(user=self.user, carton=carton, shipment=shipment_b)
 
     def test_prepare_carton_retries_when_generated_code_is_not_unique(self):
@@ -567,10 +567,10 @@ class DomainStockExtraTests(TestCase):
             pack_carton_from_input(user=self.user, payload=invalid_pack_payload)
 
     def test_dto_validate_raises_on_invalid_payloads(self):
-        with self.assertRaisesMessage(ValueError, "Quantite invalide."):
+        with self.assertRaisesMessage(ValueError, "Quantité invalide."):
             ReceiveStockInput(product_id=1, quantity=0, location_id=1).validate()
 
-        with self.assertRaisesMessage(ValueError, "Quantite invalide."):
+        with self.assertRaisesMessage(ValueError, "Quantité invalide."):
             PackCartonInput(product_id=1, quantity=0).validate()
 
         with self.assertRaisesMessage(ValueError, "Choisissez carton_id ou carton_code."):

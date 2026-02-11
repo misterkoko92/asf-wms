@@ -78,7 +78,7 @@ class OrderViewHandlersTests(TestCase):
         self.assertEqual(response.status_code, 302)
         order.refresh_from_db()
         self.assertEqual(order.review_status, OrderReviewStatus.APPROVED)
-        success_mock.assert_called_once_with(request, "Statut de validation mis a jour.")
+        success_mock.assert_called_once_with(request, "Statut de validation mis à jour.")
 
     def test_handle_orders_view_action_rejects_shipment_creation_when_not_approved(self):
         order = self._create_order(review_status=OrderReviewStatus.PENDING)
@@ -89,7 +89,7 @@ class OrderViewHandlersTests(TestCase):
         with mock.patch("wms.order_view_handlers.messages.error") as error_mock:
             response = handle_orders_view_action(request, orders_qs=Order.objects.all())
         self.assertEqual(response.status_code, 302)
-        error_mock.assert_called_once_with(request, "Commande non validee.")
+        error_mock.assert_called_once_with(request, "Commande non validée.")
 
     def test_handle_orders_view_action_creates_shipment_and_attaches_documents(self):
         order = self._create_order(review_status=OrderReviewStatus.APPROVED)

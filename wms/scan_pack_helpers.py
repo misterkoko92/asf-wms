@@ -55,11 +55,11 @@ def build_packing_bins(
                 weight_g = default_weight_g
                 volume_f = float(default_volume_cm3)
                 warnings.append(
-                    f"{product.name}: poids/volume manquants, valeurs par defaut appliquees."
+                    f"{product.name}: poids/volume manquants, valeurs par défaut appliquées."
                 )
             else:
                 errors.append(
-                    f"{product.name}: poids et volume manquants pour la preparation."
+                    f"{product.name}: poids et volume manquants pour la préparation."
                 )
                 continue
         if weight_g is None:

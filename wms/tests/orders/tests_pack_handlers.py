@@ -112,12 +112,12 @@ class PackHandlersTests(TestCase):
                     )
 
         self.assertIsNone(response)
-        self.assertIn(("shipment_reference", "Expedition introuvable."), form.errors)
+        self.assertIn(("shipment_reference", "Expédition introuvable."), form.errors)
         self.assertIn((None, "Format invalide."), form.errors)
         self.assertEqual(state["line_count"], 4)
         self.assertEqual(state["line_errors"]["2"], ["Produit requis."])
-        self.assertEqual(state["line_errors"]["3"], ["Quantite requise."])
-        self.assertIn("Quantite invalide.", state["line_errors"]["4"])
+        self.assertEqual(state["line_errors"]["3"], ["Quantité requise."])
+        self.assertIn("Quantité invalide.", state["line_errors"]["4"])
         self.assertIn("Produit introuvable.", state["line_errors"]["4"])
 
     def test_handle_pack_post_requires_at_least_one_product(self):
@@ -239,7 +239,7 @@ class PackHandlersTests(TestCase):
         self.assertEqual(request.session["pack_results"], [77])
         self.assertEqual(state["line_errors"], {})
         warning_mock.assert_called_once_with(request, "Avertissement")
-        success_mock.assert_called_once_with(request, "1 carton(s) prepare(s).")
+        success_mock.assert_called_once_with(request, "1 carton(s) préparé(s).")
 
     def test_handle_pack_post_catches_stock_error(self):
         request = self._request(

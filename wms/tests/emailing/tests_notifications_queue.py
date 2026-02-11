@@ -125,7 +125,7 @@ class PortalOrderNotificationsQueueTests(TestCase):
         self.assertIsNotNone(admin_payload)
         self.assertEqual(admin_payload.get("recipient"), ["admin@example.com"])
 
-        confirmation_payload = payload_by_subject.get("ASF WMS - Commande recue")
+        confirmation_payload = payload_by_subject.get("ASF WMS - Commande reçue")
         self.assertIsNotNone(confirmation_payload)
         self.assertEqual(
             confirmation_payload.get("recipient"),
@@ -150,7 +150,7 @@ class PortalOrderNotificationsQueueTests(TestCase):
             source="wms.email",
             event_type="send_email",
             status=IntegrationStatus.PENDING,
-            payload__subject="ASF WMS - Commande recue",
+            payload__subject="ASF WMS - Commande reçue",
         ).first()
 
         self.assertIsNotNone(confirmation_event)

@@ -110,7 +110,7 @@ class PublicOrderViewsTests(TestCase):
             reverse("scan:scan_public_order_summary", args=[self.link.token, 42]),
         )
 
-    def test_scan_public_order_get_ignores_invalid_order_query(self):
+    def test_scan_public_order_get_ignorés_invalid_order_query(self):
         with mock.patch(
             "wms.views_public_order.build_product_selection_data",
             return_value=([], {}, {}),
@@ -267,7 +267,7 @@ class PublicOrderViewsTests(TestCase):
                             response = self.client.post(self.public_order_url, payload)
         self.assertEqual(response.status_code, 200)
         self.assertIn(
-            "Une commande recente a deja ete envoyee. Merci de patienter quelques minutes.",
+            "Une commande récente a déjà été envoyée. Merci de patienter quelques minutes.",
             response.context["errors"],
         )
         create_mock.assert_not_called()
