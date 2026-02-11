@@ -190,17 +190,17 @@
 
     <section class="card hero-card">
       <div class="home-kicker">Plateforme logistique</div>
-      <h1>Gestion des stocks, reception de produits et preparation des expedition</h1>
+      <h1>Gestion des stocks, réception de produits et préparation des expéditions</h1>
     </section>
 
     <section class="card login-card">
       <h2>Connexion</h2>
-      <p class="scan-help">Connectez-vous avec votre compte pour acceder a l interface scan.</p>
+      <p class="scan-help">Connectez-vous avec votre compte pour accéder à l'interface de gestion.</p>
       <form method="post" action="/admin/login/?next=/scan/" id="home-login-form" novalidate>
         {% csrf_token %}
         <input type="hidden" name="next" value="/scan/">
         <div class="scan-field">
-          <label for="username">Nom d utilisateur</label>
+          <label for="username">Nom d'utilisateur</label>
           <input type="text" id="username" name="username" autocomplete="username" required>
         </div>
         <div class="scan-field">
@@ -210,7 +210,7 @@
         <button type="submit" class="scan-submit">Se connecter</button>
       </form>
       <div class="home-links">
-        <a href="{% url 'password_help' %}">Mot de passe oublie ?</a>
+        <a href="{% url 'password_help' %}">Mot de passe oublié ?</a>
         <a href="{% url 'portal:portal_account_request' %}">Creer un compte</a>
       </div>
     </section>
