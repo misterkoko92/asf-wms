@@ -1,8 +1,12 @@
 import logging
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.contrib.auth.hashers import make_password
+from django.contrib.auth.password_validation import validate_password
 from django.contrib import messages
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
@@ -18,6 +22,7 @@ from .models import (
     DocumentReviewStatus,
     PublicAccountRequest,
     PublicAccountRequestStatus,
+    PublicAccountRequestType,
 )
 from .portal_helpers import build_public_base_url
 from .scan_helpers import parse_int
@@ -31,9 +36,19 @@ TEMPLATE_PUBLIC_ACCOUNT_REQUEST = "scan/public_account_request.html"
 ADMIN_PUBLIC_ACCOUNT_REQUEST_CHANGE_LIST = "admin:wms_publicaccountrequest_changelist"
 
 ERROR_ASSOCIATION_NAME_REQUIRED = "Nom de l'association requis."
+ERROR_ACCOUNT_TYPE_INVALID = "Type de profil invalide."
 ERROR_EMAIL_REQUIRED = "Email requis."
 ERROR_ADDRESS_REQUIRED = "Adresse requise."
+ERROR_USERNAME_REQUIRED = "Nom d'utilisateur requis."
+ERROR_PASSWORD_REQUIRED = "Mot de passe requis."  # nosec B105
+ERROR_PASSWORD_CONFIRMATION_REQUIRED = (  # nosec B105
+    "Confirmation du mot de passe requise."
+)
+ERROR_PASSWORD_MISMATCH = "Les mots de passe ne correspondent pas."  # nosec B105
 ERROR_PENDING_REQUEST_EXISTS = "Une demande est deja en attente pour cet email."
+ERROR_PENDING_REQUEST_EXISTS_FOR_USERNAME = (
+    "Une demande est deja en attente pour ce nom d'utilisateur."
+)
 ERROR_THROTTLE_LIMIT = (
     "Une demande recente a deja ete envoyee. Merci de patienter quelques minutes."
 )
@@ -49,7 +64,11 @@ DOC_UPLOAD_FIELD_MAPPINGS = (
 
 def _build_account_request_form_defaults():
     return {
+        "account_type": PublicAccountRequestType.ASSOCIATION,
         "association_name": "",
+        "requested_username": "",
+        "password1": "",
+        "password2": "",
         "email": "",
         "phone": "",
         "line1": "",
@@ -63,8 +82,14 @@ def _build_account_request_form_defaults():
 
 
 def _extract_account_request_form_data(post_data):
+    requested_account_type = (post_data.get("account_type") or "").strip().lower()
+    account_type = requested_account_type or PublicAccountRequestType.ASSOCIATION
     return {
+        "account_type": account_type,
         "association_name": (post_data.get("association_name") or "").strip(),
+        "requested_username": (post_data.get("requested_username") or "").strip(),
+        "password1": (post_data.get("password1") or "").strip(),
+        "password2": (post_data.get("password2") or "").strip(),
         "email": (post_data.get("email") or "").strip(),
         "phone": (post_data.get("phone") or "").strip(),
         "line1": (post_data.get("line1") or "").strip(),
@@ -77,16 +102,67 @@ def _extract_account_request_form_data(post_data):
     }
 
 
+def _is_association_request(form_data):
+    return form_data.get("account_type") == PublicAccountRequestType.ASSOCIATION
+
+
+def _is_user_request(form_data):
+    return form_data.get("account_type") == PublicAccountRequestType.USER
+
+
+def _append_password_validation_errors(form_data, errors):
+    password1 = form_data["password1"]
+    password2 = form_data["password2"]
+
+    if not password1:
+        errors.append(ERROR_PASSWORD_REQUIRED)
+    if not password2:
+        errors.append(ERROR_PASSWORD_CONFIRMATION_REQUIRED)
+    if not password1 or not password2:
+        return
+
+    if password1 != password2:
+        errors.append(ERROR_PASSWORD_MISMATCH)
+        return
+
+    user_model = get_user_model()
+    dummy_user = user_model(
+        username=form_data["requested_username"],
+        email=form_data["email"],
+    )
+    try:
+        validate_password(password1, user=dummy_user)
+    except ValidationError as exc:
+        errors.extend(exc.messages)
+
+
 def _append_required_field_errors(form_data, errors):
-    if not form_data["association_name"]:
-        errors.append(ERROR_ASSOCIATION_NAME_REQUIRED)
+    if form_data["account_type"] not in {
+        PublicAccountRequestType.ASSOCIATION,
+        PublicAccountRequestType.USER,
+    }:
+        errors.append(ERROR_ACCOUNT_TYPE_INVALID)
+        return
+
     if not form_data["email"]:
         errors.append(ERROR_EMAIL_REQUIRED)
-    if not form_data["line1"]:
-        errors.append(ERROR_ADDRESS_REQUIRED)
+
+    if _is_association_request(form_data):
+        if not form_data["association_name"]:
+            errors.append(ERROR_ASSOCIATION_NAME_REQUIRED)
+        if not form_data["line1"]:
+            errors.append(ERROR_ADDRESS_REQUIRED)
+        return
+
+    if not form_data["requested_username"]:
+        errors.append(ERROR_USERNAME_REQUIRED)
+    _append_password_validation_errors(form_data, errors)
 
 
-def _collect_account_request_uploads(files, errors):
+def _collect_account_request_uploads(files, errors, *, account_type):
+    if account_type != PublicAccountRequestType.ASSOCIATION:
+        return []
+
     uploads = []
 
     for doc_type, field_name in DOC_UPLOAD_FIELD_MAPPINGS:
@@ -118,7 +194,17 @@ def _has_pending_request_for_email(email):
     ).exists()
 
 
+def _has_pending_request_for_username(username):
+    return PublicAccountRequest.objects.filter(
+        requested_username__iexact=username,
+        account_type=PublicAccountRequestType.USER,
+        status=PublicAccountRequestStatus.PENDING,
+    ).exists()
+
+
 def _resolve_account_request_contact(form_data):
+    if not _is_association_request(form_data):
+        return None
     contact = None
     contact_id = parse_int(form_data["contact_id"])
     if contact_id:
@@ -132,17 +218,28 @@ def _resolve_account_request_contact(form_data):
 
 
 def _create_account_request(*, link, contact, form_data):
+    is_association = _is_association_request(form_data)
+    association_name = (
+        form_data["association_name"]
+        if is_association
+        else (form_data["requested_username"] or form_data["email"])
+    )
     return PublicAccountRequest.objects.create(
         link=link,
         contact=contact,
-        association_name=form_data["association_name"],
+        account_type=form_data["account_type"],
+        association_name=association_name,
         email=form_data["email"],
-        phone=form_data["phone"],
-        address_line1=form_data["line1"],
-        address_line2=form_data["line2"],
-        postal_code=form_data["postal_code"],
-        city=form_data["city"],
-        country=form_data["country"] or DEFAULT_COUNTRY,
+        phone=form_data["phone"] if is_association else "",
+        address_line1=form_data["line1"] if is_association else "",
+        address_line2=form_data["line2"] if is_association else "",
+        postal_code=form_data["postal_code"] if is_association else "",
+        city=form_data["city"] if is_association else "",
+        country=(form_data["country"] or DEFAULT_COUNTRY) if is_association else "",
+        requested_username=form_data["requested_username"] if not is_association else "",
+        requested_password_hash=(
+            make_password(form_data["password1"]) if not is_association else ""
+        ),
         notes=form_data["notes"],
     )
 
@@ -172,6 +269,8 @@ def _render_account_request_form(request, *, link, contact_payload, form_data, e
             "contacts": contact_payload,
             "form_data": form_data,
             "errors": errors,
+            "ACCOUNT_TYPE_ASSOCIATION": PublicAccountRequestType.ASSOCIATION,
+            "ACCOUNT_TYPE_USER": PublicAccountRequestType.USER,
         },
     )
 
@@ -230,19 +329,33 @@ def _release_throttle_slot(*, email, client_ip):
     cache.delete(ip_key)
 
 
-def _queue_account_request_emails(*, association_name, email, phone, admin_url):
+def _queue_account_request_emails(
+    *,
+    account_type,
+    association_name,
+    email,
+    phone,
+    requested_username,
+    admin_url,
+):
     admin_message = render_to_string(
         "emails/account_request_admin_notification.txt",
         {
+            "account_type": account_type,
             "association_name": association_name,
             "email": email,
             "phone": phone,
+            "requested_username": requested_username,
             "admin_url": admin_url,
         },
     )
     requester_message = render_to_string(
         "emails/account_request_received.txt",
-        {"association_name": association_name},
+        {
+            "account_type": account_type,
+            "association_name": association_name,
+            "requested_username": requested_username,
+        },
     )
     admin_recipients = get_admin_emails()
 
@@ -280,10 +393,20 @@ def handle_account_request_form(request, *, link=None, redirect_url=""):
         form_data = _extract_account_request_form_data(request.POST)
         _append_required_field_errors(form_data, errors)
 
-        uploads = _collect_account_request_uploads(request.FILES, errors)
+        uploads = _collect_account_request_uploads(
+            request.FILES,
+            errors,
+            account_type=form_data["account_type"],
+        )
 
         if _has_pending_request_for_email(form_data["email"]):
             errors.append(ERROR_PENDING_REQUEST_EXISTS)
+        if (
+            _is_user_request(form_data)
+            and form_data["requested_username"]
+            and _has_pending_request_for_username(form_data["requested_username"])
+        ):
+            errors.append(ERROR_PENDING_REQUEST_EXISTS_FOR_USERNAME)
 
         if not errors:
             client_ip = _get_client_ip(request)
@@ -308,10 +431,17 @@ def handle_account_request_form(request, *, link=None, redirect_url=""):
                         contact=contact,
                         uploads=uploads,
                     )
+                    request_display_name = (
+                        form_data["association_name"]
+                        or form_data["requested_username"]
+                        or form_data["email"]
+                    )
                     _queue_account_request_emails(
-                        association_name=form_data["association_name"],
+                        account_type=form_data["account_type"],
+                        association_name=request_display_name,
                         email=form_data["email"],
                         phone=form_data["phone"],
+                        requested_username=form_data["requested_username"],
                         admin_url=_build_admin_account_request_url(request),
                     )
             except Exception:

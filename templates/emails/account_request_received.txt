@@ -1,4 +1,4 @@
-Bonjour {{ association_name }},
+Bonjour {% if account_type == "user" %}{{ requested_username|default:association_name }}{% else %}{{ association_name }}{% endif %},
 
 Votre demande de creation de compte a bien ete recue.
 Un superuser ASF va la verifier et vous recontacter.

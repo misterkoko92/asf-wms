@@ -38,6 +38,7 @@ from wms.models import (
     ProductTag,
     PublicAccountRequest,
     PublicAccountRequestStatus,
+    PublicAccountRequestType,
     PublicOrderLink,
     RackColor,
     Receipt,
@@ -329,6 +330,14 @@ class WmsModelMethodsTests(TestCase):
             status=PublicAccountRequestStatus.PENDING,
         )
         self.assertEqual(str(account_request), "Association A (Pending)")
+        user_request = PublicAccountRequest.objects.create(
+            account_type=PublicAccountRequestType.USER,
+            association_name="wms-user",
+            requested_username="wms-user",
+            email="wms@example.org",
+            status=PublicAccountRequestStatus.PENDING,
+        )
+        self.assertEqual(str(user_request), "Utilisateur wms-user (Pending)")
 
         profile = AssociationProfile.objects.create(
             user=self.user,

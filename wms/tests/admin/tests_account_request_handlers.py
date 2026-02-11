@@ -1,5 +1,6 @@
 from unittest import mock
 
+from django.contrib.auth.hashers import check_password
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
@@ -11,6 +12,7 @@ from wms.models import (
     AccountDocumentType,
     PublicAccountRequest,
     PublicAccountRequestStatus,
+    PublicAccountRequestType,
 )
 
 
@@ -88,9 +90,11 @@ class AccountRequestHelpersTests(TestCase):
                 with mock.patch.object(account_request_handlers.LOGGER, "warning") as warning_mock:
                     with self.captureOnCommitCallbacks(execute=True):
                         account_request_handlers._queue_account_request_emails(
+                            account_type=PublicAccountRequestType.ASSOCIATION,
                             association_name="Association Test",
                             email="association@example.com",
                             phone="0102030405",
+                            requested_username="",
                             admin_url="https://example.com/admin",
                         )
 
@@ -103,6 +107,7 @@ class AccountRequestFormHandlerTests(TestCase):
 
     def _payload(self, **overrides):
         payload = {
+            "account_type": PublicAccountRequestType.ASSOCIATION.value,
             "association_name": "Association Test",
             "email": "association@example.com",
             "phone": "0102030405",
@@ -113,6 +118,17 @@ class AccountRequestFormHandlerTests(TestCase):
             "country": "France",
             "notes": "Demande de test",
             "contact_id": "",
+        }
+        payload.update(overrides)
+        return payload
+
+    def _user_payload(self, **overrides):
+        payload = {
+            "account_type": PublicAccountRequestType.USER.value,
+            "requested_username": "wms-user",
+            "email": "user@example.com",
+            "password1": "StrongPass123!",
+            "password2": "StrongPass123!",
         }
         payload.update(overrides)
         return payload
@@ -201,6 +217,50 @@ class AccountRequestFormHandlerTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         validate_mock.assert_not_called()
+
+    def test_user_form_validates_username_and_password_fields(self):
+        response = self.client.post(
+            self.url,
+            self._user_payload(requested_username="", password1="", password2=""),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Nom d'utilisateur requis.", response.context["errors"])
+        self.assertIn("Mot de passe requis.", response.context["errors"])
+        self.assertIn(
+            "Confirmation du mot de passe requise.",
+            response.context["errors"],
+        )
+
+    @override_settings(ACCOUNT_REQUEST_THROTTLE_SECONDS=0)
+    @mock.patch("wms.account_request_handlers.get_admin_emails", return_value=[])
+    def test_user_form_creates_request_and_stores_password_hash(self, _get_admin_emails_mock):
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(self.url, self._user_payload())
+
+        self.assertEqual(response.status_code, 302)
+        request_obj = PublicAccountRequest.objects.get(email="user@example.com")
+        self.assertEqual(request_obj.account_type, PublicAccountRequestType.USER)
+        self.assertEqual(request_obj.requested_username, "wms-user")
+        self.assertTrue(request_obj.requested_password_hash)
+        self.assertTrue(check_password("StrongPass123!", request_obj.requested_password_hash))
+        self.assertEqual(AccountDocument.objects.count(), 0)
+
+    def test_user_form_rejects_pending_request_for_same_username(self):
+        PublicAccountRequest.objects.create(
+            account_type=PublicAccountRequestType.USER,
+            association_name="wms-user",
+            requested_username="wms-user",
+            email="other@example.com",
+            status=PublicAccountRequestStatus.PENDING,
+        )
+        response = self.client.post(self.url, self._user_payload())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            "Une demande est deja en attente pour ce nom d'utilisateur.",
+            response.context["errors"],
+        )
 
     @override_settings(ACCOUNT_REQUEST_THROTTLE_SECONDS=300)
     def test_form_releases_throttle_slot_when_request_creation_fails(self):

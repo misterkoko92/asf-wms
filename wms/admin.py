@@ -272,14 +272,16 @@ class PublicOrderLinkAdmin(admin.ModelAdmin):
 @admin.register(models.PublicAccountRequest)
 class PublicAccountRequestAdmin(admin.ModelAdmin):
     list_display = (
+        "account_type",
         "association_name",
+        "requested_username",
         "email",
         "status",
         "created_at",
         "reviewed_at",
     )
-    list_filter = ("status",)
-    search_fields = ("association_name", "email")
+    list_filter = ("account_type", "status")
+    search_fields = ("association_name", "requested_username", "email")
     actions = ("approve_requests", "reject_requests")
 
     @staticmethod
@@ -318,7 +320,7 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
         if skipped:
             self.message_user(
                 request,
-                f"{skipped} demande(s) ignoree(s) (deja approuvees ou email reserve).",
+                f"{skipped} demande(s) ignoree(s) (deja approuvees ou identifiant reserve).",
                 level=messages.WARNING,
             )
 
@@ -371,7 +373,9 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
             None,
             {
                 "fields": (
+                    "account_type",
                     "association_name",
+                    "requested_username",
                     "email",
                     "phone",
                     "status",

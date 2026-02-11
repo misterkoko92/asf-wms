@@ -56,10 +56,72 @@ def approve_account_request(
     portal_url_builder=build_portal_urls,
 ):
     user_model = get_user_model()
-    user = user_model.objects.filter(email__iexact=account_request.email).first()
-    if user and (user.is_staff or user.is_superuser):
+    existing_user = user_model.objects.filter(email__iexact=account_request.email).first()
+    if existing_user and (existing_user.is_staff or existing_user.is_superuser):
         return False, "email reserve"
 
+    if account_request.account_type == models.PublicAccountRequestType.USER:
+        requested_username = (
+            (account_request.requested_username or account_request.email or "")
+            .strip()
+        )
+        if not requested_username:
+            return False, "username manquant"
+
+        username_reserved = user_model.objects.filter(
+            username__iexact=requested_username
+        ).exclude(email__iexact=account_request.email)
+        if username_reserved.exists():
+            return False, "username reserve"
+
+        with transaction.atomic():
+            user = existing_user
+            if not user:
+                user = user_model.objects.create_user(
+                    username=requested_username,
+                    email=account_request.email,
+                )
+            user_updates = []
+            if user.username != requested_username:
+                user.username = requested_username
+                user_updates.append("username")
+            if user.email != account_request.email:
+                user.email = account_request.email
+                user_updates.append("email")
+            if not user.is_active:
+                user.is_active = True
+                user_updates.append("is_active")
+            if not user.is_staff:
+                user.is_staff = True
+                user_updates.append("is_staff")
+            if account_request.requested_password_hash:
+                user.password = account_request.requested_password_hash
+                user_updates.append("password")
+            if user_updates:
+                user.save(update_fields=user_updates)
+
+            account_request.status = models.PublicAccountRequestStatus.APPROVED
+            account_request.reviewed_at = timezone.now()
+            account_request.reviewed_by = request.user
+            account_request.save(update_fields=["status", "reviewed_at", "reviewed_by"])
+
+        login_url = request.build_absolute_uri(reverse("admin:login"))
+        message = render_to_string(
+            "emails/account_request_approved_user.txt",
+            {
+                "requested_username": requested_username,
+                "email": account_request.email,
+                "login_url": login_url,
+            },
+        )
+        enqueue_email(
+            subject="ASF WMS - Compte utilisateur valide",
+            message=message,
+            recipient=[account_request.email],
+        )
+        return True, ""
+
+    user = existing_user
     with transaction.atomic():
         contact = account_request.contact
         if not contact:
@@ -160,15 +222,29 @@ def build_account_access_lines(*, account_request, site_base_url):
     if not user:
         return None, ACCOUNT_ACCESS_USER_NOT_FOUND
 
-    login_url, set_password_url, has_base_url = build_portal_urls_from_base_url(
-        site_base_url=site_base_url,
-        user=user,
-    )
-    lines = [
-        f"Email: {account_request.email or '-'}",
-        f"Login: {login_url}",
-        f"Lien definir mot de passe: {set_password_url}",
-    ]
+    if account_request.account_type == models.PublicAccountRequestType.USER:
+        base_url = (site_base_url or "").strip().rstrip("/")
+        login_path = reverse("admin:login")
+        has_base_url = bool(base_url)
+        login_url = f"{base_url}{login_path}" if has_base_url else login_path
+        lines = [
+            f"Profil: Utilisateur WMS",
+            f"Nom d'utilisateur: {user.username or '-'}",
+            f"Email: {account_request.email or '-'}",
+            f"Login: {login_url}",
+            "Mot de passe: defini par l'utilisateur lors de la demande.",
+        ]
+    else:
+        login_url, set_password_url, has_base_url = build_portal_urls_from_base_url(
+            site_base_url=site_base_url,
+            user=user,
+        )
+        lines = [
+            f"Profil: Association",
+            f"Email: {account_request.email or '-'}",
+            f"Login: {login_url}",
+            f"Lien definir mot de passe: {set_password_url}",
+        ]
     if not has_base_url:
         lines.append(ACCOUNT_ACCESS_MISSING_BASE_URL)
     return lines, None

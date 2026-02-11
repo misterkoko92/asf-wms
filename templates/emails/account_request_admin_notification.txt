@@ -1,6 +1,10 @@
 Nouvelle demande de compte
 
-Association: {{ association_name }}
+Type de profil: {% if account_type == "user" %}Utilisateur WMS{% else %}Association{% endif %}
+Association / entite: {{ association_name }}
+{% if account_type == "user" %}
+Nom d'utilisateur demande: {{ requested_username|default:"-" }}
+{% endif %}
 Email: {{ email }}
 Telephone: {{ phone|default:"-" }}
 

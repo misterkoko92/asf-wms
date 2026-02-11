@@ -755,12 +755,23 @@ class PublicAccountRequestStatus(models.TextChoices):
     REJECTED = "rejected", "Rejected"
 
 
+class PublicAccountRequestType(models.TextChoices):
+    ASSOCIATION = "association", "Association"
+    USER = "user", "Utilisateur WMS"
+
+
 class PublicAccountRequest(models.Model):
     link = models.ForeignKey(
         PublicOrderLink, on_delete=models.SET_NULL, null=True, blank=True
     )
     contact = models.ForeignKey(
         "contacts.Contact", on_delete=models.SET_NULL, null=True, blank=True
+    )
+    account_type = models.CharField(
+        max_length=20,
+        choices=PublicAccountRequestType.choices,
+        default=PublicAccountRequestType.ASSOCIATION,
+        db_index=True,
     )
     status = models.CharField(
         max_length=20,
@@ -775,6 +786,8 @@ class PublicAccountRequest(models.Model):
     postal_code = models.CharField(max_length=20, blank=True)
     city = models.CharField(max_length=120, blank=True)
     country = models.CharField(max_length=80, default="France")
+    requested_username = models.CharField(max_length=150, blank=True)
+    requested_password_hash = models.CharField(max_length=128, blank=True)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)
@@ -786,6 +799,9 @@ class PublicAccountRequest(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
+        if self.account_type == PublicAccountRequestType.USER:
+            label = self.requested_username or self.email
+            return f"Utilisateur {label} ({self.get_status_display()})"
         return f"{self.association_name} ({self.get_status_display()})"
 
 

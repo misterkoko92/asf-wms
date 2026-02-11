@@ -491,6 +491,57 @@ class PublicAccountRequestAdminTests(_AdminTestBase):
         self.assertTrue(profile.must_change_password)
         enqueue_mock.assert_called_once()
 
+    def test_approve_user_request_creates_staff_user_without_association_profile(self):
+        account_request = models.PublicAccountRequest.objects.create(
+            account_type=models.PublicAccountRequestType.USER,
+            association_name="wms-operator",
+            requested_username="wms-operator",
+            email="wms-operator@example.com",
+            requested_password_hash="pbkdf2_sha256$720000$abc$xyz",
+            status=models.PublicAccountRequestStatus.PENDING,
+        )
+
+        with mock.patch("wms.admin.enqueue_email_safe") as enqueue_mock:
+            ok, reason = self.admin_obj._approve_request(
+                self._request(superuser=True),
+                account_request,
+            )
+
+        self.assertTrue(ok)
+        self.assertEqual(reason, "")
+        account_request.refresh_from_db()
+        self.assertEqual(account_request.status, models.PublicAccountRequestStatus.APPROVED)
+        user = get_user_model().objects.get(email__iexact=account_request.email)
+        self.assertEqual(user.username, "wms-operator")
+        self.assertTrue(user.is_staff)
+        self.assertTrue(user.is_active)
+        self.assertEqual(user.password, "pbkdf2_sha256$720000$abc$xyz")
+        self.assertFalse(models.AssociationProfile.objects.filter(user=user).exists())
+        enqueue_mock.assert_called_once()
+
+    def test_approve_user_request_rejects_reserved_username(self):
+        get_user_model().objects.create_user(
+            username="taken-username",
+            email="taken@example.com",
+            password="pass1234",
+        )
+        account_request = models.PublicAccountRequest.objects.create(
+            account_type=models.PublicAccountRequestType.USER,
+            association_name="requested-user",
+            requested_username="taken-username",
+            email="new-user@example.com",
+            requested_password_hash="hash",
+            status=models.PublicAccountRequestStatus.PENDING,
+        )
+
+        ok, reason = self.admin_obj._approve_request(
+            self._request(superuser=True),
+            account_request,
+        )
+
+        self.assertFalse(ok)
+        self.assertEqual(reason, "username reserve")
+
 
 class RackColorAdminFormTests(_AdminTestBase):
     def test_init_and_clean_behaviors(self):
