@@ -2,6 +2,7 @@ from django.http import Http404
 from django.shortcuts import render
 from django.urls import reverse
 
+from .contact_filters import TAG_RECIPIENT, TAG_SHIPPER
 from .models import CartonStatus, Document, DocumentType, ShipmentStatus, ShipmentTrackingStatus
 from .print_context import (
     build_carton_document_context,
@@ -9,6 +10,7 @@ from .print_context import (
     build_shipment_document_context,
 )
 from .print_renderer import get_template_layout, render_layout_from_layout
+from .view_utils import resolve_contact_by_name
 
 TEMPLATE_DYNAMIC_DOCUMENT = "print/dynamic_document.html"
 TEMPLATE_DYNAMIC_LABELS = "print/dynamic_labels.html"
@@ -121,6 +123,34 @@ def _shipment_status_label(shipment, progress_label):
     return progress_label
 
 
+def _shipment_party_label(contact, fallback_name):
+    if contact:
+        organization = getattr(contact, "organization", None)
+        organization_name = (getattr(organization, "name", "") or "").strip()
+        if organization_name:
+            return organization_name
+
+        title = (getattr(contact, "title", "") or "").strip()
+        first_name = (getattr(contact, "first_name", "") or "").strip()
+        last_name = (getattr(contact, "last_name", "") or "").strip()
+        if title or first_name or last_name:
+            person_parts = [title, first_name, last_name.upper() if last_name else ""]
+            return " ".join(part for part in person_parts if part)
+
+        contact_name = (getattr(contact, "name", "") or "").strip()
+        if contact_name:
+            return contact_name
+
+    return (fallback_name or "").strip()
+
+
+def _resolve_shipment_party_contact(shipment, *, ref_attr, tag, fallback_name):
+    contact_ref = getattr(shipment, ref_attr, None)
+    if contact_ref:
+        return contact_ref
+    return resolve_contact_by_name(tag, fallback_name)
+
+
 def build_carton_options(cartons):
     options = []
     for carton in cartons:
@@ -220,6 +250,18 @@ def build_shipments_ready_rows(shipments_qs):
         total, ready = _shipment_carton_totals(shipment)
         progress_label = _shipment_progress_label(total=total, ready=ready)
         status_label = _shipment_status_label(shipment, progress_label)
+        shipper_contact = _resolve_shipment_party_contact(
+            shipment,
+            ref_attr="shipper_contact_ref",
+            tag=TAG_SHIPPER,
+            fallback_name=shipment.shipper_name,
+        )
+        recipient_contact = _resolve_shipment_party_contact(
+            shipment,
+            ref_attr="recipient_contact_ref",
+            tag=TAG_RECIPIENT,
+            fallback_name=shipment.recipient_name,
+        )
         shipments.append(
             {
                 "id": shipment.id,
@@ -229,8 +271,14 @@ def build_shipments_ready_rows(shipments_qs):
                 "destination_iata": shipment.destination.iata_code
                 if shipment.destination
                 else "",
-                "shipper_name": shipment.shipper_name,
-                "recipient_name": shipment.recipient_name,
+                "shipper_name": _shipment_party_label(
+                    shipper_contact,
+                    shipment.shipper_name,
+                ),
+                "recipient_name": _shipment_party_label(
+                    recipient_contact,
+                    shipment.recipient_name,
+                ),
                 "created_at": shipment.created_at,
                 "ready_at": shipment.ready_at,
                 "status_label": status_label,

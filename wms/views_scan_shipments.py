@@ -184,7 +184,11 @@ def scan_cartons_ready(request):
 @require_http_methods(["GET"])
 def scan_shipments_ready(request):
     shipments_qs = (
-        Shipment.objects.select_related("destination")
+        Shipment.objects.select_related(
+            "destination",
+            "shipper_contact_ref__organization",
+            "recipient_contact_ref__organization",
+        )
         .annotate(
             carton_count=Count("carton", distinct=True),
             ready_count=Count(

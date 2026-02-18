@@ -5,6 +5,7 @@ from django.http import Http404, HttpResponse
 from django.test import RequestFactory, TestCase
 from django.utils import timezone
 
+from contacts.models import Contact, ContactType
 from wms.models import Carton, Document, DocumentType, Shipment, ShipmentStatus, ShipmentTrackingStatus
 from wms.shipment_view_helpers import (
     build_carton_options,
@@ -356,3 +357,65 @@ class ShipmentViewHelpersTests(TestCase):
         self.assertEqual(rows[1]["destination_iata"], "CDG")
         self.assertEqual(rows[2]["status_label"], ShipmentStatus(ShipmentStatus.SHIPPED).label)
         self.assertFalse(rows[2]["can_edit"])
+
+    def test_build_shipments_ready_rows_formats_party_names_from_contact_refs(self):
+        now = timezone.now()
+        organization = Contact.objects.create(
+            name="ASSOCIATION TEST",
+            contact_type=ContactType.ORGANIZATION,
+        )
+        shipper = Contact.objects.create(
+            name="Legacy Sender",
+            contact_type=ContactType.PERSON,
+            title="M.",
+            first_name="Jean",
+            last_name="Dupont",
+            organization=organization,
+        )
+        recipient = Contact.objects.create(
+            name="Legacy Recipient",
+            contact_type=ContactType.PERSON,
+            title="Mme",
+            first_name="Alice",
+            last_name="Martin",
+        )
+
+        class FakeFiltered:
+            def __init__(self, count):
+                self._count = count
+
+            def count(self):
+                return self._count
+
+        class FakeCartonSet:
+            def __init__(self, total, ready):
+                self._total = total
+                self._ready = ready
+
+            def count(self):
+                return self._total
+
+            def filter(self, **_kwargs):
+                return FakeFiltered(self._ready)
+
+        shipment = SimpleNamespace(
+            id=11,
+            reference="S-011",
+            tracking_token="token-11",
+            carton_count=1,
+            ready_count=1,
+            carton_set=FakeCartonSet(total=1, ready=1),
+            destination=SimpleNamespace(iata_code="BZV"),
+            shipper_name="Fallback Sender",
+            shipper_contact_ref=shipper,
+            recipient_name="Fallback Recipient",
+            recipient_contact_ref=recipient,
+            created_at=now,
+            ready_at=now,
+            status=ShipmentStatus.PACKED,
+        )
+
+        rows = build_shipments_ready_rows([shipment])
+
+        self.assertEqual(rows[0]["shipper_name"], "ASSOCIATION TEST")
+        self.assertEqual(rows[0]["recipient_name"], "Mme Alice MARTIN")
