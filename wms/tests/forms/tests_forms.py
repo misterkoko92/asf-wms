@@ -219,6 +219,46 @@ class FormsTests(TestCase):
             form.fields["recipient_contact"].queryset.values_list("id", flat=True),
         )
 
+    def test_scan_shipment_form_init_without_destination_shows_only_global_contacts(self):
+        global_shipper = self._create_contact("Global Shipper")
+        shipper_tag = ContactTag.objects.create(name="expediteur")
+        global_shipper.tags.add(shipper_tag)
+        global_recipient = self._create_contact("Global Recipient")
+        recipient_tag = ContactTag.objects.create(name="destinataire")
+        global_recipient.tags.add(recipient_tag)
+        scoped_destination = Destination.objects.create(
+            city="Brazzaville",
+            iata_code="BZV2",
+            country="Rep. du Congo",
+            correspondent_contact=self._create_contact("Scoped Corr"),
+            is_active=True,
+        )
+        scoped_shipper = self._create_contact("Scoped Shipper")
+        scoped_shipper.tags.add(shipper_tag)
+        scoped_shipper.destinations.add(scoped_destination)
+        scoped_recipient = self._create_contact("Scoped Recipient")
+        scoped_recipient.tags.add(recipient_tag)
+        scoped_recipient.destinations.add(scoped_destination)
+
+        form = ScanShipmentForm()
+
+        self.assertIn(
+            global_shipper.id,
+            form.fields["shipper_contact"].queryset.values_list("id", flat=True),
+        )
+        self.assertNotIn(
+            scoped_shipper.id,
+            form.fields["shipper_contact"].queryset.values_list("id", flat=True),
+        )
+        self.assertIn(
+            global_recipient.id,
+            form.fields["recipient_contact"].queryset.values_list("id", flat=True),
+        )
+        self.assertNotIn(
+            scoped_recipient.id,
+            form.fields["recipient_contact"].queryset.values_list("id", flat=True),
+        )
+
     def test_scan_shipment_form_clean_rejects_contact_for_other_destination(self):
         expected_correspondent = self._create_contact("Corr Expected")
         destination = Destination.objects.create(

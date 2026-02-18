@@ -2026,7 +2026,20 @@
       if (scopedDestinationIds.length) {
         return scopedDestinationIds.includes(String(destinationId));
       }
+      if (contact.destination_id) {
+        return String(contact.destination_id) === String(destinationId);
+      }
       return true;
+    };
+
+    const isGlobalContact = contact => {
+      if (!contact) {
+        return false;
+      }
+      const scopedDestinationIds = Array.isArray(contact.destination_ids)
+        ? contact.destination_ids
+        : [];
+      return scopedDestinationIds.length === 0 && !contact.destination_id;
     };
 
     const renderOptions = (select, options, selectedValue) => {
@@ -2083,6 +2096,10 @@
         } else {
           correspondentOptions = [];
         }
+      } else {
+        shipperOptions = shippers.filter(isGlobalContact);
+        recipientOptions = recipients.filter(isGlobalContact);
+        correspondentOptions = correspondents.filter(isGlobalContact);
       }
 
       renderOptions(shipperSelect, shipperOptions, selectedShipper);

@@ -56,7 +56,11 @@ def contacts_with_tags(tag_names):
 
 def filter_contacts_for_destination(queryset, destination):
     if not destination:
-        return queryset
+        return queryset.filter(
+            Q(destinations__isnull=True, destination__isnull=True)
+        ).distinct()
     return queryset.filter(
-        Q(destinations=destination) | Q(destinations__isnull=True)
+        Q(destinations=destination)
+        | Q(destinations__isnull=True, destination=destination)
+        | Q(destinations__isnull=True, destination__isnull=True)
     ).distinct()

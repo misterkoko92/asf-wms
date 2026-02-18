@@ -31,7 +31,7 @@ class ContactFiltersTests(TestCase):
 
         self.assertEqual([item.name for item in results], ["Alpha", "Zulu"])
 
-    def test_filter_contacts_for_destination_returns_input_queryset_when_destination_missing(self):
+    def test_filter_contacts_for_destination_returns_only_global_when_destination_missing(self):
         destination = Destination.objects.create(
             city="Paris",
             iata_code="CDG-TCF",
@@ -44,7 +44,7 @@ class ContactFiltersTests(TestCase):
 
         filtered = filter_contacts_for_destination(queryset, None)
 
-        self.assertEqual(list(filtered), [allowed, global_contact])
+        self.assertEqual(list(filtered), [global_contact])
 
     def test_contacts_with_tags_matches_accented_shipper_tags(self):
         contact = self._create_contact("Shipper Accent", tags=("expéditeur",))
@@ -101,3 +101,17 @@ class ContactFiltersTests(TestCase):
         filtered = filter_contacts_for_destination(queryset, destination)
 
         self.assertEqual(list(filtered), [global_contact, scoped_ok])
+
+    def test_filter_contacts_for_destination_supports_legacy_single_destination(self):
+        destination = Destination.objects.create(
+            city="Douala",
+            iata_code="DLA",
+            country="Cameroun",
+            correspondent_contact=self._create_contact("Correspondent DLA"),
+        )
+        legacy_only = self._create_contact("Legacy Scoped", destination=destination)
+        queryset = Contact.objects.filter(pk=legacy_only.pk)
+
+        filtered = filter_contacts_for_destination(queryset, destination)
+
+        self.assertEqual(list(filtered), [legacy_only])
