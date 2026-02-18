@@ -1966,6 +1966,7 @@
   }
 
   function setupShipmentContactFilters() {
+    const shipmentForm = document.getElementById('shipment-form');
     const destinationSelect = document.getElementById('id_destination');
     const shipperSelect = document.getElementById('id_shipper_contact');
     const recipientSelect = document.getElementById('id_recipient_contact');
@@ -2047,6 +2048,7 @@
         return;
       }
       element.classList.toggle('scan-hidden', !visible);
+      element.hidden = !visible;
     };
 
     const destinationMap = new Map(
@@ -2171,6 +2173,14 @@
         Boolean(selectValue(correspondentSelect));
       setVisible(detailsSection, canShowDetails);
     };
+
+    const isEditMode = shipmentForm && shipmentForm.dataset.shipmentEdit === '1';
+    const isBoundForm = shipmentForm && shipmentForm.dataset.formBound === '1';
+    if (!isEditMode && !isBoundForm) {
+      shipperSelect.value = '';
+      recipientSelect.value = '';
+      correspondentSelect.value = '';
+    }
 
     destinationSelect.addEventListener('change', updateContacts);
     shipperSelect.addEventListener('change', updateContacts);

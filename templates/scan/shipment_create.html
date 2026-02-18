@@ -14,7 +14,7 @@
     {% if form.non_field_errors %}
       <div class="scan-message error">{{ form.non_field_errors }}</div>
     {% endif %}
-    <form method="post" novalidate id="shipment-form">
+    <form method="post" novalidate id="shipment-form" data-shipment-edit="{% if is_edit %}1{% else %}0{% endif %}" data-form-bound="{% if form.is_bound %}1{% else %}0{% endif %}">
       {% csrf_token %}
 
       <div class="scan-field">
@@ -31,7 +31,7 @@
         {% endfor %}
       </div>
 
-      <div id="shipment-shipper-section" class="scan-hidden">
+      <div id="shipment-shipper-section" class="scan-hidden" hidden>
         <div class="scan-field">
           <label for="id_shipper_contact">Exp&eacute;diteur</label>
           <div class="scan-inline">
@@ -41,7 +41,7 @@
             </a>
           </div>
           <p class="scan-help">Merci de sélectionner un expéditeur pour poursuivre la création de l'expédition</p>
-          <div id="shipper-empty-message" class="scan-message error scan-hidden">
+          <div id="shipper-empty-message" class="scan-message error scan-hidden" hidden>
             Aucun expéditeur trouvé dans la base, vérifier les &quot;Destinations&quot; des affectés aux Expéditeurs dans les contacts et recommencez
           </div>
           {% for error in form.shipper_contact.errors %}
@@ -50,7 +50,7 @@
         </div>
       </div>
 
-      <div id="shipment-recipient-section" class="scan-hidden">
+      <div id="shipment-recipient-section" class="scan-hidden" hidden>
         <div class="scan-field">
           <label for="id_recipient_contact">Destinataire</label>
           <div class="scan-inline">
@@ -59,7 +59,7 @@
               Ajouter destinataire
             </a>
           </div>
-          <div id="recipient-empty-message" class="scan-message error scan-hidden">
+          <div id="recipient-empty-message" class="scan-message error scan-hidden" hidden>
             Aucun destinataire trouvé dans la base, vérifier les &quot;Expéditeurs Liés&quot; dans les contacts et recommencez
           </div>
           {% for error in form.recipient_contact.errors %}
@@ -68,7 +68,7 @@
         </div>
       </div>
 
-      <div id="shipment-correspondent-section" class="scan-hidden">
+      <div id="shipment-correspondent-section" class="scan-hidden" hidden>
         <div class="scan-field">
           <label for="id_correspondent_contact">Correspondant</label>
           <div class="scan-inline">
@@ -78,7 +78,7 @@
             </a>
           </div>
           <p class="scan-help">Merci de sélectionner un destinataire et un correspondant pour poursuivre la création de l'expédition</p>
-          <div id="correspondent-empty-message" class="scan-message error scan-hidden">
+          <div id="correspondent-empty-message" class="scan-message error scan-hidden" hidden>
             Aucun correspondant trouvé dans la base, vérifier les &quot;Correspondants&quot; dans les contacts et recommencez
           </div>
           {% for error in form.correspondent_contact.errors %}
@@ -87,7 +87,7 @@
         </div>
       </div>
 
-      <div id="shipment-details-section" class="scan-hidden">
+      <div id="shipment-details-section" class="scan-hidden" hidden>
         <div class="scan-field">
           <label for="id_carton_count">Nombre de colis</label>
           {{ form.carton_count }}
