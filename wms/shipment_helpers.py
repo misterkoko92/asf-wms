@@ -1,5 +1,3 @@
-from contacts.models import ContactType
-
 from .contact_filters import (
     TAG_CORRESPONDENT,
     TAG_RECIPIENT,
@@ -30,13 +28,11 @@ def build_shipment_contact_payload():
     )
     shipper_contacts = (
         contacts_with_tags(TAG_SHIPPER)
-        .filter(contact_type=ContactType.ORGANIZATION)
         .select_related("destination")
         .prefetch_related("destinations")
     )
     recipient_contacts = (
         contacts_with_tags(TAG_RECIPIENT)
-        .filter(contact_type=ContactType.ORGANIZATION)
         .select_related("destination")
         .prefetch_related("addresses", "destinations", "linked_shippers")
     )

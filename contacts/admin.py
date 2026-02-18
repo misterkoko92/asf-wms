@@ -21,13 +21,10 @@ def _tags_match(selected_tags, expected_tags):
 
 
 def _default_shipper_contact():
-    scoped_shippers = contacts_with_tags(TAG_SHIPPER).filter(
-        contact_type=ContactType.ORGANIZATION
-    )
+    scoped_shippers = contacts_with_tags(TAG_SHIPPER)
     return (
         scoped_shippers.filter(name__iexact=DEFAULT_RECIPIENT_SHIPPER_NAME).first()
         or Contact.objects.filter(
-            contact_type=ContactType.ORGANIZATION,
             is_active=True,
             name__iexact=DEFAULT_RECIPIENT_SHIPPER_NAME,
         ).first()
@@ -64,9 +61,7 @@ class ContactAdminForm(forms.ModelForm):
         self.fields["destinations"].help_text = (
             "Sélection multiple. Vide = toutes les destinations."
         )
-        self.fields["linked_shippers"].queryset = contacts_with_tags(TAG_SHIPPER).filter(
-            contact_type=ContactType.ORGANIZATION
-        )
+        self.fields["linked_shippers"].queryset = contacts_with_tags(TAG_SHIPPER)
         self.fields["linked_shippers"].help_text = (
             "Sélection multiple pour les destinataires. Obligatoire à la création."
         )
@@ -228,9 +223,7 @@ class ContactAdmin(admin.ModelAdmin):
         if db_field.name == "destinations":
             kwargs["queryset"] = Destination.objects.filter(is_active=True).order_by("city")
         if db_field.name == "linked_shippers":
-            kwargs["queryset"] = contacts_with_tags(TAG_SHIPPER).filter(
-                contact_type=ContactType.ORGANIZATION
-            )
+            kwargs["queryset"] = contacts_with_tags(TAG_SHIPPER)
         field = super().formfield_for_manytomany(db_field, request, **kwargs)
         if db_field.name in {"destinations", "linked_shippers"}:
             field.widget.can_add_related = False

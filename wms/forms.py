@@ -399,9 +399,7 @@ class ScanShipmentForm(forms.Form):
             destinations=destinations,
             destination_id=destination_id,
         )
-        shipper_contacts = contacts_with_tags(TAG_SHIPPER).filter(
-            contact_type=ContactType.ORGANIZATION
-        )
+        shipper_contacts = contacts_with_tags(TAG_SHIPPER)
         if selected_destination:
             shipper_contacts = filter_contacts_for_destination(
                 shipper_contacts,
@@ -413,9 +411,7 @@ class ScanShipmentForm(forms.Form):
         _select_single_choice(self.fields["shipper_contact"])
         selected_shipper = self._resolve_selected_shipper()
 
-        recipients = contacts_with_tags(TAG_RECIPIENT).filter(
-            contact_type=ContactType.ORGANIZATION
-        )
+        recipients = contacts_with_tags(TAG_RECIPIENT)
         correspondents = contacts_with_tags(TAG_CORRESPONDENT)
 
         if selected_shipper:
