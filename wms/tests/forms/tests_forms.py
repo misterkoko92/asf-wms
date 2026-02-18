@@ -256,6 +256,34 @@ class FormsTests(TestCase):
             form.errors["shipper_contact"], ["Contact non disponible pour cette destination."]
         )
 
+    def test_scan_shipment_form_clean_accepts_shipper_scoped_with_multi_destinations(self):
+        expected_correspondent = self._create_contact("Corr Multi")
+        destination = Destination.objects.create(
+            city="Brazzaville",
+            iata_code="BZV1",
+            country="Rep. du Congo",
+            correspondent_contact=expected_correspondent,
+            is_active=True,
+        )
+        shipper = self._create_contact("Shipper Multi")
+        shipper.destinations.add(destination)
+        recipient = self._create_contact("Recipient Multi", country="Rep. du Congo")
+
+        form = ScanShipmentForm(
+            data={
+                "destination": str(destination.id),
+                "shipper_contact": str(shipper.id),
+                "recipient_contact": str(recipient.id),
+                "correspondent_contact": str(expected_correspondent.id),
+                "carton_count": "1",
+            }
+        )
+        form.fields["shipper_contact"].queryset = Contact.objects.all()
+        form.fields["recipient_contact"].queryset = Contact.objects.all()
+        form.fields["correspondent_contact"].queryset = Contact.objects.all()
+
+        self.assertTrue(form.is_valid())
+
     def test_scan_shipment_form_clean_rejects_recipient_country_mismatch(self):
         expected_correspondent = self._create_contact("Corr Expected 2")
         destination = Destination.objects.create(

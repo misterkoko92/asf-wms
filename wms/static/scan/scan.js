@@ -1967,17 +1967,26 @@
 
   function setupShipmentContactFilters() {
     const destinationSelect = document.getElementById('id_destination');
+    const shipperSelect = document.getElementById('id_shipper_contact');
     const recipientSelect = document.getElementById('id_recipient_contact');
     const correspondentSelect = document.getElementById('id_correspondent_contact');
     const destinationsEl = document.getElementById('destination-data');
+    const shippersEl = document.getElementById('shipper-contacts-data');
     const recipientsEl = document.getElementById('recipient-contacts-data');
     const correspondentsEl = document.getElementById('correspondent-contacts-data');
 
-    if (!destinationSelect || !recipientSelect || !correspondentSelect || !destinationsEl) {
+    if (
+      !destinationSelect ||
+      !shipperSelect ||
+      !recipientSelect ||
+      !correspondentSelect ||
+      !destinationsEl
+    ) {
       return;
     }
 
     let destinations = [];
+    let shippers = [];
     let recipients = [];
     let correspondents = [];
 
@@ -1985,6 +1994,11 @@
       destinations = JSON.parse(destinationsEl.textContent || '[]');
     } catch (err) {
       destinations = [];
+    }
+    try {
+      shippers = JSON.parse(shippersEl ? shippersEl.textContent || '[]' : '[]');
+    } catch (err) {
+      shippers = [];
     }
     try {
       recipients = JSON.parse(recipientsEl ? recipientsEl.textContent || '[]' : '[]');
@@ -2006,6 +2020,12 @@
     const matchesDestination = (contact, destinationId) => {
       if (!contact || !destinationId) {
         return true;
+      }
+      const scopedDestinationIds = Array.isArray(contact.destination_ids)
+        ? contact.destination_ids.map(entry => String(entry))
+        : [];
+      if (scopedDestinationIds.length) {
+        return scopedDestinationIds.includes(String(destinationId));
       }
       if (!contact.destination_id) {
         return true;
@@ -2038,13 +2058,18 @@
 
     const updateContacts = () => {
       const destination = destinationMap.get(String(destinationSelect.value));
+      const selectedShipper = shipperSelect.value;
       const selectedRecipient = recipientSelect.value;
       const selectedCorrespondent = correspondentSelect.value;
+      let shipperOptions = shippers;
       let recipientOptions = recipients;
       let correspondentOptions = correspondents;
 
       if (destination) {
         const destinationId = String(destination.id);
+        shipperOptions = shippers.filter(shipper =>
+          matchesDestination(shipper, destinationId)
+        );
         recipientOptions = recipients.filter(recipient =>
           matchesDestination(recipient, destinationId)
         );
@@ -2069,6 +2094,7 @@
         }
       }
 
+      renderOptions(shipperSelect, shipperOptions, selectedShipper);
       renderOptions(recipientSelect, recipientOptions, selectedRecipient);
       renderOptions(correspondentSelect, correspondentOptions, selectedCorrespondent);
     };

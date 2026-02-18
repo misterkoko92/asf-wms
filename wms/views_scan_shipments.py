@@ -61,6 +61,7 @@ def _build_shipment_form_support(*, extra_carton_options=None):
         product_options,
         available_cartons,
         destinations_json,
+        shipper_contacts_json,
         recipient_contacts_json,
         correspondent_contacts_json,
     ) = build_shipment_form_payload()
@@ -73,6 +74,7 @@ def _build_shipment_form_support(*, extra_carton_options=None):
         "cartons_json": cartons_json,
         "allowed_carton_ids": allowed_carton_ids,
         "destinations_json": destinations_json,
+        "shipper_contacts_json": shipper_contacts_json,
         "recipient_contacts_json": recipient_contacts_json,
         "correspondent_contacts_json": correspondent_contacts_json,
     }
@@ -97,6 +99,7 @@ def _render_shipment_form(
         line_values=line_values,
         line_errors=line_errors,
         destinations_json=support["destinations_json"],
+        shipper_contacts_json=support["shipper_contacts_json"],
         recipient_contacts_json=support["recipient_contacts_json"],
         correspondent_contacts_json=support["correspondent_contacts_json"],
     )

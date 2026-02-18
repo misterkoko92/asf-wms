@@ -207,7 +207,7 @@ class ScanShipmentsViewsTests(TestCase):
         ):
             with mock.patch(
                 "wms.views_scan_shipments.build_shipment_form_payload",
-                return_value=([], [], [], [], []),
+                return_value=([], [], [], [], [], []),
             ):
                 with mock.patch(
                     "wms.views_scan_shipments.build_carton_selection_data",
@@ -242,7 +242,7 @@ class ScanShipmentsViewsTests(TestCase):
         ):
             with mock.patch(
                 "wms.views_scan_shipments.build_shipment_form_payload",
-                return_value=([], [], [], [], []),
+                return_value=([], [], [], [], [], []),
             ):
                 with mock.patch(
                     "wms.views_scan_shipments.build_carton_selection_data",
@@ -266,7 +266,7 @@ class ScanShipmentsViewsTests(TestCase):
         ):
             with mock.patch(
                 "wms.views_scan_shipments.build_shipment_form_payload",
-                return_value=([], [], [], [], []),
+                return_value=([], [], [], [], [], []),
             ):
                 with mock.patch(
                     "wms.views_scan_shipments.build_carton_selection_data",
@@ -321,7 +321,7 @@ class ScanShipmentsViewsTests(TestCase):
                     ):
                         with mock.patch(
                             "wms.views_scan_shipments.build_shipment_form_payload",
-                            return_value=([], [], [], [], []),
+                            return_value=([], [], [], [], [], []),
                         ):
                             with mock.patch(
                                 "wms.views_scan_shipments.build_carton_selection_data",
@@ -373,7 +373,7 @@ class ScanShipmentsViewsTests(TestCase):
                     ):
                         with mock.patch(
                             "wms.views_scan_shipments.build_shipment_form_payload",
-                            return_value=([], [], [], [], []),
+                            return_value=([], [], [], [], [], []),
                         ):
                             with mock.patch(
                                 "wms.views_scan_shipments.build_carton_selection_data",
@@ -413,7 +413,7 @@ class ScanShipmentsViewsTests(TestCase):
                     ):
                         with mock.patch(
                             "wms.views_scan_shipments.build_shipment_form_payload",
-                            return_value=([], [], [], [], []),
+                            return_value=([], [], [], [], [], []),
                         ):
                             with mock.patch(
                                 "wms.views_scan_shipments.build_carton_selection_data",

@@ -11,13 +11,17 @@ from .view_utils import resolve_contact_by_name
 def build_shipment_form_payload():
     product_options = build_product_options()
     available_cartons = build_available_cartons()
-    destinations_json, recipient_contacts_json, correspondent_contacts_json = (
-        build_shipment_contact_payload()
-    )
+    (
+        destinations_json,
+        shipper_contacts_json,
+        recipient_contacts_json,
+        correspondent_contacts_json,
+    ) = build_shipment_contact_payload()
     return (
         product_options,
         available_cartons,
         destinations_json,
+        shipper_contacts_json,
         recipient_contacts_json,
         correspondent_contacts_json,
     )
@@ -73,6 +77,7 @@ def build_shipment_form_context(
     line_values,
     line_errors,
     destinations_json,
+    shipper_contacts_json,
     recipient_contacts_json,
     correspondent_contacts_json,
 ):
@@ -84,6 +89,7 @@ def build_shipment_form_context(
         "line_values": line_values,
         "line_errors": line_errors,
         "destinations_json": destinations_json,
+        "shipper_contacts_json": shipper_contacts_json,
         "recipient_contacts_json": recipient_contacts_json,
         "correspondent_contacts_json": correspondent_contacts_json,
     }

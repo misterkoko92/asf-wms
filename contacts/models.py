@@ -45,6 +45,12 @@ class Contact(models.Model):
         limit_choices_to={"is_active": True},
         help_text="Laisser vide pour toutes les destinations.",
     )
+    destinations = models.ManyToManyField(
+        "wms.Destination",
+        blank=True,
+        related_name="contacts_scoped",
+        help_text="Laisser vide pour toutes les destinations.",
+    )
     role = models.CharField(max_length=120, blank=True)
     email = models.EmailField(blank=True)
     email2 = models.EmailField(blank=True)

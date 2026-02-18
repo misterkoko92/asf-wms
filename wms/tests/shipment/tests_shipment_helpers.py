@@ -23,7 +23,7 @@ class ShipmentHelpersTests(TestCase):
         )
         self.assertEqual(build_destination_label(destination), str(destination))
 
-    def test_build_shipment_contact_payload_collects_destinations_recipients_and_correspondents(self):
+    def test_build_shipment_contact_payload_collects_destination_scoped_contacts(self):
         correspondent = Contact.objects.create(name="Corr A")
         destination = Destination.objects.create(
             city="Lyon",
@@ -32,6 +32,14 @@ class ShipmentHelpersTests(TestCase):
             correspondent_contact=correspondent,
             is_active=True,
         )
+        shipper = Contact.objects.create(
+            name="Shipper Org",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        shipper.destinations.add(destination)
+        shipper_tag = ContactTag.objects.create(name="expediteur")
+        shipper.tags.add(shipper_tag)
         recipient = Contact.objects.create(
             name="Recipient Org",
             contact_type=ContactType.ORGANIZATION,
@@ -63,7 +71,12 @@ class ShipmentHelpersTests(TestCase):
         correspondent_tag = ContactTag.objects.create(name="correspondant")
         corr_contact.tags.add(correspondent_tag)
 
-        destinations_json, recipients_json, correspondents_json = build_shipment_contact_payload()
+        (
+            destinations_json,
+            shippers_json,
+            recipients_json,
+            correspondents_json,
+        ) = build_shipment_contact_payload()
 
         self.assertEqual(
             destinations_json,
@@ -75,11 +88,23 @@ class ShipmentHelpersTests(TestCase):
                 }
             ],
         )
+        self.assertEqual(
+            shippers_json,
+            [
+                {
+                    "id": shipper.id,
+                    "name": "Shipper Org",
+                    "destination_id": None,
+                    "destination_ids": [destination.id],
+                }
+            ],
+        )
         self.assertEqual(len(recipients_json), 1)
         self.assertEqual(recipients_json[0]["id"], recipient.id)
         self.assertEqual(recipients_json[0]["name"], "Recipient Org")
         self.assertEqual(recipients_json[0]["countries"], ["France", "UK"])
         self.assertEqual(recipients_json[0]["destination_id"], destination.id)
+        self.assertEqual(recipients_json[0]["destination_ids"], [])
         self.assertEqual(
             correspondents_json,
             [
@@ -87,6 +112,7 @@ class ShipmentHelpersTests(TestCase):
                     "id": corr_contact.id,
                     "name": "Corr Contact",
                     "destination_id": destination.id,
+                    "destination_ids": [],
                 }
             ],
         )

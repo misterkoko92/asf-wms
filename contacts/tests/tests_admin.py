@@ -12,6 +12,7 @@ class ContactAdminFormTests(TestCase):
 
         self.assertIn("adresse par défaut", form.fields["use_organization_address"].help_text)
         self.assertIn("Laisser vide", form.fields["destination"].help_text)
+        self.assertIn("Sélection multiple", form.fields["destinations"].help_text)
 
     def test_clean_requires_tag_for_organization(self):
         form = ContactAdminForm(
@@ -100,6 +101,37 @@ class ContactAdminTests(TestCase):
         db_field = Contact._meta.get_field("destination")
 
         field = admin_obj.formfield_for_foreignkey(db_field, request)
+
+        self.assertEqual(list(field.queryset), [active_destination])
+        self.assertFalse(field.widget.can_add_related)
+        self.assertFalse(field.widget.can_change_related)
+        self.assertFalse(field.widget.can_delete_related)
+
+    def test_destinations_many_to_many_uses_only_active_destinations(self):
+        correspondent = Contact.objects.create(
+            name="Correspondent Multi",
+            contact_type=ContactType.ORGANIZATION,
+        )
+        active_destination = Destination.objects.create(
+            city="Abidjan",
+            iata_code="ABJ",
+            country="Cote d'Ivoire",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        Destination.objects.create(
+            city="Lome",
+            iata_code="LFW",
+            country="Togo",
+            correspondent_contact=correspondent,
+            is_active=False,
+        )
+
+        admin_obj = ContactAdmin(Contact, AdminSite())
+        request = RequestFactory().get("/admin/contacts/contact/add/")
+        db_field = Contact._meta.get_field("destinations")
+
+        field = admin_obj.formfield_for_manytomany(db_field, request)
 
         self.assertEqual(list(field.queryset), [active_destination])
         self.assertFalse(field.widget.can_add_related)

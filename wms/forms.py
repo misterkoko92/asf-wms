@@ -447,11 +447,10 @@ class ScanShipmentForm(forms.Form):
                 ("recipient_contact", recipient),
                 ("correspondent_contact", correspondent),
             ):
-                if (
-                    contact
-                    and contact.destination_id
-                    and contact.destination_id != destination.id
-                ):
+                if contact and not filter_contacts_for_destination(
+                    Contact.objects.filter(pk=contact.pk),
+                    destination,
+                ).exists():
                     self.add_error(
                         field_name,
                         "Contact non disponible pour cette destination.",

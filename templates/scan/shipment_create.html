@@ -221,6 +221,7 @@
     {{ line_values|json_script:"shipment-lines-data" }}
     {{ line_errors|json_script:"shipment-lines-errors" }}
     {{ destinations_json|json_script:"destination-data" }}
+    {{ shipper_contacts_json|json_script:"shipper-contacts-data" }}
     {{ recipient_contacts_json|json_script:"recipient-contacts-data" }}
     {{ correspondent_contacts_json|json_script:"correspondent-contacts-data" }}
     <datalist id="product-options">

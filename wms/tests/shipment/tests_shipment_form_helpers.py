@@ -24,7 +24,7 @@ class ShipmentFormHelpersTests(SimpleTestCase):
             ):
                 with mock.patch(
                     "wms.shipment_form_helpers.build_shipment_contact_payload",
-                    return_value=([{"id": 10}], [{"id": 20}], [{"id": 30}]),
+                    return_value=([{"id": 10}], [{"id": 15}], [{"id": 20}], [{"id": 30}]),
                 ):
                     payload = build_shipment_form_payload()
 
@@ -34,6 +34,7 @@ class ShipmentFormHelpersTests(SimpleTestCase):
                 [{"sku": "P1"}],
                 [{"id": 1, "code": "C-1"}],
                 [{"id": 10}],
+                [{"id": 15}],
                 [{"id": 20}],
                 [{"id": 30}],
             ),
@@ -147,6 +148,7 @@ class ShipmentFormHelpersTests(SimpleTestCase):
             line_values=[{"product_code": "P1"}],
             line_errors={"1": ["Erreur"]},
             destinations_json=[{"id": 10}],
+            shipper_contacts_json=[{"id": 15}],
             recipient_contacts_json=[{"id": 20}],
             correspondent_contacts_json=[{"id": 30}],
         )
@@ -157,5 +159,6 @@ class ShipmentFormHelpersTests(SimpleTestCase):
         self.assertEqual(context["line_values"], [{"product_code": "P1"}])
         self.assertEqual(context["line_errors"], {"1": ["Erreur"]})
         self.assertEqual(context["destinations_json"], [{"id": 10}])
+        self.assertEqual(context["shipper_contacts_json"], [{"id": 15}])
         self.assertEqual(context["recipient_contacts_json"], [{"id": 20}])
         self.assertEqual(context["correspondent_contacts_json"], [{"id": 30}])

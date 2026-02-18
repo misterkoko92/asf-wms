@@ -1,8 +1,17 @@
 from contacts.models import ContactType
 
-from .contact_filters import TAG_CORRESPONDENT, TAG_RECIPIENT, contacts_with_tags
+from .contact_filters import (
+    TAG_CORRESPONDENT,
+    TAG_RECIPIENT,
+    TAG_SHIPPER,
+    contacts_with_tags,
+)
 from .models import Destination
 from .scan_helpers import parse_int, resolve_product
+
+
+def _destination_ids(contact):
+    return sorted(destination.id for destination in contact.destinations.all())
 
 
 def build_destination_label(destination):
@@ -15,14 +24,22 @@ def build_shipment_contact_payload():
     destinations = Destination.objects.filter(is_active=True).select_related(
         "correspondent_contact"
     )
+    shipper_contacts = (
+        contacts_with_tags(TAG_SHIPPER)
+        .filter(contact_type=ContactType.ORGANIZATION)
+        .select_related("destination")
+        .prefetch_related("destinations")
+    )
     recipient_contacts = (
         contacts_with_tags(TAG_RECIPIENT)
         .filter(contact_type=ContactType.ORGANIZATION)
         .select_related("destination")
-        .prefetch_related("addresses")
+        .prefetch_related("addresses", "destinations")
     )
-    correspondent_contacts = contacts_with_tags(TAG_CORRESPONDENT).select_related(
-        "destination"
+    correspondent_contacts = (
+        contacts_with_tags(TAG_CORRESPONDENT)
+        .select_related("destination")
+        .prefetch_related("destinations")
     )
 
     destinations_json = [
@@ -32,6 +49,15 @@ def build_shipment_contact_payload():
             "correspondent_contact_id": destination.correspondent_contact_id,
         }
         for destination in destinations
+    ]
+    shipper_contacts_json = [
+        {
+            "id": contact.id,
+            "name": contact.name,
+            "destination_id": contact.destination_id,
+            "destination_ids": _destination_ids(contact),
+        }
+        for contact in shipper_contacts
     ]
     recipient_contacts_json = []
     for contact in recipient_contacts:
@@ -47,13 +73,24 @@ def build_shipment_contact_payload():
                 "name": contact.name,
                 "countries": sorted(countries),
                 "destination_id": contact.destination_id,
+                "destination_ids": _destination_ids(contact),
             }
         )
     correspondent_contacts_json = [
-        {"id": contact.id, "name": contact.name, "destination_id": contact.destination_id}
+        {
+            "id": contact.id,
+            "name": contact.name,
+            "destination_id": contact.destination_id,
+            "destination_ids": _destination_ids(contact),
+        }
         for contact in correspondent_contacts
     ]
-    return destinations_json, recipient_contacts_json, correspondent_contacts_json
+    return (
+        destinations_json,
+        shipper_contacts_json,
+        recipient_contacts_json,
+        correspondent_contacts_json,
+    )
 
 
 def parse_shipment_lines(*, carton_count, data, allowed_carton_ids):

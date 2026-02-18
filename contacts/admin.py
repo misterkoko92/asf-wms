@@ -36,6 +36,9 @@ class ContactAdminForm(forms.ModelForm):
         self.fields["destination"].help_text = (
             "Laisser vide pour toutes les destinations."
         )
+        self.fields["destinations"].help_text = (
+            "Sélection multiple. Vide + destination vide = toutes les destinations."
+        )
 
     def clean(self):
         cleaned_data = super().clean()
@@ -79,12 +82,13 @@ class ContactAdmin(admin.ModelAdmin):
         "contact_type",
         "organization",
         "destination",
+        "destinations_display",
         "email",
         "phone",
         "asf_id",
         "is_active",
     )
-    list_filter = ("contact_type", "is_active", "tags", "destination")
+    list_filter = ("contact_type", "is_active", "tags", "destination", "destinations")
     search_fields = (
         "name",
         "first_name",
@@ -97,7 +101,7 @@ class ContactAdmin(admin.ModelAdmin):
         "siret",
         "asf_id",
     )
-    filter_horizontal = ("tags",)
+    filter_horizontal = ("tags", "destinations")
     inlines = [ContactAddressInline]
     readonly_fields = ("asf_id",)
     fieldsets = (
@@ -120,6 +124,7 @@ class ContactAdmin(admin.ModelAdmin):
                     "organization",
                     "role",
                     "destination",
+                    "destinations",
                     "siret",
                     "vat_number",
                     "legal_registration_number",
@@ -152,6 +157,24 @@ class ContactAdmin(admin.ModelAdmin):
             field.widget.can_change_related = False
             field.widget.can_delete_related = False
         return field
+
+    def formfield_for_manytomany(self, db_field, request, **kwargs):
+        if db_field.name == "destinations":
+            kwargs["queryset"] = Destination.objects.filter(is_active=True).order_by("city")
+        field = super().formfield_for_manytomany(db_field, request, **kwargs)
+        if db_field.name == "destinations":
+            field.widget.can_add_related = False
+            field.widget.can_change_related = False
+            field.widget.can_delete_related = False
+        return field
+
+    @admin.display(description="Destinations")
+    def destinations_display(self, obj):
+        names = list(obj.destinations.values_list("city", flat=True)[:3])
+        if not names:
+            return "-"
+        suffix = "…" if obj.destinations.count() > 3 else ""
+        return ", ".join(names) + suffix
 
     class Media:
         css = {"all": ("scan/address_autocomplete.css",)}

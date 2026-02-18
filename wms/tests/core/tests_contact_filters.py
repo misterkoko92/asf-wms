@@ -59,3 +59,18 @@ class ContactFiltersTests(TestCase):
         results = list(contacts_with_tags(TAG_RECIPIENT))
 
         self.assertEqual(results, [contact])
+
+    def test_filter_contacts_for_destination_supports_multi_destination_scope(self):
+        destination = Destination.objects.create(
+            city="Abidjan",
+            iata_code="ABJ",
+            country="Cote d'Ivoire",
+            correspondent_contact=self._create_contact("Correspondent ABJ"),
+        )
+        scoped = self._create_contact("Scoped Multi")
+        scoped.destinations.add(destination)
+        queryset = Contact.objects.filter(pk=scoped.pk)
+
+        filtered = filter_contacts_for_destination(queryset, destination)
+
+        self.assertEqual(list(filtered), [scoped])
