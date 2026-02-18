@@ -199,8 +199,13 @@ def pack_carton_from_reserved(
         )
         item.quantity += entry.quantity
         item.save(update_fields=["quantity"])
-    if carton.status == CartonStatus.DRAFT:
-        carton.status = CartonStatus.PICKING
+    target_status = None
+    if shipment is not None:
+        target_status = CartonStatus.ASSIGNED
+    elif carton.status == CartonStatus.DRAFT:
+        target_status = CartonStatus.PICKING
+    if target_status and carton.status != target_status:
+        carton.status = target_status
         carton.save(update_fields=["status"])
     ensure_carton_code(carton)
     return carton
@@ -237,7 +242,8 @@ def assign_ready_cartons_to_order(*, order: Order):
             continue
         line = line_by_product[product_id]
         carton.shipment = order.shipment
-        carton.save(update_fields=["shipment"])
+        carton.status = CartonStatus.ASSIGNED
+        carton.save(update_fields=["shipment", "status"])
         line.prepared_quantity += carton_qty
         line.save(update_fields=["prepared_quantity"])
         remaining[product_id] -= carton_qty

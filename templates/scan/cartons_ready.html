@@ -41,7 +41,23 @@
                       </label>
                     </form>
                   {% else %}
-                    {{ carton.status_label }}
+                    <div>{{ carton.status_label }}</div>
+                    {% if carton.can_mark_labeled %}
+                      <form method="post" class="scan-toggle-form scan-field-gap">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="mark_carton_labeled">
+                        <input type="hidden" name="carton_id" value="{{ carton.id }}">
+                        <button type="submit" class="scan-scan-btn">Marquer etiquete</button>
+                      </form>
+                    {% endif %}
+                    {% if carton.can_mark_assigned %}
+                      <form method="post" class="scan-toggle-form scan-field-gap">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="mark_carton_assigned">
+                        <input type="hidden" name="carton_id" value="{{ carton.id }}">
+                        <button type="submit" class="scan-scan-btn">Retirer etiquette</button>
+                      </form>
+                    {% endif %}
                   {% endif %}
                 </td>
                 <td>{{ carton.shipment_reference|default:"-" }}</td>

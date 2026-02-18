@@ -180,7 +180,12 @@ def _prepare_carton(
         carton = Carton.objects.filter(code=carton_code).first()
     if carton and carton.status == CartonStatus.SHIPPED:
         raise StockError("Impossible de modifier un carton expédié.")
-    if shipment and shipment.status in {ShipmentStatus.SHIPPED, ShipmentStatus.DELIVERED}:
+    if shipment and shipment.status in {
+        ShipmentStatus.PLANNED,
+        ShipmentStatus.SHIPPED,
+        ShipmentStatus.RECEIVED_CORRESPONDENT,
+        ShipmentStatus.DELIVERED,
+    }:
         raise StockError("Impossible de modifier une expédition expédiée ou livrée.")
     if carton is None:
         date_str = timezone.localdate().strftime("%Y%m%d")
@@ -535,8 +540,13 @@ def pack_carton(
             )
             item.quantity += entry.quantity
             item.save(update_fields=["quantity"])
-    if carton.status == CartonStatus.DRAFT:
-        carton.status = CartonStatus.PICKING
+    target_status = None
+    if shipment is not None:
+        target_status = CartonStatus.ASSIGNED
+    elif carton.status == CartonStatus.DRAFT:
+        target_status = CartonStatus.PICKING
+    if target_status and carton.status != target_status:
+        carton.status = target_status
         carton.save(update_fields=["status"])
     ensure_carton_code(carton)
     return carton

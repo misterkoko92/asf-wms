@@ -22,6 +22,31 @@
         <h2>Suivi exp&eacute;dition {{ shipment.reference }}</h2>
 
         <div class="scan-field">
+          <label>Statut actuel</label>
+          <div class="scan-help">
+            {{ shipment.get_status_display }}
+            {% if shipment.is_disputed %} | Litige en cours{% endif %}
+          </div>
+          {% if can_update_tracking %}
+            <div class="scan-inline scan-field-gap">
+              {% if shipment.is_disputed %}
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="resolve_dispute">
+                  <button type="submit" class="scan-scan-btn">Resoudre litige et remettre Pret</button>
+                </form>
+              {% else %}
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="set_disputed">
+                  <button type="submit" class="scan-scan-btn">Declarer litige</button>
+                </form>
+              {% endif %}
+            </div>
+          {% endif %}
+        </div>
+
+        <div class="scan-field">
           <label>Documents lies</label>
           <div class="scan-docs">
             {% for doc in documents %}
@@ -65,47 +90,53 @@
         <hr class="scan-divider">
 
         {% if can_update_tracking %}
-          <h3>Mettre &agrave; jour le suivi</h3>
-          <form method="post">
-            {% csrf_token %}
-            {% if form.non_field_errors %}
-              <div class="scan-message error">{{ form.non_field_errors }}</div>
-            {% endif %}
-
-            <div class="scan-field">
-              <label for="id_status">Etape</label>
-              {{ form.status }}
-              {% for error in form.status.errors %}
-                <div class="scan-message error">{{ error }}</div>
-              {% endfor %}
+          {% if shipment.is_disputed %}
+            <div class="scan-help">
+              Suivi bloque tant que le litige n'est pas resolu.
             </div>
+          {% else %}
+            <h3>Mettre &agrave; jour le suivi</h3>
+            <form method="post">
+              {% csrf_token %}
+              {% if form.non_field_errors %}
+                <div class="scan-message error">{{ form.non_field_errors }}</div>
+              {% endif %}
 
-            <div class="scan-field">
-              <label for="id_actor_name">Nom</label>
-              {{ form.actor_name }}
-              {% for error in form.actor_name.errors %}
-                <div class="scan-message error">{{ error }}</div>
-              {% endfor %}
-            </div>
+              <div class="scan-field">
+                <label for="id_status">Etape</label>
+                {{ form.status }}
+                {% for error in form.status.errors %}
+                  <div class="scan-message error">{{ error }}</div>
+                {% endfor %}
+              </div>
 
-            <div class="scan-field">
-              <label for="id_actor_structure">Structure</label>
-              {{ form.actor_structure }}
-              {% for error in form.actor_structure.errors %}
-                <div class="scan-message error">{{ error }}</div>
-              {% endfor %}
-            </div>
+              <div class="scan-field">
+                <label for="id_actor_name">Nom</label>
+                {{ form.actor_name }}
+                {% for error in form.actor_name.errors %}
+                  <div class="scan-message error">{{ error }}</div>
+                {% endfor %}
+              </div>
 
-            <div class="scan-field">
-              <label for="id_comments">Commentaires</label>
-              {{ form.comments }}
-              {% for error in form.comments.errors %}
-                <div class="scan-message error">{{ error }}</div>
-              {% endfor %}
-            </div>
+              <div class="scan-field">
+                <label for="id_actor_structure">Structure</label>
+                {{ form.actor_structure }}
+                {% for error in form.actor_structure.errors %}
+                  <div class="scan-message error">{{ error }}</div>
+                {% endfor %}
+              </div>
 
-            <button type="submit" class="scan-submit">Enregistrer</button>
-          </form>
+              <div class="scan-field">
+                <label for="id_comments">Commentaires</label>
+                {{ form.comments }}
+                {% for error in form.comments.errors %}
+                  <div class="scan-message error">{{ error }}</div>
+                {% endfor %}
+              </div>
+
+              <button type="submit" class="scan-submit">Enregistrer</button>
+            </form>
+          {% endif %}
         {% else %}
           <div class="scan-help">
             Mise &agrave; jour du suivi indisponible sur ce lien legacy. Utilisez le QR code le plus r&eacute;cent.

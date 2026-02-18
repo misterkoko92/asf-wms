@@ -2,24 +2,30 @@ from django.utils import timezone
 
 from .models import CartonStatus, ShipmentStatus
 
+LOCKED_SHIPMENT_STATUSES = {
+    ShipmentStatus.PLANNED,
+    ShipmentStatus.SHIPPED,
+    ShipmentStatus.RECEIVED_CORRESPONDENT,
+    ShipmentStatus.DELIVERED,
+}
+LABELED_CARTON_STATUSES = {CartonStatus.LABELED, CartonStatus.SHIPPED}
+
 
 def compute_shipment_progress(shipment):
     cartons = shipment.carton_set.all()
     total = cartons.count()
-    ready = cartons.filter(
-        status__in=[CartonStatus.PACKED, CartonStatus.SHIPPED]
-    ).count()
-    if total == 0 or ready == 0:
-        return total, ready, ShipmentStatus.DRAFT, "DRAFT"
-    if ready < total:
-        return total, ready, ShipmentStatus.PICKING, f"PARTIEL ({ready}/{total})"
-    return total, ready, ShipmentStatus.PACKED, "READY"
+    labeled = cartons.filter(status__in=LABELED_CARTON_STATUSES).count()
+    if total == 0:
+        return total, labeled, ShipmentStatus.DRAFT, "CREATION"
+    if labeled < total:
+        return total, labeled, ShipmentStatus.PICKING, f"EN COURS ({labeled}/{total})"
+    return total, labeled, ShipmentStatus.PACKED, "PRET"
 
 
 def sync_shipment_ready_state(shipment):
-    if shipment.status in {ShipmentStatus.SHIPPED, ShipmentStatus.DELIVERED}:
+    if shipment.status in LOCKED_SHIPMENT_STATUSES:
         return
-    total, ready, new_status, _ = compute_shipment_progress(shipment)
+    total, labeled, new_status, _ = compute_shipment_progress(shipment)
     was_packed = shipment.status == ShipmentStatus.PACKED
     updates = {}
     if shipment.status != new_status:

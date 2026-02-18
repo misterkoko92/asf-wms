@@ -1,7 +1,14 @@
 from django.urls import reverse
 
-from .models import CartonFormat, CartonStatus
+from .models import CartonFormat, CartonStatus, ShipmentStatus
 from .scan_helpers import build_product_group_key, build_product_label
+
+LOCKED_SHIPMENT_STATUSES = {
+    ShipmentStatus.PLANNED,
+    ShipmentStatus.SHIPPED,
+    ShipmentStatus.RECEIVED_CORRESPONDENT,
+    ShipmentStatus.DELIVERED,
+}
 
 
 def get_carton_capacity_cm3():
@@ -57,13 +64,16 @@ def build_cartons_ready_rows(cartons_qs, *, carton_capacity_cm3):
         else:
             volume_percent = None
         is_assigned = carton.shipment_id is not None
-        if is_assigned and carton.status != CartonStatus.SHIPPED:
-            status_label = "Affecte"
-        else:
-            try:
-                status_label = CartonStatus(carton.status).label
-            except ValueError:
-                status_label = carton.status
+        shipment_status = getattr(getattr(carton, "shipment", None), "status", None)
+        shipment_locked = (
+            carton.shipment_id is not None
+            and carton.shipment
+            and shipment_status in LOCKED_SHIPMENT_STATUSES
+        )
+        try:
+            status_label = CartonStatus(carton.status).label
+        except ValueError:
+            status_label = carton.status
         if carton.shipment_id:
             packing_list_url = reverse(
                 "scan:scan_shipment_carton_document",
@@ -81,6 +91,12 @@ def build_cartons_ready_rows(cartons_qs, *, carton_capacity_cm3):
                 "status_value": carton.status,
                 "can_toggle": (not is_assigned)
                 and carton.status != CartonStatus.SHIPPED,
+                "can_mark_labeled": is_assigned
+                and not shipment_locked
+                and carton.status in {CartonStatus.ASSIGNED, CartonStatus.PACKED},
+                "can_mark_assigned": is_assigned
+                and not shipment_locked
+                and carton.status == CartonStatus.LABELED,
                 "shipment_reference": carton.shipment.reference if carton.shipment else "",
                 "location": carton.current_location,
                 "packing_list": packing_list,

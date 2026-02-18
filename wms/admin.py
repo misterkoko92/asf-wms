@@ -910,6 +910,8 @@ class ShipmentAdmin(admin.ModelAdmin):
     fields = (
         "reference",
         "status",
+        "is_disputed",
+        "disputed_at",
         "shipper_name",
         "shipper_contact",
         "recipient_name",
@@ -926,8 +928,15 @@ class ShipmentAdmin(admin.ModelAdmin):
         "qr_code_image",
         "notes",
     )
-    list_display = ("reference", "status", "shipper_name", "recipient_name", "created_at")
-    list_filter = ("status", "destination_country")
+    list_display = (
+        "reference",
+        "status",
+        "is_disputed",
+        "shipper_name",
+        "recipient_name",
+        "created_at",
+    )
+    list_filter = ("status", "is_disputed", "destination_country")
     search_fields = ("reference", "shipper_name", "recipient_name")
     inlines = (CartonInline, DocumentInline, ShipmentTrackingEventInline)
 

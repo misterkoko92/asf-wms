@@ -351,9 +351,9 @@ class ShipmentViewHelpersTests(TestCase):
         )
 
         rows = build_shipments_ready_rows([draft, partial, shipped])
-        self.assertEqual(rows[0]["status_label"], "DRAFT")
+        self.assertEqual(rows[0]["status_label"], "CREATION")
         self.assertTrue(rows[0]["can_edit"])
-        self.assertEqual(rows[1]["status_label"], "PARTIEL (1/3)")
+        self.assertEqual(rows[1]["status_label"], "EN COURS (1/3)")
         self.assertEqual(rows[1]["destination_iata"], "CDG")
         self.assertEqual(rows[2]["status_label"], ShipmentStatus(ShipmentStatus.SHIPPED).label)
         self.assertFalse(rows[2]["can_edit"])

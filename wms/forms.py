@@ -112,7 +112,14 @@ class PackCartonForm(forms.Form):
             Carton.objects.exclude(status=CartonStatus.SHIPPED).order_by("code")
         )
         self.fields["shipment"].queryset = (
-            Shipment.objects.exclude(status__in=[ShipmentStatus.SHIPPED, ShipmentStatus.DELIVERED])
+            Shipment.objects.exclude(
+                status__in=[
+                    ShipmentStatus.PLANNED,
+                    ShipmentStatus.SHIPPED,
+                    ShipmentStatus.RECEIVED_CORRESPONDENT,
+                    ShipmentStatus.DELIVERED,
+                ]
+            )
             .order_by("reference")
         )
 
@@ -522,7 +529,7 @@ class ShipmentTrackingForm(forms.Form):
     def __init__(self, *args, **kwargs):
         initial_status = kwargs.pop("initial_status", None)
         super().__init__(*args, **kwargs)
-        choices = _sorted_choices(ShipmentTrackingStatus.choices)
+        choices = list(ShipmentTrackingStatus.choices)
         self.fields["status"].choices = choices
         if initial_status and any(choice[0] == initial_status for choice in choices):
             self.fields["status"].initial = initial_status

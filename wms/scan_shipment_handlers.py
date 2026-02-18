@@ -7,6 +7,13 @@ from .services import StockError, pack_carton
 from .shipment_helpers import build_destination_label, parse_shipment_lines
 from .shipment_status import sync_shipment_ready_state
 
+LOCKED_SHIPMENT_STATUSES = {
+    ShipmentStatus.PLANNED,
+    ShipmentStatus.SHIPPED,
+    ShipmentStatus.RECEIVED_CORRESPONDENT,
+    ShipmentStatus.DELIVERED,
+}
+
 
 def _get_carton_count(form, request):
     if form.is_valid():
@@ -60,9 +67,10 @@ def handle_shipment_create_post(request, *, form, available_carton_ids):
                         if carton is None:
                             raise StockError("Carton indisponible.")
                         carton.shipment = shipment
-                        carton.save(update_fields=["shipment"])
+                        carton.status = CartonStatus.ASSIGNED
+                        carton.save(update_fields=["shipment", "status"])
                     else:
-                        pack_carton(
+                        carton = pack_carton(
                             user=request.user,
                             product=item["product"],
                             quantity=item["quantity"],
@@ -70,6 +78,9 @@ def handle_shipment_create_post(request, *, form, available_carton_ids):
                             carton_code=None,
                             shipment=shipment,
                         )
+                        if carton.status != CartonStatus.ASSIGNED:
+                            carton.status = CartonStatus.ASSIGNED
+                            carton.save(update_fields=["status"])
             sync_shipment_ready_state(shipment)
             messages.success(
                 request,
@@ -91,6 +102,9 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
     response = None
     if form.is_valid() and not line_errors:
         try:
+            shipment_status = getattr(shipment, "status", ShipmentStatus.DRAFT)
+            if shipment_status in LOCKED_SHIPMENT_STATUSES:
+                raise StockError("Expédition verrouillée: modification des colis impossible.")
             with transaction.atomic():
                 destination = form.cleaned_data["destination"]
                 shipper_contact = form.cleaned_data["shipper_contact"]
@@ -131,7 +145,11 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
                     if carton.status == CartonStatus.SHIPPED:
                         raise StockError("Impossible de retirer un carton expédié.")
                     carton.shipment = None
-                    carton.save(update_fields=["shipment"])
+                    if carton.status in {CartonStatus.ASSIGNED, CartonStatus.LABELED}:
+                        carton.status = CartonStatus.PACKED
+                        carton.save(update_fields=["shipment", "status"])
+                    else:
+                        carton.save(update_fields=["shipment"])
 
                 for carton_id in selected_carton_ids:
                     carton_query = Carton.objects.filter(id=carton_id)
@@ -142,13 +160,19 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
                         raise StockError("Carton introuvable.")
                     if carton.shipment_id and carton.shipment_id != shipment.id:
                         raise StockError("Carton indisponible.")
+                    if carton.shipment_id != shipment.id and carton.status != CartonStatus.PACKED:
+                        raise StockError("Carton indisponible.")
                     if carton.shipment_id != shipment.id:
                         carton.shipment = shipment
-                        carton.save(update_fields=["shipment"])
+                        carton.status = CartonStatus.ASSIGNED
+                        carton.save(update_fields=["shipment", "status"])
+                    elif carton.status == CartonStatus.PACKED:
+                        carton.status = CartonStatus.ASSIGNED
+                        carton.save(update_fields=["status"])
 
                 for item in line_items:
                     if "product" in item:
-                        pack_carton(
+                        carton = pack_carton(
                             user=request.user,
                             product=item["product"],
                             quantity=item["quantity"],
@@ -156,6 +180,9 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
                             carton_code=None,
                             shipment=shipment,
                         )
+                        if carton.status != CartonStatus.ASSIGNED:
+                            carton.status = CartonStatus.ASSIGNED
+                            carton.save(update_fields=["status"])
             sync_shipment_ready_state(shipment)
             messages.success(
                 request,

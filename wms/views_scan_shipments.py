@@ -194,7 +194,7 @@ def scan_shipments_ready(request):
             ready_count=Count(
                 "carton",
                 filter=Q(
-                    carton__status__in=[CartonStatus.PACKED, CartonStatus.SHIPPED]
+                    carton__status__in=[CartonStatus.LABELED, CartonStatus.SHIPPED]
                 ),
                 distinct=True,
             ),
@@ -312,7 +312,12 @@ def scan_shipment_edit(request, shipment_id):
         ),
         pk=shipment_id,
     )
-    if shipment.status in {ShipmentStatus.SHIPPED, ShipmentStatus.DELIVERED}:
+    if shipment.status in {
+        ShipmentStatus.PLANNED,
+        ShipmentStatus.SHIPPED,
+        ShipmentStatus.RECEIVED_CORRESPONDENT,
+        ShipmentStatus.DELIVERED,
+    }:
         messages.error(request, "Expédition non modifiable.")
         return redirect("scan:scan_shipments_ready")
 

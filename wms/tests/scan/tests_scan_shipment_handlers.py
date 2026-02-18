@@ -3,7 +3,7 @@ from unittest import mock
 
 from django.test import RequestFactory, TestCase
 
-from wms.models import CartonStatus
+from wms.models import CartonStatus, ShipmentStatus
 from wms.scan_shipment_handlers import (
     _get_carton_count,
     handle_shipment_create_post,
@@ -120,7 +120,7 @@ class ScanShipmentHandlersTests(TestCase):
         self.assertEqual(carton_count, 2)
         self.assertEqual(line_values, [{"line": 1}])
         self.assertEqual(line_errors, {})
-        carton.save.assert_called_once_with(update_fields=["shipment"])
+        carton.save.assert_called_once_with(update_fields=["shipment", "status"])
         pack_mock.assert_called_once()
         sync_mock.assert_called_once_with(shipment)
         redirect_mock.assert_called_once_with("scan:scan_shipment_create")
@@ -186,6 +186,7 @@ class ScanShipmentHandlersTests(TestCase):
         shipment = SimpleNamespace(
             id=50,
             reference="S-EDIT-001",
+            status=ShipmentStatus.DRAFT,
             carton_set=mock.MagicMock(),
             save=mock.Mock(),
         )
@@ -193,7 +194,12 @@ class ScanShipmentHandlersTests(TestCase):
             status=CartonStatus.PACKED, shipment=shipment, save=mock.Mock()
         )
         shipment.carton_set.exclude.return_value = [carton_to_remove]
-        selected_carton = SimpleNamespace(shipment_id=None, shipment=None, save=mock.Mock())
+        selected_carton = SimpleNamespace(
+            shipment_id=None,
+            shipment=None,
+            status=CartonStatus.PACKED,
+            save=mock.Mock(),
+        )
         carton_query = mock.MagicMock()
         carton_query.select_for_update.return_value = carton_query
         carton_query.first.return_value = selected_carton
@@ -250,7 +256,7 @@ class ScanShipmentHandlersTests(TestCase):
         self.assertEqual(line_errors, {})
         shipment.save.assert_called_once()
         carton_to_remove.save.assert_called_once_with(update_fields=["shipment"])
-        selected_carton.save.assert_called_once_with(update_fields=["shipment"])
+        selected_carton.save.assert_called_once_with(update_fields=["shipment", "status"])
         pack_mock.assert_called_once()
         sync_mock.assert_called_once_with(shipment)
         redirect_mock.assert_called_once_with("scan:scan_shipments_ready")
@@ -261,6 +267,7 @@ class ScanShipmentHandlersTests(TestCase):
         shipment = SimpleNamespace(
             id=51,
             reference="S-EDIT-002",
+            status=ShipmentStatus.DRAFT,
             carton_set=mock.MagicMock(),
             save=mock.Mock(),
         )
@@ -288,6 +295,7 @@ class ScanShipmentHandlersTests(TestCase):
         shipment = SimpleNamespace(
             id=52,
             reference="S-EDIT-003",
+            status=ShipmentStatus.DRAFT,
             carton_set=mock.MagicMock(),
             save=mock.Mock(),
         )
@@ -315,7 +323,7 @@ class ScanShipmentHandlersTests(TestCase):
         form_unavailable = _FakeForm(valid=True, cleaned_data=self._cleaned_data(carton_count=1))
         unavailable_query = mock.MagicMock()
         unavailable_query.first.return_value = SimpleNamespace(
-            shipment_id=999, shipment=None, save=mock.Mock()
+            shipment_id=999, shipment=None, status=CartonStatus.PACKED, save=mock.Mock()
         )
         with mock.patch(
             "wms.scan_shipment_handlers.parse_shipment_lines",

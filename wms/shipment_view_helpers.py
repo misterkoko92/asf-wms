@@ -37,8 +37,13 @@ SHIPMENT_DOCUMENT_LINKS = (
     ("Attestation douane", "customs"),
 )
 
-STATUS_READY_CARTON = {CartonStatus.PACKED, CartonStatus.SHIPPED}
-STATUS_LOCKED_SHIPMENT = {ShipmentStatus.SHIPPED, ShipmentStatus.DELIVERED}
+STATUS_READY_CARTON = {CartonStatus.LABELED, CartonStatus.SHIPPED}
+STATUS_LOCKED_SHIPMENT = {
+    ShipmentStatus.PLANNED,
+    ShipmentStatus.SHIPPED,
+    ShipmentStatus.RECEIVED_CORRESPONDENT,
+    ShipmentStatus.DELIVERED,
+}
 
 
 def _carton_total_weight(carton):
@@ -110,17 +115,24 @@ def _shipment_carton_totals(shipment):
 
 
 def _shipment_progress_label(*, total, ready):
-    if total == 0 or ready == 0:
-        return "DRAFT"
+    if total == 0:
+        return "CREATION"
     if ready < total:
-        return f"PARTIEL ({ready}/{total})"
-    return "READY"
+        return f"EN COURS ({ready}/{total})"
+    return "PRET"
 
 
 def _shipment_status_label(shipment, progress_label):
     if shipment.status in STATUS_LOCKED_SHIPMENT:
-        return ShipmentStatus(shipment.status).label
-    return progress_label
+        try:
+            base_label = ShipmentStatus(shipment.status).label
+        except ValueError:
+            base_label = shipment.status
+    else:
+        base_label = progress_label
+    if getattr(shipment, "is_disputed", False):
+        return f"Litige - {base_label}"
+    return base_label
 
 
 def _shipment_party_label(contact, fallback_name):

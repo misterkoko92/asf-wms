@@ -20,14 +20,14 @@ class ShipmentStatusTests(TestCase):
 
     def test_compute_shipment_progress_returns_partial_when_not_all_cartons_ready(self):
         shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
-        Carton.objects.create(code="CT-SS-1", shipment=shipment, status=CartonStatus.PACKED)
-        Carton.objects.create(code="CT-SS-2", shipment=shipment, status=CartonStatus.DRAFT)
+        Carton.objects.create(code="CT-SS-1", shipment=shipment, status=CartonStatus.LABELED)
+        Carton.objects.create(code="CT-SS-2", shipment=shipment, status=CartonStatus.ASSIGNED)
 
         total, ready, status, label = compute_shipment_progress(shipment)
 
         self.assertEqual((total, ready), (2, 1))
         self.assertEqual(status, ShipmentStatus.PICKING)
-        self.assertEqual(label, "PARTIEL (1/2)")
+        self.assertEqual(label, "EN COURS (1/2)")
 
     def test_sync_shipment_ready_state_short_circuits_for_shipped(self):
         shipment = self._create_shipment(status=ShipmentStatus.SHIPPED)
@@ -46,5 +46,5 @@ class ShipmentStatusTests(TestCase):
         sync_shipment_ready_state(shipment)
         shipment.refresh_from_db()
 
-        self.assertEqual(shipment.status, ShipmentStatus.DRAFT)
+        self.assertEqual(shipment.status, ShipmentStatus.PICKING)
         self.assertIsNone(shipment.ready_at)

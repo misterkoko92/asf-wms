@@ -93,9 +93,9 @@ class CartonViewHelpersTests(TestCase):
             id=10,
             code="C-010",
             created_at=datetime(2026, 1, 10, 12, 0, 0),
-            status=CartonStatus.PACKED,
+            status=CartonStatus.ASSIGNED,
             shipment_id=77,
-            shipment=SimpleNamespace(reference="S-077"),
+            shipment=SimpleNamespace(reference="S-077", status="draft"),
             current_location="A1",
             cartonitem_set=SimpleNamespace(all=lambda: [item_assigned]),
         )

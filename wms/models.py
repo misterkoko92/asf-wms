@@ -534,18 +534,20 @@ class Destination(models.Model):
 
 
 class ShipmentStatus(models.TextChoices):
-    DRAFT = "draft", "Draft"
-    PICKING = "picking", "Picking"
-    PACKED = "packed", "Packed"
-    SHIPPED = "shipped", "Shipped"
-    DELIVERED = "delivered", "Delivered"
+    DRAFT = "draft", "Creation"
+    PICKING = "picking", "En cours"
+    PACKED = "packed", "Pret"
+    PLANNED = "planned", "Planifie"
+    SHIPPED = "shipped", "Expedie"
+    RECEIVED_CORRESPONDENT = "received_correspondent", "Recu escale"
+    DELIVERED = "delivered", "Livre"
 
 
 class Shipment(models.Model):
     reference = models.CharField(max_length=80, unique=True, blank=True)
     tracking_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     status = models.CharField(
-        max_length=20, choices=ShipmentStatus.choices, default=ShipmentStatus.DRAFT
+        max_length=30, choices=ShipmentStatus.choices, default=ShipmentStatus.DRAFT
     )
     shipper_name = models.CharField(max_length=200)
     shipper_contact_ref = models.ForeignKey(
@@ -583,6 +585,8 @@ class Shipment(models.Model):
     destination_address = models.TextField()
     destination_country = models.CharField(max_length=80, default="France")
     requested_delivery_date = models.DateField(null=True, blank=True)
+    is_disputed = models.BooleanField(default=False)
+    disputed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     ready_at = models.DateTimeField(null=True, blank=True)
     created_by = models.ForeignKey(
@@ -1059,6 +1063,8 @@ class CartonStatus(models.TextChoices):
     DRAFT = "draft", "Cree"
     PICKING = "picking", "En preparation"
     PACKED = "packed", "Pret"
+    ASSIGNED = "assigned", "Affecte"
+    LABELED = "labeled", "Etiquette"
     SHIPPED = "shipped", "Expedie"
 
 
