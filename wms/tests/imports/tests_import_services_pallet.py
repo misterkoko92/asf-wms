@@ -25,7 +25,7 @@ class ImportServicesPalletTests(SimpleTestCase):
         )
         self.assertEqual(created, 0)
         self.assertEqual(skipped, 1)
-        self.assertEqual(errors, ["Ligne 2: quantite invalide."])
+        self.assertEqual(errors, ["Ligne 2: quantité invalide."])
         self.assertIsNone(receipt)
 
     def test_apply_pallet_listing_import_handles_override_and_target_selection_errors(self):
@@ -103,7 +103,7 @@ class ImportServicesPalletTests(SimpleTestCase):
             receipt_meta={},
         )
         self.assertEqual(created, 0)
-        self.assertEqual(errors, ["Ligne 6: produit non determine."])
+        self.assertEqual(errors, ["Ligne 6: produit non déterminé."])
         self.assertIsNone(receipt)
 
     def test_apply_pallet_listing_import_requires_location_when_none_resolved(self):

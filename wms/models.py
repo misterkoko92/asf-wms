@@ -548,10 +548,31 @@ class Shipment(models.Model):
         max_length=20, choices=ShipmentStatus.choices, default=ShipmentStatus.DRAFT
     )
     shipper_name = models.CharField(max_length=200)
+    shipper_contact_ref = models.ForeignKey(
+        "contacts.Contact",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="shipments_as_shipper",
+    )
     shipper_contact = models.CharField(max_length=200, blank=True)
     recipient_name = models.CharField(max_length=200)
+    recipient_contact_ref = models.ForeignKey(
+        "contacts.Contact",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="shipments_as_recipient",
+    )
     recipient_contact = models.CharField(max_length=200, blank=True)
     correspondent_name = models.CharField(max_length=200, blank=True)
+    correspondent_contact_ref = models.ForeignKey(
+        "contacts.Contact",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="shipments_as_correspondent",
+    )
     destination = models.ForeignKey(
         Destination,
         on_delete=models.PROTECT,

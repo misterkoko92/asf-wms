@@ -10,7 +10,7 @@ class HomePageTests(TestCase):
         self.assertContains(response, "Plateforme logistique")
         self.assertContains(
             response,
-            "Gestion des stocks, reception de produits et preparation des expedition",
+            "Gestion des stocks, réception de produits et préparation des expéditions",
         )
         self.assertContains(response, "Connexion")
         self.assertContains(response, 'action="/admin/login/?next=/scan/"')
@@ -26,6 +26,6 @@ class HomePageTests(TestCase):
         response = self.client.get(reverse("password_help"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Mot de passe oublie")
+        self.assertContains(response, "Mot de passe oubli")
         self.assertContains(response, reverse("portal:portal_account_request"))
         self.assertContains(response, reverse("home"))

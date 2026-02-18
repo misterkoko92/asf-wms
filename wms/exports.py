@@ -194,6 +194,8 @@ def export_contacts_csv():
         "phone2",
         "use_organization_address",
         "tags",
+        "destinations",
+        "linked_shippers",
         "destination",
         "siret",
         "vat_number",
@@ -212,12 +214,32 @@ def export_contacts_csv():
         "notes",
     ]
     rows = []
-    contacts = Contact.objects.select_related("organization", "destination").prefetch_related(
-        "tags", "addresses"
+    contacts = Contact.objects.select_related("organization").prefetch_related(
+        "tags",
+        "addresses",
+        "destinations",
+        "linked_shippers",
     )
     for contact in contacts:
         tags = "|".join(sorted(tag.name for tag in contact.tags.all()))
-        destination = str(contact.destination) if contact.destination else ""
+        destinations_relation = getattr(contact, "destinations", None)
+        destination_objects = []
+        if destinations_relation is not None and hasattr(destinations_relation, "all"):
+            destination_objects = list(destinations_relation.all())
+        elif getattr(contact, "destination", None):
+            # Backward-compatible fallback for tests/legacy fixtures without M2M.
+            destination_objects = [contact.destination]
+        destination_labels = sorted(str(destination) for destination in destination_objects)
+        destinations = "|".join(destination_labels)
+        linked_shippers_relation = getattr(contact, "linked_shippers", None)
+        linked_shipper_names = []
+        if linked_shippers_relation is not None and hasattr(linked_shippers_relation, "all"):
+            linked_shipper_names = sorted(
+                getattr(shipper, "name", str(shipper))
+                for shipper in linked_shippers_relation.all()
+            )
+        linked_shippers = "|".join(linked_shipper_names)
+        destination = destination_labels[0] if len(destination_labels) == 1 else ""
         address_source = (
             contact.get_effective_addresses()
             if hasattr(contact, "get_effective_addresses")
@@ -240,6 +262,8 @@ def export_contacts_csv():
                     contact.phone2 or "",
                     _bool_to_csv(contact.use_organization_address),
                     tags,
+                    destinations,
+                    linked_shippers,
                     destination,
                     contact.siret or "",
                     contact.vat_number or "",
@@ -274,6 +298,8 @@ def export_contacts_csv():
                     contact.phone2 or "",
                     _bool_to_csv(contact.use_organization_address),
                     tags,
+                    destinations,
+                    linked_shippers,
                     destination,
                     contact.siret or "",
                     contact.vat_number or "",

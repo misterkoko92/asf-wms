@@ -300,7 +300,12 @@ def scan_shipment_create(request):
 @require_http_methods(["GET", "POST"])
 def scan_shipment_edit(request, shipment_id):
     shipment = get_object_or_404(
-        Shipment.objects.select_related("destination__correspondent_contact"),
+        Shipment.objects.select_related(
+            "destination__correspondent_contact",
+            "shipper_contact_ref",
+            "recipient_contact_ref",
+            "correspondent_contact_ref",
+        ),
         pk=shipment_id,
     )
     if shipment.status in {ShipmentStatus.SHIPPED, ShipmentStatus.DELIVERED}:

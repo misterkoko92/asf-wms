@@ -195,6 +195,9 @@ def _contact_tags_changed(sender, instance, action, **kwargs):
     if action != "post_add":
         return
     _assign_asf_id(instance)
+    from .rules import ensure_default_shipper_for_recipient
+
+    ensure_default_shipper_for_recipient(instance)
 
 
 @receiver(pre_delete, sender=Contact)

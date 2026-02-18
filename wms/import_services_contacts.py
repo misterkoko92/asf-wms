@@ -1,9 +1,103 @@
-from contacts.models import Contact, ContactAddress, ContactType
+import re
+
+from contacts.models import Contact, ContactAddress, ContactTag, ContactType
+from contacts.rules import ensure_default_shipper_for_recipient
+from contacts.tagging import TAG_SHIPPER
 
 from .import_services_common import _row_is_empty
 from .import_services_destinations import _get_or_create_destination
 from .import_services_tags import build_contact_tags
 from .import_utils import get_value, parse_bool, parse_str
+
+
+DESTINATION_KEYS = ("destination", "dest", "destination_name")
+DESTINATIONS_KEYS = ("destinations", "destination_scope", "destinations_scope")
+LINKED_SHIPPERS_KEYS = ("linked_shippers", "expediteurs_lies", "expediteurs_lie")
+
+
+def _row_has_any_key(row, *keys):
+    return any(key in row for key in keys)
+
+
+def _parse_multi_values(value):
+    if value is None:
+        return []
+    parts = [
+        token.strip()
+        for token in re.split(r"[|\n]", str(value))
+    ]
+    return [part for part in parts if part]
+
+
+def _resolve_destinations_for_row(
+    *,
+    row,
+    contact,
+    tags,
+    fallback_city,
+    fallback_country,
+):
+    if not _row_has_any_key(row, *DESTINATION_KEYS, *DESTINATIONS_KEYS):
+        return None
+
+    tokens = []
+    for key in (*DESTINATIONS_KEYS, *DESTINATION_KEYS):
+        if key not in row:
+            continue
+        tokens.extend(_parse_multi_values(row.get(key)))
+    if not tokens:
+        return []
+
+    destinations = []
+    seen = set()
+    for token in tokens:
+        destination = _get_or_create_destination(
+            token,
+            contact=contact,
+            tags=tags,
+            fallback_city=fallback_city,
+            fallback_country=fallback_country,
+        )
+        if destination and destination.pk not in seen:
+            seen.add(destination.pk)
+            destinations.append(destination)
+    return destinations
+
+
+def _resolve_linked_shippers_for_row(*, row, warnings, index):
+    if not _row_has_any_key(row, *LINKED_SHIPPERS_KEYS):
+        return None
+
+    names = []
+    for key in LINKED_SHIPPERS_KEYS:
+        if key not in row:
+            continue
+        names.extend(_parse_multi_values(row.get(key)))
+    if not names:
+        return []
+
+    canonical_shipper_tag_name = TAG_SHIPPER[0]
+    shipper_tag, _ = ContactTag.objects.get_or_create(name=canonical_shipper_tag_name)
+    linked_contacts = []
+    seen = set()
+    for name in names:
+        linked_shipper = Contact.objects.filter(name__iexact=name).first()
+        if not linked_shipper:
+            linked_shipper = Contact.objects.create(
+                name=name,
+                contact_type=ContactType.ORGANIZATION,
+                notes="créé automatiquement depuis linked_shippers",
+            )
+            warnings.append(
+                f"Ligne {index}: expéditeur lié créé automatiquement ({name})."
+            )
+        if not linked_shipper.tags.filter(pk=shipper_tag.pk).exists():
+            linked_shipper.tags.add(shipper_tag)
+        if linked_shipper.pk not in seen:
+            seen.add(linked_shipper.pk)
+            linked_contacts.append(linked_shipper)
+    return linked_contacts
+
 
 def import_contacts(rows):
     created = 0
@@ -43,9 +137,6 @@ def import_contacts(rows):
                 get_value(row, "legal_registration_number", "numero_enregistrement_legal")
             )
             asf_id = parse_str(get_value(row, "asf_id", "id_asf"))
-            destination_value = parse_str(
-                get_value(row, "destination", "dest", "destination_name")
-            )
             address_city = parse_str(get_value(row, "city", "ville"))
             address_country = parse_str(get_value(row, "country", "pays"))
 
@@ -168,17 +259,32 @@ def import_contacts(rows):
                     contact.organization = organization
                     contact.save(update_fields=["organization"])
 
-            if destination_value is not None:
-                destination = _get_or_create_destination(
-                    destination_value,
-                    contact=contact,
-                    tags=tags,
-                    fallback_city=address_city,
-                    fallback_country=address_country,
-                )
-                if destination and contact.destination_id != destination.id:
-                    contact.destination = destination
+            destinations = _resolve_destinations_for_row(
+                row=row,
+                contact=contact,
+                tags=tags,
+                fallback_city=address_city,
+                fallback_country=address_country,
+            )
+            if destinations is not None:
+                contact.destinations.set(destinations)
+                legacy_destination = destinations[0] if len(destinations) == 1 else None
+                legacy_destination_id = legacy_destination.id if legacy_destination else None
+                if contact.destination_id != legacy_destination_id:
+                    contact.destination = legacy_destination
                     contact.save(update_fields=["destination"])
+
+            linked_shippers = _resolve_linked_shippers_for_row(
+                row=row,
+                warnings=warnings,
+                index=index,
+            )
+            if linked_shippers is not None:
+                contact.linked_shippers.set(linked_shippers)
+            ensure_default_shipper_for_recipient(
+                contact,
+                tags=tags if tags else None,
+            )
 
             address_line1 = parse_str(get_value(row, "address_line1", "adresse"))
             if address_line1 and not contact.use_organization_address:

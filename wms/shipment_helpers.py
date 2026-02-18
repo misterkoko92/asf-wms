@@ -12,6 +12,13 @@ def _destination_ids(contact):
     return sorted(destination.id for destination in contact.destinations.all())
 
 
+def _primary_destination_id(contact):
+    destination_ids = _destination_ids(contact)
+    if len(destination_ids) == 1:
+        return destination_ids[0]
+    return None
+
+
 def _linked_shipper_ids(contact):
     return sorted(shipper.id for shipper in contact.linked_shippers.all())
 
@@ -28,17 +35,14 @@ def build_shipment_contact_payload():
     )
     shipper_contacts = (
         contacts_with_tags(TAG_SHIPPER)
-        .select_related("destination")
         .prefetch_related("destinations")
     )
     recipient_contacts = (
         contacts_with_tags(TAG_RECIPIENT)
-        .select_related("destination")
         .prefetch_related("addresses", "destinations", "linked_shippers")
     )
     correspondent_contacts = (
         contacts_with_tags(TAG_CORRESPONDENT)
-        .select_related("destination")
         .prefetch_related("destinations")
     )
 
@@ -54,7 +58,7 @@ def build_shipment_contact_payload():
         {
             "id": contact.id,
             "name": contact.name,
-            "destination_id": contact.destination_id,
+            "destination_id": _primary_destination_id(contact),
             "destination_ids": _destination_ids(contact),
         }
         for contact in shipper_contacts
@@ -72,7 +76,7 @@ def build_shipment_contact_payload():
                 "id": contact.id,
                 "name": contact.name,
                 "countries": sorted(countries),
-                "destination_id": contact.destination_id,
+                "destination_id": _primary_destination_id(contact),
                 "destination_ids": _destination_ids(contact),
                 "linked_shipper_ids": _linked_shipper_ids(contact),
             }
@@ -81,7 +85,7 @@ def build_shipment_contact_payload():
         {
             "id": contact.id,
             "name": contact.name,
-            "destination_id": contact.destination_id,
+            "destination_id": _primary_destination_id(contact),
             "destination_ids": _destination_ids(contact),
         }
         for contact in correspondent_contacts

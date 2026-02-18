@@ -38,7 +38,9 @@ class FormsTests(TestCase):
         self.product = Product.objects.create(name="Produit Test")
 
     def _create_contact(self, name, *, destination=None, country=None):
-        contact = Contact.objects.create(name=name, destination=destination)
+        contact = Contact.objects.create(name=name)
+        if destination:
+            contact.destinations.add(destination)
         if country:
             ContactAddress.objects.create(
                 contact=contact,

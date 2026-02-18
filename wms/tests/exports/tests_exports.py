@@ -260,8 +260,8 @@ class ExportsTests(SimpleTestCase):
         self.assertEqual(rows[0][18], "")
         self.assertEqual(rows[1][0], "association")
         self.assertEqual(rows[1][5], "OrgX")
-        self.assertEqual(rows[1][18], "HQ")
-        self.assertEqual(rows[1][27], "true")
+        self.assertEqual(rows[1][20], "HQ")
+        self.assertEqual(rows[1][29], "true")
 
     def test_export_users_csv(self):
         fake_user_model = SimpleNamespace(

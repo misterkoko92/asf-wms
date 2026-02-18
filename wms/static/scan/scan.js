@@ -1997,30 +1997,44 @@
     let recipients = [];
     let correspondents = [];
 
+    const normalizeEntries = value => {
+      if (Array.isArray(value)) {
+        return value;
+      }
+      if (value && typeof value === 'object') {
+        return Object.values(value);
+      }
+      return [];
+    };
+
     try {
-      destinations = JSON.parse(destinationsEl.textContent || '[]');
+      destinations = normalizeEntries(JSON.parse(destinationsEl.textContent || '[]'));
     } catch (err) {
       destinations = [];
     }
     try {
-      shippers = JSON.parse(shippersEl ? shippersEl.textContent || '[]' : '[]');
+      shippers = normalizeEntries(
+        JSON.parse(shippersEl ? shippersEl.textContent || '[]' : '[]')
+      );
     } catch (err) {
       shippers = [];
     }
     try {
-      recipients = JSON.parse(recipientsEl ? recipientsEl.textContent || '[]' : '[]');
+      recipients = normalizeEntries(
+        JSON.parse(recipientsEl ? recipientsEl.textContent || '[]' : '[]')
+      );
     } catch (err) {
       recipients = [];
     }
     try {
-      correspondents = JSON.parse(
-        correspondentsEl ? correspondentsEl.textContent || '[]' : '[]'
+      correspondents = normalizeEntries(
+        JSON.parse(correspondentsEl ? correspondentsEl.textContent || '[]' : '[]')
       );
     } catch (err) {
       correspondents = [];
     }
 
-    const asId = value => (value || value === 0 ? String(value) : '');
+    const asId = value => (value || value === 0 ? String(value).trim() : '');
     const selectValue = select => asId(select && select.value ? select.value : '');
     const asIdList = values =>
       Array.isArray(values)
@@ -2069,7 +2083,9 @@
       empty.textContent = '---';
       fragment.appendChild(empty);
       const sortedOptions = [...options].sort((left, right) =>
-        (left.name || '').localeCompare(right.name || '', 'fr', { sensitivity: 'base' })
+        String(left.name || '').localeCompare(String(right.name || ''), 'fr', {
+          sensitivity: 'base'
+        })
       );
       sortedOptions.forEach(option => {
         const optionEl = document.createElement('option');

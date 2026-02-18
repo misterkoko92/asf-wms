@@ -140,7 +140,7 @@ def iter_import_rows(data, extension):
         return iter_xlsx_rows(data)
     if extension == ".xls":
         return iter_xls_rows(data)
-    raise ValueError("Format de fichier non supporte.")
+    raise ValueError("Format de fichier non supporté.")
 
 
 def _sanitize_headers(headers, row_length=None):
@@ -297,7 +297,7 @@ def extract_tabular_data(data, extension, sheet_name=None, header_row=1, pdf_pag
         if pdf_pages:
             page_start, page_end = pdf_pages
         return _extract_pdf_table(data, page_start=page_start, page_end=page_end)
-    raise ValueError("Format de fichier non supporte.")
+    raise ValueError("Format de fichier non supporté.")
 
 
 def get_pdf_page_count(data):

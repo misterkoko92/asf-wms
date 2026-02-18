@@ -260,7 +260,7 @@ class ImportWmsDataCommandTests(TestCase):
 
         self.assertFalse(Contact.objects.filter(name="Temp Dry").exists())
         self.assertIn("Dry run complete; no changes were saved.", out.getvalue())
-        self.assertIn("1 contacts crees", out.getvalue())
+        self.assertIn("1 contacts créés", out.getvalue())
 
     def test_import_methods_missing_files_increment_warnings(self):
         command = self._new_command()

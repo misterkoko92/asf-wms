@@ -43,9 +43,9 @@ class ShipmentHelpersTests(TestCase):
         recipient = Contact.objects.create(
             name="Recipient Org",
             contact_type=ContactType.ORGANIZATION,
-            destination=destination,
             is_active=True,
         )
+        recipient.destinations.add(destination)
         ContactAddress.objects.create(
             contact=recipient,
             address_line1="1 Rue Test",
@@ -65,9 +65,9 @@ class ShipmentHelpersTests(TestCase):
 
         corr_contact = Contact.objects.create(
             name="Corr Contact",
-            destination=destination,
             is_active=True,
         )
+        corr_contact.destinations.add(destination)
         correspondent_tag = ContactTag.objects.create(name="correspondant")
         corr_contact.tags.add(correspondent_tag)
 
@@ -94,7 +94,7 @@ class ShipmentHelpersTests(TestCase):
                 {
                     "id": shipper.id,
                     "name": "Shipper Org",
-                    "destination_id": None,
+                    "destination_id": destination.id,
                     "destination_ids": [destination.id],
                 }
             ],
@@ -104,7 +104,7 @@ class ShipmentHelpersTests(TestCase):
         self.assertEqual(recipients_json[0]["name"], "Recipient Org")
         self.assertEqual(recipients_json[0]["countries"], ["France", "UK"])
         self.assertEqual(recipients_json[0]["destination_id"], destination.id)
-        self.assertEqual(recipients_json[0]["destination_ids"], [])
+        self.assertEqual(recipients_json[0]["destination_ids"], [destination.id])
         self.assertEqual(recipients_json[0]["linked_shipper_ids"], [])
         self.assertEqual(
             correspondents_json,
@@ -113,7 +113,7 @@ class ShipmentHelpersTests(TestCase):
                     "id": corr_contact.id,
                     "name": "Corr Contact",
                     "destination_id": destination.id,
-                    "destination_ids": [],
+                    "destination_ids": [destination.id],
                 }
             ],
         )

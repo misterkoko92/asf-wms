@@ -280,7 +280,7 @@ class ScanShipmentHandlersTests(TestCase):
             )
 
         self.assertIsNone(response)
-        self.assertIn((None, "Impossible de retirer un carton expedie."), form.errors)
+        self.assertIn((None, "Impossible de retirer un carton expédié."), form.errors)
 
     def test_handle_shipment_edit_post_rejects_missing_or_unavailable_selected_carton(self):
         request = self._request({"carton_count": "1"})

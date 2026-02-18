@@ -12,11 +12,10 @@ from wms.models import Destination
 
 
 class ContactFiltersTests(TestCase):
-    def _create_contact(self, name, *, is_active=True, destination=None, tags=()):
+    def _create_contact(self, name, *, is_active=True, tags=()):
         contact = Contact.objects.create(
             name=name,
             is_active=is_active,
-            destination=destination,
         )
         for tag_name in tags:
             tag, _ = ContactTag.objects.get_or_create(name=tag_name)
@@ -39,8 +38,9 @@ class ContactFiltersTests(TestCase):
             country="France",
             correspondent_contact=self._create_contact("Correspondent"),
         )
-        allowed = self._create_contact("Allowed", destination=destination)
-        global_contact = self._create_contact("Global", destination=None)
+        allowed = self._create_contact("Allowed")
+        allowed.destinations.add(destination)
+        global_contact = self._create_contact("Global")
         queryset = Contact.objects.filter(pk__in=[allowed.pk, global_contact.pk]).order_by("name")
 
         filtered = filter_contacts_for_destination(queryset, None)
@@ -103,19 +103,26 @@ class ContactFiltersTests(TestCase):
 
         self.assertEqual(list(filtered), [global_contact, scoped_ok])
 
-    def test_filter_contacts_for_destination_supports_legacy_single_destination(self):
+    def test_filter_contacts_for_destination_excludes_contacts_scoped_to_other_destinations(self):
         destination = Destination.objects.create(
             city="Douala",
             iata_code="DLA",
             country="Cameroun",
             correspondent_contact=self._create_contact("Correspondent DLA"),
         )
-        legacy_only = self._create_contact("Legacy Scoped", destination=destination)
-        queryset = Contact.objects.filter(pk=legacy_only.pk)
+        other_destination = Destination.objects.create(
+            city="Nairobi",
+            iata_code="NBO",
+            country="Kenya",
+            correspondent_contact=self._create_contact("Correspondent NBO"),
+        )
+        scoped_other = self._create_contact("Scoped Other")
+        scoped_other.destinations.add(other_destination)
+        queryset = Contact.objects.filter(pk=scoped_other.pk)
 
         filtered = filter_contacts_for_destination(queryset, destination)
 
-        self.assertEqual(list(filtered), [legacy_only])
+        self.assertEqual(list(filtered), [])
 
     def test_filter_recipients_for_shipper_includes_global_and_explicit_links(self):
         shipper_a = self._create_contact("Shipper A", tags=("expediteur",))

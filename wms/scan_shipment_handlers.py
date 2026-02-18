@@ -36,8 +36,11 @@ def handle_shipment_create_post(request, *, form, available_carton_ids):
                 shipment = Shipment.objects.create(
                     status=ShipmentStatus.DRAFT,
                     shipper_name=shipper_contact.name,
+                    shipper_contact_ref=shipper_contact,
                     recipient_name=recipient_contact.name,
+                    recipient_contact_ref=recipient_contact,
                     correspondent_name=correspondent_contact.name,
+                    correspondent_contact_ref=correspondent_contact,
                     destination=destination,
                     destination_address=destination_label,
                     destination_country=destination.country,
@@ -97,16 +100,22 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
 
                 shipment.destination = destination
                 shipment.shipper_name = shipper_contact.name
+                shipment.shipper_contact_ref = shipper_contact
                 shipment.recipient_name = recipient_contact.name
+                shipment.recipient_contact_ref = recipient_contact
                 shipment.correspondent_name = correspondent_contact.name
+                shipment.correspondent_contact_ref = correspondent_contact
                 shipment.destination_address = destination_label
                 shipment.destination_country = destination.country
                 shipment.save(
                     update_fields=[
                         "destination",
                         "shipper_name",
+                        "shipper_contact_ref",
                         "recipient_name",
+                        "recipient_contact_ref",
                         "correspondent_name",
+                        "correspondent_contact_ref",
                         "destination_address",
                         "destination_country",
                     ]

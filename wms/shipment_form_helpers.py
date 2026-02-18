@@ -38,14 +38,21 @@ def build_carton_selection_data(available_cartons, assigned_carton_options=None)
 
 
 def build_shipment_edit_initial(shipment, assigned_cartons):
-    shipper_contact = resolve_contact_by_name(TAG_SHIPPER, shipment.shipper_name)
-    recipient_contact = resolve_contact_by_name(TAG_RECIPIENT, shipment.recipient_name)
+    shipper_contact = getattr(shipment, "shipper_contact_ref", None) or resolve_contact_by_name(
+        TAG_SHIPPER,
+        shipment.shipper_name,
+    )
+    recipient_contact = getattr(shipment, "recipient_contact_ref", None) or resolve_contact_by_name(
+        TAG_RECIPIENT,
+        shipment.recipient_name,
+    )
     correspondent_contact = None
     if shipment.destination and shipment.destination.correspondent_contact_id:
         correspondent_contact = shipment.destination.correspondent_contact
     else:
-        correspondent_contact = resolve_contact_by_name(
-            TAG_CORRESPONDENT, shipment.correspondent_name
+        correspondent_contact = getattr(shipment, "correspondent_contact_ref", None) or resolve_contact_by_name(
+            TAG_CORRESPONDENT,
+            shipment.correspondent_name,
         )
 
     return {

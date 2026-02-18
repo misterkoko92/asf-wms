@@ -209,3 +209,25 @@ class ContactModelsTests(TestCase):
 
         self.assertEqual(person.name, "NoOrg Proxy")
         self.assertEqual(person.addresses.count(), 0)
+
+    def test_recipient_tag_add_auto_links_default_shipper(self):
+        shipper_tag = ContactTag.objects.create(name="Expéditeur")
+        recipient_tag = ContactTag.objects.create(name="Destinataire")
+        default_shipper = Contact.objects.create(
+            name="AVIATION SANS FRONTIERES",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        default_shipper.tags.add(shipper_tag)
+        recipient = Contact.objects.create(
+            name="Association Dest",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+
+        recipient.tags.add(recipient_tag)
+
+        self.assertEqual(
+            list(recipient.linked_shippers.values_list("name", flat=True)),
+            ["AVIATION SANS FRONTIERES"],
+        )
