@@ -714,6 +714,46 @@ body {
   gap: 6px;
 }
 
+.scan-doc-menu {
+  display: inline-block;
+}
+
+.scan-doc-menu-toggle {
+  list-style: none;
+  min-width: auto;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.scan-doc-menu-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.scan-doc-menu-toggle::after {
+  content: "▾";
+  margin-left: 6px;
+  font-size: 11px;
+}
+
+.scan-doc-menu[open] .scan-doc-menu-toggle::after {
+  content: "▴";
+}
+
+.scan-doc-menu-list {
+  display: none;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.scan-doc-menu[open] .scan-doc-menu-list {
+  display: grid;
+}
+
+.scan-doc-menu-list .scan-doc-btn {
+  justify-content: flex-start;
+  width: 100%;
+}
+
 .scan-doc-btn {
   min-width: auto;
   padding: 6px 8px;

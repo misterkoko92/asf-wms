@@ -34,20 +34,23 @@
                 <td>{{ shipment.ready_at|date:"d/m/y H\\hi"|default:"-" }}</td>
                 <td class="status">{{ shipment.status_label }}</td>
                 <td>
-                  <div class="scan-docs">
-                    <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'shipment_note' %}" target="_blank" rel="noopener">
-                      Bon d'exp&eacute;dition
-                    </a>
-                    <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'packing_list_shipment' %}" target="_blank" rel="noopener">
-                      Liste colisage (lot)
-                    </a>
-                    <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'donation_certificate' %}" target="_blank" rel="noopener">
-                      Attestation donation
-                    </a>
-                    <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_labels' shipment.id %}" target="_blank" rel="noopener">
-                      &Eacute;tiquettes colis
-                    </a>
-                  </div>
+                  <details class="scan-doc-menu">
+                    <summary class="scan-scan-btn scan-doc-menu-toggle">Documents</summary>
+                    <div class="scan-doc-menu-list">
+                      <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'shipment_note' %}" target="_blank" rel="noopener">
+                        Bon d'exp&eacute;dition
+                      </a>
+                      <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'packing_list_shipment' %}" target="_blank" rel="noopener">
+                        Liste colisage (lot)
+                      </a>
+                      <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'donation_certificate' %}" target="_blank" rel="noopener">
+                        Attestation donation
+                      </a>
+                      <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_labels' shipment.id %}" target="_blank" rel="noopener">
+                        &Eacute;tiquettes colis
+                      </a>
+                    </div>
+                  </details>
                 </td>
                 <td>
                   <div class="scan-inline">
