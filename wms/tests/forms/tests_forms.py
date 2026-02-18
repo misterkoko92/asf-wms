@@ -235,7 +235,8 @@ class FormsTests(TestCase):
             correspondent_contact=expected_correspondent,
             is_active=True,
         )
-        shipper_wrong = self._create_contact("Shipper Wrong", destination=other_destination)
+        shipper_wrong = self._create_contact("Shipper Wrong")
+        shipper_wrong.destinations.add(other_destination)
         recipient_ok = self._create_contact("Recipient OK", country="France")
 
         form = ScanShipmentForm(
@@ -284,7 +285,7 @@ class FormsTests(TestCase):
 
         self.assertTrue(form.is_valid())
 
-    def test_scan_shipment_form_clean_rejects_recipient_country_mismatch(self):
+    def test_scan_shipment_form_clean_accepts_recipient_without_country_match(self):
         expected_correspondent = self._create_contact("Corr Expected 2")
         destination = Destination.objects.create(
             city="Marseille",
@@ -309,11 +310,7 @@ class FormsTests(TestCase):
         form.fields["recipient_contact"].queryset = Contact.objects.all()
         form.fields["correspondent_contact"].queryset = Contact.objects.all()
 
-        self.assertFalse(form.is_valid())
-        self.assertEqual(
-            form.errors["recipient_contact"],
-            ["Destinataire incompatible avec le pays de destination."],
-        )
+        self.assertTrue(form.is_valid())
 
     def test_scan_shipment_form_clean_rejects_unlinked_correspondent(self):
         expected_correspondent = self._create_contact("Corr Expected 3")

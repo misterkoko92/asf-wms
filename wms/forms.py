@@ -420,9 +420,6 @@ class ScanShipmentForm(forms.Form):
             correspondents = filter_contacts_for_destination(
                 correspondents, selected_destination
             )
-            recipients = recipients.filter(
-                addresses__country__iexact=selected_destination.country
-            )
             if selected_destination.correspondent_contact_id:
                 correspondents = correspondents.filter(
                     pk=selected_destination.correspondent_contact_id
@@ -455,15 +452,6 @@ class ScanShipmentForm(forms.Form):
                         field_name,
                         "Contact non disponible pour cette destination.",
                     )
-        if destination and recipient:
-            in_country = recipient.addresses.filter(
-                country__iexact=destination.country
-            ).exists()
-            if not in_country:
-                self.add_error(
-                    "recipient_contact",
-                    "Destinataire incompatible avec le pays de destination.",
-                )
         if destination and destination.correspondent_contact_id:
             if correspondent and correspondent.id != destination.correspondent_contact_id:
                 self.add_error(

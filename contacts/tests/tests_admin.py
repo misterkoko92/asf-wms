@@ -11,7 +11,6 @@ class ContactAdminFormTests(TestCase):
         form = ContactAdminForm()
 
         self.assertIn("adresse par défaut", form.fields["use_organization_address"].help_text)
-        self.assertIn("Laisser vide", form.fields["destination"].help_text)
         self.assertIn("Sélection multiple", form.fields["destinations"].help_text)
 
     def test_clean_requires_tag_for_organization(self):
@@ -76,36 +75,10 @@ class ContactTagAdminFormTests(TestCase):
 
 
 class ContactAdminTests(TestCase):
-    def test_destination_foreign_key_uses_only_active_destinations(self):
-        correspondent = Contact.objects.create(
-            name="Correspondent",
-            contact_type=ContactType.ORGANIZATION,
-        )
-        active_destination = Destination.objects.create(
-            city="Paris",
-            iata_code="PAR",
-            country="France",
-            correspondent_contact=correspondent,
-            is_active=True,
-        )
-        Destination.objects.create(
-            city="Lyon",
-            iata_code="LYS",
-            country="France",
-            correspondent_contact=correspondent,
-            is_active=False,
-        )
-
+    def test_admin_excludes_single_destination_field(self):
         admin_obj = ContactAdmin(Contact, AdminSite())
-        request = RequestFactory().get("/admin/contacts/contact/add/")
-        db_field = Contact._meta.get_field("destination")
 
-        field = admin_obj.formfield_for_foreignkey(db_field, request)
-
-        self.assertEqual(list(field.queryset), [active_destination])
-        self.assertFalse(field.widget.can_add_related)
-        self.assertFalse(field.widget.can_change_related)
-        self.assertFalse(field.widget.can_delete_related)
+        self.assertIn("destination", admin_obj.exclude)
 
     def test_destinations_many_to_many_uses_only_active_destinations(self):
         correspondent = Contact.objects.create(
@@ -137,3 +110,12 @@ class ContactAdminTests(TestCase):
         self.assertFalse(field.widget.can_add_related)
         self.assertFalse(field.widget.can_change_related)
         self.assertFalse(field.widget.can_delete_related)
+
+    def test_destinations_display_returns_global_when_none_selected(self):
+        admin_obj = ContactAdmin(Contact, AdminSite())
+        contact = Contact.objects.create(
+            name="Association Globale",
+            contact_type=ContactType.ORGANIZATION,
+        )
+
+        self.assertEqual(admin_obj.destinations_display(contact), "Global")

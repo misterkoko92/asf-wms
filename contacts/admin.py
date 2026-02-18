@@ -33,11 +33,8 @@ class ContactAdminForm(forms.ModelForm):
         self.fields["use_organization_address"].help_text = (
             "Utilise l'adresse par défaut de la société et se met à jour automatiquement."
         )
-        self.fields["destination"].help_text = (
-            "Laisser vide pour toutes les destinations."
-        )
         self.fields["destinations"].help_text = (
-            "Sélection multiple. Vide + destination vide = toutes les destinations."
+            "Sélection multiple. Vide = toutes les destinations."
         )
 
     def clean(self):
@@ -77,18 +74,18 @@ class ContactTagAdminForm(forms.ModelForm):
 @admin.register(Contact)
 class ContactAdmin(admin.ModelAdmin):
     form = ContactAdminForm
+    exclude = ("destination",)
     list_display = (
         "name",
         "contact_type",
         "organization",
-        "destination",
         "destinations_display",
         "email",
         "phone",
         "asf_id",
         "is_active",
     )
-    list_filter = ("contact_type", "is_active", "tags", "destination", "destinations")
+    list_filter = ("contact_type", "is_active", "tags", "destinations")
     search_fields = (
         "name",
         "first_name",
@@ -123,7 +120,6 @@ class ContactAdmin(admin.ModelAdmin):
                 "fields": (
                     "organization",
                     "role",
-                    "destination",
                     "destinations",
                     "siret",
                     "vat_number",
@@ -172,7 +168,7 @@ class ContactAdmin(admin.ModelAdmin):
     def destinations_display(self, obj):
         names = list(obj.destinations.values_list("city", flat=True)[:3])
         if not names:
-            return "-"
+            return "Global"
         suffix = "…" if obj.destinations.count() > 3 else ""
         return ", ".join(names) + suffix
 

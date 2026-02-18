@@ -74,3 +74,30 @@ class ContactFiltersTests(TestCase):
         filtered = filter_contacts_for_destination(queryset, destination)
 
         self.assertEqual(list(filtered), [scoped])
+
+    def test_filter_contacts_for_destination_includes_global_and_matching_multi_only(self):
+        destination = Destination.objects.create(
+            city="Brazzaville",
+            iata_code="BZV",
+            country="Rep. du Congo",
+            correspondent_contact=self._create_contact("Correspondent BZV"),
+        )
+        other_destination = Destination.objects.create(
+            city="Lome",
+            iata_code="LFW",
+            country="Togo",
+            correspondent_contact=self._create_contact("Correspondent LFW"),
+        )
+        global_contact = self._create_contact("Global")
+        scoped_ok = self._create_contact("Scoped OK")
+        scoped_ok.destinations.add(destination)
+        scoped_other = self._create_contact("Scoped Other")
+        scoped_other.destinations.add(other_destination)
+
+        queryset = Contact.objects.filter(
+            pk__in=[global_contact.pk, scoped_ok.pk, scoped_other.pk]
+        ).order_by("name")
+
+        filtered = filter_contacts_for_destination(queryset, destination)
+
+        self.assertEqual(list(filtered), [global_contact, scoped_ok])

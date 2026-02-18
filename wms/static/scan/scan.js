@@ -2016,7 +2016,6 @@
     const destinationMap = new Map(
       destinations.map(destination => [String(destination.id), destination])
     );
-    const normalize = value => (value || '').toString().trim().toLowerCase();
     const matchesDestination = (contact, destinationId) => {
       if (!contact || !destinationId) {
         return true;
@@ -2027,10 +2026,7 @@
       if (scopedDestinationIds.length) {
         return scopedDestinationIds.includes(String(destinationId));
       }
-      if (!contact.destination_id) {
-        return true;
-      }
-      return String(contact.destination_id) === String(destinationId);
+      return true;
     };
 
     const renderOptions = (select, options, selectedValue) => {
@@ -2039,7 +2035,10 @@
       empty.value = '';
       empty.textContent = '---';
       fragment.appendChild(empty);
-      options.forEach(option => {
+      const sortedOptions = [...options].sort((left, right) =>
+        (left.name || '').localeCompare(right.name || '', 'fr', { sensitivity: 'base' })
+      );
+      sortedOptions.forEach(option => {
         const optionEl = document.createElement('option');
         optionEl.value = String(option.id);
         optionEl.textContent = option.name;
@@ -2076,14 +2075,6 @@
         correspondentOptions = correspondents.filter(correspondent =>
           matchesDestination(correspondent, destinationId)
         );
-        const country = normalize(destination.country);
-        if (country) {
-          recipientOptions = recipientOptions.filter(recipient =>
-            (recipient.countries || []).some(entry => normalize(entry) === country)
-          );
-        } else {
-          recipientOptions = [];
-        }
         if (destination.correspondent_contact_id) {
           correspondentOptions = correspondentOptions.filter(
             correspondent =>

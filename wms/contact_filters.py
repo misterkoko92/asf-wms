@@ -58,7 +58,5 @@ def filter_contacts_for_destination(queryset, destination):
     if not destination:
         return queryset
     return queryset.filter(
-        Q(destination=destination)
-        | Q(destinations=destination)
-        | Q(destination__isnull=True, destinations__isnull=True)
+        Q(destinations=destination) | Q(destinations__isnull=True)
     ).distinct()
