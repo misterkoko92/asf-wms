@@ -9,7 +9,7 @@ Use this index as the entry point for project documentation.
 
 ## Operations
 
-- `docs/operations.md`: day-to-day operations runbook.
+- `docs/operations.md`: day-to-day operations runbook, including carton/shipment status lifecycle rules.
 - `docs/release_checklist.md`: release checklist used for deployments.
 
 ## Data and templates

@@ -13,14 +13,15 @@
     <ul>
       <li><strong>Produit</strong> : fiche article (SKU, nom, marque, poids, emplacement).</li>
       <li><strong>Lot</strong> : stock r&eacute;el par produit (quantit&eacute;, p&eacute;remption, lot, emplacement).</li>
-      <li><strong>Carton</strong> : unit&eacute; de pr&eacute;paration (DRAFT, PICKING, PACKED, SHIPPED).</li>
+      <li><strong>Carton</strong> : unit&eacute; de pr&eacute;paration (DRAFT, PICKING, PACKED, ASSIGNED, LABELED, SHIPPED).</li>
       <li><strong>Exp&eacute;dition</strong> : regroupe des cartons pour une destination.</li>
       <li><strong>Suivi exp&eacute;dition</strong> : journal des scans (QR) avec horodatage.</li>
     </ul>
     <h3>Statuts cle</h3>
     <ul>
-      <li><strong>Carton</strong> : Cr&eacute;&eacute; (draft), En pr&eacute;paration (picking), Pr&ecirc;t (packed), Exp&eacute;di&eacute; (shipped).</li>
-      <li><strong>Exp&eacute;dition</strong> : DRAFT / PARTIEL / READY (calcul&eacute; sur les cartons), puis SHIPPED / DELIVERED.</li>
+      <li><strong>Carton</strong> : Cr&eacute;&eacute; (draft), En pr&eacute;paration (picking), Pr&ecirc;t (packed), Affect&eacute; (assigned), Etiquet&eacute; (labeled), Exp&eacute;di&eacute; (shipped).</li>
+      <li><strong>Exp&eacute;dition</strong> : Cr&eacute;ation (draft), En cours (picking), Pr&ecirc;t (packed), Planifi&eacute; (planned), Exp&eacute;di&eacute; (shipped), Re&ccedil;u escale (received_correspondent), Livr&eacute; (delivered).</li>
+      <li><strong>Litige</strong> : drapeau transverse sur exp&eacute;dition (<code>is_disputed</code>), activable &agrave; tout moment du suivi.</li>
       <li><strong>R&eacute;ception</strong> : DRAFT tant que les lignes ne sont pas r&eacute;ceptionn&eacute;es.</li>
     </ul>
   </div>
@@ -105,7 +106,8 @@
     <ul>
       <li>S&eacute;lectionner la destination en premier (filtre des contacts).</li>
       <li>Exp&eacute;diteur, destinataire et correspondant viennent des contacts tagg&eacute;s.</li>
-      <li>Ajouter des cartons PACKED ou créer des cartons à partir de produits.</li>
+      <li>Ajouter des cartons <strong>Pr&ecirc;t</strong> non affect&eacute;s, ou cr&eacute;er des cartons depuis des produits.</li>
+      <li>&Agrave; l'affectation &agrave; l'exp&eacute;dition, un carton passe en statut <strong>Affect&eacute;</strong>.</li>
       <li>Le poids total est calcul&eacute; automatiquement.</li>
       <li>En modification: QR, documents, &eacute;tiquettes et uploads additionnels.</li>
     </ul>
@@ -115,8 +117,9 @@
     <h2>Vue Colis</h2>
     <ul>
       <li>Liste tous les cartons pr&eacute;par&eacute;s avec leur statut et contenu.</li>
-      <li>Un carton assigné à une expédition est marqué <strong>Affecté</strong>.</li>
-      <li>Un carton <strong>SHIPPED</strong> n'est plus modifiable.</li>
+      <li>Actions explicites: <strong>Marquer etiquete</strong> et <strong>Retirer etiquette</strong> pour les cartons affect&eacute;s.</li>
+      <li>Un carton affect&eacute;/etiquet&eacute; d&eacute;saffect&eacute; d'une exp&eacute;dition revient en <strong>Pr&ecirc;t</strong>.</li>
+      <li>Un carton <strong>Exp&eacute;di&eacute;</strong> n'est plus modifiable.</li>
       <li>Poids et remplissage sont affich&eacute;s quand les dimensions sont disponibles.</li>
     </ul>
   </div>
@@ -124,13 +127,16 @@
   <div class="scan-card">
     <h2>Vue Exp&eacute;ditions</h2>
     <ul>
-      <li><strong>DRAFT</strong> : aucun carton pr&ecirc;t.</li>
-      <li><strong>PARTIEL</strong> : une partie des cartons est pr&ecirc;te.</li>
-      <li><strong>READY</strong> : tous les cartons sont pr&ecirc;ts.</li>
+      <li><strong>Cr&eacute;ation</strong> : exp&eacute;dition initiale, sans colis &eacute;tiquet&eacute;.</li>
+      <li><strong>En cours</strong> : tant que tous les colis ne sont pas &eacute;tiquet&eacute;s.</li>
+      <li><strong>Pr&ecirc;t</strong> : tous les colis sont &eacute;tiquet&eacute;s.</li>
+      <li><strong>Planifi&eacute;</strong> : verrouille la modification des colis de l'exp&eacute;dition.</li>
+      <li><strong>Exp&eacute;di&eacute;</strong>, <strong>Re&ccedil;u escale</strong>, <strong>Livr&eacute;</strong> : progression via le suivi.</li>
+      <li><strong>Litige</strong> : pr&eacute;fixe visuel sur le statut (ex: "Litige - Planifi&eacute;").</li>
     </ul>
     <p>
-      La date <strong>mise en disponible</strong> est renseignée à chaque passage en READY,
-      puis effac&eacute;e si l'exp&eacute;dition repasse en pr&eacute;paration.
+      La date <strong>mise en disponible</strong> est renseign&eacute;e au passage en <strong>Pr&ecirc;t</strong>,
+      puis effac&eacute;e si l'exp&eacute;dition repasse en <strong>En cours</strong>.
     </p>
     <p>
       Le bouton <strong>Suivi</strong> ouvre la page publique de suivi via QR.
@@ -245,7 +251,9 @@
       <li>Champs obligatoires : <strong>Nom</strong> et <strong>Structure</strong>.</li>
       <li>Commentaires optionnels et horodatage automatique (AAAA/MM/JJ HHhMM).</li>
       <li>Le s&eacute;lecteur propose automatiquement l'&eacute;tape suivante.</li>
-      <li>Étapes : OK pour planification, Planifié, Déplacé au magasin export, OK mise à bord, Reçu correspondant, Reçu destinataire.</li>
+      <li>Etapes : OK pour planification, Planifi&eacute;, D&eacute;plac&eacute; au magasin export, OK mise &agrave; bord, Re&ccedil;u correspondant, Re&ccedil;u destinataire.</li>
+      <li>Passage de statut exp&eacute;dition : Planifi&eacute;/D&eacute;plac&eacute; =&gt; Planifi&eacute;, Mise &agrave; bord =&gt; Exp&eacute;di&eacute;, Re&ccedil;u correspondant =&gt; Re&ccedil;u escale, Re&ccedil;u destinataire =&gt; Livr&eacute;.</li>
+      <li>Depuis le suivi, vous pouvez <strong>D&eacute;clarer litige</strong> puis <strong>R&eacute;soudre litige et remettre Pr&ecirc;t</strong>.</li>
     </ul>
     <p>
       Pour que le QR fonctionne depuis un téléphone, définir <strong>SITE_BASE_URL</strong>
@@ -270,7 +278,7 @@
       <li><strong>Mes listes sont vides</strong> : v&eacute;rifier les tags des contacts et la destination choisie.</li>
       <li><strong>Stock à zéro</strong> : vérifier les lots disponibles et leur emplacement.</li>
       <li><strong>Camera ne s'ouvre pas</strong> : autoriser la camera, tester un autre navigateur.</li>
-      <li><strong>Un carton est bloqu&eacute;</strong> : un carton SHIPPED est non modifiable.</li>
+      <li><strong>Un carton est bloqu&eacute;</strong> : un carton exp&eacute;di&eacute; est non modifiable, et une exp&eacute;dition planifi&eacute;e/verrouill&eacute;e bloque les changements colis.</li>
       <li><strong>Le QR n'ouvre rien</strong> : v&eacute;rifier SITE_BASE_URL et relancer l'app.</li>
     </ul>
   </div>

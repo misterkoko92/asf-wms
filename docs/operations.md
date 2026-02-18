@@ -175,3 +175,52 @@ Monthly:
 - Refresh dependencies (`pip list --outdated`).
 - Re-run `pip-audit` and review vulnerabilities.
 - Run `python manage.py normalize_wms_text` if data normalization drift appears.
+
+## 9) Shipment and carton status rules
+
+### Carton statuses
+
+- `draft` (Creation): carton created.
+- `picking` (Preparation): picking in progress.
+- `packed` (Pret): picking finished, carton ready to be assigned.
+- `assigned` (Affecte): carton linked to a shipment.
+- `labeled` (Etiquette): explicit user action "Mark labeled", carton ready for departure.
+- `shipped` (Expedie): shipment boarded (`boarding_ok` tracking step).
+
+### Carton transition rules
+
+- Assigning a `packed` carton to a shipment sets status to `assigned`.
+- Removing a carton from shipment:
+  - if carton is `assigned` or `labeled`, it returns to `packed`.
+  - if carton is `shipped`, removal is blocked.
+- Labeling is explicit from "Vue Colis" (`mark_carton_labeled` action).
+- "Remove label" (`mark_carton_assigned`) is available before shipment lock.
+
+### Shipment statuses
+
+- `draft` (Creation): initial state.
+- `picking` (En cours): not all cartons are labeled yet.
+- `packed` (Pret): all cartons are labeled.
+- `planned` (Planifie): planning locked state.
+- `shipped` (Expedie): boarding confirmed.
+- `received_correspondent` (Recu escale): correspondent reception confirmed.
+- `delivered` (Livre): final recipient reception confirmed.
+
+### Shipment transition rules
+
+- Automatic readiness sync:
+  - if all cartons are labeled (or shipped), shipment becomes `packed`.
+  - otherwise shipment stays/returns `picking`.
+- Tracking steps drive advanced statuses:
+  - `planned` and `moved_export` => shipment `planned`
+  - `boarding_ok` => shipment `shipped`
+  - `received_correspondent` => shipment `received_correspondent`
+  - `received_recipient` => shipment `delivered`
+- Once `planned`, carton modifications are locked.
+
+### Dispute overlay (`is_disputed`)
+
+- Dispute is a flag, not a separate status.
+- It can be set from tracking screen at any time.
+- While disputed, tracking progression is blocked.
+- Resolving dispute can reset shipment to `packed` ("Pret"), allowing replanning.

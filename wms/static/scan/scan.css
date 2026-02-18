@@ -586,6 +586,50 @@ body {
   background: var(--table-header);
 }
 
+.scan-table th.scan-table-sortable {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  padding-right: 24px;
+}
+
+.scan-table th.scan-table-sortable::after {
+  content: "↕";
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+.scan-table th.scan-table-sortable.is-sorted::after {
+  content: "↑";
+  color: var(--accent);
+}
+
+.scan-table th.scan-table-sortable.is-sorted.is-desc::after {
+  content: "↓";
+}
+
+.scan-table-filter-row th {
+  background: var(--panel);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.scan-table-filter-row .scan-table-filter-input {
+  width: 100%;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--input-bg);
+  color: var(--ink);
+  padding: 6px 8px;
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
 .scan-table td small {
   display: block;
   margin-top: 2px;

@@ -2460,6 +2460,284 @@
     }
   }
 
+  function setupTableTools() {
+    const tables = Array.from(
+      document.querySelectorAll('table.scan-table[data-table-tools="1"]')
+    );
+    if (!tables.length) {
+      return;
+    }
+
+    const cleanText = value =>
+      (value || '')
+        .toString()
+        .replace(/\s+/g, ' ')
+        .trim();
+    const normalizedFilterText = value => normalizeText(cleanText(value));
+
+    const parseDateValue = value => {
+      const text = cleanText(value);
+      if (!text) {
+        return null;
+      }
+      const match = text.match(
+        /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:\s+(\d{1,2})h(\d{1,2}))?$/
+      );
+      if (!match) {
+        return null;
+      }
+      let year = parseInt(match[3], 10);
+      if (year < 100) {
+        year += 2000;
+      }
+      const month = parseInt(match[2], 10) - 1;
+      const day = parseInt(match[1], 10);
+      const hour = match[4] ? parseInt(match[4], 10) : 0;
+      const minute = match[5] ? parseInt(match[5], 10) : 0;
+      const stamp = new Date(year, month, day, hour, minute).getTime();
+      return Number.isFinite(stamp) ? stamp : null;
+    };
+
+    const parseNumericValue = value => {
+      const text = cleanText(value);
+      if (!text) {
+        return null;
+      }
+      const normalized = text
+        .replace(/\s/g, '')
+        .replace(',', '.')
+        .replace(/[^0-9.+-]/g, '');
+      if (!normalized || ['-', '+', '.', '-.', '+.'].includes(normalized)) {
+        return null;
+      }
+      const parsed = Number(normalized);
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+
+    const compareCellValues = (leftValue, rightValue) => {
+      const leftDate = parseDateValue(leftValue);
+      const rightDate = parseDateValue(rightValue);
+      if (leftDate !== null && rightDate !== null) {
+        return leftDate - rightDate;
+      }
+
+      const leftNumber = parseNumericValue(leftValue);
+      const rightNumber = parseNumericValue(rightValue);
+      if (leftNumber !== null && rightNumber !== null) {
+        return leftNumber - rightNumber;
+      }
+
+      return String(leftValue || '').localeCompare(String(rightValue || ''), 'fr', {
+        sensitivity: 'base',
+        numeric: true
+      });
+    };
+
+    const extractCellText = cell => {
+      if (!cell) {
+        return '';
+      }
+
+      const selectedValues = Array.from(cell.querySelectorAll('select'))
+        .map(select => {
+          const option = select.selectedOptions && select.selectedOptions[0];
+          return option ? cleanText(option.textContent) : '';
+        })
+        .filter(Boolean);
+
+      const typedValues = Array.from(cell.querySelectorAll('input, textarea'))
+        .filter(field => {
+          if (!field || !field.tagName) {
+            return false;
+          }
+          if (field.tagName.toLowerCase() === 'textarea') {
+            return true;
+          }
+          const type = String(field.type || '').toLowerCase();
+          return ![
+            'hidden',
+            'password',
+            'file',
+            'checkbox',
+            'radio',
+            'submit',
+            'button',
+            'reset'
+          ].includes(type);
+        })
+        .map(field => cleanText(field.value))
+        .filter(Boolean);
+
+      const textParts = [];
+      const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT);
+      let node = walker.nextNode();
+      while (node) {
+        const parentTag = node.parentNode && node.parentNode.tagName
+          ? node.parentNode.tagName.toUpperCase()
+          : '';
+        if (!['OPTION', 'SCRIPT', 'STYLE'].includes(parentTag)) {
+          const text = cleanText(node.textContent);
+          if (text) {
+            textParts.push(text);
+          }
+        }
+        node = walker.nextNode();
+      }
+
+      return cleanText([...textParts, ...selectedValues, ...typedValues].join(' '));
+    };
+
+    tables.forEach(table => {
+      const thead = table.tHead;
+      const tbody = table.tBodies && table.tBodies[0];
+      if (!thead || !tbody || !thead.rows.length) {
+        return;
+      }
+
+      const headerRow = thead.rows[0];
+      const headerCells = Array.from(headerRow.cells).filter(
+        cell => cell.tagName && cell.tagName.toUpperCase() === 'TH'
+      );
+      const headerCount = headerCells.length;
+      if (!headerCount) {
+        return;
+      }
+
+      const groups = [];
+      let currentGroup = null;
+      Array.from(tbody.rows).forEach(row => {
+        const isPrimaryRow = row.cells.length === headerCount;
+        if (isPrimaryRow || !currentGroup) {
+          currentGroup = {
+            primary: row,
+            extras: [],
+            originalIndex: groups.length
+          };
+          groups.push(currentGroup);
+          return;
+        }
+        currentGroup.extras.push(row);
+      });
+
+      if (!groups.length) {
+        return;
+      }
+
+      let sortColumn = -1;
+      let sortDirection = 0;
+      const filterInputs = [];
+
+      const getGroupValue = (group, columnIndex) =>
+        extractCellText(group.primary.cells[columnIndex]);
+
+      const updateHeaderState = () => {
+        headerCells.forEach((cell, index) => {
+          const isSorted = index === sortColumn && sortDirection !== 0;
+          cell.classList.toggle('is-sorted', isSorted);
+          cell.classList.toggle('is-desc', isSorted && sortDirection < 0);
+          if (!isSorted) {
+            cell.setAttribute('aria-sort', 'none');
+          } else {
+            cell.setAttribute('aria-sort', sortDirection > 0 ? 'ascending' : 'descending');
+          }
+        });
+      };
+
+      const applyTools = () => {
+        const orderedGroups = [...groups];
+        if (sortColumn >= 0 && sortDirection !== 0) {
+          orderedGroups.sort((leftGroup, rightGroup) => {
+            const compareResult = compareCellValues(
+              getGroupValue(leftGroup, sortColumn),
+              getGroupValue(rightGroup, sortColumn)
+            );
+            if (compareResult === 0) {
+              return leftGroup.originalIndex - rightGroup.originalIndex;
+            }
+            return compareResult * sortDirection;
+          });
+        } else {
+          orderedGroups.sort((leftGroup, rightGroup) => leftGroup.originalIndex - rightGroup.originalIndex);
+        }
+
+        orderedGroups.forEach(group => {
+          tbody.appendChild(group.primary);
+          group.extras.forEach(extra => tbody.appendChild(extra));
+        });
+
+        const filters = filterInputs.map(input => normalizedFilterText(input.value));
+        orderedGroups.forEach(group => {
+          const keep = filters.every((term, columnIndex) => {
+            if (!term) {
+              return true;
+            }
+            return normalizedFilterText(getGroupValue(group, columnIndex)).includes(term);
+          });
+          const displayValue = keep ? '' : 'none';
+          group.primary.style.display = displayValue;
+          group.extras.forEach(extra => {
+            extra.style.display = displayValue;
+          });
+        });
+
+        updateHeaderState();
+      };
+
+      headerCells.forEach((cell, index) => {
+        cell.classList.add('scan-table-sortable');
+        cell.setAttribute('role', 'button');
+        cell.setAttribute('tabindex', '0');
+        cell.setAttribute('aria-sort', 'none');
+        const onSort = event => {
+          if (
+            event.target &&
+            event.target.closest('a, button, input, select, textarea, form, label')
+          ) {
+            return;
+          }
+          if (sortColumn !== index) {
+            sortColumn = index;
+            sortDirection = 1;
+          } else if (sortDirection === 1) {
+            sortDirection = -1;
+          } else if (sortDirection === -1) {
+            sortDirection = 0;
+            sortColumn = -1;
+          } else {
+            sortDirection = 1;
+          }
+          applyTools();
+        };
+        cell.addEventListener('click', onSort);
+        cell.addEventListener('keydown', event => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            onSort(event);
+          }
+        });
+      });
+
+      const filterRow = document.createElement('tr');
+      filterRow.className = 'scan-table-filter-row';
+      headerCells.forEach(cell => {
+        const filterCell = document.createElement('th');
+        const input = document.createElement('input');
+        input.type = 'search';
+        input.className = 'scan-table-filter-input';
+        input.placeholder = 'Filtrer';
+        input.autocomplete = 'off';
+        input.setAttribute('aria-label', `Filtrer ${cleanText(cell.textContent) || 'colonne'}`);
+        input.addEventListener('input', applyTools);
+        filterInputs.push(input);
+        filterCell.appendChild(input);
+        filterRow.appendChild(filterCell);
+      });
+      thead.appendChild(filterRow);
+
+      applyTools();
+    });
+  }
+
   function setupLiveSync() {
     const banner = document.getElementById('scan-sync-banner');
     if (!banner) {
@@ -2591,6 +2869,7 @@
   setupShipmentBuilder();
   setupShipmentContactFilters();
   setupReceiptLines();
+  setupTableTools();
   setupLiveSync();
 
   const receivedOnInput = document.getElementById('id_received_on');

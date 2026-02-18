@@ -9,7 +9,7 @@ SHELL_CLASS_WIDE = "scan-shell-wide"
 SCAN_SW_ALLOWED_SCOPE = "/scan/"
 CACHE_CONTROL_NO_CACHE = "no-cache"
 
-SERVICE_WORKER_JS = """const CACHE_NAME = 'wms-scan-v39';
+SERVICE_WORKER_JS = """const CACHE_NAME = 'wms-scan-v40';
 const ASSETS = [
   '/static/scan/scan.css',
   '/static/scan/scan.js',
