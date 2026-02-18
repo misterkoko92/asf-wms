@@ -6,7 +6,7 @@ from django.db.models.query import QuerySet
 from django.test import TestCase
 from django.utils import timezone
 
-from contacts.models import Contact, ContactAddress
+from contacts.models import Contact, ContactAddress, ContactTag
 from wms.forms import (
     AdjustStockForm,
     PackCartonForm,
@@ -189,6 +189,35 @@ class FormsTests(TestCase):
                 form = ScanShipmentForm(destination_id="123")
 
         self.assertEqual(form.fields["correspondent_contact"].queryset.count(), 0)
+
+    def test_scan_shipment_form_init_matches_accented_shipper_tag(self):
+        correspondent = self._create_contact("Correspondent Form")
+        correspondent_tag = ContactTag.objects.create(name="correspondant")
+        correspondent.tags.add(correspondent_tag)
+        destination = Destination.objects.create(
+            city="Paris",
+            iata_code="PAR-ACC",
+            country="France",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        shipper = self._create_contact("Shipper Accent")
+        shipper_tag = ContactTag.objects.create(name="expéditeur")
+        shipper.tags.add(shipper_tag)
+        recipient = self._create_contact("Recipient Form", country="France")
+        recipient_tag = ContactTag.objects.create(name="destinataire")
+        recipient.tags.add(recipient_tag)
+
+        form = ScanShipmentForm(destination_id=str(destination.id))
+
+        self.assertIn(
+            shipper.id,
+            form.fields["shipper_contact"].queryset.values_list("id", flat=True),
+        )
+        self.assertIn(
+            recipient.id,
+            form.fields["recipient_contact"].queryset.values_list("id", flat=True),
+        )
 
     def test_scan_shipment_form_clean_rejects_contact_for_other_destination(self):
         expected_correspondent = self._create_contact("Corr Expected")

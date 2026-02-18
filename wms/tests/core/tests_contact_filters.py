@@ -1,7 +1,12 @@
 from django.test import TestCase
 
 from contacts.models import Contact, ContactTag
-from wms.contact_filters import contacts_with_tags, filter_contacts_for_destination
+from wms.contact_filters import (
+    TAG_RECIPIENT,
+    TAG_SHIPPER,
+    contacts_with_tags,
+    filter_contacts_for_destination,
+)
 from wms.models import Destination
 
 
@@ -40,3 +45,17 @@ class ContactFiltersTests(TestCase):
         filtered = filter_contacts_for_destination(queryset, None)
 
         self.assertEqual(list(filtered), [allowed, global_contact])
+
+    def test_contacts_with_tags_matches_accented_shipper_tags(self):
+        contact = self._create_contact("Shipper Accent", tags=("expéditeur",))
+
+        results = list(contacts_with_tags(TAG_SHIPPER))
+
+        self.assertEqual(results, [contact])
+
+    def test_contacts_with_tags_matches_whitespace_variant_tags(self):
+        contact = self._create_contact("Recipient Spaced", tags=("  destinataire  ",))
+
+        results = list(contacts_with_tags(TAG_RECIPIENT))
+
+        self.assertEqual(results, [contact])

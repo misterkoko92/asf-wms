@@ -24,3 +24,4 @@
 - Full TMS module
 - Advanced reporting (BI)
 - Mobile native app
+- Internal expedition follow system : confirm that the right package, with the right expedition number has been planned and sent according to in house rules. update each shipment with the person in charge of shipping and add datestamps to each steps during the shipping process
