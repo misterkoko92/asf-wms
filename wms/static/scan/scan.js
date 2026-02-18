@@ -2032,16 +2032,6 @@
       return true;
     };
 
-    const isGlobalContact = contact => {
-      if (!contact) {
-        return false;
-      }
-      const scopedDestinationIds = Array.isArray(contact.destination_ids)
-        ? contact.destination_ids
-        : [];
-      return scopedDestinationIds.length === 0 && !contact.destination_id;
-    };
-
     const renderOptions = (select, options, selectedValue) => {
       const fragment = document.createDocumentFragment();
       const empty = document.createElement('option');
@@ -2097,8 +2087,8 @@
           correspondentOptions = [];
         }
       } else {
-        shipperOptions = shippers.filter(isGlobalContact);
-        recipientOptions = recipients.filter(isGlobalContact);
+        shipperOptions = shippers;
+        recipientOptions = recipients;
         correspondentOptions = correspondents.filter(isGlobalContact);
       }
 

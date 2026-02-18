@@ -219,7 +219,7 @@ class FormsTests(TestCase):
             form.fields["recipient_contact"].queryset.values_list("id", flat=True),
         )
 
-    def test_scan_shipment_form_init_without_destination_shows_only_global_contacts(self):
+    def test_scan_shipment_form_init_without_destination_shows_all_tagged_contacts(self):
         global_shipper = self._create_contact("Global Shipper")
         shipper_tag = ContactTag.objects.create(name="expediteur")
         global_shipper.tags.add(shipper_tag)
@@ -246,7 +246,7 @@ class FormsTests(TestCase):
             global_shipper.id,
             form.fields["shipper_contact"].queryset.values_list("id", flat=True),
         )
-        self.assertNotIn(
+        self.assertIn(
             scoped_shipper.id,
             form.fields["shipper_contact"].queryset.values_list("id", flat=True),
         )
@@ -254,7 +254,7 @@ class FormsTests(TestCase):
             global_recipient.id,
             form.fields["recipient_contact"].queryset.values_list("id", flat=True),
         )
-        self.assertNotIn(
+        self.assertIn(
             scoped_recipient.id,
             form.fields["recipient_contact"].queryset.values_list("id", flat=True),
         )
