@@ -12,6 +12,7 @@ from .contact_filters import (
     filter_contacts_for_destination,
     filter_recipients_for_shipper,
 )
+from .contact_labels import build_contact_select_label
 from .scan_helpers import resolve_product
 from .models import (
     Carton,
@@ -408,7 +409,7 @@ class ScanShipmentForm(forms.Form):
         else:
             shipper_contacts = shipper_contacts.none()
         self.fields["shipper_contact"].queryset = shipper_contacts.order_by("name")
-        _select_single_choice(self.fields["shipper_contact"])
+        self.fields["shipper_contact"].label_from_instance = build_contact_select_label
         selected_shipper = self._resolve_selected_shipper()
 
         recipients = contacts_with_tags(TAG_RECIPIENT)
@@ -434,8 +435,7 @@ class ScanShipmentForm(forms.Form):
 
         self.fields["recipient_contact"].queryset = recipients.distinct().order_by("name")
         self.fields["correspondent_contact"].queryset = correspondents.distinct().order_by("name")
-        _select_single_choice(self.fields["recipient_contact"])
-        _select_single_choice(self.fields["correspondent_contact"])
+        self.fields["recipient_contact"].label_from_instance = build_contact_select_label
 
     def _selected_value(self, field_name, *, explicit_value=None):
         if explicit_value:

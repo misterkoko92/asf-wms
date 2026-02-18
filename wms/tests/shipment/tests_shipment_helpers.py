@@ -118,6 +118,52 @@ class ShipmentHelpersTests(TestCase):
             ],
         )
 
+    def test_build_shipment_contact_payload_formats_shipper_and_recipient_names(self):
+        correspondent = Contact.objects.create(name="Corr B")
+        destination = Destination.objects.create(
+            city="Abidjan",
+            iata_code="ABJ-FMT",
+            country="Cote d'Ivoire",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        organization = Contact.objects.create(
+            name="ASSOCIATION FORMATTED",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        shipper = Contact.objects.create(
+            name="Legacy Shipper",
+            contact_type=ContactType.PERSON,
+            title="M.",
+            first_name="Jean",
+            last_name="Dupont",
+            organization=organization,
+            is_active=True,
+        )
+        shipper.destinations.add(destination)
+        shipper_tag = ContactTag.objects.create(name="expediteur")
+        shipper.tags.add(shipper_tag)
+
+        recipient = Contact.objects.create(
+            name="Legacy Recipient",
+            contact_type=ContactType.PERSON,
+            title="Mme",
+            first_name="Alice",
+            last_name="Martin",
+            is_active=True,
+        )
+        recipient.destinations.add(destination)
+        recipient_tag = ContactTag.objects.create(name="destinataire")
+        recipient.tags.add(recipient_tag)
+
+        _, shippers_json, recipients_json, _ = build_shipment_contact_payload()
+
+        shipper_entry = next(entry for entry in shippers_json if entry["id"] == shipper.id)
+        recipient_entry = next(entry for entry in recipients_json if entry["id"] == recipient.id)
+        self.assertEqual(shipper_entry["name"], "ASSOCIATION FORMATTED")
+        self.assertEqual(recipient_entry["name"], "Mme, Alice, MARTIN")
+
     def test_parse_shipment_lines_collects_all_error_branches(self):
         product = Product.objects.create(
             sku="SHIP-001",

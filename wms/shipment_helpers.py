@@ -4,6 +4,7 @@ from .contact_filters import (
     TAG_SHIPPER,
     contacts_with_tags,
 )
+from .contact_labels import build_contact_select_label
 from .models import Destination
 from .scan_helpers import parse_int, resolve_product
 
@@ -35,10 +36,12 @@ def build_shipment_contact_payload():
     )
     shipper_contacts = (
         contacts_with_tags(TAG_SHIPPER)
+        .select_related("organization")
         .prefetch_related("destinations")
     )
     recipient_contacts = (
         contacts_with_tags(TAG_RECIPIENT)
+        .select_related("organization")
         .prefetch_related("addresses", "destinations", "linked_shippers")
     )
     correspondent_contacts = (
@@ -57,7 +60,7 @@ def build_shipment_contact_payload():
     shipper_contacts_json = [
         {
             "id": contact.id,
-            "name": contact.name,
+            "name": build_contact_select_label(contact),
             "destination_id": _primary_destination_id(contact),
             "destination_ids": _destination_ids(contact),
         }
@@ -74,7 +77,7 @@ def build_shipment_contact_payload():
         recipient_contacts_json.append(
             {
                 "id": contact.id,
-                "name": contact.name,
+                "name": build_contact_select_label(contact),
                 "countries": sorted(countries),
                 "destination_id": _primary_destination_id(contact),
                 "destination_ids": _destination_ids(contact),

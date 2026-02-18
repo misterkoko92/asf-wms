@@ -2097,8 +2097,6 @@
       select.appendChild(fragment);
       if (selectedValue && options.some(option => String(option.id) === String(selectedValue))) {
         select.value = String(selectedValue);
-      } else if (options.length === 1) {
-        select.value = String(options[0].id);
       } else {
         select.value = '';
       }
