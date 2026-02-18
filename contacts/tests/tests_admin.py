@@ -12,6 +12,20 @@ class ContactAdminFormTests(TestCase):
 
         self.assertIn("adresse par défaut", form.fields["use_organization_address"].help_text)
         self.assertIn("Sélection multiple", form.fields["destinations"].help_text)
+        self.assertIn("destinataires", form.fields["linked_shippers"].help_text)
+
+    def test_form_init_prefills_default_shipper_for_new_contact(self):
+        shipper_tag = ContactTag.objects.create(name="Expéditeur")
+        default_shipper = Contact.objects.create(
+            name="AVIATION SANS FRONTIERES",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        default_shipper.tags.add(shipper_tag)
+
+        form = ContactAdminForm()
+
+        self.assertEqual(form.fields["linked_shippers"].initial, [default_shipper.pk])
 
     def test_clean_requires_tag_for_organization(self):
         form = ContactAdminForm(
@@ -56,6 +70,90 @@ class ContactAdminFormTests(TestCase):
         )
 
         self.assertTrue(form.is_valid())
+
+    def test_clean_requires_linked_shipper_for_new_recipient(self):
+        recipient_tag = ContactTag.objects.create(name="Destinataire")
+        form = ContactAdminForm(
+            data={
+                "contact_type": ContactType.ORGANIZATION,
+                "name": "Destinataire Sans Expediteur",
+                "tags": [recipient_tag.id],
+                "linked_shippers": [],
+                "is_active": "on",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("linked_shippers", form.errors)
+        self.assertIn("expéditeur lié", form.errors["linked_shippers"][0].lower())
+
+    def test_save_adds_default_shipper_for_recipient(self):
+        shipper_tag = ContactTag.objects.create(name="Expéditeur")
+        recipient_tag = ContactTag.objects.create(name="Destinataire")
+        default_shipper = Contact.objects.create(
+            name="AVIATION SANS FRONTIERES",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        default_shipper.tags.add(shipper_tag)
+        extra_shipper = Contact.objects.create(
+            name="Expediteur Local",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        extra_shipper.tags.add(shipper_tag)
+        form = ContactAdminForm(
+            data={
+                "contact_type": ContactType.ORGANIZATION,
+                "name": "Destinataire Lie",
+                "tags": [recipient_tag.id],
+                "linked_shippers": [extra_shipper.id],
+                "is_active": "on",
+            }
+        )
+
+        self.assertTrue(form.is_valid())
+        recipient = form.save()
+
+        self.assertEqual(
+            set(recipient.linked_shippers.values_list("id", flat=True)),
+            {default_shipper.id, extra_shipper.id},
+        )
+
+    def test_save_commit_false_then_save_m2m_adds_default_shipper_for_recipient(self):
+        shipper_tag = ContactTag.objects.create(name="Expéditeur")
+        recipient_tag = ContactTag.objects.create(name="Destinataire")
+        default_shipper = Contact.objects.create(
+            name="AVIATION SANS FRONTIERES",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        default_shipper.tags.add(shipper_tag)
+        extra_shipper = Contact.objects.create(
+            name="Expediteur 2",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        extra_shipper.tags.add(shipper_tag)
+        form = ContactAdminForm(
+            data={
+                "contact_type": ContactType.ORGANIZATION,
+                "name": "Destinataire Lie 2",
+                "tags": [recipient_tag.id],
+                "linked_shippers": [extra_shipper.id],
+                "is_active": "on",
+            }
+        )
+
+        self.assertTrue(form.is_valid())
+        recipient = form.save(commit=False)
+        recipient.save()
+        form.save_m2m()
+
+        self.assertEqual(
+            set(recipient.linked_shippers.values_list("id", flat=True)),
+            {default_shipper.id, extra_shipper.id},
+        )
 
 
 class ContactTagAdminFormTests(TestCase):

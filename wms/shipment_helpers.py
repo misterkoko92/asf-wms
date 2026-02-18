@@ -14,6 +14,10 @@ def _destination_ids(contact):
     return sorted(destination.id for destination in contact.destinations.all())
 
 
+def _linked_shipper_ids(contact):
+    return sorted(shipper.id for shipper in contact.linked_shippers.all())
+
+
 def build_destination_label(destination):
     if not destination:
         return ""
@@ -34,7 +38,7 @@ def build_shipment_contact_payload():
         contacts_with_tags(TAG_RECIPIENT)
         .filter(contact_type=ContactType.ORGANIZATION)
         .select_related("destination")
-        .prefetch_related("addresses", "destinations")
+        .prefetch_related("addresses", "destinations", "linked_shippers")
     )
     correspondent_contacts = (
         contacts_with_tags(TAG_CORRESPONDENT)
@@ -74,6 +78,7 @@ def build_shipment_contact_payload():
                 "countries": sorted(countries),
                 "destination_id": contact.destination_id,
                 "destination_ids": _destination_ids(contact),
+                "linked_shipper_ids": _linked_shipper_ids(contact),
             }
         )
     correspondent_contacts_json = [

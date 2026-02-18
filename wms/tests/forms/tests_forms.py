@@ -214,12 +214,8 @@ class FormsTests(TestCase):
             shipper.id,
             form.fields["shipper_contact"].queryset.values_list("id", flat=True),
         )
-        self.assertIn(
-            recipient.id,
-            form.fields["recipient_contact"].queryset.values_list("id", flat=True),
-        )
 
-    def test_scan_shipment_form_init_without_destination_shows_all_tagged_contacts(self):
+    def test_scan_shipment_form_init_without_destination_hides_contact_selectors(self):
         global_shipper = self._create_contact("Global Shipper")
         shipper_tag = ContactTag.objects.create(name="expediteur")
         global_shipper.tags.add(shipper_tag)
@@ -242,22 +238,50 @@ class FormsTests(TestCase):
 
         form = ScanShipmentForm()
 
-        self.assertIn(
-            global_shipper.id,
-            form.fields["shipper_contact"].queryset.values_list("id", flat=True),
+        self.assertEqual(form.fields["shipper_contact"].queryset.count(), 0)
+        self.assertEqual(form.fields["recipient_contact"].queryset.count(), 0)
+        self.assertEqual(form.fields["correspondent_contact"].queryset.count(), 0)
+
+    def test_scan_shipment_form_init_filters_recipients_by_selected_shipper(self):
+        correspondent = self._create_contact("Correspondent Shipper")
+        correspondent_tag = ContactTag.objects.create(name="correspondant")
+        correspondent.tags.add(correspondent_tag)
+        destination = Destination.objects.create(
+            city="Abidjan",
+            iata_code="ABJ1",
+            country="Cote d'Ivoire",
+            correspondent_contact=correspondent,
+            is_active=True,
         )
-        self.assertIn(
-            scoped_shipper.id,
-            form.fields["shipper_contact"].queryset.values_list("id", flat=True),
+        shipper_tag = ContactTag.objects.create(name="expediteur")
+        shipper_a = self._create_contact("Shipper A")
+        shipper_a.tags.add(shipper_tag)
+        shipper_a.destinations.add(destination)
+        shipper_b = self._create_contact("Shipper B")
+        shipper_b.tags.add(shipper_tag)
+        shipper_b.destinations.add(destination)
+        recipient_tag = ContactTag.objects.create(name="destinataire")
+        global_recipient = self._create_contact("Recipient Global")
+        global_recipient.tags.add(recipient_tag)
+        linked_recipient = self._create_contact("Recipient Linked")
+        linked_recipient.tags.add(recipient_tag)
+        linked_recipient.linked_shippers.add(shipper_a)
+        other_recipient = self._create_contact("Recipient Other")
+        other_recipient.tags.add(recipient_tag)
+        other_recipient.linked_shippers.add(shipper_b)
+
+        form = ScanShipmentForm(
+            data={
+                "destination": str(destination.id),
+                "shipper_contact": str(shipper_a.id),
+            },
+            destination_id=str(destination.id),
         )
-        self.assertIn(
-            global_recipient.id,
-            form.fields["recipient_contact"].queryset.values_list("id", flat=True),
-        )
-        self.assertIn(
-            scoped_recipient.id,
-            form.fields["recipient_contact"].queryset.values_list("id", flat=True),
-        )
+
+        recipient_ids = set(form.fields["recipient_contact"].queryset.values_list("id", flat=True))
+        self.assertIn(global_recipient.id, recipient_ids)
+        self.assertIn(linked_recipient.id, recipient_ids)
+        self.assertNotIn(other_recipient.id, recipient_ids)
 
     def test_scan_shipment_form_clean_rejects_contact_for_other_destination(self):
         expected_correspondent = self._create_contact("Corr Expected")
@@ -351,6 +375,39 @@ class FormsTests(TestCase):
         form.fields["correspondent_contact"].queryset = Contact.objects.all()
 
         self.assertTrue(form.is_valid())
+
+    def test_scan_shipment_form_clean_rejects_recipient_not_linked_to_shipper(self):
+        expected_correspondent = self._create_contact("Corr Expected 4")
+        destination = Destination.objects.create(
+            city="Douala",
+            iata_code="DLA1",
+            country="Cameroun",
+            correspondent_contact=expected_correspondent,
+            is_active=True,
+        )
+        shipper = self._create_contact("Shipper Linked")
+        shipper.destinations.add(destination)
+        recipient = self._create_contact("Recipient Not Linked")
+        recipient.linked_shippers.add(self._create_contact("Other Shipper"))
+
+        form = ScanShipmentForm(
+            data={
+                "destination": str(destination.id),
+                "shipper_contact": str(shipper.id),
+                "recipient_contact": str(recipient.id),
+                "correspondent_contact": str(expected_correspondent.id),
+                "carton_count": "1",
+            }
+        )
+        form.fields["shipper_contact"].queryset = Contact.objects.all()
+        form.fields["recipient_contact"].queryset = Contact.objects.all()
+        form.fields["correspondent_contact"].queryset = Contact.objects.all()
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(
+            form.errors["recipient_contact"],
+            ["Destinataire non disponible pour cet expéditeur."],
+        )
 
     def test_scan_shipment_form_clean_rejects_unlinked_correspondent(self):
         expected_correspondent = self._create_contact("Corr Expected 3")

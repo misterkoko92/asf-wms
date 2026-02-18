@@ -51,6 +51,13 @@ class Contact(models.Model):
         related_name="contacts_scoped",
         help_text="Laisser vide pour toutes les destinations.",
     )
+    linked_shippers = models.ManyToManyField(
+        "self",
+        blank=True,
+        symmetrical=False,
+        related_name="linked_recipients",
+        help_text="Utilise pour les destinataires: vide = tous les expéditeurs.",
+    )
     role = models.CharField(max_length=120, blank=True)
     email = models.EmailField(blank=True)
     email2 = models.EmailField(blank=True)

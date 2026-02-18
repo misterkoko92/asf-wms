@@ -293,6 +293,10 @@ body {
   margin-bottom: 14px;
 }
 
+.scan-hidden {
+  display: none !important;
+}
+
 .scan-field.scan-field-gap {
   margin-top: 16px;
 }

@@ -105,6 +105,7 @@ class ShipmentHelpersTests(TestCase):
         self.assertEqual(recipients_json[0]["countries"], ["France", "UK"])
         self.assertEqual(recipients_json[0]["destination_id"], destination.id)
         self.assertEqual(recipients_json[0]["destination_ids"], [])
+        self.assertEqual(recipients_json[0]["linked_shipper_ids"], [])
         self.assertEqual(
             correspondents_json,
             [

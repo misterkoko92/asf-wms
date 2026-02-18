@@ -64,3 +64,11 @@ def filter_contacts_for_destination(queryset, destination):
         | Q(destinations__isnull=True, destination=destination)
         | Q(destinations__isnull=True, destination__isnull=True)
     ).distinct()
+
+
+def filter_recipients_for_shipper(queryset, shipper):
+    if not shipper:
+        return queryset.none()
+    return queryset.filter(
+        Q(linked_shippers=shipper) | Q(linked_shippers__isnull=True)
+    ).distinct()

@@ -1970,6 +1970,13 @@
     const shipperSelect = document.getElementById('id_shipper_contact');
     const recipientSelect = document.getElementById('id_recipient_contact');
     const correspondentSelect = document.getElementById('id_correspondent_contact');
+    const shipperSection = document.getElementById('shipment-shipper-section');
+    const recipientSection = document.getElementById('shipment-recipient-section');
+    const correspondentSection = document.getElementById('shipment-correspondent-section');
+    const detailsSection = document.getElementById('shipment-details-section');
+    const shipperEmptyMessage = document.getElementById('shipper-empty-message');
+    const recipientEmptyMessage = document.getElementById('recipient-empty-message');
+    const correspondentEmptyMessage = document.getElementById('correspondent-empty-message');
     const destinationsEl = document.getElementById('destination-data');
     const shippersEl = document.getElementById('shipper-contacts-data');
     const recipientsEl = document.getElementById('recipient-contacts-data');
@@ -2013,16 +2020,29 @@
       correspondents = [];
     }
 
+    const asId = value => (value || value === 0 ? String(value) : '');
+    const selectValue = select => asId(select && select.value ? select.value : '');
+    const asIdList = values =>
+      Array.isArray(values)
+        ? values
+            .map(entry => asId(entry))
+            .filter(Boolean)
+        : [];
+    const setVisible = (element, visible) => {
+      if (!element) {
+        return;
+      }
+      element.classList.toggle('scan-hidden', !visible);
+    };
+
     const destinationMap = new Map(
       destinations.map(destination => [String(destination.id), destination])
     );
     const matchesDestination = (contact, destinationId) => {
       if (!contact || !destinationId) {
-        return true;
+        return false;
       }
-      const scopedDestinationIds = Array.isArray(contact.destination_ids)
-        ? contact.destination_ids.map(entry => String(entry))
-        : [];
+      const scopedDestinationIds = asIdList(contact.destination_ids);
       if (scopedDestinationIds.length) {
         return scopedDestinationIds.includes(String(destinationId));
       }
@@ -2030,6 +2050,16 @@
         return String(contact.destination_id) === String(destinationId);
       }
       return true;
+    };
+    const matchesLinkedShipper = (recipient, shipperId) => {
+      if (!recipient || !shipperId) {
+        return false;
+      }
+      const linkedShipperIds = asIdList(recipient.linked_shipper_ids);
+      if (!linkedShipperIds.length) {
+        return true;
+      }
+      return linkedShipperIds.includes(String(shipperId));
     };
 
     const renderOptions = (select, options, selectedValue) => {
@@ -2059,26 +2089,48 @@
     };
 
     const updateContacts = () => {
-      const destination = destinationMap.get(String(destinationSelect.value));
-      const selectedShipper = shipperSelect.value;
-      const selectedRecipient = recipientSelect.value;
-      const selectedCorrespondent = correspondentSelect.value;
-      let shipperOptions = shippers;
-      let recipientOptions = recipients;
-      let correspondentOptions = correspondents;
+      const destinationId = selectValue(destinationSelect);
+      const selectedShipper = selectValue(shipperSelect);
+      const selectedRecipient = selectValue(recipientSelect);
+      const selectedCorrespondent = selectValue(correspondentSelect);
 
-      if (destination) {
-        const destinationId = String(destination.id);
-        shipperOptions = shippers.filter(shipper =>
-          matchesDestination(shipper, destinationId)
-        );
+      if (!destinationId) {
+        renderOptions(shipperSelect, [], '');
+        renderOptions(recipientSelect, [], '');
+        renderOptions(correspondentSelect, [], '');
+        setVisible(shipperSection, false);
+        setVisible(recipientSection, false);
+        setVisible(correspondentSection, false);
+        setVisible(detailsSection, false);
+        setVisible(shipperEmptyMessage, false);
+        setVisible(recipientEmptyMessage, false);
+        setVisible(correspondentEmptyMessage, false);
+        return;
+      }
+
+      setVisible(shipperSection, true);
+      const destination = destinationMap.get(destinationId) || null;
+      const shipperOptions = shippers.filter(shipper =>
+        matchesDestination(shipper, destinationId)
+      );
+      renderOptions(shipperSelect, shipperOptions, selectedShipper);
+      const resolvedShipper = selectValue(shipperSelect);
+      setVisible(shipperEmptyMessage, shipperOptions.length === 0);
+
+      const canShowRecipientAndCorrespondent = Boolean(resolvedShipper);
+      setVisible(recipientSection, canShowRecipientAndCorrespondent);
+      setVisible(correspondentSection, canShowRecipientAndCorrespondent);
+
+      let recipientOptions = [];
+      let correspondentOptions = [];
+      if (canShowRecipientAndCorrespondent) {
         recipientOptions = recipients.filter(recipient =>
-          matchesDestination(recipient, destinationId)
+          matchesLinkedShipper(recipient, resolvedShipper)
         );
         correspondentOptions = correspondents.filter(correspondent =>
           matchesDestination(correspondent, destinationId)
         );
-        if (destination.correspondent_contact_id) {
+        if (destination && destination.correspondent_contact_id) {
           correspondentOptions = correspondentOptions.filter(
             correspondent =>
               String(correspondent.id) === String(destination.correspondent_contact_id)
@@ -2086,18 +2138,30 @@
         } else {
           correspondentOptions = [];
         }
-      } else {
-        shipperOptions = shippers;
-        recipientOptions = recipients;
-        correspondentOptions = correspondents.filter(isGlobalContact);
       }
 
-      renderOptions(shipperSelect, shipperOptions, selectedShipper);
       renderOptions(recipientSelect, recipientOptions, selectedRecipient);
       renderOptions(correspondentSelect, correspondentOptions, selectedCorrespondent);
+      setVisible(
+        recipientEmptyMessage,
+        canShowRecipientAndCorrespondent && recipientOptions.length === 0
+      );
+      setVisible(
+        correspondentEmptyMessage,
+        canShowRecipientAndCorrespondent && correspondentOptions.length === 0
+      );
+
+      const canShowDetails =
+        canShowRecipientAndCorrespondent &&
+        Boolean(selectValue(recipientSelect)) &&
+        Boolean(selectValue(correspondentSelect));
+      setVisible(detailsSection, canShowDetails);
     };
 
     destinationSelect.addEventListener('change', updateContacts);
+    shipperSelect.addEventListener('change', updateContacts);
+    recipientSelect.addEventListener('change', updateContacts);
+    correspondentSelect.addEventListener('change', updateContacts);
     updateContacts();
   }
 

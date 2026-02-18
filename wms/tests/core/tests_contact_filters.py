@@ -6,6 +6,7 @@ from wms.contact_filters import (
     TAG_SHIPPER,
     contacts_with_tags,
     filter_contacts_for_destination,
+    filter_recipients_for_shipper,
 )
 from wms.models import Destination
 
@@ -115,3 +116,28 @@ class ContactFiltersTests(TestCase):
         filtered = filter_contacts_for_destination(queryset, destination)
 
         self.assertEqual(list(filtered), [legacy_only])
+
+    def test_filter_recipients_for_shipper_includes_global_and_explicit_links(self):
+        shipper_a = self._create_contact("Shipper A", tags=("expediteur",))
+        shipper_b = self._create_contact("Shipper B", tags=("expediteur",))
+        global_recipient = self._create_contact(
+            "Recipient Global",
+            tags=("destinataire",),
+        )
+        linked_recipient = self._create_contact(
+            "Recipient Linked",
+            tags=("destinataire",),
+        )
+        linked_recipient.linked_shippers.add(shipper_a)
+        other_recipient = self._create_contact(
+            "Recipient Other",
+            tags=("destinataire",),
+        )
+        other_recipient.linked_shippers.add(shipper_b)
+
+        queryset = Contact.objects.filter(
+            pk__in=[global_recipient.pk, linked_recipient.pk, other_recipient.pk]
+        ).order_by("name")
+        filtered = filter_recipients_for_shipper(queryset, shipper_a)
+
+        self.assertEqual(list(filtered), [global_recipient, linked_recipient])

@@ -25,91 +25,111 @@
             Ajouter destination
           </a>
         </div>
+        <p class="scan-help">Merci de sélectionner une destination pour poursuivre la création de l'expédition</p>
         {% for error in form.destination.errors %}
           <div class="scan-message error">{{ error }}</div>
         {% endfor %}
       </div>
 
-      <div class="scan-field">
-        <label for="id_shipper_contact">Exp&eacute;diteur</label>
-        <div class="scan-inline">
-          {{ form.shipper_contact }}
-          <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
-            Ajouter exp&eacute;diteur
-          </a>
+      <div id="shipment-shipper-section" class="scan-hidden">
+        <div class="scan-field">
+          <label for="id_shipper_contact">Exp&eacute;diteur</label>
+          <div class="scan-inline">
+            {{ form.shipper_contact }}
+            <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+              Ajouter exp&eacute;diteur
+            </a>
+          </div>
+          <p class="scan-help">Merci de sélectionner un expéditeur pour poursuivre la création de l'expédition</p>
+          <div id="shipper-empty-message" class="scan-message error scan-hidden">
+            Aucun expéditeur trouvé dans la base, vérifier les &quot;Destinations&quot; des affectés aux Expéditeurs dans les contacts et recommencez
+          </div>
+          {% for error in form.shipper_contact.errors %}
+            <div class="scan-message error">{{ error }}</div>
+          {% endfor %}
         </div>
-        {% for error in form.shipper_contact.errors %}
-          <div class="scan-message error">{{ error }}</div>
-        {% endfor %}
       </div>
 
-      <div class="scan-field">
-        <label for="id_recipient_contact">Destinataire</label>
-        <div class="scan-inline">
-          {{ form.recipient_contact }}
-          <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
-            Ajouter destinataire
-          </a>
+      <div id="shipment-recipient-section" class="scan-hidden">
+        <div class="scan-field">
+          <label for="id_recipient_contact">Destinataire</label>
+          <div class="scan-inline">
+            {{ form.recipient_contact }}
+            <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+              Ajouter destinataire
+            </a>
+          </div>
+          <div id="recipient-empty-message" class="scan-message error scan-hidden">
+            Aucun destinataire trouvé dans la base, vérifier les &quot;Expéditeurs Liés&quot; dans les contacts et recommencez
+          </div>
+          {% for error in form.recipient_contact.errors %}
+            <div class="scan-message error">{{ error }}</div>
+          {% endfor %}
         </div>
-        {% for error in form.recipient_contact.errors %}
-          <div class="scan-message error">{{ error }}</div>
-        {% endfor %}
       </div>
 
-      <div class="scan-field">
-        <label for="id_correspondent_contact">Correspondant</label>
-        <div class="scan-inline">
-          {{ form.correspondent_contact }}
-          <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
-            Ajouter correspondant
-          </a>
+      <div id="shipment-correspondent-section" class="scan-hidden">
+        <div class="scan-field">
+          <label for="id_correspondent_contact">Correspondant</label>
+          <div class="scan-inline">
+            {{ form.correspondent_contact }}
+            <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+              Ajouter correspondant
+            </a>
+          </div>
+          <p class="scan-help">Merci de sélectionner un destinataire et un correspondant pour poursuivre la création de l'expédition</p>
+          <div id="correspondent-empty-message" class="scan-message error scan-hidden">
+            Aucun correspondant trouvé dans la base, vérifier les &quot;Correspondants&quot; dans les contacts et recommencez
+          </div>
+          {% for error in form.correspondent_contact.errors %}
+            <div class="scan-message error">{{ error }}</div>
+          {% endfor %}
         </div>
-        {% for error in form.correspondent_contact.errors %}
-          <div class="scan-message error">{{ error }}</div>
-        {% endfor %}
       </div>
 
-      <div class="scan-field">
-        <label for="id_carton_count">Nombre de colis</label>
-        {{ form.carton_count }}
-        {% for error in form.carton_count.errors %}
-          <div class="scan-message error">{{ error }}</div>
-        {% endfor %}
-        <p class="scan-help">
-          S&eacute;lectionner ci-dessous des colis d&eacute;j&agrave; pr&eacute;par&eacute;s ou cr&eacute;er des colis mono-produit.
-          Pour des colis multi-produits, passer par l'onglet Pr&eacute;paration avant de cr&eacute;er l'exp&eacute;dition.
-        </p>
+      <div id="shipment-details-section" class="scan-hidden">
+        <div class="scan-field">
+          <label for="id_carton_count">Nombre de colis</label>
+          {{ form.carton_count }}
+          {% for error in form.carton_count.errors %}
+            <div class="scan-message error">{{ error }}</div>
+          {% endfor %}
+          <p class="scan-help">
+            S&eacute;lectionner ci-dessous des colis d&eacute;j&agrave; pr&eacute;par&eacute;s ou cr&eacute;er des colis mono-produit.
+            Pour des colis multi-produits, passer par l'onglet Pr&eacute;paration avant de cr&eacute;er l'exp&eacute;dition.
+          </p>
+        </div>
+
+        <div class="shipment-lines" id="shipment-lines"></div>
+
+        <div class="scan-field">
+          <label for="id_total_weight">Poids total (g)</label>
+          <input type="text" id="id_total_weight" readonly>
+        </div>
+
+        <div class="scan-field">
+          <label>Colis multi-produits</label>
+          <a class="scan-scan-btn" href="{% url 'scan:scan_pack' %}">
+            Cr&eacute;er des colis multi-produits
+          </a>
+          <p class="scan-help">
+            Utilisez l'onglet Pr&eacute;paration pour cr&eacute;er des colis multi-produits, puis revenez ici pour
+            les ajouter à l'expédition.
+          </p>
+        </div>
+
+        <button type="submit" class="scan-submit">
+          {% if is_edit %}Enregistrer modifications{% else %}Cr&eacute;er exp&eacute;dition{% endif %}
+        </button>
+        {% if is_edit %}
+          <p class="scan-help">
+            Chaque ligne: sélectionnez un colis préparé ou créez-en un depuis un produit.
+            Pour retirer un colis, r&eacute;duisez le nombre de lignes.
+          </p>
+        {% else %}
+          <p class="scan-help">Chaque ligne: sélectionnez un colis préparé ou créez-en un depuis un produit.</p>
+        {% endif %}
       </div>
-
-      <div class="shipment-lines" id="shipment-lines"></div>
-
-      <div class="scan-field">
-        <label for="id_total_weight">Poids total (g)</label>
-        <input type="text" id="id_total_weight" readonly>
-      </div>
-
-      <div class="scan-field">
-        <label>Colis multi-produits</label>
-        <a class="scan-scan-btn" href="{% url 'scan:scan_pack' %}">
-          Cr&eacute;er des colis multi-produits
-        </a>
-        <p class="scan-help">
-          Utilisez l'onglet Pr&eacute;paration pour cr&eacute;er des colis multi-produits, puis revenez ici pour
-          les ajouter à l'expédition.
-        </p>
-      </div>
-
-      <button type="submit" class="scan-submit">
-        {% if is_edit %}Enregistrer modifications{% else %}Cr&eacute;er exp&eacute;dition{% endif %}
-      </button>
-      {% if is_edit %}
-        <p class="scan-help">
-          Chaque ligne: sélectionnez un colis préparé ou créez-en un depuis un produit.
-          Pour retirer un colis, r&eacute;duisez le nombre de lignes.
-        </p>
-      {% else %}
-        <p class="scan-help">Chaque ligne: sélectionnez un colis préparé ou créez-en un depuis un produit.</p>
-      {% endif %}
     </form>
 
     {% if is_edit %}
