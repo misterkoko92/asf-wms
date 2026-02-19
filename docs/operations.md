@@ -22,6 +22,9 @@ Current priority from the audit:
 - stabilize regression suite (tests must be green before release)
 - avoid shipping with uncommitted migrations/static assets
 - keep production environment variables aligned with `.env.example`
+- run contact destination scope audit before release:
+  - `python manage.py audit_contact_destinations`
+  - `python manage.py audit_contact_destinations --apply` (if inconsistencies detected)
 
 ## 1) Environment baseline
 

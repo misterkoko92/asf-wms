@@ -1,6 +1,7 @@
 from django.db import connection, transaction
 
 from contacts.models import Contact
+from contacts.destination_scope import contact_destination_ids
 from contacts.querysets import contacts_with_tags
 
 from ..contact_filters import TAG_CORRESPONDENT, TAG_RECIPIENT, TAG_SHIPPER
@@ -116,9 +117,13 @@ def _resolve_destination_for_order(
     ):
         if not contact:
             continue
-        if contact.destination_id:
-            return contact.destination
-        scoped_destinations = contact.destinations.all().order_by("id")
+        scoped_destination_ids = contact_destination_ids(contact)
+        if not scoped_destination_ids:
+            continue
+        scoped_destinations = Destination.objects.filter(
+            pk__in=scoped_destination_ids,
+            is_active=True,
+        ).order_by("id")
         if city:
             scoped_match = scoped_destinations.filter(city__iexact=city)
             if country:
@@ -126,7 +131,7 @@ def _resolve_destination_for_order(
             scoped_destination = scoped_match.first()
             if scoped_destination:
                 return scoped_destination
-        if scoped_destinations.count() == 1:
+        if len(scoped_destination_ids) == 1:
             return scoped_destinations.first()
 
     if city:

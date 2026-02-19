@@ -1,5 +1,9 @@
 from django.db.models import Q
 
+from contacts.destination_scope import (
+    contact_destination_ids,
+    set_contact_destination_scope,
+)
 from contacts.models import Contact, ContactAddress, ContactTag, ContactType
 from contacts.querysets import contacts_with_tags
 from contacts.rules import ensure_default_shipper_for_recipient
@@ -69,8 +73,13 @@ def _ensure_association_shipper_scope(*, association_contact, destination_id):
         return
     shipper_tag = _get_or_create_shipper_tag()
     association_contact.tags.add(shipper_tag)
+    scoped_destination_ids = set(contact_destination_ids(association_contact))
     if destination_id:
-        association_contact.destinations.add(destination_id)
+        scoped_destination_ids.add(destination_id)
+    set_contact_destination_scope(
+        contact=association_contact,
+        destination_ids=sorted(scoped_destination_ids),
+    )
 
 
 def _candidate_shipper_ids_for_association(association_contact):
@@ -167,7 +176,6 @@ def sync_association_recipient_to_contact(recipient):
             name=_recipient_display_name(recipient),
             email=primary_email[:254],
             phone=primary_phone[:40],
-            destination=recipient.destination,
             notes=_build_contact_notes(recipient),
             is_active=recipient.is_active,
         )
@@ -176,7 +184,6 @@ def sync_association_recipient_to_contact(recipient):
         contact.name = _recipient_display_name(recipient)
         contact.email = primary_email[:254]
         contact.phone = primary_phone[:40]
-        contact.destination = recipient.destination
         contact.notes = _build_contact_notes(recipient)
         contact.is_active = recipient.is_active
         contact.save(
@@ -185,7 +192,6 @@ def sync_association_recipient_to_contact(recipient):
                 "name",
                 "email",
                 "phone",
-                "destination",
                 "notes",
                 "is_active",
             ]
@@ -199,10 +205,10 @@ def sync_association_recipient_to_contact(recipient):
     )
 
     contact.tags.add(recipient_tag)
-    if recipient.destination_id:
-        contact.destinations.set([recipient.destination_id])
-    else:
-        contact.destinations.clear()
+    set_contact_destination_scope(
+        contact=contact,
+        destination_ids=[recipient.destination_id] if recipient.destination_id else [],
+    )
     for shipper_id in _candidate_shipper_ids_for_association(
         recipient.association_contact
     ):

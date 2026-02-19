@@ -1,5 +1,6 @@
 import re
 
+from contacts.destination_scope import set_contact_destination_scope
 from contacts.models import Contact, ContactAddress, ContactTag, ContactType
 from contacts.rules import ensure_default_shipper_for_recipient
 from contacts.tagging import TAG_SHIPPER
@@ -267,12 +268,10 @@ def import_contacts(rows):
                 fallback_country=address_country,
             )
             if destinations is not None:
-                contact.destinations.set(destinations)
-                legacy_destination = destinations[0] if len(destinations) == 1 else None
-                legacy_destination_id = legacy_destination.id if legacy_destination else None
-                if contact.destination_id != legacy_destination_id:
-                    contact.destination = legacy_destination
-                    contact.save(update_fields=["destination"])
+                set_contact_destination_scope(
+                    contact=contact,
+                    destination_ids=[destination.id for destination in destinations],
+                )
 
             linked_shippers = _resolve_linked_shippers_for_row(
                 row=row,

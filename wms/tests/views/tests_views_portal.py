@@ -23,14 +23,18 @@ from wms.models import (
     AssociationRecipient,
     Destination,
     DocumentReviewStatus,
+    Location,
     Order,
     OrderDocument,
     OrderDocumentType,
     OrderReviewStatus,
     Product,
+    ProductLot,
+    ProductLotStatus,
     Shipment,
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
+    Warehouse,
 )
 from wms import portal_helpers
 from wms.services import StockError
@@ -663,6 +667,121 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         )
         create_order_mock.assert_called_once()
         notify_mock.assert_called_once()
+
+    def test_portal_to_scan_flow_prefills_shipment_after_admin_validation(self):
+        warehouse = Warehouse.objects.create(name="Portal Flow Warehouse")
+        location = Location.objects.create(
+            warehouse=warehouse,
+            zone="A",
+            aisle="01",
+            shelf="001",
+        )
+        product = Product.objects.create(
+            sku="PORTAL-FLOW-001",
+            name="Produit Flux Portail",
+            default_location=location,
+            qr_code_image="qr_codes/portal_flow.png",
+        )
+        ProductLot.objects.create(
+            product=product,
+            lot_code="LOT-PORTAL-FLOW",
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=50,
+            location=location,
+        )
+
+        with mock.patch("wms.views_portal_orders.send_portal_order_notifications"):
+            portal_response = self.client.post(
+                self.order_create_url,
+                {
+                    "destination_id": str(self.destination.id),
+                    "recipient_id": str(self.delivery_recipient.id),
+                    f"product_{product.id}_qty": "2",
+                    "notes": "Flux portail vers scan",
+                },
+            )
+        self.assertEqual(portal_response.status_code, 302)
+
+        order = (
+            Order.objects.filter(association_contact=self.profile.contact)
+            .order_by("-id")
+            .first()
+        )
+        self.assertIsNotNone(order)
+        self.assertEqual(order.review_status, OrderReviewStatus.PENDING)
+        self.assertIsNotNone(order.shipment_id)
+        self.assertIsNotNone(order.recipient_contact_id)
+        self.assertEqual(order.shipper_contact_id, self.profile.contact_id)
+
+        staff_user = self._create_portal_user("scan-staff", "scan-staff@example.com")
+        staff_user.is_staff = True
+        staff_user.save(update_fields=["is_staff"])
+        self.client.force_login(staff_user)
+
+        review_response = self.client.post(
+            reverse("scan:scan_orders_view"),
+            {
+                "action": "update_status",
+                "order_id": str(order.id),
+                "review_status": OrderReviewStatus.APPROVED,
+            },
+        )
+        self.assertEqual(review_response.status_code, 302)
+
+        create_response = self.client.post(
+            reverse("scan:scan_orders_view"),
+            {
+                "action": "create_shipment",
+                "order_id": str(order.id),
+            },
+        )
+        self.assertEqual(create_response.status_code, 302)
+
+        order.refresh_from_db()
+        self.assertIsNotNone(order.shipment_id)
+        self.assertEqual(
+            create_response.url,
+            reverse("scan:scan_shipment_edit", kwargs={"shipment_id": order.shipment_id}),
+        )
+
+        shipment_response = self.client.get(create_response.url)
+        self.assertEqual(shipment_response.status_code, 200)
+        form = shipment_response.context["form"]
+        self.assertEqual(form.initial["destination"], self.destination.id)
+        self.assertEqual(form.initial["shipper_contact"], self.profile.contact_id)
+        self.assertEqual(form.initial["recipient_contact"], order.recipient_contact_id)
+
+        self.assertEqual(
+            shipment_response.context["line_values"],
+            [
+                {
+                    "carton_id": "",
+                    "product_code": "PORTAL-FLOW-001",
+                    "quantity": "2",
+                }
+            ],
+        )
+        self.assertEqual(
+            shipment_response.context["products_json"],
+            [
+                {
+                    "id": product.id,
+                    "name": product.name,
+                    "sku": product.sku,
+                    "barcode": product.barcode,
+                    "ean": product.ean,
+                    "brand": product.brand,
+                    "default_location_id": product.default_location_id,
+                    "storage_conditions": product.storage_conditions,
+                    "weight_g": product.weight_g,
+                    "volume_cm3": product.volume_cm3,
+                    "length_cm": product.length_cm,
+                    "width_cm": product.width_cm,
+                    "height_cm": product.height_cm,
+                    "available_stock": 2,
+                }
+            ],
+        )
 
     def test_portal_order_detail_get_renders_and_flags_upload_permission(self):
         order = self._order(review_status=OrderReviewStatus.APPROVED)

@@ -484,6 +484,26 @@ class WmsModelMethodsTests(TestCase):
         )
         self.assertIn("out", str(movement))
 
+    def test_association_recipient_save_normalizes_duplicated_fields(self):
+        recipient = AssociationRecipient.objects.create(
+            association_contact=self.contact,
+            destination=self.destination,
+            name="Legacy Name",
+            structure_name="Structure Canonique",
+            contact_title="mr",
+            contact_last_name="Durand",
+            contact_first_name="Marc",
+            phones="+33600000000; +242061234567",
+            emails="recipient@example.org; second@example.org",
+            address_line1="10 Rue Test",
+            city="Paris",
+            country="France",
+        )
+
+        self.assertEqual(recipient.name, "Structure Canonique")
+        self.assertEqual(recipient.phone, "+33600000000")
+        self.assertEqual(recipient.email, "recipient@example.org")
+
     def test_reference_generation_branches_and_fragment_padding(self):
         self.assertEqual(normalize_reference_fragment("ab", 3), "ABX")
 

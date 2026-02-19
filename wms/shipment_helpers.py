@@ -4,20 +4,21 @@ from .contact_filters import (
     TAG_SHIPPER,
     contacts_with_tags,
 )
+from contacts.destination_scope import (
+    contact_destination_ids,
+    contact_primary_destination_id,
+)
 from .contact_labels import build_contact_select_label
 from .models import Destination
 from .scan_helpers import parse_int, resolve_product
 
 
 def _destination_ids(contact):
-    return sorted(destination.id for destination in contact.destinations.all())
+    return contact_destination_ids(contact)
 
 
 def _primary_destination_id(contact):
-    destination_ids = _destination_ids(contact)
-    if len(destination_ids) == 1:
-        return destination_ids[0]
-    return None
+    return contact_primary_destination_id(contact)
 
 
 def _linked_shipper_ids(contact):

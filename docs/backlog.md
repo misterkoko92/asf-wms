@@ -26,10 +26,12 @@ Backlog aligné avec l'audit global du **19/02/2026** (`docs/audit_2026-02-19.md
 
 ## 3) Phase 1 - Durcissement domaine contacts/portail
 
-- [ ] Clarifier la source de vérité destination (M2M `destinations`) et plan de retrait du FK legacy `destination`.
-- [ ] Réduire la duplication `AssociationRecipient` (`name/structure_name`, `email/emails`, `phone/phones`) avec migration contrôlée.
-- [ ] Renforcer les invariants de synchro portail -> contacts (idempotence, non-régression).
-- [ ] Compléter les tests métier bout-en-bout:
+- [x] Clarifier la source de vérité destination (M2M `destinations`) et plan de retrait du FK legacy `destination`.
+  - utilitaires dédiés de portée destinations (`contacts/destination_scope.py`)
+  - commande d'audit/correction: `python manage.py audit_contact_destinations [--apply]`
+- [x] Réduire la duplication `AssociationRecipient` (`name/structure_name`, `email/emails`, `phone/phones`) avec normalisation applicative.
+- [x] Renforcer les invariants de synchro portail -> contacts (idempotence, non-régression).
+- [x] Compléter les tests métier bout-en-bout:
   - portail -> commande -> validation admin -> expédition préremplie.
 
 ## 4) Phase 2 - Nettoyage architecture / legacy

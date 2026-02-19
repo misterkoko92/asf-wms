@@ -1103,6 +1103,21 @@ class AssociationRecipient(models.Model):
             return contact_display
         return f"Destinataire #{self.pk}" if self.pk else "Destinataire"
 
+    def _normalize_legacy_fields(self):
+        if (self.structure_name or "").strip():
+            self.name = self.structure_name.strip()
+        elif not (self.name or "").strip():
+            self.name = self.get_contact_display_name() or "Destinataire"
+
+        primary_email = self.get_primary_email()
+        primary_phone = self.get_primary_phone()
+        self.email = primary_email[:254]
+        self.phone = primary_phone[:40]
+
+    def save(self, *args, **kwargs):
+        self._normalize_legacy_fields()
+        super().save(*args, **kwargs)
+
 
 class DocumentReviewStatus(models.TextChoices):
     PENDING = "pending", "Pending"
