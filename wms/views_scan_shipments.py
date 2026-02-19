@@ -50,6 +50,7 @@ from .shipment_view_helpers import (
     build_shipments_tracking_rows,
     next_tracking_status,
 )
+from .workflow_observability import log_shipment_case_closed
 from .views_scan_shipments_support import (
     ACTIVE_SHIPMENT,
     ACTIVE_SHIPMENTS_READY,
@@ -294,6 +295,10 @@ def scan_shipments_tracking(request):
                     request.user if request.user.is_authenticated else None
                 )
                 shipment.save(update_fields=["closed_at", "closed_by"])
+                log_shipment_case_closed(
+                    shipment=shipment,
+                    user=request.user if request.user.is_authenticated else None,
+                )
                 messages.success(request, "Dossier clôturé.")
         return redirect(
             _build_shipments_tracking_redirect_url(

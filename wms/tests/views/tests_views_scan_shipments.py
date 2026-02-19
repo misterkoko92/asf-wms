@@ -128,15 +128,20 @@ class ScanShipmentsViewsTests(TestCase):
                 created_by=self.staff_user,
             )
 
-        response = self.client.post(
-            reverse("scan:scan_shipments_tracking"),
-            {"action": "close_shipment_case", "shipment_id": shipment.id},
-        )
+        with mock.patch("wms.views_scan_shipments.log_shipment_case_closed") as log_mock:
+            response = self.client.post(
+                reverse("scan:scan_shipments_tracking"),
+                {"action": "close_shipment_case", "shipment_id": shipment.id},
+            )
 
         self.assertEqual(response.status_code, 302)
         shipment.refresh_from_db()
         self.assertIsNotNone(shipment.closed_at)
         self.assertEqual(shipment.closed_by, self.staff_user)
+        log_mock.assert_called_once_with(
+            shipment=shipment,
+            user=self.staff_user,
+        )
 
     def test_scan_shipments_tracking_post_does_not_close_incomplete_shipment(self):
         shipment = self._create_shipment(status=ShipmentStatus.DELIVERED)

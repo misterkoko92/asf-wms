@@ -10,6 +10,9 @@ from wms.models import (
     Carton,
     CartonStatus,
     Destination,
+    IntegrationDirection,
+    IntegrationEvent,
+    IntegrationStatus,
     Location,
     Order,
     OrderReviewStatus,
@@ -68,6 +71,7 @@ class ScanDashboardViewTests(TestCase):
         self._create_shipment_data()
         self._create_flow_data()
         self._create_carton_data()
+        self._create_integration_queue_data()
 
     def _create_stock_data(self):
         low_product = Product.objects.create(
@@ -209,6 +213,9 @@ class ScanDashboardViewTests(TestCase):
             status=ShipmentStatus.PLANNED,
             is_disputed=True,
         )
+        Shipment.objects.filter(pk=self.draft_temp.pk).update(
+            created_at=timezone.now() - timedelta(hours=90)
+        )
 
     def _create_flow_data(self):
         Receipt.objects.create(
@@ -231,12 +238,15 @@ class ScanDashboardViewTests(TestCase):
             destination_address="A",
             created_by=self.staff_user,
         )
-        Order.objects.create(
+        approved = Order.objects.create(
             review_status=OrderReviewStatus.APPROVED,
             shipper_name="S",
             recipient_name="R",
             destination_address="A",
             created_by=self.staff_user,
+        )
+        Order.objects.filter(pk=approved.pk).update(
+            created_at=timezone.now() - timedelta(hours=90)
         )
 
     def _create_carton_data(self):
@@ -258,12 +268,51 @@ class ScanDashboardViewTests(TestCase):
             shipment=self.shipped_alert_a,
         )
 
+    def _create_integration_queue_data(self):
+        IntegrationEvent.objects.create(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.email",
+            target="smtp",
+            event_type="send_email",
+            payload={"subject": "Pending"},
+            status=IntegrationStatus.PENDING,
+        )
+        processing = IntegrationEvent.objects.create(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.email",
+            target="smtp",
+            event_type="send_email",
+            payload={"subject": "Processing"},
+            status=IntegrationStatus.PROCESSING,
+        )
+        IntegrationEvent.objects.filter(pk=processing.pk).update(
+            processed_at=timezone.now() - timedelta(minutes=20)
+        )
+        IntegrationEvent.objects.create(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.email",
+            target="smtp",
+            event_type="send_email",
+            payload={"subject": "Failed"},
+            status=IntegrationStatus.FAILED,
+            error_message="SMTP error",
+        )
+        IntegrationEvent.objects.create(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.email",
+            target="smtp",
+            event_type="send_email",
+            payload={"subject": "Processed"},
+            status=IntegrationStatus.PROCESSED,
+        )
+
     def test_scan_dashboard_renders_expected_metrics(self):
         response = self.client.get(reverse("scan:scan_dashboard"))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["active"], "dashboard")
         self.assertEqual(response.context["low_stock_threshold"], 20)
         self.assertEqual(response.context["tracking_alert_hours"], 72)
+        self.assertEqual(response.context["workflow_blockage_hours"], 72)
 
         shipment_cards = {
             card["label"]: card["value"] for card in response.context["shipment_cards"]
@@ -280,6 +329,31 @@ class ScanDashboardViewTests(TestCase):
         self.assertEqual(tracking_cards["Expédiées sans reçu escale >72h"], 1)
         self.assertEqual(tracking_cards["Reçu escale sans livraison >72h"], 1)
         self.assertEqual(tracking_cards["Dossiers clôturables"], 1)
+
+        technical_cards = {
+            card["label"]: card["value"] for card in response.context["technical_cards"]
+        }
+        self.assertEqual(technical_cards["Queue email en attente"], 1)
+        self.assertEqual(technical_cards["Queue email en traitement"], 1)
+        self.assertEqual(technical_cards["Queue email en échec"], 1)
+        self.assertEqual(technical_cards["Queue email bloquée (timeout)"], 1)
+
+        workflow_cards = {
+            card["label"]: card["value"]
+            for card in response.context["workflow_blockage_cards"]
+        }
+        self.assertEqual(workflow_cards["Expéditions Création/En cours >72h"], 1)
+        self.assertEqual(workflow_cards["Cmd validées sans expédition >72h"], 1)
+        self.assertEqual(workflow_cards["Dossiers livrés non clos"], 1)
+        self.assertEqual(workflow_cards["Dossiers en litige ouverts"], 1)
+
+        sla_cards = {
+            card["label"]: card["value"] for card in response.context["sla_cards"]
+        }
+        self.assertEqual(sla_cards["Planifié -> OK mise à bord >72h"], "0 / 1")
+        self.assertEqual(sla_cards["OK mise à bord -> Reçu escale >72h"], "0 / 1")
+        self.assertEqual(sla_cards["Reçu escale -> Livré >72h"], "0 / 1")
+        self.assertEqual(sla_cards["Planifié -> Livré >216h"], "0 / 1")
 
         self.assertEqual(response.context["shipments_total"], 8)
         self.assertTrue(response.context["low_stock_rows"])

@@ -1,3 +1,5 @@
+from unittest import mock
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
@@ -151,11 +153,19 @@ class ShipmentTrackingDisputeFlowTests(TestCase):
         shipment = self._create_shipment(status=ShipmentStatus.PLANNED)
         url = reverse("scan:scan_shipment_track", args=[shipment.tracking_token])
 
-        response_dispute = self.client.post(url, {"action": "set_disputed"})
+        with mock.patch("wms.shipment_tracking_handlers.log_shipment_dispute_action") as log_mock:
+            response_dispute = self.client.post(url, {"action": "set_disputed"})
         self.assertEqual(response_dispute.status_code, 302)
         shipment.refresh_from_db()
         self.assertTrue(shipment.is_disputed)
         self.assertIsNotNone(shipment.disputed_at)
+        log_mock.assert_called_once_with(
+            shipment=shipment,
+            action="set_disputed",
+            user=self.user,
+            previous_status=ShipmentStatus.PLANNED,
+            new_status=ShipmentStatus.PLANNED,
+        )
 
         response_progress = self.client.post(
             url,
@@ -182,10 +192,11 @@ class ShipmentTrackingDisputeFlowTests(TestCase):
             shipment=shipment,
         )
 
-        response = self.client.post(
-            reverse("scan:scan_shipment_track", args=[shipment.tracking_token]),
-            {"action": "resolve_dispute"},
-        )
+        with mock.patch("wms.shipment_tracking_handlers.log_shipment_dispute_action") as log_mock:
+            response = self.client.post(
+                reverse("scan:scan_shipment_track", args=[shipment.tracking_token]),
+                {"action": "resolve_dispute"},
+            )
 
         self.assertEqual(response.status_code, 302)
         shipment.refresh_from_db()
@@ -193,3 +204,10 @@ class ShipmentTrackingDisputeFlowTests(TestCase):
         self.assertFalse(shipment.is_disputed)
         self.assertEqual(shipment.status, ShipmentStatus.PACKED)
         self.assertEqual(carton.status, CartonStatus.LABELED)
+        log_mock.assert_called_once_with(
+            shipment=shipment,
+            action="resolve_dispute",
+            user=self.user,
+            previous_status=ShipmentStatus.SHIPPED,
+            new_status=ShipmentStatus.PACKED,
+        )

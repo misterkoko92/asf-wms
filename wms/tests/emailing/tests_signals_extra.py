@@ -62,6 +62,26 @@ class SignalsExtraTests(SimpleTestCase):
                 _notify_shipment_status_change(None, instance, created=False)
         render_mock.assert_not_called()
 
+    def test_notify_shipment_status_change_emits_structured_log(self):
+        instance = SimpleNamespace(
+            _previous_status="draft",
+            status="packed",
+            reference="SHP-003",
+            id=3,
+            destination=None,
+            destination_address="1 Rue Test",
+            get_tracking_url=lambda: "/track/SHP-003",
+        )
+        with mock.patch("wms.signals.log_shipment_status_transition") as log_mock:
+            with mock.patch("wms.signals.get_admin_emails", return_value=[]):
+                _notify_shipment_status_change(None, instance, created=False)
+        log_mock.assert_called_once_with(
+            shipment=instance,
+            previous_status="draft",
+            new_status="packed",
+            source="shipment_post_save_signal",
+        )
+
     def test_notify_tracking_event_ignorés_non_created_events(self):
         with mock.patch("wms.signals.get_admin_emails") as emails_mock:
             _notify_tracking_event(None, SimpleNamespace(), created=False)
@@ -73,3 +93,16 @@ class SignalsExtraTests(SimpleTestCase):
             with mock.patch("wms.signals.render_to_string") as render_mock:
                 _notify_tracking_event(None, fake_event, created=True)
         render_mock.assert_not_called()
+
+    def test_notify_tracking_event_emits_structured_log(self):
+        fake_event = SimpleNamespace(
+            shipment=SimpleNamespace(id=1),
+            created_by=None,
+        )
+        with mock.patch("wms.signals.log_shipment_tracking_event") as log_mock:
+            with mock.patch("wms.signals.get_admin_emails", return_value=[]):
+                _notify_tracking_event(None, fake_event, created=True)
+        log_mock.assert_called_once_with(
+            tracking_event=fake_event,
+            user=None,
+        )

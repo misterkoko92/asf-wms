@@ -109,6 +109,14 @@ Draft behavior:
   - closed case filter (`exclude`/`all`)
 - Case closure writes `closed_at`/`closed_by` when all required milestones are complete and shipment is not disputed.
 
+## Observability (phase 3)
+
+- `scan/dashboard/` provides operational cards for:
+  - email queue health (`pending`, `processing`, `failed`, stale processing timeout),
+  - workflow blockages (>72h),
+  - SLA breach ratios per tracking segment.
+- Workflow transitions are logged as structured JSON on logger `wms.workflow`.
+
 ## Non-goals (current perimeter)
 
 - Full TMS planning automation.

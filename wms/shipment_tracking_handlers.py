@@ -11,6 +11,7 @@ from .models import (
     ShipmentTrackingStatus,
 )
 from .shipment_status import sync_shipment_ready_state
+from .workflow_observability import log_shipment_dispute_action
 
 TRACKING_TO_SHIPMENT_STATUS = {
     ShipmentTrackingStatus.PLANNING_OK: ShipmentStatus.PACKED,
@@ -127,10 +128,18 @@ def _handle_dispute_action(
 ):
     action = (request.POST.get("action") or "").strip()
     if action == "set_disputed":
+        previous_status = shipment.status
         if not shipment.is_disputed:
             shipment.is_disputed = True
             shipment.disputed_at = timezone.now()
             shipment.save(update_fields=["is_disputed", "disputed_at"])
+        log_shipment_dispute_action(
+            shipment=shipment,
+            action="set_disputed",
+            user=getattr(request, "user", None),
+            previous_status=previous_status,
+            new_status=shipment.status,
+        )
         messages.warning(request, "Expédition marquée en litige.")
         return _redirect_to_tracking(
             shipment,
@@ -168,6 +177,13 @@ def _handle_dispute_action(
                     user=getattr(request, "user", None),
                 )
         sync_shipment_ready_state(shipment)
+        log_shipment_dispute_action(
+            shipment=shipment,
+            action="resolve_dispute",
+            user=getattr(request, "user", None),
+            previous_status=previous_status,
+            new_status=shipment.status,
+        )
     messages.success(request, "Litige résolu. Expédition remise à l'état Prêt.")
     return _redirect_to_tracking(
         shipment,

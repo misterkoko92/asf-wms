@@ -51,10 +51,14 @@ Backlog aligné avec l'audit global du **19/02/2026** (`docs/audit_2026-02-19.md
 
 ## 5) Phase 3 - Observabilité et exploitation
 
-- [ ] Dashboard technique (queue emails, litiges, blocages workflow).
-- [ ] Journalisation métier structurée des transitions de statuts.
-- [ ] Monitoring des SLA (planifié -> expédié -> reçu escale -> livré).
-- [ ] Playbooks incidents enrichis et testés.
+- [x] Dashboard technique (queue emails, litiges, blocages workflow).
+  - cartes dashboard ajoutées: queue email (pending/processing/failed/timeout), blocages workflow >72h, suivi SLA.
+- [x] Journalisation métier structurée des transitions de statuts.
+  - logs JSON `wms.workflow` pour transitions colis/expéditions, actions litige, événements de suivi et clôture dossier.
+- [x] Monitoring des SLA (planifié -> expédié -> reçu escale -> livré).
+  - segments SLA visibles dans le dashboard avec ratio dépassements / segments complétés.
+- [x] Playbooks incidents enrichis et testés.
+  - runbook mis à jour (queue, blocages workflow, SLA, logs) + tests ciblés ajoutés.
 
 ## 6) Cibles V2 (propositions)
 

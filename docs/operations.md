@@ -153,7 +153,40 @@ Recent failed events:
 python manage.py shell -c "from wms.models import IntegrationEvent, IntegrationDirection, IntegrationStatus; qs=IntegrationEvent.objects.filter(direction=IntegrationDirection.OUTBOUND, source='wms.email', event_type='send_email', status=IntegrationStatus.FAILED).order_by('-created_at')[:20]; print(list(qs.values('id','created_at','processed_at','error_message')))"
 ```
 
-## 6) Incident playbooks
+Processing events stuck beyond timeout:
+
+```bash
+python manage.py shell -c "from django.conf import settings; from django.utils import timezone; from datetime import timedelta; from wms.models import IntegrationEvent, IntegrationDirection, IntegrationStatus; timeout=max(1,int(getattr(settings,'EMAIL_QUEUE_PROCESSING_TIMEOUT_SECONDS',900))); cutoff=timezone.now()-timedelta(seconds=timeout); qs=IntegrationEvent.objects.filter(direction=IntegrationDirection.OUTBOUND, source='wms.email', event_type='send_email', status=IntegrationStatus.PROCESSING, processed_at__lte=cutoff); print({'timeout_seconds': timeout, 'stale_processing': qs.count()})"
+```
+
+## 6) Observability dashboard
+
+Main view: `/scan/dashboard/`
+
+Operational cards added for phase 3:
+
+- Queue email: pending, processing, failed, stale-processing timeout.
+- Blocages workflow (>72h): expéditions anciennes non sorties du flux, commandes validées sans expédition, dossiers livrés non clos, litiges ouverts.
+- SLA suivi:
+  - Planifié -> OK mise à bord
+  - OK mise à bord -> Reçu escale
+  - Reçu escale -> Livré
+  - Planifié -> Livré
+  - each card displays `breaches / completed segments`.
+
+## 7) Structured workflow logs
+
+Workflow transitions are emitted on logger `wms.workflow` as JSON messages:
+
+- carton status transition
+- shipment status transition
+- shipment dispute set/resolved
+- tracking event creation
+- shipment case closure
+
+If your platform supports log filtering, filter by logger name `wms.workflow` and parse JSON fields (`event_type`, `shipment.reference`, `previous_status`, `new_status`).
+
+## 8) Incident playbooks
 
 ### A) Queue backlog growing
 
@@ -174,7 +207,21 @@ python manage.py shell -c "from wms.models import IntegrationEvent, IntegrationD
 2. Fix security/env mismatch before opening traffic.
 3. Re-run smoke tests after fix.
 
-## 7) Backup and restore basics
+### D) Workflow blockages increasing (>72h)
+
+1. Open `/scan/dashboard/` and review "Blocages workflow".
+2. Resolve oldest "Cmd validées sans expédition >72h" from `/scan/orders/`.
+3. Resolve stale shipment drafts/picking from `/scan/shipments-ready/`.
+4. Review delivered-but-open cases in `/scan/shipments-tracking/` and close valid dossiers.
+
+### E) SLA breaches rising
+
+1. Open `/scan/dashboard/` and review "Suivi SLA" cards.
+2. Cross-check delayed shipments in `/scan/shipments-tracking/` (planned/shipped/received statuses).
+3. Prioritize shipments with no progression and open litiges.
+4. Export weekly ops review with breach counts by segment.
+
+## 9) Backup and restore basics
 
 SQLite:
 
@@ -194,7 +241,7 @@ Restore MySQL:
 mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p "$DB_NAME" < asf_wms.sql
 ```
 
-## 8) Recurring maintenance
+## 10) Recurring maintenance
 
 Weekly:
 
@@ -207,7 +254,7 @@ Monthly:
 - Re-run `pip-audit` and review vulnerabilities.
 - Run `python manage.py normalize_wms_text` if data normalization drift appears.
 
-## 9) Shipment and carton status rules
+## 11) Shipment and carton status rules
 
 ### Carton statuses
 
@@ -263,7 +310,7 @@ Monthly:
 - Resolving dispute resets shipment to `packed` ("Pret"), allowing replanning.
 - If shipment had reached shipped/received stages, shipped cartons are reset back to `labeled`.
 
-## 10) Shipment creation contact scoping rules
+## 12) Shipment creation contact scoping rules
 
 Rules implemented in the "Créer une expédition" form:
 
@@ -284,7 +331,7 @@ Additional contact governance:
 - Recipient creation requires at least one linked shipper.
 - Default shipper `AVIATION SANS FRONTIERES` is auto-added to recipients when available.
 
-## 11) Tracking board and case closure
+## 13) Tracking board and case closure
 
 `/scan/shipments-tracking/` shows shipments in:
 

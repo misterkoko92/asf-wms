@@ -1,6 +1,7 @@
 from django.db.models import Model
 
 from .models import CartonStatusEvent
+from .workflow_observability import log_carton_status_transition
 
 
 def _resolve_actor(user):
@@ -63,5 +64,13 @@ def set_carton_status(
         new_status=new_status,
         reason=reason,
         user=user,
+    )
+    log_carton_status_transition(
+        carton=carton,
+        previous_status=previous_status,
+        new_status=new_status,
+        reason=reason,
+        user=user,
+        source="set_carton_status",
     )
     return True

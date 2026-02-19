@@ -154,4 +154,43 @@
       {% endfor %}
     </div>
   </div>
+
+  <div class="scan-card">
+    <h2>Technique / Queue email</h2>
+    <div class="scan-kpi-grid">
+      {% for card in technical_cards %}
+        <a href="{{ card.url }}" class="scan-kpi-card{% if card.tone != 'neutral' %} is-{{ card.tone }}{% endif %}">
+          <span class="scan-kpi-label">{{ card.label }}</span>
+          <span class="scan-kpi-value">{{ card.value }}</span>
+          <span class="scan-kpi-help">{{ card.help }}</span>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="scan-card">
+    <h2>Blocages workflow (&gt; {{ workflow_blockage_hours }}h)</h2>
+    <div class="scan-kpi-grid">
+      {% for card in workflow_blockage_cards %}
+        <a href="{{ card.url }}" class="scan-kpi-card{% if card.tone != 'neutral' %} is-{{ card.tone }}{% endif %}">
+          <span class="scan-kpi-label">{{ card.label }}</span>
+          <span class="scan-kpi-value">{{ card.value }}</span>
+          <span class="scan-kpi-help">{{ card.help }}</span>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="scan-card">
+    <h2>Suivi SLA</h2>
+    <div class="scan-kpi-grid">
+      {% for card in sla_cards %}
+        <a href="{{ card.url }}" class="scan-kpi-card{% if card.tone != 'neutral' %} is-{{ card.tone }}{% endif %}">
+          <span class="scan-kpi-label">{{ card.label }}</span>
+          <span class="scan-kpi-value">{{ card.value }}</span>
+          <span class="scan-kpi-help">{{ card.help }}</span>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
 {% endblock %}

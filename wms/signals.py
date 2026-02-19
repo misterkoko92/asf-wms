@@ -11,6 +11,10 @@ from contacts.models import Contact
 
 from .emailing import enqueue_email_safe, get_admin_emails
 from .models import AssociationProfile, Shipment, ShipmentStatus, ShipmentTrackingEvent, WmsChange
+from .workflow_observability import (
+    log_shipment_status_transition,
+    log_shipment_tracking_event,
+)
 
 
 def _bump_change(**kwargs) -> None:
@@ -41,6 +45,12 @@ def _notify_shipment_status_change(sender, instance, created, **kwargs) -> None:
     previous_status = getattr(instance, "_previous_status", None)
     if not previous_status or previous_status == instance.status:
         return
+    log_shipment_status_transition(
+        shipment=instance,
+        previous_status=previous_status,
+        new_status=instance.status,
+        source="shipment_post_save_signal",
+    )
     recipients = get_admin_emails()
     if not recipients:
         return
@@ -81,6 +91,10 @@ def _notify_shipment_status_change(sender, instance, created, **kwargs) -> None:
 def _notify_tracking_event(sender, instance, created, **kwargs) -> None:
     if not created:
         return
+    log_shipment_tracking_event(
+        tracking_event=instance,
+        user=getattr(instance, "created_by", None),
+    )
     recipients = get_admin_emails()
     if not recipients:
         return
