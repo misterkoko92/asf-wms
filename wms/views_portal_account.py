@@ -1,5 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
+from django.core.validators import EmailValidator
 from django.db import transaction
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -13,6 +15,7 @@ from .models import (
     AssociationContactTitle,
     AssociationPortalContact,
     AssociationRecipient,
+    Destination,
     DocumentReviewStatus,
 )
 from .portal_helpers import get_contact_address
@@ -37,71 +40,155 @@ MESSAGE_CONTACTS_UPDATED = "Contacts emails mis à jour."
 MESSAGE_DOCUMENT_ADDED = "Document ajouté."
 MESSAGE_DOCUMENTS_ADDED = "Documents ajoutés."
 ERROR_NO_DOCUMENT_SELECTED = "Aucun fichier sélectionné."
-ERROR_RECIPIENT_NAME_REQUIRED = "Nom requis."
+ERROR_RECIPIENT_DESTINATION_REQUIRED = "Escale de livraison requise."
+ERROR_RECIPIENT_STRUCTURE_REQUIRED = "Nom de la structure requis."
 ERROR_RECIPIENT_ADDRESS_REQUIRED = "Adresse requise."
+ERROR_RECIPIENT_TITLE_INVALID = "Titre de contact invalide."
+ERROR_RECIPIENT_EMAILS_INVALID = "Emails invalides: {values}."
+ERROR_RECIPIENT_NOTIFY_EMAIL_REQUIRED = (
+    "Ajoutez au moins un email pour activer l'alerte de livraison."
+)
 ERROR_ASSOCIATION_NAME_REQUIRED = "Nom de l'association requis."
 ERROR_ASSOCIATION_ADDRESS_REQUIRED = "Adresse requise."
 ERROR_CONTACT_ROWS_LIMIT = f"Maximum {MAX_PORTAL_CONTACTS} contacts."
 ERROR_CONTACT_REQUIRED = "Ajoutez au moins un contact email."
+BLOCKED_REASON_PARAM = "blocked"
+BLOCKED_REASON_MISSING_DELIVERY_CONTACT = "missing_delivery_contact"
+BLOCKED_MESSAGE_MISSING_DELIVERY_CONTACT = (
+    "Compte bloqué: ajoutez au moins un destinataire avec la case "
+    '"Contact utilisé pour la réception dans l\'escale de livraison" cochée.'
+)
+
+
+def _split_multi_values(value):
+    raw = (value or "").replace("\n", ";").replace(",", ";")
+    return [item.strip() for item in raw.split(";") if item.strip()]
 
 
 def _build_default_recipient_form_data():
     return {
-        "name": "",
-        "email": "",
-        "phone": "",
+        "destination_id": "",
+        "structure_name": "",
+        "contact_title": "",
+        "contact_last_name": "",
+        "contact_first_name": "",
+        "phones": "",
+        "emails": "",
         "address_line1": "",
         "address_line2": "",
         "postal_code": "",
         "city": "",
         "country": DEFAULT_COUNTRY,
         "notes": "",
+        "notify_deliveries": False,
+        "is_delivery_contact": False,
     }
 
 
 def _extract_recipient_form_data(post_data):
     return {
-        "name": (post_data.get("name") or "").strip(),
-        "email": (post_data.get("email") or "").strip(),
-        "phone": (post_data.get("phone") or "").strip(),
+        "destination_id": (post_data.get("destination_id") or "").strip(),
+        "structure_name": (post_data.get("structure_name") or "").strip(),
+        "contact_title": (post_data.get("contact_title") or "").strip(),
+        "contact_last_name": (post_data.get("contact_last_name") or "").strip(),
+        "contact_first_name": (post_data.get("contact_first_name") or "").strip(),
+        "phones": (post_data.get("phones") or "").strip(),
+        "emails": (post_data.get("emails") or "").strip(),
         "address_line1": (post_data.get("address_line1") or "").strip(),
         "address_line2": (post_data.get("address_line2") or "").strip(),
         "postal_code": (post_data.get("postal_code") or "").strip(),
         "city": (post_data.get("city") or "").strip(),
         "country": (post_data.get("country") or DEFAULT_COUNTRY).strip(),
         "notes": (post_data.get("notes") or "").strip(),
+        "notify_deliveries": bool(post_data.get("notify_deliveries")),
+        "is_delivery_contact": bool(post_data.get("is_delivery_contact")),
     }
 
 
-def _validate_recipient_form_data(form_data):
+def _validate_recipient_form_data(form_data, destinations_by_id):
     errors = []
-    if not form_data["name"]:
-        errors.append(ERROR_RECIPIENT_NAME_REQUIRED)
+    valid_titles = {choice for choice, _label in AssociationContactTitle.choices}
+    if form_data["contact_title"] and form_data["contact_title"] not in valid_titles:
+        errors.append(ERROR_RECIPIENT_TITLE_INVALID)
+
+    destination = None
+    destination_id = parse_int(form_data["destination_id"])
+    if destination_id is None:
+        errors.append(ERROR_RECIPIENT_DESTINATION_REQUIRED)
+    else:
+        destination = destinations_by_id.get(destination_id)
+        if destination is None:
+            errors.append(ERROR_RECIPIENT_DESTINATION_REQUIRED)
+    form_data["destination"] = destination
+
+    if not form_data["structure_name"]:
+        errors.append(ERROR_RECIPIENT_STRUCTURE_REQUIRED)
     if not form_data["address_line1"]:
         errors.append(ERROR_RECIPIENT_ADDRESS_REQUIRED)
+
+    email_values = _split_multi_values(form_data["emails"])
+    invalid_emails = []
+    validator = EmailValidator()
+    for value in email_values:
+        try:
+            validator(value)
+        except ValidationError:
+            invalid_emails.append(value)
+    if invalid_emails:
+        errors.append(ERROR_RECIPIENT_EMAILS_INVALID.format(values=", ".join(invalid_emails)))
+    if form_data["notify_deliveries"] and not email_values:
+        errors.append(ERROR_RECIPIENT_NOTIFY_EMAIL_REQUIRED)
+
+    form_data["email_values"] = email_values
+    form_data["phone_values"] = _split_multi_values(form_data["phones"])
     return errors
 
 
 def _create_recipient(profile, form_data):
+    contact_display = " ".join(
+        part
+        for part in [
+            dict(AssociationContactTitle.choices).get(form_data["contact_title"], ""),
+            form_data["contact_first_name"],
+            (form_data["contact_last_name"] or "").upper(),
+        ]
+        if part
+    ).strip()
+    legacy_name = form_data["structure_name"] or contact_display
+    primary_email = form_data["email_values"][0] if form_data["email_values"] else ""
+    primary_phone = form_data["phone_values"][0] if form_data["phone_values"] else ""
     AssociationRecipient.objects.create(
         association_contact=profile.contact,
-        name=form_data["name"],
-        email=form_data["email"],
-        phone=form_data["phone"],
+        destination=form_data.get("destination"),
+        name=legacy_name,
+        structure_name=form_data["structure_name"],
+        contact_title=form_data["contact_title"],
+        contact_last_name=form_data["contact_last_name"],
+        contact_first_name=form_data["contact_first_name"],
+        phones="; ".join(form_data["phone_values"]),
+        emails="; ".join(form_data["email_values"]),
+        email=primary_email,
+        phone=primary_phone,
         address_line1=form_data["address_line1"],
         address_line2=form_data["address_line2"],
         postal_code=form_data["postal_code"],
         city=form_data["city"],
         country=form_data["country"] or DEFAULT_COUNTRY,
         notes=form_data["notes"],
+        notify_deliveries=form_data["notify_deliveries"],
+        is_delivery_contact=form_data["is_delivery_contact"],
     )
 
 
 def _get_active_recipients(profile):
-    return AssociationRecipient.objects.filter(
-        association_contact=profile.contact,
-        is_active=True,
-    ).order_by("name")
+    return (
+        AssociationRecipient.objects.filter(
+            association_contact=profile.contact,
+            is_active=True,
+        )
+        .select_related("destination")
+        .order_by("structure_name", "name", "contact_last_name", "contact_first_name")
+    )
 
 
 def _handle_notification_update(request, profile):
@@ -408,10 +495,16 @@ def portal_recipients(request):
     profile = request.association_profile
     errors = []
     form_data = _build_default_recipient_form_data()
+    destinations = list(Destination.objects.filter(is_active=True).order_by("city"))
+    destinations_by_id = {destination.id: destination for destination in destinations}
+    blocked_reason = (request.GET.get(BLOCKED_REASON_PARAM) or "").strip()
+    blocked_popup_message = ""
+    if blocked_reason == BLOCKED_REASON_MISSING_DELIVERY_CONTACT:
+        blocked_popup_message = BLOCKED_MESSAGE_MISSING_DELIVERY_CONTACT
 
     if request.method == "POST" and request.POST.get("action") == ACTION_CREATE_RECIPIENT:
         form_data = _extract_recipient_form_data(request.POST)
-        errors = _validate_recipient_form_data(form_data)
+        errors = _validate_recipient_form_data(form_data, destinations_by_id)
         if not errors:
             _create_recipient(profile, form_data)
             messages.success(request, MESSAGE_RECIPIENT_ADDED)
@@ -421,7 +514,14 @@ def portal_recipients(request):
     return render(
         request,
         TEMPLATE_RECIPIENTS,
-        {"recipients": recipients, "errors": errors, "form_data": form_data},
+        {
+            "recipients": recipients,
+            "errors": errors,
+            "form_data": form_data,
+            "destinations": destinations,
+            "contact_title_choices": list(AssociationContactTitle.choices),
+            "blocked_popup_message": blocked_popup_message,
+        },
     )
 
 

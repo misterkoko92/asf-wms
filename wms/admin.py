@@ -422,9 +422,36 @@ class AssociationProfileAdmin(admin.ModelAdmin):
 
 @admin.register(models.AssociationRecipient)
 class AssociationRecipientAdmin(admin.ModelAdmin):
-    list_display = ("name", "association_contact", "city", "country", "is_active")
-    list_filter = ("is_active", "country")
-    search_fields = ("name", "association_contact__name", "city")
+    list_display = (
+        "display_name",
+        "association_contact",
+        "destination",
+        "city",
+        "country",
+        "notify_deliveries",
+        "is_delivery_contact",
+        "is_active",
+    )
+    list_filter = (
+        "is_active",
+        "notify_deliveries",
+        "is_delivery_contact",
+        "country",
+        "destination",
+    )
+    search_fields = (
+        "name",
+        "structure_name",
+        "contact_last_name",
+        "contact_first_name",
+        "association_contact__name",
+        "city",
+    )
+
+    def display_name(self, obj):
+        return obj.get_display_name()
+
+    display_name.short_description = "Destinataire"
 
 
 class _DocumentStatusMixin:

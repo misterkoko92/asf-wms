@@ -978,7 +978,24 @@ class AssociationRecipient(models.Model):
         on_delete=models.CASCADE,
         related_name="association_recipients",
     )
+    destination = models.ForeignKey(
+        Destination,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="association_recipients",
+    )
     name = models.CharField(max_length=200)
+    structure_name = models.CharField(max_length=200, blank=True)
+    contact_title = models.CharField(
+        max_length=10,
+        choices=AssociationContactTitle.choices,
+        blank=True,
+    )
+    contact_last_name = models.CharField(max_length=120, blank=True)
+    contact_first_name = models.CharField(max_length=120, blank=True)
+    phones = models.TextField(blank=True)
+    emails = models.TextField(blank=True)
     email = models.EmailField(blank=True)
     phone = models.CharField(max_length=40, blank=True)
     address_line1 = models.CharField(max_length=200)
@@ -987,14 +1004,57 @@ class AssociationRecipient(models.Model):
     city = models.CharField(max_length=120, blank=True)
     country = models.CharField(max_length=80, default="France")
     notes = models.TextField(blank=True)
+    notify_deliveries = models.BooleanField(default=False)
+    is_delivery_contact = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["association_contact__name", "name"]
+        ordering = [
+            "association_contact__name",
+            "structure_name",
+            "name",
+            "contact_last_name",
+            "contact_first_name",
+        ]
 
     def __str__(self) -> str:
-        return f"{self.name} ({self.association_contact})"
+        return f"{self.get_display_name()} ({self.association_contact})"
+
+    @staticmethod
+    def _split_multi_values(value: str) -> list[str]:
+        raw = (value or "").replace("\n", ";").replace(",", ";")
+        return [item.strip() for item in raw.split(";") if item.strip()]
+
+    def get_primary_email(self) -> str:
+        values = self._split_multi_values(self.emails)
+        if values:
+            return values[0]
+        return (self.email or "").strip()
+
+    def get_primary_phone(self) -> str:
+        values = self._split_multi_values(self.phones)
+        if values:
+            return values[0]
+        return (self.phone or "").strip()
+
+    def get_contact_display_name(self) -> str:
+        title = self.get_contact_title_display() if self.contact_title else ""
+        last_name = (self.contact_last_name or "").strip()
+        if last_name:
+            last_name = last_name.upper()
+        parts = [title, (self.contact_first_name or "").strip(), last_name]
+        return " ".join(part for part in parts if part).strip()
+
+    def get_display_name(self) -> str:
+        if (self.structure_name or "").strip():
+            return self.structure_name.strip()
+        if (self.name or "").strip():
+            return self.name.strip()
+        contact_display = self.get_contact_display_name()
+        if contact_display:
+            return contact_display
+        return f"Destinataire #{self.pk}" if self.pk else "Destinataire"
 
 
 class DocumentReviewStatus(models.TextChoices):

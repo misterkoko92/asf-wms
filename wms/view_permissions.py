@@ -5,6 +5,7 @@ from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect
 from django.urls import reverse
 
+from .models import AssociationRecipient
 from .portal_helpers import get_association_profile
 
 
@@ -33,6 +34,20 @@ def association_required(view):
             change_url = reverse("portal:portal_change_password")
             if request.path != change_url:
                 return redirect(change_url)
+        recipients_url = reverse("portal:portal_recipients")
+        allowed_paths = {
+            recipients_url,
+            reverse("portal:portal_account"),
+            reverse("portal:portal_logout"),
+            reverse("portal:portal_change_password"),
+        }
+        has_delivery_contact = AssociationRecipient.objects.filter(
+            association_contact=profile.contact,
+            is_active=True,
+            is_delivery_contact=True,
+        ).exists()
+        if not has_delivery_contact and request.path not in allowed_paths:
+            return redirect(f"{recipients_url}?blocked=missing_delivery_contact")
         request.association_profile = profile
         return view(request, *args, **kwargs)
 

@@ -17,6 +17,7 @@ from wms.models import (
     AssociationProfile,
     AssociationPortalContact,
     AssociationRecipient,
+    Destination,
     DocumentReviewStatus,
     Order,
     OrderDocument,
@@ -66,6 +67,42 @@ class PortalBaseTestCase(TestCase):
             must_change_password=must_change_password,
         )
         return profile
+
+    def _create_destination(self, *, city="Paris", country="France"):
+        suffix = Destination.objects.count() + 1
+        correspondent = Contact.objects.create(
+            name=f"Correspondant {suffix}",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        return Destination.objects.create(
+            city=city,
+            iata_code=f"T{suffix:03d}",
+            country=country,
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+
+    def _create_delivery_recipient(
+        self,
+        profile,
+        *,
+        city="Paris",
+        country="France",
+        structure_name="Structure Test",
+    ):
+        destination = self._create_destination(city=city, country=country)
+        return AssociationRecipient.objects.create(
+            association_contact=profile.contact,
+            destination=destination,
+            name=structure_name,
+            structure_name=structure_name,
+            address_line1="1 Rue Réception",
+            city=city,
+            country=country,
+            is_delivery_contact=True,
+            is_active=True,
+        )
 
 
 class PortalHelpersTests(PortalBaseTestCase):
@@ -301,6 +338,7 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
             "orders@example.com",
         )
         self.profile = self._create_profile(self.user, with_address=True)
+        self._create_delivery_recipient(self.profile)
         self.client.force_login(self.user)
         self.dashboard_url = reverse("portal:portal_dashboard")
         self.order_create_url = reverse("portal:portal_order_create")
@@ -331,6 +369,15 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         orders = list(response.context["orders"])
         self.assertIn(own_order, orders)
         self.assertNotIn(other_order, orders)
+
+    def test_portal_dashboard_redirects_when_delivery_contact_missing(self):
+        AssociationRecipient.objects.filter(association_contact=self.profile.contact).delete()
+        response = self.client.get(self.dashboard_url)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.url,
+            f"{reverse('portal:portal_recipients')}?blocked=missing_delivery_contact",
+        )
 
     def test_portal_order_create_get_renders(self):
         with mock.patch(
@@ -438,7 +485,7 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertEqual(kwargs["destination_country"], "France")
         self.assertEqual(
             kwargs["destination_address"],
-            "10 Rue C\nBat A\n69000 Lyon",
+            "10 Rue C\nBat A\n69000 Lyon\nFrance",
         )
 
     def test_portal_order_create_post_handles_stock_error(self):
@@ -557,6 +604,7 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.recipients_url = reverse("portal:portal_recipients")
         self.account_url = reverse("portal:portal_account")
         self.account_request_url = reverse("portal:portal_account_request")
+        self.destination = self._create_destination(city="Lyon", country="France")
 
     def test_portal_recipients_get_lists_active_recipients(self):
         active = AssociationRecipient.objects.create(
@@ -583,10 +631,16 @@ class PortalAccountViewsTests(PortalBaseTestCase):
     def test_portal_recipients_post_validates_required_fields(self):
         response = self.client.post(
             self.recipients_url,
-            {"action": "create_recipient", "name": "", "address_line1": ""},
+            {
+                "action": "create_recipient",
+                "destination_id": "",
+                "structure_name": "",
+                "address_line1": "",
+            },
         )
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Nom requis.", response.context["errors"])
+        self.assertIn("Escale de livraison requise.", response.context["errors"])
+        self.assertIn("Nom de la structure requis.", response.context["errors"])
         self.assertIn("Adresse requise.", response.context["errors"])
         self.assertEqual(AssociationRecipient.objects.count(), 0)
 
@@ -595,22 +649,40 @@ class PortalAccountViewsTests(PortalBaseTestCase):
             self.recipients_url,
             {
                 "action": "create_recipient",
-                "name": "Recipient C",
-                "email": "recipient@example.com",
-                "phone": "0102030405",
+                "destination_id": str(self.destination.id),
+                "structure_name": "Structure C",
+                "contact_title": "mrs",
+                "contact_last_name": "Martin",
+                "contact_first_name": "Claire",
+                "emails": "recipient@example.com; second@example.com",
+                "phones": "+33102030405; +33611121314",
                 "address_line1": "2 Rue C",
                 "address_line2": "",
                 "postal_code": "75002",
                 "city": "Paris",
                 "country": "France",
                 "notes": "Notes",
+                "notify_deliveries": "1",
+                "is_delivery_contact": "1",
             },
         )
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, self.recipients_url)
         self.assertEqual(AssociationRecipient.objects.count(), 1)
         recipient = AssociationRecipient.objects.get()
-        self.assertEqual(recipient.name, "Recipient C")
+        self.assertEqual(recipient.structure_name, "Structure C")
+        self.assertEqual(recipient.contact_last_name, "Martin")
+        self.assertEqual(recipient.email, "recipient@example.com")
+        self.assertEqual(recipient.phone, "+33102030405")
+        self.assertTrue(recipient.notify_deliveries)
+        self.assertTrue(recipient.is_delivery_contact)
+
+    def test_portal_recipients_get_shows_blocking_popup_message(self):
+        response = self.client.get(
+            f"{self.recipients_url}?blocked=missing_delivery_contact"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Compte bloqué", response.content.decode())
 
     def test_portal_account_get_renders(self):
         response = self.client.get(self.account_url)

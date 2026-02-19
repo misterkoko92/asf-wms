@@ -59,14 +59,28 @@ def _get_active_recipients(profile):
         AssociationRecipient.objects.filter(
             association_contact=profile.contact,
             is_active=True,
-        ).order_by("name")
+        ).select_related("destination").order_by(
+            "structure_name",
+            "name",
+            "contact_last_name",
+            "contact_first_name",
+        )
     )
 
 
 def _build_recipient_options(profile, recipients):
+    def _build_recipient_label(recipient):
+        label = recipient.get_display_name()
+        if recipient.destination:
+            return f"{label} - {recipient.destination.city}"
+        return label
+
     options = [
         {"id": RECIPIENT_SELF, "label": f"{profile.contact.name} (association)"},
-        *[{"id": str(recipient.id), "label": recipient.name} for recipient in recipients],
+        *[
+            {"id": str(recipient.id), "label": _build_recipient_label(recipient)}
+            for recipient in recipients
+        ],
     ]
     return sorted(options, key=lambda item: str(item["label"] or "").lower())
 
@@ -122,16 +136,20 @@ def _resolve_recipient_destination(profile, recipient_id, errors):
         }
 
     return {
-        "recipient_name": recipient.name,
+        "recipient_name": recipient.get_display_name(),
         "recipient_contact": None,
-        "destination_city": recipient.city or "",
-        "destination_country": recipient.country or DEFAULT_COUNTRY,
+        "destination_city": recipient.city or (recipient.destination.city if recipient.destination else ""),
+        "destination_country": recipient.country
+        or (recipient.destination.country if recipient.destination else "")
+        or DEFAULT_COUNTRY,
         "destination_address": build_destination_address(
             line1=recipient.address_line1,
             line2=recipient.address_line2,
             postal_code=recipient.postal_code,
-            city=recipient.city,
-            country=recipient.country,
+            city=recipient.city or (recipient.destination.city if recipient.destination else ""),
+            country=recipient.country
+            or (recipient.destination.country if recipient.destination else "")
+            or DEFAULT_COUNTRY,
         ),
     }
 
