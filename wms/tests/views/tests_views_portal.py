@@ -12,7 +12,8 @@ from django.utils.http import urlsafe_base64_encode
 
 from contacts.models import Contact, ContactAddress, ContactType
 from contacts.querysets import contacts_with_tags
-from contacts.tagging import TAG_RECIPIENT
+from contacts.tagging import TAG_RECIPIENT, TAG_SHIPPER
+from wms.forms import ScanShipmentForm
 from wms.models import (
     AccountDocument,
     AccountDocumentType,
@@ -685,6 +686,24 @@ class PortalAccountViewsTests(PortalBaseTestCase):
             synced_contact.linked_shippers.filter(pk=self.profile.contact_id).exists()
         )
         self.assertTrue(synced_contact.destinations.filter(pk=self.destination.id).exists())
+        self.assertTrue(
+            self.profile.contact.destinations.filter(pk=self.destination.id).exists()
+        )
+        self.assertTrue(
+            contacts_with_tags(TAG_SHIPPER).filter(pk=self.profile.contact_id).exists()
+        )
+
+        form = ScanShipmentForm(
+            data={
+                "destination": str(self.destination.id),
+                "shipper_contact": str(self.profile.contact_id),
+            },
+            destination_id=str(self.destination.id),
+        )
+        self.assertIn(
+            synced_contact.id,
+            set(form.fields["recipient_contact"].queryset.values_list("id", flat=True)),
+        )
 
     def test_portal_recipients_get_shows_blocking_popup_message(self):
         response = self.client.get(

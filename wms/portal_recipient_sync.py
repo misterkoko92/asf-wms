@@ -1,8 +1,12 @@
+from django.db.models import Q
+
 from contacts.models import Contact, ContactAddress, ContactTag, ContactType
+from contacts.querysets import contacts_with_tags
 from contacts.rules import ensure_default_shipper_for_recipient
-from contacts.tagging import TAG_RECIPIENT, normalize_tag_name
+from contacts.tagging import TAG_RECIPIENT, TAG_SHIPPER, normalize_tag_name
 
 RECIPIENT_TAG_DEFAULT_NAME = "Destinataire"
+SHIPPER_TAG_DEFAULT_NAME = "Expediteur"
 PORTAL_RECIPIENT_SOURCE_PREFIX = "[Portail association]"
 
 
@@ -42,9 +46,54 @@ def _get_or_create_recipient_tag() -> ContactTag:
     return ContactTag.objects.create(name=RECIPIENT_TAG_DEFAULT_NAME)
 
 
+def _get_or_create_shipper_tag() -> ContactTag:
+    normalized_targets = {
+        normalize_tag_name(alias)
+        for alias in TAG_SHIPPER
+        if normalize_tag_name(alias)
+    }
+    for tag in ContactTag.objects.only("id", "name"):
+        if normalize_tag_name(tag.name) in normalized_targets:
+            return tag
+    return ContactTag.objects.create(name=SHIPPER_TAG_DEFAULT_NAME)
+
+
+def _ensure_association_shipper_scope(*, association_contact, destination_id):
+    if not association_contact:
+        return
+    shipper_tag = _get_or_create_shipper_tag()
+    association_contact.tags.add(shipper_tag)
+    if destination_id:
+        association_contact.destinations.add(destination_id)
+
+
+def _candidate_shipper_ids_for_association(association_contact):
+    if not association_contact or not association_contact.pk:
+        return []
+    filters = Q(pk=association_contact.pk)
+    name = (association_contact.name or "").strip()
+    email = (association_contact.email or "").strip()
+    if name:
+        filters |= Q(name__iexact=name)
+    if email:
+        filters |= Q(email__iexact=email)
+
+    shipper_ids = set(
+        contacts_with_tags(TAG_SHIPPER)
+        .filter(filters)
+        .values_list("id", flat=True)
+    )
+    shipper_ids.add(association_contact.pk)
+    return sorted(shipper_ids)
+
+
 def sync_association_recipient_to_contact(recipient):
     if not recipient:
         return None
+    _ensure_association_shipper_scope(
+        association_contact=recipient.association_contact,
+        destination_id=recipient.destination_id,
+    )
     recipient_tag = _get_or_create_recipient_tag()
     primary_email = _first_multi_value(recipient.emails, recipient.email)
     primary_phone = _first_multi_value(recipient.phones, recipient.phone)
@@ -77,7 +126,9 @@ def sync_association_recipient_to_contact(recipient):
     contact.tags.add(recipient_tag)
     if recipient.destination_id:
         contact.destinations.add(recipient.destination_id)
-    if recipient.association_contact_id:
-        contact.linked_shippers.add(recipient.association_contact_id)
+    for shipper_id in _candidate_shipper_ids_for_association(
+        recipient.association_contact
+    ):
+        contact.linked_shippers.add(shipper_id)
     ensure_default_shipper_for_recipient(contact)
     return contact

@@ -1,10 +1,13 @@
 from django.apps import apps
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models.signals import post_delete, post_save, pre_save
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
+
+from contacts.models import Contact
 
 from .emailing import enqueue_email_safe, get_admin_emails
 from .models import AssociationProfile, Shipment, ShipmentStatus, ShipmentTrackingEvent, WmsChange
@@ -116,6 +119,52 @@ def _ensure_association_portal_group(sender, instance, **kwargs) -> None:
     assign_association_portal_group(user)
 
 
+def _sync_profile_emails_on_create(sender, instance, created, **kwargs) -> None:
+    if not created:
+        return
+    user = getattr(instance, "user", None)
+    contact = getattr(instance, "contact", None)
+    if not user or not contact:
+        return
+    user_email = (user.email or "").strip()
+    contact_email = (contact.email or "").strip()
+    # Preserve user login identity when already set; otherwise backfill user email
+    # from the association contact.
+    if user_email and contact_email != user_email:
+        Contact.objects.filter(pk=contact.pk).update(email=user_email)
+        return
+    if not user_email and contact_email:
+        get_user_model().objects.filter(pk=user.pk).update(email=contact_email)
+
+
+def _sync_profile_user_email_from_contact(sender, instance, **kwargs) -> None:
+    profiles = AssociationProfile.objects.select_related("user").filter(contact=instance)
+    if not profiles.exists():
+        return
+    target_email = (instance.email or "").strip()
+    user_ids_to_update = [
+        profile.user_id
+        for profile in profiles
+        if (profile.user.email or "").strip() != target_email
+    ]
+    if user_ids_to_update:
+        get_user_model().objects.filter(pk__in=user_ids_to_update).update(email=target_email)
+
+
+def _sync_profile_contact_email_from_user(sender, instance, **kwargs) -> None:
+    profile = (
+        AssociationProfile.objects.select_related("contact")
+        .filter(user=instance)
+        .first()
+    )
+    if not profile:
+        return
+    target_email = (instance.email or "").strip()
+    if (profile.contact.email or "").strip() == target_email:
+        return
+    Contact.objects.filter(pk=profile.contact_id).update(email=target_email)
+
+
 def register_change_signals() -> None:
     for app_label in ("wms", "contacts"):
         app_config = apps.get_app_config(app_label)
@@ -151,4 +200,19 @@ def register_change_signals() -> None:
         _ensure_association_portal_group,
         sender=AssociationProfile,
         dispatch_uid="wms_association_profile_group_post_save",
+    )
+    post_save.connect(
+        _sync_profile_emails_on_create,
+        sender=AssociationProfile,
+        dispatch_uid="wms_association_profile_sync_emails_post_save",
+    )
+    post_save.connect(
+        _sync_profile_user_email_from_contact,
+        sender=Contact,
+        dispatch_uid="wms_association_profile_sync_user_email_from_contact_post_save",
+    )
+    post_save.connect(
+        _sync_profile_contact_email_from_user,
+        sender=get_user_model(),
+        dispatch_uid="wms_association_profile_sync_contact_email_from_user_post_save",
     )

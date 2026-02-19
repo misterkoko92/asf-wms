@@ -2141,7 +2141,8 @@
       let correspondentOptions = [];
       if (canShowRecipientAndCorrespondent) {
         recipientOptions = recipients.filter(recipient =>
-          matchesLinkedShipper(recipient, resolvedShipper)
+          matchesLinkedShipper(recipient, resolvedShipper) &&
+          matchesDestination(recipient, destinationId)
         );
         correspondentOptions = correspondents.filter(correspondent =>
           matchesDestination(correspondent, destinationId)

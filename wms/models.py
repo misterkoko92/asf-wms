@@ -887,6 +887,28 @@ class AssociationProfile(models.Model):
     def __str__(self) -> str:
         return f"{self.contact} - {self.user}"
 
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.contact_id:
+            # Import lazily to avoid app-loading cycles at module import time.
+            from contacts.models import ContactType
+
+            if self.contact.contact_type != ContactType.ORGANIZATION:
+                errors["contact"] = (
+                    "Le contact d'association doit être une organisation."
+                )
+            elif not self.contact.is_active:
+                errors["contact"] = (
+                    "Le contact d'association doit être actif."
+                )
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
     def get_notification_emails(self) -> list[str]:
         portal_contacts = getattr(self, "portal_contacts", None) if self.pk else None
         if portal_contacts is not None:

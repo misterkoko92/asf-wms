@@ -425,6 +425,11 @@ class ScanShipmentForm(forms.Form):
 
         if selected_shipper:
             recipients = filter_recipients_for_shipper(recipients, selected_shipper)
+            if selected_destination:
+                recipients = filter_contacts_for_destination(
+                    recipients,
+                    selected_destination,
+                )
         else:
             recipients = recipients.none()
 
@@ -496,6 +501,14 @@ class ScanShipmentForm(forms.Form):
             self.add_error(
                 "recipient_contact",
                 "Destinataire non disponible pour cet expéditeur.",
+            )
+        if destination and recipient and not filter_contacts_for_destination(
+            Contact.objects.filter(pk=recipient.pk),
+            destination,
+        ).exists():
+            self.add_error(
+                "recipient_contact",
+                "Destinataire non disponible pour cette destination.",
             )
         if destination and correspondent and not filter_contacts_for_destination(
             Contact.objects.filter(pk=correspondent.pk),
