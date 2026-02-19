@@ -164,6 +164,7 @@ class ScanViewTests(TestCase):
         document = Document.objects.create(shipment=shipment, doc_type="additional")
         return [
             ("scan:scan_root", "get", {}, None),
+            ("scan:scan_dashboard", "get", {}, None),
             ("scan:scan_stock", "get", {}, None),
             ("scan:scan_cartons_ready", "get", {}, None),
             ("scan:scan_shipments_ready", "get", {}, None),

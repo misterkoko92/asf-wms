@@ -33,6 +33,7 @@ from .views_public import (
     scan_public_order_summary,
 )
 from .views_scan import (
+    scan_dashboard,
     scan_cartons_ready,
     scan_faq,
     scan_order,
@@ -75,6 +76,7 @@ PUBLIC_EXPORTS = (
 )
 
 SCAN_FLOW_EXPORTS = (
+    "scan_dashboard",
     "scan_stock",
     "scan_cartons_ready",
     "scan_shipments_ready",

@@ -538,6 +538,98 @@ body {
   margin-bottom: 4px;
 }
 
+.scan-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.scan-kpi-card {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: var(--panel);
+  text-decoration: none;
+  color: var(--ink);
+  transition: transform 0.12s ease, border-color 0.12s ease;
+}
+
+.scan-kpi-card:hover {
+  transform: translateY(-1px);
+  border-color: var(--accent);
+}
+
+.scan-kpi-card.is-success {
+  border-color: var(--success-border);
+  background: var(--success-bg);
+}
+
+.scan-kpi-card.is-warn {
+  border-color: var(--accent-2);
+  background: #fff4de;
+}
+
+.scan-kpi-card.is-danger {
+  border-color: var(--error-border);
+  background: var(--error-bg);
+}
+
+.scan-kpi-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+}
+
+.scan-kpi-value {
+  font-size: 28px;
+  line-height: 1.1;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.scan-kpi-help {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.scan-chart-bars {
+  display: grid;
+  gap: 8px;
+}
+
+.scan-chart-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 220px) minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.scan-chart-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.scan-chart-track {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--bg-2);
+  overflow: hidden;
+}
+
+.scan-chart-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+}
+
+.scan-chart-value {
+  font-size: 12px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
 .scan-filters {
   display: grid;
   gap: 12px;
@@ -1044,6 +1136,12 @@ body {
 
   .scan-inline-actions {
     justify-content: flex-start;
+  }
+
+  .scan-chart-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    align-items: start;
   }
 }
 

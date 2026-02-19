@@ -5,7 +5,8 @@ from . import views
 app_name = "scan"
 
 urlpatterns = [
-    path("", views.scan_stock, name="scan_root"),
+    path("", views.scan_dashboard, name="scan_root"),
+    path("dashboard/", views.scan_dashboard, name="scan_dashboard"),
     path("stock/", views.scan_stock, name="scan_stock"),
     path("cartons/", views.scan_cartons_ready, name="scan_cartons_ready"),
     path("shipments-ready/", views.scan_shipments_ready, name="scan_shipments_ready"),

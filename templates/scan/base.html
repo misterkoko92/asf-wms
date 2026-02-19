@@ -70,6 +70,12 @@
     <div class="scan-body">
       <nav class="scan-nav">
         <div class="scan-nav-group">
+          <button type="button" class="scan-nav-trigger">Tableau de bord</button>
+          <div class="scan-nav-menu">
+            <a href="{% url 'scan:scan_dashboard' %}" class="{% if active == 'dashboard' %}active{% endif %}">Tableau de bord</a>
+          </div>
+        </div>
+        <div class="scan-nav-group">
           <button type="button" class="scan-nav-trigger">Voir les differents etats</button>
           <div class="scan-nav-menu">
             <a href="{% url 'scan:scan_stock' %}" class="{% if active == 'stock' %}active{% endif %}">Vue stock</a>

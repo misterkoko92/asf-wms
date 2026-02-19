@@ -1,5 +1,6 @@
 """Scan views re-exported for URL routing."""
 
+from .views_scan_dashboard import scan_dashboard
 from .views_scan_misc import scan_faq, scan_service_worker
 from .views_scan_orders import scan_order, scan_orders_view
 from .views_scan_receipts import (
@@ -21,6 +22,7 @@ from .views_scan_shipments import (
 from .views_scan_stock import scan_out, scan_stock, scan_stock_update, scan_sync
 
 SCAN_FLOW_EXPORTS = (
+    "scan_dashboard",
     "scan_stock",
     "scan_cartons_ready",
     "scan_shipments_ready",
