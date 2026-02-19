@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from contacts.models import Contact, ContactAddress, ContactTag, ContactType
 from wms.models import (
+    AssociationRecipient,
     AssociationProfile,
     Carton,
     CartonItem,
@@ -661,6 +662,54 @@ class ScanViewTests(TestCase):
         shipment.refresh_from_db()
         self.assertEqual(shipment.destination_id, new_destination.id)
 
+    def test_scan_shipment_edit_prefills_order_line_values_without_assigned_cartons(self):
+        shipment = Shipment.objects.create(
+            status=ShipmentStatus.DRAFT,
+            shipper_name=self.shipper.name,
+            shipper_contact_ref=self.shipper,
+            recipient_name=self.recipient.name,
+            recipient_contact_ref=self.recipient,
+            correspondent_name=self.correspondent.name,
+            correspondent_contact_ref=self.correspondent,
+            destination=self.destination,
+            destination_address=str(self.destination),
+            destination_country=self.destination.country,
+            created_by=self.user,
+        )
+        product_b = Product.objects.create(
+            sku="SKU-002",
+            name="Produit B",
+            default_location=self.location,
+            qr_code_image="qr_codes/test.png",
+        )
+        order = Order.objects.create(
+            status=OrderStatus.RESERVED,
+            shipper_name=self.shipper.name,
+            shipper_contact=self.shipper,
+            recipient_name=self.recipient.name,
+            recipient_contact=self.recipient,
+            correspondent_name=self.correspondent.name,
+            correspondent_contact=self.correspondent,
+            destination_address=str(self.destination),
+            destination_city=self.destination.city,
+            destination_country=self.destination.country,
+            shipment=shipment,
+            created_by=self.user,
+        )
+        order.lines.create(product=self.product, quantity=3, reserved_quantity=3)
+        order.lines.create(product=product_b, quantity=2, reserved_quantity=2)
+
+        response = self.client.get(reverse("scan:scan_shipment_edit", args=[shipment.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["carton_count"], 2)
+        self.assertEqual(
+            response.context["line_values"],
+            [
+                {"carton_id": "", "product_code": product_b.sku, "quantity": "2"},
+                {"carton_id": "", "product_code": self.product.sku, "quantity": "3"},
+            ],
+        )
+
     def test_scan_shipment_document_upload_rejects_extension(self):
         shipment = Shipment.objects.create(
             status=ShipmentStatus.DRAFT,
@@ -962,6 +1011,15 @@ class PortalPermissionTests(TestCase):
             user=self.user,
             contact=self.contact,
             must_change_password=False,
+        )
+        AssociationRecipient.objects.create(
+            association_contact=self.contact,
+            name="Destinataire Portail",
+            address_line1="1 Rue Test",
+            city="Paris",
+            country="France",
+            is_active=True,
+            is_delivery_contact=True,
         )
         self.client.force_login(self.user)
         response = self.client.get(reverse("portal:portal_dashboard"))

@@ -128,7 +128,7 @@ class CartonViewHelpersTests(TestCase):
         self.assertEqual([row["id"] for row in rows], [10, 11, 12])
 
         assigned_row = rows[0]
-        self.assertEqual(assigned_row["status_label"], "Affecte")
+        self.assertEqual(assigned_row["status_label"], "Affecté")
         self.assertFalse(assigned_row["can_toggle"])
         self.assertEqual(assigned_row["shipment_reference"], "S-077")
         self.assertEqual(
@@ -143,7 +143,7 @@ class CartonViewHelpersTests(TestCase):
         self.assertEqual(assigned_row["volume_percent"], 40)
 
         draft_row = rows[1]
-        self.assertEqual(draft_row["status_label"], "Cree")
+        self.assertEqual(draft_row["status_label"], "Créé")
         self.assertTrue(draft_row["can_toggle"])
         self.assertEqual(draft_row["shipment_reference"], "")
         self.assertEqual(

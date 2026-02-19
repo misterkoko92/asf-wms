@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.shortcuts import redirect
+from django.utils import timezone
 
 from .models import OrderReviewStatus
 from .order_helpers import attach_order_documents_to_shipment
@@ -22,7 +23,11 @@ def handle_orders_view_action(request, *, orders_qs):
             messages.error(request, "Statut invalide.")
         else:
             order.review_status = status
-            order.save(update_fields=["review_status"])
+            if status == OrderReviewStatus.PENDING:
+                order.reviewed_at = None
+            else:
+                order.reviewed_at = timezone.now()
+            order.save(update_fields=["review_status", "reviewed_at"])
             messages.success(request, "Statut de validation mis à jour.")
         return redirect("scan:scan_orders_view")
 
@@ -30,7 +35,7 @@ def handle_orders_view_action(request, *, orders_qs):
         if order.review_status != OrderReviewStatus.APPROVED:
             messages.error(request, "Commande non validée.")
             return redirect("scan:scan_orders_view")
-        shipment = order.shipment or create_shipment_for_order(order=order)
+        shipment = create_shipment_for_order(order=order)
         attach_order_documents_to_shipment(order, shipment)
         return redirect("scan:scan_shipment_edit", shipment_id=shipment.id)
 

@@ -7,6 +7,7 @@ Last functional alignment update: **February 19, 2026**.
 ## Product and scope
 
 - `docs/mvp_spec.md`: current functional scope and business rules (cartons, shipments, tracking, disputes, draft flow).
+- `docs/audit_2026-02-19.md`: global repository audit (quality, security, flows, risks, phased improvement plan, V2 options).
 - `docs/backlog.md`: roadmap with delivered baseline and next priorities.
 
 ## Operations

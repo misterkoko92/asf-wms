@@ -72,7 +72,7 @@ class ContactAdminFormTests(TestCase):
         self.assertTrue(form.is_valid())
 
     def test_clean_requires_linked_shipper_for_new_recipient(self):
-        recipient_tag = ContactTag.objects.create(name="Destinataire")
+        recipient_tag, _ = ContactTag.objects.get_or_create(name="Destinataire")
         form = ContactAdminForm(
             data={
                 "contact_type": ContactType.ORGANIZATION,
@@ -88,8 +88,8 @@ class ContactAdminFormTests(TestCase):
         self.assertIn("expéditeur lié", form.errors["linked_shippers"][0].lower())
 
     def test_save_adds_default_shipper_for_recipient(self):
-        shipper_tag = ContactTag.objects.create(name="Expéditeur")
-        recipient_tag = ContactTag.objects.create(name="Destinataire")
+        shipper_tag, _ = ContactTag.objects.get_or_create(name="Expéditeur")
+        recipient_tag, _ = ContactTag.objects.get_or_create(name="Destinataire")
         default_shipper = Contact.objects.create(
             name="AVIATION SANS FRONTIERES",
             contact_type=ContactType.ORGANIZATION,
@@ -121,8 +121,8 @@ class ContactAdminFormTests(TestCase):
         )
 
     def test_save_commit_false_then_save_m2m_adds_default_shipper_for_recipient(self):
-        shipper_tag = ContactTag.objects.create(name="Expéditeur")
-        recipient_tag = ContactTag.objects.create(name="Destinataire")
+        shipper_tag, _ = ContactTag.objects.get_or_create(name="Expéditeur")
+        recipient_tag, _ = ContactTag.objects.get_or_create(name="Destinataire")
         default_shipper = Contact.objects.create(
             name="AVIATION SANS FRONTIERES",
             contact_type=ContactType.ORGANIZATION,

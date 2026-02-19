@@ -65,6 +65,7 @@ python manage.py shell -c "from wms.models import IntegrationEvent, IntegrationD
 
 ## Docs
 - Index: `docs/README.md`
+- Global audit (2026-02-19): `docs/audit_2026-02-19.md`
 - MVP spec: `docs/mvp_spec.md`
 - Backlog: `docs/backlog.md`
 - Operations runbook: `docs/operations.md`

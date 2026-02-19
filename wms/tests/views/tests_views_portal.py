@@ -8,6 +8,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpResponse
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.http import urlsafe_base64_encode
 
 from contacts.models import Contact, ContactAddress, ContactType
@@ -27,6 +28,9 @@ from wms.models import (
     OrderDocumentType,
     OrderReviewStatus,
     Product,
+    Shipment,
+    ShipmentTrackingEvent,
+    ShipmentTrackingStatus,
 )
 from wms import portal_helpers
 from wms.services import StockError
@@ -341,7 +345,8 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
             "orders@example.com",
         )
         self.profile = self._create_profile(self.user, with_address=True)
-        self._create_delivery_recipient(self.profile)
+        self.delivery_recipient = self._create_delivery_recipient(self.profile)
+        self.destination = self.delivery_recipient.destination
         self.client.force_login(self.user)
         self.dashboard_url = reverse("portal:portal_dashboard")
         self.order_create_url = reverse("portal:portal_order_create")
@@ -373,6 +378,51 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertIn(own_order, orders)
         self.assertNotIn(other_order, orders)
 
+    def test_portal_dashboard_displays_shipment_dates_and_escale(self):
+        destination = self._create_destination(city="Abidjan", country="Cote d'Ivoire")
+        shipment = Shipment.objects.create(
+            shipper_name="ASF",
+            recipient_name="Recipient",
+            destination_address="1 Rue Test",
+            destination_country="Cote d'Ivoire",
+            destination=destination,
+        )
+        ShipmentTrackingEvent.objects.create(
+            shipment=shipment,
+            status=ShipmentTrackingStatus.BOARDING_OK,
+            actor_name="Agent",
+            actor_structure="ASF",
+        )
+        ShipmentTrackingEvent.objects.create(
+            shipment=shipment,
+            status=ShipmentTrackingStatus.RECEIVED_CORRESPONDENT,
+            actor_name="Agent",
+            actor_structure="ASF",
+        )
+        ShipmentTrackingEvent.objects.create(
+            shipment=shipment,
+            status=ShipmentTrackingStatus.RECEIVED_RECIPIENT,
+            actor_name="Agent",
+            actor_structure="ASF",
+        )
+        reviewed_at = timezone.now()
+        Order.objects.create(
+            association_contact=self.profile.contact,
+            review_status=OrderReviewStatus.APPROVED,
+            reviewed_at=reviewed_at,
+            shipper_name="Aviation Sans Frontieres",
+            recipient_name=self.profile.contact.name,
+            destination_address="1 Rue Test\n75001 Paris\nFrance",
+            destination_country="France",
+            shipment=shipment,
+        )
+
+        response = self.client.get(self.dashboard_url)
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertIn("Abidjan", html)
+        self.assertIn(reviewed_at.strftime("%d/%m/%Y"), html)
+
     def test_portal_dashboard_redirects_when_delivery_contact_missing(self):
         AssociationRecipient.objects.filter(association_contact=self.profile.contact).delete()
         response = self.client.get(self.dashboard_url)
@@ -389,7 +439,44 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         ):
             response = self.client.get(self.order_create_url)
         self.assertEqual(response.status_code, 200)
+        self.assertIn("destination_options", response.context)
         self.assertIn("recipient_options", response.context)
+
+    def test_portal_order_create_filters_recipient_options_by_destination(self):
+        other_destination = self._create_destination(city="Abidjan", country="Cote d'Ivoire")
+        other_recipient = AssociationRecipient.objects.create(
+            association_contact=self.profile.contact,
+            destination=other_destination,
+            name="Recipient Other",
+            address_line1="20 Rue Other",
+            city="Abidjan",
+            country="Cote d'Ivoire",
+            is_active=True,
+        )
+        with mock.patch(
+            "wms.views_portal_orders.build_product_selection_data",
+            return_value=(self.product_options, self.product_by_id, self.available_by_id),
+        ):
+            with mock.patch(
+                "wms.views_portal_orders.build_order_line_items",
+                return_value=([], {}, {}),
+            ):
+                response = self.client.post(
+                    self.order_create_url,
+                    {
+                        "destination_id": str(self.destination.id),
+                        "recipient_id": "",
+                        "notes": "",
+                    },
+                )
+        self.assertEqual(response.status_code, 200)
+        recipient_ids = {
+            str(option["id"])
+            for option in response.context["recipient_options"]
+            if option["id"] != "self"
+        }
+        self.assertIn(str(self.delivery_recipient.id), recipient_ids)
+        self.assertNotIn(str(other_recipient.id), recipient_ids)
 
     def test_portal_order_create_post_reports_missing_recipient_and_products(self):
         with mock.patch(
@@ -402,9 +489,10 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
             ):
                 response = self.client.post(
                     self.order_create_url,
-                    {"recipient_id": "", "notes": ""},
+                    {"destination_id": "", "recipient_id": "", "notes": ""},
                 )
         self.assertEqual(response.status_code, 200)
+        self.assertIn("Destination requise.", response.context["errors"])
         self.assertIn("Destinataire requis.", response.context["errors"])
         self.assertIn("Ajoutez au moins un produit.", response.context["errors"])
 
@@ -421,7 +509,11 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
             ):
                 response = self.client.post(
                     self.order_create_url,
-                    {"recipient_id": "self", "notes": ""},
+                    {
+                        "destination_id": str(self.destination.id),
+                        "recipient_id": "self",
+                        "notes": "",
+                    },
                 )
         self.assertEqual(response.status_code, 200)
         self.assertIn("Adresse association manquante.", response.context["errors"])
@@ -438,14 +530,23 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
             ):
                 response = self.client.post(
                     self.order_create_url,
-                    {"recipient_id": "999999", "notes": ""},
+                    {
+                        "destination_id": str(self.destination.id),
+                        "recipient_id": "999999",
+                        "notes": "",
+                    },
                 )
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Destinataire invalide.", response.context["errors"])
+        self.assertIn(
+            "Destinataire non disponible pour cette destination.",
+            response.context["errors"],
+        )
 
     def test_portal_order_create_post_with_recipient_uses_recipient_destination(self):
+        destination = self._create_destination(city="Lyon", country="France")
         recipient = AssociationRecipient.objects.create(
             association_contact=self.profile.contact,
+            destination=destination,
             name="Recipient External",
             address_line1="10 Rue C",
             address_line2="Bat A",
@@ -456,6 +557,11 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         )
         line_items = [(self.product, 1)]
         fake_order = SimpleNamespace(id=456)
+        synced_recipient_contact = Contact.objects.create(
+            name="Synced Recipient",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
         with mock.patch(
             "wms.views_portal_orders.build_product_selection_data",
             return_value=(self.product_options, self.product_by_id, self.available_by_id),
@@ -465,16 +571,24 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
                 return_value=(line_items, {}, {}),
             ):
                 with mock.patch(
-                    "wms.views_portal_orders.create_portal_order",
-                    return_value=fake_order,
-                ) as create_order_mock:
+                    "wms.views_portal_orders.sync_association_recipient_to_contact",
+                    return_value=synced_recipient_contact,
+                ):
                     with mock.patch(
-                        "wms.views_portal_orders.send_portal_order_notifications"
-                    ):
-                        response = self.client.post(
-                            self.order_create_url,
-                            {"recipient_id": str(recipient.id), "notes": "External"},
-                        )
+                        "wms.views_portal_orders.create_portal_order",
+                        return_value=fake_order,
+                    ) as create_order_mock:
+                        with mock.patch(
+                            "wms.views_portal_orders.send_portal_order_notifications"
+                        ):
+                            response = self.client.post(
+                                self.order_create_url,
+                                {
+                                    "destination_id": str(destination.id),
+                                    "recipient_id": str(recipient.id),
+                                    "notes": "External",
+                                },
+                            )
         self.assertEqual(response.status_code, 302)
         self.assertEqual(
             response.url,
@@ -483,7 +597,7 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertEqual(create_order_mock.call_count, 1)
         kwargs = create_order_mock.call_args.kwargs
         self.assertEqual(kwargs["recipient_name"], recipient.name)
-        self.assertIsNone(kwargs["recipient_contact"])
+        self.assertEqual(kwargs["recipient_contact"], synced_recipient_contact)
         self.assertEqual(kwargs["destination_city"], "Lyon")
         self.assertEqual(kwargs["destination_country"], "France")
         self.assertEqual(
@@ -507,7 +621,11 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
                 ):
                     response = self.client.post(
                         self.order_create_url,
-                        {"recipient_id": "self", "notes": ""},
+                        {
+                            "destination_id": str(self.destination.id),
+                            "recipient_id": "self",
+                            "notes": "",
+                        },
                     )
         self.assertEqual(response.status_code, 200)
         self.assertIn("Stock insuffisant", response.context["errors"])
@@ -532,7 +650,11 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
                     ) as notify_mock:
                         response = self.client.post(
                             self.order_create_url,
-                            {"recipient_id": "self", "notes": "OK"},
+                            {
+                                "destination_id": str(self.destination.id),
+                                "recipient_id": "self",
+                                "notes": "OK",
+                            },
                         )
         self.assertEqual(response.status_code, 302)
         self.assertEqual(
@@ -597,6 +719,21 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         document = OrderDocument.objects.get(order=order)
         self.assertEqual(document.doc_type, OrderDocumentType.OTHER)
         self.assertEqual(document.status, DocumentReviewStatus.PENDING)
+
+    def test_portal_order_detail_uploads_documents_by_type_rows(self):
+        order = self._order(review_status=OrderReviewStatus.APPROVED)
+        uploaded = SimpleUploadedFile("invoice.pdf", b"pdf-content")
+        response = self.client.post(
+            reverse("portal:portal_order_detail", kwargs={"order_id": order.id}),
+            {
+                "action": "upload_docs",
+                "doc_file_invoice": uploaded,
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(order.documents.count(), 1)
+        document = OrderDocument.objects.get(order=order)
+        self.assertEqual(document.doc_type, OrderDocumentType.INVOICE)
 
 
 class PortalAccountViewsTests(PortalBaseTestCase):
@@ -704,6 +841,86 @@ class PortalAccountViewsTests(PortalBaseTestCase):
             synced_contact.id,
             set(form.fields["recipient_contact"].queryset.values_list("id", flat=True)),
         )
+
+    def test_portal_recipients_get_with_edit_prefills_form(self):
+        recipient = AssociationRecipient.objects.create(
+            association_contact=self.profile.contact,
+            destination=self.destination,
+            name="Structure Edit",
+            structure_name="Structure Edit",
+            contact_title="mr",
+            contact_last_name="Durand",
+            contact_first_name="Marc",
+            address_line1="10 Rue Edit",
+            city="Paris",
+            country="France",
+            is_active=True,
+        )
+        response = self.client.get(f"{self.recipients_url}?edit={recipient.id}")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["editing_recipient"], recipient)
+        self.assertEqual(response.context["form_data"]["structure_name"], "Structure Edit")
+        self.assertEqual(response.context["form_data"]["contact_last_name"], "Durand")
+
+    def test_portal_recipients_post_updates_recipient(self):
+        recipient = AssociationRecipient.objects.create(
+            association_contact=self.profile.contact,
+            destination=self.destination,
+            name="Structure Before",
+            structure_name="Structure Before",
+            contact_title="mr",
+            contact_last_name="Durand",
+            contact_first_name="Marc",
+            address_line1="10 Rue Before",
+            city="Paris",
+            country="France",
+            is_active=True,
+        )
+        response = self.client.post(
+            self.recipients_url,
+            {
+                "action": "update_recipient",
+                "recipient_id": str(recipient.id),
+                "destination_id": str(self.destination.id),
+                "structure_name": "Structure After",
+                "contact_title": "gen",
+                "contact_last_name": "Martin",
+                "contact_first_name": "Claire",
+                "emails": "after@example.com",
+                "phones": "+33123456789",
+                "address_line1": "20 Rue After",
+                "address_line2": "",
+                "postal_code": "75003",
+                "city": "Paris",
+                "country": "France",
+                "notes": "",
+                "notify_deliveries": "1",
+                "is_delivery_contact": "1",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self.recipients_url)
+        recipient.refresh_from_db()
+        self.assertEqual(recipient.structure_name, "Structure After")
+        self.assertEqual(recipient.contact_title, "gen")
+        self.assertEqual(recipient.contact_last_name, "Martin")
+        self.assertEqual(recipient.email, "after@example.com")
+        self.assertEqual(recipient.phone, "+33123456789")
+        self.assertTrue(recipient.notify_deliveries)
+        self.assertTrue(recipient.is_delivery_contact)
+        self.assertEqual(
+            Contact.objects.filter(
+                notes__startswith=f"[Portail association][recipient_id={recipient.id}]"
+            ).count(),
+            1,
+        )
+
+    def test_portal_recipients_get_exposes_extended_contact_titles(self):
+        response = self.client.get(self.recipients_url)
+        self.assertEqual(response.status_code, 200)
+        choices = dict(response.context["contact_title_choices"])
+        self.assertEqual(choices["pere"], "Père")
+        self.assertEqual(choices["gen"], "Général")
 
     def test_portal_recipients_get_shows_blocking_popup_message(self):
         response = self.client.get(

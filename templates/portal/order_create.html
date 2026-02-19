@@ -5,7 +5,7 @@
 {% block content %}
   <div class="scan-card portal-card">
     <h2>Nouvelle commande</h2>
-    <p class="scan-help">S&eacute;lectionnez un destinataire puis indiquez les quantit&eacute;s.</p>
+    <p class="scan-help">S&eacute;lectionnez une destination, puis un destinataire, puis indiquez les quantit&eacute;s.</p>
   </div>
 
   <div class="scan-card portal-card">
@@ -20,14 +20,30 @@
     <form method="post" novalidate>
       {% csrf_token %}
       <div class="scan-field">
+        <label for="destination_id">Destination</label>
+        <select id="destination_id" name="destination_id" required>
+          <option value="">---------</option>
+          {% for option in destination_options %}
+            <option value="{{ option.id }}" {% if option.id|stringformat:"s" == form_data.destination_id %}selected{% endif %}>
+              {{ option.label }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="scan-field">
         <label for="recipient_id">Destinataire</label>
         <select id="recipient_id" name="recipient_id" required>
+          <option value="">---------</option>
           {% for option in recipient_options %}
             <option value="{{ option.id }}" {% if option.id|stringformat:"s" == form_data.recipient_id %}selected{% endif %}>
               {{ option.label }}
             </option>
           {% endfor %}
         </select>
+        <p class="scan-help">
+          Le destinataire est filtr&eacute; selon la destination choisie.
+        </p>
         <p class="scan-help">
           Besoin d'un nouveau destinataire ?
           <a href="{% url 'portal:portal_recipients' %}">Ajouter</a>
@@ -41,56 +57,64 @@
 
       <div class="scan-field">
         <label>Produits</label>
-        <table class="portal-table">
-          <thead>
-            <tr>
-              <th>Produit</th>
-              <th>Stock</th>
-              <th>Quantit&eacute;</th>
-              <th>Cartons estimes</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for product in products %}
-              <tr data-product-id="{{ product.id }}">
-                <td>{{ product.name }}</td>
-                <td>{{ product.available_stock }}</td>
-                <td>
-                  <input
-                    type="number"
-                    name="product_{{ product.id }}_qty"
-                    min="0"
-                    value="{{ product.quantity }}"
-                    {% if product.available_stock == 0 %}disabled{% endif %}
-                  >
-                  {% if line_errors %}
-                    {% for pid, error in line_errors.items %}
-                      {% if pid == product.id|stringformat:"s" %}
-                        <div class="scan-message error">{{ error }}</div>
+        <div class="portal-products-panel">
+          <div class="scan-table-wrap portal-products-table-wrap">
+            <table class="scan-table portal-table" data-table-tools="1">
+              <thead>
+                <tr>
+                  <th>Produit</th>
+                  <th>Stock</th>
+                  <th>Quantit&eacute;</th>
+                  <th>Cartons estim&eacute;s</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for product in products %}
+                  <tr data-product-id="{{ product.id }}">
+                    <td>{{ product.name }}</td>
+                    <td>{{ product.available_stock }}</td>
+                    <td>
+                      <input
+                        type="number"
+                        name="product_{{ product.id }}_qty"
+                        min="0"
+                        value="{{ product.quantity }}"
+                        {% if product.available_stock == 0 %}disabled{% endif %}
+                      >
+                      {% if line_errors %}
+                        {% for pid, error in line_errors.items %}
+                          {% if pid == product.id|stringformat:"s" %}
+                            <div class="scan-message error">{{ error }}</div>
+                          {% endif %}
+                        {% endfor %}
                       {% endif %}
-                    {% endfor %}
-                  {% endif %}
-                </td>
-                <td class="carton-estimate">
-                  {% if product.estimate %}
-                    {{ product.estimate }}
-                  {% else %}
-                    -
-                  {% endif %}
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-        <p class="scan-help">
-          Total estime: <span id="carton-estimate-total">{% if total_estimated_cartons %}{{ total_estimated_cartons }}{% else %}-{% endif %}</span> carton(s).
-        </p>
+                    </td>
+                    <td class="carton-estimate">
+                      {% if product.estimate %}
+                        {{ product.estimate }}
+                      {% else %}
+                        -
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="portal-products-actions">
+            <p class="scan-help">
+              Total estim&eacute;:
+              <span id="carton-estimate-total">{% if total_estimated_cartons %}{{ total_estimated_cartons }}{% else %}-{% endif %}</span>
+              carton(s).
+            </p>
+            <button type="submit" class="scan-submit">Envoyer la commande</button>
+          </div>
+        </div>
       </div>
-
-      <button type="submit" class="scan-submit">Envoyer la commande</button>
     </form>
   </div>
 
+  {{ recipient_options_all|json_script:"portal-recipient-options-data" }}
   {{ product_data|json_script:"portal-product-data" }}
   {% if carton_format %}
     {{ carton_format|json_script:"portal-carton-data" }}
@@ -98,6 +122,75 @@
 
   <script>
     (function() {
+      const destinationSelect = document.getElementById('destination_id');
+      const recipientSelect = document.getElementById('recipient_id');
+      const recipientOptionsEl = document.getElementById('portal-recipient-options-data');
+      let recipientOptions = [];
+      try {
+        recipientOptions = JSON.parse(recipientOptionsEl ? recipientOptionsEl.textContent || '[]' : '[]');
+      } catch (err) {
+        recipientOptions = [];
+      }
+
+      const normalizeId = value => (value || value === 0 ? String(value).trim() : '');
+      const sortByLabel = options =>
+        [...options].sort((left, right) =>
+          String(left.label || '').localeCompare(String(right.label || ''), 'fr', {
+            sensitivity: 'base'
+          })
+        );
+      const renderRecipientOptions = () => {
+        if (!destinationSelect || !recipientSelect) {
+          return;
+        }
+        const selectedDestinationId = normalizeId(destinationSelect.value);
+        const selectedRecipientId = normalizeId(recipientSelect.value);
+        const filteredOptions = sortByLabel(
+          recipientOptions.filter(option => {
+            const optionId = normalizeId(option.id);
+            if (!optionId) {
+              return false;
+            }
+            if (!selectedDestinationId) {
+              return optionId === 'self';
+            }
+            const optionDestinationId = normalizeId(option.destination_id);
+            return (
+              optionId === 'self' ||
+              !optionDestinationId ||
+              optionDestinationId === selectedDestinationId
+            );
+          })
+        );
+
+        recipientSelect.innerHTML = '';
+        const empty = document.createElement('option');
+        empty.value = '';
+        empty.textContent = '---------';
+        recipientSelect.appendChild(empty);
+
+        filteredOptions.forEach(option => {
+          const optionEl = document.createElement('option');
+          optionEl.value = String(option.id);
+          optionEl.textContent = option.label;
+          recipientSelect.appendChild(optionEl);
+        });
+
+        recipientSelect.disabled = !selectedDestinationId;
+        if (
+          selectedRecipientId &&
+          filteredOptions.some(option => normalizeId(option.id) === selectedRecipientId)
+        ) {
+          recipientSelect.value = selectedRecipientId;
+        } else {
+          recipientSelect.value = '';
+        }
+      };
+      if (destinationSelect && recipientSelect) {
+        destinationSelect.addEventListener('change', renderRecipientOptions);
+        renderRecipientOptions();
+      }
+
       const cartonDataEl = document.getElementById('portal-carton-data');
       const carton = cartonDataEl ? JSON.parse(cartonDataEl.textContent || 'null') : null;
       const productDataEl = document.getElementById('portal-product-data');

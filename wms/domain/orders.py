@@ -1,5 +1,9 @@
 from django.db import connection, transaction
 
+from contacts.models import Contact
+from contacts.querysets import contacts_with_tags
+
+from ..contact_filters import TAG_CORRESPONDENT, TAG_RECIPIENT, TAG_SHIPPER
 from .stock import (
     StockConsumeResult,
     StockError,
@@ -13,6 +17,7 @@ from ..models import (
     CartonFormat,
     CartonItem,
     CartonStatus,
+    Destination,
     MovementType,
     Order,
     OrderLine,
@@ -23,6 +28,7 @@ from ..models import (
     StockMovement,
 )
 from ..scan_helpers import build_packing_bins
+from ..shipment_helpers import build_destination_label
 from ..shipment_status import sync_shipment_ready_state
 
 
@@ -34,18 +40,193 @@ LOCKED_SHIPMENT_STATUSES = {
 }
 
 
+def _normalized_text(value):
+    return (value or "").strip()
+
+
+def _active_contact(contact):
+    if contact and contact.is_active:
+        return contact
+    return None
+
+
+def _resolve_tagged_contact_by_name(*, tag_aliases, name):
+    normalized_name = _normalized_text(name)
+    if not normalized_name:
+        return None
+    return contacts_with_tags(tag_aliases).filter(name__iexact=normalized_name).first()
+
+
+def _resolve_contact_by_name(name):
+    normalized_name = _normalized_text(name)
+    if not normalized_name:
+        return None
+    return Contact.objects.filter(is_active=True, name__iexact=normalized_name).first()
+
+
+def _resolve_shipper_contact_for_order(order: Order):
+    return (
+        _active_contact(order.shipper_contact)
+        or _active_contact(order.association_contact)
+        or _resolve_tagged_contact_by_name(
+            tag_aliases=TAG_SHIPPER,
+            name=order.shipper_name,
+        )
+        or _resolve_contact_by_name(order.shipper_name)
+    )
+
+
+def _resolve_recipient_contact_for_order(order: Order):
+    return (
+        _active_contact(order.recipient_contact)
+        or _resolve_tagged_contact_by_name(
+            tag_aliases=TAG_RECIPIENT,
+            name=order.recipient_name,
+        )
+        or _resolve_contact_by_name(order.recipient_name)
+    )
+
+
+def _resolve_destination_for_order(
+    order: Order,
+    *,
+    shipper_contact: Contact | None,
+    recipient_contact: Contact | None,
+):
+    city = _normalized_text(order.destination_city)
+    country = _normalized_text(order.destination_country)
+
+    if city:
+        destination_query = Destination.objects.filter(
+            is_active=True,
+            city__iexact=city,
+        )
+        if country:
+            destination_query = destination_query.filter(country__iexact=country)
+        destination = destination_query.order_by("id").first()
+        if destination:
+            return destination
+
+    for contact in (
+        recipient_contact,
+        shipper_contact,
+        _active_contact(order.recipient_contact),
+        _active_contact(order.shipper_contact),
+        _active_contact(order.association_contact),
+    ):
+        if not contact:
+            continue
+        if contact.destination_id:
+            return contact.destination
+        scoped_destinations = contact.destinations.all().order_by("id")
+        if city:
+            scoped_match = scoped_destinations.filter(city__iexact=city)
+            if country:
+                scoped_match = scoped_match.filter(country__iexact=country)
+            scoped_destination = scoped_match.first()
+            if scoped_destination:
+                return scoped_destination
+        if scoped_destinations.count() == 1:
+            return scoped_destinations.first()
+
+    if city:
+        fallback_query = Destination.objects.filter(
+            is_active=True,
+            city__iexact=city,
+        )
+        if country:
+            fallback_query = fallback_query.filter(country__iexact=country)
+        return fallback_query.order_by("id").first()
+    return None
+
+
+def _resolve_correspondent_contact_for_order(order: Order, *, destination: Destination | None):
+    if _active_contact(order.correspondent_contact):
+        return order.correspondent_contact
+    if destination and destination.correspondent_contact and destination.correspondent_contact.is_active:
+        return destination.correspondent_contact
+    return (
+        _resolve_tagged_contact_by_name(
+            tag_aliases=TAG_CORRESPONDENT,
+            name=order.correspondent_name,
+        )
+        or _resolve_contact_by_name(order.correspondent_name)
+    )
+
+
+def _build_shipment_defaults_from_order(order: Order):
+    shipper_contact = _resolve_shipper_contact_for_order(order)
+    recipient_contact = _resolve_recipient_contact_for_order(order)
+    destination = _resolve_destination_for_order(
+        order,
+        shipper_contact=shipper_contact,
+        recipient_contact=recipient_contact,
+    )
+    correspondent_contact = _resolve_correspondent_contact_for_order(
+        order,
+        destination=destination,
+    )
+
+    destination_address = _normalized_text(order.destination_address)
+    destination_country = _normalized_text(order.destination_country) or "France"
+    if destination:
+        destination_address = build_destination_label(destination)
+        destination_country = _normalized_text(destination.country) or destination_country
+
+    shipper_name = _normalized_text(
+        shipper_contact.name if shipper_contact else order.shipper_name
+    )
+    recipient_name = _normalized_text(
+        recipient_contact.name if recipient_contact else order.recipient_name
+    )
+    correspondent_name = _normalized_text(
+        correspondent_contact.name if correspondent_contact else order.correspondent_name
+    )
+
+    return {
+        "shipper_name": shipper_name,
+        "shipper_contact_ref": shipper_contact,
+        "shipper_contact": shipper_name,
+        "recipient_name": recipient_name,
+        "recipient_contact_ref": recipient_contact,
+        "recipient_contact": recipient_name,
+        "correspondent_name": correspondent_name,
+        "correspondent_contact_ref": correspondent_contact,
+        "destination": destination,
+        "destination_address": destination_address,
+        "destination_country": destination_country,
+        "requested_delivery_date": order.requested_delivery_date,
+        "created_by": order.created_by,
+    }
+
+
+def _sync_existing_shipment_from_order(shipment: Shipment, *, defaults):
+    update_fields = []
+    for field_name, value in defaults.items():
+        if field_name in {"shipper_name", "recipient_name", "correspondent_name"}:
+            if value and not _normalized_text(getattr(shipment, field_name, "")):
+                setattr(shipment, field_name, value)
+                update_fields.append(field_name)
+            continue
+
+        current_value = getattr(shipment, field_name, None)
+        if current_value in {None, ""} and value not in {None, ""}:
+            setattr(shipment, field_name, value)
+            update_fields.append(field_name)
+
+    if update_fields:
+        shipment.save(update_fields=sorted(set(update_fields)))
+
+
 def create_shipment_for_order(*, order: Order):
+    defaults = _build_shipment_defaults_from_order(order)
     if order.shipment_id:
-        return order.shipment
+        shipment = order.shipment
+        _sync_existing_shipment_from_order(shipment, defaults=defaults)
+        return shipment
     shipment = Shipment.objects.create(
         status=ShipmentStatus.DRAFT,
-        shipper_name=order.shipper_name,
-        recipient_name=order.recipient_name,
-        correspondent_name=order.correspondent_name,
-        destination_address=order.destination_address,
-        destination_country=order.destination_country or "France",
-        requested_delivery_date=order.requested_delivery_date,
-        created_by=order.created_by,
+        **defaults,
     )
     order.shipment = shipment
     order.save(update_fields=["shipment"])

@@ -7,7 +7,7 @@
     .portal-recipient-grid-3 {
       display: grid;
       gap: 10px 12px;
-      grid-template-columns: 120px 1fr 1fr;
+      grid-template-columns: minmax(180px, 220px) minmax(220px, 1fr) minmax(220px, 1fr);
     }
     .portal-recipient-grid-3-equal {
       display: grid;
@@ -27,6 +27,18 @@
     }
     .portal-recipient-flags label {
       margin: 0;
+      font-weight: 600;
+    }
+    .portal-recipient-actions {
+      white-space: nowrap;
+    }
+    .portal-recipient-actions a {
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .portal-recipient-cancel {
+      margin-left: 10px;
       font-weight: 600;
     }
     @media (max-width: 900px) {
@@ -56,6 +68,7 @@
             <th>Adresse</th>
             <th>Coordonnées</th>
             <th>Options</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -80,6 +93,9 @@
                   <br>Contact réception escale
                 {% endif %}
               </td>
+              <td class="portal-recipient-actions">
+                <a href="{% url 'portal:portal_recipients' %}?edit={{ recipient.id }}">Modifier</a>
+              </td>
             </tr>
           {% endfor %}
         </tbody>
@@ -90,7 +106,7 @@
   </div>
 
   <div class="scan-card portal-card">
-    <h3>Ajouter un destinataire</h3>
+    <h3>{% if editing_recipient %}Modifier un destinataire{% else %}Ajouter un destinataire{% endif %}</h3>
     {% if errors %}
       <div class="scan-message error">
         {% for error in errors %}
@@ -100,7 +116,10 @@
     {% endif %}
     <form method="post" novalidate>
       {% csrf_token %}
-      <input type="hidden" name="action" value="create_recipient">
+      <input type="hidden" name="action" value="{% if editing_recipient %}update_recipient{% else %}create_recipient{% endif %}">
+      {% if editing_recipient %}
+        <input type="hidden" name="recipient_id" value="{{ editing_recipient.id }}">
+      {% endif %}
 
       <div class="scan-field">
         <label for="destination_id">Escale de livraison</label>
@@ -119,7 +138,7 @@
       </div>
       <div class="portal-recipient-grid-3">
         <div class="scan-field">
-          <label for="contact_title">Titre (M. Mme...) du contact</label>
+          <label for="contact_title">Titre du contact</label>
           <select id="contact_title" name="contact_title">
             <option value="">---------</option>
             {% for value, label in contact_title_choices %}
@@ -183,7 +202,10 @@
           </label>
         </div>
       </div>
-      <button type="submit" class="scan-submit">Ajouter</button>
+      <button type="submit" class="scan-submit">{% if editing_recipient %}Enregistrer{% else %}Ajouter{% endif %}</button>
+      {% if editing_recipient %}
+        <a href="{% url 'portal:portal_recipients' %}" class="portal-recipient-cancel">Annuler</a>
+      {% endif %}
     </form>
   </div>
 

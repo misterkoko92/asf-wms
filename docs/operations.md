@@ -2,6 +2,27 @@
 
 This runbook is for day-to-day operations, releases, and incident handling.
 
+## 0) Quality gate (mandatory)
+
+Before any production deployment, run the full gate:
+
+```bash
+python manage.py check
+python manage.py check --deploy --fail-level WARNING
+python manage.py makemigrations --check --dry-run
+python manage.py test
+ruff check .
+bandit -r asf_wms api contacts wms -x "wms/migrations,contacts/migrations,wms/tests,api/tests,contacts/tests"
+```
+
+Reference audit: `docs/audit_2026-02-19.md`.
+
+Current priority from the audit:
+
+- stabilize regression suite (tests must be green before release)
+- avoid shipping with uncommitted migrations/static assets
+- keep production environment variables aligned with `.env.example`
+
 ## 1) Environment baseline
 
 Start from `.env.example` and adapt values for each environment.

@@ -9,6 +9,7 @@ from wms.shipment_form_helpers import (
     build_shipment_edit_line_values,
     build_shipment_form_context,
     build_shipment_form_payload,
+    build_shipment_order_line_values,
 )
 
 
@@ -116,6 +117,27 @@ class ShipmentFormHelpersTests(SimpleTestCase):
         self.assertEqual(initial["carton_count"], 1)
         self.assertEqual(resolve_mock.call_count, 3)
 
+    def test_build_shipment_edit_initial_uses_order_line_count_when_no_cartons(self):
+        shipment = SimpleNamespace(
+            shipper_name="Shipper Name",
+            recipient_name="Recipient Name",
+            correspondent_name="Corr Name",
+            destination=None,
+            destination_id=None,
+        )
+
+        with mock.patch(
+            "wms.shipment_form_helpers.resolve_contact_by_name",
+            side_effect=[None, None, None],
+        ):
+            initial = build_shipment_edit_initial(
+                shipment,
+                assigned_cartons=[],
+                order_line_count=3,
+            )
+
+        self.assertEqual(initial["carton_count"], 3)
+
     def test_build_shipment_edit_line_values_uses_assigned_cartons(self):
         assigned_cartons = [SimpleNamespace(id=1), SimpleNamespace(id=2)]
 
@@ -138,6 +160,40 @@ class ShipmentFormHelpersTests(SimpleTestCase):
 
         self.assertEqual(line_values, [{"carton_id": "", "product_code": "P1", "quantity": "2"}])
         line_values_mock.assert_called_once_with(4)
+
+    def test_build_shipment_edit_line_values_uses_order_line_values_when_available(self):
+        order_line_values = [
+            {"carton_id": "", "product_code": "SKU-1", "quantity": "3"},
+            {"carton_id": "", "product_code": "SKU-2", "quantity": "4"},
+        ]
+
+        line_values = build_shipment_edit_line_values(
+            [],
+            carton_count=2,
+            order_line_values=order_line_values,
+        )
+
+        self.assertEqual(line_values, order_line_values)
+
+    def test_build_shipment_order_line_values_maps_product_sku_and_remaining_quantity(self):
+        line_a = SimpleNamespace(
+            product=SimpleNamespace(sku="SKU-A", name="Product A"),
+            remaining_quantity=5,
+        )
+        line_b = SimpleNamespace(
+            product=SimpleNamespace(sku="", name="Product B"),
+            quantity=2,
+        )
+
+        values = build_shipment_order_line_values([line_a, line_b])
+
+        self.assertEqual(
+            values,
+            [
+                {"carton_id": "", "product_code": "SKU-A", "quantity": "5"},
+                {"carton_id": "", "product_code": "Product B", "quantity": "2"},
+            ],
+        )
 
     def test_build_shipment_form_context_returns_expected_mapping(self):
         context = build_shipment_form_context(

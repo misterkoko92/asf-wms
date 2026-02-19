@@ -37,7 +37,48 @@ def build_carton_selection_data(available_cartons, assigned_carton_options=None)
     return list(cartons_by_id.values()), set(cartons_by_id.keys())
 
 
-def build_shipment_edit_initial(shipment, assigned_cartons):
+def _build_order_line_product_code(order_line):
+    product = getattr(order_line, "product", None)
+    if not product:
+        return ""
+    sku = (getattr(product, "sku", "") or "").strip()
+    if sku:
+        return sku
+    return (getattr(product, "name", "") or "").strip()
+
+
+def build_shipment_order_line_values(order_lines):
+    values = []
+    for order_line in order_lines or []:
+        quantity = (
+            getattr(order_line, "remaining_quantity", None)
+            if hasattr(order_line, "remaining_quantity")
+            else None
+        )
+        if quantity is None:
+            quantity = getattr(order_line, "quantity", 0)
+        try:
+            quantity_value = int(quantity or 0)
+        except (TypeError, ValueError):
+            quantity_value = 0
+        if quantity_value <= 0:
+            continue
+
+        product_code = _build_order_line_product_code(order_line)
+        if not product_code:
+            continue
+
+        values.append(
+            {
+                "carton_id": "",
+                "product_code": product_code,
+                "quantity": str(quantity_value),
+            }
+        )
+    return values
+
+
+def build_shipment_edit_initial(shipment, assigned_cartons, *, order_line_count=0):
     shipper_contact = getattr(shipment, "shipper_contact_ref", None) or resolve_contact_by_name(
         TAG_SHIPPER,
         shipment.shipper_name,
@@ -62,16 +103,18 @@ def build_shipment_edit_initial(shipment, assigned_cartons):
         "correspondent_contact": correspondent_contact.id
         if correspondent_contact
         else None,
-        "carton_count": max(1, len(assigned_cartons)),
+        "carton_count": max(1, len(assigned_cartons), int(order_line_count or 0)),
     }
 
 
-def build_shipment_edit_line_values(assigned_cartons, carton_count):
+def build_shipment_edit_line_values(assigned_cartons, carton_count, *, order_line_values=None):
     if assigned_cartons:
         return [
             {"carton_id": carton.id, "product_code": "", "quantity": ""}
             for carton in assigned_cartons
         ]
+    if order_line_values:
+        return list(order_line_values[:carton_count])
     return build_shipment_line_values(carton_count)
 
 
