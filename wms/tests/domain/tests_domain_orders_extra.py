@@ -4,6 +4,7 @@ from unittest import mock
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
+from contacts.models import Contact, ContactTag, ContactType
 from wms.domain.orders import (
     assign_ready_cartons_to_order,
     consume_reserved_stock,
@@ -19,6 +20,7 @@ from wms.models import (
     CartonItem,
     CartonStatusEvent,
     CartonStatus,
+    Destination,
     Location,
     MovementType,
     Order,
@@ -28,6 +30,8 @@ from wms.models import (
     Product,
     ProductLot,
     ProductLotStatus,
+    Shipment,
+    ShipmentStatus,
     StockMovement,
     Warehouse,
 )
@@ -127,6 +131,122 @@ class DomainOrdersExtraTests(TestCase):
         same_shipment = create_shipment_for_order(order=order)
 
         self.assertEqual(same_shipment.id, shipment.id)
+
+    def test_create_shipment_for_order_sets_contact_refs_and_destination_from_order(self):
+        shipper_tag, _ = ContactTag.objects.get_or_create(name="Expéditeur")
+        recipient_tag, _ = ContactTag.objects.get_or_create(name="Destinataire")
+        correspondent_tag, _ = ContactTag.objects.get_or_create(name="Correspondant")
+
+        shipper = Contact.objects.create(
+            name="Association Shipper",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        shipper.tags.add(shipper_tag)
+
+        recipient = Contact.objects.create(
+            name="Recipient Scope",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        recipient.tags.add(recipient_tag)
+
+        correspondent = Contact.objects.create(
+            name="Correspondent Scope",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        correspondent.tags.add(correspondent_tag)
+
+        destination = Destination.objects.create(
+            city="Brazzaville",
+            iata_code="BZV",
+            country="Rep. du Congo",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+
+        order = Order.objects.create(
+            status=OrderStatus.DRAFT,
+            shipper_name=shipper.name,
+            recipient_name=recipient.name,
+            correspondent_name=correspondent.name,
+            shipper_contact=shipper,
+            recipient_contact=recipient,
+            correspondent_contact=correspondent,
+            destination_address="Legacy Address",
+            destination_city="Brazzaville",
+            destination_country="Rep. du Congo",
+            created_by=self.user,
+        )
+        OrderLine.objects.create(order=order, product=self.product, quantity=1)
+
+        shipment = create_shipment_for_order(order=order)
+
+        self.assertEqual(shipment.shipper_contact_ref_id, shipper.id)
+        self.assertEqual(shipment.recipient_contact_ref_id, recipient.id)
+        self.assertEqual(shipment.correspondent_contact_ref_id, correspondent.id)
+        self.assertEqual(shipment.destination_id, destination.id)
+        self.assertEqual(shipment.destination_address, str(destination))
+        self.assertEqual(shipment.destination_country, destination.country)
+
+    def test_create_shipment_for_order_backfills_existing_shipment_when_missing_refs(self):
+        association = Contact.objects.create(
+            name="Association Scope",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        recipient = Contact.objects.create(
+            name="Recipient Existing",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        correspondent = Contact.objects.create(
+            name="Correspondent Existing",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        destination = Destination.objects.create(
+            city="Abidjan",
+            iata_code="ABJ",
+            country="Côte d'Ivoire",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+
+        existing_shipment = Shipment.objects.create(
+            status=ShipmentStatus.DRAFT,
+            shipper_name="Legacy shipper name",
+            recipient_name=recipient.name,
+            correspondent_name=correspondent.name,
+            destination_address="Legacy address",
+            destination_country="France",
+            created_by=self.user,
+        )
+        order = Order.objects.create(
+            status=OrderStatus.DRAFT,
+            association_contact=association,
+            shipper_name="Order shipper fallback",
+            recipient_name=recipient.name,
+            correspondent_name=correspondent.name,
+            recipient_contact=recipient,
+            correspondent_contact=correspondent,
+            destination_address="Order address",
+            destination_city="Abidjan",
+            destination_country="Côte d'Ivoire",
+            shipment=existing_shipment,
+            created_by=self.user,
+        )
+        OrderLine.objects.create(order=order, product=self.product, quantity=1)
+
+        shipment = create_shipment_for_order(order=order)
+        shipment.refresh_from_db()
+
+        self.assertEqual(shipment.id, existing_shipment.id)
+        self.assertEqual(shipment.shipper_contact_ref_id, association.id)
+        self.assertEqual(shipment.recipient_contact_ref_id, recipient.id)
+        self.assertEqual(shipment.correspondent_contact_ref_id, correspondent.id)
+        self.assertEqual(shipment.destination_id, destination.id)
 
     def test_reserve_stock_skips_already_fully_reserved_line(self):
         order, line = self._create_order(

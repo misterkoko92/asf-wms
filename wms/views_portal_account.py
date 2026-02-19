@@ -28,6 +28,7 @@ TEMPLATE_RECIPIENTS = "portal/recipients.html"
 TEMPLATE_ACCOUNT = "portal/account.html"
 
 ACTION_CREATE_RECIPIENT = "create_recipient"
+ACTION_UPDATE_RECIPIENT = "update_recipient"
 ACTION_UPDATE_NOTIFICATIONS = "update_notifications"
 ACTION_UPDATE_PROFILE = "update_profile"
 ACTION_UPLOAD_ACCOUNT_DOC = "upload_account_doc"
@@ -36,6 +37,7 @@ ACTION_UPLOAD_ACCOUNT_DOCS = "upload_account_docs"
 DEFAULT_COUNTRY = "France"
 MAX_PORTAL_CONTACTS = 10
 MESSAGE_RECIPIENT_ADDED = "Destinataire ajouté."
+MESSAGE_RECIPIENT_UPDATED = "Destinataire modifié."
 MESSAGE_PROFILE_UPDATED = "Compte mis à jour."
 MESSAGE_CONTACTS_UPDATED = "Contacts emails mis à jour."
 MESSAGE_DOCUMENT_ADDED = "Document ajouté."
@@ -49,6 +51,7 @@ ERROR_RECIPIENT_EMAILS_INVALID = "Emails invalides: {values}."
 ERROR_RECIPIENT_NOTIFY_EMAIL_REQUIRED = (
     "Ajoutez au moins un email pour activer l'alerte de livraison."
 )
+ERROR_RECIPIENT_NOT_FOUND = "Destinataire introuvable."
 ERROR_ASSOCIATION_NAME_REQUIRED = "Nom de l'association requis."
 ERROR_ASSOCIATION_ADDRESS_REQUIRED = "Adresse requise."
 ERROR_CONTACT_ROWS_LIMIT = f"Maximum {MAX_PORTAL_CONTACTS} contacts."
@@ -106,6 +109,26 @@ def _extract_recipient_form_data(post_data):
     }
 
 
+def _build_recipient_form_data_from_instance(recipient):
+    return {
+        "destination_id": str(recipient.destination_id or ""),
+        "structure_name": recipient.structure_name or "",
+        "contact_title": recipient.contact_title or "",
+        "contact_last_name": recipient.contact_last_name or "",
+        "contact_first_name": recipient.contact_first_name or "",
+        "phones": recipient.phones or recipient.phone or "",
+        "emails": recipient.emails or recipient.email or "",
+        "address_line1": recipient.address_line1 or "",
+        "address_line2": recipient.address_line2 or "",
+        "postal_code": recipient.postal_code or "",
+        "city": recipient.city or "",
+        "country": recipient.country or DEFAULT_COUNTRY,
+        "notes": recipient.notes or "",
+        "notify_deliveries": bool(recipient.notify_deliveries),
+        "is_delivery_contact": bool(recipient.is_delivery_contact),
+    }
+
+
 def _validate_recipient_form_data(form_data, destinations_by_id):
     errors = []
     valid_titles = {choice for choice, _label in AssociationContactTitle.choices}
@@ -145,7 +168,7 @@ def _validate_recipient_form_data(form_data, destinations_by_id):
     return errors
 
 
-def _create_recipient(profile, form_data):
+def _build_recipient_payload(form_data):
     contact_display = " ".join(
         part
         for part in [
@@ -158,28 +181,57 @@ def _create_recipient(profile, form_data):
     legacy_name = form_data["structure_name"] or contact_display
     primary_email = form_data["email_values"][0] if form_data["email_values"] else ""
     primary_phone = form_data["phone_values"][0] if form_data["phone_values"] else ""
+    return {
+        "destination": form_data.get("destination"),
+        "name": legacy_name,
+        "structure_name": form_data["structure_name"],
+        "contact_title": form_data["contact_title"],
+        "contact_last_name": form_data["contact_last_name"],
+        "contact_first_name": form_data["contact_first_name"],
+        "phones": "; ".join(form_data["phone_values"]),
+        "emails": "; ".join(form_data["email_values"]),
+        "email": primary_email,
+        "phone": primary_phone,
+        "address_line1": form_data["address_line1"],
+        "address_line2": form_data["address_line2"],
+        "postal_code": form_data["postal_code"],
+        "city": form_data["city"],
+        "country": form_data["country"] or DEFAULT_COUNTRY,
+        "notes": form_data["notes"],
+        "notify_deliveries": form_data["notify_deliveries"],
+        "is_delivery_contact": form_data["is_delivery_contact"],
+    }
+
+
+def _create_recipient(profile, form_data):
+    payload = _build_recipient_payload(form_data)
     recipient = AssociationRecipient.objects.create(
         association_contact=profile.contact,
-        destination=form_data.get("destination"),
-        name=legacy_name,
-        structure_name=form_data["structure_name"],
-        contact_title=form_data["contact_title"],
-        contact_last_name=form_data["contact_last_name"],
-        contact_first_name=form_data["contact_first_name"],
-        phones="; ".join(form_data["phone_values"]),
-        emails="; ".join(form_data["email_values"]),
-        email=primary_email,
-        phone=primary_phone,
-        address_line1=form_data["address_line1"],
-        address_line2=form_data["address_line2"],
-        postal_code=form_data["postal_code"],
-        city=form_data["city"],
-        country=form_data["country"] or DEFAULT_COUNTRY,
-        notes=form_data["notes"],
-        notify_deliveries=form_data["notify_deliveries"],
-        is_delivery_contact=form_data["is_delivery_contact"],
+        **payload,
     )
     sync_association_recipient_to_contact(recipient)
+    return recipient
+
+
+def _update_recipient(recipient, form_data):
+    payload = _build_recipient_payload(form_data)
+    for field_name, value in payload.items():
+        setattr(recipient, field_name, value)
+    recipient.save(update_fields=list(payload.keys()))
+    sync_association_recipient_to_contact(recipient)
+    return recipient
+
+
+def _get_recipient_for_profile(profile, recipient_id):
+    return (
+        AssociationRecipient.objects.filter(
+            association_contact=profile.contact,
+            is_active=True,
+            pk=recipient_id,
+        )
+        .select_related("destination")
+        .first()
+    )
 
 
 def _get_active_recipients(profile):
@@ -497,6 +549,7 @@ def portal_recipients(request):
     profile = request.association_profile
     errors = []
     form_data = _build_default_recipient_form_data()
+    editing_recipient = None
     destinations = list(Destination.objects.filter(is_active=True).order_by("city"))
     destinations_by_id = {destination.id: destination for destination in destinations}
     blocked_reason = (request.GET.get(BLOCKED_REASON_PARAM) or "").strip()
@@ -504,13 +557,33 @@ def portal_recipients(request):
     if blocked_reason == BLOCKED_REASON_MISSING_DELIVERY_CONTACT:
         blocked_popup_message = BLOCKED_MESSAGE_MISSING_DELIVERY_CONTACT
 
-    if request.method == "POST" and request.POST.get("action") == ACTION_CREATE_RECIPIENT:
+    if request.method == "POST" and request.POST.get("action") in {
+        ACTION_CREATE_RECIPIENT,
+        ACTION_UPDATE_RECIPIENT,
+    }:
+        action = request.POST.get("action")
         form_data = _extract_recipient_form_data(request.POST)
         errors = _validate_recipient_form_data(form_data, destinations_by_id)
+        if action == ACTION_UPDATE_RECIPIENT:
+            recipient_id = parse_int(request.POST.get("recipient_id"))
+            editing_recipient = _get_recipient_for_profile(profile, recipient_id)
+            if editing_recipient is None:
+                errors.append(ERROR_RECIPIENT_NOT_FOUND)
         if not errors:
-            _create_recipient(profile, form_data)
-            messages.success(request, MESSAGE_RECIPIENT_ADDED)
+            if action == ACTION_UPDATE_RECIPIENT:
+                _update_recipient(editing_recipient, form_data)
+                messages.success(request, MESSAGE_RECIPIENT_UPDATED)
+            else:
+                _create_recipient(profile, form_data)
+                messages.success(request, MESSAGE_RECIPIENT_ADDED)
             return redirect("portal:portal_recipients")
+
+    if request.method == "GET":
+        edit_recipient_id = parse_int(request.GET.get("edit"))
+        if edit_recipient_id is not None:
+            editing_recipient = _get_recipient_for_profile(profile, edit_recipient_id)
+            if editing_recipient is not None:
+                form_data = _build_recipient_form_data_from_instance(editing_recipient)
 
     recipients = _get_active_recipients(profile)
     return render(
@@ -520,6 +593,7 @@ def portal_recipients(request):
             "recipients": recipients,
             "errors": errors,
             "form_data": form_data,
+            "editing_recipient": editing_recipient,
             "destinations": destinations,
             "contact_title_choices": list(AssociationContactTitle.choices),
             "blocked_popup_message": blocked_popup_message,

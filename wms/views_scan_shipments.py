@@ -41,6 +41,7 @@ from .shipment_form_helpers import (
     build_shipment_edit_line_values,
     build_shipment_form_context,
     build_shipment_form_payload,
+    build_shipment_order_line_values,
 )
 from .shipment_tracking_handlers import (
     allowed_tracking_statuses_for_shipment,
@@ -565,8 +566,23 @@ def scan_shipment_edit(request, shipment_id):
     ).order_by("code")
     assigned_cartons = list(assigned_cartons_qs)
     assigned_carton_options = build_carton_options(assigned_cartons)
+    order_line_values = []
+    if not assigned_cartons:
+        related_order = None
+        try:
+            related_order = shipment.order
+        except Shipment.order.RelatedObjectDoesNotExist:
+            related_order = None
+        if related_order is not None:
+            order_line_values = build_shipment_order_line_values(
+                related_order.lines.select_related("product").order_by("product__name")
+            )
 
-    initial = build_shipment_edit_initial(shipment, assigned_cartons)
+    initial = build_shipment_edit_initial(
+        shipment,
+        assigned_cartons,
+        order_line_count=len(order_line_values),
+    )
     destination_id = request.POST.get("destination") or initial["destination"]
     form = ScanShipmentForm(
         request.POST or None, destination_id=destination_id, initial=initial
@@ -588,7 +604,11 @@ def scan_shipment_edit(request, shipment_id):
             return response
     else:
         carton_count = initial["carton_count"]
-        line_values = build_shipment_edit_line_values(assigned_cartons, carton_count)
+        line_values = build_shipment_edit_line_values(
+            assigned_cartons,
+            carton_count,
+            order_line_values=order_line_values,
+        )
 
     documents = Document.objects.filter(
         shipment=shipment, doc_type=DocumentType.ADDITIONAL

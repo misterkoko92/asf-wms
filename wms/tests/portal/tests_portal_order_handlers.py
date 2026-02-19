@@ -9,7 +9,9 @@ from wms.portal_order_handlers import create_portal_order
 
 class PortalOrderHandlersTests(SimpleTestCase):
     def test_create_portal_order_creates_order_lines_and_triggers_services(self):
-        profile = SimpleNamespace(contact="association-contact")
+        profile = SimpleNamespace(
+            contact=SimpleNamespace(name="Association Contact"),
+        )
         user = SimpleNamespace(id=1)
         product_a = SimpleNamespace(id=11)
         product_b = SimpleNamespace(id=12)
@@ -41,8 +43,9 @@ class PortalOrderHandlersTests(SimpleTestCase):
         create_mock.assert_called_once_with(
             reference="",
             status=mock.ANY,
-            association_contact="association-contact",
-            shipper_name="Aviation Sans Frontieres",
+            association_contact=profile.contact,
+            shipper_name="Association Contact",
+            shipper_contact=profile.contact,
             recipient_name="Recipient",
             recipient_contact="recipient-contact",
             destination_address="1 Rue Test",
@@ -56,7 +59,9 @@ class PortalOrderHandlersTests(SimpleTestCase):
         reserve_mock.assert_called_once_with(order=order)
 
     def test_create_portal_order_keeps_explicit_destination_country(self):
-        profile = SimpleNamespace(contact="association-contact")
+        profile = SimpleNamespace(
+            contact=SimpleNamespace(name="Association Contact"),
+        )
         user = SimpleNamespace(id=1)
         order = SimpleNamespace(lines=SimpleNamespace(create=mock.Mock()))
 

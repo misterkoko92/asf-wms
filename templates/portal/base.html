@@ -35,6 +35,22 @@
     .portal-table th, .portal-table td { padding: 7px 9px; border-bottom: 1px solid #ddd; text-align: left; }
     .portal-table th { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.04em; }
     .portal-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #eee; font-size: 0.8rem; }
+    .portal-products-panel { display: grid; gap: 10px; }
+    .portal-products-table-wrap { max-height: 420px; overflow: auto; }
+    .portal-products-table-wrap .scan-table { min-width: 680px; }
+    .portal-products-table-wrap .scan-table thead tr:first-child th { position: sticky; top: 0; z-index: 2; }
+    .portal-products-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .portal-products-actions .scan-help { margin: 0; }
+    @media (max-width: 900px) {
+      .portal-products-table-wrap { max-height: 52vh; }
+      .portal-products-actions .scan-submit { width: 100%; }
+    }
   </style>
 </head>
 <body>
@@ -120,5 +136,6 @@
       });
     })();
   </script>
+  <script defer src="{% static 'portal/portal_tables.js' %}"></script>
 </body>
 </html>

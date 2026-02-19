@@ -78,6 +78,7 @@ class OrderViewHandlersTests(TestCase):
         self.assertEqual(response.status_code, 302)
         order.refresh_from_db()
         self.assertEqual(order.review_status, OrderReviewStatus.APPROVED)
+        self.assertIsNotNone(order.reviewed_at)
         success_mock.assert_called_once_with(request, "Statut de validation mis à jour.")
 
     def test_handle_orders_view_action_rejects_shipment_creation_when_not_approved(self):
@@ -121,13 +122,16 @@ class OrderViewHandlersTests(TestCase):
             "/scan/orders-view/",
             {"action": "create_shipment", "order_id": str(order.id)},
         )
-        with mock.patch("wms.order_view_handlers.create_shipment_for_order") as create_mock:
+        with mock.patch(
+            "wms.order_view_handlers.create_shipment_for_order",
+            return_value=shipment,
+        ) as create_mock:
             with mock.patch(
                 "wms.order_view_handlers.attach_order_documents_to_shipment"
             ) as attach_mock:
                 response = handle_orders_view_action(request, orders_qs=Order.objects.all())
         self.assertEqual(response.status_code, 302)
-        create_mock.assert_not_called()
+        create_mock.assert_called_once_with(order=order)
         attach_mock.assert_called_once_with(order, shipment)
         self.assertEqual(response.url, f"/scan/shipment/{shipment.id}/edit/")
 

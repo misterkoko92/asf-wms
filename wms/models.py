@@ -785,6 +785,7 @@ class Order(models.Model):
     shipment = models.OneToOneField(
         Shipment, on_delete=models.SET_NULL, null=True, blank=True, related_name="order"
     )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True
@@ -941,6 +942,30 @@ class AssociationContactTitle(models.TextChoices):
     MS = "ms", "Mlle"
     DR = "dr", "Dr"
     PR = "pr", "Pr"
+    PERE = "pere", "Père"
+    SOEUR = "soeur", "Sœur"
+    FRERE = "frere", "Frère"
+    ABBE = "abbe", "Abbé"
+    IMAM = "imam", "Imam"
+    RABBIN = "rabbin", "Rabbin"
+    PASTEUR = "pasteur", "Pasteur"
+    EVEQUE = "eveque", "Évêque"
+    MONSEIGNEUR = "mons", "Monseigneur"
+    PRESIDENT = "president", "Président"
+    MINISTRE = "ministre", "Ministre"
+    AMBASSADEUR = "ambassad", "Ambassadeur"
+    MAIRE = "maire", "Maire"
+    PREFET = "prefet", "Préfet"
+    GOUVERNEUR = "gouvern", "Gouverneur"
+    DEPUTE = "depute", "Député"
+    SENATEUR = "senateur", "Sénateur"
+    GENERAL = "gen", "Général"
+    COLONEL = "colonel", "Colonel"
+    COMMANDANT = "cmdt", "Commandant"
+    CAPITAINE = "cpt", "Capitaine"
+    LIEUTENANT = "lt", "Lieutenant"
+    ADJUDANT = "adj", "Adjudant"
+    SERGENT = "sgt", "Sergent"
 
 
 class AssociationPortalContact(models.Model):
