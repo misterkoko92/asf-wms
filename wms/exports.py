@@ -6,9 +6,11 @@ from django.http import HttpResponse
 from django.db.models import F, IntegerField, Sum
 from django.db.models.expressions import ExpressionWrapper
 
+from contacts.destination_scope import contact_destination_ids
 from contacts.models import Contact
 
 from .models import (
+    Destination,
     Location,
     Product,
     ProductCategory,
@@ -214,22 +216,30 @@ def export_contacts_csv():
         "notes",
     ]
     rows = []
-    contacts = Contact.objects.select_related("organization").prefetch_related(
-        "tags",
-        "addresses",
-        "destinations",
-        "linked_shippers",
+    contacts = list(
+        Contact.objects.select_related("organization").prefetch_related(
+            "tags",
+            "addresses",
+            "destinations",
+            "linked_shippers",
+        )
     )
+    destination_ids = set()
+    for contact in contacts:
+        destination_ids.update(contact_destination_ids(contact))
+    destination_labels_by_id = {}
+    if destination_ids:
+        destination_labels_by_id = {
+            destination.id: str(destination)
+            for destination in Destination.objects.filter(pk__in=destination_ids)
+        }
     for contact in contacts:
         tags = "|".join(sorted(tag.name for tag in contact.tags.all()))
-        destinations_relation = getattr(contact, "destinations", None)
-        destination_objects = []
-        if destinations_relation is not None and hasattr(destinations_relation, "all"):
-            destination_objects = list(destinations_relation.all())
-        elif getattr(contact, "destination", None):
-            # Backward-compatible fallback for tests/legacy fixtures without M2M.
-            destination_objects = [contact.destination]
-        destination_labels = sorted(str(destination) for destination in destination_objects)
+        destination_labels = [
+            destination_labels_by_id[destination_id]
+            for destination_id in contact_destination_ids(contact)
+            if destination_id in destination_labels_by_id
+        ]
         destinations = "|".join(destination_labels)
         linked_shippers_relation = getattr(contact, "linked_shippers", None)
         linked_shipper_names = []

@@ -392,7 +392,7 @@
         await zxingReader.decodeFromVideoDevice(null, video, callback);
       }
     } catch (err) {
-      setStatus('Acces camera refuse.');
+      setStatus('Accès caméra refusé.');
       await stopScan();
     }
   }
@@ -419,7 +419,7 @@
           audio: false
         });
       } catch (err) {
-        setStatus('Acces camera refuse.');
+        setStatus('Accès caméra refusé.');
         await stopScan();
         return;
       }
@@ -691,7 +691,7 @@
         audio: false
       });
     } catch (err) {
-      setStatus('Acces camera refuse.');
+      setStatus('Accès caméra refusé.');
       await stopScan();
       return;
     }

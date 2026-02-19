@@ -585,11 +585,11 @@ class ScanOrderSelectForm(forms.Form):
 
 
 class ScanOrderCreateForm(forms.Form):
-    shipper_name = forms.CharField(label="Expediteur")
+    shipper_name = forms.CharField(label="Expéditeur")
     recipient_name = forms.CharField(label="Destinataire")
     correspondent_name = forms.CharField(label="Correspondant", required=False)
     shipper_contact = forms.ModelChoiceField(
-        label="Expediteur (contact)",
+        label="Expéditeur (contact)",
         queryset=Contact.objects.filter(is_active=True).order_by("name"),
         required=False,
     )

@@ -3,7 +3,7 @@ from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from wms.models import (
@@ -677,6 +677,22 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertFalse(response.context_data["can_update_tracking"])
         self.assertIsNone(response.context_data["form"])
         self.assertEqual(response.context_data["tracking_url"], "")
+        self.assertEqual(
+            response["X-ASF-Legacy-Endpoint"],
+            "shipment-track-by-reference; status=deprecated",
+        )
+        self.assertEqual(response["X-ASF-Legacy-Sunset"], "2026-06-30")
+
+    @override_settings(ENABLE_SHIPMENT_TRACK_LEGACY=False)
+    def test_scan_shipment_track_legacy_returns_404_when_feature_disabled(self):
+        shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
+        response = self.client.get(
+            reverse(
+                "scan:scan_shipment_track_legacy",
+                kwargs={"shipment_ref": shipment.reference},
+            )
+        )
+        self.assertEqual(response.status_code, 404)
 
     def test_scan_shipment_track_legacy_returns_404_for_non_staff_user(self):
         shipment = self._create_shipment(status=ShipmentStatus.DRAFT)

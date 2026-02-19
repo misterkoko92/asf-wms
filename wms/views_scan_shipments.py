@@ -1,3 +1,6 @@
+import logging
+
+from django.conf import settings
 from django.contrib import messages
 from django.db.models import Count, Q
 from django.http import Http404
@@ -68,6 +71,8 @@ from .views_scan_shipments_support import (
 )
 from .view_permissions import scan_staff_required
 from .view_utils import sorted_choices
+
+logger = logging.getLogger(__name__)
 
 TEMPLATE_CARTONS_READY = "scan/cartons_ready.html"
 TEMPLATE_SHIPMENTS_READY = "scan/shipments_ready.html"
@@ -570,11 +575,21 @@ def scan_shipment_track(request, tracking_token):
 
 @require_http_methods(["GET"])
 def scan_shipment_track_legacy(request, shipment_ref):
+    if not getattr(settings, "ENABLE_SHIPMENT_TRACK_LEGACY", True):
+        raise Http404
     if not request.user.is_authenticated or not request.user.is_staff:
         raise Http404
     shipment = get_object_or_404(Shipment, reference=shipment_ref)
+    logger.info(
+        "Legacy shipment tracking endpoint used",
+        extra={
+            "shipment_reference": shipment.reference,
+            "user_id": getattr(request.user, "id", None),
+            "path": request.path,
+        },
+    )
     shipment.ensure_qr_code(request=request)
-    return _render_shipment_tracking(
+    response = _render_shipment_tracking(
         request,
         shipment=shipment,
         tracking_url="",
@@ -583,3 +598,6 @@ def scan_shipment_track_legacy(request, shipment_ref):
         back_to_url=_return_to_url(RETURN_TO_SHIPMENTS_TRACKING),
         return_to=RETURN_TO_SHIPMENTS_TRACKING,
     )
+    response["X-ASF-Legacy-Endpoint"] = "shipment-track-by-reference; status=deprecated"
+    response["X-ASF-Legacy-Sunset"] = "2026-06-30"
+    return response

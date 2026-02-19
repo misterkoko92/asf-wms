@@ -99,9 +99,9 @@ class ScanUiTests(StaticLiveServerTestCase):
             page.dispatch_event(".scan-scan-btn", "click")
             page.wait_for_function(
                 "document.getElementById('scan-status').textContent"
-                ".includes('Acces camera refuse.')"
+                ".includes('Accès caméra refusé.')"
             )
             status_text = page.locator("#scan-status").inner_text()
-            self.assertIn("Acces camera refuse.", status_text)
+            self.assertIn("Accès caméra refusé.", status_text)
             context.close()
             browser.close()

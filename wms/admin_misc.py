@@ -65,9 +65,9 @@ class _OrderDocumentStatusMixin:
             reviewed_at=timezone.now(),
             reviewed_by=request.user,
         )
-        self.message_user(request, f"{updated} document(s) approuve(s).")
+        self.message_user(request, f"{updated} document(s) approuvé(s).")
 
-    mark_approved.short_description = "Marquer comme approuve"
+    mark_approved.short_description = "Marquer comme approuvé"
 
     def mark_rejected(self, request, queryset):
         updated = queryset.update(
@@ -75,9 +75,9 @@ class _OrderDocumentStatusMixin:
             reviewed_at=timezone.now(),
             reviewed_by=request.user,
         )
-        self.message_user(request, f"{updated} document(s) refuse(s).")
+        self.message_user(request, f"{updated} document(s) refusé(s).")
 
-    mark_rejected.short_description = "Marquer comme refuse"
+    mark_rejected.short_description = "Marquer comme refusé"
 
 
 @admin.register(models.OrderDocument)

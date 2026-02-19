@@ -719,7 +719,12 @@ class ProductLotAndOtherAdminTests(_AdminTestBase):
         lot.refresh_from_db()
         self.assertEqual(lot.status, models.ProductLotStatus.AVAILABLE)
         self.assertEqual(lot.released_by_id, self.superuser.id)
-        self.assertTrue(any("libere" in str(args) for args, _ in message_user_mock.call_args_list))
+        self.assertTrue(
+            any(
+                ("libere" in str(args).lower()) or ("libéré" in str(args).lower())
+                for args, _ in message_user_mock.call_args_list
+            )
+        )
 
         inline = CartonItemInline(models.CartonItem, self.site)
         self.assertFalse(inline.has_add_permission(request_user))

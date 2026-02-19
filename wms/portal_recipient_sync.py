@@ -10,7 +10,7 @@ from contacts.rules import ensure_default_shipper_for_recipient
 from contacts.tagging import TAG_RECIPIENT, TAG_SHIPPER, normalize_tag_name
 
 RECIPIENT_TAG_DEFAULT_NAME = "Destinataire"
-SHIPPER_TAG_DEFAULT_NAME = "Expediteur"
+SHIPPER_TAG_DEFAULT_NAME = "Expéditeur"
 PORTAL_RECIPIENT_SOURCE_PREFIX = "[Portail association]"
 PORTAL_RECIPIENT_ADDRESS_LABEL = "Portail association"
 

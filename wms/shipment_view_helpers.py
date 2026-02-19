@@ -78,7 +78,7 @@ def _build_carton_document_link(shipment, carton):
 
 def _build_label_link(shipment, *, public=False):
     shipment_identifier = shipment.reference if public else shipment.id
-    return {"label": "Etiquettes colis", "url": reverse(DOC_ROUTE_LABELS, args=[shipment_identifier])}
+    return {"label": "Étiquettes colis", "url": reverse(DOC_ROUTE_LABELS, args=[shipment_identifier])}
 
 
 def _build_label_payload(*, label_context, carton_id, fallback_qr_url):

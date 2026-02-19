@@ -343,7 +343,7 @@ BLOCK_LIBRARY = {
     },
     "table_cartons": {"label": "Table cartons", "fields": []},
     "label_city": {
-        "label": "Etiquette: Ville",
+        "label": "Étiquette: Ville",
         "fields": [
             {"name": "style.border_color", "label": "Couleur bordure", "type": "text"},
             {"name": "style.border_width", "label": "Épaisseur bordure", "type": "text"},
@@ -368,7 +368,7 @@ BLOCK_LIBRARY = {
         },
     },
     "label_iata": {
-        "label": "Etiquette: IATA",
+        "label": "Étiquette: IATA",
         "fields": [
             {"name": "style.color", "label": "Couleur texte", "type": "text"},
             {"name": "style.border_color", "label": "Couleur bordure", "type": "text"},
@@ -395,7 +395,7 @@ BLOCK_LIBRARY = {
         },
     },
     "label_footer": {
-        "label": "Etiquette: Footer",
+        "label": "Étiquette: Footer",
         "fields": [
             {"name": "style.border_color", "label": "Couleur bordure", "type": "text"},
             {"name": "style.border_width", "label": "Épaisseur bordure", "type": "text"},

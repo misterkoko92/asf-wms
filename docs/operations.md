@@ -28,6 +28,7 @@ Current priority from the audit:
 - keep importing models through `wms.models` (facade), model sources live in `wms/models_domain/`
 - scan shipment page helpers are in `wms/views_scan_shipments_support.py` (public view endpoints remain in `wms/views_scan_shipments.py`)
 - part of Django admin registrations is now hosted in `wms/admin_misc.py`
+- legacy shipment tracking by reference can be disabled with `ENABLE_SHIPMENT_TRACK_LEGACY=false`
 
 ## 1) Environment baseline
 
@@ -214,7 +215,7 @@ Monthly:
 - `picking` (Preparation): filling in progress.
 - `packed` (Pret): carton ready to be assigned.
 - `assigned` (Affecte): linked to a shipment.
-- `labeled` (Etiquette): explicit action, carton ready for departure.
+- `labeled` (Étiquette): explicit action, carton ready for departure.
 - `shipped` (Expedie): shipment reached `boarding_ok`.
 
 ### Carton transition rules
@@ -264,11 +265,11 @@ Monthly:
 
 ## 10) Shipment creation contact scoping rules
 
-Rules implemented in the "Creer une expedition" form:
+Rules implemented in the "Créer une expédition" form:
 
 - Destination is mandatory to continue.
 - Shipper list:
-  - contacts tagged `Expediteur`
+  - contacts tagged `Expéditeur`
   - destination match (`contact.destinations` contains selected destination) OR global (`destinations` empty).
 - Recipient list:
   - contacts tagged `Destinataire`

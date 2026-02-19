@@ -304,7 +304,7 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
                 skipped += 1
 
         if approved:
-            self.message_user(request, f"{approved} demande(s) approuvee(s).")
+            self.message_user(request, f"{approved} demande(s) approuvée(s).")
         if skipped:
             self.message_user(
                 request,
@@ -353,7 +353,7 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
             return message
         return format_html_join("<br>", "{}", ((line,) for line in lines))
 
-    account_access_info.short_description = "Acces portail"
+    account_access_info.short_description = "Accès portail"
 
     readonly_fields = ("created_at", "reviewed_at", "account_access_info")
     fieldsets = (
@@ -397,7 +397,7 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
             reviewed_at=timezone.now(),
             reviewed_by=request.user,
         )
-        self.message_user(request, f"{updated} demande(s) refusee(s).")
+        self.message_user(request, f"{updated} demande(s) refusée(s).")
 
     reject_requests.short_description = "Refuser les demandes"
 
@@ -411,9 +411,9 @@ class _DocumentStatusMixin:
             reviewed_at=timezone.now(),
             reviewed_by=request.user,
         )
-        self.message_user(request, f"{updated} document(s) approuve(s).")
+        self.message_user(request, f"{updated} document(s) approuvé(s).")
 
-    mark_approved.short_description = "Marquer comme approuve"
+    mark_approved.short_description = "Marquer comme approuvé"
 
     def mark_rejected(self, request, queryset):
         updated = queryset.update(
@@ -421,9 +421,9 @@ class _DocumentStatusMixin:
             reviewed_at=timezone.now(),
             reviewed_by=request.user,
         )
-        self.message_user(request, f"{updated} document(s) refuse(s).")
+        self.message_user(request, f"{updated} document(s) refusé(s).")
 
-    mark_rejected.short_description = "Marquer comme refuse"
+    mark_rejected.short_description = "Marquer comme refusé"
 
 
 @admin.register(models.AccountDocument)
@@ -645,7 +645,7 @@ class ProductLotAdmin(admin.ModelAdmin):
         if not request.user.is_superuser:
             self.message_user(
                 request,
-                "Seuls les admins peuvent liberer la quarantaine.",
+                "Seuls les admins peuvent libérer la quarantaine.",
                 level=messages.ERROR,
             )
             return
@@ -655,9 +655,9 @@ class ProductLotAdmin(admin.ModelAdmin):
             released_by=request.user,
             released_at=timezone.now(),
         )
-        self.message_user(request, f"{updated} lot(s) libere(s) de quarantaine.")
+        self.message_user(request, f"{updated} lot(s) libéré(s) de quarantaine.")
 
-    release_quarantine.short_description = "Liberer la quarantaine"
+    release_quarantine.short_description = "Libérer la quarantaine"
 
 
 class CartonItemInline(admin.TabularInline):

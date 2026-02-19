@@ -18,7 +18,7 @@ Backlog aligné avec l'audit global du **19/02/2026** (`docs/audit_2026-02-19.md
 
 - [ ] Repasser la suite complète de tests au vert (8 régressions actuelles).
 - [ ] Harmoniser les tests avec les nouvelles règles:
-  - tags pré-seedés (`Destinataire`, `Expediteur`),
+  - tags pré-seedés (`Destinataire`, `Expéditeur`),
   - blocage portail sans destinataire de réception,
   - libellés accentués.
 - [ ] Nettoyer le lot de changements courant (migrations 0048/0049, statiques portail) et sécuriser le process de merge.
@@ -42,8 +42,12 @@ Backlog aligné avec l'audit global du **19/02/2026** (`docs/audit_2026-02-19.md
 - [x] Découper `wms/admin.py` et `wms/views_scan_shipments.py` pour baisser la complexité.
   - extraction des enregistrements admin peu couplés vers `wms/admin_misc.py`
   - extraction des helpers de page expédition vers `wms/views_scan_shipments_support.py`
-- [ ] Encadrer puis retirer progressivement les chemins legacy restants.
-- [ ] Uniformiser libellés FR/accents et conventions métier.
+- [x] Encadrer puis retirer progressivement les chemins legacy restants.
+  - endpoint legacy suivi expédition (`/scan/shipment/track/<reference>/`) encadré par feature-flag `ENABLE_SHIPMENT_TRACK_LEGACY`
+  - headers de dépréciation ajoutés sur la route legacy + journalisation serveur
+  - export contacts aligné sur la source de vérité `contact_destination_ids` (M2M prioritaire)
+- [x] Uniformiser libellés FR/accents et conventions métier.
+  - libellés harmonisés (expéditeur, étiquettes, accès, approuvé/refusé) sur scan/admin
 
 ## 5) Phase 3 - Observabilité et exploitation
 
