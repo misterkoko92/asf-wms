@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from .emailing import enqueue_email_safe, get_admin_emails
-from .models import Shipment, ShipmentStatus, ShipmentTrackingEvent, WmsChange
+from .models import AssociationProfile, Shipment, ShipmentStatus, ShipmentTrackingEvent, WmsChange
 
 
 def _bump_change(**kwargs) -> None:
@@ -107,6 +107,15 @@ def _notify_tracking_event(sender, instance, created, **kwargs) -> None:
     )
 
 
+def _ensure_association_portal_group(sender, instance, **kwargs) -> None:
+    user = getattr(instance, "user", None)
+    if not user or not getattr(user, "pk", None):
+        return
+    from .portal_permissions import assign_association_portal_group
+
+    assign_association_portal_group(user)
+
+
 def register_change_signals() -> None:
     for app_label in ("wms", "contacts"):
         app_config = apps.get_app_config(app_label)
@@ -137,4 +146,9 @@ def register_change_signals() -> None:
         _notify_tracking_event,
         sender=ShipmentTrackingEvent,
         dispatch_uid="wms_shipment_tracking_post_save",
+    )
+    post_save.connect(
+        _ensure_association_portal_group,
+        sender=AssociationProfile,
+        dispatch_uid="wms_association_profile_group_post_save",
     )

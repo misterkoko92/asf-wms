@@ -11,6 +11,7 @@ from contacts.models import Contact, ContactAddress, ContactTag
 
 from . import models
 from .contact_filters import TAG_SHIPPER
+from .portal_permissions import assign_association_portal_group
 
 ACCOUNT_ACCESS_PENDING = "Disponible après validation."
 ACCOUNT_ACCESS_USER_NOT_FOUND = "Utilisateur introuvable."
@@ -180,6 +181,7 @@ def approve_account_request(
             profile.contact = contact
         profile.must_change_password = True
         profile.save(update_fields=["contact", "must_change_password"])
+        assign_association_portal_group(user)
 
         models.AccountDocument.objects.filter(
             account_request=account_request,

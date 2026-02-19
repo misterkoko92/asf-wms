@@ -15,6 +15,7 @@ from wms.models import (
     AccountDocument,
     AccountDocumentType,
     AssociationProfile,
+    AssociationPortalContact,
     AssociationRecipient,
     DocumentReviewStatus,
     Order,
@@ -616,6 +617,84 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["association"], self.profile.contact)
 
+    def test_portal_account_updates_profile_and_contacts(self):
+        response = self.client.post(
+            self.account_url,
+            {
+                "action": "update_profile",
+                "association_name": "Association Renamed",
+                "association_email": "association-renamed@example.com",
+                "association_phone": "0601020304",
+                "address_line1": "10 Rue Update",
+                "address_line2": "Batiment B",
+                "postal_code": "75011",
+                "city": "Paris",
+                "country": "France",
+                "contact_count": "2",
+                "contact_0_title": "mr",
+                "contact_0_last_name": "Durand",
+                "contact_0_first_name": "Marc",
+                "contact_0_phone": "0600000000",
+                "contact_0_email": "admin@example.com",
+                "contact_0_is_administrative": "1",
+                "contact_1_title": "mrs",
+                "contact_1_last_name": "Martin",
+                "contact_1_first_name": "Claire",
+                "contact_1_phone": "0600000001",
+                "contact_1_email": "billing@example.com",
+                "contact_1_is_billing": "1",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self.account_url)
+
+        self.profile.refresh_from_db()
+        self.profile.contact.refresh_from_db()
+        self.assertEqual(self.profile.contact.name, "Association Renamed")
+        self.assertEqual(self.profile.contact.email, "association-renamed@example.com")
+        self.assertEqual(self.profile.contact.phone, "0601020304")
+        self.assertEqual(self.profile.notification_emails, "admin@example.com,billing@example.com")
+
+        address = self.profile.contact.get_effective_address()
+        self.assertIsNotNone(address)
+        self.assertEqual(address.address_line1, "10 Rue Update")
+        self.assertEqual(address.city, "Paris")
+
+        contacts = list(self.profile.portal_contacts.order_by("position"))
+        self.assertEqual(len(contacts), 2)
+        self.assertEqual(contacts[0].email, "admin@example.com")
+        self.assertTrue(contacts[0].is_administrative)
+        self.assertEqual(contacts[1].email, "billing@example.com")
+        self.assertTrue(contacts[1].is_billing)
+
+    def test_portal_account_update_profile_requires_contact_type(self):
+        response = self.client.post(
+            self.account_url,
+            {
+                "action": "update_profile",
+                "association_name": "Association X",
+                "association_email": "x@example.com",
+                "association_phone": "0601020304",
+                "address_line1": "10 Rue Update",
+                "address_line2": "",
+                "postal_code": "75011",
+                "city": "Paris",
+                "country": "France",
+                "contact_count": "1",
+                "contact_0_title": "mr",
+                "contact_0_last_name": "Durand",
+                "contact_0_first_name": "Marc",
+                "contact_0_phone": "0600000000",
+                "contact_0_email": "admin@example.com",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            "Ligne 1: cochez au moins un type.",
+            response.context["account_form_errors"],
+        )
+        self.assertEqual(AssociationPortalContact.objects.count(), 0)
+
     def test_portal_account_updates_notification_emails(self):
         response = self.client.post(
             self.account_url,
@@ -655,6 +734,24 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         document = AccountDocument.objects.get()
         self.assertEqual(document.doc_type, AccountDocumentType.OTHER)
         self.assertEqual(document.status, DocumentReviewStatus.PENDING)
+
+    def test_portal_account_upload_docs_creates_documents_by_type_row(self):
+        response = self.client.post(
+            self.account_url,
+            {
+                "action": "upload_account_docs",
+                "doc_file_statutes": SimpleUploadedFile("statuts.pdf", b"pdf-content"),
+                "doc_file_other": SimpleUploadedFile("other.pdf", b"pdf-content"),
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self.account_url)
+        docs = list(AccountDocument.objects.order_by("doc_type"))
+        self.assertEqual(len(docs), 2)
+        self.assertEqual(
+            {doc.doc_type for doc in docs},
+            {AccountDocumentType.STATUTES, AccountDocumentType.OTHER},
+        )
 
     def test_portal_account_request_delegates_to_handler(self):
         with mock.patch(

@@ -888,6 +888,22 @@ class AssociationProfile(models.Model):
         return f"{self.contact} - {self.user}"
 
     def get_notification_emails(self) -> list[str]:
+        portal_contacts = getattr(self, "portal_contacts", None) if self.pk else None
+        if portal_contacts is not None:
+            emails = []
+            seen = set()
+            for contact in portal_contacts.filter(is_active=True).order_by("position", "id"):
+                value = (contact.email or "").strip()
+                if not value:
+                    continue
+                normalized = value.lower()
+                if normalized in seen:
+                    continue
+                seen.add(normalized)
+                emails.append(value)
+            if emails:
+                return emails
+
         raw = self.notification_emails or ""
         emails = []
         for item in raw.replace("\n", ",").split(","):
@@ -895,6 +911,65 @@ class AssociationProfile(models.Model):
             if value:
                 emails.append(value)
         return emails
+
+
+class AssociationContactTitle(models.TextChoices):
+    MR = "mr", "M."
+    MRS = "mrs", "Mme"
+    MS = "ms", "Mlle"
+    DR = "dr", "Dr"
+    PR = "pr", "Pr"
+
+
+class AssociationPortalContact(models.Model):
+    profile = models.ForeignKey(
+        AssociationProfile,
+        on_delete=models.CASCADE,
+        related_name="portal_contacts",
+    )
+    position = models.PositiveSmallIntegerField(default=0)
+    title = models.CharField(
+        max_length=10,
+        choices=AssociationContactTitle.choices,
+        blank=True,
+    )
+    last_name = models.CharField(max_length=120, blank=True)
+    first_name = models.CharField(max_length=120, blank=True)
+    phone = models.CharField(max_length=40, blank=True)
+    email = models.EmailField(blank=True)
+    is_administrative = models.BooleanField(default=False)
+    is_shipping = models.BooleanField(default=False)
+    is_billing = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["position", "id"]
+        constraints = [
+            models.CheckConstraint(
+                check=(
+                    models.Q(is_administrative=True)
+                    | models.Q(is_shipping=True)
+                    | models.Q(is_billing=True)
+                ),
+                name="wms_assoc_portal_contact_has_type",
+            )
+        ]
+
+    def clean(self):
+        super().clean()
+        if not (self.is_administrative or self.is_shipping or self.is_billing):
+            raise ValidationError(
+                {
+                    "is_administrative": "Sélectionnez au moins un type de contact.",
+                }
+            )
+
+    def __str__(self) -> str:
+        display = " ".join(
+            part for part in [self.get_title_display(), self.first_name, self.last_name] if part
+        ).strip()
+        return display or self.email or f"Contact portail #{self.pk}"
 
 
 class AssociationRecipient(models.Model):

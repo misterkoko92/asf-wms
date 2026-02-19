@@ -4,6 +4,7 @@ from unittest import mock
 from django import forms
 from django.contrib.admin.sites import AdminSite
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import Http404
 from django.test import RequestFactory, TestCase, override_settings
@@ -26,6 +27,7 @@ from wms.admin import (
     ShipmentAdmin,
     StockMovementAdmin,
 )
+from wms.portal_permissions import ASSOCIATION_PORTAL_GROUP_NAME
 from wms.services import StockError
 
 
@@ -489,6 +491,8 @@ class PublicAccountRequestAdminTests(_AdminTestBase):
         profile = models.AssociationProfile.objects.get(user=created_user)
         self.assertEqual(profile.contact_id, created_contact.id)
         self.assertTrue(profile.must_change_password)
+        portal_group = Group.objects.get(name=ASSOCIATION_PORTAL_GROUP_NAME)
+        self.assertTrue(created_user.groups.filter(id=portal_group.id).exists())
         enqueue_mock.assert_called_once()
 
     def test_approve_user_request_creates_staff_user_without_association_profile(self):
