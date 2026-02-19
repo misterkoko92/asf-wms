@@ -211,8 +211,8 @@ class ContactModelsTests(TestCase):
         self.assertEqual(person.addresses.count(), 0)
 
     def test_recipient_tag_add_auto_links_default_shipper(self):
-        shipper_tag = ContactTag.objects.create(name="Expéditeur")
-        recipient_tag = ContactTag.objects.create(name="Destinataire")
+        shipper_tag, _ = ContactTag.objects.get_or_create(name="Expéditeur")
+        recipient_tag, _ = ContactTag.objects.get_or_create(name="Destinataire")
         default_shipper = Contact.objects.create(
             name="AVIATION SANS FRONTIERES",
             contact_type=ContactType.ORGANIZATION,

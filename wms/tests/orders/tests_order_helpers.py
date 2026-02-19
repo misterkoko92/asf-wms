@@ -82,7 +82,7 @@ class OrderHelpersTests(TestCase):
             {
                 "name": "Association Profile",
                 "phone": "0101010101",
-                "email": "profile-address@example.com",
+                "email": "creator@example.com",
             },
         )
 

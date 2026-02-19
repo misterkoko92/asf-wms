@@ -12,6 +12,7 @@ class ImportTagsTests(TestCase):
         self.assertEqual(ProductTag.objects.count(), 2)
 
     def test_build_contact_tags_creates_tags(self):
+        initial_count = ContactTag.objects.count()
         tags = build_contact_tags("gamma,delta")
         self.assertEqual({tag.name for tag in tags}, {"gamma", "delta"})
-        self.assertEqual(ContactTag.objects.count(), 2)
+        self.assertEqual(ContactTag.objects.count(), initial_count + 2)

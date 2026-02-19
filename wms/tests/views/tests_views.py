@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from contacts.models import Contact, ContactAddress, ContactTag, ContactType
 from wms.models import (
+    AssociationRecipient,
     AssociationProfile,
     Carton,
     CartonItem,
@@ -1010,6 +1011,15 @@ class PortalPermissionTests(TestCase):
             user=self.user,
             contact=self.contact,
             must_change_password=False,
+        )
+        AssociationRecipient.objects.create(
+            association_contact=self.contact,
+            name="Destinataire Portail",
+            address_line1="1 Rue Test",
+            city="Paris",
+            country="France",
+            is_active=True,
+            is_delivery_contact=True,
         )
         self.client.force_login(self.user)
         response = self.client.get(reverse("portal:portal_dashboard"))
