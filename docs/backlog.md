@@ -36,7 +36,9 @@ Backlog aligné avec l'audit global du **19/02/2026** (`docs/audit_2026-02-19.md
 
 ## 4) Phase 2 - Nettoyage architecture / legacy
 
-- [ ] Découper `wms/models.py` en modules par agrégat.
+- [x] Découper `wms/models.py` en modules par agrégat.
+  - façade de compatibilité conservée dans `wms/models.py`
+  - modules domaine: `wms/models_domain/catalog.py`, `inventory.py`, `shipment.py`, `portal.py`, `integration.py`
 - [ ] Découper `wms/admin.py` et `wms/views_scan_shipments.py` pour baisser la complexité.
 - [ ] Encadrer puis retirer progressivement les chemins legacy restants.
 - [ ] Uniformiser libellés FR/accents et conventions métier.

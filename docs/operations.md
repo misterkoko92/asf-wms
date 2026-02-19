@@ -25,6 +25,7 @@ Current priority from the audit:
 - run contact destination scope audit before release:
   - `python manage.py audit_contact_destinations`
   - `python manage.py audit_contact_destinations --apply` (if inconsistencies detected)
+- keep importing models through `wms.models` (facade), model sources live in `wms/models_domain/`
 
 ## 1) Environment baseline
 
