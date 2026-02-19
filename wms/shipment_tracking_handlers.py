@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.shortcuts import redirect
+from django.urls import reverse
 from django.utils import timezone
 
 from .carton_status_events import set_carton_status
@@ -34,12 +35,26 @@ READY_CARTON_STATUSES = {
     CartonStatus.LABELED,
     CartonStatus.SHIPPED,
 }
+DEFAULT_RETURN_LIST_VIEW = "scan:scan_shipments_tracking"
+DEFAULT_RETURN_TO_KEY = "shipments_tracking"
 
 
-def _redirect_to_tracking(shipment, *, return_to_list=False):
+def _redirect_to_tracking(
+    shipment,
+    *,
+    return_to_list=False,
+    return_to_view=DEFAULT_RETURN_LIST_VIEW,
+    return_to_key=DEFAULT_RETURN_TO_KEY,
+):
     if return_to_list:
-        return redirect("scan:scan_shipments_tracking")
-    return redirect("scan:scan_shipment_track", tracking_token=shipment.tracking_token)
+        return redirect(return_to_view or DEFAULT_RETURN_LIST_VIEW)
+    tracking_url = reverse(
+        "scan:scan_shipment_track",
+        kwargs={"tracking_token": shipment.tracking_token},
+    )
+    if return_to_key:
+        tracking_url = f"{tracking_url}?return_to={return_to_key}"
+    return redirect(tracking_url)
 
 
 def _latest_tracking_status(shipment):
@@ -102,7 +117,14 @@ def validate_tracking_transition(shipment, status_value):
     return ""
 
 
-def _handle_dispute_action(request, shipment, *, return_to_list=False):
+def _handle_dispute_action(
+    request,
+    shipment,
+    *,
+    return_to_list=False,
+    return_to_view=DEFAULT_RETURN_LIST_VIEW,
+    return_to_key=DEFAULT_RETURN_TO_KEY,
+):
     action = (request.POST.get("action") or "").strip()
     if action == "set_disputed":
         if not shipment.is_disputed:
@@ -110,7 +132,12 @@ def _handle_dispute_action(request, shipment, *, return_to_list=False):
             shipment.disputed_at = timezone.now()
             shipment.save(update_fields=["is_disputed", "disputed_at"])
         messages.warning(request, "Expedition marquee en litige.")
-        return _redirect_to_tracking(shipment, return_to_list=return_to_list)
+        return _redirect_to_tracking(
+            shipment,
+            return_to_list=return_to_list,
+            return_to_view=return_to_view,
+            return_to_key=return_to_key,
+        )
 
     if action != "resolve_dispute":
         return None
@@ -142,10 +169,23 @@ def _handle_dispute_action(request, shipment, *, return_to_list=False):
                 )
         sync_shipment_ready_state(shipment)
     messages.success(request, "Litige resolu. Expedition remise a l'etat Pret.")
-    return _redirect_to_tracking(shipment, return_to_list=return_to_list)
+    return _redirect_to_tracking(
+        shipment,
+        return_to_list=return_to_list,
+        return_to_view=return_to_view,
+        return_to_key=return_to_key,
+    )
 
 
-def handle_shipment_tracking_post(request, *, shipment, form, return_to_list=False):
+def handle_shipment_tracking_post(
+    request,
+    *,
+    shipment,
+    form,
+    return_to_list=False,
+    return_to_view=DEFAULT_RETURN_LIST_VIEW,
+    return_to_key=DEFAULT_RETURN_TO_KEY,
+):
     if request.method != "POST":
         return None
 
@@ -153,6 +193,8 @@ def handle_shipment_tracking_post(request, *, shipment, form, return_to_list=Fal
         request,
         shipment,
         return_to_list=return_to_list,
+        return_to_view=return_to_view,
+        return_to_key=return_to_key,
     )
     if dispute_response:
         return dispute_response
@@ -162,7 +204,12 @@ def handle_shipment_tracking_post(request, *, shipment, form, return_to_list=Fal
             request,
             "Expedition en litige: resolvez le litige avant de continuer le suivi.",
         )
-        return _redirect_to_tracking(shipment, return_to_list=return_to_list)
+        return _redirect_to_tracking(
+            shipment,
+            return_to_list=return_to_list,
+            return_to_view=return_to_view,
+            return_to_key=return_to_key,
+        )
 
     if not form.is_valid():
         return None
@@ -196,4 +243,9 @@ def handle_shipment_tracking_post(request, *, shipment, form, return_to_list=Fal
                     user=getattr(request, "user", None),
                 )
     messages.success(request, "Suivi mis à jour.")
-    return _redirect_to_tracking(shipment, return_to_list=return_to_list)
+    return _redirect_to_tracking(
+        shipment,
+        return_to_list=return_to_list,
+        return_to_view=return_to_view,
+        return_to_key=return_to_key,
+    )

@@ -74,6 +74,12 @@ CLOSE_SHIPMENT_ACTION = "close_shipment_case"
 CLOSED_FILTER_EXCLUDE = "exclude"
 CLOSED_FILTER_ALL = "all"
 PLANNED_WEEK_RE = re.compile(r"^(?P<year>\d{4})-(?:W)?(?P<week>\d{2})$")
+RETURN_TO_SHIPMENTS_READY = "shipments_ready"
+RETURN_TO_SHIPMENTS_TRACKING = "shipments_tracking"
+RETURN_TO_VIEW_NAMES = {
+    RETURN_TO_SHIPMENTS_READY: "scan:scan_shipments_ready",
+    RETURN_TO_SHIPMENTS_TRACKING: "scan:scan_shipments_tracking",
+}
 
 
 def _stale_drafts_cutoff():
@@ -109,6 +115,24 @@ def _parse_planned_week(raw_value):
     except ValueError:
         return f"{year:04d}-W{week:02d}", None, None
     return f"{year:04d}-W{week:02d}", start, start + timedelta(days=7)
+
+
+def _normalize_return_to(raw_value):
+    value = (raw_value or "").strip()
+    if value in RETURN_TO_VIEW_NAMES:
+        return value
+    return RETURN_TO_SHIPMENTS_TRACKING
+
+
+def _return_to_view_name(return_to):
+    return RETURN_TO_VIEW_NAMES.get(
+        return_to,
+        RETURN_TO_VIEW_NAMES[RETURN_TO_SHIPMENTS_TRACKING],
+    )
+
+
+def _return_to_url(return_to):
+    return reverse(_return_to_view_name(return_to))
 
 
 def _build_shipments_tracking_queryset():
@@ -243,6 +267,8 @@ def _render_shipment_tracking(
     tracking_url,
     form,
     can_update_tracking,
+    back_to_url,
+    return_to,
 ):
     documents, carton_docs, additional_docs, events = _build_tracking_page_data(shipment)
     return render(
@@ -261,6 +287,8 @@ def _render_shipment_tracking(
             "show_back_to_list": bool(
                 request.user.is_authenticated and request.user.is_staff
             ),
+            "back_to_url": back_to_url,
+            "return_to": return_to,
         },
     )
 
@@ -589,6 +617,8 @@ def scan_shipment_edit(request, shipment_id):
 def scan_shipment_track(request, tracking_token):
     shipment = get_object_or_404(Shipment, tracking_token=tracking_token)
     shipment.ensure_qr_code(request=request)
+    source = request.POST if request.method == "POST" else request.GET
+    return_to = _normalize_return_to(source.get("return_to"))
     last_event = shipment.tracking_events.order_by("-created_at").first()
     allowed_statuses = allowed_tracking_statuses_for_shipment(shipment)
     next_status = next_tracking_status(last_event.status if last_event else None)
@@ -605,11 +635,14 @@ def scan_shipment_track(request, tracking_token):
         and request.user.is_staff
         and (request.POST.get("return_to_list") or "").strip() == "1"
     )
+    return_to_view = _return_to_view_name(return_to) if return_to_list else None
     response = handle_shipment_tracking_post(
         request,
         shipment=shipment,
         form=form,
         return_to_list=return_to_list,
+        return_to_view=return_to_view,
+        return_to_key=return_to,
     )
     if response:
         return response
@@ -619,6 +652,8 @@ def scan_shipment_track(request, tracking_token):
         tracking_url=shipment.get_tracking_url(request=request),
         form=form,
         can_update_tracking=True,
+        back_to_url=_return_to_url(return_to),
+        return_to=return_to,
     )
 
 
@@ -634,4 +669,6 @@ def scan_shipment_track_legacy(request, shipment_ref):
         tracking_url="",
         form=None,
         can_update_tracking=False,
+        back_to_url=_return_to_url(RETURN_TO_SHIPMENTS_TRACKING),
+        return_to=RETURN_TO_SHIPMENTS_TRACKING,
     )

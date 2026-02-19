@@ -796,6 +796,21 @@ class ScanViewTests(TestCase):
             response,
             "Revenir &agrave; la liste des exp&eacute;ditions",
         )
+        self.assertContains(
+            response,
+            f'href="{reverse("scan:scan_shipments_tracking")}"',
+        )
+
+    def test_scan_shipment_track_uses_ready_return_target_in_link(self):
+        shipment, _carton = self._create_shipment_with_carton()
+        response = self.client.get(
+            f"{reverse('scan:scan_shipment_track', args=[shipment.tracking_token])}?return_to=shipments_ready"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            f'href="{reverse("scan:scan_shipments_ready")}"',
+        )
 
     def test_scan_shipment_track_post_return_to_list_redirects_to_shipments_tracking(self):
         shipment, carton = self._create_shipment_with_carton()
@@ -813,6 +828,24 @@ class ScanViewTests(TestCase):
         )
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse("scan:scan_shipments_tracking"))
+
+    def test_scan_shipment_track_post_return_to_list_redirects_to_shipments_ready(self):
+        shipment, carton = self._create_shipment_with_carton()
+        carton.status = CartonStatus.LABELED
+        carton.save(update_fields=["status"])
+        response = self.client.post(
+            reverse("scan:scan_shipment_track", args=[shipment.tracking_token]),
+            {
+                "status": "planning_ok",
+                "actor_name": "Test",
+                "actor_structure": "ASF",
+                "comments": "ok",
+                "return_to_list": "1",
+                "return_to": "shipments_ready",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("scan:scan_shipments_ready"))
 
     def test_scan_public_routes_allow_anonymous(self):
         shipment, _carton = self._create_shipment_with_carton()

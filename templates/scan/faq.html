@@ -29,10 +29,11 @@
   <div class="scan-card">
     <h2>Acc&egrave;s & r&ocirc;les</h2>
     <ul>
-      <li>Les pages /scan sont prot&eacute;g&eacute;es par login.</li>
+      <li>Les pages /scan internes sont prot&eacute;g&eacute;es par login staff.</li>
       <li>Le menu <strong>Compte</strong> affiche email/username, lien Admin (si staff), changer de compte, d&eacute;connexion.</li>
       <li><strong>Imports</strong> et <strong>Templates</strong> sont r&eacute;serv&eacute;s aux superusers.</li>
-      <li>Le suivi exp&eacute;dition (QR) est public et ne demande pas de login.</li>
+      <li>Exception: le suivi exp&eacute;dition par token (<code>/scan/shipment/track/&lt;token&gt;/</code>) est public et ne demande pas de login.</li>
+      <li>Le suivi legacy par r&eacute;f&eacute;rence est staff-only et en consultation seule.</li>
     </ul>
   </div>
 
@@ -41,6 +42,8 @@
     <p>Avant utilisation, vérifier ces données dans l'admin :</p>
     <ul>
       <li><strong>Contacts</strong> avec tags : exp&eacute;diteur, destinataire, correspondant, donateur, transporteur.</li>
+      <li>Pour les exp&eacute;diteurs/correspondants: renseigner <strong>Destinations</strong> (vide = global).</li>
+      <li>Pour les destinataires: renseigner <strong>Exp&eacute;diteurs li&eacute;s</strong> (vide = tous les exp&eacute;diteurs).</li>
       <li><strong>Destinations</strong> : ville, code IATA, pays, correspondant li&eacute;.</li>
       <li><strong>Formats de carton</strong> : un format par d&eacute;faut pour la pr&eacute;paration.</li>
       <li><strong>Entrep&ocirc;ts</strong> et <strong>Emplacements</strong> : entrep&ocirc;t / rack / &eacute;tag&egrave;re / bac.</li>
@@ -59,6 +62,7 @@
       <li>Filtres : catégorie, entrepôt. Tri : catégorie, nom, référence, stock.</li>
       <li>Le stock affiche correspond aux lots disponibles.</li>
       <li>La colonne <strong>Derni&egrave;re modification</strong> suit les mouvements de stock.</li>
+      <li>Dans les pages <strong>Vue...</strong>, chaque en-t&ecirc;te de colonne est triable et filtrable.</li>
     </ul>
   </div>
 
@@ -104,10 +108,15 @@
   <div class="scan-card">
     <h2>Cr&eacute;er une exp&eacute;dition</h2>
     <ul>
-      <li>S&eacute;lectionner la destination en premier (filtre des contacts).</li>
-      <li>Exp&eacute;diteur, destinataire et correspondant viennent des contacts tagg&eacute;s.</li>
+      <li>S&eacute;quencement: destination d'abord, puis exp&eacute;diteur, puis destinataire + correspondant, puis le reste du formulaire.</li>
+      <li>Exp&eacute;diteur: tag <strong>Exp&eacute;diteur</strong> + destination explicite ou globale (destinations vides).</li>
+      <li>Destinataire: tag <strong>Destinataire</strong> + exp&eacute;diteur li&eacute; explicite ou global (exp&eacute;diteurs li&eacute;s vides).</li>
+      <li>Correspondant: tag <strong>Correspondant</strong> + destination; si la destination a un correspondant li&eacute;, ce choix est impos&eacute;.</li>
+      <li>Si aucun correspondant n'est li&eacute; &agrave; la destination, le s&eacute;lecteur correspondant reste vide.</li>
       <li>Ajouter des cartons <strong>Pr&ecirc;t</strong> non affect&eacute;s, ou cr&eacute;er des cartons depuis des produits.</li>
       <li>&Agrave; l'affectation &agrave; l'exp&eacute;dition, un carton passe en statut <strong>Affect&eacute;</strong>.</li>
+      <li><strong>Enregistrer en brouillon</strong> cr&eacute;e une exp&eacute;dition temporaire <strong>EXP-TEMP-XX</strong> modifiable plus tard.</li>
+      <li><strong>Cr&eacute;er des colis multi-produits</strong> (depuis la cr&eacute;ation) enregistre d'abord un brouillon puis ouvre l'onglet Pr&eacute;paration.</li>
       <li>Le poids total est calcul&eacute; automatiquement.</li>
       <li>En modification: QR, documents, &eacute;tiquettes et uploads additionnels.</li>
     </ul>
@@ -127,7 +136,8 @@
   <div class="scan-card">
     <h2>Vue Exp&eacute;ditions</h2>
     <ul>
-      <li><strong>Cr&eacute;ation</strong> : exp&eacute;dition initiale, sans colis &eacute;tiquet&eacute;.</li>
+      <li><strong>Brouillon</strong> : exp&eacute;dition temporaire (r&eacute;f&eacute;rence <strong>EXP-TEMP-XX</strong>) sauvegard&eacute;e pour reprise ult&eacute;rieure.</li>
+      <li><strong>Cr&eacute;ation</strong> : exp&eacute;dition active sans colis &eacute;tiquet&eacute; (r&eacute;f&eacute;rence finale).</li>
       <li><strong>En cours</strong> : tant que tous les colis ne sont pas &eacute;tiquet&eacute;s.</li>
       <li><strong>Pr&ecirc;t</strong> : tous les colis sont &eacute;tiquet&eacute;s.</li>
       <li><strong>Planifi&eacute;</strong> : verrouille la modification des colis de l'exp&eacute;dition.</li>
@@ -141,6 +151,20 @@
     <p>
       Le bouton <strong>Suivi</strong> ouvre la page publique de suivi via QR.
     </p>
+    <p>
+      Les brouillons temporaires anciens peuvent &ecirc;tre archiv&eacute;s via l'action <strong>Archiver brouillons anciens</strong>.
+    </p>
+  </div>
+
+  <div class="scan-card">
+    <h2>Suivi des exp&eacute;ditions (Gestion)</h2>
+    <ul>
+      <li>Cette vue affiche les exp&eacute;ditions en statut <strong>Planifi&eacute;</strong>, <strong>Exp&eacute;di&eacute;</strong>, <strong>Re&ccedil;u escale</strong> et <strong>Livr&eacute;</strong>.</li>
+      <li>Filtres: semaine planifi&eacute;e et dossiers clos (exclure/inclure).</li>
+      <li>Colonnes dates: Planifi&eacute;, OK mise &agrave; bord, Exp&eacute;di&eacute;, Re&ccedil;u escale, Livr&eacute;.</li>
+      <li>Bouton <strong>Suivi/MAJ</strong>: ouvre la page de suivi de l'exp&eacute;dition.</li>
+      <li>Bouton <strong>Clore le dossier</strong>: actif seulement quand toutes les &eacute;tapes requises sont valid&eacute;es et qu'il n'y a pas de litige.</li>
+    </ul>
   </div>
 
   <div class="scan-card">
@@ -253,6 +277,8 @@
       <li>Le s&eacute;lecteur propose automatiquement l'&eacute;tape suivante.</li>
       <li>Etapes : OK pour planification, Planifi&eacute;, D&eacute;plac&eacute; au magasin export, OK mise &agrave; bord, Re&ccedil;u correspondant, Re&ccedil;u destinataire.</li>
       <li>Passage de statut exp&eacute;dition : Planifi&eacute;/D&eacute;plac&eacute; =&gt; Planifi&eacute;, Mise &agrave; bord =&gt; Exp&eacute;di&eacute;, Re&ccedil;u correspondant =&gt; Re&ccedil;u escale, Re&ccedil;u destinataire =&gt; Livr&eacute;.</li>
+      <li>Depuis la page de suivi staff, le bouton <strong>Revenir &agrave; la liste</strong> revient vers la derni&egrave;re vue (Vue Exp&eacute;ditions ou Suivi des exp&eacute;ditions).</li>
+      <li>Si des champs de suivi sont modifi&eacute;s non enregistr&eacute;s, une confirmation propose <strong>OUI</strong> (enregistrer) ou <strong>NON</strong> (quitter sans enregistrer).</li>
       <li>Depuis le suivi, vous pouvez <strong>D&eacute;clarer litige</strong> puis <strong>R&eacute;soudre litige et remettre Pr&ecirc;t</strong>.</li>
     </ul>
     <p>
@@ -275,10 +301,11 @@
   <div class="scan-card">
     <h2>FAQ rapide</h2>
     <ul>
-      <li><strong>Mes listes sont vides</strong> : v&eacute;rifier les tags des contacts et la destination choisie.</li>
+      <li><strong>Mes listes sont vides</strong> : v&eacute;rifier les tags + destinations (exp&eacute;diteurs/correspondants) et les exp&eacute;diteurs li&eacute;s (destinataires).</li>
       <li><strong>Stock à zéro</strong> : vérifier les lots disponibles et leur emplacement.</li>
       <li><strong>Camera ne s'ouvre pas</strong> : autoriser la camera, tester un autre navigateur.</li>
       <li><strong>Un carton est bloqu&eacute;</strong> : un carton exp&eacute;di&eacute; est non modifiable, et une exp&eacute;dition planifi&eacute;e/verrouill&eacute;e bloque les changements colis.</li>
+      <li><strong>Correspondant introuvable</strong> : v&eacute;rifier le correspondant li&eacute; sur la destination s&eacute;lectionn&eacute;e.</li>
       <li><strong>Le QR n'ouvre rien</strong> : v&eacute;rifier SITE_BASE_URL et relancer l'app.</li>
     </ul>
   </div>

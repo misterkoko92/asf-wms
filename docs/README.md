@@ -2,15 +2,21 @@
 
 Use this index as the entry point for project documentation.
 
+Last functional alignment update: **February 19, 2026**.
+
 ## Product and scope
 
-- `docs/mvp_spec.md`: functional MVP scope and behavior.
-- `docs/backlog.md`: backlog and next-phase ideas.
+- `docs/mvp_spec.md`: current functional scope and business rules (cartons, shipments, tracking, disputes, draft flow).
+- `docs/backlog.md`: roadmap with delivered baseline and next priorities.
 
 ## Operations
 
-- `docs/operations.md`: day-to-day operations runbook, including carton/shipment status lifecycle rules.
-- `docs/release_checklist.md`: release checklist used for deployments.
+- `docs/operations.md`: operations runbook, deployment flow, incident playbooks, and lifecycle rules.
+- `docs/release_checklist.md`: release checklist used for production deployments.
+
+## User-facing reference
+
+- `templates/scan/faq.html`: in-app FAQ and workflow documentation for scan users.
 
 ## Data and templates
 
@@ -21,7 +27,7 @@ Use this index as the entry point for project documentation.
 ## Repository layout (high-level)
 
 - `asf_wms/`: Django project settings and root URLs.
-- `wms/`: main domain app.
+- `wms/`: main domain app (stock, cartons, shipments, tracking).
 - `api/`: API endpoints.
-- `contacts/`: contacts app.
+- `contacts/`: contact model, tagging, scoping rules for shipment workflows.
 - `wms/tests/`, `api/tests/`, `contacts/tests/`: tests grouped by app.

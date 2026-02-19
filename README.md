@@ -1,6 +1,17 @@
 # ASF WMS
 
-MVP WMS for product catalog, lot-based stock, and shipments.
+WMS for catalog, lot-based stock, cartons, shipments, and shipment tracking.
+
+## Functional snapshot
+- Shipment creation is sequenced: `Destination` -> `Expediteur` -> `Destinataire + Correspondant` -> colis lines.
+- Draft shipments are supported (`EXP-TEMP-XX`) with later conversion to a final shipment reference.
+- Contact filtering is rule-based:
+  - Shipper: tag `Expediteur` + destination match or global (no destination).
+  - Recipient: tag `Destinataire` + linked shipper match or global (no linked shippers).
+  - Correspondent: destination-level contact; if destination has no configured correspondent, no correspondent is selectable.
+- Carton statuses: `draft`, `picking`, `packed`, `assigned`, `labeled`, `shipped`.
+- Shipment statuses: `draft`, `picking`, `packed`, `planned`, `shipped`, `received_correspondent`, `delivered` (+ dispute flag `is_disputed`).
+- Dedicated tracking board at `scan/shipments-tracking/` with weekly planned filter and case closure (`closed_at`, `closed_by`).
 
 ## Local setup
 - Python 3.11 or 3.12 recommended (Django 4.2 LTS)
@@ -58,6 +69,7 @@ python manage.py shell -c "from wms.models import IntegrationEvent, IntegrationD
 - Backlog: `docs/backlog.md`
 - Operations runbook: `docs/operations.md`
 - Release checklist: `docs/release_checklist.md`
+- Scan FAQ page (in-app): `templates/scan/faq.html`
 - Import template: `docs/import/products_template.csv`
 - Print templates: `docs/templates/`
 
@@ -139,7 +151,10 @@ export PUBLIC_ORDER_THROTTLE_SECONDS="300"
 - URL: `http://localhost:8000/scan/`
 - Camera scan uses the browser BarcodeDetector (Chrome/Android recommended)
 - For desktop: USB/Bluetooth scanners work as keyboard input
-- Login uses the admin credentials at `/admin/login/`
+- Staff login uses admin credentials at `/admin/login/`
+- Most `/scan/*` routes are staff-protected.
+- Public exception: shipment tracking by token (`/scan/shipment/track/<tracking_token>/`).
+- Legacy tracking by shipment reference is staff-only and read-only.
 
 ## API (v1)
 - Base URL: `http://localhost:8000/api/v1/`

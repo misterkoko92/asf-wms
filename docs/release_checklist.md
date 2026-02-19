@@ -22,6 +22,7 @@ Use this checklist for each production release.
 - [ ] Confirm mail provider env vars (`EMAIL_*` and/or `BREVO_*`).
 - [ ] Confirm `INTEGRATION_API_KEY` for integration endpoints.
 - [ ] Confirm backup available (SQLite file or MySQL dump).
+- [ ] If scan frontend assets changed (`wms/static/scan/scan.js`, `wms/static/scan/scan.css`, manifest/icon), bump `CACHE_NAME` in `wms/views_scan_misc.py` (`wms-scan-vNN`).
 
 ## C) Deploy
 
@@ -34,7 +35,9 @@ Use this checklist for each production release.
 
 ## D) After deploy
 
-- [ ] Smoke test `GET /`, `/admin/login/`, `/scan/`, `/api/v1/products/`
+- [ ] Smoke test `GET /`, `/admin/login/`, `/scan/`, `/scan/shipments-ready/`, `/scan/shipments-tracking/`, `/api/v1/products/`
+- [ ] Validate shipment create sequencing (destination -> expéditeur -> destinataire/correspondant -> détails).
+- [ ] Validate draft flow: "Enregistrer en brouillon" creates `EXP-TEMP-XX` and is visible in Vue Expéditions.
 - [ ] Run `python manage.py process_email_queue --limit=100`
 - [ ] Check queue health (pending/failed counts)
 - [ ] Verify no spike in app errors/log warnings

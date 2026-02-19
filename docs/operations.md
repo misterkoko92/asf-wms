@@ -86,6 +86,8 @@ BASE_URL="https://your-domain"
 curl -I "$BASE_URL/"
 curl -I "$BASE_URL/admin/login/"
 curl -I "$BASE_URL/scan/"
+curl -I "$BASE_URL/scan/shipments-ready/"
+curl -I "$BASE_URL/scan/shipments-tracking/"
 curl -I "$BASE_URL/api/v1/products/"
 ```
 
@@ -94,6 +96,7 @@ Validate:
 - No unexpected 500 responses.
 - Admin login page loads.
 - Scan and API routes answer (auth-protected routes may return `302/401/403`, which is acceptable).
+- Shipment views load for staff users after authentication.
 
 ## 5) Email queue operations
 
@@ -181,24 +184,27 @@ Monthly:
 ### Carton statuses
 
 - `draft` (Creation): carton created.
-- `picking` (Preparation): picking in progress.
-- `packed` (Pret): picking finished, carton ready to be assigned.
-- `assigned` (Affecte): carton linked to a shipment.
-- `labeled` (Etiquette): explicit user action "Mark labeled", carton ready for departure.
-- `shipped` (Expedie): shipment boarded (`boarding_ok` tracking step).
+- `picking` (Preparation): filling in progress.
+- `packed` (Pret): carton ready to be assigned.
+- `assigned` (Affecte): linked to a shipment.
+- `labeled` (Etiquette): explicit action, carton ready for departure.
+- `shipped` (Expedie): shipment reached `boarding_ok`.
 
 ### Carton transition rules
 
 - Assigning a `packed` carton to a shipment sets status to `assigned`.
+- Packing directly with a shipment sets carton to `assigned`.
+- Packing without shipment moves `draft` -> `picking`.
 - Removing a carton from shipment:
   - if carton is `assigned` or `labeled`, it returns to `packed`.
   - if carton is `shipped`, removal is blocked.
-- Labeling is explicit from "Vue Colis" (`mark_carton_labeled` action).
+- Manual status update (`draft`/`picking`/`packed`) is allowed only for cartons not assigned to a shipment.
+- Labeling is explicit from Vue Colis (`mark_carton_labeled` action).
 - "Remove label" (`mark_carton_assigned`) is available before shipment lock.
 
 ### Shipment statuses
 
-- `draft` (Creation): initial state.
+- `draft` (Creation): initial state, including temporary drafts (`EXP-TEMP-XX`).
 - `picking` (En cours): not all cartons are labeled yet.
 - `packed` (Pret): all cartons are labeled.
 - `planned` (Planifie): planning locked state.
@@ -211,16 +217,65 @@ Monthly:
 - Automatic readiness sync:
   - if all cartons are labeled (or shipped), shipment becomes `packed`.
   - otherwise shipment stays/returns `picking`.
+  - if no carton is linked, shipment is `draft`.
 - Tracking steps drive advanced statuses:
+  - `planning_ok` => shipment `packed`
   - `planned` and `moved_export` => shipment `planned`
   - `boarding_ok` => shipment `shipped`
   - `received_correspondent` => shipment `received_correspondent`
   - `received_recipient` => shipment `delivered`
 - Once `planned`, carton modifications are locked.
+- Temporary references (`EXP-TEMP-XX`) are automatically promoted to final references when shipment leaves `draft`.
 
 ### Dispute overlay (`is_disputed`)
 
 - Dispute is a flag, not a separate status.
 - It can be set from tracking screen at any time.
 - While disputed, tracking progression is blocked.
-- Resolving dispute can reset shipment to `packed` ("Pret"), allowing replanning.
+- Resolving dispute resets shipment to `packed` ("Pret"), allowing replanning.
+- If shipment had reached shipped/received stages, shipped cartons are reset back to `labeled`.
+
+## 10) Shipment creation contact scoping rules
+
+Rules implemented in the "Creer une expedition" form:
+
+- Destination is mandatory to continue.
+- Shipper list:
+  - contacts tagged `Expediteur`
+  - destination match (`contact.destinations` contains selected destination) OR global (`destinations` empty).
+- Recipient list:
+  - contacts tagged `Destinataire`
+  - linked shipper match (`linked_shippers` contains selected shipper) OR global (`linked_shippers` empty).
+- Correspondent list:
+  - contacts tagged `Correspondant` with destination match/global
+  - then restricted to destination correspondent when `Destination.correspondent_contact` is set.
+  - if destination has no configured correspondent, the correspondent list is empty.
+
+Additional contact governance:
+
+- Recipient creation requires at least one linked shipper.
+- Default shipper `AVIATION SANS FRONTIERES` is auto-added to recipients when available.
+
+## 11) Tracking board and case closure
+
+`/scan/shipments-tracking/` shows shipments in:
+
+- `planned`
+- `shipped`
+- `received_correspondent`
+- `delivered`
+
+Board features:
+
+- Week filter (`planned_week`) based on `planned` tracking timestamp.
+- Closed-case filter (`exclude` by default, `all` optional).
+- Columns: planned, boarding OK, shipped, received correspondent, delivered timestamps.
+
+Case closure rules:
+
+- "Clore le dossier" becomes active only when:
+  - shipment status is `delivered`
+  - all required tracking timestamps are present
+  - `is_disputed` is false
+  - shipment is not already closed
+- Closure writes `closed_at` and `closed_by`.

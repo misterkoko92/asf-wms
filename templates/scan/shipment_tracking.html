@@ -26,7 +26,7 @@
             <a
               id="tracking-back-to-list"
               class="scan-scan-btn"
-              href="{% url 'scan:scan_shipments_tracking' %}"
+              href="{{ back_to_url }}"
             >
               Revenir &agrave; la liste des exp&eacute;ditions
             </a>
@@ -45,12 +45,14 @@
                 <form method="post">
                   {% csrf_token %}
                   <input type="hidden" name="action" value="resolve_dispute">
+                  <input type="hidden" name="return_to" value="{{ return_to }}">
                   <button type="submit" class="scan-scan-btn">Resoudre litige et remettre Pret</button>
                 </form>
               {% else %}
                 <form method="post">
                   {% csrf_token %}
                   <input type="hidden" name="action" value="set_disputed">
+                  <input type="hidden" name="return_to" value="{{ return_to }}">
                   <button type="submit" class="scan-scan-btn">Declarer litige</button>
                 </form>
               {% endif %}
@@ -111,6 +113,7 @@
             <form method="post" id="shipment-tracking-update-form">
               {% csrf_token %}
               <input type="hidden" name="return_to_list" value="0" id="id_return_to_list">
+              <input type="hidden" name="return_to" value="{{ return_to }}" id="id_return_to">
               {% if form.non_field_errors %}
                 <div class="scan-message error">{{ form.non_field_errors }}</div>
               {% endif %}
@@ -238,7 +241,11 @@
           if (!field.name) {
             return false;
           }
-          if (field.name === "csrfmiddlewaretoken" || field.name === "return_to_list") {
+          if (
+            field.name === "csrfmiddlewaretoken" ||
+            field.name === "return_to_list" ||
+            field.name === "return_to"
+          ) {
             return false;
           }
           const type = (field.type || "").toLowerCase();

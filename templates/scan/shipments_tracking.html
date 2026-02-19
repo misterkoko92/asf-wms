@@ -63,7 +63,7 @@
                 <td>{{ shipment.delivered_at|date:"d/m/y H\\hi"|default:"-" }}</td>
                 <td>
                   <div class="scan-inline-actions">
-                    <a class="scan-scan-btn" href="{% url 'scan:scan_shipment_track' shipment.tracking_token %}">
+                    <a class="scan-scan-btn" href="{% url 'scan:scan_shipment_track' shipment.tracking_token %}?return_to=shipments_tracking">
                       Suivi/MAJ
                     </a>
                     {% if shipment.is_closed %}
