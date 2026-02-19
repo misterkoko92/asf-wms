@@ -16,13 +16,14 @@ Backlog aligné avec l'audit global du **19/02/2026** (`docs/audit_2026-02-19.md
 
 ## 2) Phase 0 - Stabilisation release (priorité immédiate)
 
-- [ ] Repasser la suite complète de tests au vert (8 régressions actuelles).
-- [ ] Harmoniser les tests avec les nouvelles règles:
+- [x] Repasser la suite complète de tests au vert (régressions initiales corrigées).
+- [x] Harmoniser les tests avec les nouvelles règles:
   - tags pré-seedés (`Destinataire`, `Expéditeur`),
   - blocage portail sans destinataire de réception,
   - libellés accentués.
-- [ ] Nettoyer le lot de changements courant (migrations 0048/0049, statiques portail) et sécuriser le process de merge.
-- [ ] Formaliser la gate de release: `test`, `check --deploy`, `migrate-check`, `ruff`, `bandit`.
+- [x] Nettoyer le lot de changements courant (migrations 0048/0049, statiques portail) et sécuriser le process de merge.
+- [x] Formaliser la gate de release: `test`, `check --deploy`, `migrate-check`, `ruff`, `bandit`.
+  - correction complémentaire: consommation du stock réservé lors de l'édition des expéditions liées à commande.
 
 ## 3) Phase 1 - Durcissement domaine contacts/portail
 
