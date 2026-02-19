@@ -105,6 +105,12 @@
             {% endif %}
           </div>
         </div>
+        <div class="scan-nav-group">
+          <button type="button" class="scan-nav-trigger">Suivi des exp&eacute;ditions</button>
+          <div class="scan-nav-menu">
+            <a href="{% url 'scan:scan_shipments_tracking' %}" class="{% if active == 'shipments_tracking' %}active{% endif %}">Suivi des exp&eacute;ditions</a>
+          </div>
+        </div>
       </nav>
 
       <main class="scan-main">

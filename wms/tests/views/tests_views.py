@@ -167,6 +167,7 @@ class ScanViewTests(TestCase):
             ("scan:scan_stock", "get", {}, None),
             ("scan:scan_cartons_ready", "get", {}, None),
             ("scan:scan_shipments_ready", "get", {}, None),
+            ("scan:scan_shipments_tracking", "get", {}, None),
             ("scan:scan_receipts_view", "get", {}, None),
             ("scan:scan_receive", "get", {}, None),
             ("scan:scan_receive_pallet", "get", {}, None),

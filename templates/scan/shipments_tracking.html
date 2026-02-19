@@ -1,0 +1,122 @@
+{% extends "scan/base.html" %}
+
+{% block title %}WMS Scan - Suivi des exp&eacute;ditions{% endblock %}
+
+{% block content %}
+  <div class="scan-card">
+    <h2>Suivi des exp&eacute;ditions ({{ shipments|length }})</h2>
+
+    <form method="get" class="scan-filters">
+      <div class="scan-inline scan-inline-equal">
+        <div class="scan-field">
+          <label for="id_planned_week">Semaine planifi&eacute;e</label>
+          <input
+            type="week"
+            id="id_planned_week"
+            name="planned_week"
+            value="{{ planned_week_value }}"
+          >
+          <small class="scan-help">Filtre par date de statut "Planifi&eacute;".</small>
+        </div>
+        <div class="scan-field">
+          <label for="id_closed">Dossiers clos</label>
+          <select id="id_closed" name="closed">
+            <option value="exclude" {% if closed_filter == "exclude" %}selected{% endif %}>Exclure clos</option>
+            <option value="all" {% if closed_filter == "all" %}selected{% endif %}>Inclure clos</option>
+          </select>
+        </div>
+      </div>
+      <div class="scan-filter-actions">
+        <button type="submit" class="scan-scan-btn">Filtrer</button>
+        <a href="{% url 'scan:scan_shipments_tracking' %}">R&eacute;initialiser</a>
+      </div>
+    </form>
+
+    {% if shipments %}
+      <div class="scan-table-wrap">
+        <table class="scan-table" data-table-tools="1">
+          <thead>
+            <tr>
+              <th>N° exp&eacute;dition</th>
+              <th>Nb colis</th>
+              <th>Exp&eacute;diteur</th>
+              <th>Destinataire</th>
+              <th>Planifi&eacute;</th>
+              <th>OK mise &agrave; bord</th>
+              <th>Exp&eacute;di&eacute;</th>
+              <th>Re&ccedil;u escale</th>
+              <th>Livr&eacute;</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for shipment in shipments %}
+              <tr>
+                <td>{{ shipment.reference }}</td>
+                <td class="qty">{{ shipment.carton_count }}</td>
+                <td>{{ shipment.shipper_name }}</td>
+                <td>{{ shipment.recipient_name }}</td>
+                <td>{{ shipment.planned_at|date:"d/m/y H\\hi"|default:"-" }}</td>
+                <td>{{ shipment.boarding_ok_at|date:"d/m/y H\\hi"|default:"-" }}</td>
+                <td>{{ shipment.shipped_at|date:"d/m/y H\\hi"|default:"-" }}</td>
+                <td>{{ shipment.received_correspondent_at|date:"d/m/y H\\hi"|default:"-" }}</td>
+                <td>{{ shipment.delivered_at|date:"d/m/y H\\hi"|default:"-" }}</td>
+                <td>
+                  <div class="scan-inline-actions">
+                    <a class="scan-scan-btn" href="{% url 'scan:scan_shipment_track' shipment.tracking_token %}">
+                      Suivi/MAJ
+                    </a>
+                    {% if shipment.is_closed %}
+                      <button
+                        type="button"
+                        class="scan-scan-btn"
+                        style="background:#e8f7ec;border-color:#9fcfb0;color:#22653b;cursor:not-allowed;"
+                        disabled
+                      >
+                        Dossier cl&ocirc;tur&eacute;
+                      </button>
+                    {% elif shipment.can_close %}
+                      <form method="post" class="scan-inline-actions">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="close_shipment_case">
+                        <input type="hidden" name="shipment_id" value="{{ shipment.id }}">
+                        <input type="hidden" name="planned_week" value="{{ planned_week_value }}">
+                        <input type="hidden" name="closed" value="{{ closed_filter }}">
+                        <button
+                          type="submit"
+                          class="scan-scan-btn"
+                          style="background:#e8f7ec;border-color:#9fcfb0;color:#22653b;"
+                        >
+                          Clore le dossier
+                        </button>
+                      </form>
+                    {% else %}
+                      <button
+                        type="button"
+                        class="scan-scan-btn"
+                        style="background:#fdecec;border-color:#efb8b4;color:#9a2f2f;"
+                        onclick="window.alert('{{ close_inactive_message }}'); return false;"
+                      >
+                        Clore le dossier
+                      </button>
+                    {% endif %}
+                  </div>
+                  {% if shipment.closed_at %}
+                    <small>
+                      Cl&ocirc;tur&eacute; le {{ shipment.closed_at|date:"d/m/y H\\hi" }}
+                      {% if shipment.closed_by %}par {{ shipment.closed_by.username }}{% endif %}
+                    </small>
+                  {% elif shipment.is_disputed %}
+                    <small>Litige en cours</small>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="scan-help">Aucune exp&eacute;dition correspondante.</p>
+    {% endif %}
+  </div>
+{% endblock %}

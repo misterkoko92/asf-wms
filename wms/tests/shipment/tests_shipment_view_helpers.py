@@ -11,6 +11,7 @@ from wms.shipment_view_helpers import (
     build_carton_options,
     build_shipment_document_links,
     build_shipments_ready_rows,
+    build_shipments_tracking_rows,
     next_tracking_status,
     render_carton_document,
     render_shipment_document,
@@ -419,3 +420,57 @@ class ShipmentViewHelpersTests(TestCase):
 
         self.assertEqual(rows[0]["shipper_name"], "ASSOCIATION TEST")
         self.assertEqual(rows[0]["recipient_name"], "Mme Alice MARTIN")
+
+    def test_build_shipments_tracking_rows_computes_close_eligibility(self):
+        now = timezone.now()
+
+        class FakeCartonSet:
+            def __init__(self, total):
+                self._total = total
+
+            def count(self):
+                return self._total
+
+        complete = SimpleNamespace(
+            id=21,
+            reference="S-021",
+            tracking_token="token-21",
+            carton_count=2,
+            carton_set=FakeCartonSet(2),
+            shipper_name="ASF",
+            recipient_name="Assoc",
+            planned_at=now,
+            boarding_ok_at=now,
+            shipped_tracking_at=now,
+            received_correspondent_at=now,
+            delivered_at=now,
+            status=ShipmentStatus.DELIVERED,
+            is_disputed=False,
+            closed_at=None,
+            closed_by=None,
+        )
+        disputed = SimpleNamespace(
+            id=22,
+            reference="S-022",
+            tracking_token="token-22",
+            carton_count=1,
+            carton_set=FakeCartonSet(1),
+            shipper_name="ASF",
+            recipient_name="Assoc",
+            planned_at=now,
+            boarding_ok_at=now,
+            shipped_tracking_at=now,
+            received_correspondent_at=now,
+            delivered_at=now,
+            status=ShipmentStatus.DELIVERED,
+            is_disputed=True,
+            closed_at=None,
+            closed_by=None,
+        )
+
+        rows = build_shipments_tracking_rows([complete, disputed])
+
+        self.assertTrue(rows[0]["can_close"])
+        self.assertFalse(rows[0]["is_closed"])
+        self.assertFalse(rows[1]["can_close"])
+        self.assertTrue(rows[1]["is_disputed"])

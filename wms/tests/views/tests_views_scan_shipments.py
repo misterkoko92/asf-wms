@@ -6,7 +6,13 @@ from django.http import HttpResponse
 from django.test import TestCase
 from django.urls import reverse
 
-from wms.models import Carton, Shipment, ShipmentStatus
+from wms.models import (
+    Carton,
+    Shipment,
+    ShipmentStatus,
+    ShipmentTrackingEvent,
+    ShipmentTrackingStatus,
+)
 
 
 class ScanShipmentsViewsTests(TestCase):
@@ -85,6 +91,73 @@ class ScanShipmentsViewsTests(TestCase):
             response.context_data["shipments"],
             [{"id": 1, "reference": "S-001"}],
         )
+
+    def test_scan_shipments_tracking_renders_rows_context(self):
+        with mock.patch(
+            "wms.views_scan_shipments.build_shipments_tracking_rows",
+            return_value=[{"id": 1, "reference": "S-TRACK-001"}],
+        ):
+            with mock.patch(
+                "wms.views_scan_shipments.render",
+                side_effect=self._render_stub,
+            ):
+                response = self.client.get(reverse("scan:scan_shipments_tracking"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.decode(), "scan/shipments_tracking.html")
+        self.assertEqual(response.context_data["active"], "shipments_tracking")
+        self.assertEqual(
+            response.context_data["shipments"],
+            [{"id": 1, "reference": "S-TRACK-001"}],
+        )
+        self.assertEqual(response.context_data["closed_filter"], "exclude")
+
+    def test_scan_shipments_tracking_post_closes_ready_shipment(self):
+        shipment = self._create_shipment(status=ShipmentStatus.DELIVERED)
+        for step in [
+            ShipmentTrackingStatus.PLANNED,
+            ShipmentTrackingStatus.BOARDING_OK,
+            ShipmentTrackingStatus.RECEIVED_CORRESPONDENT,
+            ShipmentTrackingStatus.RECEIVED_RECIPIENT,
+        ]:
+            ShipmentTrackingEvent.objects.create(
+                shipment=shipment,
+                status=step,
+                actor_name="Agent",
+                actor_structure="ASF",
+                comments="ok",
+                created_by=self.staff_user,
+            )
+
+        response = self.client.post(
+            reverse("scan:scan_shipments_tracking"),
+            {"action": "close_shipment_case", "shipment_id": shipment.id},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        shipment.refresh_from_db()
+        self.assertIsNotNone(shipment.closed_at)
+        self.assertEqual(shipment.closed_by, self.staff_user)
+
+    def test_scan_shipments_tracking_post_does_not_close_incomplete_shipment(self):
+        shipment = self._create_shipment(status=ShipmentStatus.DELIVERED)
+        ShipmentTrackingEvent.objects.create(
+            shipment=shipment,
+            status=ShipmentTrackingStatus.RECEIVED_RECIPIENT,
+            actor_name="Agent",
+            actor_structure="ASF",
+            comments="partial",
+            created_by=self.staff_user,
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_shipments_tracking"),
+            {"action": "close_shipment_case", "shipment_id": shipment.id},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        shipment.refresh_from_db()
+        self.assertIsNone(shipment.closed_at)
+        self.assertIsNone(shipment.closed_by)
 
     def test_scan_pack_get_uses_session_pack_results_and_defaults(self):
         session = self.client.session

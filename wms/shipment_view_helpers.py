@@ -300,3 +300,72 @@ def build_shipments_ready_rows(shipments_qs):
             }
         )
     return shipments
+
+
+def build_shipments_tracking_rows(shipments_qs):
+    shipments = []
+    for shipment in shipments_qs:
+        shipper_contact = _resolve_shipment_party_contact(
+            shipment,
+            ref_attr="shipper_contact_ref",
+            tag=TAG_SHIPPER,
+            fallback_name=shipment.shipper_name,
+        )
+        recipient_contact = _resolve_shipment_party_contact(
+            shipment,
+            ref_attr="recipient_contact_ref",
+            tag=TAG_RECIPIENT,
+            fallback_name=shipment.recipient_name,
+        )
+
+        planned_at = getattr(shipment, "planned_at", None)
+        boarding_ok_at = getattr(shipment, "boarding_ok_at", None)
+        shipped_at = getattr(shipment, "shipped_tracking_at", None) or boarding_ok_at
+        received_correspondent_at = getattr(shipment, "received_correspondent_at", None)
+        delivered_at = getattr(shipment, "delivered_at", None)
+
+        tracking_steps_complete = all(
+            [
+                planned_at,
+                boarding_ok_at,
+                shipped_at,
+                received_correspondent_at,
+                delivered_at,
+            ]
+        )
+        is_fully_completed = (
+            tracking_steps_complete and shipment.status == ShipmentStatus.DELIVERED
+        )
+        is_disputed = bool(getattr(shipment, "is_disputed", False))
+        is_closed = bool(getattr(shipment, "closed_at", None))
+
+        shipments.append(
+            {
+                "id": shipment.id,
+                "reference": shipment.reference,
+                "tracking_token": shipment.tracking_token,
+                "carton_count": shipment.carton_count
+                if shipment.carton_count is not None
+                else shipment.carton_set.count(),
+                "shipper_name": _shipment_party_label(
+                    shipper_contact,
+                    shipment.shipper_name,
+                ),
+                "recipient_name": _shipment_party_label(
+                    recipient_contact,
+                    shipment.recipient_name,
+                ),
+                "planned_at": planned_at,
+                "boarding_ok_at": boarding_ok_at,
+                "shipped_at": shipped_at,
+                "received_correspondent_at": received_correspondent_at,
+                "delivered_at": delivered_at,
+                "is_disputed": is_disputed,
+                "is_closed": is_closed,
+                "closed_at": getattr(shipment, "closed_at", None),
+                "closed_by": getattr(shipment, "closed_by", None),
+                "can_close": is_fully_completed and not is_disputed and not is_closed,
+            }
+        )
+
+    return shipments

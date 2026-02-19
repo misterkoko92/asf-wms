@@ -15,6 +15,7 @@ from .views_scan_shipments import (
     scan_shipment_edit,
     scan_shipment_track,
     scan_shipment_track_legacy,
+    scan_shipments_tracking,
     scan_shipments_ready,
 )
 from .views_scan_stock import scan_out, scan_stock, scan_stock_update, scan_sync
@@ -23,6 +24,7 @@ SCAN_FLOW_EXPORTS = (
     "scan_stock",
     "scan_cartons_ready",
     "scan_shipments_ready",
+    "scan_shipments_tracking",
     "scan_receipts_view",
     "scan_stock_update",
     "scan_receive",

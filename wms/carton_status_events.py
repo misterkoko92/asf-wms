@@ -53,9 +53,10 @@ def set_carton_status(
     if previous_status == new_status:
         return False
     carton.status = new_status
-    fields = set(update_fields or [])
-    fields.add("status")
-    carton.save(update_fields=list(fields))
+    fields = list(update_fields or [])
+    if "status" not in fields:
+        fields.append("status")
+    carton.save(update_fields=fields)
     record_carton_status_event(
         carton=carton,
         previous_status=previous_status,

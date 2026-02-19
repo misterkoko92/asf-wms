@@ -9,6 +9,11 @@ urlpatterns = [
     path("stock/", views.scan_stock, name="scan_stock"),
     path("cartons/", views.scan_cartons_ready, name="scan_cartons_ready"),
     path("shipments-ready/", views.scan_shipments_ready, name="scan_shipments_ready"),
+    path(
+        "shipments-tracking/",
+        views.scan_shipments_tracking,
+        name="scan_shipments_tracking",
+    ),
     path("receipts/", views.scan_receipts_view, name="scan_receipts_view"),
     path("receive/", views.scan_receive, name="scan_receive"),
     path("receive-pallet/", views.scan_receive_pallet, name="scan_receive_pallet"),

@@ -1,9 +1,12 @@
-from datetime import timedelta
+import re
+from datetime import date, timedelta
+from urllib.parse import urlencode
 
 from django.contrib import messages
-from django.db.models import Count, Q
+from django.db.models import Count, Max, Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
@@ -18,6 +21,7 @@ from .models import (
     DocumentType,
     Shipment,
     ShipmentStatus,
+    ShipmentTrackingStatus,
     TEMP_SHIPMENT_REFERENCE_PREFIX,
 )
 from .pack_handlers import build_pack_defaults, handle_pack_post
@@ -46,6 +50,7 @@ from .shipment_view_helpers import (
     build_carton_options,
     build_shipment_document_links,
     build_shipments_ready_rows,
+    build_shipments_tracking_rows,
     next_tracking_status,
 )
 from .view_permissions import scan_staff_required
@@ -53,16 +58,22 @@ from .view_utils import sorted_choices
 
 TEMPLATE_CARTONS_READY = "scan/cartons_ready.html"
 TEMPLATE_SHIPMENTS_READY = "scan/shipments_ready.html"
+TEMPLATE_SHIPMENTS_TRACKING = "scan/shipments_tracking.html"
 TEMPLATE_PACK = "scan/pack.html"
 TEMPLATE_SHIPMENT_FORM = "scan/shipment_create.html"
 TEMPLATE_SHIPMENT_TRACKING = "scan/shipment_tracking.html"
 
 ACTIVE_CARTONS_READY = "cartons_ready"
 ACTIVE_SHIPMENTS_READY = "shipments_ready"
+ACTIVE_SHIPMENTS_TRACKING = "shipments_tracking"
 ACTIVE_PACK = "pack"
 ACTIVE_SHIPMENT = "shipment"
 ARCHIVE_STALE_DRAFTS_ACTION = "archive_stale_drafts"
 STALE_DRAFTS_AGE_DAYS = 30
+CLOSE_SHIPMENT_ACTION = "close_shipment_case"
+CLOSED_FILTER_EXCLUDE = "exclude"
+CLOSED_FILTER_ALL = "all"
+PLANNED_WEEK_RE = re.compile(r"^(?P<year>\d{4})-(?:W)?(?P<week>\d{2})$")
 
 
 def _stale_drafts_cutoff():
@@ -76,6 +87,92 @@ def _stale_drafts_queryset():
         reference__startswith=TEMP_SHIPMENT_REFERENCE_PREFIX,
         created_at__lt=_stale_drafts_cutoff(),
     )
+
+
+def _normalize_closed_filter(raw_value):
+    if (raw_value or "").strip() == CLOSED_FILTER_ALL:
+        return CLOSED_FILTER_ALL
+    return CLOSED_FILTER_EXCLUDE
+
+
+def _parse_planned_week(raw_value):
+    cleaned = (raw_value or "").strip()
+    if not cleaned:
+        return "", None, None
+    match = PLANNED_WEEK_RE.match(cleaned)
+    if not match:
+        return cleaned, None, None
+    year = int(match.group("year"))
+    week = int(match.group("week"))
+    try:
+        start = date.fromisocalendar(year, week, 1)
+    except ValueError:
+        return f"{year:04d}-W{week:02d}", None, None
+    return f"{year:04d}-W{week:02d}", start, start + timedelta(days=7)
+
+
+def _build_shipments_tracking_queryset():
+    return (
+        Shipment.objects.filter(
+            archived_at__isnull=True,
+            status__in=[
+                ShipmentStatus.PLANNED,
+                ShipmentStatus.SHIPPED,
+                ShipmentStatus.RECEIVED_CORRESPONDENT,
+                ShipmentStatus.DELIVERED,
+            ],
+        )
+        .select_related(
+            "shipper_contact_ref__organization",
+            "recipient_contact_ref__organization",
+            "closed_by",
+        )
+        .annotate(
+            carton_count=Count("carton", distinct=True),
+            planned_at=Max(
+                "tracking_events__created_at",
+                filter=Q(tracking_events__status=ShipmentTrackingStatus.PLANNED),
+            ),
+            boarding_ok_at=Max(
+                "tracking_events__created_at",
+                filter=Q(tracking_events__status=ShipmentTrackingStatus.BOARDING_OK),
+            ),
+            shipped_tracking_at=Max(
+                "tracking_events__created_at",
+                filter=Q(tracking_events__status=ShipmentTrackingStatus.BOARDING_OK),
+            ),
+            received_correspondent_at=Max(
+                "tracking_events__created_at",
+                filter=Q(
+                    tracking_events__status=ShipmentTrackingStatus.RECEIVED_CORRESPONDENT
+                ),
+            ),
+            delivered_at=Max(
+                "tracking_events__created_at",
+                filter=Q(tracking_events__status=ShipmentTrackingStatus.RECEIVED_RECIPIENT),
+            ),
+        )
+        .order_by("-planned_at", "-created_at")
+    )
+
+
+def _build_shipments_tracking_redirect_url(*, planned_week_value, closed_filter):
+    query_items = {}
+    if planned_week_value:
+        query_items["planned_week"] = planned_week_value
+    if closed_filter == CLOSED_FILTER_ALL:
+        query_items["closed"] = CLOSED_FILTER_ALL
+    base_url = reverse("scan:scan_shipments_tracking")
+    if not query_items:
+        return base_url
+    return f"{base_url}?{urlencode(query_items)}"
+
+
+def _shipment_can_be_closed(shipment):
+    rows = build_shipments_tracking_rows([shipment])
+    if not rows:
+        return False
+    return bool(rows[0]["can_close"])
 
 
 def _build_shipment_form_support(*, extra_carton_options=None):
@@ -247,6 +344,71 @@ def scan_shipments_ready(request):
             "shipments": shipments,
             "stale_draft_count": stale_draft_count,
             "stale_draft_days": STALE_DRAFTS_AGE_DAYS,
+        },
+    )
+
+
+@scan_staff_required
+@require_http_methods(["GET", "POST"])
+def scan_shipments_tracking(request):
+    source = request.POST if request.method == "POST" else request.GET
+    planned_week_value, week_start, week_end = _parse_planned_week(
+        source.get("planned_week")
+    )
+    closed_filter = _normalize_closed_filter(source.get("closed"))
+
+    if request.method == "POST":
+        if (request.POST.get("action") or "").strip() == CLOSE_SHIPMENT_ACTION:
+            shipment = _build_shipments_tracking_queryset().filter(
+                pk=request.POST.get("shipment_id")
+            ).first()
+            if shipment is None:
+                messages.error(request, "Expédition introuvable.")
+            elif shipment.closed_at:
+                messages.info(request, "Dossier déjà clôturé.")
+            elif not _shipment_can_be_closed(shipment):
+                messages.warning(
+                    request,
+                    "Il reste des étapes à valider, vérifier avant de clore.",
+                )
+            else:
+                shipment.closed_at = timezone.now()
+                shipment.closed_by = (
+                    request.user if request.user.is_authenticated else None
+                )
+                shipment.save(update_fields=["closed_at", "closed_by"])
+                messages.success(request, "Dossier clôturé.")
+        return redirect(
+            _build_shipments_tracking_redirect_url(
+                planned_week_value=planned_week_value,
+                closed_filter=closed_filter,
+            )
+        )
+
+    shipments_qs = _build_shipments_tracking_queryset()
+    if closed_filter == CLOSED_FILTER_EXCLUDE:
+        shipments_qs = shipments_qs.filter(closed_at__isnull=True)
+    if planned_week_value and week_start and week_end:
+        shipments_qs = shipments_qs.filter(
+            planned_at__date__gte=week_start,
+            planned_at__date__lt=week_end,
+        )
+    elif planned_week_value and week_start is None:
+        messages.warning(
+            request,
+            "Format semaine invalide. Utilisez AAAA-Wss ou AAAA-ss.",
+        )
+
+    shipments = build_shipments_tracking_rows(shipments_qs)
+    return render(
+        request,
+        TEMPLATE_SHIPMENTS_TRACKING,
+        {
+            "active": ACTIVE_SHIPMENTS_TRACKING,
+            "shipments": shipments,
+            "planned_week_value": planned_week_value,
+            "closed_filter": closed_filter,
+            "close_inactive_message": "Il reste des étapes à valider, vérifier avant de clore",
         },
     )
 
