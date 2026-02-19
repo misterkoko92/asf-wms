@@ -3,6 +3,7 @@ import re
 from django.contrib import messages
 from django.db import IntegrityError, connection, transaction
 from django.shortcuts import redirect
+from django.urls import reverse
 
 from .models import (
     Carton,
@@ -22,6 +23,7 @@ LOCKED_SHIPMENT_STATUSES = {
     ShipmentStatus.DELIVERED,
 }
 SAVE_DRAFT_ACTION = "save_draft"
+SAVE_DRAFT_PACK_ACTION = "save_draft_pack"
 TEMP_SHIPMENT_REFERENCE_RE = re.compile(r"^EXP-TEMP-(\d+)$")
 TEMP_SHIPMENT_REFERENCE_MAX_RETRIES = 5
 
@@ -44,7 +46,14 @@ def _get_carton_count_from_post(request):
 
 
 def _is_save_draft_action(request):
-    return (request.POST.get("action") or "").strip() == SAVE_DRAFT_ACTION
+    return (request.POST.get("action") or "").strip() in {
+        SAVE_DRAFT_ACTION,
+        SAVE_DRAFT_PACK_ACTION,
+    }
+
+
+def _is_save_draft_pack_action(request):
+    return (request.POST.get("action") or "").strip() == SAVE_DRAFT_PACK_ACTION
 
 
 def _next_temp_shipment_reference():
@@ -71,7 +80,12 @@ def _resolve_optional_contact(form, field_name):
     return raw_value, contact
 
 
-def _handle_shipment_save_draft_post(request, *, form):
+def _build_pack_redirect_url(*, shipment_reference):
+    base_url = reverse("scan:scan_pack")
+    return f"{base_url}?shipment_reference={shipment_reference}"
+
+
+def _handle_shipment_save_draft_post(request, *, form, redirect_to_pack=False):
     destination_value = (form.data.get("destination") or "").strip()
     if not destination_value:
         form.add_error(
@@ -137,6 +151,8 @@ def _handle_shipment_save_draft_post(request, *, form):
             request,
             f"Brouillon enregistré: {shipment.reference}.",
         )
+        if redirect_to_pack:
+            return redirect(_build_pack_redirect_url(shipment_reference=shipment.reference))
         return redirect("scan:scan_shipment_edit", shipment.id)
 
     raise StockError("Impossible de générer une référence de brouillon unique.") from last_error
@@ -150,7 +166,11 @@ def handle_shipment_create_post(request, *, form, available_carton_ids):
             data=request.POST,
             allowed_carton_ids=available_carton_ids,
         )
-        response = _handle_shipment_save_draft_post(request, form=form)
+        response = _handle_shipment_save_draft_post(
+            request,
+            form=form,
+            redirect_to_pack=_is_save_draft_pack_action(request),
+        )
         return response, carton_count, line_values, {}
 
     carton_count = _get_carton_count(form, request)

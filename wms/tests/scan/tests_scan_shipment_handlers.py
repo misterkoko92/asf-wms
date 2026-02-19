@@ -203,7 +203,40 @@ class ScanShipmentHandlersTests(TestCase):
         self.assertEqual(carton_count, 1)
         self.assertEqual(line_values, [{"line": 1}])
         self.assertEqual(line_errors, {})
-        save_draft_mock.assert_called_once_with(request, form=form)
+        save_draft_mock.assert_called_once_with(
+            request,
+            form=form,
+            redirect_to_pack=False,
+        )
+
+    def test_handle_shipment_create_post_save_draft_pack_redirects_to_pack_flow(self):
+        request = self._request({"action": "save_draft_pack", "carton_count": "1"})
+        form = _FakeForm(valid=False)
+        expected_response = SimpleNamespace(status_code=302, url="/scan/pack/")
+
+        with mock.patch(
+            "wms.scan_shipment_handlers.parse_shipment_lines",
+            return_value=([{"line": 1}], [], {"1": ["missing"]}),
+        ):
+            with mock.patch(
+                "wms.scan_shipment_handlers._handle_shipment_save_draft_post",
+                return_value=expected_response,
+            ) as save_draft_mock:
+                response, carton_count, line_values, line_errors = handle_shipment_create_post(
+                    request,
+                    form=form,
+                    available_carton_ids=set(),
+                )
+
+        self.assertEqual(response, expected_response)
+        self.assertEqual(carton_count, 1)
+        self.assertEqual(line_values, [{"line": 1}])
+        self.assertEqual(line_errors, {})
+        save_draft_mock.assert_called_once_with(
+            request,
+            form=form,
+            redirect_to_pack=True,
+        )
 
     def test_handle_shipment_edit_post_success(self):
         request = self._request({"carton_count": "2"})

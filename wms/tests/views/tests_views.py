@@ -437,6 +437,17 @@ class ScanViewTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(Carton.objects.count(), 1)
 
+    def test_scan_pack_prefills_shipment_reference_from_querystring(self):
+        response = self.client.get(
+            reverse("scan:scan_pack"),
+            {"shipment_reference": "EXP-TEMP-42"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context["form"].initial.get("shipment_reference"),
+            "EXP-TEMP-42",
+        )
+
     def test_scan_shipment_create_assigns_carton(self):
         carton = Carton.objects.create(
             code="C-READY",
@@ -499,6 +510,25 @@ class ScanViewTests(TestCase):
         self.assertEqual(
             response.url,
             reverse("scan:scan_shipment_edit", args=[shipment.id]),
+        )
+
+    def test_scan_shipment_create_save_draft_pack_redirects_to_pack(self):
+        url = reverse("scan:scan_shipment_create")
+        response = self.client.post(
+            url,
+            {
+                "action": "save_draft_pack",
+                "destination": self.destination.id,
+                "carton_count": 1,
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+
+        shipment = Shipment.objects.get()
+        self.assertTrue(shipment.reference.startswith("EXP-TEMP-"))
+        self.assertEqual(
+            response.url,
+            f"{reverse('scan:scan_pack')}?shipment_reference={shipment.reference}",
         )
 
     def test_scan_shipment_create_save_draft_requires_destination(self):

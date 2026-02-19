@@ -251,7 +251,12 @@ def scan_shipments_ready(request):
 @scan_staff_required
 @require_http_methods(["GET", "POST"])
 def scan_pack(request):
-    form = ScanPackForm(request.POST or None)
+    form_initial = {}
+    if request.method == "GET":
+        shipment_reference = (request.GET.get("shipment_reference") or "").strip()
+        if shipment_reference:
+            form_initial["shipment_reference"] = shipment_reference
+    form = ScanPackForm(request.POST or None, initial=form_initial)
     product_options = build_product_options(include_kits=True)
     carton_formats, default_format = build_carton_formats()
     line_errors = {}

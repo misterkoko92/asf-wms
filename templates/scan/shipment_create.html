@@ -118,9 +118,15 @@
 
         <div class="scan-field">
           <label>Colis multi-produits</label>
-          <a class="scan-scan-btn" href="{% url 'scan:scan_pack' %}">
-            Cr&eacute;er des colis multi-produits
-          </a>
+          {% if is_edit %}
+            <a class="scan-scan-btn" href="{% url 'scan:scan_pack' %}?shipment_reference={{ shipment.reference|urlencode }}">
+              Cr&eacute;er des colis multi-produits
+            </a>
+          {% else %}
+            <button type="submit" name="action" value="save_draft_pack" class="scan-scan-btn">
+              Cr&eacute;er des colis multi-produits
+            </button>
+          {% endif %}
           <p class="scan-help">
             Utilisez l'onglet Pr&eacute;paration pour cr&eacute;er des colis multi-produits, puis revenez ici pour
             les ajouter à l'expédition.
