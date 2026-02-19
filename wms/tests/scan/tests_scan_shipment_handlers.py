@@ -180,6 +180,31 @@ class ScanShipmentHandlersTests(TestCase):
         self.assertEqual(line_errors, {"1": "invalid"})
         create_mock.assert_not_called()
 
+    def test_handle_shipment_create_post_save_draft_ignores_line_errors(self):
+        request = self._request({"action": "save_draft", "carton_count": "1"})
+        form = _FakeForm(valid=False)
+        expected_response = SimpleNamespace(status_code=302, url="/shipment/1/edit")
+
+        with mock.patch(
+            "wms.scan_shipment_handlers.parse_shipment_lines",
+            return_value=([{"line": 1}], [], {"1": ["missing"]}),
+        ):
+            with mock.patch(
+                "wms.scan_shipment_handlers._handle_shipment_save_draft_post",
+                return_value=expected_response,
+            ) as save_draft_mock:
+                response, carton_count, line_values, line_errors = handle_shipment_create_post(
+                    request,
+                    form=form,
+                    available_carton_ids=set(),
+                )
+
+        self.assertEqual(response, expected_response)
+        self.assertEqual(carton_count, 1)
+        self.assertEqual(line_values, [{"line": 1}])
+        self.assertEqual(line_errors, {})
+        save_draft_mock.assert_called_once_with(request, form=form)
+
     def test_handle_shipment_edit_post_success(self):
         request = self._request({"carton_count": "2"})
         form = _FakeForm(valid=True, cleaned_data=self._cleaned_data(carton_count=2))

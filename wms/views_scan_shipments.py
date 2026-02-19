@@ -1,7 +1,10 @@
+from datetime import timedelta
+
 from django.contrib import messages
 from django.db.models import Count, Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from .carton_handlers import handle_carton_status_update
@@ -15,6 +18,7 @@ from .models import (
     DocumentType,
     Shipment,
     ShipmentStatus,
+    TEMP_SHIPMENT_REFERENCE_PREFIX,
 )
 from .pack_handlers import build_pack_defaults, handle_pack_post
 from .scan_helpers import (
@@ -54,6 +58,21 @@ ACTIVE_CARTONS_READY = "cartons_ready"
 ACTIVE_SHIPMENTS_READY = "shipments_ready"
 ACTIVE_PACK = "pack"
 ACTIVE_SHIPMENT = "shipment"
+ARCHIVE_STALE_DRAFTS_ACTION = "archive_stale_drafts"
+STALE_DRAFTS_AGE_DAYS = 30
+
+
+def _stale_drafts_cutoff():
+    return timezone.now() - timedelta(days=STALE_DRAFTS_AGE_DAYS)
+
+
+def _stale_drafts_queryset():
+    return Shipment.objects.filter(
+        archived_at__isnull=True,
+        status=ShipmentStatus.DRAFT,
+        reference__startswith=TEMP_SHIPMENT_REFERENCE_PREFIX,
+        created_at__lt=_stale_drafts_cutoff(),
+    )
 
 
 def _build_shipment_form_support(*, extra_carton_options=None):
@@ -181,10 +200,23 @@ def scan_cartons_ready(request):
 
 
 @scan_staff_required
-@require_http_methods(["GET"])
+@require_http_methods(["GET", "POST"])
 def scan_shipments_ready(request):
+    if request.method == "POST":
+        if (request.POST.get("action") or "").strip() == ARCHIVE_STALE_DRAFTS_ACTION:
+            archived_count = _stale_drafts_queryset().update(archived_at=timezone.now())
+            if archived_count:
+                messages.success(
+                    request,
+                    f"{archived_count} brouillon(s) temporaire(s) archivé(s).",
+                )
+            else:
+                messages.info(request, "Aucun brouillon temporaire ancien à archiver.")
+        return redirect("scan:scan_shipments_ready")
+
     shipments_qs = (
-        Shipment.objects.select_related(
+        Shipment.objects.filter(archived_at__isnull=True)
+        .select_related(
             "destination",
             "shipper_contact_ref__organization",
             "recipient_contact_ref__organization",
@@ -202,6 +234,7 @@ def scan_shipments_ready(request):
         .order_by("-created_at")
     )
     shipments = build_shipments_ready_rows(shipments_qs)
+    stale_draft_count = _stale_drafts_queryset().count()
 
     return render(
         request,
@@ -209,6 +242,8 @@ def scan_shipments_ready(request):
         {
             "active": ACTIVE_SHIPMENTS_READY,
             "shipments": shipments,
+            "stale_draft_count": stale_draft_count,
+            "stale_draft_days": STALE_DRAFTS_AGE_DAYS,
         },
     )
 
@@ -311,6 +346,7 @@ def scan_shipment_edit(request, shipment_id):
             "correspondent_contact_ref",
         ),
         pk=shipment_id,
+        archived_at__isnull=True,
     )
     if shipment.status in {
         ShipmentStatus.PLANNED,

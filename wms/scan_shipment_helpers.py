@@ -1,5 +1,6 @@
 from .models import Shipment
 
+
 def build_shipment_line_values(carton_count, data=None):
     lines = []
     for index in range(1, carton_count + 1):
@@ -18,4 +19,7 @@ def resolve_shipment(reference: str):
     reference = (reference or "").strip()
     if not reference:
         return None
-    return Shipment.objects.filter(reference__iexact=reference).first()
+    return Shipment.objects.filter(
+        reference__iexact=reference,
+        archived_at__isnull=True,
+    ).first()

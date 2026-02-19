@@ -112,7 +112,8 @@ class PackCartonForm(forms.Form):
             Carton.objects.exclude(status=CartonStatus.SHIPPED).order_by("code")
         )
         self.fields["shipment"].queryset = (
-            Shipment.objects.exclude(
+            Shipment.objects.filter(archived_at__isnull=True)
+            .exclude(
                 status__in=[
                     ShipmentStatus.PLANNED,
                     ShipmentStatus.SHIPPED,

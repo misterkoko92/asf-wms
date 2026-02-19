@@ -543,6 +543,9 @@ class ShipmentStatus(models.TextChoices):
     DELIVERED = "delivered", "Livre"
 
 
+TEMP_SHIPMENT_REFERENCE_PREFIX = "EXP-TEMP-"
+
+
 class Shipment(models.Model):
     reference = models.CharField(max_length=80, unique=True, blank=True)
     tracking_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
@@ -589,6 +592,7 @@ class Shipment(models.Model):
     disputed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     ready_at = models.DateTimeField(null=True, blank=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True
     )
@@ -639,9 +643,35 @@ class Shipment(models.Model):
         if self.qr_code_image:
             self.save(update_fields=["qr_code_image"])
 
+    @staticmethod
+    def _merge_update_fields(update_fields, *fields):
+        if update_fields is None:
+            return None
+        merged = set(update_fields)
+        merged.update(fields)
+        return list(merged)
+
+    def _should_promote_temp_reference(self) -> bool:
+        reference = (self.reference or "").strip()
+        return (
+            bool(reference)
+            and reference.startswith(TEMP_SHIPMENT_REFERENCE_PREFIX)
+            and self.status != ShipmentStatus.DRAFT
+        )
+
     def save(self, *args, **kwargs):
+        update_fields = kwargs.get("update_fields")
         if not self.reference:
             self.reference = generate_shipment_reference()
+            merged_update_fields = self._merge_update_fields(update_fields, "reference")
+            if merged_update_fields is not None:
+                kwargs["update_fields"] = merged_update_fields
+                update_fields = merged_update_fields
+        elif self._should_promote_temp_reference():
+            self.reference = generate_shipment_reference()
+            merged_update_fields = self._merge_update_fields(update_fields, "reference")
+            if merged_update_fields is not None:
+                kwargs["update_fields"] = merged_update_fields
         creating = self.pk is None
         if creating and not self.qr_code_image:
             self.generate_qr_code()

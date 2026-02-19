@@ -31,6 +31,15 @@
         {% endfor %}
       </div>
 
+      {% if not is_edit %}
+        <div class="scan-inline scan-inline-gap">
+          <button type="submit" name="action" value="save_draft" class="scan-submit secondary scan-submit-inline">
+            Enregistrer en brouillon
+          </button>
+        </div>
+        <p class="scan-help">Enregistre une expédition temporaire (EXP-TEMP-XX) pour la modifier ultérieurement.</p>
+      {% endif %}
+
       <div id="shipment-shipper-section" class="scan-hidden" hidden>
         <div class="scan-field">
           <label for="id_shipper_contact">Exp&eacute;diteur</label>

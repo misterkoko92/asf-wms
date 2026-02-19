@@ -129,9 +129,11 @@ def _build_template_list_items():
 
 def _build_shipment_choices():
     shipments = []
-    for shipment in Shipment.objects.select_related("destination").order_by(
-        "reference", "id"
-    )[:30]:
+    for shipment in (
+        Shipment.objects.filter(archived_at__isnull=True)
+        .select_related("destination")
+        .order_by("reference", "id")[:30]
+    ):
         destination = (
             shipment.destination.city
             if shipment.destination and shipment.destination.city
@@ -194,7 +196,8 @@ def _load_preview_shipment(raw_shipment_id):
     if not raw_shipment_id.isdigit():
         return None
     return (
-        Shipment.objects.select_related("destination")
+        Shipment.objects.filter(archived_at__isnull=True)
+        .select_related("destination")
         .prefetch_related("carton_set")
         .filter(pk=int(raw_shipment_id))
         .first()

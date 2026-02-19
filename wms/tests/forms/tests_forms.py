@@ -76,6 +76,8 @@ class FormsTests(TestCase):
         carton_kept = Carton.objects.create(code="CT-KEEP")
         carton_shipped = Carton.objects.create(code="CT-SHIPPED", status=CartonStatus.SHIPPED)
         shipment_kept = self._create_shipment("KEEP", status=ShipmentStatus.DRAFT)
+        shipment_archived = self._create_shipment("ARCHIVE", status=ShipmentStatus.DRAFT)
+        Shipment.objects.filter(pk=shipment_archived.pk).update(archived_at=timezone.now())
         shipment_shipped = self._create_shipment("SHIPPED", status=ShipmentStatus.SHIPPED)
         shipment_delivered = self._create_shipment("DELIV", status=ShipmentStatus.DELIVERED)
 
@@ -86,6 +88,7 @@ class FormsTests(TestCase):
         self.assertIn(carton_kept.id, carton_ids)
         self.assertNotIn(carton_shipped.id, carton_ids)
         self.assertIn(shipment_kept.id, shipment_ids)
+        self.assertNotIn(shipment_archived.id, shipment_ids)
         self.assertNotIn(shipment_shipped.id, shipment_ids)
         self.assertNotIn(shipment_delivered.id, shipment_ids)
 

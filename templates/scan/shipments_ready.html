@@ -5,6 +5,16 @@
 {% block content %}
   <div class="scan-card">
     <h2>Vue Exp&eacute;ditions ({{ shipments|length }})</h2>
+    {% if stale_draft_count %}
+      <div class="scan-message error">
+        {{ stale_draft_count }} brouillon(s) temporaire(s) de plus de {{ stale_draft_days }} jours.
+      </div>
+      <form method="post" class="scan-inline scan-inline-gap">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="archive_stale_drafts">
+        <button type="submit" class="scan-scan-btn">Archiver brouillons anciens</button>
+      </form>
+    {% endif %}
     {% if shipments %}
       <div class="scan-table-wrap">
         <table class="scan-table" data-table-tools="1">

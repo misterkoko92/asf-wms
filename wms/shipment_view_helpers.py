@@ -123,7 +123,9 @@ def _shipment_progress_label(*, total, ready):
 
 
 def _shipment_status_label(shipment, progress_label):
-    if shipment.status in STATUS_LOCKED_SHIPMENT:
+    if shipment.status == ShipmentStatus.DRAFT:
+        base_label = "Brouillon"
+    elif shipment.status in STATUS_LOCKED_SHIPMENT:
         try:
             base_label = ShipmentStatus(shipment.status).label
         except ValueError:

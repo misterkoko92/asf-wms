@@ -1,10 +1,11 @@
-from datetime import date
+from datetime import date, timedelta
 from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from contacts.models import Contact, ContactAddress, ContactTag, ContactType
 from wms.models import (
@@ -478,6 +479,115 @@ class ScanViewTests(TestCase):
         )
         self.assertEqual(response.status_code, 302)
         self.assertEqual(Shipment.objects.count(), 1)
+
+    def test_scan_shipment_create_save_draft_creates_temp_reference(self):
+        url = reverse("scan:scan_shipment_create")
+        response = self.client.post(
+            url,
+            {
+                "action": "save_draft",
+                "destination": self.destination.id,
+                "carton_count": 1,
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+
+        shipment = Shipment.objects.get()
+        self.assertTrue(shipment.reference.startswith("EXP-TEMP-"))
+        self.assertEqual(shipment.status, ShipmentStatus.DRAFT)
+        self.assertEqual(shipment.destination_id, self.destination.id)
+        self.assertEqual(
+            response.url,
+            reverse("scan:scan_shipment_edit", args=[shipment.id]),
+        )
+
+    def test_scan_shipment_create_save_draft_requires_destination(self):
+        url = reverse("scan:scan_shipment_create")
+        response = self.client.post(
+            url,
+            {
+                "action": "save_draft",
+                "carton_count": 1,
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            "Merci de sélectionner une destination avant d'enregistrer un brouillon.",
+            response.context["form"].errors.get("destination", []),
+        )
+        self.assertEqual(Shipment.objects.count(), 0)
+
+    def test_scan_shipments_ready_reports_stale_draft_count(self):
+        stale = Shipment.objects.create(
+            reference="EXP-TEMP-01",
+            status=ShipmentStatus.DRAFT,
+            shipper_name=self.shipper.name,
+            recipient_name=self.recipient.name,
+            correspondent_name=self.correspondent.name,
+            destination=self.destination,
+            destination_address=str(self.destination),
+            destination_country=self.destination.country,
+            created_by=self.user,
+        )
+        Shipment.objects.filter(pk=stale.pk).update(
+            created_at=timezone.now() - timedelta(days=45)
+        )
+
+        response = self.client.get(reverse("scan:scan_shipments_ready"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["stale_draft_count"], 1)
+
+    def test_scan_shipments_ready_archives_only_stale_temp_drafts(self):
+        stale = Shipment.objects.create(
+            reference="EXP-TEMP-02",
+            status=ShipmentStatus.DRAFT,
+            shipper_name=self.shipper.name,
+            recipient_name=self.recipient.name,
+            correspondent_name=self.correspondent.name,
+            destination=self.destination,
+            destination_address=str(self.destination),
+            destination_country=self.destination.country,
+            created_by=self.user,
+        )
+        Shipment.objects.filter(pk=stale.pk).update(
+            created_at=timezone.now() - timedelta(days=40)
+        )
+        fresh = Shipment.objects.create(
+            reference="EXP-TEMP-03",
+            status=ShipmentStatus.DRAFT,
+            shipper_name=self.shipper.name,
+            recipient_name=self.recipient.name,
+            correspondent_name=self.correspondent.name,
+            destination=self.destination,
+            destination_address=str(self.destination),
+            destination_country=self.destination.country,
+            created_by=self.user,
+        )
+        regular_draft = Shipment.objects.create(
+            reference="260888",
+            status=ShipmentStatus.DRAFT,
+            shipper_name=self.shipper.name,
+            recipient_name=self.recipient.name,
+            correspondent_name=self.correspondent.name,
+            destination=self.destination,
+            destination_address=str(self.destination),
+            destination_country=self.destination.country,
+            created_by=self.user,
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_shipments_ready"),
+            {"action": "archive_stale_drafts"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("scan:scan_shipments_ready"))
+
+        stale.refresh_from_db()
+        fresh.refresh_from_db()
+        regular_draft.refresh_from_db()
+        self.assertIsNotNone(stale.archived_at)
+        self.assertIsNone(fresh.archived_at)
+        self.assertIsNone(regular_draft.archived_at)
 
     def test_scan_shipment_edit_updates_destination(self):
         shipment = Shipment.objects.create(

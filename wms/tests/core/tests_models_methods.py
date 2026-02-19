@@ -48,6 +48,7 @@ from wms.models import (
     ReceiptSequence,
     Shipment,
     ShipmentSequence,
+    ShipmentStatus,
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
     StockMovement,
@@ -315,6 +316,24 @@ class WmsModelMethodsTests(TestCase):
             actor_structure="ASF",
         )
         self.assertIn("Planifie", str(event))
+
+    def test_shipment_save_promotes_temp_reference_when_status_changes(self):
+        shipment = self._create_shipment(
+            reference="EXP-TEMP-01",
+            status=ShipmentStatus.DRAFT,
+        )
+
+        shipment.notes = "Draft note"
+        shipment.save(update_fields=["notes"])
+        shipment.refresh_from_db()
+        self.assertEqual(shipment.reference, "EXP-TEMP-01")
+
+        shipment.status = ShipmentStatus.PICKING
+        shipment.save(update_fields=["status"])
+        shipment.refresh_from_db()
+        self.assertFalse(shipment.reference.startswith("EXP-TEMP-"))
+        self.assertTrue(shipment.reference.isdigit())
+        self.assertEqual(len(shipment.reference), 6)
 
     def test_order_account_and_document_repr_methods(self):
         order = self._create_order(reference="")

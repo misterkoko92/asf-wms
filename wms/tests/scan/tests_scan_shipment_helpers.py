@@ -1,4 +1,5 @@
 from django.test import TestCase
+from django.utils import timezone
 
 from wms.models import Shipment
 from wms.scan_shipment_helpers import build_shipment_line_values, resolve_shipment
@@ -37,3 +38,13 @@ class ScanShipmentHelpersTests(TestCase):
 
     def test_resolve_shipment_ignorés_blank(self):
         self.assertIsNone(resolve_shipment(""))
+
+    def test_resolve_shipment_ignores_archived(self):
+        shipment = Shipment.objects.create(
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            destination_address="10 Rue Test",
+            destination_country="France",
+            archived_at=timezone.now(),
+        )
+        self.assertIsNone(resolve_shipment(shipment.reference))
