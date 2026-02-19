@@ -39,7 +39,9 @@ Backlog aligné avec l'audit global du **19/02/2026** (`docs/audit_2026-02-19.md
 - [x] Découper `wms/models.py` en modules par agrégat.
   - façade de compatibilité conservée dans `wms/models.py`
   - modules domaine: `wms/models_domain/catalog.py`, `inventory.py`, `shipment.py`, `portal.py`, `integration.py`
-- [ ] Découper `wms/admin.py` et `wms/views_scan_shipments.py` pour baisser la complexité.
+- [x] Découper `wms/admin.py` et `wms/views_scan_shipments.py` pour baisser la complexité.
+  - extraction des enregistrements admin peu couplés vers `wms/admin_misc.py`
+  - extraction des helpers de page expédition vers `wms/views_scan_shipments_support.py`
 - [ ] Encadrer puis retirer progressivement les chemins legacy restants.
 - [ ] Uniformiser libellés FR/accents et conventions métier.
 

@@ -12,6 +12,7 @@ from django.utils import timezone
 from django.utils.html import format_html, format_html_join
 
 from . import models
+from . import admin_misc  # noqa: F401
 from .admin_account_request_approval import (
     approve_account_request,
     build_account_access_lines,
@@ -56,19 +57,6 @@ from .services import (
     transfer_stock,
     unpack_carton,
 )
-
-
-@admin.register(models.ProductCategory)
-class ProductCategoryAdmin(admin.ModelAdmin):
-    list_display = ("name", "parent")
-    search_fields = ("name",)
-    list_select_related = ("parent",)
-
-
-@admin.register(models.ProductTag)
-class ProductTagAdmin(admin.ModelAdmin):
-    search_fields = ("name",)
-
 
 class ProductKitItemInline(admin.TabularInline):
     model = models.ProductKitItem
@@ -414,46 +402,6 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
     reject_requests.short_description = "Refuser les demandes"
 
 
-@admin.register(models.AssociationProfile)
-class AssociationProfileAdmin(admin.ModelAdmin):
-    list_display = ("contact", "user", "created_at")
-    search_fields = ("contact__name", "user__username", "user__email")
-
-
-@admin.register(models.AssociationRecipient)
-class AssociationRecipientAdmin(admin.ModelAdmin):
-    list_display = (
-        "display_name",
-        "association_contact",
-        "destination",
-        "city",
-        "country",
-        "notify_deliveries",
-        "is_delivery_contact",
-        "is_active",
-    )
-    list_filter = (
-        "is_active",
-        "notify_deliveries",
-        "is_delivery_contact",
-        "country",
-        "destination",
-    )
-    search_fields = (
-        "name",
-        "structure_name",
-        "contact_last_name",
-        "contact_first_name",
-        "association_contact__name",
-        "city",
-    )
-
-    def display_name(self, obj):
-        return obj.get_display_name()
-
-    display_name.short_description = "Destinataire"
-
-
 class _DocumentStatusMixin:
     actions = ("mark_approved", "mark_rejected")
 
@@ -483,26 +431,6 @@ class AccountDocumentAdmin(_DocumentStatusMixin, admin.ModelAdmin):
     list_display = ("doc_type", "association_contact", "status", "uploaded_at")
     list_filter = ("status", "doc_type")
     search_fields = ("association_contact__name",)
-
-
-@admin.register(models.OrderDocument)
-class OrderDocumentAdmin(_DocumentStatusMixin, admin.ModelAdmin):
-    list_display = ("doc_type", "order", "status", "uploaded_at")
-    list_filter = ("status", "doc_type")
-    search_fields = ("order__reference",)
-
-
-@admin.register(models.Warehouse)
-class WarehouseAdmin(admin.ModelAdmin):
-    list_display = ("name", "code")
-    search_fields = ("name", "code")
-
-
-@admin.register(models.Location)
-class LocationAdmin(admin.ModelAdmin):
-    list_display = ("warehouse", "zone", "aisle", "shelf")
-    list_filter = ("warehouse",)
-    search_fields = ("warehouse__name", "zone", "aisle", "shelf")
 
 
 class RackColorAdminForm(forms.ModelForm):
@@ -684,20 +612,6 @@ class ReceiptLineAdmin(admin.ModelAdmin):
     list_select_related = ("receipt", "receipt__warehouse", "product", "location", "received_lot")
 
 
-@admin.register(models.CartonFormat)
-class CartonFormatAdmin(admin.ModelAdmin):
-    list_display = (
-        "name",
-        "length_cm",
-        "width_cm",
-        "height_cm",
-        "max_weight_g",
-        "is_default",
-    )
-    list_filter = ("is_default",)
-    search_fields = ("name",)
-
-
 @admin.register(models.ProductLot)
 class ProductLotAdmin(admin.ModelAdmin):
     list_display = (
@@ -831,21 +745,6 @@ class OrderAdmin(admin.ModelAdmin):
             self.message_user(request, error, level=messages.ERROR)
 
     prepare_order_action.short_description = "Préparer les commandes"
-
-
-@admin.register(models.OrderReservation)
-class OrderReservationAdmin(admin.ModelAdmin):
-    list_display = ("order_line", "product_lot", "quantity", "created_at")
-    list_filter = ("order_line__order__status", "product_lot__product")
-    search_fields = ("order_line__order__reference", "product_lot__product__name")
-    autocomplete_fields = ("order_line", "product_lot")
-
-
-@admin.register(models.OrderLine)
-class OrderLineAdmin(admin.ModelAdmin):
-    list_display = ("order", "product", "quantity", "reserved_quantity", "prepared_quantity")
-    list_filter = ("order__status", "product")
-    search_fields = ("order__reference", "product__name", "product__sku")
 
 
 @admin.register(models.Carton)
@@ -1137,25 +1036,3 @@ class StockMovementAdmin(admin.ModelAdmin):
             title=title,
             render_fn=render,
         )
-
-
-@admin.register(models.Document)
-class DocumentAdmin(admin.ModelAdmin):
-    list_display = ("doc_type", "shipment", "generated_at")
-    list_filter = ("doc_type",)
-    search_fields = ("shipment__reference",)
-
-
-@admin.register(models.IntegrationEvent)
-class IntegrationEventAdmin(admin.ModelAdmin):
-    list_display = (
-        "created_at",
-        "direction",
-        "source",
-        "target",
-        "event_type",
-        "status",
-    )
-    list_filter = ("direction", "status", "source", "event_type")
-    search_fields = ("source", "target", "event_type", "external_id")
-    readonly_fields = ("created_at", "processed_at")

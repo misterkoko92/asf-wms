@@ -26,6 +26,8 @@ Current priority from the audit:
   - `python manage.py audit_contact_destinations`
   - `python manage.py audit_contact_destinations --apply` (if inconsistencies detected)
 - keep importing models through `wms.models` (facade), model sources live in `wms/models_domain/`
+- scan shipment page helpers are in `wms/views_scan_shipments_support.py` (public view endpoints remain in `wms/views_scan_shipments.py`)
+- part of Django admin registrations is now hosted in `wms/admin_misc.py`
 
 ## 1) Environment baseline
 
