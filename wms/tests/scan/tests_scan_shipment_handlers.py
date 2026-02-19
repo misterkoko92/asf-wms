@@ -319,6 +319,111 @@ class ScanShipmentHandlersTests(TestCase):
         sync_mock.assert_called_once_with(shipment)
         redirect_mock.assert_called_once_with("scan:scan_shipments_ready")
 
+    def test_handle_shipment_edit_post_uses_reserved_stock_for_related_order(self):
+        request = self._request({"carton_count": "1"})
+        form = _FakeForm(valid=True, cleaned_data=self._cleaned_data(carton_count=1))
+        related_order_line = SimpleNamespace(product_id=7, remaining_quantity=4)
+        lines_manager = mock.MagicMock()
+        lines_manager.select_related.return_value.all.return_value = [related_order_line]
+        shipment = SimpleNamespace(
+            id=53,
+            reference="S-EDIT-RESERVED",
+            status=ShipmentStatus.DRAFT,
+            carton_set=mock.MagicMock(),
+            save=mock.Mock(),
+            order=SimpleNamespace(lines=lines_manager),
+        )
+        shipment.carton_set.exclude.return_value = []
+        product = SimpleNamespace(id=7, name="Produit reserve")
+        reserved_carton = SimpleNamespace()
+
+        with mock.patch(
+            "wms.scan_shipment_handlers.parse_shipment_lines",
+            return_value=([{"line": 1}], [{"product": product, "quantity": 2}], {}),
+        ):
+            with mock.patch(
+                "wms.scan_shipment_handlers.build_destination_label",
+                return_value="Paris - France",
+            ):
+                with mock.patch(
+                    "wms.scan_shipment_handlers.pack_carton_from_reserved",
+                    return_value=reserved_carton,
+                ) as reserved_mock:
+                    with mock.patch(
+                        "wms.scan_shipment_handlers.pack_carton"
+                    ) as pack_mock:
+                        with mock.patch(
+                            "wms.scan_shipment_handlers.set_carton_status"
+                        ):
+                            with mock.patch(
+                                "wms.scan_shipment_handlers.sync_shipment_ready_state"
+                            ):
+                                with mock.patch(
+                                    "wms.scan_shipment_handlers.messages.success"
+                                ):
+                                    with mock.patch(
+                                        "wms.scan_shipment_handlers.redirect",
+                                        return_value=SimpleNamespace(
+                                            status_code=302,
+                                            url="/ready",
+                                        ),
+                                    ):
+                                        response, *_ = handle_shipment_edit_post(
+                                            request,
+                                            form=form,
+                                            shipment=shipment,
+                                            allowed_carton_ids=set(),
+                                        )
+
+        self.assertEqual(response.status_code, 302)
+        reserved_mock.assert_called_once_with(
+            user=request.user,
+            line=related_order_line,
+            quantity=2,
+            carton=None,
+            shipment=shipment,
+        )
+        pack_mock.assert_not_called()
+
+    def test_handle_shipment_edit_post_rejects_product_outside_related_order(self):
+        request = self._request({"carton_count": "1"})
+        form = _FakeForm(valid=True, cleaned_data=self._cleaned_data(carton_count=1))
+        related_order_line = SimpleNamespace(product_id=7, remaining_quantity=4)
+        lines_manager = mock.MagicMock()
+        lines_manager.select_related.return_value.all.return_value = [related_order_line]
+        shipment = SimpleNamespace(
+            id=54,
+            reference="S-EDIT-ORDER-MISS",
+            status=ShipmentStatus.DRAFT,
+            carton_set=mock.MagicMock(),
+            save=mock.Mock(),
+            order=SimpleNamespace(lines=lines_manager),
+        )
+        shipment.carton_set.exclude.return_value = []
+        product = SimpleNamespace(id=99, name="Produit inconnu")
+
+        with mock.patch(
+            "wms.scan_shipment_handlers.parse_shipment_lines",
+            return_value=([{"line": 1}], [{"product": product, "quantity": 1}], {}),
+        ):
+            with mock.patch(
+                "wms.scan_shipment_handlers.build_destination_label",
+                return_value="Paris - France",
+            ):
+                with mock.patch(
+                    "wms.scan_shipment_handlers.pack_carton_from_reserved"
+                ) as reserved_mock:
+                    response, *_ = handle_shipment_edit_post(
+                        request,
+                        form=form,
+                        shipment=shipment,
+                        allowed_carton_ids=set(),
+                    )
+
+        self.assertIsNone(response)
+        self.assertIn((None, "Produit non présent dans la commande liée."), form.errors)
+        reserved_mock.assert_not_called()
+
     def test_handle_shipment_edit_post_rejects_removal_of_shipped_carton(self):
         request = self._request({"carton_count": "1"})
         form = _FakeForm(valid=True, cleaned_data=self._cleaned_data(carton_count=1))

@@ -8,8 +8,43 @@ from .shipment_helpers import build_shipment_contact_payload
 from .view_utils import resolve_contact_by_name
 
 
-def build_shipment_form_payload():
-    product_options = build_product_options()
+def build_shipment_order_product_options(order_lines):
+    options = []
+    for order_line in order_lines or []:
+        product = getattr(order_line, "product", None)
+        if product is None:
+            continue
+        try:
+            remaining_quantity = int(getattr(order_line, "remaining_quantity", 0) or 0)
+        except (TypeError, ValueError):
+            remaining_quantity = 0
+        if remaining_quantity <= 0:
+            continue
+        options.append(
+            {
+                "id": product.id,
+                "name": product.name,
+                "sku": product.sku,
+                "barcode": product.barcode,
+                "ean": product.ean,
+                "brand": product.brand,
+                "default_location_id": product.default_location_id,
+                "storage_conditions": product.storage_conditions,
+                "weight_g": product.weight_g,
+                "volume_cm3": product.volume_cm3,
+                "length_cm": product.length_cm,
+                "width_cm": product.width_cm,
+                "height_cm": product.height_cm,
+                "available_stock": remaining_quantity,
+            }
+        )
+    options.sort(key=lambda item: (item.get("name") or "").lower())
+    return options
+
+
+def build_shipment_form_payload(*, product_options=None):
+    if product_options is None:
+        product_options = build_product_options()
     available_cartons = build_available_cartons()
     (
         destinations_json,
