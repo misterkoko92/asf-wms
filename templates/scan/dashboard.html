@@ -8,7 +8,7 @@
     <form method="get" class="scan-filters">
       <div class="scan-inline scan-inline-equal scan-inline-top">
         <div class="scan-field">
-          <label for="id_period">Periode KPI</label>
+          <label for="id_period">Période KPI</label>
           <select id="id_period" name="period">
             {% for value, label in period_choices %}
               <option value="{{ value }}"{% if period == value %} selected{% endif %}>{{ label }}</option>
@@ -29,7 +29,7 @@
       </div>
       <div class="scan-filter-actions">
         <button type="submit" class="scan-scan-btn">Appliquer</button>
-        <a href="{% url 'scan:scan_dashboard' %}">Reinitialiser</a>
+        <a href="{% url 'scan:scan_dashboard' %}">Réinitialiser</a>
       </div>
       <p class="scan-help">
         La destination filtre les widgets exp&eacute;dition/suivi. Le stock reste un instantan&eacute; global.

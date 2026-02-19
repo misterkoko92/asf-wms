@@ -19,7 +19,7 @@
     </ul>
     <h3>Statuts cle</h3>
     <ul>
-      <li><strong>Carton</strong> : Cr&eacute;&eacute; (draft), En pr&eacute;paration (picking), Pr&ecirc;t (packed), Affect&eacute; (assigned), Etiquet&eacute; (labeled), Exp&eacute;di&eacute; (shipped).</li>
+      <li><strong>Carton</strong> : Cr&eacute;&eacute; (draft), En pr&eacute;paration (picking), Pr&ecirc;t (packed), Affect&eacute; (assigned), &Eacute;tiquet&eacute; (labeled), Exp&eacute;di&eacute; (shipped).</li>
       <li><strong>Exp&eacute;dition</strong> : Cr&eacute;ation (draft), En cours (picking), Pr&ecirc;t (packed), Planifi&eacute; (planned), Exp&eacute;di&eacute; (shipped), Re&ccedil;u escale (received_correspondent), Livr&eacute; (delivered).</li>
       <li><strong>Litige</strong> : drapeau transverse sur exp&eacute;dition (<code>is_disputed</code>), activable &agrave; tout moment du suivi.</li>
       <li><strong>R&eacute;ception</strong> : DRAFT tant que les lignes ne sont pas r&eacute;ceptionn&eacute;es.</li>
@@ -69,7 +69,7 @@
   <div class="scan-card">
     <h2>MAJ stock</h2>
     <ul>
-      <li>S&eacute;lection produit par nom, SKU, barcode ou EAN (scan camera possible).</li>
+      <li>S&eacute;lection produit par nom, SKU, barcode ou EAN (scan cam&eacute;ra possible).</li>
       <li>Si inconnu, le bouton propose de cr&eacute;er le produit dans l'admin.</li>
       <li>Quantit&eacute;, p&eacute;remption et lot sont enregistr&eacute;s dans un nouveau lot.</li>
       <li>Le lot est plac&eacute; sur l'emplacement par d&eacute;faut du produit.</li>
@@ -126,7 +126,7 @@
     <h2>Vue Colis</h2>
     <ul>
       <li>Liste tous les cartons pr&eacute;par&eacute;s avec leur statut et contenu.</li>
-      <li>Actions explicites: <strong>Marquer etiquete</strong> et <strong>Retirer etiquette</strong> pour les cartons affect&eacute;s.</li>
+      <li>Actions explicites: <strong>Marquer &eacute;tiquet&eacute;</strong> et <strong>Retirer &eacute;tiquette</strong> pour les cartons affect&eacute;s.</li>
       <li>Un carton affect&eacute;/etiquet&eacute; d&eacute;saffect&eacute; d'une exp&eacute;dition revient en <strong>Pr&ecirc;t</strong>.</li>
       <li>Un carton <strong>Exp&eacute;di&eacute;</strong> n'est plus modifiable.</li>
       <li>Poids et remplissage sont affich&eacute;s quand les dimensions sont disponibles.</li>
@@ -275,7 +275,7 @@
       <li>Champs obligatoires : <strong>Nom</strong> et <strong>Structure</strong>.</li>
       <li>Commentaires optionnels et horodatage automatique (AAAA/MM/JJ HHhMM).</li>
       <li>Le s&eacute;lecteur propose automatiquement l'&eacute;tape suivante.</li>
-      <li>Etapes : OK pour planification, Planifi&eacute;, D&eacute;plac&eacute; au magasin export, OK mise &agrave; bord, Re&ccedil;u correspondant, Re&ccedil;u destinataire.</li>
+      <li>&Eacute;tapes : OK pour planification, Planifi&eacute;, D&eacute;plac&eacute; au magasin export, OK mise &agrave; bord, Re&ccedil;u correspondant, Re&ccedil;u destinataire.</li>
       <li>Passage de statut exp&eacute;dition : Planifi&eacute;/D&eacute;plac&eacute; =&gt; Planifi&eacute;, Mise &agrave; bord =&gt; Exp&eacute;di&eacute;, Re&ccedil;u correspondant =&gt; Re&ccedil;u escale, Re&ccedil;u destinataire =&gt; Livr&eacute;.</li>
       <li>Depuis la page de suivi staff, le bouton <strong>Revenir &agrave; la liste</strong> revient vers la derni&egrave;re vue (Vue Exp&eacute;ditions ou Suivi des exp&eacute;ditions).</li>
       <li>Si des champs de suivi sont modifi&eacute;s non enregistr&eacute;s, une confirmation propose <strong>OUI</strong> (enregistrer) ou <strong>NON</strong> (quitter sans enregistrer).</li>
@@ -290,8 +290,8 @@
   <div class="scan-card">
     <h2>Scanner & synchronisation</h2>
     <ul>
-      <li>Le bouton <strong>Scan</strong> ouvre la camera et remplit le champ cible.</li>
-      <li>Si la camera est bloqu&eacute;e, autoriser l'acc&egrave;s dans le navigateur.</li>
+      <li>Le bouton <strong>Scan</strong> ouvre la cam&eacute;ra et remplit le champ cible.</li>
+      <li>Si la cam&eacute;ra est bloqu&eacute;e, autoriser l'acc&egrave;s dans le navigateur.</li>
       <li>Si le scan n'est pas support&eacute;, saisir le code manuellement.</li>
       <li>Le QR exp&eacute;dition ouvre uniquement la page de suivi + documents (sans login).</li>
       <li>La bannière de synchro indique qu'une mise à jour est disponible.</li>
@@ -303,7 +303,7 @@
     <ul>
       <li><strong>Mes listes sont vides</strong> : v&eacute;rifier les tags + destinations (exp&eacute;diteurs/correspondants) et les exp&eacute;diteurs li&eacute;s (destinataires).</li>
       <li><strong>Stock à zéro</strong> : vérifier les lots disponibles et leur emplacement.</li>
-      <li><strong>Camera ne s'ouvre pas</strong> : autoriser la camera, tester un autre navigateur.</li>
+      <li><strong>Cam&eacute;ra ne s'ouvre pas</strong> : autoriser la cam&eacute;ra, tester un autre navigateur.</li>
       <li><strong>Un carton est bloqu&eacute;</strong> : un carton exp&eacute;di&eacute; est non modifiable, et une exp&eacute;dition planifi&eacute;e/verrouill&eacute;e bloque les changements colis.</li>
       <li><strong>Correspondant introuvable</strong> : v&eacute;rifier le correspondant li&eacute; sur la destination s&eacute;lectionn&eacute;e.</li>
       <li><strong>Le QR n'ouvre rien</strong> : v&eacute;rifier SITE_BASE_URL et relancer l'app.</li>

@@ -46,14 +46,14 @@
                   {% csrf_token %}
                   <input type="hidden" name="action" value="resolve_dispute">
                   <input type="hidden" name="return_to" value="{{ return_to }}">
-                  <button type="submit" class="scan-scan-btn">Resoudre litige et remettre Pret</button>
+                  <button type="submit" class="scan-scan-btn">Résoudre litige et remettre Prêt</button>
                 </form>
               {% else %}
                 <form method="post">
                   {% csrf_token %}
                   <input type="hidden" name="action" value="set_disputed">
                   <input type="hidden" name="return_to" value="{{ return_to }}">
-                  <button type="submit" class="scan-scan-btn">Declarer litige</button>
+                  <button type="submit" class="scan-scan-btn">Déclarer litige</button>
                 </form>
               {% endif %}
             </div>
@@ -61,7 +61,7 @@
         </div>
 
         <div class="scan-field">
-          <label>Documents lies</label>
+          <label>Documents liés</label>
           <div class="scan-docs">
             {% for doc in documents %}
               <a class="scan-scan-btn scan-doc-btn" href="{{ doc.url }}" target="_blank" rel="noopener">
@@ -106,7 +106,7 @@
         {% if can_update_tracking %}
           {% if shipment.is_disputed %}
             <div class="scan-help">
-              Suivi bloque tant que le litige n'est pas resolu.
+              Suivi bloqué tant que le litige n'est pas résolu.
             </div>
           {% else %}
             <h3>Mettre &agrave; jour le suivi</h3>
@@ -119,7 +119,7 @@
               {% endif %}
 
               <div class="scan-field">
-                <label for="id_status">Etape</label>
+                <label for="id_status">Étape</label>
                 {{ form.status }}
                 {% for error in form.status.errors %}
                   <div class="scan-message error">{{ error }}</div>
@@ -168,7 +168,7 @@
               <thead>
                 <tr>
                   <th>Horodatage</th>
-                  <th>Etape</th>
+                  <th>Étape</th>
                   <th>Nom</th>
                   <th>Structure</th>
                   <th>Commentaires</th>
@@ -188,7 +188,7 @@
             </table>
           </div>
         {% else %}
-          <div class="scan-help">Aucun suivi enregistre.</div>
+          <div class="scan-help">Aucun suivi enregistré.</div>
         {% endif %}
       </div>
     </main>
@@ -202,10 +202,10 @@
     >
       <div class="scan-choice-modal" role="dialog" aria-modal="true" aria-labelledby="tracking-leave-title">
         <div class="scan-choice-header">
-          <strong id="tracking-leave-title">Modifications non sauvegardees</strong>
+          <strong id="tracking-leave-title">Modifications non sauvegardées</strong>
         </div>
         <div class="scan-choice-status">
-          Souhaitez vous enregistrer les modifications en cours ?
+          Souhaitez-vous enregistrer les modifications en cours ?
         </div>
         <div class="scan-choice-actions">
           <button

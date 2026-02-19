@@ -13,7 +13,7 @@
             <strong>Carton {{ carton.code }}</strong>
             <div class="scan-inline-actions">
               <a class="scan-scan-btn" href="{{ carton.packing_list_url }}" target="_blank" rel="noopener">
-                Imprimer / telecharger
+                Imprimer / télécharger
               </a>
               <a class="scan-scan-btn" href="{{ carton.picking_url }}" target="_blank" rel="noopener">
                 Picking
@@ -79,7 +79,7 @@
                 </option>
               {% endwith %}
             {% endfor %}
-            <option value="custom" {% if carton_format_id == "custom" %}selected{% endif %}>Personnalise</option>
+            <option value="custom" {% if carton_format_id == "custom" %}selected{% endif %}>Personnalisé</option>
           </select>
           <a class="scan-scan-btn" href="{% url 'admin:wms_cartonformat_add' %}" target="_blank" rel="noopener">
             Ajouter format
@@ -115,7 +115,7 @@
       </div>
 
       <div class="scan-field">
-        <label for="id_current_location">Choisir un emplacement de rangement du colis pret (optionnel)</label>
+        <label for="id_current_location">Choisir un emplacement de rangement du colis prêt (optionnel)</label>
         <div class="scan-inline">
           {{ form.current_location }}
           <a class="scan-scan-btn" href="{% url 'admin:wms_location_add' %}" target="_blank" rel="noopener">

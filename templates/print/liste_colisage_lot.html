@@ -8,7 +8,7 @@
 
 {% block body %}
   <h1>
-    LISTE DE COLISAGE - EXPEDITION N&deg; {{ shipment_ref }} - DESTINATION
+    LISTE DE COLISAGE - EXP&Eacute;DITION N&deg; {{ shipment_ref }} - DESTINATION
     {% if destination_city %}
       {{ destination_city|upper }}{% if destination_iata %} / {{ destination_iata|upper }}{% endif %}
     {% else %}
@@ -38,7 +38,7 @@
         <th>Produit</th>
         <th>Quantit&eacute;</th>
         <th>Date de p&eacute;remption</th>
-        <th>Numero de carton</th>
+        <th>Num&eacute;ro de carton</th>
       </tr>
     </thead>
     <tbody>

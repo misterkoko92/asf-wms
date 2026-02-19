@@ -40,7 +40,7 @@
           </button>
         </div>
         <div class="scan-theme-toggle">
-          <span class="scan-theme-label">Theme</span>
+          <span class="scan-theme-label">Thème</span>
           <button type="button" id="theme-toggle" class="scan-theme-button" aria-pressed="false">
             Classique
           </button>
@@ -61,7 +61,7 @@
               <a class="scan-account-link" href="/admin/">Admin</a>
             {% endif %}
             <a class="scan-account-link" href="/admin/logout/?next=/admin/login/?next=/scan/">Changer de compte</a>
-            <a class="scan-account-link" href="/admin/logout/?next=/">Deconnexion</a>
+            <a class="scan-account-link" href="/admin/logout/?next=/">Déconnexion</a>
           </div>
         </details>
       </div>
@@ -76,7 +76,7 @@
           </div>
         </div>
         <div class="scan-nav-group">
-          <button type="button" class="scan-nav-trigger">Voir les differents etats</button>
+          <button type="button" class="scan-nav-trigger">Voir les différents états</button>
           <div class="scan-nav-menu">
             <a href="{% url 'scan:scan_stock' %}" class="{% if active == 'stock' %}active{% endif %}">Vue stock</a>
             <a href="{% url 'scan:scan_cartons_ready' %}" class="{% if active == 'cartons_ready' %}active{% endif %}">Vue Colis</a>
@@ -129,7 +129,7 @@
         {% endif %}
         {% if admin_pending_account_requests %}
           <div class="scan-message warning">
-            Nouvelles demandes de compte en attente: {{ admin_pending_account_requests }}
+            Nouvelles demandes de compte en attente : {{ admin_pending_account_requests }}
             (<a href="{% url 'admin:wms_publicaccountrequest_changelist' %}">voir</a>)
           </div>
         {% endif %}
@@ -146,7 +146,7 @@
   <div id="scan-overlay" class="scan-overlay">
     <div class="scan-modal">
       <div class="scan-modal-header">
-        <strong id="scan-modal-title">Camera scan</strong>
+        <strong id="scan-modal-title">Caméra scan</strong>
         <button type="button" id="scan-close">Fermer</button>
       </div>
       <video id="scan-video" class="scan-video" playsinline></video>

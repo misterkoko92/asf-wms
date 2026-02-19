@@ -47,7 +47,7 @@
                         {% csrf_token %}
                         <input type="hidden" name="action" value="mark_carton_labeled">
                         <input type="hidden" name="carton_id" value="{{ carton.id }}">
-                        <button type="submit" class="scan-scan-btn">Marquer etiquete</button>
+                        <button type="submit" class="scan-scan-btn">Marquer étiqueté</button>
                       </form>
                     {% endif %}
                     {% if carton.can_mark_assigned %}
@@ -55,7 +55,7 @@
                         {% csrf_token %}
                         <input type="hidden" name="action" value="mark_carton_assigned">
                         <input type="hidden" name="carton_id" value="{{ carton.id }}">
-                        <button type="submit" class="scan-scan-btn">Retirer etiquette</button>
+                        <button type="submit" class="scan-scan-btn">Retirer étiquette</button>
                       </form>
                     {% endif %}
                   {% endif %}
@@ -87,7 +87,7 @@
                     </div>
                     <div class="scan-field scan-field-gap scan-inline-actions">
                       <a class="scan-scan-btn" href="{{ carton.packing_list_url }}" target="_blank" rel="noopener">
-                        Imprimer / telecharger
+                        Imprimer / télécharger
                       </a>
                       <a class="scan-scan-btn" href="{{ carton.picking_url }}" target="_blank" rel="noopener">
                         Picking
@@ -103,7 +103,7 @@
         </table>
       </div>
     {% else %}
-      <p class="scan-help">Aucun colis conditionne.</p>
+      <p class="scan-help">Aucun colis conditionné.</p>
     {% endif %}
   </div>
 {% endblock %}

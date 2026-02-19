@@ -18,14 +18,14 @@
       <div class="template-status">
         <a class="scan-scan-btn" href="{% url 'scan:scan_print_templates' %}">Retour</a>
         {% if template and template.layout %}
-          <span class="template-badge template-badge-custom">Personnalise</span>
+          <span class="template-badge template-badge-custom">Personnalisé</span>
         {% else %}
           <span class="template-badge">Par d&eacute;faut</span>
         {% endif %}
       </div>
     </div>
     <p class="template-help">
-      Glisser-deposer les blocs pour reorganiser. Editez le contenu et les styles a gauche,
+      Glisser-déposer les blocs pour réorganiser. Éditez le contenu et les styles à gauche,
       puis enregistrez. Les changements s'appliquent aux impressions.
     </p>
   </div>
@@ -33,7 +33,7 @@
   <div id="template-editor" class="template-editor" data-preview-url="{% url 'scan:scan_print_template_preview' %}">
     <aside class="template-panel">
       <div class="template-panel-section">
-        <h3>Bibliotheque de blocs</h3>
+        <h3>Bibliothèque de blocs</h3>
         <div class="template-block-library" id="block-library"></div>
       </div>
 
@@ -43,7 +43,7 @@
       </div>
 
       <div class="template-panel-section">
-        <h3>Proprietes</h3>
+        <h3>Propriétés</h3>
         <div id="block-editor" class="template-block-editor">
           <p class="template-muted">S&eacute;lectionnez un bloc pour le modifier.</p>
         </div>
@@ -69,7 +69,7 @@
               </form>
             {% endfor %}
           {% else %}
-            <div class="template-muted">Aucune version sauvegardee.</div>
+            <div class="template-muted">Aucune version sauvegardée.</div>
           {% endif %}
         </div>
       </div>
@@ -86,11 +86,11 @@
           Revenir par d&eacute;faut
         </button>
         <button type="button" class="scan-submit scan-submit-inline" id="preview-layout">
-          Actualiser apercu
+          Actualiser aperçu
         </button>
 
         {% if doc_type == "product_label" or doc_type == "product_qr" %}
-          <label class="template-preview-label" for="preview-product">Apercu avec produit</label>
+          <label class="template-preview-label" for="preview-product">Aperçu avec produit</label>
           <select id="preview-product" class="template-preview-select">
             <option value="">Exemple</option>
             {% for product in products %}
@@ -98,7 +98,7 @@
             {% endfor %}
           </select>
         {% else %}
-          <label class="template-preview-label" for="preview-shipment">Apercu avec exp.</label>
+          <label class="template-preview-label" for="preview-shipment">Aperçu avec exp.</label>
           <select id="preview-shipment" class="template-preview-select">
             <option value="">Exemple</option>
             {% for shipment in shipments %}
@@ -109,7 +109,7 @@
       </form>
 
       <div class="template-preview-frame">
-        <iframe id="template-preview" title="Apercu document"></iframe>
+        <iframe id="template-preview" title="Aperçu document"></iframe>
       </div>
       <div id="preview-status" class="template-muted"></div>
     </main>

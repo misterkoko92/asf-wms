@@ -16,10 +16,10 @@ def compute_shipment_progress(shipment):
     total = cartons.count()
     labeled = cartons.filter(status__in=LABELED_CARTON_STATUSES).count()
     if total == 0:
-        return total, labeled, ShipmentStatus.DRAFT, "CREATION"
+        return total, labeled, ShipmentStatus.DRAFT, "CRÉATION"
     if labeled < total:
         return total, labeled, ShipmentStatus.PICKING, f"EN COURS ({labeled}/{total})"
-    return total, labeled, ShipmentStatus.PACKED, "PRET"
+    return total, labeled, ShipmentStatus.PACKED, "PRÊT"
 
 
 def sync_shipment_ready_state(shipment):

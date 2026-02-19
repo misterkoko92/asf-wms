@@ -315,7 +315,7 @@ class WmsModelMethodsTests(TestCase):
             actor_name="Agent",
             actor_structure="ASF",
         )
-        self.assertIn("Planifie", str(event))
+        self.assertIn("Planifié", str(event))
 
     def test_shipment_save_promotes_temp_reference_when_status_changes(self):
         shipment = self._create_shipment(

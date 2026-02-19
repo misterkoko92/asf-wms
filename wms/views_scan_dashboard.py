@@ -254,27 +254,27 @@ def scan_dashboard(request):
     period_shipments_qs = shipments_scope.filter(created_at__gte=period_start)
     activity_cards = [
         _build_card(
-            label="Expeditions creees",
+            label="Expéditions créées",
             value=period_shipments_qs.count(),
-            help_text="Creation sur la periode selectionnee.",
+            help_text="Création sur la période sélectionnée.",
             url=reverse("scan:scan_shipments_ready"),
         ),
         _build_card(
-            label="Colis crees",
+            label="Colis créés",
             value=Carton.objects.filter(created_at__gte=period_start).count(),
-            help_text="Tous colis crees sur la periode.",
+            help_text="Tous colis créés sur la période.",
             url=reverse("scan:scan_cartons_ready"),
         ),
         _build_card(
-            label="Receptions creees",
+            label="Réceptions créées",
             value=Receipt.objects.filter(created_at__gte=period_start).count(),
-            help_text="Tous types de reception.",
+            help_text="Tous types de réception.",
             url=reverse("scan:scan_receipts_view"),
         ),
         _build_card(
-            label="Commandes creees",
+            label="Commandes créées",
             value=Order.objects.filter(created_at__gte=period_start).count(),
-            help_text="Demandes creees sur la periode.",
+            help_text="Demandes créées sur la période.",
             url=reverse("scan:scan_orders_view"),
         ),
     ]
@@ -293,30 +293,30 @@ def scan_dashboard(request):
         _build_card(
             label="En cours",
             value=status_map.get(ShipmentStatus.PICKING, 0),
-            help_text="Expeditions non totalement etiquetees.",
+            help_text="Expéditions non totalement étiquetées.",
             url=reverse("scan:scan_shipments_ready"),
         ),
         _build_card(
-            label="Pretes",
+            label="Prêtes",
             value=status_map.get(ShipmentStatus.PACKED, 0),
-            help_text="Toutes etiquetees, pretes au planning.",
+            help_text="Toutes étiquetées, prêtes au planning.",
             url=reverse("scan:scan_shipments_ready"),
             tone="success",
         ),
         _build_card(
-            label="Planifiees (semaine)",
+            label="Planifiées (semaine)",
             value=shipments_with_tracking.filter(
                 status=ShipmentStatus.PLANNED,
                 planned_at__date__gte=week_start,
                 planned_at__date__lt=week_end,
             ).count(),
-            help_text="Date statut Planifie sur semaine courante.",
+            help_text="Date du statut Planifié sur semaine courante.",
             url=reverse("scan:scan_shipments_tracking"),
         ),
         _build_card(
             label="En transit",
             value=in_transit_count,
-            help_text="Planifie + Expedie + Recu escale.",
+            help_text="Planifié + Expédié + Reçu escale.",
             url=reverse("scan:scan_shipments_tracking"),
         ),
         _build_card(
@@ -325,7 +325,7 @@ def scan_dashboard(request):
                 is_disputed=True,
                 closed_at__isnull=True,
             ).count(),
-            help_text="Expeditions bloquees a traiter.",
+            help_text="Expéditions bloquées à traiter.",
             url=reverse("scan:scan_shipments_tracking"),
             tone="danger",
         ),
@@ -342,38 +342,38 @@ def scan_dashboard(request):
 
     carton_cards = [
         _build_card(
-            label="En preparation",
+            label="En préparation",
             value=cartons_scope.filter(status=CartonStatus.PICKING).count(),
-            help_text="Colis en cours de preparation.",
+            help_text="Colis en cours de préparation.",
             url=reverse("scan:scan_cartons_ready"),
         ),
         _build_card(
-            label="Prets non affectes",
+            label="Prêts non affectés",
             value=cartons_scope.filter(
                 status=CartonStatus.PACKED,
                 shipment__isnull=True,
             ).count(),
-            help_text="Disponibles pour expedition.",
+            help_text="Disponibles pour expédition.",
             url=reverse("scan:scan_cartons_ready"),
             tone="warn",
         ),
         _build_card(
-            label="Affectes non etiquetes",
+            label="Affectés non étiquetés",
             value=assigned_scope.count(),
-            help_text="Affectes mais pas encore etiquetes.",
+            help_text="Affectés mais pas encore étiquetés.",
             url=reverse("scan:scan_cartons_ready"),
         ),
         _build_card(
-            label="Etiquettes",
+            label="Étiquetés",
             value=labeled_scope.count(),
-            help_text="Colis etiquetes prets depart.",
+            help_text="Colis étiquetés prêts au départ.",
             url=reverse("scan:scan_cartons_ready"),
             tone="success",
         ),
         _build_card(
-            label="Colis expedies",
+            label="Colis expédiés",
             value=shipped_scope.count(),
-            help_text="Sortis apres etape OK mise a bord.",
+            help_text="Sortis après l'étape OK mise à bord.",
             url=reverse("scan:scan_cartons_ready"),
         ),
     ]
@@ -383,7 +383,7 @@ def scan_dashboard(request):
         _build_card(
             label="Produits actifs",
             value=stock_snapshot["active_products_count"],
-            help_text="Produits actifs catalogues.",
+            help_text="Produits actifs catalogués.",
             url=reverse("scan:scan_stock"),
         ),
         _build_card(
@@ -393,9 +393,9 @@ def scan_dashboard(request):
             url=reverse("scan:scan_stock"),
         ),
         _build_card(
-            label="Quantite disponible",
+            label="Quantité disponible",
             value=stock_snapshot["total_available_qty"],
-            help_text="Somme des quantites disponibles.",
+            help_text="Somme des quantités disponibles.",
             url=reverse("scan:scan_stock"),
         ),
         _build_card(
@@ -409,22 +409,22 @@ def scan_dashboard(request):
 
     flow_cards = [
         _build_card(
-            label="Receptions en attente",
+            label="Réceptions en attente",
             value=Receipt.objects.filter(status=ReceiptStatus.DRAFT).count(),
-            help_text="Receptions non finalisees.",
+            help_text="Réceptions non finalisées.",
             url=reverse("scan:scan_receipts_view"),
             tone="warn",
         ),
         _build_card(
-            label="Cmd attente validation",
+            label="Cmd en attente de validation",
             value=Order.objects.filter(
                 review_status=OrderReviewStatus.PENDING
             ).count(),
-            help_text="Demandes a valider.",
+            help_text="Demandes à valider.",
             url=reverse("scan:scan_orders_view"),
         ),
         _build_card(
-            label="Cmd a modifier",
+            label="Cmd à modifier",
             value=Order.objects.filter(
                 review_status=OrderReviewStatus.CHANGES_REQUESTED
             ).count(),
@@ -433,42 +433,42 @@ def scan_dashboard(request):
             tone="warn",
         ),
         _build_card(
-            label="Cmd validees sans expedition",
+            label="Cmd validées sans expédition",
             value=Order.objects.filter(
                 review_status=OrderReviewStatus.APPROVED,
                 shipment__isnull=True,
             ).count(),
-            help_text="Validees, en attente de creation expedition.",
+            help_text="Validées, en attente de création d'expédition.",
             url=reverse("scan:scan_orders_view"),
         ),
     ]
 
     tracking_cards = [
         _build_card(
-            label="Planifiees sans mise a bord >72h",
+            label="Planifiées sans mise à bord >72h",
             value=planned_alert_count,
-            help_text=f"Sans etape OK mise a bord depuis {TRACKING_ALERT_HOURS}h.",
+            help_text=f"Sans étape OK mise à bord depuis {TRACKING_ALERT_HOURS}h.",
             url=reverse("scan:scan_shipments_tracking"),
             tone="danger" if planned_alert_count else "success",
         ),
         _build_card(
-            label="Expediees sans recu escale >72h",
+            label="Expédiées sans reçu escale >72h",
             value=shipped_alert_count,
             help_text=f"Sans confirmation correspondant depuis {TRACKING_ALERT_HOURS}h.",
             url=reverse("scan:scan_shipments_tracking"),
             tone="danger" if shipped_alert_count else "success",
         ),
         _build_card(
-            label="Recu escale sans livre >72h",
+            label="Reçu escale sans livraison >72h",
             value=correspondent_alert_count,
             help_text=f"Sans confirmation destinataire depuis {TRACKING_ALERT_HOURS}h.",
             url=reverse("scan:scan_shipments_tracking"),
             tone="danger" if correspondent_alert_count else "success",
         ),
         _build_card(
-            label="Dossiers cloturables",
+            label="Dossiers clôturables",
             value=closable_count,
-            help_text="Toutes etapes completees, dossier clos possible.",
+            help_text="Toutes étapes complétées, dossier clos possible.",
             url=reverse("scan:scan_shipments_tracking"),
             tone="success" if closable_count else "neutral",
         ),

@@ -89,14 +89,14 @@ def _validate_ready_for_planning(shipment):
     assigned_or_ready = cartons.filter(status__in=ASSIGNED_OR_READY_CARTON_STATUSES).count()
     ready = cartons.filter(status__in=READY_CARTON_STATUSES).count()
     if total == 0:
-        return "Aucun colis affecte a cette expedition."
+        return "Aucun colis affecté à cette expédition."
     if assigned_or_ready < total:
         return (
-            "Tous les colis doivent etre affectes avant de poursuivre la planification."
+            "Tous les colis doivent être affectés avant de poursuivre la planification."
         )
     if ready < total:
         return (
-            "Tous les colis doivent etre etiquettes avant de poursuivre la planification."
+            "Tous les colis doivent être étiquetés avant de poursuivre la planification."
         )
     return ""
 
@@ -104,7 +104,7 @@ def _validate_ready_for_planning(shipment):
 def validate_tracking_transition(shipment, status_value):
     allowed_statuses = allowed_tracking_statuses_for_shipment(shipment)
     if status_value not in allowed_statuses:
-        return "Transition non autorisee pour le statut actuel de l'expedition."
+        return "Transition non autorisée pour le statut actuel de l'expédition."
     if status_value in {
         ShipmentTrackingStatus.PLANNING_OK,
         ShipmentTrackingStatus.PLANNED,
@@ -131,7 +131,7 @@ def _handle_dispute_action(
             shipment.is_disputed = True
             shipment.disputed_at = timezone.now()
             shipment.save(update_fields=["is_disputed", "disputed_at"])
-        messages.warning(request, "Expedition marquee en litige.")
+        messages.warning(request, "Expédition marquée en litige.")
         return _redirect_to_tracking(
             shipment,
             return_to_list=return_to_list,
@@ -168,7 +168,7 @@ def _handle_dispute_action(
                     user=getattr(request, "user", None),
                 )
         sync_shipment_ready_state(shipment)
-    messages.success(request, "Litige resolu. Expedition remise a l'etat Pret.")
+    messages.success(request, "Litige résolu. Expédition remise à l'état Prêt.")
     return _redirect_to_tracking(
         shipment,
         return_to_list=return_to_list,
@@ -202,7 +202,7 @@ def handle_shipment_tracking_post(
     if shipment.is_disputed:
         messages.error(
             request,
-            "Expedition en litige: resolvez le litige avant de continuer le suivi.",
+            "Expédition en litige : résolvez le litige avant de continuer le suivi.",
         )
         return _redirect_to_tracking(
             shipment,

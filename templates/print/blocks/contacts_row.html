@@ -1,7 +1,7 @@
 {% with border_color=style.border_color|default:"#000" border_width=style.border_width|default:"1px" font_size=style.font_size|default:"9pt" label_width=style.label_width|default:"20mm" column_gap=style.column_gap|default:"4mm" inner_gap_row=style.inner_gap_row|default:"1mm" inner_gap_col=style.inner_gap_col|default:"2mm" title_weight=style.title_weight|default:"800" label_weight=style.label_weight|default:"700" %}
 <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:{{ column_gap }}; margin:3mm 0;">
   <div style="border:{{ border_width }} solid {{ border_color }}; padding:2mm 3mm; font-size:{{ font_size }};">
-    <div style="font-weight:{{ title_weight }}; margin-bottom:1mm;">{{ block.title_shipper|default:"EXPEDITEUR" }}</div>
+    <div style="font-weight:{{ title_weight }}; margin-bottom:1mm;">{{ block.title_shipper|default:"EXP&Eacute;DITEUR" }}</div>
     <div style="display:grid; grid-template-columns:{{ label_width }} 1fr; gap:{{ inner_gap_row }} {{ inner_gap_col }};">
       {% if block.show_company %}
         <div style="font-weight:{{ label_weight }};">{{ labels.company|default:"Soci&eacute;t&eacute;" }}</div>

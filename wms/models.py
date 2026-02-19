@@ -534,13 +534,13 @@ class Destination(models.Model):
 
 
 class ShipmentStatus(models.TextChoices):
-    DRAFT = "draft", "Creation"
+    DRAFT = "draft", "Création"
     PICKING = "picking", "En cours"
-    PACKED = "packed", "Pret"
-    PLANNED = "planned", "Planifie"
-    SHIPPED = "shipped", "Expedie"
-    RECEIVED_CORRESPONDENT = "received_correspondent", "Recu escale"
-    DELIVERED = "delivered", "Livre"
+    PACKED = "packed", "Prêt"
+    PLANNED = "planned", "Planifié"
+    SHIPPED = "shipped", "Expédié"
+    RECEIVED_CORRESPONDENT = "received_correspondent", "Reçu escale"
+    DELIVERED = "delivered", "Livré"
 
 
 TEMP_SHIPMENT_REFERENCE_PREFIX = "EXP-TEMP-"
@@ -688,11 +688,11 @@ class Shipment(models.Model):
 
 class ShipmentTrackingStatus(models.TextChoices):
     PLANNING_OK = "planning_ok", "OK pour planification"
-    PLANNED = "planned", "Planifie"
-    MOVED_EXPORT = "moved_export", "Deplace au magasin export"
-    BOARDING_OK = "boarding_ok", "OK mise a bord"
-    RECEIVED_CORRESPONDENT = "received_correspondent", "Recu correspondant"
-    RECEIVED_RECIPIENT = "received_recipient", "Recu destinataire"
+    PLANNED = "planned", "Planifié"
+    MOVED_EXPORT = "moved_export", "Déplacé au magasin export"
+    BOARDING_OK = "boarding_ok", "OK mise à bord"
+    RECEIVED_CORRESPONDENT = "received_correspondent", "Reçu correspondant"
+    RECEIVED_RECIPIENT = "received_recipient", "Reçu destinataire"
 
 
 class ShipmentTrackingEvent(models.Model):
@@ -1098,12 +1098,12 @@ class CartonFormat(models.Model):
 
 
 class CartonStatus(models.TextChoices):
-    DRAFT = "draft", "Cree"
-    PICKING = "picking", "En preparation"
-    PACKED = "packed", "Pret"
-    ASSIGNED = "assigned", "Affecte"
-    LABELED = "labeled", "Etiquette"
-    SHIPPED = "shipped", "Expedie"
+    DRAFT = "draft", "Créé"
+    PICKING = "picking", "En préparation"
+    PACKED = "packed", "Prêt"
+    ASSIGNED = "assigned", "Affecté"
+    LABELED = "labeled", "Étiqueté"
+    SHIPPED = "shipped", "Expédié"
 
 
 class Carton(models.Model):

@@ -270,16 +270,16 @@ class ScanDashboardViewTests(TestCase):
         }
         self.assertEqual(shipment_cards["Brouillons"], 1)
         self.assertEqual(shipment_cards["En cours"], 1)
-        self.assertEqual(shipment_cards["Pretes"], 1)
+        self.assertEqual(shipment_cards["Prêtes"], 1)
         self.assertEqual(shipment_cards["Litiges ouverts"], 1)
 
         tracking_cards = {
             card["label"]: card["value"] for card in response.context["tracking_cards"]
         }
-        self.assertEqual(tracking_cards["Planifiees sans mise a bord >72h"], 1)
-        self.assertEqual(tracking_cards["Expediees sans recu escale >72h"], 1)
-        self.assertEqual(tracking_cards["Recu escale sans livre >72h"], 1)
-        self.assertEqual(tracking_cards["Dossiers cloturables"], 1)
+        self.assertEqual(tracking_cards["Planifiées sans mise à bord >72h"], 1)
+        self.assertEqual(tracking_cards["Expédiées sans reçu escale >72h"], 1)
+        self.assertEqual(tracking_cards["Reçu escale sans livraison >72h"], 1)
+        self.assertEqual(tracking_cards["Dossiers clôturables"], 1)
 
         self.assertEqual(response.context["shipments_total"], 8)
         self.assertTrue(response.context["low_stock_rows"])
