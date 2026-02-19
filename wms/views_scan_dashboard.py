@@ -1,6 +1,5 @@
 from datetime import date, datetime, time, timedelta
 
-from django.conf import settings
 from django.db.models import Count, F, IntegerField, Max, Q, Sum, Value
 from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Coalesce
@@ -28,15 +27,11 @@ from .models import (
     ShipmentTrackingStatus,
     TEMP_SHIPMENT_REFERENCE_PREFIX,
 )
+from .runtime_settings import get_runtime_config
 from .view_permissions import scan_staff_required
 
 TEMPLATE_DASHBOARD = "scan/dashboard.html"
 ACTIVE_DASHBOARD = "dashboard"
-
-LOW_STOCK_THRESHOLD = 20
-TRACKING_ALERT_HOURS = 72
-WORKFLOW_BLOCKAGE_HOURS = 72
-EMAIL_QUEUE_TIMEOUT_SECONDS_FALLBACK = 900
 
 PERIOD_TODAY = "today"
 PERIOD_7D = "7d"
@@ -158,7 +153,7 @@ def _build_chart_rows(status_count_map):
     return rows, total
 
 
-def _stock_snapshot():
+def _stock_snapshot(*, low_stock_threshold):
     lot_available_expr = ExpressionWrapper(
         F("quantity_on_hand") - F("quantity_reserved"),
         output_field=IntegerField(),
@@ -186,9 +181,9 @@ def _stock_snapshot():
             output_field=IntegerField(),
         )
     )
-    low_stock_qs = products_with_qty.filter(
-        available_qty__lt=LOW_STOCK_THRESHOLD
-    ).order_by("available_qty", "name")
+    low_stock_qs = products_with_qty.filter(available_qty__lt=low_stock_threshold).order_by(
+        "available_qty", "name"
+    )
 
     return {
         "active_products_count": active_products.count(),
@@ -201,7 +196,7 @@ def _stock_snapshot():
     }
 
 
-def _email_queue_snapshot():
+def _email_queue_snapshot(*, processing_timeout_seconds):
     queue_qs = IntegrationEvent.objects.filter(
         direction=IntegrationDirection.OUTBOUND,
         source="wms.email",
@@ -211,16 +206,7 @@ def _email_queue_snapshot():
         item["status"]: item["total"]
         for item in queue_qs.values("status").annotate(total=Count("id"))
     }
-    timeout_raw = getattr(
-        settings,
-        "EMAIL_QUEUE_PROCESSING_TIMEOUT_SECONDS",
-        EMAIL_QUEUE_TIMEOUT_SECONDS_FALLBACK,
-    )
-    try:
-        timeout_seconds = max(1, int(timeout_raw))
-    except (TypeError, ValueError):
-        timeout_seconds = EMAIL_QUEUE_TIMEOUT_SECONDS_FALLBACK
-    stale_cutoff = timezone.now() - timedelta(seconds=timeout_seconds)
+    stale_cutoff = timezone.now() - timedelta(seconds=processing_timeout_seconds)
     stale_processing_count = queue_qs.filter(
         status=IntegrationStatus.PROCESSING,
         processed_at__lte=stale_cutoff,
@@ -232,12 +218,11 @@ def _email_queue_snapshot():
         "failed_count": status_counts.get(IntegrationStatus.FAILED, 0),
         "processed_count": status_counts.get(IntegrationStatus.PROCESSED, 0),
         "stale_processing_count": stale_processing_count,
-        "processing_timeout_seconds": timeout_seconds,
     }
 
 
-def _workflow_blockage_snapshot(shipments_scope):
-    cutoff = timezone.now() - timedelta(hours=WORKFLOW_BLOCKAGE_HOURS)
+def _workflow_blockage_snapshot(shipments_scope, *, workflow_blockage_hours):
+    cutoff = timezone.now() - timedelta(hours=workflow_blockage_hours)
     return {
         "stale_preparing_shipments_count": shipments_scope.filter(
             status__in=[ShipmentStatus.DRAFT, ShipmentStatus.PICKING],
@@ -268,31 +253,31 @@ def _hours_between(start_at, end_at):
     return (end_at - start_at).total_seconds() / 3600
 
 
-def _build_sla_rows(shipments_with_tracking):
+def _build_sla_rows(shipments_with_tracking, *, tracking_alert_hours):
     stage_definitions = (
         {
             "label": "Planifié -> OK mise à bord",
             "start": "planned_at",
             "end": "boarding_ok_at",
-            "target_hours": TRACKING_ALERT_HOURS,
+            "target_hours": tracking_alert_hours,
         },
         {
             "label": "OK mise à bord -> Reçu escale",
             "start": "boarding_ok_at",
             "end": "received_correspondent_at",
-            "target_hours": TRACKING_ALERT_HOURS,
+            "target_hours": tracking_alert_hours,
         },
         {
             "label": "Reçu escale -> Livré",
             "start": "received_correspondent_at",
             "end": "received_recipient_at",
-            "target_hours": TRACKING_ALERT_HOURS,
+            "target_hours": tracking_alert_hours,
         },
         {
             "label": "Planifié -> Livré",
             "start": "planned_at",
             "end": "received_recipient_at",
-            "target_hours": TRACKING_ALERT_HOURS * 3,
+            "target_hours": tracking_alert_hours * 3,
         },
     )
     rows = list(
@@ -333,6 +318,14 @@ def _build_sla_rows(shipments_with_tracking):
 @scan_staff_required
 @require_http_methods(["GET"])
 def scan_dashboard(request):
+    runtime_config = get_runtime_config()
+    low_stock_threshold = runtime_config.low_stock_threshold
+    tracking_alert_hours = runtime_config.tracking_alert_hours
+    workflow_blockage_hours = runtime_config.workflow_blockage_hours
+    queue_processing_timeout_seconds = (
+        runtime_config.email_queue_processing_timeout_seconds
+    )
+
     period = _normalize_period(request.GET.get("period"))
     period_start = _period_start(period)
 
@@ -357,7 +350,7 @@ def scan_dashboard(request):
         + status_map.get(ShipmentStatus.RECEIVED_CORRESPONDENT, 0)
     )
 
-    alert_cutoff = timezone.now() - timedelta(hours=TRACKING_ALERT_HOURS)
+    alert_cutoff = timezone.now() - timedelta(hours=tracking_alert_hours)
     planned_alert_count = shipments_with_tracking.filter(
         closed_at__isnull=True,
         status=ShipmentStatus.PLANNED,
@@ -513,7 +506,7 @@ def scan_dashboard(request):
         ),
     ]
 
-    stock_snapshot = _stock_snapshot()
+    stock_snapshot = _stock_snapshot(low_stock_threshold=low_stock_threshold)
     stock_cards = [
         _build_card(
             label="Produits actifs",
@@ -534,7 +527,7 @@ def scan_dashboard(request):
             url=reverse("scan:scan_stock"),
         ),
         _build_card(
-            label=f"Stock bas (< {LOW_STOCK_THRESHOLD})",
+            label=f"Stock bas (< {low_stock_threshold})",
             value=stock_snapshot["low_stock_count"],
             help_text="Produits sous le seuil global.",
             url=reverse("scan:scan_stock"),
@@ -580,23 +573,23 @@ def scan_dashboard(request):
 
     tracking_cards = [
         _build_card(
-            label="Planifiées sans mise à bord >72h",
+            label=f"Planifiées sans mise à bord >{tracking_alert_hours}h",
             value=planned_alert_count,
-            help_text=f"Sans étape OK mise à bord depuis {TRACKING_ALERT_HOURS}h.",
+            help_text=f"Sans étape OK mise à bord depuis {tracking_alert_hours}h.",
             url=reverse("scan:scan_shipments_tracking"),
             tone="danger" if planned_alert_count else "success",
         ),
         _build_card(
-            label="Expédiées sans reçu escale >72h",
+            label=f"Expédiées sans reçu escale >{tracking_alert_hours}h",
             value=shipped_alert_count,
-            help_text=f"Sans confirmation correspondant depuis {TRACKING_ALERT_HOURS}h.",
+            help_text=f"Sans confirmation correspondant depuis {tracking_alert_hours}h.",
             url=reverse("scan:scan_shipments_tracking"),
             tone="danger" if shipped_alert_count else "success",
         ),
         _build_card(
-            label="Reçu escale sans livraison >72h",
+            label=f"Reçu escale sans livraison >{tracking_alert_hours}h",
             value=correspondent_alert_count,
-            help_text=f"Sans confirmation destinataire depuis {TRACKING_ALERT_HOURS}h.",
+            help_text=f"Sans confirmation destinataire depuis {tracking_alert_hours}h.",
             url=reverse("scan:scan_shipments_tracking"),
             tone="danger" if correspondent_alert_count else "success",
         ),
@@ -609,7 +602,9 @@ def scan_dashboard(request):
         ),
     ]
 
-    email_queue_snapshot = _email_queue_snapshot()
+    email_queue_snapshot = _email_queue_snapshot(
+        processing_timeout_seconds=queue_processing_timeout_seconds
+    )
     technical_cards = [
         _build_card(
             label="Queue email en attente",
@@ -636,17 +631,20 @@ def scan_dashboard(request):
             value=email_queue_snapshot["stale_processing_count"],
             help_text=(
                 "Événements processing au-delà du timeout "
-                f"({email_queue_snapshot['processing_timeout_seconds']}s)."
+                f"({queue_processing_timeout_seconds}s)."
             ),
             url=reverse("scan:scan_dashboard"),
             tone="danger" if email_queue_snapshot["stale_processing_count"] else "success",
         ),
     ]
 
-    workflow_blockage_snapshot = _workflow_blockage_snapshot(shipments_scope)
+    workflow_blockage_snapshot = _workflow_blockage_snapshot(
+        shipments_scope,
+        workflow_blockage_hours=workflow_blockage_hours,
+    )
     workflow_blockage_cards = [
         _build_card(
-            label=f"Expéditions Création/En cours >{WORKFLOW_BLOCKAGE_HOURS}h",
+            label=f"Expéditions Création/En cours >{workflow_blockage_hours}h",
             value=workflow_blockage_snapshot["stale_preparing_shipments_count"],
             help_text="Brouillons/En cours anciens à débloquer.",
             url=reverse("scan:scan_shipments_ready"),
@@ -657,7 +655,7 @@ def scan_dashboard(request):
             ),
         ),
         _build_card(
-            label=f"Cmd validées sans expédition >{WORKFLOW_BLOCKAGE_HOURS}h",
+            label=f"Cmd validées sans expédition >{workflow_blockage_hours}h",
             value=workflow_blockage_snapshot["stale_unplanned_orders_count"],
             help_text="Commandes approuvées à convertir en expéditions.",
             url=reverse("scan:scan_orders_view"),
@@ -692,7 +690,8 @@ def scan_dashboard(request):
     ]
 
     sla_rows = _build_sla_rows(
-        shipments_with_tracking.filter(status__in=list(SHIPMENT_STATUS_ORDER)[3:])
+        shipments_with_tracking.filter(status__in=list(SHIPMENT_STATUS_ORDER)[3:]),
+        tracking_alert_hours=tracking_alert_hours,
     )
     sla_cards = [
         _build_card(
@@ -734,9 +733,9 @@ def scan_dashboard(request):
         "workflow_blockage_cards": workflow_blockage_cards,
         "sla_cards": sla_cards,
         "low_stock_rows": stock_snapshot["low_stock_rows"],
-        "low_stock_threshold": LOW_STOCK_THRESHOLD,
-        "tracking_alert_hours": TRACKING_ALERT_HOURS,
-        "workflow_blockage_hours": WORKFLOW_BLOCKAGE_HOURS,
+        "low_stock_threshold": low_stock_threshold,
+        "tracking_alert_hours": tracking_alert_hours,
+        "workflow_blockage_hours": workflow_blockage_hours,
         "shipment_chart_rows": chart_rows,
         "shipments_total": shipments_total,
     }

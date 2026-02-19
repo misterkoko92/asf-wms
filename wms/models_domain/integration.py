@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.db.models import F
 from django.utils import timezone
@@ -71,3 +72,85 @@ class IntegrationEvent(models.Model):
 
     def __str__(self) -> str:
         return f"{self.source}:{self.event_type} ({self.direction})"
+
+
+def _safe_int(value, *, default, minimum):
+    try:
+        resolved = int(value)
+    except (TypeError, ValueError):
+        return default
+    return max(minimum, resolved)
+
+
+class WmsRuntimeSettings(models.Model):
+    id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
+    low_stock_threshold = models.PositiveIntegerField(default=20)
+    tracking_alert_hours = models.PositiveIntegerField(default=72)
+    workflow_blockage_hours = models.PositiveIntegerField(default=72)
+    stale_drafts_age_days = models.PositiveIntegerField(default=30)
+    email_queue_max_attempts = models.PositiveIntegerField(default=5)
+    email_queue_retry_base_seconds = models.PositiveIntegerField(default=60)
+    email_queue_retry_max_seconds = models.PositiveIntegerField(default=3600)
+    email_queue_processing_timeout_seconds = models.PositiveIntegerField(default=900)
+    enable_shipment_track_legacy = models.BooleanField(default=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="wms_runtime_settings_updates",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Paramètres runtime WMS"
+        verbose_name_plural = "Paramètres runtime WMS"
+
+    def __str__(self) -> str:
+        return "Paramètres runtime WMS"
+
+    @classmethod
+    def _defaults_from_settings(cls):
+        return {
+            "low_stock_threshold": 20,
+            "tracking_alert_hours": 72,
+            "workflow_blockage_hours": 72,
+            "stale_drafts_age_days": 30,
+            "email_queue_max_attempts": _safe_int(
+                getattr(settings, "EMAIL_QUEUE_MAX_ATTEMPTS", 5),
+                default=5,
+                minimum=1,
+            ),
+            "email_queue_retry_base_seconds": _safe_int(
+                getattr(settings, "EMAIL_QUEUE_RETRY_BASE_SECONDS", 60),
+                default=60,
+                minimum=1,
+            ),
+            "email_queue_retry_max_seconds": _safe_int(
+                getattr(settings, "EMAIL_QUEUE_RETRY_MAX_SECONDS", 3600),
+                default=3600,
+                minimum=1,
+            ),
+            "email_queue_processing_timeout_seconds": _safe_int(
+                getattr(settings, "EMAIL_QUEUE_PROCESSING_TIMEOUT_SECONDS", 900),
+                default=900,
+                minimum=1,
+            ),
+            "enable_shipment_track_legacy": bool(
+                getattr(settings, "ENABLE_SHIPMENT_TRACK_LEGACY", True)
+            ),
+        }
+
+    @classmethod
+    def get_solo(cls):
+        obj, _created = cls.objects.get_or_create(
+            pk=1,
+            defaults=cls._defaults_from_settings(),
+        )
+        return obj
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        if self.email_queue_retry_max_seconds < self.email_queue_retry_base_seconds:
+            self.email_queue_retry_max_seconds = self.email_queue_retry_base_seconds
+        super().save(*args, **kwargs)

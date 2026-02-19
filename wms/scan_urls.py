@@ -103,6 +103,7 @@ urlpatterns = [
     ),
     path("import/", views.scan_import, name="scan_import"),
     path("faq/", views.scan_faq, name="scan_faq"),
+    path("settings/", views.scan_settings, name="scan_settings"),
     path("out/", views.scan_out, name="scan_out"),
     path("sync/", views.scan_sync, name="scan_sync"),
     path("service-worker.js", views.scan_service_worker, name="scan_service_worker"),

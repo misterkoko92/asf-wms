@@ -1,0 +1,112 @@
+{% extends "scan/base.html" %}
+
+{% block title %}WMS Scan - Paramètres{% endblock %}
+
+{% block content %}
+  <div class="scan-card">
+    <h2>Paramètres</h2>
+    <p class="scan-help">
+      Cette page est réservée aux superusers. Les valeurs sont appliquées dans les écrans scan
+      (dashboard, workflow expéditions, queue email, route legacy).
+    </p>
+    {% if legacy_env_disabled %}
+      <div class="scan-message warning">
+        La route legacy est désactivée par variable d'environnement (`ENABLE_SHIPMENT_TRACK_LEGACY=false`).
+        Le switch ci-dessous ne peut pas la réactiver.
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="scan-card">
+    <form method="post" class="scan-filters">
+      {% csrf_token %}
+
+      <h3>Dashboard et alertes</h3>
+      <div class="scan-inline scan-inline-equal">
+        <div class="scan-field">
+          {{ form.low_stock_threshold.label_tag }}
+          {{ form.low_stock_threshold }}
+          {% if form.low_stock_threshold.errors %}<div class="scan-help">{{ form.low_stock_threshold.errors|join:", " }}</div>{% endif %}
+          <div class="scan-help">{{ form.low_stock_threshold.help_text }}</div>
+        </div>
+        <div class="scan-field">
+          {{ form.tracking_alert_hours.label_tag }}
+          {{ form.tracking_alert_hours }}
+          {% if form.tracking_alert_hours.errors %}<div class="scan-help">{{ form.tracking_alert_hours.errors|join:", " }}</div>{% endif %}
+          <div class="scan-help">{{ form.tracking_alert_hours.help_text }}</div>
+        </div>
+      </div>
+
+      <div class="scan-inline scan-inline-equal">
+        <div class="scan-field">
+          {{ form.workflow_blockage_hours.label_tag }}
+          {{ form.workflow_blockage_hours }}
+          {% if form.workflow_blockage_hours.errors %}<div class="scan-help">{{ form.workflow_blockage_hours.errors|join:", " }}</div>{% endif %}
+          <div class="scan-help">{{ form.workflow_blockage_hours.help_text }}</div>
+        </div>
+        <div class="scan-field">
+          {{ form.stale_drafts_age_days.label_tag }}
+          {{ form.stale_drafts_age_days }}
+          {% if form.stale_drafts_age_days.errors %}<div class="scan-help">{{ form.stale_drafts_age_days.errors|join:", " }}</div>{% endif %}
+          <div class="scan-help">{{ form.stale_drafts_age_days.help_text }}</div>
+        </div>
+      </div>
+
+      <div class="scan-divider"></div>
+
+      <h3>Queue email</h3>
+      <div class="scan-inline scan-inline-equal">
+        <div class="scan-field">
+          {{ form.email_queue_max_attempts.label_tag }}
+          {{ form.email_queue_max_attempts }}
+          {% if form.email_queue_max_attempts.errors %}<div class="scan-help">{{ form.email_queue_max_attempts.errors|join:", " }}</div>{% endif %}
+          <div class="scan-help">{{ form.email_queue_max_attempts.help_text }}</div>
+        </div>
+        <div class="scan-field">
+          {{ form.email_queue_processing_timeout_seconds.label_tag }}
+          {{ form.email_queue_processing_timeout_seconds }}
+          {% if form.email_queue_processing_timeout_seconds.errors %}<div class="scan-help">{{ form.email_queue_processing_timeout_seconds.errors|join:", " }}</div>{% endif %}
+          <div class="scan-help">{{ form.email_queue_processing_timeout_seconds.help_text }}</div>
+        </div>
+      </div>
+
+      <div class="scan-inline scan-inline-equal">
+        <div class="scan-field">
+          {{ form.email_queue_retry_base_seconds.label_tag }}
+          {{ form.email_queue_retry_base_seconds }}
+          {% if form.email_queue_retry_base_seconds.errors %}<div class="scan-help">{{ form.email_queue_retry_base_seconds.errors|join:", " }}</div>{% endif %}
+          <div class="scan-help">{{ form.email_queue_retry_base_seconds.help_text }}</div>
+        </div>
+        <div class="scan-field">
+          {{ form.email_queue_retry_max_seconds.label_tag }}
+          {{ form.email_queue_retry_max_seconds }}
+          {% if form.email_queue_retry_max_seconds.errors %}<div class="scan-help">{{ form.email_queue_retry_max_seconds.errors|join:", " }}</div>{% endif %}
+          <div class="scan-help">{{ form.email_queue_retry_max_seconds.help_text }}</div>
+        </div>
+      </div>
+
+      <div class="scan-divider"></div>
+
+      <h3>Legacy</h3>
+      <div class="scan-field">
+        <label for="{{ form.enable_shipment_track_legacy.id_for_label }}">
+          {{ form.enable_shipment_track_legacy }}
+          {{ form.enable_shipment_track_legacy.label }}
+        </label>
+        {% if form.enable_shipment_track_legacy.errors %}<div class="scan-help">{{ form.enable_shipment_track_legacy.errors|join:", " }}</div>{% endif %}
+        <div class="scan-help">{{ form.enable_shipment_track_legacy.help_text }}</div>
+        <div class="scan-help">
+          État effectif actuel: {% if legacy_effective_enabled %}<strong>activé</strong>{% else %}<strong>désactivé</strong>{% endif %}.
+        </div>
+      </div>
+
+      {% if form.non_field_errors %}
+        <div class="scan-message error">{{ form.non_field_errors|join:", " }}</div>
+      {% endif %}
+
+      <div class="scan-filter-actions">
+        <button type="submit" class="scan-submit">Enregistrer</button>
+      </div>
+    </form>
+  </div>
+{% endblock %}

@@ -18,6 +18,7 @@ from .models import (
     IntegrationEvent,
     IntegrationStatus,
 )
+from .runtime_settings import get_runtime_config
 
 LOGGER = logging.getLogger(__name__)
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
@@ -78,26 +79,11 @@ def _email_queue_config(
     retry_max_seconds=None,
     processing_timeout_seconds=None,
 ):
-    settings_max_attempts = getattr(
-        settings,
-        "EMAIL_QUEUE_MAX_ATTEMPTS",
-        EMAIL_QUEUE_DEFAULT_MAX_ATTEMPTS,
-    )
-    settings_retry_base = getattr(
-        settings,
-        "EMAIL_QUEUE_RETRY_BASE_SECONDS",
-        EMAIL_QUEUE_DEFAULT_RETRY_BASE_SECONDS,
-    )
-    settings_retry_max = getattr(
-        settings,
-        "EMAIL_QUEUE_RETRY_MAX_SECONDS",
-        EMAIL_QUEUE_DEFAULT_RETRY_MAX_SECONDS,
-    )
-    settings_processing_timeout = getattr(
-        settings,
-        "EMAIL_QUEUE_PROCESSING_TIMEOUT_SECONDS",
-        EMAIL_QUEUE_DEFAULT_PROCESSING_TIMEOUT_SECONDS,
-    )
+    runtime_config = get_runtime_config()
+    settings_max_attempts = runtime_config.email_queue_max_attempts
+    settings_retry_base = runtime_config.email_queue_retry_base_seconds
+    settings_retry_max = runtime_config.email_queue_retry_max_seconds
+    settings_processing_timeout = runtime_config.email_queue_processing_timeout_seconds
 
     resolved_max_attempts = _safe_int(
         settings_max_attempts if max_attempts is None else max_attempts,

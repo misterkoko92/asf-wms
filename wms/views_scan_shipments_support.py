@@ -12,6 +12,7 @@ from .models import (
     ShipmentTrackingStatus,
     TEMP_SHIPMENT_REFERENCE_PREFIX,
 )
+from .runtime_settings import get_runtime_config
 from .shipment_view_helpers import build_shipments_tracking_rows
 
 ACTIVE_SHIPMENT = "shipment"
@@ -19,7 +20,6 @@ ACTIVE_SHIPMENTS_READY = "shipments_ready"
 ACTIVE_SHIPMENTS_TRACKING = "shipments_tracking"
 
 ARCHIVE_STALE_DRAFTS_ACTION = "archive_stale_drafts"
-STALE_DRAFTS_AGE_DAYS = 30
 CLOSE_SHIPMENT_ACTION = "close_shipment_case"
 CLOSED_FILTER_EXCLUDE = "exclude"
 CLOSED_FILTER_ALL = "all"
@@ -33,7 +33,11 @@ RETURN_TO_VIEW_NAMES = {
 
 
 def _stale_drafts_cutoff():
-    return timezone.now() - timedelta(days=STALE_DRAFTS_AGE_DAYS)
+    return timezone.now() - timedelta(days=_stale_drafts_age_days())
+
+
+def _stale_drafts_age_days():
+    return get_runtime_config().stale_drafts_age_days
 
 
 def _stale_drafts_queryset():

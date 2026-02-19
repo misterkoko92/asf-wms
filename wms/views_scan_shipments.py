@@ -1,6 +1,5 @@
 import logging
 
-from django.conf import settings
 from django.contrib import messages
 from django.db.models import Count, Q
 from django.http import Http404
@@ -30,6 +29,7 @@ from .scan_shipment_handlers import (
     handle_shipment_create_post,
     handle_shipment_edit_post,
 )
+from .runtime_settings import is_shipment_track_legacy_enabled
 from .shipment_form_helpers import (
     build_carton_selection_data,
     build_shipment_edit_initial,
@@ -59,7 +59,6 @@ from .views_scan_shipments_support import (
     CLOSED_FILTER_EXCLUDE,
     CLOSE_SHIPMENT_ACTION,
     RETURN_TO_SHIPMENTS_TRACKING,
-    STALE_DRAFTS_AGE_DAYS,
     _build_shipments_tracking_queryset,
     _build_shipments_tracking_redirect_url,
     _normalize_closed_filter,
@@ -68,6 +67,7 @@ from .views_scan_shipments_support import (
     _return_to_url,
     _return_to_view_name,
     _shipment_can_be_closed,
+    _stale_drafts_age_days,
     _stale_drafts_queryset,
 )
 from .view_permissions import scan_staff_required
@@ -261,7 +261,7 @@ def scan_shipments_ready(request):
             "active": ACTIVE_SHIPMENTS_READY,
             "shipments": shipments,
             "stale_draft_count": stale_draft_count,
-            "stale_draft_days": STALE_DRAFTS_AGE_DAYS,
+            "stale_draft_days": _stale_drafts_age_days(),
         },
     )
 
@@ -580,7 +580,7 @@ def scan_shipment_track(request, tracking_token):
 
 @require_http_methods(["GET"])
 def scan_shipment_track_legacy(request, shipment_ref):
-    if not getattr(settings, "ENABLE_SHIPMENT_TRACK_LEGACY", True):
+    if not is_shipment_track_legacy_enabled():
         raise Http404
     if not request.user.is_authenticated or not request.user.is_staff:
         raise Http404

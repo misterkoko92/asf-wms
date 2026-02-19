@@ -27,6 +27,7 @@ from wms.models import (
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
     Warehouse,
+    WmsRuntimeSettings,
 )
 
 
@@ -36,6 +37,11 @@ class ScanDashboardViewTests(TestCase):
             username="scan-dashboard-staff",
             password="pass1234",
             is_staff=True,
+        )
+        self.superuser = get_user_model().objects.create_superuser(
+            username="scan-dashboard-admin",
+            password="pass1234",
+            email="scan-dashboard-admin@example.com",
         )
         self.client.force_login(self.staff_user)
         self.warehouse = Warehouse.objects.create(name="Main", code="MAIN")
@@ -382,3 +388,38 @@ class ScanDashboardViewTests(TestCase):
         self.client.force_login(non_staff)
         response = self.client.get(reverse("scan:scan_dashboard"))
         self.assertEqual(response.status_code, 403)
+
+    def test_scan_dashboard_hides_settings_link_for_non_superuser(self):
+        response = self.client.get(reverse("scan:scan_dashboard"))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, reverse("scan:scan_settings"))
+
+    def test_scan_dashboard_shows_settings_link_for_superuser(self):
+        self.client.force_login(self.superuser)
+        response = self.client.get(reverse("scan:scan_dashboard"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse("scan:scan_settings"))
+
+    def test_scan_dashboard_uses_runtime_settings_values(self):
+        runtime = WmsRuntimeSettings.get_solo()
+        runtime.low_stock_threshold = 7
+        runtime.tracking_alert_hours = 48
+        runtime.workflow_blockage_hours = 96
+        runtime.save()
+
+        response = self.client.get(reverse("scan:scan_dashboard"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["low_stock_threshold"], 7)
+        self.assertEqual(response.context["tracking_alert_hours"], 48)
+        self.assertEqual(response.context["workflow_blockage_hours"], 96)
+
+        tracking_cards = {
+            card["label"]: card["value"] for card in response.context["tracking_cards"]
+        }
+        self.assertIn("Planifiées sans mise à bord >48h", tracking_cards)
+
+        workflow_cards = {
+            card["label"]: card["value"]
+            for card in response.context["workflow_blockage_cards"]
+        }
+        self.assertIn("Expéditions Création/En cours >96h", workflow_cards)

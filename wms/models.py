@@ -14,6 +14,7 @@ from .models_domain.integration import (
     IntegrationDirection,
     IntegrationEvent,
     IntegrationStatus,
+    WmsRuntimeSettings,
     WmsChange,
 )
 from .models_domain.inventory import (
@@ -156,6 +157,7 @@ __all__ = [
     "PrintTemplate",
     "PrintTemplateVersion",
     "WmsChange",
+    "WmsRuntimeSettings",
     "IntegrationDirection",
     "IntegrationStatus",
     "IntegrationEvent",

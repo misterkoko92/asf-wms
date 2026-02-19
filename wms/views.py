@@ -44,6 +44,7 @@ from .views_scan import (
     scan_receive_association,
     scan_receive_pallet,
     scan_receipts_view,
+    scan_settings,
     scan_service_worker,
     scan_shipment_create,
     scan_shipment_edit,
@@ -115,6 +116,7 @@ SCAN_MISC_EXPORTS = (
     "scan_out",
     "scan_sync",
     "scan_faq",
+    "scan_settings",
     "scan_service_worker",
 )
 

@@ -117,6 +117,14 @@
             <a href="{% url 'scan:scan_shipments_tracking' %}" class="{% if active == 'shipments_tracking' %}active{% endif %}">Suivi des exp&eacute;ditions</a>
           </div>
         </div>
+        {% if request.user.is_superuser %}
+          <div class="scan-nav-group">
+            <button type="button" class="scan-nav-trigger">Param&egrave;tres</button>
+            <div class="scan-nav-menu">
+              <a href="{% url 'scan:scan_settings' %}" class="{% if active == 'settings' %}active{% endif %}">Param&egrave;tres</a>
+            </div>
+          </div>
+        {% endif %}
       </nav>
 
       <main class="scan-main">

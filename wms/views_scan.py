@@ -9,6 +9,7 @@ from .views_scan_receipts import (
     scan_receive_pallet,
     scan_receipts_view,
 )
+from .views_scan_settings import scan_settings
 from .views_scan_shipments import (
     scan_cartons_ready,
     scan_pack,
@@ -45,6 +46,7 @@ SCAN_FLOW_EXPORTS = (
 
 SCAN_MISC_EXPORTS = (
     "scan_faq",
+    "scan_settings",
     "scan_service_worker",
 )
 

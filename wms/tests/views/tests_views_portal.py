@@ -425,7 +425,8 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertEqual(response.status_code, 200)
         html = response.content.decode()
         self.assertIn("Abidjan", html)
-        self.assertIn(reviewed_at.strftime("%d/%m/%Y"), html)
+        reviewed_display = timezone.localtime(reviewed_at).strftime("%d/%m/%Y")
+        self.assertIn(reviewed_display, html)
 
     def test_portal_dashboard_redirects_when_delivery_contact_missing(self):
         AssociationRecipient.objects.filter(association_contact=self.profile.contact).delete()
