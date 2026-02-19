@@ -786,6 +786,34 @@ class ScanViewTests(TestCase):
             ShipmentTrackingEvent.objects.filter(shipment=shipment).count(), 1
         )
 
+    def test_scan_shipment_track_shows_back_to_shipments_button_for_staff(self):
+        shipment, _carton = self._create_shipment_with_carton()
+        response = self.client.get(
+            reverse("scan:scan_shipment_track", args=[shipment.tracking_token])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "Revenir &agrave; la liste des exp&eacute;ditions",
+        )
+
+    def test_scan_shipment_track_post_return_to_list_redirects_to_shipments_tracking(self):
+        shipment, carton = self._create_shipment_with_carton()
+        carton.status = CartonStatus.LABELED
+        carton.save(update_fields=["status"])
+        response = self.client.post(
+            reverse("scan:scan_shipment_track", args=[shipment.tracking_token]),
+            {
+                "status": "planning_ok",
+                "actor_name": "Test",
+                "actor_structure": "ASF",
+                "comments": "ok",
+                "return_to_list": "1",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("scan:scan_shipments_tracking"))
+
     def test_scan_public_routes_allow_anonymous(self):
         shipment, _carton = self._create_shipment_with_carton()
         link, order = self._create_public_order_link_with_order()

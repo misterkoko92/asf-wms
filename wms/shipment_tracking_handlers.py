@@ -36,7 +36,9 @@ READY_CARTON_STATUSES = {
 }
 
 
-def _redirect_to_tracking(shipment):
+def _redirect_to_tracking(shipment, *, return_to_list=False):
+    if return_to_list:
+        return redirect("scan:scan_shipments_tracking")
     return redirect("scan:scan_shipment_track", tracking_token=shipment.tracking_token)
 
 
@@ -100,7 +102,7 @@ def validate_tracking_transition(shipment, status_value):
     return ""
 
 
-def _handle_dispute_action(request, shipment):
+def _handle_dispute_action(request, shipment, *, return_to_list=False):
     action = (request.POST.get("action") or "").strip()
     if action == "set_disputed":
         if not shipment.is_disputed:
@@ -108,7 +110,7 @@ def _handle_dispute_action(request, shipment):
             shipment.disputed_at = timezone.now()
             shipment.save(update_fields=["is_disputed", "disputed_at"])
         messages.warning(request, "Expedition marquee en litige.")
-        return _redirect_to_tracking(shipment)
+        return _redirect_to_tracking(shipment, return_to_list=return_to_list)
 
     if action != "resolve_dispute":
         return None
@@ -140,14 +142,18 @@ def _handle_dispute_action(request, shipment):
                 )
         sync_shipment_ready_state(shipment)
     messages.success(request, "Litige resolu. Expedition remise a l'etat Pret.")
-    return _redirect_to_tracking(shipment)
+    return _redirect_to_tracking(shipment, return_to_list=return_to_list)
 
 
-def handle_shipment_tracking_post(request, *, shipment, form):
+def handle_shipment_tracking_post(request, *, shipment, form, return_to_list=False):
     if request.method != "POST":
         return None
 
-    dispute_response = _handle_dispute_action(request, shipment)
+    dispute_response = _handle_dispute_action(
+        request,
+        shipment,
+        return_to_list=return_to_list,
+    )
     if dispute_response:
         return dispute_response
 
@@ -156,7 +162,7 @@ def handle_shipment_tracking_post(request, *, shipment, form):
             request,
             "Expedition en litige: resolvez le litige avant de continuer le suivi.",
         )
-        return _redirect_to_tracking(shipment)
+        return _redirect_to_tracking(shipment, return_to_list=return_to_list)
 
     if not form.is_valid():
         return None
@@ -190,4 +196,4 @@ def handle_shipment_tracking_post(request, *, shipment, form):
                     user=getattr(request, "user", None),
                 )
     messages.success(request, "Suivi mis à jour.")
-    return _redirect_to_tracking(shipment)
+    return _redirect_to_tracking(shipment, return_to_list=return_to_list)

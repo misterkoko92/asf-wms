@@ -21,6 +21,18 @@
       <div class="scan-card">
         <h2>Suivi exp&eacute;dition {{ shipment.reference }}</h2>
 
+        {% if show_back_to_list %}
+          <div class="scan-field">
+            <a
+              id="tracking-back-to-list"
+              class="scan-scan-btn"
+              href="{% url 'scan:scan_shipments_tracking' %}"
+            >
+              Revenir &agrave; la liste des exp&eacute;ditions
+            </a>
+          </div>
+        {% endif %}
+
         <div class="scan-field">
           <label>Statut actuel</label>
           <div class="scan-help">
@@ -96,8 +108,9 @@
             </div>
           {% else %}
             <h3>Mettre &agrave; jour le suivi</h3>
-            <form method="post">
+            <form method="post" id="shipment-tracking-update-form">
               {% csrf_token %}
+              <input type="hidden" name="return_to_list" value="0" id="id_return_to_list">
               {% if form.non_field_errors %}
                 <div class="scan-message error">{{ form.non_field_errors }}</div>
               {% endif %}
@@ -177,5 +190,122 @@
       </div>
     </main>
   </div>
+
+  {% if show_back_to_list %}
+    <div
+      id="tracking-leave-overlay"
+      class="scan-choice-overlay"
+      aria-hidden="true"
+    >
+      <div class="scan-choice-modal" role="dialog" aria-modal="true" aria-labelledby="tracking-leave-title">
+        <div class="scan-choice-header">
+          <strong id="tracking-leave-title">Modifications non sauvegardees</strong>
+        </div>
+        <div class="scan-choice-status">
+          Souhaitez vous enregistrer les modifications en cours ?
+        </div>
+        <div class="scan-choice-actions">
+          <button
+            type="button"
+            id="tracking-leave-save"
+            class="scan-submit scan-submit-inline"
+          >
+            OUI
+          </button>
+          <button
+            type="button"
+            id="tracking-leave-discard"
+            class="scan-scan-btn"
+          >
+            NON
+          </button>
+        </div>
+      </div>
+    </div>
+    <script>
+      (() => {
+        const backLink = document.getElementById("tracking-back-to-list");
+        const updateForm = document.getElementById("shipment-tracking-update-form");
+        const leaveOverlay = document.getElementById("tracking-leave-overlay");
+        const saveButton = document.getElementById("tracking-leave-save");
+        const discardButton = document.getElementById("tracking-leave-discard");
+        const returnToListInput = document.getElementById("id_return_to_list");
+        if (!backLink || !updateForm || !leaveOverlay || !saveButton || !discardButton) {
+          return;
+        }
+
+        const trackedFields = Array.from(updateForm.elements).filter((field) => {
+          if (!field.name) {
+            return false;
+          }
+          if (field.name === "csrfmiddlewaretoken" || field.name === "return_to_list") {
+            return false;
+          }
+          const type = (field.type || "").toLowerCase();
+          return type !== "hidden" && type !== "submit" && type !== "button";
+        });
+
+        const fieldSnapshotKey = (field) => `${field.name}::${field.id || ""}`;
+
+        const readFieldValue = (field) => {
+          const type = (field.type || "").toLowerCase();
+          if (type === "checkbox" || type === "radio") {
+            return field.checked ? "1" : "0";
+          }
+          return field.value || "";
+        };
+
+        const initialValues = new Map(
+          trackedFields.map((field) => [fieldSnapshotKey(field), readFieldValue(field)])
+        );
+
+        const hasUnsavedChanges = () => trackedFields.some((field) => {
+          const snapshot = initialValues.get(fieldSnapshotKey(field));
+          return snapshot !== readFieldValue(field);
+        });
+
+        const openLeavePopup = () => {
+          leaveOverlay.classList.add("active");
+          leaveOverlay.setAttribute("aria-hidden", "false");
+        };
+
+        const closeLeavePopup = () => {
+          leaveOverlay.classList.remove("active");
+          leaveOverlay.setAttribute("aria-hidden", "true");
+        };
+
+        backLink.addEventListener("click", (event) => {
+          if (!hasUnsavedChanges()) {
+            return;
+          }
+          event.preventDefault();
+          openLeavePopup();
+        });
+
+        saveButton.addEventListener("click", () => {
+          if (returnToListInput) {
+            returnToListInput.value = "1";
+          }
+          updateForm.submit();
+        });
+
+        discardButton.addEventListener("click", () => {
+          window.location.href = backLink.href;
+        });
+
+        leaveOverlay.addEventListener("click", (event) => {
+          if (event.target === leaveOverlay) {
+            closeLeavePopup();
+          }
+        });
+
+        document.addEventListener("keydown", (event) => {
+          if (event.key === "Escape") {
+            closeLeavePopup();
+          }
+        });
+      })();
+    </script>
+  {% endif %}
 </body>
 </html>

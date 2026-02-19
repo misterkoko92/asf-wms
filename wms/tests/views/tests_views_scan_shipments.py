@@ -572,7 +572,7 @@ class ScanShipmentsViewsTests(TestCase):
                         with mock.patch(
                             "wms.views_scan_shipments.handle_shipment_tracking_post",
                             return_value=HttpResponse("tracking-post"),
-                        ):
+                        ) as handler_mock:
                             response = self.client.post(
                                 reverse(
                                     "scan:scan_shipment_track",
@@ -582,6 +582,37 @@ class ScanShipmentsViewsTests(TestCase):
                             )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "tracking-post")
+        self.assertFalse(handler_mock.call_args.kwargs["return_to_list"])
+
+    def test_scan_shipment_track_post_passes_return_to_list_flag(self):
+        shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
+        with mock.patch("wms.views_scan_shipments.Shipment.ensure_qr_code"):
+            with mock.patch(
+                "wms.views_scan_shipments.build_shipment_document_links",
+                return_value=([], [], []),
+            ):
+                with mock.patch(
+                    "wms.views_scan_shipments.next_tracking_status",
+                    return_value="planning_ok",
+                ):
+                    with mock.patch(
+                        "wms.views_scan_shipments.ShipmentTrackingForm",
+                        return_value=object(),
+                    ):
+                        with mock.patch(
+                            "wms.views_scan_shipments.handle_shipment_tracking_post",
+                            return_value=HttpResponse("tracking-post"),
+                        ) as handler_mock:
+                            response = self.client.post(
+                                reverse(
+                                    "scan:scan_shipment_track",
+                                    kwargs={"tracking_token": shipment.tracking_token},
+                                ),
+                                {"status": "planning_ok", "return_to_list": "1"},
+                            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.decode(), "tracking-post")
+        self.assertTrue(handler_mock.call_args.kwargs["return_to_list"])
 
     def test_scan_shipment_track_legacy_renders_read_only_tracking(self):
         shipment = self._create_shipment(status=ShipmentStatus.DRAFT)

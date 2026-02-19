@@ -258,6 +258,9 @@ def _render_shipment_tracking(
             "events": events,
             "form": form,
             "can_update_tracking": can_update_tracking,
+            "show_back_to_list": bool(
+                request.user.is_authenticated and request.user.is_staff
+            ),
         },
     )
 
@@ -596,7 +599,18 @@ def scan_shipment_track(request, tracking_token):
         initial_status=next_status,
         allowed_statuses=allowed_statuses,
     )
-    response = handle_shipment_tracking_post(request, shipment=shipment, form=form)
+    return_to_list = (
+        request.method == "POST"
+        and request.user.is_authenticated
+        and request.user.is_staff
+        and (request.POST.get("return_to_list") or "").strip() == "1"
+    )
+    response = handle_shipment_tracking_post(
+        request,
+        shipment=shipment,
+        form=form,
+        return_to_list=return_to_list,
+    )
     if response:
         return response
     return _render_shipment_tracking(
