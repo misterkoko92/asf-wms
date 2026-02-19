@@ -529,8 +529,12 @@ class ShipmentTrackingForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         initial_status = kwargs.pop("initial_status", None)
+        allowed_statuses = kwargs.pop("allowed_statuses", None)
         super().__init__(*args, **kwargs)
         choices = list(ShipmentTrackingStatus.choices)
+        if allowed_statuses is not None:
+            allowed_set = set(allowed_statuses)
+            choices = [choice for choice in choices if choice[0] in allowed_set]
         self.fields["status"].choices = choices
         if initial_status and any(choice[0] == initial_status for choice in choices):
             self.fields["status"].initial = initial_status

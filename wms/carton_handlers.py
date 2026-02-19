@@ -1,5 +1,6 @@
 from django.shortcuts import redirect
 
+from .carton_status_events import set_carton_status
 from .models import Carton, CartonStatus, ShipmentStatus
 from .shipment_status import sync_shipment_ready_state
 
@@ -15,7 +16,9 @@ def _shipment_is_locked(carton):
     shipment = getattr(carton, "shipment", None)
     if not shipment:
         return False
-    return shipment.status in LOCKED_SHIPMENT_STATUSES
+    if shipment.status in LOCKED_SHIPMENT_STATUSES:
+        return True
+    return bool(getattr(shipment, "is_disputed", False))
 
 
 def handle_carton_status_update(request):
@@ -44,9 +47,12 @@ def handle_carton_status_update(request):
             and status_value in allowed
             and carton.shipment_id is None
         ):
-            if carton.status != status_value:
-                carton.status = status_value
-                carton.save(update_fields=["status"])
+            set_carton_status(
+                carton=carton,
+                new_status=status_value,
+                reason="manual_update",
+                user=getattr(request, "user", None),
+            )
         return redirect("scan:scan_cartons_ready")
 
     if not carton or not carton.shipment_id or _shipment_is_locked(carton):
@@ -55,14 +61,22 @@ def handle_carton_status_update(request):
     shipment = carton.shipment
     if action == "mark_carton_labeled":
         if carton.status in {CartonStatus.ASSIGNED, CartonStatus.PACKED}:
-            carton.status = CartonStatus.LABELED
-            carton.save(update_fields=["status"])
+            set_carton_status(
+                carton=carton,
+                new_status=CartonStatus.LABELED,
+                reason="mark_labeled",
+                user=getattr(request, "user", None),
+            )
             sync_shipment_ready_state(shipment)
         return redirect("scan:scan_cartons_ready")
 
     if action == "mark_carton_assigned":
         if carton.status == CartonStatus.LABELED:
-            carton.status = CartonStatus.ASSIGNED
-            carton.save(update_fields=["status"])
+            set_carton_status(
+                carton=carton,
+                new_status=CartonStatus.ASSIGNED,
+                reason="mark_assigned",
+                user=getattr(request, "user", None),
+            )
             sync_shipment_ready_state(shipment)
     return redirect("scan:scan_cartons_ready")

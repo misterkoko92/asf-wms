@@ -5,6 +5,7 @@ from django.db import IntegrityError, connection, transaction
 from django.shortcuts import redirect
 from django.urls import reverse
 
+from .carton_status_events import set_carton_status
 from .models import (
     Carton,
     CartonStatus,
@@ -215,8 +216,13 @@ def handle_shipment_create_post(request, *, form, available_carton_ids):
                         if carton is None:
                             raise StockError("Carton indisponible.")
                         carton.shipment = shipment
-                        carton.status = CartonStatus.ASSIGNED
-                        carton.save(update_fields=["shipment", "status"])
+                        set_carton_status(
+                            carton=carton,
+                            new_status=CartonStatus.ASSIGNED,
+                            update_fields=["shipment"],
+                            reason="shipment_create_assign",
+                            user=getattr(request, "user", None),
+                        )
                     else:
                         carton = pack_carton(
                             user=request.user,
@@ -226,9 +232,12 @@ def handle_shipment_create_post(request, *, form, available_carton_ids):
                             carton_code=None,
                             shipment=shipment,
                         )
-                        if carton.status != CartonStatus.ASSIGNED:
-                            carton.status = CartonStatus.ASSIGNED
-                            carton.save(update_fields=["status"])
+                        set_carton_status(
+                            carton=carton,
+                            new_status=CartonStatus.ASSIGNED,
+                            reason="shipment_create_pack_assign",
+                            user=getattr(request, "user", None),
+                        )
             sync_shipment_ready_state(shipment)
             messages.success(
                 request,
@@ -253,6 +262,8 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
             shipment_status = getattr(shipment, "status", ShipmentStatus.DRAFT)
             if shipment_status in LOCKED_SHIPMENT_STATUSES:
                 raise StockError("Expédition verrouillée: modification des colis impossible.")
+            if getattr(shipment, "is_disputed", False):
+                raise StockError("Expédition en litige: modification des colis impossible.")
             with transaction.atomic():
                 destination = form.cleaned_data["destination"]
                 shipper_contact = form.cleaned_data["shipper_contact"]
@@ -294,8 +305,13 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
                         raise StockError("Impossible de retirer un carton expédié.")
                     carton.shipment = None
                     if carton.status in {CartonStatus.ASSIGNED, CartonStatus.LABELED}:
-                        carton.status = CartonStatus.PACKED
-                        carton.save(update_fields=["shipment", "status"])
+                        set_carton_status(
+                            carton=carton,
+                            new_status=CartonStatus.PACKED,
+                            update_fields=["shipment"],
+                            reason="shipment_edit_unassign",
+                            user=getattr(request, "user", None),
+                        )
                     else:
                         carton.save(update_fields=["shipment"])
 
@@ -312,11 +328,20 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
                         raise StockError("Carton indisponible.")
                     if carton.shipment_id != shipment.id:
                         carton.shipment = shipment
-                        carton.status = CartonStatus.ASSIGNED
-                        carton.save(update_fields=["shipment", "status"])
+                        set_carton_status(
+                            carton=carton,
+                            new_status=CartonStatus.ASSIGNED,
+                            update_fields=["shipment"],
+                            reason="shipment_edit_assign_existing",
+                            user=getattr(request, "user", None),
+                        )
                     elif carton.status == CartonStatus.PACKED:
-                        carton.status = CartonStatus.ASSIGNED
-                        carton.save(update_fields=["status"])
+                        set_carton_status(
+                            carton=carton,
+                            new_status=CartonStatus.ASSIGNED,
+                            reason="shipment_edit_reassign",
+                            user=getattr(request, "user", None),
+                        )
 
                 for item in line_items:
                     if "product" in item:
@@ -328,9 +353,12 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
                             carton_code=None,
                             shipment=shipment,
                         )
-                        if carton.status != CartonStatus.ASSIGNED:
-                            carton.status = CartonStatus.ASSIGNED
-                            carton.save(update_fields=["status"])
+                        set_carton_status(
+                            carton=carton,
+                            new_status=CartonStatus.ASSIGNED,
+                            reason="shipment_edit_pack_assign",
+                            user=getattr(request, "user", None),
+                        )
             sync_shipment_ready_state(shipment)
             messages.success(
                 request,

@@ -1143,6 +1143,31 @@ class Carton(models.Model):
         return self.code
 
 
+class CartonStatusEvent(models.Model):
+    carton = models.ForeignKey(
+        Carton,
+        on_delete=models.CASCADE,
+        related_name="status_events",
+    )
+    previous_status = models.CharField(max_length=20, choices=CartonStatus.choices)
+    new_status = models.CharField(max_length=20, choices=CartonStatus.choices)
+    reason = models.CharField(max_length=120, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="carton_status_events",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.carton.code}: {self.previous_status} -> {self.new_status}"
+
+
 class CartonItem(models.Model):
     carton = models.ForeignKey(Carton, on_delete=models.CASCADE)
     product_lot = models.ForeignKey(ProductLot, on_delete=models.PROTECT)

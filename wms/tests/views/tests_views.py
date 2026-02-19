@@ -766,7 +766,9 @@ class ScanViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_scan_shipment_track_accepts_token_route(self):
-        shipment, _carton = self._create_shipment_with_carton()
+        shipment, carton = self._create_shipment_with_carton()
+        carton.status = CartonStatus.LABELED
+        carton.save(update_fields=["status"])
         self.client.logout()
         url = reverse("scan:scan_shipment_track", args=[shipment.tracking_token])
         response = self.client.post(

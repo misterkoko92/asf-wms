@@ -17,6 +17,7 @@ from wms.models import (
     Carton,
     CartonFormat,
     CartonItem,
+    CartonStatusEvent,
     CartonStatus,
     Location,
     MovementType,
@@ -519,6 +520,26 @@ class DomainOrdersExtraTests(TestCase):
         self.assertIsNone(carton_zero.shipment_id)
         self.assertIsNone(carton_too_large.shipment_id)
         self.assertEqual(carton_ok.shipment_id, order.shipment_id)
+        event = CartonStatusEvent.objects.get(carton=carton_ok)
+        self.assertEqual(event.previous_status, CartonStatus.PACKED)
+        self.assertEqual(event.new_status, CartonStatus.ASSIGNED)
+        self.assertEqual(event.reason, "order_assign_ready_carton")
+
+    def test_assign_ready_cartons_rejects_disputed_shipment(self):
+        order, _line = self._create_order(
+            status=OrderStatus.RESERVED,
+            quantity=1,
+            reserved_quantity=1,
+        )
+        shipment = create_shipment_for_order(order=order)
+        shipment.is_disputed = True
+        shipment.save(update_fields=["is_disputed"])
+
+        with self.assertRaisesMessage(
+            StockError,
+            "Expédition en litige: affectation des colis impossible.",
+        ):
+            assign_ready_cartons_to_order(order=order)
 
     def test_prepare_order_rejects_status_other_than_reserved_or_preparing(self):
         order, _line = self._create_order(status=OrderStatus.DRAFT, quantity=1)

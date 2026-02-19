@@ -8,6 +8,7 @@ from django.db.models.expressions import ExpressionWrapper
 from django.utils import timezone
 
 from .dto import PackCartonInput, ReceiveStockInput
+from ..carton_status_events import set_carton_status
 from ..models import (
     Carton,
     CartonItem,
@@ -25,6 +26,7 @@ from ..models import (
     ShipmentStatus,
     StockMovement,
 )
+from ..shipment_status import sync_shipment_ready_state
 
 
 class StockError(ValueError):
@@ -180,6 +182,8 @@ def _prepare_carton(
         carton = Carton.objects.filter(code=carton_code).first()
     if carton and carton.status == CartonStatus.SHIPPED:
         raise StockError("Impossible de modifier un carton expédié.")
+    if shipment and getattr(shipment, "is_disputed", False):
+        raise StockError("Impossible de modifier une expédition en litige.")
     if shipment and shipment.status in {
         ShipmentStatus.PLANNED,
         ShipmentStatus.SHIPPED,
@@ -541,19 +545,38 @@ def pack_carton(
             item.quantity += entry.quantity
             item.save(update_fields=["quantity"])
     target_status = None
+    status_reason = ""
     if shipment is not None:
         target_status = CartonStatus.ASSIGNED
+        status_reason = "stock_pack_assign"
     elif carton.status == CartonStatus.DRAFT:
         target_status = CartonStatus.PICKING
+        status_reason = "stock_pack_start_picking"
     if target_status and carton.status != target_status:
-        carton.status = target_status
-        carton.save(update_fields=["status"])
+        set_carton_status(
+            carton=carton,
+            new_status=target_status,
+            reason=status_reason,
+            user=user,
+        )
+    if shipment is not None:
+        sync_shipment_ready_state(shipment)
     ensure_carton_code(carton)
     return carton
 
 
 @transaction.atomic
 def unpack_carton(*, user, carton: Carton):
+    shipment = carton.shipment
+    if shipment and getattr(shipment, "is_disputed", False):
+        raise StockError("Impossible de modifier une expédition en litige.")
+    if shipment and shipment.status in {
+        ShipmentStatus.PLANNED,
+        ShipmentStatus.SHIPPED,
+        ShipmentStatus.RECEIVED_CORRESPONDENT,
+        ShipmentStatus.DELIVERED,
+    }:
+        raise StockError("Impossible de modifier une expédition expédiée ou livrée.")
     if carton.status == CartonStatus.SHIPPED:
         raise StockError("Impossible de modifier un carton expédié.")
     items = list(carton.cartonitem_set.select_related("product_lot", "product_lot__product"))
@@ -574,7 +597,14 @@ def unpack_carton(*, user, carton: Carton):
             created_by=user,
         )
     carton.cartonitem_set.all().delete()
-    carton.status = CartonStatus.DRAFT
     carton.shipment = None
-    carton.save(update_fields=["status", "shipment"])
+    set_carton_status(
+        carton=carton,
+        new_status=CartonStatus.DRAFT,
+        update_fields=["shipment"],
+        reason="stock_unpack",
+        user=user,
+    )
+    if shipment is not None:
+        sync_shipment_ready_state(shipment)
     return carton

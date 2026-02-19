@@ -7,6 +7,7 @@ from .stock import (
     ensure_carton_code,
     fefo_lots,
 )
+from ..carton_status_events import set_carton_status
 from ..models import (
     Carton,
     CartonFormat,
@@ -22,6 +23,15 @@ from ..models import (
     StockMovement,
 )
 from ..scan_helpers import build_packing_bins
+from ..shipment_status import sync_shipment_ready_state
+
+
+LOCKED_SHIPMENT_STATUSES = {
+    ShipmentStatus.PLANNED,
+    ShipmentStatus.SHIPPED,
+    ShipmentStatus.RECEIVED_CORRESPONDENT,
+    ShipmentStatus.DELIVERED,
+}
 
 
 def create_shipment_for_order(*, order: Order):
@@ -200,13 +210,22 @@ def pack_carton_from_reserved(
         item.quantity += entry.quantity
         item.save(update_fields=["quantity"])
     target_status = None
+    status_reason = ""
     if shipment is not None:
         target_status = CartonStatus.ASSIGNED
+        status_reason = "order_pack_assign"
     elif carton.status == CartonStatus.DRAFT:
         target_status = CartonStatus.PICKING
+        status_reason = "order_pack_start_picking"
     if target_status and carton.status != target_status:
-        carton.status = target_status
-        carton.save(update_fields=["status"])
+        set_carton_status(
+            carton=carton,
+            new_status=target_status,
+            reason=status_reason,
+            user=user,
+        )
+    if shipment is not None:
+        sync_shipment_ready_state(shipment)
     ensure_carton_code(carton)
     return carton
 
@@ -215,6 +234,13 @@ def pack_carton_from_reserved(
 def assign_ready_cartons_to_order(*, order: Order):
     if not order.shipment_id:
         create_shipment_for_order(order=order)
+    shipment = order.shipment
+    if shipment is None:
+        raise StockError("Expédition introuvable.")
+    if getattr(shipment, "is_disputed", False):
+        raise StockError("Expédition en litige: affectation des colis impossible.")
+    if shipment.status in LOCKED_SHIPMENT_STATUSES:
+        raise StockError("Expédition verrouillée: affectation des colis impossible.")
     line_by_product = {line.product_id: line for line in order.lines.all()}
     remaining = {
         line.product_id: line.remaining_quantity for line in order.lines.all()
@@ -241,15 +267,21 @@ def assign_ready_cartons_to_order(*, order: Order):
         if remaining[product_id] < carton_qty:
             continue
         line = line_by_product[product_id]
-        carton.shipment = order.shipment
-        carton.status = CartonStatus.ASSIGNED
-        carton.save(update_fields=["shipment", "status"])
+        carton.shipment = shipment
+        set_carton_status(
+            carton=carton,
+            new_status=CartonStatus.ASSIGNED,
+            update_fields=["shipment"],
+            reason="order_assign_ready_carton",
+            user=order.created_by,
+        )
         line.prepared_quantity += carton_qty
         line.save(update_fields=["prepared_quantity"])
         remaining[product_id] -= carton_qty
         if line.reserved_quantity:
             release_reserved_stock(line=line, quantity=carton_qty)
         assigned += 1
+    sync_shipment_ready_state(shipment)
     return assigned
 
 
@@ -258,6 +290,10 @@ def prepare_order(*, user, order: Order):
     if order.status not in {OrderStatus.RESERVED, OrderStatus.PREPARING}:
         raise StockError("Commande non réservée.")
     shipment = create_shipment_for_order(order=order)
+    if getattr(shipment, "is_disputed", False):
+        raise StockError("Expédition en litige: préparation impossible.")
+    if shipment.status in LOCKED_SHIPMENT_STATUSES:
+        raise StockError("Expédition verrouillée: préparation impossible.")
     assigned = assign_ready_cartons_to_order(order=order)
 
     remaining_lines = [
@@ -305,4 +341,5 @@ def prepare_order(*, user, order: Order):
     else:
         order.status = OrderStatus.PREPARING
     order.save(update_fields=["status"])
+    sync_shipment_ready_state(shipment)
     return assigned

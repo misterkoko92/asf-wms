@@ -31,6 +31,7 @@ from wms.domain.dto import PackCartonInput, ReceiveStockInput
 from wms.models import (
     Carton,
     CartonItem,
+    CartonStatusEvent,
     CartonStatus,
     Location,
     MovementType,
@@ -349,11 +350,23 @@ class DomainStockExtraTests(TestCase):
     def test_unpack_carton_rejects_shipped_and_empty_cartons(self):
         shipped_carton = Carton.objects.create(code="CT-SHIPPED", status=CartonStatus.SHIPPED)
         empty_carton = Carton.objects.create(code="CT-EMPTY-2", status=CartonStatus.DRAFT)
+        disputed_shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
+        disputed_shipment.is_disputed = True
+        disputed_shipment.save(update_fields=["is_disputed"])
+        disputed_carton = Carton.objects.create(
+            code="CT-DISPUTED",
+            status=CartonStatus.PACKED,
+            shipment=disputed_shipment,
+        )
+        lot = self._create_lot(code="LOT-DISPUTED", quantity_on_hand=5)
+        CartonItem.objects.create(carton=disputed_carton, product_lot=lot, quantity=1)
 
         with self.assertRaisesMessage(StockError, "Impossible de modifier un carton expédié."):
             unpack_carton(user=self.user, carton=shipped_carton)
         with self.assertRaisesMessage(StockError, "Carton vide."):
             unpack_carton(user=self.user, carton=empty_carton)
+        with self.assertRaisesMessage(StockError, "Impossible de modifier une expédition en litige."):
+            unpack_carton(user=self.user, carton=disputed_carton)
 
     def test_unpack_carton_restores_stock_and_resets_carton(self):
         lot = self._create_lot(code="LOT-UNPACK", quantity_on_hand=4)
@@ -379,6 +392,10 @@ class DomainStockExtraTests(TestCase):
             related_carton=carton,
         )
         self.assertEqual(movement.related_shipment_id, shipment.id)
+        event = CartonStatusEvent.objects.get(carton=carton)
+        self.assertEqual(event.previous_status, CartonStatus.PICKING)
+        self.assertEqual(event.new_status, CartonStatus.DRAFT)
+        self.assertEqual(event.reason, "stock_unpack")
 
     def test_prepare_carton_finds_existing_by_code_and_updates_fields(self):
         shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
@@ -413,6 +430,14 @@ class DomainStockExtraTests(TestCase):
             "Impossible de modifier une expédition expédiée ou livrée.",
         ):
             _prepare_carton(user=self.user, carton=None, shipment=shipped_shipment)
+        disputed_shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
+        disputed_shipment.is_disputed = True
+        disputed_shipment.save(update_fields=["is_disputed"])
+        with self.assertRaisesMessage(
+            StockError,
+            "Impossible de modifier une expédition en litige.",
+        ):
+            _prepare_carton(user=self.user, carton=None, shipment=disputed_shipment)
 
         shipment_a = self._create_shipment(status=ShipmentStatus.DRAFT)
         shipment_b = self._create_shipment(status=ShipmentStatus.DRAFT)

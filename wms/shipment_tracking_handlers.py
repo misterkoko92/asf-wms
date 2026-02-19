@@ -2,12 +2,14 @@ from django.contrib import messages
 from django.shortcuts import redirect
 from django.utils import timezone
 
+from .carton_status_events import set_carton_status
 from .models import (
     CartonStatus,
     ShipmentStatus,
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
 )
+from .shipment_status import sync_shipment_ready_state
 
 TRACKING_TO_SHIPMENT_STATUS = {
     ShipmentTrackingStatus.PLANNING_OK: ShipmentStatus.PACKED,
@@ -23,10 +25,79 @@ DISPUTE_RESETTABLE_STATUSES = {
     ShipmentStatus.RECEIVED_CORRESPONDENT,
     ShipmentStatus.DELIVERED,
 }
+ASSIGNED_OR_READY_CARTON_STATUSES = {
+    CartonStatus.ASSIGNED,
+    CartonStatus.LABELED,
+    CartonStatus.SHIPPED,
+}
+READY_CARTON_STATUSES = {
+    CartonStatus.LABELED,
+    CartonStatus.SHIPPED,
+}
 
 
 def _redirect_to_tracking(shipment):
     return redirect("scan:scan_shipment_track", tracking_token=shipment.tracking_token)
+
+
+def _latest_tracking_status(shipment):
+    return shipment.tracking_events.values_list("status", flat=True).first()
+
+
+def allowed_tracking_statuses_for_shipment(shipment):
+    current_status = shipment.status
+    last_status = _latest_tracking_status(shipment)
+    if current_status == ShipmentStatus.DELIVERED:
+        return []
+    if current_status == ShipmentStatus.RECEIVED_CORRESPONDENT:
+        return [ShipmentTrackingStatus.RECEIVED_RECIPIENT]
+    if current_status == ShipmentStatus.SHIPPED:
+        return [ShipmentTrackingStatus.RECEIVED_CORRESPONDENT]
+    if current_status == ShipmentStatus.PLANNED:
+        if last_status == ShipmentTrackingStatus.MOVED_EXPORT:
+            return [ShipmentTrackingStatus.BOARDING_OK]
+        return [ShipmentTrackingStatus.MOVED_EXPORT, ShipmentTrackingStatus.BOARDING_OK]
+    if current_status == ShipmentStatus.PACKED:
+        if last_status == ShipmentTrackingStatus.PLANNING_OK:
+            return [ShipmentTrackingStatus.PLANNED]
+        return [ShipmentTrackingStatus.PLANNING_OK]
+    if current_status in {ShipmentStatus.DRAFT, ShipmentStatus.PICKING}:
+        return [ShipmentTrackingStatus.PLANNING_OK]
+    return []
+
+
+def _validate_ready_for_planning(shipment):
+    cartons = shipment.carton_set.all()
+    total = cartons.count()
+    assigned_or_ready = cartons.filter(status__in=ASSIGNED_OR_READY_CARTON_STATUSES).count()
+    ready = cartons.filter(status__in=READY_CARTON_STATUSES).count()
+    if total == 0:
+        return "Aucun colis affecte a cette expedition."
+    if assigned_or_ready < total:
+        return (
+            "Tous les colis doivent etre affectes avant de poursuivre la planification."
+        )
+    if ready < total:
+        return (
+            "Tous les colis doivent etre etiquettes avant de poursuivre la planification."
+        )
+    return ""
+
+
+def validate_tracking_transition(shipment, status_value):
+    allowed_statuses = allowed_tracking_statuses_for_shipment(shipment)
+    if status_value not in allowed_statuses:
+        return "Transition non autorisee pour le statut actuel de l'expedition."
+    if status_value in {
+        ShipmentTrackingStatus.PLANNING_OK,
+        ShipmentTrackingStatus.PLANNED,
+        ShipmentTrackingStatus.MOVED_EXPORT,
+        ShipmentTrackingStatus.BOARDING_OK,
+    }:
+        ready_error = _validate_ready_for_planning(shipment)
+        if ready_error:
+            return ready_error
+    return ""
 
 
 def _handle_dispute_action(request, shipment):
@@ -60,9 +131,14 @@ def _handle_dispute_action(request, shipment):
             ShipmentStatus.RECEIVED_CORRESPONDENT,
             ShipmentStatus.DELIVERED,
         }:
-            shipment.carton_set.filter(status=CartonStatus.SHIPPED).update(
-                status=CartonStatus.LABELED
-            )
+            for carton in shipment.carton_set.filter(status=CartonStatus.SHIPPED):
+                set_carton_status(
+                    carton=carton,
+                    new_status=CartonStatus.LABELED,
+                    reason="dispute_resolve_reset",
+                    user=getattr(request, "user", None),
+                )
+        sync_shipment_ready_state(shipment)
     messages.success(request, "Litige resolu. Expedition remise a l'etat Pret.")
     return _redirect_to_tracking(shipment)
 
@@ -85,6 +161,10 @@ def handle_shipment_tracking_post(request, *, shipment, form):
     if not form.is_valid():
         return None
     status_value = form.cleaned_data["status"]
+    transition_error = validate_tracking_transition(shipment, status_value)
+    if transition_error:
+        form.add_error("status", transition_error)
+        return None
     ShipmentTrackingEvent.objects.create(
         shipment=shipment,
         status=status_value,
@@ -102,8 +182,12 @@ def handle_shipment_tracking_post(request, *, shipment, form):
             update_fields.append("ready_at")
         shipment.save(update_fields=update_fields)
         if target_status == ShipmentStatus.SHIPPED:
-            shipment.carton_set.exclude(status=CartonStatus.SHIPPED).update(
-                status=CartonStatus.SHIPPED
-            )
+            for carton in shipment.carton_set.exclude(status=CartonStatus.SHIPPED):
+                set_carton_status(
+                    carton=carton,
+                    new_status=CartonStatus.SHIPPED,
+                    reason="tracking_boarding_ok",
+                    user=getattr(request, "user", None),
+                )
     messages.success(request, "Suivi mis à jour.")
     return _redirect_to_tracking(shipment)

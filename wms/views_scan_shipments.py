@@ -38,7 +38,10 @@ from .shipment_form_helpers import (
     build_shipment_form_context,
     build_shipment_form_payload,
 )
-from .shipment_tracking_handlers import handle_shipment_tracking_post
+from .shipment_tracking_handlers import (
+    allowed_tracking_statuses_for_shipment,
+    handle_shipment_tracking_post,
+)
 from .shipment_view_helpers import (
     build_carton_options,
     build_shipment_document_links,
@@ -422,8 +425,15 @@ def scan_shipment_track(request, tracking_token):
     shipment = get_object_or_404(Shipment, tracking_token=tracking_token)
     shipment.ensure_qr_code(request=request)
     last_event = shipment.tracking_events.order_by("-created_at").first()
+    allowed_statuses = allowed_tracking_statuses_for_shipment(shipment)
     next_status = next_tracking_status(last_event.status if last_event else None)
-    form = ShipmentTrackingForm(request.POST or None, initial_status=next_status)
+    if allowed_statuses and next_status not in allowed_statuses:
+        next_status = allowed_statuses[0]
+    form = ShipmentTrackingForm(
+        request.POST or None,
+        initial_status=next_status,
+        allowed_statuses=allowed_statuses,
+    )
     response = handle_shipment_tracking_post(request, shipment=shipment, form=form)
     if response:
         return response

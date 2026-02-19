@@ -529,6 +529,18 @@ class FormsTests(TestCase):
 
         self.assertEqual(form.fields["status"].initial, form.fields["status"].choices[0][0])
 
+    def test_shipment_tracking_form_filters_status_choices(self):
+        form = ShipmentTrackingForm(
+            allowed_statuses=["planning_ok", "planned"],
+            initial_status="planned",
+        )
+
+        self.assertEqual(
+            [choice[0] for choice in form.fields["status"].choices],
+            ["planning_ok", "planned"],
+        )
+        self.assertEqual(form.fields["status"].initial, "planned")
+
     def test_select_single_choice_returns_when_queryset_is_none(self):
         field = django_forms.ModelChoiceField(queryset=Contact.objects.none(), required=False)
         field._queryset = None
