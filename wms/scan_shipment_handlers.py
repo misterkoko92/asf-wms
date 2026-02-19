@@ -13,7 +13,7 @@ from .models import (
     ShipmentStatus,
     TEMP_SHIPMENT_REFERENCE_PREFIX,
 )
-from .services import StockError, pack_carton
+from .services import StockError, pack_carton, pack_carton_from_reserved
 from .shipment_helpers import build_destination_label, parse_shipment_lines
 from .shipment_status import sync_shipment_ready_state
 
@@ -84,6 +84,15 @@ def _resolve_optional_contact(form, field_name):
 def _build_pack_redirect_url(*, shipment_reference):
     base_url = reverse("scan:scan_pack")
     return f"{base_url}?shipment_reference={shipment_reference}"
+
+
+def _related_order_for_shipment(shipment):
+    try:
+        return shipment.order
+    except AttributeError:
+        return None
+    except Shipment.order.RelatedObjectDoesNotExist:
+        return None
 
 
 def _handle_shipment_save_draft_post(request, *, form, redirect_to_pack=False):
@@ -293,6 +302,13 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
                         "destination_country",
                     ]
                 )
+                related_order = _related_order_for_shipment(shipment)
+                order_lines_by_product = {}
+                if related_order is not None:
+                    order_lines_by_product = {
+                        line.product_id: line
+                        for line in related_order.lines.select_related("product").all()
+                    }
 
                 selected_carton_ids = {
                     item["carton_id"] for item in line_items if "carton_id" in item
@@ -345,14 +361,32 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
 
                 for item in line_items:
                     if "product" in item:
-                        carton = pack_carton(
-                            user=request.user,
-                            product=item["product"],
-                            quantity=item["quantity"],
-                            carton=None,
-                            carton_code=None,
-                            shipment=shipment,
-                        )
+                        if related_order is not None:
+                            order_line = order_lines_by_product.get(item["product"].id)
+                            if order_line is None:
+                                raise StockError(
+                                    "Produit non présent dans la commande liée."
+                                )
+                            if item["quantity"] > order_line.remaining_quantity:
+                                raise StockError(
+                                    f"{item['product'].name}: quantité demandée supérieure au reliquat de la commande."
+                                )
+                            carton = pack_carton_from_reserved(
+                                user=request.user,
+                                line=order_line,
+                                quantity=item["quantity"],
+                                carton=None,
+                                shipment=shipment,
+                            )
+                        else:
+                            carton = pack_carton(
+                                user=request.user,
+                                product=item["product"],
+                                quantity=item["quantity"],
+                                carton=None,
+                                carton_code=None,
+                                shipment=shipment,
+                            )
                         set_carton_status(
                             carton=carton,
                             new_status=CartonStatus.ASSIGNED,

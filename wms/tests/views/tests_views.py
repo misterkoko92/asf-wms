@@ -709,6 +709,13 @@ class ScanViewTests(TestCase):
                 {"carton_id": "", "product_code": self.product.sku, "quantity": "3"},
             ],
         )
+        product_options = response.context["products_json"]
+        self.assertEqual(len(product_options), 2)
+        available_by_sku = {
+            item["sku"]: item["available_stock"] for item in product_options
+        }
+        self.assertEqual(available_by_sku[self.product.sku], 3)
+        self.assertEqual(available_by_sku[product_b.sku], 2)
 
     def test_scan_shipment_document_upload_rejects_extension(self):
         shipment = Shipment.objects.create(

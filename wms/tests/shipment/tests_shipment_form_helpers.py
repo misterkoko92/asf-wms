@@ -9,6 +9,7 @@ from wms.shipment_form_helpers import (
     build_shipment_edit_line_values,
     build_shipment_form_context,
     build_shipment_form_payload,
+    build_shipment_order_product_options,
     build_shipment_order_line_values,
 )
 
@@ -40,6 +41,27 @@ class ShipmentFormHelpersTests(SimpleTestCase):
                 [{"id": 30}],
             ),
         )
+
+    def test_build_shipment_form_payload_uses_override_product_options(self):
+        custom_product_options = [{"sku": "CUSTOM"}]
+        with mock.patch(
+            "wms.shipment_form_helpers.build_product_options",
+            return_value=[{"sku": "DEFAULT"}],
+        ) as product_options_mock:
+            with mock.patch(
+                "wms.shipment_form_helpers.build_available_cartons",
+                return_value=[{"id": 1, "code": "C-1"}],
+            ):
+                with mock.patch(
+                    "wms.shipment_form_helpers.build_shipment_contact_payload",
+                    return_value=([{"id": 10}], [{"id": 15}], [{"id": 20}], [{"id": 30}]),
+                ):
+                    payload = build_shipment_form_payload(
+                        product_options=custom_product_options
+                    )
+
+        self.assertEqual(payload[0], custom_product_options)
+        product_options_mock.assert_not_called()
 
     def test_build_carton_selection_data_without_assigned_options(self):
         available_cartons = [{"id": 1, "code": "C-1"}, {"id": 2, "code": "C-2"}]
@@ -194,7 +216,63 @@ class ShipmentFormHelpersTests(SimpleTestCase):
                 {"carton_id": "", "product_code": "Product B", "quantity": "2"},
             ],
         )
+    def test_build_shipment_order_product_options_uses_remaining_quantities(self):
+        product_a = SimpleNamespace(
+            id=10,
+            name="Produit A",
+            sku="SKU-A",
+            barcode="BAR-A",
+            ean="EAN-A",
+            brand="Marque A",
+            default_location_id=3,
+            storage_conditions="Sec",
+            weight_g=120,
+            volume_cm3=80,
+            length_cm=4,
+            width_cm=5,
+            height_cm=6,
+        )
+        product_b = SimpleNamespace(
+            id=11,
+            name="Produit B",
+            sku="SKU-B",
+            barcode="BAR-B",
+            ean="EAN-B",
+            brand="Marque B",
+            default_location_id=4,
+            storage_conditions="Frais",
+            weight_g=220,
+            volume_cm3=180,
+            length_cm=7,
+            width_cm=8,
+            height_cm=9,
+        )
+        order_line_a = SimpleNamespace(product=product_a, remaining_quantity=5)
+        order_line_b = SimpleNamespace(product=product_b, remaining_quantity=0)
 
+        options = build_shipment_order_product_options([order_line_b, order_line_a])
+
+        self.assertEqual(
+            options,
+            [
+                {
+                    "id": 10,
+                    "name": "Produit A",
+                    "sku": "SKU-A",
+                    "barcode": "BAR-A",
+                    "ean": "EAN-A",
+                    "brand": "Marque A",
+                    "default_location_id": 3,
+                    "storage_conditions": "Sec",
+                    "weight_g": 120,
+                    "volume_cm3": 80,
+                    "length_cm": 4,
+                    "width_cm": 5,
+                    "height_cm": 6,
+                    "available_stock": 5,
+                }
+            ],
+        )
     def test_build_shipment_form_context_returns_expected_mapping(self):
         context = build_shipment_form_context(
             form=object(),

@@ -41,6 +41,7 @@ from .shipment_form_helpers import (
     build_shipment_edit_line_values,
     build_shipment_form_context,
     build_shipment_form_payload,
+    build_shipment_order_product_options,
     build_shipment_order_line_values,
 )
 from .shipment_tracking_handlers import (
@@ -200,7 +201,7 @@ def _shipment_can_be_closed(shipment):
     return bool(rows[0]["can_close"])
 
 
-def _build_shipment_form_support(*, extra_carton_options=None):
+def _build_shipment_form_support(*, extra_carton_options=None, product_options=None):
     (
         product_options,
         available_cartons,
@@ -208,7 +209,7 @@ def _build_shipment_form_support(*, extra_carton_options=None):
         shipper_contacts_json,
         recipient_contacts_json,
         correspondent_contacts_json,
-    ) = build_shipment_form_payload()
+    ) = build_shipment_form_payload(product_options=product_options)
     cartons_json, allowed_carton_ids = build_carton_selection_data(
         available_cartons,
         extra_carton_options,
@@ -566,17 +567,27 @@ def scan_shipment_edit(request, shipment_id):
     ).order_by("code")
     assigned_cartons = list(assigned_cartons_qs)
     assigned_carton_options = build_carton_options(assigned_cartons)
+    related_order = None
+    try:
+        related_order = shipment.order
+    except Shipment.order.RelatedObjectDoesNotExist:
+        related_order = None
+    related_order_lines = []
+    if related_order is not None:
+        related_order_lines = list(
+            related_order.lines.select_related("product").order_by("product__name")
+        )
     order_line_values = []
     if not assigned_cartons:
-        related_order = None
-        try:
-            related_order = shipment.order
-        except Shipment.order.RelatedObjectDoesNotExist:
-            related_order = None
-        if related_order is not None:
+        if related_order_lines:
             order_line_values = build_shipment_order_line_values(
-                related_order.lines.select_related("product").order_by("product__name")
+                related_order_lines
             )
+    order_product_options = None
+    if related_order is not None:
+        order_product_options = build_shipment_order_product_options(
+            related_order_lines
+        )
 
     initial = build_shipment_edit_initial(
         shipment,
@@ -588,7 +599,8 @@ def scan_shipment_edit(request, shipment_id):
         request.POST or None, destination_id=destination_id, initial=initial
     )
     support = _build_shipment_form_support(
-        extra_carton_options=assigned_carton_options
+        extra_carton_options=assigned_carton_options,
+        product_options=order_product_options,
     )
     line_errors = {}
     line_values = []
