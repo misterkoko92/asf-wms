@@ -19,6 +19,7 @@ from .models import (
     DocumentReviewStatus,
 )
 from .portal_helpers import get_contact_address
+from .portal_recipient_sync import sync_association_recipient_to_contact
 from .scan_helpers import parse_int
 from .upload_utils import validate_upload
 from .view_permissions import association_required
@@ -157,7 +158,7 @@ def _create_recipient(profile, form_data):
     legacy_name = form_data["structure_name"] or contact_display
     primary_email = form_data["email_values"][0] if form_data["email_values"] else ""
     primary_phone = form_data["phone_values"][0] if form_data["phone_values"] else ""
-    AssociationRecipient.objects.create(
+    recipient = AssociationRecipient.objects.create(
         association_contact=profile.contact,
         destination=form_data.get("destination"),
         name=legacy_name,
@@ -178,6 +179,7 @@ def _create_recipient(profile, form_data):
         notify_deliveries=form_data["notify_deliveries"],
         is_delivery_contact=form_data["is_delivery_contact"],
     )
+    sync_association_recipient_to_contact(recipient)
 
 
 def _get_active_recipients(profile):

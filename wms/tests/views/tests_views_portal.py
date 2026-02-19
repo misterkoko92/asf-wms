@@ -11,6 +11,8 @@ from django.urls import reverse
 from django.utils.http import urlsafe_base64_encode
 
 from contacts.models import Contact, ContactAddress, ContactType
+from contacts.querysets import contacts_with_tags
+from contacts.tagging import TAG_RECIPIENT
 from wms.models import (
     AccountDocument,
     AccountDocumentType,
@@ -676,6 +678,13 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertEqual(recipient.phone, "+33102030405")
         self.assertTrue(recipient.notify_deliveries)
         self.assertTrue(recipient.is_delivery_contact)
+
+        synced_contact = contacts_with_tags(TAG_RECIPIENT).filter(name="Structure C").first()
+        self.assertIsNotNone(synced_contact)
+        self.assertTrue(
+            synced_contact.linked_shippers.filter(pk=self.profile.contact_id).exists()
+        )
+        self.assertTrue(synced_contact.destinations.filter(pk=self.destination.id).exists())
 
     def test_portal_recipients_get_shows_blocking_popup_message(self):
         response = self.client.get(
