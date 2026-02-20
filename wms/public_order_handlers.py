@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib import messages
 from django.db import transaction
 from django.template.loader import render_to_string
@@ -12,8 +14,10 @@ from .services import create_shipment_for_order, reserve_stock_for_order
 DEFAULT_DESTINATION_COUNTRY = "France"
 DEFAULT_SHIPPER_NAME = "Aviation Sans Frontieres"
 
+LOGGER = logging.getLogger(__name__)
+
 TEMPLATE_ORDER_CONFIRMATION = "emails/order_confirmation.txt"
-TEMPLATE_ORDER_ADMIN_NOTIFICATION = "emails/order_admin_notification.txt"
+TEMPLATE_ORDER_ADMIN_NOTIFICATION = "emails/order_admin_notification_public.txt"
 
 SUBJECT_PUBLIC_ORDER_ADMIN = "ASF WMS - Nouvelle commande publique"
 SUBJECT_PUBLIC_ORDER_CONFIRMATION = "ASF WMS - Confirmation de commande"
@@ -120,16 +124,25 @@ def send_public_order_notifications(request, *, token, order, form_data, contact
         TEMPLATE_ORDER_ADMIN_NOTIFICATION,
         _build_admin_notification_context(form_data, contact, order, urls),
     )
-    enqueue_email_safe(
+    admin_queued = enqueue_email_safe(
         subject=SUBJECT_PUBLIC_ORDER_ADMIN,
         message=admin_message,
         recipient=get_admin_emails(),
     )
+    if not admin_queued:
+        LOGGER.warning(
+            "Public order admin notification was not queued for %s",
+            _order_reference(order),
+        )
     if not enqueue_email_safe(
         subject=SUBJECT_PUBLIC_ORDER_CONFIRMATION,
         message=confirmation_message,
         recipient=_confirmation_recipient(form_data, contact),
     ):
+        LOGGER.warning(
+            "Public order confirmation was not queued for %s",
+            _order_reference(order),
+        )
         messages.warning(
             request,
             MESSAGE_CONFIRMATION_WARNING,

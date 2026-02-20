@@ -1,0 +1,12 @@
+Nouvelle commande portail
+
+Association: {{ association_name }}
+Email: {{ email|default:"-" }}
+Telephone: {{ phone|default:"-" }}
+Reference: {{ order_reference }}
+
+Recapitulatif:
+{{ summary_url }}
+
+Admin:
+{{ admin_url }}
