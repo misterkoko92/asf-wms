@@ -18,6 +18,12 @@ Methode:
 Tests executes:
 - `./.venv/bin/python manage.py test wms.tests.emailing wms.tests.public.tests_public_order_handlers wms.tests.admin.tests_account_request_handlers`
 - Resultat: 55 tests, OK.
+- `./.venv/bin/python manage.py test wms.tests.emailing.tests_signal_notifications_queue wms.tests.emailing.tests_email_flows_e2e api.tests.tests_views_extra`
+- Resultat: 19 tests, OK.
+- `./.venv/bin/python manage.py test wms.tests.emailing.tests_signals_extra`
+- Resultat: 8 tests, OK.
+- `./.venv/bin/python manage.py test wms.tests.emailing`
+- Resultat: 43 tests, OK.
 
 ## 2) Inventaire des fichiers lies aux emails
 
@@ -71,8 +77,10 @@ Tests executes:
 - `templates/emails/account_request_received.txt`
 - `templates/emails/account_request_approved.txt`
 - `templates/emails/account_request_approved_user.txt`
-- `templates/emails/order_admin_notification.txt`
+- `templates/emails/order_admin_notification_portal.txt`
+- `templates/emails/order_admin_notification_public.txt`
 - `templates/emails/order_confirmation.txt`
+- `templates/emails/shipment_delivery_notification.txt`
 - `templates/emails/shipment_status_admin_notification.txt`
 - `templates/emails/shipment_tracking_admin_notification.txt`
 
@@ -83,11 +91,13 @@ Tests executes:
 - `wms/tests/emailing/tests_notifications_queue.py`
 - `wms/tests/emailing/tests_signal_notifications_queue.py`
 - `wms/tests/emailing/tests_signals_extra.py`
+- `wms/tests/emailing/tests_email_flows_e2e.py`
 - `wms/tests/public/tests_public_order_handlers.py`
 - `wms/tests/admin/tests_account_request_handlers.py`
 - `wms/tests/views/tests_views_public_order.py`
 - `wms/tests/views/tests_views_portal.py`
 - `wms/tests/views/tests_views.py`
+- `api/tests/tests_views_extra.py`
 
 ## 3) Architecture email actuelle
 
@@ -138,7 +148,7 @@ Entree:
 Generation:
 - `wms/order_notifications.py:56`
 - Email admin:
-  - template `emails/order_admin_notification.txt` (`wms/order_notifications.py:7`)
+  - template `emails/order_admin_notification_portal.txt` (`wms/order_notifications.py:7`)
   - destinataires: superusers actifs via `get_admin_emails()` (`wms/order_notifications.py:66`)
 - Email confirmation association:
   - template `emails/order_confirmation.txt` (`wms/order_notifications.py:8`)
@@ -155,7 +165,7 @@ Generation:
 - `wms/public_order_handlers.py:113`
 - Email admin:
   - sujet `ASF WMS - Nouvelle commande publique`
-  - template `emails/order_admin_notification.txt`
+  - template `emails/order_admin_notification_public.txt`
   - destinataires superusers
 - Email confirmation association:
   - sujet `ASF WMS - Confirmation de commande`
@@ -274,9 +284,9 @@ Runbook:
 
 ## 7) Cassures et risques identifies
 
-### [C1] Flag "Avertir ce contact des livraisons" non branche a un flux d'envoi
+### [C1] Flag "Avertir ce contact des livraisons" non branche a un flux d'envoi (constat initial)
 
-Constat:
+Constat initial:
 - `notify_deliveries` existe en modele/UI/validation (`wms/models_domain/portal.py:348`, `wms/views_portal_account.py:163`).
 - Aucune occurrence dans les producteurs d'emails (order/account/signal) en dehors de saisie/admin.
 
@@ -286,17 +296,24 @@ Impact:
 Severite:
 - Haute (fonctionnalite visible non effective).
 
-### [C2] Template admin commande ambigu pour les commandes portail
+Statut:
+- Corrige le 2026-02-20 (suite): envoi actif au passage `ShipmentStatus.DELIVERED` via `wms/signals.py`, filtre `AssociationRecipient` (`is_active`, `notify_deliveries`, destination), dedup des emails, template dedie `templates/emails/shipment_delivery_notification.txt`.
+- Couverture ajoutee: `wms/tests/emailing/tests_signal_notifications_queue.py` et E2E `wms/tests/emailing/tests_email_flows_e2e.py`.
 
-Constat:
-- `templates/emails/order_admin_notification.txt:1` commence par "Nouvelle commande publique".
-- Ce template est reutilise par flux public ET flux portail (`wms/public_order_handlers.py:16`, `wms/order_notifications.py:7`).
+### [C2] Template admin commande ambigu pour les commandes portail (constat initial)
+
+Constat initial:
+- `templates/emails/order_admin_notification.txt:1` commencait par "Nouvelle commande publique".
+- Ce template etait reutilise par flux public ET flux portail (`wms/public_order_handlers.py`, `wms/order_notifications.py`).
 
 Impact:
 - Message faux/ambigu pour les commandes portail (non publiques).
 
 Severite:
 - Moyenne (erreur de contenu metier).
+
+Statut:
+- Traite en P0: separation des templates `order_admin_notification_public.txt` et `order_admin_notification_portal.txt`.
 
 ### [C3] Echecs d'enqueue silencieux dans certains flux
 
@@ -311,9 +328,9 @@ Impact:
 Severite:
 - Haute.
 
-### [C4] Surface API pouvant modifier les IntegrationEvent outbound (dont queue email)
+### [C4] Surface API pouvant modifier les IntegrationEvent outbound (dont queue email) (constat initial)
 
-Constat:
+Constat initial:
 - `IntegrationEventViewSet` expose `UpdateModelMixin` (`api/v1/views.py:156`).
 - `perform_update` accepte update statut/error_message/processed_at (`api/v1/views.py:191`).
 - Pas de garde explicite sur `direction/source/event_type` outbound email.
@@ -323,6 +340,10 @@ Impact:
 
 Severite:
 - Haute (risque integrite/operabilite).
+
+Statut:
+- Corrige le 2026-02-20 (suite): `api/v1/views.py` refuse les updates sur `outbound + wms.email + send_email`.
+- Couverture ajoutee: `api/tests/tests_views_extra.py` (tentative PATCH rejetee).
 
 ### [C5] Normalisation recipients incomplète
 
@@ -424,19 +445,30 @@ Severite:
 ## 9) Priorisation finale
 
 Priorite immediate:
-- C1, C3, C4.
+- C3.
 
 Priorite ensuite:
-- C2, C5.
+- C5.
 
 Dette a planifier:
 - C6.
 
 ## 10) Resume executif
 
-Le socle technique email est solide (queue + retries + fallback Brevo/SMTP + monitoring dashboard + tests cibles OK), mais 3 points critiques doivent etre traites rapidement:
-- fonctionnalite UI `notify_deliveries` non implementee en envoi reel,
-- pertes silencieuses possibles sur certains enqueues,
-- API IntegrationEvent trop permissive pour la queue outbound email.
+Le socle technique email est solide (queue + retries + fallback Brevo/SMTP + monitoring dashboard + tests cibles OK).
 
-Une intervention en 2 vagues (P0 puis P1/P2) permettra de fermer les cassures fonctionnelles et de durcir la fiabilite prod.
+Etat apres la suite de travaux:
+- C1 est corrige (notifications livraison branchees).
+- C4 est corrige (API verrouillee sur la queue outbound email).
+- Le point prioritaire restant est C3 (echecs d'enqueue silencieux), puis C5.
+
+## 11) Mise en oeuvre realisee apres P0
+
+Realise dans cette suite:
+- C1 traite: notifications de livraison branchees sur `notify_deliveries` pour les expeditions livrees.
+- C4 traite: verrouillage API sur la queue email outbound.
+- E2E mails deja presents dans le repo (`wms/tests/emailing/tests_email_flows_e2e.py`) et etendus avec un scenario livraison.
+
+Reste recommande:
+- C5 (normalisation recipients globale cote `enqueue_email_safe`).
+- C6 (nettoyage endpoint legacy `update_notifications`).

@@ -261,3 +261,25 @@ class ApiViewsExtraTests(TestCase):
         self.assertEqual(event.status, IntegrationStatus.FAILED)
         self.assertEqual(event.error_message, "boom")
         self.assertIsNone(event.processed_at)
+
+    def test_integration_event_partial_update_rejects_outbound_email_queue_event(self):
+        event = IntegrationEvent.objects.create(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.email",
+            target="smtp",
+            event_type="send_email",
+            status=IntegrationStatus.PENDING,
+            payload={"subject": "Test", "recipient": ["ops@example.com"]},
+        )
+        response = self.integration_client.patch(
+            f"/api/v1/integrations/events/{event.id}/",
+            {"status": IntegrationStatus.PROCESSED},
+            format="json",
+            **self.integration_headers,
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("detail", response.json())
+        event.refresh_from_db()
+        self.assertEqual(event.status, IntegrationStatus.PENDING)
+        self.assertIsNone(event.processed_at)

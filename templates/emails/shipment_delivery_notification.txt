@@ -1,0 +1,10 @@
+Livraison confirmee
+
+Votre expedition est marquee comme livree.
+
+Expedition: {{ shipment_reference }}
+Destination: {{ destination_label|default:"-" }}
+Date: {{ delivered_at|date:"d/m/Y H:i" }}
+
+Suivi:
+{{ tracking_url }}

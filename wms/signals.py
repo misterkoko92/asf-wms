@@ -2,6 +2,7 @@ from django.apps import apps
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.db.models import Q
 from django.db.models.signals import post_delete, post_save, pre_save
 from django.template.loader import render_to_string
 from django.urls import reverse
@@ -10,7 +11,14 @@ from django.utils import timezone
 from contacts.models import Contact
 
 from .emailing import enqueue_email_safe, get_admin_emails
-from .models import AssociationProfile, Shipment, ShipmentStatus, ShipmentTrackingEvent, WmsChange
+from .models import (
+    AssociationProfile,
+    AssociationRecipient,
+    Shipment,
+    ShipmentStatus,
+    ShipmentTrackingEvent,
+    WmsChange,
+)
 from .workflow_observability import (
     log_shipment_status_transition,
     log_shipment_tracking_event,
@@ -39,6 +47,69 @@ def _capture_shipment_status(sender, instance, **kwargs) -> None:
     )
 
 
+def _split_email_values(value: str) -> list[str]:
+    normalized = (value or "").replace("\n", ";").replace(",", ";")
+    return [item.strip() for item in normalized.split(";") if item.strip()]
+
+
+def _resolve_delivery_recipients(shipment) -> list[str]:
+    shipper_contact_id = getattr(shipment, "shipper_contact_ref_id", None)
+    if not shipper_contact_id:
+        return []
+
+    recipient_queryset = AssociationRecipient.objects.filter(
+        association_contact_id=shipper_contact_id,
+        is_active=True,
+        notify_deliveries=True,
+    )
+    destination_id = getattr(shipment, "destination_id", None)
+    if destination_id:
+        recipient_queryset = recipient_queryset.filter(
+            Q(destination_id=destination_id) | Q(destination__isnull=True)
+        )
+    else:
+        recipient_queryset = recipient_queryset.filter(destination__isnull=True)
+
+    resolved_recipients = []
+    seen = set()
+    for recipient in recipient_queryset.only("emails", "email"):
+        candidates = [
+            *_split_email_values(recipient.emails),
+            (recipient.email or "").strip(),
+        ]
+        for candidate in candidates:
+            normalized = candidate.lower()
+            if not candidate or normalized in seen:
+                continue
+            seen.add(normalized)
+            resolved_recipients.append(candidate)
+    return resolved_recipients
+
+
+def _notify_shipment_delivery(instance) -> None:
+    recipients = _resolve_delivery_recipients(instance)
+    if not recipients:
+        return
+    message = render_to_string(
+        "emails/shipment_delivery_notification.txt",
+        {
+            "shipment_reference": instance.reference,
+            "destination_label": str(instance.destination)
+            if instance.destination
+            else instance.destination_address,
+            "delivered_at": timezone.localtime(timezone.now()),
+            "tracking_url": instance.get_tracking_url(),
+        },
+    )
+    transaction.on_commit(
+        lambda: enqueue_email_safe(
+            subject=f"ASF WMS - Expedition {instance.reference} : livraison confirmee",
+            message=message,
+            recipient=recipients,
+        )
+    )
+
+
 def _notify_shipment_status_change(sender, instance, created, **kwargs) -> None:
     if created:
         return
@@ -51,41 +122,42 @@ def _notify_shipment_status_change(sender, instance, created, **kwargs) -> None:
         new_status=instance.status,
         source="shipment_post_save_signal",
     )
-    recipients = get_admin_emails()
-    if not recipients:
-        return
-    try:
-        old_label = ShipmentStatus(previous_status).label
-    except ValueError:
-        old_label = previous_status
-    try:
-        new_label = ShipmentStatus(instance.status).label
-    except ValueError:
-        new_label = instance.status
-    admin_url = _build_site_url(
-        reverse("admin:wms_shipment_change", args=[instance.id])
-    )
-    message = render_to_string(
-        "emails/shipment_status_admin_notification.txt",
-        {
-            "shipment_reference": instance.reference,
-            "old_status": old_label,
-            "new_status": new_label,
-            "destination_label": str(instance.destination)
-            if instance.destination
-            else instance.destination_address,
-            "changed_at": timezone.localtime(timezone.now()),
-            "tracking_url": instance.get_tracking_url(),
-            "admin_url": admin_url,
-        },
-    )
-    transaction.on_commit(
-        lambda: enqueue_email_safe(
-            subject=f"ASF WMS - Expédition {instance.reference} : statut mis à jour",
-            message=message,
-            recipient=recipients,
+    admin_recipients = get_admin_emails()
+    if admin_recipients:
+        try:
+            old_label = ShipmentStatus(previous_status).label
+        except ValueError:
+            old_label = previous_status
+        try:
+            new_label = ShipmentStatus(instance.status).label
+        except ValueError:
+            new_label = instance.status
+        admin_url = _build_site_url(
+            reverse("admin:wms_shipment_change", args=[instance.id])
         )
-    )
+        message = render_to_string(
+            "emails/shipment_status_admin_notification.txt",
+            {
+                "shipment_reference": instance.reference,
+                "old_status": old_label,
+                "new_status": new_label,
+                "destination_label": str(instance.destination)
+                if instance.destination
+                else instance.destination_address,
+                "changed_at": timezone.localtime(timezone.now()),
+                "tracking_url": instance.get_tracking_url(),
+                "admin_url": admin_url,
+            },
+        )
+        transaction.on_commit(
+            lambda: enqueue_email_safe(
+                subject=f"ASF WMS - Expédition {instance.reference} : statut mis à jour",
+                message=message,
+                recipient=admin_recipients,
+            )
+        )
+    if instance.status == ShipmentStatus.DELIVERED:
+        _notify_shipment_delivery(instance)
 
 
 def _notify_tracking_event(sender, instance, created, **kwargs) -> None:

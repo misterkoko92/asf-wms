@@ -10,6 +10,7 @@ from rest_framework.views import APIView
 from wms.domain.dto import PackCartonInput, ReceiveStockInput
 from wms.domain.orders import prepare_order, reserve_stock_for_order
 from wms.domain.stock import StockError, pack_carton_from_input, receive_stock_from_input
+from wms.emailing import EMAIL_QUEUE_EVENT_TYPE, EMAIL_QUEUE_SOURCE
 from wms.models import (
     Destination,
     IntegrationDirection,
@@ -189,6 +190,19 @@ class IntegrationEventViewSet(
         )
 
     def perform_update(self, serializer):
+        event = serializer.instance
+        if (
+            event.direction == IntegrationDirection.OUTBOUND
+            and event.source == EMAIL_QUEUE_SOURCE
+            and event.event_type == EMAIL_QUEUE_EVENT_TYPE
+        ):
+            raise ValidationError(
+                {
+                    "detail": (
+                        "Outbound email queue events are read-only via this API."
+                    )
+                }
+            )
         status_value = serializer.validated_data.get("status")
         processed_at = serializer.validated_data.get("processed_at")
         if status_value == IntegrationStatus.PROCESSED and processed_at is None:

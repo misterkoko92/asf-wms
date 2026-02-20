@@ -7,12 +7,16 @@ from django.urls import reverse
 from contacts.models import Contact
 from wms.emailing import process_email_queue
 from wms.models import (
+    AssociationRecipient,
     AssociationProfile,
+    Destination,
     IntegrationDirection,
     IntegrationEvent,
     IntegrationStatus,
     Order,
     PublicOrderLink,
+    Shipment,
+    ShipmentStatus,
 )
 from wms.order_notifications import send_portal_order_notifications
 from wms.public_order_handlers import send_public_order_notifications
@@ -146,6 +150,73 @@ class EmailFlowsEndToEndTests(TestCase):
         self.assertEqual(
             self._email_events_queryset().filter(status=IntegrationStatus.PENDING).count(),
             2,
+        )
+
+        with mock.patch("wms.emailing.send_email_safe", return_value=True):
+            result = process_email_queue(limit=10)
+
+        self.assertEqual(result["selected"], 2)
+        self.assertEqual(result["processed"], 2)
+        self.assertEqual(
+            self._email_events_queryset().filter(status=IntegrationStatus.PROCESSED).count(),
+            2,
+        )
+
+    def test_shipment_delivery_notifications_end_to_end(self):
+        association_contact = Contact.objects.create(
+            name="Association Delivery E2E",
+            email="assoc-delivery@example.com",
+        )
+        destination = Destination.objects.create(
+            city="Lyon",
+            iata_code="LYS",
+            country="France",
+            correspondent_contact=Contact.objects.create(
+                name="Correspondent Delivery E2E",
+            ),
+        )
+        AssociationRecipient.objects.create(
+            association_contact=association_contact,
+            destination=destination,
+            name="Delivery Recipient",
+            emails="delivery-e2e@example.com; second-delivery-e2e@example.com",
+            address_line1="1 Rue Delivery",
+            city="Lyon",
+            country="France",
+            notify_deliveries=True,
+            is_active=True,
+        )
+        shipment = Shipment.objects.create(
+            status=ShipmentStatus.SHIPPED,
+            shipper_name=association_contact.name,
+            shipper_contact_ref=association_contact,
+            shipper_contact=association_contact.name,
+            recipient_name="Recipient E2E",
+            correspondent_name="Correspondent E2E",
+            destination=destination,
+            destination_address="1 Rue Delivery\n69000 Lyon\nFrance",
+            destination_country="France",
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            shipment.status = ShipmentStatus.DELIVERED
+            shipment.save(update_fields=["status"])
+
+        pending_events = list(
+            self._email_events_queryset().filter(status=IntegrationStatus.PENDING)
+        )
+        self.assertEqual(len(pending_events), 2)
+        delivery_subject = (
+            f"ASF WMS - Expedition {shipment.reference} : livraison confirmee"
+        )
+        delivery_event = next(
+            event
+            for event in pending_events
+            if event.payload.get("subject") == delivery_subject
+        )
+        self.assertEqual(
+            delivery_event.payload.get("recipient"),
+            ["delivery-e2e@example.com", "second-delivery-e2e@example.com"],
         )
 
         with mock.patch("wms.emailing.send_email_safe", return_value=True):
