@@ -40,6 +40,9 @@ MESSAGE_RECIPIENT_ADDED = "Destinataire ajouté."
 MESSAGE_RECIPIENT_UPDATED = "Destinataire modifié."
 MESSAGE_PROFILE_UPDATED = "Compte mis à jour."
 MESSAGE_CONTACTS_UPDATED = "Contacts emails mis à jour."
+MESSAGE_UPDATE_NOTIFICATIONS_DEPRECATED = (
+    "Action obsolète: mettez à jour les contacts emails depuis le formulaire principal."
+)
 MESSAGE_DOCUMENT_ADDED = "Document ajouté."
 MESSAGE_DOCUMENTS_ADDED = "Documents ajoutés."
 ERROR_NO_DOCUMENT_SELECTED = "Aucun fichier sélectionné."
@@ -243,35 +246,6 @@ def _get_active_recipients(profile):
         .select_related("destination")
         .order_by("structure_name", "name", "contact_last_name", "contact_first_name")
     )
-
-
-def _handle_notification_update(request, profile):
-    email_values = _split_multi_values(request.POST.get("notification_emails") or "")
-    invalid_emails = []
-    normalized_emails = []
-    seen = set()
-    validator = EmailValidator()
-    for value in email_values:
-        try:
-            validator(value)
-        except ValidationError:
-            invalid_emails.append(value)
-            continue
-        dedup_key = value.lower()
-        if dedup_key in seen:
-            continue
-        seen.add(dedup_key)
-        normalized_emails.append(value)
-    if invalid_emails:
-        messages.error(
-            request,
-            ERROR_RECIPIENT_EMAILS_INVALID.format(values=", ".join(invalid_emails)),
-        )
-        return redirect("portal:portal_account")
-    profile.notification_emails = ",".join(normalized_emails)
-    profile.save(update_fields=["notification_emails"])
-    messages.success(request, MESSAGE_CONTACTS_UPDATED)
-    return redirect("portal:portal_account")
 
 
 def _handle_account_document_upload(request, association):
@@ -651,7 +625,8 @@ def portal_account(request):
                 messages.success(request, MESSAGE_PROFILE_UPDATED)
                 return redirect("portal:portal_account")
         elif action == ACTION_UPDATE_NOTIFICATIONS:
-            return _handle_notification_update(request, profile)
+            messages.error(request, MESSAGE_UPDATE_NOTIFICATIONS_DEPRECATED)
+            return redirect("portal:portal_account")
         elif action == ACTION_UPLOAD_ACCOUNT_DOCS:
             return _handle_account_document_uploads(request, association)
         elif action == ACTION_UPLOAD_ACCOUNT_DOC:

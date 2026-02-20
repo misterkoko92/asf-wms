@@ -1132,17 +1132,7 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         )
         self.assertEqual(AssociationPortalContact.objects.count(), 0)
 
-    def test_portal_account_updates_notification_emails(self):
-        response = self.client.post(
-            self.account_url,
-            {"action": "update_notifications", "notification_emails": "a@x.com,b@x.com"},
-        )
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, self.account_url)
-        self.profile.refresh_from_db()
-        self.assertEqual(self.profile.notification_emails, "a@x.com,b@x.com")
-
-    def test_portal_account_update_notifications_rejects_invalid_email(self):
+    def test_portal_account_legacy_update_notifications_is_deprecated(self):
         self.profile.notification_emails = "existing@example.com"
         self.profile.save(update_fields=["notification_emails"])
 
@@ -1150,26 +1140,13 @@ class PortalAccountViewsTests(PortalBaseTestCase):
             self.account_url,
             {
                 "action": "update_notifications",
-                "notification_emails": "ok@example.com,invalid-email",
+                "notification_emails": "a@x.com,b@x.com",
             },
         )
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, self.account_url)
         self.profile.refresh_from_db()
         self.assertEqual(self.profile.notification_emails, "existing@example.com")
-
-    def test_portal_account_update_notifications_normalizes_values(self):
-        response = self.client.post(
-            self.account_url,
-            {
-                "action": "update_notifications",
-                "notification_emails": " a@x.com ; A@x.com \n b@x.com ",
-            },
-        )
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, self.account_url)
-        self.profile.refresh_from_db()
-        self.assertEqual(self.profile.notification_emails, "a@x.com,b@x.com")
 
     def test_portal_account_upload_doc_reports_validation_error(self):
         with mock.patch(

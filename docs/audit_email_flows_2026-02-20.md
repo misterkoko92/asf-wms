@@ -32,6 +32,12 @@ Tests executes:
 - Resultat: 14 tests, OK.
 - `./.venv/bin/python manage.py test wms.tests.views.tests_views_portal.PortalAccountViewsTests`
 - Resultat: 17 tests, OK.
+- `./.venv/bin/python manage.py test wms.tests.views.tests_views_portal.PortalAccountViewsTests`
+- Resultat: 15 tests, OK.
+- `./.venv/bin/python manage.py test wms.tests.emailing wms.tests.public.tests_public_order_handlers wms.tests.admin.tests_account_request_handlers wms.tests.views.tests_views_public_order wms.tests.views.tests_views_portal api.tests.tests_views_extra wms.tests.views.tests_views_scan_dashboard`
+- Resultat: 153 tests, OK.
+- `./.venv/bin/python manage.py test wms.tests.core.tests_models_methods`
+- Resultat: 11 tests, OK.
 
 ## 2) Inventaire des fichiers lies aux emails
 
@@ -390,9 +396,9 @@ Severite:
 - Basse a moyenne.
 
 Statut:
-- Partiellement traite le 2026-02-20 (suite): validation email explicite ajoutee sur `ACTION_UPDATE_NOTIFICATIONS` + normalisation (trim/dedup).
-- Couverture ajoutee: `wms/tests/views/tests_views_portal.py` (rejet email invalide + normalisation de la saisie).
-- Dette restante: endpoint toujours legacy/non expose en UI.
+- Corrige le 2026-02-20 (suite): action legacy `update_notifications` desactivee (plus d'ecriture via ce chemin).
+- Couverture ajoutee: `wms/tests/views/tests_views_portal.py` (action legacy refusee, donnees conservees).
+- Le champ `notification_emails` reste alimente via le flux principal `update_profile` (contacts portail).
 
 ## 8) Plan d'action recommande
 
@@ -469,10 +475,10 @@ Priorite immediate:
 - Aucune cassure critique ouverte.
 
 Priorite ensuite:
-- C6.
+- Aucune cassure critique ouverte.
 
 Dette a planifier:
-- Deprecation/suppression du endpoint legacy `update_notifications` (ou exposition UI explicite).
+- Suppression definitive du branchement legacy `ACTION_UPDATE_NOTIFICATIONS` apres periode de transition.
 
 ## 10) Resume executif
 
@@ -483,7 +489,7 @@ Etat apres la suite de travaux:
 - C3 est corrige (echecs d'enqueue journalises).
 - C4 est corrige (API verrouillee sur la queue outbound email).
 - C5 est corrige (normalisation recipients renforcee).
-- C6 est securise (validation), avec dette technique residuelle sur le chemin legacy.
+- C6 est corrige (chemin legacy desactive).
 
 ## 11) Mise en oeuvre realisee apres P0
 
@@ -492,8 +498,47 @@ Realise dans cette suite:
 - C3 valide: warnings d'enqueue deja en place et couverts par tests.
 - C4 traite: verrouillage API sur la queue email outbound.
 - C5 traite: normalisation recipients (trim + dedup case-insensitive + filtrage valeurs invalides).
-- C6 securise: validation et normalisation de `update_notifications`.
+- C6 traite: desactivation de `update_notifications` (legacy non expose en UI).
 - E2E mails deja presents dans le repo (`wms/tests/emailing/tests_email_flows_e2e.py`) et etendus avec un scenario livraison.
 
 Reste recommande:
-- C6 (deprecier/supprimer le chemin legacy `update_notifications` ou l'exposer proprement en UI).
+- Nettoyage final: supprimer completement le code legacy `ACTION_UPDATE_NOTIFICATIONS` apres communication/versionning.
+
+## 12) Re-audit complet de cloture (2026-02-20)
+
+Objectif de verification:
+- Confirmer qu'aucune cassure email critique ne reste ouverte.
+- Verifier les flux en 3 niveaux: E2E, intermediaire metier, logique coeur.
+
+Matrice de verification:
+
+1. E2E (de bout en bout, creation event -> traitement queue):
+- `wms/tests/emailing/tests_email_flows_e2e.py`
+- Couvre: commande publique, commande portail, demande de compte, livraison shipment.
+- Statut: OK.
+
+2. Intermediaire (producteurs d'emails metier + signaux + vues):
+- `wms/tests/emailing/tests_notifications_queue.py`
+- `wms/tests/emailing/tests_signal_notifications_queue.py`
+- `wms/tests/public/tests_public_order_handlers.py`
+- `wms/tests/admin/tests_account_request_handlers.py`
+- `wms/tests/views/tests_views_public_order.py`
+- `wms/tests/views/tests_views_portal.py`
+- `wms/tests/views/tests_views_scan_dashboard.py`
+- Statut: OK.
+
+3. Logique coeur / robustesse:
+- `wms/tests/emailing/tests_emailing.py`
+- `wms/tests/emailing/tests_emailing_extra.py`
+- `api/tests/tests_views_extra.py`
+- `wms/tests/core/tests_models_methods.py`
+- Statut: OK.
+
+Campagne complete executee:
+- `./.venv/bin/python manage.py test wms.tests.emailing wms.tests.public.tests_public_order_handlers wms.tests.admin.tests_account_request_handlers wms.tests.views.tests_views_public_order wms.tests.views.tests_views_portal api.tests.tests_views_extra wms.tests.views.tests_views_scan_dashboard`
+- Resultat: 153 tests, OK.
+
+Conclusion de cloture:
+- Les flux emails sont operationnels et couverts a plusieurs niveaux (E2E + intermediaire + logique).
+- Les cassures C1/C3/C4/C5/C6 sont traitees.
+- Aucun blocant critique identifie dans le perimetre email.
