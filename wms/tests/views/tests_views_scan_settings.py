@@ -5,7 +5,15 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from wms.models import Shipment, ShipmentStatus, WmsRuntimeSettings
+from wms.models import (
+    IntegrationDirection,
+    IntegrationEvent,
+    IntegrationStatus,
+    Shipment,
+    ShipmentStatus,
+    WmsRuntimeSettings,
+    WmsRuntimeSettingsAudit,
+)
 
 
 class ScanSettingsViewTests(TestCase):
@@ -20,6 +28,25 @@ class ScanSettingsViewTests(TestCase):
             password="pass1234",
             email="scan-settings-admin@example.com",
         )
+
+    def _payload(self, **overrides):
+        runtime = WmsRuntimeSettings.get_solo()
+        data = {
+            "low_stock_threshold": runtime.low_stock_threshold,
+            "tracking_alert_hours": runtime.tracking_alert_hours,
+            "workflow_blockage_hours": runtime.workflow_blockage_hours,
+            "stale_drafts_age_days": runtime.stale_drafts_age_days,
+            "email_queue_max_attempts": runtime.email_queue_max_attempts,
+            "email_queue_retry_base_seconds": runtime.email_queue_retry_base_seconds,
+            "email_queue_retry_max_seconds": runtime.email_queue_retry_max_seconds,
+            "email_queue_processing_timeout_seconds": runtime.email_queue_processing_timeout_seconds,
+            "enable_shipment_track_legacy": (
+                "on" if runtime.enable_shipment_track_legacy else ""
+            ),
+            "change_note": "Mise a jour test",
+        }
+        data.update(overrides)
+        return data
 
     def test_scan_settings_requires_superuser(self):
         self.client.force_login(self.staff_user)
@@ -60,6 +87,7 @@ class ScanSettingsViewTests(TestCase):
                 "email_queue_retry_max_seconds": 600,
                 "email_queue_processing_timeout_seconds": 500,
                 "enable_shipment_track_legacy": "",
+                "change_note": "Mise a jour seuils scan",
             },
         )
         self.assertEqual(response.status_code, 302)
@@ -90,6 +118,7 @@ class ScanSettingsViewTests(TestCase):
                 "email_queue_retry_max_seconds": 45,
                 "email_queue_processing_timeout_seconds": 500,
                 "enable_shipment_track_legacy": "on",
+                "change_note": "Validation regle retry",
             },
         )
         self.assertEqual(response.status_code, 200)
@@ -109,6 +138,7 @@ class ScanSettingsViewTests(TestCase):
                 "email_queue_retry_max_seconds": 0,
                 "email_queue_processing_timeout_seconds": 0,
                 "enable_shipment_track_legacy": "on",
+                "change_note": "Test bornes mini",
             },
         )
         self.assertEqual(response.status_code, 200)
@@ -123,6 +153,61 @@ class ScanSettingsViewTests(TestCase):
             "email_queue_processing_timeout_seconds",
         ):
             self.assertIn(field_name, response.context["form"].errors)
+
+    def test_scan_settings_requires_change_note_when_values_change(self):
+        self.client.force_login(self.superuser)
+        runtime = WmsRuntimeSettings.get_solo()
+        response = self.client.post(
+            reverse("scan:scan_settings"),
+            self._payload(low_stock_threshold=runtime.low_stock_threshold + 1, change_note=""),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("change_note", response.context["form"].errors)
+
+    def test_scan_settings_preview_action_does_not_persist_changes(self):
+        self.client.force_login(self.superuser)
+        runtime = WmsRuntimeSettings.get_solo()
+        response = self.client.post(
+            reverse("scan:scan_settings"),
+            self._payload(stale_drafts_age_days=10, action="preview", change_note=""),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNotNone(response.context["preview"])
+        self.assertIn("stale_drafts_age_days", response.context["preview"]["changed_fields"])
+        runtime.refresh_from_db()
+        self.assertNotEqual(runtime.stale_drafts_age_days, 10)
+
+    def test_scan_settings_apply_preset_prefills_form_and_preview(self):
+        self.client.force_login(self.superuser)
+        response = self.client.post(
+            reverse("scan:scan_settings"),
+            {"action": "apply_preset", "preset": "incident_email_queue"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["selected_preset"], "incident_email_queue")
+        self.assertEqual(response.context["preview"]["preset_label"], "Incident queue email")
+        self.assertEqual(
+            response.context["form"].initial["email_queue_processing_timeout_seconds"],
+            120,
+        )
+
+    def test_scan_settings_save_creates_runtime_audit_entry(self):
+        self.client.force_login(self.superuser)
+        response = self.client.post(
+            reverse("scan:scan_settings"),
+            self._payload(stale_drafts_age_days=11, change_note="Recalibrage brouillons"),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        audit = WmsRuntimeSettingsAudit.objects.get()
+        self.assertEqual(audit.changed_by, self.superuser)
+        self.assertEqual(audit.change_note, "Recalibrage brouillons")
+        self.assertIn("stale_drafts_age_days", audit.changed_fields)
+        self.assertIn("stale_drafts_age_days", audit.previous_values)
+        self.assertEqual(audit.new_values["stale_drafts_age_days"], 11)
 
 
 class ScanSettingsEndToEndTests(TestCase):
@@ -145,6 +230,7 @@ class ScanSettingsEndToEndTests(TestCase):
             "email_queue_retry_max_seconds": 3600,
             "email_queue_processing_timeout_seconds": 900,
             "enable_shipment_track_legacy": "on",
+            "change_note": "Mise a jour E2E",
         }
         data.update(overrides)
         return data
@@ -159,6 +245,13 @@ class ScanSettingsEndToEndTests(TestCase):
             destination_country="France",
             created_by=self.superuser,
         )
+
+    def _technical_cards(self):
+        response = self.client.get(reverse("scan:scan_dashboard"))
+        self.assertEqual(response.status_code, 200)
+        return {
+            card["label"]: card["value"] for card in response.context["technical_cards"]
+        }
 
     def test_settings_change_updates_stale_draft_detection_flow(self):
         stale = self._create_temp_draft_shipment(reference="EXP-TEMP-E2E-01")
@@ -208,3 +301,29 @@ class ScanSettingsEndToEndTests(TestCase):
 
         after = self.client.get(legacy_url)
         self.assertEqual(after.status_code, 404)
+
+    def test_settings_change_updates_queue_timeout_dashboard_flow(self):
+        IntegrationEvent.objects.create(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.email",
+            event_type="send_email",
+            payload={
+                "subject": "Stale queue check",
+                "message": "stale queue check",
+                "recipient": ["ops@example.com"],
+            },
+            status=IntegrationStatus.PROCESSING,
+            processed_at=timezone.now() - timedelta(minutes=5),
+        )
+
+        cards_before = self._technical_cards()
+        self.assertEqual(cards_before["Queue email bloquée (timeout)"], 0)
+
+        response = self.client.post(
+            reverse("scan:scan_settings"),
+            self._settings_payload(email_queue_processing_timeout_seconds=60),
+        )
+        self.assertEqual(response.status_code, 302)
+
+        cards_after = self._technical_cards()
+        self.assertEqual(cards_after["Queue email bloquée (timeout)"], 1)

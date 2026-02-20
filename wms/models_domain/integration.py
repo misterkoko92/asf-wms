@@ -1,4 +1,4 @@
-from django.conf import settings
+from django.conf import settings as django_settings
 from django.db import models
 from django.db.models import F
 from django.utils import timezone
@@ -94,7 +94,7 @@ class WmsRuntimeSettings(models.Model):
     email_queue_processing_timeout_seconds = models.PositiveIntegerField(default=900)
     enable_shipment_track_legacy = models.BooleanField(default=True)
     updated_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        django_settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -117,27 +117,27 @@ class WmsRuntimeSettings(models.Model):
             "workflow_blockage_hours": 72,
             "stale_drafts_age_days": 30,
             "email_queue_max_attempts": _safe_int(
-                getattr(settings, "EMAIL_QUEUE_MAX_ATTEMPTS", 5),
+                getattr(django_settings, "EMAIL_QUEUE_MAX_ATTEMPTS", 5),
                 default=5,
                 minimum=1,
             ),
             "email_queue_retry_base_seconds": _safe_int(
-                getattr(settings, "EMAIL_QUEUE_RETRY_BASE_SECONDS", 60),
+                getattr(django_settings, "EMAIL_QUEUE_RETRY_BASE_SECONDS", 60),
                 default=60,
                 minimum=1,
             ),
             "email_queue_retry_max_seconds": _safe_int(
-                getattr(settings, "EMAIL_QUEUE_RETRY_MAX_SECONDS", 3600),
+                getattr(django_settings, "EMAIL_QUEUE_RETRY_MAX_SECONDS", 3600),
                 default=3600,
                 minimum=1,
             ),
             "email_queue_processing_timeout_seconds": _safe_int(
-                getattr(settings, "EMAIL_QUEUE_PROCESSING_TIMEOUT_SECONDS", 900),
+                getattr(django_settings, "EMAIL_QUEUE_PROCESSING_TIMEOUT_SECONDS", 900),
                 default=900,
                 minimum=1,
             ),
             "enable_shipment_track_legacy": bool(
-                getattr(settings, "ENABLE_SHIPMENT_TRACK_LEGACY", True)
+                getattr(django_settings, "ENABLE_SHIPMENT_TRACK_LEGACY", True)
             ),
         }
 
@@ -154,3 +154,31 @@ class WmsRuntimeSettings(models.Model):
         if self.email_queue_retry_max_seconds < self.email_queue_retry_base_seconds:
             self.email_queue_retry_max_seconds = self.email_queue_retry_base_seconds
         super().save(*args, **kwargs)
+
+
+class WmsRuntimeSettingsAudit(models.Model):
+    settings = models.ForeignKey(
+        WmsRuntimeSettings,
+        on_delete=models.CASCADE,
+        related_name="audit_logs",
+    )
+    changed_at = models.DateTimeField(auto_now_add=True)
+    changed_by = models.ForeignKey(
+        django_settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="wms_runtime_settings_audit_logs",
+    )
+    change_note = models.CharField(max_length=255, blank=True)
+    changed_fields = models.JSONField(default=list, blank=True)
+    previous_values = models.JSONField(default=dict, blank=True)
+    new_values = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["-changed_at", "-id"]
+        verbose_name = "Historique parametres runtime WMS"
+        verbose_name_plural = "Historique parametres runtime WMS"
+
+    def __str__(self) -> str:
+        return f"Audit runtime {self.changed_at:%Y-%m-%d %H:%M:%S}"

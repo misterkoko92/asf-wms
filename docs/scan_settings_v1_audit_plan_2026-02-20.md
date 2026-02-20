@@ -27,7 +27,7 @@ References:
 Statut:
 - **Corrige**: validation serveur stricte `>=1` appliquee au formulaire.
 
-### C2 - Tracabilite des changements incomplete (a traiter)
+### C2 - Tracabilite des changements incomplete (corrige)
 
 Constat:
 - Seuls `updated_by` et `updated_at` sont stockes.
@@ -40,15 +40,15 @@ Reference:
 - `wms/models_domain/integration.py` (`WmsRuntimeSettings`)
 
 Statut:
-- **Ouvert** (planifie dans actions).
+- **Corrige**: journal d'audit runtime ajoute (historique des changements).
 
-### C3 - Couverture de tests transverses insuffisante (corrige partiellement)
+### C3 - Couverture de tests transverses insuffisante (corrige)
 
 Constat initial:
 - Bonne couverture de la vue `scan_settings`, mais couverture transversale partielle des effets reels.
 
 Statut:
-- **Ameliore** avec tests intermediaires + E2E sur effets metier.
+- **Corrige**: couverture intermediaire + E2E etendue sur flux parametres.
 
 ## 3) Changements implementes
 
@@ -95,6 +95,48 @@ Ajouts:
 - E2E: changement `stale_drafts_age_days` repercute sur `scan_shipments_ready`.
 - E2E: desactivation runtime legacy => endpoint legacy de tracking en `404`.
 
+### 3.5 Journal d'audit runtime
+
+Fichiers:
+- `wms/models_domain/integration.py`
+- `wms/migrations/0051_wmsruntimesettingsaudit.py`
+- `wms/views_scan_settings.py`
+
+Actions:
+- Ajout du modele `WmsRuntimeSettingsAudit`:
+  - `changed_at`, `changed_by`, `change_note`,
+  - `changed_fields`, `previous_values`, `new_values`.
+- Creation automatique d'une entree d'audit a chaque sauvegarde effective.
+- Affichage d'un historique recent directement dans l'onglet Parametres.
+
+### 3.6 Preview d'impact + presets + garde-fous UX
+
+Fichiers:
+- `wms/views_scan_settings.py`
+- `templates/scan/settings.html`
+- `wms/forms_scan_settings.py`
+
+Actions:
+- Ajout d'une action `Previsualiser impact` (sans sauvegarde).
+- Apercu calcule:
+  - brouillons stale selon `stale_drafts_age_days`,
+  - queue email bloquee selon `email_queue_processing_timeout_seconds`,
+  - etat effectif legacy (env AND runtime).
+- Ajout de presets operationnels:
+  - `standard`,
+  - `incident_email_queue`.
+- Garde-fou UX:
+  - `change_note` obligatoire si au moins un parametre runtime est modifie.
+
+### 3.7 Extension E2E queue email
+
+Fichier:
+- `wms/tests/views/tests_views_scan_settings.py`
+
+Ajout:
+- E2E `email_queue_processing_timeout_seconds` -> effet visible sur la carte
+  dashboard `Queue email bloquee (timeout)`.
+
 ## 4) Validation execution tests
 
 Suites lancees et resultat:
@@ -104,19 +146,11 @@ Suites lancees et resultat:
 
 ## 5) Plan d'action (mis a jour)
 
-1. Ajouter un journal d'audit des changements runtime:
-   - qui, quand, ancienne valeur, nouvelle valeur, commentaire operateur.
-2. Ajouter une previsualisation d'impact avant sauvegarde:
-   - brouillons qui deviendront stale,
-   - etat legacy effectif apres combinaison env/runtime.
-3. Ajouter des garde-fous UX:
-   - validation inline immediate,
-   - messages de regles metier plus explicites.
-4. Ajouter des presets operationnels:
-   - ex: mode standard, mode incident queue email,
-   - avec rollback rapide.
-5. Etendre les E2E sur la queue email:
-   - `email_queue_processing_timeout_seconds` -> dashboard technique + traitement queue.
+1. [x] Journal d'audit runtime (qui/quand/avant/apres/commentaire).
+2. [x] Previsualisation d'impact avant sauvegarde.
+3. [x] Garde-fous UX (commentaire obligatoire en cas de changement).
+4. [x] Presets operationnels (standard, incident queue email).
+5. [x] E2E queue email sur timeout de processing.
 
 ## 6) Notes de suivi
 

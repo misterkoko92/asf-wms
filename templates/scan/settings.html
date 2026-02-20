@@ -21,6 +21,33 @@
     <form method="post" class="scan-filters">
       {% csrf_token %}
 
+      <h3>Presets operationnels</h3>
+      <div class="scan-inline scan-inline-equal">
+        <div class="scan-field">
+          <label for="settings-preset">Preset</label>
+          <select id="settings-preset" name="preset">
+            <option value="">-- Selectionner --</option>
+            {% for option in preset_options %}
+              <option value="{{ option.key }}" {% if selected_preset == option.key %}selected{% endif %}>
+                {{ option.label }}
+              </option>
+            {% endfor %}
+          </select>
+          {% for option in preset_options %}
+            {% if selected_preset == option.key %}
+              <div class="scan-help">{{ option.description }}</div>
+            {% endif %}
+          {% endfor %}
+        </div>
+        <div class="scan-field">
+          <label>&nbsp;</label>
+          <button type="submit" name="action" value="apply_preset">Charger preset</button>
+          <div class="scan-help">Ne sauvegarde pas automatiquement.</div>
+        </div>
+      </div>
+
+      <div class="scan-divider"></div>
+
       <h3>Dashboard et alertes</h3>
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
@@ -100,13 +127,68 @@
         </div>
       </div>
 
+      <div class="scan-divider"></div>
+
+      <h3>Trace operateur</h3>
+      <div class="scan-field">
+        {{ form.change_note.label_tag }}
+        {{ form.change_note }}
+        {% if form.change_note.errors %}<div class="scan-help">{{ form.change_note.errors|join:", " }}</div>{% endif %}
+        <div class="scan-help">{{ form.change_note.help_text }}</div>
+      </div>
+
       {% if form.non_field_errors %}
         <div class="scan-message error">{{ form.non_field_errors|join:", " }}</div>
       {% endif %}
 
       <div class="scan-filter-actions">
-        <button type="submit" class="scan-submit">Enregistrer</button>
+        <button type="submit" name="action" value="preview">Previsualiser impact</button>
+        <button type="submit" name="action" value="save" class="scan-submit">Enregistrer</button>
       </div>
     </form>
+  </div>
+
+  {% if preview %}
+    <div class="scan-card">
+      <h3>Apercu d'impact{% if preview.preset_label %} (preset: {{ preview.preset_label }}){% endif %}</h3>
+      {% if preview.changed_fields %}
+        <p class="scan-help">Champs modifies: {{ preview.changed_fields|join:", " }}</p>
+      {% else %}
+        <p class="scan-help">Aucun champ modifie.</p>
+      {% endif %}
+      <ul class="scan-help">
+        <li>Brouillons temporaires stale (&lt; {{ preview.stale_drafts_age_days }}j): {{ preview.stale_draft_count }}</li>
+        <li>Queue email bloquee (timeout {{ preview.queue_processing_timeout_seconds }}s): {{ preview.queue_stale_processing_count }}</li>
+        <li>Route legacy effective: {% if preview.legacy_effective_enabled %}active{% else %}inactive{% endif %}</li>
+      </ul>
+    </div>
+  {% endif %}
+
+  <div class="scan-card">
+    <h3>Historique recent</h3>
+    {% if recent_audits %}
+      <table class="scan-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Utilisateur</th>
+            <th>Champs modifies</th>
+            <th>Commentaire</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for audit in recent_audits %}
+            <tr>
+              <td>{{ audit.changed_at|date:"Y-m-d H:i:s" }}</td>
+              <td>{% if audit.changed_by %}{{ audit.changed_by.username }}{% else %}-{% endif %}</td>
+              <td>{{ audit.changed_fields|join:", " }}</td>
+              <td>{% if audit.change_note %}{{ audit.change_note }}{% else %}-{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="scan-help">Aucun changement trace pour le moment.</p>
+    {% endif %}
   </div>
 {% endblock %}

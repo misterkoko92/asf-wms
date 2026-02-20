@@ -5,6 +5,17 @@ from .models import WmsRuntimeSettings
 
 
 class ScanRuntimeSettingsForm(forms.ModelForm):
+    RUNTIME_FIELDS = (
+        "low_stock_threshold",
+        "tracking_alert_hours",
+        "workflow_blockage_hours",
+        "stale_drafts_age_days",
+        "email_queue_max_attempts",
+        "email_queue_retry_base_seconds",
+        "email_queue_retry_max_seconds",
+        "email_queue_processing_timeout_seconds",
+        "enable_shipment_track_legacy",
+    )
     MIN_ONE_FIELDS = (
         "low_stock_threshold",
         "tracking_alert_hours",
@@ -14,6 +25,13 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
         "email_queue_retry_base_seconds",
         "email_queue_retry_max_seconds",
         "email_queue_processing_timeout_seconds",
+    )
+    change_note = forms.CharField(
+        required=False,
+        max_length=255,
+        label="Commentaire operateur",
+        help_text="Obligatoire si vous modifiez au moins un parametre.",
+        widget=forms.Textarea(attrs={"rows": 2}),
     )
 
     class Meta:
@@ -93,4 +111,21 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
                 "email_queue_retry_max_seconds",
                 "Le retry max doit être supérieur ou égal au retry base.",
             )
+        if getattr(self.instance, "pk", None):
+            action = (self.data.get("action") or "").strip().lower()
+            requires_change_note = action in {"", "save"}
+            changed_runtime_fields = [
+                field_name
+                for field_name in self.RUNTIME_FIELDS
+                if cleaned_data.get(field_name) != getattr(self.instance, field_name, None)
+            ]
+            if (
+                requires_change_note
+                and changed_runtime_fields
+                and not (cleaned_data.get("change_note") or "").strip()
+            ):
+                self.add_error(
+                    "change_note",
+                    "Ajoutez un commentaire operateur pour tracer ce changement.",
+                )
         return cleaned_data
