@@ -87,7 +87,7 @@ class AccountRequestHelpersTests(TestCase):
             return_value=["admin@example.com"],
         ):
             with mock.patch(
-                "wms.account_request_handlers.enqueue_email_safe",
+                "wms.account_request_handlers.send_or_enqueue_email_safe",
                 side_effect=[False, False],
             ):
                 with mock.patch.object(account_request_handlers.LOGGER, "warning") as warning_mock:
@@ -120,15 +120,16 @@ class AccountRequestHelpersTests(TestCase):
             grouped_staff
         )
 
-        with self.captureOnCommitCallbacks(execute=True):
-            account_request_handlers._queue_account_request_emails(
-                account_type=PublicAccountRequestType.ASSOCIATION,
-                association_name="Association Test",
-                email="association@example.com",
-                phone="0102030405",
-                requested_username="",
-                admin_url="https://example.com/admin",
-            )
+        with mock.patch("wms.emailing.send_email_safe", return_value=False):
+            with self.captureOnCommitCallbacks(execute=True):
+                account_request_handlers._queue_account_request_emails(
+                    account_type=PublicAccountRequestType.ASSOCIATION,
+                    association_name="Association Test",
+                    email="association@example.com",
+                    phone="0102030405",
+                    requested_username="",
+                    admin_url="https://example.com/admin",
+                )
 
         admin_event = IntegrationEvent.objects.filter(
             direction=IntegrationDirection.OUTBOUND,

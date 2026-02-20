@@ -1061,8 +1061,9 @@ class PublicAccountRequestViewTests(TestCase):
     ):
         get_admin_emails_mock.return_value = ["admin@example.com"]
 
-        with self.captureOnCommitCallbacks(execute=True) as callbacks:
-            response = self.client.post(self.url, self._payload())
+        with mock.patch("wms.emailing.send_email_safe", return_value=False):
+            with self.captureOnCommitCallbacks(execute=True) as callbacks:
+                response = self.client.post(self.url, self._payload())
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(PublicAccountRequest.objects.count(), 1)
@@ -1077,20 +1078,22 @@ class PublicAccountRequestViewTests(TestCase):
 
     @override_settings(ACCOUNT_REQUEST_THROTTLE_SECONDS=3600)
     def test_portal_account_request_throttles_repeated_submission_from_same_ip(self):
-        with self.captureOnCommitCallbacks(execute=True):
-            first_response = self.client.post(
-                self.url,
-                self._payload(email="first@example.com"),
-                REMOTE_ADDR="10.0.0.1",
-            )
+        with mock.patch("wms.emailing.send_email_safe", return_value=False):
+            with self.captureOnCommitCallbacks(execute=True):
+                first_response = self.client.post(
+                    self.url,
+                    self._payload(email="first@example.com"),
+                    REMOTE_ADDR="10.0.0.1",
+                )
         self.assertEqual(first_response.status_code, 302)
 
-        with self.captureOnCommitCallbacks(execute=True):
-            second_response = self.client.post(
-                self.url,
-                self._payload(email="second@example.com"),
-                REMOTE_ADDR="10.0.0.1",
-            )
+        with mock.patch("wms.emailing.send_email_safe", return_value=False):
+            with self.captureOnCommitCallbacks(execute=True):
+                second_response = self.client.post(
+                    self.url,
+                    self._payload(email="second@example.com"),
+                    REMOTE_ADDR="10.0.0.1",
+                )
         self.assertEqual(second_response.status_code, 200)
         self.assertContains(
             second_response,

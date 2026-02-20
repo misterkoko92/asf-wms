@@ -15,7 +15,7 @@ from django.urls import reverse
 from contacts.models import Contact
 
 from .contact_payloads import build_shipper_contact_payload
-from .emailing import enqueue_email_safe, get_admin_emails, get_group_emails
+from .emailing import get_admin_emails, get_group_emails, send_or_enqueue_email_safe
 from .models import (
     AccountDocument,
     AccountDocumentType,
@@ -373,23 +373,25 @@ def _queue_account_request_emails(
     def _send_notifications():
         admin_sent = True
         if admin_recipients:
-            admin_sent = enqueue_email_safe(
+            admin_sent = send_or_enqueue_email_safe(
                 subject="ASF WMS - Nouvelle demande de compte",
                 message=admin_message,
                 recipient=admin_recipients,
             )
-        requester_sent = enqueue_email_safe(
+        requester_sent = send_or_enqueue_email_safe(
             subject="ASF WMS - Demande de compte reçue",
             message=requester_message,
             recipient=email,
         )
         if not admin_sent:
             LOGGER.warning(
-                "Account request admin notification was not queued for %s", email
+                "Account request admin notification was not sent nor queued for %s",
+                email,
             )
         if not requester_sent:
             LOGGER.warning(
-                "Account request confirmation was not queued for %s", email
+                "Account request confirmation was not sent nor queued for %s",
+                email,
             )
 
     transaction.on_commit(_send_notifications)

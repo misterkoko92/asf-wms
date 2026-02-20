@@ -2,8 +2,8 @@
 
 Objectif: configurer un envoi reel (pas console), avec fallback SMTP, sans utiliser un `.env` versionne.
 
-Note: les notifications de nouvelle commande (portail/public) sont envoyees en direct.
-Si l'envoi direct echoue, elles sont automatiquement mises en queue.
+Note: tous les flux emails WMS tentent un envoi direct d'abord.
+Si l'envoi direct echoue, ils sont automatiquement mis en queue (fallback).
 
 ## 1) Ouvrir une console Bash sur PythonAnywhere
 
@@ -67,6 +67,8 @@ Attendu:
 PythonAnywhere -> onglet **Web** -> bouton **Reload**.
 
 ## 7) Planifier le worker queue mail (Scheduler)
+
+Le worker traite les emails en fallback (ceux qui n'ont pas pu partir en direct).
 
 ```bash
 mkdir -p /home/messmed/asf-wms/logs

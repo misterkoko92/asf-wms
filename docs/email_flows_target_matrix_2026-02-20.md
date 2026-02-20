@@ -94,3 +94,10 @@ Campagnes lancees:
 Conclusion:
 - Les flux emails demandes sont implementes et verifies.
 - Les regles de ciblage (superusers + groupes + contacts metier) sont actives.
+
+## 7) Strategie d'envoi (mise a jour)
+
+- Tous les flux emails utilisent la meme strategie:
+  1. tentative d'envoi direct (`send_email_safe`)
+  2. si echec, fallback queue (`enqueue_email_safe`)
+- Le traitement `process_email_queue` reste obligatoire pour evacuer les fallbacks.

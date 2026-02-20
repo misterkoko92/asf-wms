@@ -145,8 +145,9 @@ class EmailFlowsEndToEndTests(TestCase):
             "contact_id": "",
         }
 
-        with self.captureOnCommitCallbacks(execute=True):
-            response = self.client.post(reverse("portal:portal_account_request"), payload)
+        with mock.patch("wms.emailing.send_email_safe", return_value=False):
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.client.post(reverse("portal:portal_account_request"), payload)
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(
@@ -200,9 +201,10 @@ class EmailFlowsEndToEndTests(TestCase):
             destination_country="France",
         )
 
-        with self.captureOnCommitCallbacks(execute=True):
-            shipment.status = ShipmentStatus.DELIVERED
-            shipment.save(update_fields=["status"])
+        with mock.patch("wms.emailing.send_email_safe", return_value=False):
+            with self.captureOnCommitCallbacks(execute=True):
+                shipment.status = ShipmentStatus.DELIVERED
+                shipment.save(update_fields=["status"])
 
         pending_events = list(
             self._email_events_queryset().filter(status=IntegrationStatus.PENDING)

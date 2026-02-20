@@ -155,3 +155,6 @@ Verification complete executee apres implementation des nouvelles regles:
 - `./.venv/bin/python manage.py test wms.tests.emailing wms.tests.admin.tests_account_request_handlers wms.tests.public.tests_public_order_handlers wms.tests.orders.tests_order_view` -> OK.
 - `./.venv/bin/python manage.py test wms.tests` -> OK (914 tests, 2 skips).
 - `./.venv/bin/python manage.py makemigrations --check --dry-run` -> No changes detected.
+
+Mise a jour transport email:
+- Tous les flux passent en "direct d'abord, queue en fallback".

@@ -1,3 +1,5 @@
+from unittest import mock
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
@@ -15,6 +17,13 @@ from wms.models import (
 
 class OrderStatusSignalEmailQueueTests(TestCase):
     def setUp(self):
+        self.send_email_patcher = mock.patch(
+            "wms.emailing.send_email_safe",
+            return_value=False,
+        )
+        self.send_email_patcher.start()
+        self.addCleanup(self.send_email_patcher.stop)
+
         get_user_model().objects.create_superuser(
             username="order-status-admin",
             email="admin@example.com",

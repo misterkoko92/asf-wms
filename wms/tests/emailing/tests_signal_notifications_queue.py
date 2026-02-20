@@ -1,3 +1,5 @@
+from unittest import mock
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.test import TestCase
@@ -18,6 +20,13 @@ from wms.models import (
 
 class ShipmentSignalEmailQueueTests(TestCase):
     def setUp(self):
+        self.send_email_patcher = mock.patch(
+            "wms.emailing.send_email_safe",
+            return_value=False,
+        )
+        self.send_email_patcher.start()
+        self.addCleanup(self.send_email_patcher.stop)
+
         self.creator = get_user_model().objects.create_user(
             username="shipment-user",
             email="shipment-user@example.com",

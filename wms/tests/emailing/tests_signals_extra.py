@@ -30,16 +30,18 @@ class SignalsExtraTests(SimpleTestCase):
             "wms.signals._shipment_status_admin_recipients",
             return_value=["admin@example.com"],
         ):
-            with mock.patch("wms.signals.reverse", return_value="/admin/url/"):
-                with mock.patch("wms.signals.render_to_string", return_value="body") as render_mock:
-                    with mock.patch("wms.signals.enqueue_email_safe") as enqueue_mock:
+                with mock.patch("wms.signals.reverse", return_value="/admin/url/"):
+                    with mock.patch("wms.signals.render_to_string", return_value="body") as render_mock:
                         with mock.patch(
-                            "wms.signals.transaction.on_commit",
-                            side_effect=lambda callback: callback(),
-                        ):
-                            _notify_shipment_status_change(None, instance, created=False)
+                            "wms.signals.send_or_enqueue_email_safe"
+                        ) as send_or_enqueue_mock:
+                            with mock.patch(
+                                "wms.signals.transaction.on_commit",
+                                side_effect=lambda callback: callback(),
+                            ):
+                                _notify_shipment_status_change(None, instance, created=False)
 
-        enqueue_mock.assert_called_once()
+        send_or_enqueue_mock.assert_called_once()
         context = render_mock.call_args.args[1]
         self.assertEqual(context["old_status"], "legacy_old")
         self.assertEqual(context["new_status"], "legacy_new")

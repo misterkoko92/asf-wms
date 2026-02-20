@@ -10,7 +10,11 @@ from django.utils import timezone
 
 from contacts.models import Contact
 
-from .emailing import enqueue_email_safe, get_admin_emails, get_group_emails
+from .emailing import (
+    get_admin_emails,
+    get_group_emails,
+    send_or_enqueue_email_safe,
+)
 from .models import (
     AssociationProfile,
     AssociationRecipient,
@@ -138,7 +142,7 @@ def _notify_shipment_delivery(instance) -> None:
         },
     )
     transaction.on_commit(
-        lambda: enqueue_email_safe(
+        lambda: send_or_enqueue_email_safe(
             subject=f"ASF WMS - Expedition {instance.reference} : livraison confirmee",
             message=message,
             recipient=recipients,
@@ -197,7 +201,7 @@ def _queue_shipment_party_notification(*, shipment, old_label, new_label):
         },
     )
     transaction.on_commit(
-        lambda: enqueue_email_safe(
+        lambda: send_or_enqueue_email_safe(
             subject=f"ASF WMS - Expédition {shipment.reference} : statut {new_label}",
             message=message,
             recipient=recipients,
@@ -229,7 +233,7 @@ def _queue_shipment_correspondant_notification(
         },
     )
     transaction.on_commit(
-        lambda: enqueue_email_safe(
+        lambda: send_or_enqueue_email_safe(
             subject=(
                 f"ASF WMS - Suivi correspondant {shipment.reference} : {new_label}"
             ),
@@ -279,7 +283,7 @@ def _notify_shipment_status_change(sender, instance, created, **kwargs) -> None:
             },
         )
         transaction.on_commit(
-            lambda: enqueue_email_safe(
+            lambda: send_or_enqueue_email_safe(
                 subject=f"ASF WMS - Expédition {instance.reference} : statut mis à jour",
                 message=message,
                 recipient=admin_recipients,
@@ -318,33 +322,32 @@ def _notify_tracking_event(sender, instance, created, **kwargs) -> None:
         tracking_event=instance,
         user=getattr(instance, "created_by", None),
     )
-    recipients = get_admin_emails()
-    if not recipients:
-        return
     shipment = instance.shipment
-    admin_url = _build_site_url(
-        reverse("admin:wms_shipment_change", args=[shipment.id])
-    )
-    message = render_to_string(
-        "emails/shipment_tracking_admin_notification.txt",
-        {
-            "shipment_reference": shipment.reference,
-            "status": instance.get_status_display(),
-            "actor_name": instance.actor_name,
-            "actor_structure": instance.actor_structure,
-            "comments": instance.comments or "-",
-            "event_time": timezone.localtime(instance.created_at),
-            "tracking_url": shipment.get_tracking_url(),
-            "admin_url": admin_url,
-        },
-    )
-    transaction.on_commit(
-        lambda: enqueue_email_safe(
-            subject=f"ASF WMS - Suivi expédition {shipment.reference}",
-            message=message,
-            recipient=recipients,
+    recipients = get_admin_emails()
+    if recipients:
+        admin_url = _build_site_url(
+            reverse("admin:wms_shipment_change", args=[shipment.id])
         )
-    )
+        message = render_to_string(
+            "emails/shipment_tracking_admin_notification.txt",
+            {
+                "shipment_reference": shipment.reference,
+                "status": instance.get_status_display(),
+                "actor_name": instance.actor_name,
+                "actor_structure": instance.actor_structure,
+                "comments": instance.comments or "-",
+                "event_time": timezone.localtime(instance.created_at),
+                "tracking_url": shipment.get_tracking_url(),
+                "admin_url": admin_url,
+            },
+        )
+        transaction.on_commit(
+            lambda: send_or_enqueue_email_safe(
+                subject=f"ASF WMS - Suivi expédition {shipment.reference}",
+                message=message,
+                recipient=recipients,
+            )
+        )
     tracking_status = getattr(instance, "status", "")
     if tracking_status in SHIPMENT_CORRESPONDANT_TRACKING_STATUSES:
         tracking_status_label = tracking_status
@@ -437,7 +440,7 @@ def _notify_order_status_change(sender, instance, created, **kwargs) -> None:
         },
     )
     transaction.on_commit(
-        lambda: enqueue_email_safe(
+        lambda: send_or_enqueue_email_safe(
             subject=(
                 f"ASF WMS - Commande {instance.reference or instance.id} : "
                 "validation/statut mis à jour"

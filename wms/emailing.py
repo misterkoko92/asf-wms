@@ -418,6 +418,31 @@ def send_email_safe(*, subject, message, recipient, html_message=None, tags=None
     return True
 
 
+def send_or_enqueue_email_safe(
+    *,
+    subject,
+    message,
+    recipient,
+    html_message=None,
+    tags=None,
+):
+    if send_email_safe(
+        subject=subject,
+        message=message,
+        recipient=recipient,
+        html_message=html_message,
+        tags=tags,
+    ):
+        return True
+    return enqueue_email_safe(
+        subject=subject,
+        message=message,
+        recipient=recipient,
+        html_message=html_message,
+        tags=tags,
+    )
+
+
 def enqueue_email_safe(*, subject, message, recipient, html_message=None, tags=None):
     recipients = _normalize_recipients(recipient)
     if not recipients:
