@@ -38,3 +38,13 @@ coverage.xml
 .pytest_cache/
 .mypy_cache/
 .cache/
+
+# Audit pipeline outputs
+audits/reports/
+audits/projects/
+audits/remediation/
+audits/e2e/
+audits/release-gates/
+audits/artifacts/
+audits/INDEX.md
+!audits/audit.config.yaml

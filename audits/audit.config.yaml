@@ -1,0 +1,31 @@
+# Audit pipeline defaults for asf-wms.
+# Loaded by run_audit_pipeline.py unless --no-config is passed.
+
+project: asf-wms
+profile: deep
+mode: delta
+delta_ref: origin/main
+stack: auto
+base_dir: audits
+framework: playwright
+
+gate_from_report: true
+purge_artifacts_days: 30
+
+# Optional gate fallback values when report parsing is unavailable.
+open_p0: 0
+open_p1: 0
+security_critical: 0
+tests_pass_rate: 100.0
+coverage: 95.0
+migration_risk: medium
+
+journey:
+  - Create shipment
+  - Track shipment
+  - Resolve dispute
+
+artifact_cmd:
+  - make check
+  - make lint
+  - make test

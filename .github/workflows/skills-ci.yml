@@ -1,0 +1,68 @@
+name: Skills CI
+
+on:
+  push:
+    paths:
+      - ".github/workflows/skills-ci.yml"
+      - "audits/audit.config.yaml"
+  pull_request:
+    paths:
+      - ".github/workflows/skills-ci.yml"
+      - "audits/audit.config.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-skills:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install validator dependency
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml
+
+      - name: Validate local Codex skills (if available)
+        run: |
+          SKILLS_DIR="$HOME/.codex/skills"
+          if [ ! -d "$SKILLS_DIR" ]; then
+            echo "No $SKILLS_DIR found in this runner. Skipping skills validation."
+            exit 0
+          fi
+
+          VALIDATOR="$SKILLS_DIR/.system/skill-creator/scripts/quick_validate.py"
+          python "$VALIDATOR" "$SKILLS_DIR/audit-orchestrator"
+          python "$VALIDATOR" "$SKILLS_DIR/audit-remediation"
+          python "$VALIDATOR" "$SKILLS_DIR/e2e-test-designer"
+          python "$VALIDATOR" "$SKILLS_DIR/release-gate"
+
+      - name: Smoke test audit pipeline (if available)
+        run: |
+          SKILLS_DIR="$HOME/.codex/skills"
+          if [ ! -d "$SKILLS_DIR" ]; then
+            echo "No $SKILLS_DIR found in this runner. Skipping pipeline smoke test."
+            exit 0
+          fi
+
+          TMP_DIR="$(mktemp -d)"
+          python "$SKILLS_DIR/audit-orchestrator/scripts/run_audit_pipeline.py" \
+            "CI smoke" \
+            --repo-path "$GITHUB_WORKSPACE" \
+            --base-dir "$TMP_DIR/audits" \
+            --profile quick \
+            --mode full \
+            --artifact-cmd "echo ci-smoke" \
+            --skip-e2e \
+            --skip-remediation \
+            --skip-gate
+
+          test -f "$TMP_DIR/audits/INDEX.md"
