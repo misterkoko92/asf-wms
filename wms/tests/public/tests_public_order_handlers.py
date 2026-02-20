@@ -162,7 +162,7 @@ class PublicOrderHandlersTests(TestCase):
             return_value="https://public.example.org",
         ):
             with mock.patch(
-                "wms.public_order_handlers.get_admin_emails",
+                "wms.public_order_handlers.get_order_admin_emails",
                 return_value=["admin@example.com"],
             ):
                 with mock.patch(
@@ -210,7 +210,7 @@ class PublicOrderHandlersTests(TestCase):
             return_value="https://public.example.org",
         ):
             with mock.patch(
-                "wms.public_order_handlers.get_admin_emails",
+                "wms.public_order_handlers.get_order_admin_emails",
                 return_value=["admin@example.com"],
             ):
                 with mock.patch(

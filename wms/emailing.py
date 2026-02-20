@@ -32,6 +32,7 @@ EMAIL_QUEUE_DEFAULT_MAX_ATTEMPTS = 5
 EMAIL_QUEUE_DEFAULT_RETRY_BASE_SECONDS = 60
 EMAIL_QUEUE_DEFAULT_RETRY_MAX_SECONDS = 3600
 EMAIL_QUEUE_DEFAULT_PROCESSING_TIMEOUT_SECONDS = 900
+ORDER_NOTIFICATION_GROUP_DEFAULT = "Mail_Order_Staff"
 
 EMAIL_PAYLOAD_SUBJECT_KEY = "subject"
 EMAIL_PAYLOAD_MESSAGE_KEY = "message"
@@ -53,6 +54,36 @@ def get_admin_emails():
         .exclude(email="")
         .values_list("email", flat=True)
     )
+
+
+def get_order_admin_emails():
+    User = get_user_model()
+    group_name = getattr(
+        settings,
+        "ORDER_NOTIFICATION_GROUP_NAME",
+        ORDER_NOTIFICATION_GROUP_DEFAULT,
+    )
+    group_name = str(group_name or "").strip()
+
+    superuser_emails = list(
+        User.objects.filter(is_superuser=True, is_active=True)
+        .exclude(email="")
+        .values_list("email", flat=True)
+    )
+
+    if not group_name:
+        return _normalize_recipients(superuser_emails)
+
+    group_emails = list(
+        User.objects.filter(
+            is_active=True,
+            is_staff=True,
+            groups__name=group_name,
+        )
+        .exclude(email="")
+        .values_list("email", flat=True)
+    )
+    return _normalize_recipients(superuser_emails + group_emails)
 
 
 def _normalize_recipients(recipient):

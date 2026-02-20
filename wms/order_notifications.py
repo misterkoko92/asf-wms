@@ -3,7 +3,7 @@ import logging
 from django.template.loader import render_to_string
 from django.urls import reverse
 
-from .emailing import enqueue_email_safe, get_admin_emails
+from .emailing import enqueue_email_safe, get_order_admin_emails
 from .portal_helpers import build_public_base_url
 
 LOGGER = logging.getLogger(__name__)
@@ -67,7 +67,7 @@ def send_portal_order_notifications(request, *, profile, order):
     admin_queued = enqueue_email_safe(
         subject=SUBJECT_NEW_ORDER,
         message=admin_message,
-        recipient=get_admin_emails(),
+        recipient=get_order_admin_emails(),
     )
     if not admin_queued:
         LOGGER.warning(

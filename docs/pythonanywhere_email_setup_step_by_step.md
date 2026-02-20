@@ -18,6 +18,7 @@ Tu remplis au minimum:
 - `DJANGO_SECRET_KEY`
 - `EMAIL_HOST_PASSWORD`
 - `BREVO_API_KEY` (ou vide pour SMTP only)
+- `ORDER_NOTIFICATION_GROUP_NAME` (laisser `Mail_Order_Staff`, ou `''` pour superusers uniquement)
 
 Important:
 - `EMAIL_HOST` doit rester `smtp-relay.brevo.com`

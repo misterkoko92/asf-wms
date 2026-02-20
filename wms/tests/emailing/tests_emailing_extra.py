@@ -3,6 +3,7 @@ import os
 from unittest import mock
 from urllib.error import URLError
 
+from django.contrib.auth.models import Group
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from django.utils import timezone
@@ -19,6 +20,7 @@ from wms.emailing import (
     EMAIL_QUEUE_TARGET,
     enqueue_email_safe,
     get_admin_emails,
+    get_order_admin_emails,
     process_email_queue,
     send_email_safe,
 )
@@ -44,6 +46,15 @@ class EmailingHelpersTests(TestCase):
         )
         inactive_admin.is_active = False
         inactive_admin.save(update_fields=["is_active"])
+
+        staff_user = user_model.objects.create_user(
+            username="staff-ok",
+            email="staff-ok@example.com",
+            password="pass1234",
+        )
+        staff_user.is_staff = True
+        staff_user.save(update_fields=["is_staff"])
+
         user_model.objects.create_user(
             username="regular",
             email="regular@example.com",
@@ -53,6 +64,37 @@ class EmailingHelpersTests(TestCase):
         emails = get_admin_emails()
 
         self.assertEqual(emails, ["admin-ok@example.com"])
+
+    @override_settings(ORDER_NOTIFICATION_GROUP_NAME="Mail_Order_Staff")
+    def test_get_order_admin_emails_includes_superusers_and_mail_group_staff_only(self):
+        user_model = get_user_model()
+        user_model.objects.create_superuser(
+            username="admin-ok",
+            email="admin-ok@example.com",
+            password="pass1234",
+        )
+        user_model.objects.create_user(
+            username="group-non-staff",
+            email="group-non-staff@example.com",
+            password="pass1234",
+        )
+        grouped_staff = user_model.objects.create_user(
+            username="group-staff",
+            email="group-staff@example.com",
+            password="pass1234",
+        )
+        grouped_staff.is_staff = True
+        grouped_staff.save(update_fields=["is_staff"])
+
+        group, _ = Group.objects.get_or_create(name="Mail_Order_Staff")
+        group.user_set.add(grouped_staff)
+        group.user_set.add(user_model.objects.get(username="group-non-staff"))
+
+        emails = get_order_admin_emails()
+        self.assertEqual(
+            emails,
+            ["admin-ok@example.com", "group-staff@example.com"],
+        )
 
     def test_recipient_and_int_helpers_cover_edge_cases(self):
         self.assertEqual(_normalize_recipients("one@example.com"), ["one@example.com"])

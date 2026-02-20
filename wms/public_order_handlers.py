@@ -5,7 +5,7 @@ from django.db import transaction
 from django.template.loader import render_to_string
 from django.urls import reverse
 
-from .emailing import enqueue_email_safe, get_admin_emails
+from .emailing import enqueue_email_safe, get_order_admin_emails
 from .models import Order, OrderStatus
 from .portal_helpers import build_destination_address, build_public_base_url
 from .public_order_helpers import upsert_public_order_contact
@@ -127,7 +127,7 @@ def send_public_order_notifications(request, *, token, order, form_data, contact
     admin_queued = enqueue_email_safe(
         subject=SUBJECT_PUBLIC_ORDER_ADMIN,
         message=admin_message,
-        recipient=get_admin_emails(),
+        recipient=get_order_admin_emails(),
     )
     if not admin_queued:
         LOGGER.warning(

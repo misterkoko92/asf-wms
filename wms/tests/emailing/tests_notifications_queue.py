@@ -1,5 +1,6 @@
 from unittest import mock
 
+from django.contrib.auth.models import Group
 from django.contrib.auth import get_user_model
 from django.test import RequestFactory, TestCase
 
@@ -158,6 +159,57 @@ class PublicOrderNotificationsQueueTests(TestCase):
 
         warning_mock.assert_called_once()
 
+    def test_send_public_order_notifications_includes_mail_order_group_recipients(self):
+        grouped_staff = get_user_model().objects.create_user(
+            username="public-order-group-staff",
+            email="public-order-group@example.com",
+            password="pass1234",
+            is_staff=True,
+        )
+        Group.objects.get_or_create(name="Mail_Order_Staff")[0].user_set.add(grouped_staff)
+
+        request = self.factory.get("/scan/public-order/")
+        link = PublicOrderLink.objects.create(label="Group link")
+        contact = Contact.objects.create(
+            name="Association Group",
+            email="association-group@example.com",
+            phone="+33123456789",
+        )
+        order = Order.objects.create(
+            public_link=link,
+            recipient_contact=contact,
+            shipper_name="Aviation Sans Frontieres",
+            recipient_name=contact.name,
+            destination_address="10 Rue Test\n75000 Paris\nFrance",
+            destination_country="France",
+        )
+        form_data = {
+            "association_name": contact.name,
+            "association_email": contact.email,
+            "association_phone": contact.phone,
+        }
+
+        send_public_order_notifications(
+            request=request,
+            token=link.token,
+            order=order,
+            form_data=form_data,
+            contact=contact,
+        )
+
+        admin_event = IntegrationEvent.objects.filter(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.email",
+            event_type="send_email",
+            status=IntegrationStatus.PENDING,
+            payload__subject="ASF WMS - Nouvelle commande publique",
+        ).first()
+        self.assertIsNotNone(admin_event)
+        self.assertEqual(
+            set(admin_event.payload.get("recipient", [])),
+            {"admin@example.com", "public-order-group@example.com"},
+        )
+
 
 class PortalOrderNotificationsQueueTests(TestCase):
     def setUp(self):
@@ -300,3 +352,34 @@ class PortalOrderNotificationsQueueTests(TestCase):
                     )
 
         self.assertEqual(warning_mock.call_count, 2)
+
+    def test_send_portal_order_notifications_includes_mail_order_group_recipients(self):
+        grouped_staff = get_user_model().objects.create_user(
+            username="portal-order-group-staff",
+            email="portal-order-group@example.com",
+            password="pass1234",
+            is_staff=True,
+        )
+        Group.objects.get_or_create(name="Mail_Order_Staff")[0].user_set.add(grouped_staff)
+
+        request = self.factory.get("/portal/orders/new/")
+        request.user = self.user
+
+        send_portal_order_notifications(
+            request=request,
+            profile=self.profile,
+            order=self.order,
+        )
+
+        admin_event = IntegrationEvent.objects.filter(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.email",
+            event_type="send_email",
+            status=IntegrationStatus.PENDING,
+            payload__subject="ASF WMS - Nouvelle commande",
+        ).first()
+        self.assertIsNotNone(admin_event)
+        self.assertEqual(
+            set(admin_event.payload.get("recipient", [])),
+            {"admin@example.com", "portal-order-group@example.com"},
+        )

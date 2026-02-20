@@ -198,6 +198,9 @@ BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "")
 BREVO_SENDER_EMAIL = os.environ.get("BREVO_SENDER_EMAIL", "")
 BREVO_SENDER_NAME = os.environ.get("BREVO_SENDER_NAME", "")
 BREVO_REPLY_TO_EMAIL = os.environ.get("BREVO_REPLY_TO_EMAIL", "")
+ORDER_NOTIFICATION_GROUP_NAME = os.environ.get(
+    "ORDER_NOTIFICATION_GROUP_NAME", "Mail_Order_Staff"
+).strip()
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
