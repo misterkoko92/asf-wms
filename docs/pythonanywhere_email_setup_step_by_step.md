@@ -22,6 +22,9 @@ Tu remplis au minimum:
 - `EMAIL_HOST_PASSWORD`
 - `BREVO_API_KEY` (ou vide pour SMTP only)
 - `ORDER_NOTIFICATION_GROUP_NAME` (laisser `Mail_Order_Staff`, ou `''` pour superusers uniquement)
+- `ACCOUNT_REQUEST_VALIDATION_GROUP_NAME` (defaut `Account_User_Validation`)
+- `SHIPMENT_STATUS_UPDATE_GROUP_NAME` (defaut `Shipment_Status_Update`)
+- `SHIPMENT_STATUS_CORRESPONDANT_GROUP_NAME` (defaut `Shipment_Status_Update_Correspondant`)
 
 Important:
 - `EMAIL_HOST` doit rester `smtp-relay.brevo.com`

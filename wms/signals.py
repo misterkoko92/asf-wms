@@ -10,19 +10,55 @@ from django.utils import timezone
 
 from contacts.models import Contact
 
-from .emailing import enqueue_email_safe, get_admin_emails
+from .emailing import enqueue_email_safe, get_admin_emails, get_group_emails
 from .models import (
     AssociationProfile,
     AssociationRecipient,
+    Order,
+    OrderReviewStatus,
+    OrderStatus,
     Shipment,
     ShipmentStatus,
     ShipmentTrackingEvent,
+    ShipmentTrackingStatus,
     WmsChange,
 )
 from .workflow_observability import (
     log_shipment_status_transition,
     log_shipment_tracking_event,
 )
+
+SHIPMENT_STATUS_UPDATE_GROUP_DEFAULT = "Shipment_Status_Update"
+SHIPMENT_STATUS_CORRESPONDANT_GROUP_DEFAULT = "Shipment_Status_Update_Correspondant"
+ORDER_STATUS_ASSOCIATION_TEMPLATE = "emails/order_status_association_notification.txt"
+SHIPMENT_STATUS_PARTY_TEMPLATE = "emails/shipment_status_party_notification.txt"
+SHIPMENT_STATUS_CORRESPONDANT_TEMPLATE = (
+    "emails/shipment_status_correspondant_notification.txt"
+)
+SHIPMENT_CONTACT_NOTIFICATION_STATUSES = {
+    ShipmentStatus.PLANNED,
+    ShipmentStatus.SHIPPED,
+    ShipmentStatus.RECEIVED_CORRESPONDENT,
+    ShipmentStatus.DELIVERED,
+}
+SHIPMENT_CORRESPONDANT_TRACKING_STATUSES = {
+    ShipmentTrackingStatus.BOARDING_OK,
+}
+
+
+def _uniq_emails(values):
+    emails = []
+    seen = set()
+    for raw in values:
+        value = (raw or "").strip()
+        if not value:
+            continue
+        key = value.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        emails.append(value)
+    return emails
 
 
 def _bump_change(**kwargs) -> None:
@@ -110,6 +146,99 @@ def _notify_shipment_delivery(instance) -> None:
     )
 
 
+def _shipment_status_admin_recipients():
+    group_name = getattr(
+        settings,
+        "SHIPMENT_STATUS_UPDATE_GROUP_NAME",
+        SHIPMENT_STATUS_UPDATE_GROUP_DEFAULT,
+    )
+    return _uniq_emails(
+        get_admin_emails() + get_group_emails(group_name, require_staff=True)
+    )
+
+
+def _shipment_party_recipients(shipment):
+    return _uniq_emails(
+        [
+            getattr(getattr(shipment, "shipper_contact_ref", None), "email", ""),
+            getattr(getattr(shipment, "recipient_contact_ref", None), "email", ""),
+        ]
+    )
+
+
+def _shipment_correspondant_recipients(shipment):
+    group_name = getattr(
+        settings,
+        "SHIPMENT_STATUS_CORRESPONDANT_GROUP_NAME",
+        SHIPMENT_STATUS_CORRESPONDANT_GROUP_DEFAULT,
+    )
+    group_recipients = get_group_emails(group_name, require_staff=True)
+    correspondent_email = getattr(
+        getattr(shipment, "correspondent_contact_ref", None), "email", ""
+    )
+    return _uniq_emails(group_recipients + [correspondent_email])
+
+
+def _queue_shipment_party_notification(*, shipment, old_label, new_label):
+    recipients = _shipment_party_recipients(shipment)
+    if not recipients:
+        return
+    message = render_to_string(
+        SHIPMENT_STATUS_PARTY_TEMPLATE,
+        {
+            "shipment_reference": shipment.reference,
+            "old_status": old_label,
+            "new_status": new_label,
+            "destination_label": str(shipment.destination)
+            if shipment.destination
+            else shipment.destination_address,
+            "changed_at": timezone.localtime(timezone.now()),
+            "tracking_url": shipment.get_tracking_url(),
+        },
+    )
+    transaction.on_commit(
+        lambda: enqueue_email_safe(
+            subject=f"ASF WMS - Expédition {shipment.reference} : statut {new_label}",
+            message=message,
+            recipient=recipients,
+        )
+    )
+
+
+def _queue_shipment_correspondant_notification(
+    *,
+    shipment,
+    old_label,
+    new_label,
+    tracking_status_label="",
+):
+    recipients = _shipment_correspondant_recipients(shipment)
+    if not recipients:
+        return
+    message = render_to_string(
+        SHIPMENT_STATUS_CORRESPONDANT_TEMPLATE,
+        {
+            "shipment_reference": shipment.reference,
+            "old_status": old_label,
+            "new_status": new_label,
+            "tracking_status_label": tracking_status_label or "-",
+            "destination_label": str(shipment.destination)
+            if shipment.destination
+            else shipment.destination_address,
+            "tracking_url": shipment.get_tracking_url(),
+        },
+    )
+    transaction.on_commit(
+        lambda: enqueue_email_safe(
+            subject=(
+                f"ASF WMS - Suivi correspondant {shipment.reference} : {new_label}"
+            ),
+            message=message,
+            recipient=recipients,
+        )
+    )
+
+
 def _notify_shipment_status_change(sender, instance, created, **kwargs) -> None:
     if created:
         return
@@ -122,7 +251,7 @@ def _notify_shipment_status_change(sender, instance, created, **kwargs) -> None:
         new_status=instance.status,
         source="shipment_post_save_signal",
     )
-    admin_recipients = get_admin_emails()
+    admin_recipients = _shipment_status_admin_recipients()
     if admin_recipients:
         try:
             old_label = ShipmentStatus(previous_status).label
@@ -155,6 +284,28 @@ def _notify_shipment_status_change(sender, instance, created, **kwargs) -> None:
                 message=message,
                 recipient=admin_recipients,
             )
+        )
+    else:
+        try:
+            old_label = ShipmentStatus(previous_status).label
+        except ValueError:
+            old_label = previous_status
+        try:
+            new_label = ShipmentStatus(instance.status).label
+        except ValueError:
+            new_label = instance.status
+    if instance.status in SHIPMENT_CONTACT_NOTIFICATION_STATUSES:
+        _queue_shipment_party_notification(
+            shipment=instance,
+            old_label=old_label,
+            new_label=new_label,
+        )
+    if instance.status == ShipmentStatus.PLANNED:
+        _queue_shipment_correspondant_notification(
+            shipment=instance,
+            old_label=old_label,
+            new_label=new_label,
+            tracking_status_label=ShipmentTrackingStatus.PLANNED.label,
         )
     if instance.status == ShipmentStatus.DELIVERED:
         _notify_shipment_delivery(instance)
@@ -190,6 +341,107 @@ def _notify_tracking_event(sender, instance, created, **kwargs) -> None:
     transaction.on_commit(
         lambda: enqueue_email_safe(
             subject=f"ASF WMS - Suivi expédition {shipment.reference}",
+            message=message,
+            recipient=recipients,
+        )
+    )
+    tracking_status = getattr(instance, "status", "")
+    if tracking_status in SHIPMENT_CORRESPONDANT_TRACKING_STATUSES:
+        tracking_status_label = tracking_status
+        if hasattr(instance, "get_status_display"):
+            tracking_status_label = instance.get_status_display()
+        _queue_shipment_correspondant_notification(
+            shipment=shipment,
+            old_label="-",
+            new_label=tracking_status_label,
+            tracking_status_label=tracking_status_label,
+        )
+
+
+def _capture_order_state(sender, instance, **kwargs) -> None:
+    if not instance.pk:
+        instance._previous_order_status = None
+        instance._previous_order_review_status = None
+        return
+    previous_values = sender.objects.filter(pk=instance.pk).values(
+        "status",
+        "review_status",
+    ).first()
+    if not previous_values:
+        instance._previous_order_status = None
+        instance._previous_order_review_status = None
+        return
+    instance._previous_order_status = previous_values.get("status")
+    instance._previous_order_review_status = previous_values.get("review_status")
+
+
+def _resolve_order_association_recipients(order):
+    recipients = []
+    association_contact = getattr(order, "association_contact", None)
+    if association_contact is not None:
+        recipients.append(association_contact.email)
+        profile = (
+            AssociationProfile.objects.select_related("user")
+            .filter(contact_id=association_contact.id)
+            .first()
+        )
+        if profile is not None:
+            recipients.append(profile.user.email)
+            recipients.extend(profile.get_notification_emails())
+    recipients.append(getattr(getattr(order, "shipper_contact", None), "email", ""))
+    recipients.append(getattr(getattr(order, "recipient_contact", None), "email", ""))
+    return _uniq_emails(recipients)
+
+
+def _order_review_status_label(order_status):
+    try:
+        return dict(OrderReviewStatus.choices).get(order_status) or order_status
+    except Exception:  # pragma: no cover - defensive
+        return order_status
+
+
+def _order_state_status_label(order_status):
+    try:
+        return dict(OrderStatus.choices).get(order_status) or order_status
+    except Exception:  # pragma: no cover - defensive
+        return order_status
+
+
+def _notify_order_status_change(sender, instance, created, **kwargs) -> None:
+    if created:
+        return
+
+    previous_status = getattr(instance, "_previous_order_status", None)
+    previous_review_status = getattr(instance, "_previous_order_review_status", None)
+    status_changed = previous_status and previous_status != instance.status
+    review_changed = previous_review_status and previous_review_status != instance.review_status
+    if not status_changed and not review_changed:
+        return
+
+    recipients = _uniq_emails(get_admin_emails() + _resolve_order_association_recipients(instance))
+    if not recipients:
+        return
+
+    admin_url = _build_site_url(
+        reverse("admin:wms_order_change", args=[instance.id])
+    )
+    message = render_to_string(
+        ORDER_STATUS_ASSOCIATION_TEMPLATE,
+        {
+            "order_reference": instance.reference or f"Commande {instance.id}",
+            "old_status": _order_state_status_label(previous_status) or "-",
+            "new_status": _order_state_status_label(instance.status),
+            "old_review_status": _order_review_status_label(previous_review_status) or "-",
+            "new_review_status": _order_review_status_label(instance.review_status),
+            "admin_url": admin_url,
+        },
+    )
+    transaction.on_commit(
+        lambda: enqueue_email_safe(
+            subject=(
+                f"ASF WMS - Commande {instance.reference or instance.id} : "
+                "validation/statut mis à jour"
+            ),
             message=message,
             recipient=recipients,
         )
@@ -272,6 +524,11 @@ def register_change_signals() -> None:
         sender=Shipment,
         dispatch_uid="wms_shipment_status_pre_save",
     )
+    pre_save.connect(
+        _capture_order_state,
+        sender=Order,
+        dispatch_uid="wms_order_state_pre_save",
+    )
     post_save.connect(
         _notify_shipment_status_change,
         sender=Shipment,
@@ -281,6 +538,11 @@ def register_change_signals() -> None:
         _notify_tracking_event,
         sender=ShipmentTrackingEvent,
         dispatch_uid="wms_shipment_tracking_post_save",
+    )
+    post_save.connect(
+        _notify_order_status_change,
+        sender=Order,
+        dispatch_uid="wms_order_status_post_save",
     )
     post_save.connect(
         _ensure_association_portal_group,

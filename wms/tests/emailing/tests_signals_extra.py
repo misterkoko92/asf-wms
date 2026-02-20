@@ -26,7 +26,10 @@ class SignalsExtraTests(SimpleTestCase):
             get_tracking_url=lambda: "/track/SHP-001",
         )
 
-        with mock.patch("wms.signals.get_admin_emails", return_value=["admin@example.com"]):
+        with mock.patch(
+            "wms.signals._shipment_status_admin_recipients",
+            return_value=["admin@example.com"],
+        ):
             with mock.patch("wms.signals.reverse", return_value="/admin/url/"):
                 with mock.patch("wms.signals.render_to_string", return_value="body") as render_mock:
                     with mock.patch("wms.signals.enqueue_email_safe") as enqueue_mock:
@@ -43,7 +46,7 @@ class SignalsExtraTests(SimpleTestCase):
 
     def test_notify_shipment_status_change_returns_when_previous_status_missing(self):
         instance = SimpleNamespace(_previous_status=None, status="draft")
-        with mock.patch("wms.signals.get_admin_emails") as emails_mock:
+        with mock.patch("wms.signals._shipment_status_admin_recipients") as emails_mock:
             _notify_shipment_status_change(None, instance, created=False)
         emails_mock.assert_not_called()
 
@@ -57,7 +60,7 @@ class SignalsExtraTests(SimpleTestCase):
             destination_address="1 Rue Test",
             get_tracking_url=lambda: "/track/SHP-002",
         )
-        with mock.patch("wms.signals.get_admin_emails", return_value=[]):
+        with mock.patch("wms.signals._shipment_status_admin_recipients", return_value=[]):
             with mock.patch("wms.signals.render_to_string") as render_mock:
                 _notify_shipment_status_change(None, instance, created=False)
         render_mock.assert_not_called()
@@ -73,7 +76,7 @@ class SignalsExtraTests(SimpleTestCase):
             get_tracking_url=lambda: "/track/SHP-003",
         )
         with mock.patch("wms.signals.log_shipment_status_transition") as log_mock:
-            with mock.patch("wms.signals.get_admin_emails", return_value=[]):
+            with mock.patch("wms.signals._shipment_status_admin_recipients", return_value=[]):
                 _notify_shipment_status_change(None, instance, created=False)
         log_mock.assert_called_once_with(
             shipment=instance,

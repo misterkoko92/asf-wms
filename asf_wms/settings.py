@@ -201,6 +201,16 @@ BREVO_REPLY_TO_EMAIL = os.environ.get("BREVO_REPLY_TO_EMAIL", "")
 ORDER_NOTIFICATION_GROUP_NAME = os.environ.get(
     "ORDER_NOTIFICATION_GROUP_NAME", "Mail_Order_Staff"
 ).strip()
+ACCOUNT_REQUEST_VALIDATION_GROUP_NAME = os.environ.get(
+    "ACCOUNT_REQUEST_VALIDATION_GROUP_NAME", "Account_User_Validation"
+).strip()
+SHIPMENT_STATUS_UPDATE_GROUP_NAME = os.environ.get(
+    "SHIPMENT_STATUS_UPDATE_GROUP_NAME", "Shipment_Status_Update"
+).strip()
+SHIPMENT_STATUS_CORRESPONDANT_GROUP_NAME = os.environ.get(
+    "SHIPMENT_STATUS_CORRESPONDANT_GROUP_NAME",
+    "Shipment_Status_Update_Correspondant",
+).strip()
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

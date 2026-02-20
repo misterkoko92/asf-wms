@@ -1,0 +1,9 @@
+Mise a jour de l'expedition
+
+Expedition: {{ shipment_reference }}
+Statut (ancien -> nouveau): {{ old_status }} -> {{ new_status }}
+Destination: {{ destination_label|default:"-" }}
+Date de mise a jour: {{ changed_at }}
+
+Suivi:
+{{ tracking_url }}

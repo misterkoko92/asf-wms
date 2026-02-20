@@ -1,5 +1,7 @@
 from unittest import mock
 
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.contrib.auth.hashers import check_password
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import RequestFactory, TestCase, override_settings
@@ -14,6 +16,7 @@ from wms.models import (
     PublicAccountRequestStatus,
     PublicAccountRequestType,
 )
+from wms.models import IntegrationDirection, IntegrationEvent, IntegrationStatus
 
 
 class AccountRequestHelpersTests(TestCase):
@@ -99,6 +102,46 @@ class AccountRequestHelpersTests(TestCase):
                         )
 
         self.assertEqual(warning_mock.call_count, 2)
+
+    @override_settings(ACCOUNT_REQUEST_VALIDATION_GROUP_NAME="Account_User_Validation")
+    def test_queue_account_request_emails_includes_validation_group_recipients(self):
+        get_user_model().objects.create_superuser(
+            username="account-request-admin",
+            email="admin@example.com",
+            password="pass1234",
+        )
+        grouped_staff = get_user_model().objects.create_user(
+            username="account-request-grouped",
+            email="grouped@example.com",
+            password="pass1234",
+            is_staff=True,
+        )
+        Group.objects.get_or_create(name="Account_User_Validation")[0].user_set.add(
+            grouped_staff
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            account_request_handlers._queue_account_request_emails(
+                account_type=PublicAccountRequestType.ASSOCIATION,
+                association_name="Association Test",
+                email="association@example.com",
+                phone="0102030405",
+                requested_username="",
+                admin_url="https://example.com/admin",
+            )
+
+        admin_event = IntegrationEvent.objects.filter(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.email",
+            event_type="send_email",
+            status=IntegrationStatus.PENDING,
+            payload__subject="ASF WMS - Nouvelle demande de compte",
+        ).first()
+        self.assertIsNotNone(admin_event)
+        self.assertEqual(
+            set(admin_event.payload.get("recipient", [])),
+            {"admin@example.com", "grouped@example.com"},
+        )
 
 
 class AccountRequestFormHandlerTests(TestCase):

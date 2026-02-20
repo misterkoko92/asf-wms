@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.test import TestCase
 
 from contacts.models import Contact
@@ -173,4 +174,133 @@ class ShipmentSignalEmailQueueTests(TestCase):
         self.assertEqual(
             delivery_event.payload.get("recipient"),
             ["delivery@example.com", "second@example.com", "fallback@example.com"],
+        )
+
+    def test_shipment_status_change_includes_shipment_status_update_group(self):
+        grouped_staff = get_user_model().objects.create_user(
+            username="shipment-status-grouped",
+            email="shipment-status-grouped@example.com",
+            password="pass1234",
+            is_staff=True,
+        )
+        Group.objects.get_or_create(name="Shipment_Status_Update")[0].user_set.add(
+            grouped_staff
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            self.shipment.status = ShipmentStatus.SHIPPED
+            self.shipment.save(update_fields=["status"])
+
+        event = IntegrationEvent.objects.filter(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.email",
+            event_type="send_email",
+            status=IntegrationStatus.PENDING,
+            payload__subject=f"ASF WMS - Expédition {self.shipment.reference} : statut mis à jour",
+        ).first()
+        self.assertIsNotNone(event)
+        self.assertEqual(
+            set(event.payload.get("recipient", [])),
+            {"admin@example.com", "shipment-status-grouped@example.com"},
+        )
+
+    def test_planned_status_change_notifies_shipper_and_recipient(self):
+        shipper = Contact.objects.create(name="Shipper", email="shipper@example.com")
+        recipient = Contact.objects.create(name="Recipient", email="recipient@example.com")
+        self.shipment.shipper_contact_ref = shipper
+        self.shipment.recipient_contact_ref = recipient
+        self.shipment.save(update_fields=["shipper_contact_ref", "recipient_contact_ref"])
+
+        with self.captureOnCommitCallbacks(execute=True):
+            self.shipment.status = ShipmentStatus.PLANNED
+            self.shipment.save(update_fields=["status"])
+
+        event = IntegrationEvent.objects.filter(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.email",
+            event_type="send_email",
+            status=IntegrationStatus.PENDING,
+            payload__subject=f"ASF WMS - Expédition {self.shipment.reference} : statut Planifié",
+        ).first()
+        self.assertIsNotNone(event)
+        self.assertEqual(
+            set(event.payload.get("recipient", [])),
+            {"shipper@example.com", "recipient@example.com"},
+        )
+
+    def test_planned_status_change_notifies_correspondant_group_and_contact(self):
+        correspondent = Contact.objects.create(
+            name="Correspondent",
+            email="correspondent@example.com",
+        )
+        grouped_staff = get_user_model().objects.create_user(
+            username="shipment-correspondant-grouped",
+            email="shipment-correspondant-grouped@example.com",
+            password="pass1234",
+            is_staff=True,
+        )
+        Group.objects.get_or_create(
+            name="Shipment_Status_Update_Correspondant"
+        )[0].user_set.add(grouped_staff)
+        self.shipment.correspondent_contact_ref = correspondent
+        self.shipment.save(update_fields=["correspondent_contact_ref"])
+
+        with self.captureOnCommitCallbacks(execute=True):
+            self.shipment.status = ShipmentStatus.PLANNED
+            self.shipment.save(update_fields=["status"])
+
+        event = IntegrationEvent.objects.filter(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.email",
+            event_type="send_email",
+            status=IntegrationStatus.PENDING,
+            payload__subject=f"ASF WMS - Suivi correspondant {self.shipment.reference} : Planifié",
+        ).first()
+        self.assertIsNotNone(event)
+        self.assertEqual(
+            set(event.payload.get("recipient", [])),
+            {"shipment-correspondant-grouped@example.com", "correspondent@example.com"},
+        )
+
+    def test_boarding_ok_tracking_event_notifies_correspondant_group_and_contact(self):
+        correspondent = Contact.objects.create(
+            name="Correspondent Boarding",
+            email="correspondent-boarding@example.com",
+        )
+        grouped_staff = get_user_model().objects.create_user(
+            username="shipment-correspondant-boarding-grouped",
+            email="shipment-correspondant-boarding-grouped@example.com",
+            password="pass1234",
+            is_staff=True,
+        )
+        Group.objects.get_or_create(
+            name="Shipment_Status_Update_Correspondant"
+        )[0].user_set.add(grouped_staff)
+        self.shipment.correspondent_contact_ref = correspondent
+        self.shipment.status = ShipmentStatus.PLANNED
+        self.shipment.save(update_fields=["correspondent_contact_ref", "status"])
+
+        with self.captureOnCommitCallbacks(execute=True):
+            ShipmentTrackingEvent.objects.create(
+                shipment=self.shipment,
+                status=ShipmentTrackingStatus.BOARDING_OK,
+                actor_name="Boarding Agent",
+                actor_structure="ASF",
+                comments="ok",
+            )
+
+        event = IntegrationEvent.objects.filter(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.email",
+            event_type="send_email",
+            status=IntegrationStatus.PENDING,
+            payload__subject=f"ASF WMS - Suivi correspondant {self.shipment.reference} : OK mise à bord",
+        ).first()
+        self.assertIsNotNone(event)
+        self.assertEqual(
+            set(event.payload.get("recipient", [])),
+            {
+                "shipment-correspondant-boarding-grouped@example.com",
+                "correspondent-boarding@example.com",
+            },
         )

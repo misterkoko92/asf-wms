@@ -131,3 +131,27 @@ Etat global:
 
 Amelioration non bloquante restante:
 - Supprimer definitivement le branchement legacy `ACTION_UPDATE_NOTIFICATIONS` apres periode de transition (le chemin est deja desactive).
+
+## 7) Mise a jour regles (post-cloture)
+
+Ajouts appliques apres cloture initiale:
+- Ciblage groupes metier:
+  - `Account_User_Validation`
+  - `Shipment_Status_Update`
+  - `Shipment_Status_Update_Correspondant`
+- Notification commande validation/statut:
+  - superusers + association liee a la commande.
+- Notification shipment parties:
+  - expediteur + destinataire sur statuts cibles.
+- Notification shipment correspondant:
+  - planifie + OK mise a bord pour groupe correspondant + correspondant shipment.
+
+Reference detaillee:
+- `docs/email_flows_target_matrix_2026-02-20.md`
+
+## 8) Verification finale de regression
+
+Verification complete executee apres implementation des nouvelles regles:
+- `./.venv/bin/python manage.py test wms.tests.emailing wms.tests.admin.tests_account_request_handlers wms.tests.public.tests_public_order_handlers wms.tests.orders.tests_order_view` -> OK.
+- `./.venv/bin/python manage.py test wms.tests` -> OK (914 tests, 2 skips).
+- `./.venv/bin/python manage.py makemigrations --check --dry-run` -> No changes detected.

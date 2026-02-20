@@ -15,7 +15,7 @@ from django.urls import reverse
 from contacts.models import Contact
 
 from .contact_payloads import build_shipper_contact_payload
-from .emailing import enqueue_email_safe, get_admin_emails
+from .emailing import enqueue_email_safe, get_admin_emails, get_group_emails
 from .models import (
     AccountDocument,
     AccountDocumentType,
@@ -53,13 +53,17 @@ ERROR_THROTTLE_LIMIT = (
     "Une demande récente a déjà été envoyée. Merci de patienter quelques minutes."
 )
 
-SUCCESS_ACCOUNT_REQUEST_SENT = "Demande envoyée. Un superuser ASF validera votre compte."
+SUCCESS_ACCOUNT_REQUEST_SENT = (
+    "Demande envoyee. L'equipe ASF validera votre compte."
+)
 
 DOC_UPLOAD_FIELD_MAPPINGS = (
     (AccountDocumentType.STATUTES, "doc_statutes"),
     (AccountDocumentType.REGISTRATION_PROOF, "doc_registration"),
     (AccountDocumentType.ACTIVITY_REPORT, "doc_report"),
 )
+
+ACCOUNT_REQUEST_VALIDATION_GROUP_DEFAULT = "Account_User_Validation"
 
 
 def _build_account_request_form_defaults():
@@ -357,7 +361,14 @@ def _queue_account_request_emails(
             "requested_username": requested_username,
         },
     )
-    admin_recipients = get_admin_emails()
+    admin_recipients = get_admin_emails() + get_group_emails(
+        getattr(
+            settings,
+            "ACCOUNT_REQUEST_VALIDATION_GROUP_NAME",
+            ACCOUNT_REQUEST_VALIDATION_GROUP_DEFAULT,
+        ),
+        require_staff=True,
+    )
 
     def _send_notifications():
         admin_sent = True

@@ -207,7 +207,7 @@ class EmailFlowsEndToEndTests(TestCase):
         pending_events = list(
             self._email_events_queryset().filter(status=IntegrationStatus.PENDING)
         )
-        self.assertEqual(len(pending_events), 2)
+        self.assertEqual(len(pending_events), 3)
         delivery_subject = (
             f"ASF WMS - Expedition {shipment.reference} : livraison confirmee"
         )
@@ -221,12 +221,23 @@ class EmailFlowsEndToEndTests(TestCase):
             ["delivery-e2e@example.com", "second-delivery-e2e@example.com"],
         )
 
+        parties_subject = f"ASF WMS - Expédition {shipment.reference} : statut Livré"
+        parties_event = next(
+            event
+            for event in pending_events
+            if event.payload.get("subject") == parties_subject
+        )
+        self.assertEqual(
+            parties_event.payload.get("recipient"),
+            ["assoc-delivery@example.com"],
+        )
+
         with mock.patch("wms.emailing.send_email_safe", return_value=True):
             result = process_email_queue(limit=10)
 
-        self.assertEqual(result["selected"], 2)
-        self.assertEqual(result["processed"], 2)
+        self.assertEqual(result["selected"], 3)
+        self.assertEqual(result["processed"], 3)
         self.assertEqual(
             self._email_events_queryset().filter(status=IntegrationStatus.PROCESSED).count(),
-            2,
+            3,
         )

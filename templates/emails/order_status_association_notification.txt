@@ -1,0 +1,8 @@
+Mise a jour commande
+
+Reference: {{ order_reference }}
+Statut commande (ancien -> nouveau): {{ old_status }} -> {{ new_status }}
+Statut validation (ancien -> nouveau): {{ old_review_status }} -> {{ new_review_status }}
+
+Administration:
+{{ admin_url }}
