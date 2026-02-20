@@ -1,9 +1,21 @@
 from django import forms
+from django.core.validators import MinValueValidator
 
 from .models import WmsRuntimeSettings
 
 
 class ScanRuntimeSettingsForm(forms.ModelForm):
+    MIN_ONE_FIELDS = (
+        "low_stock_threshold",
+        "tracking_alert_hours",
+        "workflow_blockage_hours",
+        "stale_drafts_age_days",
+        "email_queue_max_attempts",
+        "email_queue_retry_base_seconds",
+        "email_queue_retry_max_seconds",
+        "email_queue_processing_timeout_seconds",
+    )
+
     class Meta:
         model = WmsRuntimeSettings
         fields = [
@@ -51,6 +63,22 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
                 attrs={"min": 1, "step": 1}
             ),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field_name in self.MIN_ONE_FIELDS:
+            field = self.fields[field_name]
+            field.min_value = 1
+            field.widget.attrs["min"] = 1
+            field.error_messages["min_value"] = (
+                "La valeur doit être supérieure ou égale à 1."
+            )
+            field.validators = [
+                validator
+                for validator in field.validators
+                if not isinstance(validator, MinValueValidator)
+            ]
+            field.validators.append(MinValueValidator(1))
 
     def clean(self):
         cleaned_data = super().clean()
