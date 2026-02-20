@@ -58,7 +58,17 @@ class EmailingHelpersTests(TestCase):
         self.assertEqual(_normalize_recipients("one@example.com"), ["one@example.com"])
         self.assertEqual(_normalize_recipients(None), [])
         self.assertEqual(
-            _normalize_recipients(["one@example.com", "", None, "two@example.com"]),
+            _normalize_recipients(
+                [
+                    " one@example.com ",
+                    "",
+                    None,
+                    "two@example.com",
+                    "ONE@example.com",
+                    123,
+                    "  ",
+                ]
+            ),
             ["one@example.com", "two@example.com"],
         )
 
@@ -252,6 +262,32 @@ class BrevoAndFallbackSendTests(TestCase):
         self.assertFalse(sent)
         warning_mock.assert_called_once()
 
+    @override_settings(DEFAULT_FROM_EMAIL="default@example.com")
+    def test_send_email_safe_normalizes_recipients(self):
+        with mock.patch("wms.emailing._send_with_brevo", return_value=False):
+            with mock.patch("wms.emailing.send_mail", return_value=1) as send_mail_mock:
+                sent = send_email_safe(
+                    subject="Subject",
+                    message="Message",
+                    recipient=[
+                        " one@example.com ",
+                        "ONE@example.com",
+                        "",
+                        None,
+                        "two@example.com",
+                    ],
+                )
+
+        self.assertTrue(sent)
+        send_mail_mock.assert_called_once_with(
+            "Subject",
+            "Message",
+            "default@example.com",
+            ["one@example.com", "two@example.com"],
+            fail_silently=False,
+            html_message=None,
+        )
+
 
 class EmailQueueExtraTests(TestCase):
     def test_enqueue_email_safe_handles_empty_recipient_and_optional_payload(self):
@@ -284,6 +320,34 @@ class EmailQueueExtraTests(TestCase):
         self.assertEqual(event.payload["recipient"], ["dest@example.com"])
         self.assertEqual(event.payload["html_message"], "<p>hello</p>")
         self.assertEqual(event.payload["tags"], ["a", "b"])
+
+    def test_enqueue_email_safe_normalizes_and_deduplicates_recipients(self):
+        queued = enqueue_email_safe(
+            subject="Sujet",
+            message="Message",
+            recipient=[
+                " first@example.com ",
+                "FIRST@example.com",
+                "second@example.com",
+                "",
+                None,
+            ],
+        )
+        self.assertTrue(queued)
+
+        event = (
+            process_email_queue.__globals__["IntegrationEvent"]
+            .objects.filter(
+                source=EMAIL_QUEUE_SOURCE,
+                target=EMAIL_QUEUE_TARGET,
+                event_type=EMAIL_QUEUE_EVENT_TYPE,
+            )
+            .get()
+        )
+        self.assertEqual(
+            event.payload["recipient"],
+            ["first@example.com", "second@example.com"],
+        )
 
     @mock.patch("wms.emailing.send_email_safe", return_value=True)
     def test_process_email_queue_handles_invalid_limit_value(self, _send_mock):

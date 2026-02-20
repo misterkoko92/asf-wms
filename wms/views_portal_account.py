@@ -246,7 +246,29 @@ def _get_active_recipients(profile):
 
 
 def _handle_notification_update(request, profile):
-    profile.notification_emails = (request.POST.get("notification_emails") or "").strip()
+    email_values = _split_multi_values(request.POST.get("notification_emails") or "")
+    invalid_emails = []
+    normalized_emails = []
+    seen = set()
+    validator = EmailValidator()
+    for value in email_values:
+        try:
+            validator(value)
+        except ValidationError:
+            invalid_emails.append(value)
+            continue
+        dedup_key = value.lower()
+        if dedup_key in seen:
+            continue
+        seen.add(dedup_key)
+        normalized_emails.append(value)
+    if invalid_emails:
+        messages.error(
+            request,
+            ERROR_RECIPIENT_EMAILS_INVALID.format(values=", ".join(invalid_emails)),
+        )
+        return redirect("portal:portal_account")
+    profile.notification_emails = ",".join(normalized_emails)
     profile.save(update_fields=["notification_emails"])
     messages.success(request, MESSAGE_CONTACTS_UPDATED)
     return redirect("portal:portal_account")

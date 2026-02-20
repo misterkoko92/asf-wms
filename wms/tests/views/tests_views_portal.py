@@ -1142,6 +1142,35 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.profile.refresh_from_db()
         self.assertEqual(self.profile.notification_emails, "a@x.com,b@x.com")
 
+    def test_portal_account_update_notifications_rejects_invalid_email(self):
+        self.profile.notification_emails = "existing@example.com"
+        self.profile.save(update_fields=["notification_emails"])
+
+        response = self.client.post(
+            self.account_url,
+            {
+                "action": "update_notifications",
+                "notification_emails": "ok@example.com,invalid-email",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self.account_url)
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.notification_emails, "existing@example.com")
+
+    def test_portal_account_update_notifications_normalizes_values(self):
+        response = self.client.post(
+            self.account_url,
+            {
+                "action": "update_notifications",
+                "notification_emails": " a@x.com ; A@x.com \n b@x.com ",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self.account_url)
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.notification_emails, "a@x.com,b@x.com")
+
     def test_portal_account_upload_doc_reports_validation_error(self):
         with mock.patch(
             "wms.views_portal_account.validate_document_upload",

@@ -24,6 +24,14 @@ Tests executes:
 - Resultat: 8 tests, OK.
 - `./.venv/bin/python manage.py test wms.tests.emailing`
 - Resultat: 43 tests, OK.
+- `./.venv/bin/python manage.py test wms.tests.emailing`
+- Resultat: 45 tests, OK.
+- `./.venv/bin/python manage.py test wms.tests.emailing.tests_notifications_queue wms.tests.public.tests_public_order_handlers`
+- Resultat: 12 tests, OK.
+- `./.venv/bin/python manage.py test wms.tests.emailing.tests_emailing_extra`
+- Resultat: 14 tests, OK.
+- `./.venv/bin/python manage.py test wms.tests.views.tests_views_portal.PortalAccountViewsTests`
+- Resultat: 17 tests, OK.
 
 ## 2) Inventaire des fichiers lies aux emails
 
@@ -315,9 +323,9 @@ Severite:
 Statut:
 - Traite en P0: separation des templates `order_admin_notification_public.txt` et `order_admin_notification_portal.txt`.
 
-### [C3] Echecs d'enqueue silencieux dans certains flux
+### [C3] Echecs d'enqueue silencieux dans certains flux (constat initial)
 
-Constat:
+Constat initial:
 - Flux portail commande: retour `enqueue_email_safe()` ignore (`wms/order_notifications.py:63`, `wms/order_notifications.py:74`).
 - Flux commande publique: echec confirmation gere (warning), echec admin ignore (`wms/public_order_handlers.py:123`).
 
@@ -327,6 +335,10 @@ Impact:
 
 Severite:
 - Haute.
+
+Statut:
+- Traite en P0: warning explicite quand un enqueue echoue sur flux portail/public (admin + confirmation).
+- Couverture existante et validee: `wms/tests/emailing/tests_notifications_queue.py`, `wms/tests/public/tests_public_order_handlers.py`.
 
 ### [C4] Surface API pouvant modifier les IntegrationEvent outbound (dont queue email) (constat initial)
 
@@ -345,9 +357,9 @@ Statut:
 - Corrige le 2026-02-20 (suite): `api/v1/views.py` refuse les updates sur `outbound + wms.email + send_email`.
 - Couverture ajoutee: `api/tests/tests_views_extra.py` (tentative PATCH rejetee).
 
-### [C5] Normalisation recipients incomplète
+### [C5] Normalisation recipients incomplète (constat initial)
 
-Constat:
+Constat initial:
 - `_normalize_recipients` filtre seulement les valeurs truthy (`wms/emailing.py:58`).
 - Pas de strip, pas de dedup, pas de validation syntaxique.
 
@@ -358,6 +370,10 @@ Impact:
 
 Severite:
 - Moyenne.
+
+Statut:
+- Corrige le 2026-02-20 (suite): `_normalize_recipients` applique trim, ignore les valeurs non-string/vides, dedup case-insensitive.
+- Couverture ajoutee/ajustee: `wms/tests/emailing/tests_emailing_extra.py`.
 
 ### [C6] Endpoint legacy "update_notifications" non visible en UI et non valide
 
@@ -372,6 +388,11 @@ Impact:
 
 Severite:
 - Basse a moyenne.
+
+Statut:
+- Partiellement traite le 2026-02-20 (suite): validation email explicite ajoutee sur `ACTION_UPDATE_NOTIFICATIONS` + normalisation (trim/dedup).
+- Couverture ajoutee: `wms/tests/views/tests_views_portal.py` (rejet email invalide + normalisation de la saisie).
+- Dette restante: endpoint toujours legacy/non expose en UI.
 
 ## 8) Plan d'action recommande
 
@@ -445,13 +466,13 @@ Severite:
 ## 9) Priorisation finale
 
 Priorite immediate:
-- C3.
+- Aucune cassure critique ouverte.
 
 Priorite ensuite:
-- C5.
+- C6.
 
 Dette a planifier:
-- C6.
+- Deprecation/suppression du endpoint legacy `update_notifications` (ou exposition UI explicite).
 
 ## 10) Resume executif
 
@@ -459,16 +480,20 @@ Le socle technique email est solide (queue + retries + fallback Brevo/SMTP + mon
 
 Etat apres la suite de travaux:
 - C1 est corrige (notifications livraison branchees).
+- C3 est corrige (echecs d'enqueue journalises).
 - C4 est corrige (API verrouillee sur la queue outbound email).
-- Le point prioritaire restant est C3 (echecs d'enqueue silencieux), puis C5.
+- C5 est corrige (normalisation recipients renforcee).
+- C6 est securise (validation), avec dette technique residuelle sur le chemin legacy.
 
 ## 11) Mise en oeuvre realisee apres P0
 
 Realise dans cette suite:
 - C1 traite: notifications de livraison branchees sur `notify_deliveries` pour les expeditions livrees.
+- C3 valide: warnings d'enqueue deja en place et couverts par tests.
 - C4 traite: verrouillage API sur la queue email outbound.
+- C5 traite: normalisation recipients (trim + dedup case-insensitive + filtrage valeurs invalides).
+- C6 securise: validation et normalisation de `update_notifications`.
 - E2E mails deja presents dans le repo (`wms/tests/emailing/tests_email_flows_e2e.py`) et etendus avec un scenario livraison.
 
 Reste recommande:
-- C5 (normalisation recipients globale cote `enqueue_email_safe`).
-- C6 (nettoyage endpoint legacy `update_notifications`).
+- C6 (deprecier/supprimer le chemin legacy `update_notifications` ou l'exposer proprement en UI).

@@ -61,7 +61,20 @@ def _normalize_recipients(recipient):
         recipients = [recipients]
     if recipients is None:
         return []
-    return [item for item in recipients if item]
+    normalized_recipients = []
+    seen = set()
+    for item in recipients:
+        if not isinstance(item, str):
+            continue
+        value = item.strip()
+        if not value:
+            continue
+        dedup_key = value.lower()
+        if dedup_key in seen:
+            continue
+        seen.add(dedup_key)
+        normalized_recipients.append(value)
+    return normalized_recipients
 
 
 def _safe_int(value, *, default, minimum):
