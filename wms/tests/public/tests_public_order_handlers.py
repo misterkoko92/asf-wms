@@ -169,17 +169,18 @@ class PublicOrderHandlersTests(TestCase):
                     "wms.public_order_handlers.render_to_string",
                     side_effect=["confirmation-body", "admin-body"],
                 ):
-                    with mock.patch(
-                        "wms.public_order_handlers.enqueue_email_safe",
-                        side_effect=[True, False],
-                    ) as enqueue_mock:
-                        send_public_order_notifications(
-                            request=request,
-                            token=self.link.token,
-                            order=order,
-                            form_data=form_data,
-                            contact=contact,
-                        )
+                    with mock.patch("wms.public_order_handlers.send_email_safe", return_value=False):
+                        with mock.patch(
+                            "wms.public_order_handlers.enqueue_email_safe",
+                            side_effect=[True, False],
+                        ) as enqueue_mock:
+                            send_public_order_notifications(
+                                request=request,
+                                token=self.link.token,
+                                order=order,
+                                form_data=form_data,
+                                contact=contact,
+                            )
 
         self.assertEqual(enqueue_mock.call_count, 2)
         warning_messages = [message.message for message in get_messages(request)]
@@ -217,17 +218,18 @@ class PublicOrderHandlersTests(TestCase):
                     "wms.public_order_handlers.render_to_string",
                     side_effect=["confirmation-body", "admin-body"],
                 ) as render_mock:
-                    with mock.patch(
-                        "wms.public_order_handlers.enqueue_email_safe",
-                        side_effect=[True, True],
-                    ) as enqueue_mock:
-                        send_public_order_notifications(
-                            request=request,
-                            token=self.link.token,
-                            order=order,
-                            form_data=form_data,
-                            contact=contact,
-                        )
+                    with mock.patch("wms.public_order_handlers.send_email_safe", return_value=False):
+                        with mock.patch(
+                            "wms.public_order_handlers.enqueue_email_safe",
+                            side_effect=[True, True],
+                        ) as enqueue_mock:
+                            send_public_order_notifications(
+                                request=request,
+                                token=self.link.token,
+                                order=order,
+                                form_data=form_data,
+                                contact=contact,
+                            )
 
         admin_context = render_mock.call_args_list[1].args[1]
         self.assertEqual(admin_context["email"], contact.email)

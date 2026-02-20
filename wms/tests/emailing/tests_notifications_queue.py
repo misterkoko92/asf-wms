@@ -48,13 +48,14 @@ class PublicOrderNotificationsQueueTests(TestCase):
             "association_phone": contact.phone,
         }
 
-        send_public_order_notifications(
-            request=request,
-            token=link.token,
-            order=order,
-            form_data=form_data,
-            contact=contact,
-        )
+        with mock.patch("wms.public_order_handlers.send_email_safe", return_value=False):
+            send_public_order_notifications(
+                request=request,
+                token=link.token,
+                order=order,
+                form_data=form_data,
+                contact=contact,
+            )
 
         events = list(
             IntegrationEvent.objects.filter(
@@ -95,17 +96,18 @@ class PublicOrderNotificationsQueueTests(TestCase):
             "wms.public_order_handlers.render_to_string",
             side_effect=["confirmation-body", "admin-body"],
         ) as render_mock:
-            with mock.patch(
-                "wms.public_order_handlers.enqueue_email_safe",
-                return_value=True,
-            ):
-                send_public_order_notifications(
-                    request=request,
-                    token=link.token,
-                    order=order,
-                    form_data=form_data,
-                    contact=contact,
-                )
+            with mock.patch("wms.public_order_handlers.send_email_safe", return_value=False):
+                with mock.patch(
+                    "wms.public_order_handlers.enqueue_email_safe",
+                    return_value=True,
+                ):
+                    send_public_order_notifications(
+                        request=request,
+                        token=link.token,
+                        order=order,
+                        form_data=form_data,
+                        contact=contact,
+                    )
 
         self.assertEqual(
             render_mock.call_args_list[0].args[0],
@@ -142,20 +144,21 @@ class PublicOrderNotificationsQueueTests(TestCase):
             "wms.public_order_handlers.render_to_string",
             side_effect=["confirmation-body", "admin-body"],
         ):
-            with mock.patch(
-                "wms.public_order_handlers.enqueue_email_safe",
-                side_effect=[False, True],
-            ):
+            with mock.patch("wms.public_order_handlers.send_email_safe", return_value=False):
                 with mock.patch(
-                    "wms.public_order_handlers.LOGGER.warning"
-                ) as warning_mock:
-                    send_public_order_notifications(
-                        request=request,
-                        token=link.token,
-                        order=order,
-                        form_data=form_data,
-                        contact=contact,
-                    )
+                    "wms.public_order_handlers.enqueue_email_safe",
+                    side_effect=[False, True],
+                ):
+                    with mock.patch(
+                        "wms.public_order_handlers.LOGGER.warning"
+                    ) as warning_mock:
+                        send_public_order_notifications(
+                            request=request,
+                            token=link.token,
+                            order=order,
+                            form_data=form_data,
+                            contact=contact,
+                        )
 
         warning_mock.assert_called_once()
 
@@ -189,13 +192,14 @@ class PublicOrderNotificationsQueueTests(TestCase):
             "association_phone": contact.phone,
         }
 
-        send_public_order_notifications(
-            request=request,
-            token=link.token,
-            order=order,
-            form_data=form_data,
-            contact=contact,
-        )
+        with mock.patch("wms.public_order_handlers.send_email_safe", return_value=False):
+            send_public_order_notifications(
+                request=request,
+                token=link.token,
+                order=order,
+                form_data=form_data,
+                contact=contact,
+            )
 
         admin_event = IntegrationEvent.objects.filter(
             direction=IntegrationDirection.OUTBOUND,
@@ -209,6 +213,48 @@ class PublicOrderNotificationsQueueTests(TestCase):
             set(admin_event.payload.get("recipient", [])),
             {"admin@example.com", "public-order-group@example.com"},
         )
+
+    def test_send_public_order_notifications_sends_direct_without_queue(self):
+        request = self.factory.get("/scan/public-order/")
+        link = PublicOrderLink.objects.create(label="Direct link")
+        contact = Contact.objects.create(
+            name="Association Direct",
+            email="association-direct@example.com",
+            phone="+33123456789",
+        )
+        order = Order.objects.create(
+            public_link=link,
+            recipient_contact=contact,
+            shipper_name="Aviation Sans Frontieres",
+            recipient_name=contact.name,
+            destination_address="10 Rue Test\n75000 Paris\nFrance",
+            destination_country="France",
+        )
+        form_data = {
+            "association_name": contact.name,
+            "association_email": contact.email,
+            "association_phone": contact.phone,
+        }
+
+        with mock.patch("wms.public_order_handlers.send_email_safe", return_value=True):
+            with mock.patch("wms.public_order_handlers.enqueue_email_safe") as enqueue_mock:
+                send_public_order_notifications(
+                    request=request,
+                    token=link.token,
+                    order=order,
+                    form_data=form_data,
+                    contact=contact,
+                )
+
+        self.assertEqual(
+            IntegrationEvent.objects.filter(
+                direction=IntegrationDirection.OUTBOUND,
+                source="wms.email",
+                event_type="send_email",
+            ).count(),
+            0,
+        )
+        enqueue_mock.assert_not_called()
 
 
 class PortalOrderNotificationsQueueTests(TestCase):
@@ -246,11 +292,12 @@ class PortalOrderNotificationsQueueTests(TestCase):
         request = self.factory.get("/portal/orders/new/")
         request.user = self.user
 
-        send_portal_order_notifications(
-            request=request,
-            profile=self.profile,
-            order=self.order,
-        )
+        with mock.patch("wms.order_notifications.send_email_safe", return_value=False):
+            send_portal_order_notifications(
+                request=request,
+                profile=self.profile,
+                order=self.order,
+            )
 
         events = list(
             IntegrationEvent.objects.filter(
@@ -283,11 +330,12 @@ class PortalOrderNotificationsQueueTests(TestCase):
         request = self.factory.get("/portal/orders/new/")
         request.user = self.user
 
-        send_portal_order_notifications(
-            request=request,
-            profile=self.profile,
-            order=self.order,
-        )
+        with mock.patch("wms.order_notifications.send_email_safe", return_value=False):
+            send_portal_order_notifications(
+                request=request,
+                profile=self.profile,
+                order=self.order,
+            )
 
         confirmation_event = IntegrationEvent.objects.filter(
             direction=IntegrationDirection.OUTBOUND,
@@ -311,15 +359,16 @@ class PortalOrderNotificationsQueueTests(TestCase):
             "wms.order_notifications.render_to_string",
             side_effect=["admin-body", "confirmation-body"],
         ) as render_mock:
-            with mock.patch(
-                "wms.order_notifications.enqueue_email_safe",
-                return_value=True,
-            ):
-                send_portal_order_notifications(
-                    request=request,
-                    profile=self.profile,
-                    order=self.order,
-                )
+            with mock.patch("wms.order_notifications.send_email_safe", return_value=False):
+                with mock.patch(
+                    "wms.order_notifications.enqueue_email_safe",
+                    return_value=True,
+                ):
+                    send_portal_order_notifications(
+                        request=request,
+                        profile=self.profile,
+                        order=self.order,
+                    )
 
         self.assertEqual(
             render_mock.call_args_list[0].args[0],
@@ -338,18 +387,19 @@ class PortalOrderNotificationsQueueTests(TestCase):
             "wms.order_notifications.render_to_string",
             side_effect=["admin-body", "confirmation-body"],
         ):
-            with mock.patch(
-                "wms.order_notifications.enqueue_email_safe",
-                side_effect=[False, False],
-            ):
+            with mock.patch("wms.order_notifications.send_email_safe", return_value=False):
                 with mock.patch(
-                    "wms.order_notifications.LOGGER.warning"
-                ) as warning_mock:
-                    send_portal_order_notifications(
-                        request=request,
-                        profile=self.profile,
-                        order=self.order,
-                    )
+                    "wms.order_notifications.enqueue_email_safe",
+                    side_effect=[False, False],
+                ):
+                    with mock.patch(
+                        "wms.order_notifications.LOGGER.warning"
+                    ) as warning_mock:
+                        send_portal_order_notifications(
+                            request=request,
+                            profile=self.profile,
+                            order=self.order,
+                        )
 
         self.assertEqual(warning_mock.call_count, 2)
 
@@ -365,11 +415,12 @@ class PortalOrderNotificationsQueueTests(TestCase):
         request = self.factory.get("/portal/orders/new/")
         request.user = self.user
 
-        send_portal_order_notifications(
-            request=request,
-            profile=self.profile,
-            order=self.order,
-        )
+        with mock.patch("wms.order_notifications.send_email_safe", return_value=False):
+            send_portal_order_notifications(
+                request=request,
+                profile=self.profile,
+                order=self.order,
+            )
 
         admin_event = IntegrationEvent.objects.filter(
             direction=IntegrationDirection.OUTBOUND,
@@ -383,3 +434,25 @@ class PortalOrderNotificationsQueueTests(TestCase):
             set(admin_event.payload.get("recipient", [])),
             {"admin@example.com", "portal-order-group@example.com"},
         )
+
+    def test_send_portal_order_notifications_sends_direct_without_queue(self):
+        request = self.factory.get("/portal/orders/new/")
+        request.user = self.user
+
+        with mock.patch("wms.order_notifications.send_email_safe", return_value=True):
+            with mock.patch("wms.order_notifications.enqueue_email_safe") as enqueue_mock:
+                send_portal_order_notifications(
+                    request=request,
+                    profile=self.profile,
+                    order=self.order,
+                )
+
+        self.assertEqual(
+            IntegrationEvent.objects.filter(
+                direction=IntegrationDirection.OUTBOUND,
+                source="wms.email",
+                event_type="send_email",
+            ).count(),
+            0,
+        )
+        enqueue_mock.assert_not_called()

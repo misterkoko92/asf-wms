@@ -5,7 +5,7 @@ from django.db import transaction
 from django.template.loader import render_to_string
 from django.urls import reverse
 
-from .emailing import enqueue_email_safe, get_order_admin_emails
+from .emailing import enqueue_email_safe, get_order_admin_emails, send_email_safe
 from .models import Order, OrderStatus
 from .portal_helpers import build_destination_address, build_public_base_url
 from .public_order_helpers import upsert_public_order_contact
@@ -89,6 +89,20 @@ def _create_order_lines(order, line_items):
         order.lines.create(product=product, quantity=quantity)
 
 
+def _send_or_enqueue(*, subject, message, recipient):
+    if send_email_safe(
+        subject=subject,
+        message=message,
+        recipient=recipient,
+    ):
+        return True
+    return enqueue_email_safe(
+        subject=subject,
+        message=message,
+        recipient=recipient,
+    )
+
+
 def create_public_order(*, link, form_data, line_items):
     with transaction.atomic():
         contact = upsert_public_order_contact(form_data)
@@ -124,23 +138,23 @@ def send_public_order_notifications(request, *, token, order, form_data, contact
         TEMPLATE_ORDER_ADMIN_NOTIFICATION,
         _build_admin_notification_context(form_data, contact, order, urls),
     )
-    admin_queued = enqueue_email_safe(
+    admin_sent_or_queued = _send_or_enqueue(
         subject=SUBJECT_PUBLIC_ORDER_ADMIN,
         message=admin_message,
         recipient=get_order_admin_emails(),
     )
-    if not admin_queued:
+    if not admin_sent_or_queued:
         LOGGER.warning(
-            "Public order admin notification was not queued for %s",
+            "Public order admin notification was not sent nor queued for %s",
             _order_reference(order),
         )
-    if not enqueue_email_safe(
+    if not _send_or_enqueue(
         subject=SUBJECT_PUBLIC_ORDER_CONFIRMATION,
         message=confirmation_message,
         recipient=_confirmation_recipient(form_data, contact),
     ):
         LOGGER.warning(
-            "Public order confirmation was not queued for %s",
+            "Public order confirmation was not sent nor queued for %s",
             _order_reference(order),
         )
         messages.warning(

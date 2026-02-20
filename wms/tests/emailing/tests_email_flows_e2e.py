@@ -60,13 +60,14 @@ class EmailFlowsEndToEndTests(TestCase):
             "association_phone": contact.phone,
         }
 
-        send_public_order_notifications(
-            request=request,
-            token=link.token,
-            order=order,
-            form_data=form_data,
-            contact=contact,
-        )
+        with mock.patch("wms.public_order_handlers.send_email_safe", return_value=False):
+            send_public_order_notifications(
+                request=request,
+                token=link.token,
+                order=order,
+                form_data=form_data,
+                contact=contact,
+            )
         self.assertEqual(
             self._email_events_queryset().filter(status=IntegrationStatus.PENDING).count(),
             2,
@@ -108,11 +109,12 @@ class EmailFlowsEndToEndTests(TestCase):
         request = self.factory.get("/portal/orders/new/")
         request.user = user
 
-        send_portal_order_notifications(
-            request=request,
-            profile=profile,
-            order=order,
-        )
+        with mock.patch("wms.order_notifications.send_email_safe", return_value=False):
+            send_portal_order_notifications(
+                request=request,
+                profile=profile,
+                order=order,
+            )
         self.assertEqual(
             self._email_events_queryset().filter(status=IntegrationStatus.PENDING).count(),
             2,

@@ -3,7 +3,7 @@ import logging
 from django.template.loader import render_to_string
 from django.urls import reverse
 
-from .emailing import enqueue_email_safe, get_order_admin_emails
+from .emailing import enqueue_email_safe, get_order_admin_emails, send_email_safe
 from .portal_helpers import build_public_base_url
 
 LOGGER = logging.getLogger(__name__)
@@ -57,6 +57,20 @@ def _build_confirmation_recipients(request, profile):
     return recipients
 
 
+def _send_or_enqueue(*, subject, message, recipient):
+    if send_email_safe(
+        subject=subject,
+        message=message,
+        recipient=recipient,
+    ):
+        return True
+    return enqueue_email_safe(
+        subject=subject,
+        message=message,
+        recipient=recipient,
+    )
+
+
 def send_portal_order_notifications(request, *, profile, order):
     urls = _build_portal_order_urls(request, order)
 
@@ -64,14 +78,14 @@ def send_portal_order_notifications(request, *, profile, order):
         TEMPLATE_ORDER_ADMIN_NOTIFICATION,
         _build_admin_notification_context(request, profile, order, urls),
     )
-    admin_queued = enqueue_email_safe(
+    admin_sent_or_queued = _send_or_enqueue(
         subject=SUBJECT_NEW_ORDER,
         message=admin_message,
         recipient=get_order_admin_emails(),
     )
-    if not admin_queued:
+    if not admin_sent_or_queued:
         LOGGER.warning(
-            "Portal order admin notification was not queued for %s",
+            "Portal order admin notification was not sent nor queued for %s",
             _order_reference(order),
         )
 
@@ -80,13 +94,13 @@ def send_portal_order_notifications(request, *, profile, order):
         _build_order_confirmation_context(profile, order, urls),
     )
 
-    confirmation_queued = enqueue_email_safe(
+    confirmation_sent_or_queued = _send_or_enqueue(
         subject=SUBJECT_ORDER_CONFIRMATION,
         message=confirmation_message,
         recipient=_build_confirmation_recipients(request, profile),
     )
-    if not confirmation_queued:
+    if not confirmation_sent_or_queued:
         LOGGER.warning(
-            "Portal order confirmation was not queued for %s",
+            "Portal order confirmation was not sent nor queued for %s",
             _order_reference(order),
         )

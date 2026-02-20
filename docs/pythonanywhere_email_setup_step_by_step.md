@@ -2,6 +2,9 @@
 
 Objectif: configurer un envoi reel (pas console), avec fallback SMTP, sans utiliser un `.env` versionne.
 
+Note: les notifications de nouvelle commande (portail/public) sont envoyees en direct.
+Si l'envoi direct echoue, elles sont automatiquement mises en queue.
+
 ## 1) Ouvrir une console Bash sur PythonAnywhere
 
 Tout se fait sur le serveur PythonAnywhere, avec ton user `messmed`.
