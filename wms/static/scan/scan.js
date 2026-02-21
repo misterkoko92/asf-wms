@@ -77,18 +77,22 @@
     }
     const root = document.documentElement;
     const UI_KEY = 'wms-ui';
-    const UI_OPTIONS = ['classic', 'nova', 'studio', 'benev'];
+    const UI_OPTIONS = ['classic', 'nova', 'studio', 'benev', 'timeline', 'spreadsheet'];
     const UI_LABELS = {
       classic: 'Classique',
       nova: 'Nouveau',
       studio: 'Studio',
-      benev: 'Benev'
+      benev: 'Benev',
+      timeline: 'Timeline',
+      spreadsheet: 'Spreadsheet'
     };
     const UI_TITLES = {
       classic: 'Basculer vers Nouveau',
       nova: 'Basculer vers Studio',
       studio: 'Basculer vers Benev',
-      benev: 'Basculer vers Classique'
+      benev: 'Basculer vers Timeline',
+      timeline: 'Basculer vers Spreadsheet',
+      spreadsheet: 'Basculer vers Classique'
     };
     const normalize = value => (UI_OPTIONS.includes(value) ? value : 'classic');
     let initialUi = root.dataset.ui || 'classic';
@@ -120,6 +124,36 @@
         localStorage.setItem(UI_KEY, nextUi);
       } catch (err) {
         // Ignore storage errors.
+      }
+    });
+  }
+
+  function setupUiReset() {
+    const resetButton = document.getElementById('ui-reset-default');
+    if (!resetButton) {
+      return;
+    }
+    const root = document.documentElement;
+    resetButton.addEventListener('click', () => {
+      root.dataset.ui = 'benev';
+      root.dataset.theme = 'classic';
+      try {
+        localStorage.setItem('wms-ui', 'benev');
+        localStorage.setItem('scan-theme', 'classic');
+      } catch (err) {
+        // Ignore storage errors.
+      }
+      const uiToggle = document.getElementById('ui-toggle');
+      if (uiToggle) {
+        uiToggle.textContent = 'Benev';
+        uiToggle.setAttribute('aria-pressed', 'true');
+        uiToggle.title = 'Basculer vers Timeline';
+      }
+      const themeToggle = document.getElementById('theme-toggle');
+      if (themeToggle) {
+        themeToggle.textContent = 'Classique';
+        themeToggle.setAttribute('aria-pressed', 'false');
+        themeToggle.title = 'Basculer vers Atelier';
       }
     });
   }
@@ -2865,6 +2899,7 @@
 
   setupThemeToggle();
   setupUiToggle();
+  setupUiReset();
   setupProductDatalist();
   setupPackLines();
   setupShipmentBuilder();

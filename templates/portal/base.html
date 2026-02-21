@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script>
     (function() {
       try {
@@ -74,6 +74,14 @@
             Classique
           </button>
         </div>
+        <button
+          type="button"
+          id="portal-ui-reset-default"
+          class="scan-ui-reset"
+          title="Revenir à l'interface Benev et au thème Classique"
+        >
+          Benev + Classique
+        </button>
       </div>
     </header>
 
@@ -97,12 +105,22 @@
       }
       var root = document.documentElement;
       var UI_KEY = 'wms-ui';
-      var UI_OPTIONS = ['classic', 'nova', 'studio', 'benev'];
+      var UI_OPTIONS = ['classic', 'nova', 'studio', 'benev', 'timeline', 'spreadsheet'];
       var UI_LABELS = {
         classic: 'Classique',
         nova: 'Nouveau',
         studio: 'Studio',
-        benev: 'Benev'
+        benev: 'Benev',
+        timeline: 'Timeline',
+        spreadsheet: 'Spreadsheet'
+      };
+      var UI_TITLES = {
+        classic: 'Basculer vers Nouveau',
+        nova: 'Basculer vers Studio',
+        studio: 'Basculer vers Benev',
+        benev: 'Basculer vers Timeline',
+        timeline: 'Basculer vers Spreadsheet',
+        spreadsheet: 'Basculer vers Classique'
       };
       var normalize = function(value) {
         return UI_OPTIONS.indexOf(value) !== -1 ? value : 'classic';
@@ -112,6 +130,7 @@
         root.dataset.ui = normalized;
         toggle.textContent = UI_LABELS[normalized] || 'Classique';
         toggle.setAttribute('aria-pressed', normalized === 'classic' ? 'false' : 'true');
+        toggle.title = UI_TITLES[normalized] || 'Basculer vers Nouveau';
       };
       var initialUi = root.dataset.ui || 'classic';
       try {
@@ -134,6 +153,21 @@
           // Ignore storage errors.
         }
       });
+
+      var resetButton = document.getElementById('portal-ui-reset-default');
+      if (resetButton) {
+        resetButton.addEventListener('click', function() {
+          root.dataset.ui = 'benev';
+          root.dataset.theme = 'classic';
+          applyUi('benev');
+          try {
+            localStorage.setItem(UI_KEY, 'benev');
+            localStorage.setItem('scan-theme', 'classic');
+          } catch (err) {
+            // Ignore storage errors.
+          }
+        });
+      }
     })();
   </script>
   <script defer src="{% static 'portal/portal_tables.js' %}"></script>
