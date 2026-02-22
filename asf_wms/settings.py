@@ -119,6 +119,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "wms.context_processors.admin_notifications",
+                "wms.context_processors.ui_mode_context",
             ],
         },
     },

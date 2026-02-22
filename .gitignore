@@ -39,6 +39,11 @@ coverage.xml
 .mypy_cache/
 .cache/
 
+# Frontend Next build artifacts
+frontend-next/node_modules/
+frontend-next/.next/
+frontend-next/out/
+
 # Audit pipeline outputs
 audits/reports/
 audits/projects/

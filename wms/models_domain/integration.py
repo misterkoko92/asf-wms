@@ -74,6 +74,33 @@ class IntegrationEvent(models.Model):
         return f"{self.source}:{self.event_type} ({self.direction})"
 
 
+class UiMode(models.TextChoices):
+    LEGACY = "legacy", "Legacy"
+    NEXT = "next", "Next"
+
+
+class UserUiPreference(models.Model):
+    user = models.OneToOneField(
+        django_settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="wms_ui_preference",
+    )
+    ui_mode = models.CharField(
+        max_length=16,
+        choices=UiMode.choices,
+        default=UiMode.LEGACY,
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["user_id"]
+        verbose_name = "Preference interface utilisateur"
+        verbose_name_plural = "Preferences interface utilisateur"
+
+    def __str__(self) -> str:
+        return f"{self.user_id}:{self.ui_mode}"
+
+
 def _safe_int(value, *, default, minimum):
     try:
         resolved = int(value)

@@ -68,6 +68,25 @@
         <a href="{% url 'portal:portal_logout' %}">Déconnexion</a>
       </nav>
       <div class="portal-actions">
+        <div class="scan-ui-mode-switch">
+          {% if wms_ui_mode_is_next %}
+            <a
+              href="{% url 'ui_mode_set_mode' 'legacy' %}?next={{ request.get_full_path|urlencode }}"
+              class="scan-ui-reset"
+              title="Revenir immédiatement sur l'interface actuelle"
+            >
+              Retour interface actuelle
+            </a>
+          {% else %}
+            <a
+              href="{% url 'ui_mode_set_mode' 'next' %}?next=/app/portal/dashboard/"
+              class="scan-ui-reset"
+              title="Basculer vers le nouveau frontend Next"
+            >
+              Essayer interface Next
+            </a>
+          {% endif %}
+        </div>
         <div class="scan-ui-toggle">
           <span class="scan-theme-label">Interface</span>
           <button type="button" id="portal-ui-toggle" class="scan-ui-button" aria-pressed="false">

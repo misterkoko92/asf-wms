@@ -1,0 +1,57 @@
+# Migration Benev/Classique vers Next React statique
+
+## Objectif
+Basculer l'interface actuelle `Benev + Classique` vers un frontend Next/React **statique**, tout en gardant Django/PythonAnywhere comme backend principal, avec ces règles:
+
+- **Copie conforme intégrale** (fonctionnelle et visuelle) en priorité.
+- **Aucune régression métier**.
+- **Aucune interruption**: l'interface actuelle reste disponible en permanence.
+- **Migration parallèle**: nouveau front sous préfixe dédié + feature flag utilisateur.
+
+## Décisions validées
+
+- Frontend: Next.js + React, build statique.
+- Backend: Django existant (logique métier, auth, PDF, règles).
+- Hébergement: PythonAnywhere conservé.
+- Stratégie de bascule: progressive (module par module, rôle par rôle), rollback immédiat possible.
+
+## Livrables de ce dossier
+
+1. `docs/next-react-static-migration/01_architecture_cible.md`
+   - Architecture cible, contraintes PythonAnywhere, sécurité, offline.
+2. `docs/next-react-static-migration/02_plan_execution.md`
+   - Plan d'exécution détaillé en phases avec critères de sortie.
+3. `docs/next-react-static-migration/03_matrice_parite_benev_classique.md`
+   - Mapping écran par écran (legacy -> next) + checklist de parité.
+4. `docs/next-react-static-migration/04_bascule_progressive_et_rollback.md`
+   - Déploiement progressif, A/B, supervision et rollback.
+5. `docs/next-react-static-migration/05_roadmap_apres_parite.md`
+   - Ajustements UI (boutons/cards) puis éditeur de templates nouvelle génération.
+
+## Livrables Phase 0 (réalisés)
+
+- `docs/next-react-static-migration/p0_phase0_report_2026-02-22.md`
+- `docs/next-react-static-migration/p0_inventaire_fonctionnel.md`
+- `docs/next-react-static-migration/p0_api_gap_analysis.md`
+- `docs/next-react-static-migration/p0_e2e_suite.md`
+- `docs/next-react-static-migration/p0_baseline_visuelle_checklist.md`
+
+## Livrables Phase 1 (réalisés)
+
+- `docs/next-react-static-migration/p1_phase1_report_2026-02-22.md`
+
+## Ordre d'exécution recommandé
+
+1. Phase parité stricte (100% Benev/Classique).
+2. Bascule limitée à un groupe pilote.
+3. Stabilisation et généralisation.
+4. Ajustements visuels ciblés.
+5. Refonte de l'éditeur de templates.
+
+## Principe de sécurité projet
+
+Tant que la parité n'est pas validée par toi:
+
+- l'ancien front reste la référence de production,
+- le switch reste réversible instantanément,
+- aucune suppression de template legacy n'est autorisée.

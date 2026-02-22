@@ -1,0 +1,86 @@
+{% load static %}
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Build Next manquant</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", Arial, sans-serif;
+      background: #f5f7fb;
+      color: #18233a;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+    .card {
+      width: min(760px, 100%);
+      border-radius: 16px;
+      background: #ffffff;
+      border: 1px solid #d6def0;
+      box-shadow: 0 18px 42px rgba(17, 32, 68, 0.1);
+      padding: 24px;
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: 28px;
+      color: #1f376e;
+    }
+    p {
+      margin: 0 0 12px;
+      line-height: 1.5;
+      color: #3e4f74;
+    }
+    code {
+      display: block;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #eef3ff;
+      border: 1px solid #cad8fa;
+      color: #1c3772;
+      margin: 10px 0 14px;
+      font-size: 13px;
+      overflow-x: auto;
+    }
+    .actions {
+      margin-top: 14px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      border: 0;
+      border-radius: 999px;
+      min-height: 38px;
+      padding: 8px 16px;
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .btn-primary {
+      background: #2e67d1;
+      color: #fff;
+    }
+    .btn-secondary {
+      background: #eef3ff;
+      color: #234483;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Frontend Next indisponible</h1>
+    <p>Le build statique Next n'est pas encore présent sur ce serveur.</p>
+    <p>Dossier attendu:</p>
+    <code>{{ frontend_root }}/out</code>
+    <p>Commande de build:</p>
+    <code>{{ build_command }}</code>
+    <div class="actions">
+      <a class="btn btn-primary" href="{{ legacy_url }}">Retour interface actuelle</a>
+      <a class="btn btn-secondary" href="/">Accueil</a>
+    </div>
+  </main>
+</body>
+</html>

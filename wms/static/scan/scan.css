@@ -127,12 +127,15 @@ body {
 }
 
 .scan-ui-reset {
+  display: inline-flex;
+  align-items: center;
   border: 1px solid var(--border-strong);
   border-radius: 999px;
   padding: 7px 12px;
   background: var(--card);
   color: var(--ink);
   font-weight: 700;
+  text-decoration: none;
   cursor: pointer;
 }
 
