@@ -12,6 +12,12 @@ export default function LandingPage() {
           <Link href="/scan/dashboard" className="btn-primary" data-track="landing.scan">
             Ouvrir Scan dashboard
           </Link>
+          <Link href="/scan/shipment-documents" className="btn-secondary" data-track="landing.docs">
+            Ouvrir Docs & labels
+          </Link>
+          <Link href="/scan/templates" className="btn-secondary" data-track="landing.templates">
+            Ouvrir Templates
+          </Link>
           <Link href="/portal/dashboard" className="btn-secondary" data-track="landing.portal">
             Ouvrir Portal dashboard
           </Link>

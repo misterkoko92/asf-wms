@@ -1,13 +1,23 @@
-# frontend-next (P1 shell)
+# frontend-next (P2 shell)
 
 Frontend Next.js statique, servi en parallele de l'interface legacy.
 
-## Objectif P1
+## Objectif P2
 
 - shell Next de production (hors prototypes),
 - export statique pour PythonAnywhere,
 - routes `/app/*` servies par Django,
 - rollback immediat via `/ui/mode/legacy/`.
+- branchement progressif sur `api/v1/ui/*` (dashboard, stock, shipment, docs/labels, templates).
+
+## Routes disponibles
+
+- `/app/scan/dashboard`
+- `/app/scan/stock`
+- `/app/scan/shipment-create`
+- `/app/scan/shipment-documents`
+- `/app/scan/templates`
+- `/app/portal/dashboard`
 
 ## Commandes
 
