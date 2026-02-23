@@ -8,6 +8,7 @@ from wms.models import (
     Product,
     ProductLotStatus,
     Shipment,
+    ShipmentTrackingStatus,
 )
 
 
@@ -198,3 +199,56 @@ class IntegrationDestinationSerializer(serializers.ModelSerializer):
             "correspondent_name",
             "is_active",
         )
+
+
+class UiStockUpdateSerializer(serializers.Serializer):
+    product_code = serializers.CharField()
+    quantity = serializers.IntegerField(min_value=1)
+    expires_on = serializers.DateField()
+    lot_code = serializers.CharField(required=False, allow_blank=True, default="")
+    donor_contact_id = serializers.IntegerField(required=False, allow_null=True)
+
+
+class UiStockOutSerializer(serializers.Serializer):
+    product_code = serializers.CharField()
+    quantity = serializers.IntegerField(min_value=1)
+    shipment_reference = serializers.CharField(required=False, allow_blank=True, default="")
+    reason_code = serializers.CharField(required=False, allow_blank=True, default="")
+    reason_notes = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class UiShipmentLineSerializer(serializers.Serializer):
+    carton_id = serializers.IntegerField(required=False, allow_null=True)
+    product_code = serializers.CharField(required=False, allow_blank=True, default="")
+    quantity = serializers.IntegerField(required=False, allow_null=True)
+
+    def validate(self, attrs):
+        carton_id = attrs.get("carton_id")
+        product_code = (attrs.get("product_code") or "").strip()
+        quantity = attrs.get("quantity")
+        if carton_id and (product_code or quantity):
+            raise serializers.ValidationError(
+                "Choisissez un carton OU creez un colis depuis un produit."
+            )
+        if carton_id:
+            return attrs
+        if product_code and quantity and quantity > 0:
+            return attrs
+        raise serializers.ValidationError(
+            "Chaque ligne doit contenir un carton_id ou le couple product_code + quantity."
+        )
+
+
+class UiShipmentMutationSerializer(serializers.Serializer):
+    destination = serializers.IntegerField()
+    shipper_contact = serializers.IntegerField()
+    recipient_contact = serializers.IntegerField()
+    correspondent_contact = serializers.IntegerField()
+    lines = UiShipmentLineSerializer(many=True, min_length=1)
+
+
+class UiShipmentTrackingEventSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=ShipmentTrackingStatus.choices)
+    actor_name = serializers.CharField(max_length=120)
+    actor_structure = serializers.CharField(max_length=120)
+    comments = serializers.CharField(required=False, allow_blank=True, default="")

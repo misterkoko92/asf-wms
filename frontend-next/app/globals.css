@@ -188,6 +188,31 @@ a {
   color: #35598e;
 }
 
+.api-state {
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: #f5f9ff;
+  color: #34507e;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.api-state.api-ok {
+  background: #eefaf4;
+  border-color: #c6ead6;
+  color: #266349;
+}
+
+.api-state.api-error {
+  background: #fff0f2;
+  border-color: #f3c8cf;
+  color: #8a3e49;
+}
+
 .panel-head {
   display: flex;
   align-items: center;

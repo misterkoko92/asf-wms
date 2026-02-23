@@ -10,6 +10,18 @@ from .views import (
     ProductViewSet,
     ReceiveStockView,
 )
+from .ui_views import (
+    UiDashboardView,
+    UiPortalDashboardView,
+    UiShipmentCloseView,
+    UiShipmentCreateView,
+    UiShipmentFormOptionsView,
+    UiShipmentTrackingEventCreateView,
+    UiShipmentUpdateView,
+    UiStockOutView,
+    UiStockUpdateView,
+    UiStockView,
+)
 
 router = DefaultRouter()
 router.register("products", ProductViewSet, basename="product")
@@ -25,6 +37,36 @@ router.register("integrations/events", IntegrationEventViewSet, basename="integr
 urlpatterns = [
     path("stock/receive/", ReceiveStockView.as_view(), name="stock-receive"),
     path("pack/", PackCartonView.as_view(), name="pack"),
+    path("ui/dashboard/", UiDashboardView.as_view(), name="ui-dashboard"),
+    path("ui/stock/", UiStockView.as_view(), name="ui-stock"),
+    path("ui/stock/update/", UiStockUpdateView.as_view(), name="ui-stock-update"),
+    path("ui/stock/out/", UiStockOutView.as_view(), name="ui-stock-out"),
+    path(
+        "ui/shipments/form-options/",
+        UiShipmentFormOptionsView.as_view(),
+        name="ui-shipment-form-options",
+    ),
+    path("ui/shipments/", UiShipmentCreateView.as_view(), name="ui-shipments-create"),
+    path(
+        "ui/shipments/<int:shipment_id>/",
+        UiShipmentUpdateView.as_view(),
+        name="ui-shipments-update",
+    ),
+    path(
+        "ui/shipments/<int:shipment_id>/tracking-events/",
+        UiShipmentTrackingEventCreateView.as_view(),
+        name="ui-shipments-tracking-events-create",
+    ),
+    path(
+        "ui/shipments/<int:shipment_id>/close/",
+        UiShipmentCloseView.as_view(),
+        name="ui-shipments-close",
+    ),
+    path(
+        "ui/portal/dashboard/",
+        UiPortalDashboardView.as_view(),
+        name="ui-portal-dashboard",
+    ),
 ]
 
 urlpatterns += router.urls

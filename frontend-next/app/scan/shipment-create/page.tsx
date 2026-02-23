@@ -1,4 +1,5 @@
 import { AppShell } from "../../components/app-shell";
+import { ScanShipmentOptionsLive } from "../../components/scan-shipment-options-live";
 
 const checklist = [
   "Cartons crees",
@@ -17,6 +18,7 @@ export default function ShipmentCreatePage() {
       title="Creation expedition"
       subtitle="Single page avec guardrails obligatoires avant etat prete a l'envoi"
     >
+      <ScanShipmentOptionsLive />
       <div className="shipment-grid">
         <article className="panel">
           <h2>Checklist obligatoire</h2>

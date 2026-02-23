@@ -44,6 +44,9 @@ frontend-next/node_modules/
 frontend-next/.next/
 frontend-next/out/
 
+# UI prototypes (non production)
+docs/ui-prototypes/
+
 # Audit pipeline outputs
 audits/reports/
 audits/projects/

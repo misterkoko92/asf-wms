@@ -1,4 +1,5 @@
 import { AppShell } from "../../components/app-shell";
+import { ScanDashboardLive } from "../../components/scan-dashboard-live";
 
 const timeline = [
   "06:35 Reception palettes RUN",
@@ -22,6 +23,7 @@ export default function ScanDashboardPage() {
       title="Dashboard mission control"
       subtitle="Timeline + actions en attente + creation 1 clic"
     >
+      <ScanDashboardLive />
       <div className="kpi-grid">
         <article className="kpi-card">
           <span>Expeditions ouvertes</span>

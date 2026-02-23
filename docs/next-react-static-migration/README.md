@@ -40,6 +40,11 @@ Basculer l'interface actuelle `Benev + Classique` vers un frontend Next/React **
 
 - `docs/next-react-static-migration/p1_phase1_report_2026-02-22.md`
 
+## Livrables Phase 2 (en cours)
+
+- `docs/next-react-static-migration/p2_phase2_increment1_2026-02-22.md`
+- `docs/next-react-static-migration/p2_phase2_increment2_2026-02-22.md`
+
 ## Ordre d'exécution recommandé
 
 1. Phase parité stricte (100% Benev/Classique).

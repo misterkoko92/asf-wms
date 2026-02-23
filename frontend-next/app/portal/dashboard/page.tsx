@@ -1,4 +1,5 @@
 import { AppShell } from "../../components/app-shell";
+import { PortalDashboardLive } from "../../components/portal-dashboard-live";
 
 const orders = [
   { reference: "CMD-2026-0217", destination: "RUN", status: "Pending docs" },
@@ -13,6 +14,7 @@ export default function PortalDashboardPage() {
       title="Portal dashboard"
       subtitle="Vue simplifiee association pour commandes et progression documentaire"
     >
+      <PortalDashboardLive />
       <div className="kpi-grid">
         <article className="kpi-card">
           <span>Commandes ouvertes</span>

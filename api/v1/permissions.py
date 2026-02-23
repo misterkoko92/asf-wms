@@ -1,6 +1,8 @@
 from django.conf import settings
 from rest_framework.permissions import IsAuthenticated
 
+from wms.portal_helpers import get_association_profile
+
 
 def has_integration_key(request) -> bool:
     api_key = getattr(settings, "INTEGRATION_API_KEY", "").strip()
@@ -23,3 +25,17 @@ class IntegrationKeyOrAuth(IsAuthenticated):
 
 class IntegrationKeyOrStaff(IntegrationKeyOrAuth):
     require_staff = True
+
+
+class IsStaffUser(IsAuthenticated):
+    def has_permission(self, request, view):
+        if not super().has_permission(request, view):
+            return False
+        return bool(request.user and request.user.is_staff)
+
+
+class IsAssociationProfileUser(IsAuthenticated):
+    def has_permission(self, request, view):
+        if not super().has_permission(request, view):
+            return False
+        return get_association_profile(request.user) is not None
