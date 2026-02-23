@@ -1,10 +1,19 @@
-import { apiGetJson, apiPatchJson, apiPostJson } from "./client";
+import { apiDeleteJson, apiGetJson, apiPatchJson, apiPostFormData, apiPostJson } from "./client";
 import type {
   PortalDashboardDto,
   ScanDashboardDto,
   ScanStockDto,
   ShipmentFormOptionsDto,
+  UiPrintTemplateDto,
+  UiPrintTemplateListDto,
+  UiPrintTemplateMutationDto,
+  UiPrintTemplateMutationInput,
   UiShipmentCloseDto,
+  UiShipmentDocumentDeleteDto,
+  UiShipmentDocumentsDto,
+  UiShipmentDocumentUploadDto,
+  UiShipmentLabelDto,
+  UiShipmentLabelsDto,
   UiShipmentMutationDto,
   UiShipmentMutationInput,
   UiShipmentTrackingEventDto,
@@ -68,6 +77,47 @@ export function postShipmentTrackingEvent(
 
 export function postShipmentClose(shipmentId: number) {
   return apiPostJson<UiShipmentCloseDto>(`/api/v1/ui/shipments/${shipmentId}/close/`, {});
+}
+
+export function getShipmentDocuments(shipmentId: number) {
+  return apiGetJson<UiShipmentDocumentsDto>(`/api/v1/ui/shipments/${shipmentId}/documents/`);
+}
+
+export function postShipmentDocument(shipmentId: number, file: File) {
+  const payload = new FormData();
+  payload.append("document_file", file);
+  return apiPostFormData<UiShipmentDocumentUploadDto>(
+    `/api/v1/ui/shipments/${shipmentId}/documents/`,
+    payload,
+  );
+}
+
+export function deleteShipmentDocument(shipmentId: number, documentId: number) {
+  return apiDeleteJson<UiShipmentDocumentDeleteDto>(
+    `/api/v1/ui/shipments/${shipmentId}/documents/${documentId}/`,
+  );
+}
+
+export function getShipmentLabels(shipmentId: number) {
+  return apiGetJson<UiShipmentLabelsDto>(`/api/v1/ui/shipments/${shipmentId}/labels/`);
+}
+
+export function getShipmentLabel(shipmentId: number, cartonId: number) {
+  return apiGetJson<UiShipmentLabelDto>(
+    `/api/v1/ui/shipments/${shipmentId}/labels/${cartonId}/`,
+  );
+}
+
+export function getPrintTemplates() {
+  return apiGetJson<UiPrintTemplateListDto>("/api/v1/ui/templates/");
+}
+
+export function getPrintTemplate(docType: string) {
+  return apiGetJson<UiPrintTemplateDto>(`/api/v1/ui/templates/${docType}/`);
+}
+
+export function patchPrintTemplate(docType: string, payload: UiPrintTemplateMutationInput) {
+  return apiPatchJson<UiPrintTemplateMutationDto>(`/api/v1/ui/templates/${docType}/`, payload);
 }
 
 export function postPortalOrder(payload: UiPortalOrderCreateInput) {

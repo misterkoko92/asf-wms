@@ -1,9 +1,12 @@
+from pathlib import Path
+
 from django.db import connection, transaction
-from django.db.models import F, IntegerField, Q, Sum, ExpressionWrapper
+from django.db.models import F, IntegerField, Max, Q, Sum, ExpressionWrapper
 from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
 from django.core.validators import EmailValidator
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.response import Response
@@ -16,10 +19,14 @@ from wms.models import (
     AssociationRecipient,
     Carton,
     CartonStatus,
+    Document,
+    DocumentType,
     Destination,
     MovementType,
     Order,
     OrderReviewStatus,
+    PrintTemplate,
+    PrintTemplateVersion,
     Product,
     ProductLotStatus,
     Receipt,
@@ -41,6 +48,7 @@ from wms.scan_shipment_handlers import LOCKED_SHIPMENT_STATUSES
 from wms.scan_shipment_helpers import resolve_shipment
 from wms.scan_product_helpers import resolve_product
 from wms.services import StockError, consume_stock, pack_carton, pack_carton_from_reserved, receive_stock
+from wms.print_layouts import DEFAULT_LAYOUTS, DOCUMENT_TEMPLATES
 from wms.shipment_helpers import build_destination_label, parse_shipment_lines
 from wms.shipment_form_helpers import build_shipment_form_payload
 from wms.shipment_status import sync_shipment_ready_state
@@ -49,7 +57,9 @@ from wms.shipment_tracking_handlers import (
     allowed_tracking_statuses_for_shipment,
     validate_tracking_transition,
 )
+from wms.shipment_view_helpers import build_shipment_document_links
 from wms.stock_view_helpers import build_stock_context
+from wms.upload_utils import ALLOWED_UPLOAD_EXTENSIONS
 from wms.views_scan_shipments_support import (
     _build_shipments_tracking_queryset,
     _shipment_can_be_closed,
@@ -60,6 +70,7 @@ from wms.order_notifications import send_portal_order_notifications
 
 from .permissions import IsAssociationProfileUser, IsStaffUser
 from .serializers import (
+    UiPrintTemplateMutationSerializer,
     UiPortalAccountUpdateSerializer,
     UiPortalOrderCreateSerializer,
     UiPortalRecipientMutationSerializer,
@@ -327,6 +338,122 @@ def _portal_account_summary(profile):
             for contact in profile.portal_contacts.filter(is_active=True).order_by("position", "id")
         ],
     }
+
+
+TEMPLATE_LABEL_MAP = dict(DOCUMENT_TEMPLATES)
+
+
+def _superuser_required_error():
+    return api_error(
+        message="Acces reserve aux superusers.",
+        code="superuser_required",
+        http_status=status.HTTP_403_FORBIDDEN,
+    )
+
+
+def _shipment_document_row(document):
+    filename = Path(document.file.name).name if document.file else ""
+    return {
+        "id": document.id,
+        "doc_type": document.doc_type,
+        "doc_type_label": document.get_doc_type_display(),
+        "filename": filename,
+        "url": document.file.url if document.file else "",
+        "generated_at": document.generated_at.isoformat() if document.generated_at else None,
+    }
+
+
+def _template_updated_by(template):
+    if template and template.updated_by:
+        username = (template.updated_by.get_username() or "").strip()
+        if username:
+            return username
+    return ""
+
+
+def _template_versions_payload(template):
+    if template is None:
+        return []
+    return [
+        {
+            "id": version.id,
+            "version": version.version,
+            "created_at": version.created_at.isoformat(),
+            "created_by": version.created_by.get_username() if version.created_by else "",
+        }
+        for version in template.versions.select_related("created_by").order_by("-version")[:15]
+    ]
+
+
+def _template_preview_options(doc_type):
+    shipments = []
+    for shipment in (
+        Shipment.objects.filter(archived_at__isnull=True)
+        .select_related("destination")
+        .order_by("reference", "id")[:30]
+    ):
+        destination = (
+            shipment.destination.city
+            if shipment.destination and shipment.destination.city
+            else shipment.destination_address
+        )
+        label = shipment.reference or f"EXP-{shipment.id}"
+        if destination:
+            label = f"{label} - {destination}"
+        shipments.append({"id": shipment.id, "label": label})
+
+    products = []
+    if doc_type in {"product_label", "product_qr"}:
+        for product in Product.objects.order_by("name")[:30]:
+            label = product.name
+            if product.sku:
+                label = f"{product.sku} - {label}"
+            products.append({"id": product.id, "label": label})
+
+    return {
+        "shipments": sorted(shipments, key=lambda item: (item["label"] or "").lower()),
+        "products": sorted(products, key=lambda item: (item["label"] or "").lower()),
+    }
+
+
+def _template_payload(doc_type, template):
+    default_layout = DEFAULT_LAYOUTS.get(doc_type, {"blocks": []})
+    layout = template.layout if template and template.layout else default_layout
+    return {
+        "doc_type": doc_type,
+        "label": TEMPLATE_LABEL_MAP[doc_type],
+        "has_override": bool(template and template.layout),
+        "layout": layout,
+        "updated_at": template.updated_at.isoformat() if template else None,
+        "updated_by": _template_updated_by(template),
+        "versions": _template_versions_payload(template),
+        "preview_options": _template_preview_options(doc_type),
+    }
+
+
+def _save_print_template_layout(*, template, doc_type, layout_data, user):
+    with transaction.atomic():
+        if template is None:
+            template = PrintTemplate.objects.create(
+                doc_type=doc_type,
+                layout=layout_data,
+                updated_by=user,
+            )
+        else:
+            template.layout = layout_data
+            template.updated_by = user
+            template.save(update_fields=["layout", "updated_by", "updated_at"])
+
+        next_version = (
+            template.versions.aggregate(max_version=Max("version"))["max_version"] or 0
+        ) + 1
+        PrintTemplateVersion.objects.create(
+            template=template,
+            version=next_version,
+            layout=layout_data,
+            created_by=user if getattr(user, "is_authenticated", False) else None,
+        )
+    return template, next_version
 
 
 class UiDashboardView(APIView):
@@ -1113,6 +1240,251 @@ class UiShipmentCloseView(APIView):
                 "ok": True,
                 "message": "Dossier cloture.",
                 "shipment": _shipment_payload(shipment),
+            }
+        )
+
+
+class UiShipmentDocumentsView(APIView):
+    permission_classes = [IsStaffUser]
+
+    def get(self, request, shipment_id):
+        shipment = get_object_or_404(
+            Shipment.objects.filter(archived_at__isnull=True).prefetch_related("carton_set"),
+            pk=shipment_id,
+        )
+        documents, carton_docs, additional_docs = build_shipment_document_links(
+            shipment,
+            public=False,
+        )
+        labels = [
+            {
+                "carton_id": carton.id,
+                "carton_code": carton.code,
+                "url": reverse("scan:scan_shipment_label", args=[shipment.id, carton.id]),
+            }
+            for carton in shipment.carton_set.order_by("code")
+        ]
+        return Response(
+            {
+                "shipment": _shipment_payload(shipment),
+                "documents": documents,
+                "carton_documents": carton_docs,
+                "additional_documents": [
+                    _shipment_document_row(document) for document in additional_docs
+                ],
+                "labels": {
+                    "all_url": reverse("scan:scan_shipment_labels", args=[shipment.id]),
+                    "items": labels,
+                },
+            }
+        )
+
+    def post(self, request, shipment_id):
+        shipment = get_object_or_404(
+            Shipment.objects.filter(archived_at__isnull=True),
+            pk=shipment_id,
+        )
+        uploaded = request.FILES.get("document_file")
+        if uploaded is None:
+            return api_error(
+                message="Fichier requis.",
+                code="document_file_required",
+                field_errors={"document_file": ["Fichier requis."]},
+            )
+
+        extension = Path(uploaded.name).suffix.lower()
+        if extension not in ALLOWED_UPLOAD_EXTENSIONS:
+            return api_error(
+                message="Format de fichier non autorise.",
+                code="document_file_invalid_extension",
+                field_errors={
+                    "document_file": ["Format de fichier non autorise."]
+                },
+            )
+
+        document = Document.objects.create(
+            shipment=shipment,
+            doc_type=DocumentType.ADDITIONAL,
+            file=uploaded,
+        )
+        return Response(
+            {
+                "ok": True,
+                "message": "Document ajoute.",
+                "document": _shipment_document_row(document),
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class UiShipmentDocumentDetailView(APIView):
+    permission_classes = [IsStaffUser]
+
+    def delete(self, request, shipment_id, document_id):
+        shipment = get_object_or_404(
+            Shipment.objects.filter(archived_at__isnull=True),
+            pk=shipment_id,
+        )
+        document = get_object_or_404(
+            Document.objects.filter(
+                shipment=shipment,
+                doc_type=DocumentType.ADDITIONAL,
+            ),
+            pk=document_id,
+        )
+        if document.file:
+            document.file.delete(save=False)
+        document.delete()
+        return Response(
+            {
+                "ok": True,
+                "message": "Document supprime.",
+                "document_id": document_id,
+            }
+        )
+
+
+class UiShipmentLabelsView(APIView):
+    permission_classes = [IsStaffUser]
+
+    def get(self, request, shipment_id):
+        shipment = get_object_or_404(
+            Shipment.objects.filter(archived_at__isnull=True).prefetch_related("carton_set"),
+            pk=shipment_id,
+        )
+        labels = [
+            {
+                "carton_id": carton.id,
+                "carton_code": carton.code,
+                "url": reverse("scan:scan_shipment_label", args=[shipment.id, carton.id]),
+            }
+            for carton in shipment.carton_set.order_by("code")
+        ]
+        return Response(
+            {
+                "shipment": _shipment_payload(shipment),
+                "all_url": reverse("scan:scan_shipment_labels", args=[shipment.id]),
+                "labels": labels,
+            }
+        )
+
+
+class UiShipmentLabelDetailView(APIView):
+    permission_classes = [IsStaffUser]
+
+    def get(self, request, shipment_id, carton_id):
+        shipment = get_object_or_404(
+            Shipment.objects.filter(archived_at__isnull=True).prefetch_related("carton_set"),
+            pk=shipment_id,
+        )
+        carton = shipment.carton_set.filter(pk=carton_id).first()
+        if carton is None:
+            return api_error(
+                message="Carton introuvable pour cette expedition.",
+                code="carton_not_found",
+                http_status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(
+            {
+                "shipment": _shipment_payload(shipment),
+                "carton_id": carton.id,
+                "carton_code": carton.code,
+                "url": reverse("scan:scan_shipment_label", args=[shipment.id, carton.id]),
+            }
+        )
+
+
+class UiPrintTemplatesView(APIView):
+    permission_classes = [IsStaffUser]
+
+    def get(self, request):
+        if not request.user.is_superuser:
+            return _superuser_required_error()
+        template_map = {
+            template.doc_type: template
+            for template in PrintTemplate.objects.select_related("updated_by")
+        }
+        rows = []
+        for doc_type, label in DOCUMENT_TEMPLATES:
+            template = template_map.get(doc_type)
+            rows.append(
+                {
+                    "doc_type": doc_type,
+                    "label": label,
+                    "has_override": bool(template and template.layout),
+                    "updated_at": template.updated_at.isoformat() if template else None,
+                    "updated_by": _template_updated_by(template),
+                }
+            )
+        return Response({"templates": rows})
+
+
+class UiPrintTemplateDetailView(APIView):
+    permission_classes = [IsStaffUser]
+
+    def get(self, request, doc_type):
+        if not request.user.is_superuser:
+            return _superuser_required_error()
+        if doc_type not in TEMPLATE_LABEL_MAP:
+            return api_error(
+                message="Template introuvable.",
+                code="template_not_found",
+                http_status=status.HTTP_404_NOT_FOUND,
+            )
+        template = (
+            PrintTemplate.objects.filter(doc_type=doc_type).select_related("updated_by").first()
+        )
+        return Response(_template_payload(doc_type, template))
+
+    def patch(self, request, doc_type):
+        if not request.user.is_superuser:
+            return _superuser_required_error()
+        if doc_type not in TEMPLATE_LABEL_MAP:
+            return api_error(
+                message="Template introuvable.",
+                code="template_not_found",
+                http_status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = UiPrintTemplateMutationSerializer(data=request.data)
+        if not serializer.is_valid():
+            return api_error(
+                message="Validation template invalide.",
+                code="validation_error",
+                field_errors=serializer_field_errors(serializer),
+            )
+
+        payload = serializer.validated_data
+        action = payload.get("action", "save")
+        layout_data = payload.get("layout", {})
+        template = PrintTemplate.objects.filter(doc_type=doc_type).first()
+        previous_layout = template.layout if template and template.layout else {}
+        if previous_layout == layout_data:
+            return Response(
+                {
+                    "ok": True,
+                    "message": "Aucun changement detecte.",
+                    "changed": False,
+                    "template": _template_payload(doc_type, template),
+                }
+            )
+
+        template, version = _save_print_template_layout(
+            template=template,
+            doc_type=doc_type,
+            layout_data=layout_data,
+            user=request.user,
+        )
+        template = (
+            PrintTemplate.objects.filter(pk=template.id).select_related("updated_by").first()
+        )
+        return Response(
+            {
+                "ok": True,
+                "message": "Template enregistre." if action == "save" else "Template reinitialise.",
+                "changed": True,
+                "version": version,
+                "template": _template_payload(doc_type, template),
             }
         )
 

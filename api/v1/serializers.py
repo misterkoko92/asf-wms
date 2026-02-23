@@ -305,3 +305,28 @@ class UiPortalAccountUpdateSerializer(serializers.Serializer):
     city = serializers.CharField(required=False, allow_blank=True, default="")
     country = serializers.CharField(required=False, allow_blank=True, default="France")
     contacts = UiPortalAccountContactSerializer(many=True, min_length=1)
+
+
+class UiPrintTemplateMutationSerializer(serializers.Serializer):
+    action = serializers.ChoiceField(
+        choices=(
+            ("save", "save"),
+            ("reset", "reset"),
+        ),
+        required=False,
+        default="save",
+    )
+    layout = serializers.JSONField(required=False, default=dict)
+
+    def validate(self, attrs):
+        action = attrs.get("action", "save")
+        layout = attrs.get("layout", {})
+        if action == "reset":
+            attrs["layout"] = {}
+            return attrs
+        if not isinstance(layout, dict):
+            raise serializers.ValidationError(
+                {"layout": ["Le layout doit etre un objet JSON."]}
+            )
+        attrs["layout"] = layout
+        return attrs

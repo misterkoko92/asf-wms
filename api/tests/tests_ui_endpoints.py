@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.models import Sum
 from django.test import TestCase
 from rest_framework.test import APIClient
@@ -10,10 +11,14 @@ from wms.models import (
     AssociationRecipient,
     Carton,
     CartonStatus,
+    Document,
+    DocumentType,
     Destination,
     Location,
     Order,
     OrderReviewStatus,
+    PrintTemplate,
+    PrintTemplateVersion,
     Product,
     ProductLot,
     ProductLotStatus,
@@ -41,6 +46,12 @@ class UiApiEndpointsTests(TestCase):
             username="ui-api-portal",
             password="pass1234",
         )
+        self.superuser_user = user_model.objects.create_user(
+            username="ui-api-superuser",
+            password="pass1234",
+            is_staff=True,
+            is_superuser=True,
+        )
 
         association_contact = Contact.objects.create(
             name="Association UI API",
@@ -58,6 +69,8 @@ class UiApiEndpointsTests(TestCase):
         self.basic_client.force_authenticate(self.basic_user)
         self.portal_client = APIClient()
         self.portal_client.force_authenticate(self.portal_user)
+        self.superuser_client = APIClient()
+        self.superuser_client.force_authenticate(self.superuser_user)
 
         warehouse = Warehouse.objects.create(name="UI API WH", code="UIA")
         location = Location.objects.create(
@@ -658,3 +671,140 @@ class UiApiEndpointsTests(TestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["code"], "contact_rows_invalid")
+
+    def test_ui_shipment_documents_upload_delete_and_permissions(self):
+        forbidden = self.basic_client.get(f"/api/v1/ui/shipments/{self.shipment.id}/documents/")
+        self.assertEqual(forbidden.status_code, 403)
+
+        list_response = self.staff_client.get(f"/api/v1/ui/shipments/{self.shipment.id}/documents/")
+        self.assertEqual(list_response.status_code, 200)
+        self.assertEqual(list_response.json()["additional_documents"], [])
+
+        uploaded_file = SimpleUploadedFile(
+            "manifest.pdf",
+            b"%PDF-1.4 test",
+            content_type="application/pdf",
+        )
+        upload_response = self.staff_client.post(
+            f"/api/v1/ui/shipments/{self.shipment.id}/documents/",
+            {"document_file": uploaded_file},
+            format="multipart",
+        )
+        self.assertEqual(upload_response.status_code, 201)
+        doc_id = upload_response.json()["document"]["id"]
+        self.assertTrue(
+            Document.objects.filter(
+                id=doc_id,
+                shipment_id=self.shipment.id,
+                doc_type=DocumentType.ADDITIONAL,
+            ).exists()
+        )
+
+        refreshed_list = self.staff_client.get(f"/api/v1/ui/shipments/{self.shipment.id}/documents/")
+        self.assertEqual(refreshed_list.status_code, 200)
+        additional_ids = [doc["id"] for doc in refreshed_list.json()["additional_documents"]]
+        self.assertIn(doc_id, additional_ids)
+
+        delete_response = self.staff_client.delete(
+            f"/api/v1/ui/shipments/{self.shipment.id}/documents/{doc_id}/",
+            format="json",
+        )
+        self.assertEqual(delete_response.status_code, 200)
+        self.assertFalse(Document.objects.filter(id=doc_id).exists())
+
+    def test_ui_shipment_labels_endpoints_return_urls(self):
+        carton_a = Carton.objects.create(
+            code="UI-LABEL-A",
+            status=CartonStatus.ASSIGNED,
+            shipment=self.shipment,
+        )
+        carton_b = Carton.objects.create(
+            code="UI-LABEL-B",
+            status=CartonStatus.LABELED,
+            shipment=self.shipment,
+        )
+
+        list_response = self.staff_client.get(f"/api/v1/ui/shipments/{self.shipment.id}/labels/")
+        self.assertEqual(list_response.status_code, 200)
+        payload = list_response.json()
+        self.assertIn("/scan/shipment/", payload["all_url"])
+        self.assertEqual(len(payload["labels"]), 2)
+
+        detail_response = self.staff_client.get(
+            f"/api/v1/ui/shipments/{self.shipment.id}/labels/{carton_a.id}/"
+        )
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertIn(f"/scan/shipment/{self.shipment.id}/labels/{carton_a.id}/", detail_response.json()["url"])
+
+        missing_response = self.staff_client.get(
+            f"/api/v1/ui/shipments/{self.shipment.id}/labels/{self.available_carton.id}/"
+        )
+        self.assertEqual(missing_response.status_code, 404)
+        self.assertEqual(missing_response.json()["code"], "carton_not_found")
+
+        self.assertNotEqual(carton_a.id, carton_b.id)
+
+    def test_ui_templates_require_superuser(self):
+        forbidden = self.staff_client.get("/api/v1/ui/templates/")
+        self.assertEqual(forbidden.status_code, 403)
+        self.assertEqual(forbidden.json()["code"], "superuser_required")
+
+        allowed = self.superuser_client.get("/api/v1/ui/templates/")
+        self.assertEqual(allowed.status_code, 200)
+        self.assertGreaterEqual(len(allowed.json()["templates"]), 1)
+
+    def test_ui_template_detail_patch_and_reset(self):
+        detail_response = self.superuser_client.get("/api/v1/ui/templates/shipment_note/")
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertEqual(detail_response.json()["doc_type"], "shipment_note")
+
+        save_response = self.superuser_client.patch(
+            "/api/v1/ui/templates/shipment_note/",
+            {
+                "action": "save",
+                "layout": {
+                    "blocks": [
+                        {"id": "text-1", "type": "text", "text": "template custom"}
+                    ]
+                },
+            },
+            format="json",
+        )
+        self.assertEqual(save_response.status_code, 200)
+        self.assertTrue(save_response.json()["changed"])
+        template = PrintTemplate.objects.get(doc_type="shipment_note")
+        self.assertEqual(template.versions.count(), 1)
+        self.assertTrue(template.layout)
+
+        same_layout_response = self.superuser_client.patch(
+            "/api/v1/ui/templates/shipment_note/",
+            {
+                "action": "save",
+                "layout": {
+                    "blocks": [
+                        {"id": "text-1", "type": "text", "text": "template custom"}
+                    ]
+                },
+            },
+            format="json",
+        )
+        self.assertEqual(same_layout_response.status_code, 200)
+        self.assertFalse(same_layout_response.json()["changed"])
+
+        reset_response = self.superuser_client.patch(
+            "/api/v1/ui/templates/shipment_note/",
+            {
+                "action": "reset",
+                "layout": {},
+            },
+            format="json",
+        )
+        self.assertEqual(reset_response.status_code, 200)
+        self.assertTrue(reset_response.json()["changed"])
+
+        template.refresh_from_db()
+        self.assertEqual(template.layout, {})
+        self.assertEqual(
+            PrintTemplateVersion.objects.filter(template=template).count(),
+            2,
+        )

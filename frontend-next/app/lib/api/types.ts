@@ -173,6 +173,107 @@ export type UiShipmentCloseDto = {
   shipment: UiShipmentSummary;
 };
 
+export type UiShipmentDocument = {
+  id: number;
+  doc_type: string;
+  doc_type_label: string;
+  filename: string;
+  url: string;
+  generated_at: string | null;
+};
+
+export type UiShipmentDocumentsDto = {
+  shipment: UiShipmentSummary;
+  documents: Array<{
+    label: string;
+    url: string;
+  }>;
+  carton_documents: Array<{
+    label: string;
+    url: string;
+  }>;
+  additional_documents: UiShipmentDocument[];
+  labels: {
+    all_url: string;
+    items: Array<{
+      carton_id: number;
+      carton_code: string;
+      url: string;
+    }>;
+  };
+};
+
+export type UiShipmentDocumentUploadDto = {
+  ok: boolean;
+  message: string;
+  document: UiShipmentDocument;
+};
+
+export type UiShipmentDocumentDeleteDto = {
+  ok: boolean;
+  message: string;
+  document_id: number;
+};
+
+export type UiShipmentLabelsDto = {
+  shipment: UiShipmentSummary;
+  all_url: string;
+  labels: Array<{
+    carton_id: number;
+    carton_code: string;
+    url: string;
+  }>;
+};
+
+export type UiShipmentLabelDto = {
+  shipment: UiShipmentSummary;
+  carton_id: number;
+  carton_code: string;
+  url: string;
+};
+
+export type UiPrintTemplateListDto = {
+  templates: Array<{
+    doc_type: string;
+    label: string;
+    has_override: boolean;
+    updated_at: string | null;
+    updated_by: string;
+  }>;
+};
+
+export type UiPrintTemplateDto = {
+  doc_type: string;
+  label: string;
+  has_override: boolean;
+  layout: Record<string, unknown>;
+  updated_at: string | null;
+  updated_by: string;
+  versions: Array<{
+    id: number;
+    version: number;
+    created_at: string;
+    created_by: string;
+  }>;
+  preview_options: {
+    shipments: Array<{ id: number; label: string }>;
+    products: Array<{ id: number; label: string }>;
+  };
+};
+
+export type UiPrintTemplateMutationInput = {
+  action?: "save" | "reset";
+  layout?: Record<string, unknown>;
+};
+
+export type UiPrintTemplateMutationDto = {
+  ok: boolean;
+  message: string;
+  changed: boolean;
+  version?: number;
+  template: UiPrintTemplateDto;
+};
+
 export type UiPortalOrderCreateInput = {
   destination_id: number;
   recipient_id: string;

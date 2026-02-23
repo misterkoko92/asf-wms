@@ -32,7 +32,7 @@ export class ApiClientError extends Error {
 
 async function apiRequestJson<T>(
   path: string,
-  method: "GET" | "POST" | "PATCH",
+  method: "GET" | "POST" | "PATCH" | "DELETE",
   body?: unknown,
 ): Promise<T> {
   const response = await fetch(path, {
@@ -71,4 +71,34 @@ export function apiPostJson<T>(path: string, body: unknown): Promise<T> {
 
 export function apiPatchJson<T>(path: string, body: unknown): Promise<T> {
   return apiRequestJson<T>(path, "PATCH", body);
+}
+
+export function apiDeleteJson<T>(path: string): Promise<T> {
+  return apiRequestJson<T>(path, "DELETE");
+}
+
+export async function apiPostFormData<T>(path: string, body: FormData): Promise<T> {
+  const response = await fetch(path, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: {
+      accept: "application/json",
+    },
+    body,
+    cache: "no-store",
+  });
+  const payload = response.headers.get("content-type")?.includes("application/json")
+    ? ((await response.json()) as unknown)
+    : null;
+  if (!response.ok) {
+    const errorPayload = (payload ?? {}) as ApiErrorEnvelope;
+    throw new ApiClientError(
+      errorPayload.message ?? `API request failed (${response.status}) for ${path}`,
+      response.status,
+      errorPayload.code ?? "api_error",
+      errorPayload.field_errors ?? {},
+      errorPayload.non_field_errors ?? [],
+    );
+  }
+  return payload as T;
 }
