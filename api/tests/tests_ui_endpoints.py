@@ -5,7 +5,9 @@ from rest_framework.test import APIClient
 
 from contacts.models import Contact, ContactTag, ContactType
 from wms.models import (
+    AssociationContactTitle,
     AssociationProfile,
+    AssociationRecipient,
     Carton,
     CartonStatus,
     Destination,
@@ -157,6 +159,20 @@ class UiApiEndpointsTests(TestCase):
             destination_address="20 Rue Test",
             destination_country="France",
             created_by=self.staff_user,
+        )
+        self.portal_recipient = AssociationRecipient.objects.create(
+            association_contact=association_contact,
+            destination=self.destination,
+            name="Recipient Structure",
+            structure_name="Recipient Structure",
+            address_line1="1 rue recipient",
+            postal_code="75001",
+            city="Paris",
+            country="France",
+            emails="recipient@example.org",
+            email="recipient@example.org",
+            phones="0102030405",
+            phone="0102030405",
         )
 
     def _create_contact(self, name, *, tags, contact_type=ContactType.ORGANIZATION):
@@ -496,3 +512,149 @@ class UiApiEndpointsTests(TestCase):
             format="json",
         )
         self.assertEqual(response.status_code, 403)
+
+    def test_ui_portal_order_create_success_for_association_user(self):
+        response = self.portal_client.post(
+            "/api/v1/ui/portal/orders/",
+            {
+                "destination_id": self.destination.id,
+                "recipient_id": str(self.portal_recipient.id),
+                "notes": "Besoin urgent",
+                "lines": [{"product_id": self.product.id, "quantity": 2}],
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        payload = response.json()
+        self.assertTrue(payload["ok"])
+        created_order = Order.objects.get(pk=payload["order"]["id"])
+        self.assertEqual(created_order.association_contact_id, self.portal_order.association_contact_id)
+        self.assertEqual(created_order.lines.count(), 1)
+        self.assertIsNotNone(created_order.shipment_id)
+
+    def test_ui_portal_order_create_rejects_invalid_destination(self):
+        response = self.portal_client.post(
+            "/api/v1/ui/portal/orders/",
+            {
+                "destination_id": 999999,
+                "recipient_id": str(self.portal_recipient.id),
+                "lines": [{"product_id": self.product.id, "quantity": 1}],
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "destination_invalid")
+
+    def test_ui_portal_recipients_crud(self):
+        list_response = self.portal_client.get("/api/v1/ui/portal/recipients/")
+        self.assertEqual(list_response.status_code, 200)
+        self.assertGreaterEqual(len(list_response.json()["recipients"]), 1)
+
+        create_response = self.portal_client.post(
+            "/api/v1/ui/portal/recipients/",
+            {
+                "destination_id": self.destination.id,
+                "structure_name": "New Structure",
+                "contact_title": AssociationContactTitle.MR,
+                "contact_last_name": "Martin",
+                "contact_first_name": "Luc",
+                "phones": "0100000000",
+                "emails": "luc.martin@example.org",
+                "address_line1": "2 Rue Test",
+                "postal_code": "75002",
+                "city": "Paris",
+                "country": "France",
+                "notify_deliveries": True,
+                "is_delivery_contact": True,
+            },
+            format="json",
+        )
+        self.assertEqual(create_response.status_code, 201)
+        recipient_id = create_response.json()["recipient"]["id"]
+
+        patch_response = self.portal_client.patch(
+            f"/api/v1/ui/portal/recipients/{recipient_id}/",
+            {
+                "destination_id": self.destination.id,
+                "structure_name": "New Structure Updated",
+                "contact_title": AssociationContactTitle.MRS,
+                "contact_last_name": "Martin",
+                "contact_first_name": "Lucie",
+                "phones": "0100000001",
+                "emails": "lucie.martin@example.org",
+                "address_line1": "3 Rue Test",
+                "postal_code": "75003",
+                "city": "Paris",
+                "country": "France",
+                "notify_deliveries": True,
+                "is_delivery_contact": False,
+            },
+            format="json",
+        )
+        self.assertEqual(patch_response.status_code, 200)
+        self.assertEqual(
+            patch_response.json()["recipient"]["structure_name"],
+            "New Structure Updated",
+        )
+
+    def test_ui_portal_account_patch_updates_profile(self):
+        response = self.portal_client.patch(
+            "/api/v1/ui/portal/account/",
+            {
+                "association_name": "Association UI API Updated",
+                "association_email": "new-assoc@example.org",
+                "association_phone": "0203040506",
+                "address_line1": "10 Rue Assoc",
+                "address_line2": "",
+                "postal_code": "69001",
+                "city": "Lyon",
+                "country": "France",
+                "contacts": [
+                    {
+                        "title": AssociationContactTitle.MR,
+                        "last_name": "Admin",
+                        "first_name": "Portal",
+                        "phone": "0600000000",
+                        "email": "portal.admin@example.org",
+                        "is_administrative": True,
+                        "is_shipping": False,
+                        "is_billing": False,
+                    }
+                ],
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["account"]["association_name"], "Association UI API Updated")
+        self.assertEqual(len(payload["account"]["portal_contacts"]), 1)
+
+    def test_ui_portal_account_patch_rejects_contact_without_type(self):
+        response = self.portal_client.patch(
+            "/api/v1/ui/portal/account/",
+            {
+                "association_name": "Association UI API",
+                "association_email": "assoc@example.org",
+                "association_phone": "0102030405",
+                "address_line1": "10 Rue Assoc",
+                "postal_code": "69001",
+                "city": "Lyon",
+                "country": "France",
+                "contacts": [
+                    {
+                        "title": AssociationContactTitle.MR,
+                        "last_name": "Admin",
+                        "first_name": "Portal",
+                        "phone": "0600000000",
+                        "email": "portal.admin@example.org",
+                        "is_administrative": False,
+                        "is_shipping": False,
+                        "is_billing": False,
+                    }
+                ],
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "contact_rows_invalid")

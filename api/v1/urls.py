@@ -11,8 +11,12 @@ from .views import (
     ReceiveStockView,
 )
 from .ui_views import (
+    UiPortalAccountView,
     UiDashboardView,
     UiPortalDashboardView,
+    UiPortalOrdersView,
+    UiPortalRecipientDetailView,
+    UiPortalRecipientsView,
     UiShipmentCloseView,
     UiShipmentCreateView,
     UiShipmentFormOptionsView,
@@ -66,6 +70,26 @@ urlpatterns = [
         "ui/portal/dashboard/",
         UiPortalDashboardView.as_view(),
         name="ui-portal-dashboard",
+    ),
+    path(
+        "ui/portal/orders/",
+        UiPortalOrdersView.as_view(),
+        name="ui-portal-orders",
+    ),
+    path(
+        "ui/portal/recipients/",
+        UiPortalRecipientsView.as_view(),
+        name="ui-portal-recipients",
+    ),
+    path(
+        "ui/portal/recipients/<int:recipient_id>/",
+        UiPortalRecipientDetailView.as_view(),
+        name="ui-portal-recipient-detail",
+    ),
+    path(
+        "ui/portal/account/",
+        UiPortalAccountView.as_view(),
+        name="ui-portal-account",
     ),
 ]
 

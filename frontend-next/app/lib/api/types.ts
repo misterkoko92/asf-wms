@@ -172,3 +172,133 @@ export type UiShipmentCloseDto = {
   message: string;
   shipment: UiShipmentSummary;
 };
+
+export type UiPortalOrderCreateInput = {
+  destination_id: number;
+  recipient_id: string;
+  notes?: string;
+  lines: Array<{
+    product_id: number;
+    quantity: number;
+  }>;
+};
+
+export type UiPortalOrderCreateDto = {
+  ok: boolean;
+  message: string;
+  order: {
+    id: number;
+    reference: string;
+    review_status: string;
+    review_status_label: string;
+    shipment_id: number | null;
+    shipment_reference: string;
+    created_at: string;
+  };
+};
+
+export type UiPortalRecipientInput = {
+  destination_id: number;
+  structure_name: string;
+  contact_title?: string;
+  contact_last_name?: string;
+  contact_first_name?: string;
+  phones?: string;
+  emails?: string;
+  address_line1: string;
+  address_line2?: string;
+  postal_code?: string;
+  city?: string;
+  country?: string;
+  notes?: string;
+  notify_deliveries?: boolean;
+  is_delivery_contact?: boolean;
+};
+
+export type UiPortalRecipient = {
+  id: number;
+  display_name: string;
+  destination_id: number | null;
+  destination_label: string;
+  structure_name: string;
+  contact_title: string;
+  contact_first_name: string;
+  contact_last_name: string;
+  phones: string;
+  emails: string;
+  address_line1: string;
+  address_line2: string;
+  postal_code: string;
+  city: string;
+  country: string;
+  notes: string;
+  notify_deliveries: boolean;
+  is_delivery_contact: boolean;
+  is_active: boolean;
+};
+
+export type UiPortalRecipientsDto = {
+  recipients: UiPortalRecipient[];
+  destinations: Array<{
+    id: number;
+    label: string;
+  }>;
+};
+
+export type UiPortalRecipientMutationDto = {
+  ok: boolean;
+  message: string;
+  recipient: UiPortalRecipient;
+};
+
+export type UiPortalAccountContactInput = {
+  title?: string;
+  last_name?: string;
+  first_name?: string;
+  phone?: string;
+  email: string;
+  is_administrative?: boolean;
+  is_shipping?: boolean;
+  is_billing?: boolean;
+};
+
+export type UiPortalAccountUpdateInput = {
+  association_name: string;
+  association_email?: string;
+  association_phone?: string;
+  address_line1: string;
+  address_line2?: string;
+  postal_code?: string;
+  city?: string;
+  country?: string;
+  contacts: UiPortalAccountContactInput[];
+};
+
+export type UiPortalAccountDto = {
+  association_name: string;
+  association_email: string;
+  association_phone: string;
+  address_line1: string;
+  address_line2: string;
+  postal_code: string;
+  city: string;
+  country: string;
+  notification_emails: string[];
+  portal_contacts: Array<{
+    id: number;
+    title: string;
+    first_name: string;
+    last_name: string;
+    phone: string;
+    email: string;
+    is_administrative: boolean;
+    is_shipping: boolean;
+    is_billing: boolean;
+  }>;
+};
+
+export type UiPortalAccountMutationDto = {
+  ok: boolean;
+  message: string;
+  account: UiPortalAccountDto;
+};

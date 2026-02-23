@@ -2,6 +2,8 @@ from django.db import connection, transaction
 from django.db.models import F, IntegerField, Q, Sum, ExpressionWrapper
 from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
+from django.core.validators import EmailValidator
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.response import Response
@@ -10,8 +12,11 @@ from rest_framework.views import APIView
 from wms.carton_status_events import set_carton_status
 from wms.forms import ScanOutForm, ScanShipmentForm, ScanStockUpdateForm, ShipmentTrackingForm
 from wms.models import (
+    AssociationContactTitle,
+    AssociationRecipient,
     Carton,
     CartonStatus,
+    Destination,
     MovementType,
     Order,
     OrderReviewStatus,
@@ -24,7 +29,13 @@ from wms.models import (
     ShipmentStatus,
     ShipmentTrackingEvent,
 )
-from wms.portal_helpers import get_association_profile
+from wms.portal_helpers import (
+    build_destination_address,
+    get_association_profile,
+    get_contact_address,
+)
+from wms.portal_order_handlers import create_portal_order
+from wms.portal_recipient_sync import sync_association_recipient_to_contact
 from wms.runtime_settings import get_runtime_config
 from wms.scan_shipment_handlers import LOCKED_SHIPMENT_STATUSES
 from wms.scan_shipment_helpers import resolve_shipment
@@ -44,9 +55,14 @@ from wms.views_scan_shipments_support import (
     _shipment_can_be_closed,
 )
 from wms.workflow_observability import log_shipment_case_closed
+from wms.views_portal_account import _save_profile_updates
+from wms.order_notifications import send_portal_order_notifications
 
 from .permissions import IsAssociationProfileUser, IsStaffUser
 from .serializers import (
+    UiPortalAccountUpdateSerializer,
+    UiPortalOrderCreateSerializer,
+    UiPortalRecipientMutationSerializer,
     UiShipmentMutationSerializer,
     UiShipmentTrackingEventSerializer,
     UiStockOutSerializer,
@@ -132,6 +148,185 @@ def _allowed_carton_ids(*, shipment=None):
     if shipment is not None:
         ids.update(str(carton_id) for carton_id in shipment.carton_set.values_list("id", flat=True))
     return ids
+
+
+PORTAL_RECIPIENT_SELF = "self"
+PORTAL_DEFAULT_COUNTRY = "France"
+
+
+def _split_multi_values(value):
+    raw = (value or "").replace("\n", ";").replace(",", ";")
+    return [item.strip() for item in raw.split(";") if item.strip()]
+
+
+def _validate_multi_emails(raw_value):
+    values = _split_multi_values(raw_value)
+    validator = EmailValidator()
+    invalid_values = []
+    for value in values:
+        try:
+            validator(value)
+        except DjangoValidationError:
+            invalid_values.append(value)
+    return values, invalid_values
+
+
+def _portal_order_destination_payload(*, profile, recipient_id, selected_destination):
+    if recipient_id == PORTAL_RECIPIENT_SELF:
+        address = get_contact_address(profile.contact)
+        if not address:
+            return None, "Adresse association manquante."
+        return {
+            "recipient_name": profile.contact.name,
+            "recipient_contact": profile.contact,
+            "destination_city": selected_destination.city if selected_destination else (address.city or ""),
+            "destination_country": (
+                selected_destination.country
+                if selected_destination
+                else (address.country or PORTAL_DEFAULT_COUNTRY)
+            ),
+            "destination_address": build_destination_address(
+                line1=address.address_line1,
+                line2=address.address_line2,
+                postal_code=address.postal_code,
+                city=address.city,
+                country=address.country,
+            ),
+        }, ""
+
+    recipient = (
+        AssociationRecipient.objects.filter(
+            association_contact=profile.contact,
+            is_active=True,
+            pk=recipient_id,
+        )
+        .select_related("destination")
+        .first()
+    )
+    if recipient is None:
+        return None, "Destinataire invalide."
+    if selected_destination and recipient.destination_id not in {selected_destination.id, None}:
+        return None, "Destinataire non disponible pour cette destination."
+
+    recipient_contact = sync_association_recipient_to_contact(recipient)
+    return {
+        "recipient_name": recipient.get_display_name(),
+        "recipient_contact": recipient_contact,
+        "destination_city": (
+            selected_destination.city
+            if selected_destination
+            else (recipient.city or (recipient.destination.city if recipient.destination else ""))
+        ),
+        "destination_country": (
+            selected_destination.country
+            if selected_destination
+            else (
+                recipient.country
+                or (recipient.destination.country if recipient.destination else "")
+                or PORTAL_DEFAULT_COUNTRY
+            )
+        ),
+        "destination_address": build_destination_address(
+            line1=recipient.address_line1,
+            line2=recipient.address_line2,
+            postal_code=recipient.postal_code,
+            city=recipient.city or (recipient.destination.city if recipient.destination else ""),
+            country=recipient.country
+            or (recipient.destination.country if recipient.destination else "")
+            or PORTAL_DEFAULT_COUNTRY,
+        ),
+    }, ""
+
+
+def _portal_recipient_payload(validated_data, destination):
+    title_value = (validated_data.get("contact_title") or "").strip()
+    title_label = dict(AssociationContactTitle.choices).get(title_value, "")
+    contact_display = " ".join(
+        part
+        for part in [
+            title_label,
+            (validated_data.get("contact_first_name") or "").strip(),
+            (validated_data.get("contact_last_name") or "").strip().upper(),
+        ]
+        if part
+    ).strip()
+    structure_name = (validated_data.get("structure_name") or "").strip()
+    email_values = _split_multi_values(validated_data.get("emails", ""))
+    phone_values = _split_multi_values(validated_data.get("phones", ""))
+    return {
+        "destination": destination,
+        "name": structure_name or contact_display or "Destinataire",
+        "structure_name": structure_name,
+        "contact_title": title_value,
+        "contact_last_name": (validated_data.get("contact_last_name") or "").strip(),
+        "contact_first_name": (validated_data.get("contact_first_name") or "").strip(),
+        "phones": "; ".join(phone_values),
+        "emails": "; ".join(email_values),
+        "email": email_values[0] if email_values else "",
+        "phone": phone_values[0] if phone_values else "",
+        "address_line1": (validated_data.get("address_line1") or "").strip(),
+        "address_line2": (validated_data.get("address_line2") or "").strip(),
+        "postal_code": (validated_data.get("postal_code") or "").strip(),
+        "city": (validated_data.get("city") or "").strip(),
+        "country": ((validated_data.get("country") or "").strip() or PORTAL_DEFAULT_COUNTRY),
+        "notes": (validated_data.get("notes") or "").strip(),
+        "notify_deliveries": bool(validated_data.get("notify_deliveries")),
+        "is_delivery_contact": bool(validated_data.get("is_delivery_contact")),
+    }
+
+
+def _portal_recipient_row(recipient):
+    return {
+        "id": recipient.id,
+        "display_name": recipient.get_display_name(),
+        "destination_id": recipient.destination_id,
+        "destination_label": str(recipient.destination) if recipient.destination_id else "",
+        "structure_name": recipient.structure_name or "",
+        "contact_title": recipient.contact_title or "",
+        "contact_first_name": recipient.contact_first_name or "",
+        "contact_last_name": recipient.contact_last_name or "",
+        "phones": recipient.phones or recipient.phone or "",
+        "emails": recipient.emails or recipient.email or "",
+        "address_line1": recipient.address_line1,
+        "address_line2": recipient.address_line2 or "",
+        "postal_code": recipient.postal_code or "",
+        "city": recipient.city or "",
+        "country": recipient.country or PORTAL_DEFAULT_COUNTRY,
+        "notes": recipient.notes or "",
+        "notify_deliveries": recipient.notify_deliveries,
+        "is_delivery_contact": recipient.is_delivery_contact,
+        "is_active": recipient.is_active,
+    }
+
+
+def _portal_account_summary(profile):
+    association = profile.contact
+    address = get_contact_address(association)
+    return {
+        "association_name": association.name or "",
+        "association_email": association.email or "",
+        "association_phone": association.phone or "",
+        "address_line1": address.address_line1 if address else "",
+        "address_line2": address.address_line2 if address else "",
+        "postal_code": address.postal_code if address else "",
+        "city": address.city if address else "",
+        "country": (address.country if address else "") or PORTAL_DEFAULT_COUNTRY,
+        "notification_emails": profile.get_notification_emails(),
+        "portal_contacts": [
+            {
+                "id": contact.id,
+                "title": contact.title or "",
+                "first_name": contact.first_name or "",
+                "last_name": contact.last_name or "",
+                "phone": contact.phone or "",
+                "email": contact.email or "",
+                "is_administrative": contact.is_administrative,
+                "is_shipping": contact.is_shipping,
+                "is_billing": contact.is_billing,
+            }
+            for contact in profile.portal_contacts.filter(is_active=True).order_by("position", "id")
+        ],
+    }
 
 
 class UiDashboardView(APIView):
@@ -918,6 +1113,354 @@ class UiShipmentCloseView(APIView):
                 "ok": True,
                 "message": "Dossier cloture.",
                 "shipment": _shipment_payload(shipment),
+            }
+        )
+
+
+class UiPortalOrdersView(APIView):
+    permission_classes = [IsAssociationProfileUser]
+
+    def post(self, request):
+        profile = get_association_profile(request.user)
+        serializer = UiPortalOrderCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return api_error(
+                message="Validation commande invalide.",
+                code="validation_error",
+                field_errors=serializer_field_errors(serializer),
+            )
+
+        payload = serializer.validated_data
+        destination = Destination.objects.filter(
+            pk=payload["destination_id"],
+            is_active=True,
+        ).first()
+        if destination is None:
+            return api_error(
+                message="Destination invalide.",
+                code="destination_invalid",
+                field_errors={"destination_id": ["Destination invalide."]},
+            )
+
+        recipient_raw = (payload.get("recipient_id") or "").strip()
+        if not recipient_raw:
+            return api_error(
+                message="Destinataire requis.",
+                code="recipient_required",
+                field_errors={"recipient_id": ["Destinataire requis."]},
+            )
+        recipient_id = recipient_raw
+        if recipient_raw != PORTAL_RECIPIENT_SELF:
+            try:
+                recipient_id = int(recipient_raw)
+            except (TypeError, ValueError):
+                return api_error(
+                    message="Destinataire invalide.",
+                    code="recipient_invalid",
+                    field_errors={"recipient_id": ["Destinataire invalide."]},
+                )
+
+        destination_payload, destination_error = _portal_order_destination_payload(
+            profile=profile,
+            recipient_id=recipient_id,
+            selected_destination=destination,
+        )
+        if destination_error:
+            return api_error(
+                message=destination_error,
+                code="destination_resolution_failed",
+                non_field_errors=[destination_error],
+            )
+
+        requested_lines = payload["lines"]
+        product_ids = {line["product_id"] for line in requested_lines}
+        products = Product.objects.filter(is_active=True, id__in=product_ids)
+        products_by_id = {product.id: product for product in products}
+        missing_product_ids = sorted(product_ids - set(products_by_id))
+        if missing_product_ids:
+            return api_error(
+                message="Produit introuvable.",
+                code="product_not_found",
+                field_errors={"lines": [f"Produit(s) introuvable(s): {missing_product_ids}"]},
+            )
+
+        quantity_by_product_id = {}
+        for line in requested_lines:
+            product_id = line["product_id"]
+            quantity_by_product_id[product_id] = quantity_by_product_id.get(product_id, 0) + line["quantity"]
+        line_items = [
+            (products_by_id[product_id], quantity)
+            for product_id, quantity in quantity_by_product_id.items()
+        ]
+
+        try:
+            order = create_portal_order(
+                user=request.user,
+                profile=profile,
+                recipient_name=destination_payload["recipient_name"],
+                recipient_contact=destination_payload["recipient_contact"],
+                destination_address=destination_payload["destination_address"],
+                destination_city=destination_payload["destination_city"],
+                destination_country=destination_payload["destination_country"],
+                notes=payload.get("notes", ""),
+                line_items=line_items,
+            )
+            send_portal_order_notifications(
+                request,
+                profile=profile,
+                order=order,
+            )
+        except StockError as exc:
+            return api_error(
+                message=str(exc),
+                code="portal_order_create_failed",
+                non_field_errors=[str(exc)],
+            )
+
+        return Response(
+            {
+                "ok": True,
+                "message": "Commande envoyee.",
+                "order": {
+                    "id": order.id,
+                    "reference": order.reference or f"CMD-{order.id}",
+                    "review_status": order.review_status,
+                    "review_status_label": order.get_review_status_display(),
+                    "shipment_id": order.shipment_id,
+                    "shipment_reference": order.shipment.reference if order.shipment_id else "",
+                    "created_at": order.created_at.isoformat(),
+                },
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class UiPortalRecipientsView(APIView):
+    permission_classes = [IsAssociationProfileUser]
+
+    def get(self, request):
+        profile = get_association_profile(request.user)
+        recipients = (
+            AssociationRecipient.objects.filter(
+                association_contact=profile.contact,
+                is_active=True,
+            )
+            .select_related("destination")
+            .order_by("structure_name", "name", "contact_last_name", "contact_first_name")
+        )
+        destinations = Destination.objects.filter(is_active=True).order_by("city", "country", "iata_code")
+        return Response(
+            {
+                "recipients": [_portal_recipient_row(recipient) for recipient in recipients],
+                "destinations": [
+                    {"id": destination.id, "label": str(destination)}
+                    for destination in destinations
+                ],
+            }
+        )
+
+    def post(self, request):
+        profile = get_association_profile(request.user)
+        serializer = UiPortalRecipientMutationSerializer(data=request.data)
+        if not serializer.is_valid():
+            return api_error(
+                message="Validation destinataire invalide.",
+                code="validation_error",
+                field_errors=serializer_field_errors(serializer),
+            )
+
+        payload = serializer.validated_data
+        destination = Destination.objects.filter(pk=payload["destination_id"], is_active=True).first()
+        if destination is None:
+            return api_error(
+                message="Escale de livraison requise.",
+                code="destination_required",
+                field_errors={"destination_id": ["Escale de livraison requise."]},
+            )
+        if payload.get("contact_title") and payload["contact_title"] not in dict(AssociationContactTitle.choices):
+            return api_error(
+                message="Titre de contact invalide.",
+                code="contact_title_invalid",
+                field_errors={"contact_title": ["Titre de contact invalide."]},
+            )
+
+        email_values, invalid_values = _validate_multi_emails(payload.get("emails", ""))
+        if invalid_values:
+            return api_error(
+                message="Emails invalides.",
+                code="emails_invalid",
+                field_errors={
+                    "emails": [f"Emails invalides: {', '.join(invalid_values)}."]
+                },
+            )
+        if payload.get("notify_deliveries") and not email_values:
+            return api_error(
+                message="Ajoutez au moins un email pour activer l'alerte de livraison.",
+                code="notify_email_required",
+                field_errors={
+                    "emails": [
+                        "Ajoutez au moins un email pour activer l'alerte de livraison."
+                    ]
+                },
+            )
+
+        recipient_payload = _portal_recipient_payload(payload, destination)
+        recipient = AssociationRecipient.objects.create(
+            association_contact=profile.contact,
+            **recipient_payload,
+        )
+        sync_association_recipient_to_contact(recipient)
+        return Response(
+            {
+                "ok": True,
+                "message": "Destinataire ajoute.",
+                "recipient": _portal_recipient_row(recipient),
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class UiPortalRecipientDetailView(APIView):
+    permission_classes = [IsAssociationProfileUser]
+
+    def patch(self, request, recipient_id):
+        profile = get_association_profile(request.user)
+        recipient = (
+            AssociationRecipient.objects.filter(
+                association_contact=profile.contact,
+                is_active=True,
+                pk=recipient_id,
+            )
+            .select_related("destination")
+            .first()
+        )
+        if recipient is None:
+            return api_error(
+                message="Destinataire introuvable.",
+                code="recipient_not_found",
+                http_status=status.HTTP_404_NOT_FOUND,
+            )
+        serializer = UiPortalRecipientMutationSerializer(data=request.data)
+        if not serializer.is_valid():
+            return api_error(
+                message="Validation destinataire invalide.",
+                code="validation_error",
+                field_errors=serializer_field_errors(serializer),
+            )
+
+        payload = serializer.validated_data
+        destination = Destination.objects.filter(pk=payload["destination_id"], is_active=True).first()
+        if destination is None:
+            return api_error(
+                message="Escale de livraison requise.",
+                code="destination_required",
+                field_errors={"destination_id": ["Escale de livraison requise."]},
+            )
+        if payload.get("contact_title") and payload["contact_title"] not in dict(AssociationContactTitle.choices):
+            return api_error(
+                message="Titre de contact invalide.",
+                code="contact_title_invalid",
+                field_errors={"contact_title": ["Titre de contact invalide."]},
+            )
+
+        email_values, invalid_values = _validate_multi_emails(payload.get("emails", ""))
+        if invalid_values:
+            return api_error(
+                message="Emails invalides.",
+                code="emails_invalid",
+                field_errors={
+                    "emails": [f"Emails invalides: {', '.join(invalid_values)}."]
+                },
+            )
+        if payload.get("notify_deliveries") and not email_values:
+            return api_error(
+                message="Ajoutez au moins un email pour activer l'alerte de livraison.",
+                code="notify_email_required",
+                field_errors={
+                    "emails": [
+                        "Ajoutez au moins un email pour activer l'alerte de livraison."
+                    ]
+                },
+            )
+
+        recipient_payload = _portal_recipient_payload(payload, destination)
+        for field_name, value in recipient_payload.items():
+            setattr(recipient, field_name, value)
+        recipient.save(update_fields=list(recipient_payload.keys()))
+        sync_association_recipient_to_contact(recipient)
+        return Response(
+            {
+                "ok": True,
+                "message": "Destinataire modifie.",
+                "recipient": _portal_recipient_row(recipient),
+            }
+        )
+
+
+class UiPortalAccountView(APIView):
+    permission_classes = [IsAssociationProfileUser]
+
+    def get(self, request):
+        profile = get_association_profile(request.user)
+        return Response(_portal_account_summary(profile))
+
+    def patch(self, request):
+        profile = get_association_profile(request.user)
+        serializer = UiPortalAccountUpdateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return api_error(
+                message="Validation compte invalide.",
+                code="validation_error",
+                field_errors=serializer_field_errors(serializer),
+            )
+
+        payload = serializer.validated_data
+        contact_rows = []
+        contact_errors = []
+        for index, contact in enumerate(payload["contacts"]):
+            row = {
+                "index": index,
+                "title": contact.get("title", ""),
+                "last_name": contact.get("last_name", ""),
+                "first_name": contact.get("first_name", ""),
+                "phone": contact.get("phone", ""),
+                "email": contact.get("email", ""),
+                "is_administrative": bool(contact.get("is_administrative")),
+                "is_shipping": bool(contact.get("is_shipping")),
+                "is_billing": bool(contact.get("is_billing")),
+            }
+            if not (row["is_administrative"] or row["is_shipping"] or row["is_billing"]):
+                contact_errors.append(f"Ligne {index + 1}: cochez au moins un type.")
+            contact_rows.append(row)
+        if contact_errors:
+            return api_error(
+                message="Validation contacts invalide.",
+                code="contact_rows_invalid",
+                non_field_errors=contact_errors,
+            )
+
+        form_data = {
+            "association_name": payload.get("association_name", ""),
+            "association_email": payload.get("association_email", ""),
+            "association_phone": payload.get("association_phone", ""),
+            "address_line1": payload.get("address_line1", ""),
+            "address_line2": payload.get("address_line2", ""),
+            "postal_code": payload.get("postal_code", ""),
+            "city": payload.get("city", ""),
+            "country": payload.get("country", PORTAL_DEFAULT_COUNTRY) or PORTAL_DEFAULT_COUNTRY,
+        }
+        _save_profile_updates(
+            request=request,
+            profile=profile,
+            form_data=form_data,
+            contact_rows=contact_rows,
+        )
+        profile.refresh_from_db()
+        return Response(
+            {
+                "ok": True,
+                "message": "Compte mis a jour.",
+                "account": _portal_account_summary(profile),
             }
         )
 

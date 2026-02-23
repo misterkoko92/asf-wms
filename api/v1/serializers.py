@@ -252,3 +252,56 @@ class UiShipmentTrackingEventSerializer(serializers.Serializer):
     actor_name = serializers.CharField(max_length=120)
     actor_structure = serializers.CharField(max_length=120)
     comments = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class UiPortalOrderLineSerializer(serializers.Serializer):
+    product_id = serializers.IntegerField()
+    quantity = serializers.IntegerField(min_value=1)
+
+
+class UiPortalOrderCreateSerializer(serializers.Serializer):
+    destination_id = serializers.IntegerField()
+    recipient_id = serializers.CharField()
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+    lines = UiPortalOrderLineSerializer(many=True, min_length=1)
+
+
+class UiPortalRecipientMutationSerializer(serializers.Serializer):
+    destination_id = serializers.IntegerField()
+    structure_name = serializers.CharField()
+    contact_title = serializers.CharField(required=False, allow_blank=True, default="")
+    contact_last_name = serializers.CharField(required=False, allow_blank=True, default="")
+    contact_first_name = serializers.CharField(required=False, allow_blank=True, default="")
+    phones = serializers.CharField(required=False, allow_blank=True, default="")
+    emails = serializers.CharField(required=False, allow_blank=True, default="")
+    address_line1 = serializers.CharField()
+    address_line2 = serializers.CharField(required=False, allow_blank=True, default="")
+    postal_code = serializers.CharField(required=False, allow_blank=True, default="")
+    city = serializers.CharField(required=False, allow_blank=True, default="")
+    country = serializers.CharField(required=False, allow_blank=True, default="France")
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+    notify_deliveries = serializers.BooleanField(required=False, default=False)
+    is_delivery_contact = serializers.BooleanField(required=False, default=False)
+
+
+class UiPortalAccountContactSerializer(serializers.Serializer):
+    title = serializers.CharField(required=False, allow_blank=True, default="")
+    last_name = serializers.CharField(required=False, allow_blank=True, default="")
+    first_name = serializers.CharField(required=False, allow_blank=True, default="")
+    phone = serializers.CharField(required=False, allow_blank=True, default="")
+    email = serializers.EmailField()
+    is_administrative = serializers.BooleanField(required=False, default=False)
+    is_shipping = serializers.BooleanField(required=False, default=False)
+    is_billing = serializers.BooleanField(required=False, default=False)
+
+
+class UiPortalAccountUpdateSerializer(serializers.Serializer):
+    association_name = serializers.CharField()
+    association_email = serializers.EmailField(required=False, allow_blank=True, default="")
+    association_phone = serializers.CharField(required=False, allow_blank=True, default="")
+    address_line1 = serializers.CharField()
+    address_line2 = serializers.CharField(required=False, allow_blank=True, default="")
+    postal_code = serializers.CharField(required=False, allow_blank=True, default="")
+    city = serializers.CharField(required=False, allow_blank=True, default="")
+    country = serializers.CharField(required=False, allow_blank=True, default="France")
+    contacts = UiPortalAccountContactSerializer(many=True, min_length=1)

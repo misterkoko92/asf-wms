@@ -9,6 +9,14 @@ import type {
   UiShipmentMutationInput,
   UiShipmentTrackingEventDto,
   UiShipmentTrackingEventInput,
+  UiPortalAccountDto,
+  UiPortalAccountMutationDto,
+  UiPortalAccountUpdateInput,
+  UiPortalOrderCreateDto,
+  UiPortalOrderCreateInput,
+  UiPortalRecipientInput,
+  UiPortalRecipientMutationDto,
+  UiPortalRecipientsDto,
   UiStockOutDto,
   UiStockOutInput,
   UiStockUpdateDto,
@@ -60,4 +68,31 @@ export function postShipmentTrackingEvent(
 
 export function postShipmentClose(shipmentId: number) {
   return apiPostJson<UiShipmentCloseDto>(`/api/v1/ui/shipments/${shipmentId}/close/`, {});
+}
+
+export function postPortalOrder(payload: UiPortalOrderCreateInput) {
+  return apiPostJson<UiPortalOrderCreateDto>("/api/v1/ui/portal/orders/", payload);
+}
+
+export function getPortalRecipients() {
+  return apiGetJson<UiPortalRecipientsDto>("/api/v1/ui/portal/recipients/");
+}
+
+export function postPortalRecipient(payload: UiPortalRecipientInput) {
+  return apiPostJson<UiPortalRecipientMutationDto>("/api/v1/ui/portal/recipients/", payload);
+}
+
+export function patchPortalRecipient(recipientId: number, payload: UiPortalRecipientInput) {
+  return apiPatchJson<UiPortalRecipientMutationDto>(
+    `/api/v1/ui/portal/recipients/${recipientId}/`,
+    payload,
+  );
+}
+
+export function getPortalAccount() {
+  return apiGetJson<UiPortalAccountDto>("/api/v1/ui/portal/account/");
+}
+
+export function patchPortalAccount(payload: UiPortalAccountUpdateInput) {
+  return apiPatchJson<UiPortalAccountMutationDto>("/api/v1/ui/portal/account/", payload);
 }
