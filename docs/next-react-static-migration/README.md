@@ -1,5 +1,24 @@
 # Migration Benev/Classique vers Next React statique
 
+## Etat actuel (2026-02-23)
+
+- `P0`: termine
+- `P1`: termine
+- `P2`: en cours (backend API avance + branchement front partiel)
+- `P3`: en cours (parite stricte en construction)
+- `P4+`: non demarre
+
+Capacites utilisables des maintenant (dev):
+
+- ecrans Next: `/app/scan/dashboard/`, `/app/scan/stock/`, `/app/scan/shipment-create/`, `/app/scan/shipment-documents/`, `/app/scan/templates/`, `/app/portal/dashboard/`
+- API UI: stock, expedition, tracking, cloture, portal mutations, documents/labels, templates
+- switch permanent legacy/next conserve
+
+Niveau de maturite:
+
+- bout en bout valide en tests API (workflow scan + portal),
+- parite ecran stricte Next vs Benev/Classique encore en cours.
+
 ## Objectif
 Basculer l'interface actuelle `Benev + Classique` vers un frontend Next/React **statique**, tout en gardant Django/PythonAnywhere comme backend principal, avec ces règles:
 
@@ -48,6 +67,12 @@ Basculer l'interface actuelle `Benev + Classique` vers un frontend Next/React **
 - `docs/next-react-static-migration/p2_phase2_increment4_2026-02-23.md`
 - `docs/next-react-static-migration/p2_phase2_increment5_2026-02-23.md`
 - `docs/next-react-static-migration/2026-02-23_p2_e2e_suite_increment5.md`
+
+## Prochaine cible
+
+- finaliser la parite stricte des 3 ecrans prioritaires (dashboard, stock, creation expedition),
+- completer les ecrans portal restants,
+- lancer un pilote A/B avec KPI.
 
 ## Ordre d'exécution recommandé
 

@@ -1,5 +1,11 @@
 # 05 - Roadmap après parité: UI ciblée + éditeur de templates
 
+## Précondition d'entrée
+
+Ce document s'active **apres** validation de la parite stricte (phase 3/4).
+
+Etat au 2026-02-23: parite stricte non validee, roadmap encore en attente.
+
 ## 1) Séquence recommandée
 
 1. **Parité stricte** Benev/Classique (obligatoire).
@@ -38,6 +44,11 @@ Moderniser progressivement l'interface sans modifier la logique métier.
 ## 3.1 Constat
 
 L'éditeur actuel n'est pas assez souple. Ce chantier est traité après stabilisation du front next.
+
+Etat reel:
+
+- base technique API templates deja livree (`/api/v1/ui/templates/*`),
+- UI actuelle Next = editeur JSON technique (utile pour MVP, pas encore UX cible metier).
 
 ## 3.2 Objectifs V1
 

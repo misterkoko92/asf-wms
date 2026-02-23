@@ -1,209 +1,289 @@
-# 02 - Plan d'exécution détaillé
+# 02 - Plan d'execution detaille (mis a jour 2026-02-23)
 
 ## Cadrage global
 
-- Priorité: **copie conforme intégrale Benev/Classique**.
-- Contrainte: **ne pas casser le legacy**.
-- Méthode: migration parallèle, incrémentale, pilotée par critères de sortie.
+- Priorite: copie conforme integrale Benev/Classique.
+- Contrainte: ne pas casser le legacy.
+- Methode: migration parallele incrementale, pilotee par criteres de sortie.
 
-## Phases
+## Etat global (P0 -> P7)
+
+- Phase 0: `DONE`
+- Phase 1: `DONE`
+- Phase 2: `IN_PROGRESS` (couche API UI largement livree, derniers points role/audit a finaliser)
+- Phase 3: `IN_PROGRESS` (ecrans prioritaires presents, parite stricte non atteinte)
+- Phase 4+: `TODO`
+
+## Capacites disponibles aujourd'hui (en environnement de dev)
+
+Front Next parallel (sans impact legacy):
+
+- `/app/scan/dashboard/`
+- `/app/scan/stock/`
+- `/app/scan/shipment-create/`
+- `/app/scan/shipment-documents/`
+- `/app/scan/templates/`
+- `/app/portal/dashboard/`
+
+Couche API UI livree:
+
+- dashboard/stock/shipments (create, update, tracking, close)
+- shipment documents + labels
+- portal (dashboard, order create, recipients, account)
+- print templates (list/detail/update, superuser)
+
+Tests en place:
+
+- tests API endpoint (`api.tests.tests_ui_endpoints`)
+- tests workflow E2E API (`api.tests.tests_ui_e2e_workflows`)
+- tests fonction serializer (`api.tests.tests_ui_serializers`)
+
+Important:
+
+- workflow complet valide aujourd'hui **au niveau API**,
+- workflow complet **pas encore valide au niveau UI navigateur** (parite ecran stricte restante).
 
 ## Phase 0 - Inventaire et baseline (J0 -> J2)
 
 ### Objectif
-Figer le périmètre de parité avant tout développement.
+Figer le perimetre de parite avant tout developpement.
 
-### Tâches
+### Taches
 
-- [ ] Geler la liste des écrans et flux à migrer (scan + portal).
-- [ ] Capturer la baseline visuelle et fonctionnelle des écrans legacy.
-- [ ] Lister champs/validations/règles/permissions par écran.
-- [ ] Définir les KPI de migration:
-  - clics par action,
-  - temps de création expédition,
-  - visibilité des actions en attente.
-- [ ] Définir la stratégie de test de parité (fonctionnel + visuel).
+- [x] Geler la liste des ecrans et flux a migrer (scan + portal).
+- [x] Capturer la baseline fonctionnelle des ecrans legacy.
+- [x] Lister champs/validations/regles/permissions par ecran.
+- [x] Definir les KPI de migration.
+- [x] Definir la strategie de test de parite (fonctionnel + visuel).
 
-### Critères de sortie
+### Criteres de sortie
 
-- Matrice de parité complète validée.
-- Liste des écarts API connue.
-- Scénarios E2E critiques validés sur legacy.
+- Matrice de parite complete: `OK`
+- Liste des ecarts API connue: `OK`
+- Scenarios E2E critiques legacy definis: `OK`
+- Baseline visuelle automatisee: `PARTIAL` (checklist prete, industrialisation a finaliser)
+
+Livrables:
+
+- `p0_phase0_report_2026-02-22.md`
+- `p0_inventaire_fonctionnel.md`
+- `p0_api_gap_analysis.md`
+- `p0_e2e_suite.md`
+- `p0_baseline_visuelle_checklist.md`
 
 ---
 
-## Phase 1 - Socle Next statique en parallèle (J2 -> J4)
+## Phase 1 - Socle Next statique en parallele (J2 -> J4)
 
 ### Objectif
-Avoir un shell Next déployable sur PythonAnywhere sans impacter l'existant.
+Avoir un shell Next deployable sur PythonAnywhere sans impacter l'existant.
 
-### Tâches
+### Taches
 
-- [x] Créer le frontend Next de production (hors dossier prototypes).
+- [x] Creer le frontend Next de production (hors prototypes).
 - [x] Configurer build statique (`output: export`).
-- [x] Configurer intégration Django pour servir `/app/*`.
-- [x] Implémenter feature flag global `legacy | next`.
+- [x] Configurer integration Django pour servir `/app/*`.
+- [x] Implementer feature flag global `legacy | next`.
 - [x] Ajouter switch permanent "Retour interface actuelle".
 - [x] Mettre en place logs front (erreurs JS, timings, trace actions).
 
-### Critères de sortie
+### Criteres de sortie
 
-- `/scan/*` et `/portal/*` legacy inchangés.
-- `/app/*` accessible en parallèle.
-- Rollback immédiat par switch utilisateur.
+- `/scan/*` et `/portal/*` legacy inchanges: `OK`
+- `/app/*` accessible en parallele: `OK`
+- rollback immediat par switch utilisateur: `OK`
+
+Livrable:
+
+- `p1_phase1_report_2026-02-22.md`
 
 ---
 
 ## Phase 2 - Couche API et permissions (J4 -> J7)
 
 ### Objectif
-Permettre au nouveau front d'appeler le backend sans dupliquer la logique métier.
+Permettre au nouveau front d'appeler le backend sans dupliquer la logique metier.
 
-### Tâches
+### Taches
 
-- [ ] Construire client API typé (stock, colis, expédition, documents, tracking).
-- [ ] Ajouter endpoints manquants côté Django (si page aujourd'hui pure HTML).
-- [ ] Vérifier compatibilité rôles: admin, qualité, magasinier, bénévole, livreur.
-- [ ] Uniformiser les codes d'erreur API.
-- [ ] Implémenter audit trail côté backend pour actions critiques.
+- [x] Construire client API type (stock, expedition, portal, docs, templates).
+- [x] Ajouter endpoints manquants cote Django sur perimetre prioritaire P2.
+- [ ] Verifier compatibilite fine tous roles (admin, qualite, magasinier, benevole, livreur) sur tous endpoints UI.
+- [x] Uniformiser les codes d'erreur API (`ok/code/message/field_errors/non_field_errors`).
+- [ ] Completer audit trail sur toutes actions critiques (partiel, deja present sur une partie des flux).
 
-### Critères de sortie
+### Criteres de sortie
 
-- 100% des actions critiques de l'app utilisent API stable.
-- Validation métier backend unique (pas de divergence front/back).
+- Couverture actions critiques backend: `IN_PROGRESS` (base solide, endpoints restants a completer)
+- Validation metier backend unique: `OK` (reutilisation handlers/services existants)
+
+Reste concret P2:
+
+- etendre les tests permissions role par role,
+- finaliser la trace d'audit sur mutations UI restantes,
+- lancer un premier E2E navigateur Playwright sur routes `/app/*`.
+
+Livrables:
+
+- `p2_phase2_increment1_2026-02-22.md`
+- `p2_phase2_increment2_2026-02-22.md`
+- `p2_phase2_increment3_2026-02-23.md`
+- `p2_phase2_increment4_2026-02-23.md`
+- `p2_phase2_increment5_2026-02-23.md`
 
 ---
 
-## Phase 3 - Parité fonctionnelle stricte écrans prioritaires (J7 -> J12)
+## Phase 3 - Parite fonctionnelle stricte ecrans prioritaires (J7 -> J12)
 
 ### Objectif
-Migrer en priorité les 3 pages business cibles.
+Migrer en priorite les 3 pages business cibles.
 
-### Écrans
+### Ecrans cibles
 
 - Dashboard.
-- Création expédition.
+- Creation expedition.
 - Vue stock.
 
-### Tâches
+### Taches
 
-- [ ] Reproduire structure UI/UX Benev/Classique à l'identique.
-- [ ] Reproduire libellés, formulaires, validations, états, permissions.
-- [ ] Intégrer actions 1 clic demandées:
+- [ ] Reproduire structure UI/UX Benev/Classique a l'identique.
+- [ ] Reproduire libelles, formulaires, validations, etats, permissions.
+- [ ] Integrer completement les actions 1 clic:
   - MAJ stock,
-  - création colis,
-  - création expédition,
+  - creation colis,
+  - creation expedition,
   - affectation colis,
   - MAJ statut.
-- [ ] Implémenter mode offline mobile pour stock.
+- [ ] Implementer mode offline mobile pour stock.
 
-### Critères de sortie
+Etat factuel:
 
-- Démo pilote utilisable de bout en bout.
-- KPI minimum atteints sur flux principal.
-- Aucun blocant fonctionnel vs legacy.
+- ecrans Next presents mais encore hybrides (maquette + branchements API),
+- actions metier critiques pas encore toutes executees depuis ces ecrans,
+- parite visuelle stricte non validee.
+
+### Criteres de sortie
+
+- Demo pilote utilisable de bout en bout: `IN_PROGRESS`
+- KPI minimum atteints sur flux principal: `TODO`
+- Aucun blocant fonctionnel vs legacy: `TODO`
+
+Etat courant:
+
+- les ecrans existent en Next avec connexions API partielles,
+- la parite stricte visuelle/fonctionnelle n'est pas encore validee.
 
 ---
 
-## Phase 4 - Parité fonctionnelle complète scan + portal (J12 -> J20)
+## Phase 4 - Parite fonctionnelle complete scan + portal (J12 -> J20)
 
 ### Objectif
-Couvrir tout le périmètre fonctionnel Benev/Classique.
+Couvrir tout le perimetre fonctionnel Benev/Classique.
 
-### Tâches
+### Taches
 
-- [ ] Migrer tous les écrans listés dans la matrice.
-- [ ] Gérer cas d'exception critiques:
+- [ ] Migrer tous les ecrans listes dans la matrice.
+- [ ] Gerer cas d'exception critiques:
   - parties non conformes,
   - documents manquants,
   - stock insuffisant.
-- [ ] Implémenter parcours complet:
+- [ ] Implementer parcours complet:
   - dashboard,
   - vue stock,
-  - mise à jour stock,
-  - création colis,
-  - création expédition,
+  - mise a jour stock,
+  - creation colis,
+  - creation expedition,
   - affectation colis,
   - suivi,
-  - clôture.
+  - cloture.
 
-### Critères de sortie
+### Criteres de sortie
 
-- 100% des flux critiques passent sur Next sans retour arrière forcé.
-- Diff de comportement = 0 sur règles métier attendues.
+- 100% flux critiques passent sur Next sans retour arriere force.
+- Diff de comportement metier = 0 vs legacy.
+
+Statut: `TODO`
 
 ---
 
-## Phase 5 - Pilote contrôlé + A/B test (J20 -> J24)
+## Phase 5 - Pilote controle + A/B test (J20 -> J24)
 
 ### Objectif
-Valider en conditions réelles sans risque.
+Valider en conditions reelles sans risque.
 
-### Tâches
+### Taches
 
-- [ ] Activer le nouveau front pour groupe pilote (feature flag par utilisateur).
+- [ ] Activer le nouveau front pour groupe pilote (feature flag utilisateur).
 - [ ] Mesurer KPI vs legacy.
-- [ ] Recueillir feedback métier quotidien.
-- [ ] Corriger écarts de parité et stabilité.
+- [ ] Recueillir feedback metier quotidien.
+- [ ] Corriger ecarts de parite et stabilite.
 
-### Critères de sortie
+### Criteres de sortie
 
-- Aucun incident bloquant sur 5 jours ouvrés.
-- KPI égaux ou meilleurs que legacy.
+- Aucun incident bloquant sur 5 jours ouvres.
+- KPI egaux ou meilleurs que legacy.
 - Validation explicite de ta part.
 
+Statut: `TODO`
+
 ---
 
-## Phase 6 - Ajustements UI ciblés (après parité)
+## Phase 6 - Ajustements UI cibles (apres parite)
 
 ### Objectif
-Améliorer progressivement boutons, cards, densité, lisibilité sans casser la logique.
+Ameliorer progressivement boutons, cards, densite, lisibilite sans casser la logique.
 
-### Tâches
+### Taches
 
-- [ ] Introduire design tokens (couleurs, radius, spacing, typographie).
-- [ ] Créer variantes de composants (`button`, `card`, `table`, `alert`) sans toucher les flux.
+- [ ] Introduire design tokens (couleurs, radius, spacing, typo).
+- [ ] Creer variantes de composants (`button`, `card`, `table`, `alert`).
 - [ ] Tester variations par feature flag visuel.
 
-### Critères de sortie
+### Criteres de sortie
 
-- UX plus moderne validée.
-- Pas de régression fonctionnelle.
+- UX plus moderne validee.
+- Pas de regression fonctionnelle.
+
+Statut: `TODO`
 
 ---
 
-## Phase 7 - Éditeur de templates documentaire (chantier dédié)
+## Phase 7 - Editeur de templates documentaire (chantier dedie)
 
 ### Objectif
-Résoudre le point faible majeur: création/édition de templates plus souple.
+Resoudre le point faible majeur: creation/edition de templates plus souple.
 
-### Tâches
+### Taches
 
-- [ ] Définir schéma de templates versionnés.
-- [ ] Créer éditeur hybride (blocs + zones libres).
-- [ ] Ajouter placeholders métier (expédition, colis, contacts, douane, donation).
-- [ ] Prévisualisation PDF live.
+- [ ] Definir schema de templates versionnes.
+- [ ] Creer editeur hybride (blocs + zones libres).
+- [ ] Ajouter placeholders metier (expedition, colis, contacts, douane, donation).
+- [ ] Previsualisation PDF live.
 - [ ] Validation et publication de versions.
 
-### Critères de sortie
+### Criteres de sortie
 
-- Création de templates sans code.
+- Creation de templates sans code.
 - Cycle complet: brouillon -> preview -> publication.
-- Compatibilité avec génération documentaire existante.
+- Compatibilite avec generation documentaire existante.
+
+Statut: `TODO`
+
+---
 
 ## Gouvernance
 
-## Rituels
+### Rituels
 
-- Standup court quotidien (blocants, risques, décisions).
-- Revue hebdo parité (legacy vs next).
-- Revue métier hebdo (toi + retours terrain).
+- Standup court quotidien (blocants, risques, decisions).
+- Revue hebdo parite (legacy vs next).
+- Revue metier hebdo (toi + retours terrain).
 
-## Definition of Done (chaque écran)
+### Definition of Done (par ecran)
 
 - [ ] UI conforme Benev/Classique.
-- [ ] Données et validations conformes.
+- [ ] Donnees et validations conformes.
 - [ ] Permissions conformes.
 - [ ] E2E nominal + exceptions passent.
-- [ ] Capture visuelle validée.
+- [ ] Capture visuelle validee.
 - [ ] Rollback possible sans migration.

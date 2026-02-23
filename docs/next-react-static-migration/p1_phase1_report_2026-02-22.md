@@ -4,6 +4,14 @@
 
 Mettre en place le socle Next statique en parallele, sans regression sur l'interface legacy.
 
+Note de suivi:
+
+- ce rapport de phase reste un snapshot historique de P1,
+- pour l'etat global actuel P0->P2, se referer a:
+  - `docs/next-react-static-migration/README.md`
+  - `docs/next-react-static-migration/02_plan_execution.md`
+  - `docs/next-react-static-migration/03_matrice_parite_benev_classique.md`
+
 ## Resultat P1
 
 ## 1) Frontend Next de production cree

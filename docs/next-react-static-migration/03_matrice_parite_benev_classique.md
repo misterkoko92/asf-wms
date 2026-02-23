@@ -1,86 +1,95 @@
-# 03 - Matrice de parité Benev/Classique
+# 03 - Matrice de parite Benev/Classique (maj 2026-02-23)
 
-## Légende statut
+## Legende statut
 
-- `TODO`: non démarré.
-- `IN_PROGRESS`: en cours.
-- `DONE`: validé fonctionnel + visuel.
+- `TODO`: ni ecran Next exploitable, ni couverture de parite.
+- `API_READY`: backend/UI API disponible et teste, mais ecran Next non implemente.
+- `IN_PROGRESS`: ecran Next present et/ou branche partiellement, parite stricte non validee.
+- `DONE`: parite fonctionnelle + visuelle validee.
 
-## A. Scan (opérations internes)
+## Resume global (snapshot)
 
-| Priorité | Legacy URL | Vue legacy | Route Next cible | Données/API | Statut |
+- Ecrans Next disponibles aujourd'hui: `dashboard`, `stock`, `shipment-create`, `shipment-documents`, `templates`, `portal-dashboard`.
+- API UI disponible et testee pour: stock, expedition (create/update/tracking/close), docs/labels, templates, portal mutations.
+- Aucun ecran n'est encore `DONE` (parite stricte non validee).
+
+## A. Scan - ecrans prioritaires et coeur metier
+
+| Priorite | Legacy URL | Route Next cible | Etat Next reel | Etat API UI | Statut |
 |---|---|---|---|---|---|
-| P1 | `/scan/dashboard/` | dashboard | `/app/scan/dashboard` | KPI + actions attente | TODO |
-| P1 | `/scan/stock/` | vue stock | `/app/scan/stock` | stock list + filtres | TODO |
-| P1 | `/scan/stock-update/` | maj stock | `/app/scan/stock/update` | update stock + audit | TODO |
-| P1 | `/scan/shipment/` | création expédition | `/app/scan/shipment/create` | expédition + docs | TODO |
-| P1 | `/scan/pack/` | création colis | `/app/scan/carton/create` | colis + contenu | TODO |
-| P1 | `/scan/shipments-tracking/` | suivi expéditions | `/app/scan/shipment/tracking` | timeline/events | TODO |
-| P1 | `/scan/cartons/` | vue colis prêts | `/app/scan/cartons` | cartons statuts | TODO |
-| P1 | `/scan/shipments-ready/` | vue expéditions prêtes | `/app/scan/shipments-ready` | shipments prêts | TODO |
-| P1 | `/scan/orders-view/` | vue commandes | `/app/scan/orders` | commandes + alertes | TODO |
-| P2 | `/scan/orders/` | gestion commande | `/app/scan/order` | détail commande | TODO |
-| P2 | `/scan/receipts/` | vue réceptions | `/app/scan/receipts` | mouvements entrée | TODO |
-| P2 | `/scan/receive/` | réception produit | `/app/scan/receive` | scan réception | TODO |
-| P2 | `/scan/receive-pallet/` | réception palette | `/app/scan/receive-pallet` | palette + lots | TODO |
-| P2 | `/scan/receive-association/` | ajout stock association | `/app/scan/receive-association` | entrée manuelle | TODO |
-| P2 | `/scan/out/` | sortie stock | `/app/scan/out` | décrément + motifs | TODO |
-| P2 | `/scan/settings/` | paramètres | `/app/scan/settings` | runtime settings | TODO |
-| P2 | `/scan/faq/` | documentation | `/app/scan/faq` | contenu statique | TODO |
-| P3 | `/scan/import/` | imports admin | `/app/scan/import` | import CSV | TODO |
-| P3 | `/scan/templates/` | liste templates docs | `/app/scan/templates` | types de docs | TODO |
-| P3 | `/scan/templates/<doc_type>/` | édition template | `/app/scan/templates/edit?docType=` | template HTML | TODO |
+| P1 | `/scan/dashboard/` | `/app/scan/dashboard/` | ecran present (mix maquette + live API) | `GET /api/v1/ui/dashboard/` | IN_PROGRESS |
+| P1 | `/scan/stock/` | `/app/scan/stock/` | ecran present (table live, actions non branchees) | `GET /api/v1/ui/stock/` | IN_PROGRESS |
+| P1 | `/scan/stock-update/` | `/app/scan/stock/` (zone MAJ inline cible) | pas de workflow UI finalise | `POST /api/v1/ui/stock/update/` | IN_PROGRESS |
+| P1 | `/scan/out/` | `/app/scan/stock/` (zone sortie cible) | pas de workflow UI finalise | `POST /api/v1/ui/stock/out/` | IN_PROGRESS |
+| P1 | `/scan/shipment/` | `/app/scan/shipment-create/` | ecran present (guardrails + placeholders) | `GET/POST/PATCH /api/v1/ui/shipments*` | IN_PROGRESS |
+| P1 | `/scan/shipments-tracking/` | `/app/scan/shipment/tracking/` | route non creee | `POST /api/v1/ui/shipments/<id>/tracking-events/` | API_READY |
+| P1 | `/scan/shipment/<id>/close` (logique legacy) | `/app/scan/shipment/tracking/` | route non creee | `POST /api/v1/ui/shipments/<id>/close/` | API_READY |
+| P1 | `/scan/pack/` | `/app/scan/carton/create/` | route non creee | logique disponible via handlers legacy + API shipment lines | TODO |
+| P1 | `/scan/cartons/` | `/app/scan/cartons/` | route non creee | pas d'endpoint UI dedie liste cartons | TODO |
+| P1 | `/scan/shipments-ready/` | `/app/scan/shipments-ready/` | route non creee | pas d'endpoint UI dedie | TODO |
+| P2 | `/scan/orders-view/` | `/app/scan/orders/` | route non creee | pas d'endpoint UI dedie | TODO |
+| P2 | `/scan/orders/` | `/app/scan/order/` | route non creee | pas d'endpoint UI dedie | TODO |
+| P2 | `/scan/receipts/` | `/app/scan/receipts/` | route non creee | pas d'endpoint UI dedie | TODO |
+| P2 | `/scan/receive/` | `/app/scan/receive/` | route non creee | pas d'endpoint UI dedie | TODO |
+| P2 | `/scan/receive-pallet/` | `/app/scan/receive-pallet/` | route non creee | pas d'endpoint UI dedie | TODO |
+| P2 | `/scan/receive-association/` | `/app/scan/receive-association/` | route non creee | pas d'endpoint UI dedie | TODO |
+| P2 | `/scan/settings/` | `/app/scan/settings/` | route non creee | pas d'endpoint UI dedie | TODO |
+| P2 | `/scan/faq/` | `/app/scan/faq/` | route non creee | n/a (contenu statique) | TODO |
+| P3 | `/scan/import/` | `/app/scan/import/` | route non creee | pas d'endpoint UI dedie | TODO |
 
-## B. Scan (routes métiers dynamiques)
+## B. Scan - documents et templates
 
-> En mode statique, route cible recommandée: page stable + query params.
-
-| Priorité | Legacy URL | Fonction | Route Next cible | Stratégie |
-|---|---|---|---|---|
-| P1 | `/scan/shipment/<id>/edit/` | édition expédition | `/app/scan/shipment/edit?id=<id>` | param query |
-| P1 | `/scan/shipment/track/<token>/` | suivi token | `/app/scan/shipment/track?token=<token>` | param query |
-| P1 | `/scan/shipment/track/<ref>/` | suivi legacy ref | `/app/scan/shipment/track?ref=<ref>` | param query |
-| P1 | `/scan/shipment/<id>/doc/<type>/` | doc expédition | `/app/scan/shipment/doc?shipmentId=<id>&type=<type>` | conserver rendu serveur PDF |
-| P2 | `/scan/shipment/<id>/carton/<id>/doc/` | doc carton expédition | `/app/scan/shipment/carton/doc?...` | conserver rendu serveur PDF |
-| P2 | `/scan/carton/<id>/doc/` | doc carton | `/app/scan/carton/doc?id=<id>` | conserver rendu serveur PDF |
-| P2 | `/scan/carton/<id>/picking/` | picking carton | `/app/scan/carton/picking?id=<id>` | endpoint dédié |
-| P2 | `/scan/shipment/<id>/documents/upload/` | upload doc | `/app/scan/shipment/documents/upload?id=<id>` | multipart API |
-| P2 | `/scan/shipment/<id>/documents/<id>/delete/` | delete doc | `/app/scan/shipment/documents/delete?...` | action API |
-| P2 | `/scan/shipment/<id>/labels/` | labels expédition | `/app/scan/shipment/labels?id=<id>` | backend labels |
-| P2 | `/scan/shipment/<id>/labels/<carton_id>/` | label carton | `/app/scan/shipment/label?...` | backend labels |
-| P3 | `/scan/public-order/<token>/...` | flux public | hors périmètre v1 interne | conserver legacy |
+| Priorite | Legacy URL | Route Next cible | Etat Next reel | Etat API UI | Statut |
+|---|---|---|---|---|---|
+| P2 | `/scan/shipment/<id>/documents/upload/` | `/app/scan/shipment-documents/` | workflow charge/upload/suppression present | `GET/POST /api/v1/ui/shipments/<id>/documents/` | IN_PROGRESS |
+| P2 | `/scan/shipment/<id>/documents/<id>/delete/` | `/app/scan/shipment-documents/` | suppression present | `DELETE /api/v1/ui/shipments/<id>/documents/<doc_id>/` | IN_PROGRESS |
+| P2 | `/scan/shipment/<id>/labels/` | `/app/scan/shipment-documents/` | ouverture labels presente | `GET /api/v1/ui/shipments/<id>/labels/` | IN_PROGRESS |
+| P2 | `/scan/shipment/<id>/labels/<carton_id>/` | `/app/scan/shipment-documents/` | ouverture label carton presente | `GET /api/v1/ui/shipments/<id>/labels/<carton_id>/` | IN_PROGRESS |
+| P3 | `/scan/templates/` | `/app/scan/templates/` | liste templates + selection doc type presente | `GET /api/v1/ui/templates/` | IN_PROGRESS |
+| P3 | `/scan/templates/<doc_type>/` | `/app/scan/templates/` | edition JSON + save/reset + versions visible | `GET/PATCH /api/v1/ui/templates/<doc_type>/` | IN_PROGRESS |
 
 ## C. Portal (associations)
 
-| Priorité | Legacy URL | Vue legacy | Route Next cible | Données/API | Statut |
+| Priorite | Legacy URL | Route Next cible | Etat Next reel | Etat API UI | Statut |
 |---|---|---|---|---|---|
-| P1 | `/portal/` | dashboard portail | `/app/portal/dashboard` | commandes + états | TODO |
-| P1 | `/portal/orders/new/` | création commande | `/app/portal/orders/create` | formulaire complet | TODO |
-| P1 | `/portal/orders/<id>/` | détail commande | `/app/portal/orders/detail?id=<id>` | détail + historique | TODO |
-| P2 | `/portal/recipients/` | destinataires | `/app/portal/recipients` | contacts + filtres | TODO |
-| P2 | `/portal/account/` | compte | `/app/portal/account` | profil + préférences | TODO |
-| P2 | `/portal/change-password/` | mdp | `/app/portal/change-password` | action sécurisée | TODO |
-| P2 | `/portal/login/` | login | `/app/portal/login` | session Django | TODO |
-| P2 | `/portal/logout/` | logout | `/app/portal/logout` | session Django | TODO |
-| P3 | `/portal/request-account/` | demande compte | `/app/portal/request-account` | workflow externe | TODO |
-| P3 | `/portal/set-password/<uid>/<token>/` | set password | `/app/portal/set-password?...` | token sécurisé | TODO |
+| P1 | `/portal/` | `/app/portal/dashboard/` | ecran present (mix maquette + live API) | `GET /api/v1/ui/portal/dashboard/` | IN_PROGRESS |
+| P1 | `/portal/orders/new/` | `/app/portal/orders/create/` | route non creee | `POST /api/v1/ui/portal/orders/` | API_READY |
+| P1 | `/portal/orders/<id>/` | `/app/portal/orders/detail/?id=<id>` | route non creee | partiel (dashboard expose liste, pas detail endpoint dedie) | TODO |
+| P2 | `/portal/recipients/` | `/app/portal/recipients/` | route non creee | `GET/POST/PATCH /api/v1/ui/portal/recipients*` | API_READY |
+| P2 | `/portal/account/` | `/app/portal/account/` | route non creee | `GET/PATCH /api/v1/ui/portal/account/` | API_READY |
+| P2 | `/portal/change-password/` | `/app/portal/change-password/` | conserve en legacy | n/a | TODO |
+| P2 | `/portal/login/` | `/app/portal/login/` | auth reste Django legacy | n/a | TODO |
+| P2 | `/portal/logout/` | `/app/portal/logout/` | auth reste Django legacy | n/a | TODO |
+| P3 | `/portal/request-account/` | `/app/portal/request-account/` | route non creee | pas d'endpoint UI dedie | TODO |
+| P3 | `/portal/set-password/<uid>/<token>/` | `/app/portal/set-password/?...` | route non creee | pas d'endpoint UI dedie | TODO |
 
-## D. Critères de parité par écran (checklist)
+## D. Routes dynamiques scan (strategie statique)
 
-Pour passer `DONE`, chaque écran doit valider:
+Principe cible: route stable + query params.
 
-- [ ] mêmes champs obligatoires,
-- [ ] mêmes validations bloquantes,
-- [ ] mêmes permissions par rôle,
-- [ ] mêmes statuts métier,
-- [ ] mêmes actions principales (et idéalement moins de clics),
-- [ ] même logique de messages succès/erreur,
-- [ ] rendu visuel Benev/Classique reproduit.
+| Legacy | Cible Next | Statut |
+|---|---|---|
+| `/scan/shipment/<id>/edit/` | `/app/scan/shipment/edit/?id=<id>` | TODO |
+| `/scan/shipment/track/<token>/` | `/app/scan/shipment/track/?token=<token>` | TODO |
+| `/scan/shipment/track/<ref>/` | `/app/scan/shipment/track/?ref=<ref>` | TODO |
+| `/scan/carton/<id>/doc/` | `/app/scan/carton/doc/?id=<id>` | TODO |
+| `/scan/carton/<id>/picking/` | `/app/scan/carton/picking/?id=<id>` | TODO |
 
-## E. Flux E2E obligatoires (validation finale)
+## E. Checklist de sortie pour passer un ecran en DONE
 
-- [ ] Dashboard -> vue stock -> MAJ stock -> confirmation.
-- [ ] Création colis -> création expédition -> affectation colis.
-- [ ] Ajout documents -> publication (warning si docs manquants).
-- [ ] Suivi expédition -> gestion incident -> clôture.
-- [ ] Retour global instantané vers interface legacy.
+- [ ] memes champs obligatoires et memes valeurs par defaut
+- [ ] memes validations bloquantes et memes erreurs metier
+- [ ] memes permissions par role (staff/association/admin/superuser)
+- [ ] memes statuts metier et transitions
+- [ ] memes actions critiques disponibles (ou moins de clics, sans perte de controle)
+- [ ] meme comportement documentaire (liens, PDF, labels)
+- [ ] parite visuelle Benev/Classique validee
+
+## F. Validation test (etat actuel)
+
+- [x] tests contrats serializers: `api/tests/tests_ui_serializers.py`
+- [x] tests endpoints UI: `api/tests/tests_ui_endpoints.py`
+- [x] E2E API bout en bout: `api/tests/tests_ui_e2e_workflows.py`
+- [ ] E2E navigateur reel sur `/app/*` (Playwright)
+- [ ] recette metier manuelle complete ecran par ecran
+- [x] rollback global instantane vers legacy (`/ui/mode/legacy/`)

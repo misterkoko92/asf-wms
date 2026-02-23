@@ -1,5 +1,11 @@
 # 04 - Bascule progressive, A/B testing et rollback
 
+## Etat du chantier (2026-02-23)
+
+- Coexistence legacy/next: `ACTIVE` (routes `/scan/*` + `/portal/*` et `/app/*` en parallele).
+- Switch global utilisateur: `ACTIVE` via `/ui/mode/legacy/` et `/ui/mode/next/`.
+- Bascule pilote metier: `NOT_STARTED` (attend parite stricte ecrans prioritaires).
+
 ## 1) Principes de déploiement
 
 - **Legacy first**: l'existant reste la référence tant que non validé.
@@ -22,7 +28,9 @@
 
 - Depuis le header: `Interface actuelle` <-> `Nouveau front`.
 - Préférence persistée par utilisateur.
-- Override temporaire possible par paramètre URL (`?ui=legacy`).
+- Override direct possible via endpoint switch:
+  - `/ui/mode/legacy/?next=<url>`
+  - `/ui/mode/next/?next=<url>`
 
 ## 3) Plan de bascule en 4 vagues
 
@@ -77,6 +85,11 @@
 - Latence API P95.
 - Sync offline en échec.
 - Taux d'abandon par écran.
+
+Etat reel:
+
+- logs front en place (`/ui/frontend-log/`) avec page views, erreurs JS, actions `data-track`.
+- dashboards KPI A/B et alerting operationnel restent a brancher.
 
 ## 6) Runbook rollback
 

@@ -1,142 +1,74 @@
 # P0 - Analyse des gaps API (legacy -> Next statique)
 
-## 1) API disponible aujourd'hui (`/api/v1`)
+## Contexte du document
 
-Source: `api/v1/urls.py`, `api/v1/views.py`
+Ce document a ete cree en P0 (2026-02-22), puis remis a jour au 2026-02-23 pour refleter les livraisons P1/P2 deja effectuees.
 
-Endpoints existants:
+## 1) Baseline P0 (historique)
 
-- `GET /api/v1/products/` (read-only + filtres)
-- `GET /api/v1/orders/` / `GET /api/v1/orders/<id>/` (read-only)
-- `POST /api/v1/orders/<id>/reserve/`
-- `POST /api/v1/orders/<id>/prepare/`
-- `POST /api/v1/stock/receive/`
-- `POST /api/v1/pack/`
-- `GET /api/v1/integrations/shipments/`
-- `GET /api/v1/integrations/destinations/`
-- `GET|POST|PATCH /api/v1/integrations/events/`
+Constat initial P0:
 
-## 2) Couverture vs écrans cibles Next
+- API `api/v1` existante partielle pour un front Next complet.
+- logique metier majoritairement exposee via vues Django templates.
+- besoin d'une couche API dediee au nouveau front (`/api/v1/ui/*`).
 
-Écrans prioritaires demandés:
+## 2) Endpoints UI effectivement livres (etat reel)
 
-- dashboard,
-- vue stock,
-- création expédition.
+Source de verite: `api/v1/urls.py`, `api/v1/ui_views.py`, `api/tests/tests_ui_endpoints.py`.
 
-Constat:
+- `GET /api/v1/ui/dashboard/`
+- `GET /api/v1/ui/stock/`
+- `POST /api/v1/ui/stock/update/`
+- `POST /api/v1/ui/stock/out/`
+- `GET /api/v1/ui/shipments/form-options/`
+- `POST /api/v1/ui/shipments/`
+- `PATCH /api/v1/ui/shipments/<shipment_id>/`
+- `POST /api/v1/ui/shipments/<shipment_id>/tracking-events/`
+- `POST /api/v1/ui/shipments/<shipment_id>/close/`
+- `GET|POST /api/v1/ui/shipments/<shipment_id>/documents/`
+- `DELETE /api/v1/ui/shipments/<shipment_id>/documents/<document_id>/`
+- `GET /api/v1/ui/shipments/<shipment_id>/labels/`
+- `GET /api/v1/ui/shipments/<shipment_id>/labels/<carton_id>/`
+- `GET /api/v1/ui/templates/`
+- `GET|PATCH /api/v1/ui/templates/<doc_type>/`
+- `GET /api/v1/ui/portal/dashboard/`
+- `POST /api/v1/ui/portal/orders/`
+- `GET|POST /api/v1/ui/portal/recipients/`
+- `PATCH /api/v1/ui/portal/recipients/<recipient_id>/`
+- `GET|PATCH /api/v1/ui/portal/account/`
 
-- l'API actuelle ne couvre qu'une partie du besoin opérationnel,
-- beaucoup de logique est encore exposée uniquement via vues Django HTML + handlers.
+## 3) Couverture des besoins initiaux P0
 
-## 3) Gaps API bloquants pour parité front
+| Domaine | Besoin P0 | Etat 2026-02-23 | Notes |
+|---|---|---|---|
+| Dashboard | KPI consolides + actions en attente | IN_PROGRESS | endpoint disponible, parite UI stricte restante |
+| Stock | liste/filtres/tri + MAJ + sortie | IN_PROGRESS | endpoints disponibles, UI actions 1-clic a finaliser |
+| Creation expedition | create/update + options + validations | IN_PROGRESS | endpoints disponibles, UI complete non branchee |
+| Suivi/cloture expedition | transitions + close guardrails | IN_PROGRESS | endpoints disponibles, page tracking Next manquante |
+| Documents/labels | upload/list/delete + labels | IN_PROGRESS | endpoints + ecran Next presents, UX finale restante |
+| Templates impression | liste/detail/save/reset/version | IN_PROGRESS | endpoints + ecran Next presents (JSON editor MVP) |
+| Portal commande | create order + validations | API_READY | endpoint disponible, ecran Next create non livre |
+| Portal recipients/account | CRUD destinataires + compte | API_READY | endpoints disponibles, ecrans Next non livres |
 
-## Dashboard
+## 4) Gaps API encore ouverts (avant parite stricte)
 
-Manquant:
+Gaps confirms a traiter:
 
-- endpoint KPI consolidés (activité, expéditions, cartons, stock bas, litiges, SLA),
-- endpoint widgets "actions en attente" / blocages.
+- endpoint detail commande portal (`GET /api/v1/ui/portal/orders/<id>/`) absent,
+- endpoint(s) listes operationnelles dediees (cartons prets, expeditions pretes, commandes scan) absents,
+- validation permissions complete par role metier a etendre (tests role matrix),
+- audit trail homogene sur toutes mutations UI a consolider.
 
-Impact:
+## 5) Contrat API a conserver
 
-- impossible de reproduire dashboard legacy sans reconsommer HTML.
+- auth session Django + CSRF,
+- payload erreur uniforme (`ok`, `code`, `message`, `field_errors`, `non_field_errors`),
+- logique metier unique cote Django (pas de duplication front),
+- compatibilite legacy preservee (`/scan/*`, `/portal/*` inchanges).
 
-## Vue stock
+## 6) Priorisation API recommandee (suite P2/P3)
 
-Partiel:
-
-- `products` existe, mais pas de payload prêt à l'emploi identique à `build_stock_context`.
-
-Manquant:
-
-- endpoint stock view agrégé (filtres catégorie/entrepôt/tri + mouvements récents),
-- endpoint MAJ stock "legacy-compatible" (incluant logique `default_location`, donor, audit),
-- endpoint `stock out`.
-
-## Création/édition expédition
-
-Manquant:
-
-- endpoint de création expédition multi-lignes (colis existants + création mono-produit),
-- endpoint save draft (`EXP-TEMP-XX`),
-- endpoint édition expédition avec règles de verrouillage/litige,
-- endpoint données de formulaire (destinations + contacts filtrés + cartons disponibles),
-- endpoint documents expédition (upload/list/delete),
-- endpoint labels/documents générés (liens + métadonnées).
-
-## Affectation / statut colis
-
-Manquant:
-
-- endpoint list/filtre cartons prêts,
-- endpoint changement statut colis,
-- endpoint affectation batch colis -> expédition.
-
-## Suivi / clôture expédition
-
-Manquant:
-
-- endpoint transitions tracking autorisées,
-- endpoint update tracking (avec validation métier),
-- endpoint set/resolve dispute,
-- endpoint clôture expédition avec garde-fous.
-
-## Portal
-
-Manquant:
-
-- endpoint création commande portail avec mêmes validations (destination/recipient/stock),
-- endpoint upload multi-doc commande,
-- endpoint CRUD destinataires association,
-- endpoint update profil + contacts portail.
-
-## 4) Plan API minimal pour P1/P2 (parité)
-
-## 4.1 Principe
-
-- Ne pas casser API actuelle.
-- Ajouter une couche `api/v1/ui/*` dédiée au front Next.
-- Réutiliser handlers/services existants pour garder la logique métier unique.
-
-## 4.2 Propositions d'endpoints (V1)
-
-- `GET /api/v1/ui/dashboard`
-- `GET /api/v1/ui/stock`
-- `POST /api/v1/ui/stock/update`
-- `POST /api/v1/ui/stock/out`
-- `GET /api/v1/ui/shipment/form-options`
-- `POST /api/v1/ui/shipments`
-- `POST /api/v1/ui/shipments/<id>/draft`
-- `PATCH /api/v1/ui/shipments/<id>`
-- `GET /api/v1/ui/shipments/tracking`
-- `POST /api/v1/ui/shipments/<id>/tracking-events`
-- `POST /api/v1/ui/shipments/<id>/dispute`
-- `POST /api/v1/ui/shipments/<id>/resolve-dispute`
-- `POST /api/v1/ui/shipments/<id>/close`
-- `POST /api/v1/ui/shipments/<id>/documents`
-- `DELETE /api/v1/ui/shipments/<id>/documents/<docId>`
-- `GET /api/v1/ui/portal/orders`
-- `POST /api/v1/ui/portal/orders`
-- `GET /api/v1/ui/portal/recipients`
-- `POST /api/v1/ui/portal/recipients`
-- `PATCH /api/v1/ui/portal/recipients/<id>`
-- `PATCH /api/v1/ui/portal/account`
-
-## 5) Sécurité/API contracts à figer
-
-- Auth session Django + CSRF obligatoire.
-- Contrôle permissions au niveau endpoint (staff, association profile, superuser).
-- Payloads versionnés stables (`v1`) pour éviter les regressions de front.
-- Erreurs structurées:
-  - `field_errors`,
-  - `non_field_errors`,
-  - `code`,
-  - `message`.
-
-## 6) Découpage de livraison recommandé
-
-- Sprint API-1 (P1): dashboard, stock view/update, shipment form-options.
-- Sprint API-2 (P1): create/edit shipment + tracking update.
-- Sprint API-3 (P2): portal create order + recipients/account.
-- Sprint API-4 (P2): documents/labels/templates.
+1. Completer endpoints manquants pour ecrans P1 (tracking detail, portal order detail).
+2. Etendre endpoints listes pour modules scan restants (cartons, shipments-ready, orders view).
+3. Ajouter batterie de tests permissions role par role.
+4. Conserver retro-compatibilite stricte sur contrats existants deja consommes par `frontend-next`.

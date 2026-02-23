@@ -4,6 +4,14 @@
 
 Phase 0 lancée pour préparer la migration vers Next/React statique (frontend parallèle), avec objectif de **copie conforme intégrale Benev/Classique** avant toute amélioration visuelle.
 
+Note de suivi:
+
+- ce rapport de phase reste un snapshot historique de P0,
+- pour l'etat global actuel P0->P2, se referer a:
+  - `docs/next-react-static-migration/README.md`
+  - `docs/next-react-static-migration/02_plan_execution.md`
+  - `docs/next-react-static-migration/03_matrice_parite_benev_classique.md`
+
 ## Résultat P0 (au 2026-02-22)
 
 ## 1) Inventaire technique consolidé

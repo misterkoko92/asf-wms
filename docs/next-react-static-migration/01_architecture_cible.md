@@ -1,5 +1,12 @@
 # 01 - Architecture cible (Next statique + Django/PythonAnywhere)
 
+## Statut implementation (2026-02-23)
+
+- socle parallel Next/Django: `DONE`
+- feature flag/switch legacy-next: `DONE`
+- couche API UI prioritaire: `IN_PROGRESS` (avancee, couverture principale en place)
+- mode offline PWA: `TODO`
+
 ## 1) Architecture de référence
 
 ```
@@ -48,6 +55,11 @@ Implication pratique: les écrans type `.../<id>/edit/` peuvent être servis en 
 - Ajouter des endpoints spécifiques pour combler les pages aujourd'hui rendues uniquement en template.
 - Stabiliser les payloads via DTO versionnés (`v1`), sans casser les vues legacy.
 
+Etat reel:
+
+- endpoints UI actifs sous `/api/v1/ui/*` pour dashboard, stock, shipments, docs/labels, templates et portal.
+- logique metier centralisee conservee dans Django (forms/handlers/services legacy reutilises).
+
 ## 5) Auth, sécurité, conformité
 
 - Session Django existante conservée.
@@ -56,12 +68,12 @@ Implication pratique: les écrans type `.../<id>/edit/` peuvent être servis en 
 - Masquage des données sensibles (contacts) au niveau API selon rôle.
 - Logging d'audit conservé côté backend.
 
-## 6) Offline mobile (V1 demandée)
+## 6) Offline mobile (cible, non implantee a date)
 
-- PWA activée côté nouveau front.
-- Cache des écrans stock + opérations critiques.
+- PWA cote nouveau front.
+- Cache des ecrans stock + operations critiques.
 - File d'attente locale pour actions hors-ligne (IndexedDB).
-- Rejeu idempotent à la reconnexion.
+- Rejeu idempotent a la reconnexion.
 - Indicateur visuel `offline / sync pending`.
 
 ## 7) Thèmes et parité Benev/Classique
@@ -72,29 +84,29 @@ Approche recommandée:
 - Reproduire structure, typographie, densité, états et libellés.
 - Ajouter tests de non-régression visuelle (capture/screenshot diff).
 
-## 8) Organisation code frontend (proposée)
+Etat reel:
+
+- switch global legacy/next en place via `/ui/mode/` et `/ui/mode/<mode>/`.
+- parite visuelle stricte non finalisee (ecrans Next encore hybrides).
+
+## 8) Organisation code frontend (etat reel + cible)
+
+Etat reel:
 
 ```
 frontend-next/
   app/
-    (scan)/
-    (portal)/
-  modules/
     scan/
     portal/
-    shipment/
-    stock/
-    documents/
-  components/
-    legacy-parity/
-    shared-ui/
-  lib/
-    api/
-    auth/
-    offline/
-    feature-flags/
-    permissions/
+    components/
+    lib/api/
 ```
+
+Cible (post-parite):
+
+- extraire des modules metier (`scan`, `portal`, `shipment`, `stock`, `documents`),
+- introduire bibliotheque de composants partagee,
+- ajouter `lib/offline` et `lib/feature-flags` dedies.
 
 ## 9) CI/CD (sans Node runtime en prod)
 
