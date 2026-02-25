@@ -1536,10 +1536,10 @@ class NextUiTests(StaticLiveServerTestCase):
                 "document.body.innerText.includes('Expedition creee.')"
             )
 
-            page.get_by_label("Shipment ID (Tracking)").fill(
+            page.get_by_label("Expedition (Tracking)", exact=True).fill(
                 str(self.workflow_tracking_shipment.id)
             )
-            page.get_by_label("Status tracking").select_option(
+            page.get_by_label("Statut tracking", exact=True).select_option(
                 ShipmentTrackingStatus.RECEIVED_CORRESPONDENT
             )
             page.get_by_role("button", name="Envoyer tracking").click()
@@ -1547,7 +1547,7 @@ class NextUiTests(StaticLiveServerTestCase):
                 "document.body.innerText.includes('Suivi mis a jour.')"
             )
 
-            page.get_by_label("Status tracking").select_option(
+            page.get_by_label("Statut tracking", exact=True).select_option(
                 ShipmentTrackingStatus.RECEIVED_RECIPIENT
             )
             page.get_by_role("button", name="Envoyer tracking").click()
@@ -1555,7 +1555,7 @@ class NextUiTests(StaticLiveServerTestCase):
                 "document.body.innerText.includes('Suivi mis a jour.')"
             )
 
-            page.get_by_label("Shipment ID (Cloture)").fill(
+            page.get_by_label("Expedition (Cloture)", exact=True).fill(
                 str(self.workflow_tracking_shipment.id)
             )
             page.get_by_role("button", name="Cloturer expedition").click()
@@ -1721,6 +1721,8 @@ class NextUiTests(StaticLiveServerTestCase):
             self.assertNotIn("destinataire id", initial_text.lower())
             self.assertNotIn("correspondant id", initial_text.lower())
             self.assertNotIn("carton id", initial_text.lower())
+            self.assertNotIn("shipment id (tracking)", initial_text.lower())
+            self.assertNotIn("shipment id (cloture)", initial_text.lower())
 
             destination_option = page.locator(
                 f'label:has-text("Destination") select option[value="{self.destination.id}"]'
@@ -1768,10 +1770,10 @@ class NextUiTests(StaticLiveServerTestCase):
                 wait_until="domcontentloaded",
             )
             page.wait_for_selector("h1")
-            page.get_by_label("Shipment ID (Tracking)").fill(
+            page.get_by_label("Expedition (Tracking)", exact=True).fill(
                 str(self.workflow_tracking_shipment.id)
             )
-            page.get_by_label("Status tracking").select_option(
+            page.get_by_label("Statut tracking", exact=True).select_option(
                 ShipmentTrackingStatus.RECEIVED_CORRESPONDENT
             )
             page.get_by_role("button", name="Envoyer tracking").click()
@@ -1779,7 +1781,7 @@ class NextUiTests(StaticLiveServerTestCase):
                 "document.body.innerText.includes('Suivi mis a jour.')"
             )
 
-            page.get_by_label("Status tracking").select_option(
+            page.get_by_label("Statut tracking", exact=True).select_option(
                 ShipmentTrackingStatus.RECEIVED_RECIPIENT
             )
             page.get_by_role("button", name="Envoyer tracking").click()
@@ -1787,7 +1789,7 @@ class NextUiTests(StaticLiveServerTestCase):
                 "document.body.innerText.includes('Suivi mis a jour.')"
             )
 
-            page.get_by_label("Shipment ID (Cloture)").fill(
+            page.get_by_label("Expedition (Cloture)", exact=True).fill(
                 str(self.workflow_tracking_shipment.id)
             )
             page.get_by_role("button", name="Cloturer expedition").click()

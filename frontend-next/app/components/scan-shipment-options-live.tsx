@@ -409,7 +409,7 @@ export function ScanShipmentOptionsLive() {
     event.preventDefault();
     const shipmentId = parseId(trackingShipmentId);
     if (!shipmentId) {
-      setMutationError("Shipment ID (Tracking) invalide.");
+      setMutationError("Expedition (Tracking) invalide.");
       return;
     }
     setIsSubmitting(true);
@@ -434,7 +434,7 @@ export function ScanShipmentOptionsLive() {
     event.preventDefault();
     const shipmentId = parseId(closeShipmentId);
     if (!shipmentId) {
-      setMutationError("Shipment ID (Cloture) invalide.");
+      setMutationError("Expedition (Cloture) invalide.");
       return;
     }
     setIsSubmitting(true);
@@ -650,16 +650,18 @@ export function ScanShipmentOptionsLive() {
 
       <form className="inline-form" onSubmit={onTrackingSubmit}>
         <label className="field-inline">
-          Shipment ID (Tracking)
+          Expedition (Tracking)
           <input
+            aria-label="Expedition (Tracking)"
             value={trackingShipmentId}
             onChange={(event) => setTrackingShipmentId(event.target.value)}
             inputMode="numeric"
           />
         </label>
         <label className="field-inline">
-          Status tracking
+          Statut tracking
           <select
+            aria-label="Statut tracking"
             value={trackingStatus}
             onChange={(event) => setTrackingStatus(event.target.value)}
           >
@@ -671,15 +673,17 @@ export function ScanShipmentOptionsLive() {
           </select>
         </label>
         <label className="field-inline">
-          Actor name
+          Nom acteur
           <input
+            aria-label="Nom acteur"
             value={actorName}
             onChange={(event) => setActorName(event.target.value)}
           />
         </label>
         <label className="field-inline">
-          Actor structure
+          Structure acteur
           <input
+            aria-label="Structure acteur"
             value={actorStructure}
             onChange={(event) => setActorStructure(event.target.value)}
           />
@@ -696,8 +700,9 @@ export function ScanShipmentOptionsLive() {
 
       <form className="inline-form" onSubmit={onCloseShipment}>
         <label className="field-inline">
-          Shipment ID (Cloture)
+          Expedition (Cloture)
           <input
+            aria-label="Expedition (Cloture)"
             value={closeShipmentId}
             onChange={(event) => setCloseShipmentId(event.target.value)}
             inputMode="numeric"

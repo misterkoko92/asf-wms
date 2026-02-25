@@ -29,9 +29,9 @@ Niveau de maturite:
 - dashboard scan enrichi avec section stock sous seuil (table low stock),
 - route `shipments-ready` branchee avec action d'archivage des brouillons stale,
 - route `shipments-ready` alignee sur les liens Documents legacy (menu + 4 liens),
-- route `shipments-tracking` branchee en live API avec filtres semaine/clos + table suivi + actions tracking/cloture,
+- route `shipments-tracking` branchee en live API avec filtres semaine/clos + table suivi + actions tracking/cloture + labels tracking/cloture metier (sans `Shipment ID`),
 - route `shipments-tracking` alignee sur les etats visuels de cloture (closable/bloque/deja clos),
-- route `shipment-create` alignee sur les filtres de contacts par destination + sections progressives sans auto-selection + message d'absence expediteur + masquage de la zone creation colis/produit tant que selections incompletes + options select et labels de champs affiches en libelles metier (sans `id -` ni suffixe `ID`),
+- route `shipment-create` alignee sur les filtres de contacts par destination + sections progressives sans auto-selection + message d'absence expediteur + masquage de la zone creation colis/produit tant que selections incompletes + options select et labels de champs affiches en libelles metier (sans `id -`, sans suffixe `ID`, et sans `Shipment ID` sur tracking/cloture),
 - parite ecran stricte Next vs Benev/Classique encore en cours.
 
 ## Objectif
@@ -118,6 +118,7 @@ Basculer l'interface actuelle `Benev + Classique` vers un frontend Next/React **
 - `docs/next-react-static-migration/p3_phase3_increment25_2026-02-25.md`
 - `docs/next-react-static-migration/p3_phase3_increment26_2026-02-25.md`
 - `docs/next-react-static-migration/p3_phase3_increment27_2026-02-25.md`
+- `docs/next-react-static-migration/p3_phase3_increment28_2026-02-25.md`
 
 ## Prochaine cible
 
