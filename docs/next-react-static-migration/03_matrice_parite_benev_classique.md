@@ -21,7 +21,7 @@
 | P1 | `/scan/stock/` | `/app/scan/stock/` | ecran present (filtres recherche/categorie/entrepot/tri + liens admin categorie/entrepot + table live enrichie barcode/marque + etat vide + mutations update/out branchees) | `GET /api/v1/ui/stock/` | IN_PROGRESS |
 | P1 | `/scan/stock-update/` | `/app/scan/stock/` (zone MAJ inline cible) | workflow UI mutation present et teste en navigateur | `POST /api/v1/ui/stock/update/` | IN_PROGRESS |
 | P1 | `/scan/out/` | `/app/scan/stock/` (zone sortie cible) | workflow UI mutation present et teste en navigateur | `POST /api/v1/ui/stock/out/` | IN_PROGRESS |
-| P1 | `/scan/shipment/` | `/app/scan/shipment-create/` | ecran present + mutations create(travail carton ou produit)/tracking/close branchees | `GET/POST/PATCH /api/v1/ui/shipments*` | IN_PROGRESS |
+| P1 | `/scan/shipment/` | `/app/scan/shipment-create/` | ecran present + mutations create(travail carton ou produit)/tracking/close branchees + liens admin destination/contacts + placeholders statiques retires | `GET/POST/PATCH /api/v1/ui/shipments*` | IN_PROGRESS |
 | P1 | `/scan/shipments-tracking/` | `/app/scan/shipments-tracking/` | route dediee presente, table live + filtres (semaine/clos) + workflow tracking + etats visuels de cloture branches et testes | `GET /api/v1/ui/shipments/tracking/` + `POST /api/v1/ui/shipments/<id>/tracking-events/` | IN_PROGRESS |
 | P1 | `/scan/shipment/<id>/close` (logique legacy) | `/app/scan/shipments-tracking/` (integration transitoire) | workflow cloture present sur route dediee suivi | `POST /api/v1/ui/shipments/<id>/close/` | IN_PROGRESS |
 | P1 | `/scan/pack/` | `/app/scan/shipment-create/` (integration transitoire) | creation colis inline via produit+quantite presente sur shipment-create | logique disponible via handlers legacy + API shipment lines | IN_PROGRESS |
@@ -98,6 +98,7 @@ Principe cible: route stable + query params.
 - [x] workflow navigateur dashboard live (timeline + actions + filtres destination/periode KPI + bloc KPI periode + bloc expeditions + bloc colis + bloc stock + bloc receptions/commandes + bloc suivi/alertes + bloc technique/queue email + blocages workflow + bloc suivi SLA + bloc graphique expeditions + stock sous seuil): `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur expedition mutations (create/tracking/close): `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur creation colis inline (produit+quantite) sur shipment-create: `wms/tests/core/tests_ui.py::NextUiTests`
+- [x] workflow navigateur shipment-create sans placeholders + liens admin destination/contacts: `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur route dediee vue expeditions (`/app/scan/shipments-ready/`) + archivage stale drafts + liens docs legacy: `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur route dediee suivi expedition (`/app/scan/shipments-tracking/`) + presence liste live + etats visuels cloture: `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur route dediee vue colis (`/app/scan/cartons/`): `wms/tests/core/tests_ui.py::NextUiTests`

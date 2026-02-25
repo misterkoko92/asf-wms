@@ -299,6 +299,14 @@ export function ScanShipmentOptionsLive() {
               </option>
             ))}
           </select>
+          <a
+            className="btn-secondary"
+            href="/admin/wms/destination/add/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Ajouter destination
+          </a>
         </label>
         <label className="field-inline">
           Expediteur ID
@@ -309,6 +317,14 @@ export function ScanShipmentOptionsLive() {
               </option>
             ))}
           </select>
+          <a
+            className="btn-secondary"
+            href="/admin/contacts/contact/add/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Ajouter expediteur
+          </a>
         </label>
         <label className="field-inline">
           Destinataire ID
@@ -322,6 +338,14 @@ export function ScanShipmentOptionsLive() {
               </option>
             ))}
           </select>
+          <a
+            className="btn-secondary"
+            href="/admin/contacts/contact/add/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Ajouter destinataire
+          </a>
         </label>
         <label className="field-inline">
           Correspondant ID
@@ -335,6 +359,14 @@ export function ScanShipmentOptionsLive() {
               </option>
             ))}
           </select>
+          <a
+            className="btn-secondary"
+            href="/admin/contacts/contact/add/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Ajouter correspondant
+          </a>
         </label>
         <label className="field-inline">
           Carton ID

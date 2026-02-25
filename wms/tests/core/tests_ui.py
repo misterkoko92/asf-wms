@@ -1616,6 +1616,44 @@ class NextUiTests(StaticLiveServerTestCase):
         self.shipment_pack_lot.refresh_from_db()
         self.assertEqual(self.shipment_pack_lot.quantity_on_hand, 8)
 
+    def test_next_shipment_create_replaces_placeholder_actions_with_admin_links(self):
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.staff_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/scan/shipment-create/",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+            destination_link = page.get_by_role("link", name="Ajouter destination")
+            shipper_link = page.get_by_role("link", name="Ajouter expediteur")
+            recipient_link = page.get_by_role("link", name="Ajouter destinataire")
+            correspondent_link = page.get_by_role("link", name="Ajouter correspondant")
+            self.assertEqual(destination_link.get_attribute("href"), "/admin/wms/destination/add/")
+            self.assertEqual(shipper_link.get_attribute("href"), "/admin/contacts/contact/add/")
+            self.assertEqual(recipient_link.get_attribute("href"), "/admin/contacts/contact/add/")
+            self.assertEqual(correspondent_link.get_attribute("href"), "/admin/contacts/contact/add/")
+
+            page.wait_for_function(
+                """
+                () => {
+                  const text = document.body.innerText || "";
+                  return (
+                    !text.includes("Save draft") &&
+                    !text.includes("Publish warning") &&
+                    !text.includes("Set ready to ship") &&
+                    !text.includes("Formulaire expedition") &&
+                    !text.includes("Etat documents")
+                  );
+                }
+                """
+            )
+            context.close()
+            browser.close()
+
     def test_next_shipments_tracking_route_workflow(self):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
