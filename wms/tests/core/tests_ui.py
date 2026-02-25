@@ -1686,7 +1686,16 @@ class NextUiTests(StaticLiveServerTestCase):
             )
             body_text = page.locator("body").inner_text()
             self.assertIn("aucun expediteur trouve dans la base", body_text.lower())
-            self.assertTrue(page.get_by_role("button", name="Creer expedition").is_disabled())
+            self.assertNotIn("carton id", body_text.lower())
+            self.assertNotIn("product code (creation)", body_text.lower())
+            self.assertEqual(
+                page.get_by_role("button", name="Creer expedition").count(),
+                0,
+            )
+            self.assertIn(
+                "activer la creation expedition",
+                body_text.lower(),
+            )
             context.close()
             browser.close()
 

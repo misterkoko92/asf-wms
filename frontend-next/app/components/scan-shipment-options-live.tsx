@@ -576,40 +576,52 @@ export function ScanShipmentOptionsLive() {
             </div>
           ) : null}
         </label>
-        <label className="field-inline">
-          Carton ID
-          <select value={selectedCartonId} onChange={(event) => setCartonId(event.target.value)}>
-            <option value="">-- creer colis depuis produit --</option>
-            {cartons.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.id} - {item.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field-inline">
-          Product code (Creation)
-          <input
-            value={createProductCode}
-            onChange={(event) => setCreateProductCode(event.target.value)}
-          />
-        </label>
-        <label className="field-inline">
-          Quantite (Creation)
-          <input
-            value={createQuantity}
-            onChange={(event) => setCreateQuantity(event.target.value)}
-            inputMode="numeric"
-          />
-        </label>
-        <button
-          type="submit"
-          className="btn-primary"
-          data-track="shipment.create.submit"
-          disabled={isSubmitting || !canSubmitCreate}
-        >
-          Creer expedition
-        </button>
+        {canSubmitCreate ? (
+          <>
+            <label className="field-inline">
+              Carton ID
+              <select
+                value={selectedCartonId}
+                onChange={(event) => setCartonId(event.target.value)}
+              >
+                <option value="">-- creer colis depuis produit --</option>
+                {cartons.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.id} - {item.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field-inline">
+              Product code (Creation)
+              <input
+                value={createProductCode}
+                onChange={(event) => setCreateProductCode(event.target.value)}
+              />
+            </label>
+            <label className="field-inline">
+              Quantite (Creation)
+              <input
+                value={createQuantity}
+                onChange={(event) => setCreateQuantity(event.target.value)}
+                inputMode="numeric"
+              />
+            </label>
+            <button
+              type="submit"
+              className="btn-primary"
+              data-track="shipment.create.submit"
+              disabled={isSubmitting}
+            >
+              Creer expedition
+            </button>
+          </>
+        ) : (
+          <div className="api-state">
+            Merci de selectionner destination, expediteur, destinataire et
+            correspondant pour activer la creation expedition.
+          </div>
+        )}
       </form>
 
       <form className="inline-form" onSubmit={onTrackingSubmit}>
