@@ -1,6 +1,6 @@
 # Migration Benev/Classique vers Next React statique
 
-## Etat actuel (2026-02-23)
+## Etat actuel (2026-02-25)
 
 - `P0`: termine
 - `P1`: termine
@@ -17,6 +17,7 @@ Capacites utilisables des maintenant (dev):
 Niveau de maturite:
 
 - bout en bout valide en tests API (workflow scan + portal),
+- workflows UI navigateur critiques couverts en progression (stock mutations + filtres, shipment create/tracking/close avec creation colis inline, portal mutations),
 - parite ecran stricte Next vs Benev/Classique encore en cours.
 
 ## Objectif
@@ -77,6 +78,7 @@ Basculer l'interface actuelle `Benev + Classique` vers un frontend Next/React **
 ## Livrables Phase 3 (en cours)
 
 - `docs/next-react-static-migration/p3_phase3_increment1_2026-02-25.md`
+- `docs/next-react-static-migration/p3_phase3_increment2_2026-02-25.md`
 
 ## Prochaine cible
 

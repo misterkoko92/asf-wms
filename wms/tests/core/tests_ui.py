@@ -257,6 +257,38 @@ class NextUiTests(StaticLiveServerTestCase):
             is_active=True,
             qr_code_image="qr_codes/test.png",
         )
+        self.stock_secondary_product = Product.objects.create(
+            sku="NEXT-UI-STOCK-002",
+            name="Next UI Secondary Stock Product",
+            brand="ASF",
+            default_location=stock_location,
+            is_active=True,
+            qr_code_image="qr_codes/test.png",
+        )
+        self.stock_filter_primary_product = Product.objects.create(
+            sku="NEXT-UI-STOCK-FILTER-001",
+            name="Next UI Filter Primary Product",
+            brand="ASF",
+            default_location=stock_location,
+            is_active=True,
+            qr_code_image="qr_codes/test.png",
+        )
+        ProductLot.objects.create(
+            product=self.stock_filter_primary_product,
+            lot_code="NEXT-UI-STOCK-FILTER-LOT-1",
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=8,
+            quantity_reserved=0,
+            location=stock_location,
+        )
+        ProductLot.objects.create(
+            product=self.stock_secondary_product,
+            lot_code="NEXT-UI-STOCK-LOT-2",
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=5,
+            quantity_reserved=0,
+            location=stock_location,
+        )
         self.shipment_pack_product = Product.objects.create(
             sku="NEXT-UI-PACK-001",
             name="Next UI Pack Product",
@@ -502,6 +534,39 @@ class NextUiTests(StaticLiveServerTestCase):
             total=Sum("quantity_on_hand")
         )["total"]
         self.assertEqual(total_quantity, 3)
+
+    def test_next_stock_filters_by_query_workflow(self):
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.staff_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/scan/stock/",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+            page.wait_for_function(
+                "(skus) => document.body.innerText.includes(skus.primary) && "
+                "document.body.innerText.includes(skus.secondary)",
+                arg={
+                    "primary": self.stock_filter_primary_product.sku,
+                    "secondary": self.stock_secondary_product.sku,
+                },
+            )
+            page.get_by_label("Recherche").fill(self.stock_filter_primary_product.sku)
+            page.get_by_role("button", name="Filtrer").click()
+            page.wait_for_function(
+                "(skus) => document.body.innerText.includes(skus.primary) && "
+                "!document.body.innerText.includes(skus.secondary)",
+                arg={
+                    "primary": self.stock_filter_primary_product.sku,
+                    "secondary": self.stock_secondary_product.sku,
+                },
+            )
+            context.close()
+            browser.close()
 
     def test_next_shipment_create_tracking_close_workflow(self):
         with sync_playwright() as playwright:

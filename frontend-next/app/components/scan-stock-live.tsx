@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 
 import { ApiClientError } from "../lib/api/client";
 import { getScanStock, postStockOut, postStockUpdate } from "../lib/api/ui";
@@ -24,7 +24,51 @@ function parsePositiveInteger(rawValue: string): number | null {
   return value;
 }
 
+function buildStockQuery(params: {
+  q: string;
+  category: string;
+  warehouse: string;
+  sort: string;
+}): string {
+  const query = new URLSearchParams();
+  const q = params.q.trim();
+  const category = params.category.trim();
+  const warehouse = params.warehouse.trim();
+  const sort = params.sort.trim();
+  if (q) {
+    query.set("q", q);
+  }
+  if (category) {
+    query.set("category", category);
+  }
+  if (warehouse) {
+    query.set("warehouse", warehouse);
+  }
+  if (sort) {
+    query.set("sort", sort);
+  }
+  return query.toString();
+}
+
+function formatLastMovement(value: string | null): string {
+  if (!value) {
+    return "-";
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "-";
+  }
+  return parsed.toLocaleString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 const DEFAULT_UPDATE_EXPIRY = "2026-12-31";
+const DEFAULT_SORT = "name";
 
 export function ScanStockLive() {
   const [data, setData] = useState<ScanStockDto | null>(null);
@@ -32,6 +76,13 @@ export function ScanStockLive() {
   const [mutationError, setMutationError] = useState<string>("");
   const [mutationStatus, setMutationStatus] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const filtersHydratedRef = useRef<boolean>(false);
+
+  const [filterQ, setFilterQ] = useState<string>("");
+  const [filterCategory, setFilterCategory] = useState<string>("");
+  const [filterWarehouse, setFilterWarehouse] = useState<string>("");
+  const [filterSort, setFilterSort] = useState<string>(DEFAULT_SORT);
 
   const [updateProductCode, setUpdateProductCode] = useState<string>("");
   const [updateQuantity, setUpdateQuantity] = useState<string>("1");
@@ -43,24 +94,56 @@ export function ScanStockLive() {
   const [outReasonCode, setOutReasonCode] = useState<string>("next_ui_flow");
   const [outReasonNotes, setOutReasonNotes] = useState<string>("Workflow navigateur Next");
 
-  const loadStock = useCallback(async () => {
-    setError("");
-    try {
-      const payload = await getScanStock();
-      setData(payload);
-    } catch (err: unknown) {
-      setData(null);
-      setError(toErrorMessage(err));
-    }
-  }, []);
+  const loadStock = useCallback(
+    async (query = "") => {
+      setError("");
+      setIsLoading(true);
+      try {
+        const payload = await getScanStock(query);
+        setData(payload);
+        if (!filtersHydratedRef.current) {
+          setFilterQ(payload.filters.q || "");
+          setFilterCategory(payload.filters.category || "");
+          setFilterWarehouse(payload.filters.warehouse || "");
+          setFilterSort(payload.filters.sort || DEFAULT_SORT);
+          filtersHydratedRef.current = true;
+        }
+      } catch (err: unknown) {
+        setData(null);
+        setError(toErrorMessage(err));
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
-    let cancelled = false;
     loadStock().catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
   }, [loadStock]);
+
+  const reloadCurrentFilters = useCallback(async () => {
+    const query = buildStockQuery({
+      q: filterQ,
+      category: filterCategory,
+      warehouse: filterWarehouse,
+      sort: filterSort,
+    });
+    await loadStock(query);
+  }, [filterCategory, filterQ, filterSort, filterWarehouse, loadStock]);
+
+  const onFilterSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    await reloadCurrentFilters();
+  };
+
+  const onFilterReset = async () => {
+    setFilterQ("");
+    setFilterCategory("");
+    setFilterWarehouse("");
+    setFilterSort(DEFAULT_SORT);
+    await loadStock("");
+  };
 
   const onStockUpdateSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -86,7 +169,7 @@ export function ScanStockLive() {
     try {
       const response = await postStockUpdate(payload);
       setMutationStatus(response.message);
-      await loadStock();
+      await reloadCurrentFilters();
     } catch (err: unknown) {
       setMutationError(toErrorMessage(err));
     } finally {
@@ -118,7 +201,7 @@ export function ScanStockLive() {
     try {
       const response = await postStockOut(payload);
       setMutationStatus(response.message);
-      await loadStock();
+      await reloadCurrentFilters();
     } catch (err: unknown) {
       setMutationError(toErrorMessage(err));
     } finally {
@@ -139,11 +222,67 @@ export function ScanStockLive() {
   }
 
   return (
-    <>
+    <div className="stack-grid">
       <div className="api-state api-ok">
         API stock connectee. {data.meta.total_products} produits, seuil bas{" "}
         {data.meta.low_stock_threshold}.
       </div>
+
+      <form className="inline-form" onSubmit={onFilterSubmit}>
+        <label className="field-inline">
+          Recherche
+          <input value={filterQ} onChange={(event) => setFilterQ(event.target.value)} />
+        </label>
+        <label className="field-inline">
+          Categorie
+          <select
+            value={filterCategory}
+            onChange={(event) => setFilterCategory(event.target.value)}
+          >
+            <option value="">Toutes categories</option>
+            {data.categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field-inline">
+          Entrepot
+          <select
+            value={filterWarehouse}
+            onChange={(event) => setFilterWarehouse(event.target.value)}
+          >
+            <option value="">Tous entrepots</option>
+            {data.warehouses.map((warehouse) => (
+              <option key={warehouse.id} value={warehouse.id}>
+                {warehouse.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field-inline">
+          Tri
+          <select value={filterSort} onChange={(event) => setFilterSort(event.target.value)}>
+            <option value="category">Categorie</option>
+            <option value="name">Nom</option>
+            <option value="sku">Reference</option>
+            <option value="qty_asc">Stock croissant</option>
+            <option value="qty_desc">Stock decroissant</option>
+          </select>
+        </label>
+        <button type="submit" className="btn-secondary" disabled={isSubmitting || isLoading}>
+          Filtrer
+        </button>
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={() => onFilterReset().catch(() => undefined)}
+          disabled={isSubmitting || isLoading}
+        >
+          Reinitialiser
+        </button>
+      </form>
 
       <form className="inline-form" onSubmit={onStockUpdateSubmit}>
         <label className="field-inline">
@@ -224,38 +363,31 @@ export function ScanStockLive() {
         </div>
       ) : null}
 
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th>Produit</th>
-            <th>Marque</th>
-            <th>Emplacement</th>
-            <th>Qty</th>
-            <th>Etat</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.products.slice(0, 12).map((row) => (
-            <tr key={row.id}>
-              <td>{row.name}</td>
-              <td>{row.brand}</td>
-              <td>{row.location}</td>
-              <td>{row.stock_total}</td>
-              <td>
-                <span className={`state-pill state-${row.state.toLowerCase()}`}>
-                  {row.state.toUpperCase()}
-                </span>
-              </td>
-              <td>
-                <button type="button" className="table-action" data-track="stock.update.inline">
-                  MAJ
-                </button>
-              </td>
+      <article className="panel">
+        <h2>Produits en stock ({data.products.length})</h2>
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Reference</th>
+              <th>Produit</th>
+              <th>Categorie</th>
+              <th>Stock</th>
+              <th>Derniere modification</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </>
+          </thead>
+          <tbody>
+            {data.products.map((row) => (
+              <tr key={row.id}>
+                <td>{row.sku}</td>
+                <td>{row.name}</td>
+                <td>{row.category_name || "-"}</td>
+                <td>{row.stock_total}</td>
+                <td>{formatLastMovement(row.last_movement_at)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </article>
+    </div>
   );
 }

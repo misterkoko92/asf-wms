@@ -1,4 +1,4 @@
-# 02 - Plan d'execution detaille (mis a jour 2026-02-23)
+# 02 - Plan d'execution detaille (mis a jour 2026-02-25)
 
 ## Cadrage global
 
@@ -41,7 +41,7 @@ Tests en place:
 Important:
 
 - workflow complet valide aujourd'hui **au niveau API**,
-- workflow complet **pas encore valide au niveau UI navigateur** (parite ecran stricte restante).
+- couverture UI navigateur en progression (stock mutations+filtres, shipment create/tracking/close + creation colis inline, portal mutations), parite ecran stricte restante.
 
 ## Phase 0 - Inventaire et baseline (J0 -> J2)
 
@@ -167,7 +167,7 @@ Migrer en priorite les 3 pages business cibles.
 Etat factuel:
 
 - ecrans Next presents mais encore hybrides (maquette + branchements API),
-- actions metier critiques pas encore toutes executees depuis ces ecrans (creation colis inline sur `shipment-create` desormais couverte),
+- actions metier critiques majeures des ecrans prioritaires davantage couvertes (stock mutations + filtres sur `scan/stock`, creation colis inline sur `shipment-create`),
 - parite visuelle stricte non validee.
 
 ### Criteres de sortie

@@ -18,7 +18,7 @@
 | Priorite | Legacy URL | Route Next cible | Etat Next reel | Etat API UI | Statut |
 |---|---|---|---|---|---|
 | P1 | `/scan/dashboard/` | `/app/scan/dashboard/` | ecran present (mix maquette + live API) | `GET /api/v1/ui/dashboard/` | IN_PROGRESS |
-| P1 | `/scan/stock/` | `/app/scan/stock/` | ecran present (table live + mutations update/out branchees) | `GET /api/v1/ui/stock/` | IN_PROGRESS |
+| P1 | `/scan/stock/` | `/app/scan/stock/` | ecran present (filtres recherche/categorie/entrepot/tri + table live + mutations update/out branchees) | `GET /api/v1/ui/stock/` | IN_PROGRESS |
 | P1 | `/scan/stock-update/` | `/app/scan/stock/` (zone MAJ inline cible) | workflow UI mutation present et teste en navigateur | `POST /api/v1/ui/stock/update/` | IN_PROGRESS |
 | P1 | `/scan/out/` | `/app/scan/stock/` (zone sortie cible) | workflow UI mutation present et teste en navigateur | `POST /api/v1/ui/stock/out/` | IN_PROGRESS |
 | P1 | `/scan/shipment/` | `/app/scan/shipment-create/` | ecran present + mutations create(travail carton ou produit)/tracking/close branchees | `GET/POST/PATCH /api/v1/ui/shipments*` | IN_PROGRESS |
@@ -94,6 +94,7 @@ Principe cible: route stable + query params.
 - [x] harness E2E navigateur `/app/*` disponible: `wms/tests/core/tests_ui.py::NextUiTests` (commande `make test-next-ui`)
 - [x] workflows navigateur docs/templates (upload+delete documents, save+reset templates): `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur stock mutations (update/out): `wms/tests/core/tests_ui.py::NextUiTests`
+- [x] workflow navigateur filtres stock (recherche): `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur expedition mutations (create/tracking/close): `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur creation colis inline (produit+quantite) sur shipment-create: `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur portal mutations (order create, recipient create/update, account patch): `wms/tests/core/tests_ui.py::NextUiTests`
