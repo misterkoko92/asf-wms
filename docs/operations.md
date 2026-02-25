@@ -105,6 +105,30 @@ python manage.py check --deploy --fail-level WARNING
 
 Then restart the app process (systemd, supervisor, platform-specific service).
 
+### 3.1) Next static export (PythonAnywhere low-disk flow)
+
+When `frontend-next` is hosted by Django under `/app/*`, deploy only `frontend-next/out`.
+
+Preferred path (local build + sync):
+
+```bash
+PA_SSH_TARGET="youruser@ssh.pythonanywhere.com" \
+PA_PROJECT_DIR="/home/youruser/asf-wms" \
+deploy/pythonanywhere/push_next_export.sh
+```
+
+Fallback path (artifact build in GitHub Actions):
+
+1. Run workflow `.github/workflows/frontend-next-export.yml` (`workflow_dispatch`).
+2. Download `next-export-<sha>.tar.gz`.
+3. Upload archive to PythonAnywhere.
+4. Install:
+
+```bash
+PROJECT_DIR="/home/youruser/asf-wms" \
+deploy/pythonanywhere/install_next_export.sh /home/youruser/next-export-<sha>.tar.gz
+```
+
 ## 4) Post-deploy smoke tests
 
 Replace `BASE_URL`:

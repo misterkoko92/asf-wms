@@ -30,6 +30,7 @@ Use this checklist for each production release.
 - [ ] `python -m pip install -r requirements.txt`
 - [ ] `python manage.py migrate --noinput`
 - [ ] `python manage.py collectstatic --noinput`
+- [ ] If `/app/*` changed, push updated `frontend-next/out` (see `deploy/pythonanywhere/push_next_export.sh`).
 - [ ] `python manage.py check --deploy --fail-level WARNING`
 - [ ] Restart app service/process
 
