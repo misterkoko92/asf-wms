@@ -1703,6 +1703,51 @@ class NextUiTests(StaticLiveServerTestCase):
             context.close()
             browser.close()
 
+    def test_next_shipment_create_selects_use_business_labels_without_id_prefix(self):
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.staff_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/scan/shipment-create/",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+
+            destination_option = page.locator(
+                f'label:has-text("Destination ID") select option[value="{self.destination.id}"]'
+            ).inner_text()
+            self.assertEqual(destination_option.strip(), str(self.destination))
+
+            page.get_by_label("Destination ID").select_option(str(self.destination.id))
+            shipper_option = page.locator(
+                f'label:has-text("Expediteur ID") select option[value="{self.shipper_contact.id}"]'
+            ).inner_text()
+            self.assertEqual(shipper_option.strip(), self.shipper_contact.name)
+
+            page.get_by_label("Expediteur ID").select_option(str(self.shipper_contact.id))
+            recipient_option = page.locator(
+                f'label:has-text("Destinataire ID") select option[value="{self.recipient_contact.id}"]'
+            ).inner_text()
+            correspondent_option = page.locator(
+                f'label:has-text("Correspondant ID") select option[value="{self.correspondent_contact.id}"]'
+            ).inner_text()
+            self.assertEqual(recipient_option.strip(), self.recipient_contact.name)
+            self.assertEqual(correspondent_option.strip(), self.correspondent_contact.name)
+
+            page.get_by_label("Destinataire ID").select_option(str(self.recipient_contact.id))
+            page.get_by_label("Correspondant ID").select_option(
+                str(self.correspondent_contact.id)
+            )
+            carton_option = page.locator(
+                f'label:has-text("Carton ID") select option[value="{self.available_carton.id}"]'
+            ).inner_text()
+            self.assertEqual(carton_option.strip(), self.available_carton.code)
+            context.close()
+            browser.close()
+
     def test_next_shipments_tracking_route_workflow(self):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()

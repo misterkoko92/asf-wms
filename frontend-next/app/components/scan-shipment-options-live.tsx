@@ -480,7 +480,7 @@ export function ScanShipmentOptionsLive() {
             <option value="">---</option>
             {destinations.map((item) => (
               <option key={item.id} value={item.id}>
-                {item.id} - {item.label}
+                {item.label}
               </option>
             ))}
           </select>
@@ -507,7 +507,7 @@ export function ScanShipmentOptionsLive() {
               <option value="">---</option>
               {shipperOptions.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {item.id} - {item.label}
+                  {item.label}
                 </option>
               ))}
             </select>
@@ -542,7 +542,7 @@ export function ScanShipmentOptionsLive() {
                 <option value="">---</option>
                 {recipientOptions.map((item) => (
                   <option key={item.id} value={item.id}>
-                    {item.id} - {item.label}
+                    {item.label}
                   </option>
                 ))}
               </select>
@@ -570,7 +570,7 @@ export function ScanShipmentOptionsLive() {
                 <option value="">---</option>
                 {correspondentOptions.map((item) => (
                   <option key={item.id} value={item.id}>
-                    {item.id} - {item.label}
+                    {item.label}
                   </option>
                 ))}
               </select>
@@ -606,7 +606,7 @@ export function ScanShipmentOptionsLive() {
                 <option value="">-- creer colis depuis produit --</option>
                 {cartons.map((item) => (
                   <option key={item.id} value={item.id}>
-                    {item.id} - {item.label}
+                    {item.label}
                   </option>
                 ))}
               </select>
