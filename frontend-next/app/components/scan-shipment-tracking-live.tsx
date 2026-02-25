@@ -134,7 +134,7 @@ export function ScanShipmentTrackingLive() {
     event.preventDefault();
     const shipmentId = parseId(trackingShipmentId);
     if (!shipmentId) {
-      setMutationError("Expedition (Tracking) invalide.");
+      setMutationError("Expedition (Suivi) invalide.");
       return;
     }
     setIsSubmitting(true);
@@ -252,18 +252,18 @@ export function ScanShipmentTrackingLive() {
 
       <form className="inline-form" onSubmit={onTrackingSubmit}>
         <label className="field-inline">
-          Expedition (Tracking)
+          Expedition (Suivi)
           <input
-            aria-label="Expedition (Tracking)"
+            aria-label="Expedition (Suivi)"
             value={trackingShipmentId}
             onChange={(event) => setTrackingShipmentId(event.target.value)}
             inputMode="numeric"
           />
         </label>
         <label className="field-inline">
-          Statut tracking
+          Statut suivi
           <select
-            aria-label="Statut tracking"
+            aria-label="Statut suivi"
             value={trackingStatus}
             onChange={(event) => setTrackingStatus(event.target.value)}
           >
@@ -296,7 +296,7 @@ export function ScanShipmentTrackingLive() {
           data-track="shipment.tracking.submit"
           disabled={isSubmitting}
         >
-          Envoyer tracking
+          Envoyer suivi
         </button>
       </form>
 

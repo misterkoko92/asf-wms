@@ -1536,21 +1536,21 @@ class NextUiTests(StaticLiveServerTestCase):
                 "document.body.innerText.includes('Expedition creee.')"
             )
 
-            page.get_by_label("Expedition (Tracking)", exact=True).fill(
+            page.get_by_label("Expedition (Suivi)", exact=True).fill(
                 str(self.workflow_tracking_shipment.id)
             )
-            page.get_by_label("Statut tracking", exact=True).select_option(
+            page.get_by_label("Statut suivi", exact=True).select_option(
                 ShipmentTrackingStatus.RECEIVED_CORRESPONDENT
             )
-            page.get_by_role("button", name="Envoyer tracking").click()
+            page.get_by_role("button", name="Envoyer suivi").click()
             page.wait_for_function(
                 "document.body.innerText.includes('Suivi mis a jour.')"
             )
 
-            page.get_by_label("Statut tracking", exact=True).select_option(
+            page.get_by_label("Statut suivi", exact=True).select_option(
                 ShipmentTrackingStatus.RECEIVED_RECIPIENT
             )
-            page.get_by_role("button", name="Envoyer tracking").click()
+            page.get_by_role("button", name="Envoyer suivi").click()
             page.wait_for_function(
                 "document.body.innerText.includes('Suivi mis a jour.')"
             )
@@ -1590,7 +1590,7 @@ class NextUiTests(StaticLiveServerTestCase):
                 str(self.correspondent_contact.id)
             )
             page.get_by_label("Carton", exact=True).select_option("")
-            page.get_by_label("Product code (Creation)").fill(
+            page.get_by_label("Code produit (Creation)").fill(
                 self.shipment_pack_product.sku
             )
             page.get_by_label("Quantite (Creation)").fill("2")
@@ -1723,6 +1723,8 @@ class NextUiTests(StaticLiveServerTestCase):
             self.assertNotIn("carton id", initial_text.lower())
             self.assertNotIn("shipment id (tracking)", initial_text.lower())
             self.assertNotIn("shipment id (cloture)", initial_text.lower())
+            self.assertNotIn("product code (creation)", initial_text.lower())
+            self.assertNotIn("statut tracking", initial_text.lower())
 
             destination_option = page.locator(
                 f'label:has-text("Destination") select option[value="{self.destination.id}"]'
@@ -1770,21 +1772,21 @@ class NextUiTests(StaticLiveServerTestCase):
                 wait_until="domcontentloaded",
             )
             page.wait_for_selector("h1")
-            page.get_by_label("Expedition (Tracking)", exact=True).fill(
+            page.get_by_label("Expedition (Suivi)", exact=True).fill(
                 str(self.workflow_tracking_shipment.id)
             )
-            page.get_by_label("Statut tracking", exact=True).select_option(
+            page.get_by_label("Statut suivi", exact=True).select_option(
                 ShipmentTrackingStatus.RECEIVED_CORRESPONDENT
             )
-            page.get_by_role("button", name="Envoyer tracking").click()
+            page.get_by_role("button", name="Envoyer suivi").click()
             page.wait_for_function(
                 "document.body.innerText.includes('Suivi mis a jour.')"
             )
 
-            page.get_by_label("Statut tracking", exact=True).select_option(
+            page.get_by_label("Statut suivi", exact=True).select_option(
                 ShipmentTrackingStatus.RECEIVED_RECIPIENT
             )
-            page.get_by_role("button", name="Envoyer tracking").click()
+            page.get_by_role("button", name="Envoyer suivi").click()
             page.wait_for_function(
                 "document.body.innerText.includes('Suivi mis a jour.')"
             )
