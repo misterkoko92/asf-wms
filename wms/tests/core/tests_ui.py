@@ -614,6 +614,83 @@ class NextUiTests(StaticLiveServerTestCase):
             context.close()
             browser.close()
 
+    def test_next_scan_dashboard_displays_carton_cards(self):
+        Carton.objects.create(
+            code="NEXT-UI-CARTON-ASSIGNED-PRIMARY",
+            status=CartonStatus.ASSIGNED,
+            shipment=self.docs_shipment,
+        )
+        Carton.objects.create(
+            code="NEXT-UI-CARTON-ASSIGNED-SECONDARY",
+            status=CartonStatus.ASSIGNED,
+            shipment=self.secondary_destination_shipment,
+        )
+
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.staff_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/scan/dashboard/",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+            page.wait_for_function(
+                """
+                () => {
+                  const panels = Array.from(document.querySelectorAll("article.panel"));
+                  return panels.some((panel) => {
+                    const heading = panel.querySelector("h2");
+                    const text = panel.textContent || "";
+                    return (
+                      !!heading &&
+                      (heading.textContent || "").trim() === "Colis" &&
+                      text.includes("Prets non affectes") &&
+                      text.includes("Affectes non etiquetes")
+                    );
+                  });
+                }
+                """
+            )
+            page.wait_for_function(
+                """
+                (value) => {
+                  const panels = Array.from(document.querySelectorAll("article.panel"));
+                  const panel = panels.find((item) => {
+                    const heading = item.querySelector("h2");
+                    return !!heading && (heading.textContent || "").trim() === "Colis";
+                  });
+                  if (!panel) return false;
+                  const compact = (panel.textContent || "").replace(/\\s+/g, "");
+                  return compact.includes(`Affectesnonetiquetes${value}`);
+                }
+                """,
+                arg=2,
+            )
+            page.get_by_label("Destination").select_option(
+                str(self.secondary_destination.id)
+            )
+            page.get_by_role("button", name="Filtrer").click()
+            page.wait_for_function(
+                """
+                (value) => {
+                  const panels = Array.from(document.querySelectorAll("article.panel"));
+                  const panel = panels.find((item) => {
+                    const heading = item.querySelector("h2");
+                    return !!heading && (heading.textContent || "").trim() === "Colis";
+                  });
+                  if (!panel) return false;
+                  const compact = (panel.textContent || "").replace(/\\s+/g, "");
+                  return compact.includes(`Affectesnonetiquetes${value}`);
+                }
+                """,
+                arg=1,
+            )
+            context.close()
+            browser.close()
+
     def test_next_scan_dashboard_filters_by_period(self):
         old_shipment = Shipment.objects.create(
             status=ShipmentStatus.PLANNED,

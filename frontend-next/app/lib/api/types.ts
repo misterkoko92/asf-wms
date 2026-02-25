@@ -36,6 +36,13 @@ export type ScanDashboardDto = {
     url: string;
     tone: string;
   }>;
+  carton_cards: Array<{
+    label: string;
+    value: number;
+    help: string;
+    url: string;
+    tone: string;
+  }>;
   shipments_total: number;
   shipment_chart_rows: Array<{
     status: string;

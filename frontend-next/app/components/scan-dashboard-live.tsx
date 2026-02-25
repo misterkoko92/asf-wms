@@ -188,6 +188,23 @@ export function ScanDashboardLive() {
       </article>
 
       <article className="panel">
+        <h2>Colis</h2>
+        <div className="kpi-grid">
+          {data.carton_cards.map((card) => (
+            <a
+              key={card.label}
+              href={card.url}
+              className={`kpi-card${card.tone !== "neutral" ? ` is-${card.tone}` : ""}`}
+            >
+              <span>{card.label}</span>
+              <strong>{card.value}</strong>
+              <small>{card.help}</small>
+            </a>
+          ))}
+        </div>
+      </article>
+
+      <article className="panel">
         <h2>Graphique expeditions ({data.shipments_total})</h2>
         <div className="chart-bars">
           {data.shipment_chart_rows.map((row) => (

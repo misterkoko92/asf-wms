@@ -740,6 +740,54 @@ class UiDashboardView(APIView):
                 "tone": "danger",
             },
         ]
+        cartons_scope = Carton.objects.all()
+        assigned_scope = cartons_scope.filter(status=CartonStatus.ASSIGNED)
+        labeled_scope = cartons_scope.filter(status=CartonStatus.LABELED)
+        shipped_scope = cartons_scope.filter(status=CartonStatus.SHIPPED)
+        if destination_id:
+            assigned_scope = assigned_scope.filter(shipment__destination_id=destination_id)
+            labeled_scope = labeled_scope.filter(shipment__destination_id=destination_id)
+            shipped_scope = shipped_scope.filter(shipment__destination_id=destination_id)
+        carton_cards = [
+            {
+                "label": "En preparation",
+                "value": cartons_scope.filter(status=CartonStatus.PICKING).count(),
+                "help": "Colis en cours de preparation.",
+                "url": reverse("scan:scan_cartons_ready"),
+                "tone": "neutral",
+            },
+            {
+                "label": "Prets non affectes",
+                "value": cartons_scope.filter(
+                    status=CartonStatus.PACKED,
+                    shipment__isnull=True,
+                ).count(),
+                "help": "Disponibles pour expedition.",
+                "url": reverse("scan:scan_cartons_ready"),
+                "tone": "warn",
+            },
+            {
+                "label": "Affectes non etiquetes",
+                "value": assigned_scope.count(),
+                "help": "Affectes mais pas encore etiquetes.",
+                "url": reverse("scan:scan_cartons_ready"),
+                "tone": "neutral",
+            },
+            {
+                "label": "Etiquetes",
+                "value": labeled_scope.count(),
+                "help": "Colis etiquetes prets au depart.",
+                "url": reverse("scan:scan_cartons_ready"),
+                "tone": "success",
+            },
+            {
+                "label": "Colis expedies",
+                "value": shipped_scope.count(),
+                "help": "Sortis apres l etape OK mise a bord.",
+                "url": reverse("scan:scan_cartons_ready"),
+                "tone": "neutral",
+            },
+        ]
 
         return Response(
             {
@@ -749,6 +797,7 @@ class UiDashboardView(APIView):
                 "period_label": period_label_map.get(period, ""),
                 "activity_cards": activity_cards,
                 "shipment_cards": shipment_cards,
+                "carton_cards": carton_cards,
                 "shipments_total": shipments_total,
                 "shipment_chart_rows": shipment_chart_rows,
                 "filters": {

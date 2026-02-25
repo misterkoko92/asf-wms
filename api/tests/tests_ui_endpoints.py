@@ -507,6 +507,63 @@ class UiApiEndpointsTests(TestCase):
         refreshed_cards = {card["label"]: card for card in refreshed["shipment_cards"]}
         self.assertEqual(refreshed_cards["Planifiees (semaine)"]["value"], 2)
 
+    def test_ui_dashboard_exposes_carton_cards(self):
+        secondary_destination = Destination.objects.create(
+            city="TNR-CARTON-UI",
+            iata_code="TNR-CARTON-UI",
+            country="Madagascar",
+            correspondent_contact=self.correspondent_contact,
+            is_active=True,
+        )
+        secondary_shipment = Shipment.objects.create(
+            status=ShipmentStatus.PLANNED,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=secondary_destination,
+            destination_address="19 Rue Cartons",
+            destination_country="Madagascar",
+            created_by=self.staff_user,
+        )
+
+        Carton.objects.create(code="UI-CARTON-PICKING", status=CartonStatus.PICKING)
+        Carton.objects.create(code="UI-CARTON-ASSIGNED-RUN", status=CartonStatus.ASSIGNED, shipment=self.shipment)
+        Carton.objects.create(code="UI-CARTON-ASSIGNED-TNR", status=CartonStatus.ASSIGNED, shipment=secondary_shipment)
+        Carton.objects.create(code="UI-CARTON-LABELED-RUN", status=CartonStatus.LABELED, shipment=self.shipment)
+        Carton.objects.create(code="UI-CARTON-LABELED-TNR", status=CartonStatus.LABELED, shipment=secondary_shipment)
+        Carton.objects.create(code="UI-CARTON-SHIPPED-RUN", status=CartonStatus.SHIPPED, shipment=self.shipment)
+        Carton.objects.create(code="UI-CARTON-SHIPPED-TNR", status=CartonStatus.SHIPPED, shipment=secondary_shipment)
+
+        response = self.staff_client.get("/api/v1/ui/dashboard/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("carton_cards", payload)
+        cards = {card["label"]: card for card in payload["carton_cards"]}
+        self.assertEqual(cards["En preparation"]["value"], 1)
+        self.assertEqual(cards["Prets non affectes"]["value"], 2)
+        self.assertEqual(cards["Affectes non etiquetes"]["value"], 2)
+        self.assertEqual(cards["Etiquetes"]["value"], 2)
+        self.assertEqual(cards["Colis expedies"]["value"], 2)
+        self.assertEqual(cards["Prets non affectes"]["tone"], "warn")
+        self.assertEqual(cards["Etiquetes"]["tone"], "success")
+
+        filtered_response = self.staff_client.get(
+            f"/api/v1/ui/dashboard/?destination={secondary_destination.id}"
+        )
+        self.assertEqual(filtered_response.status_code, 200)
+        filtered_payload = filtered_response.json()
+        filtered_cards = {
+            card["label"]: card for card in filtered_payload["carton_cards"]
+        }
+        self.assertEqual(filtered_cards["En preparation"]["value"], 1)
+        self.assertEqual(filtered_cards["Prets non affectes"]["value"], 2)
+        self.assertEqual(filtered_cards["Affectes non etiquetes"]["value"], 1)
+        self.assertEqual(filtered_cards["Etiquetes"]["value"], 1)
+        self.assertEqual(filtered_cards["Colis expedies"]["value"], 1)
+
     def test_ui_stock_returns_products_and_filters(self):
         response = self.staff_client.get("/api/v1/ui/stock/?q=UI%20API")
         self.assertEqual(response.status_code, 200)
