@@ -24,6 +24,7 @@ Niveau de maturite:
 - dashboard scan enrichi avec section expeditions (cartes metier legacy),
 - dashboard scan enrichi avec section colis (cartes metier legacy),
 - dashboard scan enrichi avec section receptions/commandes (cartes metier legacy),
+- dashboard scan enrichi avec section suivi/alertes (cartes metier legacy),
 - dashboard scan enrichi avec section graphique expeditions (repartition statuts),
 - dashboard scan enrichi avec section stock sous seuil (table low stock),
 - route `shipments-ready` branchee avec action d'archivage des brouillons stale,
@@ -106,6 +107,7 @@ Basculer l'interface actuelle `Benev + Classique` vers un frontend Next/React **
 - `docs/next-react-static-migration/p3_phase3_increment15_2026-02-25.md`
 - `docs/next-react-static-migration/p3_phase3_increment16_2026-02-25.md`
 - `docs/next-react-static-migration/p3_phase3_increment17_2026-02-25.md`
+- `docs/next-react-static-migration/p3_phase3_increment18_2026-02-25.md`
 
 ## Prochaine cible
 

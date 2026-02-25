@@ -783,6 +783,174 @@ class NextUiTests(StaticLiveServerTestCase):
             context.close()
             browser.close()
 
+    def test_next_scan_dashboard_displays_tracking_cards(self):
+        planned_alert_shipment = Shipment.objects.create(
+            status=ShipmentStatus.PLANNED,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="30 Rue Tracking",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        planned_event = ShipmentTrackingEvent.objects.create(
+            shipment=planned_alert_shipment,
+            status=ShipmentTrackingStatus.PLANNED,
+            actor_name="Ops",
+            actor_structure="ASF",
+            comments="planned old",
+            created_by=self.staff_user,
+        )
+
+        shipped_alert_shipment = Shipment.objects.create(
+            status=ShipmentStatus.SHIPPED,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="31 Rue Tracking",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        boarding_event = ShipmentTrackingEvent.objects.create(
+            shipment=shipped_alert_shipment,
+            status=ShipmentTrackingStatus.BOARDING_OK,
+            actor_name="Ops",
+            actor_structure="ASF",
+            comments="boarding old",
+            created_by=self.staff_user,
+        )
+
+        correspondent_alert_shipment = Shipment.objects.create(
+            status=ShipmentStatus.RECEIVED_CORRESPONDENT,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="32 Rue Tracking",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        received_correspondent_event = ShipmentTrackingEvent.objects.create(
+            shipment=correspondent_alert_shipment,
+            status=ShipmentTrackingStatus.RECEIVED_CORRESPONDENT,
+            actor_name="Ops",
+            actor_structure="ASF",
+            comments="received old",
+            created_by=self.staff_user,
+        )
+
+        closable_shipment = Shipment.objects.create(
+            status=ShipmentStatus.DELIVERED,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="33 Rue Tracking",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        ShipmentTrackingEvent.objects.create(
+            shipment=closable_shipment,
+            status=ShipmentTrackingStatus.PLANNED,
+            actor_name="Ops",
+            actor_structure="ASF",
+            comments="planned",
+            created_by=self.staff_user,
+        )
+        ShipmentTrackingEvent.objects.create(
+            shipment=closable_shipment,
+            status=ShipmentTrackingStatus.BOARDING_OK,
+            actor_name="Ops",
+            actor_structure="ASF",
+            comments="boarding",
+            created_by=self.staff_user,
+        )
+        ShipmentTrackingEvent.objects.create(
+            shipment=closable_shipment,
+            status=ShipmentTrackingStatus.RECEIVED_CORRESPONDENT,
+            actor_name="Ops",
+            actor_structure="ASF",
+            comments="received",
+            created_by=self.staff_user,
+        )
+        ShipmentTrackingEvent.objects.create(
+            shipment=closable_shipment,
+            status=ShipmentTrackingStatus.RECEIVED_RECIPIENT,
+            actor_name="Ops",
+            actor_structure="ASF",
+            comments="delivered",
+            created_by=self.staff_user,
+        )
+
+        old_timestamp = timezone.now() - timedelta(hours=120)
+        ShipmentTrackingEvent.objects.filter(
+            pk__in=[planned_event.pk, boarding_event.pk, received_correspondent_event.pk]
+        ).update(created_at=old_timestamp)
+
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.staff_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/scan/dashboard/",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+            page.wait_for_function(
+                """
+                () => {
+                  const panels = Array.from(document.querySelectorAll("article.panel"));
+                  return panels.some((panel) => {
+                    const heading = panel.querySelector("h2");
+                    const text = panel.textContent || "";
+                    return (
+                      !!heading &&
+                      (heading.textContent || "").includes("Suivi / Alertes") &&
+                      text.includes("Planifiees sans mise a bord >") &&
+                      text.includes("Dossiers cloturables")
+                    );
+                  });
+                }
+                """
+            )
+            page.wait_for_function(
+                """
+                () => {
+                  const panels = Array.from(document.querySelectorAll("article.panel"));
+                  const panel = panels.find((item) => {
+                    const heading = item.querySelector("h2");
+                    return !!heading && (heading.textContent || "").includes("Suivi / Alertes");
+                  });
+                  if (!panel) return false;
+                  const compact = (panel.textContent || "").replace(/\\s+/g, "");
+                  return (
+                    compact.includes("Planifieessansmiseabord>") &&
+                    compact.includes("Expedieessansrecuescale>") &&
+                    compact.includes("Recuescalesanslivraison>") &&
+                    compact.includes("Dossierscloturables1")
+                  );
+                }
+                """
+            )
+            context.close()
+            browser.close()
+
     def test_next_scan_dashboard_filters_by_period(self):
         old_shipment = Shipment.objects.create(
             status=ShipmentStatus.PLANNED,

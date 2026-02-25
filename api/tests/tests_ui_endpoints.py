@@ -620,6 +620,162 @@ class UiApiEndpointsTests(TestCase):
         self.assertEqual(cards["Receptions en attente"]["tone"], "warn")
         self.assertEqual(cards["Cmd a modifier"]["tone"], "warn")
 
+    def test_ui_dashboard_exposes_tracking_cards(self):
+        planned_alert_shipment = Shipment.objects.create(
+            status=ShipmentStatus.PLANNED,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="26 Rue Tracking",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        planned_event = ShipmentTrackingEvent.objects.create(
+            shipment=planned_alert_shipment,
+            status=ShipmentTrackingStatus.PLANNED,
+            comments="planned old",
+            created_by=self.staff_user,
+            actor_name="Ops",
+            actor_structure="ASF",
+        )
+
+        shipped_alert_shipment = Shipment.objects.create(
+            status=ShipmentStatus.SHIPPED,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="27 Rue Tracking",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        boarding_event = ShipmentTrackingEvent.objects.create(
+            shipment=shipped_alert_shipment,
+            status=ShipmentTrackingStatus.BOARDING_OK,
+            comments="boarding old",
+            created_by=self.staff_user,
+            actor_name="Ops",
+            actor_structure="ASF",
+        )
+
+        correspondent_alert_shipment = Shipment.objects.create(
+            status=ShipmentStatus.RECEIVED_CORRESPONDENT,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="28 Rue Tracking",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        received_correspondent_event = ShipmentTrackingEvent.objects.create(
+            shipment=correspondent_alert_shipment,
+            status=ShipmentTrackingStatus.RECEIVED_CORRESPONDENT,
+            comments="received old",
+            created_by=self.staff_user,
+            actor_name="Ops",
+            actor_structure="ASF",
+        )
+
+        closable_shipment = Shipment.objects.create(
+            status=ShipmentStatus.DELIVERED,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="29 Rue Tracking",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        ShipmentTrackingEvent.objects.create(
+            shipment=closable_shipment,
+            status=ShipmentTrackingStatus.PLANNED,
+            comments="planned",
+            created_by=self.staff_user,
+            actor_name="Ops",
+            actor_structure="ASF",
+        )
+        ShipmentTrackingEvent.objects.create(
+            shipment=closable_shipment,
+            status=ShipmentTrackingStatus.BOARDING_OK,
+            comments="boarding",
+            created_by=self.staff_user,
+            actor_name="Ops",
+            actor_structure="ASF",
+        )
+        ShipmentTrackingEvent.objects.create(
+            shipment=closable_shipment,
+            status=ShipmentTrackingStatus.RECEIVED_CORRESPONDENT,
+            comments="received",
+            created_by=self.staff_user,
+            actor_name="Ops",
+            actor_structure="ASF",
+        )
+        ShipmentTrackingEvent.objects.create(
+            shipment=closable_shipment,
+            status=ShipmentTrackingStatus.RECEIVED_RECIPIENT,
+            comments="delivered",
+            created_by=self.staff_user,
+            actor_name="Ops",
+            actor_structure="ASF",
+        )
+
+        old_timestamp = timezone.now() - timedelta(hours=120)
+        ShipmentTrackingEvent.objects.filter(
+            pk__in=[
+                planned_event.pk,
+                boarding_event.pk,
+                received_correspondent_event.pk,
+            ]
+        ).update(created_at=old_timestamp)
+
+        response = self.staff_client.get("/api/v1/ui/dashboard/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("tracking_alert_hours", payload)
+        self.assertIn("tracking_cards", payload)
+        self.assertGreater(payload["tracking_alert_hours"], 0)
+        cards = {card["label"]: card for card in payload["tracking_cards"]}
+        self.assertEqual(
+            cards[
+                f"Planifiees sans mise a bord >{payload['tracking_alert_hours']}h"
+            ]["value"],
+            1,
+        )
+        self.assertEqual(
+            cards[
+                f"Expediees sans recu escale >{payload['tracking_alert_hours']}h"
+            ]["value"],
+            1,
+        )
+        self.assertEqual(
+            cards[
+                f"Recu escale sans livraison >{payload['tracking_alert_hours']}h"
+            ]["value"],
+            1,
+        )
+        self.assertEqual(cards["Dossiers cloturables"]["value"], 1)
+        self.assertEqual(
+            cards[
+                f"Planifiees sans mise a bord >{payload['tracking_alert_hours']}h"
+            ]["tone"],
+            "danger",
+        )
+        self.assertEqual(cards["Dossiers cloturables"]["tone"], "success")
+
     def test_ui_stock_returns_products_and_filters(self):
         response = self.staff_client.get("/api/v1/ui/stock/?q=UI%20API")
         self.assertEqual(response.status_code, 200)

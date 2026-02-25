@@ -545,6 +545,7 @@ class UiDashboardView(APIView):
     def get(self, request):
         runtime = get_runtime_config()
         low_stock_threshold = runtime.low_stock_threshold
+        tracking_alert_hours = runtime.tracking_alert_hours
         low_stock_rows = _build_low_stock_rows(
             low_stock_threshold=low_stock_threshold,
             limit=10,
@@ -573,6 +574,22 @@ class UiDashboardView(APIView):
             planned_at=Max(
                 "tracking_events__created_at",
                 filter=Q(tracking_events__status=ShipmentTrackingStatus.PLANNED),
+            ),
+            boarding_ok_at=Max(
+                "tracking_events__created_at",
+                filter=Q(tracking_events__status=ShipmentTrackingStatus.BOARDING_OK),
+            ),
+            received_correspondent_at=Max(
+                "tracking_events__created_at",
+                filter=Q(
+                    tracking_events__status=ShipmentTrackingStatus.RECEIVED_CORRESPONDENT
+                ),
+            ),
+            received_recipient_at=Max(
+                "tracking_events__created_at",
+                filter=Q(
+                    tracking_events__status=ShipmentTrackingStatus.RECEIVED_RECIPIENT
+                ),
             ),
         )
         week_start = timezone.localdate() - timedelta(
@@ -825,6 +842,70 @@ class UiDashboardView(APIView):
                 "tone": "neutral",
             },
         ]
+        alert_cutoff = timezone.now() - timedelta(hours=tracking_alert_hours)
+        planned_alert_count = shipments_with_tracking.filter(
+            closed_at__isnull=True,
+            status=ShipmentStatus.PLANNED,
+            planned_at__lt=alert_cutoff,
+            boarding_ok_at__isnull=True,
+        ).count()
+        shipped_alert_count = shipments_with_tracking.filter(
+            closed_at__isnull=True,
+            status=ShipmentStatus.SHIPPED,
+            boarding_ok_at__lt=alert_cutoff,
+            received_correspondent_at__isnull=True,
+        ).count()
+        correspondent_alert_count = shipments_with_tracking.filter(
+            closed_at__isnull=True,
+            status=ShipmentStatus.RECEIVED_CORRESPONDENT,
+            received_correspondent_at__lt=alert_cutoff,
+            received_recipient_at__isnull=True,
+        ).count()
+        closable_count = shipments_with_tracking.filter(
+            closed_at__isnull=True,
+            is_disputed=False,
+            status=ShipmentStatus.DELIVERED,
+            planned_at__isnull=False,
+            boarding_ok_at__isnull=False,
+            received_correspondent_at__isnull=False,
+            received_recipient_at__isnull=False,
+        ).count()
+        tracking_cards = [
+            {
+                "label": f"Planifiees sans mise a bord >{tracking_alert_hours}h",
+                "value": planned_alert_count,
+                "help": f"Sans etape OK mise a bord depuis {tracking_alert_hours}h.",
+                "url": reverse("scan:scan_shipments_tracking"),
+                "tone": "danger" if planned_alert_count else "success",
+            },
+            {
+                "label": f"Expediees sans recu escale >{tracking_alert_hours}h",
+                "value": shipped_alert_count,
+                "help": (
+                    "Sans confirmation correspondant depuis "
+                    f"{tracking_alert_hours}h."
+                ),
+                "url": reverse("scan:scan_shipments_tracking"),
+                "tone": "danger" if shipped_alert_count else "success",
+            },
+            {
+                "label": f"Recu escale sans livraison >{tracking_alert_hours}h",
+                "value": correspondent_alert_count,
+                "help": (
+                    "Sans confirmation destinataire depuis "
+                    f"{tracking_alert_hours}h."
+                ),
+                "url": reverse("scan:scan_shipments_tracking"),
+                "tone": "danger" if correspondent_alert_count else "success",
+            },
+            {
+                "label": "Dossiers cloturables",
+                "value": closable_count,
+                "help": "Toutes etapes completees, dossier clos possible.",
+                "url": reverse("scan:scan_shipments_tracking"),
+                "tone": "success" if closable_count else "neutral",
+            },
+        ]
 
         return Response(
             {
@@ -836,6 +917,8 @@ class UiDashboardView(APIView):
                 "shipment_cards": shipment_cards,
                 "carton_cards": carton_cards,
                 "flow_cards": flow_cards,
+                "tracking_alert_hours": tracking_alert_hours,
+                "tracking_cards": tracking_cards,
                 "shipments_total": shipments_total,
                 "shipment_chart_rows": shipment_chart_rows,
                 "filters": {
