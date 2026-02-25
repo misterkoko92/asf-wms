@@ -205,6 +205,23 @@ export function ScanDashboardLive() {
       </article>
 
       <article className="panel">
+        <h2>Stock</h2>
+        <div className="kpi-grid">
+          {data.stock_cards.map((card) => (
+            <a
+              key={card.label}
+              href={card.url}
+              className={`kpi-card${card.tone !== "neutral" ? ` is-${card.tone}` : ""}`}
+            >
+              <span>{card.label}</span>
+              <strong>{card.value}</strong>
+              <small>{card.help}</small>
+            </a>
+          ))}
+        </div>
+      </article>
+
+      <article className="panel">
         <h2>Receptions / Commandes</h2>
         <div className="kpi-grid">
           {data.flow_cards.map((card) => (
@@ -242,6 +259,40 @@ export function ScanDashboardLive() {
         <h2>Technique / Queue email</h2>
         <div className="kpi-grid">
           {data.technical_cards.map((card) => (
+            <a
+              key={card.label}
+              href={card.url}
+              className={`kpi-card${card.tone !== "neutral" ? ` is-${card.tone}` : ""}`}
+            >
+              <span>{card.label}</span>
+              <strong>{card.value}</strong>
+              <small>{card.help}</small>
+            </a>
+          ))}
+        </div>
+      </article>
+
+      <article className="panel">
+        <h2>Blocages workflow (&gt;{data.workflow_blockage_hours}h)</h2>
+        <div className="kpi-grid">
+          {data.workflow_blockage_cards.map((card) => (
+            <a
+              key={card.label}
+              href={card.url}
+              className={`kpi-card${card.tone !== "neutral" ? ` is-${card.tone}` : ""}`}
+            >
+              <span>{card.label}</span>
+              <strong>{card.value}</strong>
+              <small>{card.help}</small>
+            </a>
+          ))}
+        </div>
+      </article>
+
+      <article className="panel">
+        <h2>Suivi SLA</h2>
+        <div className="kpi-grid">
+          {data.sla_cards.map((card) => (
             <a
               key={card.label}
               href={card.url}

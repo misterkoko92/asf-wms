@@ -43,6 +43,13 @@ export type ScanDashboardDto = {
     url: string;
     tone: string;
   }>;
+  stock_cards: Array<{
+    label: string;
+    value: number;
+    help: string;
+    url: string;
+    tone: string;
+  }>;
   flow_cards: Array<{
     label: string;
     value: number;
@@ -62,6 +69,21 @@ export type ScanDashboardDto = {
   technical_cards: Array<{
     label: string;
     value: number;
+    help: string;
+    url: string;
+    tone: string;
+  }>;
+  workflow_blockage_hours: number;
+  workflow_blockage_cards: Array<{
+    label: string;
+    value: number;
+    help: string;
+    url: string;
+    tone: string;
+  }>;
+  sla_cards: Array<{
+    label: string;
+    value: string;
     help: string;
     url: string;
     tone: string;

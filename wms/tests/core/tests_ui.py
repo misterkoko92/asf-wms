@@ -1038,6 +1038,183 @@ class NextUiTests(StaticLiveServerTestCase):
             context.close()
             browser.close()
 
+    def test_next_scan_dashboard_displays_workflow_and_sla_cards(self):
+        stale_draft = Shipment.objects.create(
+            status=ShipmentStatus.DRAFT,
+            reference=f"{TEMP_SHIPMENT_REFERENCE_PREFIX}77",
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="50 Rue Workflow",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        Shipment.objects.filter(pk=stale_draft.pk).update(
+            created_at=timezone.now() - timedelta(hours=120)
+        )
+        stale_order = Order.objects.create(
+            review_status=OrderReviewStatus.APPROVED,
+            shipper_name=self.shipper_contact.name,
+            recipient_name=self.recipient_contact.name,
+            correspondent_name=self.correspondent_contact.name,
+            destination_address="51 Rue Workflow",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        Order.objects.filter(pk=stale_order.pk).update(
+            created_at=timezone.now() - timedelta(hours=120)
+        )
+        Shipment.objects.create(
+            status=ShipmentStatus.SHIPPED,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="52 Rue Workflow",
+            destination_country="France",
+            created_by=self.staff_user,
+            is_disputed=True,
+        )
+        delivered = Shipment.objects.create(
+            status=ShipmentStatus.DELIVERED,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="53 Rue Workflow",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        planned = ShipmentTrackingEvent.objects.create(
+            shipment=delivered,
+            status=ShipmentTrackingStatus.PLANNED,
+            actor_name="Ops",
+            actor_structure="ASF",
+            comments="planned",
+            created_by=self.staff_user,
+        )
+        boarding = ShipmentTrackingEvent.objects.create(
+            shipment=delivered,
+            status=ShipmentTrackingStatus.BOARDING_OK,
+            actor_name="Ops",
+            actor_structure="ASF",
+            comments="boarding",
+            created_by=self.staff_user,
+        )
+        received_correspondent = ShipmentTrackingEvent.objects.create(
+            shipment=delivered,
+            status=ShipmentTrackingStatus.RECEIVED_CORRESPONDENT,
+            actor_name="Ops",
+            actor_structure="ASF",
+            comments="received correspondent",
+            created_by=self.staff_user,
+        )
+        received_recipient = ShipmentTrackingEvent.objects.create(
+            shipment=delivered,
+            status=ShipmentTrackingStatus.RECEIVED_RECIPIENT,
+            actor_name="Ops",
+            actor_structure="ASF",
+            comments="received recipient",
+            created_by=self.staff_user,
+        )
+        now = timezone.now()
+        ShipmentTrackingEvent.objects.filter(pk=planned.pk).update(
+            created_at=now - timedelta(hours=400)
+        )
+        ShipmentTrackingEvent.objects.filter(pk=boarding.pk).update(
+            created_at=now - timedelta(hours=300)
+        )
+        ShipmentTrackingEvent.objects.filter(pk=received_correspondent.pk).update(
+            created_at=now - timedelta(hours=200)
+        )
+        ShipmentTrackingEvent.objects.filter(pk=received_recipient.pk).update(
+            created_at=now - timedelta(hours=100)
+        )
+
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.staff_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/scan/dashboard/",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+            page.wait_for_function(
+                """
+                () => {
+                  const panels = Array.from(document.querySelectorAll("article.panel"));
+                  return panels.some((panel) => {
+                    const heading = panel.querySelector("h2");
+                    const text = panel.textContent || "";
+                    return (
+                      !!heading &&
+                      (heading.textContent || "").includes("Blocages workflow (>") &&
+                      text.includes("Expeditions Creation/En cours >") &&
+                      text.includes("Cmd validees sans expedition >") &&
+                      text.includes("Dossiers livres non clos") &&
+                      text.includes("Dossiers en litige ouverts")
+                    );
+                  });
+                }
+                """
+            )
+            page.wait_for_function(
+                """
+                () => {
+                  const panels = Array.from(document.querySelectorAll("article.panel"));
+                  const panel = panels.find((item) => {
+                    const heading = item.querySelector("h2");
+                    return (
+                      !!heading &&
+                      (heading.textContent || "").includes("Blocages workflow (>")
+                    );
+                  });
+                  if (!panel) return false;
+                  const compact = (panel.textContent || "").replace(/\\s+/g, "");
+                  return (
+                    compact.includes("ExpeditionsCreation/Encours>") &&
+                    compact.includes("Cmdvalideessansexpedition>") &&
+                    compact.includes("Dossierslivresnonclos1") &&
+                    compact.includes("Dossiersenlitigeouverts1")
+                  );
+                }
+                """
+            )
+            page.wait_for_function(
+                """
+                () => {
+                  const panels = Array.from(document.querySelectorAll("article.panel"));
+                  return panels.some((panel) => {
+                    const heading = panel.querySelector("h2");
+                    const text = panel.textContent || "";
+                    return (
+                      !!heading &&
+                      (heading.textContent || "").trim() === "Suivi SLA" &&
+                      text.includes("Planifie -> OK mise a bord >") &&
+                      text.includes("OK mise a bord -> Recu escale >") &&
+                      text.includes("Recu escale -> Livre >") &&
+                      text.includes("Planifie -> Livre >")
+                    );
+                  });
+                }
+                """
+            )
+            context.close()
+            browser.close()
+
     def test_next_scan_dashboard_filters_by_period(self):
         old_shipment = Shipment.objects.create(
             status=ShipmentStatus.PLANNED,

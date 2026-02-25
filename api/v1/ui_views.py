@@ -32,6 +32,7 @@ from wms.models import (
     PrintTemplate,
     PrintTemplateVersion,
     Product,
+    ProductLot,
     ProductLotStatus,
     Receipt,
     ReceiptStatus,
@@ -132,6 +133,48 @@ def _build_low_stock_rows(*, low_stock_threshold: int, limit: int = 5):
     return list(queryset.values("id", "sku", "name", "available_qty")[:limit])
 
 
+def _dashboard_stock_snapshot(*, low_stock_threshold: int):
+    lot_available_expr = ExpressionWrapper(
+        F("quantity_on_hand") - F("quantity_reserved"),
+        output_field=IntegerField(),
+    )
+    product_available_expr = ExpressionWrapper(
+        F("productlot__quantity_on_hand") - F("productlot__quantity_reserved"),
+        output_field=IntegerField(),
+    )
+    active_products = Product.objects.filter(is_active=True)
+    available_lots = ProductLot.objects.filter(
+        status=ProductLotStatus.AVAILABLE,
+        quantity_on_hand__gt=0,
+    )
+    total_available_qty = (
+        available_lots.aggregate(total=Sum(lot_available_expr))["total"] or 0
+    )
+
+    products_with_qty = active_products.annotate(
+        available_qty=Coalesce(
+            Sum(
+                product_available_expr,
+                filter=Q(productlot__status=ProductLotStatus.AVAILABLE),
+            ),
+            0,
+            output_field=IntegerField(),
+        )
+    )
+    low_stock_qs = products_with_qty.filter(available_qty__lt=low_stock_threshold).order_by(
+        "available_qty", "name"
+    )
+    return {
+        "active_products_count": active_products.count(),
+        "available_lots_count": available_lots.count(),
+        "total_available_qty": total_available_qty,
+        "low_stock_count": low_stock_qs.count(),
+        "low_stock_rows": list(
+            low_stock_qs.values("id", "sku", "name", "available_qty")[:10]
+        ),
+    }
+
+
 DASHBOARD_PERIOD_TODAY = "today"
 DASHBOARD_PERIOD_7D = "7d"
 DASHBOARD_PERIOD_30D = "30d"
@@ -223,6 +266,108 @@ def _dashboard_email_queue_snapshot(*, processing_timeout_seconds: int):
         "failed_count": status_counts.get(IntegrationStatus.FAILED, 0),
         "stale_processing_count": stale_processing_count,
     }
+
+
+def _dashboard_workflow_blockage_snapshot(
+    shipments_scope,
+    *,
+    workflow_blockage_hours: int,
+):
+    cutoff = timezone.now() - timedelta(hours=workflow_blockage_hours)
+    return {
+        "stale_preparing_shipments_count": shipments_scope.filter(
+            status__in=[ShipmentStatus.DRAFT, ShipmentStatus.PICKING],
+            created_at__lt=cutoff,
+            closed_at__isnull=True,
+        ).count(),
+        "stale_unplanned_orders_count": Order.objects.filter(
+            review_status=OrderReviewStatus.APPROVED,
+            shipment__isnull=True,
+            created_at__lt=cutoff,
+        ).count(),
+        "open_delivered_cases_count": shipments_scope.filter(
+            status=ShipmentStatus.DELIVERED,
+            closed_at__isnull=True,
+        ).count(),
+        "open_disputed_cases_count": shipments_scope.filter(
+            is_disputed=True,
+            closed_at__isnull=True,
+        ).count(),
+    }
+
+
+def _dashboard_hours_between(start_at, end_at):
+    if start_at is None or end_at is None:
+        return None
+    if end_at < start_at:
+        return 0.0
+    return (end_at - start_at).total_seconds() / 3600
+
+
+def _build_dashboard_sla_rows(
+    shipments_with_tracking,
+    *,
+    tracking_alert_hours: int,
+):
+    stage_definitions = (
+        {
+            "label": "Planifie -> OK mise a bord",
+            "start": "planned_at",
+            "end": "boarding_ok_at",
+            "target_hours": tracking_alert_hours,
+        },
+        {
+            "label": "OK mise a bord -> Recu escale",
+            "start": "boarding_ok_at",
+            "end": "received_correspondent_at",
+            "target_hours": tracking_alert_hours,
+        },
+        {
+            "label": "Recu escale -> Livre",
+            "start": "received_correspondent_at",
+            "end": "received_recipient_at",
+            "target_hours": tracking_alert_hours,
+        },
+        {
+            "label": "Planifie -> Livre",
+            "start": "planned_at",
+            "end": "received_recipient_at",
+            "target_hours": tracking_alert_hours * 3,
+        },
+    )
+    rows = list(
+        shipments_with_tracking.values(
+            "planned_at",
+            "boarding_ok_at",
+            "received_correspondent_at",
+            "received_recipient_at",
+        )
+    )
+    sla_rows = []
+    for stage in stage_definitions:
+        durations = []
+        for row in rows:
+            duration_hours = _dashboard_hours_between(row[stage["start"]], row[stage["end"]])
+            if duration_hours is None:
+                continue
+            durations.append(duration_hours)
+        completed_count = len(durations)
+        breach_count = sum(
+            1 for duration_hours in durations if duration_hours > stage["target_hours"]
+        )
+        average_hours = round(sum(durations) / completed_count, 1) if durations else None
+        max_hours = round(max(durations), 1) if durations else None
+        sla_rows.append(
+            {
+                "label": stage["label"],
+                "target_hours": stage["target_hours"],
+                "completed_count": completed_count,
+                "breach_count": breach_count,
+                "average_hours": average_hours,
+                "max_hours": max_hours,
+            }
+        )
+    return sla_rows
 
 
 def _shipment_payload(shipment):
@@ -572,11 +717,12 @@ class UiDashboardView(APIView):
         runtime = get_runtime_config()
         low_stock_threshold = runtime.low_stock_threshold
         tracking_alert_hours = runtime.tracking_alert_hours
+        workflow_blockage_hours = runtime.workflow_blockage_hours
         queue_processing_timeout_seconds = runtime.email_queue_processing_timeout_seconds
-        low_stock_rows = _build_low_stock_rows(
-            low_stock_threshold=low_stock_threshold,
-            limit=10,
+        stock_snapshot = _dashboard_stock_snapshot(
+            low_stock_threshold=low_stock_threshold
         )
+        low_stock_rows = stock_snapshot["low_stock_rows"]
         period = _normalize_dashboard_period(request.GET.get("period"))
         period_start = _dashboard_period_start(period)
         period_label_map = dict(DASHBOARD_PERIOD_CHOICES)
@@ -832,6 +978,36 @@ class UiDashboardView(APIView):
                 "tone": "neutral",
             },
         ]
+        stock_cards = [
+            {
+                "label": "Produits actifs",
+                "value": stock_snapshot["active_products_count"],
+                "help": "Produits actifs catalogues.",
+                "url": reverse("scan:scan_stock"),
+                "tone": "neutral",
+            },
+            {
+                "label": "Lots disponibles",
+                "value": stock_snapshot["available_lots_count"],
+                "help": "Lots avec stock disponible.",
+                "url": reverse("scan:scan_stock"),
+                "tone": "neutral",
+            },
+            {
+                "label": "Quantite disponible",
+                "value": stock_snapshot["total_available_qty"],
+                "help": "Somme des quantites disponibles.",
+                "url": reverse("scan:scan_stock"),
+                "tone": "neutral",
+            },
+            {
+                "label": f"Stock bas (< {low_stock_threshold})",
+                "value": stock_snapshot["low_stock_count"],
+                "help": "Produits sous le seuil global.",
+                "url": reverse("scan:scan_stock"),
+                "tone": "danger",
+            },
+        ]
         flow_cards = [
             {
                 "label": "Receptions en attente",
@@ -971,6 +1147,80 @@ class UiDashboardView(APIView):
                 ),
             },
         ]
+        workflow_blockage_snapshot = _dashboard_workflow_blockage_snapshot(
+            shipments_qs,
+            workflow_blockage_hours=workflow_blockage_hours,
+        )
+        workflow_blockage_cards = [
+            {
+                "label": f"Expeditions Creation/En cours >{workflow_blockage_hours}h",
+                "value": workflow_blockage_snapshot["stale_preparing_shipments_count"],
+                "help": "Brouillons/En cours anciens a debloquer.",
+                "url": reverse("scan:scan_shipments_ready"),
+                "tone": (
+                    "danger"
+                    if workflow_blockage_snapshot["stale_preparing_shipments_count"]
+                    else "success"
+                ),
+            },
+            {
+                "label": f"Cmd validees sans expedition >{workflow_blockage_hours}h",
+                "value": workflow_blockage_snapshot["stale_unplanned_orders_count"],
+                "help": "Commandes approuvees a convertir en expeditions.",
+                "url": reverse("scan:scan_orders_view"),
+                "tone": (
+                    "danger"
+                    if workflow_blockage_snapshot["stale_unplanned_orders_count"]
+                    else "success"
+                ),
+            },
+            {
+                "label": "Dossiers livres non clos",
+                "value": workflow_blockage_snapshot["open_delivered_cases_count"],
+                "help": "Livres mais non clotures.",
+                "url": reverse("scan:scan_shipments_tracking"),
+                "tone": (
+                    "warn"
+                    if workflow_blockage_snapshot["open_delivered_cases_count"]
+                    else "success"
+                ),
+            },
+            {
+                "label": "Dossiers en litige ouverts",
+                "value": workflow_blockage_snapshot["open_disputed_cases_count"],
+                "help": "Blocages operationnels a traiter.",
+                "url": reverse("scan:scan_shipments_tracking"),
+                "tone": (
+                    "danger"
+                    if workflow_blockage_snapshot["open_disputed_cases_count"]
+                    else "success"
+                ),
+            },
+        ]
+        sla_rows = _build_dashboard_sla_rows(
+            shipments_with_tracking.filter(
+                status__in=list(DASHBOARD_SHIPMENT_STATUS_ORDER)[3:]
+            ),
+            tracking_alert_hours=tracking_alert_hours,
+        )
+        sla_cards = [
+            {
+                "label": f"{row['label']} >{row['target_hours']}h",
+                "value": f"{row['breach_count']} / {row['completed_count']}",
+                "help": (
+                    "Aucune expedition completee sur ce segment."
+                    if row["completed_count"] == 0
+                    else f"Moyenne {row['average_hours']}h, max {row['max_hours']}h."
+                ),
+                "url": reverse("scan:scan_shipments_tracking"),
+                "tone": (
+                    "neutral"
+                    if row["completed_count"] == 0
+                    else ("danger" if row["breach_count"] else "success")
+                ),
+            }
+            for row in sla_rows
+        ]
 
         return Response(
             {
@@ -981,11 +1231,15 @@ class UiDashboardView(APIView):
                 "activity_cards": activity_cards,
                 "shipment_cards": shipment_cards,
                 "carton_cards": carton_cards,
+                "stock_cards": stock_cards,
                 "flow_cards": flow_cards,
                 "tracking_alert_hours": tracking_alert_hours,
                 "tracking_cards": tracking_cards,
                 "queue_processing_timeout_seconds": queue_processing_timeout_seconds,
                 "technical_cards": technical_cards,
+                "workflow_blockage_hours": workflow_blockage_hours,
+                "workflow_blockage_cards": workflow_blockage_cards,
+                "sla_cards": sla_cards,
                 "shipments_total": shipments_total,
                 "shipment_chart_rows": shipment_chart_rows,
                 "filters": {

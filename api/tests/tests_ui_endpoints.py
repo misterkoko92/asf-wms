@@ -838,6 +838,204 @@ class UiApiEndpointsTests(TestCase):
         self.assertEqual(cards["Queue email en echec"]["tone"], "danger")
         self.assertEqual(cards["Queue email bloquee (timeout)"]["tone"], "danger")
 
+    def test_ui_dashboard_exposes_stock_cards(self):
+        ProductLot.objects.create(
+            product=self.product,
+            lot_code="LOT-EXTRA",
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=5,
+            quantity_reserved=2,
+            location=self.product_lot.location,
+        )
+
+        response = self.staff_client.get("/api/v1/ui/dashboard/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("stock_cards", payload)
+        cards = {card["label"]: card for card in payload["stock_cards"]}
+
+        available_lots = ProductLot.objects.filter(
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand__gt=0,
+        )
+        total_available_qty = sum(
+            lot.quantity_on_hand - lot.quantity_reserved for lot in available_lots
+        )
+        self.assertEqual(
+            cards["Produits actifs"]["value"],
+            Product.objects.filter(is_active=True).count(),
+        )
+        self.assertEqual(cards["Lots disponibles"]["value"], available_lots.count())
+        self.assertEqual(cards["Quantite disponible"]["value"], total_available_qty)
+
+        threshold = payload["low_stock_threshold"]
+        low_stock_label = f"Stock bas (< {threshold})"
+        self.assertIn(low_stock_label, cards)
+        self.assertEqual(cards[low_stock_label]["value"], len(payload["low_stock_rows"]))
+        self.assertEqual(cards[low_stock_label]["tone"], "danger")
+
+    def test_ui_dashboard_exposes_workflow_blockage_and_sla_cards(self):
+        stale_draft = Shipment.objects.create(
+            status=ShipmentStatus.DRAFT,
+            reference=f"{TEMP_SHIPMENT_REFERENCE_PREFIX}42",
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="40 Rue Workflow",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        Shipment.objects.filter(pk=stale_draft.pk).update(
+            created_at=timezone.now() - timedelta(hours=120)
+        )
+
+        approved_order = Order.objects.create(
+            review_status=OrderReviewStatus.APPROVED,
+            shipper_name=self.shipper_contact.name,
+            recipient_name=self.recipient_contact.name,
+            correspondent_name=self.correspondent_contact.name,
+            destination_address="41 Rue Workflow",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        Order.objects.filter(pk=approved_order.pk).update(
+            created_at=timezone.now() - timedelta(hours=120)
+        )
+
+        Shipment.objects.create(
+            status=ShipmentStatus.SHIPPED,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="42 Rue Workflow",
+            destination_country="France",
+            created_by=self.staff_user,
+            is_disputed=True,
+        )
+
+        delivered = Shipment.objects.create(
+            status=ShipmentStatus.DELIVERED,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="43 Rue SLA",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        planned = ShipmentTrackingEvent.objects.create(
+            shipment=delivered,
+            status=ShipmentTrackingStatus.PLANNED,
+            comments="planned",
+            created_by=self.staff_user,
+            actor_name="Ops",
+            actor_structure="ASF",
+        )
+        boarding = ShipmentTrackingEvent.objects.create(
+            shipment=delivered,
+            status=ShipmentTrackingStatus.BOARDING_OK,
+            comments="boarding",
+            created_by=self.staff_user,
+            actor_name="Ops",
+            actor_structure="ASF",
+        )
+        received_correspondent = ShipmentTrackingEvent.objects.create(
+            shipment=delivered,
+            status=ShipmentTrackingStatus.RECEIVED_CORRESPONDENT,
+            comments="received correspondent",
+            created_by=self.staff_user,
+            actor_name="Ops",
+            actor_structure="ASF",
+        )
+        received_recipient = ShipmentTrackingEvent.objects.create(
+            shipment=delivered,
+            status=ShipmentTrackingStatus.RECEIVED_RECIPIENT,
+            comments="received recipient",
+            created_by=self.staff_user,
+            actor_name="Ops",
+            actor_structure="ASF",
+        )
+        now = timezone.now()
+        ShipmentTrackingEvent.objects.filter(pk=planned.pk).update(
+            created_at=now - timedelta(hours=400)
+        )
+        ShipmentTrackingEvent.objects.filter(pk=boarding.pk).update(
+            created_at=now - timedelta(hours=300)
+        )
+        ShipmentTrackingEvent.objects.filter(pk=received_correspondent.pk).update(
+            created_at=now - timedelta(hours=200)
+        )
+        ShipmentTrackingEvent.objects.filter(pk=received_recipient.pk).update(
+            created_at=now - timedelta(hours=100)
+        )
+
+        response = self.staff_client.get("/api/v1/ui/dashboard/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+
+        self.assertIn("workflow_blockage_hours", payload)
+        self.assertIn("workflow_blockage_cards", payload)
+        self.assertIn("sla_cards", payload)
+        self.assertGreater(payload["workflow_blockage_hours"], 0)
+        self.assertGreater(payload["tracking_alert_hours"], 0)
+
+        workflow_cards = {card["label"]: card for card in payload["workflow_blockage_cards"]}
+        workflow_hours = payload["workflow_blockage_hours"]
+        self.assertEqual(
+            workflow_cards[f"Expeditions Creation/En cours >{workflow_hours}h"]["value"],
+            1,
+        )
+        self.assertEqual(
+            workflow_cards[f"Cmd validees sans expedition >{workflow_hours}h"]["value"],
+            1,
+        )
+        self.assertEqual(workflow_cards["Dossiers livres non clos"]["value"], 1)
+        self.assertEqual(workflow_cards["Dossiers en litige ouverts"]["value"], 1)
+        self.assertEqual(
+            workflow_cards[f"Expeditions Creation/En cours >{workflow_hours}h"]["tone"],
+            "danger",
+        )
+        self.assertEqual(
+            workflow_cards[f"Cmd validees sans expedition >{workflow_hours}h"]["tone"],
+            "danger",
+        )
+        self.assertEqual(workflow_cards["Dossiers livres non clos"]["tone"], "warn")
+        self.assertEqual(workflow_cards["Dossiers en litige ouverts"]["tone"], "danger")
+
+        tracking_alert_hours = payload["tracking_alert_hours"]
+        sla_cards = {card["label"]: card for card in payload["sla_cards"]}
+        self.assertEqual(
+            sla_cards[f"Planifie -> OK mise a bord >{tracking_alert_hours}h"]["value"],
+            "1 / 1",
+        )
+        self.assertEqual(
+            sla_cards[f"OK mise a bord -> Recu escale >{tracking_alert_hours}h"]["value"],
+            "1 / 1",
+        )
+        self.assertEqual(
+            sla_cards[f"Recu escale -> Livre >{tracking_alert_hours}h"]["value"],
+            "1 / 1",
+        )
+        self.assertEqual(
+            sla_cards[f"Planifie -> Livre >{tracking_alert_hours * 3}h"]["value"],
+            "1 / 1",
+        )
+        self.assertEqual(
+            sla_cards[f"Planifie -> OK mise a bord >{tracking_alert_hours}h"]["tone"],
+            "danger",
+        )
+
     def test_ui_stock_returns_products_and_filters(self):
         response = self.staff_client.get("/api/v1/ui/stock/?q=UI%20API")
         self.assertEqual(response.status_code, 200)
