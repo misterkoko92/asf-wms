@@ -108,19 +108,19 @@ Permettre au nouveau front d'appeler le backend sans dupliquer la logique metier
 
 - [x] Construire client API type (stock, expedition, portal, docs, templates).
 - [x] Ajouter endpoints manquants cote Django sur perimetre prioritaire P2.
-- [ ] Verifier compatibilite fine tous roles (admin, qualite, magasinier, benevole, livreur) sur tous endpoints UI.
+- [x] Verifier compatibilite fine tous roles (admin, qualite, magasinier, benevole, livreur) sur tous endpoints UI.
 - [x] Uniformiser les codes d'erreur API (`ok/code/message/field_errors/non_field_errors`).
-- [ ] Completer audit trail sur toutes actions critiques (partiel, deja present sur une partie des flux).
+- [x] Completer audit trail sur toutes actions critiques (mutations portal/documents + traces existantes stock/expedition/templates).
 
 ### Criteres de sortie
 
-- Couverture actions critiques backend: `IN_PROGRESS` (base solide, endpoints restants a completer)
+- Couverture actions critiques backend: `OK` (tests role-matrix + audit trail mutations UI consolides)
 - Validation metier backend unique: `OK` (reutilisation handlers/services existants)
 
 Reste concret P2:
 
-- etendre les tests permissions role par role,
-- finaliser la trace d'audit sur mutations UI restantes,
+- [x] etendre les tests permissions role par role (`api/tests/tests_ui_endpoints.py`),
+- [x] finaliser la trace d'audit sur mutations UI restantes (`log_workflow_event` sur mutations portal/documents),
 - [x] lancer un premier harness E2E navigateur Playwright sur routes `/app/*` (`wms/tests/core/tests_ui.py::NextUiTests`, `make test-next-ui`),
 - [ ] etendre les scenarios navigateur E2E aux workflows metier complets (stock, expedition, portal).
 
@@ -131,6 +131,7 @@ Livrables:
 - `p2_phase2_increment3_2026-02-23.md`
 - `p2_phase2_increment4_2026-02-23.md`
 - `p2_phase2_increment5_2026-02-23.md`
+- `p2_phase2_increment6_2026-02-25.md`
 
 ---
 

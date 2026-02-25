@@ -64,7 +64,7 @@ from wms.views_scan_shipments_support import (
     _build_shipments_tracking_queryset,
     _shipment_can_be_closed,
 )
-from wms.workflow_observability import log_shipment_case_closed
+from wms.workflow_observability import log_shipment_case_closed, log_workflow_event
 from wms.views_portal_account import _save_profile_updates
 from wms.order_notifications import send_portal_order_notifications
 
@@ -1307,6 +1307,14 @@ class UiShipmentDocumentsView(APIView):
             doc_type=DocumentType.ADDITIONAL,
             file=uploaded,
         )
+        log_workflow_event(
+            "ui_shipment_document_uploaded",
+            shipment=shipment,
+            user=request.user if request.user.is_authenticated else None,
+            document_id=document.id,
+            doc_type=document.doc_type,
+            filename=Path(document.file.name).name if document.file else "",
+        )
         return Response(
             {
                 "ok": True,
@@ -1332,9 +1340,18 @@ class UiShipmentDocumentDetailView(APIView):
             ),
             pk=document_id,
         )
+        filename = Path(document.file.name).name if document.file else ""
         if document.file:
             document.file.delete(save=False)
         document.delete()
+        log_workflow_event(
+            "ui_shipment_document_deleted",
+            shipment=shipment,
+            user=request.user if request.user.is_authenticated else None,
+            document_id=document_id,
+            doc_type=DocumentType.ADDITIONAL,
+            filename=filename,
+        )
         return Response(
             {
                 "ok": True,
@@ -1588,6 +1605,15 @@ class UiPortalOrdersView(APIView):
                 code="portal_order_create_failed",
                 non_field_errors=[str(exc)],
             )
+        log_workflow_event(
+            "ui_portal_order_created",
+            shipment=order.shipment if order.shipment_id else None,
+            user=request.user if request.user.is_authenticated else None,
+            order_id=order.id,
+            order_reference=order.reference or f"CMD-{order.id}",
+            association_contact_id=profile.contact_id,
+            line_count=len(requested_lines),
+        )
 
         return Response(
             {
@@ -1682,6 +1708,13 @@ class UiPortalRecipientsView(APIView):
             **recipient_payload,
         )
         sync_association_recipient_to_contact(recipient)
+        log_workflow_event(
+            "ui_portal_recipient_created",
+            user=request.user if request.user.is_authenticated else None,
+            recipient_id=recipient.id,
+            association_contact_id=profile.contact_id,
+            destination_id=recipient.destination_id,
+        )
         return Response(
             {
                 "ok": True,
@@ -1760,6 +1793,13 @@ class UiPortalRecipientDetailView(APIView):
             setattr(recipient, field_name, value)
         recipient.save(update_fields=list(recipient_payload.keys()))
         sync_association_recipient_to_contact(recipient)
+        log_workflow_event(
+            "ui_portal_recipient_updated",
+            user=request.user if request.user.is_authenticated else None,
+            recipient_id=recipient.id,
+            association_contact_id=profile.contact_id,
+            destination_id=recipient.destination_id,
+        )
         return Response(
             {
                 "ok": True,
@@ -1828,6 +1868,12 @@ class UiPortalAccountView(APIView):
             contact_rows=contact_rows,
         )
         profile.refresh_from_db()
+        log_workflow_event(
+            "ui_portal_account_updated",
+            user=request.user if request.user.is_authenticated else None,
+            association_contact_id=profile.contact_id,
+            contact_count=len(contact_rows),
+        )
         return Response(
             {
                 "ok": True,

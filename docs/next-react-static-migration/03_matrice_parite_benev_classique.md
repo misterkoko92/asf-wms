@@ -79,7 +79,7 @@ Principe cible: route stable + query params.
 
 - [ ] memes champs obligatoires et memes valeurs par defaut
 - [ ] memes validations bloquantes et memes erreurs metier
-- [ ] memes permissions par role (staff/association/admin/superuser)
+- [x] memes permissions par role (staff/association/admin/superuser) sur endpoints UI exposes
 - [ ] memes statuts metier et transitions
 - [ ] memes actions critiques disponibles (ou moins de clics, sans perte de controle)
 - [ ] meme comportement documentaire (liens, PDF, labels)
@@ -89,6 +89,7 @@ Principe cible: route stable + query params.
 
 - [x] tests contrats serializers: `api/tests/tests_ui_serializers.py`
 - [x] tests endpoints UI: `api/tests/tests_ui_endpoints.py`
+- [x] matrice role par role (admin/qualite/magasinier/benevole/livreur/association/superuser): `api/tests/tests_ui_endpoints.py`
 - [x] E2E API bout en bout: `api/tests/tests_ui_e2e_workflows.py`
 - [x] harness E2E navigateur `/app/*` disponible: `wms/tests/core/tests_ui.py::NextUiTests` (commande `make test-next-ui`)
 - [ ] execution reguliere E2E navigateur sur environnement cible (Playwright + sockets live server)

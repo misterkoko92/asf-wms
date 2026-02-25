@@ -1,3 +1,5 @@
+from unittest import mock
+
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.models import Sum
@@ -71,6 +73,33 @@ class UiApiEndpointsTests(TestCase):
         self.portal_client.force_authenticate(self.portal_user)
         self.superuser_client = APIClient()
         self.superuser_client.force_authenticate(self.superuser_user)
+        self.role_clients = {
+            "staff": self.staff_client,
+            "superuser": self.superuser_client,
+            "basic": self.basic_client,
+            "portal": self.portal_client,
+        }
+        for role_name in ("admin", "qualite", "magasinier", "benevole", "livreur"):
+            role_user = user_model.objects.create_user(
+                username=f"ui-api-{role_name}",
+                password="pass1234",
+                is_staff=True,
+            )
+            role_client = APIClient()
+            role_client.force_authenticate(role_user)
+            self.role_clients[role_name] = role_client
+        self.staff_role_clients = {
+            role_name: self.role_clients[role_name]
+            for role_name in (
+                "staff",
+                "admin",
+                "qualite",
+                "magasinier",
+                "benevole",
+                "livreur",
+                "superuser",
+            )
+        }
 
         warehouse = Warehouse.objects.create(name="UI API WH", code="UIA")
         location = Location.objects.create(
@@ -207,6 +236,14 @@ class UiApiEndpointsTests(TestCase):
             "correspondent_contact": self.correspondent_contact.id,
             "lines": lines,
         }
+
+    def _call_endpoint(self, client, method, path, *, payload=None, fmt="json"):
+        caller = getattr(client, method.lower())
+        if payload is None:
+            if method.lower() in {"get", "delete"}:
+                return caller(path)
+            return caller(path, {}, format=fmt)
+        return caller(path, payload, format=fmt)
 
     def test_ui_dashboard_requires_staff(self):
         anonymous = APIClient()
@@ -808,3 +845,280 @@ class UiApiEndpointsTests(TestCase):
             PrintTemplateVersion.objects.filter(template=template).count(),
             2,
         )
+
+    def test_ui_scan_role_matrix_allows_staff_roles_and_blocks_non_staff(self):
+        checks = [
+            ("get", "/api/v1/ui/dashboard/", None, "json"),
+            ("get", "/api/v1/ui/stock/", None, "json"),
+            ("get", "/api/v1/ui/shipments/form-options/", None, "json"),
+            ("get", f"/api/v1/ui/shipments/{self.shipment.id}/documents/", None, "json"),
+            ("get", f"/api/v1/ui/shipments/{self.shipment.id}/labels/", None, "json"),
+            (
+                "post",
+                "/api/v1/ui/stock/update/",
+                {
+                    "product_code": self.product.sku,
+                    "quantity": 0,
+                    "expires_on": "2026-12-31",
+                },
+                "json",
+            ),
+            (
+                "post",
+                "/api/v1/ui/stock/out/",
+                {
+                    "product_code": self.product.sku,
+                    "quantity": 0,
+                },
+                "json",
+            ),
+            (
+                "post",
+                "/api/v1/ui/shipments/",
+                self._shipment_mutation_payload(
+                    lines=[{"product_code": self.product.sku}]
+                ),
+                "json",
+            ),
+            (
+                "patch",
+                f"/api/v1/ui/shipments/{self.shipment.id}/",
+                self._shipment_mutation_payload(
+                    lines=[{"carton_id": self.available_carton.id}]
+                ),
+                "json",
+            ),
+            (
+                "post",
+                f"/api/v1/ui/shipments/{self.shipment.id}/tracking-events/",
+                {},
+                "json",
+            ),
+            (
+                "post",
+                f"/api/v1/ui/shipments/{self.shipment.id}/close/",
+                {},
+                "json",
+            ),
+            (
+                "post",
+                f"/api/v1/ui/shipments/{self.shipment.id}/documents/",
+                {},
+                "multipart",
+            ),
+            (
+                "delete",
+                f"/api/v1/ui/shipments/{self.shipment.id}/documents/999999/",
+                None,
+                "json",
+            ),
+        ]
+        for method, path, payload, fmt in checks:
+            for role_name, client in self.staff_role_clients.items():
+                response = self._call_endpoint(
+                    client,
+                    method,
+                    path,
+                    payload=payload,
+                    fmt=fmt,
+                )
+                self.assertNotEqual(
+                    response.status_code,
+                    403,
+                    msg=f"{role_name} unexpectedly forbidden on {method} {path}",
+                )
+            for role_name in ("basic", "portal"):
+                response = self._call_endpoint(
+                    self.role_clients[role_name],
+                    method,
+                    path,
+                    payload=payload,
+                    fmt=fmt,
+                )
+                self.assertEqual(
+                    response.status_code,
+                    403,
+                    msg=f"{role_name} should be forbidden on {method} {path}",
+                )
+
+    def test_ui_templates_role_matrix_requires_superuser(self):
+        for role_name in (
+            "staff",
+            "admin",
+            "qualite",
+            "magasinier",
+            "benevole",
+            "livreur",
+            "basic",
+            "portal",
+        ):
+            response = self.role_clients[role_name].get("/api/v1/ui/templates/")
+            self.assertEqual(response.status_code, 403, msg=role_name)
+        allowed = self.superuser_client.get("/api/v1/ui/templates/")
+        self.assertEqual(allowed.status_code, 200)
+
+    def test_ui_portal_role_matrix_allows_association_profile_only(self):
+        checks = [
+            ("get", "/api/v1/ui/portal/dashboard/", None, "json"),
+            ("get", "/api/v1/ui/portal/recipients/", None, "json"),
+            ("get", "/api/v1/ui/portal/account/", None, "json"),
+            (
+                "post",
+                "/api/v1/ui/portal/orders/",
+                {
+                    "destination_id": 999999,
+                    "recipient_id": str(self.portal_recipient.id),
+                    "lines": [{"product_id": self.product.id, "quantity": 1}],
+                },
+                "json",
+            ),
+        ]
+        for method, path, payload, fmt in checks:
+            response = self._call_endpoint(
+                self.portal_client,
+                method,
+                path,
+                payload=payload,
+                fmt=fmt,
+            )
+            self.assertNotEqual(
+                response.status_code,
+                403,
+                msg=f"portal user unexpectedly forbidden on {method} {path}",
+            )
+            for role_name, client in self.staff_role_clients.items():
+                forbidden = self._call_endpoint(
+                    client,
+                    method,
+                    path,
+                    payload=payload,
+                    fmt=fmt,
+                )
+                self.assertEqual(
+                    forbidden.status_code,
+                    403,
+                    msg=f"{role_name} should be forbidden on {method} {path}",
+                )
+            basic_forbidden = self._call_endpoint(
+                self.basic_client,
+                method,
+                path,
+                payload=payload,
+                fmt=fmt,
+            )
+            self.assertEqual(basic_forbidden.status_code, 403)
+
+    def test_ui_document_mutations_emit_workflow_audit_events(self):
+        with mock.patch("api.v1.ui_views.log_workflow_event", create=True) as log_mock:
+            upload_response = self.staff_client.post(
+                f"/api/v1/ui/shipments/{self.shipment.id}/documents/",
+                {
+                    "document_file": SimpleUploadedFile(
+                        "audit-manifest.pdf",
+                        b"%PDF-1.4 audit",
+                        content_type="application/pdf",
+                    )
+                },
+                format="multipart",
+            )
+            self.assertEqual(upload_response.status_code, 201)
+            document_id = upload_response.json()["document"]["id"]
+            delete_response = self.staff_client.delete(
+                f"/api/v1/ui/shipments/{self.shipment.id}/documents/{document_id}/",
+                format="json",
+            )
+            self.assertEqual(delete_response.status_code, 200)
+        event_types = [call.args[0] for call in log_mock.call_args_list]
+        self.assertIn("ui_shipment_document_uploaded", event_types)
+        self.assertIn("ui_shipment_document_deleted", event_types)
+
+    def test_ui_portal_mutations_emit_workflow_audit_events(self):
+        with mock.patch("api.v1.ui_views.log_workflow_event", create=True) as log_mock:
+            order_response = self.portal_client.post(
+                "/api/v1/ui/portal/orders/",
+                {
+                    "destination_id": self.destination.id,
+                    "recipient_id": str(self.portal_recipient.id),
+                    "notes": "Audit event order",
+                    "lines": [{"product_id": self.product.id, "quantity": 1}],
+                },
+                format="json",
+            )
+            self.assertEqual(order_response.status_code, 201)
+
+            create_recipient_response = self.portal_client.post(
+                "/api/v1/ui/portal/recipients/",
+                {
+                    "destination_id": self.destination.id,
+                    "structure_name": "Audit Recipient",
+                    "contact_title": AssociationContactTitle.MR,
+                    "contact_last_name": "Audit",
+                    "contact_first_name": "Test",
+                    "phones": "0100000000",
+                    "emails": "audit.recipient@example.org",
+                    "address_line1": "12 Rue Audit",
+                    "postal_code": "75001",
+                    "city": "Paris",
+                    "country": "France",
+                    "notify_deliveries": True,
+                    "is_delivery_contact": True,
+                },
+                format="json",
+            )
+            self.assertEqual(create_recipient_response.status_code, 201)
+            created_recipient_id = create_recipient_response.json()["recipient"]["id"]
+
+            patch_recipient_response = self.portal_client.patch(
+                f"/api/v1/ui/portal/recipients/{created_recipient_id}/",
+                {
+                    "destination_id": self.destination.id,
+                    "structure_name": "Audit Recipient Updated",
+                    "contact_title": AssociationContactTitle.MRS,
+                    "contact_last_name": "Audit",
+                    "contact_first_name": "Tester",
+                    "phones": "0100000001",
+                    "emails": "audit.updated@example.org",
+                    "address_line1": "13 Rue Audit",
+                    "postal_code": "75002",
+                    "city": "Paris",
+                    "country": "France",
+                    "notify_deliveries": True,
+                    "is_delivery_contact": False,
+                },
+                format="json",
+            )
+            self.assertEqual(patch_recipient_response.status_code, 200)
+
+            account_response = self.portal_client.patch(
+                "/api/v1/ui/portal/account/",
+                {
+                    "association_name": "Association UI API Audit",
+                    "association_email": "audit-assoc@example.org",
+                    "association_phone": "0203040506",
+                    "address_line1": "10 Rue Assoc",
+                    "address_line2": "",
+                    "postal_code": "69001",
+                    "city": "Lyon",
+                    "country": "France",
+                    "contacts": [
+                        {
+                            "title": AssociationContactTitle.MR,
+                            "last_name": "Audit",
+                            "first_name": "Admin",
+                            "phone": "0600000000",
+                            "email": "audit.portal.admin@example.org",
+                            "is_administrative": True,
+                            "is_shipping": False,
+                            "is_billing": False,
+                        }
+                    ],
+                },
+                format="json",
+            )
+            self.assertEqual(account_response.status_code, 200)
+
+        event_types = [call.args[0] for call in log_mock.call_args_list]
+        self.assertIn("ui_portal_order_created", event_types)
+        self.assertIn("ui_portal_recipient_created", event_types)
+        self.assertIn("ui_portal_recipient_updated", event_types)
+        self.assertIn("ui_portal_account_updated", event_types)
