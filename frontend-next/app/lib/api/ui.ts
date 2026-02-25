@@ -2,6 +2,7 @@ import { apiDeleteJson, apiGetJson, apiPatchJson, apiPostFormData, apiPostJson }
 import type {
   PortalDashboardDto,
   ScanDashboardDto,
+  ScanShipmentsReadyDto,
   ScanStockDto,
   ShipmentFormOptionsDto,
   UiPrintTemplateDto,
@@ -43,6 +44,10 @@ export function getScanStock(query = "") {
 
 export function getShipmentFormOptions() {
   return apiGetJson<ShipmentFormOptionsDto>("/api/v1/ui/shipments/form-options/");
+}
+
+export function getShipmentsReady() {
+  return apiGetJson<ScanShipmentsReadyDto>("/api/v1/ui/shipments/ready/");
 }
 
 export function getPortalDashboard() {

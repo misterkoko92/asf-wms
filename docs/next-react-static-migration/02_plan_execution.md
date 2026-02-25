@@ -21,6 +21,7 @@ Front Next parallel (sans impact legacy):
 - `/app/scan/dashboard/`
 - `/app/scan/stock/`
 - `/app/scan/shipment-create/`
+- `/app/scan/shipments-ready/`
 - `/app/scan/shipments-tracking/`
 - `/app/scan/shipment-documents/`
 - `/app/scan/templates/`
@@ -42,7 +43,7 @@ Tests en place:
 Important:
 
 - workflow complet valide aujourd'hui **au niveau API**,
-- couverture UI navigateur en progression (stock mutations+filtres, shipment create/tracking/close + creation colis inline, portal mutations), parite ecran stricte restante.
+- couverture UI navigateur en progression (stock mutations+filtres, shipment ready/tracking dedies, shipment create + creation colis inline, portal mutations), parite ecran stricte restante.
 
 ## Phase 0 - Inventaire et baseline (J0 -> J2)
 

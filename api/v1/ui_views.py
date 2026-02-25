@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from django.db import connection, transaction
-from django.db.models import F, IntegerField, Max, Q, Sum, ExpressionWrapper
+from django.db.models import Count, ExpressionWrapper, F, IntegerField, Max, Q, Sum
 from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
 from django.core.validators import EmailValidator
@@ -57,10 +57,15 @@ from wms.shipment_tracking_handlers import (
     allowed_tracking_statuses_for_shipment,
     validate_tracking_transition,
 )
-from wms.shipment_view_helpers import build_shipment_document_links
+from wms.shipment_view_helpers import (
+    build_shipment_document_links,
+    build_shipments_ready_rows,
+)
 from wms.stock_view_helpers import build_stock_context
 from wms.upload_utils import ALLOWED_UPLOAD_EXTENSIONS
 from wms.views_scan_shipments_support import (
+    _stale_drafts_age_days,
+    _stale_drafts_queryset,
     _build_shipments_tracking_queryset,
     _shipment_can_be_closed,
 )
@@ -797,6 +802,92 @@ class UiShipmentFormOptionsView(APIView):
                 "shipper_contacts": shipper_contacts,
                 "recipient_contacts": recipient_contacts,
                 "correspondent_contacts": correspondent_contacts,
+            }
+        )
+
+
+class UiShipmentsReadyView(APIView):
+    permission_classes = [IsStaffUser]
+
+    def get(self, request):
+        shipments_qs = (
+            Shipment.objects.filter(archived_at__isnull=True)
+            .select_related(
+                "destination",
+                "shipper_contact_ref__organization",
+                "recipient_contact_ref__organization",
+            )
+            .annotate(
+                carton_count=Count("carton", distinct=True),
+                ready_count=Count(
+                    "carton",
+                    filter=Q(
+                        carton__status__in=[CartonStatus.LABELED, CartonStatus.SHIPPED]
+                    ),
+                    distinct=True,
+                ),
+            )
+            .order_by("-created_at")
+        )
+        shipments = build_shipments_ready_rows(shipments_qs)
+        items = []
+        for row in shipments:
+            shipment_id = row["id"]
+            tracking_url = (
+                f"{reverse('scan:scan_shipment_track', args=[row['tracking_token']])}"
+                "?return_to=shipments_ready"
+            )
+            items.append(
+                {
+                    "id": shipment_id,
+                    "reference": row["reference"],
+                    "carton_count": row["carton_count"],
+                    "destination_iata": row["destination_iata"] or "",
+                    "shipper_name": row["shipper_name"] or "",
+                    "recipient_name": row["recipient_name"] or "",
+                    "created_at": (
+                        row["created_at"].isoformat() if row["created_at"] else None
+                    ),
+                    "ready_at": row["ready_at"].isoformat() if row["ready_at"] else None,
+                    "status_label": row["status_label"] or "",
+                    "can_edit": bool(row["can_edit"]),
+                    "documents": {
+                        "shipment_note_url": reverse(
+                            "scan:scan_shipment_document",
+                            args=[shipment_id, "shipment_note"],
+                        ),
+                        "packing_list_shipment_url": reverse(
+                            "scan:scan_shipment_document",
+                            args=[shipment_id, "packing_list_shipment"],
+                        ),
+                        "donation_certificate_url": reverse(
+                            "scan:scan_shipment_document",
+                            args=[shipment_id, "donation_certificate"],
+                        ),
+                        "labels_url": reverse(
+                            "scan:scan_shipment_labels",
+                            args=[shipment_id],
+                        ),
+                    },
+                    "actions": {
+                        "tracking_url": tracking_url,
+                        "edit_url": (
+                            reverse("scan:scan_shipment_edit", args=[shipment_id])
+                            if row["can_edit"]
+                            else ""
+                        ),
+                    },
+                }
+            )
+
+        return Response(
+            {
+                "meta": {
+                    "total_shipments": len(items),
+                    "stale_draft_count": _stale_drafts_queryset().count(),
+                    "stale_draft_days": _stale_drafts_age_days(),
+                },
+                "shipments": items,
             }
         )
 

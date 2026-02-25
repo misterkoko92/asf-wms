@@ -15,6 +15,8 @@ Frontend Next.js statique, servi en parallele de l'interface legacy.
 - `/app/scan/dashboard`
 - `/app/scan/stock`
 - `/app/scan/shipment-create`
+- `/app/scan/shipments-ready`
+- `/app/scan/shipments-tracking`
 - `/app/scan/shipment-documents`
 - `/app/scan/templates`
 - `/app/portal/dashboard`

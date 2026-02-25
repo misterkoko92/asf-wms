@@ -26,6 +26,7 @@ from .ui_views import (
     UiShipmentFormOptionsView,
     UiShipmentLabelDetailView,
     UiShipmentLabelsView,
+    UiShipmentsReadyView,
     UiShipmentTrackingEventCreateView,
     UiShipmentUpdateView,
     UiStockOutView,
@@ -55,6 +56,11 @@ urlpatterns = [
         "ui/shipments/form-options/",
         UiShipmentFormOptionsView.as_view(),
         name="ui-shipment-form-options",
+    ),
+    path(
+        "ui/shipments/ready/",
+        UiShipmentsReadyView.as_view(),
+        name="ui-shipments-ready",
     ),
     path("ui/shipments/", UiShipmentCreateView.as_view(), name="ui-shipments-create"),
     path(

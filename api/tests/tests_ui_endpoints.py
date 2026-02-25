@@ -279,6 +279,21 @@ class UiApiEndpointsTests(TestCase):
         self.assertIn("recipient_contacts", payload)
         self.assertIn("correspondent_contacts", payload)
 
+    def test_ui_shipments_ready_returns_rows(self):
+        response = self.staff_client.get("/api/v1/ui/shipments/ready/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("meta", payload)
+        self.assertIn("shipments", payload)
+        self.assertEqual(payload["meta"]["total_shipments"], 1)
+        self.assertEqual(payload["shipments"][0]["reference"], self.shipment.reference)
+        self.assertIn("documents", payload["shipments"][0])
+        self.assertIn("actions", payload["shipments"][0])
+        self.assertIn(
+            "return_to=shipments_ready",
+            payload["shipments"][0]["actions"]["tracking_url"],
+        )
+
     def test_ui_portal_dashboard_requires_association_profile(self):
         response = self.basic_client.get("/api/v1/ui/portal/dashboard/")
         self.assertEqual(response.status_code, 403)
@@ -851,6 +866,7 @@ class UiApiEndpointsTests(TestCase):
             ("get", "/api/v1/ui/dashboard/", None, "json"),
             ("get", "/api/v1/ui/stock/", None, "json"),
             ("get", "/api/v1/ui/shipments/form-options/", None, "json"),
+            ("get", "/api/v1/ui/shipments/ready/", None, "json"),
             ("get", f"/api/v1/ui/shipments/{self.shipment.id}/documents/", None, "json"),
             ("get", f"/api/v1/ui/shipments/{self.shipment.id}/labels/", None, "json"),
             (

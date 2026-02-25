@@ -63,6 +63,36 @@ export type ShipmentFormOptionsDto = {
   correspondent_contacts: Array<Record<string, string | number | boolean | null>>;
 };
 
+export type ScanShipmentsReadyDto = {
+  meta: {
+    total_shipments: number;
+    stale_draft_count: number;
+    stale_draft_days: number;
+  };
+  shipments: Array<{
+    id: number;
+    reference: string;
+    carton_count: number;
+    destination_iata: string;
+    shipper_name: string;
+    recipient_name: string;
+    created_at: string | null;
+    ready_at: string | null;
+    status_label: string;
+    can_edit: boolean;
+    documents: {
+      shipment_note_url: string;
+      packing_list_shipment_url: string;
+      donation_certificate_url: string;
+      labels_url: string;
+    };
+    actions: {
+      tracking_url: string;
+      edit_url: string;
+    };
+  }>;
+};
+
 export type PortalDashboardDto = {
   kpis: {
     orders_total: number;
