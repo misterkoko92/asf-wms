@@ -9,9 +9,12 @@ from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.test import Client
 from django.urls import reverse
 
-from contacts.models import Contact, ContactType
+from contacts.models import Contact, ContactTag, ContactType
+from contacts.tagging import TAG_CORRESPONDENT, TAG_RECIPIENT, TAG_SHIPPER
 from wms.models import (
     AssociationProfile,
+    Carton,
+    CartonStatus,
     Destination,
     Document,
     DocumentType,
@@ -21,6 +24,8 @@ from wms.models import (
     ProductLot,
     Shipment,
     ShipmentStatus,
+    ShipmentTrackingEvent,
+    ShipmentTrackingStatus,
     Warehouse,
 )
 
@@ -178,6 +183,15 @@ class NextUiTests(StaticLiveServerTestCase):
             correspondent_contact=self.correspondent_contact,
             is_active=True,
         )
+        shipper_tag, _ = ContactTag.objects.get_or_create(name=TAG_SHIPPER[0])
+        recipient_tag, _ = ContactTag.objects.get_or_create(name=TAG_RECIPIENT[0])
+        correspondent_tag, _ = ContactTag.objects.get_or_create(name=TAG_CORRESPONDENT[0])
+        self.shipper_contact.tags.add(shipper_tag)
+        self.recipient_contact.tags.add(recipient_tag)
+        self.correspondent_contact.tags.add(correspondent_tag)
+        self.shipper_contact.destinations.add(self.destination)
+        self.recipient_contact.destinations.add(self.destination)
+        self.correspondent_contact.destinations.add(self.destination)
         self.docs_shipment = Shipment.objects.create(
             status=ShipmentStatus.PLANNED,
             shipper_name=self.shipper_contact.name,
@@ -189,6 +203,39 @@ class NextUiTests(StaticLiveServerTestCase):
             destination=self.destination,
             destination_address="1 Rue Next UI",
             destination_country="France",
+            created_by=self.staff_user,
+        )
+        self.available_carton = Carton.objects.create(
+            code="NEXT-UI-CARTON-AVAILABLE",
+            status=CartonStatus.PACKED,
+        )
+        self.workflow_tracking_shipment = Shipment.objects.create(
+            status=ShipmentStatus.SHIPPED,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="1 Rue Next UI",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        ShipmentTrackingEvent.objects.create(
+            shipment=self.workflow_tracking_shipment,
+            status=ShipmentTrackingStatus.PLANNED,
+            actor_name="Ops",
+            actor_structure="ASF",
+            comments="planned",
+            created_by=self.staff_user,
+        )
+        ShipmentTrackingEvent.objects.create(
+            shipment=self.workflow_tracking_shipment,
+            status=ShipmentTrackingStatus.BOARDING_OK,
+            actor_name="Ops",
+            actor_structure="ASF",
+            comments="boarding",
             created_by=self.staff_user,
         )
         stock_warehouse = Warehouse.objects.create(name="Next UI Stock WH", code="NUI")
@@ -402,3 +449,61 @@ class NextUiTests(StaticLiveServerTestCase):
             total=Sum("quantity_on_hand")
         )["total"]
         self.assertEqual(total_quantity, 3)
+
+    def test_next_shipment_create_tracking_close_workflow(self):
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.staff_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/scan/shipment-create/",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+            page.get_by_label("Destination ID").select_option(str(self.destination.id))
+            page.get_by_label("Expediteur ID").select_option(str(self.shipper_contact.id))
+            page.get_by_label("Destinataire ID").select_option(str(self.recipient_contact.id))
+            page.get_by_label("Correspondant ID").select_option(
+                str(self.correspondent_contact.id)
+            )
+            page.get_by_label("Carton ID").select_option(str(self.available_carton.id))
+            page.get_by_role("button", name="Creer expedition").click()
+            page.wait_for_function(
+                "document.body.innerText.includes('Expedition creee.')"
+            )
+
+            page.get_by_label("Shipment ID (Tracking)").fill(
+                str(self.workflow_tracking_shipment.id)
+            )
+            page.get_by_label("Status tracking").select_option(
+                ShipmentTrackingStatus.RECEIVED_CORRESPONDENT
+            )
+            page.get_by_role("button", name="Envoyer tracking").click()
+            page.wait_for_function(
+                "document.body.innerText.includes('Suivi mis a jour.')"
+            )
+
+            page.get_by_label("Status tracking").select_option(
+                ShipmentTrackingStatus.RECEIVED_RECIPIENT
+            )
+            page.get_by_role("button", name="Envoyer tracking").click()
+            page.wait_for_function(
+                "document.body.innerText.includes('Suivi mis a jour.')"
+            )
+
+            page.get_by_label("Shipment ID (Cloture)").fill(
+                str(self.workflow_tracking_shipment.id)
+            )
+            page.get_by_role("button", name="Cloturer expedition").click()
+            page.wait_for_function(
+                "document.body.innerText.includes('Dossier cloture.')"
+            )
+            context.close()
+            browser.close()
+        self.available_carton.refresh_from_db()
+        self.assertEqual(self.available_carton.status, CartonStatus.ASSIGNED)
+        self.assertIsNotNone(self.available_carton.shipment_id)
+        self.workflow_tracking_shipment.refresh_from_db()
+        self.assertIsNotNone(self.workflow_tracking_shipment.closed_at)

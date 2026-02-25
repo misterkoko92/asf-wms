@@ -1,4 +1,4 @@
-# 03 - Matrice de parite Benev/Classique (maj 2026-02-23)
+# 03 - Matrice de parite Benev/Classique (maj 2026-02-25)
 
 ## Legende statut
 
@@ -18,12 +18,12 @@
 | Priorite | Legacy URL | Route Next cible | Etat Next reel | Etat API UI | Statut |
 |---|---|---|---|---|---|
 | P1 | `/scan/dashboard/` | `/app/scan/dashboard/` | ecran present (mix maquette + live API) | `GET /api/v1/ui/dashboard/` | IN_PROGRESS |
-| P1 | `/scan/stock/` | `/app/scan/stock/` | ecran present (table live, actions non branchees) | `GET /api/v1/ui/stock/` | IN_PROGRESS |
-| P1 | `/scan/stock-update/` | `/app/scan/stock/` (zone MAJ inline cible) | pas de workflow UI finalise | `POST /api/v1/ui/stock/update/` | IN_PROGRESS |
-| P1 | `/scan/out/` | `/app/scan/stock/` (zone sortie cible) | pas de workflow UI finalise | `POST /api/v1/ui/stock/out/` | IN_PROGRESS |
-| P1 | `/scan/shipment/` | `/app/scan/shipment-create/` | ecran present (guardrails + placeholders) | `GET/POST/PATCH /api/v1/ui/shipments*` | IN_PROGRESS |
-| P1 | `/scan/shipments-tracking/` | `/app/scan/shipment/tracking/` | route non creee | `POST /api/v1/ui/shipments/<id>/tracking-events/` | API_READY |
-| P1 | `/scan/shipment/<id>/close` (logique legacy) | `/app/scan/shipment/tracking/` | route non creee | `POST /api/v1/ui/shipments/<id>/close/` | API_READY |
+| P1 | `/scan/stock/` | `/app/scan/stock/` | ecran present (table live + mutations update/out branchees) | `GET /api/v1/ui/stock/` | IN_PROGRESS |
+| P1 | `/scan/stock-update/` | `/app/scan/stock/` (zone MAJ inline cible) | workflow UI mutation present et teste en navigateur | `POST /api/v1/ui/stock/update/` | IN_PROGRESS |
+| P1 | `/scan/out/` | `/app/scan/stock/` (zone sortie cible) | workflow UI mutation present et teste en navigateur | `POST /api/v1/ui/stock/out/` | IN_PROGRESS |
+| P1 | `/scan/shipment/` | `/app/scan/shipment-create/` | ecran present + mutations create/tracking/close branchees | `GET/POST/PATCH /api/v1/ui/shipments*` | IN_PROGRESS |
+| P1 | `/scan/shipments-tracking/` | `/app/scan/shipment-create/` (integration transitoire) | workflow tracking present sur shipment-create (route dediee non creee) | `POST /api/v1/ui/shipments/<id>/tracking-events/` | IN_PROGRESS |
+| P1 | `/scan/shipment/<id>/close` (logique legacy) | `/app/scan/shipment-create/` (integration transitoire) | workflow cloture present sur shipment-create (route dediee non creee) | `POST /api/v1/ui/shipments/<id>/close/` | IN_PROGRESS |
 | P1 | `/scan/pack/` | `/app/scan/carton/create/` | route non creee | logique disponible via handlers legacy + API shipment lines | TODO |
 | P1 | `/scan/cartons/` | `/app/scan/cartons/` | route non creee | pas d'endpoint UI dedie liste cartons | TODO |
 | P1 | `/scan/shipments-ready/` | `/app/scan/shipments-ready/` | route non creee | pas d'endpoint UI dedie | TODO |
@@ -94,6 +94,7 @@ Principe cible: route stable + query params.
 - [x] harness E2E navigateur `/app/*` disponible: `wms/tests/core/tests_ui.py::NextUiTests` (commande `make test-next-ui`)
 - [x] workflows navigateur docs/templates (upload+delete documents, save+reset templates): `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur stock mutations (update/out): `wms/tests/core/tests_ui.py::NextUiTests`
+- [x] workflow navigateur expedition mutations (create/tracking/close): `wms/tests/core/tests_ui.py::NextUiTests`
 - [ ] execution reguliere E2E navigateur sur environnement cible (Playwright + sockets live server)
 - [ ] recette metier manuelle complete ecran par ecran
 - [x] rollback global instantane vers legacy (`/ui/mode/legacy/`)
