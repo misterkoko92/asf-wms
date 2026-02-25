@@ -257,6 +257,22 @@ class NextUiTests(StaticLiveServerTestCase):
             is_active=True,
             qr_code_image="qr_codes/test.png",
         )
+        self.shipment_pack_product = Product.objects.create(
+            sku="NEXT-UI-PACK-001",
+            name="Next UI Pack Product",
+            brand="ASF",
+            default_location=stock_location,
+            is_active=True,
+            qr_code_image="qr_codes/test.png",
+        )
+        self.shipment_pack_lot = ProductLot.objects.create(
+            product=self.shipment_pack_product,
+            lot_code="NEXT-UI-PACK-LOT",
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=10,
+            quantity_reserved=0,
+            location=stock_location,
+        )
         self.portal_product = Product.objects.create(
             sku="NEXT-UI-PORTAL-001",
             name="Next UI Portal Product",
@@ -544,6 +560,52 @@ class NextUiTests(StaticLiveServerTestCase):
         self.assertIsNotNone(self.available_carton.shipment_id)
         self.workflow_tracking_shipment.refresh_from_db()
         self.assertIsNotNone(self.workflow_tracking_shipment.closed_at)
+
+    def test_next_shipment_create_from_product_line_workflow(self):
+        carton_ids_before = set(Carton.objects.values_list("id", flat=True))
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.staff_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/scan/shipment-create/",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+            page.get_by_label("Destination ID").select_option(str(self.destination.id))
+            page.get_by_label("Expediteur ID").select_option(str(self.shipper_contact.id))
+            page.get_by_label("Destinataire ID").select_option(str(self.recipient_contact.id))
+            page.get_by_label("Correspondant ID").select_option(
+                str(self.correspondent_contact.id)
+            )
+            page.get_by_label("Carton ID").select_option("")
+            page.get_by_label("Product code (Creation)").fill(
+                self.shipment_pack_product.sku
+            )
+            page.get_by_label("Quantite (Creation)").fill("2")
+            page.get_by_role("button", name="Creer expedition").click()
+            page.wait_for_function(
+                "document.body.innerText.includes('Expedition creee.')"
+            )
+            context.close()
+            browser.close()
+
+        new_cartons = Carton.objects.exclude(id__in=carton_ids_before)
+        self.assertEqual(new_cartons.count(), 1)
+        created_carton = new_cartons.first()
+        self.assertIsNotNone(created_carton)
+        self.assertEqual(created_carton.status, CartonStatus.ASSIGNED)
+        self.assertIsNotNone(created_carton.shipment_id)
+        self.assertTrue(
+            created_carton.cartonitem_set.filter(
+                product_lot__product=self.shipment_pack_product,
+                quantity=2,
+            ).exists()
+        )
+        self.shipment_pack_lot.refresh_from_db()
+        self.assertEqual(self.shipment_pack_lot.quantity_on_hand, 8)
 
     def test_next_portal_order_recipient_account_workflow(self):
         created_recipient_name = "Next UI Recipient Created"

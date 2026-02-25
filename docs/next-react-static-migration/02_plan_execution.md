@@ -167,7 +167,7 @@ Migrer en priorite les 3 pages business cibles.
 Etat factuel:
 
 - ecrans Next presents mais encore hybrides (maquette + branchements API),
-- actions metier critiques pas encore toutes executees depuis ces ecrans,
+- actions metier critiques pas encore toutes executees depuis ces ecrans (creation colis inline sur `shipment-create` desormais couverte),
 - parite visuelle stricte non validee.
 
 ### Criteres de sortie

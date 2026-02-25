@@ -71,12 +71,15 @@ export function ScanShipmentOptionsLive() {
   const [mutationError, setMutationError] = useState<string>("");
   const [mutationStatus, setMutationStatus] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [defaultsApplied, setDefaultsApplied] = useState<boolean>(false);
 
   const [destinationId, setDestinationId] = useState<string>("");
   const [shipperId, setShipperId] = useState<string>("");
   const [recipientId, setRecipientId] = useState<string>("");
   const [correspondentId, setCorrespondentId] = useState<string>("");
   const [cartonId, setCartonId] = useState<string>("");
+  const [createProductCode, setCreateProductCode] = useState<string>("");
+  const [createQuantity, setCreateQuantity] = useState<string>("");
   const [trackingShipmentId, setTrackingShipmentId] = useState<string>("");
   const [trackingStatus, setTrackingStatus] = useState<string>(
     TRACKING_STATUS_OPTIONS[0].value,
@@ -125,7 +128,7 @@ export function ScanShipmentOptionsLive() {
   );
 
   useEffect(() => {
-    if (!data) {
+    if (!data || defaultsApplied) {
       return;
     }
     if (!destinationId && destinations.length) {
@@ -143,12 +146,14 @@ export function ScanShipmentOptionsLive() {
     if (!cartonId && cartons.length) {
       setCartonId(String(cartons[0].id));
     }
+    setDefaultsApplied(true);
   }, [
     cartonId,
     cartons,
     correspondentId,
     correspondents,
     data,
+    defaultsApplied,
     destinationId,
     destinations,
     recipientId,
@@ -164,15 +169,34 @@ export function ScanShipmentOptionsLive() {
     const parsedRecipient = parseId(recipientId);
     const parsedCorrespondent = parseId(correspondentId);
     const parsedCarton = parseId(cartonId);
+    const productCode = createProductCode.trim();
+    const hasProductFields = productCode.length > 0 || createQuantity.trim().length > 0;
+    const parsedCreateQuantity = parseId(createQuantity);
     if (
       !parsedDestination ||
       !parsedShipper ||
       !parsedRecipient ||
-      !parsedCorrespondent ||
-      !parsedCarton
+      !parsedCorrespondent
     ) {
       setMutationError("Parametres creation expedition invalides.");
       return;
+    }
+    let linePayload:
+      | { carton_id: number }
+      | { product_code: string; quantity: number }
+      | null = null;
+    if (parsedCarton) {
+      if (hasProductFields) {
+        setMutationError("Choisir carton ou produit+quantite, pas les deux.");
+        return;
+      }
+      linePayload = { carton_id: parsedCarton };
+    } else {
+      if (!productCode || !parsedCreateQuantity) {
+        setMutationError("Carton ID ou produit+quantite requis.");
+        return;
+      }
+      linePayload = { product_code: productCode, quantity: parsedCreateQuantity };
     }
 
     setIsSubmitting(true);
@@ -184,7 +208,7 @@ export function ScanShipmentOptionsLive() {
         shipper_contact: parsedShipper,
         recipient_contact: parsedRecipient,
         correspondent_contact: parsedCorrespondent,
-        lines: [{ carton_id: parsedCarton }],
+        lines: [linePayload],
       });
       const createdId = response.shipment.id;
       setTrackingShipmentId(String(createdId));
@@ -315,12 +339,28 @@ export function ScanShipmentOptionsLive() {
         <label className="field-inline">
           Carton ID
           <select value={cartonId} onChange={(event) => setCartonId(event.target.value)}>
+            <option value="">-- creer colis depuis produit --</option>
             {cartons.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.id} - {item.label}
               </option>
             ))}
           </select>
+        </label>
+        <label className="field-inline">
+          Product code (Creation)
+          <input
+            value={createProductCode}
+            onChange={(event) => setCreateProductCode(event.target.value)}
+          />
+        </label>
+        <label className="field-inline">
+          Quantite (Creation)
+          <input
+            value={createQuantity}
+            onChange={(event) => setCreateQuantity(event.target.value)}
+            inputMode="numeric"
+          />
         </label>
         <button
           type="submit"
