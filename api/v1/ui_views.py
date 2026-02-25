@@ -788,6 +788,43 @@ class UiDashboardView(APIView):
                 "tone": "neutral",
             },
         ]
+        flow_cards = [
+            {
+                "label": "Receptions en attente",
+                "value": Receipt.objects.filter(status=ReceiptStatus.DRAFT).count(),
+                "help": "Receptions non finalisees.",
+                "url": reverse("scan:scan_receipts_view"),
+                "tone": "warn",
+            },
+            {
+                "label": "Cmd en attente de validation",
+                "value": Order.objects.filter(
+                    review_status=OrderReviewStatus.PENDING
+                ).count(),
+                "help": "Demandes a valider.",
+                "url": reverse("scan:scan_orders_view"),
+                "tone": "neutral",
+            },
+            {
+                "label": "Cmd a modifier",
+                "value": Order.objects.filter(
+                    review_status=OrderReviewStatus.CHANGES_REQUESTED
+                ).count(),
+                "help": "Retours en correction.",
+                "url": reverse("scan:scan_orders_view"),
+                "tone": "warn",
+            },
+            {
+                "label": "Cmd validees sans expedition",
+                "value": Order.objects.filter(
+                    review_status=OrderReviewStatus.APPROVED,
+                    shipment__isnull=True,
+                ).count(),
+                "help": "Validees, en attente de creation d expedition.",
+                "url": reverse("scan:scan_orders_view"),
+                "tone": "neutral",
+            },
+        ]
 
         return Response(
             {
@@ -798,6 +835,7 @@ class UiDashboardView(APIView):
                 "activity_cards": activity_cards,
                 "shipment_cards": shipment_cards,
                 "carton_cards": carton_cards,
+                "flow_cards": flow_cards,
                 "shipments_total": shipments_total,
                 "shipment_chart_rows": shipment_chart_rows,
                 "filters": {

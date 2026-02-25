@@ -24,11 +24,15 @@ from wms.models import (
     Document,
     DocumentType,
     Order,
+    OrderReviewStatus,
     Location,
     ProductLotStatus,
     PrintTemplate,
     Product,
     ProductLot,
+    Receipt,
+    ReceiptStatus,
+    ReceiptType,
     Shipment,
     ShipmentStatus,
     ShipmentTrackingEvent,
@@ -687,6 +691,94 @@ class NextUiTests(StaticLiveServerTestCase):
                 }
                 """,
                 arg=1,
+            )
+            context.close()
+            browser.close()
+
+    def test_next_scan_dashboard_displays_flow_cards(self):
+        Receipt.objects.create(
+            receipt_type=ReceiptType.DONATION,
+            status=ReceiptStatus.DRAFT,
+            warehouse=self.stock_product.default_location.warehouse,
+            created_by=self.staff_user,
+        )
+        Order.objects.create(
+            review_status=OrderReviewStatus.PENDING,
+            shipper_name="Flow Sender P",
+            recipient_name="Flow Recipient P",
+            correspondent_name="Flow Correspondent P",
+            destination_address="23 Rue Flow",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        Order.objects.create(
+            review_status=OrderReviewStatus.CHANGES_REQUESTED,
+            shipper_name="Flow Sender CR",
+            recipient_name="Flow Recipient CR",
+            correspondent_name="Flow Correspondent CR",
+            destination_address="24 Rue Flow",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        Order.objects.create(
+            review_status=OrderReviewStatus.APPROVED,
+            shipper_name="Flow Sender A",
+            recipient_name="Flow Recipient A",
+            correspondent_name="Flow Correspondent A",
+            destination_address="25 Rue Flow",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.staff_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/scan/dashboard/",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+            page.wait_for_function(
+                """
+                () => {
+                  const panels = Array.from(document.querySelectorAll("article.panel"));
+                  return panels.some((panel) => {
+                    const heading = panel.querySelector("h2");
+                    const text = panel.textContent || "";
+                    return (
+                      !!heading &&
+                      (heading.textContent || "").trim() === "Receptions / Commandes" &&
+                      text.includes("Receptions en attente") &&
+                      text.includes("Cmd en attente de validation") &&
+                      text.includes("Cmd a modifier")
+                    );
+                  });
+                }
+                """
+            )
+            page.wait_for_function(
+                """
+                () => {
+                  const panels = Array.from(document.querySelectorAll("article.panel"));
+                  const panel = panels.find((item) => {
+                    const heading = item.querySelector("h2");
+                    return (
+                      !!heading &&
+                      (heading.textContent || "").trim() === "Receptions / Commandes"
+                    );
+                  });
+                  if (!panel) return false;
+                  const compact = (panel.textContent || "").replace(/\\s+/g, "");
+                  return (
+                    compact.includes("Receptionsenattente1") &&
+                    compact.includes("Cmdenattentedevalidation1") &&
+                    compact.includes("Cmdamodifier1")
+                  );
+                }
+                """
             )
             context.close()
             browser.close()

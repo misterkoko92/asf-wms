@@ -27,6 +27,9 @@ from wms.models import (
     Product,
     ProductLot,
     ProductLotStatus,
+    Receipt,
+    ReceiptStatus,
+    ReceiptType,
     Shipment,
     ShipmentStatus,
     ShipmentTrackingEvent,
@@ -563,6 +566,59 @@ class UiApiEndpointsTests(TestCase):
         self.assertEqual(filtered_cards["Affectes non etiquetes"]["value"], 1)
         self.assertEqual(filtered_cards["Etiquetes"]["value"], 1)
         self.assertEqual(filtered_cards["Colis expedies"]["value"], 1)
+
+    def test_ui_dashboard_exposes_flow_cards(self):
+        Receipt.objects.create(
+            receipt_type=ReceiptType.DONATION,
+            status=ReceiptStatus.DRAFT,
+            warehouse=self.product.default_location.warehouse,
+            created_by=self.staff_user,
+        )
+        Order.objects.create(
+            review_status=OrderReviewStatus.CHANGES_REQUESTED,
+            shipper_name="Sender CR",
+            recipient_name="Recipient CR",
+            correspondent_name="Correspondent CR",
+            destination_address="21 Rue Flow",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        Order.objects.create(
+            review_status=OrderReviewStatus.APPROVED,
+            shipper_name="Sender AP",
+            recipient_name="Recipient AP",
+            correspondent_name="Correspondent AP",
+            destination_address="22 Rue Flow",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+
+        response = self.staff_client.get("/api/v1/ui/dashboard/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("flow_cards", payload)
+        cards = {card["label"]: card for card in payload["flow_cards"]}
+        self.assertEqual(
+            cards["Receptions en attente"]["value"],
+            Receipt.objects.filter(status=ReceiptStatus.DRAFT).count(),
+        )
+        self.assertEqual(
+            cards["Cmd en attente de validation"]["value"],
+            Order.objects.filter(review_status=OrderReviewStatus.PENDING).count(),
+        )
+        self.assertEqual(
+            cards["Cmd a modifier"]["value"],
+            Order.objects.filter(review_status=OrderReviewStatus.CHANGES_REQUESTED).count(),
+        )
+        self.assertEqual(
+            cards["Cmd validees sans expedition"]["value"],
+            Order.objects.filter(
+                review_status=OrderReviewStatus.APPROVED,
+                shipment__isnull=True,
+            ).count(),
+        )
+        self.assertEqual(cards["Receptions en attente"]["tone"], "warn")
+        self.assertEqual(cards["Cmd a modifier"]["tone"], "warn")
 
     def test_ui_stock_returns_products_and_filters(self):
         response = self.staff_client.get("/api/v1/ui/stock/?q=UI%20API")
