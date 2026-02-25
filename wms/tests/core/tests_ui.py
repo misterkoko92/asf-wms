@@ -1,5 +1,6 @@
 import os
 import unittest
+from datetime import timedelta
 from urllib.parse import urlparse
 
 from django.conf import settings
@@ -8,6 +9,7 @@ from django.db.models import Sum
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.test import Client
 from django.urls import reverse
+from django.utils import timezone
 
 from contacts.models import Contact, ContactTag, ContactType
 from contacts.tagging import TAG_CORRESPONDENT, TAG_RECIPIENT, TAG_SHIPPER
@@ -31,6 +33,7 @@ from wms.models import (
     ShipmentStatus,
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
+    TEMP_SHIPMENT_REFERENCE_PREFIX,
     Warehouse,
 )
 
@@ -785,6 +788,51 @@ class NextUiTests(StaticLiveServerTestCase):
             )
             context.close()
             browser.close()
+
+    def test_next_shipments_ready_route_archives_stale_drafts(self):
+        stale_draft = Shipment.objects.create(
+            status=ShipmentStatus.DRAFT,
+            reference=f"{TEMP_SHIPMENT_REFERENCE_PREFIX}77",
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="5 Rue Next UI",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        Shipment.objects.filter(pk=stale_draft.pk).update(
+            created_at=timezone.now() - timedelta(days=40)
+        )
+
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.staff_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/scan/shipments-ready/",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+            page.wait_for_function(
+                "(text) => document.body.innerText.includes(text)",
+                arg="Archiver brouillons anciens",
+            )
+            page.get_by_role("button", name="Archiver brouillons anciens").click()
+            page.wait_for_function(
+                "(text) => document.body.innerText.includes(text)",
+                arg="brouillon(s) temporaire(s) archives.",
+            )
+            context.close()
+            browser.close()
+
+        stale_draft.refresh_from_db()
+        self.assertIsNotNone(stale_draft.archived_at)
 
     def test_next_cartons_route_lists_cartons(self):
         with sync_playwright() as playwright:

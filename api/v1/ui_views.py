@@ -943,6 +943,25 @@ class UiShipmentsReadyView(APIView):
         )
 
 
+class UiShipmentsReadyArchiveView(APIView):
+    permission_classes = [IsStaffUser]
+
+    def post(self, request):
+        archived_count = _stale_drafts_queryset().update(archived_at=timezone.now())
+        if archived_count:
+            message = f"{archived_count} brouillon(s) temporaire(s) archives."
+        else:
+            message = "Aucun brouillon temporaire ancien a archiver."
+        return Response(
+            {
+                "ok": True,
+                "message": message,
+                "archived_count": archived_count,
+                "stale_draft_count": _stale_drafts_queryset().count(),
+            }
+        )
+
+
 class UiShipmentsTrackingView(APIView):
     permission_classes = [IsStaffUser]
 

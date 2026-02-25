@@ -117,6 +117,13 @@ export type ScanShipmentsReadyDto = {
   }>;
 };
 
+export type UiShipmentsReadyArchiveDto = {
+  ok: boolean;
+  message: string;
+  archived_count: number;
+  stale_draft_count: number;
+};
+
 export type ScanShipmentsTrackingDto = {
   meta: {
     total_shipments: number;

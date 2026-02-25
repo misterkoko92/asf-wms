@@ -29,6 +29,7 @@ import type {
   UiPortalRecipientInput,
   UiPortalRecipientMutationDto,
   UiPortalRecipientsDto,
+  UiShipmentsReadyArchiveDto,
   UiStockOutDto,
   UiStockOutInput,
   UiStockUpdateDto,
@@ -54,6 +55,13 @@ export function getShipmentFormOptions() {
 
 export function getShipmentsReady() {
   return apiGetJson<ScanShipmentsReadyDto>("/api/v1/ui/shipments/ready/");
+}
+
+export function postShipmentsReadyArchiveStaleDrafts() {
+  return apiPostJson<UiShipmentsReadyArchiveDto>(
+    "/api/v1/ui/shipments/ready/archive-stale-drafts/",
+    {},
+  );
 }
 
 export function getShipmentsTracking(query = "") {

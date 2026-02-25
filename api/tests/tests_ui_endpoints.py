@@ -1,9 +1,11 @@
+from datetime import timedelta
 from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.models import Sum
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from contacts.models import Contact, ContactTag, ContactType
@@ -29,6 +31,7 @@ from wms.models import (
     ShipmentStatus,
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
+    TEMP_SHIPMENT_REFERENCE_PREFIX,
     Warehouse,
 )
 
@@ -313,6 +316,58 @@ class UiApiEndpointsTests(TestCase):
             "return_to=shipments_ready",
             payload["shipments"][0]["actions"]["tracking_url"],
         )
+
+    def test_ui_shipments_ready_archive_stale_drafts_archives_only_stale_temp_drafts(self):
+        stale_draft = Shipment.objects.create(
+            status=ShipmentStatus.DRAFT,
+            reference=f"{TEMP_SHIPMENT_REFERENCE_PREFIX}88",
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="3 Rue Test",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        recent_draft = Shipment.objects.create(
+            status=ShipmentStatus.DRAFT,
+            reference=f"{TEMP_SHIPMENT_REFERENCE_PREFIX}89",
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="4 Rue Test",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        Shipment.objects.filter(pk=stale_draft.pk).update(
+            created_at=timezone.now() - timedelta(days=40)
+        )
+        Shipment.objects.filter(pk=recent_draft.pk).update(
+            created_at=timezone.now() - timedelta(days=2)
+        )
+
+        response = self.staff_client.post(
+            "/api/v1/ui/shipments/ready/archive-stale-drafts/",
+            {},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["archived_count"], 1)
+        self.assertEqual(payload["stale_draft_count"], 0)
+
+        stale_draft.refresh_from_db()
+        recent_draft.refresh_from_db()
+        self.assertIsNotNone(stale_draft.archived_at)
+        self.assertIsNone(recent_draft.archived_at)
 
     def test_ui_shipments_tracking_returns_rows_and_filters(self):
         closed_shipment = Shipment.objects.create(
@@ -969,6 +1024,12 @@ class UiApiEndpointsTests(TestCase):
                     "product_code": self.product.sku,
                     "quantity": 0,
                 },
+                "json",
+            ),
+            (
+                "post",
+                "/api/v1/ui/shipments/ready/archive-stale-drafts/",
+                {},
                 "json",
             ),
             (

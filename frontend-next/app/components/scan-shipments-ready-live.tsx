@@ -1,9 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
-import { getShipmentsReady } from "../lib/api/ui";
+import { ApiClientError } from "../lib/api/client";
+import { getShipmentsReady, postShipmentsReadyArchiveStaleDrafts } from "../lib/api/ui";
 import type { ScanShipmentsReadyDto } from "../lib/api/types";
+
+function toErrorMessage(error: unknown): string {
+  if (error instanceof ApiClientError) {
+    return `${error.message} (${error.code})`;
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
+}
 
 function formatDate(value: string | null): string {
   if (!value) {
@@ -25,24 +36,39 @@ function formatDate(value: string | null): string {
 export function ScanShipmentsReadyLive() {
   const [data, setData] = useState<ScanShipmentsReadyDto | null>(null);
   const [error, setError] = useState<string>("");
+  const [mutationError, setMutationError] = useState<string>("");
+  const [mutationStatus, setMutationStatus] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  const loadShipments = useCallback(async () => {
+    setError("");
+    try {
+      const payload = await getShipmentsReady();
+      setData(payload);
+    } catch (err: unknown) {
+      setData(null);
+      setError(toErrorMessage(err));
+    }
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    getShipmentsReady()
-      .then((payload) => {
-        if (!cancelled) {
-          setData(payload);
-        }
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : String(err));
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    loadShipments().catch(() => undefined);
+  }, [loadShipments]);
+
+  const onArchiveStaleDrafts = async () => {
+    setIsSubmitting(true);
+    setMutationError("");
+    setMutationStatus("");
+    try {
+      const response = await postShipmentsReadyArchiveStaleDrafts();
+      setMutationStatus(response.message);
+      await loadShipments();
+    } catch (err: unknown) {
+      setMutationError(toErrorMessage(err));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   if (error) {
     return (
@@ -63,9 +89,28 @@ export function ScanShipmentsReadyLive() {
       </div>
 
       {data.meta.stale_draft_count > 0 ? (
+        <>
+          <div className="api-state api-error">
+            {data.meta.stale_draft_count} brouillon(s) temporaire(s) de plus de{" "}
+            {data.meta.stale_draft_days} jours.
+          </div>
+          <div className="inline-actions">
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => onArchiveStaleDrafts().catch(() => undefined)}
+              disabled={isSubmitting}
+            >
+              Archiver brouillons anciens
+            </button>
+          </div>
+        </>
+      ) : null}
+
+      {mutationStatus ? <div className="api-state api-ok">{mutationStatus}</div> : null}
+      {mutationError ? (
         <div className="api-state api-error">
-          {data.meta.stale_draft_count} brouillon(s) temporaire(s) de plus de{" "}
-          {data.meta.stale_draft_days} jours.
+          Mutation expeditions indisponible: <span>{mutationError}</span>
         </div>
       ) : null}
 

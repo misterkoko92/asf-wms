@@ -28,6 +28,7 @@ from .ui_views import (
     UiShipmentLabelDetailView,
     UiShipmentLabelsView,
     UiShipmentsReadyView,
+    UiShipmentsReadyArchiveView,
     UiShipmentsTrackingView,
     UiShipmentTrackingEventCreateView,
     UiShipmentUpdateView,
@@ -64,6 +65,11 @@ urlpatterns = [
         "ui/shipments/ready/",
         UiShipmentsReadyView.as_view(),
         name="ui-shipments-ready",
+    ),
+    path(
+        "ui/shipments/ready/archive-stale-drafts/",
+        UiShipmentsReadyArchiveView.as_view(),
+        name="ui-shipments-ready-archive-stale-drafts",
     ),
     path(
         "ui/shipments/tracking/",
