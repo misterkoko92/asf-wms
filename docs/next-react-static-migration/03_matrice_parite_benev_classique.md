@@ -90,6 +90,7 @@ Principe cible: route stable + query params.
 - [x] tests contrats serializers: `api/tests/tests_ui_serializers.py`
 - [x] tests endpoints UI: `api/tests/tests_ui_endpoints.py`
 - [x] E2E API bout en bout: `api/tests/tests_ui_e2e_workflows.py`
-- [ ] E2E navigateur reel sur `/app/*` (Playwright)
+- [x] harness E2E navigateur `/app/*` disponible: `wms/tests/core/tests_ui.py::NextUiTests` (commande `make test-next-ui`)
+- [ ] execution reguliere E2E navigateur sur environnement cible (Playwright + sockets live server)
 - [ ] recette metier manuelle complete ecran par ecran
 - [x] rollback global instantane vers legacy (`/ui/mode/legacy/`)

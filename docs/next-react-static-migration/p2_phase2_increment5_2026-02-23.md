@@ -92,6 +92,8 @@ Matrice E2E detaillee:
 
 ## Reste a faire pour P2
 
-- ajouter un harness E2E navigateur (Playwright) pour verifier les interactions UI reelles,
+- harness navigateur Playwright livre en base (2026-02-25): `wms/tests/core/tests_ui.py::NextUiTests` via `make test-next-ui`,
+- etendre ce harness avec scenarios metier complets (stock update/out, shipment create/tracking/close, portal mutations),
+- brancher execution reguliere du navigateur E2E sur environnement adapte (sockets live server + navigateur disponible),
 - connecter ces vues P2 au mode/theme switch final par role (feature flags A/B),
 - finir la matrice de parite (`03_matrice_parite_benev_classique.md`) avec statuts `IN_PROGRESS/DONE`.

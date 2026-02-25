@@ -121,7 +121,8 @@ Reste concret P2:
 
 - etendre les tests permissions role par role,
 - finaliser la trace d'audit sur mutations UI restantes,
-- lancer un premier E2E navigateur Playwright sur routes `/app/*`.
+- [x] lancer un premier harness E2E navigateur Playwright sur routes `/app/*` (`wms/tests/core/tests_ui.py::NextUiTests`, `make test-next-ui`),
+- [ ] etendre les scenarios navigateur E2E aux workflows metier complets (stock, expedition, portal).
 
 Livrables:
 

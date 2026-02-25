@@ -9,7 +9,7 @@ COVERAGE ?= $(shell [ -x .venv/bin/coverage ] && echo .venv/bin/coverage || echo
 
 BANDIT_EXCLUDES := wms/migrations,contacts/migrations,wms/tests,api/tests,contacts/tests
 
-.PHONY: install install-dev check deploy-check migrate-check lint typecheck bandit audit audit-soft security test coverage pre-commit ci
+.PHONY: install install-dev check deploy-check migrate-check lint typecheck bandit audit audit-soft security test test-next-ui coverage pre-commit ci
 
 install:
 	$(PIP) install -r requirements.txt
@@ -45,6 +45,9 @@ security: bandit audit
 
 test:
 	$(PYTHON) manage.py test
+
+test-next-ui:
+	RUN_UI_TESTS=1 $(PYTHON) manage.py test wms.tests.core.tests_ui.NextUiTests
 
 coverage:
 	$(COVERAGE) run --rcfile=.coveragerc manage.py test
