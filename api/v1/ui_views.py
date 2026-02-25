@@ -472,6 +472,10 @@ class UiDashboardView(APIView):
     def get(self, request):
         runtime = get_runtime_config()
         low_stock_threshold = runtime.low_stock_threshold
+        low_stock_rows = _build_low_stock_rows(
+            low_stock_threshold=low_stock_threshold,
+            limit=10,
+        )
 
         destination_id = (request.GET.get("destination") or "").strip()
         destinations = Destination.objects.filter(is_active=True).order_by(
@@ -497,12 +501,7 @@ class UiDashboardView(APIView):
 
         kpis = {
             "open_shipments": open_shipments_qs.count(),
-            "stock_alerts": len(
-                _build_low_stock_rows(
-                    low_stock_threshold=low_stock_threshold,
-                    limit=20,
-                )
-            ),
+            "stock_alerts": len(low_stock_rows),
             "open_disputes": disputed_qs.count(),
             "pending_orders": Order.objects.filter(
                 review_status=OrderReviewStatus.PENDING
@@ -527,10 +526,7 @@ class UiDashboardView(APIView):
         ]
 
         pending_actions = []
-        for row in _build_low_stock_rows(
-            low_stock_threshold=low_stock_threshold,
-            limit=3,
-        ):
+        for row in low_stock_rows[:3]:
             pending_actions.append(
                 {
                     "type": "stock_replenish",
@@ -576,6 +572,8 @@ class UiDashboardView(APIView):
                         for destination in destinations
                     ],
                 },
+                "low_stock_threshold": low_stock_threshold,
+                "low_stock_rows": low_stock_rows,
                 "updated_at": timezone.now().isoformat(),
             }
         )

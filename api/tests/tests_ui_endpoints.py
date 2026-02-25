@@ -321,6 +321,34 @@ class UiApiEndpointsTests(TestCase):
         )
         self.assertEqual(filtered_payload["kpis"]["open_shipments"], 1)
 
+    def test_ui_dashboard_exposes_low_stock_rows(self):
+        low_stock_product = Product.objects.create(
+            sku="UI-API-LOW-001",
+            name="UI API Low Stock Product",
+            brand="Medi",
+            default_location=self.product.default_location,
+            is_active=True,
+            qr_code_image="qr_codes/test.png",
+        )
+        ProductLot.objects.create(
+            product=low_stock_product,
+            lot_code="LOT-LOW-CRITICAL",
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=1,
+            quantity_reserved=0,
+            location=self.product.default_location,
+        )
+
+        response = self.staff_client.get("/api/v1/ui/dashboard/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("low_stock_threshold", payload)
+        self.assertIn("low_stock_rows", payload)
+        self.assertGreater(payload["low_stock_threshold"], 0)
+        self.assertTrue(
+            any(row["sku"] == low_stock_product.sku for row in payload["low_stock_rows"])
+        )
+
     def test_ui_stock_returns_products_and_filters(self):
         response = self.staff_client.get("/api/v1/ui/stock/?q=UI%20API")
         self.assertEqual(response.status_code, 200)

@@ -28,6 +28,13 @@ export type ScanDashboardDto = {
       label: string;
     }>;
   };
+  low_stock_threshold: number;
+  low_stock_rows: Array<{
+    id: number;
+    sku: string;
+    name: string;
+    available_qty: number;
+  }>;
   updated_at: string;
 };
 

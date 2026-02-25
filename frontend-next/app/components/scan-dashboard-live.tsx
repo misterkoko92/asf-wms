@@ -189,6 +189,39 @@ export function ScanDashboardLive() {
           </div>
         </article>
       </div>
+
+      <article className="panel">
+        <h2>Stock sous seuil</h2>
+        {data.low_stock_rows.length ? (
+          <>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Produit</th>
+                  <th>Ref</th>
+                  <th>Disponible</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.low_stock_rows.map((row) => (
+                  <tr key={row.id}>
+                    <td>{row.name}</td>
+                    <td>{row.sku}</td>
+                    <td>{row.available_qty}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="panel-note">
+              Top produits sous le seuil global &lt; {data.low_stock_threshold}.
+            </p>
+          </>
+        ) : (
+          <p className="panel-note">
+            Aucun produit sous le seuil de stock bas (&lt; {data.low_stock_threshold}).
+          </p>
+        )}
+      </article>
     </div>
   );
 }

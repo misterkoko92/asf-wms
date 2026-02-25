@@ -292,6 +292,22 @@ class NextUiTests(StaticLiveServerTestCase):
             is_active=True,
             qr_code_image="qr_codes/test.png",
         )
+        self.dashboard_low_stock_product = Product.objects.create(
+            sku="NEXT-UI-DASH-LOW-001",
+            name="Next UI Dashboard Low Stock Product",
+            brand="ASF",
+            default_location=stock_location,
+            is_active=True,
+            qr_code_image="qr_codes/test.png",
+        )
+        ProductLot.objects.create(
+            product=self.dashboard_low_stock_product,
+            lot_code="NEXT-UI-DASH-LOW-LOT",
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=1,
+            quantity_reserved=0,
+            location=stock_location,
+        )
         self.stock_filter_primary_product = Product.objects.create(
             sku="NEXT-UI-STOCK-FILTER-001",
             name="Next UI Filter Primary Product",
@@ -485,6 +501,37 @@ class NextUiTests(StaticLiveServerTestCase):
                 }
                 """,
                 arg=1,
+            )
+            context.close()
+            browser.close()
+
+    def test_next_scan_dashboard_displays_low_stock_table(self):
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.staff_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/scan/dashboard/",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+            page.wait_for_function(
+                "(title) => document.body.innerText.toLowerCase().includes(title)",
+                arg="stock sous seuil",
+            )
+            page.wait_for_function(
+                """
+                (sku) => {
+                  const panels = Array.from(document.querySelectorAll("article.panel"));
+                  const panel = panels.find((item) =>
+                    (item.textContent || "").toLowerCase().includes("stock sous seuil")
+                  );
+                  return !!panel && (panel.textContent || "").includes(sku);
+                }
+                """,
+                arg=self.dashboard_low_stock_product.sku,
             )
             context.close()
             browser.close()
