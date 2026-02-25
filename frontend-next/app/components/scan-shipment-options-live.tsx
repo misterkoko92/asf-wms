@@ -26,12 +26,12 @@ type ContactOption = IdOption & {
 };
 
 const TRACKING_STATUS_OPTIONS = [
-  { value: "planning_ok", label: "Planning OK" },
-  { value: "planned", label: "Planned" },
-  { value: "moved_export", label: "Moved export" },
-  { value: "boarding_ok", label: "Boarding OK" },
-  { value: "received_correspondent", label: "Received correspondent" },
-  { value: "received_recipient", label: "Received recipient" },
+  { value: "planning_ok", label: "OK pour planification" },
+  { value: "planned", label: "Planifie" },
+  { value: "moved_export", label: "Deplace au magasin export" },
+  { value: "boarding_ok", label: "OK mise a bord" },
+  { value: "received_correspondent", label: "Recu correspondant" },
+  { value: "received_recipient", label: "Recu destinataire" },
 ];
 
 function toErrorMessage(error: unknown): string {

@@ -1731,6 +1731,35 @@ class NextUiTests(StaticLiveServerTestCase):
             self.assertNotIn("shipment id (cloture)", initial_text.lower())
             self.assertNotIn("product code (creation)", initial_text.lower())
             self.assertNotIn("statut tracking", initial_text.lower())
+            self.assertNotIn("planning ok", initial_text.lower())
+            self.assertNotIn("moved export", initial_text.lower())
+            self.assertNotIn("received correspondent", initial_text.lower())
+            self.assertNotIn("received recipient", initial_text.lower())
+
+            planning_option = page.locator(
+                f'label:has-text("Statut suivi") select option[value="{ShipmentTrackingStatus.PLANNING_OK}"]'
+            ).inner_text()
+            planned_option = page.locator(
+                f'label:has-text("Statut suivi") select option[value="{ShipmentTrackingStatus.PLANNED}"]'
+            ).inner_text()
+            moved_export_option = page.locator(
+                f'label:has-text("Statut suivi") select option[value="{ShipmentTrackingStatus.MOVED_EXPORT}"]'
+            ).inner_text()
+            boarding_option = page.locator(
+                f'label:has-text("Statut suivi") select option[value="{ShipmentTrackingStatus.BOARDING_OK}"]'
+            ).inner_text()
+            received_correspondent_option = page.locator(
+                f'label:has-text("Statut suivi") select option[value="{ShipmentTrackingStatus.RECEIVED_CORRESPONDENT}"]'
+            ).inner_text()
+            received_recipient_option = page.locator(
+                f'label:has-text("Statut suivi") select option[value="{ShipmentTrackingStatus.RECEIVED_RECIPIENT}"]'
+            ).inner_text()
+            self.assertEqual(planning_option.strip(), "OK pour planification")
+            self.assertEqual(planned_option.strip(), "Planifie")
+            self.assertEqual(moved_export_option.strip(), "Deplace au magasin export")
+            self.assertEqual(boarding_option.strip(), "OK mise a bord")
+            self.assertEqual(received_correspondent_option.strip(), "Recu correspondant")
+            self.assertEqual(received_recipient_option.strip(), "Recu destinataire")
 
             destination_option = page.locator(
                 f'label:has-text("Destination") select option[value="{self.destination.id}"]'
@@ -1778,6 +1807,31 @@ class NextUiTests(StaticLiveServerTestCase):
                 wait_until="domcontentloaded",
             )
             page.wait_for_selector("h1")
+            planning_option = page.locator(
+                f'label:has-text("Statut suivi") select option[value="{ShipmentTrackingStatus.PLANNING_OK}"]'
+            ).inner_text()
+            planned_option = page.locator(
+                f'label:has-text("Statut suivi") select option[value="{ShipmentTrackingStatus.PLANNED}"]'
+            ).inner_text()
+            moved_export_option = page.locator(
+                f'label:has-text("Statut suivi") select option[value="{ShipmentTrackingStatus.MOVED_EXPORT}"]'
+            ).inner_text()
+            boarding_option = page.locator(
+                f'label:has-text("Statut suivi") select option[value="{ShipmentTrackingStatus.BOARDING_OK}"]'
+            ).inner_text()
+            received_correspondent_option = page.locator(
+                f'label:has-text("Statut suivi") select option[value="{ShipmentTrackingStatus.RECEIVED_CORRESPONDENT}"]'
+            ).inner_text()
+            received_recipient_option = page.locator(
+                f'label:has-text("Statut suivi") select option[value="{ShipmentTrackingStatus.RECEIVED_RECIPIENT}"]'
+            ).inner_text()
+            self.assertEqual(planning_option.strip(), "OK pour planification")
+            self.assertEqual(planned_option.strip(), "Planifie")
+            self.assertEqual(moved_export_option.strip(), "Deplace au magasin export")
+            self.assertEqual(boarding_option.strip(), "OK mise a bord")
+            self.assertEqual(received_correspondent_option.strip(), "Recu correspondant")
+            self.assertEqual(received_recipient_option.strip(), "Recu destinataire")
+
             page.get_by_label("Expedition (Suivi)", exact=True).fill(
                 str(self.workflow_tracking_shipment.id)
             )
