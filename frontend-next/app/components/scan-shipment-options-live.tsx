@@ -397,7 +397,7 @@ export function ScanShipmentOptionsLive() {
       const createdId = response.shipment.id;
       setTrackingShipmentId(String(createdId));
       setCloseShipmentId(String(createdId));
-      setMutationStatus(`${response.message} Shipment #${createdId}.`);
+      setMutationStatus(`${response.message} Expedition #${createdId}.`);
     } catch (err: unknown) {
       setMutationError(toErrorMessage(err));
     } finally {

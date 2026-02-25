@@ -1535,6 +1535,9 @@ class NextUiTests(StaticLiveServerTestCase):
             page.wait_for_function(
                 "document.body.innerText.includes('Expedition creee.')"
             )
+            create_status_text = page.locator("body").inner_text().lower()
+            self.assertIn("expedition #", create_status_text)
+            self.assertNotIn("shipment #", create_status_text)
 
             page.get_by_label("Expedition (Suivi)", exact=True).fill(
                 str(self.workflow_tracking_shipment.id)
@@ -1598,6 +1601,9 @@ class NextUiTests(StaticLiveServerTestCase):
             page.wait_for_function(
                 "document.body.innerText.includes('Expedition creee.')"
             )
+            create_status_text = page.locator("body").inner_text().lower()
+            self.assertIn("expedition #", create_status_text)
+            self.assertNotIn("shipment #", create_status_text)
             context.close()
             browser.close()
 
