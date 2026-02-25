@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 
 import { getScanDashboard } from "../lib/api/ui";
 import type { ScanDashboardDto } from "../lib/api/types";
@@ -19,27 +19,50 @@ function formatTimestamp(value: string): string {
   });
 }
 
+function buildDashboardQuery(params: { destination: string }): string {
+  const query = new URLSearchParams();
+  const destination = params.destination.trim();
+  if (destination) {
+    query.set("destination", destination);
+  }
+  return query.toString();
+}
+
 export function ScanDashboardLive() {
   const [data, setData] = useState<ScanDashboardDto | null>(null);
   const [error, setError] = useState<string>("");
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [filterDestination, setFilterDestination] = useState<string>("");
+
+  const loadDashboard = useCallback(async (query = "") => {
+    setError("");
+    setIsLoading(true);
+    try {
+      const payload = await getScanDashboard(query);
+      setData(payload);
+      setFilterDestination(payload.filters.destination || "");
+    } catch (err: unknown) {
+      setData(null);
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    getScanDashboard()
-      .then((payload) => {
-        if (!cancelled) {
-          setData(payload);
-        }
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : String(err));
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    loadDashboard().catch(() => undefined);
+  }, [loadDashboard]);
+
+  const onFilterSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const query = buildDashboardQuery({ destination: filterDestination });
+    await loadDashboard(query);
+  };
+
+  const onFilterReset = async () => {
+    setFilterDestination("");
+    await loadDashboard("");
+  };
 
   if (error) {
     return (
@@ -59,6 +82,34 @@ export function ScanDashboardLive() {
         API connectee. Open {data.kpis.open_shipments}, litiges{" "}
         {data.kpis.open_disputes}, stock alerts {data.kpis.stock_alerts}.
       </div>
+
+      <form className="inline-form" onSubmit={onFilterSubmit}>
+        <label className="field-inline">
+          Destination
+          <select
+            value={filterDestination}
+            onChange={(event) => setFilterDestination(event.target.value)}
+          >
+            <option value="">Toutes les destinations</option>
+            {data.filters.destinations.map((destination) => (
+              <option key={destination.id} value={destination.id}>
+                {destination.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button type="submit" className="btn-secondary" disabled={isLoading}>
+          Filtrer
+        </button>
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={() => onFilterReset().catch(() => undefined)}
+          disabled={isLoading}
+        >
+          Reinitialiser
+        </button>
+      </form>
 
       <div className="kpi-grid">
         <article className="kpi-card">

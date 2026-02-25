@@ -191,6 +191,13 @@ class NextUiTests(StaticLiveServerTestCase):
             correspondent_contact=self.correspondent_contact,
             is_active=True,
         )
+        self.secondary_destination = Destination.objects.create(
+            city="TNR",
+            iata_code="TNR-NEXT-UI",
+            country="Madagascar",
+            correspondent_contact=self.correspondent_contact,
+            is_active=True,
+        )
         shipper_tag, _ = ContactTag.objects.get_or_create(name=TAG_SHIPPER[0])
         recipient_tag, _ = ContactTag.objects.get_or_create(name=TAG_RECIPIENT[0])
         correspondent_tag, _ = ContactTag.objects.get_or_create(name=TAG_CORRESPONDENT[0])
@@ -200,6 +207,9 @@ class NextUiTests(StaticLiveServerTestCase):
         self.shipper_contact.destinations.add(self.destination)
         self.recipient_contact.destinations.add(self.destination)
         self.correspondent_contact.destinations.add(self.destination)
+        self.shipper_contact.destinations.add(self.secondary_destination)
+        self.recipient_contact.destinations.add(self.secondary_destination)
+        self.correspondent_contact.destinations.add(self.secondary_destination)
         self.docs_shipment = Shipment.objects.create(
             status=ShipmentStatus.PLANNED,
             shipper_name=self.shipper_contact.name,
@@ -211,6 +221,19 @@ class NextUiTests(StaticLiveServerTestCase):
             destination=self.destination,
             destination_address="1 Rue Next UI",
             destination_country="France",
+            created_by=self.staff_user,
+        )
+        self.secondary_destination_shipment = Shipment.objects.create(
+            status=ShipmentStatus.PLANNED,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.secondary_destination,
+            destination_address="1 Rue Secondary",
+            destination_country="Madagascar",
             created_by=self.staff_user,
         )
         self.available_carton = Carton.objects.create(
@@ -419,6 +442,49 @@ class NextUiTests(StaticLiveServerTestCase):
             page.wait_for_function(
                 "(sku) => document.body.innerText.includes(sku)",
                 arg=self.stock_secondary_product.sku,
+            )
+            context.close()
+            browser.close()
+
+    def test_next_scan_dashboard_filters_by_destination(self):
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.staff_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/scan/dashboard/",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+            page.wait_for_function(
+                """
+                (value) => {
+                  const cards = Array.from(document.querySelectorAll(".kpi-card"));
+                  const card = cards.find((item) =>
+                    (item.textContent || "").includes("Expeditions ouvertes")
+                  );
+                  return !!card && (card.textContent || "").includes(String(value));
+                }
+                """,
+                arg=3,
+            )
+            page.get_by_label("Destination").select_option(
+                str(self.secondary_destination.id)
+            )
+            page.get_by_role("button", name="Filtrer").click()
+            page.wait_for_function(
+                """
+                (value) => {
+                  const cards = Array.from(document.querySelectorAll(".kpi-card"));
+                  const card = cards.find((item) =>
+                    (item.textContent || "").includes("Expeditions ouvertes")
+                  );
+                  return !!card && (card.textContent || "").includes(String(value));
+                }
+                """,
+                arg=1,
             )
             context.close()
             browser.close()

@@ -474,6 +474,11 @@ class UiDashboardView(APIView):
         low_stock_threshold = runtime.low_stock_threshold
 
         destination_id = (request.GET.get("destination") or "").strip()
+        destinations = Destination.objects.filter(is_active=True).order_by(
+            "city",
+            "country",
+            "iata_code",
+        )
         shipments_qs = Shipment.objects.filter(archived_at__isnull=True)
         if destination_id:
             shipments_qs = shipments_qs.filter(destination_id=destination_id)
@@ -564,7 +569,13 @@ class UiDashboardView(APIView):
                 "kpis": kpis,
                 "timeline": timeline,
                 "pending_actions": pending_actions[:10],
-                "filters": {"destination": destination_id},
+                "filters": {
+                    "destination": destination_id,
+                    "destinations": [
+                        {"id": destination.id, "label": str(destination)}
+                        for destination in destinations
+                    ],
+                },
                 "updated_at": timezone.now().isoformat(),
             }
         )

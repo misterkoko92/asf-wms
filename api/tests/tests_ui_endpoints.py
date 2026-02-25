@@ -273,6 +273,54 @@ class UiApiEndpointsTests(TestCase):
         self.assertIn("timeline", payload)
         self.assertIn("pending_actions", payload)
 
+    def test_ui_dashboard_destination_filter_and_options(self):
+        secondary_destination = Destination.objects.create(
+            city="TNR",
+            iata_code="TNR-UI",
+            country="Madagascar",
+            correspondent_contact=self.correspondent_contact,
+            is_active=True,
+        )
+        self.shipper_contact.destinations.add(secondary_destination)
+        self.recipient_contact.destinations.add(secondary_destination)
+        self.correspondent_contact.destinations.add(secondary_destination)
+        Shipment.objects.create(
+            status=ShipmentStatus.PLANNED,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=secondary_destination,
+            destination_address="9 Rue Secondary",
+            destination_country="Madagascar",
+            created_by=self.staff_user,
+        )
+
+        response = self.staff_client.get("/api/v1/ui/dashboard/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("filters", payload)
+        self.assertIn("destinations", payload["filters"])
+        destination_ids = {
+            row["id"]
+            for row in payload["filters"]["destinations"]
+        }
+        self.assertIn(self.destination.id, destination_ids)
+        self.assertIn(secondary_destination.id, destination_ids)
+
+        filtered_response = self.staff_client.get(
+            f"/api/v1/ui/dashboard/?destination={secondary_destination.id}"
+        )
+        self.assertEqual(filtered_response.status_code, 200)
+        filtered_payload = filtered_response.json()
+        self.assertEqual(
+            filtered_payload["filters"]["destination"],
+            str(secondary_destination.id),
+        )
+        self.assertEqual(filtered_payload["kpis"]["open_shipments"], 1)
+
     def test_ui_stock_returns_products_and_filters(self):
         response = self.staff_client.get("/api/v1/ui/stock/?q=UI%20API")
         self.assertEqual(response.status_code, 200)

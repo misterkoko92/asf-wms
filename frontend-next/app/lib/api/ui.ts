@@ -36,8 +36,9 @@ import type {
   UiStockUpdateInput,
 } from "./types";
 
-export function getScanDashboard() {
-  return apiGetJson<ScanDashboardDto>("/api/v1/ui/dashboard/");
+export function getScanDashboard(query = "") {
+  const suffix = query ? `?${query}` : "";
+  return apiGetJson<ScanDashboardDto>(`/api/v1/ui/dashboard/${suffix}`);
 }
 
 export function getScanCartons() {

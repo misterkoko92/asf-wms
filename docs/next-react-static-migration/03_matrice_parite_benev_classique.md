@@ -17,7 +17,7 @@
 
 | Priorite | Legacy URL | Route Next cible | Etat Next reel | Etat API UI | Statut |
 |---|---|---|---|---|---|
-| P1 | `/scan/dashboard/` | `/app/scan/dashboard/` | ecran present, KPI/timeline/actions branches en live API | `GET /api/v1/ui/dashboard/` | IN_PROGRESS |
+| P1 | `/scan/dashboard/` | `/app/scan/dashboard/` | ecran present, KPI/timeline/actions + filtre destination branches en live API | `GET /api/v1/ui/dashboard/` | IN_PROGRESS |
 | P1 | `/scan/stock/` | `/app/scan/stock/` | ecran present (filtres recherche/categorie/entrepot/tri + table live + mutations update/out branchees) | `GET /api/v1/ui/stock/` | IN_PROGRESS |
 | P1 | `/scan/stock-update/` | `/app/scan/stock/` (zone MAJ inline cible) | workflow UI mutation present et teste en navigateur | `POST /api/v1/ui/stock/update/` | IN_PROGRESS |
 | P1 | `/scan/out/` | `/app/scan/stock/` (zone sortie cible) | workflow UI mutation present et teste en navigateur | `POST /api/v1/ui/stock/out/` | IN_PROGRESS |
@@ -95,7 +95,7 @@ Principe cible: route stable + query params.
 - [x] workflows navigateur docs/templates (upload+delete documents, save+reset templates): `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur stock mutations (update/out): `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur filtres stock (recherche): `wms/tests/core/tests_ui.py::NextUiTests`
-- [x] workflow navigateur dashboard live (timeline + actions): `wms/tests/core/tests_ui.py::NextUiTests`
+- [x] workflow navigateur dashboard live (timeline + actions + filtre destination): `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur expedition mutations (create/tracking/close): `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur creation colis inline (produit+quantite) sur shipment-create: `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur route dediee vue expeditions (`/app/scan/shipments-ready/`) + archivage stale drafts + liens docs legacy: `wms/tests/core/tests_ui.py::NextUiTests`

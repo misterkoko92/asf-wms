@@ -23,6 +23,10 @@ export type ScanDashboardDto = {
   }>;
   filters: {
     destination: string;
+    destinations: Array<{
+      id: number;
+      label: string;
+    }>;
   };
   updated_at: string;
 };
