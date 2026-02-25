@@ -71,6 +71,7 @@ Basculer l'interface actuelle `Benev + Classique` vers un frontend Next/React **
 - `docs/next-react-static-migration/p2_phase2_increment8_2026-02-25.md`
 - `docs/next-react-static-migration/p2_phase2_increment9_2026-02-25.md`
 - `docs/next-react-static-migration/p2_phase2_increment10_2026-02-25.md`
+- `docs/next-react-static-migration/p2_phase2_increment11_2026-02-25.md`
 - `docs/next-react-static-migration/2026-02-23_p2_e2e_suite_increment5.md`
 
 ## Prochaine cible

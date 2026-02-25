@@ -123,6 +123,7 @@ Reste concret P2:
 - [x] finaliser la trace d'audit sur mutations UI restantes (`log_workflow_event` sur mutations portal/documents),
 - [x] lancer un premier harness E2E navigateur Playwright sur routes `/app/*` (`wms/tests/core/tests_ui.py::NextUiTests`, `make test-next-ui`),
 - [x] etendre les scenarios navigateur E2E aux workflows metier complets (stock, expedition, portal) - `OK`: workflows documents/templates/stock(update+out)/shipment(create+tracking+close)/portal(order+recipients+account) couverts.
+- [x] brancher execution reguliere des scenarios navigateur sur environnement cible (GitHub Actions planifie): `.github/workflows/next-ui-browser-e2e.yml`.
 
 Livrables:
 
@@ -136,6 +137,7 @@ Livrables:
 - `p2_phase2_increment8_2026-02-25.md`
 - `p2_phase2_increment9_2026-02-25.md`
 - `p2_phase2_increment10_2026-02-25.md`
+- `p2_phase2_increment11_2026-02-25.md`
 
 ---
 

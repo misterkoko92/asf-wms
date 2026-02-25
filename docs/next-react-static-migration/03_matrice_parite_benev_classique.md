@@ -96,6 +96,6 @@ Principe cible: route stable + query params.
 - [x] workflow navigateur stock mutations (update/out): `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur expedition mutations (create/tracking/close): `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur portal mutations (order create, recipient create/update, account patch): `wms/tests/core/tests_ui.py::NextUiTests`
-- [ ] execution reguliere E2E navigateur sur environnement cible (Playwright + sockets live server)
+- [x] execution reguliere E2E navigateur sur environnement cible (GitHub Actions `next-ui-browser-e2e.yml`, Playwright Chromium)
 - [ ] recette metier manuelle complete ecran par ecran
 - [x] rollback global instantane vers legacy (`/ui/mode/legacy/`)
