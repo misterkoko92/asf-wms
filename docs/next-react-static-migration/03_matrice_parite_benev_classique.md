@@ -53,10 +53,10 @@
 | Priorite | Legacy URL | Route Next cible | Etat Next reel | Etat API UI | Statut |
 |---|---|---|---|---|---|
 | P1 | `/portal/` | `/app/portal/dashboard/` | ecran present (mix maquette + live API) | `GET /api/v1/ui/portal/dashboard/` | IN_PROGRESS |
-| P1 | `/portal/orders/new/` | `/app/portal/orders/create/` | route non creee | `POST /api/v1/ui/portal/orders/` | API_READY |
+| P1 | `/portal/orders/new/` | `/app/portal/dashboard/` (integration transitoire) | workflow creation commande present sur dashboard | `POST /api/v1/ui/portal/orders/` | IN_PROGRESS |
 | P1 | `/portal/orders/<id>/` | `/app/portal/orders/detail/?id=<id>` | route non creee | partiel (dashboard expose liste, pas detail endpoint dedie) | TODO |
-| P2 | `/portal/recipients/` | `/app/portal/recipients/` | route non creee | `GET/POST/PATCH /api/v1/ui/portal/recipients*` | API_READY |
-| P2 | `/portal/account/` | `/app/portal/account/` | route non creee | `GET/PATCH /api/v1/ui/portal/account/` | API_READY |
+| P2 | `/portal/recipients/` | `/app/portal/dashboard/` (integration transitoire) | workflows create/update presents sur dashboard | `GET/POST/PATCH /api/v1/ui/portal/recipients*` | IN_PROGRESS |
+| P2 | `/portal/account/` | `/app/portal/dashboard/` (integration transitoire) | workflow update compte present sur dashboard | `GET/PATCH /api/v1/ui/portal/account/` | IN_PROGRESS |
 | P2 | `/portal/change-password/` | `/app/portal/change-password/` | conserve en legacy | n/a | TODO |
 | P2 | `/portal/login/` | `/app/portal/login/` | auth reste Django legacy | n/a | TODO |
 | P2 | `/portal/logout/` | `/app/portal/logout/` | auth reste Django legacy | n/a | TODO |
@@ -95,6 +95,7 @@ Principe cible: route stable + query params.
 - [x] workflows navigateur docs/templates (upload+delete documents, save+reset templates): `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur stock mutations (update/out): `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur expedition mutations (create/tracking/close): `wms/tests/core/tests_ui.py::NextUiTests`
+- [x] workflow navigateur portal mutations (order create, recipient create/update, account patch): `wms/tests/core/tests_ui.py::NextUiTests`
 - [ ] execution reguliere E2E navigateur sur environnement cible (Playwright + sockets live server)
 - [ ] recette metier manuelle complete ecran par ecran
 - [x] rollback global instantane vers legacy (`/ui/mode/legacy/`)

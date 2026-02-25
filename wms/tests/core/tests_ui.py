@@ -12,13 +12,17 @@ from django.urls import reverse
 from contacts.models import Contact, ContactTag, ContactType
 from contacts.tagging import TAG_CORRESPONDENT, TAG_RECIPIENT, TAG_SHIPPER
 from wms.models import (
+    AssociationContactTitle,
     AssociationProfile,
+    AssociationRecipient,
     Carton,
     CartonStatus,
     Destination,
     Document,
     DocumentType,
+    Order,
     Location,
+    ProductLotStatus,
     PrintTemplate,
     Product,
     ProductLot,
@@ -252,6 +256,39 @@ class NextUiTests(StaticLiveServerTestCase):
             default_location=stock_location,
             is_active=True,
             qr_code_image="qr_codes/test.png",
+        )
+        self.portal_product = Product.objects.create(
+            sku="NEXT-UI-PORTAL-001",
+            name="Next UI Portal Product",
+            brand="ASF",
+            default_location=stock_location,
+            is_active=True,
+            qr_code_image="qr_codes/test.png",
+        )
+        ProductLot.objects.create(
+            product=self.portal_product,
+            lot_code="NEXT-UI-PORTAL-LOT",
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=25,
+            quantity_reserved=0,
+            location=stock_location,
+        )
+        self.portal_recipient = AssociationRecipient.objects.create(
+            association_contact=association_contact,
+            destination=self.destination,
+            name="Next UI Portal Recipient",
+            structure_name="Next UI Portal Recipient",
+            contact_title=AssociationContactTitle.MR,
+            contact_last_name="Portal",
+            contact_first_name="User",
+            phones="0102030405",
+            emails="portal.recipient@example.org",
+            address_line1="10 Rue Portal",
+            postal_code="75001",
+            city="Paris",
+            country="France",
+            notify_deliveries=True,
+            is_delivery_contact=True,
         )
 
         self.staff_auth_cookies = self._auth_cookies_for_user(self.staff_user)
@@ -507,3 +544,78 @@ class NextUiTests(StaticLiveServerTestCase):
         self.assertIsNotNone(self.available_carton.shipment_id)
         self.workflow_tracking_shipment.refresh_from_db()
         self.assertIsNotNone(self.workflow_tracking_shipment.closed_at)
+
+    def test_next_portal_order_recipient_account_workflow(self):
+        created_recipient_name = "Next UI Recipient Created"
+        updated_recipient_name = "Next UI Recipient Updated"
+        updated_association_name = "Association Next UI Updated"
+        updated_contact_email = "portal.updated@example.org"
+        before_order_count = Order.objects.filter(
+            association_contact=self.portal_recipient.association_contact
+        ).count()
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.portal_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/portal/dashboard/",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+
+            page.get_by_label("Destination ID (Commande)").select_option(
+                str(self.destination.id)
+            )
+            page.get_by_label("Destinataire ID (Commande)").select_option(
+                str(self.portal_recipient.id)
+            )
+            page.get_by_label("Product ID (Commande)").fill(str(self.portal_product.id))
+            page.get_by_label("Quantite (Commande)").fill("2")
+            page.get_by_role("button", name="Envoyer commande").click()
+            page.wait_for_function(
+                "document.body.innerText.includes('Commande envoyee.')"
+            )
+
+            page.get_by_label("Destination ID (Destinataire)").select_option(
+                str(self.destination.id)
+            )
+            page.get_by_label("Structure (Destinataire)").fill(created_recipient_name)
+            page.get_by_label("Adresse 1 (Destinataire)").fill("20 Rue Next Portal")
+            page.get_by_role("button", name="Ajouter destinataire").click()
+            page.wait_for_function(
+                "document.body.innerText.includes('Destinataire ajoute.')"
+            )
+
+            page.get_by_label("Structure (Edition)").fill(updated_recipient_name)
+            page.get_by_role("button", name="Modifier destinataire").click()
+            page.wait_for_function(
+                "document.body.innerText.includes('Destinataire modifie.')"
+            )
+
+            page.get_by_label("Association name (Compte)").fill(updated_association_name)
+            page.get_by_label("Adresse 1 (Compte)").fill("99 Rue Association")
+            page.get_by_label("Email contact (Compte)").fill(updated_contact_email)
+            page.get_by_role("button", name="Sauver compte").click()
+            page.wait_for_function(
+                "document.body.innerText.includes('Compte mis a jour.')"
+            )
+
+            context.close()
+            browser.close()
+
+        self.assertEqual(
+            Order.objects.filter(
+                association_contact=self.portal_recipient.association_contact
+            ).count(),
+            before_order_count + 1,
+        )
+        recipient = AssociationRecipient.objects.filter(
+            association_contact=self.portal_recipient.association_contact,
+            structure_name=updated_recipient_name,
+        ).first()
+        self.assertIsNotNone(recipient)
+        profile = AssociationProfile.objects.get(user=self.portal_user)
+        self.assertEqual(profile.contact.name, updated_association_name)
+        self.assertEqual(profile.notification_emails, updated_contact_email)

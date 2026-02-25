@@ -122,7 +122,7 @@ Reste concret P2:
 - [x] etendre les tests permissions role par role (`api/tests/tests_ui_endpoints.py`),
 - [x] finaliser la trace d'audit sur mutations UI restantes (`log_workflow_event` sur mutations portal/documents),
 - [x] lancer un premier harness E2E navigateur Playwright sur routes `/app/*` (`wms/tests/core/tests_ui.py::NextUiTests`, `make test-next-ui`),
-- [ ] etendre les scenarios navigateur E2E aux workflows metier complets (stock, expedition, portal) - `PARTIAL`: workflows documents/templates/stock(update+out)/shipment(create+tracking+close) couverts, mutations portal restantes.
+- [x] etendre les scenarios navigateur E2E aux workflows metier complets (stock, expedition, portal) - `OK`: workflows documents/templates/stock(update+out)/shipment(create+tracking+close)/portal(order+recipients+account) couverts.
 
 Livrables:
 
@@ -135,6 +135,7 @@ Livrables:
 - `p2_phase2_increment7_2026-02-25.md`
 - `p2_phase2_increment8_2026-02-25.md`
 - `p2_phase2_increment9_2026-02-25.md`
+- `p2_phase2_increment10_2026-02-25.md`
 
 ---
 
