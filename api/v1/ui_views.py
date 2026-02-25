@@ -23,6 +23,9 @@ from wms.models import (
     Document,
     DocumentType,
     Destination,
+    IntegrationDirection,
+    IntegrationEvent,
+    IntegrationStatus,
     MovementType,
     Order,
     OrderReviewStatus,
@@ -197,6 +200,29 @@ def _build_dashboard_shipment_chart_rows(status_count_map):
             }
         )
     return rows, shipments_total
+
+
+def _dashboard_email_queue_snapshot(*, processing_timeout_seconds: int):
+    queue_qs = IntegrationEvent.objects.filter(
+        direction=IntegrationDirection.OUTBOUND,
+        source="wms.email",
+        event_type="send_email",
+    )
+    status_counts = {
+        item["status"]: item["total"]
+        for item in queue_qs.values("status").annotate(total=Count("id"))
+    }
+    stale_cutoff = timezone.now() - timedelta(seconds=processing_timeout_seconds)
+    stale_processing_count = queue_qs.filter(
+        status=IntegrationStatus.PROCESSING,
+        processed_at__lte=stale_cutoff,
+    ).count()
+    return {
+        "pending_count": status_counts.get(IntegrationStatus.PENDING, 0),
+        "processing_count": status_counts.get(IntegrationStatus.PROCESSING, 0),
+        "failed_count": status_counts.get(IntegrationStatus.FAILED, 0),
+        "stale_processing_count": stale_processing_count,
+    }
 
 
 def _shipment_payload(shipment):
@@ -546,6 +572,7 @@ class UiDashboardView(APIView):
         runtime = get_runtime_config()
         low_stock_threshold = runtime.low_stock_threshold
         tracking_alert_hours = runtime.tracking_alert_hours
+        queue_processing_timeout_seconds = runtime.email_queue_processing_timeout_seconds
         low_stock_rows = _build_low_stock_rows(
             low_stock_threshold=low_stock_threshold,
             limit=10,
@@ -906,6 +933,44 @@ class UiDashboardView(APIView):
                 "tone": "success" if closable_count else "neutral",
             },
         ]
+        technical_snapshot = _dashboard_email_queue_snapshot(
+            processing_timeout_seconds=queue_processing_timeout_seconds
+        )
+        technical_cards = [
+            {
+                "label": "Queue email en attente",
+                "value": technical_snapshot["pending_count"],
+                "help": "Evenements en file d attente a traiter.",
+                "url": reverse("scan:scan_dashboard"),
+                "tone": "warn" if technical_snapshot["pending_count"] else "success",
+            },
+            {
+                "label": "Queue email en traitement",
+                "value": technical_snapshot["processing_count"],
+                "help": "Evenements claims en cours d envoi.",
+                "url": reverse("scan:scan_dashboard"),
+                "tone": "neutral",
+            },
+            {
+                "label": "Queue email en echec",
+                "value": technical_snapshot["failed_count"],
+                "help": "Evenements necessitant investigation/replay.",
+                "url": reverse("scan:scan_dashboard"),
+                "tone": "danger" if technical_snapshot["failed_count"] else "success",
+            },
+            {
+                "label": "Queue email bloquee (timeout)",
+                "value": technical_snapshot["stale_processing_count"],
+                "help": (
+                    "Evenements processing au dela du timeout "
+                    f"({queue_processing_timeout_seconds}s)."
+                ),
+                "url": reverse("scan:scan_dashboard"),
+                "tone": (
+                    "danger" if technical_snapshot["stale_processing_count"] else "success"
+                ),
+            },
+        ]
 
         return Response(
             {
@@ -919,6 +984,8 @@ class UiDashboardView(APIView):
                 "flow_cards": flow_cards,
                 "tracking_alert_hours": tracking_alert_hours,
                 "tracking_cards": tracking_cards,
+                "queue_processing_timeout_seconds": queue_processing_timeout_seconds,
+                "technical_cards": technical_cards,
                 "shipments_total": shipments_total,
                 "shipment_chart_rows": shipment_chart_rows,
                 "filters": {

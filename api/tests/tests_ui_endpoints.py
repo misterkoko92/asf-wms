@@ -19,6 +19,9 @@ from wms.models import (
     Document,
     DocumentType,
     Destination,
+    IntegrationDirection,
+    IntegrationEvent,
+    IntegrationStatus,
     Location,
     Order,
     OrderReviewStatus,
@@ -775,6 +778,65 @@ class UiApiEndpointsTests(TestCase):
             "danger",
         )
         self.assertEqual(cards["Dossiers cloturables"]["tone"], "success")
+
+    def test_ui_dashboard_exposes_technical_cards(self):
+        IntegrationEvent.objects.create(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.email",
+            event_type="send_email",
+            status=IntegrationStatus.PENDING,
+        )
+        fresh_processing = IntegrationEvent.objects.create(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.email",
+            event_type="send_email",
+            status=IntegrationStatus.PROCESSING,
+            processed_at=timezone.now(),
+        )
+        stale_processing = IntegrationEvent.objects.create(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.email",
+            event_type="send_email",
+            status=IntegrationStatus.PROCESSING,
+            processed_at=timezone.now() - timedelta(hours=24),
+        )
+        IntegrationEvent.objects.create(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.email",
+            event_type="send_email",
+            status=IntegrationStatus.FAILED,
+            error_message="SMTP down",
+        )
+        IntegrationEvent.objects.create(
+            direction=IntegrationDirection.INBOUND,
+            source="wms.email",
+            event_type="send_email",
+            status=IntegrationStatus.FAILED,
+        )
+        IntegrationEvent.objects.create(
+            direction=IntegrationDirection.OUTBOUND,
+            source="wms.sms",
+            event_type="send_sms",
+            status=IntegrationStatus.FAILED,
+        )
+        IntegrationEvent.objects.filter(
+            pk__in=[fresh_processing.pk, stale_processing.pk]
+        ).update(status=IntegrationStatus.PROCESSING)
+
+        response = self.staff_client.get("/api/v1/ui/dashboard/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("queue_processing_timeout_seconds", payload)
+        self.assertIn("technical_cards", payload)
+        self.assertGreater(payload["queue_processing_timeout_seconds"], 0)
+        cards = {card["label"]: card for card in payload["technical_cards"]}
+        self.assertEqual(cards["Queue email en attente"]["value"], 1)
+        self.assertEqual(cards["Queue email en traitement"]["value"], 2)
+        self.assertEqual(cards["Queue email en echec"]["value"], 1)
+        self.assertEqual(cards["Queue email bloquee (timeout)"]["value"], 1)
+        self.assertEqual(cards["Queue email en attente"]["tone"], "warn")
+        self.assertEqual(cards["Queue email en echec"]["tone"], "danger")
+        self.assertEqual(cards["Queue email bloquee (timeout)"]["tone"], "danger")
 
     def test_ui_stock_returns_products_and_filters(self):
         response = self.staff_client.get("/api/v1/ui/stock/?q=UI%20API")
