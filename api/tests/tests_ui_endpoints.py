@@ -1093,6 +1093,16 @@ class UiApiEndpointsTests(TestCase):
         self.assertIn("shipper_contacts", payload)
         self.assertIn("recipient_contacts", payload)
         self.assertIn("correspondent_contacts", payload)
+        destination_row = next(
+            (
+                item
+                for item in payload["destinations"]
+                if item.get("id") == self.destination.id
+            ),
+            None,
+        )
+        self.assertIsNotNone(destination_row)
+        self.assertEqual(destination_row["label"], str(self.destination))
 
     def test_ui_shipments_ready_returns_rows(self):
         response = self.staff_client.get("/api/v1/ui/shipments/ready/")

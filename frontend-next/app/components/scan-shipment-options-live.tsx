@@ -16,6 +16,14 @@ type IdOption = {
   id: number;
   label: string;
 };
+type DestinationOption = IdOption & {
+  correspondentContactId: string;
+};
+type ContactOption = IdOption & {
+  destinationId: string;
+  destinationIds: string[];
+  linkedShipperIds: string[];
+};
 
 const TRACKING_STATUS_OPTIONS = [
   { value: "planning_ok", label: "Planning OK" },
@@ -57,6 +65,107 @@ function toIdOptions(rows: RawOptionRow[], labelKeys: string[]): IdOption[] {
     .filter((item): item is IdOption => Boolean(item));
 }
 
+function toStringValue(value: unknown): string {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+  if (typeof value === "number") {
+    return String(value);
+  }
+  return "";
+}
+
+function toStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.map((entry) => toStringValue(entry)).filter((entry) => entry.length > 0);
+}
+
+function toDestinationOptions(rows: RawOptionRow[]): DestinationOption[] {
+  return rows
+    .map((row) => {
+      const rawId = row.id;
+      const id = typeof rawId === "number" ? rawId : Number(rawId);
+      if (!Number.isInteger(id) || id <= 0) {
+        return null;
+      }
+      const labelValue = ["label", "city", "name", "country"]
+        .map((key) => row[key])
+        .find((value) => typeof value === "string" && value.trim().length > 0) as
+        | string
+        | undefined;
+      return {
+        id,
+        label: labelValue ? labelValue.trim() : `#${id}`,
+        correspondentContactId: toStringValue(row.correspondent_contact_id),
+      };
+    })
+    .filter((item): item is DestinationOption => Boolean(item));
+}
+
+function toContactOptions(rows: RawOptionRow[]): ContactOption[] {
+  return rows
+    .map((row) => {
+      const rawId = row.id;
+      const id = typeof rawId === "number" ? rawId : Number(rawId);
+      if (!Number.isInteger(id) || id <= 0) {
+        return null;
+      }
+      const labelValue = ["label", "name", "display_name"]
+        .map((key) => row[key])
+        .find((value) => typeof value === "string" && value.trim().length > 0) as
+        | string
+        | undefined;
+      return {
+        id,
+        label: labelValue ? labelValue.trim() : `#${id}`,
+        destinationId: toStringValue(row.destination_id),
+        destinationIds: toStringList(row.destination_ids),
+        linkedShipperIds: toStringList(row.linked_shipper_ids),
+      };
+    })
+    .filter((item): item is ContactOption => Boolean(item));
+}
+
+function hasOptionValue(value: string, options: IdOption[]): boolean {
+  return options.some((item) => String(item.id) === value);
+}
+
+function resolveSelectedValue(value: string, options: IdOption[]): string {
+  return hasOptionValue(value, options) ? value : "";
+}
+
+function firstOrEmpty(value: string, options: IdOption[]): string {
+  if (hasOptionValue(value, options)) {
+    return value;
+  }
+  return options.length > 0 ? String(options[0].id) : "";
+}
+
+function matchesDestination(contact: ContactOption, destinationId: string): boolean {
+  if (!destinationId) {
+    return false;
+  }
+  if (contact.destinationIds.length > 0) {
+    return contact.destinationIds.includes(destinationId);
+  }
+  if (contact.destinationId) {
+    return contact.destinationId === destinationId;
+  }
+  return true;
+}
+
+function matchesLinkedShipper(contact: ContactOption, shipperId: string): boolean {
+  if (!shipperId) {
+    return false;
+  }
+  if (contact.linkedShipperIds.length === 0) {
+    return true;
+  }
+  return contact.linkedShipperIds.includes(shipperId);
+}
+
 function parseId(rawValue: string): number | null {
   const value = Number(rawValue.trim());
   if (!Number.isInteger(value) || value <= 0) {
@@ -71,7 +180,6 @@ export function ScanShipmentOptionsLive() {
   const [mutationError, setMutationError] = useState<string>("");
   const [mutationStatus, setMutationStatus] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [defaultsApplied, setDefaultsApplied] = useState<boolean>(false);
 
   const [destinationId, setDestinationId] = useState<string>("");
   const [shipperId, setShipperId] = useState<string>("");
@@ -106,20 +214,20 @@ export function ScanShipmentOptionsLive() {
     };
   }, []);
 
-  const destinations = useMemo<IdOption[]>(
-    () => toIdOptions(data?.destinations || [], ["label", "city", "name"]),
+  const destinations = useMemo<DestinationOption[]>(
+    () => toDestinationOptions(data?.destinations || []),
     [data],
   );
-  const shippers = useMemo<IdOption[]>(
-    () => toIdOptions(data?.shipper_contacts || [], ["label", "name", "display_name"]),
+  const shippers = useMemo<ContactOption[]>(
+    () => toContactOptions(data?.shipper_contacts || []),
     [data],
   );
-  const recipients = useMemo<IdOption[]>(
-    () => toIdOptions(data?.recipient_contacts || [], ["label", "name", "display_name"]),
+  const recipients = useMemo<ContactOption[]>(
+    () => toContactOptions(data?.recipient_contacts || []),
     [data],
   );
-  const correspondents = useMemo<IdOption[]>(
-    () => toIdOptions(data?.correspondent_contacts || [], ["label", "name", "display_name"]),
+  const correspondents = useMemo<ContactOption[]>(
+    () => toContactOptions(data?.correspondent_contacts || []),
     [data],
   );
   const cartons = useMemo<IdOption[]>(
@@ -127,48 +235,126 @@ export function ScanShipmentOptionsLive() {
     [data],
   );
 
+  const selectedDestinationId = resolveSelectedValue(destinationId, destinations);
+  const destination = useMemo<DestinationOption | null>(() => {
+    if (!selectedDestinationId) {
+      return null;
+    }
+    return (
+      destinations.find((item) => String(item.id) === selectedDestinationId) || null
+    );
+  }, [destinations, selectedDestinationId]);
+  const shipperOptions = useMemo<ContactOption[]>(
+    () =>
+      selectedDestinationId
+        ? shippers.filter((contact) => matchesDestination(contact, selectedDestinationId))
+        : [],
+    [selectedDestinationId, shippers],
+  );
+  const selectedShipperId = resolveSelectedValue(shipperId, shipperOptions);
+  const canShowRecipientAndCorrespondent = Boolean(
+    selectedDestinationId && selectedShipperId,
+  );
+  const recipientOptions = useMemo<ContactOption[]>(
+    () =>
+      canShowRecipientAndCorrespondent
+        ? recipients.filter(
+            (contact) =>
+              matchesDestination(contact, selectedDestinationId) &&
+              matchesLinkedShipper(contact, selectedShipperId),
+          )
+        : [],
+    [
+      canShowRecipientAndCorrespondent,
+      recipients,
+      selectedDestinationId,
+      selectedShipperId,
+    ],
+  );
+  const correspondentOptions = useMemo<ContactOption[]>(
+    () =>
+      canShowRecipientAndCorrespondent
+        ? correspondents.filter((contact) => {
+            if (!matchesDestination(contact, selectedDestinationId)) {
+              return false;
+            }
+            if (!destination?.correspondentContactId) {
+              return false;
+            }
+            return String(contact.id) === destination.correspondentContactId;
+          })
+        : [],
+    [
+      canShowRecipientAndCorrespondent,
+      correspondents,
+      destination?.correspondentContactId,
+      selectedDestinationId,
+    ],
+  );
+  const selectedRecipientId = resolveSelectedValue(recipientId, recipientOptions);
+  const selectedCorrespondentId = resolveSelectedValue(
+    correspondentId,
+    correspondentOptions,
+  );
+  const selectedCartonId = resolveSelectedValue(cartonId, cartons);
+
   useEffect(() => {
-    if (!data || defaultsApplied) {
+    if (!data) {
       return;
     }
-    if (!destinationId && destinations.length) {
-      setDestinationId(String(destinations[0].id));
-    }
-    if (!shipperId && shippers.length) {
-      setShipperId(String(shippers[0].id));
-    }
-    if (!recipientId && recipients.length) {
-      setRecipientId(String(recipients[0].id));
-    }
-    if (!correspondentId && correspondents.length) {
-      setCorrespondentId(String(correspondents[0].id));
-    }
-    if (!cartonId && cartons.length) {
-      setCartonId(String(cartons[0].id));
-    }
-    setDefaultsApplied(true);
-  }, [
-    cartonId,
-    cartons,
-    correspondentId,
-    correspondents,
-    data,
-    defaultsApplied,
-    destinationId,
-    destinations,
-    recipientId,
-    recipients,
-    shipperId,
-    shippers,
-  ]);
+    setDestinationId((current) => firstOrEmpty(current, destinations));
+  }, [data, destinations]);
+
+  useEffect(() => {
+    setShipperId((current) => {
+      if (!selectedDestinationId) {
+        return "";
+      }
+      return firstOrEmpty(current, shipperOptions);
+    });
+  }, [selectedDestinationId, shipperOptions]);
+
+  useEffect(() => {
+    setRecipientId((current) => {
+      if (!canShowRecipientAndCorrespondent) {
+        return "";
+      }
+      return firstOrEmpty(current, recipientOptions);
+    });
+  }, [canShowRecipientAndCorrespondent, recipientOptions]);
+
+  useEffect(() => {
+    setCorrespondentId((current) => {
+      if (!canShowRecipientAndCorrespondent) {
+        return "";
+      }
+      return firstOrEmpty(current, correspondentOptions);
+    });
+  }, [canShowRecipientAndCorrespondent, correspondentOptions]);
+
+  useEffect(() => {
+    setCartonId((current) => firstOrEmpty(current, cartons));
+  }, [cartons]);
+
+  const showShipperEmptyMessage = Boolean(selectedDestinationId) && shipperOptions.length === 0;
+  const showRecipientEmptyMessage =
+    canShowRecipientAndCorrespondent && recipientOptions.length === 0;
+  const showCorrespondentEmptyMessage =
+    canShowRecipientAndCorrespondent && correspondentOptions.length === 0;
+  const canSubmitCreate = Boolean(
+    selectedDestinationId &&
+      selectedShipperId &&
+      selectedRecipientId &&
+      selectedCorrespondentId,
+  );
 
   const onCreateShipment = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const parsedDestination = parseId(destinationId);
-    const parsedShipper = parseId(shipperId);
-    const parsedRecipient = parseId(recipientId);
-    const parsedCorrespondent = parseId(correspondentId);
-    const parsedCarton = parseId(cartonId);
+    const parsedDestination = parseId(selectedDestinationId);
+    const parsedShipper = parseId(selectedShipperId);
+    const parsedRecipient = parseId(selectedRecipientId);
+    const parsedCorrespondent = parseId(selectedCorrespondentId);
+    const parsedCarton = parseId(selectedCartonId);
     const productCode = createProductCode.trim();
     const hasProductFields = productCode.length > 0 || createQuantity.trim().length > 0;
     const parsedCreateQuantity = parseId(createQuantity);
@@ -290,9 +476,10 @@ export function ScanShipmentOptionsLive() {
         <label className="field-inline">
           Destination ID
           <select
-            value={destinationId}
+            value={selectedDestinationId}
             onChange={(event) => setDestinationId(event.target.value)}
           >
+            <option value="">---</option>
             {destinations.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.id} - {item.label}
@@ -310,8 +497,9 @@ export function ScanShipmentOptionsLive() {
         </label>
         <label className="field-inline">
           Expediteur ID
-          <select value={shipperId} onChange={(event) => setShipperId(event.target.value)}>
-            {shippers.map((item) => (
+          <select value={selectedShipperId} onChange={(event) => setShipperId(event.target.value)}>
+            <option value="">---</option>
+            {shipperOptions.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.id} - {item.label}
               </option>
@@ -325,14 +513,21 @@ export function ScanShipmentOptionsLive() {
           >
             Ajouter expediteur
           </a>
+          {showShipperEmptyMessage ? (
+            <div className="api-state api-error">
+              Aucun expediteur trouve dans la base, verifier les "Destinations" des
+              affectes aux Expediteurs dans les contacts et recommencez
+            </div>
+          ) : null}
         </label>
         <label className="field-inline">
           Destinataire ID
           <select
-            value={recipientId}
+            value={selectedRecipientId}
             onChange={(event) => setRecipientId(event.target.value)}
           >
-            {recipients.map((item) => (
+            <option value="">---</option>
+            {recipientOptions.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.id} - {item.label}
               </option>
@@ -346,14 +541,21 @@ export function ScanShipmentOptionsLive() {
           >
             Ajouter destinataire
           </a>
+          {showRecipientEmptyMessage ? (
+            <div className="api-state api-error">
+              Aucun destinataire trouve dans la base, verifier les "Expediteurs Lies"
+              dans les contacts et recommencez
+            </div>
+          ) : null}
         </label>
         <label className="field-inline">
           Correspondant ID
           <select
-            value={correspondentId}
+            value={selectedCorrespondentId}
             onChange={(event) => setCorrespondentId(event.target.value)}
           >
-            {correspondents.map((item) => (
+            <option value="">---</option>
+            {correspondentOptions.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.id} - {item.label}
               </option>
@@ -367,10 +569,16 @@ export function ScanShipmentOptionsLive() {
           >
             Ajouter correspondant
           </a>
+          {showCorrespondentEmptyMessage ? (
+            <div className="api-state api-error">
+              Aucun correspondant trouve dans la base, verifier les "Correspondants"
+              dans les contacts et recommencez
+            </div>
+          ) : null}
         </label>
         <label className="field-inline">
           Carton ID
-          <select value={cartonId} onChange={(event) => setCartonId(event.target.value)}>
+          <select value={selectedCartonId} onChange={(event) => setCartonId(event.target.value)}>
             <option value="">-- creer colis depuis produit --</option>
             {cartons.map((item) => (
               <option key={item.id} value={item.id}>
@@ -398,7 +606,7 @@ export function ScanShipmentOptionsLive() {
           type="submit"
           className="btn-primary"
           data-track="shipment.create.submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || !canSubmitCreate}
         >
           Creer expedition
         </button>

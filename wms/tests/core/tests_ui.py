@@ -1654,6 +1654,42 @@ class NextUiTests(StaticLiveServerTestCase):
             context.close()
             browser.close()
 
+    def test_next_shipment_create_shows_empty_shipper_message_and_blocks_submit(self):
+        shipper_tag = ContactTag.objects.get(name=TAG_SHIPPER[0])
+        for contact in Contact.objects.filter(tags=shipper_tag):
+            contact.destinations.set([self.destination, self.secondary_destination])
+
+        empty_shipper_destination = Destination.objects.create(
+            city="MRS",
+            iata_code="MRS-NEXT-UI-EMPTY-SHIPPER",
+            country="France",
+            correspondent_contact=self.correspondent_contact,
+            is_active=True,
+        )
+
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.staff_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/scan/shipment-create/",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+            page.get_by_label("Destination ID").select_option(
+                str(empty_shipper_destination.id)
+            )
+            page.wait_for_function(
+                "document.body.innerText.includes('API connectee.')"
+            )
+            body_text = page.locator("body").inner_text()
+            self.assertIn("aucun expediteur trouve dans la base", body_text.lower())
+            self.assertTrue(page.get_by_role("button", name="Creer expedition").is_disabled())
+            context.close()
+            browser.close()
+
     def test_next_shipments_tracking_route_workflow(self):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()

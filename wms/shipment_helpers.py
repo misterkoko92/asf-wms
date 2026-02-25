@@ -53,6 +53,9 @@ def build_shipment_contact_payload():
     destinations_json = [
         {
             "id": destination.id,
+            "label": build_destination_label(destination),
+            "city": destination.city,
+            "iata_code": destination.iata_code,
             "country": destination.country,
             "correspondent_contact_id": destination.correspondent_contact_id,
         }
