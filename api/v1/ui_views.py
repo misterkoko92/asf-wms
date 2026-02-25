@@ -36,6 +36,8 @@ from wms.models import (
     Shipment,
     ShipmentStatus,
     ShipmentTrackingEvent,
+    ShipmentTrackingStatus,
+    TEMP_SHIPMENT_REFERENCE_PREFIX,
 )
 from wms.carton_view_helpers import build_cartons_ready_rows, get_carton_capacity_cm3
 from wms.portal_helpers import (
@@ -567,6 +569,21 @@ class UiDashboardView(APIView):
         shipment_chart_rows, shipments_total = _build_dashboard_shipment_chart_rows(
             status_count_map
         )
+        shipments_with_tracking = shipments_qs.annotate(
+            planned_at=Max(
+                "tracking_events__created_at",
+                filter=Q(tracking_events__status=ShipmentTrackingStatus.PLANNED),
+            ),
+        )
+        week_start = timezone.localdate() - timedelta(
+            days=timezone.localdate().isoweekday() - 1
+        )
+        week_end = week_start + timedelta(days=7)
+        in_transit_count = (
+            status_count_map.get(ShipmentStatus.PLANNED, 0)
+            + status_count_map.get(ShipmentStatus.SHIPPED, 0)
+            + status_count_map.get(ShipmentStatus.RECEIVED_CORRESPONDENT, 0)
+        )
 
         open_shipments_qs = shipments_qs.filter(closed_at__isnull=True)
         disputed_qs = open_shipments_qs.filter(is_disputed=True)
@@ -672,6 +689,57 @@ class UiDashboardView(APIView):
                 "tone": "neutral",
             },
         ]
+        shipment_cards = [
+            {
+                "label": "Brouillons",
+                "value": shipments_qs.filter(
+                    status=ShipmentStatus.DRAFT,
+                    reference__startswith=TEMP_SHIPMENT_REFERENCE_PREFIX,
+                ).count(),
+                "help": "Brouillons temporaires EXP-TEMP-XX.",
+                "url": reverse("scan:scan_shipments_ready"),
+                "tone": "warn",
+            },
+            {
+                "label": "En cours",
+                "value": status_count_map.get(ShipmentStatus.PICKING, 0),
+                "help": "Expeditions non totalement etiquetees.",
+                "url": reverse("scan:scan_shipments_ready"),
+                "tone": "neutral",
+            },
+            {
+                "label": "Pretes",
+                "value": status_count_map.get(ShipmentStatus.PACKED, 0),
+                "help": "Toutes etiquetees, pretes au planning.",
+                "url": reverse("scan:scan_shipments_ready"),
+                "tone": "success",
+            },
+            {
+                "label": "Planifiees (semaine)",
+                "value": shipments_with_tracking.filter(
+                    status=ShipmentStatus.PLANNED,
+                    planned_at__date__gte=week_start,
+                    planned_at__date__lt=week_end,
+                ).count(),
+                "help": "Date du statut Planifie sur semaine courante.",
+                "url": reverse("scan:scan_shipments_tracking"),
+                "tone": "neutral",
+            },
+            {
+                "label": "En transit",
+                "value": in_transit_count,
+                "help": "Planifie + Expedie + Recu escale.",
+                "url": reverse("scan:scan_shipments_tracking"),
+                "tone": "neutral",
+            },
+            {
+                "label": "Litiges ouverts",
+                "value": disputed_qs.count(),
+                "help": "Expeditions bloquees a traiter.",
+                "url": reverse("scan:scan_shipments_tracking"),
+                "tone": "danger",
+            },
+        ]
 
         return Response(
             {
@@ -680,6 +748,7 @@ class UiDashboardView(APIView):
                 "pending_actions": pending_actions[:10],
                 "period_label": period_label_map.get(period, ""),
                 "activity_cards": activity_cards,
+                "shipment_cards": shipment_cards,
                 "shipments_total": shipments_total,
                 "shipment_chart_rows": shipment_chart_rows,
                 "filters": {

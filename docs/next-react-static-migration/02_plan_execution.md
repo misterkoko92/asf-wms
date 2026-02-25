@@ -44,7 +44,7 @@ Tests en place:
 Important:
 
 - workflow complet valide aujourd'hui **au niveau API**,
-- couverture UI navigateur en progression (dashboard live + filtres destination/periode KPI + bloc KPI periode + bloc graphique expeditions + bloc stock sous seuil, stock mutations+filtres, cartons/shipments-ready/shipments-tracking dedies avec table live + filtres suivi + etats visuels de cloture, archivage stale drafts + menu documents legacy sur shipments-ready, shipment create + creation colis inline, portal mutations), parite ecran stricte restante.
+- couverture UI navigateur en progression (dashboard live + filtres destination/periode KPI + bloc KPI periode + bloc expeditions + bloc graphique expeditions + bloc stock sous seuil, stock mutations+filtres, cartons/shipments-ready/shipments-tracking dedies avec table live + filtres suivi + etats visuels de cloture, archivage stale drafts + menu documents legacy sur shipments-ready, shipment create + creation colis inline, portal mutations), parite ecran stricte restante.
 
 ## Phase 0 - Inventaire et baseline (J0 -> J2)
 
@@ -170,7 +170,7 @@ Migrer en priorite les 3 pages business cibles.
 Etat factuel:
 
 - ecrans Next presents mais encore hybrides (maquette + branchements API),
-- actions metier critiques majeures des ecrans prioritaires davantage couvertes (dashboard avec filtres destination/periode KPI + bloc KPI periode + bloc graphique expeditions + bloc stock sous seuil, stock mutations + filtres sur `scan/stock`, creation colis inline sur `shipment-create`, table live + filtres suivi + etats visuels de cloture sur `scan/shipments-tracking`, archivage stale drafts + menu documents legacy sur `scan/shipments-ready`),
+- actions metier critiques majeures des ecrans prioritaires davantage couvertes (dashboard avec filtres destination/periode KPI + bloc KPI periode + bloc expeditions + bloc graphique expeditions + bloc stock sous seuil, stock mutations + filtres sur `scan/stock`, creation colis inline sur `shipment-create`, table live + filtres suivi + etats visuels de cloture sur `scan/shipments-tracking`, archivage stale drafts + menu documents legacy sur `scan/shipments-ready`),
 - parite visuelle stricte non validee.
 
 ### Criteres de sortie

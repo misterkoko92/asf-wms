@@ -166,6 +166,28 @@ a {
   font-weight: 700;
 }
 
+.kpi-card small {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.kpi-card.is-success {
+  border-color: #b8dfc9;
+  background: #f1faf4;
+}
+
+.kpi-card.is-warn {
+  border-color: #efd8b7;
+  background: #fff8ec;
+}
+
+.kpi-card.is-danger {
+  border-color: #efc8cf;
+  background: #fff2f4;
+}
+
 .dashboard-grid {
   display: grid;
   grid-template-columns: 1.2fr 1fr;

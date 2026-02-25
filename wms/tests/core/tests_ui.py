@@ -567,6 +567,53 @@ class NextUiTests(StaticLiveServerTestCase):
             context.close()
             browser.close()
 
+    def test_next_scan_dashboard_displays_shipment_cards(self):
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.staff_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/scan/dashboard/",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+            page.wait_for_function(
+                """
+                () => {
+                  const panels = Array.from(document.querySelectorAll("article.panel"));
+                  return panels.some((panel) => {
+                    const heading = panel.querySelector("h2");
+                    const text = panel.textContent || "";
+                    return (
+                      !!heading &&
+                      (heading.textContent || "").trim() === "Expeditions" &&
+                      text.includes("Brouillons") &&
+                      text.includes("En transit")
+                    );
+                  });
+                }
+                """
+            )
+            page.wait_for_function(
+                """
+                (value) => {
+                  const panels = Array.from(document.querySelectorAll("article.panel"));
+                  const panel = panels.find((item) => {
+                    const heading = item.querySelector("h2");
+                    return !!heading && (heading.textContent || "").trim() === "Expeditions";
+                  });
+                  if (!panel) return false;
+                  const compact = (panel.textContent || "").replace(/\s+/g, "");
+                  return compact.includes(`Entransit${value}`);
+                }
+                """,
+                arg=3,
+            )
+            context.close()
+            browser.close()
+
     def test_next_scan_dashboard_filters_by_period(self):
         old_shipment = Shipment.objects.create(
             status=ShipmentStatus.PLANNED,

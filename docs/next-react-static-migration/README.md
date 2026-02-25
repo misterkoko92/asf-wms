@@ -21,6 +21,7 @@ Niveau de maturite:
 - dashboard scan branche avec filtre destination (legacy) cote Next,
 - dashboard scan branche avec filtre periode KPI (legacy) cote Next,
 - dashboard scan enrichi avec section KPI periode (cartes activite),
+- dashboard scan enrichi avec section expeditions (cartes metier legacy),
 - dashboard scan enrichi avec section graphique expeditions (repartition statuts),
 - dashboard scan enrichi avec section stock sous seuil (table low stock),
 - route `shipments-ready` branchee avec action d'archivage des brouillons stale,
@@ -100,6 +101,7 @@ Basculer l'interface actuelle `Benev + Classique` vers un frontend Next/React **
 - `docs/next-react-static-migration/p3_phase3_increment12_2026-02-25.md`
 - `docs/next-react-static-migration/p3_phase3_increment13_2026-02-25.md`
 - `docs/next-react-static-migration/p3_phase3_increment14_2026-02-25.md`
+- `docs/next-react-static-migration/p3_phase3_increment15_2026-02-25.md`
 
 ## Prochaine cible
 

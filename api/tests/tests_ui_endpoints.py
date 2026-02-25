@@ -425,6 +425,88 @@ class UiApiEndpointsTests(TestCase):
         self.assertEqual(row_by_status[ShipmentStatus.PLANNED]["count"], 1)
         self.assertEqual(row_by_status[ShipmentStatus.SHIPPED]["count"], 1)
 
+    def test_ui_dashboard_exposes_shipment_cards(self):
+        Shipment.objects.create(
+            status=ShipmentStatus.DRAFT,
+            reference=f"{TEMP_SHIPMENT_REFERENCE_PREFIX}UI-001",
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="15 Rue Cards",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        Shipment.objects.create(
+            status=ShipmentStatus.PICKING,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="16 Rue Cards",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        Shipment.objects.create(
+            status=ShipmentStatus.PACKED,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="17 Rue Cards",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        disputed_shipment = Shipment.objects.create(
+            status=ShipmentStatus.PLANNED,
+            is_disputed=True,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="18 Rue Cards",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+
+        response = self.staff_client.get("/api/v1/ui/dashboard/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("shipment_cards", payload)
+        cards = {card["label"]: card for card in payload["shipment_cards"]}
+        self.assertEqual(cards["Brouillons"]["value"], 1)
+        self.assertEqual(cards["En cours"]["value"], 1)
+        self.assertEqual(cards["Pretes"]["value"], 1)
+        self.assertEqual(cards["En transit"]["value"], 2)
+        self.assertEqual(cards["Litiges ouverts"]["value"], 1)
+        self.assertEqual(cards["Brouillons"]["tone"], "warn")
+        self.assertEqual(cards["Pretes"]["tone"], "success")
+        self.assertEqual(cards["Litiges ouverts"]["tone"], "danger")
+
+        ShipmentTrackingEvent.objects.create(
+            shipment=disputed_shipment,
+            status=ShipmentTrackingStatus.PLANNED,
+            actor_name="Ops",
+            actor_structure="ASF",
+            comments="planned",
+            created_by=self.staff_user,
+        )
+        refreshed = self.staff_client.get("/api/v1/ui/dashboard/").json()
+        refreshed_cards = {card["label"]: card for card in refreshed["shipment_cards"]}
+        self.assertEqual(refreshed_cards["Planifiees (semaine)"]["value"], 2)
+
     def test_ui_stock_returns_products_and_filters(self):
         response = self.staff_client.get("/api/v1/ui/stock/?q=UI%20API")
         self.assertEqual(response.status_code, 200)
