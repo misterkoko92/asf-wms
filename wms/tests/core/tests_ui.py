@@ -9,8 +9,18 @@ from django.test import Client
 from django.urls import reverse
 
 from contacts.models import Contact, ContactType
-from wms.models import Location, Product, Warehouse
-from wms.models import AssociationProfile
+from wms.models import (
+    AssociationProfile,
+    Destination,
+    Document,
+    DocumentType,
+    Location,
+    PrintTemplate,
+    Product,
+    Shipment,
+    ShipmentStatus,
+    Warehouse,
+)
 
 try:
     from playwright.sync_api import sync_playwright
@@ -124,6 +134,12 @@ class NextUiTests(StaticLiveServerTestCase):
             password="pass1234",
             is_staff=True,
         )
+        self.superuser_user = user_model.objects.create_user(
+            username="next-ui-superuser",
+            password="pass1234",
+            is_staff=True,
+            is_superuser=True,
+        )
         self.portal_user = user_model.objects.create_user(
             username="next-ui-portal",
             password="pass1234",
@@ -138,32 +154,77 @@ class NextUiTests(StaticLiveServerTestCase):
             contact=association_contact,
         )
 
-        self.staff_session_cookie = self._session_cookie_for_user(self.staff_user)
-        self.portal_session_cookie = self._session_cookie_for_user(self.portal_user)
-
-    def _session_cookie_for_user(self, user):
-        auth_client = Client()
-        auth_client.force_login(user)
-        return auth_client.cookies[settings.SESSION_COOKIE_NAME].value
-
-    def _new_context_with_session(self, browser, *, session_cookie):
-        context = browser.new_context()
-        context.add_cookies(
-            [
-                {
-                    "name": settings.SESSION_COOKIE_NAME,
-                    "value": session_cookie,
-                    "url": self.live_server_url,
-                }
-            ]
+        self.shipper_contact = Contact.objects.create(
+            name="Next UI Shipper",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
         )
+        self.recipient_contact = Contact.objects.create(
+            name="Next UI Recipient",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        self.correspondent_contact = Contact.objects.create(
+            name="Next UI Correspondent",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        self.destination = Destination.objects.create(
+            city="RUN",
+            iata_code="RUN-NEXT-UI",
+            country="France",
+            correspondent_contact=self.correspondent_contact,
+            is_active=True,
+        )
+        self.docs_shipment = Shipment.objects.create(
+            status=ShipmentStatus.PLANNED,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="1 Rue Next UI",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+
+        self.staff_auth_cookies = self._auth_cookies_for_user(self.staff_user)
+        self.superuser_auth_cookies = self._auth_cookies_for_user(self.superuser_user)
+        self.portal_auth_cookies = self._auth_cookies_for_user(self.portal_user)
+
+    def _auth_cookies_for_user(self, user):
+        auth_client = Client()
+        auth_client.get(reverse("admin:login"))
+        auth_client.force_login(user)
+        return {
+            "session": auth_client.cookies[settings.SESSION_COOKIE_NAME].value,
+            "csrf": auth_client.cookies[settings.CSRF_COOKIE_NAME].value,
+        }
+
+    def _new_context_with_session(self, browser, *, auth_cookies):
+        context = browser.new_context()
+        cookies = [
+            {
+                "name": settings.SESSION_COOKIE_NAME,
+                "value": auth_cookies["session"],
+                "url": self.live_server_url,
+            },
+            {
+                "name": settings.CSRF_COOKIE_NAME,
+                "value": auth_cookies["csrf"],
+                "url": self.live_server_url,
+            },
+        ]
+        context.add_cookies(cookies)
         return context
 
     def test_next_scan_dashboard_loads_for_staff(self):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
             context = self._new_context_with_session(
-                browser, session_cookie=self.staff_session_cookie
+                browser, auth_cookies=self.staff_auth_cookies
             )
             page = context.new_page()
             page.goto(
@@ -181,7 +242,7 @@ class NextUiTests(StaticLiveServerTestCase):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
             context = self._new_context_with_session(
-                browser, session_cookie=self.staff_session_cookie
+                browser, auth_cookies=self.staff_auth_cookies
             )
             page = context.new_page()
             page.goto(
@@ -201,7 +262,7 @@ class NextUiTests(StaticLiveServerTestCase):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
             context = self._new_context_with_session(
-                browser, session_cookie=self.portal_session_cookie
+                browser, auth_cookies=self.portal_auth_cookies
             )
             page = context.new_page()
             page.goto(
@@ -214,3 +275,77 @@ class NextUiTests(StaticLiveServerTestCase):
             self.assertTrue(page.get_by_text("Retour interface actuelle").count())
             context.close()
             browser.close()
+
+    def test_next_shipment_documents_upload_and_delete_workflow(self):
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.staff_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/scan/shipment-documents/",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+            page.get_by_label("Shipment ID").fill(str(self.docs_shipment.id))
+            page.get_by_role("button", name="Charger").click()
+            page.wait_for_selector(".api-ok")
+            page.locator('input[type="file"]').set_input_files(
+                {
+                    "name": "manifest-next-ui.pdf",
+                    "mimeType": "application/pdf",
+                    "buffer": b"%PDF-1.4 Next UI test",
+                }
+            )
+            page.get_by_role("button", name="Upload").click()
+            page.wait_for_function(
+                "document.body.innerText.includes('Document televerse.')"
+            )
+            self.assertGreater(page.get_by_role("button", name="Supprimer").count(), 0)
+            page.get_by_role("button", name="Supprimer").first.click()
+            page.wait_for_function(
+                "document.body.innerText.includes('Document supprime.')"
+            )
+            context.close()
+            browser.close()
+        self.assertEqual(
+            Document.objects.filter(
+                shipment=self.docs_shipment,
+                doc_type=DocumentType.ADDITIONAL,
+            ).count(),
+            0,
+        )
+
+    def test_next_templates_save_and_reset_workflow(self):
+        doc_type = ""
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.superuser_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/scan/templates/",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+            page.wait_for_selector("select")
+            doc_type = page.locator("select").input_value()
+            self.assertTrue(doc_type)
+            page.locator("textarea").fill(
+                '{\n  "blocks": [{"id": "next-ui-test", "type": "text", "text": "Next UI"}]\n}'
+            )
+            page.get_by_role("button", name="Sauver").click()
+            page.wait_for_function(
+                "document.body.innerText.includes('Template enregistre.')"
+            )
+            page.get_by_role("button", name="Reset").click()
+            page.wait_for_function(
+                "document.body.innerText.includes('Template reinitialise.')"
+            )
+            context.close()
+            browser.close()
+        template = PrintTemplate.objects.get(doc_type=doc_type)
+        self.assertEqual(template.layout, {})
+        self.assertEqual(template.versions.count(), 2)

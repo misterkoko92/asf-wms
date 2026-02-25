@@ -30,18 +30,47 @@ export class ApiClientError extends Error {
   }
 }
 
+function getCookieValue(name: string): string {
+  if (typeof document === "undefined") {
+    return "";
+  }
+  const cookiePrefix = `${name}=`;
+  const cookies = document.cookie.split(";");
+  for (const rawCookie of cookies) {
+    const cookie = rawCookie.trim();
+    if (cookie.startsWith(cookiePrefix)) {
+      return decodeURIComponent(cookie.slice(cookiePrefix.length));
+    }
+  }
+  return "";
+}
+
+function csrfHeadersForMethod(
+  method: "GET" | "POST" | "PATCH" | "DELETE",
+): Record<string, string> {
+  if (method === "GET") {
+    return {};
+  }
+  const csrfToken = getCookieValue("csrftoken");
+  return csrfToken ? { "x-csrftoken": csrfToken } : {};
+}
+
 async function apiRequestJson<T>(
   path: string,
   method: "GET" | "POST" | "PATCH" | "DELETE",
   body?: unknown,
 ): Promise<T> {
+  const headers: Record<string, string> = {
+    accept: "application/json",
+    ...csrfHeadersForMethod(method),
+  };
+  if (body) {
+    headers["content-type"] = "application/json";
+  }
   const response = await fetch(path, {
     method,
     credentials: "same-origin",
-    headers: {
-      accept: "application/json",
-      ...(body ? { "content-type": "application/json" } : {}),
-    },
+    headers,
     body: body ? JSON.stringify(body) : undefined,
     cache: "no-store",
   });
@@ -78,12 +107,14 @@ export function apiDeleteJson<T>(path: string): Promise<T> {
 }
 
 export async function apiPostFormData<T>(path: string, body: FormData): Promise<T> {
+  const headers: Record<string, string> = {
+    accept: "application/json",
+    ...csrfHeadersForMethod("POST"),
+  };
   const response = await fetch(path, {
     method: "POST",
     credentials: "same-origin",
-    headers: {
-      accept: "application/json",
-    },
+    headers,
     body,
     cache: "no-store",
   });
