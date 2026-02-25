@@ -1454,6 +1454,64 @@ class NextUiTests(StaticLiveServerTestCase):
             context.close()
             browser.close()
 
+    def test_next_stock_displays_product_metadata_and_empty_state(self):
+        product = Product.objects.create(
+            sku="NEXT-UI-STOCK-META-001",
+            name="Next UI Metadata Product",
+            brand="Brand Metadata",
+            barcode="BARCODE-META-001",
+            default_location=self.stock_product.default_location,
+            is_active=True,
+            qr_code_image="qr_codes/test.png",
+        )
+        ProductLot.objects.create(
+            product=product,
+            lot_code="NEXT-UI-STOCK-META-LOT",
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=4,
+            quantity_reserved=0,
+            location=self.stock_product.default_location,
+        )
+
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.staff_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/scan/stock/",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+            page.wait_for_function(
+                "(sku) => document.body.innerText.includes(sku)",
+                arg=product.sku,
+            )
+            row = page.locator("tr", has_text=product.sku).first
+            row_text = row.inner_text()
+            self.assertIn(product.barcode, row_text)
+            self.assertIn(product.brand, row_text)
+
+            category_link = page.get_by_role("link", name="Ajouter categorie")
+            warehouse_link = page.get_by_role("link", name="Ajouter entrepot")
+            self.assertEqual(
+                category_link.get_attribute("href"),
+                "/admin/wms/productcategory/add/",
+            )
+            self.assertEqual(
+                warehouse_link.get_attribute("href"),
+                "/admin/wms/warehouse/add/",
+            )
+
+            page.get_by_label("Recherche").fill("NO-MATCH-STOCK")
+            page.get_by_role("button", name="Filtrer").click()
+            page.wait_for_function(
+                "document.body.innerText.includes('Aucun produit en stock pour ces filtres.')"
+            )
+            context.close()
+            browser.close()
+
     def test_next_shipment_create_tracking_close_workflow(self):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()

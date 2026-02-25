@@ -1275,6 +1275,7 @@ class UiStockView(APIView):
             {
                 "id": product.id,
                 "sku": product.sku,
+                "barcode": product.barcode or "",
                 "name": product.name,
                 "brand": product.brand or "",
                 "category_id": product.category_id,

@@ -1044,6 +1044,35 @@ class UiApiEndpointsTests(TestCase):
         self.assertEqual(payload["meta"]["total_products"], 1)
         self.assertEqual(payload["products"][0]["sku"], self.product.sku)
 
+    def test_ui_stock_exposes_brand_and_barcode_fields(self):
+        product = Product.objects.create(
+            sku="UI-API-BAR-001",
+            name="UI API Barcode Product",
+            brand="Brand Barcode",
+            barcode="BARCODE-UI-001",
+            default_location=self.product.default_location,
+            is_active=True,
+            qr_code_image="qr_codes/test.png",
+        )
+        ProductLot.objects.create(
+            product=product,
+            lot_code="LOT-BARCODE",
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=3,
+            quantity_reserved=0,
+            location=self.product_lot.location,
+        )
+
+        response = self.staff_client.get("/api/v1/ui/stock/?q=UI-API-BAR-001")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["meta"]["total_products"], 1)
+        row = payload["products"][0]
+        product.refresh_from_db()
+        self.assertEqual(row["sku"], "UI-API-BAR-001")
+        self.assertEqual(row["brand"], product.brand)
+        self.assertEqual(row["barcode"], "BARCODE-UI-001")
+
     def test_ui_cartons_returns_rows(self):
         response = self.staff_client.get("/api/v1/ui/cartons/")
         self.assertEqual(response.status_code, 200)

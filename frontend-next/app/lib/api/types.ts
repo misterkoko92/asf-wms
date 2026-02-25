@@ -155,6 +155,7 @@ export type ScanStockDto = {
   products: Array<{
     id: number;
     sku: string;
+    barcode: string;
     name: string;
     brand: string;
     category_id: number | null;

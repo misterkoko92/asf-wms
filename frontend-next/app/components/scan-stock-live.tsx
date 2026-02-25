@@ -246,6 +246,14 @@ export function ScanStockLive() {
               </option>
             ))}
           </select>
+          <a
+            className="btn-secondary"
+            href="/admin/wms/productcategory/add/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Ajouter categorie
+          </a>
         </label>
         <label className="field-inline">
           Entrepot
@@ -260,6 +268,14 @@ export function ScanStockLive() {
               </option>
             ))}
           </select>
+          <a
+            className="btn-secondary"
+            href="/admin/wms/warehouse/add/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Ajouter entrepot
+          </a>
         </label>
         <label className="field-inline">
           Tri
@@ -365,28 +381,38 @@ export function ScanStockLive() {
 
       <article className="panel">
         <h2>Produits en stock ({data.products.length})</h2>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Reference</th>
-              <th>Produit</th>
-              <th>Categorie</th>
-              <th>Stock</th>
-              <th>Derniere modification</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.products.map((row) => (
-              <tr key={row.id}>
-                <td>{row.sku}</td>
-                <td>{row.name}</td>
-                <td>{row.category_name || "-"}</td>
-                <td>{row.stock_total}</td>
-                <td>{formatLastMovement(row.last_movement_at)}</td>
+        {data.products.length ? (
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Reference</th>
+                <th>Produit</th>
+                <th>Categorie</th>
+                <th>Stock</th>
+                <th>Derniere modification</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {data.products.map((row) => (
+                <tr key={row.id}>
+                  <td>
+                    {row.sku}
+                    {row.barcode ? <small>{row.barcode}</small> : null}
+                  </td>
+                  <td>
+                    {row.name}
+                    {row.brand ? <small>{row.brand}</small> : null}
+                  </td>
+                  <td>{row.category_name || "-"}</td>
+                  <td>{row.stock_total}</td>
+                  <td>{formatLastMovement(row.last_movement_at)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="scan-help">Aucun produit en stock pour ces filtres.</p>
+        )}
       </article>
     </div>
   );
