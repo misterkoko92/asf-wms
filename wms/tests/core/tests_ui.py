@@ -536,6 +536,64 @@ class NextUiTests(StaticLiveServerTestCase):
             context.close()
             browser.close()
 
+    def test_next_scan_dashboard_filters_by_period(self):
+        old_shipment = Shipment.objects.create(
+            status=ShipmentStatus.PLANNED,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="12 Rue Legacy",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        Shipment.objects.filter(pk=old_shipment.pk).update(
+            created_at=timezone.now() - timedelta(days=10)
+        )
+
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.staff_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/scan/dashboard/",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+            page.wait_for_function(
+                """
+                (value) => {
+                  const cards = Array.from(document.querySelectorAll(".kpi-card"));
+                  const card = cards.find((item) =>
+                    (item.textContent || "").includes("Expeditions creees")
+                  );
+                  return !!card && (card.textContent || "").includes(String(value));
+                }
+                """,
+                arg=3,
+            )
+            page.get_by_label("Periode KPI").select_option("30d")
+            page.get_by_role("button", name="Filtrer").click()
+            page.wait_for_function(
+                """
+                (value) => {
+                  const cards = Array.from(document.querySelectorAll(".kpi-card"));
+                  const card = cards.find((item) =>
+                    (item.textContent || "").includes("Expeditions creees")
+                  );
+                  return !!card && (card.textContent || "").includes(String(value));
+                }
+                """,
+                arg=4,
+            )
+            context.close()
+            browser.close()
+
     def test_next_shipment_documents_invalid_id_shows_inline_error(self):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()

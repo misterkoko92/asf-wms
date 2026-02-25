@@ -1,3 +1,4 @@
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 
 from django.db import connection, transaction
@@ -124,6 +125,47 @@ def _build_low_stock_rows(*, low_stock_threshold: int, limit: int = 5):
         .order_by("available_qty", "name")
     )
     return list(queryset.values("id", "sku", "name", "available_qty")[:limit])
+
+
+DASHBOARD_PERIOD_TODAY = "today"
+DASHBOARD_PERIOD_7D = "7d"
+DASHBOARD_PERIOD_30D = "30d"
+DASHBOARD_PERIOD_WEEK = "week"
+DASHBOARD_DEFAULT_PERIOD = DASHBOARD_PERIOD_WEEK
+DASHBOARD_PERIOD_CHOICES = (
+    (DASHBOARD_PERIOD_TODAY, "Aujourd hui"),
+    (DASHBOARD_PERIOD_7D, "7 jours"),
+    (DASHBOARD_PERIOD_30D, "30 jours"),
+    (DASHBOARD_PERIOD_WEEK, "Semaine en cours"),
+)
+
+
+def _dashboard_period_start(period_key):
+    now = timezone.now()
+    tz = timezone.get_current_timezone()
+    if period_key == DASHBOARD_PERIOD_TODAY:
+        return timezone.make_aware(
+            datetime.combine(timezone.localdate(), time.min),
+            tz,
+        )
+    if period_key == DASHBOARD_PERIOD_7D:
+        return now - timedelta(days=7)
+    if period_key == DASHBOARD_PERIOD_30D:
+        return now - timedelta(days=30)
+    if period_key == DASHBOARD_PERIOD_WEEK:
+        today = timezone.localdate()
+        iso_year, iso_week, _ = today.isocalendar()
+        week_start = date.fromisocalendar(iso_year, iso_week, 1)
+        return timezone.make_aware(datetime.combine(week_start, time.min), tz)
+    return now - timedelta(days=7)
+
+
+def _normalize_dashboard_period(raw_value):
+    value = (raw_value or "").strip().lower()
+    allowed = {choice[0] for choice in DASHBOARD_PERIOD_CHOICES}
+    if value in allowed:
+        return value
+    return DASHBOARD_DEFAULT_PERIOD
 
 
 def _shipment_payload(shipment):
@@ -476,6 +518,9 @@ class UiDashboardView(APIView):
             low_stock_threshold=low_stock_threshold,
             limit=10,
         )
+        period = _normalize_dashboard_period(request.GET.get("period"))
+        period_start = _dashboard_period_start(period)
+        period_label_map = dict(DASHBOARD_PERIOD_CHOICES)
 
         destination_id = (request.GET.get("destination") or "").strip()
         destinations = Destination.objects.filter(is_active=True).order_by(
@@ -560,12 +605,51 @@ class UiDashboardView(APIView):
                 }
             )
 
+        period_shipments_qs = shipments_qs.filter(created_at__gte=period_start)
+        activity_cards = [
+            {
+                "label": "Expeditions creees",
+                "value": period_shipments_qs.count(),
+                "help": "Creation sur la periode selectionnee.",
+                "url": reverse("scan:scan_shipments_ready"),
+                "tone": "neutral",
+            },
+            {
+                "label": "Colis crees",
+                "value": Carton.objects.filter(created_at__gte=period_start).count(),
+                "help": "Tous colis crees sur la periode.",
+                "url": reverse("scan:scan_cartons_ready"),
+                "tone": "neutral",
+            },
+            {
+                "label": "Receptions creees",
+                "value": Receipt.objects.filter(created_at__gte=period_start).count(),
+                "help": "Tous types de reception.",
+                "url": reverse("scan:scan_receipts_view"),
+                "tone": "neutral",
+            },
+            {
+                "label": "Commandes creees",
+                "value": Order.objects.filter(created_at__gte=period_start).count(),
+                "help": "Demandes creees sur la periode.",
+                "url": reverse("scan:scan_orders_view"),
+                "tone": "neutral",
+            },
+        ]
+
         return Response(
             {
                 "kpis": kpis,
                 "timeline": timeline,
                 "pending_actions": pending_actions[:10],
+                "period_label": period_label_map.get(period, ""),
+                "activity_cards": activity_cards,
                 "filters": {
+                    "period": period,
+                    "period_choices": [
+                        {"value": value, "label": label}
+                        for value, label in DASHBOARD_PERIOD_CHOICES
+                    ],
                     "destination": destination_id,
                     "destinations": [
                         {"id": destination.id, "label": str(destination)}

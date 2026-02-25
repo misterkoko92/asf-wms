@@ -21,7 +21,20 @@ export type ScanDashboardDto = {
     priority: string;
     owner: string;
   }>;
+  period_label: string;
+  activity_cards: Array<{
+    label: string;
+    value: number;
+    help: string;
+    url: string;
+    tone: string;
+  }>;
   filters: {
+    period: string;
+    period_choices: Array<{
+      value: string;
+      label: string;
+    }>;
     destination: string;
     destinations: Array<{
       id: number;

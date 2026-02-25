@@ -19,6 +19,8 @@ Niveau de maturite:
 - bout en bout valide en tests API (workflow scan + portal),
 - workflows UI navigateur critiques couverts en progression (dashboard live, stock mutations + filtres, cartons/shipments-ready/shipments-tracking dedies, shipment create avec creation colis inline, portal mutations),
 - dashboard scan branche avec filtre destination (legacy) cote Next,
+- dashboard scan branche avec filtre periode KPI (legacy) cote Next,
+- dashboard scan enrichi avec section KPI periode (cartes activite),
 - dashboard scan enrichi avec section stock sous seuil (table low stock),
 - route `shipments-ready` branchee avec action d'archivage des brouillons stale,
 - route `shipments-ready` alignee sur les liens Documents legacy (menu + 4 liens),
@@ -95,6 +97,7 @@ Basculer l'interface actuelle `Benev + Classique` vers un frontend Next/React **
 - `docs/next-react-static-migration/p3_phase3_increment10_2026-02-25.md`
 - `docs/next-react-static-migration/p3_phase3_increment11_2026-02-25.md`
 - `docs/next-react-static-migration/p3_phase3_increment12_2026-02-25.md`
+- `docs/next-react-static-migration/p3_phase3_increment13_2026-02-25.md`
 
 ## Prochaine cible
 

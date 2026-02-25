@@ -19,8 +19,12 @@ function formatTimestamp(value: string): string {
   });
 }
 
-function buildDashboardQuery(params: { destination: string }): string {
+function buildDashboardQuery(params: { destination: string; period: string }): string {
   const query = new URLSearchParams();
+  const period = params.period.trim();
+  if (period) {
+    query.set("period", period);
+  }
   const destination = params.destination.trim();
   if (destination) {
     query.set("destination", destination);
@@ -33,6 +37,7 @@ export function ScanDashboardLive() {
   const [error, setError] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [filterDestination, setFilterDestination] = useState<string>("");
+  const [filterPeriod, setFilterPeriod] = useState<string>("week");
 
   const loadDashboard = useCallback(async (query = "") => {
     setError("");
@@ -41,6 +46,7 @@ export function ScanDashboardLive() {
       const payload = await getScanDashboard(query);
       setData(payload);
       setFilterDestination(payload.filters.destination || "");
+      setFilterPeriod(payload.filters.period || "week");
     } catch (err: unknown) {
       setData(null);
       setError(err instanceof Error ? err.message : String(err));
@@ -55,12 +61,16 @@ export function ScanDashboardLive() {
 
   const onFilterSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const query = buildDashboardQuery({ destination: filterDestination });
+    const query = buildDashboardQuery({
+      destination: filterDestination,
+      period: filterPeriod,
+    });
     await loadDashboard(query);
   };
 
   const onFilterReset = async () => {
     setFilterDestination("");
+    setFilterPeriod("week");
     await loadDashboard("");
   };
 
@@ -84,6 +94,19 @@ export function ScanDashboardLive() {
       </div>
 
       <form className="inline-form" onSubmit={onFilterSubmit}>
+        <label className="field-inline">
+          Periode KPI
+          <select
+            value={filterPeriod}
+            onChange={(event) => setFilterPeriod(event.target.value)}
+          >
+            {data.filters.period_choices.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="field-inline">
           Destination
           <select
@@ -133,6 +156,19 @@ export function ScanDashboardLive() {
           <strong>{data.kpis.shipments_delayed}</strong>
         </article>
       </div>
+
+      <article className="panel">
+        <h2>KPI periode ({data.period_label})</h2>
+        <div className="kpi-grid">
+          {data.activity_cards.map((card) => (
+            <a key={card.label} href={card.url} className="kpi-card">
+              <span>{card.label}</span>
+              <strong>{card.value}</strong>
+              <small>{card.help}</small>
+            </a>
+          ))}
+        </div>
+      </article>
 
       <div className="dashboard-grid">
         <article className="panel">

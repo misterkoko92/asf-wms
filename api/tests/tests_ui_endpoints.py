@@ -321,6 +321,51 @@ class UiApiEndpointsTests(TestCase):
         )
         self.assertEqual(filtered_payload["kpis"]["open_shipments"], 1)
 
+    def test_ui_dashboard_period_filter_and_activity_cards(self):
+        old_shipment = Shipment.objects.create(
+            status=ShipmentStatus.PLANNED,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="12 Rue Legacy",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        Shipment.objects.filter(pk=old_shipment.pk).update(
+            created_at=timezone.now() - timedelta(days=10)
+        )
+
+        response = self.staff_client.get("/api/v1/ui/dashboard/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["filters"]["period"], "week")
+        period_values = {
+            row["value"]
+            for row in payload["filters"]["period_choices"]
+        }
+        self.assertSetEqual(period_values, {"today", "7d", "30d", "week"})
+        shipments_card = next(
+            card
+            for card in payload["activity_cards"]
+            if card["label"] == "Expeditions creees"
+        )
+        self.assertEqual(shipments_card["value"], 1)
+
+        filtered_response = self.staff_client.get("/api/v1/ui/dashboard/?period=30d")
+        self.assertEqual(filtered_response.status_code, 200)
+        filtered_payload = filtered_response.json()
+        self.assertEqual(filtered_payload["filters"]["period"], "30d")
+        filtered_shipments_card = next(
+            card
+            for card in filtered_payload["activity_cards"]
+            if card["label"] == "Expeditions creees"
+        )
+        self.assertEqual(filtered_shipments_card["value"], 2)
+
     def test_ui_dashboard_exposes_low_stock_rows(self):
         low_stock_product = Product.objects.create(
             sku="UI-API-LOW-001",
