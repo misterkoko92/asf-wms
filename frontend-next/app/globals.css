@@ -253,6 +253,43 @@ a {
   font-size: 14px;
 }
 
+.chart-bars {
+  display: grid;
+  gap: 8px;
+}
+
+.chart-row {
+  display: grid;
+  grid-template-columns: 180px 1fr auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.chart-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.chart-track {
+  height: 10px;
+  border-radius: 999px;
+  border: 1px solid #d9e4f6;
+  background: #eef3fb;
+  overflow: hidden;
+}
+
+.chart-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #71a9ff 0%, #3f6fca 100%);
+}
+
+.chart-value {
+  white-space: nowrap;
+  font-size: 12px;
+  color: #35598e;
+  font-weight: 700;
+}
+
 .data-table {
   width: 100%;
   border-collapse: collapse;
@@ -542,5 +579,10 @@ a {
   .mode-switch {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .chart-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
   }
 }

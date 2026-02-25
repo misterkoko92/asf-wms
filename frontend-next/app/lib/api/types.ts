@@ -29,6 +29,13 @@ export type ScanDashboardDto = {
     url: string;
     tone: string;
   }>;
+  shipments_total: number;
+  shipment_chart_rows: Array<{
+    status: string;
+    label: string;
+    count: number;
+    percent: number;
+  }>;
   filters: {
     period: string;
     period_choices: Array<{

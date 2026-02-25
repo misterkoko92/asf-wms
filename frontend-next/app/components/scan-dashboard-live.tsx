@@ -170,6 +170,23 @@ export function ScanDashboardLive() {
         </div>
       </article>
 
+      <article className="panel">
+        <h2>Graphique expeditions ({data.shipments_total})</h2>
+        <div className="chart-bars">
+          {data.shipment_chart_rows.map((row) => (
+            <div key={row.status} className="chart-row">
+              <div className="chart-label">{row.label}</div>
+              <div className="chart-track">
+                <div className="chart-bar" style={{ width: `${row.percent}%` }} />
+              </div>
+              <div className="chart-value">
+                {row.count} / {row.percent}%
+              </div>
+            </div>
+          ))}
+        </div>
+      </article>
+
       <div className="dashboard-grid">
         <article className="panel">
           <h2>Mission timeline</h2>

@@ -536,6 +536,37 @@ class NextUiTests(StaticLiveServerTestCase):
             context.close()
             browser.close()
 
+    def test_next_scan_dashboard_displays_shipment_chart(self):
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.staff_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/scan/dashboard/",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+            page.wait_for_function(
+                "(title) => document.body.innerText.toLowerCase().includes(title)",
+                arg="graphique expeditions",
+            )
+            page.wait_for_function(
+                """
+                (value) => {
+                  const headings = Array.from(document.querySelectorAll("article.panel h2"));
+                  return headings.some((item) => (item.textContent || "").includes(String(value)));
+                }
+                """,
+                arg=3,
+            )
+            page.wait_for_function(
+                "() => document.querySelectorAll('.chart-row').length > 0"
+            )
+            context.close()
+            browser.close()
+
     def test_next_scan_dashboard_filters_by_period(self):
         old_shipment = Shipment.objects.create(
             status=ShipmentStatus.PLANNED,

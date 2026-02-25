@@ -138,6 +138,15 @@ DASHBOARD_PERIOD_CHOICES = (
     (DASHBOARD_PERIOD_30D, "30 jours"),
     (DASHBOARD_PERIOD_WEEK, "Semaine en cours"),
 )
+DASHBOARD_SHIPMENT_STATUS_ORDER = (
+    ShipmentStatus.DRAFT,
+    ShipmentStatus.PICKING,
+    ShipmentStatus.PACKED,
+    ShipmentStatus.PLANNED,
+    ShipmentStatus.SHIPPED,
+    ShipmentStatus.RECEIVED_CORRESPONDENT,
+    ShipmentStatus.DELIVERED,
+)
 
 
 def _dashboard_period_start(period_key):
@@ -166,6 +175,26 @@ def _normalize_dashboard_period(raw_value):
     if value in allowed:
         return value
     return DASHBOARD_DEFAULT_PERIOD
+
+
+def _build_dashboard_shipment_chart_rows(status_count_map):
+    shipments_total = sum(
+        status_count_map.get(status, 0) for status in DASHBOARD_SHIPMENT_STATUS_ORDER
+    )
+    label_map = dict(ShipmentStatus.choices)
+    rows = []
+    for status in DASHBOARD_SHIPMENT_STATUS_ORDER:
+        count = status_count_map.get(status, 0)
+        percent = round((count / shipments_total) * 100, 1) if shipments_total else 0
+        rows.append(
+            {
+                "status": status,
+                "label": label_map.get(status, status),
+                "count": count,
+                "percent": percent,
+            }
+        )
+    return rows, shipments_total
 
 
 def _shipment_payload(shipment):
@@ -531,6 +560,13 @@ class UiDashboardView(APIView):
         shipments_qs = Shipment.objects.filter(archived_at__isnull=True)
         if destination_id:
             shipments_qs = shipments_qs.filter(destination_id=destination_id)
+        status_count_map = {
+            item["status"]: item["total"]
+            for item in shipments_qs.values("status").annotate(total=Count("id"))
+        }
+        shipment_chart_rows, shipments_total = _build_dashboard_shipment_chart_rows(
+            status_count_map
+        )
 
         open_shipments_qs = shipments_qs.filter(closed_at__isnull=True)
         disputed_qs = open_shipments_qs.filter(is_disputed=True)
@@ -644,6 +680,8 @@ class UiDashboardView(APIView):
                 "pending_actions": pending_actions[:10],
                 "period_label": period_label_map.get(period, ""),
                 "activity_cards": activity_cards,
+                "shipments_total": shipments_total,
+                "shipment_chart_rows": shipment_chart_rows,
                 "filters": {
                     "period": period,
                     "period_choices": [

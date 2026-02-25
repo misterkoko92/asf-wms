@@ -394,6 +394,37 @@ class UiApiEndpointsTests(TestCase):
             any(row["sku"] == low_stock_product.sku for row in payload["low_stock_rows"])
         )
 
+    def test_ui_dashboard_exposes_shipment_chart_rows(self):
+        Shipment.objects.create(
+            status=ShipmentStatus.SHIPPED,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="14 Rue Chart",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+
+        response = self.staff_client.get("/api/v1/ui/dashboard/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("shipments_total", payload)
+        self.assertIn("shipment_chart_rows", payload)
+        self.assertEqual(payload["shipments_total"], 2)
+        self.assertEqual(
+            sum(row["count"] for row in payload["shipment_chart_rows"]),
+            payload["shipments_total"],
+        )
+        row_by_status = {
+            row["status"]: row for row in payload["shipment_chart_rows"]
+        }
+        self.assertEqual(row_by_status[ShipmentStatus.PLANNED]["count"], 1)
+        self.assertEqual(row_by_status[ShipmentStatus.SHIPPED]["count"], 1)
+
     def test_ui_stock_returns_products_and_filters(self):
         response = self.staff_client.get("/api/v1/ui/stock/?q=UI%20API")
         self.assertEqual(response.status_code, 200)
