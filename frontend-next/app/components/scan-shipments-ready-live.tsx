@@ -143,24 +143,43 @@ export function ScanShipmentsReadyLive() {
                 <td>{formatDate(shipment.ready_at)}</td>
                 <td>{shipment.status_label}</td>
                 <td>
-                  <div className="inline-actions">
-                    <a
-                      className="btn-secondary"
-                      href={shipment.documents.shipment_note_url}
-                      target="_blank"
-                      rel="noopener"
-                    >
-                      Bon
-                    </a>
-                    <a
-                      className="btn-secondary"
-                      href={shipment.documents.labels_url}
-                      target="_blank"
-                      rel="noopener"
-                    >
-                      Labels
-                    </a>
-                  </div>
+                  <details className="doc-menu">
+                    <summary className="btn-secondary doc-menu-toggle">Documents</summary>
+                    <div className="doc-menu-list">
+                      <a
+                        className="btn-secondary"
+                        href={shipment.documents.shipment_note_url}
+                        target="_blank"
+                        rel="noopener"
+                      >
+                        Bon d&apos;expedition
+                      </a>
+                      <a
+                        className="btn-secondary"
+                        href={shipment.documents.packing_list_shipment_url}
+                        target="_blank"
+                        rel="noopener"
+                      >
+                        Liste colisage (lot)
+                      </a>
+                      <a
+                        className="btn-secondary"
+                        href={shipment.documents.donation_certificate_url}
+                        target="_blank"
+                        rel="noopener"
+                      >
+                        Attestation donation
+                      </a>
+                      <a
+                        className="btn-secondary"
+                        href={shipment.documents.labels_url}
+                        target="_blank"
+                        rel="noopener"
+                      >
+                        Etiquettes colis
+                      </a>
+                    </div>
+                  </details>
                 </td>
                 <td>
                   <div className="inline-actions">

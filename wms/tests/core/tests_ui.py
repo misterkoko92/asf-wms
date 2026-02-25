@@ -789,6 +789,31 @@ class NextUiTests(StaticLiveServerTestCase):
             context.close()
             browser.close()
 
+    def test_next_shipments_ready_route_shows_legacy_document_links(self):
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.staff_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/scan/shipments-ready/",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+            page.wait_for_function(
+                "(text) => document.body.innerText.includes(text)",
+                arg="Documents",
+            )
+            page.wait_for_function(
+                "() => document.querySelectorAll(\"a[href*='packing_list_shipment']\").length > 0"
+            )
+            page.wait_for_function(
+                "() => document.querySelectorAll(\"a[href*='donation_certificate']\").length > 0"
+            )
+            context.close()
+            browser.close()
+
     def test_next_shipments_ready_route_archives_stale_drafts(self):
         stale_draft = Shipment.objects.create(
             status=ShipmentStatus.DRAFT,

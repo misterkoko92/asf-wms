@@ -285,6 +285,25 @@ a {
   margin-top: 12px;
 }
 
+.doc-menu {
+  position: relative;
+  display: inline-block;
+}
+
+.doc-menu-toggle {
+  list-style: none;
+}
+
+.doc-menu-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.doc-menu-list {
+  margin-top: 8px;
+  display: grid;
+  gap: 8px;
+}
+
 .stack-grid {
   display: grid;
   gap: 12px;
