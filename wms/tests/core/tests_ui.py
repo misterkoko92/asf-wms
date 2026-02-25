@@ -4,6 +4,7 @@ from urllib.parse import urlparse
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.db.models import Sum
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.test import Client
 from django.urls import reverse
@@ -17,6 +18,7 @@ from wms.models import (
     Location,
     PrintTemplate,
     Product,
+    ProductLot,
     Shipment,
     ShipmentStatus,
     Warehouse,
@@ -189,6 +191,21 @@ class NextUiTests(StaticLiveServerTestCase):
             destination_country="France",
             created_by=self.staff_user,
         )
+        stock_warehouse = Warehouse.objects.create(name="Next UI Stock WH", code="NUI")
+        stock_location = Location.objects.create(
+            warehouse=stock_warehouse,
+            zone="A",
+            aisle="01",
+            shelf="001",
+        )
+        self.stock_product = Product.objects.create(
+            sku="NEXT-UI-STOCK-001",
+            name="Next UI Stock Product",
+            brand="ASF",
+            default_location=stock_location,
+            is_active=True,
+            qr_code_image="qr_codes/test.png",
+        )
 
         self.staff_auth_cookies = self._auth_cookies_for_user(self.staff_user)
         self.superuser_auth_cookies = self._auth_cookies_for_user(self.superuser_user)
@@ -349,3 +366,39 @@ class NextUiTests(StaticLiveServerTestCase):
         template = PrintTemplate.objects.get(doc_type=doc_type)
         self.assertEqual(template.layout, {})
         self.assertEqual(template.versions.count(), 2)
+
+    def test_next_stock_update_and_out_workflow(self):
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.staff_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/scan/stock/",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+            page.get_by_label("Product code (MAJ)").fill(self.stock_product.sku)
+            page.get_by_label("Quantite (MAJ)").fill("4")
+            page.get_by_label("Expire le (MAJ)").fill("2026-12-31")
+            page.get_by_label("Lot (MAJ)").fill("NEXT-LOT-UI")
+            page.get_by_role("button", name="Valider MAJ").click()
+            page.wait_for_function(
+                "document.body.innerText.includes('Stock mis a jour.')"
+            )
+
+            page.get_by_label("Product code (Sortie)").fill(self.stock_product.sku)
+            page.get_by_label("Quantite (Sortie)").fill("1")
+            page.get_by_label("Raison (Sortie)").fill("next_ui_test")
+            page.get_by_role("button", name="Valider sortie").click()
+            page.wait_for_function(
+                "document.body.innerText.includes('Sortie stock enregistree.')"
+            )
+            context.close()
+            browser.close()
+        self.assertEqual(ProductLot.objects.filter(product=self.stock_product).count(), 1)
+        total_quantity = ProductLot.objects.filter(product=self.stock_product).aggregate(
+            total=Sum("quantity_on_hand")
+        )["total"]
+        self.assertEqual(total_quantity, 3)
