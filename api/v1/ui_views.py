@@ -61,13 +61,17 @@ from wms.shipment_tracking_handlers import (
 from wms.shipment_view_helpers import (
     build_shipment_document_links,
     build_shipments_ready_rows,
+    build_shipments_tracking_rows,
 )
 from wms.stock_view_helpers import build_stock_context
 from wms.upload_utils import ALLOWED_UPLOAD_EXTENSIONS
 from wms.views_scan_shipments_support import (
+    CLOSED_FILTER_EXCLUDE,
     _stale_drafts_age_days,
     _stale_drafts_queryset,
     _build_shipments_tracking_queryset,
+    _normalize_closed_filter,
+    _parse_planned_week,
     _shipment_can_be_closed,
 )
 from wms.workflow_observability import log_shipment_case_closed, log_workflow_event
@@ -934,6 +938,85 @@ class UiShipmentsReadyView(APIView):
                     "stale_draft_count": _stale_drafts_queryset().count(),
                     "stale_draft_days": _stale_drafts_age_days(),
                 },
+                "shipments": items,
+            }
+        )
+
+
+class UiShipmentsTrackingView(APIView):
+    permission_classes = [IsStaffUser]
+
+    def get(self, request):
+        planned_week_value, week_start, week_end = _parse_planned_week(
+            request.GET.get("planned_week")
+        )
+        closed_filter = _normalize_closed_filter(request.GET.get("closed"))
+        warning = ""
+
+        shipments_qs = _build_shipments_tracking_queryset()
+        if closed_filter == CLOSED_FILTER_EXCLUDE:
+            shipments_qs = shipments_qs.filter(closed_at__isnull=True)
+        if planned_week_value and week_start and week_end:
+            shipments_qs = shipments_qs.filter(
+                planned_at__date__gte=week_start,
+                planned_at__date__lt=week_end,
+            )
+        elif planned_week_value and week_start is None:
+            warning = "Format semaine invalide. Utilisez AAAA-Wss ou AAAA-ss."
+
+        items = []
+        for row in build_shipments_tracking_rows(shipments_qs):
+            closed_by = row["closed_by"]
+            tracking_url = (
+                f"{reverse('scan:scan_shipment_track', args=[row['tracking_token']])}"
+                "?return_to=shipments_tracking"
+            )
+            items.append(
+                {
+                    "id": row["id"],
+                    "reference": row["reference"],
+                    "carton_count": row["carton_count"],
+                    "shipper_name": row["shipper_name"],
+                    "recipient_name": row["recipient_name"],
+                    "planned_at": (
+                        row["planned_at"].isoformat() if row["planned_at"] else None
+                    ),
+                    "boarding_ok_at": (
+                        row["boarding_ok_at"].isoformat() if row["boarding_ok_at"] else None
+                    ),
+                    "shipped_at": (
+                        row["shipped_at"].isoformat() if row["shipped_at"] else None
+                    ),
+                    "received_correspondent_at": (
+                        row["received_correspondent_at"].isoformat()
+                        if row["received_correspondent_at"]
+                        else None
+                    ),
+                    "delivered_at": (
+                        row["delivered_at"].isoformat() if row["delivered_at"] else None
+                    ),
+                    "is_disputed": bool(row["is_disputed"]),
+                    "is_closed": bool(row["is_closed"]),
+                    "closed_at": row["closed_at"].isoformat() if row["closed_at"] else None,
+                    "closed_by_username": getattr(closed_by, "username", ""),
+                    "can_close": bool(row["can_close"]),
+                    "actions": {
+                        "tracking_url": tracking_url,
+                    },
+                }
+            )
+
+        return Response(
+            {
+                "meta": {
+                    "total_shipments": len(items),
+                },
+                "filters": {
+                    "planned_week": planned_week_value,
+                    "closed": closed_filter,
+                },
+                "close_inactive_message": "Il reste des etapes a valider, verifier avant de clore",
+                "warnings": [warning] if warning else [],
                 "shipments": items,
             }
         )

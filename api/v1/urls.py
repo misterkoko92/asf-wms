@@ -28,6 +28,7 @@ from .ui_views import (
     UiShipmentLabelDetailView,
     UiShipmentLabelsView,
     UiShipmentsReadyView,
+    UiShipmentsTrackingView,
     UiShipmentTrackingEventCreateView,
     UiShipmentUpdateView,
     UiStockOutView,
@@ -63,6 +64,11 @@ urlpatterns = [
         "ui/shipments/ready/",
         UiShipmentsReadyView.as_view(),
         name="ui-shipments-ready",
+    ),
+    path(
+        "ui/shipments/tracking/",
+        UiShipmentsTrackingView.as_view(),
+        name="ui-shipments-tracking",
     ),
     path("ui/shipments/", UiShipmentCreateView.as_view(), name="ui-shipments-create"),
     path(

@@ -748,6 +748,25 @@ class NextUiTests(StaticLiveServerTestCase):
         self.workflow_tracking_shipment.refresh_from_db()
         self.assertIsNotNone(self.workflow_tracking_shipment.closed_at)
 
+    def test_next_shipments_tracking_route_lists_shipments(self):
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.staff_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/scan/shipments-tracking/",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+            page.wait_for_function(
+                "(shipmentRef) => document.body.innerText.includes(shipmentRef)",
+                arg=self.workflow_tracking_shipment.reference,
+            )
+            context.close()
+            browser.close()
+
     def test_next_shipments_ready_route_lists_shipments(self):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()

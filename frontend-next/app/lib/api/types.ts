@@ -117,6 +117,38 @@ export type ScanShipmentsReadyDto = {
   }>;
 };
 
+export type ScanShipmentsTrackingDto = {
+  meta: {
+    total_shipments: number;
+  };
+  filters: {
+    planned_week: string;
+    closed: string;
+  };
+  close_inactive_message: string;
+  warnings: string[];
+  shipments: Array<{
+    id: number;
+    reference: string;
+    carton_count: number;
+    shipper_name: string;
+    recipient_name: string;
+    planned_at: string | null;
+    boarding_ok_at: string | null;
+    shipped_at: string | null;
+    received_correspondent_at: string | null;
+    delivered_at: string | null;
+    is_disputed: boolean;
+    is_closed: boolean;
+    closed_at: string | null;
+    closed_by_username: string;
+    can_close: boolean;
+    actions: {
+      tracking_url: string;
+    };
+  }>;
+};
+
 export type PortalDashboardDto = {
   kpis: {
     orders_total: number;

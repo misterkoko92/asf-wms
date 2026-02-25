@@ -4,6 +4,7 @@ import type {
   ScanCartonsDto,
   ScanDashboardDto,
   ScanShipmentsReadyDto,
+  ScanShipmentsTrackingDto,
   ScanStockDto,
   ShipmentFormOptionsDto,
   UiPrintTemplateDto,
@@ -53,6 +54,11 @@ export function getShipmentFormOptions() {
 
 export function getShipmentsReady() {
   return apiGetJson<ScanShipmentsReadyDto>("/api/v1/ui/shipments/ready/");
+}
+
+export function getShipmentsTracking(query = "") {
+  const suffix = query ? `?${query}` : "";
+  return apiGetJson<ScanShipmentsTrackingDto>(`/api/v1/ui/shipments/tracking/${suffix}`);
 }
 
 export function getPortalDashboard() {

@@ -314,6 +314,67 @@ class UiApiEndpointsTests(TestCase):
             payload["shipments"][0]["actions"]["tracking_url"],
         )
 
+    def test_ui_shipments_tracking_returns_rows_and_filters(self):
+        closed_shipment = Shipment.objects.create(
+            status=ShipmentStatus.DELIVERED,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="2 Rue Test",
+            destination_country="France",
+            created_by=self.staff_user,
+            closed_at=self.shipment.created_at,
+            closed_by=self.staff_user,
+        )
+
+        response_all = self.staff_client.get("/api/v1/ui/shipments/tracking/?closed=all")
+        self.assertEqual(response_all.status_code, 200)
+        payload_all = response_all.json()
+        self.assertIn("meta", payload_all)
+        self.assertIn("filters", payload_all)
+        self.assertIn("warnings", payload_all)
+        self.assertIn("shipments", payload_all)
+        self.assertEqual(payload_all["filters"]["closed"], "all")
+        self.assertEqual(payload_all["warnings"], [])
+        self.assertEqual(payload_all["meta"]["total_shipments"], 2)
+        self.assertEqual(
+            {row["reference"] for row in payload_all["shipments"]},
+            {self.shipment.reference, closed_shipment.reference},
+        )
+
+        tracked_row = next(
+            row for row in payload_all["shipments"] if row["id"] == self.shipment.id
+        )
+        self.assertIn("actions", tracked_row)
+        self.assertIn("tracking_url", tracked_row["actions"])
+        self.assertIn(
+            "return_to=shipments_tracking",
+            tracked_row["actions"]["tracking_url"],
+        )
+
+        response_open = self.staff_client.get("/api/v1/ui/shipments/tracking/")
+        self.assertEqual(response_open.status_code, 200)
+        payload_open = response_open.json()
+        self.assertEqual(payload_open["filters"]["closed"], "exclude")
+        self.assertEqual(payload_open["meta"]["total_shipments"], 1)
+        self.assertEqual(payload_open["shipments"][0]["reference"], self.shipment.reference)
+
+    def test_ui_shipments_tracking_invalid_week_returns_warning(self):
+        response = self.staff_client.get(
+            "/api/v1/ui/shipments/tracking/?planned_week=invalid-week"
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["filters"]["planned_week"], "invalid-week")
+        self.assertEqual(
+            payload["warnings"],
+            ["Format semaine invalide. Utilisez AAAA-Wss ou AAAA-ss."],
+        )
+
     def test_ui_portal_dashboard_requires_association_profile(self):
         response = self.basic_client.get("/api/v1/ui/portal/dashboard/")
         self.assertEqual(response.status_code, 403)
@@ -888,6 +949,7 @@ class UiApiEndpointsTests(TestCase):
             ("get", "/api/v1/ui/stock/", None, "json"),
             ("get", "/api/v1/ui/shipments/form-options/", None, "json"),
             ("get", "/api/v1/ui/shipments/ready/", None, "json"),
+            ("get", "/api/v1/ui/shipments/tracking/", None, "json"),
             ("get", f"/api/v1/ui/shipments/{self.shipment.id}/documents/", None, "json"),
             ("get", f"/api/v1/ui/shipments/{self.shipment.id}/labels/", None, "json"),
             (
