@@ -17,7 +17,7 @@ Capacites utilisables des maintenant (dev):
 Niveau de maturite:
 
 - bout en bout valide en tests API (workflow scan + portal),
-- workflows UI navigateur critiques couverts en progression (stock mutations + filtres, cartons/shipments-ready/shipments-tracking dedies, shipment create avec creation colis inline, portal mutations),
+- workflows UI navigateur critiques couverts en progression (dashboard live, stock mutations + filtres, cartons/shipments-ready/shipments-tracking dedies, shipment create avec creation colis inline, portal mutations),
 - parite ecran stricte Next vs Benev/Classique encore en cours.
 
 ## Objectif
@@ -82,6 +82,7 @@ Basculer l'interface actuelle `Benev + Classique` vers un frontend Next/React **
 - `docs/next-react-static-migration/p3_phase3_increment3_2026-02-25.md`
 - `docs/next-react-static-migration/p3_phase3_increment4_2026-02-25.md`
 - `docs/next-react-static-migration/p3_phase3_increment5_2026-02-25.md`
+- `docs/next-react-static-migration/p3_phase3_increment6_2026-02-25.md`
 
 ## Prochaine cible
 

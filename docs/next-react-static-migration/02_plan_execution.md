@@ -44,7 +44,7 @@ Tests en place:
 Important:
 
 - workflow complet valide aujourd'hui **au niveau API**,
-- couverture UI navigateur en progression (stock mutations+filtres, cartons/shipments-ready/shipments-tracking dedies, shipment create + creation colis inline, portal mutations), parite ecran stricte restante.
+- couverture UI navigateur en progression (dashboard live, stock mutations+filtres, cartons/shipments-ready/shipments-tracking dedies, shipment create + creation colis inline, portal mutations), parite ecran stricte restante.
 
 ## Phase 0 - Inventaire et baseline (J0 -> J2)
 

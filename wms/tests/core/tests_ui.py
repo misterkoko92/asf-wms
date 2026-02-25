@@ -397,6 +397,29 @@ class NextUiTests(StaticLiveServerTestCase):
             context.close()
             browser.close()
 
+    def test_next_scan_dashboard_displays_live_timeline_and_actions(self):
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.staff_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/scan/dashboard/",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+            page.wait_for_function(
+                "(ref) => document.body.innerText.includes(ref)",
+                arg=self.workflow_tracking_shipment.reference,
+            )
+            page.wait_for_function(
+                "(sku) => document.body.innerText.includes(sku)",
+                arg=self.stock_secondary_product.sku,
+            )
+            context.close()
+            browser.close()
+
     def test_next_shipment_documents_invalid_id_shows_inline_error(self):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
