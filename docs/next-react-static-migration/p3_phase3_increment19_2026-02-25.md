@@ -70,12 +70,11 @@ Scenario:
 - `.venv/bin/python manage.py test api.tests.tests_ui_endpoints.UiApiEndpointsTests.test_ui_dashboard_exposes_tracking_cards api.tests.tests_ui_endpoints.UiApiEndpointsTests.test_ui_dashboard_exposes_technical_cards` -> OK
 - `cd frontend-next && npm run build` -> OK
 - `RUN_UI_TESTS=1 .venv/bin/python manage.py test wms.tests.core.tests_ui.NextUiTests.test_next_scan_dashboard_displays_tracking_cards wms.tests.core.tests_ui.NextUiTests.test_next_scan_dashboard_displays_technical_cards` -> OK
+- `make test-next-ui` -> OK (27 tests)
 - `.venv/bin/ruff check api/v1/ui_views.py api/tests/tests_ui_endpoints.py wms/tests/core/tests_ui.py` -> OK
-- `make test-next-ui` -> interrompu localement (process bloque, kill cible), suite de verification faite via commandes ciblees ci-dessus.
 
 ## Reste Sprint B (Phase 3)
 
 - finaliser les ecarts visuels/libelles residuels sur ecrans prioritaires (dashboard/stock/shipment-create),
-- stabiliser l execution locale complete de `NextUiTests` (investiguer le test qui peut rester bloque),
 - consolider la recette metier manuelle complete ecran par ecran,
 - preparer la cloture Sprint B et cadrage Sprint C.
