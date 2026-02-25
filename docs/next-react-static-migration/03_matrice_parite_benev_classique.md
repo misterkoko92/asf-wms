@@ -9,7 +9,7 @@
 
 ## Resume global (snapshot)
 
-- Ecrans Next disponibles aujourd'hui: `dashboard`, `stock`, `shipment-create`, `shipment-documents`, `templates`, `portal-dashboard`.
+- Ecrans Next disponibles aujourd'hui: `dashboard`, `stock`, `shipment-create`, `shipments-tracking`, `shipment-documents`, `templates`, `portal-dashboard`.
 - API UI disponible et testee pour: stock, expedition (create/update/tracking/close), docs/labels, templates, portal mutations.
 - Aucun ecran n'est encore `DONE` (parite stricte non validee).
 
@@ -22,7 +22,7 @@
 | P1 | `/scan/stock-update/` | `/app/scan/stock/` (zone MAJ inline cible) | workflow UI mutation present et teste en navigateur | `POST /api/v1/ui/stock/update/` | IN_PROGRESS |
 | P1 | `/scan/out/` | `/app/scan/stock/` (zone sortie cible) | workflow UI mutation present et teste en navigateur | `POST /api/v1/ui/stock/out/` | IN_PROGRESS |
 | P1 | `/scan/shipment/` | `/app/scan/shipment-create/` | ecran present + mutations create(travail carton ou produit)/tracking/close branchees | `GET/POST/PATCH /api/v1/ui/shipments*` | IN_PROGRESS |
-| P1 | `/scan/shipments-tracking/` | `/app/scan/shipment-create/` (integration transitoire) | workflow tracking present sur shipment-create (route dediee non creee) | `POST /api/v1/ui/shipments/<id>/tracking-events/` | IN_PROGRESS |
+| P1 | `/scan/shipments-tracking/` | `/app/scan/shipments-tracking/` | route dediee presente, workflow tracking branche et teste | `POST /api/v1/ui/shipments/<id>/tracking-events/` | IN_PROGRESS |
 | P1 | `/scan/shipment/<id>/close` (logique legacy) | `/app/scan/shipment-create/` (integration transitoire) | workflow cloture present sur shipment-create (route dediee non creee) | `POST /api/v1/ui/shipments/<id>/close/` | IN_PROGRESS |
 | P1 | `/scan/pack/` | `/app/scan/shipment-create/` (integration transitoire) | creation colis inline via produit+quantite presente sur shipment-create | logique disponible via handlers legacy + API shipment lines | IN_PROGRESS |
 | P1 | `/scan/cartons/` | `/app/scan/cartons/` | route non creee | pas d'endpoint UI dedie liste cartons | TODO |
@@ -97,6 +97,7 @@ Principe cible: route stable + query params.
 - [x] workflow navigateur filtres stock (recherche): `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur expedition mutations (create/tracking/close): `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur creation colis inline (produit+quantite) sur shipment-create: `wms/tests/core/tests_ui.py::NextUiTests`
+- [x] workflow navigateur route dediee suivi expedition (`/app/scan/shipments-tracking/`): `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur portal mutations (order create, recipient create/update, account patch): `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] execution reguliere E2E navigateur sur environnement cible (GitHub Actions `next-ui-browser-e2e.yml`, Playwright Chromium)
 - [ ] recette metier manuelle complete ecran par ecran

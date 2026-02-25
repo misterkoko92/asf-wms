@@ -13,6 +13,7 @@ const scanNav = [
   { href: "/scan/dashboard", label: "Dashboard" },
   { href: "/scan/stock", label: "Vue stock" },
   { href: "/scan/shipment-create", label: "Creation expedition" },
+  { href: "/scan/shipments-tracking", label: "Suivi expeditions" },
   { href: "/scan/shipment-documents", label: "Docs & labels" },
   { href: "/scan/templates", label: "Templates" },
 ];

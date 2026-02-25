@@ -21,6 +21,7 @@ Front Next parallel (sans impact legacy):
 - `/app/scan/dashboard/`
 - `/app/scan/stock/`
 - `/app/scan/shipment-create/`
+- `/app/scan/shipments-tracking/`
 - `/app/scan/shipment-documents/`
 - `/app/scan/templates/`
 - `/app/portal/dashboard/`

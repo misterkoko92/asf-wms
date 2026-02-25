@@ -672,6 +672,49 @@ class NextUiTests(StaticLiveServerTestCase):
         self.shipment_pack_lot.refresh_from_db()
         self.assertEqual(self.shipment_pack_lot.quantity_on_hand, 8)
 
+    def test_next_shipments_tracking_route_workflow(self):
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.staff_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/scan/shipments-tracking/",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+            page.get_by_label("Shipment ID (Tracking)").fill(
+                str(self.workflow_tracking_shipment.id)
+            )
+            page.get_by_label("Status tracking").select_option(
+                ShipmentTrackingStatus.RECEIVED_CORRESPONDENT
+            )
+            page.get_by_role("button", name="Envoyer tracking").click()
+            page.wait_for_function(
+                "document.body.innerText.includes('Suivi mis a jour.')"
+            )
+
+            page.get_by_label("Status tracking").select_option(
+                ShipmentTrackingStatus.RECEIVED_RECIPIENT
+            )
+            page.get_by_role("button", name="Envoyer tracking").click()
+            page.wait_for_function(
+                "document.body.innerText.includes('Suivi mis a jour.')"
+            )
+
+            page.get_by_label("Shipment ID (Cloture)").fill(
+                str(self.workflow_tracking_shipment.id)
+            )
+            page.get_by_role("button", name="Cloturer expedition").click()
+            page.wait_for_function(
+                "document.body.innerText.includes('Dossier cloture.')"
+            )
+            context.close()
+            browser.close()
+        self.workflow_tracking_shipment.refresh_from_db()
+        self.assertIsNotNone(self.workflow_tracking_shipment.closed_at)
+
     def test_next_portal_order_recipient_account_workflow(self):
         created_recipient_name = "Next UI Recipient Created"
         updated_recipient_name = "Next UI Recipient Updated"
