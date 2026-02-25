@@ -358,13 +358,17 @@ export function ScanShipmentTrackingLive() {
                         Suivi/MAJ
                       </a>
                       {shipment.is_closed ? (
-                        <button type="button" className="btn-secondary" disabled>
+                        <button
+                          type="button"
+                          className="btn-secondary btn-success-soft"
+                          disabled
+                        >
                           Dossier cloture
                         </button>
                       ) : shipment.can_close ? (
                         <button
                           type="button"
-                          className="btn-secondary"
+                          className="btn-secondary btn-success-soft"
                           onClick={() => onCloseShipmentFromRow(shipment.id).catch(() => undefined)}
                           disabled={isSubmitting}
                         >
@@ -373,7 +377,7 @@ export function ScanShipmentTrackingLive() {
                       ) : (
                         <button
                           type="button"
-                          className="btn-secondary"
+                          className="btn-secondary btn-danger-soft"
                           onClick={() => window.alert(data.close_inactive_message)}
                         >
                           Clore le dossier

@@ -22,7 +22,7 @@
 | P1 | `/scan/stock-update/` | `/app/scan/stock/` (zone MAJ inline cible) | workflow UI mutation present et teste en navigateur | `POST /api/v1/ui/stock/update/` | IN_PROGRESS |
 | P1 | `/scan/out/` | `/app/scan/stock/` (zone sortie cible) | workflow UI mutation present et teste en navigateur | `POST /api/v1/ui/stock/out/` | IN_PROGRESS |
 | P1 | `/scan/shipment/` | `/app/scan/shipment-create/` | ecran present + mutations create(travail carton ou produit)/tracking/close branchees | `GET/POST/PATCH /api/v1/ui/shipments*` | IN_PROGRESS |
-| P1 | `/scan/shipments-tracking/` | `/app/scan/shipments-tracking/` | route dediee presente, table live + filtres (semaine/clos) + workflow tracking branches et testes | `GET /api/v1/ui/shipments/tracking/` + `POST /api/v1/ui/shipments/<id>/tracking-events/` | IN_PROGRESS |
+| P1 | `/scan/shipments-tracking/` | `/app/scan/shipments-tracking/` | route dediee presente, table live + filtres (semaine/clos) + workflow tracking + etats visuels de cloture branches et testes | `GET /api/v1/ui/shipments/tracking/` + `POST /api/v1/ui/shipments/<id>/tracking-events/` | IN_PROGRESS |
 | P1 | `/scan/shipment/<id>/close` (logique legacy) | `/app/scan/shipments-tracking/` (integration transitoire) | workflow cloture present sur route dediee suivi | `POST /api/v1/ui/shipments/<id>/close/` | IN_PROGRESS |
 | P1 | `/scan/pack/` | `/app/scan/shipment-create/` (integration transitoire) | creation colis inline via produit+quantite presente sur shipment-create | logique disponible via handlers legacy + API shipment lines | IN_PROGRESS |
 | P1 | `/scan/cartons/` | `/app/scan/cartons/` | route dediee presente, table colis branchee et testee | `GET /api/v1/ui/cartons/` | IN_PROGRESS |
@@ -99,7 +99,7 @@ Principe cible: route stable + query params.
 - [x] workflow navigateur expedition mutations (create/tracking/close): `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur creation colis inline (produit+quantite) sur shipment-create: `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur route dediee vue expeditions (`/app/scan/shipments-ready/`) + archivage stale drafts + liens docs legacy: `wms/tests/core/tests_ui.py::NextUiTests`
-- [x] workflow navigateur route dediee suivi expedition (`/app/scan/shipments-tracking/`) + presence liste live: `wms/tests/core/tests_ui.py::NextUiTests`
+- [x] workflow navigateur route dediee suivi expedition (`/app/scan/shipments-tracking/`) + presence liste live + etats visuels cloture: `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur route dediee vue colis (`/app/scan/cartons/`): `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur portal mutations (order create, recipient create/update, account patch): `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] execution reguliere E2E navigateur sur environnement cible (GitHub Actions `next-ui-browser-e2e.yml`, Playwright Chromium)

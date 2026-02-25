@@ -22,6 +22,7 @@ Niveau de maturite:
 - route `shipments-ready` branchee avec action d'archivage des brouillons stale,
 - route `shipments-ready` alignee sur les liens Documents legacy (menu + 4 liens),
 - route `shipments-tracking` branchee en live API avec filtres semaine/clos + table suivi + actions tracking/cloture,
+- route `shipments-tracking` alignee sur les etats visuels de cloture (closable/bloque/deja clos),
 - parite ecran stricte Next vs Benev/Classique encore en cours.
 
 ## Objectif
@@ -91,6 +92,7 @@ Basculer l'interface actuelle `Benev + Classique` vers un frontend Next/React **
 - `docs/next-react-static-migration/p3_phase3_increment8_2026-02-25.md`
 - `docs/next-react-static-migration/p3_phase3_increment9_2026-02-25.md`
 - `docs/next-react-static-migration/p3_phase3_increment10_2026-02-25.md`
+- `docs/next-react-static-migration/p3_phase3_increment11_2026-02-25.md`
 
 ## Prochaine cible
 

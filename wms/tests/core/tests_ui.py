@@ -836,6 +836,94 @@ class NextUiTests(StaticLiveServerTestCase):
             context.close()
             browser.close()
 
+    def test_next_shipments_tracking_route_close_buttons_match_state_styles(self):
+        closable_shipment = Shipment.objects.create(
+            status=ShipmentStatus.DELIVERED,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="6 Rue Next UI",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        for status in (
+            ShipmentTrackingStatus.PLANNED,
+            ShipmentTrackingStatus.BOARDING_OK,
+            ShipmentTrackingStatus.RECEIVED_CORRESPONDENT,
+            ShipmentTrackingStatus.RECEIVED_RECIPIENT,
+        ):
+            ShipmentTrackingEvent.objects.create(
+                shipment=closable_shipment,
+                status=status,
+                actor_name="Ops",
+                actor_structure="ASF",
+                comments="step",
+                created_by=self.staff_user,
+            )
+
+        closed_shipment = Shipment.objects.create(
+            status=ShipmentStatus.DELIVERED,
+            shipper_name=self.shipper_contact.name,
+            shipper_contact_ref=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact_ref=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact_ref=self.correspondent_contact,
+            destination=self.destination,
+            destination_address="7 Rue Next UI",
+            destination_country="France",
+            created_by=self.staff_user,
+            closed_at=timezone.now(),
+            closed_by=self.staff_user,
+        )
+
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.staff_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/scan/shipments-tracking/",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+            page.wait_for_function(
+                "(shipmentRef) => document.body.innerText.includes(shipmentRef)",
+                arg=closable_shipment.reference,
+            )
+
+            closable_button = page.locator(
+                "tr",
+                has_text=closable_shipment.reference,
+            ).get_by_role("button", name="Clore le dossier")
+            self.assertIn("btn-success-soft", closable_button.get_attribute("class") or "")
+
+            blocked_button = page.locator(
+                "tr",
+                has_text=self.workflow_tracking_shipment.reference,
+            ).get_by_role("button", name="Clore le dossier")
+            self.assertIn("btn-danger-soft", blocked_button.get_attribute("class") or "")
+
+            page.get_by_label("Dossiers clos").select_option("all")
+            page.get_by_role("button", name="Filtrer").click()
+            page.wait_for_function(
+                "(shipmentRef) => document.body.innerText.includes(shipmentRef)",
+                arg=closed_shipment.reference,
+            )
+            closed_button = page.locator(
+                "tr",
+                has_text=closed_shipment.reference,
+            ).get_by_role("button", name="Dossier cloture")
+            self.assertIn("btn-success-soft", closed_button.get_attribute("class") or "")
+            self.assertTrue(closed_button.is_disabled())
+            context.close()
+            browser.close()
+
     def test_next_shipments_ready_route_lists_shipments(self):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()

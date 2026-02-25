@@ -371,6 +371,18 @@ a {
   color: #2e53a6;
 }
 
+.btn-success-soft {
+  background: #e8f7ec;
+  border: 1px solid #9fcfb0;
+  color: #22653b;
+}
+
+.btn-danger-soft {
+  background: #fdecec;
+  border: 1px solid #efb8b4;
+  color: #9a2f2f;
+}
+
 .table-action {
   background: #e4efff;
   color: #315dad;
