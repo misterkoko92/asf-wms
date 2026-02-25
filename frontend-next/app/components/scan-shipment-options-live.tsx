@@ -377,7 +377,7 @@ export function ScanShipmentOptionsLive() {
       linePayload = { carton_id: parsedCarton };
     } else {
       if (!productCode || !parsedCreateQuantity) {
-        setMutationError("Carton ID ou produit+quantite requis.");
+        setMutationError("Carton ou produit+quantite requis.");
         return;
       }
       linePayload = { product_code: productCode, quantity: parsedCreateQuantity };
@@ -472,8 +472,9 @@ export function ScanShipmentOptionsLive() {
 
       <form className="inline-form" onSubmit={onCreateShipment}>
         <label className="field-inline">
-          Destination ID
+          Destination
           <select
+            aria-label="Destination"
             value={selectedDestinationId}
             onChange={(event) => setDestinationId(event.target.value)}
           >
@@ -499,8 +500,9 @@ export function ScanShipmentOptionsLive() {
         </label>
         {canShowShipperSection ? (
           <label className="field-inline">
-            Expediteur ID
+            Expediteur
             <select
+              aria-label="Expediteur"
               value={selectedShipperId}
               onChange={(event) => setShipperId(event.target.value)}
             >
@@ -534,8 +536,9 @@ export function ScanShipmentOptionsLive() {
         {canShowRecipientAndCorrespondent ? (
           <>
             <label className="field-inline">
-              Destinataire ID
+              Destinataire
               <select
+                aria-label="Destinataire"
                 value={selectedRecipientId}
                 onChange={(event) => setRecipientId(event.target.value)}
               >
@@ -562,8 +565,9 @@ export function ScanShipmentOptionsLive() {
               ) : null}
             </label>
             <label className="field-inline">
-              Correspondant ID
+              Correspondant
               <select
+                aria-label="Correspondant"
                 value={selectedCorrespondentId}
                 onChange={(event) => setCorrespondentId(event.target.value)}
               >
@@ -598,8 +602,9 @@ export function ScanShipmentOptionsLive() {
         {canSubmitCreate ? (
           <>
             <label className="field-inline">
-              Carton ID
+              Carton
               <select
+                aria-label="Carton"
                 value={selectedCartonId}
                 onChange={(event) => setCartonId(event.target.value)}
               >

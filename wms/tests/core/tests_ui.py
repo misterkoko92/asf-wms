@@ -1524,13 +1524,13 @@ class NextUiTests(StaticLiveServerTestCase):
                 wait_until="domcontentloaded",
             )
             page.wait_for_selector("h1")
-            page.get_by_label("Destination ID").select_option(str(self.destination.id))
-            page.get_by_label("Expediteur ID").select_option(str(self.shipper_contact.id))
-            page.get_by_label("Destinataire ID").select_option(str(self.recipient_contact.id))
-            page.get_by_label("Correspondant ID").select_option(
+            page.get_by_label("Destination", exact=True).select_option(str(self.destination.id))
+            page.get_by_label("Expediteur", exact=True).select_option(str(self.shipper_contact.id))
+            page.get_by_label("Destinataire", exact=True).select_option(str(self.recipient_contact.id))
+            page.get_by_label("Correspondant", exact=True).select_option(
                 str(self.correspondent_contact.id)
             )
-            page.get_by_label("Carton ID").select_option(str(self.available_carton.id))
+            page.get_by_label("Carton", exact=True).select_option(str(self.available_carton.id))
             page.get_by_role("button", name="Creer expedition").click()
             page.wait_for_function(
                 "document.body.innerText.includes('Expedition creee.')"
@@ -1583,13 +1583,13 @@ class NextUiTests(StaticLiveServerTestCase):
                 wait_until="domcontentloaded",
             )
             page.wait_for_selector("h1")
-            page.get_by_label("Destination ID").select_option(str(self.destination.id))
-            page.get_by_label("Expediteur ID").select_option(str(self.shipper_contact.id))
-            page.get_by_label("Destinataire ID").select_option(str(self.recipient_contact.id))
-            page.get_by_label("Correspondant ID").select_option(
+            page.get_by_label("Destination", exact=True).select_option(str(self.destination.id))
+            page.get_by_label("Expediteur", exact=True).select_option(str(self.shipper_contact.id))
+            page.get_by_label("Destinataire", exact=True).select_option(str(self.recipient_contact.id))
+            page.get_by_label("Correspondant", exact=True).select_option(
                 str(self.correspondent_contact.id)
             )
-            page.get_by_label("Carton ID").select_option("")
+            page.get_by_label("Carton", exact=True).select_option("")
             page.get_by_label("Product code (Creation)").fill(
                 self.shipment_pack_product.sku
             )
@@ -1631,11 +1631,11 @@ class NextUiTests(StaticLiveServerTestCase):
             destination_link = page.get_by_role("link", name="Ajouter destination")
             self.assertEqual(destination_link.get_attribute("href"), "/admin/wms/destination/add/")
 
-            page.get_by_label("Destination ID").select_option(str(self.destination.id))
+            page.get_by_label("Destination", exact=True).select_option(str(self.destination.id))
             shipper_link = page.get_by_role("link", name="Ajouter expediteur")
             self.assertEqual(shipper_link.get_attribute("href"), "/admin/contacts/contact/add/")
 
-            page.get_by_label("Expediteur ID").select_option(str(self.shipper_contact.id))
+            page.get_by_label("Expediteur", exact=True).select_option(str(self.shipper_contact.id))
             recipient_link = page.get_by_role("link", name="Ajouter destinataire")
             correspondent_link = page.get_by_role("link", name="Ajouter correspondant")
             self.assertEqual(recipient_link.get_attribute("href"), "/admin/contacts/contact/add/")
@@ -1682,7 +1682,7 @@ class NextUiTests(StaticLiveServerTestCase):
                 wait_until="domcontentloaded",
             )
             page.wait_for_selector("h1")
-            page.get_by_label("Destination ID").select_option(
+            page.get_by_label("Destination", exact=True).select_option(
                 str(empty_shipper_destination.id)
             )
             page.wait_for_function(
@@ -1715,34 +1715,42 @@ class NextUiTests(StaticLiveServerTestCase):
                 wait_until="domcontentloaded",
             )
             page.wait_for_selector("h1")
+            initial_text = page.locator("body").inner_text()
+            self.assertNotIn("destination id", initial_text.lower())
+            self.assertNotIn("expediteur id", initial_text.lower())
+            self.assertNotIn("destinataire id", initial_text.lower())
+            self.assertNotIn("correspondant id", initial_text.lower())
+            self.assertNotIn("carton id", initial_text.lower())
 
             destination_option = page.locator(
-                f'label:has-text("Destination ID") select option[value="{self.destination.id}"]'
+                f'label:has-text("Destination") select option[value="{self.destination.id}"]'
             ).inner_text()
             self.assertEqual(destination_option.strip(), str(self.destination))
 
-            page.get_by_label("Destination ID").select_option(str(self.destination.id))
+            page.get_by_label("Destination", exact=True).select_option(str(self.destination.id))
             shipper_option = page.locator(
-                f'label:has-text("Expediteur ID") select option[value="{self.shipper_contact.id}"]'
+                f'label:has-text("Expediteur") select option[value="{self.shipper_contact.id}"]'
             ).inner_text()
             self.assertEqual(shipper_option.strip(), self.shipper_contact.name)
 
-            page.get_by_label("Expediteur ID").select_option(str(self.shipper_contact.id))
+            page.get_by_label("Expediteur", exact=True).select_option(str(self.shipper_contact.id))
             recipient_option = page.locator(
-                f'label:has-text("Destinataire ID") select option[value="{self.recipient_contact.id}"]'
+                f'label:has-text("Destinataire") select option[value="{self.recipient_contact.id}"]'
             ).inner_text()
             correspondent_option = page.locator(
-                f'label:has-text("Correspondant ID") select option[value="{self.correspondent_contact.id}"]'
+                f'label:has-text("Correspondant") select option[value="{self.correspondent_contact.id}"]'
             ).inner_text()
             self.assertEqual(recipient_option.strip(), self.recipient_contact.name)
             self.assertEqual(correspondent_option.strip(), self.correspondent_contact.name)
 
-            page.get_by_label("Destinataire ID").select_option(str(self.recipient_contact.id))
-            page.get_by_label("Correspondant ID").select_option(
+            page.get_by_label("Destinataire", exact=True).select_option(
+                str(self.recipient_contact.id)
+            )
+            page.get_by_label("Correspondant", exact=True).select_option(
                 str(self.correspondent_contact.id)
             )
             carton_option = page.locator(
-                f'label:has-text("Carton ID") select option[value="{self.available_carton.id}"]'
+                f'label:has-text("Carton") select option[value="{self.available_carton.id}"]'
             ).inner_text()
             self.assertEqual(carton_option.strip(), self.available_carton.code)
             context.close()
