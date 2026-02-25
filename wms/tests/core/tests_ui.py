@@ -1629,11 +1629,15 @@ class NextUiTests(StaticLiveServerTestCase):
             )
             page.wait_for_selector("h1")
             destination_link = page.get_by_role("link", name="Ajouter destination")
+            self.assertEqual(destination_link.get_attribute("href"), "/admin/wms/destination/add/")
+
+            page.get_by_label("Destination ID").select_option(str(self.destination.id))
             shipper_link = page.get_by_role("link", name="Ajouter expediteur")
+            self.assertEqual(shipper_link.get_attribute("href"), "/admin/contacts/contact/add/")
+
+            page.get_by_label("Expediteur ID").select_option(str(self.shipper_contact.id))
             recipient_link = page.get_by_role("link", name="Ajouter destinataire")
             correspondent_link = page.get_by_role("link", name="Ajouter correspondant")
-            self.assertEqual(destination_link.get_attribute("href"), "/admin/wms/destination/add/")
-            self.assertEqual(shipper_link.get_attribute("href"), "/admin/contacts/contact/add/")
             self.assertEqual(recipient_link.get_attribute("href"), "/admin/contacts/contact/add/")
             self.assertEqual(correspondent_link.get_attribute("href"), "/admin/contacts/contact/add/")
 

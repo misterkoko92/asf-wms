@@ -136,13 +136,6 @@ function resolveSelectedValue(value: string, options: IdOption[]): string {
   return hasOptionValue(value, options) ? value : "";
 }
 
-function firstOrEmpty(value: string, options: IdOption[]): string {
-  if (hasOptionValue(value, options)) {
-    return value;
-  }
-  return options.length > 0 ? String(options[0].id) : "";
-}
-
 function matchesDestination(contact: ContactOption, destinationId: string): boolean {
   if (!destinationId) {
     return false;
@@ -251,6 +244,7 @@ export function ScanShipmentOptionsLive() {
         : [],
     [selectedDestinationId, shippers],
   );
+  const canShowShipperSection = Boolean(selectedDestinationId);
   const selectedShipperId = resolveSelectedValue(shipperId, shipperOptions);
   const canShowRecipientAndCorrespondent = Boolean(
     selectedDestinationId && selectedShipperId,
@@ -296,21 +290,25 @@ export function ScanShipmentOptionsLive() {
     correspondentId,
     correspondentOptions,
   );
-  const selectedCartonId = resolveSelectedValue(cartonId, cartons);
+  const canShowCreateDetails = Boolean(
+    canShowRecipientAndCorrespondent &&
+      selectedRecipientId &&
+      selectedCorrespondentId,
+  );
+  const selectedCartonId = canShowCreateDetails
+    ? resolveSelectedValue(cartonId, cartons)
+    : "";
 
   useEffect(() => {
-    if (!data) {
-      return;
-    }
-    setDestinationId((current) => firstOrEmpty(current, destinations));
-  }, [data, destinations]);
+    setDestinationId((current) => resolveSelectedValue(current, destinations));
+  }, [destinations]);
 
   useEffect(() => {
     setShipperId((current) => {
       if (!selectedDestinationId) {
         return "";
       }
-      return firstOrEmpty(current, shipperOptions);
+      return resolveSelectedValue(current, shipperOptions);
     });
   }, [selectedDestinationId, shipperOptions]);
 
@@ -319,7 +317,7 @@ export function ScanShipmentOptionsLive() {
       if (!canShowRecipientAndCorrespondent) {
         return "";
       }
-      return firstOrEmpty(current, recipientOptions);
+      return resolveSelectedValue(current, recipientOptions);
     });
   }, [canShowRecipientAndCorrespondent, recipientOptions]);
 
@@ -328,25 +326,25 @@ export function ScanShipmentOptionsLive() {
       if (!canShowRecipientAndCorrespondent) {
         return "";
       }
-      return firstOrEmpty(current, correspondentOptions);
+      return resolveSelectedValue(current, correspondentOptions);
     });
   }, [canShowRecipientAndCorrespondent, correspondentOptions]);
 
   useEffect(() => {
-    setCartonId((current) => firstOrEmpty(current, cartons));
-  }, [cartons]);
+    setCartonId((current) => {
+      if (!canShowCreateDetails) {
+        return "";
+      }
+      return resolveSelectedValue(current, cartons);
+    });
+  }, [canShowCreateDetails, cartons]);
 
-  const showShipperEmptyMessage = Boolean(selectedDestinationId) && shipperOptions.length === 0;
+  const showShipperEmptyMessage = canShowShipperSection && shipperOptions.length === 0;
   const showRecipientEmptyMessage =
     canShowRecipientAndCorrespondent && recipientOptions.length === 0;
   const showCorrespondentEmptyMessage =
     canShowRecipientAndCorrespondent && correspondentOptions.length === 0;
-  const canSubmitCreate = Boolean(
-    selectedDestinationId &&
-      selectedShipperId &&
-      selectedRecipientId &&
-      selectedCorrespondentId,
-  );
+  const canSubmitCreate = canShowCreateDetails;
 
   const onCreateShipment = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -494,88 +492,109 @@ export function ScanShipmentOptionsLive() {
           >
             Ajouter destination
           </a>
+          <div className="api-state">
+            Merci de selectionner une destination pour poursuivre la creation de
+            l'expedition.
+          </div>
         </label>
-        <label className="field-inline">
-          Expediteur ID
-          <select value={selectedShipperId} onChange={(event) => setShipperId(event.target.value)}>
-            <option value="">---</option>
-            {shipperOptions.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.id} - {item.label}
-              </option>
-            ))}
-          </select>
-          <a
-            className="btn-secondary"
-            href="/admin/contacts/contact/add/"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Ajouter expediteur
-          </a>
-          {showShipperEmptyMessage ? (
-            <div className="api-state api-error">
-              Aucun expediteur trouve dans la base, verifier les "Destinations" des
-              affectes aux Expediteurs dans les contacts et recommencez
+        {canShowShipperSection ? (
+          <label className="field-inline">
+            Expediteur ID
+            <select
+              value={selectedShipperId}
+              onChange={(event) => setShipperId(event.target.value)}
+            >
+              <option value="">---</option>
+              {shipperOptions.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.id} - {item.label}
+                </option>
+              ))}
+            </select>
+            <a
+              className="btn-secondary"
+              href="/admin/contacts/contact/add/"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Ajouter expediteur
+            </a>
+            <div className="api-state">
+              Merci de selectionner un expediteur pour poursuivre la creation de
+              l'expedition.
             </div>
-          ) : null}
-        </label>
-        <label className="field-inline">
-          Destinataire ID
-          <select
-            value={selectedRecipientId}
-            onChange={(event) => setRecipientId(event.target.value)}
-          >
-            <option value="">---</option>
-            {recipientOptions.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.id} - {item.label}
-              </option>
-            ))}
-          </select>
-          <a
-            className="btn-secondary"
-            href="/admin/contacts/contact/add/"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Ajouter destinataire
-          </a>
-          {showRecipientEmptyMessage ? (
-            <div className="api-state api-error">
-              Aucun destinataire trouve dans la base, verifier les "Expediteurs Lies"
-              dans les contacts et recommencez
-            </div>
-          ) : null}
-        </label>
-        <label className="field-inline">
-          Correspondant ID
-          <select
-            value={selectedCorrespondentId}
-            onChange={(event) => setCorrespondentId(event.target.value)}
-          >
-            <option value="">---</option>
-            {correspondentOptions.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.id} - {item.label}
-              </option>
-            ))}
-          </select>
-          <a
-            className="btn-secondary"
-            href="/admin/contacts/contact/add/"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Ajouter correspondant
-          </a>
-          {showCorrespondentEmptyMessage ? (
-            <div className="api-state api-error">
-              Aucun correspondant trouve dans la base, verifier les "Correspondants"
-              dans les contacts et recommencez
-            </div>
-          ) : null}
-        </label>
+            {showShipperEmptyMessage ? (
+              <div className="api-state api-error">
+                Aucun expediteur trouve dans la base, verifier les "Destinations"
+                des affectes aux Expediteurs dans les contacts et recommencez
+              </div>
+            ) : null}
+          </label>
+        ) : null}
+        {canShowRecipientAndCorrespondent ? (
+          <>
+            <label className="field-inline">
+              Destinataire ID
+              <select
+                value={selectedRecipientId}
+                onChange={(event) => setRecipientId(event.target.value)}
+              >
+                <option value="">---</option>
+                {recipientOptions.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.id} - {item.label}
+                  </option>
+                ))}
+              </select>
+              <a
+                className="btn-secondary"
+                href="/admin/contacts/contact/add/"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Ajouter destinataire
+              </a>
+              {showRecipientEmptyMessage ? (
+                <div className="api-state api-error">
+                  Aucun destinataire trouve dans la base, verifier les "Expediteurs
+                  Lies" dans les contacts et recommencez
+                </div>
+              ) : null}
+            </label>
+            <label className="field-inline">
+              Correspondant ID
+              <select
+                value={selectedCorrespondentId}
+                onChange={(event) => setCorrespondentId(event.target.value)}
+              >
+                <option value="">---</option>
+                {correspondentOptions.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.id} - {item.label}
+                  </option>
+                ))}
+              </select>
+              <a
+                className="btn-secondary"
+                href="/admin/contacts/contact/add/"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Ajouter correspondant
+              </a>
+              <div className="api-state">
+                Merci de selectionner un destinataire et un correspondant pour
+                poursuivre la creation de l'expedition.
+              </div>
+              {showCorrespondentEmptyMessage ? (
+                <div className="api-state api-error">
+                  Aucun correspondant trouve dans la base, verifier les
+                  "Correspondants" dans les contacts et recommencez
+                </div>
+              ) : null}
+            </label>
+          </>
+        ) : null}
         {canSubmitCreate ? (
           <>
             <label className="field-inline">
