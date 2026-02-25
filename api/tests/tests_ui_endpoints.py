@@ -12,6 +12,7 @@ from wms.models import (
     AssociationProfile,
     AssociationRecipient,
     Carton,
+    CartonItem,
     CartonStatus,
     Document,
     DocumentType,
@@ -116,7 +117,7 @@ class UiApiEndpointsTests(TestCase):
             is_active=True,
             qr_code_image="qr_codes/test.png",
         )
-        ProductLot.objects.create(
+        self.product_lot = ProductLot.objects.create(
             product=self.product,
             lot_code="LOT-LOW",
             status=ProductLotStatus.AVAILABLE,
@@ -159,6 +160,15 @@ class UiApiEndpointsTests(TestCase):
         self.available_carton = Carton.objects.create(
             code="UI-CARTON-AVAILABLE",
             status=CartonStatus.PACKED,
+        )
+        self.ready_carton = Carton.objects.create(
+            code="UI-CARTON-READY",
+            status=CartonStatus.PACKED,
+        )
+        CartonItem.objects.create(
+            carton=self.ready_carton,
+            product_lot=self.product_lot,
+            quantity=2,
         )
 
         self.shipment = Shipment.objects.create(
@@ -267,6 +277,16 @@ class UiApiEndpointsTests(TestCase):
         self.assertEqual(payload["filters"]["q"], "UI API")
         self.assertEqual(payload["meta"]["total_products"], 1)
         self.assertEqual(payload["products"][0]["sku"], self.product.sku)
+
+    def test_ui_cartons_returns_rows(self):
+        response = self.staff_client.get("/api/v1/ui/cartons/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("meta", payload)
+        self.assertIn("cartons", payload)
+        self.assertEqual(payload["meta"]["total_cartons"], 1)
+        self.assertEqual(payload["cartons"][0]["code"], self.ready_carton.code)
+        self.assertEqual(payload["cartons"][0]["packing_list"][0]["quantity"], 2)
 
     def test_ui_shipment_form_options_returns_collections(self):
         response = self.staff_client.get("/api/v1/ui/shipments/form-options/")
@@ -864,6 +884,7 @@ class UiApiEndpointsTests(TestCase):
     def test_ui_scan_role_matrix_allows_staff_roles_and_blocks_non_staff(self):
         checks = [
             ("get", "/api/v1/ui/dashboard/", None, "json"),
+            ("get", "/api/v1/ui/cartons/", None, "json"),
             ("get", "/api/v1/ui/stock/", None, "json"),
             ("get", "/api/v1/ui/shipments/form-options/", None, "json"),
             ("get", "/api/v1/ui/shipments/ready/", None, "json"),

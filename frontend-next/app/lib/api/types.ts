@@ -27,6 +27,30 @@ export type ScanDashboardDto = {
   updated_at: string;
 };
 
+export type ScanCartonsDto = {
+  meta: {
+    total_cartons: number;
+    carton_capacity_cm3: number | null;
+  };
+  cartons: Array<{
+    id: number;
+    code: string;
+    created_at: string | null;
+    status_label: string;
+    status_value: string;
+    shipment_reference: string;
+    location: string;
+    weight_kg: number | null;
+    volume_percent: number | null;
+    packing_list: Array<{
+      label: string;
+      quantity: number;
+    }>;
+    packing_list_url: string;
+    picking_url: string;
+  }>;
+};
+
 export type ScanStockDto = {
   filters: {
     q: string;

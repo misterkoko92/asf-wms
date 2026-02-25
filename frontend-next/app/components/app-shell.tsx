@@ -12,6 +12,7 @@ type AppShellProps = {
 const scanNav = [
   { href: "/scan/dashboard", label: "Dashboard" },
   { href: "/scan/stock", label: "Vue stock" },
+  { href: "/scan/cartons", label: "Vue colis" },
   { href: "/scan/shipment-create", label: "Creation expedition" },
   { href: "/scan/shipments-ready", label: "Vue expeditions" },
   { href: "/scan/shipments-tracking", label: "Suivi expeditions" },

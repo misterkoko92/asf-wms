@@ -16,6 +16,7 @@ from wms.models import (
     AssociationProfile,
     AssociationRecipient,
     Carton,
+    CartonItem,
     CartonStatus,
     Destination,
     Document,
@@ -304,6 +305,15 @@ class NextUiTests(StaticLiveServerTestCase):
             quantity_on_hand=10,
             quantity_reserved=0,
             location=stock_location,
+        )
+        self.cartons_ready_carton = Carton.objects.create(
+            code="NEXT-UI-CARTON-READY",
+            status=CartonStatus.PACKED,
+        )
+        CartonItem.objects.create(
+            carton=self.cartons_ready_carton,
+            product_lot=self.shipment_pack_lot,
+            quantity=2,
         )
         self.portal_product = Product.objects.create(
             sku="NEXT-UI-PORTAL-001",
@@ -730,6 +740,25 @@ class NextUiTests(StaticLiveServerTestCase):
             page.wait_for_function(
                 "(shipmentRef) => document.body.innerText.includes(shipmentRef)",
                 arg=self.docs_shipment.reference,
+            )
+            context.close()
+            browser.close()
+
+    def test_next_cartons_route_lists_cartons(self):
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.staff_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/scan/cartons/",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+            page.wait_for_function(
+                "(cartonCode) => document.body.innerText.includes(cartonCode)",
+                arg=self.cartons_ready_carton.code,
             )
             context.close()
             browser.close()

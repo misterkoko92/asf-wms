@@ -1,6 +1,7 @@
 import { apiDeleteJson, apiGetJson, apiPatchJson, apiPostFormData, apiPostJson } from "./client";
 import type {
   PortalDashboardDto,
+  ScanCartonsDto,
   ScanDashboardDto,
   ScanShipmentsReadyDto,
   ScanStockDto,
@@ -35,6 +36,10 @@ import type {
 
 export function getScanDashboard() {
   return apiGetJson<ScanDashboardDto>("/api/v1/ui/dashboard/");
+}
+
+export function getScanCartons() {
+  return apiGetJson<ScanCartonsDto>("/api/v1/ui/cartons/");
 }
 
 export function getScanStock(query = "") {

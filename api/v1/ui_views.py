@@ -36,6 +36,7 @@ from wms.models import (
     ShipmentStatus,
     ShipmentTrackingEvent,
 )
+from wms.carton_view_helpers import build_cartons_ready_rows, get_carton_capacity_cm3
 from wms.portal_helpers import (
     build_destination_address,
     get_association_profile,
@@ -779,6 +780,52 @@ class UiStockOutView(APIView):
                 "quantity": form.cleaned_data["quantity"],
             },
             status=status.HTTP_201_CREATED,
+        )
+
+
+class UiCartonsView(APIView):
+    permission_classes = [IsStaffUser]
+
+    def get(self, request):
+        carton_capacity_cm3 = get_carton_capacity_cm3()
+        cartons_qs = (
+            Carton.objects.filter(cartonitem__isnull=False)
+            .select_related("shipment", "current_location")
+            .prefetch_related("cartonitem_set__product_lot__product")
+            .distinct()
+            .order_by("-created_at")
+        )
+        rows = build_cartons_ready_rows(
+            cartons_qs, carton_capacity_cm3=carton_capacity_cm3
+        )
+        cartons = []
+        for row in rows:
+            cartons.append(
+                {
+                    "id": row["id"],
+                    "code": row["code"],
+                    "created_at": (
+                        row["created_at"].isoformat() if row["created_at"] else None
+                    ),
+                    "status_label": row["status_label"],
+                    "status_value": row["status_value"],
+                    "shipment_reference": row["shipment_reference"] or "",
+                    "location": str(row["location"]) if row["location"] else "",
+                    "weight_kg": row["weight_kg"],
+                    "volume_percent": row["volume_percent"],
+                    "packing_list": row["packing_list"],
+                    "packing_list_url": row["packing_list_url"],
+                    "picking_url": row["picking_url"],
+                }
+            )
+        return Response(
+            {
+                "meta": {
+                    "total_cartons": len(cartons),
+                    "carton_capacity_cm3": carton_capacity_cm3,
+                },
+                "cartons": cartons,
+            }
         )
 
 

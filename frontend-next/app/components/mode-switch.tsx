@@ -9,6 +9,9 @@ function inferLegacyPath(pathname: string): string {
   if (pathname.startsWith("/scan/stock")) {
     return "/scan/stock/";
   }
+  if (pathname.startsWith("/scan/cartons")) {
+    return "/scan/cartons/";
+  }
   if (pathname.startsWith("/scan/shipment-create")) {
     return "/scan/shipment/";
   }

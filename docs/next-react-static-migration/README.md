@@ -10,14 +10,14 @@
 
 Capacites utilisables des maintenant (dev):
 
-- ecrans Next: `/app/scan/dashboard/`, `/app/scan/stock/`, `/app/scan/shipment-create/`, `/app/scan/shipments-ready/`, `/app/scan/shipments-tracking/`, `/app/scan/shipment-documents/`, `/app/scan/templates/`, `/app/portal/dashboard/`
+- ecrans Next: `/app/scan/dashboard/`, `/app/scan/stock/`, `/app/scan/cartons/`, `/app/scan/shipment-create/`, `/app/scan/shipments-ready/`, `/app/scan/shipments-tracking/`, `/app/scan/shipment-documents/`, `/app/scan/templates/`, `/app/portal/dashboard/`
 - API UI: stock, expedition, tracking, cloture, portal mutations, documents/labels, templates
 - switch permanent legacy/next conserve
 
 Niveau de maturite:
 
 - bout en bout valide en tests API (workflow scan + portal),
-- workflows UI navigateur critiques couverts en progression (stock mutations + filtres, shipment ready/tracking dedies, shipment create avec creation colis inline, portal mutations),
+- workflows UI navigateur critiques couverts en progression (stock mutations + filtres, cartons/shipments-ready/shipments-tracking dedies, shipment create avec creation colis inline, portal mutations),
 - parite ecran stricte Next vs Benev/Classique encore en cours.
 
 ## Objectif
@@ -81,6 +81,7 @@ Basculer l'interface actuelle `Benev + Classique` vers un frontend Next/React **
 - `docs/next-react-static-migration/p3_phase3_increment2_2026-02-25.md`
 - `docs/next-react-static-migration/p3_phase3_increment3_2026-02-25.md`
 - `docs/next-react-static-migration/p3_phase3_increment4_2026-02-25.md`
+- `docs/next-react-static-migration/p3_phase3_increment5_2026-02-25.md`
 
 ## Prochaine cible
 

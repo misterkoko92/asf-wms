@@ -11,6 +11,7 @@ from .views import (
     ReceiveStockView,
 )
 from .ui_views import (
+    UiCartonsView,
     UiPortalAccountView,
     UiDashboardView,
     UiPrintTemplateDetailView,
@@ -49,6 +50,7 @@ urlpatterns = [
     path("stock/receive/", ReceiveStockView.as_view(), name="stock-receive"),
     path("pack/", PackCartonView.as_view(), name="pack"),
     path("ui/dashboard/", UiDashboardView.as_view(), name="ui-dashboard"),
+    path("ui/cartons/", UiCartonsView.as_view(), name="ui-cartons"),
     path("ui/stock/", UiStockView.as_view(), name="ui-stock"),
     path("ui/stock/update/", UiStockUpdateView.as_view(), name="ui-stock-update"),
     path("ui/stock/out/", UiStockOutView.as_view(), name="ui-stock-out"),
