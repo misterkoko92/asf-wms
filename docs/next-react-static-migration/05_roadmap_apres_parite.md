@@ -1,49 +1,51 @@
-# 05 - Roadmap après parité: UI ciblée + éditeur de templates
+# 05 - Roadmap apres parite fonctionnelle: refonte UI + editeur de templates
 
-## Précondition d'entrée
+## Precondition d'entree
 
-Ce document s'active **apres** validation de la parite stricte (phase 3/4).
+Ce document s'active apres validation de la parite fonctionnelle complete sur l'ensemble de la matrice (scan + portal + routes dynamiques), puis pilote limite sans blocant metier.
 
-Etat au 2026-02-23: parite stricte non validee, roadmap encore en attente.
+Etat au 2026-02-26: parite fonctionnelle encore en cours, roadmap de refonte preparee.
 
-## 1) Séquence recommandée
+## 1) Sequence recommandee
 
-1. **Parité stricte** Benev/Classique (obligatoire).
-2. **Ajustements visuels ciblés** (boutons, cards, barres, densité).
-3. **Nouveau module d'édition de templates**.
+1. **Parite fonctionnelle stricte complete** Benev/Classique (obligatoire sur tous ecrans/boutons/fonctions).
+2. **Pilote controle + stabilisation** sur groupe restreint.
+3. **Refonte visuelle progressive** (tokens + composants + ecran par ecran, via feature flag).
+4. **Nouveau module d'edition de templates**.
 
-## 2) Ajustements UI ciblés (sans casser les flux)
+## 2) Refonte UI progressive (sans casser les flux)
 
 ## Objectif
 
-Moderniser progressivement l'interface sans modifier la logique métier.
+Moderniser l'interface tout en preservant les actions et regles metier deja validees en parite fonctionnelle.
 
 ## Livrables
 
 - Design tokens: couleurs, radius, spacing, typo.
-- Bibliothèque de composants réutilisables:
+- Bibliotheque de composants reutilisables:
   - `Button`,
   - `Card`,
   - `Table`,
   - `FormField`,
   - `Alert`,
   - `StatusBadge`.
-- Système de variantes:
+- Systeme de variantes:
   - `legacy-compatible`,
   - `modern-calm`,
   - `dense-pro`.
 
-## Méthode
+## Methode
 
-- Tu fournis référence de style (lien, capture ou fichier).
-- Intégration sous forme de variante activable par feature flag.
-- Validation écran par écran (pas de big-bang visuel).
+- Tu fournis reference de style (lien, capture ou fichier).
+- Integration sous forme de variante activable par feature flag.
+- Validation ecran par ecran (pas de big-bang visuel).
+- Verification systematique de non-regression metier (`make test-next-ui` + recette manuelle ciblee).
 
-## 3) Chantier éditeur de templates documentaire
+## 3) Chantier editeur de templates documentaire
 
 ## 3.1 Constat
 
-L'éditeur actuel n'est pas assez souple. Ce chantier est traité après stabilisation du front next.
+L'editeur actuel n'est pas assez souple. Ce chantier demarre apres stabilisation du front Next en mode refonte progressive.
 
 Etat reel:
 
@@ -52,25 +54,25 @@ Etat reel:
 
 ## 3.2 Objectifs V1
 
-- Éditeur hybride:
-  - blocs structurés (en-tête, tableaux, signatures),
-  - zones libres éditables.
-- Variables métier insérables:
-  - expédition,
+- Editeur hybride:
+  - blocs structures (en-tete, tableaux, signatures),
+  - zones libres editables.
+- Variables metier inserables:
+  - expedition,
   - colis,
-  - destinataire/expéditeur/correspondant,
+  - destinataire/expediteur/correspondant,
   - documents douane/donation.
-- Prévisualisation live PDF.
+- Previsualisation live PDF.
 - Versioning:
   - brouillon,
-  - publié,
+  - publie,
   - rollback version.
 
-## 3.3 Types documentaires à couvrir
+## 3.3 Types documentaires a couvrir
 
 Obligatoires:
 
-- packing list expédition,
+- packing list expedition,
 - packing list colis,
 - attestation de donation,
 - bon de livraison,
@@ -78,31 +80,31 @@ Obligatoires:
 
 Optionnels:
 
-- certificats complémentaires (sécurité/authenticité).
+- certificats complementaires (securite/authenticite).
 
-## 3.4 Architecture recommandée
+## 3.4 Architecture recommandee
 
 - Front Next:
-  - éditeur WYSIWYG structuré,
+  - editeur WYSIWYG structure,
   - palette de blocs,
   - panneau variables.
 - Backend Django:
-  - stockage template versionné,
+  - stockage template versionne,
   - moteur rendu HTML/PDF,
-  - règles de validation avant publication.
+  - regles de validation avant publication.
 
-## 3.5 Critères d'acceptation
+## 3.5 Criteres d'acceptation
 
-- création/édition template sans intervention développeur,
-- aperçu PDF fidèle avant publication,
-- compatibilité avec impressions existantes,
+- creation/edition template sans intervention developpeur,
+- apercu PDF fidele avant publication,
+- compatibilite avec impressions existantes,
 - permissions et audit conformes.
 
-## 4) Backlog d'amélioration V2
+## 4) Backlog d'amelioration V2
 
 - raccourcis clavier desktop,
 - command palette globale,
 - suggestions automatiques d'affectation colis,
 - mode daltonisme,
-- signatures électroniques (si besoin confirmé),
-- export récap clôture.
+- signatures electroniques (si besoin confirme),
+- export recap cloture.

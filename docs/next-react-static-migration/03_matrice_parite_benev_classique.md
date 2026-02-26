@@ -1,17 +1,22 @@
-# 03 - Matrice de parite Benev/Classique (maj 2026-02-25)
+# 03 - Matrice de parite Benev/Classique (maj 2026-02-26)
 
 ## Legende statut
 
 - `TODO`: ni ecran Next exploitable, ni couverture de parite.
 - `API_READY`: backend/UI API disponible et teste, mais ecran Next non implemente.
-- `IN_PROGRESS`: ecran Next present et/ou branche partiellement, parite stricte non validee.
-- `DONE`: parite fonctionnelle + visuelle validee.
+- `IN_PROGRESS`: ecran Next present et/ou branche partiellement, parite fonctionnelle non validee.
+- `DONE`: parite fonctionnelle validee (ecarts visuels documentes/acceptes).
+
+Decision de pilotage (2026-02-26):
+
+- la parite visuelle stricte legacy n'est plus bloquante,
+- la sortie de sprint est pilotee par la parite fonctionnelle.
 
 ## Resume global (snapshot)
 
 - Ecrans Next disponibles aujourd'hui: `dashboard`, `stock`, `cartons`, `shipment-create`, `shipments-ready`, `shipments-tracking`, `shipment-documents`, `templates`, `portal-dashboard`.
 - API UI disponible et testee pour: stock, cartons, expedition (ready/create/update/tracking/close), docs/labels, templates, portal mutations.
-- Aucun ecran n'est encore `DONE` (parite stricte non validee).
+- Aucun ecran n'est encore `DONE` (parite fonctionnelle complete non validee).
 
 ## A. Scan - ecrans prioritaires et coeur metier
 
@@ -83,7 +88,7 @@ Principe cible: route stable + query params.
 - [ ] memes statuts metier et transitions
 - [ ] memes actions critiques disponibles (ou moins de clics, sans perte de controle)
 - [ ] meme comportement documentaire (liens, PDF, labels)
-- [ ] parite visuelle Benev/Classique validee
+- [ ] ecarts visuels documentes et valides contre le design cible Next
 
 ## F. Validation test (etat actuel)
 
@@ -108,5 +113,10 @@ Principe cible: route stable + query params.
 - [x] workflow navigateur route dediee vue colis (`/app/scan/cartons/`): `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur portal mutations (order create, recipient create/update, account patch): `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] execution reguliere E2E navigateur sur environnement cible (GitHub Actions `next-ui-browser-e2e.yml`, Playwright Chromium)
-- [ ] recette metier manuelle complete ecran par ecran
+- [ ] recette metier manuelle complete ecran par ecran (`docs/next-react-static-migration/p3_sprint_c_recette_manuelle_2026-02-26.md`)
 - [x] rollback global instantane vers legacy (`/ui/mode/legacy/`)
+
+## G. Registre des ecarts fonctionnels
+
+- Registre global actif: `docs/next-react-static-migration/p3_sprint_c_gap_register_2026-02-26.md`
+- Regle de pilotage: toute ligne `IN_PROGRESS`/`TODO` de cette matrice doit avoir une entree explicite dans le registre.

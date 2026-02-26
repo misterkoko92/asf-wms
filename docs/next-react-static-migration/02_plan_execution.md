@@ -1,17 +1,23 @@
-# 02 - Plan d'execution detaille (mis a jour 2026-02-25)
+# 02 - Plan d'execution detaille (mis a jour 2026-02-26)
 
 ## Cadrage global
 
-- Priorite: copie conforme integrale Benev/Classique.
+- Priorite: parite fonctionnelle stricte (actions/regles/validations/permissions).
 - Contrainte: ne pas casser le legacy.
 - Methode: migration parallele incrementale, pilotee par criteres de sortie.
+
+## Decision de pilotage (2026-02-26)
+
+- La parite visuelle stricte Next vs legacy n'est plus un prerequis de sortie de phase.
+- Les ecrans peuvent diverger visuellement si les comportements metier sont equivalentes.
+- Les ecarts visuels sont suivis dans le backlog design et traites via feature flag.
 
 ## Etat global (P0 -> P7)
 
 - Phase 0: `DONE`
 - Phase 1: `DONE`
 - Phase 2: `IN_PROGRESS` (couche API UI largement livree, derniers points role/audit a finaliser)
-- Phase 3: `IN_PROGRESS` (ecrans prioritaires presents, parite stricte non atteinte)
+- Phase 3: `IN_PROGRESS` (vague 1 ecrans prioritaires en cours)
 - Phase 4+: `TODO`
 
 ## Capacites disponibles aujourd'hui (en environnement de dev)
@@ -44,7 +50,7 @@ Tests en place:
 Important:
 
 - workflow complet valide aujourd'hui **au niveau API**,
-- couverture UI navigateur en progression (dashboard live + filtres destination/periode KPI + bloc KPI periode + bloc expeditions + bloc colis + bloc receptions/commandes + bloc suivi/alertes + bloc graphique expeditions + bloc stock sous seuil, stock mutations+filtres, cartons/shipments-ready/shipments-tracking dedies avec table live + filtres suivi + etats visuels de cloture, archivage stale drafts + menu documents legacy sur shipments-ready, shipment create + creation colis inline, portal mutations), parite ecran stricte restante.
+- couverture UI navigateur en progression (dashboard live + filtres destination/periode KPI + bloc KPI periode + bloc expeditions + bloc colis + bloc receptions/commandes + bloc suivi/alertes + bloc graphique expeditions + bloc stock sous seuil, stock mutations+filtres, cartons/shipments-ready/shipments-tracking dedies avec table live + filtres suivi + etats visuels de cloture, archivage stale drafts + menu documents legacy sur shipments-ready, shipment create + creation colis inline, portal mutations), parite fonctionnelle ecran par ecran restante.
 
 ## Phase 0 - Inventaire et baseline (J0 -> J2)
 
@@ -144,10 +150,10 @@ Livrables:
 
 ---
 
-## Phase 3 - Parite fonctionnelle stricte ecrans prioritaires (J7 -> J12)
+## Phase 3 - Parite fonctionnelle stricte (vague 1 ecrans prioritaires) (J7 -> J12)
 
 ### Objectif
-Migrer en priorite les 3 pages business cibles.
+Fermer la premiere vague de parite fonctionnelle sur les 3 ecrans business prioritaires avant extension au reste du perimetre.
 
 ### Ecrans cibles
 
@@ -157,32 +163,36 @@ Migrer en priorite les 3 pages business cibles.
 
 ### Taches
 
-- [ ] Reproduire structure UI/UX Benev/Classique a l'identique.
-- [ ] Reproduire libelles, formulaires, validations, etats, permissions.
+- [ ] Valider l'equivalence fonctionnelle des 3 ecrans prioritaires (champs, validations, etats, permissions).
+- [x] Ouvrir et maintenir le registre des ecarts fonctionnels global: `docs/next-react-static-migration/p3_sprint_c_gap_register_2026-02-26.md`.
 - [ ] Integrer completement les actions 1 clic:
   - MAJ stock,
   - creation colis,
   - creation expedition,
   - affectation colis,
   - MAJ statut.
+- [ ] Completer la couverture de non-regression E2E sur les cas limites metier de ces 3 ecrans.
+- [ ] Finaliser la recette metier manuelle ecran par ecran.
 - [ ] Implementer mode offline mobile pour stock.
 
 Etat factuel:
 
 - ecrans Next presents mais encore hybrides (maquette + branchements API),
 - actions metier critiques majeures des ecrans prioritaires davantage couvertes (dashboard avec filtres destination/periode KPI + bloc KPI periode + bloc expeditions + bloc colis + bloc receptions/commandes + bloc suivi/alertes + bloc graphique expeditions + bloc stock sous seuil, stock mutations + filtres sur `scan/stock`, creation colis inline sur `shipment-create`, table live + filtres suivi + etats visuels de cloture sur `scan/shipments-tracking`, archivage stale drafts + menu documents legacy sur `scan/shipments-ready`),
-- parite visuelle stricte non validee.
+- parite visuelle legacy non bloquante (ecarts suivis dans backlog design).
 
 ### Criteres de sortie
 
-- Demo pilote utilisable de bout en bout: `IN_PROGRESS`
+- Equivalence fonctionnelle validee sur les 3 ecrans prioritaires: `TODO`
 - KPI minimum atteints sur flux principal: `TODO`
-- Aucun blocant fonctionnel vs legacy: `TODO`
+- Aucun blocant fonctionnel vs legacy sur vague 1: `TODO`
+- Recette metier manuelle complete sur les 3 ecrans prioritaires: `TODO`
+- Gate: cette sortie de phase ne permet pas de lancer le pilote global tant que la phase 4 n'est pas terminee.
 
 Etat courant:
 
 - les ecrans existent en Next avec connexions API partielles,
-- la parite stricte visuelle/fonctionnelle n'est pas encore validee.
+- la parite fonctionnelle stricte n'est pas encore validee.
 
 ---
 
@@ -193,6 +203,7 @@ Couvrir tout le perimetre fonctionnel Benev/Classique.
 
 ### Taches
 
+- [ ] Fermer tous les items ouverts du registre global des ecarts fonctionnels (`p3_sprint_c_gap_register_2026-02-26.md`).
 - [ ] Migrer tous les ecrans listes dans la matrice.
 - [ ] Gerer cas d'exception critiques:
   - parties non conformes,
@@ -212,6 +223,8 @@ Couvrir tout le perimetre fonctionnel Benev/Classique.
 
 - 100% flux critiques passent sur Next sans retour arriere force.
 - Diff de comportement metier = 0 vs legacy.
+- 100% ecrans, boutons et fonctions de la matrice couverts (scan + portal + routes dynamiques).
+- Recette metier manuelle complete sur l'ensemble du perimetre.
 
 Statut: `TODO`
 
@@ -239,10 +252,10 @@ Statut: `TODO`
 
 ---
 
-## Phase 6 - Ajustements UI cibles (apres parite)
+## Phase 6 - Refonte visuelle progressive (apres parite fonctionnelle globale)
 
 ### Objectif
-Ameliorer progressivement boutons, cards, densite, lisibilite sans casser la logique.
+Moderniser progressivement boutons, cards, densite, lisibilite sans casser la logique.
 
 ### Taches
 
@@ -287,14 +300,14 @@ Statut: `TODO`
 ### Rituels
 
 - Standup court quotidien (blocants, risques, decisions).
-- Revue hebdo parite (legacy vs next).
+- Revue hebdo parite fonctionnelle (legacy vs next).
 - Revue metier hebdo (toi + retours terrain).
 
 ### Definition of Done (par ecran)
 
-- [ ] UI conforme Benev/Classique.
+- [ ] UI validee sur le nouveau design cible (parite visuelle legacy non requise).
 - [ ] Donnees et validations conformes.
 - [ ] Permissions conformes.
 - [ ] E2E nominal + exceptions passent.
-- [ ] Capture visuelle validee.
+- [ ] Ecarts visuels documentes et approuves (legacy vs design cible).
 - [ ] Rollback possible sans migration.

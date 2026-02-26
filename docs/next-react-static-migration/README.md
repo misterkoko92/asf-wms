@@ -1,12 +1,17 @@
 # Migration Benev/Classique vers Next React statique
 
-## Etat actuel (2026-02-25)
+## Etat actuel (2026-02-26)
 
 - `P0`: termine
 - `P1`: termine
 - `P2`: en cours (backend API avance + branchement front partiel)
-- `P3`: en cours (parite stricte en construction)
+- `P3`: en cours (parite fonctionnelle stricte en construction)
 - `P4+`: non demarre
+
+Decision de pilotage validee le 2026-02-26:
+
+- objectif principal = parite fonctionnelle stricte,
+- parite visuelle legacy non bloquante (refonte design assumee).
 
 Capacites utilisables des maintenant (dev):
 
@@ -32,12 +37,13 @@ Niveau de maturite:
 - route `shipments-tracking` branchee en live API avec filtres semaine/clos + table suivi + actions tracking/cloture + labels tracking/cloture metier (sans `Shipment ID`, terminologie `suivi`) + options de statuts en labels metier (sans libelles anglais),
 - route `shipments-tracking` alignee sur les etats visuels de cloture (closable/bloque/deja clos),
 - route `shipment-create` alignee sur les filtres de contacts par destination + sections progressives sans auto-selection + message d'absence expediteur + masquage de la zone creation colis/produit tant que selections incompletes + options select et labels de champs affiches en libelles metier (sans `id -`, sans suffixe `ID`, sans `Shipment ID` sur tracking/cloture, terminologie `suivi`, options de statuts suivi en labels metier, champ `Code produit`, message de succes `Expedition #`),
-- parite ecran stricte Next vs Benev/Classique encore en cours.
+- parite fonctionnelle ecran par ecran encore en cours.
 
 ## Objectif
 Basculer l'interface actuelle `Benev + Classique` vers un frontend Next/React **statique**, tout en gardant Django/PythonAnywhere comme backend principal, avec ces règles:
 
-- **Copie conforme intégrale** (fonctionnelle et visuelle) en priorité.
+- **Parite fonctionnelle stricte** (actions, regles metier, validations, permissions) en priorite.
+- **Parite visuelle legacy non bloquante**: le design Next peut diverger si les flux metier restent equivalents.
 - **Aucune régression métier**.
 - **Aucune interruption**: l'interface actuelle reste disponible en permanence.
 - **Migration parallèle**: nouveau front sous préfixe dédié + feature flag utilisateur.
@@ -125,21 +131,22 @@ Basculer l'interface actuelle `Benev + Classique` vers un frontend Next/React **
 
 ## Prochaine cible
 
-- finaliser la parite stricte des 3 ecrans prioritaires (dashboard, stock, creation expedition),
-- completer les ecrans portal restants,
+- finaliser la parite fonctionnelle sur l'ensemble des ecrans/actions/boutons/fonctions de la matrice (`scan` + `portal`),
+- finaliser la recette metier manuelle ecran par ecran et role par role sur l'ensemble de ce perimetre,
+- completer toutes les routes `TODO` portal/scan et routes dynamiques de la matrice,
 - lancer un pilote A/B avec KPI.
 
 ## Ordre d'exécution recommandé
 
-1. Phase parité stricte (100% Benev/Classique).
-2. Bascule limitée à un groupe pilote.
-3. Stabilisation et généralisation.
-4. Ajustements visuels ciblés.
-5. Refonte de l'éditeur de templates.
+1. Phase parite fonctionnelle stricte (flux metier).
+2. Bascule limitee a un groupe pilote (uniquement apres couverture fonctionnelle complete de la matrice).
+3. Stabilisation et generalisation.
+4. Refonte visuelle progressive via design system et feature flag.
+5. Refonte de l'editeur de templates.
 
 ## Principe de sécurité projet
 
-Tant que la parité n'est pas validée par toi:
+Tant que la parite fonctionnelle n'est pas validee par toi:
 
 - l'ancien front reste la référence de production,
 - le switch reste réversible instantanément,
