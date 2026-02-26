@@ -4,12 +4,19 @@ from django.contrib import messages
 from django.db.models import Count, Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from .carton_handlers import handle_carton_status_update
 from .carton_view_helpers import build_cartons_ready_rows, get_carton_capacity_cm3
-from .forms import ScanPackForm, ScanShipmentForm, ShipmentTrackingForm
+from .forms import (
+    ScanPackForm,
+    ScanPrepareKitsForm,
+    ScanShipmentForm,
+    ShipmentTrackingForm,
+)
+from .kits_view_helpers import build_kits_view_rows
 from .models import (
     Carton,
     CartonStatus,
@@ -19,6 +26,12 @@ from .models import (
     ShipmentStatus,
 )
 from .pack_handlers import build_pack_defaults, handle_pack_post
+from .prepare_kits_helpers import (
+    _parse_carton_ids,
+    build_prepare_kits_page_context,
+    build_prepare_kits_picking_context,
+    prepare_kits,
+)
 from .scan_helpers import (
     build_carton_formats,
     build_packing_result,
@@ -30,6 +43,7 @@ from .scan_shipment_handlers import (
     handle_shipment_edit_post,
 )
 from .runtime_settings import is_shipment_track_legacy_enabled
+from .services import StockError
 from .shipment_form_helpers import (
     build_carton_selection_data,
     build_shipment_edit_initial,
@@ -76,13 +90,18 @@ from .view_utils import sorted_choices
 logger = logging.getLogger(__name__)
 
 TEMPLATE_CARTONS_READY = "scan/cartons_ready.html"
+TEMPLATE_KITS_VIEW = "scan/kits_view.html"
+TEMPLATE_PREPARE_KITS = "scan/prepare_kits.html"
 TEMPLATE_SHIPMENTS_READY = "scan/shipments_ready.html"
 TEMPLATE_SHIPMENTS_TRACKING = "scan/shipments_tracking.html"
 TEMPLATE_PACK = "scan/pack.html"
 TEMPLATE_SHIPMENT_FORM = "scan/shipment_create.html"
 TEMPLATE_SHIPMENT_TRACKING = "scan/shipment_tracking.html"
+TEMPLATE_PICKING_LIST_KITS = "print/picking_list_kits.html"
 
 ACTIVE_CARTONS_READY = "cartons_ready"
+ACTIVE_KITS_VIEW = "kits_view"
+ACTIVE_PREPARE_KITS = "prepare_kits"
 ACTIVE_PACK = "pack"
 
 
@@ -214,6 +233,83 @@ def scan_cartons_ready(request):
                 ]
             ),
         },
+    )
+
+
+@scan_staff_required
+@require_http_methods(["GET"])
+def scan_kits_view(request):
+    return render(
+        request,
+        TEMPLATE_KITS_VIEW,
+        {
+            "active": ACTIVE_KITS_VIEW,
+            "kits": build_kits_view_rows(),
+        },
+    )
+
+
+@scan_staff_required
+@require_http_methods(["GET", "POST"])
+def scan_prepare_kits(request):
+    selected_kit_id = (
+        request.POST.get("kit_id")
+        if request.method == "POST"
+        else request.GET.get("kit_id")
+    )
+    form_initial = {}
+    if request.method == "GET" and selected_kit_id:
+        form_initial["kit_id"] = selected_kit_id
+    form = ScanPrepareKitsForm(request.POST or None, initial=form_initial)
+
+    prepared_carton_ids = None
+    if request.method == "GET":
+        prepared_carton_ids = request.session.pop("prepare_kits_results", None)
+    elif form.is_valid():
+        kit = form.cleaned_data["kit_id"]
+        quantity = form.cleaned_data["quantity"]
+        try:
+            prepared_carton_ids = prepare_kits(
+                user=request.user,
+                kit=kit,
+                quantity=quantity,
+            )
+        except StockError as exc:
+            form.add_error(None, str(exc))
+        else:
+            request.session["prepare_kits_results"] = prepared_carton_ids
+            messages.success(
+                request,
+                f"{quantity} kit(s) ajouté(s) en préparation.",
+            )
+            return redirect(f"{reverse('scan:scan_prepare_kits')}?kit_id={kit.id}")
+
+    page_context = build_prepare_kits_page_context(
+        selected_kit_id=selected_kit_id,
+        prepared_carton_ids=prepared_carton_ids,
+    )
+    return render(
+        request,
+        TEMPLATE_PREPARE_KITS,
+        {
+            "active": ACTIVE_PREPARE_KITS,
+            "form": form,
+            **page_context,
+        },
+    )
+
+
+@scan_staff_required
+@require_http_methods(["GET"])
+def scan_prepare_kits_picking(request):
+    carton_ids = _parse_carton_ids(request.GET.get("carton_ids"))
+    context = build_prepare_kits_picking_context(carton_ids)
+    if context is None:
+        raise Http404("Aucun picking disponible.")
+    return render(
+        request,
+        TEMPLATE_PICKING_LIST_KITS,
+        context,
     )
 
 

@@ -13,7 +13,10 @@ from .views_scan_receipts import (
 from .views_scan_settings import scan_settings
 from .views_scan_shipments import (
     scan_cartons_ready,
+    scan_kits_view,
     scan_pack,
+    scan_prepare_kits,
+    scan_prepare_kits_picking,
     scan_shipment_create,
     scan_shipment_edit,
     scan_shipment_track,
@@ -26,6 +29,7 @@ from .views_scan_stock import scan_out, scan_stock, scan_stock_update, scan_sync
 SCAN_FLOW_EXPORTS = (
     "scan_dashboard",
     "scan_stock",
+    "scan_kits_view",
     "scan_cartons_ready",
     "scan_shipments_ready",
     "scan_shipments_tracking",
@@ -36,6 +40,8 @@ SCAN_FLOW_EXPORTS = (
     "scan_receive_association",
     "scan_order",
     "scan_orders_view",
+    "scan_prepare_kits",
+    "scan_prepare_kits_picking",
     "scan_pack",
     "scan_shipment_create",
     "scan_shipment_edit",

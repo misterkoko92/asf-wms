@@ -1,0 +1,50 @@
+{% extends "scan/base.html" %}
+
+{% block title %}WMS Scan - Vue Kits{% endblock %}
+
+{% block content %}
+  <div class="scan-card">
+    <h2>Vue Kits ({{ kits|length }})</h2>
+    {% if kits %}
+      <div class="scan-table-wrap">
+        <table class="scan-table" data-table-tools="1">
+          <thead>
+            <tr>
+              <th>Nom du Kit</th>
+              <th>Composition</th>
+              <th>Stock Th&eacute;orique</th>
+              <th>Stock R&eacute;el</th>
+              <th>&Eacute;tat</th>
+              <th>Cat&eacute;gorie</th>
+              <th>Derni&egrave;re modification</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for kit in kits %}
+              <tr>
+                <td>{{ kit.name }}</td>
+                <td>
+                  {% for line in kit.composition_lines %}
+                    {{ line }}{% if not forloop.last %}<br>{% endif %}
+                  {% empty %}
+                    -
+                  {% endfor %}
+                </td>
+                <td class="qty">{{ kit.theoretical_stock }}</td>
+                <td class="qty">{{ kit.real_stock }}</td>
+                <td>
+                  En pr&eacute;paration: {{ kit.in_preparation_stock }}<br>
+                  Pr&ecirc;t: {{ kit.real_stock }}
+                </td>
+                <td>{{ kit.category|default:"-" }}</td>
+                <td>{{ kit.last_modified_at|date:"d/m/y H\\hi"|default:"-" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="scan-help">Aucun kit trouv&eacute;.</p>
+    {% endif %}
+  </div>
+{% endblock %}

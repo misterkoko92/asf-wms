@@ -8,6 +8,13 @@ urlpatterns = [
     path("", views.scan_dashboard, name="scan_root"),
     path("dashboard/", views.scan_dashboard, name="scan_dashboard"),
     path("stock/", views.scan_stock, name="scan_stock"),
+    path("kits/", views.scan_kits_view, name="scan_kits_view"),
+    path("prepare-kits/", views.scan_prepare_kits, name="scan_prepare_kits"),
+    path(
+        "prepare-kits/picking/",
+        views.scan_prepare_kits_picking,
+        name="scan_prepare_kits_picking",
+    ),
     path("cartons/", views.scan_cartons_ready, name="scan_cartons_ready"),
     path("shipments-ready/", views.scan_shipments_ready, name="scan_shipments_ready"),
     path(

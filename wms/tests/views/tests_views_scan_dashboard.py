@@ -392,6 +392,8 @@ class ScanDashboardViewTests(TestCase):
     def test_scan_dashboard_hides_settings_link_for_non_superuser(self):
         response = self.client.get(reverse("scan:scan_dashboard"))
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse("scan:scan_kits_view"))
+        self.assertContains(response, reverse("scan:scan_prepare_kits"))
         self.assertNotContains(response, reverse("scan:scan_settings"))
         self.assertNotContains(response, reverse("scan:scan_admin_contacts"))
         self.assertNotContains(response, reverse("scan:scan_admin_products"))
@@ -400,6 +402,8 @@ class ScanDashboardViewTests(TestCase):
         self.client.force_login(self.superuser)
         response = self.client.get(reverse("scan:scan_dashboard"))
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse("scan:scan_kits_view"))
+        self.assertContains(response, reverse("scan:scan_prepare_kits"))
         self.assertContains(response, reverse("scan:scan_settings"))
         self.assertContains(response, reverse("scan:scan_admin_contacts"))
         self.assertContains(response, reverse("scan:scan_admin_products"))

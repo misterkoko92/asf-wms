@@ -106,6 +106,7 @@
           <button type="button" class="scan-nav-trigger">Voir les différents états</button>
           <div class="scan-nav-menu">
             <a href="{% url 'scan:scan_stock' %}" class="{% if active == 'stock' %}active{% endif %}">Vue stock</a>
+            <a href="{% url 'scan:scan_kits_view' %}" class="{% if active == 'kits_view' %}active{% endif %}">Vue Kits</a>
             <a href="{% url 'scan:scan_cartons_ready' %}" class="{% if active == 'cartons_ready' %}active{% endif %}">Vue Colis</a>
             <a href="{% url 'scan:scan_shipments_ready' %}" class="{% if active == 'shipments_ready' %}active{% endif %}">Vue Exp&eacute;ditions</a>
             <a href="{% url 'scan:scan_orders_view' %}" class="{% if active == 'orders_view' %}active{% endif %}">Vue Commande</a>
@@ -123,6 +124,7 @@
         <div class="scan-nav-group">
           <button type="button" class="scan-nav-trigger">Pr&eacute;paration</button>
           <div class="scan-nav-menu">
+            <a href="{% url 'scan:scan_prepare_kits' %}" class="{% if active == 'prepare_kits' %}active{% endif %}">Pr&eacute;parer des kits</a>
             <a href="{% url 'scan:scan_pack' %}" class="{% if active == 'pack' %}active{% endif %}">Pr&eacute;parer des colis</a>
             <a href="{% url 'scan:scan_shipment_create' %}" class="{% if active == 'shipment' %}active{% endif %}">Pr&eacute;paration exp&eacute;dition</a>
           </div>

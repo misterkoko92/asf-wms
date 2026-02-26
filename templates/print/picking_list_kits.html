@@ -1,0 +1,32 @@
+{% extends "print/base_a5.html" %}
+
+{% block title %}Picking kits{% endblock %}
+
+{% block extra_style %}
+  .print-body { padding-bottom: 0; }
+{% endblock %}
+
+{% block body %}
+  <h1>Liste picking - kits</h1>
+
+  <div class="meta">Cartons: {{ carton_codes|join:", " }}</div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Produit</th>
+        <th>Quantit&eacute;</th>
+        <th>Emplacement (Rack - &Eacute;tag&egrave;re - Bac)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in item_rows %}
+        <tr>
+          <td>{{ row.label }}</td>
+          <td>{{ row.quantity }}</td>
+          <td>{{ row.location }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

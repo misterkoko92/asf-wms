@@ -24,6 +24,7 @@ from wms.models import (
     Order,
     OrderStatus,
     Product,
+    ProductKitItem,
     ProductLot,
     ProductLotStatus,
     PublicAccountRequest,
@@ -167,6 +168,7 @@ class ScanViewTests(TestCase):
             ("scan:scan_root", "get", {}, None),
             ("scan:scan_dashboard", "get", {}, None),
             ("scan:scan_stock", "get", {}, None),
+            ("scan:scan_kits_view", "get", {}, None),
             ("scan:scan_cartons_ready", "get", {}, None),
             ("scan:scan_shipments_ready", "get", {}, None),
             ("scan:scan_shipments_tracking", "get", {}, None),
@@ -177,6 +179,8 @@ class ScanViewTests(TestCase):
             ("scan:scan_stock_update", "get", {}, None),
             ("scan:scan_orders_view", "get", {}, None),
             ("scan:scan_order", "get", {}, None),
+            ("scan:scan_prepare_kits", "get", {}, None),
+            ("scan:scan_prepare_kits_picking", "get", {}, None),
             ("scan:scan_pack", "get", {}, None),
             ("scan:scan_shipment_create", "get", {}, None),
             ("scan:scan_shipment_edit", "get", {"shipment_id": shipment.id}, None),
@@ -441,6 +445,148 @@ class ScanViewTests(TestCase):
         )
         self.assertEqual(response.status_code, 302)
         self.assertEqual(Carton.objects.count(), 1)
+
+    def test_scan_prepare_kits_get_exposes_selected_kit_context(self):
+        component_a = Product.objects.create(
+            sku="KIT-COMP-A",
+            name="Seringue",
+            default_location=self.location,
+            qr_code_image="qr_codes/kit_comp_a.png",
+        )
+        component_b = Product.objects.create(
+            sku="KIT-COMP-B",
+            name="Compresse",
+            default_location=self.location,
+            qr_code_image="qr_codes/kit_comp_b.png",
+        )
+        ProductLot.objects.create(
+            product=component_a,
+            lot_code="KIT-LOT-A",
+            received_on=date(2025, 12, 1),
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=20,
+            quantity_reserved=0,
+            location=self.location,
+        )
+        ProductLot.objects.create(
+            product=component_b,
+            lot_code="KIT-LOT-B",
+            received_on=date(2025, 12, 1),
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=20,
+            quantity_reserved=0,
+            location=self.location,
+        )
+        kit = Product.objects.create(
+            sku="KIT-001",
+            name="Kit Test",
+            qr_code_image="qr_codes/kit_test.png",
+        )
+        ProductKitItem.objects.create(kit=kit, component=component_a, quantity=2)
+        ProductKitItem.objects.create(kit=kit, component=component_b, quantity=4)
+
+        response = self.client.get(
+            reverse("scan:scan_prepare_kits"),
+            {"kit_id": str(kit.id)},
+        )
+        self.assertEqual(response.status_code, 200)
+        selected_kit = response.context["selected_kit"]
+        self.assertEqual(selected_kit["id"], kit.id)
+        self.assertEqual(selected_kit["theoretical_stock"], 5)
+        component_map = {
+            row["name"]: row["quantity"]
+            for row in selected_kit["component_rows"]
+        }
+        self.assertEqual(component_map["Seringue"], 2)
+        self.assertEqual(component_map["Compresse"], 4)
+
+    def test_scan_prepare_kits_post_creates_kits_and_exposes_picking_download(self):
+        component_a = Product.objects.create(
+            sku="KIT2-COMP-A",
+            name="Bandage",
+            default_location=self.location,
+            qr_code_image="qr_codes/kit2_comp_a.png",
+        )
+        component_b = Product.objects.create(
+            sku="KIT2-COMP-B",
+            name="Pince",
+            default_location=self.location,
+            qr_code_image="qr_codes/kit2_comp_b.png",
+        )
+        lot_a = ProductLot.objects.create(
+            product=component_a,
+            lot_code="KIT2-LOT-A",
+            received_on=date(2025, 12, 1),
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=20,
+            quantity_reserved=0,
+            location=self.location,
+        )
+        lot_b = ProductLot.objects.create(
+            product=component_b,
+            lot_code="KIT2-LOT-B",
+            received_on=date(2025, 12, 1),
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=20,
+            quantity_reserved=0,
+            location=self.location,
+        )
+        kit = Product.objects.create(
+            sku="KIT-002",
+            name="Kit Preparation",
+            qr_code_image="qr_codes/kit_prepare.png",
+        )
+        ProductKitItem.objects.create(kit=kit, component=component_a, quantity=2)
+        ProductKitItem.objects.create(kit=kit, component=component_b, quantity=3)
+
+        response = self.client.post(
+            reverse("scan:scan_prepare_kits"),
+            {
+                "kit_id": str(kit.id),
+                "quantity": "2",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(
+            reverse("scan:scan_prepare_kits"),
+            response.url,
+        )
+
+        cartons = list(
+            Carton.objects.filter(shipment__isnull=True, status=CartonStatus.PICKING)
+            .prefetch_related("cartonitem_set")
+            .order_by("id")
+        )
+        self.assertEqual(len(cartons), 2)
+        for carton in cartons:
+            quantity_by_lot = {
+                item.product_lot_id: item.quantity
+                for item in carton.cartonitem_set.all()
+            }
+            self.assertEqual(quantity_by_lot[lot_a.id], 2)
+            self.assertEqual(quantity_by_lot[lot_b.id], 3)
+
+        follow_response = self.client.get(response.url)
+        self.assertEqual(follow_response.status_code, 200)
+        self.assertContains(follow_response, "T&eacute;l&eacute;charger le picking")
+        self.assertContains(
+            follow_response,
+            reverse("scan:scan_prepare_kits_picking"),
+        )
+
+    def test_scan_prepare_kits_picking_renders_rows(self):
+        carton = Carton.objects.create(code="KIT-PICK-1", status=CartonStatus.PICKING)
+        CartonItem.objects.create(
+            carton=carton,
+            product_lot=ProductLot.objects.first(),
+            quantity=3,
+        )
+        response = self.client.get(
+            reverse("scan:scan_prepare_kits_picking"),
+            {"carton_ids": str(carton.id)},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Liste picking - kits")
 
     def test_scan_pack_prefills_shipment_reference_from_querystring(self):
         response = self.client.get(

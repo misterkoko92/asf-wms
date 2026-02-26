@@ -360,6 +360,27 @@ class ScanPackForm(forms.Form):
     )
 
 
+class ScanPrepareKitsForm(forms.Form):
+    kit_id = forms.ModelChoiceField(
+        label="Nom du kit",
+        queryset=Product.objects.none(),
+    )
+    quantity = forms.IntegerField(
+        label="Nombre de kits à créer",
+        min_value=1,
+        initial=1,
+        widget=forms.NumberInput(attrs={"min": 1}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["kit_id"].queryset = (
+            Product.objects.filter(is_active=True, kit_items__isnull=False)
+            .distinct()
+            .order_by("name", "id")
+        )
+
+
 class ScanOutForm(forms.Form):
     product_code = forms.CharField(
         label="Code produit",

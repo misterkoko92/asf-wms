@@ -74,6 +74,55 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertEqual(response.context_data["cartons"], [{"id": 1, "code": "C-001"}])
         self.assertEqual(rows_mock.call_args.kwargs["carton_capacity_cm3"], 12345)
 
+    def test_scan_kits_view_renders_rows_context(self):
+        with mock.patch(
+            "wms.views_scan_shipments.build_kits_view_rows",
+            return_value=[{"id": 1, "name": "Kit Test"}],
+        ):
+            with mock.patch(
+                "wms.views_scan_shipments.render",
+                side_effect=self._render_stub,
+            ):
+                response = self.client.get(reverse("scan:scan_kits_view"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.decode(), "scan/kits_view.html")
+        self.assertEqual(response.context_data["active"], "kits_view")
+        self.assertEqual(
+            response.context_data["kits"],
+            [{"id": 1, "name": "Kit Test"}],
+        )
+
+    def test_scan_prepare_kits_get_renders_rows_context(self):
+        fake_form = object()
+        with mock.patch(
+            "wms.views_scan_shipments.ScanPrepareKitsForm",
+            return_value=fake_form,
+        ):
+            with mock.patch(
+                "wms.views_scan_shipments.build_prepare_kits_page_context",
+                return_value={
+                    "kit_options": [{"id": 1, "name": "Kit Test"}],
+                    "selected_kit": {"id": 1, "name": "Kit Test"},
+                    "prepare_result": None,
+                },
+            ):
+                with mock.patch(
+                    "wms.views_scan_shipments.render",
+                    side_effect=self._render_stub,
+                ):
+                    response = self.client.get(
+                        reverse("scan:scan_prepare_kits"),
+                        {"kit_id": "1"},
+                    )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.decode(), "scan/prepare_kits.html")
+        self.assertEqual(response.context_data["active"], "prepare_kits")
+        self.assertEqual(response.context_data["form"], fake_form)
+        self.assertEqual(
+            response.context_data["selected_kit"]["name"],
+            "Kit Test",
+        )
+
     def test_scan_shipments_ready_renders_rows_context(self):
         with mock.patch(
             "wms.views_scan_shipments.build_shipments_ready_rows",

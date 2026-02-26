@@ -1,0 +1,158 @@
+{% extends "scan/base.html" %}
+
+{% block title %}WMS Scan - Pr&eacute;parer des kits{% endblock %}
+
+{% block content %}
+  <div class="scan-card">
+    <h2>Pr&eacute;parer des kits</h2>
+    {% if form.non_field_errors %}
+      <div class="scan-message error">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <div class="scan-field">
+        <label for="{{ form.kit_id.id_for_label }}">Nom du kit</label>
+        <div class="scan-inline scan-inline-gap">
+          {{ form.kit_id }}
+          <a class="scan-scan-btn" href="{{ kit_create_url }}" target="_blank" rel="noopener">
+            Cr&eacute;er un nouveau kit
+          </a>
+        </div>
+        {% for error in form.kit_id.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="scan-inline scan-inline-gap scan-field-gap">
+        <div class="scan-field">
+          <label for="{{ form.quantity.id_for_label }}">Nombre de kits &agrave; cr&eacute;er</label>
+          {{ form.quantity }}
+          {% for error in form.quantity.errors %}
+            <div class="scan-message error">{{ error }}</div>
+          {% endfor %}
+        </div>
+        <div class="scan-field">
+          <div><strong>Stock th&eacute;orique disponible:</strong> <span id="prepare-kits-theoretical">{% if selected_kit %}{{ selected_kit.theoretical_stock }} kit(s){% else %}-{% endif %}</span></div>
+          <div><strong>Max colis mono-kit:</strong> <span id="prepare-kits-max">{% if selected_kit and selected_kit.max_per_carton %}{{ selected_kit.max_per_carton }} kit(s){% else %}N/A{% endif %}</span></div>
+        </div>
+      </div>
+
+      <div class="scan-field scan-field-gap">
+        <label>Composition</label>
+        <div class="scan-table-wrap">
+          <table class="scan-table">
+            <thead>
+              <tr>
+                <th>Nom des produits</th>
+                <th>Quantit&eacute; par produit</th>
+                <th>Emplacement</th>
+              </tr>
+            </thead>
+            <tbody id="prepare-kits-components">
+              {% if selected_kit and selected_kit.component_rows %}
+                {% for component in selected_kit.component_rows %}
+                  <tr>
+                    <td>{{ component.name }}</td>
+                    <td>{{ component.quantity }}</td>
+                    <td>{{ component.location }}</td>
+                  </tr>
+                {% endfor %}
+              {% else %}
+                <tr data-empty-row="1">
+                  <td colspan="3">S&eacute;lectionnez un kit.</td>
+                </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <button type="submit" class="scan-submit">Pr&eacute;parer</button>
+    </form>
+
+    {% if prepare_result %}
+      <div class="scan-field scan-field-gap">
+        <p class="scan-help">{{ prepare_result.carton_count }} colis g&eacute;n&eacute;r&eacute;(s).</p>
+        <a class="scan-scan-btn" href="{{ prepare_result.picking_url }}" target="_blank" rel="noopener">
+          T&eacute;l&eacute;charger le picking
+        </a>
+      </div>
+    {% endif %}
+
+    {{ kit_data|json_script:"prepare-kits-data" }}
+  </div>
+
+  <script>
+    (function() {
+      const select = document.getElementById('id_kit_id');
+      const componentsBody = document.getElementById('prepare-kits-components');
+      const theoreticalEl = document.getElementById('prepare-kits-theoretical');
+      const maxEl = document.getElementById('prepare-kits-max');
+      const kitDataEl = document.getElementById('prepare-kits-data');
+      if (!select || !componentsBody || !theoreticalEl || !maxEl || !kitDataEl) {
+        return;
+      }
+
+      let kits = [];
+      try {
+        kits = JSON.parse(kitDataEl.textContent || '[]');
+      } catch (err) {
+        kits = [];
+      }
+      const kitById = new Map();
+      kits.forEach(kit => {
+        if (kit && kit.id) {
+          kitById.set(String(kit.id), kit);
+        }
+      });
+
+      const renderEmptyRow = () => {
+        componentsBody.innerHTML = '';
+        const row = document.createElement('tr');
+        row.setAttribute('data-empty-row', '1');
+        const cell = document.createElement('td');
+        cell.colSpan = 3;
+        cell.textContent = 'S\u00e9lectionnez un kit.';
+        row.appendChild(cell);
+        componentsBody.appendChild(row);
+        theoreticalEl.textContent = '-';
+        maxEl.textContent = 'N/A';
+      };
+
+      const renderKit = () => {
+        const selected = kitById.get(String(select.value || ''));
+        if (!selected) {
+          renderEmptyRow();
+          return;
+        }
+
+        theoreticalEl.textContent = `${selected.theoretical_stock || 0} kit(s)`;
+        maxEl.textContent = selected.max_per_carton ? `${selected.max_per_carton} kit(s)` : 'N/A';
+
+        const rows = selected.component_rows || [];
+        componentsBody.innerHTML = '';
+        if (!rows.length) {
+          renderEmptyRow();
+          return;
+        }
+        rows.forEach(row => {
+          const tr = document.createElement('tr');
+          const productCell = document.createElement('td');
+          productCell.textContent = row.name || '-';
+          const quantityCell = document.createElement('td');
+          quantityCell.textContent = String(row.quantity || 0);
+          const locationCell = document.createElement('td');
+          locationCell.textContent = row.location || '-';
+          tr.appendChild(productCell);
+          tr.appendChild(quantityCell);
+          tr.appendChild(locationCell);
+          componentsBody.appendChild(tr);
+        });
+      };
+
+      select.addEventListener('change', renderKit);
+      renderKit();
+    })();
+  </script>
+{% endblock %}
