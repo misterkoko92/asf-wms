@@ -66,3 +66,27 @@ class ImportProductsExtraTests(TestCase):
         matches, mode = find_product_matches(sku="", name="Item", brand="ACME")
         self.assertEqual(mode, "name_brand")
         self.assertEqual([match.id for match in matches], [product.id])
+
+    def test_find_product_matches_sku_ignores_case_and_special_chars(self):
+        product = Product.objects.create(name="Item", sku="SKU-ABC_123", brand="ACME")
+        matches, mode = find_product_matches(
+            sku="sku abc-123",
+            name="Other",
+            brand="ACME",
+        )
+        self.assertEqual(mode, "sku")
+        self.assertEqual([match.id for match in matches], [product.id])
+
+    def test_find_product_matches_name_brand_ignores_case_accents_and_special_chars(self):
+        product = Product.objects.create(
+            name="Pansement-Gel",
+            sku="SKU-NORM-1",
+            brand="Médical Plus",
+        )
+        matches, mode = find_product_matches(
+            sku="",
+            name="pansement gel",
+            brand="medical plus",
+        )
+        self.assertEqual(mode, "name_brand")
+        self.assertEqual([match.id for match in matches], [product.id])

@@ -259,3 +259,73 @@ class ImportProductsRowsDeepTests(TestCase):
         product = import_products_single({"name": "Single Product", "sku": "SINGLE-1"})
         self.assertEqual(product.name, "Single Product")
         self.assertEqual(product.sku, "SINGLE-1")
+
+    def test_import_products_rows_update_with_quantity_movement_adds_delta(self):
+        warehouse = Warehouse.objects.create(name="WH-MOVE")
+        location = Location.objects.create(
+            warehouse=warehouse,
+            zone="A",
+            aisle="01",
+            shelf="001",
+        )
+        product = Product.objects.create(
+            name="Produit A",
+            sku="PROD-A",
+            default_location=location,
+        )
+        ProductLot.objects.create(
+            product=product,
+            location=location,
+            quantity_on_hand=200,
+        )
+        rows = [{"name": "Produit A", "sku": "PROD-A", "quantity": "500"}]
+        decisions = {2: {"action": "update", "product_id": product.id}}
+
+        created, updated, errors, warnings = import_products_rows(
+            rows,
+            decisions=decisions,
+            quantity_mode="movement",
+        )
+
+        self.assertEqual((created, updated), (0, 1))
+        self.assertEqual(errors, [])
+        self.assertEqual(warnings, [])
+        self.assertEqual(
+            sum(ProductLot.objects.filter(product=product).values_list("quantity_on_hand", flat=True)),
+            700,
+        )
+
+    def test_import_products_rows_update_with_quantity_overwrite_sets_absolute_stock(self):
+        warehouse = Warehouse.objects.create(name="WH-OVER")
+        location = Location.objects.create(
+            warehouse=warehouse,
+            zone="A",
+            aisle="01",
+            shelf="001",
+        )
+        product = Product.objects.create(
+            name="Produit A",
+            sku="PROD-A-OVER",
+            default_location=location,
+        )
+        ProductLot.objects.create(
+            product=product,
+            location=location,
+            quantity_on_hand=200,
+        )
+        rows = [{"name": "Produit A", "sku": "PROD-A-OVER", "quantity": "500"}]
+        decisions = {2: {"action": "update", "product_id": product.id}}
+
+        created, updated, errors, warnings = import_products_rows(
+            rows,
+            decisions=decisions,
+            quantity_mode="overwrite",
+        )
+
+        self.assertEqual((created, updated), (0, 1))
+        self.assertEqual(errors, [])
+        self.assertEqual(warnings, [])
+        self.assertEqual(
+            sum(ProductLot.objects.filter(product=product).values_list("quantity_on_hand", flat=True)),
+            500,
+        )

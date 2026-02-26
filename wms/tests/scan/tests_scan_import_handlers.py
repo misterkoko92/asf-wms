@@ -209,6 +209,7 @@ class ScanImportHandlersTests(TestCase):
             "extension": ".csv",
             "start_index": 2,
             "default_action": "update",
+            "quantity_mode": "overwrite",
             "matches": [
                 {"row_index": 2, "match_ids": [10]},
                 {"row_index": 3, "match_ids": [20]},
@@ -252,6 +253,7 @@ class ScanImportHandlersTests(TestCase):
         )
         self.assertEqual(import_kwargs["start_index"], 2)
         self.assertEqual(import_kwargs["base_dir"], temp_path.parent)
+        self.assertEqual(import_kwargs["quantity_mode"], "overwrite")
 
         messages = self._messages(request)
         self.assertIn("Import produits: 4 erreur(s).", messages)
@@ -259,6 +261,37 @@ class ScanImportHandlersTests(TestCase):
         self.assertIn("Import produits: 4 alerte(s).", messages)
         self.assertIn("w1", messages)
         self.assertIn("Import produits: 1 créé(s), 1 maj.", messages)
+
+    def test_product_confirm_single_match_uses_pending_match_id_when_missing_in_post(self):
+        request = self._build_post_request(
+            {
+                "action": "product_confirm",
+                "pending_token": "tok",
+            }
+        )
+        request.session["product_import_pending"] = {
+            "token": "tok",
+            "source": "single",
+            "rows": [{"sku": "A"}],
+            "start_index": 1,
+            "default_action": "update",
+            "matches": [{"row_index": 1, "match_ids": [11]}],
+        }
+        tracker = {"called": False}
+        with mock.patch(
+            "wms.scan_import_handlers.import_products_rows",
+            return_value=(0, 1, [], []),
+        ) as import_rows_mock:
+            response = scan_import_handlers.handle_scan_import_action(
+                request,
+                default_password="TempPwd!",
+                clear_pending_import=self._clear_pending_import_callback(request, tracker),
+            )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(tracker["called"])
+        decisions = import_rows_mock.call_args.kwargs["decisions"]
+        self.assertEqual(decisions, {1: {"action": "update", "product_id": 11}})
 
     def test_product_confirm_single_source_imports_rows(self):
         request = self._build_post_request(
@@ -460,13 +493,52 @@ class ScanImportHandlersTests(TestCase):
         self.assertIsNotNone(pending)
         self.assertEqual(pending["source"], "file")
         self.assertEqual(pending["default_action"], "create")
+        self.assertEqual(pending["quantity_mode"], "movement")
         self.assertEqual(pending["matches"][0]["match_ids"], [99])
+        Path(pending["temp_path"]).unlink(missing_ok=True)
+
+    def test_product_file_with_matches_stores_overwrite_quantity_mode(self):
+        uploaded = SimpleUploadedFile("produits.csv", b"sku,name\nA,Produit A\n")
+        request = self._build_post_request(
+            {"action": "product_file", "import_file": uploaded, "stock_mode": "overwrite"}
+        )
+        with mock.patch(
+            "wms.scan_import_handlers.decode_text",
+            return_value="sku,name\nA,Produit A\n",
+        ), mock.patch(
+            "wms.scan_import_handlers.iter_import_rows",
+            return_value=[{"sku": "A", "name": "Produit A"}],
+        ), mock.patch(
+            "wms.scan_import_handlers.row_is_empty",
+            return_value=False,
+        ), mock.patch(
+            "wms.scan_import_handlers.extract_product_identity",
+            return_value=("SKU-1", "Produit 1", "ASF"),
+        ), mock.patch(
+            "wms.scan_import_handlers.find_product_matches",
+            return_value=([SimpleNamespace(id=99)], "sku"),
+        ), mock.patch(
+            "wms.scan_import_handlers.summarize_import_row",
+            return_value="SKU-1 | Produit 1",
+        ), mock.patch(
+            "wms.scan_import_handlers.render_scan_import",
+            return_value=HttpResponse("pending"),
+        ):
+            response = scan_import_handlers.handle_scan_import_action(
+                request,
+                default_password="TempPwd!",
+                clear_pending_import=lambda: None,
+            )
+
+        self.assertEqual(response.status_code, 200)
+        pending = request.session.get("product_import_pending")
+        self.assertEqual(pending["quantity_mode"], "overwrite")
         Path(pending["temp_path"]).unlink(missing_ok=True)
 
     def test_product_file_without_matches_imports_immediately(self):
         uploaded = SimpleUploadedFile("produits.csv", b"sku,name\nA,Produit A\n")
         request = self._build_post_request(
-            {"action": "product_file", "import_file": uploaded}
+            {"action": "product_file", "import_file": uploaded, "stock_mode": "overwrite"}
         )
         with mock.patch(
             "wms.scan_import_handlers.decode_text",
@@ -491,7 +563,7 @@ class ScanImportHandlersTests(TestCase):
                             with mock.patch(
                                 "wms.scan_import_handlers.import_products_rows",
                                 return_value=(2, 0, ["e1"], ["w1"]),
-                            ):
+                            ) as import_rows_mock:
                                 response = (
                                     scan_import_handlers.handle_scan_import_action(
                                         request,
@@ -500,6 +572,10 @@ class ScanImportHandlersTests(TestCase):
                                     )
                                 )
         self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            import_rows_mock.call_args.kwargs["quantity_mode"],
+            "overwrite",
+        )
         messages = self._messages(request)
         self.assertIn("Import produits: 1 erreur(s).", messages)
         self.assertIn("Import produits: 1 alerte(s).", messages)

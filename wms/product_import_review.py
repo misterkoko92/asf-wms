@@ -2,6 +2,7 @@ from django.db.models import F, IntegerField, Q, Sum
 from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Coalesce
 
+from .import_services import DEFAULT_QUANTITY_MODE, normalize_quantity_mode
 from .import_utils import get_value, parse_str
 from .scan_helpers import parse_int
 from .models import Product, ProductLotStatus
@@ -92,4 +93,7 @@ def build_match_context(pending):
         "token": pending.get("token"),
         "matches": matches,
         "default_action": pending.get("default_action", "update"),
+        "quantity_mode": normalize_quantity_mode(
+            pending.get("quantity_mode", DEFAULT_QUANTITY_MODE)
+        ),
     }

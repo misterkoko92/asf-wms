@@ -12,6 +12,9 @@ from .import_services_locations import (
 )
 from .import_services_pallet import apply_pallet_listing_import
 from .import_services_products import (
+    DEFAULT_QUANTITY_MODE,
+    QUANTITY_MODE_MOVEMENT,
+    QUANTITY_MODE_OVERWRITE,
     attach_photo,
     compute_volume,
     extract_product_identity,
@@ -19,6 +22,7 @@ from .import_services_products import (
     import_product_row,
     import_products_rows,
     import_products_single,
+    normalize_quantity_mode,
     resolve_photo_path,
 )
 from .import_services_tags import build_contact_tags, build_product_tags
@@ -31,6 +35,10 @@ __all__ = [
     "build_contact_tags",
     "extract_product_identity",
     "find_product_matches",
+    "DEFAULT_QUANTITY_MODE",
+    "QUANTITY_MODE_MOVEMENT",
+    "QUANTITY_MODE_OVERWRITE",
+    "normalize_quantity_mode",
     "resolve_photo_path",
     "attach_photo",
     "compute_volume",
