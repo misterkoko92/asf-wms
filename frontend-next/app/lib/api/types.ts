@@ -147,6 +147,7 @@ export type ScanStockDto = {
     category: string;
     warehouse: string;
     sort: string;
+    include_zero: boolean;
   };
   meta: {
     total_products: number;
@@ -167,6 +168,24 @@ export type ScanStockDto = {
   }>;
   categories: Array<{ id: number; name: string }>;
   warehouses: Array<{ id: number; name: string }>;
+};
+
+export type ScanReceiptsDto = {
+  filter_value: string;
+  filters: Array<{
+    value: string;
+    label: string;
+  }>;
+  receipts: Array<{
+    id: number;
+    receipt_type: string;
+    receipt_type_label: string;
+    received_on: string | null;
+    name: string;
+    quantity: string;
+    hors_format: string;
+    carrier: string;
+  }>;
 };
 
 export type ShipmentFormOptionsDto = {
@@ -245,6 +264,175 @@ export type ScanShipmentsTrackingDto = {
       tracking_url: string;
     };
   }>;
+};
+
+export type ScanOrdersDto = {
+  orders: Array<{
+    id: number;
+    reference: string;
+    created_at: string | null;
+    association_name: string;
+    creator: {
+      name: string;
+      email: string;
+      phone: string;
+    };
+    review_status: string;
+    review_status_label: string;
+    shipment_id: number | null;
+    shipment_reference: string;
+    can_create_shipment: boolean;
+    documents: Array<{
+      label: string;
+      url: string;
+    }>;
+    contact_message: string;
+  }>;
+  review_status_choices: Array<{
+    value: string;
+    label: string;
+  }>;
+  approved_status: string;
+  rejected_status: string;
+  changes_status: string;
+};
+
+export type ScanOrderStateDto = {
+  orders: Array<{
+    id: number;
+    reference: string;
+    status: string;
+    status_label: string;
+    created_at: string | null;
+    label: string;
+  }>;
+  products: Array<{
+    id: number;
+    name: string;
+    sku: string;
+    barcode: string;
+    ean: string;
+  }>;
+  contacts: {
+    shippers: Array<{ id: number; name: string }>;
+    recipients: Array<{ id: number; name: string }>;
+    correspondents: Array<{ id: number; name: string }>;
+  };
+  selected_order: {
+    id: number;
+    reference: string;
+    status: string;
+    status_label: string;
+    shipment_id: number | null;
+    shipment_reference: string;
+    destination_address: string;
+    destination_city: string;
+    destination_country: string;
+  } | null;
+  order_lines: Array<{
+    id: number;
+    product_id: number;
+    product_name: string;
+    quantity: number;
+    reserved_quantity: number;
+    prepared_quantity: number;
+    remaining_quantity: number;
+  }>;
+  remaining_total: number;
+  defaults: {
+    destination_country: string;
+  };
+};
+
+export type UiScanOrderCreateInput = {
+  shipper_name: string;
+  recipient_name: string;
+  correspondent_name?: string;
+  shipper_contact_id?: number | null;
+  recipient_contact_id?: number | null;
+  correspondent_contact_id?: number | null;
+  destination_address: string;
+  destination_city?: string;
+  destination_country?: string;
+  requested_delivery_date?: string | null;
+  notes?: string;
+};
+
+export type UiScanOrderCreateDto = {
+  ok: boolean;
+  message: string;
+  order: {
+    id: number;
+    reference: string;
+    status: string;
+    status_label: string;
+    shipment_id: number | null;
+    shipment_reference: string;
+    destination_address: string;
+    destination_city: string;
+    destination_country: string;
+  };
+};
+
+export type UiScanOrderAddLineInput = {
+  order_id: number;
+  product_code: string;
+  quantity: number;
+};
+
+export type UiScanOrderMutationDto = {
+  ok: boolean;
+  message: string;
+  order: {
+    id: number;
+    reference: string;
+    status: string;
+    status_label: string;
+    shipment_id: number | null;
+    shipment_reference: string;
+    destination_address: string;
+    destination_city: string;
+    destination_country: string;
+  };
+  order_lines: Array<{
+    id: number;
+    product_id: number;
+    product_name: string;
+    quantity: number;
+    reserved_quantity: number;
+    prepared_quantity: number;
+    remaining_quantity: number;
+  }>;
+  remaining_total: number;
+};
+
+export type UiScanOrderPrepareInput = {
+  order_id: number;
+};
+
+export type UiOrderReviewStatusInput = {
+  review_status: string;
+};
+
+export type UiOrderReviewStatusDto = {
+  ok: boolean;
+  message: string;
+  order: {
+    id: number;
+    review_status: string;
+    review_status_label: string;
+    reviewed_at: string | null;
+  };
+};
+
+export type UiOrderCreateShipmentDto = {
+  ok: boolean;
+  message: string;
+  shipment: {
+    id: number;
+    reference: string;
+    edit_url: string;
+  };
 };
 
 export type PortalDashboardDto = {
@@ -479,6 +667,36 @@ export type UiPortalOrderCreateDto = {
     shipment_id: number | null;
     shipment_reference: string;
     created_at: string;
+  };
+};
+
+export type UiPortalOrderDetailDto = {
+  order: {
+    id: number;
+    reference: string;
+    review_status: string;
+    review_status_label: string;
+    shipment_id: number | null;
+    shipment_reference: string;
+    requested_delivery_date: string | null;
+    created_at: string;
+    shipper_name: string;
+    recipient_name: string;
+    correspondent_name: string;
+    destination_address: string;
+    destination_city: string;
+    destination_country: string;
+    notes: string;
+    reviewed_at: string | null;
+    lines: Array<{
+      product_id: number;
+      product_sku: string;
+      product_name: string;
+      quantity: number;
+      reserved_quantity: number;
+      prepared_quantity: number;
+      remaining_quantity: number;
+    }>;
   };
 };
 

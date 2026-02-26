@@ -446,6 +446,163 @@ class NextUiTests(StaticLiveServerTestCase):
             context.close()
             browser.close()
 
+    def test_next_scan_faq_route_loads_for_staff(self):
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.staff_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/scan/faq/",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+            heading = page.locator("h1").inner_text()
+            self.assertIn("FAQ / Documentation", heading)
+            page.wait_for_function(
+                "(text) => document.body.innerText.includes(text)",
+                arg="fonctionnement complet du WMS Scan",
+            )
+            context.close()
+            browser.close()
+
+    def test_next_scan_receipts_route_lists_and_filters(self):
+        Receipt.objects.create(
+            receipt_type=ReceiptType.PALLET,
+            status=ReceiptStatus.DRAFT,
+            source_contact=self.shipper_contact,
+            carrier_contact=self.shipper_contact,
+            pallet_count=2,
+            received_on=timezone.localdate(),
+            warehouse=self.stock_product.default_location.warehouse,
+            created_by=self.staff_user,
+        )
+        Receipt.objects.create(
+            receipt_type=ReceiptType.ASSOCIATION,
+            status=ReceiptStatus.DRAFT,
+            source_contact=self.recipient_contact,
+            carton_count=4,
+            received_on=timezone.localdate(),
+            warehouse=self.stock_product.default_location.warehouse,
+            created_by=self.staff_user,
+        )
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.staff_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/scan/receipts/",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+            heading = page.locator("h1").inner_text()
+            self.assertIn("Vue reception", heading)
+            page.wait_for_function(
+                "(text) => document.body.innerText.includes(text)",
+                arg="4 colis",
+            )
+            page.get_by_label("Filtre").select_option("pallet")
+            page.wait_for_function(
+                "(text) => document.body.innerText.includes(text)",
+                arg="2 palettes",
+            )
+            context.close()
+            browser.close()
+
+    def test_next_scan_orders_route_lists_and_updates_status(self):
+        order = Order.objects.create(
+            reference="CMD-NEXT-UI-ORDERS-001",
+            review_status=OrderReviewStatus.PENDING,
+            shipper_name=self.shipper_contact.name,
+            recipient_name=self.recipient_contact.name,
+            correspondent_name=self.correspondent_contact.name,
+            shipper_contact=self.shipper_contact,
+            recipient_contact=self.recipient_contact,
+            correspondent_contact=self.correspondent_contact,
+            destination_address="21 Rue Orders",
+            destination_city=self.destination.city,
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.staff_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/scan/orders/",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+            heading = page.locator("h1").inner_text()
+            self.assertIn("Vue commandes", heading)
+            page.wait_for_function(
+                "(reference) => document.body.innerText.includes(reference)",
+                arg=order.reference,
+            )
+            order_row = page.locator("tr", has_text=order.reference)
+            order_row.locator("select").select_option(OrderReviewStatus.APPROVED)
+            order_row.get_by_role("button", name="Mettre a jour").click()
+            page.wait_for_function(
+                "(message) => document.body.innerText.includes(message)",
+                arg="Statut de validation mis a jour.",
+            )
+            context.close()
+            browser.close()
+        order.refresh_from_db()
+        self.assertEqual(order.review_status, OrderReviewStatus.APPROVED)
+
+    def test_next_scan_order_route_creates_order_and_adds_line(self):
+        destination_address = "77 Rue Next UI Scan Order"
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.staff_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/scan/order/",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+            heading = page.locator("h1").inner_text()
+            self.assertIn("Commande", heading)
+
+            page.get_by_label("Expediteur", exact=True).fill(self.shipper_contact.name)
+            page.get_by_label("Destinataire", exact=True).fill(self.recipient_contact.name)
+            page.get_by_label("Correspondant", exact=True).fill(self.correspondent_contact.name)
+            page.get_by_label("Adresse destination").fill(destination_address)
+            page.get_by_role("button", name="Creer commande").click()
+            page.wait_for_function(
+                "(message) => document.body.innerText.includes(message)",
+                arg="Commande creee.",
+            )
+
+            page.get_by_label("Code produit").fill(self.stock_filter_primary_product.sku)
+            page.get_by_label("Quantite").fill("2")
+            page.get_by_role("button", name="Ajouter ligne et reserver").click()
+            page.wait_for_function(
+                "(message) => document.body.innerText.includes(message)",
+                arg="Ligne reservee",
+            )
+            page.wait_for_function(
+                "(productName) => document.body.innerText.includes(productName)",
+                arg=self.stock_filter_primary_product.name,
+            )
+            context.close()
+            browser.close()
+
+        created_order = Order.objects.filter(
+            destination_address=destination_address,
+        ).order_by("-id").first()
+        self.assertIsNotNone(created_order)
+        self.assertEqual(created_order.lines.count(), 1)
+        self.assertEqual(created_order.lines.first().quantity, 2)
+
     def test_next_scan_dashboard_displays_live_timeline_and_actions(self):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
@@ -1344,6 +1501,50 @@ class NextUiTests(StaticLiveServerTestCase):
             page.wait_for_function(
                 "(statusLabel) => document.body.innerText.includes(statusLabel)",
                 arg=portal_order.get_review_status_display(),
+            )
+            context.close()
+            browser.close()
+
+    def test_next_portal_order_detail_route_loads_order_outside_dashboard_slice(self):
+        out_of_slice_order = Order.objects.create(
+            reference="CMD-NEXT-UI-DETAIL-OUTSIDE-SLICE",
+            association_contact=self.portal_recipient.association_contact,
+            review_status=OrderReviewStatus.PENDING,
+            shipper_name=self.shipper_contact.name,
+            recipient_name=self.portal_recipient.structure_name,
+            correspondent_name=self.correspondent_contact.name,
+            destination_address="17 Rue Portal Detail",
+            destination_city="Paris",
+            destination_country="France",
+            created_by=self.portal_user,
+        )
+        for idx in range(12):
+            Order.objects.create(
+                reference=f"CMD-NEXT-UI-DETAIL-RECENT-{idx}",
+                association_contact=self.portal_recipient.association_contact,
+                review_status=OrderReviewStatus.PENDING,
+                shipper_name=self.shipper_contact.name,
+                recipient_name=self.portal_recipient.structure_name,
+                correspondent_name=self.correspondent_contact.name,
+                destination_address=f"{idx} Rue Portal Detail",
+                destination_city="Paris",
+                destination_country="France",
+                created_by=self.portal_user,
+            )
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.portal_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/portal/orders/detail/?id={out_of_slice_order.id}",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+            page.wait_for_function(
+                "(reference) => document.body.innerText.includes(reference)",
+                arg=out_of_slice_order.reference,
             )
             context.close()
             browser.close()

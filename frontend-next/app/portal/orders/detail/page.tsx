@@ -1,12 +1,12 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { AppShell } from "../../../components/app-shell";
 import { ApiClientError } from "../../../lib/api/client";
-import { getPortalDashboard } from "../../../lib/api/ui";
-import type { PortalDashboardDto } from "../../../lib/api/types";
+import { getPortalOrderDetail } from "../../../lib/api/ui";
+import type { UiPortalOrderDetailDto } from "../../../lib/api/types";
 
 function toErrorMessage(error: unknown): string {
   if (error instanceof ApiClientError) {
@@ -32,38 +32,31 @@ function parseOrderId(rawValue: string | null): number | null {
 function PortalOrderDetailContent() {
   const searchParams = useSearchParams();
   const orderId = parseOrderId(searchParams.get("id"));
-  const [dashboardData, setDashboardData] = useState<PortalDashboardDto | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<UiPortalOrderDetailDto["order"] | null>(null);
   const [error, setError] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   useEffect(() => {
     if (orderId === null) {
-      setDashboardData(null);
+      setSelectedOrder(null);
       setError("");
       setIsLoading(false);
       return;
     }
     setError("");
     setIsLoading(true);
-    getPortalDashboard()
+    getPortalOrderDetail(orderId)
       .then((payload) => {
-        setDashboardData(payload);
+        setSelectedOrder(payload.order);
       })
       .catch((err: unknown) => {
-        setDashboardData(null);
+        setSelectedOrder(null);
         setError(toErrorMessage(err));
       })
       .finally(() => {
         setIsLoading(false);
       });
   }, [orderId]);
-
-  const selectedOrder = useMemo(() => {
-    if (!dashboardData || orderId === null) {
-      return null;
-    }
-    return dashboardData.orders.find((order) => order.id === orderId) || null;
-  }, [dashboardData, orderId]);
 
   return (
     <AppShell

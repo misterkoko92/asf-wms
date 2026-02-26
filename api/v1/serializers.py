@@ -5,6 +5,7 @@ from wms.models import (
     IntegrationEvent,
     Order,
     OrderLine,
+    OrderReviewStatus,
     Product,
     ProductLotStatus,
     Shipment,
@@ -215,6 +216,34 @@ class UiStockOutSerializer(serializers.Serializer):
     shipment_reference = serializers.CharField(required=False, allow_blank=True, default="")
     reason_code = serializers.CharField(required=False, allow_blank=True, default="")
     reason_notes = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class UiOrderReviewStatusSerializer(serializers.Serializer):
+    review_status = serializers.ChoiceField(choices=OrderReviewStatus.choices)
+
+
+class UiScanOrderCreateSerializer(serializers.Serializer):
+    shipper_name = serializers.CharField()
+    recipient_name = serializers.CharField()
+    correspondent_name = serializers.CharField(required=False, allow_blank=True, default="")
+    shipper_contact_id = serializers.IntegerField(required=False, allow_null=True)
+    recipient_contact_id = serializers.IntegerField(required=False, allow_null=True)
+    correspondent_contact_id = serializers.IntegerField(required=False, allow_null=True)
+    destination_address = serializers.CharField()
+    destination_city = serializers.CharField(required=False, allow_blank=True, default="")
+    destination_country = serializers.CharField(required=False, allow_blank=True, default="France")
+    requested_delivery_date = serializers.DateField(required=False, allow_null=True)
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class UiScanOrderAddLineSerializer(serializers.Serializer):
+    order_id = serializers.IntegerField()
+    product_code = serializers.CharField()
+    quantity = serializers.IntegerField(min_value=1)
+
+
+class UiScanOrderPrepareSerializer(serializers.Serializer):
+    order_id = serializers.IntegerField()
 
 
 class UiShipmentLineSerializer(serializers.Serializer):

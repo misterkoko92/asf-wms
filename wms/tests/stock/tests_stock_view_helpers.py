@@ -91,6 +91,7 @@ class StockViewHelpersTests(TestCase):
         self.assertEqual(context["category_id"], str(self.category_med.id))
         self.assertEqual(context["warehouse_id"], str(self.warehouse_a.id))
         self.assertEqual(context["sort"], "qty_desc")
+        self.assertFalse(context["include_zero"])
         self.assertEqual(
             [category.name for category in context["categories"]],
             ["FOOD", "MEDICAL"],
@@ -123,3 +124,43 @@ class StockViewHelpersTests(TestCase):
         products = list(context["products"])
         self.assertEqual([item.name for item in products], ["Alpha", "Zulu"])
         self.assertEqual(context["sort"], "unknown")
+        self.assertFalse(context["include_zero"])
+
+    def test_build_stock_context_include_zero_includes_out_of_stock_products(self):
+        product_in_stock = self._create_product(
+            "SKU-IN",
+            "Alpha In Stock",
+            category=self.category_med,
+        )
+        product_out_stock = self._create_product(
+            "SKU-OUT",
+            "Zulu Out Stock",
+            category=self.category_med,
+        )
+        ProductLot.objects.create(
+            product=product_in_stock,
+            location=self.location_a,
+            quantity_on_hand=4,
+            quantity_reserved=1,
+        )
+
+        request_default = self.factory.get("/scan/stock/", {"sort": "name"})
+        context_default = build_stock_context(request_default)
+        self.assertEqual(
+            [item.id for item in context_default["products"]],
+            [product_in_stock.id],
+        )
+        self.assertFalse(context_default["include_zero"])
+
+        request_include_zero = self.factory.get(
+            "/scan/stock/",
+            {"sort": "name", "include_zero": "1"},
+        )
+        context_include_zero = build_stock_context(request_include_zero)
+        products = list(context_include_zero["products"])
+        self.assertEqual(
+            [item.id for item in products],
+            [product_in_stock.id, product_out_stock.id],
+        )
+        self.assertEqual([item.stock_total for item in products], [3, 0])
+        self.assertTrue(context_include_zero["include_zero"])

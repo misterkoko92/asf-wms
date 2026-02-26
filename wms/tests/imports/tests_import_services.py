@@ -127,6 +127,28 @@ class ImportProductsTests(TestCase):
         self.assertTrue(warnings)
         self.assertEqual(Product.objects.filter(sku="SRG-1").count(), 1)
 
+    def test_import_products_rows_collects_distinct_product_stats(self):
+        product = Product.objects.create(name="Gants", sku="GNT-STATS-1", brand="OLD")
+        rows = [
+            {"name": "Gants", "sku": "GNT-STATS-1", "brand": "NEW"},
+            {"name": "Gants", "sku": "GNT-STATS-1", "brand": "NEWER"},
+        ]
+        decisions = {
+            1: {"action": "update", "product_id": product.id},
+            2: {"action": "update", "product_id": product.id},
+        }
+        created, updated, errors, warnings, stats = import_products_rows(
+            rows,
+            start_index=1,
+            decisions=decisions,
+            collect_stats=True,
+        )
+        self.assertEqual(errors, [])
+        self.assertEqual(warnings, [])
+        self.assertEqual(created, 0)
+        self.assertEqual(updated, 2)
+        self.assertEqual(stats, {"distinct_products": 1})
+
 
 class ListingImportTests(TestCase):
     def test_apply_pallet_listing_import_creates_receipt_line(self):

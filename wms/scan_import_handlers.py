@@ -83,6 +83,38 @@ def _notify_import_result(request, *, title, created, updated, errors, warnings)
     messages.success(request, f"{title}: {created} créé(s), {updated} maj.")
 
 
+def _normalize_product_import_result(result):
+    if len(result) < 4:
+        raise ValueError("Résultat import produit invalide.")
+    created, updated, errors, warnings = result[:4]
+    stats = result[4] if len(result) > 4 and isinstance(result[4], dict) else {}
+    if "distinct_products" not in stats:
+        stats["distinct_products"] = created + updated
+    return created, updated, errors, warnings, stats
+
+
+def _notify_product_import_result(
+    request,
+    *,
+    title,
+    created,
+    updated,
+    errors,
+    warnings,
+    stats,
+):
+    _add_limited_message_list(request, title=title, entries=errors, label="erreur")
+    _add_limited_message_list(request, title=title, entries=warnings, label="alerte")
+    distinct_products = stats.get("distinct_products", created + updated)
+    messages.success(
+        request,
+        (
+            f"{title}: {created} créé(s), {updated} ligne(s) maj., "
+            f"{distinct_products} produit(s) distinct(s) impacté(s)."
+        ),
+    )
+
+
 def _get_pending_import(request):
     return request.session.get(PRODUCT_IMPORT_PENDING_KEY)
 
@@ -241,22 +273,25 @@ def _handle_product_confirm_action(request, *, clear_pending_import):
         messages.error(request, "Import produit: fichier temporaire introuvable.")
         return _redirect_scan_import()
 
-    created, updated, errors, warnings = import_products_rows(
+    result = import_products_rows(
         rows,
         user=request.user,
         decisions=decisions,
         base_dir=base_dir,
         start_index=start_index,
         quantity_mode=normalize_quantity_mode(pending.get("quantity_mode")),
+        collect_stats=True,
     )
+    created, updated, errors, warnings, stats = _normalize_product_import_result(result)
     clear_pending_import()
-    _notify_import_result(
+    _notify_product_import_result(
         request,
         title="Import produits",
         created=created,
         updated=updated,
         errors=errors,
         warnings=warnings,
+        stats=stats,
     )
     return _redirect_scan_import()
 
@@ -333,21 +368,24 @@ def _handle_product_file_action(request):
         _set_pending_import(request, pending)
         return render_scan_import(request, pending)
 
-    created, updated, errors, warnings = import_products_rows(
+    result = import_products_rows(
         rows,
         user=request.user,
         base_dir=Path(temp_path).parent,
         start_index=PRODUCT_IMPORT_START_INDEX_FILE,
         quantity_mode=quantity_mode,
+        collect_stats=True,
     )
+    created, updated, errors, warnings, stats = _normalize_product_import_result(result)
     Path(temp_path).unlink(missing_ok=True)
-    _notify_import_result(
+    _notify_product_import_result(
         request,
         title="Import produits",
         created=created,
         updated=updated,
         errors=errors,
         warnings=warnings,
+        stats=stats,
     )
     return _redirect_scan_import()
 

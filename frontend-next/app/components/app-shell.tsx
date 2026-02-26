@@ -16,8 +16,12 @@ const scanNav = [
   { href: "/scan/shipment-create", label: "Creation expedition" },
   { href: "/scan/shipments-ready", label: "Vue expeditions" },
   { href: "/scan/shipments-tracking", label: "Suivi expeditions" },
+  { href: "/scan/receipts", label: "Vue reception" },
+  { href: "/scan/order", label: "Commande scan" },
+  { href: "/scan/orders", label: "Vue commandes" },
   { href: "/scan/shipment-documents", label: "Docs & labels" },
   { href: "/scan/templates", label: "Templates" },
+  { href: "/scan/faq", label: "FAQ / Documentation" },
 ];
 
 const portalNav = [{ href: "/portal/dashboard", label: "Portal dashboard" }];

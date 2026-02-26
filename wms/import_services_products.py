@@ -425,11 +425,13 @@ def import_products_rows(
     base_dir: Path | None = None,
     start_index: int = 2,
     quantity_mode: str = DEFAULT_QUANTITY_MODE,
+    collect_stats: bool = False,
 ):
     created = 0
     updated = 0
     errors = []
     warnings = []
+    impacted_product_ids = set()
     decisions = decisions or {}
     for index, row in enumerate(rows, start=start_index):
         if _row_is_empty(row):
@@ -451,7 +453,7 @@ def import_products_rows(
                     f"Ligne {index}: SKU {sku} déjà utilisé, SKU auto-généré."
                 )
         try:
-            _, was_created, row_warnings = import_product_row(
+            product, was_created, row_warnings = import_product_row(
                 row,
                 user=user,
                 existing_product=existing_product,
@@ -461,11 +463,21 @@ def import_products_rows(
         except ValueError as exc:
             errors.append(f"Ligne {index}: {exc}")
             continue
+        if collect_stats:
+            impacted_product_ids.add(product.id)
         warnings.extend(row_warnings)
         if was_created:
             created += 1
         else:
             updated += 1
+    if collect_stats:
+        return (
+            created,
+            updated,
+            errors,
+            warnings,
+            {"distinct_products": len(impacted_product_ids)},
+        )
     return created, updated, errors, warnings
 
 

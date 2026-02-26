@@ -24,13 +24,18 @@ from wms.models import (
     IntegrationStatus,
     Location,
     Order,
+    OrderDocument,
+    OrderDocumentType,
+    OrderLine,
     OrderReviewStatus,
+    OrderStatus,
     PrintTemplate,
     PrintTemplateVersion,
     Product,
     ProductLot,
     ProductLotStatus,
     Receipt,
+    ReceiptHorsFormat,
     ReceiptStatus,
     ReceiptType,
     Shipment,
@@ -202,12 +207,17 @@ class UiApiEndpointsTests(TestCase):
             actor_structure="ASF",
         )
 
-        Order.objects.create(
+        self.scan_order = Order.objects.create(
+            reference="CMD-SCAN-UI-001",
             review_status=OrderReviewStatus.PENDING,
-            shipper_name="Sender",
-            recipient_name="Recipient",
-            correspondent_name="Correspondent",
+            shipper_name=self.shipper_contact.name,
+            recipient_name=self.recipient_contact.name,
+            correspondent_name=self.correspondent_contact.name,
+            shipper_contact=self.shipper_contact,
+            recipient_contact=self.recipient_contact,
+            correspondent_contact=self.correspondent_contact,
             destination_address="10 Rue Test",
+            destination_city=self.destination.city,
             destination_country="France",
             created_by=self.staff_user,
         )
@@ -1041,8 +1051,35 @@ class UiApiEndpointsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertEqual(payload["filters"]["q"], "UI API")
+        self.assertFalse(payload["filters"]["include_zero"])
         self.assertEqual(payload["meta"]["total_products"], 1)
         self.assertEqual(payload["products"][0]["sku"], self.product.sku)
+
+    def test_ui_stock_include_zero_returns_out_of_stock_products(self):
+        Product.objects.create(
+            sku="UI-API-ZERO-001",
+            name="UI API Zero Product",
+            brand="Medi",
+            default_location=self.product.default_location,
+            is_active=True,
+            qr_code_image="qr_codes/test.png",
+        )
+
+        response_default = self.staff_client.get("/api/v1/ui/stock/?q=UI-API-ZERO-001")
+        self.assertEqual(response_default.status_code, 200)
+        payload_default = response_default.json()
+        self.assertFalse(payload_default["filters"]["include_zero"])
+        self.assertEqual(payload_default["meta"]["total_products"], 0)
+
+        response = self.staff_client.get(
+            "/api/v1/ui/stock/?q=UI-API-ZERO-001&include_zero=1"
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["filters"]["include_zero"])
+        self.assertEqual(payload["meta"]["total_products"], 1)
+        self.assertEqual(payload["products"][0]["sku"], "UI-API-ZERO-001")
+        self.assertEqual(payload["products"][0]["stock_total"], 0)
 
     def test_ui_stock_exposes_brand_and_barcode_fields(self):
         product = Product.objects.create(
@@ -1516,6 +1553,319 @@ class UiApiEndpointsTests(TestCase):
         )
         self.assertEqual(response.status_code, 403)
 
+    def test_ui_orders_list_requires_staff(self):
+        anonymous = APIClient()
+        response = anonymous.get("/api/v1/ui/orders/")
+        self.assertEqual(response.status_code, 403)
+
+        response = self.basic_client.get("/api/v1/ui/orders/")
+        self.assertEqual(response.status_code, 403)
+
+        response = self.staff_client.get("/api/v1/ui/orders/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("orders", payload)
+        self.assertIn("review_status_choices", payload)
+        self.assertIn("approved_status", payload)
+
+    def test_ui_receipts_requires_staff(self):
+        anonymous = APIClient()
+        response = anonymous.get("/api/v1/ui/receipts/")
+        self.assertEqual(response.status_code, 403)
+
+        response = self.basic_client.get("/api/v1/ui/receipts/")
+        self.assertEqual(response.status_code, 403)
+
+        response = self.staff_client.get("/api/v1/ui/receipts/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("filter_value", payload)
+        self.assertIn("receipts", payload)
+        self.assertIn("filters", payload)
+
+    def test_ui_receipts_returns_rows_and_applies_type_filter(self):
+        pallet_receipt = Receipt.objects.create(
+            receipt_type=ReceiptType.PALLET,
+            status=ReceiptStatus.DRAFT,
+            source_contact=self.donor_contact,
+            carrier_contact=self.shipper_contact,
+            pallet_count=3,
+            received_on=timezone.localdate(),
+            warehouse=self.product.default_location.warehouse,
+            created_by=self.staff_user,
+        )
+        association_receipt = Receipt.objects.create(
+            receipt_type=ReceiptType.ASSOCIATION,
+            status=ReceiptStatus.DRAFT,
+            source_contact=self.recipient_contact,
+            carton_count=5,
+            hors_format_count=2,
+            received_on=timezone.localdate(),
+            warehouse=self.product.default_location.warehouse,
+            created_by=self.staff_user,
+        )
+        ReceiptHorsFormat.objects.create(
+            receipt=association_receipt,
+            line_number=1,
+            description="Materiel divers",
+        )
+        response = self.staff_client.get("/api/v1/ui/receipts/?type=association")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["filter_value"], "association")
+        self.assertEqual(len(payload["receipts"]), 1)
+        row = payload["receipts"][0]
+        self.assertEqual(row["id"], association_receipt.id)
+        self.assertEqual(row["name"], self.recipient_contact.name)
+        self.assertEqual(row["quantity"], "5 colis")
+        self.assertIn("Materiel divers", row["hors_format"])
+        self.assertEqual(row["carrier"], "-")
+
+        filtered_pallet = self.staff_client.get("/api/v1/ui/receipts/?type=pallet")
+        self.assertEqual(filtered_pallet.status_code, 200)
+        filtered_payload = filtered_pallet.json()
+        self.assertEqual(len(filtered_payload["receipts"]), 1)
+        self.assertEqual(filtered_payload["receipts"][0]["id"], pallet_receipt.id)
+        self.assertEqual(filtered_payload["receipts"][0]["quantity"], "3 palettes")
+        self.assertEqual(filtered_payload["receipts"][0]["carrier"], self.shipper_contact.name)
+
+    def test_ui_scan_order_state_requires_staff(self):
+        anonymous = APIClient()
+        response = anonymous.get("/api/v1/ui/order/")
+        self.assertEqual(response.status_code, 403)
+
+        response = self.basic_client.get("/api/v1/ui/order/")
+        self.assertEqual(response.status_code, 403)
+
+        response = self.staff_client.get("/api/v1/ui/order/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("orders", payload)
+        self.assertIn("products", payload)
+        self.assertIn("contacts", payload)
+        self.assertIn("selected_order", payload)
+
+    def test_ui_scan_order_state_returns_selected_order_and_lines(self):
+        selected_order = Order.objects.create(
+            reference="CMD-SCAN-ORDER-STATE-001",
+            status=OrderStatus.RESERVED,
+            shipper_name=self.shipper_contact.name,
+            recipient_name=self.recipient_contact.name,
+            correspondent_name=self.correspondent_contact.name,
+            shipper_contact=self.shipper_contact,
+            recipient_contact=self.recipient_contact,
+            correspondent_contact=self.correspondent_contact,
+            destination_address="12 Rue Scan State",
+            destination_city=self.destination.city,
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        OrderLine.objects.create(
+            order=selected_order,
+            product=self.product,
+            quantity=3,
+            reserved_quantity=2,
+            prepared_quantity=1,
+        )
+        response = self.staff_client.get(f"/api/v1/ui/order/?order={selected_order.id}")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("selected_order", payload)
+        self.assertEqual(payload["selected_order"]["id"], selected_order.id)
+        self.assertEqual(payload["selected_order"]["status"], selected_order.status)
+        self.assertEqual(payload["remaining_total"], 2)
+        self.assertEqual(len(payload["order_lines"]), 1)
+        self.assertEqual(payload["order_lines"][0]["remaining_quantity"], 2)
+
+    def test_ui_scan_order_create_creates_order_and_shipment(self):
+        response = self.staff_client.post(
+            "/api/v1/ui/order/create/",
+            {
+                "shipper_name": self.shipper_contact.name,
+                "recipient_name": self.recipient_contact.name,
+                "correspondent_name": self.correspondent_contact.name,
+                "shipper_contact_id": self.shipper_contact.id,
+                "recipient_contact_id": self.recipient_contact.id,
+                "correspondent_contact_id": self.correspondent_contact.id,
+                "destination_address": "22 Rue Scan Create",
+                "destination_city": self.destination.city,
+                "destination_country": "France",
+                "notes": "Creation API UI scan order",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        payload = response.json()
+        self.assertTrue(payload["ok"])
+        created_order = Order.objects.get(pk=payload["order"]["id"])
+        self.assertEqual(created_order.status, OrderStatus.DRAFT)
+        self.assertIsNotNone(created_order.shipment_id)
+        self.assertEqual(created_order.destination_address, "22 Rue Scan Create")
+        self.assertEqual(payload["order"]["id"], created_order.id)
+
+    def test_ui_scan_order_add_line_reserves_stock(self):
+        order = Order.objects.create(
+            reference="CMD-SCAN-ORDER-LINE-001",
+            status=OrderStatus.DRAFT,
+            shipper_name=self.shipper_contact.name,
+            recipient_name=self.recipient_contact.name,
+            correspondent_name=self.correspondent_contact.name,
+            shipper_contact=self.shipper_contact,
+            recipient_contact=self.recipient_contact,
+            correspondent_contact=self.correspondent_contact,
+            destination_address="32 Rue Scan Add Line",
+            destination_city=self.destination.city,
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        response = self.staff_client.post(
+            "/api/v1/ui/order/lines/",
+            {
+                "order_id": order.id,
+                "product_code": self.product.sku,
+                "quantity": 2,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["ok"])
+        order.refresh_from_db()
+        self.assertEqual(order.status, OrderStatus.RESERVED)
+        line = order.lines.get(product=self.product)
+        self.assertEqual(line.quantity, 2)
+        self.assertEqual(line.reserved_quantity, 2)
+
+    def test_ui_scan_order_prepare_returns_error_when_not_reserved(self):
+        order = Order.objects.create(
+            reference="CMD-SCAN-ORDER-PREPARE-001",
+            status=OrderStatus.DRAFT,
+            shipper_name=self.shipper_contact.name,
+            recipient_name=self.recipient_contact.name,
+            correspondent_name=self.correspondent_contact.name,
+            destination_address="42 Rue Scan Prepare",
+            destination_city=self.destination.city,
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        response = self.staff_client.post(
+            "/api/v1/ui/order/prepare/",
+            {
+                "order_id": order.id,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "prepare_order_failed")
+
+    def test_ui_orders_list_returns_rows_and_documents(self):
+        approved_order = Order.objects.create(
+            reference="CMD-SCAN-UI-APPROVED",
+            review_status=OrderReviewStatus.APPROVED,
+            shipper_name=self.shipper_contact.name,
+            recipient_name=self.recipient_contact.name,
+            correspondent_name=self.correspondent_contact.name,
+            shipper_contact=self.shipper_contact,
+            recipient_contact=self.recipient_contact,
+            correspondent_contact=self.correspondent_contact,
+            destination_address="12 Rue Test",
+            destination_city=self.destination.city,
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        OrderDocument.objects.create(
+            order=approved_order,
+            doc_type=OrderDocumentType.DONATION_ATTESTATION,
+            file=SimpleUploadedFile(
+                "order-donation.pdf",
+                b"%PDF-1.4 order",
+                content_type="application/pdf",
+            ),
+            uploaded_by=self.staff_user,
+        )
+        rejected_order = Order.objects.create(
+            reference="CMD-SCAN-UI-REJECTED",
+            review_status=OrderReviewStatus.REJECTED,
+            shipper_name=self.shipper_contact.name,
+            recipient_name=self.recipient_contact.name,
+            correspondent_name=self.correspondent_contact.name,
+            destination_address="13 Rue Test",
+            destination_city=self.destination.city,
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        response = self.staff_client.get("/api/v1/ui/orders/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        orders_by_id = {row["id"]: row for row in payload["orders"]}
+        approved_payload = orders_by_id[approved_order.id]
+        self.assertEqual(approved_payload["reference"], approved_order.reference)
+        self.assertTrue(approved_payload["can_create_shipment"])
+        self.assertEqual(len(approved_payload["documents"]), 1)
+        self.assertEqual(
+            approved_payload["documents"][0]["label"],
+            OrderDocumentType.DONATION_ATTESTATION.label,
+        )
+        self.assertEqual(approved_payload["contact_message"], "")
+        rejected_payload = orders_by_id[rejected_order.id]
+        self.assertIn("Refus:", rejected_payload["contact_message"])
+
+    def test_ui_orders_review_status_update(self):
+        response = self.staff_client.post(
+            f"/api/v1/ui/orders/{self.scan_order.id}/review-status/",
+            {"review_status": OrderReviewStatus.APPROVED},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.scan_order.refresh_from_db()
+        self.assertEqual(self.scan_order.review_status, OrderReviewStatus.APPROVED)
+        self.assertIsNotNone(self.scan_order.reviewed_at)
+
+    def test_ui_orders_create_shipment_requires_approved_order(self):
+        response = self.staff_client.post(
+            f"/api/v1/ui/orders/{self.scan_order.id}/create-shipment/",
+            {},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "order_not_approved")
+
+    def test_ui_orders_create_shipment_attaches_order_documents(self):
+        self.scan_order.review_status = OrderReviewStatus.APPROVED
+        self.scan_order.save(update_fields=["review_status"])
+        OrderDocument.objects.create(
+            order=self.scan_order,
+            doc_type=OrderDocumentType.HUMANITARIAN_ATTESTATION,
+            file=SimpleUploadedFile(
+                "order-humanitarian.pdf",
+                b"%PDF-1.4 order humanitarian",
+                content_type="application/pdf",
+            ),
+            uploaded_by=self.staff_user,
+        )
+        response = self.staff_client.post(
+            f"/api/v1/ui/orders/{self.scan_order.id}/create-shipment/",
+            {},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.scan_order.refresh_from_db()
+        self.assertIsNotNone(self.scan_order.shipment_id)
+        self.assertEqual(
+            Document.objects.filter(
+                shipment_id=self.scan_order.shipment_id,
+                doc_type=DocumentType.ADDITIONAL,
+            ).count(),
+            1,
+        )
+        payload = response.json()
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["shipment"]["id"], self.scan_order.shipment_id)
+        self.assertIn(
+            f"/scan/shipment/{self.scan_order.shipment_id}/edit/",
+            payload["shipment"]["edit_url"],
+        )
+
     def test_ui_portal_order_create_success_for_association_user(self):
         response = self.portal_client.post(
             "/api/v1/ui/portal/orders/",
@@ -1547,6 +1897,66 @@ class UiApiEndpointsTests(TestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["code"], "destination_invalid")
+
+    def test_ui_portal_order_detail_returns_selected_association_order(self):
+        detailed_order = Order.objects.create(
+            reference="CMD-PORTAL-DETAIL-001",
+            association_contact=self.portal_order.association_contact,
+            review_status=OrderReviewStatus.CHANGES_REQUESTED,
+            shipper_name=self.shipper_contact.name,
+            recipient_name=self.portal_recipient.structure_name,
+            correspondent_name=self.correspondent_contact.name,
+            destination_address="21 Rue Detail",
+            destination_city="Paris",
+            destination_country="France",
+            notes="Priorite forte",
+            shipment=self.shipment,
+            created_by=self.staff_user,
+        )
+        OrderLine.objects.create(
+            order=detailed_order,
+            product=self.product,
+            quantity=3,
+            reserved_quantity=1,
+            prepared_quantity=0,
+        )
+        response = self.portal_client.get(f"/api/v1/ui/portal/orders/{detailed_order.id}/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("order", payload)
+        order_payload = payload["order"]
+        self.assertEqual(order_payload["id"], detailed_order.id)
+        self.assertEqual(order_payload["reference"], detailed_order.reference)
+        self.assertEqual(order_payload["review_status"], detailed_order.review_status)
+        self.assertEqual(
+            order_payload["review_status_label"],
+            detailed_order.get_review_status_display(),
+        )
+        self.assertEqual(order_payload["shipment_id"], self.shipment.id)
+        self.assertEqual(order_payload["shipment_reference"], self.shipment.reference)
+        self.assertEqual(order_payload["notes"], "Priorite forte")
+        self.assertEqual(len(order_payload["lines"]), 1)
+        self.assertEqual(order_payload["lines"][0]["product_id"], self.product.id)
+        self.assertEqual(order_payload["lines"][0]["quantity"], 3)
+        self.assertEqual(order_payload["lines"][0]["remaining_quantity"], 3)
+
+    def test_ui_portal_order_detail_returns_404_for_other_association(self):
+        other_association = self._create_contact("UI Portal Other Association", tags=["association"])
+        foreign_order = Order.objects.create(
+            reference="CMD-PORTAL-FOREIGN-001",
+            association_contact=other_association,
+            review_status=OrderReviewStatus.PENDING,
+            shipper_name=self.shipper_contact.name,
+            recipient_name="Other Recipient",
+            correspondent_name=self.correspondent_contact.name,
+            destination_address="9 Rue Hidden",
+            destination_city="Lyon",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        response = self.portal_client.get(f"/api/v1/ui/portal/orders/{foreign_order.id}/")
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["code"], "order_not_found")
 
     def test_ui_portal_recipients_crud(self):
         list_response = self.portal_client.get("/api/v1/ui/portal/recipients/")
@@ -1802,6 +2212,9 @@ class UiApiEndpointsTests(TestCase):
     def test_ui_scan_role_matrix_allows_staff_roles_and_blocks_non_staff(self):
         checks = [
             ("get", "/api/v1/ui/dashboard/", None, "json"),
+            ("get", "/api/v1/ui/receipts/", None, "json"),
+            ("get", "/api/v1/ui/order/", None, "json"),
+            ("get", "/api/v1/ui/orders/", None, "json"),
             ("get", "/api/v1/ui/cartons/", None, "json"),
             ("get", "/api/v1/ui/stock/", None, "json"),
             ("get", "/api/v1/ui/shipments/form-options/", None, "json"),
@@ -1809,6 +2222,44 @@ class UiApiEndpointsTests(TestCase):
             ("get", "/api/v1/ui/shipments/tracking/", None, "json"),
             ("get", f"/api/v1/ui/shipments/{self.shipment.id}/documents/", None, "json"),
             ("get", f"/api/v1/ui/shipments/{self.shipment.id}/labels/", None, "json"),
+            (
+                "post",
+                "/api/v1/ui/order/create/",
+                {
+                    "shipper_name": self.shipper_contact.name,
+                    "recipient_name": self.recipient_contact.name,
+                    "destination_address": "Role Matrix Scan Order",
+                },
+                "json",
+            ),
+            (
+                "post",
+                "/api/v1/ui/order/lines/",
+                {
+                    "order_id": self.scan_order.id,
+                    "product_code": self.product.sku,
+                    "quantity": 1,
+                },
+                "json",
+            ),
+            (
+                "post",
+                "/api/v1/ui/order/prepare/",
+                {"order_id": self.scan_order.id},
+                "json",
+            ),
+            (
+                "post",
+                f"/api/v1/ui/orders/{self.scan_order.id}/review-status/",
+                {"review_status": OrderReviewStatus.PENDING},
+                "json",
+            ),
+            (
+                "post",
+                f"/api/v1/ui/orders/{self.scan_order.id}/create-shipment/",
+                {},
+                "json",
+            ),
             (
                 "post",
                 "/api/v1/ui/stock/update/",
@@ -1922,6 +2373,7 @@ class UiApiEndpointsTests(TestCase):
     def test_ui_portal_role_matrix_allows_association_profile_only(self):
         checks = [
             ("get", "/api/v1/ui/portal/dashboard/", None, "json"),
+            ("get", f"/api/v1/ui/portal/orders/{self.portal_order.id}/", None, "json"),
             ("get", "/api/v1/ui/portal/recipients/", None, "json"),
             ("get", "/api/v1/ui/portal/account/", None, "json"),
             (

@@ -3,6 +3,9 @@ import type {
   PortalDashboardDto,
   ScanCartonsDto,
   ScanDashboardDto,
+  ScanOrderStateDto,
+  ScanOrdersDto,
+  ScanReceiptsDto,
   ScanShipmentsReadyDto,
   ScanShipmentsTrackingDto,
   ScanStockDto,
@@ -26,6 +29,15 @@ import type {
   UiPortalAccountUpdateInput,
   UiPortalOrderCreateDto,
   UiPortalOrderCreateInput,
+  UiPortalOrderDetailDto,
+  UiOrderCreateShipmentDto,
+  UiOrderReviewStatusDto,
+  UiOrderReviewStatusInput,
+  UiScanOrderAddLineInput,
+  UiScanOrderCreateDto,
+  UiScanOrderCreateInput,
+  UiScanOrderMutationDto,
+  UiScanOrderPrepareInput,
   UiPortalRecipientInput,
   UiPortalRecipientMutationDto,
   UiPortalRecipientsDto,
@@ -39,6 +51,46 @@ import type {
 export function getScanDashboard(query = "") {
   const suffix = query ? `?${query}` : "";
   return apiGetJson<ScanDashboardDto>(`/api/v1/ui/dashboard/${suffix}`);
+}
+
+export function getScanReceipts(query = "") {
+  const suffix = query ? `?${query}` : "";
+  return apiGetJson<ScanReceiptsDto>(`/api/v1/ui/receipts/${suffix}`);
+}
+
+export function getScanOrderState(orderId?: number | null) {
+  const suffix = orderId ? `?order=${orderId}` : "";
+  return apiGetJson<ScanOrderStateDto>(`/api/v1/ui/order/${suffix}`);
+}
+
+export function postScanOrderCreate(payload: UiScanOrderCreateInput) {
+  return apiPostJson<UiScanOrderCreateDto>("/api/v1/ui/order/create/", payload);
+}
+
+export function postScanOrderAddLine(payload: UiScanOrderAddLineInput) {
+  return apiPostJson<UiScanOrderMutationDto>("/api/v1/ui/order/lines/", payload);
+}
+
+export function postScanOrderPrepare(payload: UiScanOrderPrepareInput) {
+  return apiPostJson<UiScanOrderMutationDto>("/api/v1/ui/order/prepare/", payload);
+}
+
+export function getScanOrders() {
+  return apiGetJson<ScanOrdersDto>("/api/v1/ui/orders/");
+}
+
+export function postScanOrderReviewStatus(orderId: number, payload: UiOrderReviewStatusInput) {
+  return apiPostJson<UiOrderReviewStatusDto>(
+    `/api/v1/ui/orders/${orderId}/review-status/`,
+    payload,
+  );
+}
+
+export function postScanOrderCreateShipment(orderId: number) {
+  return apiPostJson<UiOrderCreateShipmentDto>(
+    `/api/v1/ui/orders/${orderId}/create-shipment/`,
+    {},
+  );
 }
 
 export function getScanCartons() {
@@ -147,6 +199,10 @@ export function patchPrintTemplate(docType: string, payload: UiPrintTemplateMuta
 
 export function postPortalOrder(payload: UiPortalOrderCreateInput) {
   return apiPostJson<UiPortalOrderCreateDto>("/api/v1/ui/portal/orders/", payload);
+}
+
+export function getPortalOrderDetail(orderId: number) {
+  return apiGetJson<UiPortalOrderDetailDto>(`/api/v1/ui/portal/orders/${orderId}/`);
 }
 
 export function getPortalRecipients() {

@@ -14,9 +14,9 @@ Decision de pilotage (2026-02-26):
 
 ## Resume global (snapshot)
 
-- Ecrans Next disponibles aujourd'hui: `dashboard`, `stock`, `cartons`, `shipment-create`, `shipments-ready`, `shipments-tracking`, `shipment-documents`, `templates`, `portal-dashboard`.
-- API UI disponible et testee pour: stock, cartons, expedition (ready/create/update/tracking/close), docs/labels, templates, portal mutations.
-- Aucun ecran n'est encore `DONE` (parite fonctionnelle complete non validee).
+- Ecrans Next disponibles aujourd'hui: `dashboard`, `stock`, `cartons`, `shipment-create`, `shipments-ready`, `shipments-tracking`, `receipts`, `orders-view`, `order-scan`, `shipment-documents`, `templates`, `faq`, `portal-dashboard`, `portal-order-detail`.
+- API UI disponible et testee pour: stock, cartons, expedition (ready/create/update/tracking/close), receptions (vue), commandes (vue + scan), docs/labels, templates, portal mutations.
+- Ecrans `DONE` a date: `/scan/orders-view/`, `/scan/orders/`, `/scan/receipts/`, `/scan/faq/`, `/portal/orders/<id>/`.
 
 ## A. Scan - ecrans prioritaires et coeur metier
 
@@ -32,14 +32,14 @@ Decision de pilotage (2026-02-26):
 | P1 | `/scan/pack/` | `/app/scan/shipment-create/` (integration transitoire) | creation colis inline via produit+quantite presente sur shipment-create | logique disponible via handlers legacy + API shipment lines | IN_PROGRESS |
 | P1 | `/scan/cartons/` | `/app/scan/cartons/` | route dediee presente, table colis branchee et testee | `GET /api/v1/ui/cartons/` | IN_PROGRESS |
 | P1 | `/scan/shipments-ready/` | `/app/scan/shipments-ready/` | route dediee presente, table expeditions branchee + archivage stale drafts + menu documents legacy | `GET /api/v1/ui/shipments/ready/` + `POST /api/v1/ui/shipments/ready/archive-stale-drafts/` | IN_PROGRESS |
-| P2 | `/scan/orders-view/` | `/app/scan/orders/` | route non creee | pas d'endpoint UI dedie | TODO |
-| P2 | `/scan/orders/` | `/app/scan/order/` | route non creee | pas d'endpoint UI dedie | TODO |
-| P2 | `/scan/receipts/` | `/app/scan/receipts/` | route non creee | pas d'endpoint UI dedie | TODO |
+| P2 | `/scan/orders-view/` | `/app/scan/orders/` | route Next creee (liste + update statut + creation expedition) | `GET /api/v1/ui/orders/`, `POST /api/v1/ui/orders/<id>/review-status/`, `POST /api/v1/ui/orders/<id>/create-shipment/` | DONE |
+| P2 | `/scan/orders/` | `/app/scan/order/` | route Next creee (selection commande + creation + ajout ligne reserve + preparation) | `GET /api/v1/ui/order/`, `POST /api/v1/ui/order/create/`, `POST /api/v1/ui/order/lines/`, `POST /api/v1/ui/order/prepare/` | DONE |
+| P2 | `/scan/receipts/` | `/app/scan/receipts/` | route Next creee (liste receptions + filtre type) | `GET /api/v1/ui/receipts/` | DONE |
 | P2 | `/scan/receive/` | `/app/scan/receive/` | route non creee | pas d'endpoint UI dedie | TODO |
 | P2 | `/scan/receive-pallet/` | `/app/scan/receive-pallet/` | route non creee | pas d'endpoint UI dedie | TODO |
 | P2 | `/scan/receive-association/` | `/app/scan/receive-association/` | route non creee | pas d'endpoint UI dedie | TODO |
 | P2 | `/scan/settings/` | `/app/scan/settings/` | route non creee | pas d'endpoint UI dedie | TODO |
-| P2 | `/scan/faq/` | `/app/scan/faq/` | route non creee | n/a (contenu statique) | TODO |
+| P2 | `/scan/faq/` | `/app/scan/faq/` | route Next creee + contenu FAQ de base + entree nav scan | n/a (contenu statique) | DONE |
 | P3 | `/scan/import/` | `/app/scan/import/` | route non creee | pas d'endpoint UI dedie | TODO |
 
 ## B. Scan - documents et templates
@@ -59,7 +59,7 @@ Decision de pilotage (2026-02-26):
 |---|---|---|---|---|---|
 | P1 | `/portal/` | `/app/portal/dashboard/` | ecran present (mix maquette + live API) | `GET /api/v1/ui/portal/dashboard/` | IN_PROGRESS |
 | P1 | `/portal/orders/new/` | `/app/portal/dashboard/` (integration transitoire) | workflow creation commande present sur dashboard | `POST /api/v1/ui/portal/orders/` | IN_PROGRESS |
-| P1 | `/portal/orders/<id>/` | `/app/portal/orders/detail/?id=<id>` | route creee (detail commande read-only via payload dashboard) | partiel (dashboard expose liste, pas detail endpoint dedie) | IN_PROGRESS |
+| P1 | `/portal/orders/<id>/` | `/app/portal/orders/detail/?id=<id>` | route detail branchee sur endpoint dedie + couverture cas hors slice dashboard | `GET /api/v1/ui/portal/orders/<id>/` + role-matrix portal | DONE |
 | P2 | `/portal/recipients/` | `/app/portal/dashboard/` (integration transitoire) | workflows create/update presents sur dashboard | `GET/POST/PATCH /api/v1/ui/portal/recipients*` | IN_PROGRESS |
 | P2 | `/portal/account/` | `/app/portal/dashboard/` (integration transitoire) | workflow update compte present sur dashboard | `GET/PATCH /api/v1/ui/portal/account/` | IN_PROGRESS |
 | P2 | `/portal/change-password/` | `/app/portal/change-password/` | conserve en legacy | n/a | TODO |
@@ -109,6 +109,8 @@ Principe cible: route stable + query params.
 - [x] workflow navigateur shipment-create avec message de succes creation en libelle metier `Expedition #` (sans `Shipment #`): `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur shipment-create avec options de statuts suivi en labels metier (sans libelles anglais): `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur route dediee vue expeditions (`/app/scan/shipments-ready/`) + archivage stale drafts + liens docs legacy: `wms/tests/core/tests_ui.py::NextUiTests`
+- [x] workflow navigateur route dediee receptions (`/app/scan/receipts/`) + filtre type (`all`/`association`/`pallet`): `wms/tests/core/tests_ui.py::NextUiTests`
+- [x] workflow navigateur route commande scan (`/app/scan/order/`) + creation commande + ajout ligne reservee: `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur route dediee suivi expedition (`/app/scan/shipments-tracking/`) + presence liste live + etats visuels cloture + labels metier tracking/cloture en terminologie `suivi` + options de statuts metier (sans libelles anglais): `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur route dediee vue colis (`/app/scan/cartons/`): `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur portal mutations (order create, recipient create/update, account patch): `wms/tests/core/tests_ui.py::NextUiTests`

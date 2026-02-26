@@ -13,8 +13,15 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from contacts.models import Contact
 from wms.carton_status_events import set_carton_status
-from wms.forms import ScanOutForm, ScanShipmentForm, ScanStockUpdateForm, ShipmentTrackingForm
+from wms.forms import (
+    ScanOrderCreateForm,
+    ScanOutForm,
+    ScanShipmentForm,
+    ScanStockUpdateForm,
+    ShipmentTrackingForm,
+)
 from wms.models import (
     AssociationContactTitle,
     AssociationRecipient,
@@ -29,6 +36,7 @@ from wms.models import (
     MovementType,
     Order,
     OrderReviewStatus,
+    OrderStatus,
     PrintTemplate,
     PrintTemplateVersion,
     Product,
@@ -51,11 +59,22 @@ from wms.portal_helpers import (
 )
 from wms.portal_order_handlers import create_portal_order
 from wms.portal_recipient_sync import sync_association_recipient_to_contact
+from wms.order_helpers import attach_order_documents_to_shipment
+from wms.order_view_helpers import build_orders_view_rows
 from wms.runtime_settings import get_runtime_config
 from wms.scan_shipment_handlers import LOCKED_SHIPMENT_STATUSES
 from wms.scan_shipment_helpers import resolve_shipment
-from wms.scan_product_helpers import resolve_product
-from wms.services import StockError, consume_stock, pack_carton, pack_carton_from_reserved, receive_stock
+from wms.scan_product_helpers import build_product_options, resolve_product
+from wms.services import (
+    StockError,
+    consume_stock,
+    create_shipment_for_order,
+    pack_carton,
+    pack_carton_from_reserved,
+    prepare_order,
+    receive_stock,
+    reserve_stock_for_order,
+)
 from wms.print_layouts import DEFAULT_LAYOUTS, DOCUMENT_TEMPLATES
 from wms.shipment_helpers import build_destination_label, parse_shipment_lines
 from wms.shipment_form_helpers import build_shipment_form_payload
@@ -70,6 +89,7 @@ from wms.shipment_view_helpers import (
     build_shipments_ready_rows,
     build_shipments_tracking_rows,
 )
+from wms.receipt_view_helpers import build_receipts_view_rows
 from wms.stock_view_helpers import build_stock_context
 from wms.upload_utils import ALLOWED_UPLOAD_EXTENSIONS
 from wms.views_scan_shipments_support import (
@@ -87,10 +107,14 @@ from wms.order_notifications import send_portal_order_notifications
 
 from .permissions import IsAssociationProfileUser, IsStaffUser
 from .serializers import (
+    UiOrderReviewStatusSerializer,
     UiPrintTemplateMutationSerializer,
     UiPortalAccountUpdateSerializer,
     UiPortalOrderCreateSerializer,
     UiPortalRecipientMutationSerializer,
+    UiScanOrderAddLineSerializer,
+    UiScanOrderCreateSerializer,
+    UiScanOrderPrepareSerializer,
     UiShipmentMutationSerializer,
     UiShipmentTrackingEventSerializer,
     UiStockOutSerializer,
@@ -370,6 +394,200 @@ def _build_dashboard_sla_rows(
     return sla_rows
 
 
+def _build_scan_orders_queryset():
+    return (
+        Order.objects.select_related(
+            "association_contact",
+            "recipient_contact",
+            "created_by",
+            "shipment",
+        )
+        .prefetch_related("documents")
+        .order_by("-created_at")
+    )
+
+
+def _parse_positive_int(raw_value):
+    try:
+        value = int(str(raw_value or "").strip())
+    except (TypeError, ValueError):
+        return None
+    return value if value > 0 else None
+
+
+def _build_scan_order_select_queryset():
+    return Order.objects.select_related("shipment").order_by("reference", "id")[:50]
+
+
+UI_RECEIPT_FILTER_MAP = {
+    "pallet": ReceiptType.PALLET,
+    "association": ReceiptType.ASSOCIATION,
+}
+
+
+def _normalize_receipts_filter(raw_filter_value):
+    value = (raw_filter_value or "all").strip().lower()
+    if value in UI_RECEIPT_FILTER_MAP:
+        return value
+    return "all"
+
+
+def _build_receipts_queryset(filter_value):
+    receipts_qs = (
+        Receipt.objects.select_related("source_contact", "carrier_contact")
+        .prefetch_related("hors_format_items")
+        .order_by("-received_on", "-created_at")
+    )
+    receipt_type = UI_RECEIPT_FILTER_MAP.get(filter_value)
+    if receipt_type:
+        receipts_qs = receipts_qs.filter(receipt_type=receipt_type)
+    return receipts_qs
+
+
+def _scan_order_option_payload(order):
+    reference = order.reference or f"Commande {order.id}"
+    created = order.created_at.strftime("%d/%m/%Y") if order.created_at else "-"
+    return {
+        "id": order.id,
+        "reference": reference,
+        "status": order.status,
+        "status_label": order.get_status_display(),
+        "created_at": order.created_at.isoformat() if order.created_at else None,
+        "label": f"{reference} - {order.get_status_display()} - {created}",
+    }
+
+
+def _scan_order_detail_payload(order):
+    return {
+        "id": order.id,
+        "reference": order.reference or f"Commande {order.id}",
+        "status": order.status,
+        "status_label": order.get_status_display(),
+        "shipment_id": order.shipment_id,
+        "shipment_reference": order.shipment.reference if order.shipment_id else "",
+        "destination_address": order.destination_address,
+        "destination_city": order.destination_city or "",
+        "destination_country": order.destination_country or "",
+    }
+
+
+def _scan_order_line_payload(line):
+    return {
+        "id": line.id,
+        "product_id": line.product_id,
+        "product_name": line.product.name,
+        "quantity": line.quantity,
+        "reserved_quantity": line.reserved_quantity,
+        "prepared_quantity": line.prepared_quantity,
+        "remaining_quantity": line.remaining_quantity,
+    }
+
+
+def _scan_order_contacts_payload():
+    contacts = list(
+        Contact.objects.filter(is_active=True).order_by("name").values("id", "name")
+    )
+    rows = [
+        {
+            "id": row["id"],
+            "name": row["name"] or "-",
+        }
+        for row in contacts
+    ]
+    return {
+        "shippers": rows,
+        "recipients": rows,
+        "correspondents": rows,
+    }
+
+
+def _scan_order_products_payload():
+    return [
+        {
+            "id": row["id"],
+            "name": row["name"] or "",
+            "sku": row["sku"] or "",
+            "barcode": row.get("barcode") or "",
+            "ean": row.get("ean") or "",
+        }
+        for row in build_product_options()
+    ]
+
+
+def _scan_order_state_payload(*, selected_order):
+    order_lines = []
+    remaining_total = 0
+    if selected_order is not None:
+        selected_order = (
+            Order.objects.select_related("shipment")
+            .prefetch_related("lines__product")
+            .filter(pk=selected_order.pk)
+            .first()
+        )
+    if selected_order is not None:
+        lines = list(selected_order.lines.select_related("product"))
+        order_lines = [_scan_order_line_payload(line) for line in lines]
+        remaining_total = sum(line.remaining_quantity for line in lines)
+    return {
+        "orders": [
+            _scan_order_option_payload(order)
+            for order in _build_scan_order_select_queryset()
+        ],
+        "products": _scan_order_products_payload(),
+        "contacts": _scan_order_contacts_payload(),
+        "selected_order": (
+            _scan_order_detail_payload(selected_order) if selected_order else None
+        ),
+        "order_lines": order_lines,
+        "remaining_total": remaining_total,
+        "defaults": {
+            "destination_country": "France",
+        },
+    }
+
+
+def _scan_order_contact_message(order, creator):
+    creator_name = creator.get("name") or "-"
+    creator_email = creator.get("email") or ""
+    creator_phone = creator.get("phone") or ""
+    if order.review_status == OrderReviewStatus.REJECTED:
+        message = f"Refus: contactez {creator_name}"
+    elif order.review_status == OrderReviewStatus.CHANGES_REQUESTED:
+        message = f"Modifier: contactez {creator_name}"
+    else:
+        return ""
+    if creator_email:
+        message += f" ({creator_email})"
+    if creator_phone:
+        message += f" / {creator_phone}"
+    return message
+
+
+def _scan_order_row_payload(row):
+    order = row["order"]
+    creator = row.get("creator") or {}
+    return {
+        "id": order.id,
+        "reference": order.reference or f"CMD-{order.id}",
+        "created_at": order.created_at.isoformat() if order.created_at else None,
+        "association_name": row.get("association_name") or "-",
+        "creator": {
+            "name": creator.get("name") or "-",
+            "email": creator.get("email") or "",
+            "phone": creator.get("phone") or "",
+        },
+        "review_status": order.review_status,
+        "review_status_label": order.get_review_status_display(),
+        "shipment_id": order.shipment_id,
+        "shipment_reference": order.shipment.reference if order.shipment_id else "",
+        "can_create_shipment": order.review_status == OrderReviewStatus.APPROVED,
+        "documents": row.get("documents", [])
+        if order.review_status == OrderReviewStatus.APPROVED
+        else [],
+        "contact_message": _scan_order_contact_message(order, creator),
+    }
+
+
 def _shipment_payload(shipment):
     return {
         "id": shipment.id,
@@ -501,6 +719,52 @@ def _portal_order_destination_payload(*, profile, recipient_id, selected_destina
             or PORTAL_DEFAULT_COUNTRY,
         ),
     }, ""
+
+
+def _portal_order_summary_row(order):
+    return {
+        "id": order.id,
+        "reference": order.reference or f"CMD-{order.id}",
+        "review_status": order.review_status,
+        "review_status_label": order.get_review_status_display(),
+        "shipment_id": order.shipment_id,
+        "shipment_reference": order.shipment.reference if order.shipment_id else "",
+        "requested_delivery_date": (
+            order.requested_delivery_date.isoformat()
+            if order.requested_delivery_date
+            else None
+        ),
+        "created_at": order.created_at.isoformat(),
+    }
+
+
+def _portal_order_detail_row(order):
+    summary = _portal_order_summary_row(order)
+    summary.update(
+        {
+            "shipper_name": order.shipper_name or "",
+            "recipient_name": order.recipient_name or "",
+            "correspondent_name": order.correspondent_name or "",
+            "destination_address": order.destination_address or "",
+            "destination_city": order.destination_city or "",
+            "destination_country": order.destination_country or "",
+            "notes": order.notes or "",
+            "reviewed_at": order.reviewed_at.isoformat() if order.reviewed_at else None,
+            "lines": [
+                {
+                    "product_id": line.product_id,
+                    "product_sku": line.product.sku or "",
+                    "product_name": line.product.name or "",
+                    "quantity": line.quantity,
+                    "reserved_quantity": line.reserved_quantity,
+                    "prepared_quantity": line.prepared_quantity,
+                    "remaining_quantity": line.remaining_quantity,
+                }
+                for line in order.lines.all()
+            ],
+        }
+    )
+    return summary
 
 
 def _portal_recipient_payload(validated_data, destination):
@@ -1261,6 +1525,368 @@ class UiDashboardView(APIView):
         )
 
 
+class UiScanOrderStateView(APIView):
+    permission_classes = [IsStaffUser]
+
+    def get(self, request):
+        selected_order_id = _parse_positive_int(request.query_params.get("order"))
+        selected_order = None
+        if selected_order_id:
+            selected_order = (
+                Order.objects.select_related("shipment")
+                .filter(pk=selected_order_id)
+                .first()
+            )
+        return Response(_scan_order_state_payload(selected_order=selected_order))
+
+
+class UiReceiptsView(APIView):
+    permission_classes = [IsStaffUser]
+
+    def get(self, request):
+        filter_value = _normalize_receipts_filter(request.query_params.get("type"))
+        receipts_qs = _build_receipts_queryset(filter_value)
+        receipts = list(receipts_qs)
+        rows = build_receipts_view_rows(receipts)
+        payload_rows = []
+        for receipt, row in zip(receipts, rows):
+            payload_rows.append(
+                {
+                    "id": receipt.id,
+                    "receipt_type": receipt.receipt_type,
+                    "receipt_type_label": receipt.get_receipt_type_display(),
+                    "received_on": (
+                        row["received_on"].isoformat() if row["received_on"] else None
+                    ),
+                    "name": row["name"],
+                    "quantity": row["quantity"],
+                    "hors_format": row["hors_format"],
+                    "carrier": row["carrier"],
+                }
+            )
+        return Response(
+            {
+                "filter_value": filter_value,
+                "filters": [
+                    {"value": "all", "label": "Tout"},
+                    {"value": "association", "label": "Association"},
+                    {"value": "pallet", "label": "Palette"},
+                ],
+                "receipts": payload_rows,
+            }
+        )
+
+
+class UiScanOrderCreateView(APIView):
+    permission_classes = [IsStaffUser]
+
+    def post(self, request):
+        serializer = UiScanOrderCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return api_error(
+                message="Validation commande invalide.",
+                code="validation_error",
+                field_errors=serializer_field_errors(serializer),
+            )
+        validated = serializer.validated_data
+        form = ScanOrderCreateForm(
+            {
+                "shipper_name": validated["shipper_name"],
+                "recipient_name": validated["recipient_name"],
+                "correspondent_name": validated.get("correspondent_name", ""),
+                "shipper_contact": validated.get("shipper_contact_id") or "",
+                "recipient_contact": validated.get("recipient_contact_id") or "",
+                "correspondent_contact": validated.get("correspondent_contact_id") or "",
+                "destination_address": validated["destination_address"],
+                "destination_city": validated.get("destination_city", ""),
+                "destination_country": validated.get("destination_country", "France"),
+                "requested_delivery_date": validated.get("requested_delivery_date")
+                or "",
+                "notes": validated.get("notes", ""),
+            }
+        )
+        if not form.is_valid():
+            field_errors, non_field_errors = form_error_payload(form)
+            return api_error(
+                message="Validation commande invalide.",
+                code="validation_error",
+                field_errors=field_errors,
+                non_field_errors=non_field_errors,
+            )
+
+        shipper_contact = form.cleaned_data["shipper_contact"]
+        recipient_contact = form.cleaned_data["recipient_contact"]
+        correspondent_contact = form.cleaned_data["correspondent_contact"]
+        order = Order.objects.create(
+            reference="",
+            status=OrderStatus.DRAFT,
+            shipper_name=form.cleaned_data["shipper_name"]
+            or (shipper_contact.name if shipper_contact else ""),
+            recipient_name=form.cleaned_data["recipient_name"]
+            or (recipient_contact.name if recipient_contact else ""),
+            correspondent_name=form.cleaned_data["correspondent_name"]
+            or (correspondent_contact.name if correspondent_contact else ""),
+            shipper_contact=shipper_contact,
+            recipient_contact=recipient_contact,
+            correspondent_contact=correspondent_contact,
+            destination_address=form.cleaned_data["destination_address"],
+            destination_city=form.cleaned_data["destination_city"] or "",
+            destination_country=form.cleaned_data["destination_country"] or "France",
+            requested_delivery_date=form.cleaned_data["requested_delivery_date"],
+            created_by=request.user if request.user.is_authenticated else None,
+            notes=form.cleaned_data["notes"] or "",
+        )
+        create_shipment_for_order(order=order)
+        log_workflow_event(
+            "ui_scan_order_created",
+            user=request.user if request.user.is_authenticated else None,
+            order_id=order.id,
+        )
+        return Response(
+            {
+                "ok": True,
+                "message": "Commande creee.",
+                "order": _scan_order_detail_payload(order),
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class UiScanOrderLineCreateView(APIView):
+    permission_classes = [IsStaffUser]
+
+    def post(self, request):
+        serializer = UiScanOrderAddLineSerializer(data=request.data)
+        if not serializer.is_valid():
+            return api_error(
+                message="Validation ligne commande invalide.",
+                code="validation_error",
+                field_errors=serializer_field_errors(serializer),
+            )
+        validated = serializer.validated_data
+        order = Order.objects.select_related("shipment").filter(
+            pk=validated["order_id"]
+        ).first()
+        if order is None:
+            return api_error(
+                message="Commande introuvable.",
+                code="order_not_found",
+                http_status=status.HTTP_404_NOT_FOUND,
+            )
+        if order.status in {OrderStatus.CANCELLED, OrderStatus.READY}:
+            return api_error(
+                message="Commande annulee.",
+                code="order_not_modifiable",
+                non_field_errors=["Commande annulee."],
+            )
+        if order.status == OrderStatus.PREPARING:
+            return api_error(
+                message="Commande en preparation.",
+                code="order_preparing",
+                non_field_errors=["Commande en preparation."],
+            )
+
+        product = resolve_product(validated["product_code"])
+        if not product:
+            return api_error(
+                message="Produit introuvable.",
+                code="product_not_found",
+                field_errors={"product_code": ["Produit introuvable."]},
+            )
+
+        line, _created = order.lines.get_or_create(product=product, defaults={"quantity": 0})
+        previous_qty = line.quantity
+        line.quantity += validated["quantity"]
+        line.save(update_fields=["quantity"])
+        try:
+            reserve_stock_for_order(order=order)
+        except StockError as exc:
+            line.quantity = previous_qty
+            if line.quantity <= 0:
+                line.delete()
+            else:
+                line.save(update_fields=["quantity"])
+            return api_error(
+                message=str(exc),
+                code="order_line_reserve_failed",
+                non_field_errors=[str(exc)],
+            )
+
+        order.refresh_from_db()
+        lines = list(order.lines.select_related("product"))
+        remaining_total = sum(item.remaining_quantity for item in lines)
+        log_workflow_event(
+            "ui_scan_order_line_added",
+            user=request.user if request.user.is_authenticated else None,
+            order_id=order.id,
+            product_id=product.id,
+            quantity=validated["quantity"],
+        )
+        return Response(
+            {
+                "ok": True,
+                "message": f"Ligne reservee: {product.name} ({validated['quantity']}).",
+                "order": _scan_order_detail_payload(order),
+                "order_lines": [_scan_order_line_payload(item) for item in lines],
+                "remaining_total": remaining_total,
+            }
+        )
+
+
+class UiScanOrderPrepareView(APIView):
+    permission_classes = [IsStaffUser]
+
+    def post(self, request):
+        serializer = UiScanOrderPrepareSerializer(data=request.data)
+        if not serializer.is_valid():
+            return api_error(
+                message="Validation preparation commande invalide.",
+                code="validation_error",
+                field_errors=serializer_field_errors(serializer),
+            )
+        order_id = serializer.validated_data["order_id"]
+        order = Order.objects.select_related("shipment").filter(pk=order_id).first()
+        if order is None:
+            return api_error(
+                message="Commande introuvable.",
+                code="order_not_found",
+                http_status=status.HTTP_404_NOT_FOUND,
+            )
+        try:
+            prepare_order(
+                user=request.user if request.user.is_authenticated else None,
+                order=order,
+            )
+        except StockError as exc:
+            return api_error(
+                message=str(exc),
+                code="prepare_order_failed",
+                non_field_errors=[str(exc)],
+            )
+
+        order.refresh_from_db()
+        lines = list(order.lines.select_related("product"))
+        remaining_total = sum(item.remaining_quantity for item in lines)
+        log_workflow_event(
+            "ui_scan_order_prepared",
+            user=request.user if request.user.is_authenticated else None,
+            order_id=order.id,
+        )
+        return Response(
+            {
+                "ok": True,
+                "message": "Commande preparee.",
+                "order": _scan_order_detail_payload(order),
+                "order_lines": [_scan_order_line_payload(item) for item in lines],
+                "remaining_total": remaining_total,
+            }
+        )
+
+
+class UiOrdersView(APIView):
+    permission_classes = [IsStaffUser]
+
+    def get(self, request):
+        rows = build_orders_view_rows(_build_scan_orders_queryset())
+        return Response(
+            {
+                "orders": [_scan_order_row_payload(row) for row in rows],
+                "review_status_choices": [
+                    {"value": value, "label": label}
+                    for value, label in OrderReviewStatus.choices
+                ],
+                "approved_status": OrderReviewStatus.APPROVED,
+                "rejected_status": OrderReviewStatus.REJECTED,
+                "changes_status": OrderReviewStatus.CHANGES_REQUESTED,
+            }
+        )
+
+
+class UiOrderReviewStatusView(APIView):
+    permission_classes = [IsStaffUser]
+
+    def post(self, request, order_id):
+        order = Order.objects.filter(pk=order_id).first()
+        if order is None:
+            return api_error(
+                message="Commande introuvable.",
+                code="order_not_found",
+                http_status=status.HTTP_404_NOT_FOUND,
+            )
+        serializer = UiOrderReviewStatusSerializer(data=request.data)
+        if not serializer.is_valid():
+            return api_error(
+                message="Validation statut commande invalide.",
+                code="validation_error",
+                field_errors=serializer_field_errors(serializer),
+            )
+        review_status = serializer.validated_data["review_status"]
+        order.review_status = review_status
+        order.reviewed_at = (
+            None if review_status == OrderReviewStatus.PENDING else timezone.now()
+        )
+        order.save(update_fields=["review_status", "reviewed_at"])
+        log_workflow_event(
+            "ui_order_review_status_updated",
+            user=request.user if request.user.is_authenticated else None,
+            order_id=order.id,
+            review_status=order.review_status,
+        )
+        return Response(
+            {
+                "ok": True,
+                "message": "Statut de validation mis a jour.",
+                "order": {
+                    "id": order.id,
+                    "review_status": order.review_status,
+                    "review_status_label": order.get_review_status_display(),
+                    "reviewed_at": (
+                        order.reviewed_at.isoformat() if order.reviewed_at else None
+                    ),
+                },
+            }
+        )
+
+
+class UiOrderCreateShipmentView(APIView):
+    permission_classes = [IsStaffUser]
+
+    def post(self, request, order_id):
+        order = Order.objects.filter(pk=order_id).first()
+        if order is None:
+            return api_error(
+                message="Commande introuvable.",
+                code="order_not_found",
+                http_status=status.HTTP_404_NOT_FOUND,
+            )
+        if order.review_status != OrderReviewStatus.APPROVED:
+            return api_error(
+                message="Commande non validee.",
+                code="order_not_approved",
+                non_field_errors=["Commande non validee."],
+            )
+        shipment = create_shipment_for_order(order=order)
+        attach_order_documents_to_shipment(order, shipment)
+        log_workflow_event(
+            "ui_order_shipment_created",
+            shipment=shipment,
+            user=request.user if request.user.is_authenticated else None,
+            order_id=order.id,
+        )
+        return Response(
+            {
+                "ok": True,
+                "message": "Expedition creee depuis la commande.",
+                "shipment": {
+                    "id": shipment.id,
+                    "reference": shipment.reference,
+                    "edit_url": reverse("scan:scan_shipment_edit", args=[shipment.id]),
+                },
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
 class UiStockView(APIView):
     permission_classes = [IsStaffUser]
 
@@ -1311,6 +1937,7 @@ class UiStockView(APIView):
                     "category": context["category_id"],
                     "warehouse": context["warehouse_id"],
                     "sort": context["sort"],
+                    "include_zero": context["include_zero"],
                 },
                 "meta": {
                     "total_products": len(products),
@@ -2551,18 +3178,33 @@ class UiPortalOrdersView(APIView):
             {
                 "ok": True,
                 "message": "Commande envoyee.",
-                "order": {
-                    "id": order.id,
-                    "reference": order.reference or f"CMD-{order.id}",
-                    "review_status": order.review_status,
-                    "review_status_label": order.get_review_status_display(),
-                    "shipment_id": order.shipment_id,
-                    "shipment_reference": order.shipment.reference if order.shipment_id else "",
-                    "created_at": order.created_at.isoformat(),
-                },
+                "order": _portal_order_summary_row(order),
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+class UiPortalOrderDetailView(APIView):
+    permission_classes = [IsAssociationProfileUser]
+
+    def get(self, request, order_id):
+        profile = get_association_profile(request.user)
+        order = (
+            Order.objects.filter(
+                association_contact=profile.contact,
+                pk=order_id,
+            )
+            .select_related("shipment")
+            .prefetch_related("lines__product")
+            .first()
+        )
+        if order is None:
+            return api_error(
+                message="Commande introuvable.",
+                code="order_not_found",
+                http_status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response({"order": _portal_order_detail_row(order)})
 
 
 class UiPortalRecipientsView(APIView):
@@ -2835,23 +3477,5 @@ class UiPortalDashboardView(APIView):
             ).count(),
             "orders_with_shipment": orders_qs.filter(shipment__isnull=False).count(),
         }
-        rows = [
-            {
-                "id": order.id,
-                "reference": order.reference or f"CMD-{order.id}",
-                "review_status": order.review_status,
-                "review_status_label": order.get_review_status_display(),
-                "shipment_id": order.shipment_id,
-                "shipment_reference": (
-                    order.shipment.reference if order.shipment_id else ""
-                ),
-                "requested_delivery_date": (
-                    order.requested_delivery_date.isoformat()
-                    if order.requested_delivery_date
-                    else None
-                ),
-                "created_at": order.created_at.isoformat(),
-            }
-            for order in orders_qs[:12]
-        ]
+        rows = [_portal_order_summary_row(order) for order in orders_qs[:12]]
         return Response({"kpis": kpis, "orders": rows})

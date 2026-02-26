@@ -21,6 +21,15 @@ function inferLegacyPath(pathname: string): string {
   if (pathname.startsWith("/scan/shipments-tracking")) {
     return "/scan/shipments-tracking/";
   }
+  if (pathname.startsWith("/scan/receipts")) {
+    return "/scan/receipts/";
+  }
+  if (pathname.startsWith("/scan/orders")) {
+    return "/scan/orders-view/";
+  }
+  if (pathname === "/scan/order" || pathname.startsWith("/scan/order/")) {
+    return "/scan/orders/";
+  }
   if (pathname.startsWith("/scan/shipment-documents")) {
     return "/scan/shipment/";
   }
