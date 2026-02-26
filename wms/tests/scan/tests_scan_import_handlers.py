@@ -228,7 +228,7 @@ class ScanImportHandlersTests(TestCase):
                     1,
                     ["e1", "e2", "e3", "e4"],
                     ["w1", "w2", "w3", "w4"],
-                    {"distinct_products": 1},
+                    {"distinct_products": 1, "temp_location_rows": 2},
                 ),
             ) as import_rows_mock:
                 response = scan_import_handlers.handle_scan_import_action(
@@ -263,7 +263,10 @@ class ScanImportHandlersTests(TestCase):
         self.assertIn("Import produits: 4 alerte(s).", messages)
         self.assertIn("w1", messages)
         self.assertIn(
-            "Import produits: 1 créé(s), 1 ligne(s) maj., 1 produit(s) distinct(s) impacté(s).",
+            (
+                "Import produits: 1 créé(s), 1 ligne(s) maj., "
+                "1 produit(s) distinct(s) impacté(s), 2 ligne(s) envoyée(s) vers TEMP."
+            ),
             messages,
         )
 
@@ -567,7 +570,13 @@ class ScanImportHandlersTests(TestCase):
                         ):
                             with mock.patch(
                                 "wms.scan_import_handlers.import_products_rows",
-                                return_value=(2, 0, ["e1"], ["w1"], {"distinct_products": 2}),
+                                return_value=(
+                                    2,
+                                    0,
+                                    ["e1"],
+                                    ["w1"],
+                                    {"distinct_products": 2, "temp_location_rows": 0},
+                                ),
                             ) as import_rows_mock:
                                 response = (
                                     scan_import_handlers.handle_scan_import_action(
@@ -586,7 +595,10 @@ class ScanImportHandlersTests(TestCase):
         self.assertIn("Import produits: 1 erreur(s).", messages)
         self.assertIn("Import produits: 1 alerte(s).", messages)
         self.assertIn(
-            "Import produits: 2 créé(s), 0 ligne(s) maj., 2 produit(s) distinct(s) impacté(s).",
+            (
+                "Import produits: 2 créé(s), 0 ligne(s) maj., "
+                "2 produit(s) distinct(s) impacté(s), 0 ligne(s) envoyée(s) vers TEMP."
+            ),
             messages,
         )
 

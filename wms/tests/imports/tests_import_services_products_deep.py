@@ -67,7 +67,8 @@ class ImportProductsHelperTests(TestCase):
 
         with self.assertRaisesMessage(ValueError, "Quantité invalide."):
             _apply_quantity(product=product, quantity=0, location=None)
-        _apply_quantity(product=product, quantity=1, location=None)
+        used_temp_location = _apply_quantity(product=product, quantity=1, location=None)
+        self.assertTrue(used_temp_location)
         product.refresh_from_db()
         self.assertIsNotNone(product.default_location_id)
         self.assertEqual(product.default_location.warehouse.name, "TEMP")
@@ -326,15 +327,17 @@ class ImportProductsRowsDeepTests(TestCase):
         rows = [{"name": "Produit A", "sku": "PROD-A-OVER", "quantity": "500"}]
         decisions = {2: {"action": "update", "product_id": product.id}}
 
-        created, updated, errors, warnings = import_products_rows(
+        created, updated, errors, warnings, stats = import_products_rows(
             rows,
             decisions=decisions,
             quantity_mode="overwrite",
+            collect_stats=True,
         )
 
         self.assertEqual((created, updated), (0, 1))
         self.assertEqual(errors, [])
         self.assertEqual(warnings, [])
+        self.assertEqual(stats, {"distinct_products": 1, "temp_location_rows": 0})
         self.assertEqual(
             sum(ProductLot.objects.filter(product=product).values_list("quantity_on_hand", flat=True)),
             500,
@@ -348,15 +351,17 @@ class ImportProductsRowsDeepTests(TestCase):
         rows = [{"name": "Produit Temp", "sku": "PROD-TEMP", "quantity": "500"}]
         decisions = {2: {"action": "update", "product_id": product.id}}
 
-        created, updated, errors, warnings = import_products_rows(
+        created, updated, errors, warnings, stats = import_products_rows(
             rows,
             decisions=decisions,
             quantity_mode="overwrite",
+            collect_stats=True,
         )
 
         self.assertEqual((created, updated), (0, 1))
         self.assertEqual(errors, [])
         self.assertEqual(warnings, [])
+        self.assertEqual(stats, {"distinct_products": 1, "temp_location_rows": 1})
         product.refresh_from_db()
         self.assertIsNotNone(product.default_location_id)
         self.assertEqual(product.default_location.warehouse.name, "TEMP")

@@ -147,7 +147,7 @@ class ImportProductsTests(TestCase):
         self.assertEqual(warnings, [])
         self.assertEqual(created, 0)
         self.assertEqual(updated, 2)
-        self.assertEqual(stats, {"distinct_products": 1})
+        self.assertEqual(stats, {"distinct_products": 1, "temp_location_rows": 0})
 
 
 class ListingImportTests(TestCase):

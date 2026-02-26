@@ -171,9 +171,9 @@ def _overwrite_product_quantity(*, product, quantity, location, user=None):
 
 def _resolve_stock_location_for_import(*, product, location):
     if location is not None:
-        return location
+        return location, False
     if product.default_location is not None:
-        return product.default_location
+        return product.default_location, False
     temp_location = get_or_create_location(
         IMPORT_TEMP_LOCATION_VALUE,
         IMPORT_TEMP_LOCATION_VALUE,
@@ -181,20 +181,20 @@ def _resolve_stock_location_for_import(*, product, location):
         IMPORT_TEMP_LOCATION_VALUE,
     )
     if temp_location is None:
-        return None
+        return None, False
     if product.default_location_id != temp_location.id:
         product.default_location = temp_location
         if product.pk:
             product.save(update_fields=["default_location"])
-    return temp_location
+    return temp_location, True
 
 
 def _apply_quantity(*, product, quantity, location, user=None, quantity_mode=DEFAULT_QUANTITY_MODE):
     if quantity is None:
-        return
+        return False
     if quantity <= 0:
         raise ValueError("Quantité invalide.")
-    stock_location = _resolve_stock_location_for_import(
+    stock_location, used_temp_location = _resolve_stock_location_for_import(
         product=product,
         location=location,
     )
@@ -210,13 +210,14 @@ def _apply_quantity(*, product, quantity, location, user=None, quantity_mode=DEF
                     location=stock_location,
                     user=user,
                 )
-            return
+            return used_temp_location
         receive_stock(
             user=user,
             product=product,
             quantity=quantity,
             location=stock_location,
         )
+        return used_temp_location
     except StockError as exc:
         raise ValueError(str(exc)) from exc
 
@@ -396,6 +397,7 @@ def import_product_row(
     existing_product=None,
     base_dir: Path | None = None,
     quantity_mode: str = DEFAULT_QUANTITY_MODE,
+    collect_stats: bool = False,
 ):
     name = _parse_product_name(row)
     sku = _parse_product_sku(row)
@@ -406,6 +408,9 @@ def import_product_row(
     values["sku"] = sku
 
     warnings = []
+    row_stats = {
+        "used_temp_location": False,
+    }
     if existing_product is None:
         product = Product(sku=values["sku"] or "", name=values["name"])
         for field, value in _build_create_updates(values).items():
@@ -414,13 +419,15 @@ def import_product_row(
         product.save()
         if values["tags_provided"]:
             product.tags.set(values["tags"])
-        _apply_quantity(
+        row_stats["used_temp_location"] = _apply_quantity(
             product=product,
             quantity=values["quantity"],
             location=values["default_location"] if values["location_provided"] else None,
             user=user,
             quantity_mode=quantity_mode,
         )
+        if collect_stats:
+            return product, True, warnings, row_stats
         return product, True, warnings
 
     updates = _build_update_fields(values)
@@ -431,13 +438,15 @@ def import_product_row(
     _apply_product_updates(existing_product, updates)
     if values["tags_provided"]:
         existing_product.tags.set(values["tags"])
-    _apply_quantity(
+    row_stats["used_temp_location"] = _apply_quantity(
         product=existing_product,
         quantity=values["quantity"],
         location=values["default_location"] if values["location_provided"] else None,
         user=user,
         quantity_mode=quantity_mode,
     )
+    if collect_stats:
+        return existing_product, False, warnings, row_stats
     return existing_product, False, warnings
 
 
@@ -456,6 +465,7 @@ def import_products_rows(
     errors = []
     warnings = []
     impacted_product_ids = set()
+    temp_location_rows = 0
     decisions = decisions or {}
     for index, row in enumerate(rows, start=start_index):
         if _row_is_empty(row):
@@ -477,18 +487,35 @@ def import_products_rows(
                     f"Ligne {index}: SKU {sku} déjà utilisé, SKU auto-généré."
                 )
         try:
-            product, was_created, row_warnings = import_product_row(
-                row,
-                user=user,
-                existing_product=existing_product,
-                base_dir=base_dir,
-                quantity_mode=quantity_mode,
-            )
+            if collect_stats:
+                (
+                    product,
+                    was_created,
+                    row_warnings,
+                    row_stats,
+                ) = import_product_row(
+                    row,
+                    user=user,
+                    existing_product=existing_product,
+                    base_dir=base_dir,
+                    quantity_mode=quantity_mode,
+                    collect_stats=True,
+                )
+            else:
+                product, was_created, row_warnings = import_product_row(
+                    row,
+                    user=user,
+                    existing_product=existing_product,
+                    base_dir=base_dir,
+                    quantity_mode=quantity_mode,
+                )
         except ValueError as exc:
             errors.append(f"Ligne {index}: {exc}")
             continue
         if collect_stats:
             impacted_product_ids.add(product.id)
+            if row_stats.get("used_temp_location"):
+                temp_location_rows += 1
         warnings.extend(row_warnings)
         if was_created:
             created += 1
@@ -500,7 +527,10 @@ def import_products_rows(
             updated,
             errors,
             warnings,
-            {"distinct_products": len(impacted_product_ids)},
+            {
+                "distinct_products": len(impacted_product_ids),
+                "temp_location_rows": temp_location_rows,
+            },
         )
     return created, updated, errors, warnings
 

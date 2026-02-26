@@ -90,6 +90,8 @@ def _normalize_product_import_result(result):
     stats = result[4] if len(result) > 4 and isinstance(result[4], dict) else {}
     if "distinct_products" not in stats:
         stats["distinct_products"] = created + updated
+    if "temp_location_rows" not in stats:
+        stats["temp_location_rows"] = 0
     return created, updated, errors, warnings, stats
 
 
@@ -106,11 +108,13 @@ def _notify_product_import_result(
     _add_limited_message_list(request, title=title, entries=errors, label="erreur")
     _add_limited_message_list(request, title=title, entries=warnings, label="alerte")
     distinct_products = stats.get("distinct_products", created + updated)
+    temp_location_rows = stats.get("temp_location_rows", 0)
     messages.success(
         request,
         (
             f"{title}: {created} créé(s), {updated} ligne(s) maj., "
-            f"{distinct_products} produit(s) distinct(s) impacté(s)."
+            f"{distinct_products} produit(s) distinct(s) impacté(s), "
+            f"{temp_location_rows} ligne(s) envoyée(s) vers TEMP."
         ),
     )
 
