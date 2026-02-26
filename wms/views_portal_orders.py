@@ -13,6 +13,7 @@ from .models import (
     Order,
     OrderDocument,
     OrderDocumentType,
+    ProductCategory,
     OrderReviewStatus,
     ShipmentTrackingStatus,
 )
@@ -23,6 +24,7 @@ from .order_helpers import (
     build_order_line_estimates,
     build_order_line_items,
     build_order_product_rows,
+    split_ready_rows_into_kits,
 )
 from .order_notifications import send_portal_order_notifications
 from .portal_helpers import (
@@ -299,6 +301,7 @@ def _build_order_create_context(
     errors,
     line_errors,
     ready_carton_rows,
+    ready_kit_rows,
     total_selected_ready_cartons,
 ):
     carton_format = get_default_carton_format()
@@ -309,6 +312,49 @@ def _build_order_create_context(
         line_quantities,
         carton_format,
     )
+    category_paths_by_row = {}
+    for row in product_rows:
+        row_id = row.get("id")
+        if not row_id:
+            continue
+        row_key = f"unit:{row_id}"
+        row["filter_row_key"] = row_key
+        product = product_by_id.get(row_id)
+        category = getattr(product, "category", None) if product is not None else None
+        category_path = []
+        while category is not None:
+            category_path.append(str(category.id))
+            category = category.parent
+        category_path.reverse()
+        category_paths_by_row[row_key] = [category_path] if category_path else []
+
+    for row in ready_carton_rows:
+        row_key = f"ready:{row['row_key']}"
+        row["filter_row_key"] = row_key
+        category_paths_by_row[row_key] = row.get("category_paths", [])
+
+    for row in ready_kit_rows:
+        row_key = f"kit:{row['row_key']}"
+        row["filter_row_key"] = row_key
+        category_paths_by_row[row_key] = row.get("category_paths", [])
+
+    category_ids = sorted(
+        {
+            int(category_id)
+            for paths in category_paths_by_row.values()
+            for path in paths
+            for category_id in path
+            if str(category_id).isdigit()
+        }
+    )
+    category_labels_by_id = {
+        str(category.id): category.name
+        for category in ProductCategory.objects.filter(id__in=category_ids)
+    }
+    category_filter_max_depth = max(
+        [len(path) for paths in category_paths_by_row.values() for path in paths] or [0]
+    )
+
     return {
         "destination_options": destination_options,
         "recipient_options": recipient_options,
@@ -320,9 +366,13 @@ def _build_order_create_context(
         "line_errors": line_errors,
         "line_quantities": line_quantities,
         "ready_cartons": ready_carton_rows,
+        "ready_kits": ready_kit_rows,
         "total_selected_ready_cartons": total_selected_ready_cartons,
         "total_estimated_cartons_to_prepare": total_estimated_cartons_to_prepare,
         "total_estimated_cartons": total_estimated_cartons_to_prepare,
+        "category_paths_by_row": category_paths_by_row,
+        "category_labels_by_id": category_labels_by_id,
+        "category_filter_max_depth": category_filter_max_depth,
         "carton_format": carton_data,
     }
 
@@ -435,10 +485,15 @@ def portal_order_create(request):
     line_items = []
     selected_destination = None
     selected_ready_carton_ids = []
+    selected_ready_kit_ids = []
     ready_carton_quantities = {}
+    ready_kit_quantities = {}
     ready_carton_line_errors = {}
+    ready_kit_line_errors = {}
     total_selected_ready_cartons = 0
-    ready_carton_rows = build_ready_carton_rows()
+    ready_kit_rows = []
+    all_ready_rows = build_ready_carton_rows()
+    ready_carton_rows, ready_kit_rows = split_ready_rows_into_kits(all_ready_rows)
 
     if request.method == "POST":
         form_data["destination_id"] = (request.POST.get("destination_id") or "").strip()
@@ -471,11 +526,31 @@ def portal_order_create(request):
         ) = build_ready_carton_selection(
             request.POST,
             ready_carton_rows=ready_carton_rows,
+            field_prefix="ready_carton",
         )
-        ready_carton_rows = build_ready_carton_rows(
-            selected_quantities=ready_carton_quantities,
-            line_errors=ready_carton_line_errors,
+        (
+            selected_ready_kit_ids,
+            ready_kit_quantities,
+            ready_kit_line_errors,
+            total_selected_ready_kits,
+        ) = build_ready_carton_selection(
+            request.POST,
+            ready_carton_rows=ready_kit_rows,
+            field_prefix="ready_kit",
         )
+        total_selected_ready_cartons += total_selected_ready_kits
+
+        all_ready_rows = build_ready_carton_rows(
+            selected_quantities={
+                **ready_carton_quantities,
+                **ready_kit_quantities,
+            },
+            line_errors={
+                **ready_carton_line_errors,
+                **ready_kit_line_errors,
+            },
+        )
+        ready_carton_rows, ready_kit_rows = split_ready_rows_into_kits(all_ready_rows)
 
         line_items, line_quantities, line_errors = build_order_line_items(
             request.POST,
@@ -483,7 +558,7 @@ def portal_order_create(request):
             product_by_id=product_by_id,
             available_by_id=available_by_id,
         )
-        if not line_items and not selected_ready_carton_ids:
+        if not line_items and not selected_ready_carton_ids and not selected_ready_kit_ids:
             errors.append(ERROR_PRODUCT_REQUIRED)
 
         destination = _resolve_destination(
@@ -493,7 +568,12 @@ def portal_order_create(request):
             selected_destination=selected_destination,
         )
 
-        if not errors and not line_errors and not ready_carton_line_errors:
+        if (
+            not errors
+            and not line_errors
+            and not ready_carton_line_errors
+            and not ready_kit_line_errors
+        ):
             try:
                 order = create_portal_order(
                     user=request.user,
@@ -505,7 +585,7 @@ def portal_order_create(request):
                     destination_country=destination["destination_country"],
                     notes=form_data["notes"],
                     line_items=line_items,
-                    ready_carton_ids=selected_ready_carton_ids,
+                    ready_carton_ids=selected_ready_carton_ids + selected_ready_kit_ids,
                 )
             except StockError as exc:
                 errors.append(str(exc))
@@ -537,6 +617,7 @@ def portal_order_create(request):
             errors=errors,
             line_errors=line_errors,
             ready_carton_rows=ready_carton_rows,
+            ready_kit_rows=ready_kit_rows,
             total_selected_ready_cartons=total_selected_ready_cartons,
         ),
     )

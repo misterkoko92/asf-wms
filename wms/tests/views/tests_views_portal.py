@@ -33,6 +33,7 @@ from wms.models import (
     OrderDocumentType,
     OrderReviewStatus,
     Product,
+    ProductKitItem,
     ProductLot,
     ProductLotStatus,
     Shipment,
@@ -451,6 +452,9 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertIn("destination_options", response.context)
         self.assertIn("recipient_options", response.context)
         self.assertContains(response, "Colis disponibles")
+        self.assertContains(response, "Kits disponibles")
+        self.assertContains(response, "Filtrer produits")
+        self.assertContains(response, "portal-filter-category-l1")
         self.assertContains(response, "Produits &agrave; l'unit&eacute;")
         self.assertContains(
             response,
@@ -523,6 +527,7 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertEqual(row["product_lines"][1]["product_name"], "Pince")
         self.assertEqual(row["product_lines"][1]["quantity"], 3)
         self.assertIsNotNone(row["expires_on"])
+        self.assertEqual(response.context["ready_kits"], [])
 
     def test_portal_order_create_filters_recipient_options_by_destination(self):
         other_destination = self._create_destination(city="Abidjan", country="Cote d'Ivoire")
@@ -832,6 +837,136 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         ready_carton.refresh_from_db()
         self.assertEqual(ready_carton.shipment_id, order.shipment_id)
         self.assertEqual(ready_carton.status, CartonStatus.ASSIGNED)
+
+    def test_portal_order_create_get_exposes_ready_kits_rows(self):
+        warehouse = Warehouse.objects.create(name="Portal Ready Kit Warehouse")
+        location = Location.objects.create(
+            warehouse=warehouse,
+            zone="D",
+            aisle="01",
+            shelf="001",
+        )
+        component = Product.objects.create(
+            sku="PORTAL-KIT-COMP-001",
+            name="Composant Kit",
+            default_location=location,
+            qr_code_image="qr_codes/portal_kit_comp_001.png",
+        )
+        kit = Product.objects.create(
+            sku="PORTAL-KIT-001",
+            name="Kit Portail",
+            default_location=location,
+            qr_code_image="qr_codes/portal_kit_001.png",
+        )
+        ProductKitItem.objects.create(
+            kit=kit,
+            component=component,
+            quantity=4,
+        )
+        lot_component = ProductLot.objects.create(
+            product=component,
+            lot_code="LOT-PORTAL-KIT-COMP",
+            expires_on=timezone.localdate() + timedelta(days=60),
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=40,
+            quantity_reserved=0,
+            location=location,
+        )
+        packed_kit_carton = Carton.objects.create(
+            code="CRT-PORTAL-KIT-READY-001",
+            status=CartonStatus.PACKED,
+        )
+        CartonItem.objects.create(
+            carton=packed_kit_carton,
+            product_lot=lot_component,
+            quantity=4,
+        )
+
+        response = self.client.get(self.order_create_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["ready_cartons"], [])
+        ready_kits = response.context["ready_kits"]
+        self.assertEqual(len(ready_kits), 1)
+        row = ready_kits[0]
+        self.assertEqual(row["kit_name"], "Kit Portail")
+        self.assertEqual(row["available_stock"], 1)
+        self.assertEqual(row["product_lines"][0]["product_name"], "Composant Kit")
+        self.assertEqual(row["product_lines"][0]["quantity"], 4)
+
+    def test_portal_order_create_post_supports_ready_kits(self):
+        warehouse = Warehouse.objects.create(name="Portal Ready Kit Post Warehouse")
+        location = Location.objects.create(
+            warehouse=warehouse,
+            zone="E",
+            aisle="01",
+            shelf="001",
+        )
+        component = Product.objects.create(
+            sku="PORTAL-KIT-COMP-POST",
+            name="Composant Kit Post",
+            default_location=location,
+            qr_code_image="qr_codes/portal_kit_comp_post.png",
+        )
+        kit = Product.objects.create(
+            sku="PORTAL-KIT-POST",
+            name="Kit Post",
+            default_location=location,
+            qr_code_image="qr_codes/portal_kit_post.png",
+        )
+        ProductKitItem.objects.create(
+            kit=kit,
+            component=component,
+            quantity=3,
+        )
+        lot_component = ProductLot.objects.create(
+            product=component,
+            lot_code="LOT-PORTAL-KIT-POST",
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=30,
+            quantity_reserved=0,
+            location=location,
+        )
+        packed_kit_carton = Carton.objects.create(
+            code="CRT-PORTAL-KIT-POST-001",
+            status=CartonStatus.PACKED,
+        )
+        CartonItem.objects.create(
+            carton=packed_kit_carton,
+            product_lot=lot_component,
+            quantity=3,
+        )
+
+        form_response = self.client.get(self.order_create_url)
+        self.assertEqual(form_response.status_code, 200)
+        ready_kits = form_response.context["ready_kits"]
+        self.assertEqual(len(ready_kits), 1)
+        row_key = ready_kits[0]["row_key"]
+
+        with mock.patch("wms.views_portal_orders.send_portal_order_notifications"):
+            response = self.client.post(
+                self.order_create_url,
+                {
+                    "destination_id": str(self.destination.id),
+                    "recipient_id": str(self.delivery_recipient.id),
+                    "notes": "Commande kit prêt",
+                    f"ready_kit_{row_key}_qty": "1",
+                },
+            )
+        self.assertEqual(response.status_code, 302)
+
+        order = (
+            Order.objects.filter(association_contact=self.profile.contact)
+            .order_by("-id")
+            .first()
+        )
+        self.assertIsNotNone(order)
+        ready_line = order.lines.get(product=component)
+        self.assertEqual(ready_line.quantity, 3)
+        self.assertEqual(ready_line.prepared_quantity, 3)
+        self.assertEqual(ready_line.reserved_quantity, 0)
+        packed_kit_carton.refresh_from_db()
+        self.assertEqual(packed_kit_carton.shipment_id, order.shipment_id)
+        self.assertEqual(packed_kit_carton.status, CartonStatus.ASSIGNED)
 
     def test_portal_to_scan_flow_prefills_shipment_after_admin_validation(self):
         warehouse = Warehouse.objects.create(name="Portal Flow Warehouse")

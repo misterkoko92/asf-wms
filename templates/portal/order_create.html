@@ -56,6 +56,24 @@
       </div>
 
       <div class="scan-field">
+        <label>Filtrer produits</label>
+        <div id="portal-category-filters" class="scan-filter-actions">
+          <select id="portal-filter-category-l1" data-filter-level="0">
+            <option value="">Toutes cat&eacute;gories</option>
+          </select>
+          <select id="portal-filter-category-l2" data-filter-level="1" hidden>
+            <option value="">Toutes sous-cat&eacute;gories (L2)</option>
+          </select>
+          <select id="portal-filter-category-l3" data-filter-level="2" hidden>
+            <option value="">Toutes sous-cat&eacute;gories (L3)</option>
+          </select>
+          <select id="portal-filter-category-l4" data-filter-level="3" hidden>
+            <option value="">Toutes sous-cat&eacute;gories (L4)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="scan-field">
         <label>Colis disponibles</label>
         <div class="portal-products-panel">
           <div class="scan-table-wrap portal-products-table-wrap">
@@ -73,6 +91,7 @@
                   <tr
                     data-ready-carton-key="{{ row.row_key }}"
                     data-ready-carton-stock="{{ row.available_stock }}"
+                    data-filter-row-key="{{ row.filter_row_key }}"
                   >
                     <td>
                       {% for line in row.product_lines %}
@@ -106,6 +125,58 @@
       </div>
 
       <div class="scan-field">
+        <label>Kits disponibles</label>
+        <div class="portal-products-panel">
+          <div class="scan-table-wrap portal-products-table-wrap">
+            <table class="scan-table portal-table" data-table-tools="1">
+              <thead>
+                <tr>
+                  <th>Produit</th>
+                  <th>Stock</th>
+                  <th>Quantit&eacute;</th>
+                  <th>Date de p&eacute;remption</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in ready_kits %}
+                  <tr
+                    data-ready-carton-key="{{ row.row_key }}"
+                    data-ready-carton-stock="{{ row.available_stock }}"
+                    data-filter-row-key="{{ row.filter_row_key }}"
+                  >
+                    <td>
+                      <div><strong>{{ row.kit_name }}</strong></div>
+                      {% for line in row.product_lines %}
+                        <div>{{ line.product_name }} - {{ line.quantity }} unit&eacute;s</div>
+                      {% endfor %}
+                    </td>
+                    <td>{{ row.available_stock }}</td>
+                    <td>
+                      <input
+                        type="number"
+                        name="ready_kit_{{ row.row_key }}_qty"
+                        min="0"
+                        value="{{ row.quantity }}"
+                        {% if row.available_stock == 0 %}disabled{% endif %}
+                      >
+                      {% if row.line_error %}
+                        <div class="scan-message error">{{ row.line_error }}</div>
+                      {% endif %}
+                    </td>
+                    <td>{% if row.expires_on %}{{ row.expires_on|date:"d/m/Y" }}{% endif %}</td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="4">Aucun kit pr&ecirc;t disponible.</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="scan-field">
         <label>Produits &agrave; l'unit&eacute;</label>
         <p class="scan-help">
           Les stock indiqu&eacute;s dans ce tableau sont fictifs. Cette fonctionnalit&eacute; sera bient&ocirc;t activ&eacute;e pour afficher les stocks r&eacute;els.
@@ -123,7 +194,10 @@
               </thead>
               <tbody>
                 {% for product in products %}
-                  <tr data-product-id="{{ product.id }}">
+                  <tr
+                    data-product-id="{{ product.id }}"
+                    data-filter-row-key="{{ product.filter_row_key }}"
+                  >
                     <td>{{ product.name }}</td>
                     <td>{{ product.available_stock }}</td>
                     <td>
@@ -170,6 +244,9 @@
 
   {{ recipient_options_all|json_script:"portal-recipient-options-data" }}
   {{ product_data|json_script:"portal-product-data" }}
+  {{ category_paths_by_row|json_script:"portal-category-paths-by-row" }}
+  {{ category_labels_by_id|json_script:"portal-category-labels-by-id" }}
+  {{ category_filter_max_depth|json_script:"portal-category-filter-max-depth" }}
   {% if carton_format %}
     {{ carton_format|json_script:"portal-carton-data" }}
   {% endif %}
@@ -314,7 +391,7 @@
       };
 
       const rows = Array.from(document.querySelectorAll('tr[data-product-id]'));
-      const readyRows = Array.from(document.querySelectorAll('tr[data-ready-carton-key]'));
+      const readyRows = Array.from(document.querySelectorAll('tr[data-ready-carton-stock]'));
       const totalEl = document.getElementById('carton-estimate-total');
       const readyTotalEl = document.getElementById('ready-carton-estimate-total');
 
@@ -379,6 +456,162 @@
           input.addEventListener('input', updateTotals);
         }
       });
+
+      const categoryPathsByRowEl = document.getElementById('portal-category-paths-by-row');
+      const categoryLabelsByIdEl = document.getElementById('portal-category-labels-by-id');
+      const categoryFilterDepthEl = document.getElementById('portal-category-filter-max-depth');
+
+      let categoryPathsByRow = {};
+      let categoryLabelsById = {};
+      let categoryFilterMaxDepth = 0;
+      try {
+        categoryPathsByRow = JSON.parse(
+          categoryPathsByRowEl ? categoryPathsByRowEl.textContent || '{}' : '{}'
+        );
+      } catch (err) {
+        categoryPathsByRow = {};
+      }
+      try {
+        categoryLabelsById = JSON.parse(
+          categoryLabelsByIdEl ? categoryLabelsByIdEl.textContent || '{}' : '{}'
+        );
+      } catch (err) {
+        categoryLabelsById = {};
+      }
+      try {
+        categoryFilterMaxDepth = parseInt(
+          categoryFilterDepthEl ? categoryFilterDepthEl.textContent || '0' : '0',
+          10
+        ) || 0;
+      } catch (err) {
+        categoryFilterMaxDepth = 0;
+      }
+
+      const categorySelects = [
+        document.getElementById('portal-filter-category-l1'),
+        document.getElementById('portal-filter-category-l2'),
+        document.getElementById('portal-filter-category-l3'),
+        document.getElementById('portal-filter-category-l4'),
+      ].filter(Boolean);
+      const filterableRows = Array.from(document.querySelectorAll('tr[data-filter-row-key]'));
+
+      const categoryPrefixMatches = (path, prefix) =>
+        prefix.every((value, idx) => path[idx] === value);
+
+      const getSelectedPrefix = () => {
+        const prefix = [];
+        for (let idx = 0; idx < categorySelects.length; idx += 1) {
+          const value = (categorySelects[idx].value || '').trim();
+          if (!value) {
+            break;
+          }
+          prefix.push(value);
+        }
+        return prefix;
+      };
+
+      const optionsForLevel = (level, prefix) => {
+        const optionsMap = new Map();
+        Object.values(categoryPathsByRow).forEach(paths => {
+          (paths || []).forEach(path => {
+            if (!Array.isArray(path) || path.length <= level) {
+              return;
+            }
+            if (!categoryPrefixMatches(path, prefix)) {
+              return;
+            }
+            const optionId = path[level];
+            if (!optionsMap.has(optionId)) {
+              optionsMap.set(optionId, categoryLabelsById[optionId] || optionId);
+            }
+          });
+        });
+        return Array.from(optionsMap.entries()).sort((left, right) =>
+          String(left[1] || '').localeCompare(String(right[1] || ''), 'fr', {
+            sensitivity: 'base'
+          })
+        );
+      };
+
+      const setSelectOptions = (select, options, level) => {
+        const previousValue = (select.value || '').trim();
+        select.innerHTML = '';
+        const empty = document.createElement('option');
+        empty.value = '';
+        empty.textContent =
+          level === 0
+            ? 'Toutes categories'
+            : `Toutes sous-categories (L${level + 1})`;
+        select.appendChild(empty);
+        options.forEach(([value, label]) => {
+          const option = document.createElement('option');
+          option.value = value;
+          option.textContent = label;
+          select.appendChild(option);
+        });
+        if (previousValue && options.some(([value]) => value === previousValue)) {
+          select.value = previousValue;
+        } else {
+          select.value = '';
+        }
+      };
+
+      const updateCategorySelects = () => {
+        if (!categorySelects.length) {
+          return;
+        }
+        for (let level = 0; level < categorySelects.length; level += 1) {
+          const select = categorySelects[level];
+          if (level >= categoryFilterMaxDepth) {
+            select.hidden = true;
+            select.value = '';
+            continue;
+          }
+          if (level === 0) {
+            const options = optionsForLevel(0, []);
+            setSelectOptions(select, options, level);
+            select.hidden = false;
+            continue;
+          }
+          const parent = categorySelects[level - 1];
+          const parentValue = (parent.value || '').trim();
+          if (!parentValue) {
+            select.hidden = true;
+            select.value = '';
+            continue;
+          }
+          const prefix = getSelectedPrefix().slice(0, level);
+          const options = optionsForLevel(level, prefix);
+          setSelectOptions(select, options, level);
+          select.hidden = options.length === 0;
+          if (select.hidden) {
+            select.value = '';
+          }
+        }
+      };
+
+      const applyCategoryFilter = () => {
+        const prefix = getSelectedPrefix();
+        filterableRows.forEach(row => {
+          const rowKey = row.dataset.filterRowKey || '';
+          const paths = categoryPathsByRow[rowKey] || [];
+          if (!prefix.length) {
+            row.style.display = '';
+            return;
+          }
+          const matches = paths.some(path => categoryPrefixMatches(path, prefix));
+          row.style.display = matches ? '' : 'none';
+        });
+      };
+
+      categorySelects.forEach((select) => {
+        select.addEventListener('change', () => {
+          updateCategorySelects();
+          applyCategoryFilter();
+        });
+      });
+      updateCategorySelects();
+      applyCategoryFilter();
       updateTotals();
     })();
   </script>

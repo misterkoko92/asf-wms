@@ -1,8 +1,15 @@
-import math
 import hashlib
+import math
 from collections import defaultdict
 
-from .models import Carton, CartonStatus, Document, DocumentType, OrderDocumentType
+from .models import (
+    Carton,
+    CartonStatus,
+    Document,
+    DocumentType,
+    OrderDocumentType,
+    Product,
+)
 from .portal_helpers import get_association_profile, get_contact_address
 from .scan_helpers import (
     get_carton_volume_cm3,
@@ -181,6 +188,20 @@ def _ready_carton_signature(*, product_lines, expires_on):
     return f"{line_signature}|{expires_signature}"
 
 
+def _composition_signature(*, product_lines):
+    return "|".join(f"{line['product_id']}:{line['quantity']}" for line in product_lines)
+
+
+def _build_product_category_path_ids(product):
+    path = []
+    category = getattr(product, "category", None)
+    while category is not None:
+        path.append(str(category.id))
+        category = category.parent
+    path.reverse()
+    return path
+
+
 def build_ready_carton_rows(*, selected_quantities=None, line_errors=None):
     selected_quantities = selected_quantities or {}
     line_errors = line_errors or {}
@@ -194,11 +215,13 @@ def build_ready_carton_rows(*, selected_quantities=None, line_errors=None):
     for carton in cartons:
         product_qty_by_id = defaultdict(int)
         product_name_by_id = {}
+        product_category_paths = {}
         expires_dates = []
         for item in carton.cartonitem_set.all():
             product = item.product_lot.product
             product_qty_by_id[product.id] += item.quantity
             product_name_by_id[product.id] = product.name or "-"
+            product_category_paths[product.id] = _build_product_category_path_ids(product)
             if item.product_lot.expires_on:
                 expires_dates.append(item.product_lot.expires_on)
         if not product_qty_by_id:
@@ -223,13 +246,26 @@ def build_ready_carton_rows(*, selected_quantities=None, line_errors=None):
             product_lines=product_lines,
             expires_on=expires_on,
         )
+        composition_signature = _composition_signature(product_lines=product_lines)
+        category_paths = sorted(
+            {
+                tuple(path_ids)
+                for path_ids in [
+                    product_category_paths.get(line["product_id"], [])
+                    for line in product_lines
+                ]
+                if path_ids
+            }
+        )
         group = grouped.setdefault(
             signature,
             {
                 "signature": signature,
+                "composition_signature": composition_signature,
                 "product_lines": product_lines,
                 "expires_on": expires_on,
                 "carton_ids": [],
+                "category_paths": [list(path_ids) for path_ids in category_paths],
             },
         )
         group["carton_ids"].append(carton.id)
@@ -244,9 +280,11 @@ def build_ready_carton_rows(*, selected_quantities=None, line_errors=None):
             {
                 "row_key": row_key,
                 "product_lines": group["product_lines"],
+                "composition_signature": group["composition_signature"],
                 "expires_on": group["expires_on"],
                 "available_stock": len(group["carton_ids"]),
                 "carton_ids": group["carton_ids"],
+                "category_paths": group["category_paths"],
                 "quantity": selected_quantities.get(row_key, ""),
                 "line_error": line_errors.get(row_key, ""),
             }
@@ -257,13 +295,66 @@ def build_ready_carton_rows(*, selected_quantities=None, line_errors=None):
                 f"{line['product_name']}:{line['quantity']}"
                 for line in row["product_lines"]
             ).lower(),
-            row["expires_on"] or "",
+            row["expires_on"].isoformat() if row["expires_on"] else "",
         )
     )
     return rows
 
 
-def build_ready_carton_selection(post_data, *, ready_carton_rows):
+def split_ready_rows_into_kits(ready_rows):
+    kit_products = (
+        Product.objects.filter(is_active=True, kit_items__isnull=False)
+        .prefetch_related("kit_items__component")
+        .order_by("name", "id")
+    )
+    signature_to_kit = {}
+    for kit in kit_products:
+        kit_items = list(kit.kit_items.all())
+        if not kit_items:
+            continue
+        product_lines = [
+            {
+                "product_id": item.component_id,
+                "quantity": item.quantity,
+            }
+            for item in sorted(
+                kit_items,
+                key=lambda current: ((current.component.name or "").lower(), current.component_id),
+            )
+            if item.quantity > 0
+        ]
+        if not product_lines:
+            continue
+        signature = _composition_signature(product_lines=product_lines)
+        kit_category_path = _build_product_category_path_ids(kit)
+        signature_to_kit[signature] = {
+            "id": kit.id,
+            "name": kit.name or f"Kit {kit.id}",
+            "category_paths": [kit_category_path] if kit_category_path else [],
+        }
+
+    ready_cartons = []
+    ready_kits = []
+    for row in ready_rows:
+        kit = signature_to_kit.get(row.get("composition_signature", ""))
+        if not kit:
+            ready_cartons.append(row)
+            continue
+        kit_row = dict(row)
+        kit_row["kit_id"] = kit["id"]
+        kit_row["kit_name"] = kit["name"]
+        if kit["category_paths"]:
+            kit_row["category_paths"] = kit["category_paths"]
+        ready_kits.append(kit_row)
+    return ready_cartons, ready_kits
+
+
+def build_ready_carton_selection(
+    post_data,
+    *,
+    ready_carton_rows,
+    field_prefix="ready_carton",
+):
     selected_carton_ids = []
     line_quantities = {}
     line_errors = {}
@@ -272,7 +363,7 @@ def build_ready_carton_selection(post_data, *, ready_carton_rows):
         row_key = row.get("row_key")
         if not row_key:
             continue
-        raw_qty = (post_data.get(f"ready_carton_{row_key}_qty") or "").strip()
+        raw_qty = (post_data.get(f"{field_prefix}_{row_key}_qty") or "").strip()
         if raw_qty:
             line_quantities[row_key] = raw_qty
         if not raw_qty:

@@ -146,7 +146,12 @@ def build_product_options(*, include_kits: bool = False):
 def build_product_selection_data(*, include_kits: bool = False):
     product_options = build_product_options(include_kits=include_kits)
     product_ids = [item["id"] for item in product_options if item.get("id")]
-    products = Product.objects.filter(id__in=product_ids, is_active=True)
+    products = Product.objects.filter(id__in=product_ids, is_active=True).select_related(
+        "category",
+        "category__parent",
+        "category__parent__parent",
+        "category__parent__parent__parent",
+    )
     product_by_id = {product.id: product for product in products}
     available_by_id = {
         item["id"]: int(item.get("available_stock") or 0) for item in product_options
