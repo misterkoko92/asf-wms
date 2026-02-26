@@ -4,7 +4,7 @@
 {% block title %}WMS Scan - Imports{% endblock %}
 
 {% block content %}
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <h2>Imports</h2>
     <p class="scan-help">
       Page r&eacute;serv&eacute;e aux superusers. Chaque bloc permet d'ajouter un &eacute;l&eacute;ment unique
@@ -17,7 +17,7 @@
   </div>
 
   {% if product_match_pending %}
-    <div class="scan-card">
+    <div class="scan-card card border-0">
       <h2>Confirmation import produits</h2>
       <p class="scan-help">
         Des produits existent d&eacute;j&agrave;. Confirmez l'action &agrave; appliquer pour chaque correspondance.
@@ -73,9 +73,9 @@
           </div>
 
           <div class="scan-field">
-            <label>Action</label>
+            <label class="form-label">Action</label>
             <div class="scan-inline">
-              <label>
+              <label class="form-label">
                 <input
                   type="radio"
                   name="decision_{{ item.row_index }}"
@@ -84,7 +84,7 @@
                 >
                 Mettre &agrave; jour le produit existant
               </label>
-              <label>
+              <label class="form-label">
                 <input
                   type="radio"
                   name="decision_{{ item.row_index }}"
@@ -98,7 +98,7 @@
 
           {% if item.products|length > 1 %}
             <div class="scan-field">
-              <label for="match_id_{{ item.row_index }}">Produit existant</label>
+              <label class="form-label" for="match_id_{{ item.row_index }}">Produit existant</label>
               <select id="match_id_{{ item.row_index }}" name="match_id_{{ item.row_index }}">
                 {% for product in item.products %}
                   <option value="{{ product.id }}">
@@ -111,116 +111,116 @@
         {% endfor %}
 
         <div class="scan-filter-actions">
-          <button type="submit" class="scan-submit">Confirmer</button>
-          <button type="submit" name="cancel" value="1" class="scan-submit secondary">Annuler</button>
+          <button type="submit" class="scan-submit btn btn-primary">Confirmer</button>
+          <button type="submit" name="cancel" value="1" class="scan-submit secondary btn btn-secondary">Annuler</button>
         </div>
       </form>
     </div>
   {% endif %}
 
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <h2>Import produits</h2>
     <p class="scan-help">Ajout rapide d'un produit ou import massif.</p>
     <form method="post" class="scan-filters">
       {% csrf_token %}
       <input type="hidden" name="action" value="product_single">
       <div class="scan-field">
-        <label for="product_name">Nom produit</label>
+        <label class="form-label" for="product_name">Nom produit</label>
         <input type="text" id="product_name" name="name" required>
       </div>
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
-          <label for="product_sku">SKU</label>
+          <label class="form-label" for="product_sku">SKU</label>
           <input type="text" id="product_sku" name="sku">
         </div>
         <div class="scan-field">
-          <label for="product_barcode">Barcode</label>
+          <label class="form-label" for="product_barcode">Barcode</label>
           <input type="text" id="product_barcode" name="barcode">
         </div>
       </div>
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
-          <label for="product_ean">EAN</label>
+          <label class="form-label" for="product_ean">EAN</label>
           <input type="text" id="product_ean" name="ean">
         </div>
         <div class="scan-field">
-          <label for="product_pu_ht">PU HT</label>
+          <label class="form-label" for="product_pu_ht">PU HT</label>
           <input type="text" id="product_pu_ht" name="pu_ht" placeholder="ex: 2.50">
         </div>
       </div>
       <div class="scan-field">
-        <label for="product_tva">TVA (taux, ex: 0.2 pour 20%)</label>
+        <label class="form-label" for="product_tva">TVA (taux, ex: 0.2 pour 20%)</label>
         <input type="text" id="product_tva" name="tva" placeholder="ex: 0.2">
       </div>
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
-          <label for="product_brand">Marque</label>
+          <label class="form-label" for="product_brand">Marque</label>
           <input type="text" id="product_brand" name="brand">
         </div>
         <div class="scan-field">
-          <label for="product_color">Couleur</label>
+          <label class="form-label" for="product_color">Couleur</label>
           <input type="text" id="product_color" name="color">
         </div>
       </div>
       <div class="scan-field">
-        <label for="product_tags">Tags (s&eacute;par&eacute;s par |)</label>
+        <label class="form-label" for="product_tags">Tags (s&eacute;par&eacute;s par |)</label>
         <input type="text" id="product_tags" name="tags" placeholder="sterile|disposable">
       </div>
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
-          <label for="category_l1">Cat&eacute;gorie L1</label>
+          <label class="form-label" for="category_l1">Cat&eacute;gorie L1</label>
           <input type="text" id="category_l1" name="category_l1">
         </div>
         <div class="scan-field">
-          <label for="category_l2">Cat&eacute;gorie L2</label>
+          <label class="form-label" for="category_l2">Cat&eacute;gorie L2</label>
           <input type="text" id="category_l2" name="category_l2">
         </div>
       </div>
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
-          <label for="category_l3">Cat&eacute;gorie L3</label>
+          <label class="form-label" for="category_l3">Cat&eacute;gorie L3</label>
           <input type="text" id="category_l3" name="category_l3">
         </div>
         <div class="scan-field">
-          <label for="category_l4">Cat&eacute;gorie L4</label>
+          <label class="form-label" for="category_l4">Cat&eacute;gorie L4</label>
           <input type="text" id="category_l4" name="category_l4">
         </div>
       </div>
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
-          <label for="product_warehouse">Entrep&ocirc;t</label>
+          <label class="form-label" for="product_warehouse">Entrep&ocirc;t</label>
           <input type="text" id="product_warehouse" name="warehouse">
         </div>
         <div class="scan-field">
-          <label for="product_zone">Rack</label>
+          <label class="form-label" for="product_zone">Rack</label>
           <input type="text" id="product_zone" name="zone">
         </div>
       </div>
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
-          <label for="product_aisle">&Eacute;tag&egrave;re</label>
+          <label class="form-label" for="product_aisle">&Eacute;tag&egrave;re</label>
           <input type="text" id="product_aisle" name="aisle">
         </div>
         <div class="scan-field">
-          <label for="product_shelf">Bac</label>
+          <label class="form-label" for="product_shelf">Bac</label>
           <input type="text" id="product_shelf" name="shelf">
         </div>
       </div>
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
-          <label for="product_rack_color">Couleur rack</label>
+          <label class="form-label" for="product_rack_color">Couleur rack</label>
           <input type="text" id="product_rack_color" name="rack_color" placeholder="#1C8BC0">
         </div>
         <div class="scan-field">
-          <label for="product_notes">Notes</label>
+          <label class="form-label" for="product_notes">Notes</label>
           <input type="text" id="product_notes" name="notes">
         </div>
       </div>
       <div class="scan-field">
-        <label for="product_quantity">Quantit&eacute; initiale (n&eacute;cessite un emplacement)</label>
+        <label class="form-label" for="product_quantity">Quantit&eacute; initiale (n&eacute;cessite un emplacement)</label>
         <input type="number" id="product_quantity" name="quantity" min="1" step="1">
       </div>
-      <button type="submit" class="scan-submit">Ajouter produit</button>
+      <button type="submit" class="scan-submit btn btn-primary">Ajouter produit</button>
     </form>
 
     <div class="scan-divider"></div>
@@ -229,19 +229,19 @@
       {% csrf_token %}
       <input type="hidden" name="action" value="product_file">
       <div class="scan-field">
-        <label for="product_file">Fichier produits (CSV/XLS/XLSX)</label>
+        <label class="form-label" for="product_file">Fichier produits (CSV/XLS/XLSX)</label>
         <input type="file" id="product_file" name="import_file" accept=".csv,.xlsx,.xls">
       </div>
       <div class="scan-field">
-        <label for="product_update">
+        <label class="form-label" for="product_update">
           <input type="checkbox" id="product_update" name="update_existing" value="1">
           Pr&eacute;s&eacute;lectionner "Mettre &agrave; jour" si un produit existe
         </label>
       </div>
       <div class="scan-field">
-        <label>Gestion du stock import&eacute; (champ quantity/stock)</label>
+        <label class="form-label">Gestion du stock import&eacute; (champ quantity/stock)</label>
         <div class="scan-inline">
-          <label for="stock_mode_movement">
+          <label class="form-label" for="stock_mode_movement">
             <input
               type="radio"
               id="stock_mode_movement"
@@ -251,7 +251,7 @@
             >
             Faire des mouvements de stock (ajouter la quantit&eacute; import&eacute;e)
           </label>
-          <label for="stock_mode_overwrite">
+          <label class="form-label" for="stock_mode_overwrite">
             <input
               type="radio"
               id="stock_mode_overwrite"
@@ -263,53 +263,53 @@
         </div>
       </div>
       <div class="scan-filter-actions">
-        <button type="submit" class="scan-submit secondary">Importer produits</button>
-        <a href="{% static 'scan/import_templates/products.csv' %}" class="scan-scan-btn" download>
+        <button type="submit" class="scan-submit secondary btn btn-secondary">Importer produits</button>
+        <a href="{% static 'scan/import_templates/products.csv' %}" class="scan-scan-btn btn btn-outline-primary" download>
           Template produits
         </a>
-        <a href="{% url 'scan:scan_import' %}?export=products" class="scan-scan-btn" download>
+        <a href="{% url 'scan:scan_import' %}?export=products" class="scan-scan-btn btn btn-outline-primary" download>
           Exporter produits
         </a>
       </div>
     </form>
   </div>
 
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <h2>Import emplacements</h2>
     <form method="post" class="scan-filters">
       {% csrf_token %}
       <input type="hidden" name="action" value="location_single">
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
-          <label for="loc_warehouse">Entrep&ocirc;t</label>
+          <label class="form-label" for="loc_warehouse">Entrep&ocirc;t</label>
           <input type="text" id="loc_warehouse" name="warehouse" required>
         </div>
         <div class="scan-field">
-          <label for="loc_zone">Rack</label>
+          <label class="form-label" for="loc_zone">Rack</label>
           <input type="text" id="loc_zone" name="zone" required>
         </div>
       </div>
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
-          <label for="loc_aisle">&Eacute;tag&egrave;re</label>
+          <label class="form-label" for="loc_aisle">&Eacute;tag&egrave;re</label>
           <input type="text" id="loc_aisle" name="aisle" required>
         </div>
         <div class="scan-field">
-          <label for="loc_shelf">Bac</label>
+          <label class="form-label" for="loc_shelf">Bac</label>
           <input type="text" id="loc_shelf" name="shelf" required>
         </div>
       </div>
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
-          <label for="loc_color">Couleur rack</label>
+          <label class="form-label" for="loc_color">Couleur rack</label>
           <input type="text" id="loc_color" name="rack_color">
         </div>
         <div class="scan-field">
-          <label for="loc_notes">Notes</label>
+          <label class="form-label" for="loc_notes">Notes</label>
           <input type="text" id="loc_notes" name="notes">
         </div>
       </div>
-      <button type="submit" class="scan-submit">Ajouter emplacement</button>
+      <button type="submit" class="scan-submit btn btn-primary">Ajouter emplacement</button>
     </form>
 
     <div class="scan-divider"></div>
@@ -318,37 +318,37 @@
       {% csrf_token %}
       <input type="hidden" name="action" value="location_file">
       <div class="scan-field">
-        <label for="location_file">Fichier emplacements (CSV/XLS/XLSX)</label>
+        <label class="form-label" for="location_file">Fichier emplacements (CSV/XLS/XLSX)</label>
         <input type="file" id="location_file" name="import_file" accept=".csv,.xlsx,.xls">
       </div>
       <div class="scan-filter-actions">
-        <button type="submit" class="scan-submit secondary">Importer emplacements</button>
-        <a href="{% static 'scan/import_templates/locations.csv' %}" class="scan-scan-btn" download>
+        <button type="submit" class="scan-submit secondary btn btn-secondary">Importer emplacements</button>
+        <a href="{% static 'scan/import_templates/locations.csv' %}" class="scan-scan-btn btn btn-outline-primary" download>
           Template emplacements
         </a>
-        <a href="{% url 'scan:scan_import' %}?export=locations" class="scan-scan-btn" download>
+        <a href="{% url 'scan:scan_import' %}?export=locations" class="scan-scan-btn btn btn-outline-primary" download>
           Exporter emplacements
         </a>
       </div>
     </form>
   </div>
 
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <h2>Import cat&eacute;gories</h2>
     <form method="post" class="scan-filters">
       {% csrf_token %}
       <input type="hidden" name="action" value="category_single">
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
-          <label for="cat_name">Nom cat&eacute;gorie</label>
+          <label class="form-label" for="cat_name">Nom cat&eacute;gorie</label>
           <input type="text" id="cat_name" name="name" required>
         </div>
         <div class="scan-field">
-          <label for="cat_parent">Parent (optionnel)</label>
+          <label class="form-label" for="cat_parent">Parent (optionnel)</label>
           <input type="text" id="cat_parent" name="parent">
         </div>
       </div>
-      <button type="submit" class="scan-submit">Ajouter cat&eacute;gorie</button>
+      <button type="submit" class="scan-submit btn btn-primary">Ajouter cat&eacute;gorie</button>
     </form>
 
     <div class="scan-divider"></div>
@@ -357,37 +357,37 @@
       {% csrf_token %}
       <input type="hidden" name="action" value="category_file">
       <div class="scan-field">
-        <label for="category_file">Fichier cat&eacute;gories (CSV/XLS/XLSX)</label>
+        <label class="form-label" for="category_file">Fichier cat&eacute;gories (CSV/XLS/XLSX)</label>
         <input type="file" id="category_file" name="import_file" accept=".csv,.xlsx,.xls">
       </div>
       <div class="scan-filter-actions">
-        <button type="submit" class="scan-submit secondary">Importer cat&eacute;gories</button>
-        <a href="{% static 'scan/import_templates/categories.csv' %}" class="scan-scan-btn" download>
+        <button type="submit" class="scan-submit secondary btn btn-secondary">Importer cat&eacute;gories</button>
+        <a href="{% static 'scan/import_templates/categories.csv' %}" class="scan-scan-btn btn btn-outline-primary" download>
           Template cat&eacute;gories
         </a>
-        <a href="{% url 'scan:scan_import' %}?export=categories" class="scan-scan-btn" download>
+        <a href="{% url 'scan:scan_import' %}?export=categories" class="scan-scan-btn btn btn-outline-primary" download>
           Exporter cat&eacute;gories
         </a>
       </div>
     </form>
   </div>
 
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <h2>Import entrep&ocirc;ts</h2>
     <form method="post" class="scan-filters">
       {% csrf_token %}
       <input type="hidden" name="action" value="warehouse_single">
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
-          <label for="wh_name">Nom entrep&ocirc;t</label>
+          <label class="form-label" for="wh_name">Nom entrep&ocirc;t</label>
           <input type="text" id="wh_name" name="name" required>
         </div>
         <div class="scan-field">
-          <label for="wh_code">Code</label>
+          <label class="form-label" for="wh_code">Code</label>
           <input type="text" id="wh_code" name="code">
         </div>
       </div>
-      <button type="submit" class="scan-submit">Ajouter entrep&ocirc;t</button>
+      <button type="submit" class="scan-submit btn btn-primary">Ajouter entrep&ocirc;t</button>
     </form>
 
     <div class="scan-divider"></div>
@@ -396,28 +396,28 @@
       {% csrf_token %}
       <input type="hidden" name="action" value="warehouse_file">
       <div class="scan-field">
-        <label for="warehouse_file">Fichier entrep&ocirc;ts (CSV/XLS/XLSX)</label>
+        <label class="form-label" for="warehouse_file">Fichier entrep&ocirc;ts (CSV/XLS/XLSX)</label>
         <input type="file" id="warehouse_file" name="import_file" accept=".csv,.xlsx,.xls">
       </div>
       <div class="scan-filter-actions">
-        <button type="submit" class="scan-submit secondary">Importer entrep&ocirc;ts</button>
-        <a href="{% static 'scan/import_templates/warehouses.csv' %}" class="scan-scan-btn" download>
+        <button type="submit" class="scan-submit secondary btn btn-secondary">Importer entrep&ocirc;ts</button>
+        <a href="{% static 'scan/import_templates/warehouses.csv' %}" class="scan-scan-btn btn btn-outline-primary" download>
           Template entrep&ocirc;ts
         </a>
-        <a href="{% url 'scan:scan_import' %}?export=warehouses" class="scan-scan-btn" download>
+        <a href="{% url 'scan:scan_import' %}?export=warehouses" class="scan-scan-btn btn btn-outline-primary" download>
           Exporter entrep&ocirc;ts
         </a>
       </div>
     </form>
   </div>
 
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <h2>Import contacts</h2>
     <form method="post" class="scan-filters">
       {% csrf_token %}
       <input type="hidden" name="action" value="contact_single">
       <div class="scan-field">
-        <label for="contact_type">Type</label>
+        <label class="form-label" for="contact_type">Type</label>
         <select id="contact_type" name="contact_type">
           <option value="organization">Organisation</option>
           <option value="person">Personne</option>
@@ -425,26 +425,26 @@
       </div>
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
-          <label for="contact_name">Nom</label>
+          <label class="form-label" for="contact_name">Nom</label>
           <input type="text" id="contact_name" name="name" required>
         </div>
         <div class="scan-field">
-          <label for="contact_email">Email</label>
+          <label class="form-label" for="contact_email">Email</label>
           <input type="email" id="contact_email" name="email">
         </div>
       </div>
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
-          <label for="contact_phone">T&eacute;l&eacute;phone</label>
+          <label class="form-label" for="contact_phone">T&eacute;l&eacute;phone</label>
           <input type="text" id="contact_phone" name="phone">
         </div>
         <div class="scan-field">
-          <label for="contact_tags">Tags (|)</label>
+          <label class="form-label" for="contact_tags">Tags (|)</label>
           <input type="text" id="contact_tags" name="tags">
         </div>
       </div>
       <div class="scan-field">
-        <label for="contact_destination">Destination (optionnel)</label>
+        <label class="form-label" for="contact_destination">Destination (optionnel)</label>
         <input
           type="text"
           id="contact_destination"
@@ -454,15 +454,15 @@
       </div>
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
-          <label for="contact_address">Adresse</label>
+          <label class="form-label" for="contact_address">Adresse</label>
           <input type="text" id="contact_address" name="address_line1">
         </div>
         <div class="scan-field">
-          <label for="contact_city">Ville</label>
+          <label class="form-label" for="contact_city">Ville</label>
           <input type="text" id="contact_city" name="city">
         </div>
       </div>
-      <button type="submit" class="scan-submit">Ajouter contact</button>
+      <button type="submit" class="scan-submit btn btn-primary">Ajouter contact</button>
     </form>
 
     <div class="scan-divider"></div>
@@ -471,22 +471,22 @@
       {% csrf_token %}
       <input type="hidden" name="action" value="contact_file">
       <div class="scan-field">
-        <label for="contact_file">Fichier contacts (CSV/XLS/XLSX)</label>
+        <label class="form-label" for="contact_file">Fichier contacts (CSV/XLS/XLSX)</label>
         <input type="file" id="contact_file" name="import_file" accept=".csv,.xlsx,.xls">
       </div>
       <div class="scan-filter-actions">
-        <button type="submit" class="scan-submit secondary">Importer contacts</button>
-        <a href="{% static 'scan/import_templates/contacts.csv' %}" class="scan-scan-btn" download>
+        <button type="submit" class="scan-submit secondary btn btn-secondary">Importer contacts</button>
+        <a href="{% static 'scan/import_templates/contacts.csv' %}" class="scan-scan-btn btn btn-outline-primary" download>
           Template contacts
         </a>
-        <a href="{% url 'scan:scan_import' %}?export=contacts" class="scan-scan-btn" download>
+        <a href="{% url 'scan:scan_import' %}?export=contacts" class="scan-scan-btn btn btn-outline-primary" download>
           Exporter contacts
         </a>
       </div>
     </form>
   </div>
 
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <h2>Import utilisateurs</h2>
     <p class="scan-help">Mot de passe obligatoire si IMPORT_DEFAULT_PASSWORD est vide.</p>
     <form method="post" class="scan-filters">
@@ -494,31 +494,31 @@
       <input type="hidden" name="action" value="user_single">
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
-          <label for="user_username">Username</label>
+          <label class="form-label" for="user_username">Username</label>
           <input type="text" id="user_username" name="username" required>
         </div>
         <div class="scan-field">
-          <label for="user_email">Email</label>
+          <label class="form-label" for="user_email">Email</label>
           <input type="email" id="user_email" name="email">
         </div>
       </div>
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
-          <label for="user_first_name">Prenom</label>
+          <label class="form-label" for="user_first_name">Prenom</label>
           <input type="text" id="user_first_name" name="first_name">
         </div>
         <div class="scan-field">
-          <label for="user_last_name">Nom</label>
+          <label class="form-label" for="user_last_name">Nom</label>
           <input type="text" id="user_last_name" name="last_name">
         </div>
       </div>
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
-          <label for="user_password">Mot de passe</label>
+          <label class="form-label" for="user_password">Mot de passe</label>
           <input type="text" id="user_password" name="password" required>
         </div>
         <div class="scan-field">
-          <label for="user_flags">Statut</label>
+          <label class="form-label" for="user_flags">Statut</label>
           <select id="user_flags" name="is_staff">
             <option value="">--</option>
             <option value="false">Non staff</option>
@@ -528,7 +528,7 @@
       </div>
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
-          <label for="user_superuser">Superuser</label>
+          <label class="form-label" for="user_superuser">Superuser</label>
           <select id="user_superuser" name="is_superuser">
             <option value="">--</option>
             <option value="false">Non</option>
@@ -536,7 +536,7 @@
           </select>
         </div>
         <div class="scan-field">
-          <label for="user_active">Actif</label>
+          <label class="form-label" for="user_active">Actif</label>
           <select id="user_active" name="is_active">
             <option value="">--</option>
             <option value="false">Non</option>
@@ -544,7 +544,7 @@
           </select>
         </div>
       </div>
-      <button type="submit" class="scan-submit">Ajouter utilisateur</button>
+      <button type="submit" class="scan-submit btn btn-primary">Ajouter utilisateur</button>
     </form>
 
     <div class="scan-divider"></div>
@@ -553,15 +553,15 @@
       {% csrf_token %}
       <input type="hidden" name="action" value="user_file">
       <div class="scan-field">
-        <label for="user_file">Fichier utilisateurs (CSV/XLS/XLSX)</label>
+        <label class="form-label" for="user_file">Fichier utilisateurs (CSV/XLS/XLSX)</label>
         <input type="file" id="user_file" name="import_file" accept=".csv,.xlsx,.xls">
       </div>
       <div class="scan-filter-actions">
-        <button type="submit" class="scan-submit secondary">Importer utilisateurs</button>
-        <a href="{% static 'scan/import_templates/users.csv' %}" class="scan-scan-btn" download>
+        <button type="submit" class="scan-submit secondary btn btn-secondary">Importer utilisateurs</button>
+        <a href="{% static 'scan/import_templates/users.csv' %}" class="scan-scan-btn btn btn-outline-primary" download>
           Template utilisateurs
         </a>
-        <a href="{% url 'scan:scan_import' %}?export=users" class="scan-scan-btn" download>
+        <a href="{% url 'scan:scan_import' %}?export=users" class="scan-scan-btn btn btn-outline-primary" download>
           Exporter utilisateurs
         </a>
       </div>

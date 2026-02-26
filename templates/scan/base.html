@@ -21,11 +21,17 @@
       }
     })();
   </script>
+  {% if scan_bootstrap_enabled %}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  {% endif %}
   <link rel="stylesheet" href="{% static 'scan/scan.css' %}">
+  {% if scan_bootstrap_enabled %}
+    <link rel="stylesheet" href="{% static 'scan/scan-bootstrap.css' %}">
+  {% endif %}
   {% block extra_head %}{% endblock %}
   <title>{% block title %}WMS Scan{% endblock %}</title>
 </head>
-<body>
+<body{% if scan_bootstrap_enabled %} class="scan-bootstrap-enabled"{% endif %}>
   <div class="scan-shell{% if shell_class %} {{ shell_class }}{% endif %}">
     <header class="scan-header">
       <div>
@@ -196,11 +202,14 @@
       <video id="scan-video" class="scan-video" playsinline></video>
       <div class="scan-help" id="scan-status">Scan en cours...</div>
       <div class="scan-modal-actions">
-        <button type="button" id="scan-capture" class="scan-scan-btn">Capturer texte</button>
+        <button type="button" id="scan-capture" class="scan-scan-btn btn btn-outline-primary">Capturer texte</button>
       </div>
     </div>
   </div>
 
+  {% if scan_bootstrap_enabled %}
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+  {% endif %}
   <script src="{% static 'scan/scan.js' %}"></script>
   <script>
     if ('serviceWorker' in navigator) {

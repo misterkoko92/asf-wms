@@ -3,38 +3,37 @@
 {% block title %}WMS Scan - Suivi des exp&eacute;ditions{% endblock %}
 
 {% block content %}
-  <div class="scan-card">
-    <h2>Suivi des exp&eacute;ditions ({{ shipments|length }})</h2>
+  <div class="scan-card card border-0">
+    <h2 class="h4 mb-3">Suivi des exp&eacute;ditions ({{ shipments|length }})</h2>
 
-    <form method="get" class="scan-filters">
-      <div class="scan-inline scan-inline-equal scan-inline-top">
-        <div class="scan-field">
-          <label for="id_planned_week">Semaine planifi&eacute;e</label>
-          <input
-            type="week"
-            id="id_planned_week"
-            name="planned_week"
-            value="{{ planned_week_value }}"
-          >
-          <small class="scan-help">Filtre par date de statut "Planifi&eacute;".</small>
-        </div>
-        <div class="scan-field">
-          <label for="id_closed">Dossiers clos</label>
-          <select id="id_closed" name="closed">
-            <option value="exclude" {% if closed_filter == "exclude" %}selected{% endif %}>Exclure clos</option>
-            <option value="all" {% if closed_filter == "all" %}selected{% endif %}>Inclure clos</option>
-          </select>
-        </div>
+    <form method="get" class="scan-filters row g-3">
+      <div class="scan-field col-12 col-md-6">
+        <label class="form-label" for="id_planned_week" class="form-label">Semaine planifi&eacute;e</label>
+        <input
+          type="week"
+          id="id_planned_week"
+          name="planned_week"
+          class="form-control"
+          value="{{ planned_week_value }}"
+        >
+        <small class="scan-help">Filtre par date de statut "Planifi&eacute;".</small>
       </div>
-      <div class="scan-filter-actions">
-        <button type="submit" class="scan-scan-btn">Filtrer</button>
-        <a href="{% url 'scan:scan_shipments_tracking' %}">R&eacute;initialiser</a>
+      <div class="scan-field col-12 col-md-6">
+        <label class="form-label" for="id_closed" class="form-label">Dossiers clos</label>
+        <select id="id_closed" name="closed" class="form-select">
+          <option value="exclude" {% if closed_filter == "exclude" %}selected{% endif %}>Exclure clos</option>
+          <option value="all" {% if closed_filter == "all" %}selected{% endif %}>Inclure clos</option>
+        </select>
+      </div>
+      <div class="scan-filter-actions col-12 d-flex flex-wrap gap-2 align-items-center">
+        <button type="submit" class="scan-scan-btn btn btn-primary">Filtrer</button>
+        <a class="btn btn-outline-secondary" href="{% url 'scan:scan_shipments_tracking' %}">R&eacute;initialiser</a>
       </div>
     </form>
 
     {% if shipments %}
-      <div class="scan-table-wrap">
-        <table class="scan-table" data-table-tools="1">
+      <div class="scan-table-wrap table-responsive">
+        <table class="scan-table table table-sm table-hover" data-table-tools="1">
           <thead>
             <tr>
               <th>N° exp&eacute;dition</th>
@@ -63,13 +62,13 @@
                 <td>{{ shipment.delivered_at|date:"d/m/y H\\hi"|default:"-" }}</td>
                 <td>
                   <div class="scan-inline-actions">
-                    <a class="scan-scan-btn" href="{% url 'scan:scan_shipment_track' shipment.tracking_token %}?return_to=shipments_tracking">
+                    <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'scan:scan_shipment_track' shipment.tracking_token %}?return_to=shipments_tracking">
                       Suivi/MAJ
                     </a>
                     {% if shipment.is_closed %}
                       <button
                         type="button"
-                        class="scan-scan-btn"
+                        class="scan-scan-btn btn btn-outline-success"
                         style="background:#e8f7ec;border-color:#9fcfb0;color:#22653b;cursor:not-allowed;"
                         disabled
                       >
@@ -84,7 +83,7 @@
                         <input type="hidden" name="closed" value="{{ closed_filter }}">
                         <button
                           type="submit"
-                          class="scan-scan-btn"
+                          class="scan-scan-btn btn btn-outline-success"
                           style="background:#e8f7ec;border-color:#9fcfb0;color:#22653b;"
                         >
                           Clore le dossier
@@ -93,7 +92,7 @@
                     {% else %}
                       <button
                         type="button"
-                        class="scan-scan-btn"
+                        class="scan-scan-btn btn btn-outline-danger"
                         style="background:#fdecec;border-color:#efb8b4;color:#9a2f2f;"
                         onclick="window.alert('{{ close_inactive_message }}'); return false;"
                       >

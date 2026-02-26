@@ -3,7 +3,7 @@
 {% block title %}WMS Scan - Admin Produit{% endblock %}
 
 {% block content %}
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <h2>Admin - Produit</h2>
     <p class="scan-help">
       Gestion des kits: cr&eacute;er, modifier, supprimer, attribuer des produits et quantit&eacute;s.
@@ -11,29 +11,29 @@
     </p>
   </div>
 
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <form method="get" class="scan-filters">
       <div class="scan-inline">
         <div class="scan-field">
-          <label for="scan-admin-products-q">Recherche kit</label>
+          <label class="form-label" for="scan-admin-products-q">Recherche kit</label>
           <input id="scan-admin-products-q" type="text" name="q" value="{{ query }}" placeholder="Nom, SKU, code barre">
         </div>
       </div>
       <div class="scan-filter-actions">
         <button type="submit">Filtrer</button>
-        <a class="scan-scan-btn" href="{% url 'scan:scan_admin_products' %}">R&eacute;initialiser</a>
+        <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'scan:scan_admin_products' %}">R&eacute;initialiser</a>
       </div>
     </form>
   </div>
 
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <div class="scan-filter-actions">
-      <a class="scan-scan-btn" href="{{ products_admin_url }}">Tous les produits (admin)</a>
-      <a class="scan-scan-btn" href="{{ product_add_url }}">Cr&eacute;er un kit</a>
+      <a class="scan-scan-btn btn btn-outline-primary" href="{{ products_admin_url }}">Tous les produits (admin)</a>
+      <a class="scan-scan-btn btn btn-outline-primary" href="{{ product_add_url }}">Cr&eacute;er un kit</a>
     </div>
   </div>
 
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <h3>Kits disponibles ({% if kit_rows %}{{ kit_rows|length }}{% else %}0{% endif %})</h3>
     {% if kit_rows %}
       <table class="scan-table">
@@ -71,8 +71,8 @@
                 {% endif %}
               </td>
               <td>
-                <a class="scan-scan-btn" href="{{ row.edit_url }}">Modifier</a>
-                <a class="scan-scan-btn" href="{{ row.delete_url }}">Supprimer</a>
+                <a class="scan-scan-btn btn btn-outline-primary" href="{{ row.edit_url }}">Modifier</a>
+                <a class="scan-scan-btn btn btn-outline-primary" href="{{ row.delete_url }}">Supprimer</a>
               </td>
             </tr>
           {% endfor %}

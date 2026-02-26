@@ -3,7 +3,7 @@
 {% block title %}WMS Scan - {% if is_edit %}Modifier exp&eacute;dition{% else %}Cr&eacute;er exp&eacute;dition{% endif %}{% endblock %}
 
 {% block content %}
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <h2>
       {% if is_edit %}
         Modifier l'exp&eacute;dition {{ shipment.reference }}
@@ -18,10 +18,10 @@
       {% csrf_token %}
 
       <div class="scan-field">
-        <label for="id_destination">Destination</label>
+        <label class="form-label" for="id_destination">Destination</label>
         <div class="scan-inline">
           {{ form.destination }}
-          <a class="scan-scan-btn" href="{% url 'admin:wms_destination_add' %}" target="_blank" rel="noopener">
+          <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'admin:wms_destination_add' %}" target="_blank" rel="noopener">
             Ajouter destination
           </a>
         </div>
@@ -33,7 +33,7 @@
 
       {% if not is_edit %}
         <div class="scan-inline scan-inline-gap">
-          <button type="submit" name="action" value="save_draft" class="scan-submit secondary scan-submit-inline">
+          <button type="submit" name="action" value="save_draft" class="scan-submit secondary scan-submit-inline btn btn-secondary">
             Enregistrer en brouillon
           </button>
         </div>
@@ -42,10 +42,10 @@
 
       <div id="shipment-shipper-section" class="scan-hidden" hidden>
         <div class="scan-field">
-          <label for="id_shipper_contact">Exp&eacute;diteur</label>
+          <label class="form-label" for="id_shipper_contact">Exp&eacute;diteur</label>
           <div class="scan-inline">
             {{ form.shipper_contact }}
-            <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+            <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
               Ajouter exp&eacute;diteur
             </a>
           </div>
@@ -61,10 +61,10 @@
 
       <div id="shipment-recipient-section" class="scan-hidden" hidden>
         <div class="scan-field">
-          <label for="id_recipient_contact">Destinataire</label>
+          <label class="form-label" for="id_recipient_contact">Destinataire</label>
           <div class="scan-inline">
             {{ form.recipient_contact }}
-            <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+            <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
               Ajouter destinataire
             </a>
           </div>
@@ -79,10 +79,10 @@
 
       <div id="shipment-correspondent-section" class="scan-hidden" hidden>
         <div class="scan-field">
-          <label for="id_correspondent_contact">Correspondant</label>
+          <label class="form-label" for="id_correspondent_contact">Correspondant</label>
           <div class="scan-inline">
             {{ form.correspondent_contact }}
-            <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+            <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
               Ajouter correspondant
             </a>
           </div>
@@ -98,7 +98,7 @@
 
       <div id="shipment-details-section" class="scan-hidden" hidden>
         <div class="scan-field">
-          <label for="id_carton_count">Nombre de colis</label>
+          <label class="form-label" for="id_carton_count">Nombre de colis</label>
           {{ form.carton_count }}
           {% for error in form.carton_count.errors %}
             <div class="scan-message error">{{ error }}</div>
@@ -112,18 +112,18 @@
         <div class="shipment-lines" id="shipment-lines"></div>
 
         <div class="scan-field">
-          <label for="id_total_weight">Poids total (g)</label>
+          <label class="form-label" for="id_total_weight">Poids total (g)</label>
           <input type="text" id="id_total_weight" readonly>
         </div>
 
         <div class="scan-field">
-          <label>Colis multi-produits</label>
+          <label class="form-label">Colis multi-produits</label>
           {% if is_edit %}
-            <a class="scan-scan-btn" href="{% url 'scan:scan_pack' %}?shipment_reference={{ shipment.reference|urlencode }}">
+            <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'scan:scan_pack' %}?shipment_reference={{ shipment.reference|urlencode }}">
               Cr&eacute;er des colis multi-produits
             </a>
           {% else %}
-            <button type="submit" name="action" value="save_draft_pack" class="scan-scan-btn">
+            <button type="submit" name="action" value="save_draft_pack" class="scan-scan-btn btn btn-outline-primary">
               Cr&eacute;er des colis multi-produits
             </button>
           {% endif %}
@@ -133,7 +133,7 @@
           </p>
         </div>
 
-        <button type="submit" class="scan-submit">
+        <button type="submit" class="scan-submit btn btn-primary">
           {% if is_edit %}Enregistrer modifications{% else %}Cr&eacute;er exp&eacute;dition{% endif %}
         </button>
         {% if is_edit %}
@@ -151,14 +151,14 @@
       <hr class="scan-divider">
 
       <div class="scan-field">
-        <label>Suivi exp&eacute;dition</label>
+        <label class="form-label">Suivi exp&eacute;dition</label>
         <div class="scan-inline">
           {% if shipment.qr_code_image %}
             <img src="{{ shipment.qr_code_image.url }}" alt="QR exp&eacute;dition {{ shipment.reference }}" style="height: 120px; border: 1px solid #ccc;">
           {% else %}
             <span class="scan-help">QR code non disponible.</span>
           {% endif %}
-          <a class="scan-scan-btn" href="{% url 'scan:scan_shipment_track' shipment.tracking_token %}">
+          <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'scan:scan_shipment_track' shipment.tracking_token %}">
             Ouvrir suivi
           </a>
         </div>
@@ -171,29 +171,29 @@
       </div>
 
       <div class="scan-field">
-        <label>Documents g&eacute;n&eacute;r&eacute;s</label>
+        <label class="form-label">Documents g&eacute;n&eacute;r&eacute;s</label>
         <div class="scan-docs">
-          <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'shipment_note' %}" target="_blank" rel="noopener">
+          <a class="scan-scan-btn btn btn-outline-primary scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'shipment_note' %}" target="_blank" rel="noopener">
             Bon d'exp&eacute;dition
           </a>
-          <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'packing_list_shipment' %}" target="_blank" rel="noopener">
+          <a class="scan-scan-btn btn btn-outline-primary scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'packing_list_shipment' %}" target="_blank" rel="noopener">
             Liste colisage (lot)
           </a>
-          <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'donation_certificate' %}" target="_blank" rel="noopener">
+          <a class="scan-scan-btn btn btn-outline-primary scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'donation_certificate' %}" target="_blank" rel="noopener">
             Attestation donation
           </a>
-          <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_labels' shipment.id %}" target="_blank" rel="noopener">
+          <a class="scan-scan-btn btn btn-outline-primary scan-doc-btn" href="{% url 'scan:scan_shipment_labels' shipment.id %}" target="_blank" rel="noopener">
             &Eacute;tiquettes colis
           </a>
         </div>
       </div>
 
       <div class="scan-field">
-        <label>Liste colisage par carton</label>
+        <label class="form-label">Liste colisage par carton</label>
         {% if carton_docs %}
           <div class="scan-docs">
             {% for carton in carton_docs %}
-              <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_carton_document' shipment.id carton.id %}" target="_blank" rel="noopener">
+              <a class="scan-scan-btn btn btn-outline-primary scan-doc-btn" href="{% url 'scan:scan_shipment_carton_document' shipment.id carton.id %}" target="_blank" rel="noopener">
                 {{ carton.code }}
               </a>
             {% endfor %}
@@ -204,11 +204,11 @@
       </div>
 
       <div class="scan-field">
-        <label>&Eacute;tiquettes par carton</label>
+        <label class="form-label">&Eacute;tiquettes par carton</label>
         {% if carton_docs %}
           <div class="scan-docs">
             {% for carton in carton_docs %}
-              <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_label' shipment.id carton.id %}" target="_blank" rel="noopener">
+              <a class="scan-scan-btn btn btn-outline-primary scan-doc-btn" href="{% url 'scan:scan_shipment_label' shipment.id carton.id %}" target="_blank" rel="noopener">
                 {{ carton.code }}
               </a>
             {% endfor %}
@@ -219,29 +219,29 @@
       </div>
 
       <div class="scan-field">
-        <label>Ajouter un document</label>
+        <label class="form-label">Ajouter un document</label>
         <form method="post" enctype="multipart/form-data" action="{% url 'scan:scan_shipment_document_upload' shipment.id %}">
           {% csrf_token %}
           <div class="scan-inline">
             <input type="file" name="document_file" required>
-            <button type="submit" class="scan-scan-btn">Uploader</button>
+            <button type="submit" class="scan-scan-btn btn btn-outline-primary">Uploader</button>
           </div>
           <div class="scan-help">Formats autorises: PDF, JPG, PNG, XLSX, DOCX.</div>
         </form>
       </div>
 
       <div class="scan-field">
-        <label>Documents additionnels</label>
+        <label class="form-label">Documents additionnels</label>
         {% if documents %}
           <div class="scan-docs">
             {% for document in documents %}
               <div class="scan-inline">
-                <a class="scan-scan-btn scan-doc-btn" href="{{ document.file.url }}" target="_blank" rel="noopener">
+                <a class="scan-scan-btn btn btn-outline-primary scan-doc-btn" href="{{ document.file.url }}" target="_blank" rel="noopener">
                   {{ document.file.name|default:"Document" }}
                 </a>
                 <form method="post" action="{% url 'scan:scan_shipment_document_delete' shipment.id document.id %}">
                   {% csrf_token %}
-                  <button type="submit" class="scan-scan-btn scan-doc-btn">Supprimer</button>
+                  <button type="submit" class="scan-scan-btn btn btn-outline-primary scan-doc-btn">Supprimer</button>
                 </form>
               </div>
             {% endfor %}

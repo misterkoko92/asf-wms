@@ -3,7 +3,7 @@
 {% block title %}WMS Scan - MAJ stock{% endblock %}
 
 {% block content %}
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <h2>MAJ stock</h2>
     {% if create_form.non_field_errors %}
       <div class="scan-message error">{{ create_form.non_field_errors }}</div>
@@ -12,10 +12,10 @@
       {% csrf_token %}
 
       <div class="scan-field">
-        <label for="id_product_code">Nom du produit</label>
+        <label class="form-label" for="id_product_code">Nom du produit</label>
         <div class="scan-inline">
           {{ create_form.product_code }}
-          <button type="button" class="scan-scan-btn" data-scan-target="id_product_code">Scan</button>
+          <button type="button" class="scan-scan-btn btn btn-outline-primary" data-scan-target="id_product_code">Scan</button>
         </div>
         {% for error in create_form.product_code.errors %}
           <div class="scan-message error">{{ error }}</div>
@@ -23,12 +23,12 @@
       </div>
 
       <div id="product-create-actions" class="scan-field" style="display:none;">
-        <a class="scan-submit secondary" href="{% url 'admin:wms_product_add' %}">Cr&eacute;er le produit dans la base</a>
+        <a class="scan-submit secondary btn btn-secondary" href="{% url 'admin:wms_product_add' %}">Cr&eacute;er le produit dans la base</a>
       </div>
 
       <div id="stock-update-fields">
         <div class="scan-field">
-          <label for="id_quantity">Quantit&eacute;</label>
+          <label class="form-label" for="id_quantity">Quantit&eacute;</label>
           {{ create_form.quantity }}
           {% for error in create_form.quantity.errors %}
             <div class="scan-message error">{{ error }}</div>
@@ -36,7 +36,7 @@
         </div>
 
         <div class="scan-field">
-          <label for="id_expires_on">Date p&eacute;remption</label>
+          <label class="form-label" for="id_expires_on">Date p&eacute;remption</label>
           {{ create_form.expires_on }}
           {% for error in create_form.expires_on.errors %}
             <div class="scan-message error">{{ error }}</div>
@@ -44,7 +44,7 @@
         </div>
 
         <div class="scan-field">
-          <label for="id_lot_code">Numero de lot</label>
+          <label class="form-label" for="id_lot_code">Numero de lot</label>
           {{ create_form.lot_code }}
           {% for error in create_form.lot_code.errors %}
             <div class="scan-message error">{{ error }}</div>
@@ -52,10 +52,10 @@
         </div>
 
         <div class="scan-field">
-          <label for="id_donor_contact">Donateur</label>
+          <label class="form-label" for="id_donor_contact">Donateur</label>
           <div class="scan-inline">
             {{ create_form.donor_contact }}
-            <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+            <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
               Ajouter contact
             </a>
           </div>
@@ -67,22 +67,22 @@
         <div class="scan-divider"></div>
 
         <div class="scan-field">
-          <label for="id_brand_display">Marque</label>
+          <label class="form-label" for="id_brand_display">Marque</label>
           <input type="text" id="id_brand_display" readonly>
         </div>
 
         <div class="scan-field">
-          <label for="id_location_display">Emplacement</label>
+          <label class="form-label" for="id_location_display">Emplacement</label>
           <input type="text" id="id_location_display" readonly>
         </div>
 
         <div class="scan-field">
-          <label for="id_warehouse_display">Entrep&ocirc;t</label>
+          <label class="form-label" for="id_warehouse_display">Entrep&ocirc;t</label>
           <input type="text" id="id_warehouse_display" readonly>
         </div>
 
         <div class="scan-field scan-field-gap">
-          <button type="submit" class="scan-submit">Enregistrer</button>
+          <button type="submit" class="scan-submit btn btn-primary">Enregistrer</button>
         </div>
       </div>
     </form>

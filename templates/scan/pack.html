@@ -4,7 +4,7 @@
 
 {% block content %}
   {% if packing_result %}
-    <div class="scan-card">
+    <div class="scan-card card border-0">
       <h2>Liste de colisage</h2>
       <h3 class="scan-subtitle">Par carton</h3>
       {% for carton in packing_result.cartons %}
@@ -12,10 +12,10 @@
           <div class="scan-inline scan-inline-gap">
             <strong>Carton {{ carton.code }}</strong>
             <div class="scan-inline-actions">
-              <a class="scan-scan-btn" href="{{ carton.packing_list_url }}" target="_blank" rel="noopener">
+              <a class="scan-scan-btn btn btn-outline-primary" href="{{ carton.packing_list_url }}" target="_blank" rel="noopener">
                 Imprimer / télécharger
               </a>
-              <a class="scan-scan-btn" href="{{ carton.picking_url }}" target="_blank" rel="noopener">
+              <a class="scan-scan-btn btn btn-outline-primary" href="{{ carton.picking_url }}" target="_blank" rel="noopener">
                 Picking
               </a>
             </div>
@@ -60,7 +60,7 @@
       </div>
     </div>
   {% endif %}
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <h2>Pr&eacute;paration cartons</h2>
     {% if form.non_field_errors %}
       <div class="scan-message error">{{ form.non_field_errors }}</div>
@@ -69,7 +69,7 @@
       {% csrf_token %}
 
       <div class="scan-field">
-        <label for="id_carton_format">Format carton</label>
+        <label class="form-label" for="id_carton_format">Format carton</label>
         <div class="scan-inline">
           <select id="id_carton_format" name="carton_format_id">
             {% for format in carton_formats %}
@@ -81,14 +81,14 @@
             {% endfor %}
             <option value="custom" {% if carton_format_id == "custom" %}selected{% endif %}>Personnalisé</option>
           </select>
-          <a class="scan-scan-btn" href="{% url 'admin:wms_cartonformat_add' %}" target="_blank" rel="noopener">
+          <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'admin:wms_cartonformat_add' %}" target="_blank" rel="noopener">
             Ajouter format
           </a>
         </div>
       </div>
 
       <div id="custom-carton-fields" class="scan-field">
-        <label>Dimensions carton (cm) et poids max (g)</label>
+        <label class="form-label">Dimensions carton (cm) et poids max (g)</label>
         <div class="scan-inline scan-inline-equal">
           <input type="number" step="0.01" name="carton_length_cm" id="id_carton_length_cm" placeholder="Longueur" value="{{ carton_custom.length_cm }}">
           <input type="number" step="0.01" name="carton_width_cm" id="id_carton_width_cm" placeholder="Largeur" value="{{ carton_custom.width_cm }}">
@@ -100,14 +100,14 @@
       </div>
 
       <div class="pack-lines" id="pack-lines"></div>
-      <button type="button" class="scan-submit secondary" id="pack-add-line">+ Ajouter un produit</button>
+      <button type="button" class="scan-submit secondary btn btn-secondary" id="pack-add-line">+ Ajouter un produit</button>
       <input type="hidden" id="pack_line_count" name="line_count" value="{{ line_count }}">
 
       <div class="scan-field scan-field-gap">
-        <label for="id_shipment_reference">Référence expédition (optionnel)</label>
+        <label class="form-label" for="id_shipment_reference">Référence expédition (optionnel)</label>
         <div class="scan-inline">
           {{ form.shipment_reference }}
-          <button type="button" class="scan-scan-btn" data-scan-target="id_shipment_reference">Scan</button>
+          <button type="button" class="scan-scan-btn btn btn-outline-primary" data-scan-target="id_shipment_reference">Scan</button>
         </div>
         {% for error in form.shipment_reference.errors %}
           <div class="scan-message error">{{ error }}</div>
@@ -115,10 +115,10 @@
       </div>
 
       <div class="scan-field">
-        <label for="id_current_location">Choisir un emplacement de rangement du colis prêt (optionnel)</label>
+        <label class="form-label" for="id_current_location">Choisir un emplacement de rangement du colis prêt (optionnel)</label>
         <div class="scan-inline">
           {{ form.current_location }}
-          <a class="scan-scan-btn" href="{% url 'admin:wms_location_add' %}" target="_blank" rel="noopener">
+          <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'admin:wms_location_add' %}" target="_blank" rel="noopener">
             Ajouter emplacement
           </a>
         </div>
@@ -143,7 +143,7 @@
         </label>
       </div>
 
-      <button type="submit" class="scan-submit">Pr&eacute;parer</button>
+      <button type="submit" class="scan-submit btn btn-primary">Pr&eacute;parer</button>
       <p class="scan-help">Si la référence d'expédition est vide, les cartons sont pré-conditionnés.</p>
     </form>
     {{ products_json|json_script:"product-data" }}

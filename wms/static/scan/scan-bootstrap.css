@@ -1,0 +1,22 @@
+:root {
+  --bs-body-font-family: var(--font-body);
+  --bs-body-color: var(--ink);
+  --bs-body-bg: var(--bg);
+  --bs-primary: var(--accent);
+  --bs-secondary: var(--accent-2);
+  --bs-border-color: var(--border);
+}
+
+.scan-bootstrap-enabled .scan-card {
+  border-color: var(--border);
+}
+
+.scan-bootstrap-enabled .scan-scan-btn.btn,
+.scan-bootstrap-enabled .scan-submit.btn {
+  min-width: 90px;
+  font-weight: 700;
+}
+
+.scan-bootstrap-enabled .scan-table.table {
+  margin-bottom: 0;
+}

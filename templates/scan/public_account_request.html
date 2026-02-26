@@ -19,7 +19,7 @@
         </div>
       {% endif %}
 
-      <div class="scan-card">
+      <div class="scan-card card border-0">
         <h2>Cr&eacute;ation de compte</h2>
         <p class="scan-help">
           Choisissez votre profil puis envoyez votre demande. Un administrateur ASF doit valider le compte.
@@ -35,7 +35,7 @@
         {% endif %}
       </div>
 
-      <div class="scan-card">
+      <div class="scan-card card border-0">
         {% if errors %}
           <div class="scan-message error">
             {% for error in errors %}
@@ -48,7 +48,7 @@
           {% csrf_token %}
 
           <div class="scan-field">
-            <label for="account_type">Profil</label>
+            <label class="form-label" for="account_type">Profil</label>
             <select id="account_type" name="account_type">
               <option value="{{ ACCOUNT_TYPE_ASSOCIATION }}" {% if form_data.account_type == ACCOUNT_TYPE_ASSOCIATION %}selected{% endif %}>Association</option>
               <option value="{{ ACCOUNT_TYPE_USER }}" {% if form_data.account_type == ACCOUNT_TYPE_USER %}selected{% endif %}>Utilisateur WMS</option>
@@ -56,13 +56,13 @@
           </div>
 
           <div class="scan-field">
-            <label for="email">Email</label>
+            <label class="form-label" for="email">Email</label>
             <input type="email" id="email" name="email" value="{{ form_data.email }}" required>
           </div>
 
           <section id="association-fields" data-account-section="{{ ACCOUNT_TYPE_ASSOCIATION }}">
             <div class="scan-field">
-              <label for="association_name">Nom de l'association</label>
+              <label class="form-label" for="association_name">Nom de l'association</label>
               <input
                 type="text"
                 id="association_name"
@@ -74,11 +74,11 @@
               <input type="hidden" id="contact_id" name="contact_id" value="{{ form_data.contact_id }}">
             </div>
             <div class="scan-field">
-              <label for="phone">T&eacute;l&eacute;phone</label>
+              <label class="form-label" for="phone">T&eacute;l&eacute;phone</label>
               <input type="text" id="phone" name="phone" value="{{ form_data.phone }}">
             </div>
             <div class="scan-field">
-              <label for="line1">Adresse</label>
+              <label class="form-label" for="line1">Adresse</label>
               <input
                 type="text"
                 id="line1"
@@ -90,7 +90,7 @@
               >
             </div>
             <div class="scan-field">
-              <label for="line2">Compl&eacute;ment adresse</label>
+              <label class="form-label" for="line2">Compl&eacute;ment adresse</label>
               <input
                 type="text"
                 id="line2"
@@ -101,7 +101,7 @@
               >
             </div>
             <div class="scan-field">
-              <label for="postal_code">Code postal</label>
+              <label class="form-label" for="postal_code">Code postal</label>
               <input
                 type="text"
                 id="postal_code"
@@ -112,7 +112,7 @@
               >
             </div>
             <div class="scan-field">
-              <label for="city">Ville</label>
+              <label class="form-label" for="city">Ville</label>
               <input
                 type="text"
                 id="city"
@@ -123,7 +123,7 @@
               >
             </div>
             <div class="scan-field">
-              <label for="country">Pays</label>
+              <label class="form-label" for="country">Pays</label>
               <input
                 type="text"
                 id="country"
@@ -134,32 +134,32 @@
               >
             </div>
             <div class="scan-field">
-              <label for="notes">Notes</label>
+              <label class="form-label" for="notes">Notes</label>
               <textarea id="notes" name="notes" rows="3">{{ form_data.notes }}</textarea>
             </div>
 
             <h3>Documents de v&eacute;rification</h3>
             <div class="scan-field">
-              <label for="doc_statutes">Statuts de l'association</label>
+              <label class="form-label" for="doc_statutes">Statuts de l'association</label>
               <input type="file" id="doc_statutes" name="doc_statutes" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.doc,.docx">
             </div>
             <div class="scan-field">
-              <label for="doc_registration">Preuve d'enregistrement</label>
+              <label class="form-label" for="doc_registration">Preuve d'enregistrement</label>
               <input type="file" id="doc_registration" name="doc_registration" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.doc,.docx">
             </div>
             <div class="scan-field">
-              <label for="doc_report">Dernier rapport d'activit&eacute;</label>
+              <label class="form-label" for="doc_report">Dernier rapport d'activit&eacute;</label>
               <input type="file" id="doc_report" name="doc_report" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.doc,.docx">
             </div>
             <div class="scan-field">
-              <label for="doc_other">Autres documents</label>
+              <label class="form-label" for="doc_other">Autres documents</label>
               <input type="file" id="doc_other" name="doc_other" multiple accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.doc,.docx">
             </div>
           </section>
 
           <section id="user-fields" data-account-section="{{ ACCOUNT_TYPE_USER }}">
             <div class="scan-field">
-              <label for="requested_username">Nom d'utilisateur</label>
+              <label class="form-label" for="requested_username">Nom d'utilisateur</label>
               <input
                 type="text"
                 id="requested_username"
@@ -169,16 +169,16 @@
               >
             </div>
             <div class="scan-field">
-              <label for="password1">Mot de passe</label>
+              <label class="form-label" for="password1">Mot de passe</label>
               <input type="password" id="password1" name="password1" autocomplete="new-password">
             </div>
             <div class="scan-field">
-              <label for="password2">Confirmer le mot de passe</label>
+              <label class="form-label" for="password2">Confirmer le mot de passe</label>
               <input type="password" id="password2" name="password2" autocomplete="new-password">
             </div>
           </section>
 
-          <button type="submit" class="scan-submit">Envoyer la demande</button>
+          <button type="submit" class="scan-submit btn btn-primary">Envoyer la demande</button>
         </form>
       </div>
     </main>

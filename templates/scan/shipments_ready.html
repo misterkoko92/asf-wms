@@ -3,21 +3,21 @@
 {% block title %}WMS Scan - Vue Exp&eacute;ditions{% endblock %}
 
 {% block content %}
-  <div class="scan-card">
-    <h2>Vue Exp&eacute;ditions ({{ shipments|length }})</h2>
+  <div class="scan-card card border-0">
+    <h2 class="h4 mb-3">Vue Exp&eacute;ditions ({{ shipments|length }})</h2>
     {% if stale_draft_count %}
       <div class="scan-message error">
         {{ stale_draft_count }} brouillon(s) temporaire(s) de plus de {{ stale_draft_days }} jours.
       </div>
-      <form method="post" class="scan-inline scan-inline-gap">
+      <form method="post" class="scan-inline scan-inline-gap d-flex flex-wrap gap-2">
         {% csrf_token %}
         <input type="hidden" name="action" value="archive_stale_drafts">
-        <button type="submit" class="scan-scan-btn">Archiver brouillons anciens</button>
+        <button type="submit" class="scan-scan-btn btn btn-outline-danger">Archiver brouillons anciens</button>
       </form>
     {% endif %}
     {% if shipments %}
-      <div class="scan-table-wrap">
-        <table class="scan-table" data-table-tools="1">
+      <div class="scan-table-wrap table-responsive">
+        <table class="scan-table table table-sm table-hover" data-table-tools="1">
           <thead>
             <tr>
               <th>N° expédition</th>
@@ -45,18 +45,18 @@
                 <td class="status">{{ shipment.status_label }}</td>
                 <td>
                   <details class="scan-doc-menu">
-                    <summary class="scan-scan-btn scan-doc-menu-toggle">Documents</summary>
+                    <summary class="scan-scan-btn btn btn-outline-primary scan-doc-menu-toggle">Documents</summary>
                     <div class="scan-doc-menu-list">
-                      <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'shipment_note' %}" target="_blank" rel="noopener">
+                      <a class="scan-scan-btn btn btn-outline-primary scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'shipment_note' %}" target="_blank" rel="noopener">
                         Bon d'exp&eacute;dition
                       </a>
-                      <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'packing_list_shipment' %}" target="_blank" rel="noopener">
+                      <a class="scan-scan-btn btn btn-outline-primary scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'packing_list_shipment' %}" target="_blank" rel="noopener">
                         Liste colisage (lot)
                       </a>
-                      <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'donation_certificate' %}" target="_blank" rel="noopener">
+                      <a class="scan-scan-btn btn btn-outline-primary scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'donation_certificate' %}" target="_blank" rel="noopener">
                         Attestation donation
                       </a>
-                      <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_shipment_labels' shipment.id %}" target="_blank" rel="noopener">
+                      <a class="scan-scan-btn btn btn-outline-primary scan-doc-btn" href="{% url 'scan:scan_shipment_labels' shipment.id %}" target="_blank" rel="noopener">
                         &Eacute;tiquettes colis
                       </a>
                     </div>
@@ -64,11 +64,11 @@
                 </td>
                 <td>
                   <div class="scan-inline">
-                    <a class="scan-scan-btn" href="{% url 'scan:scan_shipment_track' shipment.tracking_token %}?return_to=shipments_ready">
+                    <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'scan:scan_shipment_track' shipment.tracking_token %}?return_to=shipments_ready">
                       Suivi
                     </a>
                     {% if shipment.can_edit %}
-                      <a class="scan-scan-btn" href="{% url 'scan:scan_shipment_edit' shipment.id %}">Modifier</a>
+                      <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'scan:scan_shipment_edit' shipment.id %}">Modifier</a>
                     {% endif %}
                   </div>
                 </td>

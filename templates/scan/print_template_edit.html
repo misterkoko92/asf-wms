@@ -16,7 +16,7 @@
         <div class="template-meta">Type: <code>{{ doc_type }}</code></div>
       </div>
       <div class="template-status">
-        <a class="scan-scan-btn" href="{% url 'scan:scan_print_templates' %}">Retour</a>
+        <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'scan:scan_print_templates' %}">Retour</a>
         {% if template and template.layout %}
           <span class="template-badge template-badge-custom">Personnalisé</span>
         {% else %}
@@ -65,7 +65,7 @@
                     {% if version.created_by %} - {{ version.created_by.get_full_name|default:version.created_by.username }}{% endif %}
                   </div>
                 </div>
-                <button type="submit" class="scan-scan-btn">Restaurer</button>
+                <button type="submit" class="scan-scan-btn btn btn-outline-primary">Restaurer</button>
               </form>
             {% endfor %}
           {% else %}

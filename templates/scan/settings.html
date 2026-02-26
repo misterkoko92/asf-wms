@@ -3,7 +3,7 @@
 {% block title %}WMS Scan - Paramètres{% endblock %}
 
 {% block content %}
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <h2>Paramètres</h2>
     <p class="scan-help">
       Cette page est réservée aux superusers. Les valeurs sont appliquées dans les écrans scan
@@ -17,14 +17,14 @@
     {% endif %}
   </div>
 
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <form method="post" class="scan-filters">
       {% csrf_token %}
 
       <h3>Presets operationnels</h3>
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
-          <label for="settings-preset">Preset</label>
+          <label class="form-label" for="settings-preset">Preset</label>
           <select id="settings-preset" name="preset">
             <option value="">-- Selectionner --</option>
             {% for option in preset_options %}
@@ -40,7 +40,7 @@
           {% endfor %}
         </div>
         <div class="scan-field">
-          <label>&nbsp;</label>
+          <label class="form-label">&nbsp;</label>
           <button type="submit" name="action" value="apply_preset">Charger preset</button>
           <div class="scan-help">Ne sauvegarde pas automatiquement.</div>
         </div>
@@ -116,7 +116,7 @@
 
       <h3>Legacy</h3>
       <div class="scan-field">
-        <label for="{{ form.enable_shipment_track_legacy.id_for_label }}">
+        <label class="form-label" for="{{ form.enable_shipment_track_legacy.id_for_label }}">
           {{ form.enable_shipment_track_legacy }}
           {{ form.enable_shipment_track_legacy.label }}
         </label>
@@ -143,13 +143,13 @@
 
       <div class="scan-filter-actions">
         <button type="submit" name="action" value="preview">Previsualiser impact</button>
-        <button type="submit" name="action" value="save" class="scan-submit">Enregistrer</button>
+        <button type="submit" name="action" value="save" class="scan-submit btn btn-primary">Enregistrer</button>
       </div>
     </form>
   </div>
 
   {% if preview %}
-    <div class="scan-card">
+    <div class="scan-card card border-0">
       <h3>Apercu d'impact{% if preview.preset_label %} (preset: {{ preview.preset_label }}){% endif %}</h3>
       {% if preview.changed_fields %}
         <p class="scan-help">Champs modifies: {{ preview.changed_fields|join:", " }}</p>
@@ -164,7 +164,7 @@
     </div>
   {% endif %}
 
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <h3>Historique recent</h3>
     {% if recent_audits %}
       <table class="scan-table">

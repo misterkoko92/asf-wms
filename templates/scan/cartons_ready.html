@@ -3,11 +3,11 @@
 {% block title %}WMS Scan - Vue Colis{% endblock %}
 
 {% block content %}
-  <div class="scan-card">
-    <h2>Vue Colis ({{ cartons|length }})</h2>
+  <div class="scan-card card border-0">
+    <h2 class="h4 mb-3">Vue Colis ({{ cartons|length }})</h2>
     {% if cartons %}
-      <div class="scan-table-wrap">
-        <table class="scan-table" data-table-tools="1">
+      <div class="scan-table-wrap table-responsive">
+        <table class="scan-table table table-sm table-hover" data-table-tools="1">
           <thead>
             <tr>
               <th>Numero colis</th>
@@ -31,7 +31,7 @@
                       <input type="hidden" name="action" value="update_carton_status">
                       <input type="hidden" name="carton_id" value="{{ carton.id }}">
                       <label class="scan-toggle">
-                        <select name="status" onchange="this.form.submit()">
+                        <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
                           {% for value, label in carton_status_choices %}
                             <option value="{{ value }}" {% if value == carton.status_value %}selected{% endif %}>
                               {{ label }}
@@ -47,7 +47,7 @@
                         {% csrf_token %}
                         <input type="hidden" name="action" value="mark_carton_labeled">
                         <input type="hidden" name="carton_id" value="{{ carton.id }}">
-                        <button type="submit" class="scan-scan-btn">Marquer étiqueté</button>
+                        <button type="submit" class="scan-scan-btn btn btn-outline-primary">Marquer étiqueté</button>
                       </form>
                     {% endif %}
                     {% if carton.can_mark_assigned %}
@@ -55,7 +55,7 @@
                         {% csrf_token %}
                         <input type="hidden" name="action" value="mark_carton_assigned">
                         <input type="hidden" name="carton_id" value="{{ carton.id }}">
-                        <button type="submit" class="scan-scan-btn">Retirer étiquette</button>
+                        <button type="submit" class="scan-scan-btn btn btn-outline-primary">Retirer étiquette</button>
                       </form>
                     {% endif %}
                   {% endif %}
@@ -86,10 +86,10 @@
                       {% endfor %}
                     </div>
                     <div class="scan-field scan-field-gap scan-inline-actions">
-                      <a class="scan-scan-btn" href="{{ carton.packing_list_url }}" target="_blank" rel="noopener">
+                      <a class="scan-scan-btn btn btn-outline-primary" href="{{ carton.packing_list_url }}" target="_blank" rel="noopener">
                         Imprimer / télécharger
                       </a>
-                      <a class="scan-scan-btn" href="{{ carton.picking_url }}" target="_blank" rel="noopener">
+                      <a class="scan-scan-btn btn btn-outline-primary" href="{{ carton.picking_url }}" target="_blank" rel="noopener">
                         Picking
                       </a>
                     </div>

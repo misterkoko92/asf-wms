@@ -18,14 +18,14 @@
         </div>
       {% endif %}
 
-      <div class="scan-card">
+      <div class="scan-card card border-0">
         <h2>Suivi exp&eacute;dition {{ shipment.reference }}</h2>
 
         {% if show_back_to_list %}
           <div class="scan-field">
             <a
               id="tracking-back-to-list"
-              class="scan-scan-btn"
+              class="scan-scan-btn btn btn-outline-primary"
               href="{{ back_to_url }}"
             >
               Revenir &agrave; la liste des exp&eacute;ditions
@@ -34,7 +34,7 @@
         {% endif %}
 
         <div class="scan-field">
-          <label>Statut actuel</label>
+          <label class="form-label">Statut actuel</label>
           <div class="scan-help">
             {{ shipment.get_status_display }}
             {% if shipment.is_disputed %} | Litige en cours{% endif %}
@@ -46,14 +46,14 @@
                   {% csrf_token %}
                   <input type="hidden" name="action" value="resolve_dispute">
                   <input type="hidden" name="return_to" value="{{ return_to }}">
-                  <button type="submit" class="scan-scan-btn">Résoudre litige et remettre Prêt</button>
+                  <button type="submit" class="scan-scan-btn btn btn-outline-primary">Résoudre litige et remettre Prêt</button>
                 </form>
               {% else %}
                 <form method="post">
                   {% csrf_token %}
                   <input type="hidden" name="action" value="set_disputed">
                   <input type="hidden" name="return_to" value="{{ return_to }}">
-                  <button type="submit" class="scan-scan-btn">Déclarer litige</button>
+                  <button type="submit" class="scan-scan-btn btn btn-outline-primary">Déclarer litige</button>
                 </form>
               {% endif %}
             </div>
@@ -61,7 +61,7 @@
         </div>
 
         <div class="scan-field">
-          <label>Documents liés</label>
+          <label class="form-label">Documents liés</label>
           <div class="scan-docs">
             {% for doc in documents %}
               <a class="scan-scan-btn scan-doc-btn" href="{{ doc.url }}" target="_blank" rel="noopener">
@@ -72,7 +72,7 @@
         </div>
 
         <div class="scan-field">
-          <label>Liste colisage par carton</label>
+          <label class="form-label">Liste colisage par carton</label>
           {% if carton_docs %}
             <div class="scan-docs">
               {% for doc in carton_docs %}
@@ -87,7 +87,7 @@
         </div>
 
         <div class="scan-field">
-          <label>Documents additionnels</label>
+          <label class="form-label">Documents additionnels</label>
           {% if additional_docs %}
             <div class="scan-docs">
               {% for document in additional_docs %}
@@ -119,7 +119,7 @@
               {% endif %}
 
               <div class="scan-field">
-                <label for="id_status">Étape</label>
+                <label class="form-label" for="id_status">Étape</label>
                 {{ form.status }}
                 {% for error in form.status.errors %}
                   <div class="scan-message error">{{ error }}</div>
@@ -127,7 +127,7 @@
               </div>
 
               <div class="scan-field">
-                <label for="id_actor_name">Nom</label>
+                <label class="form-label" for="id_actor_name">Nom</label>
                 {{ form.actor_name }}
                 {% for error in form.actor_name.errors %}
                   <div class="scan-message error">{{ error }}</div>
@@ -135,7 +135,7 @@
               </div>
 
               <div class="scan-field">
-                <label for="id_actor_structure">Structure</label>
+                <label class="form-label" for="id_actor_structure">Structure</label>
                 {{ form.actor_structure }}
                 {% for error in form.actor_structure.errors %}
                   <div class="scan-message error">{{ error }}</div>
@@ -143,14 +143,14 @@
               </div>
 
               <div class="scan-field">
-                <label for="id_comments">Commentaires</label>
+                <label class="form-label" for="id_comments">Commentaires</label>
                 {{ form.comments }}
                 {% for error in form.comments.errors %}
                   <div class="scan-message error">{{ error }}</div>
                 {% endfor %}
               </div>
 
-              <button type="submit" class="scan-submit">Enregistrer</button>
+              <button type="submit" class="scan-submit btn btn-primary">Enregistrer</button>
             </form>
           {% endif %}
         {% else %}
@@ -218,7 +218,7 @@
           <button
             type="button"
             id="tracking-leave-discard"
-            class="scan-scan-btn"
+            class="scan-scan-btn btn btn-outline-primary"
           >
             NON
           </button>

@@ -3,7 +3,7 @@
 {% block title %}WMS Scan - Supprimer produit{% endblock %}
 
 {% block content %}
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <h2>Supprimer produit</h2>
     {% if form.non_field_errors %}
       <div class="scan-message error">{{ form.non_field_errors }}</div>
@@ -12,10 +12,10 @@
       {% csrf_token %}
 
       <div class="scan-field">
-        <label for="id_product_code">Code produit</label>
+        <label class="form-label" for="id_product_code">Code produit</label>
         <div class="scan-inline">
           {{ form.product_code }}
-          <button type="button" class="scan-scan-btn" data-scan-target="id_product_code">Scan</button>
+          <button type="button" class="scan-scan-btn btn btn-outline-primary" data-scan-target="id_product_code">Scan</button>
         </div>
         {% for error in form.product_code.errors %}
           <div class="scan-message error">{{ error }}</div>
@@ -23,7 +23,7 @@
       </div>
 
       <div class="scan-field">
-        <label for="id_quantity">Quantit&eacute;</label>
+        <label class="form-label" for="id_quantity">Quantit&eacute;</label>
         {{ form.quantity }}
         {% for error in form.quantity.errors %}
           <div class="scan-message error">{{ error }}</div>
@@ -31,10 +31,10 @@
       </div>
 
       <div class="scan-field">
-        <label for="id_shipment_reference">Référence expédition (optionnel)</label>
+        <label class="form-label" for="id_shipment_reference">Référence expédition (optionnel)</label>
         <div class="scan-inline">
           {{ form.shipment_reference }}
-          <button type="button" class="scan-scan-btn" data-scan-target="id_shipment_reference">Scan</button>
+          <button type="button" class="scan-scan-btn btn btn-outline-primary" data-scan-target="id_shipment_reference">Scan</button>
         </div>
         {% for error in form.shipment_reference.errors %}
           <div class="scan-message error">{{ error }}</div>
@@ -42,16 +42,16 @@
       </div>
 
       <div class="scan-field">
-        <label for="id_reason_code">Motif</label>
+        <label class="form-label" for="id_reason_code">Motif</label>
         {{ form.reason_code }}
       </div>
 
       <div class="scan-field">
-        <label for="id_reason_notes">Notes</label>
+        <label class="form-label" for="id_reason_notes">Notes</label>
         {{ form.reason_notes }}
       </div>
 
-      <button type="submit" class="scan-submit secondary">Enregistrer suppression</button>
+      <button type="submit" class="scan-submit secondary btn btn-secondary">Enregistrer suppression</button>
       <p class="scan-help">Utilisez la suppression rapide pour des flux sans carton.</p>
     </form>
   </div>

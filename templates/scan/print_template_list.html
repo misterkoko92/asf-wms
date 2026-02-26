@@ -3,7 +3,7 @@
 {% block title %}Templates documents{% endblock %}
 
 {% block content %}
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <h2>Templates documents</h2>
     <p>Gestion des templates visuels pour les impressions (superuser uniquement).</p>
 
@@ -46,7 +46,7 @@
                 {% endif %}
               </td>
               <td>
-                <a class="scan-scan-btn" href="{% url 'scan:scan_print_template_edit' doc_type=item.doc_type %}">
+                <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'scan:scan_print_template_edit' doc_type=item.doc_type %}">
                   Modifier
                 </a>
               </td>

@@ -18,7 +18,7 @@
         </div>
       {% endif %}
 
-      <div class="scan-card">
+      <div class="scan-card card border-0">
         <h2>Demande de commande</h2>
         <p class="scan-help">
           Lien priv&eacute; r&eacute;serv&eacute; aux associations. Un espace avec compte et validation sera ajoute ensuite.
@@ -35,7 +35,7 @@
         </div>
       </div>
 
-      <div class="scan-card">
+      <div class="scan-card card border-0">
         {% if errors %}
           <div class="scan-message error">
             {% for error in errors %}
@@ -49,7 +49,7 @@
 
           <h3>Association</h3>
           <div class="scan-field">
-            <label for="association_name">Nom de l'association</label>
+            <label class="form-label" for="association_name">Nom de l'association</label>
             <input
               type="text"
               id="association_name"
@@ -62,35 +62,35 @@
             <input type="hidden" id="association_contact_id" name="association_contact_id" value="{{ form_data.association_contact_id }}">
           </div>
           <div class="scan-field">
-            <label for="association_email">Email</label>
+            <label class="form-label" for="association_email">Email</label>
             <input type="email" id="association_email" name="association_email" value="{{ form_data.association_email }}">
           </div>
           <div class="scan-field">
-            <label for="association_phone">T&eacute;l&eacute;phone</label>
+            <label class="form-label" for="association_phone">T&eacute;l&eacute;phone</label>
             <input type="text" id="association_phone" name="association_phone" value="{{ form_data.association_phone }}">
           </div>
           <div class="scan-field">
-            <label for="association_line1">Adresse</label>
+            <label class="form-label" for="association_line1">Adresse</label>
             <input type="text" id="association_line1" name="association_line1" value="{{ form_data.association_line1 }}" required>
           </div>
           <div class="scan-field">
-            <label for="association_line2">Compl&eacute;ment adresse</label>
+            <label class="form-label" for="association_line2">Compl&eacute;ment adresse</label>
             <input type="text" id="association_line2" name="association_line2" value="{{ form_data.association_line2 }}">
           </div>
           <div class="scan-field">
-            <label for="association_postal_code">Code postal</label>
+            <label class="form-label" for="association_postal_code">Code postal</label>
             <input type="text" id="association_postal_code" name="association_postal_code" value="{{ form_data.association_postal_code }}">
           </div>
           <div class="scan-field">
-            <label for="association_city">Ville</label>
+            <label class="form-label" for="association_city">Ville</label>
             <input type="text" id="association_city" name="association_city" value="{{ form_data.association_city }}">
           </div>
           <div class="scan-field">
-            <label for="association_country">Pays</label>
+            <label class="form-label" for="association_country">Pays</label>
             <input type="text" id="association_country" name="association_country" value="{{ form_data.association_country|default:'France' }}">
           </div>
           <div class="scan-field">
-            <label for="association_notes">Notes</label>
+            <label class="form-label" for="association_notes">Notes</label>
             <textarea id="association_notes" name="association_notes" rows="3">{{ form_data.association_notes }}</textarea>
           </div>
 
@@ -141,11 +141,11 @@
           </div>
 
           <div class="scan-field">
-            <label>Total cartons estimes</label>
+            <label class="form-label">Total cartons estimes</label>
             <div id="carton-estimate-total" class="scan-help">-</div>
           </div>
 
-          <button type="submit" class="scan-submit" id="public-order-submit">Envoyer la commande</button>
+          <button type="submit" class="scan-submit btn btn-primary" id="public-order-submit">Envoyer la commande</button>
         </form>
       </div>
     </main>

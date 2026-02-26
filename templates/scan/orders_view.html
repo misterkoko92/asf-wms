@@ -3,15 +3,15 @@
 {% block title %}WMS Scan - Vue Commande{% endblock %}
 
 {% block content %}
-  <div class="scan-card">
-    <h2>Vue Commande</h2>
+  <div class="scan-card card border-0">
+    <h2 class="h4 mb-2">Vue Commande</h2>
     <p class="scan-help">Suivi des commandes des associations.</p>
   </div>
 
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     {% if orders %}
-      <div class="scan-table-wrap">
-        <table class="scan-table" data-table-tools="1">
+      <div class="scan-table-wrap table-responsive">
+        <table class="scan-table table table-sm table-hover" data-table-tools="1">
           <thead>
             <tr>
               <th>Date</th>
@@ -41,14 +41,14 @@
                     {% csrf_token %}
                     <input type="hidden" name="action" value="update_status">
                     <input type="hidden" name="order_id" value="{{ row.order.id }}">
-                    <select name="review_status">
+                    <select name="review_status" class="form-select">
                       {% for value, label in review_status_choices %}
                         <option value="{{ value }}" {% if value == row.order.review_status %}selected{% endif %}>
                           {{ label }}
                         </option>
                       {% endfor %}
                     </select>
-                    <button type="submit" class="scan-scan-btn">Mettre &agrave; jour</button>
+                    <button type="submit" class="scan-scan-btn btn btn-outline-primary">Mettre &agrave; jour</button>
                   </form>
                 </td>
                 <td>
@@ -57,7 +57,7 @@
                       {% csrf_token %}
                       <input type="hidden" name="action" value="create_shipment">
                       <input type="hidden" name="order_id" value="{{ row.order.id }}">
-                      <button type="submit" class="scan-scan-btn">Cr&eacute;er l'exp&eacute;dition</button>
+                      <button type="submit" class="scan-scan-btn btn btn-outline-primary">Cr&eacute;er l'exp&eacute;dition</button>
                     </form>
                   {% else %}
                     -
@@ -68,7 +68,7 @@
                     {% if row.documents %}
                       <div class="scan-docs">
                         {% for doc in row.documents %}
-                          <a class="scan-scan-btn scan-doc-btn" href="{{ doc.url }}" target="_blank" rel="noopener">
+                          <a class="scan-scan-btn btn btn-outline-primary scan-doc-btn" href="{{ doc.url }}" target="_blank" rel="noopener">
                             {{ doc.label }}
                           </a>
                         {% endfor %}

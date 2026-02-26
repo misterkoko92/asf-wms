@@ -3,7 +3,7 @@
 {% block title %}WMS Scan - R&eacute;ception association{% endblock %}
 
 {% block content %}
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <h2>R&eacute;ception association</h2>
     {% if create_form.non_field_errors %}
       <div class="scan-message error">{{ create_form.non_field_errors }}</div>
@@ -12,7 +12,7 @@
       {% csrf_token %}
 
       <div class="scan-field">
-        <label for="id_received_on">Date r&eacute;ception</label>
+        <label class="form-label" for="id_received_on">Date r&eacute;ception</label>
         {{ create_form.received_on }}
         {% for error in create_form.received_on.errors %}
           <div class="scan-message error">{{ error }}</div>
@@ -20,7 +20,7 @@
       </div>
 
       <div class="scan-field">
-        <label for="id_carton_count">Nombre de cartons</label>
+        <label class="form-label" for="id_carton_count">Nombre de cartons</label>
         {{ create_form.carton_count }}
         {% for error in create_form.carton_count.errors %}
           <div class="scan-message error">{{ error }}</div>
@@ -28,7 +28,7 @@
       </div>
 
       <div class="scan-field">
-        <label for="id_hors_format_count">Nombre de hors format</label>
+        <label class="form-label" for="id_hors_format_count">Nombre de hors format</label>
         {{ create_form.hors_format_count }}
         {% for error in create_form.hors_format_count.errors %}
           <div class="scan-message error">{{ error }}</div>
@@ -36,10 +36,10 @@
       </div>
 
       <div class="scan-field">
-        <label for="id_source_contact">Nom de l'association</label>
+        <label class="form-label" for="id_source_contact">Nom de l'association</label>
         <div class="scan-inline">
           {{ create_form.source_contact }}
-          <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+          <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
             Ajouter association
           </a>
         </div>
@@ -49,10 +49,10 @@
       </div>
 
       <div class="scan-field">
-        <label for="id_carrier_contact">Transporteur</label>
+        <label class="form-label" for="id_carrier_contact">Transporteur</label>
         <div class="scan-inline">
           {{ create_form.carrier_contact }}
-          <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+          <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
             Ajouter transporteur
           </a>
         </div>
@@ -67,7 +67,7 @@
       <div class="pack-lines" id="association-lines"></div>
 
       <div class="scan-field scan-field-gap">
-        <button type="submit" class="scan-submit">Enregistrer la r&eacute;ception association</button>
+        <button type="submit" class="scan-submit btn btn-primary">Enregistrer la r&eacute;ception association</button>
       </div>
     </form>
     <p class="scan-help">La r&eacute;f&eacute;rence est g&eacute;n&eacute;r&eacute;e automatiquement (format YY-XX-WWW-ZZ).</p>

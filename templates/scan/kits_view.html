@@ -3,11 +3,11 @@
 {% block title %}WMS Scan - Vue Kits{% endblock %}
 
 {% block content %}
-  <div class="scan-card">
-    <h2>Vue Kits ({{ kits|length }})</h2>
+  <div class="scan-card card border-0">
+    <h2 class="h4 mb-3">Vue Kits ({{ kits|length }})</h2>
     {% if kits %}
-      <div class="scan-table-wrap">
-        <table class="scan-table" data-table-tools="1">
+      <div class="scan-table-wrap table-responsive">
+        <table class="scan-table table table-sm table-hover" data-table-tools="1">
           <thead>
             <tr>
               <th>Nom du Kit</th>

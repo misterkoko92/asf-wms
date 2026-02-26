@@ -3,13 +3,13 @@
 {% block title %}WMS Scan - Vue r&eacute;ception{% endblock %}
 
 {% block content %}
-  <div class="scan-card">
-    <h2>Vue r&eacute;ception ({{ receipts|length }})</h2>
+  <div class="scan-card card border-0">
+    <h2 class="h4 mb-3">Vue r&eacute;ception ({{ receipts|length }})</h2>
 
     <div class="scan-field">
-      <label for="receipt-filter">Filtre</label>
-      <form method="get" id="receipt-filter-form">
-        <select id="receipt-filter" name="type" onchange="this.form.submit()">
+      <label class="form-label" for="receipt-filter" class="form-label">Filtre</label>
+      <form method="get" id="receipt-filter-form" class="d-flex flex-wrap gap-2 align-items-center">
+        <select id="receipt-filter" name="type" class="form-select" onchange="this.form.submit()">
           <option value="all" {% if filter_value == 'all' %}selected{% endif %}>Tout</option>
           <option value="association" {% if filter_value == 'association' %}selected{% endif %}>Association</option>
           <option value="pallet" {% if filter_value == 'pallet' %}selected{% endif %}>Palette</option>
@@ -18,8 +18,8 @@
     </div>
 
     {% if receipts %}
-      <div class="scan-table-wrap">
-        <table class="scan-table" data-table-tools="1">
+      <div class="scan-table-wrap table-responsive">
+        <table class="scan-table table table-sm table-hover" data-table-tools="1">
           <thead>
             <tr>
               <th>Date de r&eacute;ception</th>

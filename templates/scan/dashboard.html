@@ -3,41 +3,39 @@
 {% block title %}WMS Scan - Tableau de bord{% endblock %}
 
 {% block content %}
-  <div class="scan-card">
-    <h2>Tableau de bord</h2>
-    <form method="get" class="scan-filters">
-      <div class="scan-inline scan-inline-equal scan-inline-top">
-        <div class="scan-field">
-          <label for="id_period">Période KPI</label>
-          <select id="id_period" name="period">
-            {% for value, label in period_choices %}
-              <option value="{{ value }}"{% if period == value %} selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="scan-field">
-          <label for="id_destination">Destination</label>
-          <select id="id_destination" name="destination">
-            <option value="">Toutes les destinations</option>
-            {% for destination in destinations %}
-              <option value="{{ destination.id }}"{% if destination_id == destination.id|stringformat:'s' %} selected{% endif %}>
-                {{ destination }}
-              </option>
-            {% endfor %}
-          </select>
-        </div>
+  <div class="scan-card card border-0">
+    <h2 class="h4 mb-3">Tableau de bord</h2>
+    <form method="get" class="scan-filters row g-3">
+      <div class="scan-field col-12 col-md-6">
+        <label class="form-label" for="id_period" class="form-label">Période KPI</label>
+        <select id="id_period" name="period" class="form-select">
+          {% for value, label in period_choices %}
+            <option value="{{ value }}"{% if period == value %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
       </div>
-      <div class="scan-filter-actions">
-        <button type="submit" class="scan-scan-btn">Appliquer</button>
-        <a href="{% url 'scan:scan_dashboard' %}">Réinitialiser</a>
+      <div class="scan-field col-12 col-md-6">
+        <label class="form-label" for="id_destination" class="form-label">Destination</label>
+        <select id="id_destination" name="destination" class="form-select">
+          <option value="">Toutes les destinations</option>
+          {% for destination in destinations %}
+            <option value="{{ destination.id }}"{% if destination_id == destination.id|stringformat:'s' %} selected{% endif %}>
+              {{ destination }}
+            </option>
+          {% endfor %}
+        </select>
       </div>
-      <p class="scan-help">
+      <div class="scan-filter-actions col-12 d-flex flex-wrap gap-2 align-items-center">
+        <button type="submit" class="scan-scan-btn btn btn-primary">Appliquer</button>
+        <a class="btn btn-outline-secondary" href="{% url 'scan:scan_dashboard' %}">Réinitialiser</a>
+      </div>
+      <p class="scan-help col-12 mb-0">
         La destination filtre les widgets exp&eacute;dition/suivi. Le stock reste un instantan&eacute; global.
       </p>
     </form>
   </div>
 
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <h2>KPI p&eacute;riode ({{ period_label }})</h2>
     <div class="scan-kpi-grid">
       {% for card in activity_cards %}
@@ -50,7 +48,7 @@
     </div>
   </div>
 
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <h2>Exp&eacute;ditions</h2>
     <div class="scan-kpi-grid">
       {% for card in shipment_cards %}
@@ -63,7 +61,7 @@
     </div>
   </div>
 
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <h2>Graphique exp&eacute;ditions ({{ shipments_total }})</h2>
     <div class="scan-chart-bars">
       {% for row in shipment_chart_rows %}
@@ -78,7 +76,7 @@
     </div>
   </div>
 
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <h2>Colis</h2>
     <div class="scan-kpi-grid">
       {% for card in carton_cards %}
@@ -91,7 +89,7 @@
     </div>
   </div>
 
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <h2>Stock</h2>
     <div class="scan-kpi-grid">
       {% for card in stock_cards %}
@@ -103,8 +101,8 @@
       {% endfor %}
     </div>
     {% if low_stock_rows %}
-      <div class="scan-table-wrap">
-        <table class="scan-table">
+      <div class="scan-table-wrap table-responsive">
+        <table class="scan-table table table-sm table-hover">
           <thead>
             <tr>
               <th>Produit</th>
@@ -129,7 +127,7 @@
     {% endif %}
   </div>
 
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <h2>R&eacute;ceptions / Commandes</h2>
     <div class="scan-kpi-grid">
       {% for card in flow_cards %}
@@ -142,7 +140,7 @@
     </div>
   </div>
 
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <h2>Suivi / Alertes (&gt; {{ tracking_alert_hours }}h)</h2>
     <div class="scan-kpi-grid">
       {% for card in tracking_cards %}
@@ -155,7 +153,7 @@
     </div>
   </div>
 
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <h2>Technique / Queue email</h2>
     <div class="scan-kpi-grid">
       {% for card in technical_cards %}
@@ -168,7 +166,7 @@
     </div>
   </div>
 
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <h2>Blocages workflow (&gt; {{ workflow_blockage_hours }}h)</h2>
     <div class="scan-kpi-grid">
       {% for card in workflow_blockage_cards %}
@@ -181,7 +179,7 @@
     </div>
   </div>
 
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <h2>Suivi SLA</h2>
     <div class="scan-kpi-grid">
       {% for card in sla_cards %}

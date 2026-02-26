@@ -3,7 +3,7 @@
 {% block title %}WMS Scan - Pr&eacute;parer des kits{% endblock %}
 
 {% block content %}
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <h2>Pr&eacute;parer des kits</h2>
     {% if form.non_field_errors %}
       <div class="scan-message error">{{ form.non_field_errors }}</div>
@@ -12,10 +12,10 @@
     <form method="post" novalidate>
       {% csrf_token %}
       <div class="scan-field">
-        <label for="{{ form.kit_id.id_for_label }}">Nom du kit</label>
+        <label class="form-label" for="{{ form.kit_id.id_for_label }}">Nom du kit</label>
         <div class="scan-inline scan-inline-gap">
           {{ form.kit_id }}
-          <a class="scan-scan-btn" href="{{ kit_create_url }}" target="_blank" rel="noopener">
+          <a class="scan-scan-btn btn btn-outline-primary" href="{{ kit_create_url }}" target="_blank" rel="noopener">
             Cr&eacute;er un nouveau kit
           </a>
         </div>
@@ -26,7 +26,7 @@
 
       <div class="scan-inline scan-inline-gap scan-field-gap">
         <div class="scan-field">
-          <label for="{{ form.quantity.id_for_label }}">Nombre de kits &agrave; cr&eacute;er</label>
+          <label class="form-label" for="{{ form.quantity.id_for_label }}">Nombre de kits &agrave; cr&eacute;er</label>
           {{ form.quantity }}
           {% for error in form.quantity.errors %}
             <div class="scan-message error">{{ error }}</div>
@@ -39,9 +39,9 @@
       </div>
 
       <div class="scan-field scan-field-gap">
-        <label>Composition</label>
-        <div class="scan-table-wrap">
-          <table class="scan-table">
+        <label class="form-label">Composition</label>
+        <div class="scan-table-wrap table-responsive">
+          <table class="scan-table table table-sm table-hover">
             <thead>
               <tr>
                 <th>Nom des produits</th>
@@ -68,13 +68,13 @@
         </div>
       </div>
 
-      <button type="submit" class="scan-submit">Pr&eacute;parer</button>
+      <button type="submit" class="scan-submit btn btn-primary">Pr&eacute;parer</button>
     </form>
 
     {% if prepare_result %}
       <div class="scan-field scan-field-gap">
         <p class="scan-help">{{ prepare_result.carton_count }} colis g&eacute;n&eacute;r&eacute;(s).</p>
-        <a class="scan-scan-btn" href="{{ prepare_result.picking_url }}" target="_blank" rel="noopener">
+        <a class="scan-scan-btn btn btn-outline-primary" href="{{ prepare_result.picking_url }}" target="_blank" rel="noopener">
           T&eacute;l&eacute;charger le picking
         </a>
       </div>

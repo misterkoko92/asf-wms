@@ -3,7 +3,7 @@
 {% block title %}WMS Scan - Admin Contacts{% endblock %}
 
 {% block content %}
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <h2>Admin - Contacts</h2>
     <p class="scan-help">
       Cette page est r&eacute;serv&eacute;e aux superusers. Les actions ci-dessous ouvrent les formulaires
@@ -11,32 +11,32 @@
     </p>
   </div>
 
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <form method="get" class="scan-filters">
       <div class="scan-inline">
         <div class="scan-field">
-          <label for="scan-admin-contacts-q">Recherche</label>
+          <label class="form-label" for="scan-admin-contacts-q">Recherche</label>
           <input id="scan-admin-contacts-q" type="text" name="q" value="{{ query }}" placeholder="Nom, email, t&eacute;l&eacute;phone, ASF ID">
         </div>
       </div>
       <div class="scan-filter-actions">
         <button type="submit">Filtrer</button>
-        <a class="scan-scan-btn" href="{% url 'scan:scan_admin_contacts' %}">R&eacute;initialiser</a>
+        <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'scan:scan_admin_contacts' %}">R&eacute;initialiser</a>
       </div>
     </form>
   </div>
 
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <div class="scan-filter-actions">
-      <a class="scan-scan-btn" href="{{ contacts_admin_url }}">Tous les contacts (admin)</a>
-      <a class="scan-scan-btn" href="{{ contact_add_url }}">Ajouter un contact</a>
-      <a class="scan-scan-btn" href="{{ contact_tag_add_url }}">Ajouter un tag</a>
-      <a class="scan-scan-btn" href="{{ destination_admin_url }}">Destinations</a>
-      <a class="scan-scan-btn" href="{{ destination_add_url }}">Ajouter une destination</a>
+      <a class="scan-scan-btn btn btn-outline-primary" href="{{ contacts_admin_url }}">Tous les contacts (admin)</a>
+      <a class="scan-scan-btn btn btn-outline-primary" href="{{ contact_add_url }}">Ajouter un contact</a>
+      <a class="scan-scan-btn btn btn-outline-primary" href="{{ contact_tag_add_url }}">Ajouter un tag</a>
+      <a class="scan-scan-btn btn btn-outline-primary" href="{{ destination_admin_url }}">Destinations</a>
+      <a class="scan-scan-btn btn btn-outline-primary" href="{{ destination_add_url }}">Ajouter une destination</a>
     </div>
   </div>
 
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <h3>Contacts ({% if contacts %}{{ contacts|length }}{% else %}0{% endif %})</h3>
     {% if contacts %}
       <table class="scan-table">
@@ -69,8 +69,8 @@
                 {% endfor %}
               </td>
               <td>
-                <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_change' contact.id %}">Modifier</a>
-                <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_delete' contact.id %}">Supprimer</a>
+                <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'admin:contacts_contact_change' contact.id %}">Modifier</a>
+                <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'admin:contacts_contact_delete' contact.id %}">Supprimer</a>
               </td>
             </tr>
           {% endfor %}
@@ -81,7 +81,7 @@
     {% endif %}
   </div>
 
-  <div class="scan-card">
+  <div class="scan-card card border-0">
     <h3>Correspondants</h3>
     {% if correspondents %}
       <table class="scan-table">
@@ -100,7 +100,7 @@
               <td>{{ contact.email|default:"-" }}</td>
               <td>{{ contact.phone|default:"-" }}</td>
               <td>
-                <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_change' contact.id %}">Modifier</a>
+                <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'admin:contacts_contact_change' contact.id %}">Modifier</a>
               </td>
             </tr>
           {% endfor %}
