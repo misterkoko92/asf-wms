@@ -1041,8 +1041,35 @@ class UiApiEndpointsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertEqual(payload["filters"]["q"], "UI API")
+        self.assertFalse(payload["filters"]["include_zero"])
         self.assertEqual(payload["meta"]["total_products"], 1)
         self.assertEqual(payload["products"][0]["sku"], self.product.sku)
+
+    def test_ui_stock_include_zero_returns_out_of_stock_products(self):
+        Product.objects.create(
+            sku="UI-API-ZERO-001",
+            name="UI API Zero Product",
+            brand="Medi",
+            default_location=self.product.default_location,
+            is_active=True,
+            qr_code_image="qr_codes/test.png",
+        )
+
+        response_default = self.staff_client.get("/api/v1/ui/stock/?q=UI-API-ZERO-001")
+        self.assertEqual(response_default.status_code, 200)
+        payload_default = response_default.json()
+        self.assertFalse(payload_default["filters"]["include_zero"])
+        self.assertEqual(payload_default["meta"]["total_products"], 0)
+
+        response = self.staff_client.get(
+            "/api/v1/ui/stock/?q=UI-API-ZERO-001&include_zero=1"
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["filters"]["include_zero"])
+        self.assertEqual(payload["meta"]["total_products"], 1)
+        self.assertEqual(payload["products"][0]["sku"], "UI-API-ZERO-001")
+        self.assertEqual(payload["products"][0]["stock_total"], 0)
 
     def test_ui_stock_exposes_brand_and_barcode_fields(self):
         product = Product.objects.create(

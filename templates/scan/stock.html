@@ -51,6 +51,18 @@
           <option value="qty_desc" {% if sort == "qty_desc" %}selected{% endif %}>Stock d&eacute;croissant</option>
         </select>
       </div>
+      <div class="scan-field">
+        <label for="id_include_zero">
+          <input
+            type="checkbox"
+            id="id_include_zero"
+            name="include_zero"
+            value="1"
+            {% if include_zero %}checked{% endif %}
+          >
+          Inclure les produits avec stock &agrave; 0
+        </label>
+      </div>
 
       <div class="scan-filter-actions">
         <button type="submit" class="scan-submit secondary scan-submit-inline">Filtrer</button>
@@ -60,7 +72,10 @@
   </div>
 
   <div class="scan-card">
-    <h2>Produits en stock ({{ products|length }})</h2>
+    <h2>
+      {% if include_zero %}Produits{% else %}Produits en stock{% endif %}
+      ({{ products|length }})
+    </h2>
     {% if products %}
       <div class="scan-table-wrap">
         <table class="scan-table" data-table-tools="1">
@@ -97,7 +112,13 @@
         </table>
       </div>
     {% else %}
-      <p class="scan-help">Aucun produit en stock pour ces filtres.</p>
+      <p class="scan-help">
+        {% if include_zero %}
+          Aucun produit pour ces filtres.
+        {% else %}
+          Aucun produit en stock pour ces filtres.
+        {% endif %}
+      </p>
     {% endif %}
   </div>
 {% endblock %}

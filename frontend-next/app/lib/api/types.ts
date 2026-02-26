@@ -147,6 +147,7 @@ export type ScanStockDto = {
     category: string;
     warehouse: string;
     sort: string;
+    include_zero: boolean;
   };
   meta: {
     total_products: number;

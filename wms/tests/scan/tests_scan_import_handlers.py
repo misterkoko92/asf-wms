@@ -228,6 +228,7 @@ class ScanImportHandlersTests(TestCase):
                     1,
                     ["e1", "e2", "e3", "e4"],
                     ["w1", "w2", "w3", "w4"],
+                    {"distinct_products": 1},
                 ),
             ) as import_rows_mock:
                 response = scan_import_handlers.handle_scan_import_action(
@@ -254,13 +255,17 @@ class ScanImportHandlersTests(TestCase):
         self.assertEqual(import_kwargs["start_index"], 2)
         self.assertEqual(import_kwargs["base_dir"], temp_path.parent)
         self.assertEqual(import_kwargs["quantity_mode"], "overwrite")
+        self.assertTrue(import_kwargs["collect_stats"])
 
         messages = self._messages(request)
         self.assertIn("Import produits: 4 erreur(s).", messages)
         self.assertIn("e1", messages)
         self.assertIn("Import produits: 4 alerte(s).", messages)
         self.assertIn("w1", messages)
-        self.assertIn("Import produits: 1 créé(s), 1 maj.", messages)
+        self.assertIn(
+            "Import produits: 1 créé(s), 1 ligne(s) maj., 1 produit(s) distinct(s) impacté(s).",
+            messages,
+        )
 
     def test_product_confirm_single_match_uses_pending_match_id_when_missing_in_post(self):
         request = self._build_post_request(
@@ -562,7 +567,7 @@ class ScanImportHandlersTests(TestCase):
                         ):
                             with mock.patch(
                                 "wms.scan_import_handlers.import_products_rows",
-                                return_value=(2, 0, ["e1"], ["w1"]),
+                                return_value=(2, 0, ["e1"], ["w1"], {"distinct_products": 2}),
                             ) as import_rows_mock:
                                 response = (
                                     scan_import_handlers.handle_scan_import_action(
@@ -576,10 +581,14 @@ class ScanImportHandlersTests(TestCase):
             import_rows_mock.call_args.kwargs["quantity_mode"],
             "overwrite",
         )
+        self.assertTrue(import_rows_mock.call_args.kwargs["collect_stats"])
         messages = self._messages(request)
         self.assertIn("Import produits: 1 erreur(s).", messages)
         self.assertIn("Import produits: 1 alerte(s).", messages)
-        self.assertIn("Import produits: 2 créé(s), 0 maj.", messages)
+        self.assertIn(
+            "Import produits: 2 créé(s), 0 ligne(s) maj., 2 produit(s) distinct(s) impacté(s).",
+            messages,
+        )
 
     def test_product_file_skips_empty_rows_before_match_detection(self):
         uploaded = SimpleUploadedFile("produits.csv", b"sku,name\n,\nA,Produit A\n")

@@ -1311,6 +1311,7 @@ class UiStockView(APIView):
                     "category": context["category_id"],
                     "warehouse": context["warehouse_id"],
                     "sort": context["sort"],
+                    "include_zero": context["include_zero"],
                 },
                 "meta": {
                     "total_products": len(products),

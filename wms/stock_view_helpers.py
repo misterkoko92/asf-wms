@@ -14,11 +14,16 @@ from django.db.models.functions import Coalesce
 from .models import Product, ProductCategory, ProductLot, StockMovement, Warehouse
 
 
+def _parse_bool_query_param(value):
+    return (value or "").strip().lower() in {"1", "true", "on", "yes", "oui"}
+
+
 def build_stock_context(request):
     query = (request.GET.get("q") or "").strip()
     category_id = (request.GET.get("category") or "").strip()
     warehouse_id = (request.GET.get("warehouse") or "").strip()
     sort = (request.GET.get("sort") or "name").strip()
+    include_zero = _parse_bool_query_param(request.GET.get("include_zero"))
 
     products = Product.objects.filter(is_active=True).select_related("category")
     if query:
@@ -67,7 +72,9 @@ def build_stock_context(request):
         last_movement_at=Subquery(
             last_movement_subquery, output_field=DateTimeField()
         ),
-    ).filter(stock_total__gt=0)
+    )
+    if not include_zero:
+        products = products.filter(stock_total__gt=0)
 
     sort_map = {
         "name": "name",
@@ -90,4 +97,5 @@ def build_stock_context(request):
         "category_id": category_id,
         "warehouse_id": warehouse_id,
         "sort": sort,
+        "include_zero": include_zero,
     }

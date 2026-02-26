@@ -29,12 +29,14 @@ function buildStockQuery(params: {
   category: string;
   warehouse: string;
   sort: string;
+  includeZero: boolean;
 }): string {
   const query = new URLSearchParams();
   const q = params.q.trim();
   const category = params.category.trim();
   const warehouse = params.warehouse.trim();
   const sort = params.sort.trim();
+  const includeZero = params.includeZero;
   if (q) {
     query.set("q", q);
   }
@@ -46,6 +48,9 @@ function buildStockQuery(params: {
   }
   if (sort) {
     query.set("sort", sort);
+  }
+  if (includeZero) {
+    query.set("include_zero", "1");
   }
   return query.toString();
 }
@@ -83,6 +88,7 @@ export function ScanStockLive() {
   const [filterCategory, setFilterCategory] = useState<string>("");
   const [filterWarehouse, setFilterWarehouse] = useState<string>("");
   const [filterSort, setFilterSort] = useState<string>(DEFAULT_SORT);
+  const [filterIncludeZero, setFilterIncludeZero] = useState<boolean>(false);
 
   const [updateProductCode, setUpdateProductCode] = useState<string>("");
   const [updateQuantity, setUpdateQuantity] = useState<string>("1");
@@ -106,6 +112,7 @@ export function ScanStockLive() {
           setFilterCategory(payload.filters.category || "");
           setFilterWarehouse(payload.filters.warehouse || "");
           setFilterSort(payload.filters.sort || DEFAULT_SORT);
+          setFilterIncludeZero(Boolean(payload.filters.include_zero));
           filtersHydratedRef.current = true;
         }
       } catch (err: unknown) {
@@ -128,9 +135,10 @@ export function ScanStockLive() {
       category: filterCategory,
       warehouse: filterWarehouse,
       sort: filterSort,
+      includeZero: filterIncludeZero,
     });
     await loadStock(query);
-  }, [filterCategory, filterQ, filterSort, filterWarehouse, loadStock]);
+  }, [filterCategory, filterIncludeZero, filterQ, filterSort, filterWarehouse, loadStock]);
 
   const onFilterSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -142,6 +150,7 @@ export function ScanStockLive() {
     setFilterCategory("");
     setFilterWarehouse("");
     setFilterSort(DEFAULT_SORT);
+    setFilterIncludeZero(false);
     await loadStock("");
   };
 
@@ -287,6 +296,14 @@ export function ScanStockLive() {
             <option value="qty_desc">Stock decroissant</option>
           </select>
         </label>
+        <label className="field-inline">
+          <input
+            type="checkbox"
+            checked={filterIncludeZero}
+            onChange={(event) => setFilterIncludeZero(event.target.checked)}
+          />
+          Inclure stock a 0
+        </label>
         <button type="submit" className="btn-secondary" disabled={isSubmitting || isLoading}>
           Filtrer
         </button>
@@ -380,7 +397,7 @@ export function ScanStockLive() {
       ) : null}
 
       <article className="panel">
-        <h2>Produits en stock ({data.products.length})</h2>
+        <h2>{filterIncludeZero ? "Produits" : "Produits en stock"} ({data.products.length})</h2>
         {data.products.length ? (
           <table className="data-table">
             <thead>
@@ -411,7 +428,11 @@ export function ScanStockLive() {
             </tbody>
           </table>
         ) : (
-          <p className="scan-help">Aucun produit en stock pour ces filtres.</p>
+          <p className="scan-help">
+            {filterIncludeZero
+              ? "Aucun produit pour ces filtres."
+              : "Aucun produit en stock pour ces filtres."}
+          </p>
         )}
       </article>
     </div>
