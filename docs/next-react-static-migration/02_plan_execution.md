@@ -33,6 +33,7 @@ Front Next parallel (sans impact legacy):
 - `/app/scan/shipment-documents/`
 - `/app/scan/templates/`
 - `/app/portal/dashboard/`
+- `/app/portal/orders/detail/?id=<id>`
 
 Couche API UI livree:
 

@@ -15,7 +15,7 @@ Decision de pilotage validee le 2026-02-26:
 
 Capacites utilisables des maintenant (dev):
 
-- ecrans Next: `/app/scan/dashboard/`, `/app/scan/stock/`, `/app/scan/cartons/`, `/app/scan/shipment-create/`, `/app/scan/shipments-ready/`, `/app/scan/shipments-tracking/`, `/app/scan/shipment-documents/`, `/app/scan/templates/`, `/app/portal/dashboard/`
+- ecrans Next: `/app/scan/dashboard/`, `/app/scan/stock/`, `/app/scan/cartons/`, `/app/scan/shipment-create/`, `/app/scan/shipments-ready/`, `/app/scan/shipments-tracking/`, `/app/scan/shipment-documents/`, `/app/scan/templates/`, `/app/portal/dashboard/`, `/app/portal/orders/detail/?id=<id>`
 - API UI: stock, expedition, tracking, cloture, portal mutations, documents/labels, templates
 - switch permanent legacy/next conserve
 

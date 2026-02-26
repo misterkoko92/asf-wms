@@ -43,7 +43,7 @@
 | P3 | `/scan/templates/<doc_type>/` | `/app/scan/templates/` | staff | Verifier flux nominal + validations + erreurs metier + permissions. | PENDING | - | - |
 | P1 | `/portal/` | `/app/portal/dashboard/` | staff,association,admin | Verifier flux nominal + validations + erreurs metier + permissions. | PENDING | - | - |
 | P1 | `/portal/orders/new/` | `/app/portal/dashboard/` (integration transitoire) | staff,association,admin | Verifier flux nominal + validations + erreurs metier + permissions. | PENDING | - | - |
-| P1 | `/portal/orders/<id>/` | `/app/portal/orders/detail/?id=<id>` | staff,association,admin | Verifier route creee, actions disponibles, validations, permissions et erreurs. | PENDING | - | - |
+| P1 | `/portal/orders/<id>/` | `/app/portal/orders/detail/?id=<id>` | staff,association,admin | Verifier route creee, actions disponibles, validations, permissions et erreurs. | PARTIAL | `NextUiTests.test_next_portal_order_detail_route_displays_selected_order` | Oui (recette manuelle multi-role reste a faire) |
 | P2 | `/portal/recipients/` | `/app/portal/dashboard/` (integration transitoire) | staff,admin | Verifier flux nominal + validations + erreurs metier + permissions. | PENDING | - | - |
 | P2 | `/portal/account/` | `/app/portal/dashboard/` (integration transitoire) | staff,admin | Verifier flux nominal + validations + erreurs metier + permissions. | PENDING | - | - |
 | P2 | `/portal/change-password/` | `/app/portal/change-password/` | staff,admin | Verifier route creee, actions disponibles, validations, permissions et erreurs. | PENDING | - | - |

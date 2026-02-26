@@ -1311,6 +1311,43 @@ class NextUiTests(StaticLiveServerTestCase):
             context.close()
             browser.close()
 
+    def test_next_portal_order_detail_route_displays_selected_order(self):
+        portal_order = Order.objects.create(
+            reference="CMD-NEXT-UI-DETAIL-1",
+            association_contact=self.portal_recipient.association_contact,
+            review_status=OrderReviewStatus.PENDING,
+            shipper_name=self.shipper_contact.name,
+            recipient_name=self.portal_recipient.structure_name,
+            correspondent_name=self.correspondent_contact.name,
+            destination_address="15 Rue Portal Detail",
+            destination_city="Paris",
+            destination_country="France",
+            created_by=self.portal_user,
+        )
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context_with_session(
+                browser, auth_cookies=self.portal_auth_cookies
+            )
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}/app/portal/orders/detail/?id={portal_order.id}",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h1")
+            heading = page.locator("h1").inner_text()
+            self.assertIn("Detail commande", heading)
+            page.wait_for_function(
+                "(reference) => document.body.innerText.includes(reference)",
+                arg=portal_order.reference,
+            )
+            page.wait_for_function(
+                "(statusLabel) => document.body.innerText.includes(statusLabel)",
+                arg=portal_order.get_review_status_display(),
+            )
+            context.close()
+            browser.close()
+
     def test_next_shipment_documents_upload_and_delete_workflow(self):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()

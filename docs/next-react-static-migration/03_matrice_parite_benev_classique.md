@@ -59,7 +59,7 @@ Decision de pilotage (2026-02-26):
 |---|---|---|---|---|---|
 | P1 | `/portal/` | `/app/portal/dashboard/` | ecran present (mix maquette + live API) | `GET /api/v1/ui/portal/dashboard/` | IN_PROGRESS |
 | P1 | `/portal/orders/new/` | `/app/portal/dashboard/` (integration transitoire) | workflow creation commande present sur dashboard | `POST /api/v1/ui/portal/orders/` | IN_PROGRESS |
-| P1 | `/portal/orders/<id>/` | `/app/portal/orders/detail/?id=<id>` | route non creee | partiel (dashboard expose liste, pas detail endpoint dedie) | TODO |
+| P1 | `/portal/orders/<id>/` | `/app/portal/orders/detail/?id=<id>` | route creee (detail commande read-only via payload dashboard) | partiel (dashboard expose liste, pas detail endpoint dedie) | IN_PROGRESS |
 | P2 | `/portal/recipients/` | `/app/portal/dashboard/` (integration transitoire) | workflows create/update presents sur dashboard | `GET/POST/PATCH /api/v1/ui/portal/recipients*` | IN_PROGRESS |
 | P2 | `/portal/account/` | `/app/portal/dashboard/` (integration transitoire) | workflow update compte present sur dashboard | `GET/PATCH /api/v1/ui/portal/account/` | IN_PROGRESS |
 | P2 | `/portal/change-password/` | `/app/portal/change-password/` | conserve en legacy | n/a | TODO |
@@ -112,6 +112,7 @@ Principe cible: route stable + query params.
 - [x] workflow navigateur route dediee suivi expedition (`/app/scan/shipments-tracking/`) + presence liste live + etats visuels cloture + labels metier tracking/cloture en terminologie `suivi` + options de statuts metier (sans libelles anglais): `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur route dediee vue colis (`/app/scan/cartons/`): `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] workflow navigateur portal mutations (order create, recipient create/update, account patch): `wms/tests/core/tests_ui.py::NextUiTests`
+- [x] workflow navigateur route detail commande portal (`/app/portal/orders/detail/?id=<id>`): `wms/tests/core/tests_ui.py::NextUiTests`
 - [x] execution reguliere E2E navigateur sur environnement cible (GitHub Actions `next-ui-browser-e2e.yml`, Playwright Chromium)
 - [ ] recette metier manuelle complete ecran par ecran (`docs/next-react-static-migration/p3_sprint_c_recette_manuelle_2026-02-26.md`)
 - [x] rollback global instantane vers legacy (`/ui/mode/legacy/`)
