@@ -223,6 +223,8 @@ class ScanViewTests(TestCase):
             ("scan:scan_print_template_preview", "post", {}, {}),
             ("scan:scan_import", "get", {}, None),
             ("scan:scan_faq", "get", {}, None),
+            ("scan:scan_admin_contacts", "get", {}, None),
+            ("scan:scan_admin_products", "get", {}, None),
             ("scan:scan_out", "get", {}, None),
             ("scan:scan_sync", "get", {}, None),
         ]

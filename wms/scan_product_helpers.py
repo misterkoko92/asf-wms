@@ -4,6 +4,7 @@ from django.db.models import Case, F, IntegerField, Q, Sum, Value, When
 from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Coalesce
 
+from .kit_components import KitCycleError, get_unit_component_quantities
 from .models import Product, ProductLotStatus
 
 def resolve_product(code: str, *, include_kits: bool = False):
@@ -109,15 +110,18 @@ def build_product_options(*, include_kits: bool = False):
     )
     kit_options = []
     for kit in kit_products:
-        kit_items = list(kit.kit_items.all())
-        if not kit_items:
+        if getattr(kit, "id", None) is None:
             continue
+        try:
+            component_quantities = get_unit_component_quantities(kit)
+        except KitCycleError:
+            component_quantities = {}
         max_units = []
-        for item in kit_items:
-            if item.quantity <= 0:
+        for component_id, required_quantity in component_quantities.items():
+            if required_quantity <= 0:
                 continue
-            available = int(available_by_id.get(item.component_id, 0) or 0)
-            max_units.append(available // item.quantity)
+            available = int(available_by_id.get(component_id, 0) or 0)
+            max_units.append(available // required_quantity)
         available_stock = min(max_units) if max_units else 0
         kit_options.append(
             {
@@ -159,28 +163,23 @@ def build_product_selection_data(*, include_kits: bool = False):
     return product_options, product_by_id, available_by_id
 
 
-def _get_kit_items(product: Product):
-    cached = getattr(product, "_prefetched_objects_cache", {}).get("kit_items")
-    if cached is not None:
-        return cached
-    return list(product.kit_items.select_related("component"))
-
-
 def get_product_weight_g(product: Product):
-    kit_items = _get_kit_items(product)
-    if kit_items:
-        total = 0
-        for item in kit_items:
-            weight_g = (
-                item.component.weight_g
-                if item.component.weight_g and item.component.weight_g > 0
-                else None
-            )
-            if weight_g is None:
-                return None
-            total += weight_g * item.quantity
-        return total if total > 0 else None
-    return product.weight_g if product.weight_g and product.weight_g > 0 else None
+    try:
+        component_quantities = get_unit_component_quantities(product)
+    except KitCycleError:
+        return None
+    if not component_quantities:
+        return None
+    weights_by_id = dict(
+        Product.objects.filter(id__in=component_quantities.keys()).values_list("id", "weight_g")
+    )
+    total = 0
+    for component_id, component_quantity in component_quantities.items():
+        weight_g = weights_by_id.get(component_id)
+        if weight_g is None or weight_g <= 0:
+            return None
+        total += int(weight_g) * component_quantity
+    return total if total > 0 else None
 
 
 def _get_base_product_volume_cm3(product: Product):
@@ -192,13 +191,21 @@ def _get_base_product_volume_cm3(product: Product):
 
 
 def get_product_volume_cm3(product: Product):
-    kit_items = _get_kit_items(product)
-    if kit_items:
-        total = Decimal("0")
-        for item in kit_items:
-            volume = _get_base_product_volume_cm3(item.component)
-            if volume is None or volume <= 0:
-                return None
-            total += volume * item.quantity
-        return total if total > 0 else None
-    return _get_base_product_volume_cm3(product)
+    try:
+        component_quantities = get_unit_component_quantities(product)
+    except KitCycleError:
+        return None
+    if not component_quantities:
+        return None
+    components = Product.objects.filter(id__in=component_quantities.keys())
+    products_by_id = {component.id: component for component in components}
+    total = Decimal("0")
+    for component_id, component_quantity in component_quantities.items():
+        component = products_by_id.get(component_id)
+        if component is None:
+            return None
+        volume = _get_base_product_volume_cm3(component)
+        if volume is None or volume <= 0:
+            return None
+        total += volume * component_quantity
+    return total if total > 0 else None

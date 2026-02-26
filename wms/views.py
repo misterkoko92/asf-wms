@@ -33,6 +33,8 @@ from .views_public import (
     scan_public_order_summary,
 )
 from .views_scan import (
+    scan_admin_contacts,
+    scan_admin_products,
     scan_dashboard,
     scan_cartons_ready,
     scan_faq,
@@ -113,6 +115,8 @@ IMPORT_EXPORTS = ("scan_import",)
 SCAN_MISC_EXPORTS = (
     "scan_shipment_document_upload",
     "scan_shipment_document_delete",
+    "scan_admin_contacts",
+    "scan_admin_products",
     "scan_out",
     "scan_sync",
     "scan_faq",

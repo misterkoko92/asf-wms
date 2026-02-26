@@ -208,12 +208,16 @@ class WmsModelMethodsTests(TestCase):
             qr_code_image="qr_codes/kit2.png",
         )
         ProductKitItem.objects.create(kit=nested_kit, component=component, quantity=1)
-        invalid_component = ProductKitItem(kit=kit, component=nested_kit, quantity=1)
+        valid_nested_component = ProductKitItem(kit=kit, component=nested_kit, quantity=1)
+        valid_nested_component.clean()
+
+        ProductKitItem.objects.create(kit=kit, component=nested_kit, quantity=1)
+        invalid_cycle = ProductKitItem(kit=nested_kit, component=kit, quantity=1)
         with self.assertRaisesMessage(
             ValidationError,
-            "Un composant ne peut pas etre un kit.",
+            "Un kit ne peut pas contenir indirectement lui-meme.",
         ):
-            invalid_component.clean()
+            invalid_cycle.clean()
 
     def test_receipt_and_related_repr_methods(self):
         lot = ProductLot.objects.create(

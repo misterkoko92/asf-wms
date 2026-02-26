@@ -96,6 +96,31 @@ class ScanProductHelpersTests(TestCase):
         kit_option = next(item for item in options if item["id"] == kit.id)
         self.assertEqual(kit_option["available_stock"], 5)
 
+    def test_build_product_options_includes_nested_kits(self):
+        component_a = Product.objects.create(name="Comp A2", sku="COMP-A2")
+        component_b = Product.objects.create(name="Comp B2", sku="COMP-B2")
+        ProductLot.objects.create(
+            product=component_a,
+            quantity_on_hand=10,
+            quantity_reserved=0,
+            location=self.location,
+        )
+        ProductLot.objects.create(
+            product=component_b,
+            quantity_on_hand=5,
+            quantity_reserved=0,
+            location=self.location,
+        )
+        child_kit = Product.objects.create(name="Child Kit", sku="KIT-CHILD")
+        ProductKitItem.objects.create(kit=child_kit, component=component_a, quantity=2)
+        parent_kit = Product.objects.create(name="Parent Kit", sku="KIT-PARENT")
+        ProductKitItem.objects.create(kit=parent_kit, component=child_kit, quantity=1)
+        ProductKitItem.objects.create(kit=parent_kit, component=component_b, quantity=1)
+
+        options = build_product_options(include_kits=True)
+        parent_option = next(item for item in options if item["id"] == parent_kit.id)
+        self.assertEqual(parent_option["available_stock"], 5)
+
     def test_build_product_options_skips_empty_kits_and_non_positive_quantities(self):
         component = Product.objects.create(
             name="Comp 2",
@@ -179,6 +204,17 @@ class ScanProductHelpersTests(TestCase):
         product = Product.objects.create(name="Simple Product", sku="SIMPLE-1", weight_g=250)
 
         self.assertEqual(get_product_weight_g(product), 250)
+
+    def test_get_product_weight_g_for_nested_kit(self):
+        component_a = Product.objects.create(name="Comp Weight A", sku="W-A", weight_g=100)
+        component_b = Product.objects.create(name="Comp Weight B", sku="W-B", weight_g=200)
+        child_kit = Product.objects.create(name="Child Weight Kit", sku="W-CHILD")
+        ProductKitItem.objects.create(kit=child_kit, component=component_a, quantity=2)
+        parent_kit = Product.objects.create(name="Parent Weight Kit", sku="W-PARENT")
+        ProductKitItem.objects.create(kit=parent_kit, component=child_kit, quantity=3)
+        ProductKitItem.objects.create(kit=parent_kit, component=component_b, quantity=1)
+
+        self.assertEqual(get_product_weight_g(parent_kit), 800)
 
     def test_get_product_volume_cm3_for_non_kit_uses_volume_field(self):
         product = Product.objects.create(name="Simple Volume", sku="SIMPLE-V", volume_cm3=321)

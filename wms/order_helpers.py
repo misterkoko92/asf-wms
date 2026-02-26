@@ -2,6 +2,7 @@ import hashlib
 import math
 from collections import defaultdict
 
+from .kit_components import KitCycleError, get_unit_component_quantities
 from .models import (
     Carton,
     CartonStatus,
@@ -307,21 +308,32 @@ def split_ready_rows_into_kits(ready_rows):
         .prefetch_related("kit_items__component")
         .order_by("name", "id")
     )
-    signature_to_kit = {}
+    kit_definitions = []
+    component_ids = set()
     for kit in kit_products:
-        kit_items = list(kit.kit_items.all())
-        if not kit_items:
+        try:
+            component_quantities = get_unit_component_quantities(kit)
+        except KitCycleError:
             continue
+        if not component_quantities:
+            continue
+        kit_definitions.append((kit, component_quantities))
+        component_ids.update(component_quantities.keys())
+    component_name_by_id = dict(
+        Product.objects.filter(id__in=component_ids).values_list("id", "name")
+    )
+    signature_to_kit = {}
+    for kit, component_quantities in kit_definitions:
         product_lines = [
             {
-                "product_id": item.component_id,
-                "quantity": item.quantity,
+                "product_id": component_id,
+                "quantity": quantity,
             }
-            for item in sorted(
-                kit_items,
-                key=lambda current: ((current.component.name or "").lower(), current.component_id),
+            for component_id, quantity in sorted(
+                component_quantities.items(),
+                key=lambda pair: ((component_name_by_id.get(pair[0]) or "").lower(), pair[0]),
             )
-            if item.quantity > 0
+            if quantity > 0
         ]
         if not product_lines:
             continue

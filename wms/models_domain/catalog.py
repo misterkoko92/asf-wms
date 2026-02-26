@@ -225,8 +225,28 @@ class ProductKitItem(models.Model):
         verbose_name = "Product kit item"
         verbose_name_plural = "Product kit items"
 
+    def _component_reaches_kit(self):
+        if not self.kit_id or not self.component_id:
+            return False
+        visited = set()
+        to_visit = [self.component_id]
+        descendants = ProductKitItem.objects.all()
+        if self.pk:
+            descendants = descendants.exclude(pk=self.pk)
+        while to_visit:
+            current_id = to_visit.pop()
+            if current_id == self.kit_id:
+                return True
+            if current_id in visited:
+                continue
+            visited.add(current_id)
+            to_visit.extend(
+                descendants.filter(kit_id=current_id).values_list("component_id", flat=True)
+            )
+        return False
+
     def clean(self):
         if self.kit_id and self.component_id and self.kit_id == self.component_id:
             raise ValidationError("Un kit ne peut pas contenir le produit lui-meme.")
-        if self.component_id and self.component.kit_items.exists():
-            raise ValidationError("Un composant ne peut pas etre un kit.")
+        if self._component_reaches_kit():
+            raise ValidationError("Un kit ne peut pas contenir indirectement lui-meme.")

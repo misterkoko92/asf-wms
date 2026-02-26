@@ -1,0 +1,85 @@
+{% extends "scan/base.html" %}
+
+{% block title %}WMS Scan - Admin Produit{% endblock %}
+
+{% block content %}
+  <div class="scan-card">
+    <h2>Admin - Produit</h2>
+    <p class="scan-help">
+      Gestion des kits: cr&eacute;er, modifier, supprimer, attribuer des produits et quantit&eacute;s.
+      Les actions ouvrent les formulaires admin complets.
+    </p>
+  </div>
+
+  <div class="scan-card">
+    <form method="get" class="scan-filters">
+      <div class="scan-inline">
+        <div class="scan-field">
+          <label for="scan-admin-products-q">Recherche kit</label>
+          <input id="scan-admin-products-q" type="text" name="q" value="{{ query }}" placeholder="Nom, SKU, code barre">
+        </div>
+      </div>
+      <div class="scan-filter-actions">
+        <button type="submit">Filtrer</button>
+        <a class="scan-scan-btn" href="{% url 'scan:scan_admin_products' %}">R&eacute;initialiser</a>
+      </div>
+    </form>
+  </div>
+
+  <div class="scan-card">
+    <div class="scan-filter-actions">
+      <a class="scan-scan-btn" href="{{ products_admin_url }}">Tous les produits (admin)</a>
+      <a class="scan-scan-btn" href="{{ product_add_url }}">Cr&eacute;er un kit</a>
+    </div>
+  </div>
+
+  <div class="scan-card">
+    <h3>Kits disponibles ({% if kit_rows %}{{ kit_rows|length }}{% else %}0{% endif %})</h3>
+    {% if kit_rows %}
+      <table class="scan-table">
+        <thead>
+          <tr>
+            <th>Kit</th>
+            <th>Composition directe</th>
+            <th>Composition d&eacute;ploy&eacute;e</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in kit_rows %}
+            <tr>
+              <td>
+                {{ row.kit.name }}<br>
+                <span class="scan-help">{{ row.kit.sku }}</span>
+              </td>
+              <td>
+                {% for line in row.direct_lines %}
+                  {{ line }}{% if not forloop.last %}<br>{% endif %}
+                {% empty %}
+                  -
+                {% endfor %}
+              </td>
+              <td>
+                {% if row.has_cycle %}
+                  <span class="scan-help">Cycle d&eacute;tect&eacute; dans la composition.</span>
+                {% else %}
+                  {% for line in row.flattened_lines %}
+                    {{ line }}{% if not forloop.last %}<br>{% endif %}
+                  {% empty %}
+                    -
+                  {% endfor %}
+                {% endif %}
+              </td>
+              <td>
+                <a class="scan-scan-btn" href="{{ row.edit_url }}">Modifier</a>
+                <a class="scan-scan-btn" href="{{ row.delete_url }}">Supprimer</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="scan-help">Aucun kit trouv&eacute;.</p>
+    {% endif %}
+  </div>
+{% endblock %}

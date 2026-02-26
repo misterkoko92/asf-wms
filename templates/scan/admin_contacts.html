@@ -1,0 +1,113 @@
+{% extends "scan/base.html" %}
+
+{% block title %}WMS Scan - Admin Contacts{% endblock %}
+
+{% block content %}
+  <div class="scan-card">
+    <h2>Admin - Contacts</h2>
+    <p class="scan-help">
+      Cette page est r&eacute;serv&eacute;e aux superusers. Les actions ci-dessous ouvrent les formulaires
+      admin complets (modification des infos, tags, destinations, correspondants, adresses, etc.).
+    </p>
+  </div>
+
+  <div class="scan-card">
+    <form method="get" class="scan-filters">
+      <div class="scan-inline">
+        <div class="scan-field">
+          <label for="scan-admin-contacts-q">Recherche</label>
+          <input id="scan-admin-contacts-q" type="text" name="q" value="{{ query }}" placeholder="Nom, email, t&eacute;l&eacute;phone, ASF ID">
+        </div>
+      </div>
+      <div class="scan-filter-actions">
+        <button type="submit">Filtrer</button>
+        <a class="scan-scan-btn" href="{% url 'scan:scan_admin_contacts' %}">R&eacute;initialiser</a>
+      </div>
+    </form>
+  </div>
+
+  <div class="scan-card">
+    <div class="scan-filter-actions">
+      <a class="scan-scan-btn" href="{{ contacts_admin_url }}">Tous les contacts (admin)</a>
+      <a class="scan-scan-btn" href="{{ contact_add_url }}">Ajouter un contact</a>
+      <a class="scan-scan-btn" href="{{ contact_tag_add_url }}">Ajouter un tag</a>
+      <a class="scan-scan-btn" href="{{ destination_admin_url }}">Destinations</a>
+      <a class="scan-scan-btn" href="{{ destination_add_url }}">Ajouter une destination</a>
+    </div>
+  </div>
+
+  <div class="scan-card">
+    <h3>Contacts ({% if contacts %}{{ contacts|length }}{% else %}0{% endif %})</h3>
+    {% if contacts %}
+      <table class="scan-table">
+        <thead>
+          <tr>
+            <th>Nom</th>
+            <th>Type</th>
+            <th>Tags</th>
+            <th>Destinations</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for contact in contacts %}
+            <tr>
+              <td>{{ contact.name }}</td>
+              <td>{{ contact.get_contact_type_display }}</td>
+              <td>
+                {% for tag in contact.tags.all %}
+                  {{ tag.name }}{% if not forloop.last %}, {% endif %}
+                {% empty %}
+                  -
+                {% endfor %}
+              </td>
+              <td>
+                {% for destination in contact.destinations.all %}
+                  {{ destination.city }}{% if not forloop.last %}, {% endif %}
+                {% empty %}
+                  Global
+                {% endfor %}
+              </td>
+              <td>
+                <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_change' contact.id %}">Modifier</a>
+                <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_delete' contact.id %}">Supprimer</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="scan-help">Aucun contact trouv&eacute;.</p>
+    {% endif %}
+  </div>
+
+  <div class="scan-card">
+    <h3>Correspondants</h3>
+    {% if correspondents %}
+      <table class="scan-table">
+        <thead>
+          <tr>
+            <th>Nom</th>
+            <th>Email</th>
+            <th>T&eacute;l&eacute;phone</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for contact in correspondents %}
+            <tr>
+              <td>{{ contact.name }}</td>
+              <td>{{ contact.email|default:"-" }}</td>
+              <td>{{ contact.phone|default:"-" }}</td>
+              <td>
+                <a class="scan-scan-btn" href="{% url 'admin:contacts_contact_change' contact.id %}">Modifier</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="scan-help">Aucun correspondant trouv&eacute;.</p>
+    {% endif %}
+  </div>
+{% endblock %}

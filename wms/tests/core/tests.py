@@ -242,6 +242,38 @@ class KitPackingTests(TestCase):
             )
         self.assertEqual(Carton.objects.count(), 0)
 
+    def test_pack_carton_with_nested_kit_consumes_base_components(self):
+        parent_kit = Product.objects.create(
+            name="Kit Parent",
+            brand="Kit",
+            default_location=self.location,
+            qr_code_image="qr_codes/test.png",
+        )
+        ProductKitItem.objects.create(kit=parent_kit, component=self.kit, quantity=2)
+        lot_a = self._create_lot(self.component_a, 20)
+        lot_b = self._create_lot(self.component_b, 20)
+
+        carton = pack_carton(
+            user=self.user,
+            product=parent_kit,
+            quantity=1,
+            carton=None,
+            carton_code=None,
+            shipment=None,
+            current_location=self.location,
+        )
+
+        lot_a.refresh_from_db()
+        lot_b.refresh_from_db()
+        self.assertEqual(lot_a.quantity_on_hand, 16)
+        self.assertEqual(lot_b.quantity_on_hand, 14)
+        quantities_by_product = {
+            item.product_lot.product_id: item.quantity
+            for item in carton.cartonitem_set.select_related("product_lot__product")
+        }
+        self.assertEqual(quantities_by_product[self.component_a.id], 4)
+        self.assertEqual(quantities_by_product[self.component_b.id], 6)
+
 
 class ShipmentReferenceTests(TestCase):
     def _create_shipment(self, user):

@@ -151,6 +151,13 @@
               <a href="{% url 'scan:scan_settings' %}" class="{% if active == 'settings' %}active{% endif %}">Param&egrave;tres</a>
             </div>
           </div>
+          <div class="scan-nav-group">
+            <button type="button" class="scan-nav-trigger">Admin</button>
+            <div class="scan-nav-menu">
+              <a href="{% url 'scan:scan_admin_contacts' %}" class="{% if active == 'admin_contacts' %}active{% endif %}">Contacts</a>
+              <a href="{% url 'scan:scan_admin_products' %}" class="{% if active == 'admin_products' %}active{% endif %}">Produit</a>
+            </div>
+          </div>
         {% endif %}
       </nav>
 

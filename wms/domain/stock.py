@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from .dto import PackCartonInput, ReceiveStockInput
 from ..carton_status_events import set_carton_status
+from ..kit_components import KitCycleError, get_component_quantities
 from ..models import (
     Carton,
     CartonItem,
@@ -511,29 +512,24 @@ def pack_carton(
     )
 
     movement_type = MovementType.OUT if shipment else MovementType.PRECONDITION
-    kit_items = list(product.kit_items.select_related("component"))
-    if kit_items:
-        for kit_item in kit_items:
-            component_qty = quantity * kit_item.quantity
-            consumed = consume_stock(
-                user=user,
-                product=kit_item.component,
-                quantity=component_qty,
-                movement_type=movement_type,
-                shipment=shipment,
-                carton=carton,
-            )
-            for entry in consumed:
-                item, _ = CartonItem.objects.get_or_create(
-                    carton=carton, product_lot=entry.lot, defaults={"quantity": 0}
-                )
-                item.quantity += entry.quantity
-                item.save(update_fields=["quantity"])
-    else:
+    try:
+        component_requirements = get_component_quantities(product, quantity=quantity)
+    except KitCycleError as exc:
+        raise StockError("Composition de kit invalide: cycle detecte.") from exc
+    if not component_requirements:
+        raise StockError("Le kit ne contient aucun composant valide.")
+    components_by_id = {
+        component.id: component
+        for component in Product.objects.filter(id__in=component_requirements.keys())
+    }
+    for component_id, component_quantity in component_requirements.items():
+        component = components_by_id.get(component_id)
+        if component is None:
+            raise StockError("Composant de kit introuvable.")
         consumed = consume_stock(
             user=user,
-            product=product,
-            quantity=quantity,
+            product=component,
+            quantity=component_quantity,
             movement_type=movement_type,
             shipment=shipment,
             carton=carton,
