@@ -7,6 +7,7 @@ from django.shortcuts import redirect, render
 
 from .import_results import normalize_import_result
 from .import_services import (
+    DEFAULT_QUANTITY_MODE,
     extract_product_identity,
     find_product_matches,
     import_categories,
@@ -15,6 +16,7 @@ from .import_services import (
     import_products_rows,
     import_users,
     import_warehouses,
+    normalize_quantity_mode,
 )
 from .import_utils import decode_text, iter_import_rows
 from .product_import_review import build_match_context, row_is_empty, summarize_import_row
@@ -29,6 +31,7 @@ CREATE_ACTION = "create"
 UPDATE_ACTION = "update"
 PRODUCT_IMPORT_START_INDEX_FILE = 2
 PRODUCT_IMPORT_START_INDEX_SINGLE = 1
+PRODUCT_STOCK_MODE_FIELD = "stock_mode"
 
 ACTION_PRODUCT_CONFIRM = "product_confirm"
 ACTION_PRODUCT_SINGLE = "product_single"
@@ -108,13 +111,15 @@ def _build_pending_decisions(request, pending):
             decisions[row_index] = {"action": CREATE_ACTION}
             continue
         match_id = request.POST.get(f"match_id_{row_index}")
+        match_ids = [str(match_id_value) for match_id_value in item.get("match_ids", [])]
+        if not match_id and len(match_ids) == 1:
+            match_id = match_ids[0]
         if not match_id:
             messages.error(
                 request,
                 "Import produit: sélection requise pour la mise à jour.",
             )
             return None
-        match_ids = {str(match_id_value) for match_id_value in item.get("match_ids", [])}
         if str(match_id) not in match_ids:
             messages.error(
                 request,
@@ -179,6 +184,7 @@ def _build_product_pending(
     matches,
     default_action,
     start_index,
+    quantity_mode=DEFAULT_QUANTITY_MODE,
     rows=None,
     temp_path=None,
     extension="",
@@ -188,6 +194,7 @@ def _build_product_pending(
         "source": source,
         "start_index": start_index,
         "default_action": default_action,
+        "quantity_mode": normalize_quantity_mode(quantity_mode),
         "matches": matches,
     }
     if rows is not None:
@@ -240,6 +247,7 @@ def _handle_product_confirm_action(request, *, clear_pending_import):
         decisions=decisions,
         base_dir=base_dir,
         start_index=start_index,
+        quantity_mode=normalize_quantity_mode(pending.get("quantity_mode")),
     )
     clear_pending_import()
     _notify_import_result(
@@ -296,6 +304,7 @@ def _handle_product_single_action(request):
 def _handle_product_file_action(request):
     uploaded = request.FILES.get("import_file")
     update_existing = bool(request.POST.get("update_existing"))
+    quantity_mode = normalize_quantity_mode(request.POST.get(PRODUCT_STOCK_MODE_FIELD))
     if not uploaded:
         messages.error(request, "Fichier requis pour importer les produits.")
         return _redirect_scan_import()
@@ -318,6 +327,7 @@ def _handle_product_file_action(request):
             extension=extension,
             start_index=PRODUCT_IMPORT_START_INDEX_FILE,
             default_action=UPDATE_ACTION if update_existing else CREATE_ACTION,
+            quantity_mode=quantity_mode,
             matches=matches,
         )
         _set_pending_import(request, pending)
@@ -328,6 +338,7 @@ def _handle_product_file_action(request):
         user=request.user,
         base_dir=Path(temp_path).parent,
         start_index=PRODUCT_IMPORT_START_INDEX_FILE,
+        quantity_mode=quantity_mode,
     )
     Path(temp_path).unlink(missing_ok=True)
     _notify_import_result(

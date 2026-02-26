@@ -22,6 +22,14 @@
       <p class="scan-help">
         Des produits existent d&eacute;j&agrave;. Confirmez l'action &agrave; appliquer pour chaque correspondance.
       </p>
+      <p class="scan-help">
+        Mode stock import&eacute;:
+        {% if product_match_pending.quantity_mode == "overwrite" %}
+          <strong>&Eacute;craser la valeur du stock</strong> (remise &agrave; z&eacute;ro puis application de la quantit&eacute; import&eacute;e).
+        {% else %}
+          <strong>Faire des mouvements de stock</strong> (ajout de la quantit&eacute; import&eacute;e).
+        {% endif %}
+      </p>
       <form method="post" class="scan-filters">
         {% csrf_token %}
         <input type="hidden" name="action" value="product_confirm">
@@ -99,8 +107,6 @@
                 {% endfor %}
               </select>
             </div>
-          {% elif item.products|length == 1 %}
-            <input type="hidden" name="match_id_{{ item.row_index }}" value="{{ item.products.0.id }}">
           {% endif %}
         {% endfor %}
 
@@ -231,6 +237,30 @@
           <input type="checkbox" id="product_update" name="update_existing" value="1">
           Pr&eacute;s&eacute;lectionner "Mettre &agrave; jour" si un produit existe
         </label>
+      </div>
+      <div class="scan-field">
+        <label>Gestion du stock import&eacute; (champ quantity/stock)</label>
+        <div class="scan-inline">
+          <label for="stock_mode_movement">
+            <input
+              type="radio"
+              id="stock_mode_movement"
+              name="stock_mode"
+              value="movement"
+              checked
+            >
+            Faire des mouvements de stock (ajouter la quantit&eacute; import&eacute;e)
+          </label>
+          <label for="stock_mode_overwrite">
+            <input
+              type="radio"
+              id="stock_mode_overwrite"
+              name="stock_mode"
+              value="overwrite"
+            >
+            &Eacute;craser la valeur du stock (remise &agrave; z&eacute;ro puis valeur import&eacute;e)
+          </label>
+        </div>
       </div>
       <div class="scan-filter-actions">
         <button type="submit" class="scan-submit secondary">Importer produits</button>

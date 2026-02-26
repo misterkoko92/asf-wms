@@ -1,6 +1,8 @@
 from decimal import ROUND_HALF_UP
 from pathlib import Path
+import unicodedata
 
+from django.db import transaction
 from django.core.files import File
 
 from .import_services_categories import build_category_path
@@ -8,9 +10,61 @@ from .import_services_common import _row_is_empty
 from .import_services_locations import get_or_create_location
 from .import_services_tags import build_product_tags
 from .import_utils import get_value, parse_bool, parse_decimal, parse_int, parse_str
-from .services import StockError, receive_stock
+from .services import StockError, adjust_stock, receive_stock
 from .text_utils import normalize_title, normalize_upper
-from .models import Product, RackColor
+from .models import Product, ProductLot, RackColor
+
+
+QUANTITY_MODE_MOVEMENT = "movement"
+QUANTITY_MODE_OVERWRITE = "overwrite"
+DEFAULT_QUANTITY_MODE = QUANTITY_MODE_MOVEMENT
+VALID_QUANTITY_MODES = {QUANTITY_MODE_MOVEMENT, QUANTITY_MODE_OVERWRITE}
+
+
+def normalize_quantity_mode(value):
+    mode = (parse_str(value) or "").lower()
+    if mode in VALID_QUANTITY_MODES:
+        return mode
+    return DEFAULT_QUANTITY_MODE
+
+
+def _normalize_match_value(value):
+    text = parse_str(value)
+    if not text:
+        return ""
+    normalized = unicodedata.normalize("NFKD", text)
+    ascii_value = "".join(char for char in normalized if not unicodedata.combining(char))
+    return "".join(char.lower() for char in ascii_value if char.isalnum())
+
+
+def _find_sku_matches_ignoring_case_and_special_chars(sku):
+    normalized_sku = _normalize_match_value(sku)
+    if not normalized_sku:
+        return []
+    queryset = Product.objects.exclude(sku="").only("id", "sku", "name", "brand")
+    return [
+        product
+        for product in queryset
+        if _normalize_match_value(product.sku) == normalized_sku
+    ]
+
+
+def _find_name_brand_matches_ignoring_case_and_special_chars(name, brand):
+    normalized_name = _normalize_match_value(name)
+    normalized_brand = _normalize_match_value(brand)
+    if not normalized_name or not normalized_brand:
+        return []
+    queryset = (
+        Product.objects.exclude(name="")
+        .exclude(brand="")
+        .only("id", "sku", "name", "brand")
+    )
+    return [
+        product
+        for product in queryset
+        if _normalize_match_value(product.name) == normalized_name
+        and _normalize_match_value(product.brand) == normalized_brand
+    ]
 
 
 def extract_product_identity(row):
@@ -29,9 +83,18 @@ def find_product_matches(*, sku, name, brand):
         matches = list(Product.objects.filter(sku__iexact=sku))
         if matches:
             return matches, "sku"
+        matches = _find_sku_matches_ignoring_case_and_special_chars(sku)
+        if matches:
+            return matches, "sku"
     if name and brand:
         matches = list(
             Product.objects.filter(name__iexact=name, brand__iexact=brand)
+        )
+        if matches:
+            return matches, "name_brand"
+        matches = _find_name_brand_matches_ignoring_case_and_special_chars(
+            name,
+            brand,
         )
         if matches:
             return matches, "name_brand"
@@ -69,7 +132,43 @@ def compute_volume(length_cm, width_cm, height_cm):
     return int(volume.to_integral_value(rounding=ROUND_HALF_UP))
 
 
-def _apply_quantity(*, product, quantity, location, user=None):
+def _overwrite_product_quantity(*, product, quantity, location, user=None):
+    lots = list(
+        ProductLot.objects.filter(product=product)
+        .select_related("location")
+        .order_by("id")
+    )
+    for lot in lots:
+        removable = max(0, lot.quantity_on_hand - lot.quantity_reserved)
+        if removable <= 0:
+            continue
+        adjust_stock(
+            user=user,
+            lot=lot,
+            delta=-removable,
+            reason_code="import_overwrite",
+            reason_notes="Import produits: ecrasement du stock.",
+        )
+
+    current_total = sum(
+        ProductLot.objects.filter(product=product).values_list("quantity_on_hand", flat=True)
+    )
+    if current_total > quantity:
+        raise ValueError(
+            "Ecrasement impossible: stock reserve superieur a la quantite importee."
+        )
+    delta = quantity - current_total
+    if delta <= 0:
+        return
+    receive_stock(
+        user=user,
+        product=product,
+        quantity=delta,
+        location=location,
+    )
+
+
+def _apply_quantity(*, product, quantity, location, user=None, quantity_mode=DEFAULT_QUANTITY_MODE):
     if quantity is None:
         return
     if quantity <= 0:
@@ -77,7 +176,17 @@ def _apply_quantity(*, product, quantity, location, user=None):
     stock_location = location or product.default_location
     if stock_location is None:
         raise ValueError("Emplacement requis pour la quantité.")
+    quantity_mode = normalize_quantity_mode(quantity_mode)
     try:
+        if quantity_mode == QUANTITY_MODE_OVERWRITE:
+            with transaction.atomic():
+                _overwrite_product_quantity(
+                    product=product,
+                    quantity=quantity,
+                    location=stock_location,
+                    user=user,
+                )
+            return
         receive_stock(
             user=user,
             product=product,
@@ -256,7 +365,14 @@ def _apply_product_updates(product, updates):
     product.save(update_fields=list(updates.keys()))
 
 
-def import_product_row(row, *, user=None, existing_product=None, base_dir: Path | None = None):
+def import_product_row(
+    row,
+    *,
+    user=None,
+    existing_product=None,
+    base_dir: Path | None = None,
+    quantity_mode: str = DEFAULT_QUANTITY_MODE,
+):
     name = _parse_product_name(row)
     sku = _parse_product_sku(row)
     if existing_product is None and sku and Product.objects.filter(sku__iexact=sku).exists():
@@ -279,6 +395,7 @@ def import_product_row(row, *, user=None, existing_product=None, base_dir: Path 
             quantity=values["quantity"],
             location=values["default_location"] if values["location_provided"] else None,
             user=user,
+            quantity_mode=quantity_mode,
         )
         return product, True, warnings
 
@@ -295,6 +412,7 @@ def import_product_row(row, *, user=None, existing_product=None, base_dir: Path 
         quantity=values["quantity"],
         location=values["default_location"] if values["location_provided"] else None,
         user=user,
+        quantity_mode=quantity_mode,
     )
     return existing_product, False, warnings
 
@@ -306,6 +424,7 @@ def import_products_rows(
     decisions=None,
     base_dir: Path | None = None,
     start_index: int = 2,
+    quantity_mode: str = DEFAULT_QUANTITY_MODE,
 ):
     created = 0
     updated = 0
@@ -337,6 +456,7 @@ def import_products_rows(
                 user=user,
                 existing_product=existing_product,
                 base_dir=base_dir,
+                quantity_mode=quantity_mode,
             )
         except ValueError as exc:
             errors.append(f"Ligne {index}: {exc}")
