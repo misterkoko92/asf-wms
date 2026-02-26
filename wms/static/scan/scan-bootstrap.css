@@ -5,18 +5,231 @@
   --bs-primary: var(--accent);
   --bs-secondary: var(--accent-2);
   --bs-border-color: var(--border);
+  --bs-border-radius: 0.75rem;
+  --bs-border-radius-sm: 0.6rem;
+  --bs-border-radius-lg: 0.95rem;
+  --bs-btn-font-weight: 600;
+  --bs-btn-focus-box-shadow: 0 0 0 0.2rem rgba(15, 95, 79, 0.22);
+  --scan-boot-surface: #fffdf9;
+  --scan-boot-surface-muted: #f8f2e8;
+  --scan-boot-border-strong: #d7c6b0;
+  --scan-boot-shadow-sm: 0 6px 18px rgba(20, 15, 10, 0.06);
+  --scan-boot-shadow-md: 0 12px 34px rgba(20, 15, 10, 0.11);
 }
 
-.scan-bootstrap-enabled .scan-card {
-  border-color: var(--border);
+.scan-bootstrap-enabled {
+  --bs-link-color: var(--accent);
+  --bs-link-hover-color: #0a4a3e;
+}
+
+.scan-bootstrap-enabled .scan-shell {
+  max-width: min(1520px, 100%);
+  padding: clamp(18px, 2.2vw, 36px) clamp(14px, 2.2vw, 34px) clamp(32px, 3vw, 56px);
+}
+
+.scan-bootstrap-enabled .scan-header {
+  margin-bottom: 1.1rem;
+}
+
+.scan-bootstrap-enabled .scan-header-actions {
+  gap: 0.65rem;
+}
+
+.scan-bootstrap-enabled .scan-nav {
+  gap: 0.6rem;
+  margin: 0 0 1.15rem;
+}
+
+.scan-bootstrap-enabled .scan-nav a {
+  border: 1px solid var(--scan-boot-border-strong);
+  border-radius: 0.78rem;
+  background: linear-gradient(180deg, var(--scan-boot-surface) 0%, var(--scan-boot-surface-muted) 100%);
+  box-shadow: var(--scan-boot-shadow-sm);
+  font-size: 0.92rem;
+  padding: 0.58rem 0.7rem;
+}
+
+.scan-bootstrap-enabled .scan-nav a.active,
+.scan-bootstrap-enabled .scan-nav a:hover {
+  background: var(--bs-primary);
+  border-color: var(--bs-primary);
+  color: #fff;
+}
+
+.scan-bootstrap-enabled .scan-card.card {
+  border: 1px solid var(--scan-boot-border-strong) !important;
+  background: linear-gradient(165deg, #fffefc 0%, #fff8ee 100%);
+  border-radius: 1rem;
+  box-shadow: var(--scan-boot-shadow-md);
+  padding: clamp(14px, 1.5vw, 20px);
+}
+
+.scan-bootstrap-enabled .scan-card h2,
+.scan-bootstrap-enabled .scan-card h3 {
+  margin-bottom: 0.9rem;
+}
+
+.scan-bootstrap-enabled .scan-field label.form-label {
+  font-size: 0.77rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+}
+
+.scan-bootstrap-enabled .form-control,
+.scan-bootstrap-enabled .form-select {
+  border-color: var(--scan-boot-border-strong);
+  min-height: 2.6rem;
+  background-color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.scan-bootstrap-enabled .form-control:focus,
+.scan-bootstrap-enabled .form-select:focus,
+.scan-bootstrap-enabled .form-check-input:focus {
+  border-color: var(--accent);
+  box-shadow: var(--bs-btn-focus-box-shadow);
+}
+
+.scan-bootstrap-enabled .form-check-input {
+  margin-top: 0.2rem;
+}
+
+.scan-bootstrap-enabled .btn {
+  border-radius: 0.7rem;
+  padding: 0.52rem 0.92rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 .scan-bootstrap-enabled .scan-scan-btn.btn,
 .scan-bootstrap-enabled .scan-submit.btn {
-  min-width: 90px;
+  min-width: 96px;
   font-weight: 700;
+}
+
+.scan-bootstrap-enabled .scan-submit.btn {
+  border: 1px solid transparent;
+  box-shadow: 0 8px 16px rgba(15, 95, 79, 0.18);
+}
+
+.scan-bootstrap-enabled .scan-submit.secondary.btn {
+  box-shadow: 0 8px 14px rgba(231, 157, 46, 0.23);
+}
+
+.scan-bootstrap-enabled .scan-inline-actions .btn,
+.scan-bootstrap-enabled .scan-docs .btn {
+  width: auto;
+}
+
+.scan-bootstrap-enabled .scan-help {
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.scan-bootstrap-enabled .scan-divider {
+  border-top: 1px dashed var(--scan-boot-border-strong);
+}
+
+.scan-bootstrap-enabled .scan-kpi-grid {
+  gap: 0.75rem;
+}
+
+.scan-bootstrap-enabled .scan-kpi-card {
+  border: 1px solid var(--scan-boot-border-strong);
+  border-radius: 0.82rem;
+  background: #fff;
+  box-shadow: var(--scan-boot-shadow-sm);
+  padding: 0.72rem 0.84rem;
+}
+
+.scan-bootstrap-enabled .scan-kpi-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 10px 22px rgba(20, 15, 10, 0.12);
+}
+
+.scan-bootstrap-enabled .scan-kpi-card.is-success {
+  background: #edf8f1;
+}
+
+.scan-bootstrap-enabled .scan-kpi-card.is-warn {
+  background: #fff5e6;
+}
+
+.scan-bootstrap-enabled .scan-kpi-card.is-danger {
+  background: #fff0ed;
+}
+
+.scan-bootstrap-enabled .scan-table-wrap {
+  border: 1px solid var(--scan-boot-border-strong);
+  border-radius: 0.9rem;
+  box-shadow: var(--scan-boot-shadow-sm);
 }
 
 .scan-bootstrap-enabled .scan-table.table {
   margin-bottom: 0;
+  --bs-table-bg: transparent;
+  --bs-table-hover-bg: rgba(15, 95, 79, 0.05);
+}
+
+.scan-bootstrap-enabled .scan-table thead th {
+  background: #f2e8da;
+  border-bottom: 1px solid var(--scan-boot-border-strong);
+  font-size: 0.73rem;
+  letter-spacing: 0.05em;
+  padding-top: 0.62rem;
+  padding-bottom: 0.62rem;
+}
+
+.scan-bootstrap-enabled .scan-table td {
+  vertical-align: top;
+}
+
+.scan-bootstrap-enabled .scan-table-filter-row .scan-table-filter-input {
+  border: 1px solid var(--scan-boot-border-strong);
+  border-radius: 0.56rem;
+  min-height: 2rem;
+}
+
+.scan-bootstrap-enabled .scan-message {
+  border: 1px solid var(--scan-boot-border-strong);
+  border-radius: 0.75rem;
+  box-shadow: var(--scan-boot-shadow-sm);
+}
+
+.scan-bootstrap-enabled .scan-message.success {
+  background: #ebf8f0;
+}
+
+.scan-bootstrap-enabled .scan-message.error {
+  background: #fff0ed;
+}
+
+.scan-bootstrap-enabled .scan-message.warning {
+  background: #fff8e8;
+}
+
+@media (max-width: 992px) {
+  .scan-bootstrap-enabled .scan-nav {
+    margin-bottom: 1rem;
+  }
+
+  .scan-bootstrap-enabled .scan-card.card {
+    padding: 0.9rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .scan-bootstrap-enabled .scan-inline {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .scan-bootstrap-enabled .scan-inline-actions {
+    justify-content: flex-start;
+  }
+
+  .scan-bootstrap-enabled .scan-submit.btn {
+    width: 100%;
+  }
 }
