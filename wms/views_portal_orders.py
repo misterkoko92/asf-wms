@@ -18,6 +18,8 @@ from .models import (
 )
 from .order_helpers import (
     build_carton_format_data,
+    build_ready_carton_rows,
+    build_ready_carton_selection,
     build_order_line_estimates,
     build_order_line_items,
     build_order_product_rows,
@@ -296,10 +298,12 @@ def _build_order_create_context(
     line_quantities,
     errors,
     line_errors,
+    ready_carton_rows,
+    total_selected_ready_cartons,
 ):
     carton_format = get_default_carton_format()
     carton_data = build_carton_format_data(carton_format)
-    product_rows, total_estimated_cartons = build_order_product_rows(
+    product_rows, total_estimated_cartons_to_prepare = build_order_product_rows(
         product_options,
         product_by_id,
         line_quantities,
@@ -315,7 +319,10 @@ def _build_order_create_context(
         "errors": errors,
         "line_errors": line_errors,
         "line_quantities": line_quantities,
-        "total_estimated_cartons": total_estimated_cartons,
+        "ready_cartons": ready_carton_rows,
+        "total_selected_ready_cartons": total_selected_ready_cartons,
+        "total_estimated_cartons_to_prepare": total_estimated_cartons_to_prepare,
+        "total_estimated_cartons": total_estimated_cartons_to_prepare,
         "carton_format": carton_data,
     }
 
@@ -427,6 +434,11 @@ def portal_order_create(request):
     line_quantities = {}
     line_items = []
     selected_destination = None
+    selected_ready_carton_ids = []
+    ready_carton_quantities = {}
+    ready_carton_line_errors = {}
+    total_selected_ready_cartons = 0
+    ready_carton_rows = build_ready_carton_rows()
 
     if request.method == "POST":
         form_data["destination_id"] = (request.POST.get("destination_id") or "").strip()
@@ -451,13 +463,27 @@ def portal_order_create(request):
             if form_data["recipient_id"] not in allowed_recipient_ids:
                 errors.append(ERROR_RECIPIENT_UNAVAILABLE_FOR_DESTINATION)
 
+        (
+            selected_ready_carton_ids,
+            ready_carton_quantities,
+            ready_carton_line_errors,
+            total_selected_ready_cartons,
+        ) = build_ready_carton_selection(
+            request.POST,
+            ready_carton_rows=ready_carton_rows,
+        )
+        ready_carton_rows = build_ready_carton_rows(
+            selected_quantities=ready_carton_quantities,
+            line_errors=ready_carton_line_errors,
+        )
+
         line_items, line_quantities, line_errors = build_order_line_items(
             request.POST,
             product_options=product_options,
             product_by_id=product_by_id,
             available_by_id=available_by_id,
         )
-        if not line_items:
+        if not line_items and not selected_ready_carton_ids:
             errors.append(ERROR_PRODUCT_REQUIRED)
 
         destination = _resolve_destination(
@@ -467,7 +493,7 @@ def portal_order_create(request):
             selected_destination=selected_destination,
         )
 
-        if not errors and not line_errors:
+        if not errors and not line_errors and not ready_carton_line_errors:
             try:
                 order = create_portal_order(
                     user=request.user,
@@ -479,6 +505,7 @@ def portal_order_create(request):
                     destination_country=destination["destination_country"],
                     notes=form_data["notes"],
                     line_items=line_items,
+                    ready_carton_ids=selected_ready_carton_ids,
                 )
             except StockError as exc:
                 errors.append(str(exc))
@@ -509,6 +536,8 @@ def portal_order_create(request):
             line_quantities=line_quantities,
             errors=errors,
             line_errors=line_errors,
+            ready_carton_rows=ready_carton_rows,
+            total_selected_ready_cartons=total_selected_ready_cartons,
         ),
     )
 

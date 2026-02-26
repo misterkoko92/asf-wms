@@ -56,7 +56,60 @@
       </div>
 
       <div class="scan-field">
-        <label>Produits</label>
+        <label>Colis disponibles</label>
+        <div class="portal-products-panel">
+          <div class="scan-table-wrap portal-products-table-wrap">
+            <table class="scan-table portal-table" data-table-tools="1">
+              <thead>
+                <tr>
+                  <th>Produit</th>
+                  <th>Stock</th>
+                  <th>Quantit&eacute;</th>
+                  <th>Date de p&eacute;remption</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in ready_cartons %}
+                  <tr
+                    data-ready-carton-key="{{ row.row_key }}"
+                    data-ready-carton-stock="{{ row.available_stock }}"
+                  >
+                    <td>
+                      {% for line in row.product_lines %}
+                        <div>{{ line.product_name }} - {{ line.quantity }} unit&eacute;s</div>
+                      {% endfor %}
+                    </td>
+                    <td>{{ row.available_stock }}</td>
+                    <td>
+                      <input
+                        type="number"
+                        name="ready_carton_{{ row.row_key }}_qty"
+                        min="0"
+                        value="{{ row.quantity }}"
+                        {% if row.available_stock == 0 %}disabled{% endif %}
+                      >
+                      {% if row.line_error %}
+                        <div class="scan-message error">{{ row.line_error }}</div>
+                      {% endif %}
+                    </td>
+                    <td>{% if row.expires_on %}{{ row.expires_on|date:"d/m/Y" }}{% endif %}</td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="4">Aucun colis pr&ecirc;t disponible.</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="scan-field">
+        <label>Produits &agrave; l'unit&eacute;</label>
+        <p class="scan-help">
+          Les stock indiqu&eacute;s dans ce tableau sont fictifs. Cette fonctionnalit&eacute; sera bient&ocirc;t activ&eacute;e pour afficher les stocks r&eacute;els.
+        </p>
         <div class="portal-products-panel">
           <div class="scan-table-wrap portal-products-table-wrap">
             <table class="scan-table portal-table" data-table-tools="1">
@@ -104,8 +157,9 @@
           <div class="portal-products-actions">
             <p class="scan-help">
               Total estim&eacute;:
-              <span id="carton-estimate-total">{% if total_estimated_cartons %}{{ total_estimated_cartons }}{% else %}-{% endif %}</span>
-              carton(s).
+              <span id="ready-carton-estimate-total">{{ total_selected_ready_cartons|default:0 }}</span>
+              colis pr&ecirc;ts + <span id="carton-estimate-total">{% if total_estimated_cartons_to_prepare %}{{ total_estimated_cartons_to_prepare }}{% else %}0{% endif %}</span>
+              carton(s) &agrave; pr&eacute;parer.
             </p>
             <button type="submit" class="scan-submit">Envoyer la commande</button>
           </div>
@@ -260,7 +314,9 @@
       };
 
       const rows = Array.from(document.querySelectorAll('tr[data-product-id]'));
+      const readyRows = Array.from(document.querySelectorAll('tr[data-ready-carton-key]'));
       const totalEl = document.getElementById('carton-estimate-total');
+      const readyTotalEl = document.getElementById('ready-carton-estimate-total');
 
       const updateRow = row => {
         const productId = row.dataset.productId;
@@ -288,11 +344,36 @@
           total += updateRow(row);
         });
         if (totalEl) {
-          totalEl.textContent = total || '-';
+          totalEl.textContent = String(total);
+        }
+        if (readyTotalEl) {
+          let readyTotal = 0;
+          readyRows.forEach(row => {
+            const input = row.querySelector('input[type="number"]');
+            if (!input) {
+              return;
+            }
+            const qty = parseInt(input.value || '0', 10);
+            const available = parseInt(row.dataset.readyCartonStock || '0', 10);
+            if (!Number.isFinite(qty) || qty <= 0) {
+              return;
+            }
+            if (Number.isFinite(available) && qty > available) {
+              return;
+            }
+            readyTotal += qty;
+          });
+          readyTotalEl.textContent = String(readyTotal);
         }
       };
 
       rows.forEach(row => {
+        const input = row.querySelector('input[type="number"]');
+        if (input) {
+          input.addEventListener('input', updateTotals);
+        }
+      });
+      readyRows.forEach(row => {
         const input = row.querySelector('input[type="number"]');
         if (input) {
           input.addEventListener('input', updateTotals);

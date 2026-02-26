@@ -1,6 +1,8 @@
 import math
+import hashlib
+from collections import defaultdict
 
-from .models import Document, DocumentType, OrderDocumentType
+from .models import Carton, CartonStatus, Document, DocumentType, OrderDocumentType
 from .portal_helpers import get_association_profile, get_contact_address
 from .scan_helpers import (
     get_carton_volume_cm3,
@@ -169,6 +171,123 @@ def build_order_product_rows(
     if total_estimated_cartons <= 0:
         total_estimated_cartons = None
     return product_rows, total_estimated_cartons
+
+
+def _ready_carton_signature(*, product_lines, expires_on):
+    line_signature = "|".join(
+        f"{line['product_id']}:{line['quantity']}" for line in product_lines
+    )
+    expires_signature = expires_on.isoformat() if expires_on else ""
+    return f"{line_signature}|{expires_signature}"
+
+
+def build_ready_carton_rows(*, selected_quantities=None, line_errors=None):
+    selected_quantities = selected_quantities or {}
+    line_errors = line_errors or {}
+    cartons = (
+        Carton.objects.filter(status=CartonStatus.PACKED, shipment__isnull=True)
+        .prefetch_related("cartonitem_set__product_lot__product")
+        .order_by("code", "id")
+    )
+
+    grouped = {}
+    for carton in cartons:
+        product_qty_by_id = defaultdict(int)
+        product_name_by_id = {}
+        expires_dates = []
+        for item in carton.cartonitem_set.all():
+            product = item.product_lot.product
+            product_qty_by_id[product.id] += item.quantity
+            product_name_by_id[product.id] = product.name or "-"
+            if item.product_lot.expires_on:
+                expires_dates.append(item.product_lot.expires_on)
+        if not product_qty_by_id:
+            continue
+
+        product_lines = [
+            {
+                "product_id": product_id,
+                "product_name": product_name_by_id.get(product_id, "-"),
+                "quantity": quantity,
+            }
+            for product_id, quantity in sorted(
+                product_qty_by_id.items(),
+                key=lambda pair: (
+                    (product_name_by_id.get(pair[0]) or "").lower(),
+                    pair[0],
+                ),
+            )
+        ]
+        expires_on = min(expires_dates) if expires_dates else None
+        signature = _ready_carton_signature(
+            product_lines=product_lines,
+            expires_on=expires_on,
+        )
+        group = grouped.setdefault(
+            signature,
+            {
+                "signature": signature,
+                "product_lines": product_lines,
+                "expires_on": expires_on,
+                "carton_ids": [],
+            },
+        )
+        group["carton_ids"].append(carton.id)
+
+    rows = []
+    for group in grouped.values():
+        row_key = hashlib.sha256(
+            group["signature"].encode("utf-8"),
+            usedforsecurity=False,
+        ).hexdigest()[:16]
+        rows.append(
+            {
+                "row_key": row_key,
+                "product_lines": group["product_lines"],
+                "expires_on": group["expires_on"],
+                "available_stock": len(group["carton_ids"]),
+                "carton_ids": group["carton_ids"],
+                "quantity": selected_quantities.get(row_key, ""),
+                "line_error": line_errors.get(row_key, ""),
+            }
+        )
+    rows.sort(
+        key=lambda row: (
+            " | ".join(
+                f"{line['product_name']}:{line['quantity']}"
+                for line in row["product_lines"]
+            ).lower(),
+            row["expires_on"] or "",
+        )
+    )
+    return rows
+
+
+def build_ready_carton_selection(post_data, *, ready_carton_rows):
+    selected_carton_ids = []
+    line_quantities = {}
+    line_errors = {}
+    selected_total = 0
+    for row in ready_carton_rows:
+        row_key = row.get("row_key")
+        if not row_key:
+            continue
+        raw_qty = (post_data.get(f"ready_carton_{row_key}_qty") or "").strip()
+        if raw_qty:
+            line_quantities[row_key] = raw_qty
+        if not raw_qty:
+            continue
+        quantity = parse_int(raw_qty)
+        if quantity is None or quantity <= 0:
+            line_errors[row_key] = "Quantité invalide."
+            continue
+        available_stock = int(row.get("available_stock") or 0)
+        if quantity > available_stock:
+            line_errors[row_key] = "Stock insuffisant."
+            continue
+        selected_total += quantity
+        selected_carton_ids.extend(row.get("carton_ids", [])[:quantity])
+    return selected_carton_ids, line_quantities, line_errors, selected_total
 
 
 def build_order_line_estimates(lines, carton_format, *, estimate_key="estimate"):

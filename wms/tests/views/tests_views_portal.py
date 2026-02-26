@@ -1,3 +1,4 @@
+from datetime import timedelta
 from types import SimpleNamespace
 from unittest import mock
 
@@ -21,6 +22,9 @@ from wms.models import (
     AssociationProfile,
     AssociationPortalContact,
     AssociationRecipient,
+    Carton,
+    CartonItem,
+    CartonStatus,
     Destination,
     DocumentReviewStatus,
     Location,
@@ -446,6 +450,79 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("destination_options", response.context)
         self.assertIn("recipient_options", response.context)
+        self.assertContains(response, "Colis disponibles")
+        self.assertContains(response, "Produits &agrave; l'unit&eacute;")
+        self.assertContains(
+            response,
+            "Les stock indiqu&eacute;s dans ce tableau sont fictifs.",
+        )
+        self.assertContains(response, "colis pr&ecirc;ts +")
+
+    def test_portal_order_create_get_exposes_ready_cartons_rows(self):
+        warehouse = Warehouse.objects.create(name="Portal Ready Carton Warehouse")
+        location = Location.objects.create(
+            warehouse=warehouse,
+            zone="B",
+            aisle="01",
+            shelf="001",
+        )
+        product_bandage = Product.objects.create(
+            sku="PORTAL-READY-BANDAGE",
+            name="Bandage",
+            default_location=location,
+            qr_code_image="qr_codes/portal_ready_bandage.png",
+        )
+        product_plier = Product.objects.create(
+            sku="PORTAL-READY-PLIER",
+            name="Pince",
+            default_location=location,
+            qr_code_image="qr_codes/portal_ready_plier.png",
+        )
+        lot_bandage = ProductLot.objects.create(
+            product=product_bandage,
+            lot_code="LOT-BANDAGE",
+            expires_on=timezone.localdate() + timedelta(days=90),
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=20,
+            quantity_reserved=0,
+            location=location,
+        )
+        lot_plier = ProductLot.objects.create(
+            product=product_plier,
+            lot_code="LOT-PLIER",
+            expires_on=timezone.localdate() + timedelta(days=120),
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=20,
+            quantity_reserved=0,
+            location=location,
+        )
+        packed_carton = Carton.objects.create(
+            code="CRT-PORTAL-READY-001",
+            status=CartonStatus.PACKED,
+        )
+        CartonItem.objects.create(
+            carton=packed_carton,
+            product_lot=lot_bandage,
+            quantity=5,
+        )
+        CartonItem.objects.create(
+            carton=packed_carton,
+            product_lot=lot_plier,
+            quantity=3,
+        )
+
+        response = self.client.get(self.order_create_url)
+        self.assertEqual(response.status_code, 200)
+        ready_cartons = response.context["ready_cartons"]
+        self.assertEqual(len(ready_cartons), 1)
+        row = ready_cartons[0]
+        self.assertEqual(row["available_stock"], 1)
+        self.assertEqual(len(row["product_lines"]), 2)
+        self.assertEqual(row["product_lines"][0]["product_name"], "Bandage")
+        self.assertEqual(row["product_lines"][0]["quantity"], 5)
+        self.assertEqual(row["product_lines"][1]["product_name"], "Pince")
+        self.assertEqual(row["product_lines"][1]["quantity"], 3)
+        self.assertIsNotNone(row["expires_on"])
 
     def test_portal_order_create_filters_recipient_options_by_destination(self):
         other_destination = self._create_destination(city="Abidjan", country="Cote d'Ivoire")
@@ -668,6 +745,93 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         )
         create_order_mock.assert_called_once()
         notify_mock.assert_called_once()
+
+    def test_portal_order_create_post_supports_ready_cartons_and_unit_products(self):
+        warehouse = Warehouse.objects.create(name="Portal Mixed Order Warehouse")
+        location = Location.objects.create(
+            warehouse=warehouse,
+            zone="C",
+            aisle="01",
+            shelf="001",
+        )
+        product_unit = Product.objects.create(
+            sku="PORTAL-UNIT-001",
+            name="Produit Unite",
+            default_location=location,
+            qr_code_image="qr_codes/portal_unit_001.png",
+        )
+        ProductLot.objects.create(
+            product=product_unit,
+            lot_code="LOT-PORTAL-UNIT",
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=20,
+            quantity_reserved=0,
+            location=location,
+        )
+        product_ready = Product.objects.create(
+            sku="PORTAL-READY-001",
+            name="Produit Colis Pret",
+            default_location=location,
+            qr_code_image="qr_codes/portal_ready_001.png",
+        )
+        ready_lot = ProductLot.objects.create(
+            product=product_ready,
+            lot_code="LOT-PORTAL-READY",
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=20,
+            quantity_reserved=0,
+            location=location,
+        )
+        ready_carton = Carton.objects.create(
+            code="CRT-PORTAL-MIXED-001",
+            status=CartonStatus.PACKED,
+        )
+        CartonItem.objects.create(
+            carton=ready_carton,
+            product_lot=ready_lot,
+            quantity=4,
+        )
+
+        form_response = self.client.get(self.order_create_url)
+        self.assertEqual(form_response.status_code, 200)
+        ready_rows = form_response.context["ready_cartons"]
+        self.assertEqual(len(ready_rows), 1)
+        row_key = ready_rows[0]["row_key"]
+
+        with mock.patch("wms.views_portal_orders.send_portal_order_notifications"):
+            response = self.client.post(
+                self.order_create_url,
+                {
+                    "destination_id": str(self.destination.id),
+                    "recipient_id": str(self.delivery_recipient.id),
+                    "notes": "Commande mixte",
+                    f"product_{product_unit.id}_qty": "2",
+                    f"ready_carton_{row_key}_qty": "1",
+                },
+            )
+        self.assertEqual(response.status_code, 302)
+
+        order = (
+            Order.objects.filter(association_contact=self.profile.contact)
+            .order_by("-id")
+            .first()
+        )
+        self.assertIsNotNone(order)
+        self.assertIsNotNone(order.shipment_id)
+
+        unit_line = order.lines.get(product=product_unit)
+        self.assertEqual(unit_line.quantity, 2)
+        self.assertEqual(unit_line.reserved_quantity, 2)
+        self.assertEqual(unit_line.prepared_quantity, 0)
+
+        ready_line = order.lines.get(product=product_ready)
+        self.assertEqual(ready_line.quantity, 4)
+        self.assertEqual(ready_line.reserved_quantity, 0)
+        self.assertEqual(ready_line.prepared_quantity, 4)
+
+        ready_carton.refresh_from_db()
+        self.assertEqual(ready_carton.shipment_id, order.shipment_id)
+        self.assertEqual(ready_carton.status, CartonStatus.ASSIGNED)
 
     def test_portal_to_scan_flow_prefills_shipment_after_admin_validation(self):
         warehouse = Warehouse.objects.create(name="Portal Flow Warehouse")

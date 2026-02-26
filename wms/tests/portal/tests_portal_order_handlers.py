@@ -15,7 +15,13 @@ class PortalOrderHandlersTests(SimpleTestCase):
         user = SimpleNamespace(id=1)
         product_a = SimpleNamespace(id=11)
         product_b = SimpleNamespace(id=12)
-        order = SimpleNamespace(lines=SimpleNamespace(create=mock.Mock()))
+        order = SimpleNamespace(
+            lines=SimpleNamespace(
+                create=mock.Mock(),
+                exists=mock.Mock(return_value=False),
+                all=mock.Mock(return_value=[]),
+            )
+        )
 
         with mock.patch(
             "wms.portal_order_handlers.Order.objects.create",
@@ -63,7 +69,13 @@ class PortalOrderHandlersTests(SimpleTestCase):
             contact=SimpleNamespace(name="Association Contact"),
         )
         user = SimpleNamespace(id=1)
-        order = SimpleNamespace(lines=SimpleNamespace(create=mock.Mock()))
+        order = SimpleNamespace(
+            lines=SimpleNamespace(
+                create=mock.Mock(),
+                exists=mock.Mock(return_value=False),
+                all=mock.Mock(return_value=[]),
+            )
+        )
 
         with mock.patch("wms.portal_order_handlers.Order.objects.create", return_value=order) as create_mock:
             with mock.patch(
