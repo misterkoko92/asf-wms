@@ -62,13 +62,23 @@ class ImportProductsHelperTests(TestCase):
         self.assertTrue(saved_name.startswith("photo"))
         self.assertTrue(saved_name.endswith(".jpg"))
 
-    def test_apply_quantity_validates_quantity_location_and_stock_errors(self):
+    def test_apply_quantity_validates_quantity_and_stock_errors(self):
         product = Product.objects.create(name="Qty Product", sku="QTY-1")
 
         with self.assertRaisesMessage(ValueError, "Quantité invalide."):
             _apply_quantity(product=product, quantity=0, location=None)
-        with self.assertRaisesMessage(ValueError, "Emplacement requis pour la quantité."):
-            _apply_quantity(product=product, quantity=1, location=None)
+        _apply_quantity(product=product, quantity=1, location=None)
+        product.refresh_from_db()
+        self.assertIsNotNone(product.default_location_id)
+        self.assertEqual(product.default_location.warehouse.name, "TEMP")
+        self.assertEqual(
+            (
+                product.default_location.zone,
+                product.default_location.aisle,
+                product.default_location.shelf,
+            ),
+            ("TEMP", "TEMP", "TEMP"),
+        )
 
         warehouse = Warehouse.objects.create(name="Main")
         location = Location.objects.create(
@@ -327,5 +337,43 @@ class ImportProductsRowsDeepTests(TestCase):
         self.assertEqual(warnings, [])
         self.assertEqual(
             sum(ProductLot.objects.filter(product=product).values_list("quantity_on_hand", flat=True)),
+            500,
+        )
+
+    def test_import_products_rows_update_without_location_uses_temp_location(self):
+        product = Product.objects.create(
+            name="Produit Temp",
+            sku="PROD-TEMP",
+        )
+        rows = [{"name": "Produit Temp", "sku": "PROD-TEMP", "quantity": "500"}]
+        decisions = {2: {"action": "update", "product_id": product.id}}
+
+        created, updated, errors, warnings = import_products_rows(
+            rows,
+            decisions=decisions,
+            quantity_mode="overwrite",
+        )
+
+        self.assertEqual((created, updated), (0, 1))
+        self.assertEqual(errors, [])
+        self.assertEqual(warnings, [])
+        product.refresh_from_db()
+        self.assertIsNotNone(product.default_location_id)
+        self.assertEqual(product.default_location.warehouse.name, "TEMP")
+        self.assertEqual(
+            (
+                product.default_location.zone,
+                product.default_location.aisle,
+                product.default_location.shelf,
+            ),
+            ("TEMP", "TEMP", "TEMP"),
+        )
+        self.assertEqual(
+            sum(
+                ProductLot.objects.filter(product=product).values_list(
+                    "quantity_on_hand",
+                    flat=True,
+                )
+            ),
             500,
         )

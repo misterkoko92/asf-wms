@@ -19,6 +19,7 @@ QUANTITY_MODE_MOVEMENT = "movement"
 QUANTITY_MODE_OVERWRITE = "overwrite"
 DEFAULT_QUANTITY_MODE = QUANTITY_MODE_MOVEMENT
 VALID_QUANTITY_MODES = {QUANTITY_MODE_MOVEMENT, QUANTITY_MODE_OVERWRITE}
+IMPORT_TEMP_LOCATION_VALUE = "TEMP"
 
 
 def normalize_quantity_mode(value):
@@ -168,12 +169,35 @@ def _overwrite_product_quantity(*, product, quantity, location, user=None):
     )
 
 
+def _resolve_stock_location_for_import(*, product, location):
+    if location is not None:
+        return location
+    if product.default_location is not None:
+        return product.default_location
+    temp_location = get_or_create_location(
+        IMPORT_TEMP_LOCATION_VALUE,
+        IMPORT_TEMP_LOCATION_VALUE,
+        IMPORT_TEMP_LOCATION_VALUE,
+        IMPORT_TEMP_LOCATION_VALUE,
+    )
+    if temp_location is None:
+        return None
+    if product.default_location_id != temp_location.id:
+        product.default_location = temp_location
+        if product.pk:
+            product.save(update_fields=["default_location"])
+    return temp_location
+
+
 def _apply_quantity(*, product, quantity, location, user=None, quantity_mode=DEFAULT_QUANTITY_MODE):
     if quantity is None:
         return
     if quantity <= 0:
         raise ValueError("Quantité invalide.")
-    stock_location = location or product.default_location
+    stock_location = _resolve_stock_location_for_import(
+        product=product,
+        location=location,
+    )
     if stock_location is None:
         raise ValueError("Emplacement requis pour la quantité.")
     quantity_mode = normalize_quantity_mode(quantity_mode)
