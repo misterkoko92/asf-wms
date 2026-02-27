@@ -3,9 +3,9 @@
 {% block title %}WMS Scan - Commandes{% endblock %}
 
 {% block content %}
-  <div class="scan-card card border-0">
-    <h2>Commandes</h2>
-    <form method="post" novalidate>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Commandes</h2>
+    <form method="post" novalidate class="ui-comp-form">
       {% csrf_token %}
       <input type="hidden" name="action" value="select_order">
       <div class="scan-field">
@@ -25,7 +25,7 @@
 
     <div class="scan-divider"></div>
 
-    <form method="post" novalidate>
+    <form method="post" novalidate class="ui-comp-form">
       {% csrf_token %}
       <input type="hidden" name="action" value="create_order">
       <div class="scan-field">
@@ -92,8 +92,8 @@
   </div>
 
   {% if selected_order %}
-    <div class="scan-card card border-0">
-      <h2>Commande active</h2>
+    <div class="scan-card card border-0 ui-comp-card">
+      <h2 class="ui-comp-title">Commande active</h2>
       <div class="scan-meta-grid">
         <div class="scan-meta-item">
           <strong>R&eacute;f&eacute;rence</strong>
@@ -115,12 +115,12 @@
       </div>
     </div>
 
-    <div class="scan-card card border-0">
-      <h2>Ajouter une ligne</h2>
+    <div class="scan-card card border-0 ui-comp-card">
+      <h2 class="ui-comp-title">Ajouter une ligne</h2>
       {% if line_form.non_field_errors %}
         <div class="scan-message error">{{ line_form.non_field_errors }}</div>
       {% endif %}
-      <form method="post" novalidate>
+      <form method="post" novalidate class="ui-comp-form">
         {% csrf_token %}
         <input type="hidden" name="action" value="add_line">
         {{ line_form.order_id }}
@@ -148,8 +148,8 @@
       </datalist>
     </div>
 
-    <div class="scan-card card border-0">
-      <h2>Lignes de commande</h2>
+    <div class="scan-card card border-0 ui-comp-card">
+      <h2 class="ui-comp-title">Lignes de commande</h2>
       {% if order_lines %}
         <div class="scan-table-wrap">
           <table class="scan-table">
@@ -188,9 +188,9 @@
       {% endif %}
     </div>
   {% else %}
-    <div class="scan-card card border-0">
-      <h2>Aucune commande s&eacute;lectionn&eacute;e</h2>
-      <p class="scan-help">Cr&eacute;ez une commande ou s&eacute;lectionnez-en une pour ajouter des lignes.</p>
+    <div class="scan-card card border-0 ui-comp-card">
+      <h2 class="ui-comp-title">Aucune commande s&eacute;lectionn&eacute;e</h2>
+      <p class="scan-help ui-comp-note">Cr&eacute;ez une commande ou s&eacute;lectionnez-en une pour ajouter des lignes.</p>
     </div>
   {% endif %}
 {% endblock %}
