@@ -36,6 +36,7 @@
 - Suivi lot scan public final complémentaire: `docs/plans/2026-02-27-bootstrap-scan-public-lot7.md`.
 - Suivi lot foundations design complémentaire: `docs/plans/2026-02-27-design-foundations-lot8.md`.
 - Suivi lot design composants sandbox complémentaire: `docs/plans/2026-02-27-design-components-lot9.md`.
+- Suivi lot design composants pages métier complémentaire: `docs/plans/2026-02-27-design-components-business-lot10.md`.
 
 ---
 

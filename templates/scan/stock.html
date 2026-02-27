@@ -3,9 +3,9 @@
 {% block title %}WMS Scan - Vue stock{% endblock %}
 
 {% block content %}
-  <div class="scan-card card border-0">
-    <h2 class="h4 mb-3">Vue stock</h2>
-    <form method="get" class="scan-filters row g-3">
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="h4 mb-3 ui-comp-title">Vue stock</h2>
+    <form method="get" class="scan-filters row g-3 ui-comp-form">
       <div class="scan-field col-12 col-md-6 col-xl-3">
         <label class="form-label" for="id_q">Recherche</label>
         <input type="text" class="form-control" id="id_q" name="q" value="{{ query }}" placeholder="Nom, r&eacute;f&eacute;rence, code-barres">
@@ -65,17 +65,17 @@
         </label>
       </div>
 
-      <div class="scan-filter-actions col-12 d-flex flex-wrap gap-2 align-items-center">
+      <div class="scan-filter-actions col-12 d-flex flex-wrap gap-2 align-items-center ui-comp-actions">
         <button type="submit" class="scan-submit secondary scan-submit-inline btn btn-primary">Filtrer</button>
         <a class="btn btn-outline-secondary" href="{% url 'scan:scan_stock' %}">R&eacute;initialiser</a>
       </div>
     </form>
   </div>
 
-  <div class="scan-card card border-0">
-    <h2 class="h4 mb-3">
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="h4 mb-3 ui-comp-title d-flex align-items-center gap-2 flex-wrap">
       {% if include_zero %}Produits{% else %}Produits en stock{% endif %}
-      ({{ products|length }})
+      <span class="badge text-bg-light ui-comp-count-badge">{{ products|length }}</span>
     </h2>
     {% if products %}
       <div class="scan-table-wrap table-responsive">
@@ -113,7 +113,7 @@
         </table>
       </div>
     {% else %}
-      <p class="scan-help">
+      <p class="scan-help ui-comp-note">
         {% if include_zero %}
           Aucun produit pour ces filtres.
         {% else %}

@@ -87,6 +87,21 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, 'id="shipment-details-section"')
 
     @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
+    def test_scan_stock_and_shipment_create_use_design_component_classes(self):
+        stock_response = self.client.get(reverse("scan:scan_stock"))
+        self.assertEqual(stock_response.status_code, 200)
+        self.assertContains(stock_response, "ui-comp-card")
+        self.assertContains(stock_response, "ui-comp-title")
+        self.assertContains(stock_response, "ui-comp-actions")
+
+        shipment_response = self.client.get(reverse("scan:scan_shipment_create"))
+        self.assertEqual(shipment_response.status_code, 200)
+        self.assertContains(shipment_response, "ui-comp-card")
+        self.assertContains(shipment_response, "ui-comp-title")
+        self.assertContains(shipment_response, "ui-comp-panel")
+        self.assertContains(shipment_response, "ui-comp-note")
+
+    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_dashboard_uses_bootstrap_filters(self):
         response = self.client.get(reverse("scan:scan_dashboard"))
         self.assertEqual(response.status_code, 200)

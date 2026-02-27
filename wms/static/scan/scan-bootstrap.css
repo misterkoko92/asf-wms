@@ -249,6 +249,55 @@
   background: var(--ds-warning-soft);
 }
 
+.scan-bootstrap-enabled .ui-comp-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.scan-bootstrap-enabled .ui-comp-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(90deg, var(--ds-primary) 0%, var(--ds-accent) 100%);
+  opacity: 0.45;
+}
+
+.scan-bootstrap-enabled .ui-comp-title {
+  font-family: var(--ds-font-heading);
+  letter-spacing: -0.015em;
+  color: var(--ds-text);
+}
+
+.scan-bootstrap-enabled .ui-comp-form {
+  row-gap: 0.95rem;
+}
+
+.scan-bootstrap-enabled .ui-comp-panel {
+  border: 1px solid var(--scan-boot-border-strong);
+  border-radius: 0.78rem;
+  background: var(--scan-boot-surface);
+  padding: 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+.scan-bootstrap-enabled .ui-comp-note {
+  margin-top: 0.45rem;
+}
+
+.scan-bootstrap-enabled .ui-comp-actions {
+  border-top: 1px dashed var(--scan-boot-border-strong);
+  padding-top: 0.65rem;
+}
+
+.scan-bootstrap-enabled .ui-comp-count-badge {
+  border: 1px solid var(--scan-boot-border-strong);
+  background: var(--scan-boot-surface-muted) !important;
+  color: var(--ds-text);
+  font-weight: 700;
+}
+
 @media (max-width: 992px) {
   .scan-bootstrap-enabled .scan-nav {
     margin-bottom: 1rem;

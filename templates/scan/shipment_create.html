@@ -3,8 +3,8 @@
 {% block title %}WMS Scan - {% if is_edit %}Modifier exp&eacute;dition{% else %}Cr&eacute;er exp&eacute;dition{% endif %}{% endblock %}
 
 {% block content %}
-  <div class="scan-card card border-0">
-    <h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">
       {% if is_edit %}
         Modifier l'exp&eacute;dition {{ shipment.reference }}
       {% else %}
@@ -14,10 +14,10 @@
     {% if form.non_field_errors %}
       <div class="scan-message error">{{ form.non_field_errors }}</div>
     {% endif %}
-    <form method="post" novalidate id="shipment-form" data-shipment-edit="{% if is_edit %}1{% else %}0{% endif %}" data-form-bound="{% if form.is_bound %}1{% else %}0{% endif %}">
+    <form method="post" novalidate class="ui-comp-form" id="shipment-form" data-shipment-edit="{% if is_edit %}1{% else %}0{% endif %}" data-form-bound="{% if form.is_bound %}1{% else %}0{% endif %}">
       {% csrf_token %}
 
-      <div class="scan-field">
+      <div class="scan-field ui-comp-panel">
         <label class="form-label" for="id_destination">Destination</label>
         <div class="scan-inline">
           {{ form.destination }}
@@ -25,22 +25,22 @@
             Ajouter destination
           </a>
         </div>
-        <p class="scan-help">Merci de sélectionner une destination pour poursuivre la création de l'expédition</p>
+        <p class="scan-help ui-comp-note">Merci de sélectionner une destination pour poursuivre la création de l'expédition</p>
         {% for error in form.destination.errors %}
           <div class="scan-message error">{{ error }}</div>
         {% endfor %}
       </div>
 
       {% if not is_edit %}
-        <div class="scan-inline scan-inline-gap">
+        <div class="scan-inline scan-inline-gap ui-comp-actions">
           <button type="submit" name="action" value="save_draft" class="scan-submit secondary scan-submit-inline btn btn-secondary">
             Enregistrer en brouillon
           </button>
         </div>
-        <p class="scan-help">Enregistre une expédition temporaire (EXP-TEMP-XX) pour la modifier ultérieurement.</p>
+        <p class="scan-help ui-comp-note">Enregistre une expédition temporaire (EXP-TEMP-XX) pour la modifier ultérieurement.</p>
       {% endif %}
 
-      <div id="shipment-shipper-section" class="scan-hidden" hidden>
+      <div id="shipment-shipper-section" class="scan-hidden ui-comp-panel" hidden>
         <div class="scan-field">
           <label class="form-label" for="id_shipper_contact">Exp&eacute;diteur</label>
           <div class="scan-inline">
@@ -49,7 +49,7 @@
               Ajouter exp&eacute;diteur
             </a>
           </div>
-          <p class="scan-help">Merci de sélectionner un expéditeur pour poursuivre la création de l'expédition</p>
+          <p class="scan-help ui-comp-note">Merci de sélectionner un expéditeur pour poursuivre la création de l'expédition</p>
           <div id="shipper-empty-message" class="scan-message error scan-hidden" hidden>
             Aucun expéditeur trouvé dans la base, vérifier les &quot;Destinations&quot; des affectés aux Expéditeurs dans les contacts et recommencez
           </div>
@@ -59,7 +59,7 @@
         </div>
       </div>
 
-      <div id="shipment-recipient-section" class="scan-hidden" hidden>
+      <div id="shipment-recipient-section" class="scan-hidden ui-comp-panel" hidden>
         <div class="scan-field">
           <label class="form-label" for="id_recipient_contact">Destinataire</label>
           <div class="scan-inline">
@@ -77,7 +77,7 @@
         </div>
       </div>
 
-      <div id="shipment-correspondent-section" class="scan-hidden" hidden>
+      <div id="shipment-correspondent-section" class="scan-hidden ui-comp-panel" hidden>
         <div class="scan-field">
           <label class="form-label" for="id_correspondent_contact">Correspondant</label>
           <div class="scan-inline">
@@ -86,7 +86,7 @@
               Ajouter correspondant
             </a>
           </div>
-          <p class="scan-help">Merci de sélectionner un destinataire et un correspondant pour poursuivre la création de l'expédition</p>
+          <p class="scan-help ui-comp-note">Merci de sélectionner un destinataire et un correspondant pour poursuivre la création de l'expédition</p>
           <div id="correspondent-empty-message" class="scan-message error scan-hidden" hidden>
             Aucun correspondant trouvé dans la base, vérifier les &quot;Correspondants&quot; dans les contacts et recommencez
           </div>
@@ -96,14 +96,14 @@
         </div>
       </div>
 
-      <div id="shipment-details-section" class="scan-hidden" hidden>
+      <div id="shipment-details-section" class="scan-hidden ui-comp-panel" hidden>
         <div class="scan-field">
           <label class="form-label" for="id_carton_count">Nombre de colis</label>
           {{ form.carton_count }}
           {% for error in form.carton_count.errors %}
             <div class="scan-message error">{{ error }}</div>
           {% endfor %}
-          <p class="scan-help">
+          <p class="scan-help ui-comp-note">
             S&eacute;lectionner ci-dessous des colis d&eacute;j&agrave; pr&eacute;par&eacute;s ou cr&eacute;er des colis mono-produit.
             Pour des colis multi-produits, passer par l'onglet Pr&eacute;paration avant de cr&eacute;er l'exp&eacute;dition.
           </p>
@@ -127,7 +127,7 @@
               Cr&eacute;er des colis multi-produits
             </button>
           {% endif %}
-          <p class="scan-help">
+          <p class="scan-help ui-comp-note">
             Utilisez l'onglet Pr&eacute;paration pour cr&eacute;er des colis multi-produits, puis revenez ici pour
             les ajouter à l'expédition.
           </p>
@@ -137,12 +137,12 @@
           {% if is_edit %}Enregistrer modifications{% else %}Cr&eacute;er exp&eacute;dition{% endif %}
         </button>
         {% if is_edit %}
-          <p class="scan-help">
+          <p class="scan-help ui-comp-note">
             Chaque ligne: sélectionnez un colis préparé ou créez-en un depuis un produit.
             Pour retirer un colis, r&eacute;duisez le nombre de lignes.
           </p>
         {% else %}
-          <p class="scan-help">Chaque ligne: sélectionnez un colis préparé ou créez-en un depuis un produit.</p>
+          <p class="scan-help ui-comp-note">Chaque ligne: sélectionnez un colis préparé ou créez-en un depuis un produit.</p>
         {% endif %}
       </div>
     </form>
