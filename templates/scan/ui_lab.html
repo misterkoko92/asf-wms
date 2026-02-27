@@ -4,6 +4,7 @@
 {% block title %}UI Lab{% endblock %}
 
 {% block extra_head %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
   <link rel="stylesheet" href="{% static 'scan/ui-lab.css' %}">
 {% endblock %}
 
@@ -161,6 +162,50 @@
             </tr>
           </tbody>
         </table>
+      </div>
+    </section>
+
+    <section class="scan-card card border-0 ui-comp-card">
+      <h3 class="ui-comp-title">Tabler Lite</h3>
+      <div class="ui-lab-stat-grid">
+        <article class="ui-lab-stat-card">
+          <span class="ui-lab-stat-icon"><i class="ti ti-package"></i></span>
+          <div class="ui-lab-stat-copy">
+            <strong>128</strong>
+            <span>Colis pr&ecirc;ts</span>
+          </div>
+        </article>
+        <article class="ui-lab-stat-card">
+          <span class="ui-lab-stat-icon"><i class="ti ti-clipboard-check"></i></span>
+          <div class="ui-lab-stat-copy">
+            <strong>42</strong>
+            <span>Commandes valid&eacute;es</span>
+          </div>
+        </article>
+        <article class="ui-lab-stat-card">
+          <span class="ui-lab-stat-icon"><i class="ti ti-truck-delivery"></i></span>
+          <div class="ui-lab-stat-copy">
+            <strong>7</strong>
+            <span>Exp&eacute;ditions en cours</span>
+          </div>
+        </article>
+      </div>
+
+      <div class="ui-lab-activity-list">
+        <article class="ui-lab-activity-item">
+          <span class="ui-lab-activity-icon"><i class="ti ti-scan"></i></span>
+          <div>
+            <strong>Picking g&eacute;n&eacute;r&eacute;</strong>
+            <p class="scan-help">Carton C-20260227-14 · il y a 4 min</p>
+          </div>
+        </article>
+        <article class="ui-lab-activity-item">
+          <span class="ui-lab-activity-icon"><i class="ti ti-user-check"></i></span>
+          <div>
+            <strong>Compte association valid&eacute;</strong>
+            <p class="scan-help">Secours Med Local · il y a 12 min</p>
+          </div>
+        </article>
       </div>
     </section>
   </div>

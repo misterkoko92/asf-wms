@@ -305,6 +305,12 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(ui_lab_response, "ui-comp-card")
         self.assertContains(ui_lab_response, "ui-comp-title")
         self.assertContains(ui_lab_response, "ui-comp-form")
+        self.assertContains(
+            ui_lab_response,
+            "https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css",
+        )
+        self.assertContains(ui_lab_response, "ui-lab-stat-card")
+        self.assertContains(ui_lab_response, "ui-lab-activity-item")
 
         public_link = PublicOrderLink.objects.create(label="Public UI Test")
 
