@@ -28,6 +28,7 @@
   - [x] Task 5
   - [x] Task 6
   - [x] Task 7
+- Suivi lot suivant (portal): `docs/plans/2026-02-27-bootstrap-portal-lot2.md`.
 
 ---
 

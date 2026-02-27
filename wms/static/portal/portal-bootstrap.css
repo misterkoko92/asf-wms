@@ -1,0 +1,46 @@
+.portal-bootstrap-enabled .portal-header {
+  border: 1px solid var(--border-strong) !important;
+  background: linear-gradient(170deg, #fffefb 0%, #fff7eb 100%);
+  box-shadow: 0 10px 26px rgba(20, 15, 10, 0.1);
+}
+
+.portal-bootstrap-enabled .portal-nav .btn {
+  font-weight: 600;
+}
+
+.portal-bootstrap-enabled .portal-card.card {
+  border: 1px solid var(--border-strong) !important;
+  border-radius: 1rem;
+  background: #fffdf9;
+}
+
+.portal-bootstrap-enabled .portal-table.scan-table.table {
+  --bs-table-bg: transparent;
+  --bs-table-hover-bg: rgba(15, 95, 79, 0.05);
+}
+
+.portal-bootstrap-enabled .portal-table thead th {
+  background: #f2e8da;
+  border-bottom: 1px solid var(--border-strong);
+}
+
+.portal-bootstrap-enabled .portal-badge {
+  background: #edf4ff;
+  border: 1px solid #c7dbff;
+}
+
+.portal-bootstrap-enabled .portal-products-table-wrap .scan-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.portal-bootstrap-enabled .portal-products-actions .scan-submit.btn {
+  width: auto;
+}
+
+@media (max-width: 900px) {
+  .portal-bootstrap-enabled .portal-products-actions .scan-submit.btn {
+    width: 100%;
+  }
+}

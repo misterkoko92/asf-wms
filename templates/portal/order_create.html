@@ -3,12 +3,12 @@
 {% block title %}Nouvelle commande{% endblock %}
 
 {% block content %}
-  <div class="scan-card portal-card">
+  <div class="scan-card portal-card card border-0">
     <h2>Nouvelle commande</h2>
     <p class="scan-help">S&eacute;lectionnez une destination, puis un destinataire, puis indiquez les quantit&eacute;s.</p>
   </div>
 
-  <div class="scan-card portal-card">
+  <div class="scan-card portal-card card border-0">
     {% if errors %}
       <div class="scan-message error">
         {% for error in errors %}
@@ -20,8 +20,8 @@
     <form method="post" novalidate>
       {% csrf_token %}
       <div class="scan-field">
-        <label for="destination_id">Destination</label>
-        <select id="destination_id" name="destination_id" required>
+        <label class="form-label" for="destination_id">Destination</label>
+        <select class="form-select" id="destination_id" name="destination_id" required>
           <option value="">---------</option>
           {% for option in destination_options %}
             <option value="{{ option.id }}" {% if option.id|stringformat:"s" == form_data.destination_id %}selected{% endif %}>
@@ -32,8 +32,8 @@
       </div>
 
       <div class="scan-field">
-        <label for="recipient_id">Destinataire</label>
-        <select id="recipient_id" name="recipient_id" required>
+        <label class="form-label" for="recipient_id">Destinataire</label>
+        <select class="form-select" id="recipient_id" name="recipient_id" required>
           <option value="">---------</option>
           {% for option in recipient_options %}
             <option value="{{ option.id }}" {% if option.id|stringformat:"s" == form_data.recipient_id %}selected{% endif %}>
@@ -51,33 +51,33 @@
       </div>
 
       <div class="scan-field">
-        <label for="notes">Notes</label>
-        <textarea id="notes" name="notes" rows="3">{{ form_data.notes }}</textarea>
+        <label class="form-label" for="notes">Notes</label>
+        <textarea class="form-control" id="notes" name="notes" rows="3">{{ form_data.notes }}</textarea>
       </div>
 
       <div class="scan-field">
-        <label>Filtrer produits</label>
+        <label class="form-label">Filtrer produits</label>
         <div id="portal-category-filters" class="scan-filter-actions">
-          <select id="portal-filter-category-l1" data-filter-level="0">
+          <select class="form-select form-select-sm" id="portal-filter-category-l1" data-filter-level="0">
             <option value="">Toutes cat&eacute;gories</option>
           </select>
-          <select id="portal-filter-category-l2" data-filter-level="1" hidden>
+          <select class="form-select form-select-sm" id="portal-filter-category-l2" data-filter-level="1" hidden>
             <option value="">Toutes sous-cat&eacute;gories (L2)</option>
           </select>
-          <select id="portal-filter-category-l3" data-filter-level="2" hidden>
+          <select class="form-select form-select-sm" id="portal-filter-category-l3" data-filter-level="2" hidden>
             <option value="">Toutes sous-cat&eacute;gories (L3)</option>
           </select>
-          <select id="portal-filter-category-l4" data-filter-level="3" hidden>
+          <select class="form-select form-select-sm" id="portal-filter-category-l4" data-filter-level="3" hidden>
             <option value="">Toutes sous-cat&eacute;gories (L4)</option>
           </select>
         </div>
       </div>
 
       <div class="scan-field">
-        <label>Colis disponibles</label>
+        <label class="form-label">Colis disponibles</label>
         <div class="portal-products-panel">
           <div class="scan-table-wrap portal-products-table-wrap">
-            <table class="scan-table portal-table" data-table-tools="1">
+            <table class="scan-table portal-table table table-sm table-hover" data-table-tools="1">
               <thead>
                 <tr>
                   <th>Produit</th>
@@ -101,6 +101,7 @@
                     <td>{{ row.available_stock }}</td>
                     <td>
                       <input
+                        class="form-control form-control-sm"
                         type="number"
                         name="ready_carton_{{ row.row_key }}_qty"
                         min="0"
@@ -125,10 +126,10 @@
       </div>
 
       <div class="scan-field">
-        <label>Kits disponibles</label>
+        <label class="form-label">Kits disponibles</label>
         <div class="portal-products-panel">
           <div class="scan-table-wrap portal-products-table-wrap">
-            <table class="scan-table portal-table" data-table-tools="1">
+            <table class="scan-table portal-table table table-sm table-hover" data-table-tools="1">
               <thead>
                 <tr>
                   <th>Produit</th>
@@ -153,6 +154,7 @@
                     <td>{{ row.available_stock }}</td>
                     <td>
                       <input
+                        class="form-control form-control-sm"
                         type="number"
                         name="ready_kit_{{ row.row_key }}_qty"
                         min="0"
@@ -177,13 +179,13 @@
       </div>
 
       <div class="scan-field">
-        <label>Produits &agrave; l'unit&eacute;</label>
+        <label class="form-label">Produits &agrave; l'unit&eacute;</label>
         <p class="scan-help">
           Les stock indiqu&eacute;s dans ce tableau sont fictifs. Cette fonctionnalit&eacute; sera bient&ocirc;t activ&eacute;e pour afficher les stocks r&eacute;els.
         </p>
         <div class="portal-products-panel">
           <div class="scan-table-wrap portal-products-table-wrap">
-            <table class="scan-table portal-table" data-table-tools="1">
+            <table class="scan-table portal-table table table-sm table-hover" data-table-tools="1">
               <thead>
                 <tr>
                   <th>Produit</th>
@@ -202,6 +204,7 @@
                     <td>{{ product.available_stock }}</td>
                     <td>
                       <input
+                        class="form-control form-control-sm"
                         type="number"
                         name="product_{{ product.id }}_qty"
                         min="0"
@@ -235,7 +238,7 @@
               colis pr&ecirc;ts + <span id="carton-estimate-total">{% if total_estimated_cartons_to_prepare %}{{ total_estimated_cartons_to_prepare }}{% else %}0{% endif %}</span>
               carton(s) &agrave; pr&eacute;parer.
             </p>
-            <button type="submit" class="scan-submit">Envoyer la commande</button>
+            <button type="submit" class="scan-submit btn btn-primary">Envoyer la commande</button>
           </div>
         </div>
       </div>

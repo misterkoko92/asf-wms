@@ -3,45 +3,51 @@
 {% block title %}Mes commandes{% endblock %}
 
 {% block content %}
-  <div class="scan-card portal-card">
+  <div class="scan-card portal-card card border-0">
     <h2>Mes commandes</h2>
     <p class="scan-help">Historique des commandes associées à votre compte.</p>
   </div>
 
-  <div class="scan-card portal-card">
+  <div class="scan-card portal-card card border-0">
     {% if orders %}
-      <table class="portal-table scan-table" data-table-tools="1">
-        <thead>
-          <tr>
-            <th>Référence</th>
-            <th>Statut</th>
-            <th>Escale</th>
-            <th>Destinataire</th>
-            <th>Date de création</th>
-            <th>Date de validation</th>
-            <th>Date d'expédition</th>
-            <th>Date de réception à l'escale</th>
-            <th>Date de réception destinataire</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for order in orders %}
+      <div class="scan-table-wrap table-responsive">
+        <table class="portal-table scan-table table table-sm table-hover" data-table-tools="1">
+          <thead>
             <tr>
-              <td>{{ order.reference|default:"Commande " }}{% if not order.reference %}{{ order.id }}{% endif %}</td>
-              <td><span class="portal-badge">{{ order.get_status_display }}</span></td>
-              <td>{{ order.escale_label|default:"-" }}</td>
-              <td>{{ order.recipient_name }}</td>
-              <td>{{ order.created_at|date:"d/m/Y" }}</td>
-              <td>{{ order.reviewed_at|date:"d/m/Y"|default:"-" }}</td>
-              <td>{{ order.shipped_at|date:"d/m/Y"|default:"-" }}</td>
-              <td>{{ order.received_correspondent_at|date:"d/m/Y"|default:"-" }}</td>
-              <td>{{ order.received_recipient_at|date:"d/m/Y"|default:"-" }}</td>
-              <td><a href="{% url 'portal:portal_order_detail' order.id %}">Voir</a></td>
+              <th>Référence</th>
+              <th>Statut</th>
+              <th>Escale</th>
+              <th>Destinataire</th>
+              <th>Date de création</th>
+              <th>Date de validation</th>
+              <th>Date d'expédition</th>
+              <th>Date de réception à l'escale</th>
+              <th>Date de réception destinataire</th>
+              <th>Actions</th>
             </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {% for order in orders %}
+              <tr>
+                <td>{{ order.reference|default:"Commande " }}{% if not order.reference %}{{ order.id }}{% endif %}</td>
+                <td><span class="portal-badge">{{ order.get_status_display }}</span></td>
+                <td>{{ order.escale_label|default:"-" }}</td>
+                <td>{{ order.recipient_name }}</td>
+                <td>{{ order.created_at|date:"d/m/Y" }}</td>
+                <td>{{ order.reviewed_at|date:"d/m/Y"|default:"-" }}</td>
+                <td>{{ order.shipped_at|date:"d/m/Y"|default:"-" }}</td>
+                <td>{{ order.received_correspondent_at|date:"d/m/Y"|default:"-" }}</td>
+                <td>{{ order.received_recipient_at|date:"d/m/Y"|default:"-" }}</td>
+                <td>
+                  <a class="btn btn-outline-primary btn-sm" href="{% url 'portal:portal_order_detail' order.id %}">
+                    Voir
+                  </a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     {% else %}
       <p>Aucune commande pour le moment.</p>
     {% endif %}
