@@ -17,8 +17,8 @@
 <body{% if scan_bootstrap_enabled %} class="scan-bootstrap-enabled portal-bootstrap-enabled"{% endif %}>
   <div class="scan-shell">
     <main class="scan-main">
-      <div class="scan-card card border-0">
-        <h2>Connexion association</h2>
+      <div class="scan-card card border-0 ui-comp-card">
+        <h2 class="ui-comp-title">Connexion association</h2>
         <p class="scan-help">Utilisez votre email et votre mot de passe.</p>
         <p class="scan-help">Pas de compte ? Envoyez une demande, elle sera valid&eacute;e par un administrateur ASF.</p>
         <a class="scan-scan-btn scan-doc-btn btn btn-outline-primary" href="{% url 'portal:portal_account_request' %}">
@@ -26,7 +26,7 @@
         </a>
       </div>
 
-      <div class="scan-card card border-0">
+      <div class="scan-card card border-0 ui-comp-card">
         {% if errors %}
           <div class="scan-message error">
             {% for error in errors %}
@@ -35,7 +35,7 @@
           </div>
         {% endif %}
 
-        <form method="post" novalidate>
+        <form method="post" novalidate class="ui-comp-form">
           {% csrf_token %}
           {% if next %}
             <input type="hidden" name="next" value="{{ next }}">

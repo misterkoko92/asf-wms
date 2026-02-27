@@ -156,6 +156,9 @@ class PortalBootstrapUiTests(TestCase):
         )
         self.assertContains(login_response, "portal-bootstrap-enabled")
         self.assertContains(login_response, "form-control")
+        self.assertContains(login_response, "ui-comp-card")
+        self.assertContains(login_response, "ui-comp-title")
+        self.assertContains(login_response, "ui-comp-form")
 
         uidb64 = urlsafe_base64_encode(str(self.user.pk).encode())
         set_password_url = reverse(
@@ -166,6 +169,9 @@ class PortalBootstrapUiTests(TestCase):
         self.assertEqual(set_password_response.status_code, 200)
         self.assertContains(set_password_response, "scan-bootstrap.css")
         self.assertContains(set_password_response, "portal-bootstrap.css")
+        self.assertContains(set_password_response, "ui-comp-card")
+        self.assertContains(set_password_response, "ui-comp-title")
+        self.assertContains(set_password_response, "ui-comp-form")
 
     @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_portal_account_request_uses_bootstrap_controls(self):
