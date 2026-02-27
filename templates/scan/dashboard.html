@@ -3,8 +3,8 @@
 {% block title %}WMS Scan - Tableau de bord{% endblock %}
 
 {% block content %}
-  <div class="scan-card card border-0">
-    <h2 class="h4 mb-3">Tableau de bord</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="h4 mb-3 ui-comp-title">Tableau de bord</h2>
     <form method="get" class="scan-filters row g-3">
       <div class="scan-field col-12 col-md-6">
         <label class="form-label" for="id_period">Période KPI</label>
@@ -35,7 +35,7 @@
     </form>
   </div>
 
-  <div class="scan-card card border-0">
+  <div class="scan-card card border-0 ui-comp-card">
     <h2>KPI p&eacute;riode ({{ period_label }})</h2>
     <div class="scan-kpi-grid">
       {% for card in activity_cards %}
@@ -48,7 +48,7 @@
     </div>
   </div>
 
-  <div class="scan-card card border-0">
+  <div class="scan-card card border-0 ui-comp-card">
     <h2>Exp&eacute;ditions</h2>
     <div class="scan-kpi-grid">
       {% for card in shipment_cards %}
@@ -61,7 +61,7 @@
     </div>
   </div>
 
-  <div class="scan-card card border-0">
+  <div class="scan-card card border-0 ui-comp-card">
     <h2>Graphique exp&eacute;ditions ({{ shipments_total }})</h2>
     <div class="scan-chart-bars">
       {% for row in shipment_chart_rows %}
@@ -76,7 +76,7 @@
     </div>
   </div>
 
-  <div class="scan-card card border-0">
+  <div class="scan-card card border-0 ui-comp-card">
     <h2>Colis</h2>
     <div class="scan-kpi-grid">
       {% for card in carton_cards %}
@@ -89,7 +89,7 @@
     </div>
   </div>
 
-  <div class="scan-card card border-0">
+  <div class="scan-card card border-0 ui-comp-card">
     <h2>Stock</h2>
     <div class="scan-kpi-grid">
       {% for card in stock_cards %}
@@ -127,7 +127,7 @@
     {% endif %}
   </div>
 
-  <div class="scan-card card border-0">
+  <div class="scan-card card border-0 ui-comp-card">
     <h2>R&eacute;ceptions / Commandes</h2>
     <div class="scan-kpi-grid">
       {% for card in flow_cards %}
@@ -140,7 +140,7 @@
     </div>
   </div>
 
-  <div class="scan-card card border-0">
+  <div class="scan-card card border-0 ui-comp-card">
     <h2>Suivi / Alertes (&gt; {{ tracking_alert_hours }}h)</h2>
     <div class="scan-kpi-grid">
       {% for card in tracking_cards %}
@@ -153,7 +153,7 @@
     </div>
   </div>
 
-  <div class="scan-card card border-0">
+  <div class="scan-card card border-0 ui-comp-card">
     <h2>Technique / Queue email</h2>
     <div class="scan-kpi-grid">
       {% for card in technical_cards %}
@@ -166,7 +166,7 @@
     </div>
   </div>
 
-  <div class="scan-card card border-0">
+  <div class="scan-card card border-0 ui-comp-card">
     <h2>Blocages workflow (&gt; {{ workflow_blockage_hours }}h)</h2>
     <div class="scan-kpi-grid">
       {% for card in workflow_blockage_cards %}

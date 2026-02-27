@@ -3,12 +3,12 @@
 {% block title %}WMS Scan - Vue Commande{% endblock %}
 
 {% block content %}
-  <div class="scan-card card border-0">
-    <h2 class="h4 mb-2">Vue Commande</h2>
-    <p class="scan-help">Suivi des commandes des associations.</p>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="h4 mb-2 ui-comp-title">Vue Commande</h2>
+    <p class="scan-help ui-comp-note">Suivi des commandes des associations.</p>
   </div>
 
-  <div class="scan-card card border-0">
+  <div class="scan-card card border-0 ui-comp-card">
     {% if orders %}
       <div class="scan-table-wrap table-responsive">
         <table class="scan-table table table-sm table-hover" data-table-tools="1">
@@ -99,7 +99,7 @@
         </table>
       </div>
     {% else %}
-      <p class="scan-help">Aucune commande pour le moment.</p>
+      <p class="scan-help ui-comp-note">Aucune commande pour le moment.</p>
     {% endif %}
   </div>
 {% endblock %}

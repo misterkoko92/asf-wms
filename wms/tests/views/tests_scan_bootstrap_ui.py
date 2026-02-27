@@ -144,6 +144,31 @@ class ScanBootstrapUiTests(TestCase):
                     self.assertContains(response, marker)
 
     @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
+    def test_scan_dashboard_and_tracking_views_use_design_component_classes(self):
+        expectations = {
+            "scan:scan_dashboard": [
+                "ui-comp-card",
+                "ui-comp-title",
+            ],
+            "scan:scan_orders_view": [
+                "ui-comp-card",
+                "ui-comp-title",
+            ],
+            "scan:scan_shipments_tracking": [
+                "ui-comp-card",
+                "ui-comp-title",
+                "ui-comp-form",
+            ],
+        }
+
+        for route_name, markers in expectations.items():
+            with self.subTest(route_name=route_name):
+                response = self.client.get(reverse(route_name))
+                self.assertEqual(response.status_code, 200)
+                for marker in markers:
+                    self.assertContains(response, marker)
+
+    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_dashboard_uses_bootstrap_filters(self):
         response = self.client.get(reverse("scan:scan_dashboard"))
         self.assertEqual(response.status_code, 200)

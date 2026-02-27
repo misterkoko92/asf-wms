@@ -3,10 +3,13 @@
 {% block title %}WMS Scan - Suivi des exp&eacute;ditions{% endblock %}
 
 {% block content %}
-  <div class="scan-card card border-0">
-    <h2 class="h4 mb-3">Suivi des exp&eacute;ditions ({{ shipments|length }})</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="h4 mb-3 ui-comp-title d-flex align-items-center gap-2 flex-wrap">
+      <span>Suivi des exp&eacute;ditions</span>
+      <span class="badge text-bg-light ui-comp-count-badge">{{ shipments|length }}</span>
+    </h2>
 
-    <form method="get" class="scan-filters row g-3">
+    <form method="get" class="scan-filters row g-3 ui-comp-form">
       <div class="scan-field col-12 col-md-6">
         <label class="form-label" for="id_planned_week">Semaine planifi&eacute;e</label>
         <input
@@ -115,7 +118,7 @@
         </table>
       </div>
     {% else %}
-      <p class="scan-help">Aucune exp&eacute;dition correspondante.</p>
+      <p class="scan-help ui-comp-note">Aucune exp&eacute;dition correspondante.</p>
     {% endif %}
   </div>
 {% endblock %}
