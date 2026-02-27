@@ -4,8 +4,8 @@
 {% block title %}WMS Scan - Imports{% endblock %}
 
 {% block content %}
-  <div class="scan-card card border-0">
-    <h2>Imports</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Imports</h2>
     <p class="scan-help">
       Page r&eacute;serv&eacute;e aux superusers. Chaque bloc permet d'ajouter un &eacute;l&eacute;ment unique
       ou d'importer un fichier CSV/XLS/XLSX. Les templates proposent un exemple complet.
@@ -17,8 +17,8 @@
   </div>
 
   {% if product_match_pending %}
-    <div class="scan-card card border-0">
-      <h2>Confirmation import produits</h2>
+    <div class="scan-card card border-0 ui-comp-card">
+      <h2 class="ui-comp-title">Confirmation import produits</h2>
       <p class="scan-help">
         Des produits existent d&eacute;j&agrave;. Confirmez l'action &agrave; appliquer pour chaque correspondance.
       </p>
@@ -30,13 +30,13 @@
           <strong>Faire des mouvements de stock</strong> (ajout de la quantit&eacute; import&eacute;e).
         {% endif %}
       </p>
-      <form method="post" class="scan-filters">
+      <form method="post" class="scan-filters ui-comp-form">
         {% csrf_token %}
         <input type="hidden" name="action" value="product_confirm">
         <input type="hidden" name="pending_token" value="{{ product_match_pending.token }}">
         {% for item in product_match_pending.matches %}
           <div class="scan-divider"></div>
-          <h3>Ligne {{ item.row_index }} (match {{ item.match_type }})</h3>
+          <h3 class="ui-comp-title">Ligne {{ item.row_index }} (match {{ item.match_type }})</h3>
           <div class="scan-table-wrap">
             <table class="scan-table">
               <thead>
@@ -110,7 +110,7 @@
           {% endif %}
         {% endfor %}
 
-        <div class="scan-filter-actions">
+        <div class="scan-filter-actions ui-comp-actions">
           <button type="submit" class="scan-submit btn btn-primary">Confirmer</button>
           <button type="submit" name="cancel" value="1" class="scan-submit secondary btn btn-secondary">Annuler</button>
         </div>
@@ -118,10 +118,10 @@
     </div>
   {% endif %}
 
-  <div class="scan-card card border-0">
-    <h2>Import produits</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Import produits</h2>
     <p class="scan-help">Ajout rapide d'un produit ou import massif.</p>
-    <form method="post" class="scan-filters">
+    <form method="post" class="scan-filters ui-comp-form">
       {% csrf_token %}
       <input type="hidden" name="action" value="product_single">
       <div class="scan-field">
@@ -225,7 +225,7 @@
 
     <div class="scan-divider"></div>
 
-    <form method="post" enctype="multipart/form-data" class="scan-filters">
+    <form method="post" enctype="multipart/form-data" class="scan-filters ui-comp-form">
       {% csrf_token %}
       <input type="hidden" name="action" value="product_file">
       <div class="scan-field">
@@ -262,7 +262,7 @@
           </label>
         </div>
       </div>
-      <div class="scan-filter-actions">
+      <div class="scan-filter-actions ui-comp-actions">
         <button type="submit" class="scan-submit secondary btn btn-secondary">Importer produits</button>
         <a href="{% static 'scan/import_templates/products.csv' %}" class="scan-scan-btn btn btn-outline-primary" download>
           Template produits
@@ -274,9 +274,9 @@
     </form>
   </div>
 
-  <div class="scan-card card border-0">
-    <h2>Import emplacements</h2>
-    <form method="post" class="scan-filters">
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Import emplacements</h2>
+    <form method="post" class="scan-filters ui-comp-form">
       {% csrf_token %}
       <input type="hidden" name="action" value="location_single">
       <div class="scan-inline scan-inline-equal">
@@ -314,14 +314,14 @@
 
     <div class="scan-divider"></div>
 
-    <form method="post" enctype="multipart/form-data" class="scan-filters">
+    <form method="post" enctype="multipart/form-data" class="scan-filters ui-comp-form">
       {% csrf_token %}
       <input type="hidden" name="action" value="location_file">
       <div class="scan-field">
         <label class="form-label" for="location_file">Fichier emplacements (CSV/XLS/XLSX)</label>
         <input type="file" id="location_file" name="import_file" accept=".csv,.xlsx,.xls">
       </div>
-      <div class="scan-filter-actions">
+      <div class="scan-filter-actions ui-comp-actions">
         <button type="submit" class="scan-submit secondary btn btn-secondary">Importer emplacements</button>
         <a href="{% static 'scan/import_templates/locations.csv' %}" class="scan-scan-btn btn btn-outline-primary" download>
           Template emplacements
@@ -333,9 +333,9 @@
     </form>
   </div>
 
-  <div class="scan-card card border-0">
-    <h2>Import cat&eacute;gories</h2>
-    <form method="post" class="scan-filters">
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Import cat&eacute;gories</h2>
+    <form method="post" class="scan-filters ui-comp-form">
       {% csrf_token %}
       <input type="hidden" name="action" value="category_single">
       <div class="scan-inline scan-inline-equal">
@@ -353,14 +353,14 @@
 
     <div class="scan-divider"></div>
 
-    <form method="post" enctype="multipart/form-data" class="scan-filters">
+    <form method="post" enctype="multipart/form-data" class="scan-filters ui-comp-form">
       {% csrf_token %}
       <input type="hidden" name="action" value="category_file">
       <div class="scan-field">
         <label class="form-label" for="category_file">Fichier cat&eacute;gories (CSV/XLS/XLSX)</label>
         <input type="file" id="category_file" name="import_file" accept=".csv,.xlsx,.xls">
       </div>
-      <div class="scan-filter-actions">
+      <div class="scan-filter-actions ui-comp-actions">
         <button type="submit" class="scan-submit secondary btn btn-secondary">Importer cat&eacute;gories</button>
         <a href="{% static 'scan/import_templates/categories.csv' %}" class="scan-scan-btn btn btn-outline-primary" download>
           Template cat&eacute;gories
@@ -372,9 +372,9 @@
     </form>
   </div>
 
-  <div class="scan-card card border-0">
-    <h2>Import entrep&ocirc;ts</h2>
-    <form method="post" class="scan-filters">
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Import entrep&ocirc;ts</h2>
+    <form method="post" class="scan-filters ui-comp-form">
       {% csrf_token %}
       <input type="hidden" name="action" value="warehouse_single">
       <div class="scan-inline scan-inline-equal">
@@ -392,14 +392,14 @@
 
     <div class="scan-divider"></div>
 
-    <form method="post" enctype="multipart/form-data" class="scan-filters">
+    <form method="post" enctype="multipart/form-data" class="scan-filters ui-comp-form">
       {% csrf_token %}
       <input type="hidden" name="action" value="warehouse_file">
       <div class="scan-field">
         <label class="form-label" for="warehouse_file">Fichier entrep&ocirc;ts (CSV/XLS/XLSX)</label>
         <input type="file" id="warehouse_file" name="import_file" accept=".csv,.xlsx,.xls">
       </div>
-      <div class="scan-filter-actions">
+      <div class="scan-filter-actions ui-comp-actions">
         <button type="submit" class="scan-submit secondary btn btn-secondary">Importer entrep&ocirc;ts</button>
         <a href="{% static 'scan/import_templates/warehouses.csv' %}" class="scan-scan-btn btn btn-outline-primary" download>
           Template entrep&ocirc;ts
@@ -411,9 +411,9 @@
     </form>
   </div>
 
-  <div class="scan-card card border-0">
-    <h2>Import contacts</h2>
-    <form method="post" class="scan-filters">
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Import contacts</h2>
+    <form method="post" class="scan-filters ui-comp-form">
       {% csrf_token %}
       <input type="hidden" name="action" value="contact_single">
       <div class="scan-field">
@@ -467,14 +467,14 @@
 
     <div class="scan-divider"></div>
 
-    <form method="post" enctype="multipart/form-data" class="scan-filters">
+    <form method="post" enctype="multipart/form-data" class="scan-filters ui-comp-form">
       {% csrf_token %}
       <input type="hidden" name="action" value="contact_file">
       <div class="scan-field">
         <label class="form-label" for="contact_file">Fichier contacts (CSV/XLS/XLSX)</label>
         <input type="file" id="contact_file" name="import_file" accept=".csv,.xlsx,.xls">
       </div>
-      <div class="scan-filter-actions">
+      <div class="scan-filter-actions ui-comp-actions">
         <button type="submit" class="scan-submit secondary btn btn-secondary">Importer contacts</button>
         <a href="{% static 'scan/import_templates/contacts.csv' %}" class="scan-scan-btn btn btn-outline-primary" download>
           Template contacts
@@ -486,10 +486,10 @@
     </form>
   </div>
 
-  <div class="scan-card card border-0">
-    <h2>Import utilisateurs</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Import utilisateurs</h2>
     <p class="scan-help">Mot de passe obligatoire si IMPORT_DEFAULT_PASSWORD est vide.</p>
-    <form method="post" class="scan-filters">
+    <form method="post" class="scan-filters ui-comp-form">
       {% csrf_token %}
       <input type="hidden" name="action" value="user_single">
       <div class="scan-inline scan-inline-equal">
@@ -549,14 +549,14 @@
 
     <div class="scan-divider"></div>
 
-    <form method="post" enctype="multipart/form-data" class="scan-filters">
+    <form method="post" enctype="multipart/form-data" class="scan-filters ui-comp-form">
       {% csrf_token %}
       <input type="hidden" name="action" value="user_file">
       <div class="scan-field">
         <label class="form-label" for="user_file">Fichier utilisateurs (CSV/XLS/XLSX)</label>
         <input type="file" id="user_file" name="import_file" accept=".csv,.xlsx,.xls">
       </div>
-      <div class="scan-filter-actions">
+      <div class="scan-filter-actions ui-comp-actions">
         <button type="submit" class="scan-submit secondary btn btn-secondary">Importer utilisateurs</button>
         <a href="{% static 'scan/import_templates/users.csv' %}" class="scan-scan-btn btn btn-outline-primary" download>
           Template utilisateurs

@@ -3,8 +3,8 @@
 {% block title %}WMS Scan - FAQ & Documentation{% endblock %}
 
 {% block content %}
-  <div class="scan-card card border-0">
-    <h2>Vue d'ensemble</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Vue d'ensemble</h2>
     <p>
       Cette page d&eacute;crit le fonctionnement complet du WMS Scan, du stock &agrave;
       l'exp&eacute;dition. Les flux sont con&ccedil;us pour &ecirc;tre rapides sur mobile et
@@ -17,7 +17,7 @@
       <li><strong>Exp&eacute;dition</strong> : regroupe des cartons pour une destination.</li>
       <li><strong>Suivi exp&eacute;dition</strong> : journal des scans (QR) avec horodatage.</li>
     </ul>
-    <h3>Statuts cle</h3>
+    <h3 class="ui-comp-title">Statuts cle</h3>
     <ul>
       <li><strong>Carton</strong> : Cr&eacute;&eacute; (draft), En pr&eacute;paration (picking), Pr&ecirc;t (packed), Affect&eacute; (assigned), &Eacute;tiquet&eacute; (labeled), Exp&eacute;di&eacute; (shipped).</li>
       <li><strong>Exp&eacute;dition</strong> : Cr&eacute;ation (draft), En cours (picking), Pr&ecirc;t (packed), Planifi&eacute; (planned), Exp&eacute;di&eacute; (shipped), Re&ccedil;u escale (received_correspondent), Livr&eacute; (delivered).</li>
@@ -26,8 +26,8 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0">
-    <h2>Acc&egrave;s &amp; r&ocirc;les</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Acc&egrave;s &amp; r&ocirc;les</h2>
     <ul>
       <li>Les pages /scan internes sont prot&eacute;g&eacute;es par login staff.</li>
       <li>Le menu <strong>Compte</strong> affiche email/username, lien Admin (si staff), changer de compte, d&eacute;connexion.</li>
@@ -37,8 +37,8 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0">
-    <h2>Donn&eacute;es de r&eacute;f&eacute;rence</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Donn&eacute;es de r&eacute;f&eacute;rence</h2>
     <p>Avant utilisation, vérifier ces données dans l'admin :</p>
     <ul>
       <li><strong>Contacts</strong> avec tags : exp&eacute;diteur, destinataire, correspondant, donateur, transporteur.</li>
@@ -55,8 +55,8 @@
     </p>
   </div>
 
-  <div class="scan-card card border-0">
-    <h2>Vue stock</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Vue stock</h2>
     <ul>
       <li>Recherche multi-cl&eacute;s : nom, SKU, barcode, EAN.</li>
       <li>Filtres : catégorie, entrepôt. Tri : catégorie, nom, référence, stock.</li>
@@ -66,8 +66,8 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0">
-    <h2>MAJ stock</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">MAJ stock</h2>
     <ul>
       <li>S&eacute;lection produit par nom, SKU, barcode ou EAN (scan cam&eacute;ra possible).</li>
       <li>Si inconnu, le bouton propose de cr&eacute;er le produit dans l'admin.</li>
@@ -77,8 +77,8 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0">
-    <h2>Supprimer produit</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Supprimer produit</h2>
     <ul>
       <li>Retire du stock pour casse, perte ou correction.</li>
       <li>Référence expédition optionnelle pour tracer un flux.</li>
@@ -86,8 +86,8 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0">
-    <h2>Pr&eacute;paration (cartons)</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Pr&eacute;paration (cartons)</h2>
     <ul>
       <li>Choisir un format de carton (ou personnaliser les dimensions).</li>
       <li>Ajouter une ou plusieurs lignes produit + quantit&eacute; (scan possible).</li>
@@ -105,8 +105,8 @@
     </p>
   </div>
 
-  <div class="scan-card card border-0">
-    <h2>Cr&eacute;er une exp&eacute;dition</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Cr&eacute;er une exp&eacute;dition</h2>
     <ul>
       <li>S&eacute;quencement: destination d'abord, puis exp&eacute;diteur, puis destinataire + correspondant, puis le reste du formulaire.</li>
       <li>Exp&eacute;diteur: tag <strong>Exp&eacute;diteur</strong> + destination explicite ou globale (destinations vides).</li>
@@ -122,8 +122,8 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0">
-    <h2>Vue Colis</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Vue Colis</h2>
     <ul>
       <li>Liste tous les cartons pr&eacute;par&eacute;s avec leur statut et contenu.</li>
       <li>Actions explicites: <strong>Marquer &eacute;tiquet&eacute;</strong> et <strong>Retirer &eacute;tiquette</strong> pour les cartons affect&eacute;s.</li>
@@ -133,8 +133,8 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0">
-    <h2>Vue Exp&eacute;ditions</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Vue Exp&eacute;ditions</h2>
     <ul>
       <li><strong>Brouillon</strong> : exp&eacute;dition temporaire (r&eacute;f&eacute;rence <strong>EXP-TEMP-XX</strong>) sauvegard&eacute;e pour reprise ult&eacute;rieure.</li>
       <li><strong>Cr&eacute;ation</strong> : exp&eacute;dition active sans colis &eacute;tiquet&eacute; (r&eacute;f&eacute;rence finale).</li>
@@ -156,8 +156,8 @@
     </p>
   </div>
 
-  <div class="scan-card card border-0">
-    <h2>Suivi des exp&eacute;ditions (Gestion)</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Suivi des exp&eacute;ditions (Gestion)</h2>
     <ul>
       <li>Cette vue affiche les exp&eacute;ditions en statut <strong>Planifi&eacute;</strong>, <strong>Exp&eacute;di&eacute;</strong>, <strong>Re&ccedil;u escale</strong> et <strong>Livr&eacute;</strong>.</li>
       <li>Filtres: semaine planifi&eacute;e et dossiers clos (exclure/inclure).</li>
@@ -167,8 +167,8 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0">
-    <h2>Documents & &eacute;tiquettes</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Documents & &eacute;tiquettes</h2>
     <ul>
       <li>Bon d'exp&eacute;dition, listes de colisage et attestation sont g&eacute;n&eacute;r&eacute;s par exp&eacute;dition.</li>
       <li>&Eacute;tiquettes colis g&eacute;n&eacute;r&eacute;es par carton (impression en masse possible).</li>
@@ -177,8 +177,8 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0">
-    <h2>Vue Commande (associations)</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Vue Commande (associations)</h2>
     <ul>
       <li>Liste des demandes associations avec statut de revue.</li>
       <li>Changer le statut et informer le contact (refus / à modifier).</li>
@@ -187,15 +187,15 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0">
-    <h2>R&eacute;ception palette</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">R&eacute;ception palette</h2>
     <ul>
       <li>Enregistre une r&eacute;ception avec donateur + transporteur.</li>
       <li>Le stock n'est pas modifi&eacute; ici : c'est un suivi logistique.</li>
       <li>La r&eacute;f&eacute;rence est g&eacute;n&eacute;r&eacute;e automatiquement.</li>
       <li>La date demande transport est optionnelle.</li>
     </ul>
-    <h3>Upload listing</h3>
+    <h3 class="ui-comp-title">Upload listing</h3>
     <ul>
       <li>Formats accept&eacute;s: CSV / XLS / XLSX / PDF texte (pas d'OCR image).</li>
       <li>Conseil: privil&eacute;gier .xlsx pour la gestion des accents.</li>
@@ -215,8 +215,8 @@
     </p>
   </div>
 
-  <div class="scan-card card border-0">
-    <h2>R&eacute;ception association</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">R&eacute;ception association</h2>
     <ul>
       <li>Enregistre cartons + hors format pour une association.</li>
       <li>Les hors format exigent une description pour chaque ligne.</li>
@@ -224,8 +224,8 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0">
-    <h2>R&eacute;ception standard (don/palette)</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">R&eacute;ception standard (don/palette)</h2>
     <ul>
       <li>Cr&eacute;er une r&eacute;ception puis ajouter des lignes produits.</li>
       <li><strong>R&eacute;ceptionner maintenant</strong> cr&eacute;&eacute; le lot stock imm&eacute;diatement.</li>
@@ -234,16 +234,16 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0">
-    <h2>Vue r&eacute;ception</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Vue r&eacute;ception</h2>
     <ul>
       <li>Filtre rapide : Palette, Association ou Tout.</li>
       <li>Colonnes : date, nom, quantit&eacute; palettes/colis, hors format, transporteur.</li>
     </ul>
   </div>
 
-  <div class="scan-card card border-0">
-    <h2>Imports (admin)</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Imports (admin)</h2>
     <ul>
       <li>Ajout unitaire ou import CSV/XLS/XLSX par bloc.</li>
       <li>CSV: encodage UTF-8 (BOM) + s&eacute;parateur ';'.</li>
@@ -258,8 +258,8 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0">
-    <h2>Templates (admin)</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Templates (admin)</h2>
     <ul>
       <li>Personnaliser visuellement les documents.</li>
       <li>Utiliser l'aper&ccedil;u pour v&eacute;rifier le rendu.</li>
@@ -267,8 +267,8 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0">
-    <h2>Suivi exp&eacute;dition (QR)</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Suivi exp&eacute;dition (QR)</h2>
     <ul>
       <li>Un QR code est généré à la création de l'expédition.</li>
       <li>Le scan ouvre une page publique avec documents + historique.</li>
@@ -287,8 +287,8 @@
     </p>
   </div>
 
-  <div class="scan-card card border-0">
-    <h2>Scanner & synchronisation</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Scanner & synchronisation</h2>
     <ul>
       <li>Le bouton <strong>Scan</strong> ouvre la cam&eacute;ra et remplit le champ cible.</li>
       <li>Si la cam&eacute;ra est bloqu&eacute;e, autoriser l'acc&egrave;s dans le navigateur.</li>
@@ -298,8 +298,8 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0">
-    <h2>FAQ rapide</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">FAQ rapide</h2>
     <ul>
       <li><strong>Mes listes sont vides</strong> : v&eacute;rifier les tags + destinations (exp&eacute;diteurs/correspondants) et les exp&eacute;diteurs li&eacute;s (destinataires).</li>
       <li><strong>Stock à zéro</strong> : vérifier les lots disponibles et leur emplacement.</li>

@@ -22,8 +22,8 @@
         </div>
       {% endif %}
 
-      <div class="scan-card card border-0">
-        <h2>Suivi exp&eacute;dition {{ shipment.reference }}</h2>
+      <div class="scan-card card border-0 ui-comp-card">
+        <h2 class="ui-comp-title">Suivi exp&eacute;dition {{ shipment.reference }}</h2>
 
         {% if show_back_to_list %}
           <div class="scan-field">
@@ -46,14 +46,14 @@
           {% if can_update_tracking %}
             <div class="scan-inline scan-field-gap">
               {% if shipment.is_disputed %}
-                <form method="post">
+                <form method="post" class="ui-comp-form">
                   {% csrf_token %}
                   <input type="hidden" name="action" value="resolve_dispute">
                   <input type="hidden" name="return_to" value="{{ return_to }}">
                   <button type="submit" class="scan-scan-btn btn btn-outline-primary">Résoudre litige et remettre Prêt</button>
                 </form>
               {% else %}
-                <form method="post">
+                <form method="post" class="ui-comp-form">
                   {% csrf_token %}
                   <input type="hidden" name="action" value="set_disputed">
                   <input type="hidden" name="return_to" value="{{ return_to }}">
@@ -113,8 +113,8 @@
               Suivi bloqué tant que le litige n'est pas résolu.
             </div>
           {% else %}
-            <h3>Mettre &agrave; jour le suivi</h3>
-            <form method="post" id="shipment-tracking-update-form">
+            <h3 class="ui-comp-title">Mettre &agrave; jour le suivi</h3>
+            <form method="post" id="shipment-tracking-update-form" class="ui-comp-form">
               {% csrf_token %}
               <input type="hidden" name="return_to_list" value="0" id="id_return_to_list">
               <input type="hidden" name="return_to" value="{{ return_to }}" id="id_return_to">
@@ -165,7 +165,7 @@
 
         <hr class="scan-divider">
 
-        <h3>Historique</h3>
+        <h3 class="ui-comp-title">Historique</h3>
         {% if events %}
           <div class="scan-table-wrap">
             <table class="scan-table">

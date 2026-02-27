@@ -4,7 +4,14 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from wms.models import Location, Product, ProductLot, ProductLotStatus, Warehouse
+from wms.models import (
+    Location,
+    Product,
+    ProductLot,
+    ProductLotStatus,
+    Shipment,
+    Warehouse,
+)
 
 
 class ScanBootstrapUiTests(TestCase):
@@ -241,6 +248,48 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "ui-comp-card")
         self.assertContains(response, "ui-comp-title")
         self.assertContains(response, "ui-comp-form")
+
+    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
+    def test_scan_misc_pages_use_design_component_classes(self):
+        self.client.force_login(self.superuser)
+
+        import_response = self.client.get(reverse("scan:scan_import"))
+        self.assertEqual(import_response.status_code, 200)
+        self.assertContains(import_response, "ui-comp-card")
+        self.assertContains(import_response, "ui-comp-title")
+        self.assertContains(import_response, "ui-comp-form")
+
+        list_response = self.client.get(reverse("scan:scan_print_templates"))
+        self.assertEqual(list_response.status_code, 200)
+        self.assertContains(list_response, "ui-comp-card")
+        self.assertContains(list_response, "ui-comp-title")
+
+        edit_response = self.client.get(
+            reverse("scan:scan_print_template_edit", args=["shipment_label"])
+        )
+        self.assertEqual(edit_response.status_code, 200)
+        self.assertContains(edit_response, "ui-comp-card")
+        self.assertContains(edit_response, "ui-comp-title")
+        self.assertContains(edit_response, "ui-comp-form")
+
+        self.client.force_login(self.staff_user)
+        faq_response = self.client.get(reverse("scan:scan_faq"))
+        self.assertEqual(faq_response.status_code, 200)
+        self.assertContains(faq_response, "ui-comp-card")
+        self.assertContains(faq_response, "ui-comp-title")
+
+        shipment = Shipment.objects.create(
+            shipper_name="Shipper Demo",
+            recipient_name="Recipient Demo",
+            destination_address="1 rue de la Paix",
+        )
+        tracking_response = self.client.get(
+            reverse("scan:scan_shipment_track", args=[shipment.tracking_token])
+        )
+        self.assertEqual(tracking_response.status_code, 200)
+        self.assertContains(tracking_response, "ui-comp-card")
+        self.assertContains(tracking_response, "ui-comp-title")
+        self.assertContains(tracking_response, "ui-comp-form")
 
     @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_dashboard_uses_bootstrap_filters(self):

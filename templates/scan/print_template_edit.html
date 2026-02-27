@@ -9,10 +9,10 @@
 
 {% block content %}
 
-  <div class="scan-card template-card">
+  <div class="scan-card template-card ui-comp-card">
     <div class="template-header">
       <div>
-        <h2>Template: {{ doc_label }}</h2>
+        <h2 class="ui-comp-title">Template: {{ doc_label }}</h2>
         <div class="template-meta">Type: <code>{{ doc_type }}</code></div>
       </div>
       <div class="template-status">
@@ -24,7 +24,7 @@
         {% endif %}
       </div>
     </div>
-    <p class="template-help">
+    <p class="template-help ui-comp-note">
       Glisser-déposer les blocs pour réorganiser. Éditez le contenu et les styles à gauche,
       puis enregistrez. Les changements s'appliquent aux impressions.
     </p>
@@ -32,29 +32,29 @@
 
   <div id="template-editor" class="template-editor" data-preview-url="{% url 'scan:scan_print_template_preview' %}">
     <aside class="template-panel">
-      <div class="template-panel-section">
-        <h3>Bibliothèque de blocs</h3>
+      <div class="template-panel-section ui-comp-panel">
+        <h3 class="ui-comp-title">Bibliothèque de blocs</h3>
         <div class="template-block-library" id="block-library"></div>
       </div>
 
-      <div class="template-panel-section">
-        <h3>Blocs du document</h3>
+      <div class="template-panel-section ui-comp-panel">
+        <h3 class="ui-comp-title">Blocs du document</h3>
         <ul class="template-block-list" id="block-list"></ul>
       </div>
 
-      <div class="template-panel-section">
-        <h3>Propriétés</h3>
+      <div class="template-panel-section ui-comp-panel">
+        <h3 class="ui-comp-title">Propriétés</h3>
         <div id="block-editor" class="template-block-editor">
           <p class="template-muted">S&eacute;lectionnez un bloc pour le modifier.</p>
         </div>
       </div>
 
-      <div class="template-panel-section">
-        <h3>Versions</h3>
+      <div class="template-panel-section ui-comp-panel">
+        <h3 class="ui-comp-title">Versions</h3>
         <div class="template-versions">
           {% if versions %}
             {% for version in versions %}
-              <form method="post" class="template-version-row">
+              <form method="post" class="template-version-row ui-comp-form">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="restore">
                 <input type="hidden" name="version_id" value="{{ version.id }}">
@@ -76,7 +76,7 @@
     </aside>
 
     <main class="template-preview">
-      <form id="template-form" method="post" class="template-toolbar">
+      <form id="template-form" method="post" class="template-toolbar ui-comp-form">
         {% csrf_token %}
         <input type="hidden" name="layout_json" id="layout-json">
         <input type="hidden" name="action" id="layout-action" value="save">
