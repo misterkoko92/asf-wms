@@ -31,6 +31,7 @@
 - Suivi lot suivant (portal): `docs/plans/2026-02-27-bootstrap-portal-lot2.md`.
 - Suivi lot public complémentaire: `docs/plans/2026-02-27-bootstrap-public-lot3.md`.
 - Suivi lot admin complémentaire: `docs/plans/2026-02-27-bootstrap-admin-lot4.md`.
+- Suivi lot app fallback complémentaire: `docs/plans/2026-02-27-bootstrap-app-lot5.md`.
 
 ---
 

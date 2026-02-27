@@ -4,7 +4,7 @@ from tempfile import TemporaryDirectory
 from unittest import mock
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from contacts.models import Contact, ContactType
@@ -100,6 +100,24 @@ class NextFrontendViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 503)
         self.assertContains(response, "Frontend Next indisponible", status_code=503)
+
+    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
+    def test_next_frontend_missing_build_includes_bootstrap_assets_when_enabled(self):
+        self.client.force_login(self.staff_user)
+
+        with mock.patch(
+            "wms.views_next_frontend._next_export_root",
+            return_value=Path("/tmp/non-existent-next-out"),
+        ):
+            response = self.client.get("/app/scan/dashboard/")
+
+        self.assertEqual(response.status_code, 503)
+        self.assertContains(
+            response,
+            "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css",
+            status_code=503,
+        )
+        self.assertContains(response, "app/next-bootstrap.css", status_code=503)
 
     def test_next_frontend_blocks_portal_user_on_scan_routes(self):
         self.client.force_login(self.portal_user)
