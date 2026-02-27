@@ -103,6 +103,8 @@ class ScanAdminViewTests(TestCase):
         self.assertContains(response, "design_font_h3")
         self.assertContains(response, "scan-design-color-grid")
         self.assertContains(response, "design_color_primary")
+        self.assertContains(response, '<select name="design_font_h1"')
+        self.assertContains(response, "<option value=\"DM Sans\"")
 
     def test_scan_admin_design_post_updates_runtime_design_values(self):
         self.client.force_login(self.superuser)

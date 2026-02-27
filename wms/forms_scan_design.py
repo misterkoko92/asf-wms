@@ -5,6 +5,16 @@ from django import forms
 from .models import WmsRuntimeSettings
 
 HEX_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
+DESIGN_FONT_CHOICES = (
+    ("DM Sans", "DM Sans"),
+    ("Nunito Sans", "Nunito Sans"),
+    ("Manrope", "Manrope"),
+    ("Source Sans 3", "Source Sans 3"),
+    ("Aptos", "Aptos"),
+    ("Segoe UI", "Segoe UI"),
+    ("Helvetica Neue", "Helvetica Neue"),
+    ("Arial", "Arial"),
+)
 
 
 def _normalize_font_name(value):
@@ -16,6 +26,7 @@ def _normalize_font_name(value):
 
 
 class ScanDesignSettingsForm(forms.ModelForm):
+    FONT_CHOICES = DESIGN_FONT_CHOICES
     DESIGN_FIELDS = (
         "design_font_h1",
         "design_font_h2",
@@ -82,10 +93,10 @@ class ScanDesignSettingsForm(forms.ModelForm):
             "design_color_text_soft": "Couleur de texte secondaire/aide.",
         }
         widgets = {
-            "design_font_h1": forms.TextInput(attrs={"placeholder": "DM Sans"}),
-            "design_font_h2": forms.TextInput(attrs={"placeholder": "DM Sans"}),
-            "design_font_h3": forms.TextInput(attrs={"placeholder": "DM Sans"}),
-            "design_font_body": forms.TextInput(attrs={"placeholder": "Nunito Sans"}),
+            "design_font_h1": forms.Select(choices=DESIGN_FONT_CHOICES),
+            "design_font_h2": forms.Select(choices=DESIGN_FONT_CHOICES),
+            "design_font_h3": forms.Select(choices=DESIGN_FONT_CHOICES),
+            "design_font_body": forms.Select(choices=DESIGN_FONT_CHOICES),
             "design_color_primary": forms.TextInput(
                 attrs={
                     "type": "color",
@@ -141,10 +152,21 @@ class ScanDesignSettingsForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        base_choices = list(self.FONT_CHOICES)
+        base_choice_values = {value for value, _label in base_choices}
         if self.instance and getattr(self.instance, "pk", None):
             for field_name in self.FONT_FIELDS:
                 current = getattr(self.instance, field_name, "")
-                self.initial[field_name] = _normalize_font_name(current)
+                normalized = _normalize_font_name(current)
+                if normalized and normalized not in base_choice_values:
+                    extra_choices = base_choices + [(normalized, f"{normalized} (actuelle)")]
+                    self.fields[field_name].widget.choices = extra_choices
+                else:
+                    self.fields[field_name].widget.choices = base_choices
+                self.initial[field_name] = normalized
+        else:
+            for field_name in self.FONT_FIELDS:
+                self.fields[field_name].widget.choices = base_choices
 
     def clean(self):
         cleaned_data = super().clean()
@@ -165,11 +187,5 @@ class ScanDesignSettingsForm(forms.ModelForm):
             if not value:
                 self.add_error(field_name, "La police est obligatoire.")
                 continue
-            if "," in value:
-                self.add_error(
-                    field_name,
-                    "Saisissez une seule police par champ.",
-                )
-            else:
-                cleaned_data[field_name] = _normalize_font_name(value)
+            cleaned_data[field_name] = _normalize_font_name(value)
         return cleaned_data

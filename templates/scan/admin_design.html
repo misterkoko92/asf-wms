@@ -15,11 +15,31 @@
       align-items: start;
     }
 
+    .scan-design-font-grid .scan-field {
+      margin-bottom: 0;
+      min-width: 0;
+    }
+
+    .scan-design-font-grid .scan-field select {
+      min-height: 42px;
+    }
+
+    .scan-design-color-scroll {
+      overflow-x: auto;
+      padding-bottom: 0.2rem;
+    }
+
     .scan-design-color-grid {
       display: grid;
-      gap: 0.9rem;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.75rem;
+      grid-template-columns: repeat(7, minmax(128px, 1fr));
+      min-width: 980px;
       align-items: start;
+    }
+
+    .scan-design-color-field {
+      margin-bottom: 0;
+      min-width: 0;
     }
 
     .scan-design-color-field .scan-help {
@@ -27,7 +47,7 @@
     }
 
     .scan-design-color-preview {
-      height: 84px;
+      height: 62px;
       border-radius: 0.7rem;
       border: 1px solid var(--preview-border, #d9e2dc);
       box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.34);
@@ -36,16 +56,17 @@
     }
 
     .scan-design-color-input-row {
-      display: flex;
+      display: grid;
+      grid-template-columns: 44px minmax(0, 1fr);
       align-items: center;
-      gap: 0.55rem;
+      gap: 0.4rem;
     }
 
     .scan-design-color-input {
-      width: 58px;
-      min-width: 58px;
-      height: 42px;
-      padding: 0.25rem;
+      width: 44px;
+      min-width: 44px;
+      height: 34px;
+      padding: 0.18rem;
       border-radius: 0.7rem;
       border: 1px solid var(--preview-border, #d9e2dc);
       background: #fff;
@@ -63,15 +84,19 @@
     }
 
     .scan-design-color-code {
-      display: inline-block;
-      min-width: 7.5ch;
-      padding: 0.24rem 0.45rem;
+      display: block;
+      width: 100%;
+      min-width: 0;
+      padding: 0.21rem 0.4rem;
       border-radius: 0.45rem;
       border: 1px solid var(--preview-border, #d9e2dc);
       background: var(--preview-surface, #fffdf9);
       color: var(--preview-text, #2f3a36);
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .scan-design-preview {
@@ -144,15 +169,10 @@
       .scan-design-font-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
-
-      .scan-design-color-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
     }
 
     @media (max-width: 768px) {
-      .scan-design-font-grid,
-      .scan-design-color-grid {
+      .scan-design-font-grid {
         grid-template-columns: minmax(0, 1fr);
       }
     }
@@ -173,7 +193,6 @@
       {% csrf_token %}
 
       <h3 class="scan-design-section-title">Typographies</h3>
-      <p class="scan-help">Une seule police par champ (H1, H2, H3 et texte).</p>
       <div class="scan-design-font-grid">
         <div class="scan-field">
           {{ form.design_font_h1.label_tag }}
@@ -204,6 +223,7 @@
       <div class="scan-divider"></div>
 
       <h3 class="scan-design-section-title">Couleurs</h3>
+      <div class="scan-design-color-scroll">
       <div class="scan-design-color-grid">
         <div class="scan-field scan-design-color-field">
           {{ form.design_color_primary.label_tag }}
@@ -275,6 +295,7 @@
           {% if form.design_color_text_soft.errors %}<div class="scan-help">{{ form.design_color_text_soft.errors|join:", " }}</div>{% endif %}
           <div class="scan-help">{{ form.design_color_text_soft.help_text }}</div>
         </div>
+      </div>
       </div>
 
       {% if form.non_field_errors %}
