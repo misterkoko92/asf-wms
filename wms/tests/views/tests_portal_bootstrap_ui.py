@@ -166,3 +166,13 @@ class PortalBootstrapUiTests(TestCase):
         self.assertEqual(set_password_response.status_code, 200)
         self.assertContains(set_password_response, "scan-bootstrap.css")
         self.assertContains(set_password_response, "portal-bootstrap.css")
+
+    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
+    def test_portal_account_request_uses_bootstrap_controls(self):
+        self.client.logout()
+        response = self.client.get(reverse("portal:portal_account_request"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "scan-bootstrap.css")
+        self.assertContains(response, "form-select")
+        self.assertContains(response, "form-control")
+        self.assertContains(response, "btn btn-primary")
