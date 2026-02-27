@@ -1,0 +1,43 @@
+.admin-bootstrap-enabled #content-main .module,
+.admin-bootstrap-enabled #content-main fieldset.module {
+  border: 1px solid #d7c6b0;
+  border-radius: 0.95rem;
+  background: #fffdf9;
+  box-shadow: 0 8px 24px rgba(20, 15, 10, 0.08);
+}
+
+.admin-bootstrap-enabled .object-tools a.btn {
+  line-height: 1.2;
+  text-decoration: none;
+}
+
+.admin-bootstrap-enabled .submit-row .btn {
+  text-decoration: none;
+  margin-right: 8px;
+}
+
+.admin-bootstrap-enabled .aligned p input,
+.admin-bootstrap-enabled .aligned p select,
+.admin-bootstrap-enabled .aligned p textarea {
+  border: 1px solid #d7c6b0;
+  border-radius: 0.55rem;
+  min-height: 2.45rem;
+  padding: 0.45rem 0.65rem;
+  max-width: 48rem;
+}
+
+.admin-bootstrap-enabled .aligned p textarea {
+  min-height: 6rem;
+}
+
+.admin-bootstrap-enabled .admin-bootstrap-doc-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.admin-bootstrap-enabled .admin-bootstrap-doc-links strong {
+  width: 100%;
+}

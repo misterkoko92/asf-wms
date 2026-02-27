@@ -832,7 +832,7 @@ class DestinationAdmin(admin.ModelAdmin):
 @admin.register(models.Shipment)
 class ShipmentAdmin(admin.ModelAdmin):
     change_form_template = "admin/wms/shipment/change_form.html"
-    readonly_fields = ("reference", "qr_code_preview")
+    readonly_fields = ("reference", "created_at", "qr_code_preview")
     fields = (
         "reference",
         "status",
