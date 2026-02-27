@@ -120,6 +120,9 @@ body.scan-bootstrap-enabled {
   display: flex;
   flex-direction: column;
   gap: calc(0.55rem * var(--wms-density-factor));
+  overflow: visible;
+  position: relative;
+  z-index: 40;
 }
 
 .scan-bootstrap-enabled .scan-header-top {
@@ -144,6 +147,9 @@ body.scan-bootstrap-enabled {
   background: var(--scan-boot-surface);
   box-shadow: none;
   padding: calc(0.45rem * var(--wms-density-factor)) calc(0.65rem * var(--wms-density-factor));
+  overflow: visible;
+  position: relative;
+  z-index: 45;
 }
 
 .scan-bootstrap-enabled .scan-nav.scan-nav-bootstrap .navbar-toggler {
@@ -183,6 +189,7 @@ body.scan-bootstrap-enabled {
   box-shadow: var(--wms-dropdown-shadow);
   padding: 0.35rem;
   min-width: 16rem;
+  z-index: 3000;
 }
 
 .scan-bootstrap-enabled .scan-nav.scan-nav-bootstrap .dropdown-item {
