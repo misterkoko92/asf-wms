@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1720" height="420" viewBox="0 0 1720 420" fill="none">
+  <defs>
+    <linearGradient id="bg2" x1="0" y1="0" x2="1720" y2="420" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FBF8"/>
+      <stop offset="1" stop-color="#F0F6F4"/>
+    </linearGradient>
+    <filter id="shadow2" x="0" y="0" width="1720" height="420" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-opacity="0.11"/>
+    </filter>
+  </defs>
+
+  <rect width="1720" height="420" fill="url(#bg2)"/>
+  <text x="60" y="52" fill="#2F3A36" font-family="'DM Sans', sans-serif" font-size="24" font-weight="700">Proposition B - Barre fine + soulignement</text>
+
+  <g filter="url(#shadow2)">
+    <rect x="50" y="78" width="1620" height="96" rx="20" fill="#FFFDF9" stroke="#D9E2DC"/>
+  </g>
+
+  <text x="88" y="135" fill="#2F3A36" font-family="'DM Sans', sans-serif" font-size="30" font-weight="700">ASF</text>
+  <text x="153" y="135" fill="#6F9A8D" font-family="'DM Sans', sans-serif" font-size="30" font-weight="700">WMS</text>
+
+  <text x="450" y="126" fill="#2F3A36" font-family="'Nunito Sans', sans-serif" font-size="21" font-weight="600">Accueil</text>
+  <text x="580" y="126" fill="#2F3A36" font-family="'Nunito Sans', sans-serif" font-size="21" font-weight="600">Réception</text>
+  <text x="730" y="126" fill="#2F3A36" font-family="'Nunito Sans', sans-serif" font-size="21" font-weight="700">Préparation ▾</text>
+  <text x="930" y="126" fill="#2F3A36" font-family="'Nunito Sans', sans-serif" font-size="21" font-weight="600">Voir états</text>
+  <text x="1096" y="126" fill="#2F3A36" font-family="'Nunito Sans', sans-serif" font-size="21" font-weight="600">Admin</text>
+
+  <rect x="726" y="136" width="165" height="5" rx="2.5" fill="#6F9A8D"/>
+
+  <rect x="1365" y="101" width="120" height="46" rx="23" fill="#EDF4F0" stroke="#D1DDD7"/>
+  <text x="1401" y="130" fill="#2F3A36" font-family="'Nunito Sans', sans-serif" font-size="19" font-weight="600">Recherche</text>
+
+  <rect x="1500" y="101" width="140" height="46" rx="23" fill="#6F9A8D"/>
+  <text x="1533" y="130" fill="#FFFFFF" font-family="'Nunito Sans', sans-serif" font-size="19" font-weight="700">Mon compte</text>
+
+  <g filter="url(#shadow2)">
+    <rect x="676" y="188" width="540" height="170" rx="18" fill="#FFFDF9" stroke="#D9E2DC"/>
+  </g>
+
+  <text x="705" y="220" fill="#5A6964" font-family="'Nunito Sans', sans-serif" font-size="15" font-weight="700">PRÉPARATION</text>
+
+  <rect x="705" y="236" width="160" height="48" rx="12" fill="#EDF4F0"/>
+  <text x="722" y="266" fill="#2F3A36" font-family="'Nunito Sans', sans-serif" font-size="18" font-weight="700">Préparer kits</text>
+
+  <rect x="879" y="236" width="160" height="48" rx="12" fill="#F4F7F5"/>
+  <text x="889" y="266" fill="#2F3A36" font-family="'Nunito Sans', sans-serif" font-size="18" font-weight="600">Préparer colis</text>
+
+  <rect x="1053" y="236" width="140" height="48" rx="12" fill="#F4F7F5"/>
+  <text x="1066" y="266" fill="#2F3A36" font-family="'Nunito Sans', sans-serif" font-size="18" font-weight="600">Créer sortie</text>
+
+  <text x="705" y="323" fill="#5A6964" font-family="'Nunito Sans', sans-serif" font-size="16">Dropdown "méga-menu" utile si chaque onglet contient plusieurs actions.</text>
+  <text x="60" y="402" fill="#5A6964" font-family="'Nunito Sans', sans-serif" font-size="16">Usage: visuel plus institutionnel, très lisible sur desktop.</text>
+</svg>

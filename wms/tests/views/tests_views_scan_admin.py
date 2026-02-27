@@ -102,6 +102,7 @@ class ScanAdminViewTests(TestCase):
         self.assertContains(response, "design_font_h2")
         self.assertContains(response, "design_font_h3")
         self.assertContains(response, "scan-design-color-grid")
+        self.assertContains(response, "scan-design-form")
         self.assertContains(response, "design_color_primary")
         self.assertContains(response, '<select name="design_font_h1"')
         self.assertContains(response, "<option value=\"DM Sans\"")

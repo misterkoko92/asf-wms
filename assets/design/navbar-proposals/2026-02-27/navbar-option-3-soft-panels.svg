@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1720" height="420" viewBox="0 0 1720 420" fill="none">
+  <defs>
+    <linearGradient id="bg3" x1="0" y1="0" x2="1720" y2="420" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F6FAF7"/>
+      <stop offset="1" stop-color="#EEF4F1"/>
+    </linearGradient>
+    <filter id="shadow3" x="0" y="0" width="1720" height="420" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-opacity="0.1"/>
+    </filter>
+  </defs>
+
+  <rect width="1720" height="420" fill="url(#bg3)"/>
+  <text x="60" y="52" fill="#2F3A36" font-family="'DM Sans', sans-serif" font-size="24" font-weight="700">Proposition C - Onglets doux + dropdown carte</text>
+
+  <g filter="url(#shadow3)">
+    <rect x="50" y="78" width="1620" height="88" rx="18" fill="#FFFDF9" stroke="#D8E1DB"/>
+  </g>
+
+  <rect x="76" y="98" width="138" height="48" rx="14" fill="#EEF5F2"/>
+  <text x="103" y="128" fill="#2F3A36" font-family="'DM Sans', sans-serif" font-size="21" font-weight="700">ASF-WMS</text>
+
+  <rect x="300" y="100" width="126" height="44" rx="12" fill="#F4F8F6" stroke="#D5E1DB"/>
+  <text x="332" y="128" fill="#2F3A36" font-family="'Nunito Sans', sans-serif" font-size="19" font-weight="600">Accueil</text>
+
+  <rect x="438" y="100" width="130" height="44" rx="12" fill="#F4F8F6" stroke="#D5E1DB"/>
+  <text x="462" y="128" fill="#2F3A36" font-family="'Nunito Sans', sans-serif" font-size="19" font-weight="600">Réception</text>
+
+  <rect x="580" y="100" width="152" height="44" rx="12" fill="#6F9A8D"/>
+  <text x="604" y="128" fill="#FFFFFF" font-family="'Nunito Sans', sans-serif" font-size="19" font-weight="700">Préparation ▾</text>
+
+  <rect x="744" y="100" width="136" height="44" rx="12" fill="#F4F8F6" stroke="#D5E1DB"/>
+  <text x="769" y="128" fill="#2F3A36" font-family="'Nunito Sans', sans-serif" font-size="19" font-weight="600">Voir états</text>
+
+  <rect x="892" y="100" width="108" height="44" rx="12" fill="#F4F8F6" stroke="#D5E1DB"/>
+  <text x="922" y="128" fill="#2F3A36" font-family="'Nunito Sans', sans-serif" font-size="19" font-weight="600">Admin</text>
+
+  <rect x="1228" y="100" width="220" height="44" rx="12" fill="#F4F8F6" stroke="#D5E1DB"/>
+  <text x="1260" y="128" fill="#7A8B84" font-family="'Nunito Sans', sans-serif" font-size="18" font-weight="600">Rechercher une page...</text>
+
+  <rect x="1460" y="100" width="182" height="44" rx="12" fill="#E7C3A8"/>
+  <text x="1505" y="128" fill="#2F3A36" font-family="'Nunito Sans', sans-serif" font-size="19" font-weight="700">Raccourcis</text>
+
+  <g filter="url(#shadow3)">
+    <rect x="580" y="178" width="360" height="188" rx="16" fill="#FFFDF9" stroke="#D8E1DB"/>
+  </g>
+
+  <rect x="600" y="198" width="320" height="42" rx="10" fill="#EDF4F0"/>
+  <text x="620" y="225" fill="#2F3A36" font-family="'Nunito Sans', sans-serif" font-size="18" font-weight="700">Préparer des kits</text>
+
+  <rect x="600" y="248" width="320" height="42" rx="10" fill="#F5F8F6"/>
+  <text x="620" y="275" fill="#2F3A36" font-family="'Nunito Sans', sans-serif" font-size="18" font-weight="600">Préparer des colis</text>
+
+  <rect x="600" y="298" width="320" height="42" rx="10" fill="#F5F8F6"/>
+  <text x="620" y="325" fill="#2F3A36" font-family="'Nunito Sans', sans-serif" font-size="18" font-weight="600">Télécharger picking</text>
+
+  <text x="60" y="402" fill="#5A6964" font-family="'Nunito Sans', sans-serif" font-size="16">Usage: option la plus "moderne produit" avec tuiles soft et dropdown carte.</text>
+</svg>
