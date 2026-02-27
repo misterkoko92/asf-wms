@@ -304,8 +304,18 @@ class ScanBootstrapUiTests(TestCase):
         stock_response = self.client.get(reverse("scan:scan_stock"))
         self.assertEqual(stock_response.status_code, 200)
         self.assertContains(stock_response, 'class="scan-header ui-comp-panel"')
-        self.assertContains(stock_response, 'class="scan-title ui-comp-title"')
-        self.assertContains(stock_response, 'class="scan-nav ui-comp-panel"')
+        self.assertContains(stock_response, 'class="scan-title ui-comp-title">ASF WMS')
+        self.assertNotContains(stock_response, "ASF WMS Scan")
+        self.assertNotContains(stock_response, "Flux rapides pour mobile et scanner.")
+        self.assertContains(
+            stock_response,
+            'class="scan-nav scan-nav-bootstrap navbar navbar-expand-xl ui-comp-panel"',
+        )
+        self.assertContains(stock_response, 'data-bs-toggle="dropdown"')
+        self.assertNotContains(stock_response, "Essayer interface Next")
+        self.assertNotContains(stock_response, 'id="ui-toggle"')
+        self.assertNotContains(stock_response, 'id="theme-toggle"')
+        self.assertNotContains(stock_response, 'id="ui-reset-default"')
 
         ui_lab_response = self.client.get(reverse("scan:scan_ui_lab"))
         self.assertEqual(ui_lab_response.status_code, 200)

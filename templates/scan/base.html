@@ -36,49 +36,50 @@
   <div class="scan-shell{% if shell_class %} {{ shell_class }}{% endif %}">
     <header class="scan-header ui-comp-panel">
       <div>
-        <h1 class="scan-title ui-comp-title">ASF WMS Scan</h1>
-        <p class="scan-subtitle">Flux rapides pour mobile et scanner.</p>
+        <h1 class="scan-title ui-comp-title">ASF WMS</h1>
       </div>
       <div class="scan-header-actions ui-comp-actions">
-        <div class="scan-ui-mode-switch">
-          {% if wms_ui_mode_is_next %}
-            <a
-              href="{% url 'ui_mode_set_mode' 'legacy' %}?next={{ request.get_full_path|urlencode }}"
-              class="scan-ui-reset"
-              title="Revenir immédiatement sur l'interface actuelle"
-            >
-              Retour interface actuelle
-            </a>
-          {% else %}
-            <a
-              href="{% url 'ui_mode_set_mode' 'next' %}?next=/app/scan/dashboard/"
-              class="scan-ui-reset"
-              title="Basculer vers le nouveau frontend Next"
-            >
-              Essayer interface Next
-            </a>
-          {% endif %}
-        </div>
-        <div class="scan-ui-toggle">
-          <span class="scan-theme-label">Interface</span>
-          <button type="button" id="ui-toggle" class="scan-ui-button" aria-pressed="false">
-            Classique
+        {% if not scan_bootstrap_enabled %}
+          <div class="scan-ui-mode-switch">
+            {% if wms_ui_mode_is_next %}
+              <a
+                href="{% url 'ui_mode_set_mode' 'legacy' %}?next={{ request.get_full_path|urlencode }}"
+                class="scan-ui-reset"
+                title="Revenir immédiatement sur l'interface actuelle"
+              >
+                Retour interface actuelle
+              </a>
+            {% else %}
+              <a
+                href="{% url 'ui_mode_set_mode' 'next' %}?next=/app/scan/dashboard/"
+                class="scan-ui-reset"
+                title="Basculer vers le nouveau frontend Next"
+              >
+                Essayer interface Next
+              </a>
+            {% endif %}
+          </div>
+          <div class="scan-ui-toggle">
+            <span class="scan-theme-label">Interface</span>
+            <button type="button" id="ui-toggle" class="scan-ui-button" aria-pressed="false">
+              Classique
+            </button>
+          </div>
+          <div class="scan-theme-toggle">
+            <span class="scan-theme-label">Thème</span>
+            <button type="button" id="theme-toggle" class="scan-theme-button" aria-pressed="false">
+              Classique
+            </button>
+          </div>
+          <button
+            type="button"
+            id="ui-reset-default"
+            class="scan-ui-reset"
+            title="Revenir à l'interface Benev et au thème Classique"
+          >
+            Benev + Classique
           </button>
-        </div>
-        <div class="scan-theme-toggle">
-          <span class="scan-theme-label">Thème</span>
-          <button type="button" id="theme-toggle" class="scan-theme-button" aria-pressed="false">
-            Classique
-          </button>
-        </div>
-        <button
-          type="button"
-          id="ui-reset-default"
-          class="scan-ui-reset"
-          title="Revenir à l'interface Benev et au thème Classique"
-        >
-          Benev + Classique
-        </button>
+        {% endif %}
         <details class="scan-account">
           <summary class="scan-account-toggle">
             <span class="scan-account-label">Compte</span>
@@ -102,75 +103,156 @@
     </header>
 
     <div class="scan-body">
-      <nav class="scan-nav ui-comp-panel">
-        <div class="scan-nav-group">
-          <button type="button" class="scan-nav-trigger">Tableau de bord</button>
-          <div class="scan-nav-menu">
-            <a href="{% url 'scan:scan_dashboard' %}" class="{% if active == 'dashboard' %}active{% endif %}">Tableau de bord</a>
+      {% if scan_bootstrap_enabled %}
+        <nav class="scan-nav scan-nav-bootstrap navbar navbar-expand-xl ui-comp-panel" aria-label="Navigation Scan">
+          <div class="container-fluid px-0">
+            <button class="navbar-toggler border-0 px-2" type="button" data-bs-toggle="collapse" data-bs-target="#scan-main-nav" aria-controls="scan-main-nav" aria-expanded="false" aria-label="Afficher la navigation">
+              <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="scan-main-nav">
+              <ul class="navbar-nav w-100 flex-wrap gap-1">
+                <li class="nav-item">
+                  <a href="{% url 'scan:scan_dashboard' %}" class="nav-link{% if active == 'dashboard' %} active{% endif %}">Tableau de bord</a>
+                </li>
+                <li class="nav-item dropdown">
+                  <button class="nav-link dropdown-toggle{% if active == 'stock' or active == 'kits_view' or active == 'cartons_ready' or active == 'shipments_ready' or active == 'orders_view' or active == 'receipts_view' %} active{% endif %}" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    Voir les états
+                  </button>
+                  <ul class="dropdown-menu">
+                    <li><a href="{% url 'scan:scan_stock' %}" class="dropdown-item{% if active == 'stock' %} active{% endif %}">Vue stock</a></li>
+                    <li><a href="{% url 'scan:scan_kits_view' %}" class="dropdown-item{% if active == 'kits_view' %} active{% endif %}">Vue Kits</a></li>
+                    <li><a href="{% url 'scan:scan_cartons_ready' %}" class="dropdown-item{% if active == 'cartons_ready' %} active{% endif %}">Vue Colis</a></li>
+                    <li><a href="{% url 'scan:scan_shipments_ready' %}" class="dropdown-item{% if active == 'shipments_ready' %} active{% endif %}">Vue Exp&eacute;ditions</a></li>
+                    <li><a href="{% url 'scan:scan_orders_view' %}" class="dropdown-item{% if active == 'orders_view' %} active{% endif %}">Vue Commande</a></li>
+                    <li><a href="{% url 'scan:scan_receipts_view' %}" class="dropdown-item{% if active == 'receipts_view' %} active{% endif %}">Vue r&eacute;ception</a></li>
+                  </ul>
+                </li>
+                <li class="nav-item dropdown">
+                  <button class="nav-link dropdown-toggle{% if active == 'receive_pallet' or active == 'receive_association' or active == 'stock_update' %} active{% endif %}" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    R&eacute;ception
+                  </button>
+                  <ul class="dropdown-menu">
+                    <li><a href="{% url 'scan:scan_receive_pallet' %}" class="dropdown-item{% if active == 'receive_pallet' %} active{% endif %}">R&eacute;ception palette</a></li>
+                    <li><a href="{% url 'scan:scan_receive_association' %}" class="dropdown-item{% if active == 'receive_association' %} active{% endif %}">R&eacute;ception association</a></li>
+                    <li><a href="{% url 'scan:scan_stock_update' %}" class="dropdown-item{% if active == 'stock_update' %} active{% endif %}">MAJ stock</a></li>
+                  </ul>
+                </li>
+                <li class="nav-item dropdown">
+                  <button class="nav-link dropdown-toggle{% if active == 'prepare_kits' or active == 'pack' or active == 'shipment' %} active{% endif %}" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    Pr&eacute;paration
+                  </button>
+                  <ul class="dropdown-menu">
+                    <li><a href="{% url 'scan:scan_prepare_kits' %}" class="dropdown-item{% if active == 'prepare_kits' %} active{% endif %}">Pr&eacute;parer des kits</a></li>
+                    <li><a href="{% url 'scan:scan_pack' %}" class="dropdown-item{% if active == 'pack' %} active{% endif %}">Pr&eacute;parer des colis</a></li>
+                    <li><a href="{% url 'scan:scan_shipment_create' %}" class="dropdown-item{% if active == 'shipment' %} active{% endif %}">Pr&eacute;paration exp&eacute;dition</a></li>
+                  </ul>
+                </li>
+                <li class="nav-item dropdown">
+                  <button class="nav-link dropdown-toggle{% if active == 'out' or active == 'faq' or active == 'imports' or active == 'print_templates' %} active{% endif %}" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    Gestion
+                  </button>
+                  <ul class="dropdown-menu">
+                    <li><a href="{% url 'scan:scan_out' %}" class="dropdown-item{% if active == 'out' %} active{% endif %}">Supprimer produit</a></li>
+                    <li><a href="{% url 'scan:scan_faq' %}" class="dropdown-item{% if active == 'faq' %} active{% endif %}">FAQ / Documentation</a></li>
+                    {% if request.user.is_superuser %}
+                      <li><a href="{% url 'scan:scan_import' %}" class="dropdown-item{% if active == 'imports' %} active{% endif %}">Imports</a></li>
+                      <li><a href="{% url 'scan:scan_print_templates' %}" class="dropdown-item{% if active == 'print_templates' %} active{% endif %}">Templates</a></li>
+                    {% endif %}
+                  </ul>
+                </li>
+                <li class="nav-item">
+                  <a href="{% url 'scan:scan_shipments_tracking' %}" class="nav-link{% if active == 'shipments_tracking' %} active{% endif %}">Suivi exp&eacute;ditions</a>
+                </li>
+                {% if request.user.is_superuser %}
+                  <li class="nav-item dropdown ms-xl-auto">
+                    <button class="nav-link dropdown-toggle{% if active == 'settings' or active == 'ui_lab' or active == 'admin_contacts' or active == 'admin_products' or active == 'admin_design' %} active{% endif %}" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                      Admin
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                      <li><a href="{% url 'scan:scan_settings' %}" class="dropdown-item{% if active == 'settings' %} active{% endif %}">Param&egrave;tres</a></li>
+                      <li><a href="{% url 'scan:scan_ui_lab' %}" class="dropdown-item{% if active == 'ui_lab' %} active{% endif %}">UI Lab</a></li>
+                      <li><hr class="dropdown-divider"></li>
+                      <li><a href="{% url 'scan:scan_admin_contacts' %}" class="dropdown-item{% if active == 'admin_contacts' %} active{% endif %}">Contacts</a></li>
+                      <li><a href="{% url 'scan:scan_admin_products' %}" class="dropdown-item{% if active == 'admin_products' %} active{% endif %}">Produit</a></li>
+                      <li><a href="{% url 'scan:scan_admin_design' %}" class="dropdown-item{% if active == 'admin_design' %} active{% endif %}">Design</a></li>
+                    </ul>
+                  </li>
+                {% endif %}
+              </ul>
+            </div>
           </div>
-        </div>
-        <div class="scan-nav-group">
-          <button type="button" class="scan-nav-trigger">Voir les différents états</button>
-          <div class="scan-nav-menu">
-            <a href="{% url 'scan:scan_stock' %}" class="{% if active == 'stock' %}active{% endif %}">Vue stock</a>
-            <a href="{% url 'scan:scan_kits_view' %}" class="{% if active == 'kits_view' %}active{% endif %}">Vue Kits</a>
-            <a href="{% url 'scan:scan_cartons_ready' %}" class="{% if active == 'cartons_ready' %}active{% endif %}">Vue Colis</a>
-            <a href="{% url 'scan:scan_shipments_ready' %}" class="{% if active == 'shipments_ready' %}active{% endif %}">Vue Exp&eacute;ditions</a>
-            <a href="{% url 'scan:scan_orders_view' %}" class="{% if active == 'orders_view' %}active{% endif %}">Vue Commande</a>
-            <a href="{% url 'scan:scan_receipts_view' %}" class="{% if active == 'receipts_view' %}active{% endif %}">Vue r&eacute;ception</a>
-          </div>
-        </div>
-        <div class="scan-nav-group">
-          <button type="button" class="scan-nav-trigger">R&eacute;ception de produits</button>
-          <div class="scan-nav-menu">
-            <a href="{% url 'scan:scan_receive_pallet' %}" class="{% if active == 'receive_pallet' %}active{% endif %}">R&eacute;ception palette</a>
-            <a href="{% url 'scan:scan_receive_association' %}" class="{% if active == 'receive_association' %}active{% endif %}">R&eacute;ception association / Ajouter des produits au stock</a>
-            <a href="{% url 'scan:scan_stock_update' %}" class="{% if active == 'stock_update' %}active{% endif %}">MAJ stock</a>
-          </div>
-        </div>
-        <div class="scan-nav-group">
-          <button type="button" class="scan-nav-trigger">Pr&eacute;paration</button>
-          <div class="scan-nav-menu">
-            <a href="{% url 'scan:scan_prepare_kits' %}" class="{% if active == 'prepare_kits' %}active{% endif %}">Pr&eacute;parer des kits</a>
-            <a href="{% url 'scan:scan_pack' %}" class="{% if active == 'pack' %}active{% endif %}">Pr&eacute;parer des colis</a>
-            <a href="{% url 'scan:scan_shipment_create' %}" class="{% if active == 'shipment' %}active{% endif %}">Pr&eacute;paration exp&eacute;dition</a>
-          </div>
-        </div>
-        <div class="scan-nav-group">
-          <button type="button" class="scan-nav-trigger">Gestion</button>
-          <div class="scan-nav-menu">
-            <a href="{% url 'scan:scan_out' %}" class="{% if active == 'out' %}active{% endif %}">Supprimer produit</a>
-            <a href="{% url 'scan:scan_faq' %}" class="{% if active == 'faq' %}active{% endif %}">FAQ / Documentation</a>
-            {% if request.user.is_superuser %}
-              <a href="{% url 'scan:scan_import' %}" class="{% if active == 'imports' %}active{% endif %}">Imports</a>
-              <a href="{% url 'scan:scan_print_templates' %}" class="{% if active == 'print_templates' %}active{% endif %}">Templates</a>
-            {% endif %}
-          </div>
-        </div>
-        <div class="scan-nav-group">
-          <button type="button" class="scan-nav-trigger">Suivi des exp&eacute;ditions</button>
-          <div class="scan-nav-menu">
-            <a href="{% url 'scan:scan_shipments_tracking' %}" class="{% if active == 'shipments_tracking' %}active{% endif %}">Suivi des exp&eacute;ditions</a>
-          </div>
-        </div>
-        {% if request.user.is_superuser %}
+        </nav>
+      {% else %}
+        <nav class="scan-nav ui-comp-panel">
           <div class="scan-nav-group">
-            <button type="button" class="scan-nav-trigger">Param&egrave;tres</button>
+            <button type="button" class="scan-nav-trigger">Tableau de bord</button>
             <div class="scan-nav-menu">
-              <a href="{% url 'scan:scan_settings' %}" class="{% if active == 'settings' %}active{% endif %}">Param&egrave;tres</a>
-              <a href="{% url 'scan:scan_ui_lab' %}" class="{% if active == 'ui_lab' %}active{% endif %}">UI Lab</a>
+              <a href="{% url 'scan:scan_dashboard' %}" class="{% if active == 'dashboard' %}active{% endif %}">Tableau de bord</a>
             </div>
           </div>
           <div class="scan-nav-group">
-            <button type="button" class="scan-nav-trigger">Admin</button>
+            <button type="button" class="scan-nav-trigger">Voir les différents états</button>
             <div class="scan-nav-menu">
-              <a href="{% url 'scan:scan_admin_contacts' %}" class="{% if active == 'admin_contacts' %}active{% endif %}">Contacts</a>
-              <a href="{% url 'scan:scan_admin_products' %}" class="{% if active == 'admin_products' %}active{% endif %}">Produit</a>
-              <a href="{% url 'scan:scan_admin_design' %}" class="{% if active == 'admin_design' %}active{% endif %}">Design</a>
+              <a href="{% url 'scan:scan_stock' %}" class="{% if active == 'stock' %}active{% endif %}">Vue stock</a>
+              <a href="{% url 'scan:scan_kits_view' %}" class="{% if active == 'kits_view' %}active{% endif %}">Vue Kits</a>
+              <a href="{% url 'scan:scan_cartons_ready' %}" class="{% if active == 'cartons_ready' %}active{% endif %}">Vue Colis</a>
+              <a href="{% url 'scan:scan_shipments_ready' %}" class="{% if active == 'shipments_ready' %}active{% endif %}">Vue Exp&eacute;ditions</a>
+              <a href="{% url 'scan:scan_orders_view' %}" class="{% if active == 'orders_view' %}active{% endif %}">Vue Commande</a>
+              <a href="{% url 'scan:scan_receipts_view' %}" class="{% if active == 'receipts_view' %}active{% endif %}">Vue r&eacute;ception</a>
             </div>
           </div>
-        {% endif %}
-      </nav>
+          <div class="scan-nav-group">
+            <button type="button" class="scan-nav-trigger">R&eacute;ception de produits</button>
+            <div class="scan-nav-menu">
+              <a href="{% url 'scan:scan_receive_pallet' %}" class="{% if active == 'receive_pallet' %}active{% endif %}">R&eacute;ception palette</a>
+              <a href="{% url 'scan:scan_receive_association' %}" class="{% if active == 'receive_association' %}active{% endif %}">R&eacute;ception association / Ajouter des produits au stock</a>
+              <a href="{% url 'scan:scan_stock_update' %}" class="{% if active == 'stock_update' %}active{% endif %}">MAJ stock</a>
+            </div>
+          </div>
+          <div class="scan-nav-group">
+            <button type="button" class="scan-nav-trigger">Pr&eacute;paration</button>
+            <div class="scan-nav-menu">
+              <a href="{% url 'scan:scan_prepare_kits' %}" class="{% if active == 'prepare_kits' %}active{% endif %}">Pr&eacute;parer des kits</a>
+              <a href="{% url 'scan:scan_pack' %}" class="{% if active == 'pack' %}active{% endif %}">Pr&eacute;parer des colis</a>
+              <a href="{% url 'scan:scan_shipment_create' %}" class="{% if active == 'shipment' %}active{% endif %}">Pr&eacute;paration exp&eacute;dition</a>
+            </div>
+          </div>
+          <div class="scan-nav-group">
+            <button type="button" class="scan-nav-trigger">Gestion</button>
+            <div class="scan-nav-menu">
+              <a href="{% url 'scan:scan_out' %}" class="{% if active == 'out' %}active{% endif %}">Supprimer produit</a>
+              <a href="{% url 'scan:scan_faq' %}" class="{% if active == 'faq' %}active{% endif %}">FAQ / Documentation</a>
+              {% if request.user.is_superuser %}
+                <a href="{% url 'scan:scan_import' %}" class="{% if active == 'imports' %}active{% endif %}">Imports</a>
+                <a href="{% url 'scan:scan_print_templates' %}" class="{% if active == 'print_templates' %}active{% endif %}">Templates</a>
+              {% endif %}
+            </div>
+          </div>
+          <div class="scan-nav-group">
+            <button type="button" class="scan-nav-trigger">Suivi des exp&eacute;ditions</button>
+            <div class="scan-nav-menu">
+              <a href="{% url 'scan:scan_shipments_tracking' %}" class="{% if active == 'shipments_tracking' %}active{% endif %}">Suivi des exp&eacute;ditions</a>
+            </div>
+          </div>
+          {% if request.user.is_superuser %}
+            <div class="scan-nav-group">
+              <button type="button" class="scan-nav-trigger">Param&egrave;tres</button>
+              <div class="scan-nav-menu">
+                <a href="{% url 'scan:scan_settings' %}" class="{% if active == 'settings' %}active{% endif %}">Param&egrave;tres</a>
+                <a href="{% url 'scan:scan_ui_lab' %}" class="{% if active == 'ui_lab' %}active{% endif %}">UI Lab</a>
+              </div>
+            </div>
+            <div class="scan-nav-group">
+              <button type="button" class="scan-nav-trigger">Admin</button>
+              <div class="scan-nav-menu">
+                <a href="{% url 'scan:scan_admin_contacts' %}" class="{% if active == 'admin_contacts' %}active{% endif %}">Contacts</a>
+                <a href="{% url 'scan:scan_admin_products' %}" class="{% if active == 'admin_products' %}active{% endif %}">Produit</a>
+                <a href="{% url 'scan:scan_admin_design' %}" class="{% if active == 'admin_design' %}active{% endif %}">Design</a>
+              </div>
+            </div>
+          {% endif %}
+        </nav>
+      {% endif %}
 
       <main class="scan-main">
         {% if messages %}
