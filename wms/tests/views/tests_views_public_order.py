@@ -74,6 +74,29 @@ class PublicOrderViewsTests(TestCase):
         self.assertIs(response.context["carton_format"], mock.sentinel.carton_format)
         self.assertEqual(estimate_mock.call_args.kwargs["estimate_key"], "cartons_estimated")
 
+    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
+    def test_scan_public_order_summary_includes_bootstrap_assets_when_enabled(self):
+        order = self._create_order_for_link()
+        url = reverse("scan:scan_public_order_summary", args=[self.link.token, order.id])
+
+        with mock.patch(
+            "wms.views_public_order.get_default_carton_format",
+            return_value=None,
+        ):
+            with mock.patch(
+                "wms.views_public_order.build_order_line_estimates",
+                return_value=([{"product": "Produit Public", "quantity": 2}], 1),
+            ):
+                response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css",
+        )
+        self.assertContains(response, "scan/scan-bootstrap.css")
+        self.assertContains(response, "scan-bootstrap-enabled")
+
     def test_scan_public_order_404_for_missing_link(self):
         response = self.client.get(reverse("scan:scan_public_order", args=[uuid4()]))
         self.assertEqual(response.status_code, 404)
