@@ -33,6 +33,7 @@
 - Suivi lot admin complémentaire: `docs/plans/2026-02-27-bootstrap-admin-lot4.md`.
 - Suivi lot app fallback complémentaire: `docs/plans/2026-02-27-bootstrap-app-lot5.md`.
 - Suivi lot print preview complémentaire: `docs/plans/2026-02-27-bootstrap-print-lot6.md`.
+- Suivi lot scan public final complémentaire: `docs/plans/2026-02-27-bootstrap-scan-public-lot7.md`.
 
 ---
 

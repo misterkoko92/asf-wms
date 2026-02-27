@@ -1068,6 +1068,34 @@ class ScanViewTests(TestCase):
                 response = self.client.get(url)
                 self.assertEqual(response.status_code, 200)
 
+    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
+    def test_scan_public_pages_include_bootstrap_assets_when_enabled(self):
+        shipment, _carton = self._create_shipment_with_carton()
+        link, _order = self._create_public_order_link_with_order()
+        self.client.logout()
+
+        response_public_order = self.client.get(
+            reverse("scan:scan_public_order", args=[link.token])
+        )
+        self.assertEqual(response_public_order.status_code, 200)
+        self.assertContains(
+            response_public_order,
+            "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css",
+        )
+        self.assertContains(response_public_order, "scan/scan-bootstrap.css")
+        self.assertContains(response_public_order, 'class="scan-bootstrap-enabled"')
+
+        response_tracking = self.client.get(
+            reverse("scan:scan_shipment_track", args=[shipment.tracking_token])
+        )
+        self.assertEqual(response_tracking.status_code, 200)
+        self.assertContains(
+            response_tracking,
+            "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css",
+        )
+        self.assertContains(response_tracking, "scan/scan-bootstrap.css")
+        self.assertContains(response_tracking, 'class="scan-bootstrap-enabled"')
+
     def test_scan_shipment_track_legacy_blocks_anonymous(self):
         shipment, _carton = self._create_shipment_with_carton()
         self.client.logout()
