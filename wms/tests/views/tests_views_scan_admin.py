@@ -59,6 +59,28 @@ class ScanAdminViewTests(TestCase):
             "design_color_border": "#cfded6",
             "design_color_text": "#22322e",
             "design_color_text_soft": "#4f625c",
+            "design_density_mode": "dense",
+            "design_btn_style_mode": "outlined",
+            "design_btn_radius": "12",
+            "design_btn_height_md": "44",
+            "design_btn_shadow": "none",
+            "design_card_radius": "18",
+            "design_card_shadow": "none",
+            "design_input_height": "45",
+            "design_input_radius": "11",
+            "design_nav_item_active_bg": "#e2ece7",
+            "design_nav_item_active_text": "#20322e",
+            "design_dropdown_shadow": "none",
+            "design_table_row_hover_bg": "#edf6f2",
+            "design_color_btn_success_bg": "#dcefe4",
+            "design_color_btn_success_text": "#1f4f3e",
+            "design_color_btn_success_border": "#8fc3ad",
+            "design_color_btn_warning_bg": "#faecd9",
+            "design_color_btn_warning_text": "#6d4f1f",
+            "design_color_btn_warning_border": "#dbb782",
+            "design_color_btn_danger_bg": "#f9e4e2",
+            "design_color_btn_danger_text": "#7b2f2f",
+            "design_color_btn_danger_border": "#d49a9a",
         }
         if bootstrap_enabled:
             payload["scan_bootstrap_enabled"] = "on"
@@ -124,6 +146,13 @@ class ScanAdminViewTests(TestCase):
         self.assertContains(response, "scan-design-form")
         self.assertContains(response, "design_color_primary")
         self.assertContains(response, "scan_bootstrap_enabled")
+        self.assertContains(response, "design_density_mode")
+        self.assertContains(response, "design_btn_style_mode")
+        self.assertContains(response, "design_btn_radius")
+        self.assertContains(response, "design_nav_item_active_bg")
+        self.assertContains(response, "design_color_btn_success_bg")
+        self.assertContains(response, "design_color_btn_warning_bg")
+        self.assertContains(response, "design_color_btn_danger_bg")
         self.assertContains(response, '<select name="design_font_h1"')
         self.assertContains(response, "<option value=\"DM Sans\"")
 
@@ -143,11 +172,25 @@ class ScanAdminViewTests(TestCase):
         self.assertEqual(runtime.design_font_h2, "Manrope")
         self.assertEqual(runtime.design_font_h3, "DM Sans")
         self.assertTrue(runtime.scan_bootstrap_enabled)
+        self.assertEqual(runtime.design_tokens["density_mode"], "dense")
+        self.assertEqual(runtime.design_tokens["btn_style_mode"], "outlined")
+        self.assertEqual(runtime.design_tokens["btn_radius"], 12)
+        self.assertEqual(runtime.design_tokens["btn_height_md"], 44)
+        self.assertEqual(runtime.design_tokens["nav_item_active_bg"], "#e2ece7")
+        self.assertEqual(runtime.design_tokens["nav_item_active_text"], "#20322e")
+        self.assertEqual(runtime.design_tokens["table_row_hover_bg"], "#edf6f2")
+        self.assertEqual(runtime.design_tokens["color_btn_success_bg"], "#dcefe4")
+        self.assertEqual(runtime.design_tokens["color_btn_warning_bg"], "#faecd9")
+        self.assertEqual(runtime.design_tokens["color_btn_danger_bg"], "#f9e4e2")
 
         dashboard_response = self.client.get(reverse("scan:scan_dashboard"))
         self.assertEqual(dashboard_response.status_code, 200)
         self.assertContains(dashboard_response, "--wms-color-primary: #3a7f6f;")
         self.assertContains(dashboard_response, "--wms-font-heading-h1: Manrope;")
+        self.assertContains(dashboard_response, "--wms-density-mode: dense;")
+        self.assertContains(dashboard_response, "--wms-btn-style-mode: outlined;")
+        self.assertContains(dashboard_response, "--wms-btn-radius: 12px;")
+        self.assertContains(dashboard_response, "--wms-table-row-hover-bg: #edf6f2;")
 
     def test_scan_admin_design_bootstrap_toggle_applies_on_scan_portal_home_and_admin(self):
         self.client.force_login(self.superuser)

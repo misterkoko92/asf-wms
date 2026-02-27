@@ -1,6 +1,11 @@
 from django.conf import settings
 from django.db.utils import OperationalError, ProgrammingError
 
+from .design_tokens import (
+    PRIORITY_ONE_TOKEN_DEFAULTS,
+    density_factor_for_mode,
+    normalize_priority_one_tokens,
+)
 from .models import PublicAccountRequest, PublicAccountRequestStatus
 from .runtime_settings import get_runtime_settings_instance
 from .ui_mode import UiMode, get_ui_mode_for_user
@@ -16,7 +21,7 @@ def _normalize_font_name(value, fallback):
 
 
 def _default_design_tokens():
-    return {
+    defaults = {
         "font_h1": "DM Sans",
         "font_h2": "DM Sans",
         "font_h3": "DM Sans",
@@ -30,6 +35,9 @@ def _default_design_tokens():
         "color_text": "#2f3a36",
         "color_text_soft": "#5a6964",
     }
+    defaults.update(PRIORITY_ONE_TOKEN_DEFAULTS)
+    defaults["density_factor"] = density_factor_for_mode(defaults["density_mode"])
+    return defaults
 
 
 def _resolve_design_tokens():
@@ -54,7 +62,8 @@ def _resolve_design_tokens():
         runtime.design_font_body,
         defaults["font_body"],
     )
-    return {
+    priority_tokens = normalize_priority_one_tokens(getattr(runtime, "design_tokens", {}))
+    resolved = {
         "font_h1": font_h1,
         "font_h2": font_h2,
         "font_h3": font_h3,
@@ -68,6 +77,9 @@ def _resolve_design_tokens():
         "color_text": runtime.design_color_text or defaults["color_text"],
         "color_text_soft": runtime.design_color_text_soft or defaults["color_text_soft"],
     }
+    resolved.update(priority_tokens)
+    resolved["density_factor"] = density_factor_for_mode(resolved["density_mode"])
+    return resolved
 
 
 def _resolve_scan_bootstrap_enabled():

@@ -3,6 +3,8 @@ from django.db import models
 from django.db.models import F
 from django.utils import timezone
 
+from ..design_tokens import PRIORITY_ONE_TOKEN_DEFAULTS
+
 
 class WmsChange(models.Model):
     version = models.PositiveBigIntegerField(default=1)
@@ -148,6 +150,7 @@ class WmsRuntimeSettings(models.Model):
     design_color_border = models.CharField(max_length=16, default="#d9e2dc")
     design_color_text = models.CharField(max_length=16, default="#2f3a36")
     design_color_text_soft = models.CharField(max_length=16, default="#5a6964")
+    design_tokens = models.JSONField(default=dict, blank=True)
     updated_by = models.ForeignKey(
         django_settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -209,6 +212,7 @@ class WmsRuntimeSettings(models.Model):
             "design_color_border": "#d9e2dc",
             "design_color_text": "#2f3a36",
             "design_color_text_soft": "#5a6964",
+            "design_tokens": dict(PRIORITY_ONE_TOKEN_DEFAULTS),
         }
 
     @classmethod

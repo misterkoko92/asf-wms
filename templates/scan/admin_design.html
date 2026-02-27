@@ -135,8 +135,9 @@
 
     .scan-design-preview .preview-surface {
       border: 1px solid var(--preview-border, #d9e2dc);
-      border-radius: 0.78rem;
+      border-radius: var(--preview-card-radius, 0.78rem);
       background: var(--preview-surface, #fffdf9);
+      box-shadow: var(--preview-card-shadow, none);
       padding: 0.78rem;
       margin-bottom: 0.7rem;
     }
@@ -175,13 +176,15 @@
 
     .scan-design-preview .preview-button {
       display: inline-block;
-      border: 0;
-      border-radius: 0.6rem;
+      border: 1px solid transparent;
+      border-radius: var(--preview-btn-radius, 0.6rem);
+      min-height: var(--preview-btn-height, 2.6rem);
       padding: 0.44rem 0.7rem;
       margin-right: 0.4rem;
       margin-bottom: 0.4rem;
       font-family: var(--preview-font-h2, "DM Sans", sans-serif);
       font-weight: 700;
+      box-shadow: var(--preview-btn-shadow, none);
       color: #fff;
       background: var(--preview-primary, #6f9a8d);
     }
@@ -191,14 +194,71 @@
       color: var(--preview-text, #2f3a36);
     }
 
+    .scan-design-preview .preview-button.success {
+      background: var(--preview-success-bg, #e8f4ee);
+      border-color: var(--preview-success-border, #b8d6c8);
+      color: var(--preview-success-text, #2d5e46);
+    }
+
+    .scan-design-preview .preview-button.warning {
+      background: var(--preview-warning-bg, #fbf2e7);
+      border-color: var(--preview-warning-border, #e5d0a6);
+      color: var(--preview-warning-text, #715829);
+    }
+
+    .scan-design-preview .preview-button.danger {
+      background: var(--preview-danger-bg, #faece7);
+      border-color: var(--preview-danger-border, #dfb0b0);
+      color: var(--preview-danger-text, #7b3030);
+    }
+
+    .scan-design-preview .preview-nav-item {
+      display: inline-block;
+      margin-right: 0.35rem;
+      margin-bottom: 0.35rem;
+      border: 1px solid var(--preview-border, #d9e2dc);
+      border-radius: 0.55rem;
+      padding: 0.34rem 0.54rem;
+      color: var(--preview-text, #2f3a36);
+      background: var(--preview-surface, #fffdf9);
+      font-weight: 700;
+      font-size: 0.86rem;
+    }
+
+    .scan-design-preview .preview-nav-item.active {
+      background: var(--preview-nav-active-bg, #ddebe6);
+      color: var(--preview-nav-active-text, #2f3a36);
+      border-color: var(--preview-primary, #6f9a8d);
+    }
+
+    .scan-design-priority-grid {
+      display: grid;
+      gap: 0.85rem;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      align-items: start;
+    }
+
+    .scan-design-priority-grid .scan-field {
+      margin-bottom: 0;
+      min-width: 0;
+    }
+
     @media (max-width: 1100px) {
       .scan-design-font-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .scan-design-priority-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
 
     @media (max-width: 768px) {
       .scan-design-font-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .scan-design-priority-grid {
         grid-template-columns: minmax(0, 1fr);
       }
     }
@@ -343,6 +403,20 @@
       </div>
       </div>
 
+      <div class="scan-divider"></div>
+
+      <h3 class="scan-design-section-title">Variables prio 1 (lot 44)</h3>
+      <div class="scan-design-priority-grid">
+        {% for field in priority_form_fields %}
+          <div class="scan-field">
+            {{ field.label_tag }}
+            {{ field }}
+            {% if field.errors %}<div class="scan-help">{{ field.errors|join:", " }}</div>{% endif %}
+            <div class="scan-help">{{ field.help_text }}</div>
+          </div>
+        {% endfor %}
+      </div>
+
       {% if form.non_field_errors %}
         <div class="scan-message error">{{ form.non_field_errors|join:", " }}</div>
       {% endif %}
@@ -370,8 +444,28 @@
         --preview-font-h2: {{ preview_values.design_font_h2 }};
         --preview-font-h3: {{ preview_values.design_font_h3 }};
         --preview-font-body: {{ preview_values.design_font_body }};
+        --preview-btn-radius: {{ preview_values.design_btn_radius }}px;
+        --preview-btn-height: {{ preview_values.design_btn_height_md }}px;
+        --preview-btn-shadow: {{ preview_values.design_btn_shadow }};
+        --preview-card-radius: {{ preview_values.design_card_radius }}px;
+        --preview-card-shadow: {{ preview_values.design_card_shadow }};
+        --preview-nav-active-bg: {{ preview_values.design_nav_item_active_bg }};
+        --preview-nav-active-text: {{ preview_values.design_nav_item_active_text }};
+        --preview-success-bg: {{ preview_values.design_color_btn_success_bg }};
+        --preview-success-text: {{ preview_values.design_color_btn_success_text }};
+        --preview-success-border: {{ preview_values.design_color_btn_success_border }};
+        --preview-warning-bg: {{ preview_values.design_color_btn_warning_bg }};
+        --preview-warning-text: {{ preview_values.design_color_btn_warning_text }};
+        --preview-warning-border: {{ preview_values.design_color_btn_warning_border }};
+        --preview-danger-bg: {{ preview_values.design_color_btn_danger_bg }};
+        --preview-danger-text: {{ preview_values.design_color_btn_danger_text }};
+        --preview-danger-border: {{ preview_values.design_color_btn_danger_border }};
       "
     >
+      <div class="preview-surface">
+        <span class="preview-nav-item active">Nav actif</span>
+        <span class="preview-nav-item">Nav standard</span>
+      </div>
       <div class="preview-surface">
         <h4>Dashboard</h4>
         <p>Exemple de rendu des cartes, textes et actions.</p>
@@ -382,6 +476,9 @@
       <div>
         <span class="preview-button">Action principale</span>
         <span class="preview-button secondary">Action secondaire</span>
+        <span class="preview-button success">Succès</span>
+        <span class="preview-button warning">Alerte</span>
+        <span class="preview-button danger">Danger</span>
       </div>
     </div>
   </div>

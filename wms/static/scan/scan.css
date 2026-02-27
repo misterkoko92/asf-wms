@@ -451,7 +451,7 @@ h3 {
 }
 
 .shipment-line {
-  border: 1px dashed var(--border-strong);
+  border: 1px solid var(--border-strong);
   border-radius: 12px;
   padding: 12px;
   background: var(--panel);
@@ -503,7 +503,7 @@ h3 {
 }
 
 .pack-line {
-  border: 1px dashed var(--border-strong);
+  border: 1px solid var(--border-strong);
   border-radius: 12px;
   padding: 12px;
   background: var(--panel);
@@ -563,7 +563,7 @@ h3 {
 }
 
 .scan-divider {
-  border-top: 1px dashed var(--border);
+  border-top: 1px solid var(--border);
   margin: 16px 0;
 }
 
@@ -573,7 +573,7 @@ h3 {
 }
 
 .scan-meta-item {
-  border: 1px dashed var(--border);
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 8px 10px;
   background: var(--panel);

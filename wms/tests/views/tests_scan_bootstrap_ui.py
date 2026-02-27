@@ -312,10 +312,20 @@ class ScanBootstrapUiTests(TestCase):
             'class="scan-nav scan-nav-bootstrap navbar navbar-expand-xl ui-comp-panel"',
         )
         self.assertContains(stock_response, 'data-bs-toggle="dropdown"')
+        self.assertContains(stock_response, "scan-nav-account")
+        self.assertContains(stock_response, "dropdown-header")
         self.assertNotContains(stock_response, "Essayer interface Next")
         self.assertNotContains(stock_response, 'id="ui-toggle"')
         self.assertNotContains(stock_response, 'id="theme-toggle"')
         self.assertNotContains(stock_response, 'id="ui-reset-default"')
+        content = stock_response.content.decode()
+        header_start = content.index('<header class="scan-header ui-comp-panel">')
+        header_end = content.index("</header>", header_start)
+        nav_index = content.index(
+            'class="scan-nav scan-nav-bootstrap navbar navbar-expand-xl ui-comp-panel"'
+        )
+        self.assertGreater(nav_index, header_start)
+        self.assertLess(nav_index, header_end)
 
         ui_lab_response = self.client.get(reverse("scan:scan_ui_lab"))
         self.assertEqual(ui_lab_response.status_code, 200)

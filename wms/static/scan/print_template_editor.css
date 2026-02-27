@@ -74,7 +74,7 @@
 
 .template-panel-section {
   padding-bottom: 12px;
-  border-bottom: 1px dashed var(--border-strong);
+  border-bottom: 1px solid var(--border-strong);
 }
 
 .template-panel-section:last-child {

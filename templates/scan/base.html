@@ -32,77 +32,77 @@
   {% block extra_head %}{% endblock %}
   <title>{% block title %}WMS Scan{% endblock %}</title>
 </head>
-<body{% if scan_bootstrap_enabled %} class="scan-bootstrap-enabled"{% endif %}>
+<body{% if scan_bootstrap_enabled %} class="scan-bootstrap-enabled"{% endif %} data-density-mode="{{ wms_design_tokens.density_mode|default:'standard' }}" data-btn-style-mode="{{ wms_design_tokens.btn_style_mode|default:'flat' }}">
   <div class="scan-shell{% if shell_class %} {{ shell_class }}{% endif %}">
     <header class="scan-header ui-comp-panel">
-      <div>
-        <h1 class="scan-title ui-comp-title">ASF WMS</h1>
-      </div>
-      <div class="scan-header-actions ui-comp-actions">
-        {% if not scan_bootstrap_enabled %}
-          <div class="scan-ui-mode-switch">
-            {% if wms_ui_mode_is_next %}
-              <a
-                href="{% url 'ui_mode_set_mode' 'legacy' %}?next={{ request.get_full_path|urlencode }}"
-                class="scan-ui-reset"
-                title="Revenir immédiatement sur l'interface actuelle"
-              >
-                Retour interface actuelle
-              </a>
-            {% else %}
-              <a
-                href="{% url 'ui_mode_set_mode' 'next' %}?next=/app/scan/dashboard/"
-                class="scan-ui-reset"
-                title="Basculer vers le nouveau frontend Next"
-              >
-                Essayer interface Next
-              </a>
-            {% endif %}
-          </div>
-          <div class="scan-ui-toggle">
-            <span class="scan-theme-label">Interface</span>
-            <button type="button" id="ui-toggle" class="scan-ui-button" aria-pressed="false">
-              Classique
-            </button>
-          </div>
-          <div class="scan-theme-toggle">
-            <span class="scan-theme-label">Thème</span>
-            <button type="button" id="theme-toggle" class="scan-theme-button" aria-pressed="false">
-              Classique
-            </button>
-          </div>
-          <button
-            type="button"
-            id="ui-reset-default"
-            class="scan-ui-reset"
-            title="Revenir à l'interface Benev et au thème Classique"
-          >
-            Benev + Classique
-          </button>
-        {% endif %}
-        <details class="scan-account">
-          <summary class="scan-account-toggle">
-            <span class="scan-account-label">Compte</span>
-            <span class="scan-account-value" title="{{ request.user.email|default:request.user.username }}">
-              {% if request.user.email %}{{ request.user.email }}{% else %}{{ request.user.username }}{% endif %}
-            </span>
-          </summary>
-          <div class="scan-account-menu">
-            <div class="scan-account-meta">
-              <span>Email: {{ request.user.email|default:"-" }}</span>
-              <span>Username: {{ request.user.username }}</span>
+      <div class="scan-header-top">
+        <div>
+          <h1 class="scan-title ui-comp-title">ASF WMS</h1>
+        </div>
+        <div class="scan-header-actions ui-comp-actions">
+          {% if not scan_bootstrap_enabled %}
+            <div class="scan-ui-mode-switch">
+              {% if wms_ui_mode_is_next %}
+                <a
+                  href="{% url 'ui_mode_set_mode' 'legacy' %}?next={{ request.get_full_path|urlencode }}"
+                  class="scan-ui-reset"
+                  title="Revenir immédiatement sur l'interface actuelle"
+                >
+                  Retour interface actuelle
+                </a>
+              {% else %}
+                <a
+                  href="{% url 'ui_mode_set_mode' 'next' %}?next=/app/scan/dashboard/"
+                  class="scan-ui-reset"
+                  title="Basculer vers le nouveau frontend Next"
+                >
+                  Essayer interface Next
+                </a>
+              {% endif %}
             </div>
-            {% if request.user.is_staff %}
-              <a class="scan-account-link" href="/admin/">Admin</a>
-            {% endif %}
-            <a class="scan-account-link" href="/admin/logout/?next=/admin/login/?next=/scan/">Changer de compte</a>
-            <a class="scan-account-link" href="/admin/logout/?next=/">Déconnexion</a>
-          </div>
-        </details>
+            <div class="scan-ui-toggle">
+              <span class="scan-theme-label">Interface</span>
+              <button type="button" id="ui-toggle" class="scan-ui-button" aria-pressed="false">
+                Classique
+              </button>
+            </div>
+            <div class="scan-theme-toggle">
+              <span class="scan-theme-label">Thème</span>
+              <button type="button" id="theme-toggle" class="scan-theme-button" aria-pressed="false">
+                Classique
+              </button>
+            </div>
+            <button
+              type="button"
+              id="ui-reset-default"
+              class="scan-ui-reset"
+              title="Revenir à l'interface Benev et au thème Classique"
+            >
+              Benev + Classique
+            </button>
+            <details class="scan-account">
+              <summary class="scan-account-toggle">
+                <span class="scan-account-label">Compte</span>
+                <span class="scan-account-value" title="{{ request.user.email|default:request.user.username }}">
+                  {% if request.user.email %}{{ request.user.email }}{% else %}{{ request.user.username }}{% endif %}
+                </span>
+              </summary>
+              <div class="scan-account-menu">
+                <div class="scan-account-meta">
+                  <span>Email: {{ request.user.email|default:"-" }}</span>
+                  <span>Username: {{ request.user.username }}</span>
+                </div>
+                {% if request.user.is_staff %}
+                  <a class="scan-account-link" href="/admin/">Admin</a>
+                {% endif %}
+                <a class="scan-account-link" href="/admin/logout/?next=/admin/login/?next=/scan/">Changer de compte</a>
+                <a class="scan-account-link" href="/admin/logout/?next=/">Déconnexion</a>
+              </div>
+            </details>
+          {% endif %}
+        </div>
       </div>
-    </header>
 
-    <div class="scan-body">
       {% if scan_bootstrap_enabled %}
         <nav class="scan-nav scan-nav-bootstrap navbar navbar-expand-xl ui-comp-panel" aria-label="Navigation Scan">
           <div class="container-fluid px-0">
@@ -178,11 +178,30 @@
                     </ul>
                   </li>
                 {% endif %}
+                <li class="nav-item dropdown scan-nav-account{% if not request.user.is_superuser %} ms-xl-auto{% endif %}">
+                  <button class="nav-link dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    Compte
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end">
+                    <li><h6 class="dropdown-header">{{ request.user.email|default:request.user.username }}</h6></li>
+                    <li><span class="dropdown-item-text">Username: {{ request.user.username }}</span></li>
+                    {% if request.user.is_staff %}
+                      <li><a class="dropdown-item" href="/admin/">Admin Django</a></li>
+                    {% endif %}
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="/admin/logout/?next=/admin/login/?next=/scan/">Changer de compte</a></li>
+                    <li><a class="dropdown-item" href="/admin/logout/?next=/">Déconnexion</a></li>
+                  </ul>
+                </li>
               </ul>
             </div>
           </div>
         </nav>
-      {% else %}
+      {% endif %}
+    </header>
+
+    <div class="scan-body">
+      {% if not scan_bootstrap_enabled %}
         <nav class="scan-nav ui-comp-panel">
           <div class="scan-nav-group">
             <button type="button" class="scan-nav-trigger">Tableau de bord</button>
