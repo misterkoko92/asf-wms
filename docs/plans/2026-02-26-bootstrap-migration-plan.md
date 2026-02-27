@@ -38,6 +38,7 @@
 - Suivi lot design composants sandbox complémentaire: `docs/plans/2026-02-27-design-components-lot9.md`.
 - Suivi lot design composants pages métier complémentaire: `docs/plans/2026-02-27-design-components-business-lot10.md`.
 - Suivi lot design composants kits complémentaire: `docs/plans/2026-02-27-design-components-kits-lot11.md`.
+- Suivi lot design composants pages états complémentaire: `docs/plans/2026-02-27-design-components-state-lot12.md`.
 
 ---
 

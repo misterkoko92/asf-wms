@@ -3,8 +3,11 @@
 {% block title %}WMS Scan - Vue Colis{% endblock %}
 
 {% block content %}
-  <div class="scan-card card border-0">
-    <h2 class="h4 mb-3">Vue Colis ({{ cartons|length }})</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="h4 mb-3 ui-comp-title d-flex align-items-center gap-2 flex-wrap">
+      <span>Vue Colis</span>
+      <span class="badge text-bg-light ui-comp-count-badge">{{ cartons|length }}</span>
+    </h2>
     {% if cartons %}
       <div class="scan-table-wrap table-responsive">
         <table class="scan-table table table-sm table-hover" data-table-tools="1">
@@ -85,7 +88,7 @@
                         <div>{{ item.label }} ({{ item.quantity }})</div>
                       {% endfor %}
                     </div>
-                    <div class="scan-field scan-field-gap scan-inline-actions">
+                    <div class="scan-field scan-field-gap scan-inline-actions ui-comp-actions">
                       <a class="scan-scan-btn btn btn-outline-primary" href="{{ carton.packing_list_url }}" target="_blank" rel="noopener">
                         Imprimer / télécharger
                       </a>
@@ -103,7 +106,7 @@
         </table>
       </div>
     {% else %}
-      <p class="scan-help">Aucun colis conditionné.</p>
+      <p class="scan-help ui-comp-note">Aucun colis conditionné.</p>
     {% endif %}
   </div>
 {% endblock %}

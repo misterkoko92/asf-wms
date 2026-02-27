@@ -3,12 +3,15 @@
 {% block title %}WMS Scan - Vue r&eacute;ception{% endblock %}
 
 {% block content %}
-  <div class="scan-card card border-0">
-    <h2 class="h4 mb-3">Vue r&eacute;ception ({{ receipts|length }})</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="h4 mb-3 ui-comp-title d-flex align-items-center gap-2 flex-wrap">
+      <span>Vue r&eacute;ception</span>
+      <span class="badge text-bg-light ui-comp-count-badge">{{ receipts|length }}</span>
+    </h2>
 
-    <div class="scan-field">
+    <div class="scan-field ui-comp-panel">
       <label class="form-label" for="receipt-filter">Filtre</label>
-      <form method="get" id="receipt-filter-form" class="d-flex flex-wrap gap-2 align-items-center">
+      <form method="get" id="receipt-filter-form" class="d-flex flex-wrap gap-2 align-items-center ui-comp-form">
         <select id="receipt-filter" name="type" class="form-select" onchange="this.form.submit()">
           <option value="all" {% if filter_value == 'all' %}selected{% endif %}>Tout</option>
           <option value="association" {% if filter_value == 'association' %}selected{% endif %}>Association</option>
@@ -43,7 +46,7 @@
         </table>
       </div>
     {% else %}
-      <p class="scan-help">Aucune r&eacute;ception.</p>
+      <p class="scan-help ui-comp-note">Aucune r&eacute;ception.</p>
     {% endif %}
   </div>
 {% endblock %}
