@@ -3,9 +3,9 @@
 {% block title %}WMS Scan - R&eacute;ception{% endblock %}
 
 {% block content %}
-  <div class="scan-card card border-0">
-    <h2>R&eacute;ception don/palette</h2>
-    <form method="post" novalidate>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">R&eacute;ception don/palette</h2>
+    <form method="post" novalidate class="ui-comp-form">
       {% csrf_token %}
       <input type="hidden" name="action" value="select_receipt">
       <div class="scan-field">
@@ -25,7 +25,7 @@
 
     <div class="scan-divider"></div>
 
-    <form method="post" novalidate>
+    <form method="post" novalidate class="ui-comp-form">
       {% csrf_token %}
       <input type="hidden" name="action" value="create_receipt">
       <div class="scan-field">
@@ -98,8 +98,8 @@
   </div>
 
   {% if selected_receipt %}
-    <div class="scan-card card border-0">
-      <h2>R&eacute;ception active</h2>
+    <div class="scan-card card border-0 ui-comp-card">
+      <h2 class="ui-comp-title">R&eacute;ception active</h2>
       <div class="scan-meta-grid">
         <div class="scan-meta-item">
           <strong>R&eacute;f&eacute;rence</strong>
@@ -132,12 +132,12 @@
       </div>
     </div>
 
-    <div class="scan-card card border-0">
-      <h2>Ajouter une ligne</h2>
+    <div class="scan-card card border-0 ui-comp-card">
+      <h2 class="ui-comp-title">Ajouter une ligne</h2>
       {% if line_form.non_field_errors %}
         <div class="scan-message error">{{ line_form.non_field_errors }}</div>
       {% endif %}
-      <form method="post" novalidate>
+      <form method="post" novalidate class="ui-comp-form">
         {% csrf_token %}
         <input type="hidden" name="action" value="add_line">
         {{ line_form.receipt_id }}
@@ -216,8 +216,8 @@
       </datalist>
     </div>
 
-    <div class="scan-card card border-0">
-      <h2>Lignes de r&eacute;ception</h2>
+    <div class="scan-card card border-0 ui-comp-card">
+      <h2 class="ui-comp-title">Lignes de r&eacute;ception</h2>
       {% if receipt_lines %}
         <div class="scan-table-wrap table-responsive">
           <table class="scan-table table table-sm table-hover">
@@ -266,9 +266,9 @@
       {% endif %}
     </div>
   {% else %}
-    <div class="scan-card card border-0">
-      <h2>Aucune r&eacute;ception s&eacute;lectionn&eacute;e</h2>
-      <p class="scan-help">Cr&eacute;ez une r&eacute;ception ou s&eacute;lectionnez-en une pour ajouter des lignes.</p>
+    <div class="scan-card card border-0 ui-comp-card">
+      <h2 class="ui-comp-title">Aucune r&eacute;ception s&eacute;lectionn&eacute;e</h2>
+      <p class="scan-help ui-comp-note">Cr&eacute;ez une r&eacute;ception ou s&eacute;lectionnez-en une pour ajouter des lignes.</p>
     </div>
   {% endif %}
 {% endblock %}
