@@ -7,7 +7,7 @@
     <h2 class="h4 mb-3">Tableau de bord</h2>
     <form method="get" class="scan-filters row g-3">
       <div class="scan-field col-12 col-md-6">
-        <label class="form-label" for="id_period" class="form-label">Période KPI</label>
+        <label class="form-label" for="id_period">Période KPI</label>
         <select id="id_period" name="period" class="form-select">
           {% for value, label in period_choices %}
             <option value="{{ value }}"{% if period == value %} selected{% endif %}>{{ label }}</option>
@@ -15,7 +15,7 @@
         </select>
       </div>
       <div class="scan-field col-12 col-md-6">
-        <label class="form-label" for="id_destination" class="form-label">Destination</label>
+        <label class="form-label" for="id_destination">Destination</label>
         <select id="id_destination" name="destination" class="form-select">
           <option value="">Toutes les destinations</option>
           {% for destination in destinations %}

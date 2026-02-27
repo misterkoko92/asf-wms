@@ -105,6 +105,30 @@ python manage.py check --deploy --fail-level WARNING
 
 Then restart the app process (systemd, supervisor, platform-specific service).
 
+### 3.0) Scan Bootstrap progressive rollout (`SCAN_BOOTSTRAP_ENABLED`)
+
+Goal: keep production usable while activating Bootstrap progressively on `/scan/*`.
+
+1. Staging activation:
+   - set `SCAN_BOOTSTRAP_ENABLED=true` in staging env
+   - run `python manage.py collectstatic --noinput`
+   - restart app
+2. Staging smoke:
+   - `/scan/stock/`
+   - `/scan/shipment/create/`
+   - verify no JS regression on dynamic sections (`shipment-form`, `shipment-lines`)
+3. Production activation:
+   - set `SCAN_BOOTSTRAP_ENABLED=true` in prod env
+   - run `python manage.py collectstatic --noinput`
+   - restart app
+4. Immediate rollback:
+   - set `SCAN_BOOTSTRAP_ENABLED=false`
+   - restart app
+
+Notes:
+- Bootstrap assets are loaded from jsDelivr CDN only when the flag is enabled.
+- Local bridge stylesheet remains `wms/static/scan/scan-bootstrap.css`.
+
 ### 3.1) Next static export (PythonAnywhere low-disk flow)
 
 When `frontend-next` is hosted by Django under `/app/*`, deploy only `frontend-next/out`.

@@ -174,3 +174,17 @@ class ScanBootstrapUiTests(TestCase):
                 response = self.client.get(reverse(route_name))
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, "scan-card card border-0")
+
+    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
+    def test_scan_routes_still_render_shell_with_bootstrap_enabled(self):
+        for route_name in [
+            "scan:scan_dashboard",
+            "scan:scan_stock",
+            "scan:scan_shipment_create",
+            "scan:scan_shipments_tracking",
+        ]:
+            with self.subTest(route_name=route_name):
+                response = self.client.get(reverse(route_name))
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, 'class="scan-shell')
+                self.assertContains(response, 'class="scan-bootstrap-enabled"')

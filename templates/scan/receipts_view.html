@@ -7,7 +7,7 @@
     <h2 class="h4 mb-3">Vue r&eacute;ception ({{ receipts|length }})</h2>
 
     <div class="scan-field">
-      <label class="form-label" for="receipt-filter" class="form-label">Filtre</label>
+      <label class="form-label" for="receipt-filter">Filtre</label>
       <form method="get" id="receipt-filter-form" class="d-flex flex-wrap gap-2 align-items-center">
         <select id="receipt-filter" name="type" class="form-select" onchange="this.form.submit()">
           <option value="all" {% if filter_value == 'all' %}selected{% endif %}>Tout</option>

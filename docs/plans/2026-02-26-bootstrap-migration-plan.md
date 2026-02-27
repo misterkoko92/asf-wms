@@ -4,9 +4,30 @@
 
 **Goal:** Moderniser l'interface Scan avec Bootstrap 5 sans réécriture Next/React, en migrant d'abord `Vue stock` et `Préparation expédition` avec un rollout progressif et réversible.
 
-**Architecture:** Adopter Bootstrap en mode incrémental sur le frontend Django actuel: assets Bootstrap versionnés en `static`, activation via feature flag, conservation des hooks existants (`id`, `data-*`, classes `scan-*`) pour préserver `scan.js` et les workflows métier. Les templates pilotes sont migrés vers des composants Bootstrap (`card`, `form`, `table-responsive`, `btn`) pendant que la logique Python reste inchangée.
+**Architecture:** Adopter Bootstrap en mode incrémental sur le frontend Django actuel, activation via feature flag, conservation des hooks existants (`id`, `data-*`, classes `scan-*`) pour préserver `scan.js` et les workflows métier. Les templates pilotes sont migrés vers des composants Bootstrap (`card`, `form`, `table-responsive`, `btn`) pendant que la logique Python reste inchangée.
 
 **Tech Stack:** Django templates, Django staticfiles, Bootstrap 5.3 (CSS/JS bundle), `wms/static/scan/scan.css`, `wms/static/scan/scan.js`, Django TestCase.
+
+---
+
+## Execution tracking (2026-02-27)
+
+- Status global: `IN_PROGRESS` (phase scan avancée, rollout doc prêt, lot suivant = migration hors scan).
+- Branch: `codex/bootstrap-migration-scan`.
+- Commits réalisés:
+  - `990b706` `feat(scan): bootstrap migration checkpoint`
+  - `e57da00` `style(scan): polish bootstrap visual language`
+- Adaptation validée vs plan initial:
+  - Task 2 exécutée en mode CDN conditionnel (`bootstrap@5.3.3` via jsDelivr) au lieu d’assets locaux versionnés.
+  - Raison: simplifier le rollout/rollback et éviter l’embarquement binaire Bootstrap dans le repo.
+- Avancement des tâches:
+  - [x] Task 1
+  - [x] Task 2 (variante CDN)
+  - [x] Task 3
+  - [x] Task 4
+  - [x] Task 5
+  - [x] Task 6
+  - [x] Task 7
 
 ---
 
@@ -381,7 +402,7 @@ git commit -m "test(ui): add scan bootstrap regression smoke checks"
 Vérifier que la variable de rollout n'est pas documentée:
 
 ```bash
-rg -n "SCAN_BOOTSTRAP_ENABLED|bootstrap.min.css|scan-bootstrap.css" README.md docs/operations.md
+rg -n "SCAN_BOOTSTRAP_ENABLED|bootstrap@5.3.3|scan-bootstrap.css" README.md docs/operations.md
 ```
 
 Expected: pas de section dédiée.
@@ -404,7 +425,7 @@ Ajouter:
 
 Run:
 ```bash
-rg -n "SCAN_BOOTSTRAP_ENABLED|bootstrap.min.css|scan-bootstrap.css" README.md docs/operations.md
+rg -n "SCAN_BOOTSTRAP_ENABLED|bootstrap@5.3.3|scan-bootstrap.css" README.md docs/operations.md
 ```
 
 Expected: références trouvées.

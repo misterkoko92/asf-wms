@@ -8,7 +8,7 @@
 
     <form method="get" class="scan-filters row g-3">
       <div class="scan-field col-12 col-md-6">
-        <label class="form-label" for="id_planned_week" class="form-label">Semaine planifi&eacute;e</label>
+        <label class="form-label" for="id_planned_week">Semaine planifi&eacute;e</label>
         <input
           type="week"
           id="id_planned_week"
@@ -19,7 +19,7 @@
         <small class="scan-help">Filtre par date de statut "Planifi&eacute;".</small>
       </div>
       <div class="scan-field col-12 col-md-6">
-        <label class="form-label" for="id_closed" class="form-label">Dossiers clos</label>
+        <label class="form-label" for="id_closed">Dossiers clos</label>
         <select id="id_closed" name="closed" class="form-select">
           <option value="exclude" {% if closed_filter == "exclude" %}selected{% endif %}>Exclure clos</option>
           <option value="all" {% if closed_filter == "all" %}selected{% endif %}>Inclure clos</option>

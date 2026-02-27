@@ -7,12 +7,12 @@
     <h2 class="h4 mb-3">Vue stock</h2>
     <form method="get" class="scan-filters row g-3">
       <div class="scan-field col-12 col-md-6 col-xl-3">
-        <label class="form-label" for="id_q" class="form-label">Recherche</label>
+        <label class="form-label" for="id_q">Recherche</label>
         <input type="text" class="form-control" id="id_q" name="q" value="{{ query }}" placeholder="Nom, r&eacute;f&eacute;rence, code-barres">
       </div>
 
       <div class="scan-field col-12 col-md-6 col-xl-3">
-        <label class="form-label" for="id_category" class="form-label">Cat&eacute;gorie</label>
+        <label class="form-label" for="id_category">Cat&eacute;gorie</label>
         <div class="scan-inline">
           <select id="id_category" name="category" class="form-select">
             <option value="">Toutes cat&eacute;gories</option>
@@ -27,7 +27,7 @@
       </div>
 
       <div class="scan-field col-12 col-md-6 col-xl-3">
-        <label class="form-label" for="id_warehouse" class="form-label">Entrep&ocirc;t</label>
+        <label class="form-label" for="id_warehouse">Entrep&ocirc;t</label>
         <div class="scan-inline">
           <select id="id_warehouse" name="warehouse" class="form-select">
             <option value="">Tous entrep&ocirc;ts</option>
@@ -42,7 +42,7 @@
       </div>
 
       <div class="scan-field col-12 col-md-6 col-xl-3">
-        <label class="form-label" for="id_sort" class="form-label">Tri</label>
+        <label class="form-label" for="id_sort">Tri</label>
         <select id="id_sort" name="sort" class="form-select">
           <option value="category" {% if sort == "category" %}selected{% endif %}>Cat&eacute;gorie</option>
           <option value="name" {% if sort == "name" %}selected{% endif %}>Nom</option>
