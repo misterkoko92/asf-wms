@@ -3,12 +3,12 @@
 {% block title %}WMS Scan - R&eacute;ception palette{% endblock %}
 
 {% block content %}
-  <div class="scan-card card border-0">
-    <h2>R&eacute;ception palette</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">R&eacute;ception palette</h2>
     {% if create_form.non_field_errors %}
       <div class="scan-message error">{{ create_form.non_field_errors }}</div>
     {% endif %}
-    <form method="post" novalidate class="scan-filters">
+    <form method="post" novalidate class="scan-filters ui-comp-form">
       {% csrf_token %}
       <input type="hidden" name="action" value="pallet_create">
 
@@ -69,8 +69,8 @@
     <p class="scan-help">La r&eacute;f&eacute;rence est g&eacute;n&eacute;r&eacute;e automatiquement (format YY-XX-WWW-ZZ).</p>
   </div>
 
-  <div class="scan-card card border-0">
-    <h2>Upload listing</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Upload listing</h2>
     <p class="scan-help">
       Import CSV/XLS/XLSX ou PDF texte. Le mapping des colonnes est propos&eacute; ensuite.
       Conseil: privil&eacute;gier le format .xlsx (meilleure gestion des accents).
@@ -84,7 +84,7 @@
     {% if listing_form.non_field_errors %}
       <div class="scan-message error">{{ listing_form.non_field_errors }}</div>
     {% endif %}
-    <form method="post" enctype="multipart/form-data" class="scan-filters" novalidate style="grid-template-columns: 1fr;">
+    <form method="post" enctype="multipart/form-data" class="scan-filters ui-comp-form" novalidate style="grid-template-columns: 1fr;">
       {% csrf_token %}
       <input type="hidden" name="action" value="listing_upload">
 
@@ -267,8 +267,8 @@
   </div>
 
   {% if listing_stage == "mapping" %}
-    <div class="scan-card card border-0">
-      <h2>Mapping colonnes</h2>
+    <div class="scan-card card border-0 ui-comp-card">
+      <h2 class="ui-comp-title">Mapping colonnes</h2>
       <p class="scan-help">
         Assignez les colonnes du fichier aux champs WMS. Champs requis: nom + quantit&eacute;.
       </p>
@@ -326,7 +326,7 @@
           {% endif %}
         </div>
       {% endif %}
-      <form method="post" class="scan-filters" style="grid-template-columns: 1fr;">
+      <form method="post" class="scan-filters ui-comp-form" style="grid-template-columns: 1fr;">
         {% csrf_token %}
         <input type="hidden" name="action" value="listing_map">
         <input type="hidden" name="pending_token" value="{{ listing_token }}">
@@ -361,7 +361,7 @@
           <button type="submit" class="scan-submit btn btn-primary">Valider mapping</button>
         </div>
       </form>
-      <form method="post" class="scan-filters">
+      <form method="post" class="scan-filters ui-comp-form">
         {% csrf_token %}
         <input type="hidden" name="action" value="listing_cancel">
         <button type="submit" class="scan-submit secondary btn btn-secondary">Annuler import</button>
@@ -370,8 +370,8 @@
   {% endif %}
 
   {% if listing_stage == "review" %}
-    <div class="scan-card card border-0">
-      <h2>R&eacute;cap import listing</h2>
+    <div class="scan-card card border-0 ui-comp-card">
+      <h2 class="ui-comp-title">R&eacute;cap import listing</h2>
       <p class="scan-help">
         V&eacute;rifiez les correspondances. Si un produit existe, seules quantit&eacute; et emplacement seront mis &agrave; jour.
       </p>
@@ -429,7 +429,7 @@
           {% endif %}
         </div>
       {% endif %}
-      <form method="post" class="scan-filters">
+      <form method="post" class="scan-filters ui-comp-form">
         {% csrf_token %}
         <input type="hidden" name="action" value="listing_confirm">
         <input type="hidden" name="pending_token" value="{{ listing_token }}">
@@ -561,7 +561,7 @@
           <button type="submit" class="scan-submit btn btn-primary">Valider tous les imports coches</button>
         </div>
       </form>
-      <form method="post" class="scan-filters">
+      <form method="post" class="scan-filters ui-comp-form">
         {% csrf_token %}
         <input type="hidden" name="action" value="listing_cancel">
         <button type="submit" class="scan-submit secondary btn btn-secondary">Annuler import</button>

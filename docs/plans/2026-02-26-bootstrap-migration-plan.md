@@ -44,6 +44,7 @@
 - Suivi lot design composants page commande complémentaire: `docs/plans/2026-02-27-design-components-order-lot15.md`.
 - Suivi lot design composants pages préparation complémentaire: `docs/plans/2026-02-27-design-components-preparation-lot16.md`.
 - Suivi lot design composants page réception complémentaire: `docs/plans/2026-02-27-design-components-receive-lot17.md`.
+- Suivi lot design composants page réception palette complémentaire: `docs/plans/2026-02-27-design-components-receive-pallet-lot18.md`.
 
 ---
 
