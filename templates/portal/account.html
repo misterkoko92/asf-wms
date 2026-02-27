@@ -70,12 +70,12 @@
   </style>
 
   <div class="portal-tight">
-    <div class="scan-card portal-card">
+    <div class="scan-card portal-card card border-0">
       <h2 class="portal-section-title">Compte association</h2>
       <p class="scan-help">Vous pouvez modifier toutes les informations de ce compte.</p>
     </div>
 
-    <div class="scan-card portal-card">
+    <div class="scan-card portal-card card border-0">
       {% if account_form_errors %}
         <div class="scan-message error">
           {% for error in account_form_errors %}
@@ -92,8 +92,9 @@
         <h3 class="portal-section-title">Informations principales</h3>
         <div class="portal-grid-2">
           <div class="scan-field">
-            <label for="id_association_name">Association</label>
+            <label class="form-label" for="id_association_name">Association</label>
             <input
+              class="form-control"
               type="text"
               id="id_association_name"
               name="association_name"
@@ -102,8 +103,9 @@
             >
           </div>
           <div class="scan-field">
-            <label for="id_association_email">Email</label>
+            <label class="form-label" for="id_association_email">Email</label>
             <input
+              class="form-control"
               type="email"
               id="id_association_email"
               name="association_email"
@@ -111,8 +113,9 @@
             >
           </div>
           <div class="scan-field">
-            <label for="id_association_phone">Téléphone</label>
+            <label class="form-label" for="id_association_phone">Téléphone</label>
             <input
+              class="form-control"
               type="text"
               id="id_association_phone"
               name="association_phone"
@@ -124,8 +127,9 @@
         <h3 class="portal-section-title">Adresse</h3>
         <div class="portal-grid-2">
           <div class="scan-field">
-            <label for="id_address_line1">Adresse</label>
+            <label class="form-label" for="id_address_line1">Adresse</label>
             <input
+              class="form-control"
               type="text"
               id="id_address_line1"
               name="address_line1"
@@ -134,8 +138,9 @@
             >
           </div>
           <div class="scan-field">
-            <label for="id_address_line2">Complément</label>
+            <label class="form-label" for="id_address_line2">Complément</label>
             <input
+              class="form-control"
               type="text"
               id="id_address_line2"
               name="address_line2"
@@ -145,8 +150,9 @@
         </div>
         <div class="portal-grid-3">
           <div class="scan-field">
-            <label for="id_postal_code">Code postal</label>
+            <label class="form-label" for="id_postal_code">Code postal</label>
             <input
+              class="form-control"
               type="text"
               id="id_postal_code"
               name="postal_code"
@@ -154,8 +160,9 @@
             >
           </div>
           <div class="scan-field">
-            <label for="id_city">Ville</label>
+            <label class="form-label" for="id_city">Ville</label>
             <input
+              class="form-control"
               type="text"
               id="id_city"
               name="city"
@@ -163,8 +170,9 @@
             >
           </div>
           <div class="scan-field">
-            <label for="id_country">Pays</label>
+            <label class="form-label" for="id_country">Pays</label>
             <input
+              class="form-control"
               type="text"
               id="id_country"
               name="country"
@@ -189,7 +197,7 @@
           {% for row in portal_contact_rows %}
             <div class="portal-contact-row" data-contact-row="{{ row.index }}">
               <div class="scan-field">
-                <select name="contact_{{ row.index }}_title">
+                <select class="form-select" name="contact_{{ row.index }}_title">
                   <option value="">-</option>
                   {% for value, label in contact_title_choices %}
                     <option value="{{ value }}" {% if row.title == value %}selected{% endif %}>{{ label }}</option>
@@ -197,28 +205,28 @@
                 </select>
               </div>
               <div class="scan-field">
-                <input type="text" name="contact_{{ row.index }}_last_name" value="{{ row.last_name }}" placeholder="Nom">
+                <input class="form-control" type="text" name="contact_{{ row.index }}_last_name" value="{{ row.last_name }}" placeholder="Nom">
               </div>
               <div class="scan-field">
-                <input type="text" name="contact_{{ row.index }}_first_name" value="{{ row.first_name }}" placeholder="Prénom">
+                <input class="form-control" type="text" name="contact_{{ row.index }}_first_name" value="{{ row.first_name }}" placeholder="Prénom">
               </div>
               <div class="scan-field">
-                <input type="text" name="contact_{{ row.index }}_phone" value="{{ row.phone }}" placeholder="Téléphone">
+                <input class="form-control" type="text" name="contact_{{ row.index }}_phone" value="{{ row.phone }}" placeholder="Téléphone">
               </div>
               <div class="scan-field">
-                <input type="email" name="contact_{{ row.index }}_email" value="{{ row.email }}" placeholder="email@domaine.org">
+                <input class="form-control" type="email" name="contact_{{ row.index }}_email" value="{{ row.email }}" placeholder="email@domaine.org">
               </div>
               <div class="portal-contact-types">
                 <label>
-                  <input type="checkbox" name="contact_{{ row.index }}_is_administrative" value="1" {% if row.is_administrative %}checked{% endif %}>
+                  <input class="form-check-input" type="checkbox" name="contact_{{ row.index }}_is_administrative" value="1" {% if row.is_administrative %}checked{% endif %}>
                   Administratif
                 </label>
                 <label>
-                  <input type="checkbox" name="contact_{{ row.index }}_is_shipping" value="1" {% if row.is_shipping %}checked{% endif %}>
+                  <input class="form-check-input" type="checkbox" name="contact_{{ row.index }}_is_shipping" value="1" {% if row.is_shipping %}checked{% endif %}>
                   Expédition
                 </label>
                 <label>
-                  <input type="checkbox" name="contact_{{ row.index }}_is_billing" value="1" {% if row.is_billing %}checked{% endif %}>
+                  <input class="form-check-input" type="checkbox" name="contact_{{ row.index }}_is_billing" value="1" {% if row.is_billing %}checked{% endif %}>
                   Facturation
                 </label>
               </div>
@@ -226,44 +234,46 @@
           {% endfor %}
         </div>
 
-        <button type="button" class="scan-scan-btn" id="add-contact-row">
+        <button type="button" class="scan-scan-btn btn btn-outline-primary" id="add-contact-row">
           Ajouter un autre contact
         </button>
         <div class="scan-field" style="margin-top: 10px;">
-          <button type="submit" class="scan-submit">Enregistrer les modifications</button>
+          <button type="submit" class="scan-submit btn btn-primary">Enregistrer les modifications</button>
         </div>
       </form>
     </div>
 
-    <div class="scan-card portal-card">
+    <div class="scan-card portal-card card border-0">
       <h3 class="portal-section-title">Documents de vérification</h3>
       {% if account_documents %}
-        <table class="portal-table">
-          <thead>
-            <tr>
-              <th>Type</th>
-              <th>Statut</th>
-              <th>Ajouté le</th>
-              <th>Fichier</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for doc in account_documents %}
+        <div class="scan-table-wrap table-responsive">
+          <table class="portal-table scan-table table table-sm table-hover">
+            <thead>
               <tr>
-                <td>{{ doc.get_doc_type_display }}</td>
-                <td>{{ doc.get_status_display }}</td>
-                <td>{{ doc.uploaded_at|date:"d/m/Y" }}</td>
-                <td>
-                  {% if doc.file %}
-                    <a href="{{ doc.file.url }}" target="_blank">Télécharger</a>
-                  {% else %}
-                    -
-                  {% endif %}
-                </td>
+                <th>Type</th>
+                <th>Statut</th>
+                <th>Ajouté le</th>
+                <th>Fichier</th>
               </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {% for doc in account_documents %}
+                <tr>
+                  <td>{{ doc.get_doc_type_display }}</td>
+                  <td>{{ doc.get_status_display }}</td>
+                  <td>{{ doc.uploaded_at|date:"d/m/Y" }}</td>
+                  <td>
+                    {% if doc.file %}
+                      <a class="btn btn-outline-primary btn-sm" href="{{ doc.file.url }}" target="_blank">Télécharger</a>
+                    {% else %}
+                      -
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       {% else %}
         <p>Aucun document pour le moment.</p>
       {% endif %}
@@ -273,11 +283,11 @@
         <input type="hidden" name="action" value="upload_account_docs">
         {% for value, label in account_doc_types %}
           <div class="portal-doc-upload-row">
-            <label for="id_doc_{{ value }}">{{ label }}</label>
-            <input type="file" id="id_doc_{{ value }}" name="doc_file_{{ value }}">
+            <label class="form-label" for="id_doc_{{ value }}">{{ label }}</label>
+            <input class="form-control" type="file" id="id_doc_{{ value }}" name="doc_file_{{ value }}">
           </div>
         {% endfor %}
-        <button type="submit" class="scan-submit">Ajouter les documents</button>
+        <button type="submit" class="scan-submit btn btn-primary">Ajouter les documents</button>
       </form>
     </div>
   </div>
@@ -315,33 +325,33 @@
         row.setAttribute("data-contact-row", String(count));
         row.innerHTML = `
           <div class="scan-field">
-            <select name="contact_${count}_title">
+            <select class="form-select" name="contact_${count}_title">
               ${titleChoicesHtml}
             </select>
           </div>
           <div class="scan-field">
-            <input type="text" name="contact_${count}_last_name" placeholder="Nom">
+            <input class="form-control" type="text" name="contact_${count}_last_name" placeholder="Nom">
           </div>
           <div class="scan-field">
-            <input type="text" name="contact_${count}_first_name" placeholder="Prénom">
+            <input class="form-control" type="text" name="contact_${count}_first_name" placeholder="Prénom">
           </div>
           <div class="scan-field">
-            <input type="text" name="contact_${count}_phone" placeholder="Téléphone">
+            <input class="form-control" type="text" name="contact_${count}_phone" placeholder="Téléphone">
           </div>
           <div class="scan-field">
-            <input type="email" name="contact_${count}_email" placeholder="email@domaine.org">
+            <input class="form-control" type="email" name="contact_${count}_email" placeholder="email@domaine.org">
           </div>
           <div class="portal-contact-types">
             <label>
-              <input type="checkbox" name="contact_${count}_is_administrative" value="1">
+              <input class="form-check-input" type="checkbox" name="contact_${count}_is_administrative" value="1">
               Administratif
             </label>
             <label>
-              <input type="checkbox" name="contact_${count}_is_shipping" value="1">
+              <input class="form-check-input" type="checkbox" name="contact_${count}_is_shipping" value="1">
               Expédition
             </label>
             <label>
-              <input type="checkbox" name="contact_${count}_is_billing" value="1">
+              <input class="form-check-input" type="checkbox" name="contact_${count}_is_billing" value="1">
               Facturation
             </label>
           </div>

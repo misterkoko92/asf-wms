@@ -1,9 +1,17 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
+from django.contrib.auth.tokens import default_token_generator
 from django.urls import reverse
+from django.utils.http import urlsafe_base64_encode
 
 from contacts.models import Contact, ContactAddress, ContactType
-from wms.models import AssociationProfile, AssociationRecipient, Destination, Order
+from wms.models import (
+    AssociationProfile,
+    AssociationRecipient,
+    Destination,
+    Order,
+    OrderReviewStatus,
+)
 
 
 class PortalBootstrapUiTests(TestCase):
@@ -55,7 +63,7 @@ class PortalBootstrapUiTests(TestCase):
             is_delivery_contact=True,
             is_active=True,
         )
-        Order.objects.create(
+        self.order = Order.objects.create(
             association_contact=association_contact,
             shipper_name="ASF",
             recipient_name="Destinataire Bootstrap",
@@ -105,3 +113,56 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "form-control")
         self.assertContains(response, "table table-sm table-hover")
         self.assertContains(response, "btn btn-primary")
+
+    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
+    def test_portal_account_uses_bootstrap_forms_and_tables(self):
+        response = self.client.get(reverse("portal:portal_account"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="portal-account-form"')
+        self.assertContains(response, "form-control")
+        self.assertContains(response, "form-select")
+        self.assertContains(response, "btn btn-primary")
+
+    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
+    def test_portal_recipients_uses_bootstrap_forms_and_tables(self):
+        response = self.client.get(reverse("portal:portal_recipients"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "table table-sm table-hover")
+        self.assertContains(response, "form-control")
+        self.assertContains(response, "form-select")
+        self.assertContains(response, "btn btn-primary")
+
+    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
+    def test_portal_order_detail_uses_bootstrap_tables(self):
+        self.order.review_status = OrderReviewStatus.APPROVED
+        self.order.save(update_fields=["review_status"])
+        response = self.client.get(
+            reverse("portal:portal_order_detail", kwargs={"order_id": self.order.id})
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "scan-card portal-card card border-0")
+        self.assertContains(response, "table table-sm table-hover")
+        self.assertContains(response, "btn btn-primary")
+
+    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
+    def test_portal_auth_pages_include_bootstrap_assets(self):
+        self.client.logout()
+
+        login_response = self.client.get(reverse("portal:portal_login"))
+        self.assertEqual(login_response.status_code, 200)
+        self.assertContains(
+            login_response,
+            "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css",
+        )
+        self.assertContains(login_response, "portal-bootstrap-enabled")
+        self.assertContains(login_response, "form-control")
+
+        uidb64 = urlsafe_base64_encode(str(self.user.pk).encode())
+        set_password_url = reverse(
+            "portal:portal_set_password",
+            args=[uidb64, default_token_generator.make_token(self.user)],
+        )
+        set_password_response = self.client.get(set_password_url)
+        self.assertEqual(set_password_response.status_code, 200)
+        self.assertContains(set_password_response, "scan-bootstrap.css")
+        self.assertContains(set_password_response, "portal-bootstrap.css")

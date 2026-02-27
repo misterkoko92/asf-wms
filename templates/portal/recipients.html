@@ -49,7 +49,7 @@
     }
   </style>
 
-  <div class="scan-card portal-card">
+  <div class="scan-card portal-card card border-0">
     <h2>Destinataires</h2>
     <p class="scan-help">Liste privée des contacts de réception par escale.</p>
     {% if blocked_popup_message %}
@@ -57,55 +57,57 @@
     {% endif %}
   </div>
 
-  <div class="scan-card portal-card">
+  <div class="scan-card portal-card card border-0">
     {% if recipients %}
-      <table class="portal-table">
-        <thead>
-          <tr>
-            <th>Escale</th>
-            <th>Structure</th>
-            <th>Contact</th>
-            <th>Adresse</th>
-            <th>Coordonnées</th>
-            <th>Options</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for recipient in recipients %}
+      <div class="scan-table-wrap table-responsive">
+        <table class="portal-table scan-table table table-sm table-hover">
+          <thead>
             <tr>
-              <td>{{ recipient.destination|default:"-" }}</td>
-              <td>{{ recipient.structure_name|default:recipient.name|default:"-" }}</td>
-              <td>{{ recipient.get_contact_display_name|default:"-" }}</td>
-              <td>
-                {{ recipient.address_line1 }}
-                {% if recipient.address_line2 %}<br>{{ recipient.address_line2 }}{% endif %}
-                {% if recipient.postal_code or recipient.city %}<br>{{ recipient.postal_code }} {{ recipient.city }}{% endif %}
-                {% if recipient.country %}<br>{{ recipient.country }}{% endif %}
-              </td>
-              <td>
-                Tél: {{ recipient.phones|default:recipient.phone|default:"-" }}<br>
-                Mail: {{ recipient.emails|default:recipient.email|default:"-" }}
-              </td>
-              <td>
-                {% if recipient.notify_deliveries %}Alerte livraison{% else %}-{% endif %}
-                {% if recipient.is_delivery_contact %}
-                  <br>Contact réception escale
-                {% endif %}
-              </td>
-              <td class="portal-recipient-actions">
-                <a href="{% url 'portal:portal_recipients' %}?edit={{ recipient.id }}">Modifier</a>
-              </td>
+              <th>Escale</th>
+              <th>Structure</th>
+              <th>Contact</th>
+              <th>Adresse</th>
+              <th>Coordonnées</th>
+              <th>Options</th>
+              <th>Actions</th>
             </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {% for recipient in recipients %}
+              <tr>
+                <td>{{ recipient.destination|default:"-" }}</td>
+                <td>{{ recipient.structure_name|default:recipient.name|default:"-" }}</td>
+                <td>{{ recipient.get_contact_display_name|default:"-" }}</td>
+                <td>
+                  {{ recipient.address_line1 }}
+                  {% if recipient.address_line2 %}<br>{{ recipient.address_line2 }}{% endif %}
+                  {% if recipient.postal_code or recipient.city %}<br>{{ recipient.postal_code }} {{ recipient.city }}{% endif %}
+                  {% if recipient.country %}<br>{{ recipient.country }}{% endif %}
+                </td>
+                <td>
+                  Tél: {{ recipient.phones|default:recipient.phone|default:"-" }}<br>
+                  Mail: {{ recipient.emails|default:recipient.email|default:"-" }}
+                </td>
+                <td>
+                  {% if recipient.notify_deliveries %}Alerte livraison{% else %}-{% endif %}
+                  {% if recipient.is_delivery_contact %}
+                    <br>Contact réception escale
+                  {% endif %}
+                </td>
+                <td class="portal-recipient-actions">
+                  <a class="btn btn-outline-primary btn-sm" href="{% url 'portal:portal_recipients' %}?edit={{ recipient.id }}">Modifier</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     {% else %}
       <p>Aucun destinataire enregistré.</p>
     {% endif %}
   </div>
 
-  <div class="scan-card portal-card">
+  <div class="scan-card portal-card card border-0">
     <h3>{% if editing_recipient %}Modifier un destinataire{% else %}Ajouter un destinataire{% endif %}</h3>
     {% if errors %}
       <div class="scan-message error">
@@ -122,8 +124,8 @@
       {% endif %}
 
       <div class="scan-field">
-        <label for="destination_id">Escale de livraison</label>
-        <select id="destination_id" name="destination_id" required>
+        <label class="form-label" for="destination_id">Escale de livraison</label>
+        <select class="form-select" id="destination_id" name="destination_id" required>
           <option value="">---------</option>
           {% for destination in destinations %}
             <option value="{{ destination.id }}" {% if form_data.destination_id == destination.id|stringformat:"s" %}selected{% endif %}>
@@ -133,13 +135,13 @@
         </select>
       </div>
       <div class="scan-field">
-        <label for="structure_name">Nom de la structure</label>
-        <input type="text" id="structure_name" name="structure_name" value="{{ form_data.structure_name }}" required>
+        <label class="form-label" for="structure_name">Nom de la structure</label>
+        <input class="form-control" type="text" id="structure_name" name="structure_name" value="{{ form_data.structure_name }}" required>
       </div>
       <div class="portal-recipient-grid-3">
         <div class="scan-field">
-          <label for="contact_title">Titre du contact</label>
-          <select id="contact_title" name="contact_title">
+          <label class="form-label" for="contact_title">Titre du contact</label>
+          <select class="form-select" id="contact_title" name="contact_title">
             <option value="">---------</option>
             {% for value, label in contact_title_choices %}
               <option value="{{ value }}" {% if form_data.contact_title == value %}selected{% endif %}>{{ label }}</option>
@@ -147,64 +149,64 @@
           </select>
         </div>
         <div class="scan-field">
-          <label for="contact_last_name">Nom du contact</label>
-          <input type="text" id="contact_last_name" name="contact_last_name" value="{{ form_data.contact_last_name }}">
+          <label class="form-label" for="contact_last_name">Nom du contact</label>
+          <input class="form-control" type="text" id="contact_last_name" name="contact_last_name" value="{{ form_data.contact_last_name }}">
         </div>
         <div class="scan-field">
-          <label for="contact_first_name">Prénom du contact</label>
-          <input type="text" id="contact_first_name" name="contact_first_name" value="{{ form_data.contact_first_name }}">
+          <label class="form-label" for="contact_first_name">Prénom du contact</label>
+          <input class="form-control" type="text" id="contact_first_name" name="contact_first_name" value="{{ form_data.contact_first_name }}">
         </div>
       </div>
       <div class="scan-field">
-        <label for="phones">Téléphone(s) (séparer par ; ou , et utiliser l'indicatif international, ex: +33102030405)</label>
-        <input type="text" id="phones" name="phones" value="{{ form_data.phones }}">
+        <label class="form-label" for="phones">Téléphone(s) (séparer par ; ou , et utiliser l'indicatif international, ex: +33102030405)</label>
+        <input class="form-control" type="text" id="phones" name="phones" value="{{ form_data.phones }}">
       </div>
       <div class="scan-field">
-        <label for="emails">Email(s) (séparer par ; ou ,)</label>
-        <input type="text" id="emails" name="emails" value="{{ form_data.emails }}">
+        <label class="form-label" for="emails">Email(s) (séparer par ; ou ,)</label>
+        <input class="form-control" type="text" id="emails" name="emails" value="{{ form_data.emails }}">
       </div>
       <div class="scan-field">
-        <label for="address_line1">Adresse</label>
-        <input type="text" id="address_line1" name="address_line1" value="{{ form_data.address_line1 }}" required>
+        <label class="form-label" for="address_line1">Adresse</label>
+        <input class="form-control" type="text" id="address_line1" name="address_line1" value="{{ form_data.address_line1 }}" required>
       </div>
       <div class="scan-field">
-        <label for="address_line2">Compl&eacute;ment adresse</label>
-        <input type="text" id="address_line2" name="address_line2" value="{{ form_data.address_line2 }}">
+        <label class="form-label" for="address_line2">Compl&eacute;ment adresse</label>
+        <input class="form-control" type="text" id="address_line2" name="address_line2" value="{{ form_data.address_line2 }}">
       </div>
       <div class="portal-recipient-grid-3-equal">
         <div class="scan-field">
-          <label for="postal_code">Code postal</label>
-          <input type="text" id="postal_code" name="postal_code" value="{{ form_data.postal_code }}">
+          <label class="form-label" for="postal_code">Code postal</label>
+          <input class="form-control" type="text" id="postal_code" name="postal_code" value="{{ form_data.postal_code }}">
         </div>
         <div class="scan-field">
-          <label for="city">Ville</label>
-          <input type="text" id="city" name="city" value="{{ form_data.city }}">
+          <label class="form-label" for="city">Ville</label>
+          <input class="form-control" type="text" id="city" name="city" value="{{ form_data.city }}">
         </div>
         <div class="scan-field">
-          <label for="country">Pays</label>
-          <input type="text" id="country" name="country" value="{{ form_data.country|default:'France' }}">
+          <label class="form-label" for="country">Pays</label>
+          <input class="form-control" type="text" id="country" name="country" value="{{ form_data.country|default:'France' }}">
         </div>
       </div>
       <div class="scan-field">
-        <label for="notes">Notes / Autres informations</label>
-        <textarea id="notes" name="notes" rows="3">{{ form_data.notes }}</textarea>
+        <label class="form-label" for="notes">Notes / Autres informations</label>
+        <textarea class="form-control" id="notes" name="notes" rows="3">{{ form_data.notes }}</textarea>
       </div>
       <div class="scan-field">
-        <label>Options</label>
+        <label class="form-label">Options</label>
         <div class="portal-recipient-flags">
           <label>
-            <input type="checkbox" name="notify_deliveries" value="1" {% if form_data.notify_deliveries %}checked{% endif %}>
+            <input class="form-check-input" type="checkbox" name="notify_deliveries" value="1" {% if form_data.notify_deliveries %}checked{% endif %}>
             Avertir ce contact des livraisons
           </label>
           <label>
-            <input type="checkbox" name="is_delivery_contact" value="1" {% if form_data.is_delivery_contact %}checked{% endif %}>
+            <input class="form-check-input" type="checkbox" name="is_delivery_contact" value="1" {% if form_data.is_delivery_contact %}checked{% endif %}>
             Contact utilisé pour la réception dans l'escale de livraison
           </label>
         </div>
       </div>
-      <button type="submit" class="scan-submit">{% if editing_recipient %}Enregistrer{% else %}Ajouter{% endif %}</button>
+      <button type="submit" class="scan-submit btn btn-primary">{% if editing_recipient %}Enregistrer{% else %}Ajouter{% endif %}</button>
       {% if editing_recipient %}
-        <a href="{% url 'portal:portal_recipients' %}" class="portal-recipient-cancel">Annuler</a>
+        <a class="btn btn-outline-secondary btn-sm portal-recipient-cancel" href="{% url 'portal:portal_recipients' %}">Annuler</a>
       {% endif %}
     </form>
   </div>

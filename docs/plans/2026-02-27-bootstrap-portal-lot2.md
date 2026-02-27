@@ -9,6 +9,9 @@
 - `templates/portal/base.html`
 - `templates/portal/dashboard.html`
 - `templates/portal/order_create.html`
+- `templates/portal/account.html`
+- `templates/portal/recipients.html`
+- `templates/portal/order_detail.html`
 - `templates/portal/login.html`
 - `templates/portal/set_password.html`
 - `templates/portal/change_password.html`
@@ -18,10 +21,11 @@
 - [x] Add portal-specific bootstrap bridge stylesheet: `wms/static/portal/portal-bootstrap.css`.
 - [x] Migrate dashboard table shell/actions to Bootstrap table/button classes.
 - [x] Migrate order-create form/table controls to Bootstrap classes while keeping `data-table-tools` and current names/ids.
+- [x] Migrate account/recipients/order-detail forms and tables to Bootstrap classes while preserving existing form handlers.
 - [x] Add dedicated regression tests for portal bootstrap rendering behind feature flag.
 
 ## Validation checklist
-- [x] `./.venv/bin/python manage.py test wms.tests.views.tests_portal_bootstrap_ui -v 2` (4/4)
+- [x] `./.venv/bin/python manage.py test wms.tests.views.tests_portal_bootstrap_ui -v 2` (8/8)
 - [x] `./.venv/bin/python manage.py test wms.tests.views.tests_views_portal -v 2` (59/59)
 - [x] `./.venv/bin/python manage.py check`
 
