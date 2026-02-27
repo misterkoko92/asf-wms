@@ -1,7 +1,9 @@
 :root {
-  --font-body: "Trebuchet MS", "Lucida Sans Unicode", "Lucida Grande", sans-serif;
-  --font-title: "Georgia", "Times New Roman", serif;
-  --font-heading: "Georgia", "Times New Roman", serif;
+  --wms-font-heading: "DM Sans", "Aptos", "Segoe UI", sans-serif;
+  --wms-font-body: "Nunito Sans", "Aptos", "Segoe UI", sans-serif;
+  --font-body: var(--wms-font-body);
+  --font-title: var(--wms-font-heading);
+  --font-heading: var(--wms-font-heading);
   --ink: #1f1b16;
   --ink-soft: #4a4033;
   --bg: #f6f0e6;
@@ -1207,9 +1209,9 @@ body {
 }
 
 :root[data-ui="nova"] {
-  --font-body: "Avenir Next", "Gill Sans", "Trebuchet MS", sans-serif;
-  --font-title: "Palatino Linotype", "Book Antiqua", "Palatino", serif;
-  --font-heading: "Palatino Linotype", "Book Antiqua", "Palatino", serif;
+  --font-body: var(--wms-font-body);
+  --font-title: var(--wms-font-heading);
+  --font-heading: var(--wms-font-heading);
   --ink: #111827;
   --ink-soft: #556274;
   --bg: #f2f6fb;
@@ -1431,9 +1433,9 @@ body {
 }
 
 :root[data-ui="studio"] {
-  --font-body: "IBM Plex Sans", "Fira Sans", "Trebuchet MS", sans-serif;
-  --font-title: "Franklin Gothic Medium", "Trebuchet MS", sans-serif;
-  --font-heading: "Franklin Gothic Medium", "Trebuchet MS", sans-serif;
+  --font-body: var(--wms-font-body);
+  --font-title: var(--wms-font-heading);
+  --font-heading: var(--wms-font-heading);
   --ink: #1f2937;
   --ink-soft: #4b5563;
   --bg: #f9fafb;
@@ -1678,9 +1680,9 @@ body {
 }
 
 :root[data-ui="benev"] {
-  --font-body: "Space Grotesk", "Segoe UI", sans-serif;
-  --font-title: "Space Grotesk", "Segoe UI", sans-serif;
-  --font-heading: "Space Grotesk", "Segoe UI", sans-serif;
+  --font-body: var(--wms-font-body);
+  --font-title: var(--wms-font-heading);
+  --font-heading: var(--wms-font-heading);
   --ink: #1f1d1b;
   --ink-soft: #615a4f;
   --bg: #f6f1e7;
@@ -1936,9 +1938,9 @@ body {
 }
 
 :root[data-ui="timeline"] {
-  --font-body: "Manrope", "Segoe UI", sans-serif;
-  --font-title: "Manrope", "Segoe UI", sans-serif;
-  --font-heading: "Manrope", "Segoe UI", sans-serif;
+  --font-body: var(--wms-font-body);
+  --font-title: var(--wms-font-heading);
+  --font-heading: var(--wms-font-heading);
   --ink: #24362a;
   --ink-soft: #5e7a67;
   --bg: #eef6f1;
@@ -2283,9 +2285,9 @@ body {
 }
 
 :root[data-ui="spreadsheet"] {
-  --font-body: "IBM Plex Sans", "Segoe UI", sans-serif;
-  --font-title: "IBM Plex Sans", "Segoe UI", sans-serif;
-  --font-heading: "IBM Plex Sans", "Segoe UI", sans-serif;
+  --font-body: var(--wms-font-body);
+  --font-title: var(--wms-font-heading);
+  --font-heading: var(--wms-font-heading);
   --ink: #2f3c57;
   --ink-soft: #5f6f92;
   --bg: #edf0f8;

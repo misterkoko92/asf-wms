@@ -1,3 +1,16 @@
+.admin-bootstrap-enabled {
+  --wms-font-heading: "DM Sans", "Aptos", "Segoe UI", sans-serif;
+  --wms-font-body: "Nunito Sans", "Aptos", "Segoe UI", sans-serif;
+  font-family: var(--wms-font-body);
+}
+
+.admin-bootstrap-enabled h1,
+.admin-bootstrap-enabled h2,
+.admin-bootstrap-enabled h3,
+.admin-bootstrap-enabled .module caption {
+  font-family: var(--wms-font-heading);
+}
+
 .admin-bootstrap-enabled #content-main .module,
 .admin-bootstrap-enabled #content-main fieldset.module {
   border: 1px solid #c3d1ca;

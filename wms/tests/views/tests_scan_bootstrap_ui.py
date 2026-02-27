@@ -68,6 +68,8 @@ class ScanBootstrapUiTests(TestCase):
         response = self.client.get(reverse("scan:scan_stock"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "scan-bootstrap.css")
+        self.assertContains(response, "family=DM+Sans")
+        self.assertContains(response, "family=Nunito+Sans")
         self.assertContains(
             response,
             "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css",

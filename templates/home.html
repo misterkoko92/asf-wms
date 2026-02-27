@@ -9,9 +9,11 @@
   {% endif %}
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700;800&family=Nunito+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
+      --wms-font-heading: "DM Sans", "Aptos", "Segoe UI", sans-serif;
+      --wms-font-body: "Nunito Sans", "Aptos", "Segoe UI", sans-serif;
       --ink: #1a241c;
       --ink-soft: #4c5a50;
       --bg: #f3f1ea;
@@ -29,7 +31,7 @@
 
     body {
       margin: 0;
-      font-family: "Sora", "Avenir Next", "Gill Sans", sans-serif;
+      font-family: var(--wms-font-body);
       color: var(--ink);
       background:
         radial-gradient(1100px 720px at 5% -20%, rgba(255, 244, 214, 0.9) 0%, transparent 55%),
@@ -99,13 +101,15 @@
     }
 
     h1 {
-      font-family: "Fraunces", "Georgia", serif;
+      font-family: var(--wms-font-heading);
       font-size: 38px;
+      font-weight: 700;
       margin: 0;
       line-height: 1.15;
     }
 
     .login-card h2 {
+      font-family: var(--wms-font-heading);
       margin: 0 0 10px;
       font-size: 22px;
     }

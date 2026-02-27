@@ -1,8 +1,10 @@
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700;800&family=Nunito+Sans:wght@400;500;600;700&display=swap");
 
 :root {
-  --ds-font-heading: "Manrope", "Aptos", "Segoe UI", sans-serif;
-  --ds-font-body: "Source Sans 3", "Aptos", "Segoe UI", sans-serif;
+  --wms-font-heading: "DM Sans", "Aptos", "Segoe UI", sans-serif;
+  --wms-font-body: "Nunito Sans", "Aptos", "Segoe UI", sans-serif;
+  --ds-font-heading: var(--wms-font-heading);
+  --ds-font-body: var(--wms-font-body);
   --ds-primary: #6f9a8d;
   --ds-primary-soft: #ddebe6;
   --ds-accent: #e7c3a8;

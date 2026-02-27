@@ -33,7 +33,7 @@
 
   const readCurrent = () => ({
     palette: normalize(paletteSelect.value, "palette", "sage"),
-    typography: normalize(typographySelect.value, "typography", "manrope-source"),
+    typography: normalize(typographySelect.value, "typography", "dm-nunito"),
     density: normalize(densitySelect.value, "density", "standard"),
   });
 
@@ -54,7 +54,7 @@
       const parsed = JSON.parse(raw);
       return {
         palette: normalize(parsed.palette, "palette", "sage"),
-        typography: normalize(parsed.typography, "typography", "manrope-source"),
+        typography: normalize(parsed.typography, "typography", "dm-nunito"),
         density: normalize(parsed.density, "density", "standard"),
       };
     } catch (err) {

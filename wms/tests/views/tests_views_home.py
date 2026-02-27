@@ -34,6 +34,8 @@ class HomePageTests(TestCase):
     def test_home_page_includes_bootstrap_assets_when_enabled(self):
         response = self.client.get(reverse("home"))
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "family=DM+Sans")
+        self.assertContains(response, "family=Nunito+Sans")
         self.assertContains(
             response,
             "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css",
@@ -50,6 +52,8 @@ class HomePageTests(TestCase):
     def test_password_help_page_includes_bootstrap_assets_when_enabled(self):
         response = self.client.get(reverse("password_help"))
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "family=DM+Sans")
+        self.assertContains(response, "family=Nunito+Sans")
         self.assertContains(
             response,
             "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css",

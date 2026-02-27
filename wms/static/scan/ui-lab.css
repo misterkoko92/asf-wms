@@ -27,8 +27,8 @@
   --preview-border: #d9e2dc;
   --preview-text: #2f3a36;
   --preview-text-soft: #5a6964;
-  --preview-heading-font: "Manrope", "Aptos", "Segoe UI", sans-serif;
-  --preview-body-font: "Source Sans 3", "Aptos", "Segoe UI", sans-serif;
+  --preview-heading-font: "DM Sans", "Aptos", "Segoe UI", sans-serif;
+  --preview-body-font: "Nunito Sans", "Aptos", "Segoe UI", sans-serif;
   --preview-gap: 0.9rem;
   --preview-pad: 0.95rem;
   display: grid;

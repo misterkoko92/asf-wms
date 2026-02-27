@@ -112,6 +112,8 @@ class NextFrontendViewsTests(TestCase):
             response = self.client.get("/app/scan/dashboard/")
 
         self.assertEqual(response.status_code, 503)
+        self.assertContains(response, "family=DM+Sans", status_code=503)
+        self.assertContains(response, "family=Nunito+Sans", status_code=503)
         self.assertContains(
             response,
             "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css",

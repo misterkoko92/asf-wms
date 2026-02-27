@@ -76,6 +76,8 @@ class PortalBootstrapUiTests(TestCase):
     def test_portal_base_includes_bootstrap_assets_when_enabled(self):
         response = self.client.get(reverse("portal:portal_dashboard"))
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "family=DM+Sans")
+        self.assertContains(response, "family=Nunito+Sans")
         self.assertContains(
             response,
             "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css",
@@ -150,6 +152,8 @@ class PortalBootstrapUiTests(TestCase):
 
         login_response = self.client.get(reverse("portal:portal_login"))
         self.assertEqual(login_response.status_code, 200)
+        self.assertContains(login_response, "family=DM+Sans")
+        self.assertContains(login_response, "family=Nunito+Sans")
         self.assertContains(
             login_response,
             "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css",
@@ -167,6 +171,8 @@ class PortalBootstrapUiTests(TestCase):
         )
         set_password_response = self.client.get(set_password_url)
         self.assertEqual(set_password_response.status_code, 200)
+        self.assertContains(set_password_response, "family=DM+Sans")
+        self.assertContains(set_password_response, "family=Nunito+Sans")
         self.assertContains(set_password_response, "scan-bootstrap.css")
         self.assertContains(set_password_response, "portal-bootstrap.css")
         self.assertContains(set_password_response, "ui-comp-card")
