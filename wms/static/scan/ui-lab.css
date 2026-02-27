@@ -183,11 +183,77 @@
   gap: var(--preview-gap);
 }
 
+.ui-lab-preview .ui-comp-toolbar {
+  border-color: var(--preview-border);
+  border-radius: 0.85rem;
+  background: var(--preview-surface);
+  gap: var(--preview-gap);
+  padding: var(--preview-pad);
+}
+
+.ui-lab-preview .ui-comp-filter-actions {
+  gap: 0.5rem;
+}
+
+.ui-lab-preview .ui-comp-sort-btn {
+  border-color: var(--preview-border);
+  color: var(--preview-text);
+}
+
+.ui-lab-preview .ui-comp-sort-btn:hover {
+  background: var(--preview-primary-soft);
+  border-color: var(--preview-primary);
+  color: var(--preview-text);
+}
+
+.ui-lab-preview .ui-comp-chip-list {
+  gap: 0.5rem;
+}
+
+.ui-lab-preview .ui-comp-chip {
+  border-color: var(--preview-border);
+  background: var(--preview-primary-soft);
+  color: var(--preview-text);
+  font-family: var(--preview-body-font);
+}
+
+.ui-lab-preview .ui-comp-data-table thead .btn-link {
+  font-family: var(--preview-heading-font);
+  color: var(--preview-text);
+}
+
+.ui-lab-preview .ui-comp-status-pill {
+  font-family: var(--preview-body-font);
+}
+
+.ui-lab-preview .ui-comp-status-pill.is-ready {
+  background: #e5f2ea;
+  border-color: #c2dbc8;
+  color: #2f654c;
+}
+
+.ui-lab-preview .ui-comp-status-pill.is-progress {
+  background: #f6eddc;
+  border-color: #e3d3a9;
+  color: #6f572b;
+}
+
+.ui-lab-preview .ui-comp-status-pill.is-info {
+  background: var(--preview-primary-soft);
+  border-color: #bfd2c7;
+  color: #325c4e;
+}
+
 .ui-lab-stat-grid {
   display: grid;
   gap: var(--preview-gap);
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-bottom: var(--preview-gap);
+}
+
+.ui-lab-preview .ui-comp-kpi-card {
+  border-color: var(--preview-border);
+  background: var(--preview-surface);
 }
 
 .ui-lab-stat-card {

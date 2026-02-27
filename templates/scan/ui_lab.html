@@ -130,15 +130,52 @@
     </section>
 
     <section class="scan-card card border-0 ui-comp-card">
+      <h3 class="ui-comp-title">Filtres et tri</h3>
+      <form class="ui-comp-toolbar" onsubmit="return false;">
+        <div class="scan-field ui-comp-filter">
+          <label class="form-label" for="ui-lab-filter-search">Recherche</label>
+          <input class="form-control" id="ui-lab-filter-search" type="text" placeholder="Nom produit, lot, emplacement">
+        </div>
+        <div class="scan-field ui-comp-filter">
+          <label class="form-label" for="ui-lab-filter-category">Cat&eacute;gorie</label>
+          <select class="form-select" id="ui-lab-filter-category">
+            <option>Toutes</option>
+            <option>Hygi&egrave;ne</option>
+            <option>M&eacute;dical</option>
+            <option>Logistique</option>
+          </select>
+        </div>
+        <div class="scan-field ui-comp-filter">
+          <label class="form-label" for="ui-lab-filter-state">&Eacute;tat</label>
+          <select class="form-select" id="ui-lab-filter-state">
+            <option>Tous</option>
+            <option>Pr&ecirc;t</option>
+            <option>En pr&eacute;paration</option>
+            <option>Bloqu&eacute;</option>
+          </select>
+        </div>
+        <div class="ui-comp-filter-actions">
+          <button type="button" class="btn btn-outline-secondary btn-sm ui-comp-sort-btn">Tri stock &uarr;</button>
+          <button type="button" class="btn btn-outline-secondary btn-sm ui-comp-sort-btn">Tri p&eacute;remption &darr;</button>
+        </div>
+      </form>
+      <div class="ui-comp-chip-list">
+        <span class="ui-comp-chip">Cat&eacute;gorie: Hygi&egrave;ne</span>
+        <span class="ui-comp-chip">&Eacute;tat: Pr&ecirc;t</span>
+        <span class="ui-comp-chip">Stock &gt; 20</span>
+      </div>
+    </section>
+
+    <section class="scan-card card border-0 ui-comp-card">
       <h3 class="ui-comp-title">Tableau</h3>
       <div class="scan-table-wrap table-responsive">
-        <table class="scan-table table table-sm table-hover align-middle">
+        <table class="scan-table table table-sm table-hover align-middle ui-comp-data-table">
           <thead>
             <tr>
-              <th>Composant</th>
-              <th>Usage</th>
-              <th>Version</th>
-              <th>&Eacute;tat</th>
+              <th><button type="button" class="btn btn-link p-0">Composant</button></th>
+              <th><button type="button" class="btn btn-link p-0">Usage</button></th>
+              <th><button type="button" class="btn btn-link p-0">Version</button></th>
+              <th><button type="button" class="btn btn-link p-0">&Eacute;tat</button></th>
             </tr>
           </thead>
           <tbody>
@@ -146,19 +183,19 @@
               <td>Primary button</td>
               <td>CTA principal</td>
               <td>v1</td>
-              <td><span class="badge text-bg-success">Valid&eacute;</span></td>
+              <td><span class="ui-comp-status-pill is-ready">Valid&eacute;</span></td>
             </tr>
             <tr>
               <td>Form field</td>
               <td>Entr&eacute;e utilisateur</td>
               <td>v2</td>
-              <td><span class="badge text-bg-warning">&Agrave; revoir</span></td>
+              <td><span class="ui-comp-status-pill is-progress">&Agrave; revoir</span></td>
             </tr>
             <tr>
               <td>Data table</td>
               <td>Vues stock/commandes</td>
               <td>v1</td>
-              <td><span class="badge text-bg-info">En test</span></td>
+              <td><span class="ui-comp-status-pill is-info">En test</span></td>
             </tr>
           </tbody>
         </table>
@@ -167,22 +204,22 @@
 
     <section class="scan-card card border-0 ui-comp-card">
       <h3 class="ui-comp-title">Tabler Lite</h3>
-      <div class="ui-lab-stat-grid">
-        <article class="ui-lab-stat-card">
+      <div class="ui-lab-stat-grid ui-comp-kpi-grid">
+        <article class="ui-lab-stat-card ui-comp-kpi-card">
           <span class="ui-lab-stat-icon"><i class="ti ti-package"></i></span>
           <div class="ui-lab-stat-copy">
             <strong>128</strong>
             <span>Colis pr&ecirc;ts</span>
           </div>
         </article>
-        <article class="ui-lab-stat-card">
+        <article class="ui-lab-stat-card ui-comp-kpi-card">
           <span class="ui-lab-stat-icon"><i class="ti ti-clipboard-check"></i></span>
           <div class="ui-lab-stat-copy">
             <strong>42</strong>
             <span>Commandes valid&eacute;es</span>
           </div>
         </article>
-        <article class="ui-lab-stat-card">
+        <article class="ui-lab-stat-card ui-comp-kpi-card">
           <span class="ui-lab-stat-icon"><i class="ti ti-truck-delivery"></i></span>
           <div class="ui-lab-stat-copy">
             <strong>7</strong>

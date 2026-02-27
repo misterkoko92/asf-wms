@@ -311,6 +311,11 @@ class ScanBootstrapUiTests(TestCase):
         )
         self.assertContains(ui_lab_response, "ui-lab-stat-card")
         self.assertContains(ui_lab_response, "ui-lab-activity-item")
+        self.assertContains(ui_lab_response, "ui-comp-toolbar")
+        self.assertContains(ui_lab_response, "ui-comp-filter")
+        self.assertContains(ui_lab_response, "ui-comp-chip-list")
+        self.assertContains(ui_lab_response, "ui-comp-status-pill")
+        self.assertContains(ui_lab_response, "ui-comp-kpi-card")
 
         public_link = PublicOrderLink.objects.create(label="Public UI Test")
 
