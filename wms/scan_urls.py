@@ -110,6 +110,7 @@ urlpatterns = [
     ),
     path("import/", views.scan_import, name="scan_import"),
     path("faq/", views.scan_faq, name="scan_faq"),
+    path("ui-lab/", views.scan_ui_lab, name="scan_ui_lab"),
     path("settings/", views.scan_settings, name="scan_settings"),
     path("admin/contacts/", views.scan_admin_contacts, name="scan_admin_contacts"),
     path("admin/products/", views.scan_admin_products, name="scan_admin_products"),

@@ -1,7 +1,7 @@
 .portal-bootstrap-enabled .portal-header {
   border: 1px solid var(--border-strong) !important;
-  background: linear-gradient(170deg, #fffefb 0%, #fff7eb 100%);
-  box-shadow: 0 10px 26px rgba(20, 15, 10, 0.1);
+  background: linear-gradient(170deg, #fffefb 0%, #f3f8f4 100%);
+  box-shadow: 0 10px 26px rgba(39, 57, 50, 0.12);
 }
 
 .portal-bootstrap-enabled .portal-nav .btn {
@@ -16,17 +16,17 @@
 
 .portal-bootstrap-enabled .portal-table.scan-table.table {
   --bs-table-bg: transparent;
-  --bs-table-hover-bg: rgba(15, 95, 79, 0.05);
+  --bs-table-hover-bg: rgba(111, 154, 141, 0.1);
 }
 
 .portal-bootstrap-enabled .portal-table thead th {
-  background: #f2e8da;
+  background: #edf4f0;
   border-bottom: 1px solid var(--border-strong);
 }
 
 .portal-bootstrap-enabled .portal-badge {
-  background: #edf4ff;
-  border: 1px solid #c7dbff;
+  background: #e8f4ee;
+  border: 1px solid #c4d9cf;
 }
 
 .portal-bootstrap-enabled .portal-products-table-wrap .scan-table th {

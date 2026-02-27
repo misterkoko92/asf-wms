@@ -1,0 +1,134 @@
+{% extends "scan/base.html" %}
+{% load static %}
+
+{% block title %}UI Lab{% endblock %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'scan/ui-lab.css' %}">
+{% endblock %}
+
+{% block content %}
+  <section class="scan-card card border-0 ui-lab-hero">
+    <div class="ui-lab-hero-head">
+      <div>
+        <h2>UI Lab</h2>
+        <p class="scan-help">
+          Bac &agrave; sable visuel pour tester les composants, couleurs, typographies et densit&eacute;.
+        </p>
+      </div>
+      <span class="badge text-bg-warning">Sandbox uniquement</span>
+    </div>
+  </section>
+
+  <section class="scan-card card border-0">
+    <h3>Typographie</h3>
+    <div class="ui-lab-typography">
+      <article class="ui-lab-surface">
+        <h4>Titres (Manrope)</h4>
+        <h1>H1 - Op&eacute;rations &amp; exp&eacute;ditions</h1>
+        <h2>H2 - Pr&eacute;paration des commandes</h2>
+        <h3>H3 - D&eacute;tail des stocks</h3>
+      </article>
+      <article class="ui-lab-surface">
+        <h4>Texte courant (Source Sans 3)</h4>
+        <p>
+          Interface professionnelle et apais&eacute;e, pens&eacute;e pour un usage quotidien en entrep&ocirc;t
+          avec une lecture confortable sur desktop et mobile.
+        </p>
+        <p class="scan-help">Ce bloc permet de valider le contraste et la densit&eacute; des paragraphes.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="scan-card card border-0">
+    <h3>Palette</h3>
+    <div class="ui-lab-swatches">
+      <div class="ui-lab-swatch swatch-primary"><strong>Primary</strong><span>#6F9A8D</span></div>
+      <div class="ui-lab-swatch swatch-primary-soft"><strong>Primary Soft</strong><span>#DDEBE6</span></div>
+      <div class="ui-lab-swatch swatch-accent"><strong>Accent</strong><span>#E7C3A8</span></div>
+      <div class="ui-lab-swatch swatch-bg"><strong>Background</strong><span>#F6F8F5</span></div>
+      <div class="ui-lab-swatch swatch-surface"><strong>Surface</strong><span>#FFFDF9</span></div>
+      <div class="ui-lab-swatch swatch-border"><strong>Border</strong><span>#D9E2DC</span></div>
+    </div>
+  </section>
+
+  <section class="scan-card card border-0">
+    <h3>Boutons et &eacute;tats</h3>
+    <div class="ui-lab-row">
+      <button type="button" class="btn btn-primary">Action principale</button>
+      <button type="button" class="btn btn-outline-secondary">Action secondaire</button>
+      <button type="button" class="btn btn-light">Action neutre</button>
+      <button type="button" class="btn btn-primary" disabled>D&eacute;sactiv&eacute;</button>
+    </div>
+    <div class="ui-lab-row">
+      <span class="badge text-bg-success">Succ&egrave;s</span>
+      <span class="badge text-bg-warning">Attention</span>
+      <span class="badge text-bg-danger">Erreur</span>
+      <span class="badge text-bg-info">Information</span>
+    </div>
+  </section>
+
+  <section class="scan-card card border-0">
+    <h3>Formulaires</h3>
+    <form class="ui-lab-form" onsubmit="return false;">
+      <div class="scan-field">
+        <label class="form-label" for="ui-lab-name">Nom du composant</label>
+        <input class="form-control" id="ui-lab-name" type="text" placeholder="Ex: Table commandes">
+      </div>
+      <div class="scan-field">
+        <label class="form-label" for="ui-lab-type">Type</label>
+        <select class="form-select" id="ui-lab-type">
+          <option>Tableau</option>
+          <option>Formulaire</option>
+          <option>Carte KPI</option>
+        </select>
+      </div>
+      <div class="scan-field">
+        <label class="form-label" for="ui-lab-notes">Notes</label>
+        <textarea class="form-control" id="ui-lab-notes" rows="3" placeholder="Commentaires design"></textarea>
+      </div>
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="ui-lab-check" checked>
+        <label class="form-check-label" for="ui-lab-check">
+          Appliquer les tokens Sauge douce
+        </label>
+      </div>
+    </form>
+  </section>
+
+  <section class="scan-card card border-0">
+    <h3>Tableau</h3>
+    <div class="scan-table-wrap table-responsive">
+      <table class="scan-table table table-sm table-hover align-middle">
+        <thead>
+          <tr>
+            <th>Composant</th>
+            <th>Usage</th>
+            <th>Version</th>
+            <th>&Eacute;tat</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Primary button</td>
+            <td>CTA principal</td>
+            <td>v1</td>
+            <td><span class="badge text-bg-success">Valid&eacute;</span></td>
+          </tr>
+          <tr>
+            <td>Form field</td>
+            <td>Entr&eacute;e utilisateur</td>
+            <td>v2</td>
+            <td><span class="badge text-bg-warning">&Agrave; revoir</span></td>
+          </tr>
+          <tr>
+            <td>Data table</td>
+            <td>Vues stock/commandes</td>
+            <td>v1</td>
+            <td><span class="badge text-bg-info">En test</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

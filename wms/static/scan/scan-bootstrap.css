@@ -1,25 +1,65 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap");
+
 :root {
+  --ds-font-heading: "Manrope", "Aptos", "Segoe UI", sans-serif;
+  --ds-font-body: "Source Sans 3", "Aptos", "Segoe UI", sans-serif;
+  --ds-primary: #6f9a8d;
+  --ds-primary-soft: #ddebe6;
+  --ds-accent: #e7c3a8;
+  --ds-bg: #f6f8f5;
+  --ds-surface: #fffdf9;
+  --ds-panel: #f3f8f4;
+  --ds-border: #d9e2dc;
+  --ds-border-strong: #c3d1ca;
+  --ds-text: #2f3a36;
+  --ds-text-soft: #5a6964;
+  --ds-success-soft: #e8f4ee;
+  --ds-error-soft: #faece7;
+  --ds-warning-soft: #fbf2e7;
+  --ds-shadow-sm: 0 6px 18px rgba(39, 57, 50, 0.08);
+  --ds-shadow-md: 0 12px 34px rgba(39, 57, 50, 0.12);
+  --ds-radius-sm: 0.6rem;
+  --ds-radius-md: 0.85rem;
+  --ds-radius-lg: 1rem;
   --bs-body-font-family: var(--font-body);
   --bs-body-color: var(--ink);
   --bs-body-bg: var(--bg);
   --bs-primary: var(--accent);
   --bs-secondary: var(--accent-2);
   --bs-border-color: var(--border);
-  --bs-border-radius: 0.75rem;
-  --bs-border-radius-sm: 0.6rem;
-  --bs-border-radius-lg: 0.95rem;
+  --bs-border-radius: var(--ds-radius-md);
+  --bs-border-radius-sm: var(--ds-radius-sm);
+  --bs-border-radius-lg: var(--ds-radius-lg);
   --bs-btn-font-weight: 600;
-  --bs-btn-focus-box-shadow: 0 0 0 0.2rem rgba(15, 95, 79, 0.22);
-  --scan-boot-surface: #fffdf9;
-  --scan-boot-surface-muted: #f8f2e8;
-  --scan-boot-border-strong: #d7c6b0;
-  --scan-boot-shadow-sm: 0 6px 18px rgba(20, 15, 10, 0.06);
-  --scan-boot-shadow-md: 0 12px 34px rgba(20, 15, 10, 0.11);
+  --bs-btn-focus-box-shadow: 0 0 0 0.2rem rgba(111, 154, 141, 0.24);
+  --scan-boot-surface: var(--ds-surface);
+  --scan-boot-surface-muted: var(--ds-panel);
+  --scan-boot-border-strong: var(--ds-border-strong);
+  --scan-boot-shadow-sm: var(--ds-shadow-sm);
+  --scan-boot-shadow-md: var(--ds-shadow-md);
 }
 
 .scan-bootstrap-enabled {
+  --font-body: var(--ds-font-body);
+  --font-title: var(--ds-font-heading);
+  --font-heading: var(--ds-font-heading);
+  --ink: var(--ds-text);
+  --ink-soft: var(--ds-text-soft);
+  --bg: var(--ds-bg);
+  --bg-2: #edf3ef;
+  --bg-accent: var(--ds-primary-soft);
+  --bg-accent-2: #f6eee7;
+  --accent: var(--ds-primary);
+  --accent-2: var(--ds-accent);
+  --accent-2-ink: #584b41;
+  --card: var(--ds-surface);
+  --panel: var(--ds-panel);
+  --border: var(--ds-border);
+  --border-strong: var(--ds-border-strong);
+  --table-header: #edf4f0;
+  --scan-btn-bg: #eff6f3;
   --bs-link-color: var(--accent);
-  --bs-link-hover-color: #0a4a3e;
+  --bs-link-hover-color: #4e7d70;
 }
 
 .scan-bootstrap-enabled .scan-shell {
@@ -58,7 +98,7 @@
 
 .scan-bootstrap-enabled .scan-card.card {
   border: 1px solid var(--scan-boot-border-strong) !important;
-  background: linear-gradient(165deg, #fffefc 0%, #fff8ee 100%);
+  background: linear-gradient(165deg, #fffefc 0%, #f8fbf8 100%);
   border-radius: 1rem;
   box-shadow: var(--scan-boot-shadow-md);
   padding: clamp(14px, 1.5vw, 20px);
@@ -110,11 +150,11 @@
 
 .scan-bootstrap-enabled .scan-submit.btn {
   border: 1px solid transparent;
-  box-shadow: 0 8px 16px rgba(15, 95, 79, 0.18);
+  box-shadow: 0 8px 16px rgba(111, 154, 141, 0.24);
 }
 
 .scan-bootstrap-enabled .scan-submit.secondary.btn {
-  box-shadow: 0 8px 14px rgba(231, 157, 46, 0.23);
+  box-shadow: 0 8px 14px rgba(231, 195, 168, 0.28);
 }
 
 .scan-bootstrap-enabled .scan-inline-actions .btn,
@@ -145,19 +185,19 @@
 
 .scan-bootstrap-enabled .scan-kpi-card:hover {
   border-color: var(--accent);
-  box-shadow: 0 10px 22px rgba(20, 15, 10, 0.12);
+  box-shadow: 0 10px 22px rgba(39, 57, 50, 0.16);
 }
 
 .scan-bootstrap-enabled .scan-kpi-card.is-success {
-  background: #edf8f1;
+  background: var(--ds-success-soft);
 }
 
 .scan-bootstrap-enabled .scan-kpi-card.is-warn {
-  background: #fff5e6;
+  background: var(--ds-warning-soft);
 }
 
 .scan-bootstrap-enabled .scan-kpi-card.is-danger {
-  background: #fff0ed;
+  background: var(--ds-error-soft);
 }
 
 .scan-bootstrap-enabled .scan-table-wrap {
@@ -169,11 +209,11 @@
 .scan-bootstrap-enabled .scan-table.table {
   margin-bottom: 0;
   --bs-table-bg: transparent;
-  --bs-table-hover-bg: rgba(15, 95, 79, 0.05);
+  --bs-table-hover-bg: rgba(111, 154, 141, 0.1);
 }
 
 .scan-bootstrap-enabled .scan-table thead th {
-  background: #f2e8da;
+  background: #edf4f0;
   border-bottom: 1px solid var(--scan-boot-border-strong);
   font-size: 0.73rem;
   letter-spacing: 0.05em;
@@ -198,15 +238,15 @@
 }
 
 .scan-bootstrap-enabled .scan-message.success {
-  background: #ebf8f0;
+  background: var(--ds-success-soft);
 }
 
 .scan-bootstrap-enabled .scan-message.error {
-  background: #fff0ed;
+  background: var(--ds-error-soft);
 }
 
 .scan-bootstrap-enabled .scan-message.warning {
-  background: #fff8e8;
+  background: var(--ds-warning-soft);
 }
 
 @media (max-width: 992px) {

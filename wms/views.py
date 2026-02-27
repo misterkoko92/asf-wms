@@ -51,6 +51,7 @@ from .views_scan import (
     scan_receipts_view,
     scan_settings,
     scan_service_worker,
+    scan_ui_lab,
     scan_shipment_create,
     scan_shipment_edit,
     scan_shipment_track,
@@ -127,6 +128,7 @@ SCAN_MISC_EXPORTS = (
     "scan_sync",
     "scan_faq",
     "scan_settings",
+    "scan_ui_lab",
     "scan_service_worker",
 )
 

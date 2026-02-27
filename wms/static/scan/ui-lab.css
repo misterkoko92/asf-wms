@@ -1,0 +1,81 @@
+.ui-lab-hero {
+  background: linear-gradient(145deg, rgba(111, 154, 141, 0.16), rgba(231, 195, 168, 0.18));
+}
+
+.ui-lab-hero-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.ui-lab-typography {
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ui-lab-surface {
+  border: 1px solid var(--border);
+  border-radius: 0.85rem;
+  background: #f8fbf8;
+  padding: 0.95rem 1rem;
+}
+
+.ui-lab-surface h4 {
+  margin-top: 0;
+}
+
+.ui-lab-swatches {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ui-lab-swatch {
+  border: 1px solid var(--border);
+  border-radius: 0.85rem;
+  padding: 0.8rem 0.9rem;
+  min-height: 4.8rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.ui-lab-swatch strong {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ui-lab-swatch span {
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.8rem;
+}
+
+.swatch-primary { background: #6f9a8d; color: #fff; }
+.swatch-primary-soft { background: #ddebe6; color: #2f3a36; }
+.swatch-accent { background: #e7c3a8; color: #3e342d; }
+.swatch-bg { background: #f6f8f5; color: #2f3a36; }
+.swatch-surface { background: #fffdf9; color: #2f3a36; }
+.swatch-border { background: #fff; border-color: #d9e2dc; color: #2f3a36; }
+
+.ui-lab-row {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.ui-lab-form {
+  display: grid;
+  gap: 0.65rem;
+}
+
+@media (max-width: 900px) {
+  .ui-lab-typography,
+  .ui-lab-swatches {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

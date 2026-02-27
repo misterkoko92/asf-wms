@@ -4,7 +4,9 @@ from django.views.decorators.http import require_http_methods
 from .view_permissions import scan_staff_required
 
 TEMPLATE_SCAN_FAQ = "scan/faq.html"
+TEMPLATE_SCAN_UI_LAB = "scan/ui_lab.html"
 ACTIVE_FAQ = "faq"
+ACTIVE_UI_LAB = "ui_lab"
 SHELL_CLASS_WIDE = "scan-shell-wide"
 SCAN_SW_ALLOWED_SCOPE = "/scan/"
 CACHE_CONTROL_NO_CACHE = "no-cache"
@@ -58,6 +60,13 @@ def _build_faq_context():
     }
 
 
+def _build_ui_lab_context():
+    return {
+        "active": ACTIVE_UI_LAB,
+        "shell_class": SHELL_CLASS_WIDE,
+    }
+
+
 def _build_service_worker_response():
     response = HttpResponse(SERVICE_WORKER_JS, content_type="application/javascript")
     response["Cache-Control"] = CACHE_CONTROL_NO_CACHE
@@ -69,6 +78,12 @@ def _build_service_worker_response():
 @require_http_methods(["GET"])
 def scan_faq(request):
     return render(request, TEMPLATE_SCAN_FAQ, _build_faq_context())
+
+
+@scan_staff_required
+@require_http_methods(["GET"])
+def scan_ui_lab(request):
+    return render(request, TEMPLATE_SCAN_UI_LAB, _build_ui_lab_context())
 
 
 def scan_service_worker(request):

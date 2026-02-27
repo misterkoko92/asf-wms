@@ -19,6 +19,12 @@ class ScanMiscViewsTests(TestCase):
         self.assertEqual(response.context["active"], "faq")
         self.assertEqual(response.context["shell_class"], "scan-shell-wide")
 
+    def test_scan_ui_lab_renders_template(self):
+        response = self.client.get(reverse("scan:scan_ui_lab"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["active"], "ui_lab")
+        self.assertEqual(response.context["shell_class"], "scan-shell-wide")
+
     def test_scan_service_worker_returns_expected_headers_and_body(self):
         response = self.client.get(reverse("scan:scan_service_worker"))
         self.assertEqual(response.status_code, 200)
@@ -35,4 +41,14 @@ class ScanMiscViewsTests(TestCase):
         )
         self.client.force_login(non_staff)
         response = self.client.get(reverse("scan:scan_faq"))
+        self.assertEqual(response.status_code, 403)
+
+    def test_scan_ui_lab_requires_staff(self):
+        non_staff = get_user_model().objects.create_user(
+            username="scan-misc-ui-lab-non-staff",
+            password="pass1234",
+            is_staff=False,
+        )
+        self.client.force_login(non_staff)
+        response = self.client.get(reverse("scan:scan_ui_lab"))
         self.assertEqual(response.status_code, 403)
