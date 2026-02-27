@@ -3,15 +3,15 @@
 {% block title %}WMS Scan - Pr&eacute;parer des kits{% endblock %}
 
 {% block content %}
-  <div class="scan-card card border-0">
-    <h2>Pr&eacute;parer des kits</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="h4 mb-3 ui-comp-title">Pr&eacute;parer des kits</h2>
     {% if form.non_field_errors %}
       <div class="scan-message error">{{ form.non_field_errors }}</div>
     {% endif %}
 
-    <form method="post" novalidate>
+    <form method="post" novalidate class="ui-comp-form">
       {% csrf_token %}
-      <div class="scan-field">
+      <div class="scan-field ui-comp-panel">
         <label class="form-label" for="{{ form.kit_id.id_for_label }}">Nom du kit</label>
         <div class="scan-inline scan-inline-gap">
           {{ form.kit_id }}
@@ -24,7 +24,7 @@
         {% endfor %}
       </div>
 
-      <div class="scan-inline scan-inline-gap scan-field-gap">
+      <div class="scan-inline scan-inline-gap scan-field-gap ui-comp-panel">
         <div class="scan-field">
           <label class="form-label" for="{{ form.quantity.id_for_label }}">Nombre de kits &agrave; cr&eacute;er</label>
           {{ form.quantity }}
@@ -38,7 +38,7 @@
         </div>
       </div>
 
-      <div class="scan-field scan-field-gap">
+      <div class="scan-field scan-field-gap ui-comp-panel">
         <label class="form-label">Composition</label>
         <div class="scan-table-wrap table-responsive">
           <table class="scan-table table table-sm table-hover">
@@ -68,17 +68,21 @@
         </div>
       </div>
 
-      <button type="submit" class="scan-submit btn btn-primary">Pr&eacute;parer</button>
+      <div class="ui-comp-actions d-flex flex-wrap gap-2 align-items-center">
+        <button type="submit" class="scan-submit btn btn-primary">Pr&eacute;parer</button>
+      </div>
     </form>
 
-    {% if prepare_result %}
-      <div class="scan-field scan-field-gap">
-        <p class="scan-help">{{ prepare_result.carton_count }} colis g&eacute;n&eacute;r&eacute;(s).</p>
+    <div class="scan-field scan-field-gap ui-comp-panel">
+      {% if prepare_result %}
+        <p class="scan-help ui-comp-note">{{ prepare_result.carton_count }} colis g&eacute;n&eacute;r&eacute;(s).</p>
         <a class="scan-scan-btn btn btn-outline-primary" href="{{ prepare_result.picking_url }}" target="_blank" rel="noopener">
           T&eacute;l&eacute;charger le picking
         </a>
-      </div>
-    {% endif %}
+      {% else %}
+        <p class="scan-help ui-comp-note">S&eacute;lectionnez un kit puis cliquez sur Pr&eacute;parer pour g&eacute;n&eacute;rer le picking.</p>
+      {% endif %}
+    </div>
 
     {{ kit_data|json_script:"prepare-kits-data" }}
   </div>

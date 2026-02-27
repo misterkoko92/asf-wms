@@ -102,6 +102,21 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(shipment_response, "ui-comp-note")
 
     @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
+    def test_scan_kits_pages_use_design_component_classes(self):
+        kits_view_response = self.client.get(reverse("scan:scan_kits_view"))
+        self.assertEqual(kits_view_response.status_code, 200)
+        self.assertContains(kits_view_response, "ui-comp-card")
+        self.assertContains(kits_view_response, "ui-comp-title")
+        self.assertContains(kits_view_response, "ui-comp-count-badge")
+
+        prepare_kits_response = self.client.get(reverse("scan:scan_prepare_kits"))
+        self.assertEqual(prepare_kits_response.status_code, 200)
+        self.assertContains(prepare_kits_response, "ui-comp-card")
+        self.assertContains(prepare_kits_response, "ui-comp-form")
+        self.assertContains(prepare_kits_response, "ui-comp-panel")
+        self.assertContains(prepare_kits_response, "ui-comp-actions")
+
+    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_dashboard_uses_bootstrap_filters(self):
         response = self.client.get(reverse("scan:scan_dashboard"))
         self.assertEqual(response.status_code, 200)
