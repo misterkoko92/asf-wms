@@ -8,10 +8,10 @@
 {% endblock %}
 
 {% block content %}
-  <section class="scan-card card border-0 ui-lab-hero">
+  <section class="scan-card card border-0 ui-comp-card ui-lab-hero">
     <div class="ui-lab-hero-head">
       <div>
-        <h2>UI Lab</h2>
+        <h2 class="ui-comp-title">UI Lab</h2>
         <p class="scan-help">
           Bac &agrave; sable visuel pour tester les composants, couleurs, typographies et densit&eacute;.
         </p>
@@ -20,8 +20,8 @@
     </div>
   </section>
 
-  <section class="scan-card card border-0 ui-lab-controls">
-    <h3>R&eacute;glages live</h3>
+  <section class="scan-card card border-0 ui-comp-card ui-lab-controls">
+    <h3 class="ui-comp-title">R&eacute;glages live</h3>
     <div class="ui-lab-controls-grid">
       <div class="scan-field">
         <label class="form-label" for="ui-lab-palette">Palette</label>
@@ -58,8 +58,8 @@
     data-ui-lab-typography="manrope-source"
     data-ui-lab-density="standard"
   >
-    <section class="scan-card card border-0">
-      <h3>Typographie</h3>
+    <section class="scan-card card border-0 ui-comp-card">
+      <h3 class="ui-comp-title">Typographie</h3>
       <div class="ui-lab-typography">
         <article class="ui-lab-surface">
           <h4>Titres</h4>
@@ -78,8 +78,8 @@
       </div>
     </section>
 
-    <section class="scan-card card border-0">
-      <h3>Palette</h3>
+    <section class="scan-card card border-0 ui-comp-card">
+      <h3 class="ui-comp-title">Palette</h3>
       <div class="ui-lab-swatches">
         <div class="ui-lab-swatch swatch-primary"><strong>Primary</strong><span>variable</span></div>
         <div class="ui-lab-swatch swatch-primary-soft"><strong>Primary Soft</strong><span>variable</span></div>
@@ -90,8 +90,8 @@
       </div>
     </section>
 
-    <section class="scan-card card border-0">
-      <h3>Boutons et &eacute;tats</h3>
+    <section class="scan-card card border-0 ui-comp-card">
+      <h3 class="ui-comp-title">Boutons et &eacute;tats</h3>
       <div class="ui-lab-row">
         <button type="button" class="btn btn-primary">Action principale</button>
         <button type="button" class="btn btn-outline-secondary">Action secondaire</button>
@@ -106,9 +106,9 @@
       </div>
     </section>
 
-    <section class="scan-card card border-0">
-      <h3>Formulaires</h3>
-      <form class="ui-lab-form" onsubmit="return false;">
+    <section class="scan-card card border-0 ui-comp-card">
+      <h3 class="ui-comp-title">Formulaires</h3>
+      <form class="ui-lab-form ui-comp-form" onsubmit="return false;">
         <div class="scan-field">
           <label class="form-label" for="ui-lab-name">Nom du composant</label>
           <input class="form-control" id="ui-lab-name" type="text" placeholder="Ex: Table commandes">
@@ -128,8 +128,8 @@
       </form>
     </section>
 
-    <section class="scan-card card border-0">
-      <h3>Tableau</h3>
+    <section class="scan-card card border-0 ui-comp-card">
+      <h3 class="ui-comp-title">Tableau</h3>
       <div class="scan-table-wrap table-responsive">
         <table class="scan-table table table-sm table-hover align-middle">
           <thead>

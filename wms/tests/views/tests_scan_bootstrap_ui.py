@@ -9,6 +9,7 @@ from wms.models import (
     Product,
     ProductLot,
     ProductLotStatus,
+    PublicOrderLink,
     Shipment,
     Warehouse,
 )
@@ -290,6 +291,38 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(tracking_response, "ui-comp-card")
         self.assertContains(tracking_response, "ui-comp-title")
         self.assertContains(tracking_response, "ui-comp-form")
+
+    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
+    def test_scan_remaining_pages_use_design_component_classes(self):
+        stock_response = self.client.get(reverse("scan:scan_stock"))
+        self.assertEqual(stock_response.status_code, 200)
+        self.assertContains(stock_response, 'class="scan-header ui-comp-panel"')
+        self.assertContains(stock_response, 'class="scan-title ui-comp-title"')
+        self.assertContains(stock_response, 'class="scan-nav ui-comp-panel"')
+
+        ui_lab_response = self.client.get(reverse("scan:scan_ui_lab"))
+        self.assertEqual(ui_lab_response.status_code, 200)
+        self.assertContains(ui_lab_response, "ui-comp-card")
+        self.assertContains(ui_lab_response, "ui-comp-title")
+        self.assertContains(ui_lab_response, "ui-comp-form")
+
+        public_link = PublicOrderLink.objects.create(label="Public UI Test")
+
+        public_order_response = self.client.get(
+            reverse("scan:scan_public_order", args=[public_link.token])
+        )
+        self.assertEqual(public_order_response.status_code, 200)
+        self.assertContains(public_order_response, "ui-comp-card")
+        self.assertContains(public_order_response, "ui-comp-title")
+        self.assertContains(public_order_response, "ui-comp-form")
+
+        public_account_response = self.client.get(
+            reverse("scan:scan_public_account_request", args=[public_link.token])
+        )
+        self.assertEqual(public_account_response.status_code, 200)
+        self.assertContains(public_account_response, "ui-comp-card")
+        self.assertContains(public_account_response, "ui-comp-title")
+        self.assertContains(public_account_response, "ui-comp-form")
 
     @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_dashboard_uses_bootstrap_filters(self):

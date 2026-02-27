@@ -33,12 +33,12 @@
 </head>
 <body{% if scan_bootstrap_enabled %} class="scan-bootstrap-enabled"{% endif %}>
   <div class="scan-shell{% if shell_class %} {{ shell_class }}{% endif %}">
-    <header class="scan-header">
+    <header class="scan-header ui-comp-panel">
       <div>
-        <h1 class="scan-title">ASF WMS Scan</h1>
+        <h1 class="scan-title ui-comp-title">ASF WMS Scan</h1>
         <p class="scan-subtitle">Flux rapides pour mobile et scanner.</p>
       </div>
-      <div class="scan-header-actions">
+      <div class="scan-header-actions ui-comp-actions">
         <div class="scan-ui-mode-switch">
           {% if wms_ui_mode_is_next %}
             <a
@@ -101,7 +101,7 @@
     </header>
 
     <div class="scan-body">
-      <nav class="scan-nav">
+      <nav class="scan-nav ui-comp-panel">
         <div class="scan-nav-group">
           <button type="button" class="scan-nav-trigger">Tableau de bord</button>
           <div class="scan-nav-menu">

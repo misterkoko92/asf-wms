@@ -22,12 +22,12 @@
         </div>
       {% endif %}
 
-      <div class="scan-card card border-0">
-        <h2>Demande de commande</h2>
+      <div class="scan-card card border-0 ui-comp-card">
+        <h2 class="ui-comp-title">Demande de commande</h2>
         <p class="scan-help">
           Lien priv&eacute; r&eacute;serv&eacute; aux associations. Un espace avec compte et validation sera ajoute ensuite.
         </p>
-        <div class="scan-inline">
+        <div class="scan-inline ui-comp-actions">
           <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_public_account_request' link.token %}">
             Cr&eacute;er un compte
           </a>
@@ -39,7 +39,7 @@
         </div>
       </div>
 
-      <div class="scan-card card border-0">
+      <div class="scan-card card border-0 ui-comp-card">
         {% if errors %}
           <div class="scan-message error">
             {% for error in errors %}
@@ -48,10 +48,10 @@
           </div>
         {% endif %}
 
-        <form method="post" novalidate id="public-order-form">
+        <form method="post" novalidate id="public-order-form" class="ui-comp-form">
           {% csrf_token %}
 
-          <h3>Association</h3>
+          <h3 class="ui-comp-title">Association</h3>
           <div class="scan-field">
             <label class="form-label" for="association_name">Nom de l'association</label>
             <input
@@ -98,7 +98,7 @@
             <textarea id="association_notes" name="association_notes" rows="3">{{ form_data.association_notes }}</textarea>
           </div>
 
-          <h3>Produits disponibles</h3>
+          <h3 class="ui-comp-title">Produits disponibles</h3>
           <div class="scan-help">
             Estimation des cartons basee sur le format par d&eacute;faut{% if carton_format %} : {{ carton_format.name }}{% endif %}.
           </div>
