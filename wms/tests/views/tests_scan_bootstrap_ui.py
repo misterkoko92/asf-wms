@@ -205,6 +205,20 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "ui-comp-form")
 
     @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
+    def test_scan_preparation_forms_use_design_component_classes(self):
+        for route_name in [
+            "scan:scan_pack",
+            "scan:scan_out",
+            "scan:scan_stock_update",
+        ]:
+            with self.subTest(route_name=route_name):
+                response = self.client.get(reverse(route_name))
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, "ui-comp-card")
+                self.assertContains(response, "ui-comp-title")
+                self.assertContains(response, "ui-comp-form")
+
+    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_dashboard_uses_bootstrap_filters(self):
         response = self.client.get(reverse("scan:scan_dashboard"))
         self.assertEqual(response.status_code, 200)

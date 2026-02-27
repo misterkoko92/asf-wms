@@ -4,8 +4,8 @@
 
 {% block content %}
   {% if packing_result %}
-    <div class="scan-card card border-0">
-      <h2>Liste de colisage</h2>
+    <div class="scan-card card border-0 ui-comp-card">
+      <h2 class="ui-comp-title">Liste de colisage</h2>
       <h3 class="scan-subtitle">Par carton</h3>
       {% for carton in packing_result.cartons %}
         <div class="pack-list">
@@ -60,12 +60,12 @@
       </div>
     </div>
   {% endif %}
-  <div class="scan-card card border-0">
-    <h2>Pr&eacute;paration cartons</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Pr&eacute;paration cartons</h2>
     {% if form.non_field_errors %}
       <div class="scan-message error">{{ form.non_field_errors }}</div>
     {% endif %}
-    <form method="post" novalidate>
+    <form method="post" novalidate class="ui-comp-form">
       {% csrf_token %}
 
       <div class="scan-field">
@@ -144,7 +144,7 @@
       </div>
 
       <button type="submit" class="scan-submit btn btn-primary">Pr&eacute;parer</button>
-      <p class="scan-help">Si la référence d'expédition est vide, les cartons sont pré-conditionnés.</p>
+      <p class="scan-help ui-comp-note">Si la référence d'expédition est vide, les cartons sont pré-conditionnés.</p>
     </form>
     {{ products_json|json_script:"product-data" }}
     {{ carton_formats|json_script:"carton-format-data" }}

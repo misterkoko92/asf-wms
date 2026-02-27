@@ -3,12 +3,12 @@
 {% block title %}WMS Scan - Supprimer produit{% endblock %}
 
 {% block content %}
-  <div class="scan-card card border-0">
-    <h2>Supprimer produit</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Supprimer produit</h2>
     {% if form.non_field_errors %}
       <div class="scan-message error">{{ form.non_field_errors }}</div>
     {% endif %}
-    <form method="post" novalidate>
+    <form method="post" novalidate class="ui-comp-form">
       {% csrf_token %}
 
       <div class="scan-field">
@@ -52,7 +52,7 @@
       </div>
 
       <button type="submit" class="scan-submit secondary btn btn-secondary">Enregistrer suppression</button>
-      <p class="scan-help">Utilisez la suppression rapide pour des flux sans carton.</p>
+      <p class="scan-help ui-comp-note">Utilisez la suppression rapide pour des flux sans carton.</p>
     </form>
   </div>
   {{ products_json|json_script:"product-data" }}

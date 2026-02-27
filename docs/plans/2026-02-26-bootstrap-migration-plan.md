@@ -42,6 +42,7 @@
 - Suivi lot design composants dashboard/suivi complémentaire: `docs/plans/2026-02-27-design-components-dashboard-tracking-lot13.md`.
 - Suivi lot design composants pages superuser complémentaire: `docs/plans/2026-02-27-design-components-superuser-lot14.md`.
 - Suivi lot design composants page commande complémentaire: `docs/plans/2026-02-27-design-components-order-lot15.md`.
+- Suivi lot design composants pages préparation complémentaire: `docs/plans/2026-02-27-design-components-preparation-lot16.md`.
 
 ---
 

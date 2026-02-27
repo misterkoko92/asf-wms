@@ -3,12 +3,12 @@
 {% block title %}WMS Scan - MAJ stock{% endblock %}
 
 {% block content %}
-  <div class="scan-card card border-0">
-    <h2>MAJ stock</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">MAJ stock</h2>
     {% if create_form.non_field_errors %}
       <div class="scan-message error">{{ create_form.non_field_errors }}</div>
     {% endif %}
-    <form method="post" novalidate>
+    <form method="post" novalidate class="ui-comp-form">
       {% csrf_token %}
 
       <div class="scan-field">
