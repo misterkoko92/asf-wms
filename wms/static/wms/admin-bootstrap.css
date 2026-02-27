@@ -38,6 +38,13 @@
   margin-right: 8px;
 }
 
+.admin-bootstrap-enabled .btn {
+  border-radius: 0.45rem;
+  border-width: 1px;
+  font-weight: 700;
+  letter-spacing: 0.005em;
+}
+
 .admin-bootstrap-enabled .aligned p input,
 .admin-bootstrap-enabled .aligned p select,
 .admin-bootstrap-enabled .aligned p textarea {

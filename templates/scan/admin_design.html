@@ -177,7 +177,7 @@
     .scan-design-preview .preview-button {
       display: inline-block;
       border: 1px solid transparent;
-      border-radius: var(--preview-btn-radius, 0.6rem);
+      border-radius: min(var(--preview-btn-radius, 0.6rem), 0.45rem);
       min-height: var(--preview-btn-height, 2.6rem);
       padding: 0.44rem 0.7rem;
       margin-right: 0.4rem;
@@ -185,13 +185,15 @@
       font-family: var(--preview-font-h2, "DM Sans", sans-serif);
       font-weight: 700;
       box-shadow: var(--preview-btn-shadow, none);
-      color: #fff;
+      color: #f7faf8;
       background: var(--preview-primary, #6f9a8d);
+      border-color: #5d8579;
     }
 
     .scan-design-preview .preview-button.secondary {
       background: var(--preview-secondary, #e7c3a8);
       color: var(--preview-text, #2f3a36);
+      border-color: #ceaf90;
     }
 
     .scan-design-preview .preview-button.success {
