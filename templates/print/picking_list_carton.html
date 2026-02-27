@@ -4,29 +4,80 @@
 
 {% block extra_style %}
   .print-body { padding-bottom: 0; }
+  .picking-sheet {
+    border: 1px solid #d9e2dd;
+    border-radius: 4mm;
+    padding: 4mm 4.5mm 3.5mm;
+    background: #f8faf9;
+  }
+  .picking-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 4mm;
+    margin-bottom: 3mm;
+  }
+  .picking-head h1 {
+    margin: 0;
+  }
+  .picking-meta {
+    margin: 0;
+    padding: 1.5mm 2.5mm;
+    border: 1px solid #cfd9d3;
+    border-radius: 3mm;
+    background: #fff;
+    font-size: 9.5pt;
+    color: #2f4a3d;
+  }
+  .picking-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 2mm;
+    background: #fff;
+  }
+  .picking-table th,
+  .picking-table td {
+    border: 1px solid #b7c8be;
+    padding: 2.2mm 2mm;
+    font-size: 9.5pt;
+    vertical-align: top;
+  }
+  .picking-table th {
+    background: #e5eee9;
+    color: #21372d;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    font-size: 8.7pt;
+  }
+  .picking-table tbody tr:nth-child(even) {
+    background: #f8fbf9;
+  }
 {% endblock %}
 
 {% block body %}
-  <h1>Liste picking - carton</h1>
+  <section class="picking-sheet">
+    <div class="picking-head">
+      <h1>Liste picking - carton</h1>
+      <p class="picking-meta">Carton code: {{ carton_code }}</p>
+    </div>
 
-  <div class="meta">Carton code: {{ carton_code }}</div>
-
-  <table>
-    <thead>
-      <tr>
-        <th>Produit</th>
-        <th>Quantit&eacute;</th>
-        <th>Emplacement (Rack - &Eacute;tag&egrave;re - Bac)</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in item_rows %}
+    <table class="picking-table">
+      <thead>
         <tr>
-          <td>{{ row.label }}</td>
-          <td>{{ row.quantity }}</td>
-          <td>{{ row.location }}</td>
+          <th>Produit</th>
+          <th>Quantit&eacute;</th>
+          <th>Emplacement (Rack - &Eacute;tag&egrave;re - Bac)</th>
         </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        {% for row in item_rows %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td>{{ row.quantity }}</td>
+            <td>{{ row.location }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
 {% endblock %}
