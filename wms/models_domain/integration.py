@@ -120,6 +120,21 @@ class WmsRuntimeSettings(models.Model):
     email_queue_retry_max_seconds = models.PositiveIntegerField(default=3600)
     email_queue_processing_timeout_seconds = models.PositiveIntegerField(default=900)
     enable_shipment_track_legacy = models.BooleanField(default=True)
+    design_font_heading = models.CharField(
+        max_length=160,
+        default='"DM Sans", "Aptos", "Segoe UI", sans-serif',
+    )
+    design_font_body = models.CharField(
+        max_length=160,
+        default='"Nunito Sans", "Aptos", "Segoe UI", sans-serif',
+    )
+    design_color_primary = models.CharField(max_length=16, default="#6f9a8d")
+    design_color_secondary = models.CharField(max_length=16, default="#e7c3a8")
+    design_color_background = models.CharField(max_length=16, default="#f6f8f5")
+    design_color_surface = models.CharField(max_length=16, default="#fffdf9")
+    design_color_border = models.CharField(max_length=16, default="#d9e2dc")
+    design_color_text = models.CharField(max_length=16, default="#2f3a36")
+    design_color_text_soft = models.CharField(max_length=16, default="#5a6964")
     updated_by = models.ForeignKey(
         django_settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -166,6 +181,15 @@ class WmsRuntimeSettings(models.Model):
             "enable_shipment_track_legacy": bool(
                 getattr(django_settings, "ENABLE_SHIPMENT_TRACK_LEGACY", True)
             ),
+            "design_font_heading": '"DM Sans", "Aptos", "Segoe UI", sans-serif',
+            "design_font_body": '"Nunito Sans", "Aptos", "Segoe UI", sans-serif',
+            "design_color_primary": "#6f9a8d",
+            "design_color_secondary": "#e7c3a8",
+            "design_color_background": "#f6f8f5",
+            "design_color_surface": "#fffdf9",
+            "design_color_border": "#d9e2dc",
+            "design_color_text": "#2f3a36",
+            "design_color_text_soft": "#5a6964",
         }
 
     @classmethod

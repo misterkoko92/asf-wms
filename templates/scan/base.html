@@ -28,6 +28,7 @@
   {% if scan_bootstrap_enabled %}
     <link rel="stylesheet" href="{% static 'scan/scan-bootstrap.css' %}">
   {% endif %}
+  {% include "includes/design_vars_style.html" %}
   {% block extra_head %}{% endblock %}
   <title>{% block title %}WMS Scan{% endblock %}</title>
 </head>
@@ -165,6 +166,7 @@
             <div class="scan-nav-menu">
               <a href="{% url 'scan:scan_admin_contacts' %}" class="{% if active == 'admin_contacts' %}active{% endif %}">Contacts</a>
               <a href="{% url 'scan:scan_admin_products' %}" class="{% if active == 'admin_products' %}active{% endif %}">Produit</a>
+              <a href="{% url 'scan:scan_admin_design' %}" class="{% if active == 'admin_design' %}active{% endif %}">Design</a>
             </div>
           </div>
         {% endif %}

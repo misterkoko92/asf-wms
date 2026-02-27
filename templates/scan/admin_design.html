@@ -1,0 +1,194 @@
+{% extends "scan/base.html" %}
+
+{% block title %}WMS Scan - Admin Design{% endblock %}
+
+{% block extra_head %}
+  <style>
+    .scan-design-preview {
+      border: 1px solid var(--preview-border, #d9e2dc);
+      border-radius: 0.9rem;
+      background: var(--preview-bg, #f6f8f5);
+      color: var(--preview-text, #2f3a36);
+      padding: 0.95rem;
+    }
+
+    .scan-design-preview .preview-surface {
+      border: 1px solid var(--preview-border, #d9e2dc);
+      border-radius: 0.78rem;
+      background: var(--preview-surface, #fffdf9);
+      padding: 0.78rem;
+      margin-bottom: 0.7rem;
+    }
+
+    .scan-design-preview h4,
+    .scan-design-preview h5 {
+      margin: 0 0 0.45rem;
+      font-family: var(--preview-font-heading, "DM Sans", sans-serif);
+    }
+
+    .scan-design-preview p,
+    .scan-design-preview li {
+      margin: 0;
+      font-family: var(--preview-font-body, "Nunito Sans", sans-serif);
+      color: var(--preview-text-soft, #5a6964);
+    }
+
+    .scan-design-preview .preview-kpi {
+      display: inline-block;
+      margin-right: 0.45rem;
+      margin-bottom: 0.4rem;
+      padding: 0.34rem 0.58rem;
+      border-radius: 999px;
+      border: 1px solid var(--preview-border, #d9e2dc);
+      background: var(--preview-surface, #fffdf9);
+      font-family: var(--preview-font-body, "Nunito Sans", sans-serif);
+      color: var(--preview-text, #2f3a36);
+    }
+
+    .scan-design-preview .preview-button {
+      display: inline-block;
+      border: 0;
+      border-radius: 0.6rem;
+      padding: 0.44rem 0.7rem;
+      margin-right: 0.4rem;
+      margin-bottom: 0.4rem;
+      font-family: var(--preview-font-heading, "DM Sans", sans-serif);
+      font-weight: 700;
+      color: #fff;
+      background: var(--preview-primary, #6f9a8d);
+    }
+
+    .scan-design-preview .preview-button.secondary {
+      background: var(--preview-secondary, #e7c3a8);
+      color: var(--preview-text, #2f3a36);
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Admin - Design</h2>
+    <p class="scan-help ui-comp-note">
+      Cette page est réservée aux superusers. Vous pouvez modifier les variables visuelles globales
+      (couleurs et typos), appliquées sur les pages scan/portal/home et écrans liés.
+    </p>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card">
+    <form method="post" class="scan-filters ui-comp-form">
+      {% csrf_token %}
+
+      <h3>Typographies</h3>
+      <div class="scan-inline scan-inline-equal">
+        <div class="scan-field">
+          {{ form.design_font_heading.label_tag }}
+          {{ form.design_font_heading }}
+          {% if form.design_font_heading.errors %}<div class="scan-help">{{ form.design_font_heading.errors|join:", " }}</div>{% endif %}
+          <div class="scan-help">{{ form.design_font_heading.help_text }}</div>
+        </div>
+        <div class="scan-field">
+          {{ form.design_font_body.label_tag }}
+          {{ form.design_font_body }}
+          {% if form.design_font_body.errors %}<div class="scan-help">{{ form.design_font_body.errors|join:", " }}</div>{% endif %}
+          <div class="scan-help">{{ form.design_font_body.help_text }}</div>
+        </div>
+      </div>
+
+      <div class="scan-divider"></div>
+
+      <h3>Couleurs</h3>
+      <div class="scan-inline scan-inline-equal">
+        <div class="scan-field">
+          {{ form.design_color_primary.label_tag }}
+          {{ form.design_color_primary }}
+          {% if form.design_color_primary.errors %}<div class="scan-help">{{ form.design_color_primary.errors|join:", " }}</div>{% endif %}
+          <div class="scan-help">{{ form.design_color_primary.help_text }}</div>
+        </div>
+        <div class="scan-field">
+          {{ form.design_color_secondary.label_tag }}
+          {{ form.design_color_secondary }}
+          {% if form.design_color_secondary.errors %}<div class="scan-help">{{ form.design_color_secondary.errors|join:", " }}</div>{% endif %}
+          <div class="scan-help">{{ form.design_color_secondary.help_text }}</div>
+        </div>
+      </div>
+
+      <div class="scan-inline scan-inline-equal">
+        <div class="scan-field">
+          {{ form.design_color_background.label_tag }}
+          {{ form.design_color_background }}
+          {% if form.design_color_background.errors %}<div class="scan-help">{{ form.design_color_background.errors|join:", " }}</div>{% endif %}
+          <div class="scan-help">{{ form.design_color_background.help_text }}</div>
+        </div>
+        <div class="scan-field">
+          {{ form.design_color_surface.label_tag }}
+          {{ form.design_color_surface }}
+          {% if form.design_color_surface.errors %}<div class="scan-help">{{ form.design_color_surface.errors|join:", " }}</div>{% endif %}
+          <div class="scan-help">{{ form.design_color_surface.help_text }}</div>
+        </div>
+      </div>
+
+      <div class="scan-inline scan-inline-equal">
+        <div class="scan-field">
+          {{ form.design_color_border.label_tag }}
+          {{ form.design_color_border }}
+          {% if form.design_color_border.errors %}<div class="scan-help">{{ form.design_color_border.errors|join:", " }}</div>{% endif %}
+          <div class="scan-help">{{ form.design_color_border.help_text }}</div>
+        </div>
+        <div class="scan-field">
+          {{ form.design_color_text.label_tag }}
+          {{ form.design_color_text }}
+          {% if form.design_color_text.errors %}<div class="scan-help">{{ form.design_color_text.errors|join:", " }}</div>{% endif %}
+          <div class="scan-help">{{ form.design_color_text.help_text }}</div>
+        </div>
+      </div>
+
+      <div class="scan-inline scan-inline-equal">
+        <div class="scan-field">
+          {{ form.design_color_text_soft.label_tag }}
+          {{ form.design_color_text_soft }}
+          {% if form.design_color_text_soft.errors %}<div class="scan-help">{{ form.design_color_text_soft.errors|join:", " }}</div>{% endif %}
+          <div class="scan-help">{{ form.design_color_text_soft.help_text }}</div>
+        </div>
+      </div>
+
+      {% if form.non_field_errors %}
+        <div class="scan-message error">{{ form.non_field_errors|join:", " }}</div>
+      {% endif %}
+
+      <div class="scan-filter-actions">
+        <button type="submit" name="action" value="save" class="scan-submit btn btn-primary">Enregistrer</button>
+        <button type="submit" name="action" value="reset" class="scan-scan-btn btn btn-outline-secondary">Réinitialiser (valeurs recommandées)</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card">
+    <h3>Aperçu rapide</h3>
+    <div
+      class="scan-design-preview"
+      style="
+        --preview-primary: {{ preview_values.design_color_primary }};
+        --preview-secondary: {{ preview_values.design_color_secondary }};
+        --preview-bg: {{ preview_values.design_color_background }};
+        --preview-surface: {{ preview_values.design_color_surface }};
+        --preview-border: {{ preview_values.design_color_border }};
+        --preview-text: {{ preview_values.design_color_text }};
+        --preview-text-soft: {{ preview_values.design_color_text_soft }};
+        --preview-font-heading: {{ preview_values.design_font_heading }};
+        --preview-font-body: {{ preview_values.design_font_body }};
+      "
+    >
+      <div class="preview-surface">
+        <h4>Dashboard</h4>
+        <p>Exemple de rendu des cartes, textes et actions.</p>
+      </div>
+      <span class="preview-kpi">Colis prêts: 128</span>
+      <span class="preview-kpi">Kits prêts: 42</span>
+      <span class="preview-kpi">Expéditions: 7</span>
+      <div>
+        <span class="preview-button">Action principale</span>
+        <span class="preview-button secondary">Action secondaire</span>
+      </div>
+    </div>
+  </div>
+{% endblock %}

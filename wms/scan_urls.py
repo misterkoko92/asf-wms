@@ -114,6 +114,7 @@ urlpatterns = [
     path("settings/", views.scan_settings, name="scan_settings"),
     path("admin/contacts/", views.scan_admin_contacts, name="scan_admin_contacts"),
     path("admin/products/", views.scan_admin_products, name="scan_admin_products"),
+    path("admin/design/", views.scan_admin_design, name="scan_admin_design"),
     path("out/", views.scan_out, name="scan_out"),
     path("sync/", views.scan_sync, name="scan_sync"),
     path("service-worker.js", views.scan_service_worker, name="scan_service_worker"),

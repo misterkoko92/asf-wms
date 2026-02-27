@@ -397,6 +397,7 @@ class ScanDashboardViewTests(TestCase):
         self.assertNotContains(response, reverse("scan:scan_settings"))
         self.assertNotContains(response, reverse("scan:scan_admin_contacts"))
         self.assertNotContains(response, reverse("scan:scan_admin_products"))
+        self.assertNotContains(response, reverse("scan:scan_admin_design"))
 
     def test_scan_dashboard_shows_settings_link_for_superuser(self):
         self.client.force_login(self.superuser)
@@ -407,6 +408,7 @@ class ScanDashboardViewTests(TestCase):
         self.assertContains(response, reverse("scan:scan_settings"))
         self.assertContains(response, reverse("scan:scan_admin_contacts"))
         self.assertContains(response, reverse("scan:scan_admin_products"))
+        self.assertContains(response, reverse("scan:scan_admin_design"))
 
     def test_scan_dashboard_uses_runtime_settings_values(self):
         runtime = WmsRuntimeSettings.get_solo()

@@ -16,6 +16,7 @@
     <link rel="stylesheet" href="{% static 'scan/scan-bootstrap.css' %}">
     <link rel="stylesheet" href="{% static 'portal/portal-bootstrap.css' %}">
   {% endif %}
+  {% include "includes/design_vars_style.html" %}
 </head>
 <body{% if scan_bootstrap_enabled %} class="scan-bootstrap-enabled portal-bootstrap-enabled"{% endif %}>
   <div class="scan-shell">

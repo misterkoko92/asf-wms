@@ -1,0 +1,46 @@
+{% if wms_design_tokens %}
+  <style id="wms-design-vars">
+    :root,
+    :root[data-ui="nova"],
+    :root[data-ui="studio"],
+    :root[data-ui="benev"],
+    :root[data-ui="timeline"],
+    :root[data-ui="spreadsheet"] {
+      --wms-font-heading: {{ wms_design_tokens.font_heading }};
+      --wms-font-body: {{ wms_design_tokens.font_body }};
+      --wms-color-primary: {{ wms_design_tokens.color_primary }};
+      --wms-color-secondary: {{ wms_design_tokens.color_secondary }};
+      --wms-color-background: {{ wms_design_tokens.color_background }};
+      --wms-color-surface: {{ wms_design_tokens.color_surface }};
+      --wms-color-border: {{ wms_design_tokens.color_border }};
+      --wms-color-text: {{ wms_design_tokens.color_text }};
+      --wms-color-text-soft: {{ wms_design_tokens.color_text_soft }};
+      --accent: var(--wms-color-primary);
+      --accent-2: var(--wms-color-secondary);
+      --bg: var(--wms-color-background);
+      --card: var(--wms-color-surface);
+      --panel: var(--wms-color-surface);
+      --border: var(--wms-color-border);
+      --ink: var(--wms-color-text);
+      --ink-soft: var(--wms-color-text-soft);
+      --scan-btn-bg: var(--wms-color-surface);
+      --table-header: var(--wms-color-background);
+    }
+
+    .scan-bootstrap-enabled,
+    .portal-bootstrap-enabled,
+    .home-bootstrap-enabled,
+    .next-build-bootstrap-enabled,
+    .admin-bootstrap-enabled {
+      --ds-primary: var(--wms-color-primary);
+      --ds-accent: var(--wms-color-secondary);
+      --ds-bg: var(--wms-color-background);
+      --ds-surface: var(--wms-color-surface);
+      --ds-panel: var(--wms-color-surface);
+      --ds-border: var(--wms-color-border);
+      --ds-border-strong: var(--wms-color-border);
+      --ds-text: var(--wms-color-text);
+      --ds-text-soft: var(--wms-color-text-soft);
+    }
+  </style>
+{% endif %}

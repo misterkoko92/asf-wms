@@ -197,6 +197,11 @@ class ScanBootstrapUiTests(TestCase):
                 "ui-comp-title",
                 "ui-comp-form",
             ],
+            "scan:scan_admin_design": [
+                "ui-comp-card",
+                "ui-comp-title",
+                "ui-comp-form",
+            ],
         }
 
         for route_name, markers in expectations.items():
@@ -418,6 +423,7 @@ class ScanBootstrapUiTests(TestCase):
             "scan:scan_settings",
             "scan:scan_admin_contacts",
             "scan:scan_admin_products",
+            "scan:scan_admin_design",
             "scan:scan_import",
             "scan:scan_print_templates",
         ]:
