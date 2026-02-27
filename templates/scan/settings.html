@@ -3,8 +3,8 @@
 {% block title %}WMS Scan - Paramètres{% endblock %}
 
 {% block content %}
-  <div class="scan-card card border-0">
-    <h2>Paramètres</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Paramètres</h2>
     <p class="scan-help">
       Cette page est réservée aux superusers. Les valeurs sont appliquées dans les écrans scan
       (dashboard, workflow expéditions, queue email, route legacy).
@@ -17,8 +17,8 @@
     {% endif %}
   </div>
 
-  <div class="scan-card card border-0">
-    <form method="post" class="scan-filters">
+  <div class="scan-card card border-0 ui-comp-card">
+    <form method="post" class="scan-filters ui-comp-form">
       {% csrf_token %}
 
       <h3>Presets operationnels</h3>
@@ -149,7 +149,7 @@
   </div>
 
   {% if preview %}
-    <div class="scan-card card border-0">
+    <div class="scan-card card border-0 ui-comp-card">
       <h3>Apercu d'impact{% if preview.preset_label %} (preset: {{ preview.preset_label }}){% endif %}</h3>
       {% if preview.changed_fields %}
         <p class="scan-help">Champs modifies: {{ preview.changed_fields|join:", " }}</p>
@@ -164,7 +164,7 @@
     </div>
   {% endif %}
 
-  <div class="scan-card card border-0">
+  <div class="scan-card card border-0 ui-comp-card">
     <h3>Historique recent</h3>
     {% if recent_audits %}
       <table class="scan-table">

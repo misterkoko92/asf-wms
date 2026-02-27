@@ -3,16 +3,16 @@
 {% block title %}WMS Scan - Admin Produit{% endblock %}
 
 {% block content %}
-  <div class="scan-card card border-0">
-    <h2>Admin - Produit</h2>
-    <p class="scan-help">
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Admin - Produit</h2>
+    <p class="scan-help ui-comp-note">
       Gestion des kits: cr&eacute;er, modifier, supprimer, attribuer des produits et quantit&eacute;s.
       Les actions ouvrent les formulaires admin complets.
     </p>
   </div>
 
-  <div class="scan-card card border-0">
-    <form method="get" class="scan-filters">
+  <div class="scan-card card border-0 ui-comp-card">
+    <form method="get" class="scan-filters ui-comp-form">
       <div class="scan-inline">
         <div class="scan-field">
           <label class="form-label" for="scan-admin-products-q">Recherche kit</label>
@@ -26,14 +26,14 @@
     </form>
   </div>
 
-  <div class="scan-card card border-0">
+  <div class="scan-card card border-0 ui-comp-card">
     <div class="scan-filter-actions">
       <a class="scan-scan-btn btn btn-outline-primary" href="{{ products_admin_url }}">Tous les produits (admin)</a>
       <a class="scan-scan-btn btn btn-outline-primary" href="{{ product_add_url }}">Cr&eacute;er un kit</a>
     </div>
   </div>
 
-  <div class="scan-card card border-0">
+  <div class="scan-card card border-0 ui-comp-card">
     <h3>Kits disponibles ({% if kit_rows %}{{ kit_rows|length }}{% else %}0{% endif %})</h3>
     {% if kit_rows %}
       <table class="scan-table">

@@ -3,16 +3,16 @@
 {% block title %}WMS Scan - Admin Contacts{% endblock %}
 
 {% block content %}
-  <div class="scan-card card border-0">
-    <h2>Admin - Contacts</h2>
-    <p class="scan-help">
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Admin - Contacts</h2>
+    <p class="scan-help ui-comp-note">
       Cette page est r&eacute;serv&eacute;e aux superusers. Les actions ci-dessous ouvrent les formulaires
       admin complets (modification des infos, tags, destinations, correspondants, adresses, etc.).
     </p>
   </div>
 
-  <div class="scan-card card border-0">
-    <form method="get" class="scan-filters">
+  <div class="scan-card card border-0 ui-comp-card">
+    <form method="get" class="scan-filters ui-comp-form">
       <div class="scan-inline">
         <div class="scan-field">
           <label class="form-label" for="scan-admin-contacts-q">Recherche</label>
@@ -26,7 +26,7 @@
     </form>
   </div>
 
-  <div class="scan-card card border-0">
+  <div class="scan-card card border-0 ui-comp-card">
     <div class="scan-filter-actions">
       <a class="scan-scan-btn btn btn-outline-primary" href="{{ contacts_admin_url }}">Tous les contacts (admin)</a>
       <a class="scan-scan-btn btn btn-outline-primary" href="{{ contact_add_url }}">Ajouter un contact</a>
@@ -36,7 +36,7 @@
     </div>
   </div>
 
-  <div class="scan-card card border-0">
+  <div class="scan-card card border-0 ui-comp-card">
     <h3>Contacts ({% if contacts %}{{ contacts|length }}{% else %}0{% endif %})</h3>
     {% if contacts %}
       <table class="scan-table">
@@ -81,7 +81,7 @@
     {% endif %}
   </div>
 
-  <div class="scan-card card border-0">
+  <div class="scan-card card border-0 ui-comp-card">
     <h3>Correspondants</h3>
     {% if correspondents %}
       <table class="scan-table">
