@@ -3,12 +3,12 @@
 {% block title %}WMS Scan - R&eacute;ception association{% endblock %}
 
 {% block content %}
-  <div class="scan-card card border-0">
-    <h2>R&eacute;ception association</h2>
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">R&eacute;ception association</h2>
     {% if create_form.non_field_errors %}
       <div class="scan-message error">{{ create_form.non_field_errors }}</div>
     {% endif %}
-    <form method="post" novalidate>
+    <form method="post" novalidate class="ui-comp-form">
       {% csrf_token %}
 
       <div class="scan-field">
@@ -63,14 +63,14 @@
 
       <div class="scan-divider"></div>
 
-      <h3>Hors format</h3>
+      <h3 class="ui-comp-title">Hors format</h3>
       <div class="pack-lines" id="association-lines"></div>
 
       <div class="scan-field scan-field-gap">
         <button type="submit" class="scan-submit btn btn-primary">Enregistrer la r&eacute;ception association</button>
       </div>
     </form>
-    <p class="scan-help">La r&eacute;f&eacute;rence est g&eacute;n&eacute;r&eacute;e automatiquement (format YY-XX-WWW-ZZ).</p>
+    <p class="scan-help ui-comp-note">La r&eacute;f&eacute;rence est g&eacute;n&eacute;r&eacute;e automatiquement (format YY-XX-WWW-ZZ).</p>
   </div>
 
   {{ line_values|json_script:"association-lines-data" }}
