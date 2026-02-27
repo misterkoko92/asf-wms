@@ -20,6 +20,18 @@
       margin: 0 0 0.6rem;
     }
 
+    .scan-design-switch {
+      border: 1px solid var(--preview-border, #d9e2dc);
+      border-radius: 0.75rem;
+      background: var(--preview-surface, #fffdf9);
+      padding: 0.8rem 0.9rem;
+    }
+
+    .scan-design-switch .form-check-label {
+      font-weight: 700;
+      color: var(--preview-text, #2f3a36);
+    }
+
     .scan-design-font-grid {
       display: grid;
       gap: 0.9rem;
@@ -198,13 +210,32 @@
     <h2 class="ui-comp-title">Admin - Design</h2>
     <p class="scan-help ui-comp-note">
       Cette page est réservée aux superusers. Vous pouvez modifier les variables visuelles globales
-      (couleurs et typos), appliquées sur les pages scan/portal/home et écrans liés.
+      (couleurs, typos et options runtime), appliquées sur les pages scan/portal/home/login/admin personnalisés.
+    </p>
+    <p class="scan-help ui-comp-note">
+      Ce panneau sera enrichi progressivement avec davantage de variables pilotables directement depuis le site.
     </p>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card scan-design-editor-card">
     <form method="post" class="scan-filters ui-comp-form scan-design-form">
       {% csrf_token %}
+
+      <h3 class="scan-design-section-title">Activation globale Bootstrap</h3>
+      <div class="scan-design-switch">
+        <div class="form-check form-switch">
+          {{ form.scan_bootstrap_enabled }}
+          <label class="form-check-label" for="{{ form.scan_bootstrap_enabled.id_for_label }}">
+            {{ form.scan_bootstrap_enabled.label }}
+          </label>
+        </div>
+        <div class="scan-help">{{ form.scan_bootstrap_enabled.help_text }}</div>
+        {% if form.scan_bootstrap_enabled.errors %}
+          <div class="scan-help">{{ form.scan_bootstrap_enabled.errors|join:", " }}</div>
+        {% endif %}
+      </div>
+
+      <div class="scan-divider"></div>
 
       <h3 class="scan-design-section-title">Typographies</h3>
       <div class="scan-design-font-grid">

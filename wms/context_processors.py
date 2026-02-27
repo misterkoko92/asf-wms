@@ -70,6 +70,18 @@ def _resolve_design_tokens():
     }
 
 
+def _resolve_scan_bootstrap_enabled():
+    fallback = bool(getattr(settings, "SCAN_BOOTSTRAP_ENABLED", False))
+    try:
+        runtime = get_runtime_settings_instance()
+    except (ProgrammingError, OperationalError):
+        return fallback
+    runtime_value = getattr(runtime, "scan_bootstrap_enabled", None)
+    if runtime_value is None:
+        return fallback
+    return bool(runtime_value)
+
+
 def admin_notifications(request):
     user = getattr(request, "user", None)
     if not user or not user.is_authenticated or not user.is_superuser:
@@ -85,6 +97,6 @@ def ui_mode_context(request):
     return {
         "wms_ui_mode": mode,
         "wms_ui_mode_is_next": mode == UiMode.NEXT,
-        "scan_bootstrap_enabled": getattr(settings, "SCAN_BOOTSTRAP_ENABLED", False),
+        "scan_bootstrap_enabled": _resolve_scan_bootstrap_enabled(),
         "wms_design_tokens": _resolve_design_tokens(),
     }

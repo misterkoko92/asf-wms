@@ -45,6 +45,25 @@ class ScanAdminViewTests(TestCase):
         )
         ProductKitItem.objects.create(kit=self.kit, component=self.component, quantity=5)
 
+    def _design_form_payload(self, *, bootstrap_enabled):
+        payload = {
+            "action": "save",
+            "design_font_h1": "Manrope",
+            "design_font_h2": "Manrope",
+            "design_font_h3": "DM Sans",
+            "design_font_body": "Nunito Sans",
+            "design_color_primary": "#3a7f6f",
+            "design_color_secondary": "#f0caa9",
+            "design_color_background": "#f4f8f3",
+            "design_color_surface": "#fffefa",
+            "design_color_border": "#cfded6",
+            "design_color_text": "#22322e",
+            "design_color_text_soft": "#4f625c",
+        }
+        if bootstrap_enabled:
+            payload["scan_bootstrap_enabled"] = "on"
+        return payload
+
     def test_scan_admin_views_redirect_anonymous_to_admin_login(self):
         for route_name in (
             "scan:scan_admin_contacts",
@@ -104,6 +123,7 @@ class ScanAdminViewTests(TestCase):
         self.assertContains(response, "scan-design-color-grid")
         self.assertContains(response, "scan-design-form")
         self.assertContains(response, "design_color_primary")
+        self.assertContains(response, "scan_bootstrap_enabled")
         self.assertContains(response, '<select name="design_font_h1"')
         self.assertContains(response, "<option value=\"DM Sans\"")
 
@@ -111,20 +131,7 @@ class ScanAdminViewTests(TestCase):
         self.client.force_login(self.superuser)
         response = self.client.post(
             reverse("scan:scan_admin_design"),
-            {
-                "action": "save",
-                "design_font_h1": "Manrope",
-                "design_font_h2": "Manrope",
-                "design_font_h3": "DM Sans",
-                "design_font_body": "Nunito Sans",
-                "design_color_primary": "#3a7f6f",
-                "design_color_secondary": "#f0caa9",
-                "design_color_background": "#f4f8f3",
-                "design_color_surface": "#fffefa",
-                "design_color_border": "#cfded6",
-                "design_color_text": "#22322e",
-                "design_color_text_soft": "#4f625c",
-            },
+            self._design_form_payload(bootstrap_enabled=True),
         )
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse("scan:scan_admin_design"))
@@ -135,8 +142,74 @@ class ScanAdminViewTests(TestCase):
         self.assertEqual(runtime.design_font_h1, "Manrope")
         self.assertEqual(runtime.design_font_h2, "Manrope")
         self.assertEqual(runtime.design_font_h3, "DM Sans")
+        self.assertTrue(runtime.scan_bootstrap_enabled)
 
         dashboard_response = self.client.get(reverse("scan:scan_dashboard"))
         self.assertEqual(dashboard_response.status_code, 200)
         self.assertContains(dashboard_response, "--wms-color-primary: #3a7f6f;")
         self.assertContains(dashboard_response, "--wms-font-heading-h1: Manrope;")
+
+    def test_scan_admin_design_bootstrap_toggle_applies_on_scan_portal_home_and_admin(self):
+        self.client.force_login(self.superuser)
+
+        enable_response = self.client.post(
+            reverse("scan:scan_admin_design"),
+            self._design_form_payload(bootstrap_enabled=True),
+        )
+        self.assertEqual(enable_response.status_code, 302)
+        self.assertEqual(enable_response.url, reverse("scan:scan_admin_design"))
+        runtime = WmsRuntimeSettings.get_solo()
+        self.assertTrue(runtime.scan_bootstrap_enabled)
+
+        scan_response = self.client.get(reverse("scan:scan_stock"))
+        self.assertEqual(scan_response.status_code, 200)
+        self.assertContains(scan_response, "scan-bootstrap.css")
+        self.assertContains(scan_response, "bootstrap@5.3.3")
+
+        self.client.logout()
+        portal_login_response = self.client.get(reverse("portal:portal_login"))
+        self.assertEqual(portal_login_response.status_code, 200)
+        self.assertContains(portal_login_response, "scan-bootstrap.css")
+        self.assertContains(portal_login_response, "portal-bootstrap.css")
+
+        home_response = self.client.get(reverse("home"))
+        self.assertEqual(home_response.status_code, 200)
+        self.assertContains(home_response, "bootstrap@5.3.3")
+        self.assertContains(home_response, '<body class="home-bootstrap-enabled">')
+
+        self.client.force_login(self.superuser)
+        admin_response = self.client.get(reverse("admin:wms_stockmovement_changelist"))
+        self.assertEqual(admin_response.status_code, 200)
+        self.assertContains(admin_response, "wms/admin-bootstrap.css")
+        self.assertContains(admin_response, "admin-bootstrap-enabled")
+
+        disable_response = self.client.post(
+            reverse("scan:scan_admin_design"),
+            self._design_form_payload(bootstrap_enabled=False),
+        )
+        self.assertEqual(disable_response.status_code, 302)
+        self.assertEqual(disable_response.url, reverse("scan:scan_admin_design"))
+        runtime = WmsRuntimeSettings.get_solo()
+        self.assertFalse(runtime.scan_bootstrap_enabled)
+
+        scan_response = self.client.get(reverse("scan:scan_stock"))
+        self.assertEqual(scan_response.status_code, 200)
+        self.assertNotContains(scan_response, "scan-bootstrap.css")
+        self.assertNotContains(scan_response, "bootstrap@5.3.3")
+
+        self.client.logout()
+        portal_login_response = self.client.get(reverse("portal:portal_login"))
+        self.assertEqual(portal_login_response.status_code, 200)
+        self.assertNotContains(portal_login_response, "scan-bootstrap.css")
+        self.assertNotContains(portal_login_response, "portal-bootstrap.css")
+        self.assertNotContains(portal_login_response, "bootstrap@5.3.3")
+
+        home_response = self.client.get(reverse("home"))
+        self.assertEqual(home_response.status_code, 200)
+        self.assertNotContains(home_response, '<body class="home-bootstrap-enabled">')
+        self.assertNotContains(home_response, "bootstrap@5.3.3")
+
+        self.client.force_login(self.superuser)
+        admin_response = self.client.get(reverse("admin:wms_stockmovement_changelist"))
+        self.assertEqual(admin_response.status_code, 200)
+        self.assertNotContains(admin_response, "wms/admin-bootstrap.css")

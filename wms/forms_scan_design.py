@@ -54,6 +54,7 @@ class ScanDesignSettingsForm(forms.ModelForm):
     class Meta:
         model = WmsRuntimeSettings
         fields = [
+            "scan_bootstrap_enabled",
             "design_font_h1",
             "design_font_h2",
             "design_font_h3",
@@ -67,6 +68,7 @@ class ScanDesignSettingsForm(forms.ModelForm):
             "design_color_text_soft",
         ]
         labels = {
+            "scan_bootstrap_enabled": "Activer Bootstrap global",
             "design_font_h1": "Typo titre H1",
             "design_font_h2": "Typo titre H2",
             "design_font_h3": "Typo titre H3",
@@ -80,6 +82,7 @@ class ScanDesignSettingsForm(forms.ModelForm):
             "design_color_text_soft": "Couleur texte secondaire",
         }
         help_texts = {
+            "scan_bootstrap_enabled": "Active la couche Bootstrap sur scan/portal/home/login/admin personnalisés.",
             "design_font_h1": "Une seule police (ex: DM Sans).",
             "design_font_h2": "Une seule police (ex: DM Sans).",
             "design_font_h3": "Une seule police (ex: DM Sans).",
@@ -93,6 +96,9 @@ class ScanDesignSettingsForm(forms.ModelForm):
             "design_color_text_soft": "Couleur de texte secondaire/aide.",
         }
         widgets = {
+            "scan_bootstrap_enabled": forms.CheckboxInput(
+                attrs={"class": "form-check-input"}
+            ),
             "design_font_h1": forms.Select(choices=DESIGN_FONT_CHOICES),
             "design_font_h2": forms.Select(choices=DESIGN_FONT_CHOICES),
             "design_font_h3": forms.Select(choices=DESIGN_FONT_CHOICES),
@@ -149,6 +155,7 @@ class ScanDesignSettingsForm(forms.ModelForm):
         }
 
     FONT_FIELDS = ("design_font_h1", "design_font_h2", "design_font_h3", "design_font_body")
+    RUNTIME_FIELDS = ("scan_bootstrap_enabled",) + RUNTIME_FIELDS
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

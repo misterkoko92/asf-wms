@@ -120,6 +120,7 @@ class WmsRuntimeSettings(models.Model):
     email_queue_retry_max_seconds = models.PositiveIntegerField(default=3600)
     email_queue_processing_timeout_seconds = models.PositiveIntegerField(default=900)
     enable_shipment_track_legacy = models.BooleanField(default=True)
+    scan_bootstrap_enabled = models.BooleanField(default=False)
     design_font_heading = models.CharField(
         max_length=160,
         default='"DM Sans", "Aptos", "Segoe UI", sans-serif',
@@ -192,6 +193,9 @@ class WmsRuntimeSettings(models.Model):
             ),
             "enable_shipment_track_legacy": bool(
                 getattr(django_settings, "ENABLE_SHIPMENT_TRACK_LEGACY", True)
+            ),
+            "scan_bootstrap_enabled": bool(
+                getattr(django_settings, "SCAN_BOOTSTRAP_ENABLED", False)
             ),
             "design_font_heading": "DM Sans",
             "design_font_h1": "DM Sans",
