@@ -24,6 +24,11 @@ class ScanMiscViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["active"], "ui_lab")
         self.assertEqual(response.context["shell_class"], "scan-shell-wide")
+        self.assertContains(response, 'id="ui-lab-palette"')
+        self.assertContains(response, 'id="ui-lab-typography"')
+        self.assertContains(response, 'id="ui-lab-density"')
+        self.assertContains(response, 'id="ui-lab-preview"')
+        self.assertContains(response, "scan/ui-lab.js")
 
     def test_scan_service_worker_returns_expected_headers_and_body(self):
         response = self.client.get(reverse("scan:scan_service_worker"))

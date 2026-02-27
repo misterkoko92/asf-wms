@@ -20,115 +20,149 @@
     </div>
   </section>
 
-  <section class="scan-card card border-0">
-    <h3>Typographie</h3>
-    <div class="ui-lab-typography">
-      <article class="ui-lab-surface">
-        <h4>Titres (Manrope)</h4>
-        <h1>H1 - Op&eacute;rations &amp; exp&eacute;ditions</h1>
-        <h2>H2 - Pr&eacute;paration des commandes</h2>
-        <h3>H3 - D&eacute;tail des stocks</h3>
-      </article>
-      <article class="ui-lab-surface">
-        <h4>Texte courant (Source Sans 3)</h4>
-        <p>
-          Interface professionnelle et apais&eacute;e, pens&eacute;e pour un usage quotidien en entrep&ocirc;t
-          avec une lecture confortable sur desktop et mobile.
-        </p>
-        <p class="scan-help">Ce bloc permet de valider le contraste et la densit&eacute; des paragraphes.</p>
-      </article>
-    </div>
-  </section>
-
-  <section class="scan-card card border-0">
-    <h3>Palette</h3>
-    <div class="ui-lab-swatches">
-      <div class="ui-lab-swatch swatch-primary"><strong>Primary</strong><span>#6F9A8D</span></div>
-      <div class="ui-lab-swatch swatch-primary-soft"><strong>Primary Soft</strong><span>#DDEBE6</span></div>
-      <div class="ui-lab-swatch swatch-accent"><strong>Accent</strong><span>#E7C3A8</span></div>
-      <div class="ui-lab-swatch swatch-bg"><strong>Background</strong><span>#F6F8F5</span></div>
-      <div class="ui-lab-swatch swatch-surface"><strong>Surface</strong><span>#FFFDF9</span></div>
-      <div class="ui-lab-swatch swatch-border"><strong>Border</strong><span>#D9E2DC</span></div>
-    </div>
-  </section>
-
-  <section class="scan-card card border-0">
-    <h3>Boutons et &eacute;tats</h3>
-    <div class="ui-lab-row">
-      <button type="button" class="btn btn-primary">Action principale</button>
-      <button type="button" class="btn btn-outline-secondary">Action secondaire</button>
-      <button type="button" class="btn btn-light">Action neutre</button>
-      <button type="button" class="btn btn-primary" disabled>D&eacute;sactiv&eacute;</button>
-    </div>
-    <div class="ui-lab-row">
-      <span class="badge text-bg-success">Succ&egrave;s</span>
-      <span class="badge text-bg-warning">Attention</span>
-      <span class="badge text-bg-danger">Erreur</span>
-      <span class="badge text-bg-info">Information</span>
-    </div>
-  </section>
-
-  <section class="scan-card card border-0">
-    <h3>Formulaires</h3>
-    <form class="ui-lab-form" onsubmit="return false;">
+  <section class="scan-card card border-0 ui-lab-controls">
+    <h3>R&eacute;glages live</h3>
+    <div class="ui-lab-controls-grid">
       <div class="scan-field">
-        <label class="form-label" for="ui-lab-name">Nom du composant</label>
-        <input class="form-control" id="ui-lab-name" type="text" placeholder="Ex: Table commandes">
-      </div>
-      <div class="scan-field">
-        <label class="form-label" for="ui-lab-type">Type</label>
-        <select class="form-select" id="ui-lab-type">
-          <option>Tableau</option>
-          <option>Formulaire</option>
-          <option>Carte KPI</option>
+        <label class="form-label" for="ui-lab-palette">Palette</label>
+        <select class="form-select" id="ui-lab-palette">
+          <option value="sage">Sauge douce</option>
+          <option value="mist">Bleu brume</option>
+          <option value="tea">Th&eacute; vert sable</option>
         </select>
       </div>
       <div class="scan-field">
-        <label class="form-label" for="ui-lab-notes">Notes</label>
-        <textarea class="form-control" id="ui-lab-notes" rows="3" placeholder="Commentaires design"></textarea>
+        <label class="form-label" for="ui-lab-typography">Typographie</label>
+        <select class="form-select" id="ui-lab-typography">
+          <option value="manrope-source">Manrope + Source Sans 3</option>
+          <option value="dm-nunito">DM Sans + Nunito Sans</option>
+          <option value="aptos-like">Aptos-like system</option>
+        </select>
       </div>
-      <div class="form-check">
-        <input class="form-check-input" type="checkbox" id="ui-lab-check" checked>
-        <label class="form-check-label" for="ui-lab-check">
-          Appliquer les tokens Sauge douce
-        </label>
+      <div class="scan-field">
+        <label class="form-label" for="ui-lab-density">Densit&eacute;</label>
+        <select class="form-select" id="ui-lab-density">
+          <option value="compact">Compact</option>
+          <option value="standard" selected>Standard</option>
+          <option value="airy">A&eacute;r&eacute;</option>
+        </select>
       </div>
-    </form>
+    </div>
+    <p class="scan-help">Ces r&eacute;glages s'appliquent uniquement &agrave; cette page (sandbox).</p>
   </section>
 
-  <section class="scan-card card border-0">
-    <h3>Tableau</h3>
-    <div class="scan-table-wrap table-responsive">
-      <table class="scan-table table table-sm table-hover align-middle">
-        <thead>
-          <tr>
-            <th>Composant</th>
-            <th>Usage</th>
-            <th>Version</th>
-            <th>&Eacute;tat</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Primary button</td>
-            <td>CTA principal</td>
-            <td>v1</td>
-            <td><span class="badge text-bg-success">Valid&eacute;</span></td>
-          </tr>
-          <tr>
-            <td>Form field</td>
-            <td>Entr&eacute;e utilisateur</td>
-            <td>v2</td>
-            <td><span class="badge text-bg-warning">&Agrave; revoir</span></td>
-          </tr>
-          <tr>
-            <td>Data table</td>
-            <td>Vues stock/commandes</td>
-            <td>v1</td>
-            <td><span class="badge text-bg-info">En test</span></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
+  <div
+    id="ui-lab-preview"
+    class="ui-lab-preview"
+    data-ui-lab-palette="sage"
+    data-ui-lab-typography="manrope-source"
+    data-ui-lab-density="standard"
+  >
+    <section class="scan-card card border-0">
+      <h3>Typographie</h3>
+      <div class="ui-lab-typography">
+        <article class="ui-lab-surface">
+          <h4>Titres</h4>
+          <h1>H1 - Op&eacute;rations &amp; exp&eacute;ditions</h1>
+          <h2>H2 - Pr&eacute;paration des commandes</h2>
+          <h3>H3 - D&eacute;tail des stocks</h3>
+        </article>
+        <article class="ui-lab-surface">
+          <h4>Texte courant</h4>
+          <p>
+            Interface professionnelle et apais&eacute;e, pens&eacute;e pour un usage quotidien en entrep&ocirc;t
+            avec une lecture confortable sur desktop et mobile.
+          </p>
+          <p class="scan-help">Ce bloc permet de valider le contraste et la densit&eacute; des paragraphes.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="scan-card card border-0">
+      <h3>Palette</h3>
+      <div class="ui-lab-swatches">
+        <div class="ui-lab-swatch swatch-primary"><strong>Primary</strong><span>variable</span></div>
+        <div class="ui-lab-swatch swatch-primary-soft"><strong>Primary Soft</strong><span>variable</span></div>
+        <div class="ui-lab-swatch swatch-accent"><strong>Accent</strong><span>variable</span></div>
+        <div class="ui-lab-swatch swatch-bg"><strong>Background</strong><span>variable</span></div>
+        <div class="ui-lab-swatch swatch-surface"><strong>Surface</strong><span>variable</span></div>
+        <div class="ui-lab-swatch swatch-border"><strong>Border</strong><span>variable</span></div>
+      </div>
+    </section>
+
+    <section class="scan-card card border-0">
+      <h3>Boutons et &eacute;tats</h3>
+      <div class="ui-lab-row">
+        <button type="button" class="btn btn-primary">Action principale</button>
+        <button type="button" class="btn btn-outline-secondary">Action secondaire</button>
+        <button type="button" class="btn btn-light">Action neutre</button>
+        <button type="button" class="btn btn-primary" disabled>D&eacute;sactiv&eacute;</button>
+      </div>
+      <div class="ui-lab-row">
+        <span class="badge text-bg-success">Succ&egrave;s</span>
+        <span class="badge text-bg-warning">Attention</span>
+        <span class="badge text-bg-danger">Erreur</span>
+        <span class="badge text-bg-info">Information</span>
+      </div>
+    </section>
+
+    <section class="scan-card card border-0">
+      <h3>Formulaires</h3>
+      <form class="ui-lab-form" onsubmit="return false;">
+        <div class="scan-field">
+          <label class="form-label" for="ui-lab-name">Nom du composant</label>
+          <input class="form-control" id="ui-lab-name" type="text" placeholder="Ex: Table commandes">
+        </div>
+        <div class="scan-field">
+          <label class="form-label" for="ui-lab-type">Type</label>
+          <select class="form-select" id="ui-lab-type">
+            <option>Tableau</option>
+            <option>Formulaire</option>
+            <option>Carte KPI</option>
+          </select>
+        </div>
+        <div class="scan-field">
+          <label class="form-label" for="ui-lab-notes">Notes</label>
+          <textarea class="form-control" id="ui-lab-notes" rows="3" placeholder="Commentaires design"></textarea>
+        </div>
+      </form>
+    </section>
+
+    <section class="scan-card card border-0">
+      <h3>Tableau</h3>
+      <div class="scan-table-wrap table-responsive">
+        <table class="scan-table table table-sm table-hover align-middle">
+          <thead>
+            <tr>
+              <th>Composant</th>
+              <th>Usage</th>
+              <th>Version</th>
+              <th>&Eacute;tat</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Primary button</td>
+              <td>CTA principal</td>
+              <td>v1</td>
+              <td><span class="badge text-bg-success">Valid&eacute;</span></td>
+            </tr>
+            <tr>
+              <td>Form field</td>
+              <td>Entr&eacute;e utilisateur</td>
+              <td>v2</td>
+              <td><span class="badge text-bg-warning">&Agrave; revoir</span></td>
+            </tr>
+            <tr>
+              <td>Data table</td>
+              <td>Vues stock/commandes</td>
+              <td>v1</td>
+              <td><span class="badge text-bg-info">En test</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+  <script defer src="{% static 'scan/ui-lab.js' %}"></script>
 {% endblock %}
