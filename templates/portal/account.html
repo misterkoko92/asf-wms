@@ -70,12 +70,12 @@
   </style>
 
   <div class="portal-tight">
-    <div class="scan-card portal-card card border-0">
-      <h2 class="portal-section-title">Compte association</h2>
+    <div class="scan-card portal-card card border-0 ui-comp-card">
+      <h2 class="portal-section-title ui-comp-title">Compte association</h2>
       <p class="scan-help">Vous pouvez modifier toutes les informations de ce compte.</p>
     </div>
 
-    <div class="scan-card portal-card card border-0">
+    <div class="scan-card portal-card card border-0 ui-comp-card">
       {% if account_form_errors %}
         <div class="scan-message error">
           {% for error in account_form_errors %}
@@ -84,12 +84,12 @@
         </div>
       {% endif %}
 
-      <form method="post" novalidate id="portal-account-form">
+      <form method="post" novalidate id="portal-account-form" class="ui-comp-form">
         {% csrf_token %}
         <input type="hidden" name="action" value="update_profile">
         <input type="hidden" name="contact_count" id="id_contact_count" value="{{ portal_contact_rows|length }}">
 
-        <h3 class="portal-section-title">Informations principales</h3>
+        <h3 class="portal-section-title ui-comp-title">Informations principales</h3>
         <div class="portal-grid-2">
           <div class="scan-field">
             <label class="form-label" for="id_association_name">Association</label>
@@ -124,7 +124,7 @@
           </div>
         </div>
 
-        <h3 class="portal-section-title">Adresse</h3>
+        <h3 class="portal-section-title ui-comp-title">Adresse</h3>
         <div class="portal-grid-2">
           <div class="scan-field">
             <label class="form-label" for="id_address_line1">Adresse</label>
@@ -181,7 +181,7 @@
           </div>
         </div>
 
-        <h3 class="portal-section-title">Contacts emails</h3>
+        <h3 class="portal-section-title ui-comp-title">Contacts emails</h3>
         <p class="scan-help">
           1 ligne = 1 contact. Maximum {{ max_portal_contacts }} lignes. Cochez au moins un type par ligne.
         </p>
@@ -243,8 +243,8 @@
       </form>
     </div>
 
-    <div class="scan-card portal-card card border-0">
-      <h3 class="portal-section-title">Documents de vérification</h3>
+    <div class="scan-card portal-card card border-0 ui-comp-card">
+      <h3 class="portal-section-title ui-comp-title">Documents de vérification</h3>
       {% if account_documents %}
         <div class="scan-table-wrap table-responsive">
           <table class="portal-table scan-table table table-sm table-hover">
@@ -278,7 +278,7 @@
         <p>Aucun document pour le moment.</p>
       {% endif %}
 
-      <form method="post" enctype="multipart/form-data" novalidate>
+      <form method="post" enctype="multipart/form-data" novalidate class="ui-comp-form">
         {% csrf_token %}
         <input type="hidden" name="action" value="upload_account_docs">
         {% for value, label in account_doc_types %}

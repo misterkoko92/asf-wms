@@ -176,3 +176,48 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "form-select")
         self.assertContains(response, "form-control")
         self.assertContains(response, "btn btn-primary")
+
+    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
+    def test_portal_pages_use_design_component_classes(self):
+        dashboard_response = self.client.get(reverse("portal:portal_dashboard"))
+        self.assertEqual(dashboard_response.status_code, 200)
+        self.assertContains(dashboard_response, "ui-comp-card")
+        self.assertContains(dashboard_response, "ui-comp-title")
+        self.assertContains(dashboard_response, "ui-comp-panel")
+
+        order_create_response = self.client.get(reverse("portal:portal_order_create"))
+        self.assertEqual(order_create_response.status_code, 200)
+        self.assertContains(order_create_response, "ui-comp-card")
+        self.assertContains(order_create_response, "ui-comp-title")
+        self.assertContains(order_create_response, "ui-comp-form")
+        self.assertContains(order_create_response, "ui-comp-actions")
+
+        self.order.review_status = OrderReviewStatus.APPROVED
+        self.order.save(update_fields=["review_status"])
+        order_detail_response = self.client.get(
+            reverse("portal:portal_order_detail", kwargs={"order_id": self.order.id})
+        )
+        self.assertEqual(order_detail_response.status_code, 200)
+        self.assertContains(order_detail_response, "ui-comp-card")
+        self.assertContains(order_detail_response, "ui-comp-title")
+        self.assertContains(order_detail_response, "ui-comp-form")
+
+        recipients_response = self.client.get(reverse("portal:portal_recipients"))
+        self.assertEqual(recipients_response.status_code, 200)
+        self.assertContains(recipients_response, "ui-comp-card")
+        self.assertContains(recipients_response, "ui-comp-title")
+        self.assertContains(recipients_response, "ui-comp-form")
+        self.assertContains(recipients_response, "ui-comp-actions")
+
+        account_response = self.client.get(reverse("portal:portal_account"))
+        self.assertEqual(account_response.status_code, 200)
+        self.assertContains(account_response, "ui-comp-card")
+        self.assertContains(account_response, "ui-comp-title")
+        self.assertContains(account_response, "ui-comp-form")
+        self.assertContains(account_response, "ui-comp-actions")
+
+        change_password_response = self.client.get(reverse("portal:portal_change_password"))
+        self.assertEqual(change_password_response.status_code, 200)
+        self.assertContains(change_password_response, "ui-comp-card")
+        self.assertContains(change_password_response, "ui-comp-title")
+        self.assertContains(change_password_response, "ui-comp-form")

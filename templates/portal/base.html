@@ -62,19 +62,19 @@
 </head>
 <body{% if scan_bootstrap_enabled %} class="scan-bootstrap-enabled portal-bootstrap-enabled"{% endif %}>
   <div class="scan-shell">
-    <header class="scan-card portal-card portal-header card border-0">
+    <header class="scan-card portal-card portal-header card border-0 ui-comp-panel">
       <div>
-        <strong>ASF WMS</strong><br>
+        <strong class="ui-comp-title">ASF WMS</strong><br>
         Portail association
       </div>
-      <nav class="portal-nav">
+      <nav class="portal-nav ui-comp-actions">
         <a class="btn btn-outline-secondary btn-sm" href="{% url 'portal:portal_dashboard' %}">Commandes</a>
         <a class="btn btn-outline-secondary btn-sm" href="{% url 'portal:portal_order_create' %}">Nouvelle commande</a>
         <a class="btn btn-outline-secondary btn-sm" href="{% url 'portal:portal_recipients' %}">Destinataires</a>
         <a class="btn btn-outline-secondary btn-sm" href="{% url 'portal:portal_account' %}">Compte</a>
         <a class="btn btn-outline-danger btn-sm" href="{% url 'portal:portal_logout' %}">Déconnexion</a>
       </nav>
-      <div class="portal-actions">
+      <div class="portal-actions ui-comp-actions">
         <div class="scan-ui-mode-switch">
           {% if wms_ui_mode_is_next %}
             <a

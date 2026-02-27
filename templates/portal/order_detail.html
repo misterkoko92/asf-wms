@@ -27,16 +27,16 @@
   </style>
 
   <div class="portal-tight">
-    <div class="scan-card portal-card card border-0">
-      <h2 class="portal-section-title">Commande {{ order.reference|default:"" }}{% if not order.reference %}#{{ order.id }}{% endif %}</h2>
+    <div class="scan-card portal-card card border-0 ui-comp-card">
+      <h2 class="portal-section-title ui-comp-title">Commande {{ order.reference|default:"" }}{% if not order.reference %}#{{ order.id }}{% endif %}</h2>
       <p class="scan-help">Destinataire: {{ order.recipient_name }}</p>
       <p class="scan-help">Statut: {{ order.get_status_display }}</p>
       <p class="scan-help">Validation: {{ order.get_review_status_display }}</p>
       <p class="scan-help">Date: {{ order.created_at|date:"d/m/Y" }}</p>
     </div>
 
-    <div class="scan-card portal-card card border-0">
-      <h3 class="portal-section-title">Lignes de commande</h3>
+    <div class="scan-card portal-card card border-0 ui-comp-card">
+      <h3 class="portal-section-title ui-comp-title">Lignes de commande</h3>
       <div class="scan-table-wrap table-responsive">
         <table class="portal-table scan-table table table-sm table-hover">
           <thead>
@@ -62,8 +62,8 @@
       {% endif %}
     </div>
 
-    <div class="scan-card portal-card card border-0">
-      <h3 class="portal-section-title">Documents de commande</h3>
+    <div class="scan-card portal-card card border-0 ui-comp-card">
+      <h3 class="portal-section-title ui-comp-title">Documents de commande</h3>
       {% if order_documents %}
         <div class="scan-table-wrap table-responsive">
           <table class="portal-table scan-table table table-sm table-hover">
@@ -98,7 +98,7 @@
       {% endif %}
 
       {% if can_upload_docs %}
-        <form method="post" enctype="multipart/form-data" novalidate>
+        <form method="post" enctype="multipart/form-data" novalidate class="ui-comp-form">
           {% csrf_token %}
           <input type="hidden" name="action" value="upload_docs">
           {% for value, label in order_doc_types %}

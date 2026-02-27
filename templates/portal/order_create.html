@@ -3,12 +3,12 @@
 {% block title %}Nouvelle commande{% endblock %}
 
 {% block content %}
-  <div class="scan-card portal-card card border-0">
-    <h2>Nouvelle commande</h2>
+  <div class="scan-card portal-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Nouvelle commande</h2>
     <p class="scan-help">S&eacute;lectionnez une destination, puis un destinataire, puis indiquez les quantit&eacute;s.</p>
   </div>
 
-  <div class="scan-card portal-card card border-0">
+  <div class="scan-card portal-card card border-0 ui-comp-card">
     {% if errors %}
       <div class="scan-message error">
         {% for error in errors %}
@@ -17,7 +17,7 @@
       </div>
     {% endif %}
 
-    <form method="post" novalidate>
+    <form method="post" novalidate class="ui-comp-form">
       {% csrf_token %}
       <div class="scan-field">
         <label class="form-label" for="destination_id">Destination</label>
@@ -57,7 +57,7 @@
 
       <div class="scan-field">
         <label class="form-label">Filtrer produits</label>
-        <div id="portal-category-filters" class="scan-filter-actions">
+        <div id="portal-category-filters" class="scan-filter-actions ui-comp-actions">
           <select class="form-select form-select-sm" id="portal-filter-category-l1" data-filter-level="0">
             <option value="">Toutes cat&eacute;gories</option>
           </select>
@@ -231,7 +231,7 @@
               </tbody>
             </table>
           </div>
-          <div class="portal-products-actions">
+          <div class="portal-products-actions ui-comp-actions">
             <p class="scan-help">
               Total estim&eacute;:
               <span id="ready-carton-estimate-total">{{ total_selected_ready_cartons|default:0 }}</span>

@@ -3,12 +3,12 @@
 {% block title %}Mes commandes{% endblock %}
 
 {% block content %}
-  <div class="scan-card portal-card card border-0">
-    <h2>Mes commandes</h2>
+  <div class="scan-card portal-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Mes commandes</h2>
     <p class="scan-help">Historique des commandes associées à votre compte.</p>
   </div>
 
-  <div class="scan-card portal-card card border-0">
+  <div class="scan-card portal-card card border-0 ui-comp-card">
     {% if orders %}
       <div class="scan-table-wrap table-responsive">
         <table class="portal-table scan-table table table-sm table-hover" data-table-tools="1">
