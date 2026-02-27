@@ -124,6 +124,18 @@ class WmsRuntimeSettings(models.Model):
         max_length=160,
         default='"DM Sans", "Aptos", "Segoe UI", sans-serif',
     )
+    design_font_h1 = models.CharField(
+        max_length=120,
+        default="DM Sans",
+    )
+    design_font_h2 = models.CharField(
+        max_length=120,
+        default="DM Sans",
+    )
+    design_font_h3 = models.CharField(
+        max_length=120,
+        default="DM Sans",
+    )
     design_font_body = models.CharField(
         max_length=160,
         default='"Nunito Sans", "Aptos", "Segoe UI", sans-serif',
@@ -181,8 +193,11 @@ class WmsRuntimeSettings(models.Model):
             "enable_shipment_track_legacy": bool(
                 getattr(django_settings, "ENABLE_SHIPMENT_TRACK_LEGACY", True)
             ),
-            "design_font_heading": '"DM Sans", "Aptos", "Segoe UI", sans-serif',
-            "design_font_body": '"Nunito Sans", "Aptos", "Segoe UI", sans-serif',
+            "design_font_heading": "DM Sans",
+            "design_font_h1": "DM Sans",
+            "design_font_h2": "DM Sans",
+            "design_font_h3": "DM Sans",
+            "design_font_body": "Nunito Sans",
             "design_color_primary": "#6f9a8d",
             "design_color_secondary": "#e7c3a8",
             "design_color_background": "#f6f8f5",

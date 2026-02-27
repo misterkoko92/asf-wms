@@ -1,14 +1,23 @@
 .admin-bootstrap-enabled {
-  --wms-font-heading: "DM Sans", "Aptos", "Segoe UI", sans-serif;
-  --wms-font-body: "Nunito Sans", "Aptos", "Segoe UI", sans-serif;
-  font-family: var(--wms-font-body);
+  --wms-font-heading-h1: "DM Sans";
+  --wms-font-heading-h2: "DM Sans";
+  --wms-font-heading-h3: "DM Sans";
+  --wms-font-heading: var(--wms-font-heading-h2);
+  --wms-font-body: "Nunito Sans";
+  font-family: var(--wms-font-body), "Aptos", "Segoe UI", sans-serif;
 }
 
-.admin-bootstrap-enabled h1,
-.admin-bootstrap-enabled h2,
+.admin-bootstrap-enabled h1 {
+  font-family: var(--wms-font-heading-h1), "Aptos", "Segoe UI", sans-serif;
+}
+
+.admin-bootstrap-enabled h2 {
+  font-family: var(--wms-font-heading-h2), "Aptos", "Segoe UI", sans-serif;
+}
+
 .admin-bootstrap-enabled h3,
 .admin-bootstrap-enabled .module caption {
-  font-family: var(--wms-font-heading);
+  font-family: var(--wms-font-heading-h3), "Aptos", "Segoe UI", sans-serif;
 }
 
 .admin-bootstrap-enabled #content-main .module,

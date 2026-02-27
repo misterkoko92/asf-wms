@@ -6,10 +6,22 @@ from .runtime_settings import get_runtime_settings_instance
 from .ui_mode import UiMode, get_ui_mode_for_user
 
 
+def _normalize_font_name(value, fallback):
+    raw = (value or "").strip()
+    if not raw:
+        return fallback
+    first = raw.split(",")[0].strip()
+    normalized = first.strip('"').strip("'").strip()
+    return normalized or fallback
+
+
 def _default_design_tokens():
     return {
-        "font_heading": '"DM Sans", "Aptos", "Segoe UI", sans-serif',
-        "font_body": '"Nunito Sans", "Aptos", "Segoe UI", sans-serif',
+        "font_h1": "DM Sans",
+        "font_h2": "DM Sans",
+        "font_h3": "DM Sans",
+        "font_heading": "DM Sans",
+        "font_body": "Nunito Sans",
         "color_primary": "#6f9a8d",
         "color_secondary": "#e7c3a8",
         "color_background": "#f6f8f5",
@@ -26,9 +38,28 @@ def _resolve_design_tokens():
         runtime = get_runtime_settings_instance()
     except (ProgrammingError, OperationalError):
         return defaults
+    font_h1 = _normalize_font_name(
+        getattr(runtime, "design_font_h1", ""),
+        defaults["font_h1"],
+    )
+    font_h2 = _normalize_font_name(
+        getattr(runtime, "design_font_h2", ""),
+        defaults["font_h2"],
+    )
+    font_h3 = _normalize_font_name(
+        getattr(runtime, "design_font_h3", ""),
+        defaults["font_h3"],
+    )
+    font_body = _normalize_font_name(
+        runtime.design_font_body,
+        defaults["font_body"],
+    )
     return {
-        "font_heading": runtime.design_font_heading or defaults["font_heading"],
-        "font_body": runtime.design_font_body or defaults["font_body"],
+        "font_h1": font_h1,
+        "font_h2": font_h2,
+        "font_h3": font_h3,
+        "font_heading": font_h2,
+        "font_body": font_body,
         "color_primary": runtime.design_color_primary or defaults["color_primary"],
         "color_secondary": runtime.design_color_secondary or defaults["color_secondary"],
         "color_background": runtime.design_color_background or defaults["color_background"],

@@ -1,10 +1,16 @@
 @import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700;800&family=Nunito+Sans:wght@400;500;600;700&display=swap");
 
 :root {
-  --wms-font-heading: "DM Sans", "Aptos", "Segoe UI", sans-serif;
-  --wms-font-body: "Nunito Sans", "Aptos", "Segoe UI", sans-serif;
-  --ds-font-heading: var(--wms-font-heading);
-  --ds-font-body: var(--wms-font-body);
+  --wms-font-heading-h1: "DM Sans";
+  --wms-font-heading-h2: "DM Sans";
+  --wms-font-heading-h3: "DM Sans";
+  --wms-font-heading: var(--wms-font-heading-h2);
+  --wms-font-body: "Nunito Sans";
+  --ds-font-heading-h1: var(--wms-font-heading-h1), "Aptos", "Segoe UI", sans-serif;
+  --ds-font-heading-h2: var(--wms-font-heading-h2), "Aptos", "Segoe UI", sans-serif;
+  --ds-font-heading-h3: var(--wms-font-heading-h3), "Aptos", "Segoe UI", sans-serif;
+  --ds-font-heading: var(--ds-font-heading-h2);
+  --ds-font-body: var(--wms-font-body), "Aptos", "Segoe UI", sans-serif;
   --wms-color-primary: #6f9a8d;
   --wms-color-secondary: #e7c3a8;
   --wms-color-background: #f6f8f5;
@@ -50,8 +56,8 @@
 
 .scan-bootstrap-enabled {
   --font-body: var(--ds-font-body);
-  --font-title: var(--ds-font-heading);
-  --font-heading: var(--ds-font-heading);
+  --font-title: var(--ds-font-heading-h1);
+  --font-heading: var(--ds-font-heading-h2);
   --ink: var(--ds-text);
   --ink-soft: var(--ds-text-soft);
   --bg: var(--ds-bg);
@@ -116,6 +122,18 @@
 .scan-bootstrap-enabled .scan-card h2,
 .scan-bootstrap-enabled .scan-card h3 {
   margin-bottom: 0.9rem;
+}
+
+.scan-bootstrap-enabled h1 {
+  font-family: var(--ds-font-heading-h1);
+}
+
+.scan-bootstrap-enabled h2 {
+  font-family: var(--ds-font-heading-h2);
+}
+
+.scan-bootstrap-enabled h3 {
+  font-family: var(--ds-font-heading-h3);
 }
 
 .scan-bootstrap-enabled .scan-field label.form-label {

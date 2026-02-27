@@ -1,6 +1,9 @@
 :root {
-  --wms-font-heading: "DM Sans", "Aptos", "Segoe UI", sans-serif;
-  --wms-font-body: "Nunito Sans", "Aptos", "Segoe UI", sans-serif;
+  --wms-font-heading-h1: "DM Sans";
+  --wms-font-heading-h2: "DM Sans";
+  --wms-font-heading-h3: "DM Sans";
+  --wms-font-heading: var(--wms-font-heading-h2);
+  --wms-font-body: "Nunito Sans";
   --wms-color-primary: #6f9a8d;
   --wms-color-secondary: #e7c3a8;
   --wms-color-background: #f6f8f5;
@@ -8,9 +11,9 @@
   --wms-color-border: #d9e2dc;
   --wms-color-text: #2f3a36;
   --wms-color-text-soft: #5a6964;
-  --font-body: var(--wms-font-body);
-  --font-title: var(--wms-font-heading);
-  --font-heading: var(--wms-font-heading);
+  --font-body: var(--wms-font-body), "Aptos", "Segoe UI", sans-serif;
+  --font-title: var(--wms-font-heading-h1), "Aptos", "Segoe UI", sans-serif;
+  --font-heading: var(--wms-font-heading-h2), "Aptos", "Segoe UI", sans-serif;
   --ink: var(--wms-color-text);
   --ink-soft: var(--wms-color-text-soft);
   --bg: var(--wms-color-background);
@@ -81,6 +84,18 @@ body {
   background: radial-gradient(1200px 800px at 10% -20%, var(--bg-accent) 0%, var(--bg) 55%)
               , radial-gradient(900px 600px at 110% 10%, var(--bg-accent-2) 0%, var(--bg-2) 50%);
   min-height: 100vh;
+}
+
+h1 {
+  font-family: var(--wms-font-heading-h1), "Aptos", "Segoe UI", sans-serif;
+}
+
+h2 {
+  font-family: var(--wms-font-heading-h2), "Aptos", "Segoe UI", sans-serif;
+}
+
+h3 {
+  font-family: var(--wms-font-heading-h3), "Aptos", "Segoe UI", sans-serif;
 }
 
 .scan-shell {

@@ -98,7 +98,10 @@ class ScanAdminViewTests(TestCase):
         self.assertEqual(response.context["active"], "admin_design")
         self.assertContains(response, "Admin - Design")
         self.assertContains(response, "wms-design-vars")
-        self.assertContains(response, "design_font_heading")
+        self.assertContains(response, "design_font_h1")
+        self.assertContains(response, "design_font_h2")
+        self.assertContains(response, "design_font_h3")
+        self.assertContains(response, "scan-design-color-grid")
         self.assertContains(response, "design_color_primary")
 
     def test_scan_admin_design_post_updates_runtime_design_values(self):
@@ -107,8 +110,10 @@ class ScanAdminViewTests(TestCase):
             reverse("scan:scan_admin_design"),
             {
                 "action": "save",
-                "design_font_heading": '"DM Sans", "Segoe UI", sans-serif',
-                "design_font_body": '"Nunito Sans", "Segoe UI", sans-serif',
+                "design_font_h1": "Manrope",
+                "design_font_h2": "Manrope",
+                "design_font_h3": "DM Sans",
+                "design_font_body": "Nunito Sans",
                 "design_color_primary": "#3a7f6f",
                 "design_color_secondary": "#f0caa9",
                 "design_color_background": "#f4f8f3",
@@ -124,8 +129,11 @@ class ScanAdminViewTests(TestCase):
         runtime = WmsRuntimeSettings.get_solo()
         self.assertEqual(runtime.design_color_primary, "#3a7f6f")
         self.assertEqual(runtime.design_color_secondary, "#f0caa9")
-        self.assertEqual(runtime.design_font_heading, '"DM Sans", "Segoe UI", sans-serif')
+        self.assertEqual(runtime.design_font_h1, "Manrope")
+        self.assertEqual(runtime.design_font_h2, "Manrope")
+        self.assertEqual(runtime.design_font_h3, "DM Sans")
 
         dashboard_response = self.client.get(reverse("scan:scan_dashboard"))
         self.assertEqual(dashboard_response.status_code, 200)
         self.assertContains(dashboard_response, "--wms-color-primary: #3a7f6f;")
+        self.assertContains(dashboard_response, "--wms-font-heading-h1: Manrope;")

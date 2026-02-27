@@ -4,6 +4,76 @@
 
 {% block extra_head %}
   <style>
+    .scan-design-section-title {
+      margin: 0 0 0.6rem;
+    }
+
+    .scan-design-font-grid {
+      display: grid;
+      gap: 0.9rem;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      align-items: start;
+    }
+
+    .scan-design-color-grid {
+      display: grid;
+      gap: 0.9rem;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      align-items: start;
+    }
+
+    .scan-design-color-field .scan-help {
+      margin-top: 0.45rem;
+    }
+
+    .scan-design-color-preview {
+      height: 84px;
+      border-radius: 0.7rem;
+      border: 1px solid var(--preview-border, #d9e2dc);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.34);
+      margin-bottom: 0.55rem;
+      transition: background-color 0.14s ease;
+    }
+
+    .scan-design-color-input-row {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+    }
+
+    .scan-design-color-input {
+      width: 58px;
+      min-width: 58px;
+      height: 42px;
+      padding: 0.25rem;
+      border-radius: 0.7rem;
+      border: 1px solid var(--preview-border, #d9e2dc);
+      background: #fff;
+      cursor: pointer;
+    }
+
+    .scan-design-color-input::-webkit-color-swatch-wrapper {
+      padding: 0;
+    }
+
+    .scan-design-color-input::-webkit-color-swatch,
+    .scan-design-color-input::-moz-color-swatch {
+      border: 0;
+      border-radius: 0.5rem;
+    }
+
+    .scan-design-color-code {
+      display: inline-block;
+      min-width: 7.5ch;
+      padding: 0.24rem 0.45rem;
+      border-radius: 0.45rem;
+      border: 1px solid var(--preview-border, #d9e2dc);
+      background: var(--preview-surface, #fffdf9);
+      color: var(--preview-text, #2f3a36);
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+
     .scan-design-preview {
       border: 1px solid var(--preview-border, #d9e2dc);
       border-radius: 0.9rem;
@@ -23,7 +93,14 @@
     .scan-design-preview h4,
     .scan-design-preview h5 {
       margin: 0 0 0.45rem;
-      font-family: var(--preview-font-heading, "DM Sans", sans-serif);
+    }
+
+    .scan-design-preview h4 {
+      font-family: var(--preview-font-h2, "DM Sans", sans-serif);
+    }
+
+    .scan-design-preview h5 {
+      font-family: var(--preview-font-h3, "DM Sans", sans-serif);
     }
 
     .scan-design-preview p,
@@ -52,7 +129,7 @@
       padding: 0.44rem 0.7rem;
       margin-right: 0.4rem;
       margin-bottom: 0.4rem;
-      font-family: var(--preview-font-heading, "DM Sans", sans-serif);
+      font-family: var(--preview-font-h2, "DM Sans", sans-serif);
       font-weight: 700;
       color: #fff;
       background: var(--preview-primary, #6f9a8d);
@@ -61,6 +138,23 @@
     .scan-design-preview .preview-button.secondary {
       background: var(--preview-secondary, #e7c3a8);
       color: var(--preview-text, #2f3a36);
+    }
+
+    @media (max-width: 1100px) {
+      .scan-design-font-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .scan-design-color-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 768px) {
+      .scan-design-font-grid,
+      .scan-design-color-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
     }
   </style>
 {% endblock %}
@@ -78,13 +172,26 @@
     <form method="post" class="scan-filters ui-comp-form">
       {% csrf_token %}
 
-      <h3>Typographies</h3>
-      <div class="scan-inline scan-inline-equal">
+      <h3 class="scan-design-section-title">Typographies</h3>
+      <p class="scan-help">Une seule police par champ (H1, H2, H3 et texte).</p>
+      <div class="scan-design-font-grid">
         <div class="scan-field">
-          {{ form.design_font_heading.label_tag }}
-          {{ form.design_font_heading }}
-          {% if form.design_font_heading.errors %}<div class="scan-help">{{ form.design_font_heading.errors|join:", " }}</div>{% endif %}
-          <div class="scan-help">{{ form.design_font_heading.help_text }}</div>
+          {{ form.design_font_h1.label_tag }}
+          {{ form.design_font_h1 }}
+          {% if form.design_font_h1.errors %}<div class="scan-help">{{ form.design_font_h1.errors|join:", " }}</div>{% endif %}
+          <div class="scan-help">{{ form.design_font_h1.help_text }}</div>
+        </div>
+        <div class="scan-field">
+          {{ form.design_font_h2.label_tag }}
+          {{ form.design_font_h2 }}
+          {% if form.design_font_h2.errors %}<div class="scan-help">{{ form.design_font_h2.errors|join:", " }}</div>{% endif %}
+          <div class="scan-help">{{ form.design_font_h2.help_text }}</div>
+        </div>
+        <div class="scan-field">
+          {{ form.design_font_h3.label_tag }}
+          {{ form.design_font_h3 }}
+          {% if form.design_font_h3.errors %}<div class="scan-help">{{ form.design_font_h3.errors|join:", " }}</div>{% endif %}
+          <div class="scan-help">{{ form.design_font_h3.help_text }}</div>
         </div>
         <div class="scan-field">
           {{ form.design_font_body.label_tag }}
@@ -96,56 +203,75 @@
 
       <div class="scan-divider"></div>
 
-      <h3>Couleurs</h3>
-      <div class="scan-inline scan-inline-equal">
-        <div class="scan-field">
+      <h3 class="scan-design-section-title">Couleurs</h3>
+      <div class="scan-design-color-grid">
+        <div class="scan-field scan-design-color-field">
           {{ form.design_color_primary.label_tag }}
-          {{ form.design_color_primary }}
+          <div class="scan-design-color-preview" data-color-swatch-for="{{ form.design_color_primary.id_for_label }}"></div>
+          <div class="scan-design-color-input-row">
+            {{ form.design_color_primary }}
+            <code class="scan-design-color-code" data-color-value-for="{{ form.design_color_primary.id_for_label }}"></code>
+          </div>
           {% if form.design_color_primary.errors %}<div class="scan-help">{{ form.design_color_primary.errors|join:", " }}</div>{% endif %}
           <div class="scan-help">{{ form.design_color_primary.help_text }}</div>
         </div>
-        <div class="scan-field">
+        <div class="scan-field scan-design-color-field">
           {{ form.design_color_secondary.label_tag }}
-          {{ form.design_color_secondary }}
+          <div class="scan-design-color-preview" data-color-swatch-for="{{ form.design_color_secondary.id_for_label }}"></div>
+          <div class="scan-design-color-input-row">
+            {{ form.design_color_secondary }}
+            <code class="scan-design-color-code" data-color-value-for="{{ form.design_color_secondary.id_for_label }}"></code>
+          </div>
           {% if form.design_color_secondary.errors %}<div class="scan-help">{{ form.design_color_secondary.errors|join:", " }}</div>{% endif %}
           <div class="scan-help">{{ form.design_color_secondary.help_text }}</div>
         </div>
-      </div>
-
-      <div class="scan-inline scan-inline-equal">
-        <div class="scan-field">
+        <div class="scan-field scan-design-color-field">
           {{ form.design_color_background.label_tag }}
-          {{ form.design_color_background }}
+          <div class="scan-design-color-preview" data-color-swatch-for="{{ form.design_color_background.id_for_label }}"></div>
+          <div class="scan-design-color-input-row">
+            {{ form.design_color_background }}
+            <code class="scan-design-color-code" data-color-value-for="{{ form.design_color_background.id_for_label }}"></code>
+          </div>
           {% if form.design_color_background.errors %}<div class="scan-help">{{ form.design_color_background.errors|join:", " }}</div>{% endif %}
           <div class="scan-help">{{ form.design_color_background.help_text }}</div>
         </div>
-        <div class="scan-field">
+        <div class="scan-field scan-design-color-field">
           {{ form.design_color_surface.label_tag }}
-          {{ form.design_color_surface }}
+          <div class="scan-design-color-preview" data-color-swatch-for="{{ form.design_color_surface.id_for_label }}"></div>
+          <div class="scan-design-color-input-row">
+            {{ form.design_color_surface }}
+            <code class="scan-design-color-code" data-color-value-for="{{ form.design_color_surface.id_for_label }}"></code>
+          </div>
           {% if form.design_color_surface.errors %}<div class="scan-help">{{ form.design_color_surface.errors|join:", " }}</div>{% endif %}
           <div class="scan-help">{{ form.design_color_surface.help_text }}</div>
         </div>
-      </div>
-
-      <div class="scan-inline scan-inline-equal">
-        <div class="scan-field">
+        <div class="scan-field scan-design-color-field">
           {{ form.design_color_border.label_tag }}
-          {{ form.design_color_border }}
+          <div class="scan-design-color-preview" data-color-swatch-for="{{ form.design_color_border.id_for_label }}"></div>
+          <div class="scan-design-color-input-row">
+            {{ form.design_color_border }}
+            <code class="scan-design-color-code" data-color-value-for="{{ form.design_color_border.id_for_label }}"></code>
+          </div>
           {% if form.design_color_border.errors %}<div class="scan-help">{{ form.design_color_border.errors|join:", " }}</div>{% endif %}
           <div class="scan-help">{{ form.design_color_border.help_text }}</div>
         </div>
-        <div class="scan-field">
+        <div class="scan-field scan-design-color-field">
           {{ form.design_color_text.label_tag }}
-          {{ form.design_color_text }}
+          <div class="scan-design-color-preview" data-color-swatch-for="{{ form.design_color_text.id_for_label }}"></div>
+          <div class="scan-design-color-input-row">
+            {{ form.design_color_text }}
+            <code class="scan-design-color-code" data-color-value-for="{{ form.design_color_text.id_for_label }}"></code>
+          </div>
           {% if form.design_color_text.errors %}<div class="scan-help">{{ form.design_color_text.errors|join:", " }}</div>{% endif %}
           <div class="scan-help">{{ form.design_color_text.help_text }}</div>
         </div>
-      </div>
-
-      <div class="scan-inline scan-inline-equal">
-        <div class="scan-field">
+        <div class="scan-field scan-design-color-field">
           {{ form.design_color_text_soft.label_tag }}
-          {{ form.design_color_text_soft }}
+          <div class="scan-design-color-preview" data-color-swatch-for="{{ form.design_color_text_soft.id_for_label }}"></div>
+          <div class="scan-design-color-input-row">
+            {{ form.design_color_text_soft }}
+            <code class="scan-design-color-code" data-color-value-for="{{ form.design_color_text_soft.id_for_label }}"></code>
+          </div>
           {% if form.design_color_text_soft.errors %}<div class="scan-help">{{ form.design_color_text_soft.errors|join:", " }}</div>{% endif %}
           <div class="scan-help">{{ form.design_color_text_soft.help_text }}</div>
         </div>
@@ -174,7 +300,9 @@
         --preview-border: {{ preview_values.design_color_border }};
         --preview-text: {{ preview_values.design_color_text }};
         --preview-text-soft: {{ preview_values.design_color_text_soft }};
-        --preview-font-heading: {{ preview_values.design_font_heading }};
+        --preview-font-h1: {{ preview_values.design_font_h1 }};
+        --preview-font-h2: {{ preview_values.design_font_h2 }};
+        --preview-font-h3: {{ preview_values.design_font_h3 }};
         --preview-font-body: {{ preview_values.design_font_body }};
       "
     >
@@ -191,4 +319,31 @@
       </div>
     </div>
   </div>
+
+  <script>
+    (function () {
+      function resolveColor(rawValue) {
+        var value = (rawValue || "").trim();
+        return /^#[0-9a-fA-F]{6}$/.test(value) ? value.toLowerCase() : "#ffffff";
+      }
+
+      var colorInputs = document.querySelectorAll("[data-color-input='1']");
+      colorInputs.forEach(function (input) {
+        var swatch = document.querySelector("[data-color-swatch-for='" + input.id + "']");
+        var code = document.querySelector("[data-color-value-for='" + input.id + "']");
+        var sync = function () {
+          var hex = resolveColor(input.value);
+          if (swatch) {
+            swatch.style.backgroundColor = hex;
+          }
+          if (code) {
+            code.textContent = hex;
+          }
+        };
+        input.addEventListener("input", sync);
+        input.addEventListener("change", sync);
+        sync();
+      });
+    })();
+  </script>
 {% endblock %}

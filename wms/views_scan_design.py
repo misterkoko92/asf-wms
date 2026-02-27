@@ -30,14 +30,14 @@ def scan_admin_design(request):
         action = (request.POST.get("action") or ACTION_SAVE).strip().lower()
         if action == ACTION_RESET:
             defaults = runtime_settings._defaults_from_settings()  # noqa: SLF001
-            for field_name in ScanDesignSettingsForm.DESIGN_FIELDS:
+            for field_name in ScanDesignSettingsForm.RUNTIME_FIELDS:
                 setattr(runtime_settings, field_name, defaults[field_name])
             runtime_settings.updated_by = (
                 request.user if request.user.is_authenticated else None
             )
             runtime_settings.save(
                 update_fields=[
-                    *ScanDesignSettingsForm.DESIGN_FIELDS,
+                    *ScanDesignSettingsForm.RUNTIME_FIELDS,
                     "updated_by",
                     "updated_at",
                 ]
@@ -48,6 +48,7 @@ def scan_admin_design(request):
         form = ScanDesignSettingsForm(request.POST, instance=runtime_settings)
         if form.is_valid():
             runtime_settings = form.save(commit=False)
+            runtime_settings.design_font_heading = runtime_settings.design_font_h2
             runtime_settings.updated_by = (
                 request.user if request.user.is_authenticated else None
             )

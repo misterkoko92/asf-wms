@@ -7,9 +7,19 @@ from .models import WmsRuntimeSettings
 HEX_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
+def _normalize_font_name(value):
+    resolved = (value or "").strip()
+    if not resolved:
+        return ""
+    first = resolved.split(",")[0].strip()
+    return first.strip('"').strip("'")
+
+
 class ScanDesignSettingsForm(forms.ModelForm):
     DESIGN_FIELDS = (
-        "design_font_heading",
+        "design_font_h1",
+        "design_font_h2",
+        "design_font_h3",
         "design_font_body",
         "design_color_primary",
         "design_color_secondary",
@@ -19,6 +29,7 @@ class ScanDesignSettingsForm(forms.ModelForm):
         "design_color_text",
         "design_color_text_soft",
     )
+    RUNTIME_FIELDS = DESIGN_FIELDS + ("design_font_heading",)
     COLOR_FIELDS = (
         "design_color_primary",
         "design_color_secondary",
@@ -32,7 +43,9 @@ class ScanDesignSettingsForm(forms.ModelForm):
     class Meta:
         model = WmsRuntimeSettings
         fields = [
-            "design_font_heading",
+            "design_font_h1",
+            "design_font_h2",
+            "design_font_h3",
             "design_font_body",
             "design_color_primary",
             "design_color_secondary",
@@ -43,8 +56,10 @@ class ScanDesignSettingsForm(forms.ModelForm):
             "design_color_text_soft",
         ]
         labels = {
-            "design_font_heading": "Typo principale (titres)",
-            "design_font_body": "Typo secondaire (texte)",
+            "design_font_h1": "Typo titre H1",
+            "design_font_h2": "Typo titre H2",
+            "design_font_h3": "Typo titre H3",
+            "design_font_body": "Typo texte",
             "design_color_primary": "Couleur primaire",
             "design_color_secondary": "Couleur secondaire",
             "design_color_background": "Couleur fond",
@@ -54,12 +69,10 @@ class ScanDesignSettingsForm(forms.ModelForm):
             "design_color_text_soft": "Couleur texte secondaire",
         }
         help_texts = {
-            "design_font_heading": (
-                "Liste CSS de polices (ex: \"DM Sans\", \"Aptos\", \"Segoe UI\", sans-serif)."
-            ),
-            "design_font_body": (
-                "Liste CSS de polices (ex: \"Nunito Sans\", \"Aptos\", \"Segoe UI\", sans-serif)."
-            ),
+            "design_font_h1": "Une seule police (ex: DM Sans).",
+            "design_font_h2": "Une seule police (ex: DM Sans).",
+            "design_font_h3": "Une seule police (ex: DM Sans).",
+            "design_font_body": "Une seule police (ex: Nunito Sans).",
             "design_color_primary": "Applique les boutons/actions principales.",
             "design_color_secondary": "Applique les actions secondaires et accents.",
             "design_color_background": "Fond global des pages.",
@@ -69,16 +82,69 @@ class ScanDesignSettingsForm(forms.ModelForm):
             "design_color_text_soft": "Couleur de texte secondaire/aide.",
         }
         widgets = {
-            "design_font_heading": forms.TextInput(),
-            "design_font_body": forms.TextInput(),
-            "design_color_primary": forms.TextInput(attrs={"type": "color"}),
-            "design_color_secondary": forms.TextInput(attrs={"type": "color"}),
-            "design_color_background": forms.TextInput(attrs={"type": "color"}),
-            "design_color_surface": forms.TextInput(attrs={"type": "color"}),
-            "design_color_border": forms.TextInput(attrs={"type": "color"}),
-            "design_color_text": forms.TextInput(attrs={"type": "color"}),
-            "design_color_text_soft": forms.TextInput(attrs={"type": "color"}),
+            "design_font_h1": forms.TextInput(attrs={"placeholder": "DM Sans"}),
+            "design_font_h2": forms.TextInput(attrs={"placeholder": "DM Sans"}),
+            "design_font_h3": forms.TextInput(attrs={"placeholder": "DM Sans"}),
+            "design_font_body": forms.TextInput(attrs={"placeholder": "Nunito Sans"}),
+            "design_color_primary": forms.TextInput(
+                attrs={
+                    "type": "color",
+                    "class": "scan-design-color-input",
+                    "data-color-input": "1",
+                }
+            ),
+            "design_color_secondary": forms.TextInput(
+                attrs={
+                    "type": "color",
+                    "class": "scan-design-color-input",
+                    "data-color-input": "1",
+                }
+            ),
+            "design_color_background": forms.TextInput(
+                attrs={
+                    "type": "color",
+                    "class": "scan-design-color-input",
+                    "data-color-input": "1",
+                }
+            ),
+            "design_color_surface": forms.TextInput(
+                attrs={
+                    "type": "color",
+                    "class": "scan-design-color-input",
+                    "data-color-input": "1",
+                }
+            ),
+            "design_color_border": forms.TextInput(
+                attrs={
+                    "type": "color",
+                    "class": "scan-design-color-input",
+                    "data-color-input": "1",
+                }
+            ),
+            "design_color_text": forms.TextInput(
+                attrs={
+                    "type": "color",
+                    "class": "scan-design-color-input",
+                    "data-color-input": "1",
+                }
+            ),
+            "design_color_text_soft": forms.TextInput(
+                attrs={
+                    "type": "color",
+                    "class": "scan-design-color-input",
+                    "data-color-input": "1",
+                }
+            ),
         }
+
+    FONT_FIELDS = ("design_font_h1", "design_font_h2", "design_font_h3", "design_font_body")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and getattr(self.instance, "pk", None):
+            for field_name in self.FONT_FIELDS:
+                current = getattr(self.instance, field_name, "")
+                self.initial[field_name] = _normalize_font_name(current)
 
     def clean(self):
         cleaned_data = super().clean()
@@ -94,10 +160,16 @@ class ScanDesignSettingsForm(forms.ModelForm):
                 )
             else:
                 cleaned_data[field_name] = value.lower()
-        for field_name in ("design_font_heading", "design_font_body"):
+        for field_name in self.FONT_FIELDS:
             value = (cleaned_data.get(field_name) or "").strip()
             if not value:
                 self.add_error(field_name, "La police est obligatoire.")
+                continue
+            if "," in value:
+                self.add_error(
+                    field_name,
+                    "Saisissez une seule police par champ.",
+                )
             else:
-                cleaned_data[field_name] = value
+                cleaned_data[field_name] = _normalize_font_name(value)
         return cleaned_data
