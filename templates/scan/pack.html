@@ -132,18 +132,20 @@
         </div>
       {% endif %}
       <div class="scan-field">
-        <div class="form-check form-switch">
-          <input
-            type="checkbox"
-            id="id_confirm_defaults"
-            name="confirm_defaults"
-            value="1"
-            class="form-check-input"
-            {% if confirm_defaults %}checked{% endif %}
-          >
-          <label class="form-check-label" for="id_confirm_defaults">
-            Autoriser l'ajout avec valeurs standard (1 x 1 x 1 cm et 5 g) pour les produits sans dimensions/poids.
-          </label>
+        <div class="scan-switch-card">
+          <div class="form-check form-switch">
+            <input
+              type="checkbox"
+              id="id_confirm_defaults"
+              name="confirm_defaults"
+              value="1"
+              class="form-check-input"
+              {% if confirm_defaults %}checked{% endif %}
+            >
+            <label class="form-check-label" for="id_confirm_defaults">
+              Autoriser l'ajout avec valeurs standard (1 x 1 x 1 cm et 5 g) pour les produits sans dimensions/poids.
+            </label>
+          </div>
         </div>
       </div>
 

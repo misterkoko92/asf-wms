@@ -129,19 +129,23 @@
       </div>
 
       <div class="scan-field col-12 col-md-4">
-        <div class="form-check form-switch">
-          {{ create_form.use_organization_address }}
-          <label class="form-check-label" for="{{ create_form.use_organization_address.id_for_label }}">
-            Utiliser l'adresse de l'organisation
-          </label>
+        <div class="scan-switch-card">
+          <div class="form-check form-switch">
+            {{ create_form.use_organization_address }}
+            <label class="form-check-label" for="{{ create_form.use_organization_address.id_for_label }}">
+              Utiliser l'adresse de l'organisation
+            </label>
+          </div>
         </div>
       </div>
       <div class="scan-field col-12 col-md-4">
-        <div class="form-check form-switch">
-          {{ create_form.is_active }}
-          <label class="form-check-label" for="{{ create_form.is_active.id_for_label }}">
-            Contact actif
-          </label>
+        <div class="scan-switch-card">
+          <div class="form-check form-switch">
+            {{ create_form.is_active }}
+            <label class="form-check-label" for="{{ create_form.is_active.id_for_label }}">
+              Contact actif
+            </label>
+          </div>
         </div>
       </div>
 
@@ -345,19 +349,23 @@
         </div>
 
         <div class="scan-field col-12 col-md-4">
-          <div class="form-check form-switch">
-            {{ edit_form.use_organization_address }}
-            <label class="form-check-label" for="{{ edit_form.use_organization_address.id_for_label }}">
-              Utiliser l'adresse de l'organisation
-            </label>
+          <div class="scan-switch-card">
+            <div class="form-check form-switch">
+              {{ edit_form.use_organization_address }}
+              <label class="form-check-label" for="{{ edit_form.use_organization_address.id_for_label }}">
+                Utiliser l'adresse de l'organisation
+              </label>
+            </div>
           </div>
         </div>
         <div class="scan-field col-12 col-md-4">
-          <div class="form-check form-switch">
-            {{ edit_form.is_active }}
-            <label class="form-check-label" for="{{ edit_form.is_active.id_for_label }}">
-              Contact actif
-            </label>
+          <div class="scan-switch-card">
+            <div class="form-check form-switch">
+              {{ edit_form.is_active }}
+              <label class="form-check-label" for="{{ edit_form.is_active.id_for_label }}">
+                Contact actif
+              </label>
+            </div>
           </div>
         </div>
 

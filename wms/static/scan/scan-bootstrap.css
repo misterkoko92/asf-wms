@@ -638,6 +638,34 @@ body.scan-bootstrap-enabled {
   padding-top: 0;
 }
 
+.scan-bootstrap-enabled .scan-switch-card,
+.scan-bootstrap-enabled .scan-design-switch {
+  border: 1px solid var(--scan-boot-border-strong);
+  border-radius: 0.75rem;
+  background: var(--scan-boot-surface);
+  padding: 0.78rem 0.9rem;
+}
+
+.scan-bootstrap-enabled .scan-switch-card .form-check,
+.scan-bootstrap-enabled .scan-design-switch .form-check {
+  margin-bottom: 0;
+}
+
+.scan-bootstrap-enabled .scan-switch-card .form-check-label,
+.scan-bootstrap-enabled .scan-design-switch .form-check-label {
+  font-size: 0.92rem;
+  color: var(--ds-text);
+  font-weight: 700;
+  letter-spacing: 0.005em;
+  text-transform: none;
+}
+
+.scan-bootstrap-enabled .scan-switch-card .scan-help,
+.scan-bootstrap-enabled .scan-design-switch .scan-help {
+  margin-top: 0.38rem;
+  margin-bottom: 0;
+}
+
 .scan-bootstrap-enabled .form-check.form-switch .form-check-input {
   cursor: pointer;
 }

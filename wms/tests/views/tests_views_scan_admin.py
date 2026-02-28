@@ -140,6 +140,7 @@ class ScanAdminViewTests(TestCase):
         response = self.client.get(reverse("scan:scan_admin_contacts"))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["active"], "admin_contacts")
+        self.assertContains(response, "scan-switch-card")
         self.assertContains(response, reverse("admin:contacts_contact_changelist"))
         self.assertContains(response, reverse("admin:contacts_contact_add"))
         self.assertContains(response, reverse("admin:contacts_contacttag_add"))

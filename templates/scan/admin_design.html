@@ -84,14 +84,16 @@
       min-width: 0;
     }
 
-    .scan-design-switch {
+    .scan-design-switch,
+    .scan-switch-card {
       border: 1px solid var(--preview-border, #d9e2dc);
       border-radius: 0.75rem;
       background: var(--preview-surface, #fffdf9);
       padding: 0.8rem 0.9rem;
     }
 
-    .scan-design-switch .form-check-label {
+    .scan-design-switch .form-check-label,
+    .scan-switch-card .form-check-label {
       font-weight: 700;
       color: var(--preview-text, #2f3a36);
     }
@@ -469,7 +471,7 @@
             <div class="scan-design-family-grid">
               {% for field in section.fields %}
                 {% if field.field.widget.input_type == "checkbox" %}
-                  <div class="scan-design-switch">
+                  <div class="scan-design-switch scan-switch-card">
                     <div class="form-check form-switch">
                       {{ field }}
                       <label class="form-check-label" for="{{ field.id_for_label }}">

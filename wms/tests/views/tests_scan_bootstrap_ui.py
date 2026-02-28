@@ -88,6 +88,7 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "table table-sm table-hover")
         self.assertContains(response, 'data-table-tools="1"')
         self.assertContains(response, "form-check form-switch")
+        self.assertContains(response, "scan-switch-card")
         self.assertContains(response, "id_include_zero")
         self.assertContains(response, "Inclure les produits avec stock")
 
@@ -266,6 +267,7 @@ class ScanBootstrapUiTests(TestCase):
                 self.assertContains(response, "ui-comp-form")
                 if route_name == "scan:scan_pack":
                     self.assertContains(response, "form-check form-switch")
+                    self.assertContains(response, "scan-switch-card")
                     self.assertContains(
                         response,
                         "Autoriser l'ajout avec valeurs standard",

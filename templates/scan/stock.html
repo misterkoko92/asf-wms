@@ -52,18 +52,20 @@
         </select>
       </div>
       <div class="scan-field col-12 col-md-6 col-xl-3 d-flex flex-column justify-content-end">
-        <div class="form-check form-switch mt-2">
-          <input
-            type="checkbox"
-            id="id_include_zero"
-            name="include_zero"
-            value="1"
-            class="form-check-input"
-            {% if include_zero %}checked{% endif %}
-          >
-          <label class="form-check-label" for="id_include_zero">
-            Inclure les produits avec stock &agrave; 0
-          </label>
+        <div class="scan-switch-card mt-2">
+          <div class="form-check form-switch">
+            <input
+              type="checkbox"
+              id="id_include_zero"
+              name="include_zero"
+              value="1"
+              class="form-check-input"
+              {% if include_zero %}checked{% endif %}
+            >
+            <label class="form-check-label" for="id_include_zero">
+              Inclure les produits avec stock &agrave; 0
+            </label>
+          </div>
         </div>
       </div>
 
