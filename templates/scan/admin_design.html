@@ -16,8 +16,72 @@
       grid-column: 1 / -1 !important;
     }
 
-    .scan-design-section-title {
-      margin: 0 0 0.6rem;
+    .scan-design-accordion {
+      border: 1px solid var(--preview-border, #d9e2dc);
+      border-radius: 0.85rem;
+      background: var(--preview-surface, #fffdf9);
+      margin: 0 0 0.85rem;
+      overflow: hidden;
+    }
+
+    .scan-design-accordion summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 0.82rem 0.95rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.7rem;
+      font-weight: 700;
+      font-size: 0.96rem;
+      color: var(--preview-text, #2f3a36);
+      border-bottom: 1px solid transparent;
+      background: var(--preview-bg, #f6f8f5);
+    }
+
+    .scan-design-accordion[open] summary {
+      border-bottom-color: var(--preview-border, #d9e2dc);
+    }
+
+    .scan-design-accordion summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .scan-design-accordion .scan-design-summary-meta {
+      display: block;
+      color: var(--preview-text-soft, #5a6964);
+      font-size: 0.8rem;
+      font-weight: 500;
+      margin-top: 0.2rem;
+    }
+
+    .scan-design-accordion .scan-design-summary-icon {
+      font-size: 0.74rem;
+      color: var(--preview-text-soft, #5a6964);
+      border: 1px solid var(--preview-border, #d9e2dc);
+      border-radius: 999px;
+      min-width: 1.35rem;
+      min-height: 1.35rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--preview-surface, #fffdf9);
+    }
+
+    .scan-design-accordion-content {
+      padding: 0.85rem 0.95rem 1rem;
+    }
+
+    .scan-design-family-grid {
+      display: grid;
+      gap: 0.85rem;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      align-items: start;
+    }
+
+    .scan-design-family-grid .scan-field {
+      margin-bottom: 0;
+      min-width: 0;
     }
 
     .scan-design-switch {
@@ -32,40 +96,22 @@
       color: var(--preview-text, #2f3a36);
     }
 
-    .scan-design-font-grid {
-      display: grid;
-      gap: 0.9rem;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      align-items: start;
-    }
-
-    .scan-design-font-grid .scan-field {
-      margin-bottom: 0;
-      min-width: 0;
-    }
-
-    .scan-design-font-grid .scan-field select {
-      min-height: 42px;
-    }
-
-    .scan-design-color-scroll {
-      width: 100%;
-      min-width: 0;
-      overflow-x: auto;
-      padding-bottom: 0.2rem;
-    }
-
-    .scan-design-color-grid {
-      display: grid;
-      gap: 0.75rem;
-      grid-template-columns: repeat(7, minmax(128px, 1fr));
-      min-width: 900px;
-      align-items: start;
-    }
-
-    .scan-design-color-field {
-      margin-bottom: 0;
-      min-width: 0;
+    .scan-design-help-dot {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1rem;
+      height: 1rem;
+      margin-left: 0.28rem;
+      border-radius: 999px;
+      border: 1px solid var(--preview-border, #d9e2dc);
+      background: var(--preview-surface, #fffdf9);
+      color: var(--preview-text-soft, #5a6964);
+      font-size: 0.7rem;
+      font-weight: 700;
+      line-height: 1;
+      vertical-align: middle;
+      cursor: help;
     }
 
     .scan-design-color-field .scan-help {
@@ -73,7 +119,7 @@
     }
 
     .scan-design-color-preview {
-      height: 62px;
+      height: 58px;
       border-radius: 0.7rem;
       border: 1px solid var(--preview-border, #d9e2dc);
       box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.34);
@@ -126,11 +172,29 @@
     }
 
     .scan-design-preview {
+      --preview-btn-primary-bg: #6f9a8d;
+      --preview-btn-primary-text: #f7faf8;
+      --preview-btn-primary-border: #5d8579;
+      --preview-btn-secondary-bg: #e7cdb3;
+      --preview-btn-secondary-text: #2f3a36;
+      --preview-btn-secondary-border: #ceaf90;
+      --preview-btn-border-width: 1px;
+      --preview-btn-padding-x: 14px;
+      --preview-btn-font-size: 14px;
+      --preview-density-factor: 1;
       border: 1px solid var(--preview-border, #d9e2dc);
       border-radius: 0.9rem;
       background: var(--preview-bg, #f6f8f5);
       color: var(--preview-text, #2f3a36);
-      padding: 0.95rem;
+      padding: calc(0.95rem * var(--preview-density-factor));
+    }
+
+    .scan-design-preview[data-density-mode="dense"] {
+      --preview-density-factor: 0.9;
+    }
+
+    .scan-design-preview[data-density-mode="airy"] {
+      --preview-density-factor: 1.1;
     }
 
     .scan-design-preview .preview-surface {
@@ -138,21 +202,27 @@
       border-radius: var(--preview-card-radius, 0.78rem);
       background: var(--preview-surface, #fffdf9);
       box-shadow: var(--preview-card-shadow, none);
-      padding: 0.78rem;
-      margin-bottom: 0.7rem;
+      padding: calc(0.78rem * var(--preview-density-factor));
+      margin-bottom: calc(0.7rem * var(--preview-density-factor));
     }
 
     .scan-design-preview h4,
     .scan-design-preview h5 {
       margin: 0 0 0.45rem;
+      line-height: var(--preview-line-height-heading, 1.2);
+      font-weight: var(--preview-font-weight-heading, 700);
+      letter-spacing: var(--preview-letter-spacing-heading, 0.01em);
+      text-transform: var(--preview-text-transform-heading, none);
     }
 
     .scan-design-preview h4 {
       font-family: var(--preview-font-h2, "DM Sans", sans-serif);
+      font-size: var(--preview-font-size-h2, 28px);
     }
 
     .scan-design-preview h5 {
       font-family: var(--preview-font-h3, "DM Sans", sans-serif);
+      font-size: var(--preview-font-size-h3, 22px);
     }
 
     .scan-design-preview p,
@@ -160,6 +230,15 @@
       margin: 0;
       font-family: var(--preview-font-body, "Nunito Sans", sans-serif);
       color: var(--preview-text-soft, #5a6964);
+      line-height: var(--preview-line-height-body, 1.5);
+      font-weight: var(--preview-font-weight-body, 500);
+      letter-spacing: var(--preview-letter-spacing-body, 0.005em);
+      font-size: var(--preview-font-size-body, 15px);
+    }
+
+    .scan-design-preview[data-heading-transform="uppercase"] h4,
+    .scan-design-preview[data-heading-transform="uppercase"] h5 {
+      text-transform: uppercase;
     }
 
     .scan-design-preview .preview-kpi {
@@ -172,28 +251,35 @@
       background: var(--preview-surface, #fffdf9);
       font-family: var(--preview-font-body, "Nunito Sans", sans-serif);
       color: var(--preview-text, #2f3a36);
+      font-size: var(--preview-font-size-small, 13px);
     }
 
     .scan-design-preview .preview-button {
       display: inline-block;
-      border: 1px solid transparent;
+      border-style: solid;
+      border-width: var(--preview-btn-border-width, 1px);
       border-radius: min(var(--preview-btn-radius, 0.6rem), 0.45rem);
       min-height: var(--preview-btn-height, 2.6rem);
-      padding: 0.44rem 0.7rem;
+      padding: 0.44rem var(--preview-btn-padding-x, 14px);
       margin-right: 0.4rem;
       margin-bottom: 0.4rem;
       font-family: var(--preview-font-h2, "DM Sans", sans-serif);
-      font-weight: 700;
+      font-weight: var(--preview-font-weight-button, 700);
+      font-size: var(--preview-btn-font-size, 14px);
       box-shadow: var(--preview-btn-shadow, none);
-      color: #f7faf8;
-      background: var(--preview-primary, #6f9a8d);
-      border-color: #5d8579;
+      transition: all 0.12s ease;
+    }
+
+    .scan-design-preview .preview-button.primary {
+      color: var(--preview-btn-primary-text, #f7faf8);
+      background: var(--preview-btn-primary-bg, #6f9a8d);
+      border-color: var(--preview-btn-primary-border, #5d8579);
     }
 
     .scan-design-preview .preview-button.secondary {
-      background: var(--preview-secondary, #e7c3a8);
-      color: var(--preview-text, #2f3a36);
-      border-color: #ceaf90;
+      background: var(--preview-btn-secondary-bg, #e7cdb3);
+      color: var(--preview-btn-secondary-text, #2f3a36);
+      border-color: var(--preview-btn-secondary-border, #ceaf90);
     }
 
     .scan-design-preview .preview-button.success {
@@ -212,6 +298,25 @@
       background: var(--preview-danger-bg, #faece7);
       border-color: var(--preview-danger-border, #dfb0b0);
       color: var(--preview-danger-text, #7b3030);
+    }
+
+    .scan-design-preview[data-btn-style-mode="outlined"] .preview-button.primary {
+      background: transparent;
+      color: var(--preview-btn-primary-border, #5d8579);
+    }
+
+    .scan-design-preview[data-btn-style-mode="outlined"] .preview-button.secondary {
+      background: transparent;
+      color: var(--preview-btn-secondary-border, #ceaf90);
+    }
+
+    .scan-design-preview[data-btn-style-mode="soft"] .preview-button {
+      filter: saturate(0.88);
+      box-shadow: none;
+    }
+
+    .scan-design-preview[data-btn-style-mode="elevated"] .preview-button {
+      box-shadow: var(--preview-btn-shadow, 0 2px 8px rgba(39, 57, 50, 0.12));
     }
 
     .scan-design-preview .preview-nav-item {
@@ -233,34 +338,93 @@
       border-color: var(--preview-primary, #6f9a8d);
     }
 
-    .scan-design-priority-grid {
-      display: grid;
-      gap: 0.85rem;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      align-items: start;
+    .scan-design-preview .preview-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      overflow: hidden;
+      border: 1px solid var(--preview-border, #d9e2dc);
+      border-radius: 0.6rem;
+      margin-top: 0.55rem;
+      font-size: 0.84rem;
     }
 
-    .scan-design-priority-grid .scan-field {
-      margin-bottom: 0;
-      min-width: 0;
+    .scan-design-preview .preview-table th {
+      text-align: left;
+      background: var(--preview-table-header-bg, #edf4f0);
+      color: var(--preview-table-header-text, #2f3a36);
+      padding: 0.42rem 0.52rem;
+      border-bottom: 1px solid var(--preview-border, #d9e2dc);
     }
 
-    @media (max-width: 1100px) {
-      .scan-design-font-grid {
+    .scan-design-preview .preview-table td {
+      padding: 0.4rem 0.52rem;
+      border-bottom: 1px solid var(--preview-border, #d9e2dc);
+      background: var(--preview-table-row-bg, #ffffff);
+    }
+
+    .scan-design-preview .preview-table tbody tr:nth-child(even) td {
+      background: var(--preview-table-row-alt-bg, #f8fbf9);
+    }
+
+    .scan-design-preview .preview-table tbody tr.preview-hover td {
+      background: var(--preview-table-hover-bg, #e7f1ec);
+    }
+
+    .scan-design-preview .preview-status-row {
+      margin-top: 0.55rem;
+    }
+
+    .scan-design-preview .preview-status {
+      display: inline-block;
+      margin-right: 0.35rem;
+      margin-bottom: 0.35rem;
+      border-width: 1px;
+      border-style: solid;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 0.28rem 0.52rem;
+    }
+
+    .scan-design-preview .preview-status.ready {
+      background: var(--preview-status-ready-bg, #e8f4ee);
+      border-color: var(--preview-status-ready-border, #b8d6c8);
+      color: var(--preview-status-ready-text, #2d5e46);
+    }
+
+    .scan-design-preview .preview-status.progress {
+      background: var(--preview-status-progress-bg, #eef3fb);
+      border-color: var(--preview-status-progress-border, #b4cbe7);
+      color: var(--preview-status-progress-text, #274d7f);
+    }
+
+    .scan-design-preview .preview-status.warning {
+      background: var(--preview-status-warning-bg, #fbf2e7);
+      border-color: var(--preview-status-warning-border, #e5d0a6);
+      color: var(--preview-status-warning-text, #715829);
+    }
+
+    .scan-design-preview .preview-status.error {
+      background: var(--preview-status-error-bg, #faece7);
+      border-color: var(--preview-status-error-border, #dfb0b0);
+      color: var(--preview-status-error-text, #7b3030);
+    }
+
+    @media (max-width: 1280px) {
+      .scan-design-family-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 980px) {
+      .scan-design-family-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
-
-      .scan-design-priority-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
     }
 
-    @media (max-width: 768px) {
-      .scan-design-font-grid {
-        grid-template-columns: minmax(0, 1fr);
-      }
-
-      .scan-design-priority-grid {
+    @media (max-width: 700px) {
+      .scan-design-family-grid {
         grid-template-columns: minmax(0, 1fr);
       }
     }
@@ -271,11 +435,8 @@
   <div class="scan-card card border-0 ui-comp-card">
     <h2 class="ui-comp-title">Admin - Design</h2>
     <p class="scan-help ui-comp-note">
-      Cette page est réservée aux superusers. Vous pouvez modifier les variables visuelles globales
-      (couleurs, typos et options runtime), appliquées sur les pages scan/portal/home/login/admin personnalisés.
-    </p>
-    <p class="scan-help ui-comp-note">
-      Ce panneau sera enrichi progressivement avec davantage de variables pilotables directement depuis le site.
+      Cette page est réservée aux superusers. Les variables sont regroupées par famille pour éviter les erreurs.
+      Survolez les pastilles <strong>i</strong> pour comprendre l'impact de chaque réglage.
     </p>
   </div>
 
@@ -283,141 +444,61 @@
     <form method="post" class="scan-filters ui-comp-form scan-design-form">
       {% csrf_token %}
 
-      <h3 class="scan-design-section-title">Activation globale Bootstrap</h3>
-      <div class="scan-design-switch">
-        <div class="form-check form-switch">
-          {{ form.scan_bootstrap_enabled }}
-          <label class="form-check-label" for="{{ form.scan_bootstrap_enabled.id_for_label }}">
-            {{ form.scan_bootstrap_enabled.label }}
-          </label>
-        </div>
-        <div class="scan-help">{{ form.scan_bootstrap_enabled.help_text }}</div>
-        {% if form.scan_bootstrap_enabled.errors %}
-          <div class="scan-help">{{ form.scan_bootstrap_enabled.errors|join:", " }}</div>
-        {% endif %}
-      </div>
-
-      <div class="scan-divider"></div>
-
-      <h3 class="scan-design-section-title">Typographies</h3>
-      <div class="scan-design-font-grid">
-        <div class="scan-field">
-          {{ form.design_font_h1.label_tag }}
-          {{ form.design_font_h1 }}
-          {% if form.design_font_h1.errors %}<div class="scan-help">{{ form.design_font_h1.errors|join:", " }}</div>{% endif %}
-          <div class="scan-help">{{ form.design_font_h1.help_text }}</div>
-        </div>
-        <div class="scan-field">
-          {{ form.design_font_h2.label_tag }}
-          {{ form.design_font_h2 }}
-          {% if form.design_font_h2.errors %}<div class="scan-help">{{ form.design_font_h2.errors|join:", " }}</div>{% endif %}
-          <div class="scan-help">{{ form.design_font_h2.help_text }}</div>
-        </div>
-        <div class="scan-field">
-          {{ form.design_font_h3.label_tag }}
-          {{ form.design_font_h3 }}
-          {% if form.design_font_h3.errors %}<div class="scan-help">{{ form.design_font_h3.errors|join:", " }}</div>{% endif %}
-          <div class="scan-help">{{ form.design_font_h3.help_text }}</div>
-        </div>
-        <div class="scan-field">
-          {{ form.design_font_body.label_tag }}
-          {{ form.design_font_body }}
-          {% if form.design_font_body.errors %}<div class="scan-help">{{ form.design_font_body.errors|join:", " }}</div>{% endif %}
-          <div class="scan-help">{{ form.design_font_body.help_text }}</div>
-        </div>
-      </div>
-
-      <div class="scan-divider"></div>
-
-      <h3 class="scan-design-section-title">Couleurs</h3>
-      <div class="scan-design-color-scroll">
-      <div class="scan-design-color-grid">
-        <div class="scan-field scan-design-color-field">
-          {{ form.design_color_primary.label_tag }}
-          <div class="scan-design-color-preview" data-color-swatch-for="{{ form.design_color_primary.id_for_label }}"></div>
-          <div class="scan-design-color-input-row">
-            {{ form.design_color_primary }}
-            <code class="scan-design-color-code" data-color-value-for="{{ form.design_color_primary.id_for_label }}"></code>
+      {% for section in design_sections %}
+        <details class="scan-design-accordion" id="design-family-{{ section.key }}"{% if section.default_open %} open{% endif %}>
+          <summary>
+            <span>
+              {{ section.label }}
+              <span class="scan-design-summary-meta">{{ section.description }}</span>
+            </span>
+            <span class="scan-design-summary-icon">▼</span>
+          </summary>
+          <div class="scan-design-accordion-content">
+            <div class="scan-design-family-grid">
+              {% for field in section.fields %}
+                {% if field.field.widget.input_type == "checkbox" %}
+                  <div class="scan-design-switch">
+                    <div class="form-check form-switch">
+                      {{ field }}
+                      <label class="form-check-label" for="{{ field.id_for_label }}">
+                        {{ field.label }}
+                      </label>
+                    </div>
+                    <div class="scan-help">{{ field.help_text }}</div>
+                    {% if field.errors %}
+                      <div class="scan-help">{{ field.errors|join:", " }}</div>
+                    {% endif %}
+                  </div>
+                {% elif field.field.widget.input_type == "color" %}
+                  <div class="scan-field scan-design-color-field">
+                    <label class="form-label" for="{{ field.id_for_label }}">
+                      {{ field.label }}
+                      {% if field.help_text %}<span class="scan-design-help-dot" title="{{ field.help_text }}">i</span>{% endif %}
+                    </label>
+                    <div class="scan-design-color-preview" data-color-swatch-for="{{ field.id_for_label }}"></div>
+                    <div class="scan-design-color-input-row">
+                      {{ field }}
+                      <code class="scan-design-color-code" data-color-value-for="{{ field.id_for_label }}"></code>
+                    </div>
+                    {% if field.errors %}<div class="scan-help">{{ field.errors|join:", " }}</div>{% endif %}
+                    {% if field.help_text %}<div class="scan-help">{{ field.help_text }}</div>{% endif %}
+                  </div>
+                {% else %}
+                  <div class="scan-field">
+                    <label class="form-label" for="{{ field.id_for_label }}">
+                      {{ field.label }}
+                      {% if field.help_text %}<span class="scan-design-help-dot" title="{{ field.help_text }}">i</span>{% endif %}
+                    </label>
+                    {{ field }}
+                    {% if field.errors %}<div class="scan-help">{{ field.errors|join:", " }}</div>{% endif %}
+                    {% if field.help_text %}<div class="scan-help">{{ field.help_text }}</div>{% endif %}
+                  </div>
+                {% endif %}
+              {% endfor %}
+            </div>
           </div>
-          {% if form.design_color_primary.errors %}<div class="scan-help">{{ form.design_color_primary.errors|join:", " }}</div>{% endif %}
-          <div class="scan-help">{{ form.design_color_primary.help_text }}</div>
-        </div>
-        <div class="scan-field scan-design-color-field">
-          {{ form.design_color_secondary.label_tag }}
-          <div class="scan-design-color-preview" data-color-swatch-for="{{ form.design_color_secondary.id_for_label }}"></div>
-          <div class="scan-design-color-input-row">
-            {{ form.design_color_secondary }}
-            <code class="scan-design-color-code" data-color-value-for="{{ form.design_color_secondary.id_for_label }}"></code>
-          </div>
-          {% if form.design_color_secondary.errors %}<div class="scan-help">{{ form.design_color_secondary.errors|join:", " }}</div>{% endif %}
-          <div class="scan-help">{{ form.design_color_secondary.help_text }}</div>
-        </div>
-        <div class="scan-field scan-design-color-field">
-          {{ form.design_color_background.label_tag }}
-          <div class="scan-design-color-preview" data-color-swatch-for="{{ form.design_color_background.id_for_label }}"></div>
-          <div class="scan-design-color-input-row">
-            {{ form.design_color_background }}
-            <code class="scan-design-color-code" data-color-value-for="{{ form.design_color_background.id_for_label }}"></code>
-          </div>
-          {% if form.design_color_background.errors %}<div class="scan-help">{{ form.design_color_background.errors|join:", " }}</div>{% endif %}
-          <div class="scan-help">{{ form.design_color_background.help_text }}</div>
-        </div>
-        <div class="scan-field scan-design-color-field">
-          {{ form.design_color_surface.label_tag }}
-          <div class="scan-design-color-preview" data-color-swatch-for="{{ form.design_color_surface.id_for_label }}"></div>
-          <div class="scan-design-color-input-row">
-            {{ form.design_color_surface }}
-            <code class="scan-design-color-code" data-color-value-for="{{ form.design_color_surface.id_for_label }}"></code>
-          </div>
-          {% if form.design_color_surface.errors %}<div class="scan-help">{{ form.design_color_surface.errors|join:", " }}</div>{% endif %}
-          <div class="scan-help">{{ form.design_color_surface.help_text }}</div>
-        </div>
-        <div class="scan-field scan-design-color-field">
-          {{ form.design_color_border.label_tag }}
-          <div class="scan-design-color-preview" data-color-swatch-for="{{ form.design_color_border.id_for_label }}"></div>
-          <div class="scan-design-color-input-row">
-            {{ form.design_color_border }}
-            <code class="scan-design-color-code" data-color-value-for="{{ form.design_color_border.id_for_label }}"></code>
-          </div>
-          {% if form.design_color_border.errors %}<div class="scan-help">{{ form.design_color_border.errors|join:", " }}</div>{% endif %}
-          <div class="scan-help">{{ form.design_color_border.help_text }}</div>
-        </div>
-        <div class="scan-field scan-design-color-field">
-          {{ form.design_color_text.label_tag }}
-          <div class="scan-design-color-preview" data-color-swatch-for="{{ form.design_color_text.id_for_label }}"></div>
-          <div class="scan-design-color-input-row">
-            {{ form.design_color_text }}
-            <code class="scan-design-color-code" data-color-value-for="{{ form.design_color_text.id_for_label }}"></code>
-          </div>
-          {% if form.design_color_text.errors %}<div class="scan-help">{{ form.design_color_text.errors|join:", " }}</div>{% endif %}
-          <div class="scan-help">{{ form.design_color_text.help_text }}</div>
-        </div>
-        <div class="scan-field scan-design-color-field">
-          {{ form.design_color_text_soft.label_tag }}
-          <div class="scan-design-color-preview" data-color-swatch-for="{{ form.design_color_text_soft.id_for_label }}"></div>
-          <div class="scan-design-color-input-row">
-            {{ form.design_color_text_soft }}
-            <code class="scan-design-color-code" data-color-value-for="{{ form.design_color_text_soft.id_for_label }}"></code>
-          </div>
-          {% if form.design_color_text_soft.errors %}<div class="scan-help">{{ form.design_color_text_soft.errors|join:", " }}</div>{% endif %}
-          <div class="scan-help">{{ form.design_color_text_soft.help_text }}</div>
-        </div>
-      </div>
-      </div>
-
-      <div class="scan-divider"></div>
-
-      <h3 class="scan-design-section-title">Variables prio 1 (lot 44)</h3>
-      <div class="scan-design-priority-grid">
-        {% for field in priority_form_fields %}
-          <div class="scan-field">
-            {{ field.label_tag }}
-            {{ field }}
-            {% if field.errors %}<div class="scan-help">{{ field.errors|join:", " }}</div>{% endif %}
-            <div class="scan-help">{{ field.help_text }}</div>
-          </div>
-        {% endfor %}
-      </div>
+        </details>
+      {% endfor %}
 
       {% if form.non_field_errors %}
         <div class="scan-message error">{{ form.non_field_errors|join:", " }}</div>
@@ -431,9 +512,13 @@
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
-    <h3>Aperçu rapide</h3>
+    <h3>Aperçu rapide (live)</h3>
     <div
       class="scan-design-preview"
+      data-design-live-preview="1"
+      data-btn-style-mode="{{ preview_values.design_btn_style_mode|default:'flat' }}"
+      data-density-mode="{{ preview_values.design_density_mode|default:'standard' }}"
+      data-heading-transform="{{ preview_values.design_text_transform_heading|default:'none' }}"
       style="
         --preview-primary: {{ preview_values.design_color_primary }};
         --preview-secondary: {{ preview_values.design_color_secondary }};
@@ -448,7 +533,16 @@
         --preview-font-body: {{ preview_values.design_font_body }};
         --preview-btn-radius: {{ preview_values.design_btn_radius }}px;
         --preview-btn-height: {{ preview_values.design_btn_height_md }}px;
+        --preview-btn-border-width: {{ preview_values.design_btn_border_width }}px;
+        --preview-btn-padding-x: {{ preview_values.design_btn_padding_x }}px;
+        --preview-btn-font-size: {{ preview_values.design_btn_font_size }}px;
         --preview-btn-shadow: {{ preview_values.design_btn_shadow }};
+        --preview-btn-primary-bg: {{ preview_values.design_color_btn_primary_bg }};
+        --preview-btn-primary-text: {{ preview_values.design_color_btn_primary_text }};
+        --preview-btn-primary-border: {{ preview_values.design_color_btn_primary_border }};
+        --preview-btn-secondary-bg: {{ preview_values.design_color_btn_secondary_bg }};
+        --preview-btn-secondary-text: {{ preview_values.design_color_btn_secondary_text }};
+        --preview-btn-secondary-border: {{ preview_values.design_color_btn_secondary_border }};
         --preview-card-radius: {{ preview_values.design_card_radius }}px;
         --preview-card-shadow: {{ preview_values.design_card_shadow }};
         --preview-nav-active-bg: {{ preview_values.design_nav_item_active_bg }};
@@ -462,6 +556,35 @@
         --preview-danger-bg: {{ preview_values.design_color_btn_danger_bg }};
         --preview-danger-text: {{ preview_values.design_color_btn_danger_text }};
         --preview-danger-border: {{ preview_values.design_color_btn_danger_border }};
+        --preview-font-size-h2: {{ preview_values.design_font_size_h2 }}px;
+        --preview-font-size-h3: {{ preview_values.design_font_size_h3 }}px;
+        --preview-font-size-body: {{ preview_values.design_font_size_body }}px;
+        --preview-font-size-small: {{ preview_values.design_font_size_small }}px;
+        --preview-line-height-heading: {{ preview_values.design_line_height_heading }};
+        --preview-line-height-body: {{ preview_values.design_line_height_body }};
+        --preview-font-weight-heading: {{ preview_values.design_font_weight_heading }};
+        --preview-font-weight-body: {{ preview_values.design_font_weight_body }};
+        --preview-font-weight-button: {{ preview_values.design_font_weight_button }};
+        --preview-letter-spacing-heading: {{ preview_values.design_letter_spacing_heading }};
+        --preview-letter-spacing-body: {{ preview_values.design_letter_spacing_body }};
+        --preview-text-transform-heading: {{ preview_values.design_text_transform_heading }};
+        --preview-table-header-bg: {{ preview_values.design_table_header_bg }};
+        --preview-table-header-text: {{ preview_values.design_table_header_text }};
+        --preview-table-row-bg: {{ preview_values.design_table_row_bg }};
+        --preview-table-row-alt-bg: {{ preview_values.design_table_row_alt_bg }};
+        --preview-table-hover-bg: {{ preview_values.design_table_row_hover_bg }};
+        --preview-status-ready-bg: {{ preview_values.design_status_ready_bg }};
+        --preview-status-ready-text: {{ preview_values.design_status_ready_text }};
+        --preview-status-ready-border: {{ preview_values.design_status_ready_border }};
+        --preview-status-progress-bg: {{ preview_values.design_status_progress_bg }};
+        --preview-status-progress-text: {{ preview_values.design_status_progress_text }};
+        --preview-status-progress-border: {{ preview_values.design_status_progress_border }};
+        --preview-status-warning-bg: {{ preview_values.design_status_warning_bg }};
+        --preview-status-warning-text: {{ preview_values.design_status_warning_text }};
+        --preview-status-warning-border: {{ preview_values.design_status_warning_border }};
+        --preview-status-error-bg: {{ preview_values.design_status_error_bg }};
+        --preview-status-error-text: {{ preview_values.design_status_error_text }};
+        --preview-status-error-border: {{ preview_values.design_status_error_border }};
       "
     >
       <div class="preview-surface">
@@ -470,17 +593,44 @@
       </div>
       <div class="preview-surface">
         <h4>Dashboard</h4>
-        <p>Exemple de rendu des cartes, textes et actions.</p>
+        <p>Exemple de rendu live des cartes, textes, tableaux et actions.</p>
       </div>
       <span class="preview-kpi">Colis prêts: 128</span>
       <span class="preview-kpi">Kits prêts: 42</span>
       <span class="preview-kpi">Expéditions: 7</span>
       <div>
-        <span class="preview-button">Action principale</span>
+        <span class="preview-button primary">Action principale</span>
         <span class="preview-button secondary">Action secondaire</span>
         <span class="preview-button success">Succès</span>
         <span class="preview-button warning">Alerte</span>
         <span class="preview-button danger">Danger</span>
+      </div>
+      <table class="preview-table">
+        <thead>
+          <tr>
+            <th>Commande</th>
+            <th>Statut</th>
+            <th>Quantité</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>ORD-1251</td>
+            <td>En préparation</td>
+            <td>42</td>
+          </tr>
+          <tr class="preview-hover">
+            <td>ORD-1252</td>
+            <td>Prête</td>
+            <td>18</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="preview-status-row">
+        <span class="preview-status ready">Prêt</span>
+        <span class="preview-status progress">En cours</span>
+        <span class="preview-status warning">Alerte</span>
+        <span class="preview-status error">Erreur</span>
       </div>
     </div>
   </div>
@@ -489,24 +639,71 @@
     (function () {
       function resolveColor(rawValue) {
         var value = (rawValue || "").trim();
-        return /^#[0-9a-fA-F]{6}$/.test(value) ? value.toLowerCase() : "#ffffff";
+        return /^#[0-9a-fA-F]{6}$/.test(value) ? value.toLowerCase() : "";
       }
 
+      var previewRoot = document.querySelector("[data-design-live-preview='1']");
+      var designFields = document.querySelectorAll("[data-design-field='1']");
       var colorInputs = document.querySelectorAll("[data-color-input='1']");
-      colorInputs.forEach(function (input) {
+
+      function syncColorDecorators(input) {
         var swatch = document.querySelector("[data-color-swatch-for='" + input.id + "']");
         var code = document.querySelector("[data-color-value-for='" + input.id + "']");
+        var hex = resolveColor(input.value);
+        if (swatch) {
+          swatch.style.backgroundColor = hex || "#ffffff";
+        }
+        if (code) {
+          code.textContent = hex || "invalide";
+        }
+      }
+
+      function applyPreviewField(field) {
+        if (!previewRoot) {
+          return;
+        }
+        var value = (field.value || "").trim();
+        var cssVar = field.dataset.previewCssVar;
+        var previewUnit = field.dataset.previewUnit || "";
+        var previewAttr = field.dataset.previewAttr;
+
+        if (cssVar) {
+          if (field.type === "color") {
+            var validHex = resolveColor(value);
+            if (validHex) {
+              previewRoot.style.setProperty(cssVar, validHex);
+            }
+          } else if (previewUnit && /^-?\d+(\.\d+)?$/.test(value)) {
+            previewRoot.style.setProperty(cssVar, value + previewUnit);
+          } else if (value) {
+            previewRoot.style.setProperty(cssVar, value);
+          }
+        }
+
+        if (previewAttr && value) {
+          previewRoot.dataset[previewAttr] = value.toLowerCase();
+        }
+      }
+
+      colorInputs.forEach(function (input) {
         var sync = function () {
-          var hex = resolveColor(input.value);
-          if (swatch) {
-            swatch.style.backgroundColor = hex;
-          }
-          if (code) {
-            code.textContent = hex;
-          }
+          syncColorDecorators(input);
+          applyPreviewField(input);
         };
         input.addEventListener("input", sync);
         input.addEventListener("change", sync);
+        sync();
+      });
+
+      designFields.forEach(function (field) {
+        if (field.dataset.colorInput === "1") {
+          return;
+        }
+        var sync = function () {
+          applyPreviewField(field);
+        };
+        field.addEventListener("input", sync);
+        field.addEventListener("change", sync);
         sync();
       });
     })();

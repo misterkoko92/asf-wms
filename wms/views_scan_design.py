@@ -25,6 +25,10 @@ def _design_values_dict(runtime_settings):
     return values
 
 
+def _empty_preview_values():
+    return {field_name: "" for field_name in ScanDesignSettingsForm.PREVIEW_FIELDS}
+
+
 @scan_staff_required
 @require_http_methods(["GET", "POST"])
 def scan_admin_design(request):
@@ -60,10 +64,12 @@ def scan_admin_design(request):
             runtime_settings.save()
             messages.success(request, "Paramètres design enregistrés.")
             return redirect("scan:scan_admin_design")
-        preview_values = {
-            field_name: form.cleaned_data.get(field_name) or request.POST.get(field_name, "")
-            for field_name in ScanDesignSettingsForm.PREVIEW_FIELDS
-        }
+        preview_values = _empty_preview_values()
+        for field_name in ScanDesignSettingsForm.PREVIEW_FIELDS:
+            preview_values[field_name] = request.POST.get(field_name, "")
+        for field_name in form.cleaned_data:
+            if field_name in preview_values and form.cleaned_data.get(field_name) not in (None, ""):
+                preview_values[field_name] = form.cleaned_data.get(field_name)
     else:
         form = ScanDesignSettingsForm(instance=runtime_settings)
         preview_values = _design_values_dict(runtime_settings)
@@ -74,9 +80,7 @@ def scan_admin_design(request):
         {
             "active": ACTIVE_SCAN_ADMIN_DESIGN,
             "form": form,
-            "priority_form_fields": [
-                form[field_name] for field_name in ScanDesignSettingsForm.PRIORITY_TOKEN_FIELDS
-            ],
+            "design_sections": form.get_section_context(),
             "preview_values": preview_values,
         },
     )

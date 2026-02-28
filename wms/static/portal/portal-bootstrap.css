@@ -1,7 +1,7 @@
 .portal-bootstrap-enabled .portal-header {
   border: 1px solid var(--border-strong) !important;
-  background: linear-gradient(170deg, #fffefb 0%, #f3f8f4 100%);
-  box-shadow: 0 10px 26px rgba(39, 57, 50, 0.12);
+  background: linear-gradient(170deg, var(--wms-card-bg) 0%, var(--wms-color-background) 100%);
+  box-shadow: var(--wms-card-shadow);
 }
 
 .portal-bootstrap-enabled .portal-nav .btn {
@@ -9,24 +9,29 @@
 }
 
 .portal-bootstrap-enabled .portal-card.card {
-  border: 1px solid var(--border-strong) !important;
-  border-radius: 1rem;
-  background: #fffdf9;
+  border: var(--wms-card-border-width) solid var(--wms-card-border-color) !important;
+  border-radius: var(--wms-card-radius);
+  background: var(--wms-card-bg);
+  box-shadow: var(--wms-card-shadow);
 }
 
 .portal-bootstrap-enabled .portal-table.scan-table.table {
   --bs-table-bg: transparent;
-  --bs-table-hover-bg: rgba(111, 154, 141, 0.1);
+  --bs-table-hover-bg: var(--wms-table-row-hover-bg);
 }
 
 .portal-bootstrap-enabled .portal-table thead th {
-  background: #edf4f0;
-  border-bottom: 1px solid var(--border-strong);
+  background: var(--wms-table-header-bg);
+  color: var(--wms-table-header-text);
+  border-bottom: 1px solid var(--wms-table-border-color);
 }
 
 .portal-bootstrap-enabled .portal-badge {
-  background: #e8f4ee;
-  border: 1px solid #c4d9cf;
+  background: var(--wms-status-ready-bg);
+  color: var(--wms-status-ready-text);
+  border: 1px solid var(--wms-status-ready-border);
+  border-radius: var(--wms-badge-radius);
+  font-size: var(--wms-badge-font-size);
 }
 
 .portal-bootstrap-enabled .portal-products-table-wrap .scan-table th {

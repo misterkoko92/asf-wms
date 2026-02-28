@@ -11,6 +11,7 @@
       --wms-font-heading-h3: {{ wms_design_tokens.font_h3 }};
       --wms-font-heading: {{ wms_design_tokens.font_heading }};
       --wms-font-body: {{ wms_design_tokens.font_body }};
+
       --wms-color-primary: {{ wms_design_tokens.color_primary }};
       --wms-color-secondary: {{ wms_design_tokens.color_secondary }};
       --wms-color-background: {{ wms_design_tokens.color_background }};
@@ -18,20 +19,53 @@
       --wms-color-border: {{ wms_design_tokens.color_border }};
       --wms-color-text: {{ wms_design_tokens.color_text }};
       --wms-color-text-soft: {{ wms_design_tokens.color_text_soft }};
+      --wms-color-surface-alt: {{ wms_design_tokens.color_surface_alt }};
+      --wms-color-panel: {{ wms_design_tokens.color_panel }};
+      --wms-color-link: {{ wms_design_tokens.color_link }};
+      --wms-color-link-hover: {{ wms_design_tokens.color_link_hover }};
+      --wms-color-focus-ring: {{ wms_design_tokens.color_focus_ring }};
+      --wms-color-disabled-bg: {{ wms_design_tokens.color_disabled_bg }};
+      --wms-color-disabled-text: {{ wms_design_tokens.color_disabled_text }};
+      --wms-color-disabled-border: {{ wms_design_tokens.color_disabled_border }};
+
       --wms-density-mode: {{ wms_design_tokens.density_mode }};
       --wms-density-factor: {{ wms_design_tokens.density_factor }};
+      --wms-space-unit: {{ wms_design_tokens.space_unit }}px;
+      --wms-section-gap: {{ wms_design_tokens.section_gap }}px;
+      --wms-field-gap: {{ wms_design_tokens.field_gap }}px;
+      --wms-container-max-width: {{ wms_design_tokens.container_max_width }}px;
+      --wms-content-max-width: {{ wms_design_tokens.content_max_width }}px;
+      --wms-kpi-card-min-width: {{ wms_design_tokens.kpi_card_min_width }}px;
+      --wms-table-min-width: {{ wms_design_tokens.table_min_width }}px;
+
+      --wms-font-size-h1: {{ wms_design_tokens.font_size_h1 }}px;
+      --wms-font-size-h2: {{ wms_design_tokens.font_size_h2 }}px;
+      --wms-font-size-h3: {{ wms_design_tokens.font_size_h3 }}px;
+      --wms-font-size-body: {{ wms_design_tokens.font_size_body }}px;
+      --wms-font-size-small: {{ wms_design_tokens.font_size_small }}px;
+      --wms-line-height-heading: {{ wms_design_tokens.line_height_heading }};
+      --wms-line-height-body: {{ wms_design_tokens.line_height_body }};
+      --wms-font-weight-heading: {{ wms_design_tokens.font_weight_heading }};
+      --wms-font-weight-body: {{ wms_design_tokens.font_weight_body }};
+      --wms-font-weight-button: {{ wms_design_tokens.font_weight_button }};
+      --wms-letter-spacing-heading: {{ wms_design_tokens.letter_spacing_heading }};
+      --wms-letter-spacing-body: {{ wms_design_tokens.letter_spacing_body }};
+      --wms-text-transform-heading: {{ wms_design_tokens.text_transform_heading }};
+
       --wms-btn-style-mode: {{ wms_design_tokens.btn_style_mode }};
       --wms-btn-radius: {{ wms_design_tokens.btn_radius }}px;
       --wms-btn-height-md: {{ wms_design_tokens.btn_height_md }}px;
+      --wms-btn-border-width: {{ wms_design_tokens.btn_border_width }}px;
+      --wms-btn-padding-x: {{ wms_design_tokens.btn_padding_x }}px;
+      --wms-btn-font-size: {{ wms_design_tokens.btn_font_size }}px;
       --wms-btn-shadow: {{ wms_design_tokens.btn_shadow }};
-      --wms-card-radius: {{ wms_design_tokens.card_radius }}px;
-      --wms-card-shadow: {{ wms_design_tokens.card_shadow }};
-      --wms-input-height: {{ wms_design_tokens.input_height }}px;
-      --wms-input-radius: {{ wms_design_tokens.input_radius }}px;
-      --wms-nav-item-active-bg: {{ wms_design_tokens.nav_item_active_bg }};
-      --wms-nav-item-active-text: {{ wms_design_tokens.nav_item_active_text }};
-      --wms-dropdown-shadow: {{ wms_design_tokens.dropdown_shadow }};
-      --wms-table-row-hover-bg: {{ wms_design_tokens.table_row_hover_bg }};
+
+      --wms-color-btn-primary-bg: {{ wms_design_tokens.color_btn_primary_bg }};
+      --wms-color-btn-primary-text: {{ wms_design_tokens.color_btn_primary_text }};
+      --wms-color-btn-primary-border: {{ wms_design_tokens.color_btn_primary_border }};
+      --wms-color-btn-secondary-bg: {{ wms_design_tokens.color_btn_secondary_bg }};
+      --wms-color-btn-secondary-text: {{ wms_design_tokens.color_btn_secondary_text }};
+      --wms-color-btn-secondary-border: {{ wms_design_tokens.color_btn_secondary_border }};
       --wms-color-btn-success-bg: {{ wms_design_tokens.color_btn_success_bg }};
       --wms-color-btn-success-text: {{ wms_design_tokens.color_btn_success_text }};
       --wms-color-btn-success-border: {{ wms_design_tokens.color_btn_success_border }};
@@ -41,16 +75,76 @@
       --wms-color-btn-danger-bg: {{ wms_design_tokens.color_btn_danger_bg }};
       --wms-color-btn-danger-text: {{ wms_design_tokens.color_btn_danger_text }};
       --wms-color-btn-danger-border: {{ wms_design_tokens.color_btn_danger_border }};
+
+      --wms-input-height: {{ wms_design_tokens.input_height }}px;
+      --wms-input-radius: {{ wms_design_tokens.input_radius }}px;
+      --wms-input-padding-x: {{ wms_design_tokens.input_padding_x }}px;
+      --wms-input-padding-y: {{ wms_design_tokens.input_padding_y }}px;
+      --wms-input-border-width: {{ wms_design_tokens.input_border_width }}px;
+      --wms-input-bg: {{ wms_design_tokens.input_bg }};
+      --wms-input-border: {{ wms_design_tokens.input_border }};
+      --wms-input-text: {{ wms_design_tokens.input_text }};
+      --wms-input-placeholder: {{ wms_design_tokens.input_placeholder }};
+      --wms-input-focus-border: {{ wms_design_tokens.input_focus_border }};
+      --wms-input-focus-shadow: {{ wms_design_tokens.input_focus_shadow }};
+
+      --wms-card-radius: {{ wms_design_tokens.card_radius }}px;
+      --wms-card-border-width: {{ wms_design_tokens.card_border_width }}px;
+      --wms-card-border-color: {{ wms_design_tokens.card_border_color }};
+      --wms-card-bg: {{ wms_design_tokens.card_bg }};
+      --wms-card-shadow: {{ wms_design_tokens.card_shadow }};
+      --wms-card-header-bg: {{ wms_design_tokens.card_header_bg }};
+      --wms-card-header-text: {{ wms_design_tokens.card_header_text }};
+
+      --wms-nav-item-bg: {{ wms_design_tokens.nav_item_bg }};
+      --wms-nav-item-text: {{ wms_design_tokens.nav_item_text }};
+      --wms-nav-item-hover-bg: {{ wms_design_tokens.nav_item_hover_bg }};
+      --wms-nav-item-hover-text: {{ wms_design_tokens.nav_item_hover_text }};
+      --wms-nav-item-active-bg: {{ wms_design_tokens.nav_item_active_bg }};
+      --wms-nav-item-active-text: {{ wms_design_tokens.nav_item_active_text }};
+      --wms-nav-item-radius: {{ wms_design_tokens.nav_item_radius }}px;
+      --wms-nav-item-padding-x: {{ wms_design_tokens.nav_item_padding_x }}px;
+      --wms-nav-item-padding-y: {{ wms_design_tokens.nav_item_padding_y }}px;
+      --wms-dropdown-bg: {{ wms_design_tokens.dropdown_bg }};
+      --wms-dropdown-border: {{ wms_design_tokens.dropdown_border }};
+      --wms-dropdown-shadow: {{ wms_design_tokens.dropdown_shadow }};
+
+      --wms-table-header-bg: {{ wms_design_tokens.table_header_bg }};
+      --wms-table-header-text: {{ wms_design_tokens.table_header_text }};
+      --wms-table-row-bg: {{ wms_design_tokens.table_row_bg }};
+      --wms-table-row-alt-bg: {{ wms_design_tokens.table_row_alt_bg }};
+      --wms-table-row-hover-bg: {{ wms_design_tokens.table_row_hover_bg }};
+      --wms-table-border-color: {{ wms_design_tokens.table_border_color }};
+      --wms-table-radius: {{ wms_design_tokens.table_radius }}px;
+
+      --wms-badge-radius: {{ wms_design_tokens.badge_radius }}px;
+      --wms-badge-font-size: {{ wms_design_tokens.badge_font_size }}px;
+      --wms-status-ready-bg: {{ wms_design_tokens.status_ready_bg }};
+      --wms-status-ready-text: {{ wms_design_tokens.status_ready_text }};
+      --wms-status-ready-border: {{ wms_design_tokens.status_ready_border }};
+      --wms-status-progress-bg: {{ wms_design_tokens.status_progress_bg }};
+      --wms-status-progress-text: {{ wms_design_tokens.status_progress_text }};
+      --wms-status-progress-border: {{ wms_design_tokens.status_progress_border }};
+      --wms-status-warning-bg: {{ wms_design_tokens.status_warning_bg }};
+      --wms-status-warning-text: {{ wms_design_tokens.status_warning_text }};
+      --wms-status-warning-border: {{ wms_design_tokens.status_warning_border }};
+      --wms-status-error-bg: {{ wms_design_tokens.status_error_bg }};
+      --wms-status-error-text: {{ wms_design_tokens.status_error_text }};
+      --wms-status-error-border: {{ wms_design_tokens.status_error_border }};
+      --wms-status-info-bg: {{ wms_design_tokens.status_info_bg }};
+      --wms-status-info-text: {{ wms_design_tokens.status_info_text }};
+      --wms-status-info-border: {{ wms_design_tokens.status_info_border }};
+
       --accent: var(--wms-color-primary);
       --accent-2: var(--wms-color-secondary);
       --bg: var(--wms-color-background);
       --card: var(--wms-color-surface);
-      --panel: var(--wms-color-surface);
+      --panel: var(--wms-color-panel);
       --border: var(--wms-color-border);
       --ink: var(--wms-color-text);
       --ink-soft: var(--wms-color-text-soft);
-      --scan-btn-bg: var(--wms-color-surface);
-      --table-header: var(--wms-color-background);
+      --scan-btn-bg: var(--wms-card-bg);
+      --table-header: var(--wms-table-header-bg);
     }
 
     .scan-bootstrap-enabled,
@@ -59,14 +153,18 @@
     .next-build-bootstrap-enabled,
     .admin-bootstrap-enabled {
       --ds-primary: var(--wms-color-primary);
+      --ds-primary-soft: var(--wms-nav-item-active-bg);
       --ds-accent: var(--wms-color-secondary);
       --ds-bg: var(--wms-color-background);
-      --ds-surface: var(--wms-color-surface);
-      --ds-panel: var(--wms-color-surface);
+      --ds-surface: var(--wms-card-bg);
+      --ds-panel: var(--wms-color-panel);
       --ds-border: var(--wms-color-border);
-      --ds-border-strong: var(--wms-color-border);
+      --ds-border-strong: var(--wms-card-border-color);
       --ds-text: var(--wms-color-text);
       --ds-text-soft: var(--wms-color-text-soft);
+      --ds-success-soft: var(--wms-status-ready-bg);
+      --ds-error-soft: var(--wms-status-error-bg);
+      --ds-warning-soft: var(--wms-status-warning-bg);
     }
   </style>
 {% endif %}

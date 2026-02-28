@@ -22,10 +22,10 @@
 
 .admin-bootstrap-enabled #content-main .module,
 .admin-bootstrap-enabled #content-main fieldset.module {
-  border: 1px solid var(--wms-color-border, #c3d1ca);
-  border-radius: 0.95rem;
-  background: var(--wms-color-surface, #fffdf9);
-  box-shadow: 0 8px 24px rgba(39, 57, 50, 0.12);
+  border: var(--wms-card-border-width, 1px) solid var(--wms-card-border-color, var(--wms-color-border, #c3d1ca));
+  border-radius: var(--wms-card-radius, 0.95rem);
+  background: var(--wms-card-bg, var(--wms-color-surface, #fffdf9));
+  box-shadow: var(--wms-card-shadow, 0 8px 24px rgba(39, 57, 50, 0.12));
 }
 
 .admin-bootstrap-enabled .object-tools a.btn {
@@ -39,19 +39,26 @@
 }
 
 .admin-bootstrap-enabled .btn {
-  border-radius: 0.45rem;
-  border-width: 1px;
-  font-weight: 700;
+  border-radius: min(var(--wms-btn-radius, 0.45rem), 0.45rem);
+  border-width: var(--wms-btn-border-width, 1px);
+  min-height: var(--wms-btn-height-md, 2.4rem);
+  padding-left: var(--wms-btn-padding-x, 0.8rem);
+  padding-right: var(--wms-btn-padding-x, 0.8rem);
+  font-weight: var(--wms-font-weight-button, 700);
+  font-size: var(--wms-btn-font-size, 14px);
   letter-spacing: 0.005em;
+  box-shadow: var(--wms-btn-shadow, none);
 }
 
 .admin-bootstrap-enabled .aligned p input,
 .admin-bootstrap-enabled .aligned p select,
 .admin-bootstrap-enabled .aligned p textarea {
-  border: 1px solid var(--wms-color-border, #c3d1ca);
-  border-radius: 0.55rem;
-  min-height: 2.45rem;
-  padding: 0.45rem 0.65rem;
+  border: var(--wms-input-border-width, 1px) solid var(--wms-input-border, var(--wms-color-border, #c3d1ca));
+  border-radius: var(--wms-input-radius, 0.55rem);
+  min-height: var(--wms-input-height, 2.45rem);
+  padding: var(--wms-input-padding-y, 0.45rem) var(--wms-input-padding-x, 0.65rem);
+  background: var(--wms-input-bg, #fffdf9);
+  color: var(--wms-input-text, #2f3a36);
   max-width: 48rem;
 }
 
