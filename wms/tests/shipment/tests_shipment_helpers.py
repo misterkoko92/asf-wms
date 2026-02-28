@@ -78,16 +78,14 @@ class ShipmentHelpersTests(TestCase):
             correspondents_json,
         ) = build_shipment_contact_payload()
 
-        self.assertEqual(
-            destinations_json,
-            [
-                {
-                    "id": destination.id,
-                    "country": "France",
-                    "correspondent_contact_id": correspondent.id,
-                }
-            ],
-        )
+        self.assertEqual(len(destinations_json), 1)
+        destination_row = destinations_json[0]
+        self.assertEqual(destination_row["id"], destination.id)
+        self.assertEqual(destination_row["label"], str(destination))
+        self.assertEqual(destination_row["city"], "Lyon")
+        self.assertEqual(destination_row["iata_code"], "LYS")
+        self.assertEqual(destination_row["country"], "France")
+        self.assertEqual(destination_row["correspondent_contact_id"], correspondent.id)
         self.assertEqual(
             shippers_json,
             [
