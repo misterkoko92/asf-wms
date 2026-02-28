@@ -11,6 +11,7 @@ from wms.models import (
     ProductLotStatus,
     PublicOrderLink,
     Shipment,
+    ShipmentStatus,
     Warehouse,
 )
 
@@ -193,6 +194,21 @@ class ScanBootstrapUiTests(TestCase):
         response = self.client.get(reverse("scan:scan_shipments_tracking"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "scan-week-input")
+
+    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
+    def test_scan_shipments_tracking_uses_design_classes_for_close_buttons(self):
+        Shipment.objects.create(
+            shipper_name="Shipper Tracking",
+            recipient_name="Recipient Tracking",
+            destination_address="1 rue de la Paix",
+            status=ShipmentStatus.PLANNED,
+        )
+        response = self.client.get(reverse("scan:scan_shipments_tracking"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "scan-shipment-close-btn")
+        self.assertNotContains(response, "background:#e8f7ec")
+        self.assertNotContains(response, "background:#fdecec")
+        self.assertNotContains(response, "border-color:#9fcfb0")
 
     @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_superuser_admin_pages_use_design_component_classes(self):

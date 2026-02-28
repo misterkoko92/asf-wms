@@ -196,6 +196,8 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(dashboard_response, "ui-comp-card")
         self.assertContains(dashboard_response, "ui-comp-title")
         self.assertContains(dashboard_response, "ui-comp-panel")
+        self.assertNotContains(dashboard_response, "border-bottom: 1px solid #ddd;")
+        self.assertNotContains(dashboard_response, ".portal-table th, .portal-table td")
 
         order_create_response = self.client.get(reverse("portal:portal_order_create"))
         self.assertEqual(order_create_response.status_code, 200)
@@ -213,6 +215,7 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(order_detail_response, "ui-comp-card")
         self.assertContains(order_detail_response, "ui-comp-title")
         self.assertContains(order_detail_response, "ui-comp-form")
+        self.assertNotContains(order_detail_response, ".portal-tight .portal-card { margin-bottom: 10px; }")
 
         recipients_response = self.client.get(reverse("portal:portal_recipients"))
         self.assertEqual(recipients_response.status_code, 200)
@@ -220,6 +223,7 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(recipients_response, "ui-comp-title")
         self.assertContains(recipients_response, "ui-comp-form")
         self.assertContains(recipients_response, "ui-comp-actions")
+        self.assertNotContains(recipients_response, ".portal-recipient-grid-3 {")
 
         account_response = self.client.get(reverse("portal:portal_account"))
         self.assertEqual(account_response.status_code, 200)

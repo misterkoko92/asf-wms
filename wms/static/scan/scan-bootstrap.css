@@ -73,6 +73,7 @@
   --wms-input-focus-shadow: 0 0 0 0.2rem rgba(111, 154, 141, 0.24);
   --wms-nav-item-bg: #fffdf9;
   --wms-nav-item-text: #2f3a36;
+  --wms-nav-item-border: #d9e2dc;
   --wms-nav-item-hover-bg: #e9f2ee;
   --wms-nav-item-hover-text: #2b4f45;
   --wms-nav-item-active-bg: #ddebe6;
@@ -80,14 +81,28 @@
   --wms-nav-item-radius: 10px;
   --wms-nav-item-padding-x: 10px;
   --wms-nav-item-padding-y: 7px;
+  --wms-nav-item-font-size: 14px;
+  --wms-nav-item-font-weight: 700;
+  --wms-nav-item-line-height: 1.2;
+  --wms-nav-item-letter-spacing: 0.01em;
   --wms-dropdown-bg: #fffdf9;
   --wms-dropdown-border: #d9e2dc;
   --wms-dropdown-shadow: none;
+  --wms-dropdown-item-font-size: 14px;
+  --wms-dropdown-item-font-weight: 600;
+  --wms-dropdown-item-padding-y: 7px;
+  --wms-dropdown-item-padding-x: 9px;
   --wms-table-header-bg: #edf4f0;
   --wms-table-header-text: #2f3a36;
+  --wms-table-header-font-size: 12px;
+  --wms-table-header-letter-spacing: 0.05em;
+  --wms-table-header-padding-y: 10px;
+  --wms-table-header-padding-x: 8px;
   --wms-table-row-bg: #ffffff;
   --wms-table-row-alt-bg: #f8fbf9;
   --wms-table-row-hover-bg: #e7f1ec;
+  --wms-table-cell-padding-y: 6px;
+  --wms-table-cell-padding-x: 8px;
   --wms-table-border-color: #d9e2dc;
   --wms-table-radius: 10px;
   --wms-status-ready-bg: #e8f4ee;
@@ -114,12 +129,18 @@
   --wms-color-btn-success-bg: #e8f4ee;
   --wms-color-btn-success-text: #2d5e46;
   --wms-color-btn-success-border: #b8d6c8;
+  --wms-color-btn-success-hover-bg: #d8ebdf;
+  --wms-color-btn-success-active-bg: #cfe4d8;
   --wms-color-btn-warning-bg: #fbf2e7;
   --wms-color-btn-warning-text: #715829;
   --wms-color-btn-warning-border: #e5d0a6;
+  --wms-color-btn-warning-hover-bg: #f3e6d2;
+  --wms-color-btn-warning-active-bg: #ead8bb;
   --wms-color-btn-danger-bg: #faece7;
   --wms-color-btn-danger-text: #7b3030;
   --wms-color-btn-danger-border: #dfb0b0;
+  --wms-color-btn-danger-hover-bg: #f2d8d6;
+  --wms-color-btn-danger-active-bg: #e9c9c7;
   --ds-primary: var(--wms-color-primary);
   --ds-primary-soft: var(--wms-nav-item-active-bg);
   --ds-accent: var(--wms-color-secondary);
@@ -244,26 +265,27 @@ body.scan-bootstrap-enabled {
 }
 
 .scan-bootstrap-enabled .scan-nav.scan-nav-bootstrap .nav-link {
-  border: 1px solid var(--wms-card-border-color);
+  border: 1px solid var(--wms-nav-item-border);
   border-radius: var(--wms-nav-item-radius);
   background: var(--wms-nav-item-bg);
   color: var(--wms-nav-item-text);
-  font-size: 0.9rem;
-  font-weight: 700;
-  line-height: 1.2;
+  font-size: var(--wms-nav-item-font-size);
+  font-weight: var(--wms-nav-item-font-weight);
+  line-height: var(--wms-nav-item-line-height);
+  letter-spacing: var(--wms-nav-item-letter-spacing);
   padding: var(--wms-nav-item-padding-y) var(--wms-nav-item-padding-x);
   transition: border-color 0.12s ease, background-color 0.12s ease, color 0.12s ease;
 }
 
 .scan-bootstrap-enabled .scan-nav.scan-nav-bootstrap .nav-link:hover {
   background: var(--wms-nav-item-hover-bg);
-  border-color: var(--wms-nav-item-active-bg);
+  border-color: var(--wms-nav-item-border);
   color: var(--wms-nav-item-hover-text);
 }
 
 .scan-bootstrap-enabled .scan-nav.scan-nav-bootstrap .nav-link.active {
   background: var(--wms-nav-item-active-bg);
-  border-color: var(--wms-color-primary);
+  border-color: var(--wms-nav-item-border);
   color: var(--wms-nav-item-active-text);
 }
 
@@ -279,9 +301,9 @@ body.scan-bootstrap-enabled {
 
 .scan-bootstrap-enabled .scan-nav.scan-nav-bootstrap .dropdown-item {
   border-radius: 0.55rem;
-  font-size: 0.88rem;
-  font-weight: 600;
-  padding: 0.42rem 0.58rem;
+  font-size: var(--wms-dropdown-item-font-size);
+  font-weight: var(--wms-dropdown-item-font-weight);
+  padding: var(--wms-dropdown-item-padding-y) var(--wms-dropdown-item-padding-x);
 }
 
 .scan-bootstrap-enabled .scan-nav.scan-nav-bootstrap .scan-nav-account .dropdown-header {
@@ -296,19 +318,22 @@ body.scan-bootstrap-enabled {
 }
 
 .scan-bootstrap-enabled .scan-nav:not(.scan-nav-bootstrap) a {
-  border: 1px solid var(--wms-card-border-color);
+  border: 1px solid var(--wms-nav-item-border);
   border-radius: var(--wms-nav-item-radius);
   background: var(--wms-nav-item-bg);
   color: var(--wms-nav-item-text);
   box-shadow: none;
-  font-size: 0.92rem;
+  font-size: var(--wms-nav-item-font-size);
+  font-weight: var(--wms-nav-item-font-weight);
+  line-height: var(--wms-nav-item-line-height);
+  letter-spacing: var(--wms-nav-item-letter-spacing);
   padding: var(--wms-nav-item-padding-y) var(--wms-nav-item-padding-x);
 }
 
 .scan-bootstrap-enabled .scan-nav:not(.scan-nav-bootstrap) a.active,
 .scan-bootstrap-enabled .scan-nav:not(.scan-nav-bootstrap) a:hover {
   background: var(--wms-nav-item-active-bg);
-  border-color: var(--wms-color-primary);
+  border-color: var(--wms-nav-item-border);
   color: var(--wms-nav-item-active-text);
 }
 
@@ -510,15 +535,21 @@ body.scan-bootstrap-enabled {
   background: var(--wms-table-header-bg);
   color: var(--wms-table-header-text);
   border-bottom: 1px solid var(--wms-table-border-color);
-  font-size: 0.73rem;
-  letter-spacing: 0.05em;
-  padding-top: 0.62rem;
-  padding-bottom: 0.62rem;
+  font-size: var(--wms-table-header-font-size);
+  letter-spacing: var(--wms-table-header-letter-spacing);
+  padding-top: var(--wms-table-header-padding-y);
+  padding-bottom: var(--wms-table-header-padding-y);
+  padding-left: var(--wms-table-header-padding-x);
+  padding-right: var(--wms-table-header-padding-x);
 }
 
 .scan-bootstrap-enabled .scan-table td {
   vertical-align: top;
   border-color: var(--wms-table-border-color);
+  padding-top: var(--wms-table-cell-padding-y);
+  padding-bottom: var(--wms-table-cell-padding-y);
+  padding-left: var(--wms-table-cell-padding-x);
+  padding-right: var(--wms-table-cell-padding-x);
 }
 
 .scan-bootstrap-enabled .scan-table tbody tr:nth-child(even) td {
@@ -745,36 +776,36 @@ body.scan-bootstrap-enabled {
   --bs-btn-bg: var(--wms-color-btn-success-bg);
   --bs-btn-border-color: var(--wms-color-btn-success-border);
   --bs-btn-color: var(--wms-color-btn-success-text);
-  --bs-btn-hover-bg: #d8ebdf;
-  --bs-btn-hover-border-color: #9fc8b2;
-  --bs-btn-hover-color: #214b3b;
-  --bs-btn-active-bg: #cfe4d8;
-  --bs-btn-active-border-color: #8cbca4;
-  --bs-btn-active-color: #1c4335;
+  --bs-btn-hover-bg: var(--wms-color-btn-success-hover-bg);
+  --bs-btn-hover-border-color: var(--wms-color-btn-success-border);
+  --bs-btn-hover-color: var(--wms-color-btn-success-text);
+  --bs-btn-active-bg: var(--wms-color-btn-success-active-bg);
+  --bs-btn-active-border-color: var(--wms-color-btn-success-border);
+  --bs-btn-active-color: var(--wms-color-btn-success-text);
 }
 
 .scan-bootstrap-enabled .btn-warning {
   --bs-btn-bg: var(--wms-color-btn-warning-bg);
   --bs-btn-border-color: var(--wms-color-btn-warning-border);
   --bs-btn-color: var(--wms-color-btn-warning-text);
-  --bs-btn-hover-bg: #f3e6d2;
-  --bs-btn-hover-border-color: #d1b07e;
-  --bs-btn-hover-color: #5e4218;
-  --bs-btn-active-bg: #ead8bb;
-  --bs-btn-active-border-color: #c39f66;
-  --bs-btn-active-color: #513712;
+  --bs-btn-hover-bg: var(--wms-color-btn-warning-hover-bg);
+  --bs-btn-hover-border-color: var(--wms-color-btn-warning-border);
+  --bs-btn-hover-color: var(--wms-color-btn-warning-text);
+  --bs-btn-active-bg: var(--wms-color-btn-warning-active-bg);
+  --bs-btn-active-border-color: var(--wms-color-btn-warning-border);
+  --bs-btn-active-color: var(--wms-color-btn-warning-text);
 }
 
 .scan-bootstrap-enabled .btn-danger {
   --bs-btn-bg: var(--wms-color-btn-danger-bg);
   --bs-btn-border-color: var(--wms-color-btn-danger-border);
   --bs-btn-color: var(--wms-color-btn-danger-text);
-  --bs-btn-hover-bg: #f2d8d6;
-  --bs-btn-hover-border-color: #cf9b9b;
-  --bs-btn-hover-color: #692828;
-  --bs-btn-active-bg: #e9c9c7;
-  --bs-btn-active-border-color: #be8585;
-  --bs-btn-active-color: #5b2222;
+  --bs-btn-hover-bg: var(--wms-color-btn-danger-hover-bg);
+  --bs-btn-hover-border-color: var(--wms-color-btn-danger-border);
+  --bs-btn-hover-color: var(--wms-color-btn-danger-text);
+  --bs-btn-active-bg: var(--wms-color-btn-danger-active-bg);
+  --bs-btn-active-border-color: var(--wms-color-btn-danger-border);
+  --bs-btn-active-color: var(--wms-color-btn-danger-text);
 }
 
 .scan-bootstrap-enabled .btn-outline-primary {
@@ -805,6 +836,9 @@ body.scan-bootstrap-enabled {
   --bs-btn-hover-bg: var(--wms-color-btn-success-bg);
   --bs-btn-hover-border-color: var(--wms-color-btn-success-border);
   --bs-btn-hover-color: var(--wms-color-btn-success-text);
+  --bs-btn-active-bg: var(--wms-color-btn-success-active-bg);
+  --bs-btn-active-border-color: var(--wms-color-btn-success-border);
+  --bs-btn-active-color: var(--wms-color-btn-success-text);
 }
 
 .scan-bootstrap-enabled .btn-outline-warning {
@@ -813,6 +847,9 @@ body.scan-bootstrap-enabled {
   --bs-btn-hover-bg: var(--wms-color-btn-warning-bg);
   --bs-btn-hover-border-color: var(--wms-color-btn-warning-border);
   --bs-btn-hover-color: var(--wms-color-btn-warning-text);
+  --bs-btn-active-bg: var(--wms-color-btn-warning-active-bg);
+  --bs-btn-active-border-color: var(--wms-color-btn-warning-border);
+  --bs-btn-active-color: var(--wms-color-btn-warning-text);
 }
 
 .scan-bootstrap-enabled .btn-outline-danger {
@@ -821,6 +858,38 @@ body.scan-bootstrap-enabled {
   --bs-btn-hover-bg: var(--wms-color-btn-danger-bg);
   --bs-btn-hover-border-color: var(--wms-color-btn-danger-border);
   --bs-btn-hover-color: var(--wms-color-btn-danger-text);
+  --bs-btn-active-bg: var(--wms-color-btn-danger-active-bg);
+  --bs-btn-active-border-color: var(--wms-color-btn-danger-border);
+  --bs-btn-active-color: var(--wms-color-btn-danger-text);
+}
+
+.scan-bootstrap-enabled .scan-shipment-close-btn.is-ready,
+.scan-bootstrap-enabled .scan-shipment-close-btn.is-closed {
+  --bs-btn-bg: var(--wms-color-btn-success-bg);
+  --bs-btn-border-color: var(--wms-color-btn-success-border);
+  --bs-btn-color: var(--wms-color-btn-success-text);
+  --bs-btn-hover-bg: var(--wms-color-btn-success-hover-bg);
+  --bs-btn-hover-border-color: var(--wms-color-btn-success-border);
+  --bs-btn-hover-color: var(--wms-color-btn-success-text);
+  --bs-btn-active-bg: var(--wms-color-btn-success-active-bg);
+  --bs-btn-active-border-color: var(--wms-color-btn-success-border);
+  --bs-btn-active-color: var(--wms-color-btn-success-text);
+}
+
+.scan-bootstrap-enabled .scan-shipment-close-btn.is-blocked {
+  --bs-btn-bg: var(--wms-color-btn-danger-bg);
+  --bs-btn-border-color: var(--wms-color-btn-danger-border);
+  --bs-btn-color: var(--wms-color-btn-danger-text);
+  --bs-btn-hover-bg: var(--wms-color-btn-danger-hover-bg);
+  --bs-btn-hover-border-color: var(--wms-color-btn-danger-border);
+  --bs-btn-hover-color: var(--wms-color-btn-danger-text);
+  --bs-btn-active-bg: var(--wms-color-btn-danger-active-bg);
+  --bs-btn-active-border-color: var(--wms-color-btn-danger-border);
+  --bs-btn-active-color: var(--wms-color-btn-danger-text);
+}
+
+.scan-bootstrap-enabled .scan-shipment-close-btn.is-closed[disabled] {
+  cursor: not-allowed;
 }
 
 body.scan-bootstrap-enabled[data-btn-style-mode="flat"] .btn {

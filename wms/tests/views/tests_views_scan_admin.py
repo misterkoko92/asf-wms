@@ -68,13 +68,30 @@ class ScanAdminViewTests(TestCase):
             "design_card_shadow": "none",
             "design_input_height": "45",
             "design_input_radius": "11",
+            "design_nav_item_border": "#b7cbc2",
+            "design_nav_item_font_size": "15px",
+            "design_nav_item_font_weight": "600",
+            "design_nav_item_line_height": "1.3",
+            "design_nav_item_letter_spacing": "0.02em",
             "design_nav_item_active_bg": "#e2ece7",
             "design_nav_item_active_text": "#20322e",
+            "design_dropdown_item_font_size": "14px",
+            "design_dropdown_item_font_weight": "600",
+            "design_dropdown_item_padding_y": "8",
+            "design_dropdown_item_padding_x": "11",
             "design_dropdown_shadow": "none",
             "design_table_row_hover_bg": "#edf6f2",
+            "design_table_header_font_size": "13px",
+            "design_table_header_letter_spacing": "0.06em",
+            "design_table_header_padding_y": "10",
+            "design_table_header_padding_x": "11",
+            "design_table_cell_padding_y": "9",
+            "design_table_cell_padding_x": "11",
             "design_color_btn_success_bg": "#dcefe4",
             "design_color_btn_success_text": "#1f4f3e",
             "design_color_btn_success_border": "#8fc3ad",
+            "design_color_btn_success_hover_bg": "#cfe9d8",
+            "design_color_btn_success_active_bg": "#c2e0ce",
             "design_color_btn_primary_bg": "#245648",
             "design_color_btn_primary_text": "#f5fbf8",
             "design_color_btn_primary_border": "#163f34",
@@ -84,9 +101,13 @@ class ScanAdminViewTests(TestCase):
             "design_color_btn_warning_bg": "#faecd9",
             "design_color_btn_warning_text": "#6d4f1f",
             "design_color_btn_warning_border": "#dbb782",
+            "design_color_btn_warning_hover_bg": "#f0debd",
+            "design_color_btn_warning_active_bg": "#e6d0aa",
             "design_color_btn_danger_bg": "#f9e4e2",
             "design_color_btn_danger_text": "#7b2f2f",
             "design_color_btn_danger_border": "#d49a9a",
+            "design_color_btn_danger_hover_bg": "#f1d6d3",
+            "design_color_btn_danger_active_bg": "#e8c8c4",
         }
         if bootstrap_enabled:
             payload["scan_bootstrap_enabled"] = "on"
@@ -296,10 +317,18 @@ class ScanAdminViewTests(TestCase):
         self.assertContains(response, "design_density_mode")
         self.assertContains(response, "design_btn_style_mode")
         self.assertContains(response, "design_btn_radius")
+        self.assertContains(response, "design_nav_item_border")
+        self.assertContains(response, "design_nav_item_font_size")
+        self.assertContains(response, "design_dropdown_item_padding_x")
         self.assertContains(response, "design_nav_item_active_bg")
+        self.assertContains(response, "design_table_header_font_size")
+        self.assertContains(response, "design_table_cell_padding_x")
         self.assertContains(response, "design_color_btn_success_bg")
+        self.assertContains(response, "design_color_btn_success_hover_bg")
         self.assertContains(response, "design_color_btn_warning_bg")
+        self.assertContains(response, "design_color_btn_warning_active_bg")
         self.assertContains(response, "design_color_btn_danger_bg")
+        self.assertContains(response, "design_color_btn_danger_hover_bg")
         self.assertContains(response, "design_color_btn_primary_border")
         self.assertContains(response, 'id="design-family-foundations"')
         self.assertContains(response, 'id="design-family-buttons"')
@@ -328,14 +357,26 @@ class ScanAdminViewTests(TestCase):
         self.assertEqual(runtime.design_tokens["btn_style_mode"], "outlined")
         self.assertEqual(runtime.design_tokens["btn_radius"], 12)
         self.assertEqual(runtime.design_tokens["btn_height_md"], 44)
+        self.assertEqual(runtime.design_tokens["nav_item_border"], "#b7cbc2")
+        self.assertEqual(runtime.design_tokens["nav_item_font_size"], "15px")
+        self.assertEqual(runtime.design_tokens["dropdown_item_padding_x"], 11)
         self.assertEqual(runtime.design_tokens["nav_item_active_bg"], "#e2ece7")
         self.assertEqual(runtime.design_tokens["nav_item_active_text"], "#20322e")
         self.assertEqual(runtime.design_tokens["table_row_hover_bg"], "#edf6f2")
+        self.assertEqual(runtime.design_tokens["table_header_font_size"], "13px")
+        self.assertEqual(runtime.design_tokens["table_header_padding_y"], 10)
+        self.assertEqual(runtime.design_tokens["table_cell_padding_x"], 11)
         self.assertEqual(runtime.design_tokens["color_btn_primary_bg"], "#245648")
         self.assertEqual(runtime.design_tokens["color_btn_primary_border"], "#163f34")
         self.assertEqual(runtime.design_tokens["color_btn_success_bg"], "#dcefe4")
+        self.assertEqual(runtime.design_tokens["color_btn_success_hover_bg"], "#cfe9d8")
+        self.assertEqual(runtime.design_tokens["color_btn_success_active_bg"], "#c2e0ce")
         self.assertEqual(runtime.design_tokens["color_btn_warning_bg"], "#faecd9")
+        self.assertEqual(runtime.design_tokens["color_btn_warning_hover_bg"], "#f0debd")
+        self.assertEqual(runtime.design_tokens["color_btn_warning_active_bg"], "#e6d0aa")
         self.assertEqual(runtime.design_tokens["color_btn_danger_bg"], "#f9e4e2")
+        self.assertEqual(runtime.design_tokens["color_btn_danger_hover_bg"], "#f1d6d3")
+        self.assertEqual(runtime.design_tokens["color_btn_danger_active_bg"], "#e8c8c4")
 
         dashboard_response = self.client.get(reverse("scan:scan_dashboard"))
         self.assertEqual(dashboard_response.status_code, 200)
@@ -344,9 +385,13 @@ class ScanAdminViewTests(TestCase):
         self.assertContains(dashboard_response, "--wms-density-mode: dense;")
         self.assertContains(dashboard_response, "--wms-btn-style-mode: outlined;")
         self.assertContains(dashboard_response, "--wms-btn-radius: 12px;")
+        self.assertContains(dashboard_response, "--wms-nav-item-font-size: 15px;")
+        self.assertContains(dashboard_response, "--wms-table-header-font-size: 13px;")
         self.assertContains(dashboard_response, "--wms-table-row-hover-bg: #edf6f2;")
         self.assertContains(dashboard_response, "--wms-color-btn-primary-bg: #245648;")
         self.assertContains(dashboard_response, "--wms-color-btn-primary-border: #163f34;")
+        self.assertContains(dashboard_response, "--wms-color-btn-success-hover-bg: #cfe9d8;")
+        self.assertContains(dashboard_response, "--wms-color-btn-danger-active-bg: #e8c8c4;")
 
     def test_scan_admin_design_bootstrap_toggle_applies_on_scan_portal_home_and_admin(self):
         self.client.force_login(self.superuser)

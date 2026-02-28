@@ -71,8 +71,7 @@
                     {% if shipment.is_closed %}
                       <button
                         type="button"
-                        class="scan-scan-btn btn btn-outline-success"
-                        style="background:#e8f7ec;border-color:#9fcfb0;color:#22653b;cursor:not-allowed;"
+                        class="scan-scan-btn btn btn-outline-success scan-shipment-close-btn is-closed"
                         disabled
                       >
                         Dossier cl&ocirc;tur&eacute;
@@ -86,8 +85,7 @@
                         <input type="hidden" name="closed" value="{{ closed_filter }}">
                         <button
                           type="submit"
-                          class="scan-scan-btn btn btn-outline-success"
-                          style="background:#e8f7ec;border-color:#9fcfb0;color:#22653b;"
+                          class="scan-scan-btn btn btn-outline-success scan-shipment-close-btn is-ready"
                         >
                           Clore le dossier
                         </button>
@@ -95,8 +93,7 @@
                     {% else %}
                       <button
                         type="button"
-                        class="scan-scan-btn btn btn-outline-danger"
-                        style="background:#fdecec;border-color:#efb8b4;color:#9a2f2f;"
+                        class="scan-scan-btn btn btn-outline-danger scan-shipment-close-btn is-blocked"
                         onclick="window.alert('{{ close_inactive_message }}'); return false;"
                       >
                         Clore le dossier

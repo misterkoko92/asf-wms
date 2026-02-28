@@ -3,51 +3,53 @@
 {% block title %}Destinataires{% endblock %}
 
 {% block content %}
-  <style>
-    .portal-recipient-grid-3 {
-      display: grid;
-      gap: 10px 12px;
-      grid-template-columns: minmax(180px, 220px) minmax(220px, 1fr) minmax(220px, 1fr);
-    }
-    .portal-recipient-grid-3-equal {
-      display: grid;
-      gap: 10px 12px;
-      grid-template-columns: repeat(3, minmax(140px, 1fr));
-    }
-    .portal-recipient-flags {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      align-items: center;
-      min-height: 42px;
-      padding: 8px 10px;
-      border: 1px solid var(--border-strong);
-      border-radius: 10px;
-      background: var(--input-bg);
-    }
-    .portal-recipient-flags label {
-      margin: 0;
-      font-weight: 600;
-    }
-    .portal-recipient-actions {
-      white-space: nowrap;
-    }
-    .portal-recipient-actions a {
-      font-size: 0.9rem;
-      font-weight: 600;
-      text-decoration: none;
-    }
-    .portal-recipient-cancel {
-      margin-left: 10px;
-      font-weight: 600;
-    }
-    @media (max-width: 900px) {
-      .portal-recipient-grid-3,
-      .portal-recipient-grid-3-equal {
-        grid-template-columns: 1fr;
+  {% if not scan_bootstrap_enabled %}
+    <style>
+      .portal-recipient-grid-3 {
+        display: grid;
+        gap: 10px 12px;
+        grid-template-columns: minmax(180px, 220px) minmax(220px, 1fr) minmax(220px, 1fr);
       }
-    }
-  </style>
+      .portal-recipient-grid-3-equal {
+        display: grid;
+        gap: 10px 12px;
+        grid-template-columns: repeat(3, minmax(140px, 1fr));
+      }
+      .portal-recipient-flags {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: center;
+        min-height: 42px;
+        padding: 8px 10px;
+        border: 1px solid var(--border-strong);
+        border-radius: 10px;
+        background: var(--input-bg);
+      }
+      .portal-recipient-flags label {
+        margin: 0;
+        font-weight: 600;
+      }
+      .portal-recipient-actions {
+        white-space: nowrap;
+      }
+      .portal-recipient-actions a {
+        font-size: 0.9rem;
+        font-weight: 600;
+        text-decoration: none;
+      }
+      .portal-recipient-cancel {
+        margin-left: 10px;
+        font-weight: 600;
+      }
+      @media (max-width: 900px) {
+        .portal-recipient-grid-3,
+        .portal-recipient-grid-3-equal {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  {% endif %}
 
   <div class="scan-card portal-card card border-0 ui-comp-card">
     <h2 class="ui-comp-title">Destinataires</h2>

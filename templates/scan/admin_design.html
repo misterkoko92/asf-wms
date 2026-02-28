@@ -323,19 +323,21 @@
       display: inline-block;
       margin-right: 0.35rem;
       margin-bottom: 0.35rem;
-      border: 1px solid var(--preview-border, #d9e2dc);
+      border: 1px solid var(--preview-nav-border, var(--preview-border, #d9e2dc));
       border-radius: 0.55rem;
       padding: 0.34rem 0.54rem;
       color: var(--preview-text, #2f3a36);
       background: var(--preview-surface, #fffdf9);
-      font-weight: 700;
-      font-size: 0.86rem;
+      font-weight: var(--preview-nav-font-weight, 700);
+      font-size: var(--preview-nav-font-size, 14px);
+      line-height: var(--preview-nav-line-height, 1.2);
+      letter-spacing: var(--preview-nav-letter-spacing, 0.01em);
     }
 
     .scan-design-preview .preview-nav-item.active {
       background: var(--preview-nav-active-bg, #ddebe6);
       color: var(--preview-nav-active-text, #2f3a36);
-      border-color: var(--preview-primary, #6f9a8d);
+      border-color: var(--preview-nav-border, var(--preview-border, #d9e2dc));
     }
 
     .scan-design-preview .preview-table {
@@ -355,12 +357,22 @@
       color: var(--preview-table-header-text, #2f3a36);
       padding: 0.42rem 0.52rem;
       border-bottom: 1px solid var(--preview-border, #d9e2dc);
+      font-size: var(--preview-table-header-font-size, 12px);
+      letter-spacing: var(--preview-table-header-letter-spacing, 0.05em);
+      padding-top: var(--preview-table-header-padding-y, 10px);
+      padding-bottom: var(--preview-table-header-padding-y, 10px);
+      padding-left: var(--preview-table-header-padding-x, 8px);
+      padding-right: var(--preview-table-header-padding-x, 8px);
     }
 
     .scan-design-preview .preview-table td {
       padding: 0.4rem 0.52rem;
       border-bottom: 1px solid var(--preview-border, #d9e2dc);
       background: var(--preview-table-row-bg, #ffffff);
+      padding-top: var(--preview-table-cell-padding-y, 6px);
+      padding-bottom: var(--preview-table-cell-padding-y, 6px);
+      padding-left: var(--preview-table-cell-padding-x, 8px);
+      padding-right: var(--preview-table-cell-padding-x, 8px);
     }
 
     .scan-design-preview .preview-table tbody tr:nth-child(even) td {

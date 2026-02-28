@@ -56,6 +56,34 @@ LETTER_SPACING_BODY_CHOICES = (
     ("0.02em", "0.02em"),
 )
 
+NAV_FONT_SIZE_CHOICES = (
+    ("13px", "13 px"),
+    ("14px", "14 px"),
+    ("15px", "15 px"),
+    ("16px", "16 px"),
+)
+
+NAV_LINE_HEIGHT_CHOICES = (
+    ("1.1", "Compacte (1.1)"),
+    ("1.2", "Standard (1.2)"),
+    ("1.3", "Confort (1.3)"),
+    ("1.4", "Aeree (1.4)"),
+)
+
+TABLE_HEADER_FONT_SIZE_CHOICES = (
+    ("11px", "11 px"),
+    ("12px", "12 px"),
+    ("13px", "13 px"),
+    ("14px", "14 px"),
+)
+
+TABLE_HEADER_LETTER_SPACING_CHOICES = (
+    ("0.02em", "0.02em"),
+    ("0.04em", "0.04em"),
+    ("0.05em", "0.05em"),
+    ("0.06em", "0.06em"),
+)
+
 
 DESIGN_TOKEN_FAMILY_DEFINITIONS = (
     ("foundations", "Fondations", "Densite, espacements et largeur de page.", True),
@@ -593,6 +621,13 @@ DESIGN_TOKEN_SPECS = {
         "Nav standard - texte",
         "Texte des items de navigation non actifs.",
     ),
+    "nav_item_border": _color_spec(
+        "#d9e2dc",
+        "navigation",
+        "Nav standard - bordure",
+        "Bordure des items de navigation.",
+        preview_var="--preview-nav-border",
+    ),
     "nav_item_hover_bg": _color_spec(
         "#e9f2ee",
         "navigation",
@@ -629,6 +664,38 @@ DESIGN_TOKEN_SPECS = {
         "Padding vertical nav (px)",
         "Hauteur interne des items nav.",
     ),
+    "nav_item_font_size": _choice_spec(
+        "14px",
+        NAV_FONT_SIZE_CHOICES,
+        "navigation",
+        "Taille texte nav",
+        "Taille du texte des items de navigation.",
+        preview_var="--preview-nav-font-size",
+    ),
+    "nav_item_font_weight": _choice_spec(
+        "700",
+        FONT_WEIGHT_CHOICES,
+        "navigation",
+        "Graisse texte nav",
+        "Epaisseur du texte des items de navigation.",
+        preview_var="--preview-nav-font-weight",
+    ),
+    "nav_item_line_height": _choice_spec(
+        "1.2",
+        NAV_LINE_HEIGHT_CHOICES,
+        "navigation",
+        "Interligne nav",
+        "Hauteur de ligne des items de navigation.",
+        preview_var="--preview-nav-line-height",
+    ),
+    "nav_item_letter_spacing": _choice_spec(
+        "0.01em",
+        LETTER_SPACING_HEADING_CHOICES,
+        "navigation",
+        "Espacement lettres nav",
+        "Espacement horizontal du texte des items nav.",
+        preview_var="--preview-nav-letter-spacing",
+    ),
     "dropdown_shadow": _text_spec(
         "none",
         "navigation",
@@ -647,6 +714,36 @@ DESIGN_TOKEN_SPECS = {
         "Bordure dropdown",
         "Bordure des menus deroulants.",
     ),
+    "dropdown_item_font_size": _choice_spec(
+        "14px",
+        NAV_FONT_SIZE_CHOICES,
+        "navigation",
+        "Dropdown - taille texte",
+        "Taille du texte des items du menu deroulant.",
+    ),
+    "dropdown_item_font_weight": _choice_spec(
+        "600",
+        FONT_WEIGHT_CHOICES,
+        "navigation",
+        "Dropdown - graisse texte",
+        "Epaisseur du texte des items du menu deroulant.",
+    ),
+    "dropdown_item_padding_y": _int_spec(
+        7,
+        3,
+        20,
+        "navigation",
+        "Dropdown - padding vertical (px)",
+        "Espacement vertical interne des items du dropdown.",
+    ),
+    "dropdown_item_padding_x": _int_spec(
+        9,
+        4,
+        30,
+        "navigation",
+        "Dropdown - padding horizontal (px)",
+        "Espacement horizontal interne des items du dropdown.",
+    ),
     "table_row_hover_bg": _color_spec(
         "#e7f1ec",
         "tables",
@@ -664,6 +761,58 @@ DESIGN_TOKEN_SPECS = {
         "tables",
         "Table header - texte",
         "Texte de l'en-tete des tableaux.",
+    ),
+    "table_header_font_size": _choice_spec(
+        "12px",
+        TABLE_HEADER_FONT_SIZE_CHOICES,
+        "tables",
+        "Table header - taille texte",
+        "Taille du texte de l'en-tete du tableau.",
+        preview_var="--preview-table-header-font-size",
+    ),
+    "table_header_letter_spacing": _choice_spec(
+        "0.05em",
+        TABLE_HEADER_LETTER_SPACING_CHOICES,
+        "tables",
+        "Table header - espacement lettres",
+        "Espacement horizontal du texte de l'en-tete.",
+        preview_var="--preview-table-header-letter-spacing",
+    ),
+    "table_header_padding_y": _int_spec(
+        10,
+        4,
+        24,
+        "tables",
+        "Table header - padding vertical (px)",
+        "Espacement vertical des cellules d'en-tete.",
+        preview_var="--preview-table-header-padding-y",
+    ),
+    "table_header_padding_x": _int_spec(
+        8,
+        4,
+        28,
+        "tables",
+        "Table header - padding horizontal (px)",
+        "Espacement horizontal des cellules d'en-tete.",
+        preview_var="--preview-table-header-padding-x",
+    ),
+    "table_cell_padding_y": _int_spec(
+        6,
+        2,
+        28,
+        "tables",
+        "Table cellule - padding vertical (px)",
+        "Espacement vertical des cellules de donnees.",
+        preview_var="--preview-table-cell-padding-y",
+    ),
+    "table_cell_padding_x": _int_spec(
+        8,
+        2,
+        32,
+        "tables",
+        "Table cellule - padding horizontal (px)",
+        "Espacement horizontal des cellules de donnees.",
+        preview_var="--preview-table-cell-padding-x",
     ),
     "table_row_bg": _color_spec(
         "#ffffff",
@@ -728,6 +877,18 @@ DESIGN_TOKEN_SPECS = {
         "Bordure des actions success.",
         preview_var="--preview-success-border",
     ),
+    "color_btn_success_hover_bg": _color_spec(
+        "#d8ebdf",
+        "business_states",
+        "Btn success - hover fond",
+        "Couleur de fond au survol des actions success.",
+    ),
+    "color_btn_success_active_bg": _color_spec(
+        "#cfe4d8",
+        "business_states",
+        "Btn success - actif fond",
+        "Couleur de fond en etat actif des actions success.",
+    ),
     "color_btn_warning_bg": _color_spec(
         "#fbf2e7",
         "business_states",
@@ -749,6 +910,18 @@ DESIGN_TOKEN_SPECS = {
         "Bordure des actions warning.",
         preview_var="--preview-warning-border",
     ),
+    "color_btn_warning_hover_bg": _color_spec(
+        "#f3e6d2",
+        "business_states",
+        "Btn warning - hover fond",
+        "Couleur de fond au survol des actions warning.",
+    ),
+    "color_btn_warning_active_bg": _color_spec(
+        "#ead8bb",
+        "business_states",
+        "Btn warning - actif fond",
+        "Couleur de fond en etat actif des actions warning.",
+    ),
     "color_btn_danger_bg": _color_spec(
         "#faece7",
         "business_states",
@@ -769,6 +942,18 @@ DESIGN_TOKEN_SPECS = {
         "Btn danger - bordure",
         "Bordure des actions danger.",
         preview_var="--preview-danger-border",
+    ),
+    "color_btn_danger_hover_bg": _color_spec(
+        "#f2d8d6",
+        "business_states",
+        "Btn danger - hover fond",
+        "Couleur de fond au survol des actions danger.",
+    ),
+    "color_btn_danger_active_bg": _color_spec(
+        "#e9c9c7",
+        "business_states",
+        "Btn danger - actif fond",
+        "Couleur de fond en etat actif des actions danger.",
     ),
     "status_ready_bg": _color_spec(
         "#e8f4ee",

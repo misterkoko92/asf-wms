@@ -33,33 +33,35 @@
     <link rel="stylesheet" href="{% static 'portal/portal-bootstrap.css' %}">
   {% endif %}
   {% include "includes/design_vars_style.html" %}
-  <style>
-    .portal-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
-    .portal-nav { display: flex; flex-wrap: wrap; gap: 10px; }
-    .portal-actions { display: flex; align-items: center; gap: 10px; }
-    .portal-nav a { text-decoration: none; font-weight: 600; }
-    .portal-card { margin-bottom: 12px; }
-    .portal-table { width: 100%; border-collapse: collapse; }
-    .portal-table th, .portal-table td { padding: 7px 9px; border-bottom: 1px solid #ddd; text-align: left; }
-    .portal-table th { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.04em; }
-    .portal-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #eee; font-size: 0.8rem; }
-    .portal-products-panel { display: grid; gap: 10px; }
-    .portal-products-table-wrap { max-height: 420px; overflow: auto; }
-    .portal-products-table-wrap .scan-table { min-width: 680px; }
-    .portal-products-table-wrap .scan-table thead tr:first-child th { position: sticky; top: 0; z-index: 2; }
-    .portal-products-actions {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    .portal-products-actions .scan-help { margin: 0; }
-    @media (max-width: 900px) {
-      .portal-products-table-wrap { max-height: 52vh; }
-      .portal-products-actions .scan-submit { width: 100%; }
-    }
-  </style>
+  {% if not scan_bootstrap_enabled %}
+    <style>
+      .portal-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+      .portal-nav { display: flex; flex-wrap: wrap; gap: 10px; }
+      .portal-actions { display: flex; align-items: center; gap: 10px; }
+      .portal-nav a { text-decoration: none; font-weight: 600; }
+      .portal-card { margin-bottom: 12px; }
+      .portal-table { width: 100%; border-collapse: collapse; }
+      .portal-table th, .portal-table td { padding: 7px 9px; border-bottom: 1px solid #ddd; text-align: left; }
+      .portal-table th { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.04em; }
+      .portal-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #eee; font-size: 0.8rem; }
+      .portal-products-panel { display: grid; gap: 10px; }
+      .portal-products-table-wrap { max-height: 420px; overflow: auto; }
+      .portal-products-table-wrap .scan-table { min-width: 680px; }
+      .portal-products-table-wrap .scan-table thead tr:first-child th { position: sticky; top: 0; z-index: 2; }
+      .portal-products-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .portal-products-actions .scan-help { margin: 0; }
+      @media (max-width: 900px) {
+        .portal-products-table-wrap { max-height: 52vh; }
+        .portal-products-actions .scan-submit { width: 100%; }
+      }
+    </style>
+  {% endif %}
 </head>
 <body{% if scan_bootstrap_enabled %} class="scan-bootstrap-enabled portal-bootstrap-enabled"{% endif %}>
   <div class="scan-shell">

@@ -3,28 +3,30 @@
 {% block title %}Commande{% endblock %}
 
 {% block content %}
-  <style>
-    .portal-tight .portal-card { margin-bottom: 10px; }
-    .portal-tight .scan-card { padding: 18px; }
-    .portal-section-title { margin-top: 0; margin-bottom: 8px; }
-    .portal-doc-upload-row {
-      display: grid;
-      gap: 10px;
-      grid-template-columns: minmax(180px, 220px) 1fr;
-      align-items: center;
-      margin-bottom: 8px;
-    }
-    .portal-doc-upload-row label {
-      margin: 0;
-      font-weight: 600;
-      color: #32443a;
-    }
-    @media (max-width: 980px) {
+  {% if not scan_bootstrap_enabled %}
+    <style>
+      .portal-tight .portal-card { margin-bottom: 10px; }
+      .portal-tight .scan-card { padding: 18px; }
+      .portal-section-title { margin-top: 0; margin-bottom: 8px; }
       .portal-doc-upload-row {
-        grid-template-columns: 1fr;
+        display: grid;
+        gap: 10px;
+        grid-template-columns: minmax(180px, 220px) 1fr;
+        align-items: center;
+        margin-bottom: 8px;
       }
-    }
-  </style>
+      .portal-doc-upload-row label {
+        margin: 0;
+        font-weight: 600;
+        color: #32443a;
+      }
+      @media (max-width: 980px) {
+        .portal-doc-upload-row {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  {% endif %}
 
   <div class="portal-tight">
     <div class="scan-card portal-card card border-0 ui-comp-card">
