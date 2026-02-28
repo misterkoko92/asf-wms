@@ -1,3 +1,6 @@
+from pathlib import Path
+
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
@@ -337,6 +340,21 @@ class ScanAdminViewTests(TestCase):
         self.assertContains(response, 'data-design-live-preview="1"')
         self.assertContains(response, '<select name="design_font_h1"')
         self.assertContains(response, "<option value=\"DM Sans\"")
+
+    def test_scan_admin_design_preview_uses_non_bootstrap_progress_class(self):
+        self.client.force_login(self.superuser)
+        response = self.client.get(reverse("scan:scan_admin_design"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'class="preview-status in-progress"')
+        self.assertContains(response, ".scan-design-preview .preview-status.in-progress {")
+        self.assertNotContains(response, 'class="preview-status progress"')
+
+    def test_scan_bootstrap_styles_override_legacy_ui_button_rounding(self):
+        css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"
+        css_content = css_path.read_text(encoding="utf-8")
+        self.assertIn(".scan-bootstrap-enabled .scan-scan-btn.btn,", css_content)
+        self.assertIn(".scan-bootstrap-enabled .scan-submit.btn {", css_content)
+        self.assertIn("border-radius: min(var(--wms-btn-radius), 0.45rem);", css_content)
 
     def test_scan_admin_design_post_updates_runtime_design_values(self):
         self.client.force_login(self.superuser)

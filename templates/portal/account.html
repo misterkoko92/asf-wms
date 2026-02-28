@@ -3,71 +3,76 @@
 {% block title %}Compte{% endblock %}
 
 {% block content %}
-  <style>
-    .portal-tight .portal-card { margin-bottom: 10px; }
-    .portal-tight .scan-card { padding: 18px; }
-    .portal-section-title { margin-top: 0; margin-bottom: 8px; }
-    .portal-grid-2 {
-      display: grid;
-      gap: 10px 12px;
-      grid-template-columns: repeat(2, minmax(180px, 1fr));
-    }
-    .portal-grid-3 {
-      display: grid;
-      gap: 10px 12px;
-      grid-template-columns: repeat(3, minmax(120px, 1fr));
-    }
-    .portal-contact-head,
-    .portal-contact-row {
-      display: grid;
-      gap: 8px;
-      grid-template-columns: 86px 1fr 1fr 1fr 1.2fr 260px;
-      align-items: center;
-    }
-    .portal-contact-head {
-      margin-bottom: 6px;
-      font-size: 12px;
-      color: #5c6a60;
-      font-weight: 600;
-    }
-    .portal-contact-row {
-      margin-bottom: 8px;
-    }
-    .portal-contact-types {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      font-size: 12px;
-    }
-    .portal-doc-upload-row {
-      display: grid;
-      gap: 10px;
-      grid-template-columns: minmax(180px, 220px) 1fr;
-      align-items: center;
-      margin-bottom: 8px;
-    }
-    .portal-doc-upload-row label {
-      margin: 0;
-      font-weight: 600;
-      color: #32443a;
-    }
-    @media (max-width: 980px) {
-      .portal-contact-head { display: none; }
+  {% if not scan_bootstrap_enabled %}
+    <style>
+      .portal-tight .portal-card { margin-bottom: 10px; }
+      .portal-tight .scan-card { padding: 18px; }
+      .portal-section-title { margin-top: 0; margin-bottom: 8px; }
+      .portal-grid-2 {
+        display: grid;
+        gap: 10px 12px;
+        grid-template-columns: repeat(2, minmax(180px, 1fr));
+      }
+      .portal-grid-3 {
+        display: grid;
+        gap: 10px 12px;
+        grid-template-columns: repeat(3, minmax(120px, 1fr));
+      }
+      .portal-contact-head,
       .portal-contact-row {
-        grid-template-columns: 1fr;
-        border: 1px solid #d8e0dc;
-        border-radius: 10px;
-        padding: 8px;
+        display: grid;
+        gap: 8px;
+        grid-template-columns: 86px 1fr 1fr 1fr 1.2fr 260px;
+        align-items: center;
+      }
+      .portal-contact-head {
+        margin-bottom: 6px;
+        font-size: 12px;
+        color: #5c6a60;
+        font-weight: 600;
+      }
+      .portal-contact-row {
+        margin-bottom: 8px;
+      }
+      .portal-contact-types {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        font-size: 12px;
       }
       .portal-doc-upload-row {
-        grid-template-columns: 1fr;
+        display: grid;
+        gap: 10px;
+        grid-template-columns: minmax(180px, 220px) 1fr;
+        align-items: center;
+        margin-bottom: 8px;
       }
-      .portal-grid-2,
-      .portal-grid-3 {
-        grid-template-columns: 1fr;
+      .portal-doc-upload-row label {
+        margin: 0;
+        font-weight: 600;
+        color: #32443a;
       }
-    }
-  </style>
+      .portal-contact-submit {
+        margin-top: 10px;
+      }
+      @media (max-width: 980px) {
+        .portal-contact-head { display: none; }
+        .portal-contact-row {
+          grid-template-columns: 1fr;
+          border: 1px solid #d8e0dc;
+          border-radius: 10px;
+          padding: 8px;
+        }
+        .portal-doc-upload-row {
+          grid-template-columns: 1fr;
+        }
+        .portal-grid-2,
+        .portal-grid-3 {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  {% endif %}
 
   <div class="portal-tight">
     <div class="scan-card portal-card card border-0 ui-comp-card">
@@ -237,7 +242,7 @@
         <button type="button" class="scan-scan-btn btn btn-outline-primary" id="add-contact-row">
           Ajouter un autre contact
         </button>
-        <div class="scan-field" style="margin-top: 10px;">
+        <div class="scan-field portal-contact-submit">
           <button type="submit" class="scan-submit btn btn-primary">Enregistrer les modifications</button>
         </div>
       </form>

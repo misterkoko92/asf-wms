@@ -75,10 +75,10 @@
 
     .card {
       background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 20px;
+      border: var(--wms-card-border-width, 1px) solid var(--wms-card-border-color, var(--border));
+      border-radius: var(--wms-card-radius, 20px);
       padding: 28px;
-      box-shadow: 0 16px 36px var(--shadow-soft);
+      box-shadow: var(--wms-card-shadow, 0 16px 36px var(--shadow-soft));
     }
 
     .hero-card {
@@ -90,7 +90,7 @@
       align-items: center;
       gap: 8px;
       padding: 6px 12px;
-      border-radius: 999px;
+      border-radius: var(--wms-badge-radius, 999px);
       border: 1px solid var(--border);
       background: rgba(255, 255, 255, 0.7);
       font-size: 11px;
@@ -135,26 +135,27 @@
     }
 
     .scan-field input {
-      border: 1px solid #b8c8bc;
-      border-radius: 10px;
-      min-height: 42px;
-      padding: 9px 12px;
+      border: var(--wms-input-border-width, 1px) solid var(--wms-input-border, #b8c8bc);
+      border-radius: var(--wms-input-radius, 10px);
+      min-height: var(--wms-input-height, 42px);
+      padding: var(--wms-input-padding-y, 9px) var(--wms-input-padding-x, 12px);
       font-size: 15px;
-      background: #fff;
+      background: var(--wms-input-bg, #fff);
+      color: var(--wms-input-text, var(--ink));
     }
 
     .scan-submit {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      border: 1px solid #5d8579;
-      border-radius: 7px;
-      min-height: 44px;
-      padding: 10px 16px;
-      font-size: 15px;
-      font-weight: 700;
-      color: #f7faf8;
-      background: var(--accent);
+      border: var(--wms-btn-border-width, 1px) solid var(--wms-color-btn-primary-border, #5d8579);
+      border-radius: min(var(--wms-btn-radius, 10px), 0.45rem);
+      min-height: var(--wms-btn-height-md, 44px);
+      padding: 0.48rem var(--wms-btn-padding-x, 16px);
+      font-size: var(--wms-btn-font-size, 15px);
+      font-weight: var(--wms-font-weight-button, 700);
+      color: var(--wms-color-btn-primary-text, #f7faf8);
+      background: var(--wms-color-btn-primary-bg, var(--accent));
       cursor: pointer;
       width: 100%;
     }

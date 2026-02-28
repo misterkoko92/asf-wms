@@ -19,6 +19,10 @@
   font-weight: 700;
 }
 
+.portal-bootstrap-enabled .portal-nav a.btn {
+  border-radius: min(var(--wms-btn-radius), 0.45rem);
+}
+
 .portal-bootstrap-enabled .portal-nav a {
   text-decoration: none;
   font-weight: var(--wms-nav-item-font-weight);
@@ -120,16 +124,58 @@
 }
 
 .portal-bootstrap-enabled .portal-tight .portal-card {
-  margin-bottom: 10px;
+  margin-bottom: var(--wms-field-gap);
 }
 
 .portal-bootstrap-enabled .portal-tight .scan-card {
-  padding: 18px;
+  padding: calc(var(--wms-space-unit) * 2.25);
 }
 
 .portal-bootstrap-enabled .portal-section-title {
   margin-top: 0;
-  margin-bottom: 8px;
+  margin-bottom: var(--wms-space-unit);
+}
+
+.portal-bootstrap-enabled .portal-grid-2 {
+  display: grid;
+  gap: var(--wms-field-gap) calc(var(--wms-space-unit) * 1.5);
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+}
+
+.portal-bootstrap-enabled .portal-grid-3 {
+  display: grid;
+  gap: var(--wms-field-gap) calc(var(--wms-space-unit) * 1.5);
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
+}
+
+.portal-bootstrap-enabled .portal-contact-head,
+.portal-bootstrap-enabled .portal-contact-row {
+  display: grid;
+  gap: var(--wms-space-unit);
+  grid-template-columns: 86px 1fr 1fr 1fr 1.2fr 260px;
+  align-items: center;
+}
+
+.portal-bootstrap-enabled .portal-contact-head {
+  margin-bottom: calc(var(--wms-space-unit) * 0.75);
+  font-size: var(--wms-font-size-small);
+  color: var(--wms-color-text-soft);
+  font-weight: 600;
+}
+
+.portal-bootstrap-enabled .portal-contact-row {
+  margin-bottom: var(--wms-space-unit);
+}
+
+.portal-bootstrap-enabled .portal-contact-types {
+  display: flex;
+  gap: var(--wms-space-unit);
+  flex-wrap: wrap;
+  font-size: var(--wms-font-size-small);
+}
+
+.portal-bootstrap-enabled .portal-contact-submit {
+  margin-top: calc(var(--wms-space-unit) + 2px);
 }
 
 .portal-bootstrap-enabled .portal-doc-upload-row {
@@ -137,7 +183,7 @@
   gap: var(--wms-space-unit);
   grid-template-columns: minmax(180px, 220px) 1fr;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: var(--wms-space-unit);
 }
 
 .portal-bootstrap-enabled .portal-doc-upload-row label {
@@ -148,23 +194,23 @@
 
 .portal-bootstrap-enabled .portal-recipient-grid-3 {
   display: grid;
-  gap: 10px 12px;
+  gap: var(--wms-field-gap) calc(var(--wms-space-unit) * 1.5);
   grid-template-columns: minmax(180px, 220px) minmax(220px, 1fr) minmax(220px, 1fr);
 }
 
 .portal-bootstrap-enabled .portal-recipient-grid-3-equal {
   display: grid;
-  gap: 10px 12px;
+  gap: var(--wms-field-gap) calc(var(--wms-space-unit) * 1.5);
   grid-template-columns: repeat(3, minmax(140px, 1fr));
 }
 
 .portal-bootstrap-enabled .portal-recipient-flags {
   display: flex;
-  gap: 12px;
+  gap: calc(var(--wms-space-unit) * 1.5);
   flex-wrap: wrap;
   align-items: center;
   min-height: var(--wms-input-height);
-  padding: 8px 10px;
+  padding: var(--wms-input-padding-y) var(--wms-input-padding-x);
   border: 1px solid var(--wms-input-border);
   border-radius: var(--wms-input-radius);
   background: var(--wms-input-bg);
@@ -186,7 +232,7 @@
 }
 
 .portal-bootstrap-enabled .portal-recipient-cancel {
-  margin-left: 10px;
+  margin-left: calc(var(--wms-space-unit) + 2px);
   font-weight: 600;
 }
 
@@ -206,6 +252,22 @@
 }
 
 @media (max-width: 980px) {
+  .portal-bootstrap-enabled .portal-contact-head {
+    display: none;
+  }
+
+  .portal-bootstrap-enabled .portal-contact-row {
+    grid-template-columns: 1fr;
+    border: 1px solid var(--wms-card-border-color);
+    border-radius: var(--wms-input-radius);
+    padding: var(--wms-space-unit);
+  }
+
+  .portal-bootstrap-enabled .portal-grid-2,
+  .portal-bootstrap-enabled .portal-grid-3 {
+    grid-template-columns: 1fr;
+  }
+
   .portal-bootstrap-enabled .portal-doc-upload-row {
     grid-template-columns: 1fr;
   }

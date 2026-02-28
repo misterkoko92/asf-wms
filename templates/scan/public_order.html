@@ -8,11 +8,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700;800&family=Nunito+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'scan/scan.css' %}">
   {% if scan_bootstrap_enabled %}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <link rel="stylesheet" href="{% static 'scan/scan-bootstrap.css' %}">
   {% endif %}
-  <link rel="stylesheet" href="{% static 'scan/scan.css' %}">
   {% include "includes/design_vars_style.html" %}
 </head>
 <body{% if scan_bootstrap_enabled %} class="scan-bootstrap-enabled"{% endif %}>
@@ -32,11 +32,11 @@
           Lien priv&eacute; r&eacute;serv&eacute; aux associations. Un espace avec compte et validation sera ajoute ensuite.
         </p>
         <div class="scan-inline ui-comp-actions">
-          <a class="scan-scan-btn scan-doc-btn" href="{% url 'scan:scan_public_account_request' link.token %}">
+          <a class="scan-scan-btn scan-doc-btn btn btn-outline-primary" href="{% url 'scan:scan_public_account_request' link.token %}">
             Cr&eacute;er un compte
           </a>
           {% if summary_url %}
-            <a class="scan-scan-btn scan-doc-btn" href="{{ summary_url }}" target="_blank" rel="noopener">
+            <a class="scan-scan-btn scan-doc-btn btn btn-outline-primary" href="{{ summary_url }}" target="_blank" rel="noopener">
               T&eacute;l&eacute;charger recapitulatif PDF
             </a>
           {% endif %}

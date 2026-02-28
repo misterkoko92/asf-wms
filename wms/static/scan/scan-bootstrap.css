@@ -463,10 +463,10 @@ body.scan-bootstrap-enabled {
 .scan-bootstrap-enabled .scan-submit.btn {
   min-width: 96px;
   font-weight: 700;
+  border-radius: min(var(--wms-btn-radius), 0.45rem);
 }
 
 .scan-bootstrap-enabled .scan-submit.btn {
-  border: 1px solid transparent;
   box-shadow: var(--wms-btn-shadow);
 }
 
@@ -796,7 +796,7 @@ body.scan-bootstrap-enabled {
 .scan-bootstrap-enabled .ui-comp-kpi-card {
   border: 1px solid var(--scan-boot-border-strong);
   border-radius: 0.85rem;
-  background: #fff;
+  background: var(--wms-card-bg);
   box-shadow: none;
 }
 

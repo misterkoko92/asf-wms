@@ -395,8 +395,8 @@
       margin-bottom: 0.35rem;
       border-width: 1px;
       border-style: solid;
-      border-radius: 999px;
-      font-size: 0.78rem;
+      border-radius: var(--preview-badge-radius, 999px);
+      font-size: var(--preview-badge-font-size, 0.78rem);
       font-weight: 700;
       padding: 0.28rem 0.52rem;
     }
@@ -407,7 +407,7 @@
       color: var(--preview-status-ready-text, #2d5e46);
     }
 
-    .scan-design-preview .preview-status.progress {
+    .scan-design-preview .preview-status.in-progress {
       background: var(--preview-status-progress-bg, #eef3fb);
       border-color: var(--preview-status-progress-border, #b4cbe7);
       color: var(--preview-status-progress-text, #274d7f);
@@ -599,6 +599,8 @@
         --preview-status-error-bg: {{ preview_values.design_status_error_bg }};
         --preview-status-error-text: {{ preview_values.design_status_error_text }};
         --preview-status-error-border: {{ preview_values.design_status_error_border }};
+        --preview-badge-radius: {{ preview_values.design_badge_radius }}px;
+        --preview-badge-font-size: {{ preview_values.design_badge_font_size }}px;
       "
     >
       <div class="preview-surface">
@@ -642,7 +644,7 @@
       </table>
       <div class="preview-status-row">
         <span class="preview-status ready">Prêt</span>
-        <span class="preview-status progress">En cours</span>
+        <span class="preview-status in-progress">En cours</span>
         <span class="preview-status warning">Alerte</span>
         <span class="preview-status error">Erreur</span>
       </div>
