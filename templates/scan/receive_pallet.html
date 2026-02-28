@@ -12,7 +12,7 @@
       {% csrf_token %}
       <input type="hidden" name="action" value="pallet_create">
 
-      <div class="scan-field col-12 col-md-6 col-xl-2">
+      <div class="scan-field col-12 col-md-6 col-lg-2">
         <label class="form-label" for="{{ create_form.received_on.id_for_label }}">Date r&eacute;ception</label>
         {{ create_form.received_on }}
         {% for error in create_form.received_on.errors %}
@@ -20,7 +20,7 @@
         {% endfor %}
       </div>
 
-      <div class="scan-field col-12 col-md-6 col-xl-2">
+      <div class="scan-field col-12 col-md-6 col-lg-2">
         <label class="form-label" for="{{ create_form.pallet_count.id_for_label }}">Nombre de palettes</label>
         {{ create_form.pallet_count }}
         {% for error in create_form.pallet_count.errors %}
@@ -28,7 +28,7 @@
         {% endfor %}
       </div>
 
-      <div class="scan-field col-12 col-md-6 col-xl-3">
+      <div class="scan-field col-12 col-md-6 col-lg-3">
         <label class="form-label" for="{{ create_form.source_contact.id_for_label }}">Donateur</label>
         {{ create_form.source_contact }}
         {% for error in create_form.source_contact.errors %}
@@ -36,7 +36,7 @@
         {% endfor %}
       </div>
 
-      <div class="scan-field col-12 col-md-6 col-xl-3">
+      <div class="scan-field col-12 col-md-6 col-lg-3">
         <label class="form-label" for="{{ create_form.carrier_contact.id_for_label }}">Transporteur</label>
         {{ create_form.carrier_contact }}
         {% for error in create_form.carrier_contact.errors %}
@@ -44,7 +44,7 @@
         {% endfor %}
       </div>
 
-      <div class="scan-field col-12 col-md-6 col-xl-2">
+      <div class="scan-field col-12 col-md-6 col-lg-2">
         <label class="form-label" for="{{ create_form.transport_request_date.id_for_label }}">Date demande transport</label>
         {{ create_form.transport_request_date }}
         {% for error in create_form.transport_request_date.errors %}
@@ -52,7 +52,7 @@
         {% endfor %}
       </div>
 
-      <div class="scan-filter-actions scan-receive-pallet-actions-inline col-12 d-flex flex-wrap flex-xl-nowrap gap-2 align-items-center">
+      <div class="scan-filter-actions scan-receive-pallet-actions-inline col-12 d-flex flex-wrap flex-lg-nowrap gap-2 align-items-center">
         <button type="submit" class="scan-submit btn btn-primary">Enregistrer la r&eacute;ception palette</button>
         <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
           Ajouter donateur

@@ -624,6 +624,18 @@ body.scan-bootstrap-enabled {
   margin-top: 0.15rem;
 }
 
+.scan-bootstrap-enabled .scan-filters.row > .scan-filter-actions {
+  flex-direction: row;
+  align-items: center;
+}
+
+.scan-bootstrap-enabled .scan-filters.row > .scan-filter-actions .scan-submit.btn,
+.scan-bootstrap-enabled .scan-filters.row > .scan-filter-actions .scan-scan-btn.btn,
+.scan-bootstrap-enabled .scan-filters.row > .scan-filter-actions .btn {
+  width: auto;
+  max-width: 100%;
+}
+
 .scan-bootstrap-enabled .ui-comp-panel {
   border: 1px solid var(--scan-boot-border-strong);
   border-radius: 0.78rem;
@@ -984,6 +996,30 @@ body.scan-bootstrap-enabled[data-btn-style-mode="outlined"] .btn-secondary {
   background: var(--scan-boot-surface-muted) !important;
   color: var(--ds-text);
   font-weight: 700;
+}
+
+@media (min-width: 992px) {
+  .scan-bootstrap-enabled .scan-dashboard-filter-actions-inline {
+    justify-content: flex-end;
+    flex-wrap: nowrap !important;
+  }
+
+  .scan-bootstrap-enabled .scan-stock-filter-actions-inline,
+  .scan-bootstrap-enabled .scan-receive-pallet-actions-inline,
+  .scan-bootstrap-enabled .scan-receive-association-actions-inline,
+  .scan-bootstrap-enabled .scan-stock-update-actions-inline,
+  .scan-bootstrap-enabled .scan-prepare-kits-actions-inline,
+  .scan-bootstrap-enabled .scan-pack-shipping-actions-inline {
+    justify-content: flex-start;
+    flex-wrap: nowrap !important;
+  }
+
+  .scan-bootstrap-enabled .scan-pack-shipping-row .scan-switch-card {
+    min-height: var(--wms-input-height);
+    height: 100%;
+    display: flex;
+    align-items: center;
+  }
 }
 
 @media (max-width: 992px) {

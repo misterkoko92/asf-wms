@@ -104,7 +104,7 @@
       <input type="hidden" id="pack_line_count" name="line_count" value="{{ line_count }}">
 
       <div class="row g-3 align-items-end scan-pack-shipping-row">
-        <div class="scan-field col-12 col-xl-4">
+        <div class="scan-field col-12 col-lg-4">
           <label class="form-label" for="id_shipment_reference">Référence expédition (optionnel)</label>
           {{ form.shipment_reference }}
           {% for error in form.shipment_reference.errors %}
@@ -112,12 +112,12 @@
           {% endfor %}
         </div>
 
-        <div class="scan-field col-12 col-xl-4">
+        <div class="scan-field col-12 col-lg-4">
           <label class="form-label" for="id_current_location">Choisir un emplacement de rangement du colis prêt (optionnel)</label>
           {{ form.current_location }}
         </div>
 
-        <div class="scan-field col-12 col-xl-4">
+        <div class="scan-field col-12 col-lg-4">
           <div class="scan-switch-card">
             <div class="form-check form-switch">
               <input
@@ -143,7 +143,7 @@
           Si vous validez ces ajouts, des valeurs par d&eacute;faut seront appliqu&eacute;es (1cm x 1cm x 1cm et 5g).
         </div>
       {% endif %}
-      <div class="scan-filter-actions scan-pack-shipping-actions-inline d-flex flex-wrap flex-xl-nowrap gap-2 align-items-center">
+      <div class="scan-filter-actions scan-pack-shipping-actions-inline d-flex flex-wrap flex-lg-nowrap gap-2 align-items-center">
         <button type="button" class="scan-scan-btn btn btn-outline-primary" data-scan-target="id_shipment_reference">Scan</button>
         <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'admin:wms_location_add' %}" target="_blank" rel="noopener">
           Ajouter emplacement

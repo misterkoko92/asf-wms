@@ -11,7 +11,7 @@
 
     <form method="post" novalidate class="scan-filters row g-3 ui-comp-form scan-prepare-kits-main-row">
       {% csrf_token %}
-      <div class="scan-field ui-comp-panel col-12 col-xl-6">
+      <div class="scan-field ui-comp-panel col-12 col-lg-6">
         <label class="form-label" for="{{ form.kit_id.id_for_label }}">Nom du kit</label>
         {{ form.kit_id }}
         {% for error in form.kit_id.errors %}
@@ -19,7 +19,7 @@
         {% endfor %}
       </div>
 
-      <div class="scan-field scan-field-gap ui-comp-panel col-12 col-xl-6">
+      <div class="scan-field scan-field-gap ui-comp-panel col-12 col-lg-6">
         <div class="scan-inline scan-inline-equal scan-inline-top scan-inline-gap">
           <div class="scan-field">
             <label class="form-label" for="{{ form.quantity.id_for_label }}">Nombre de kits &agrave; cr&eacute;er</label>
@@ -65,7 +65,7 @@
         </div>
       </div>
 
-      <div class="ui-comp-actions scan-prepare-kits-actions-inline col-12 d-flex flex-wrap flex-xl-nowrap gap-2 align-items-center">
+      <div class="ui-comp-actions scan-prepare-kits-actions-inline col-12 d-flex flex-wrap flex-lg-nowrap gap-2 align-items-center">
         <button type="submit" class="scan-submit btn btn-primary">Pr&eacute;parer</button>
         <a class="scan-scan-btn btn btn-outline-primary" href="{{ kit_create_url }}" target="_blank" rel="noopener">
           Cr&eacute;er un nouveau kit
