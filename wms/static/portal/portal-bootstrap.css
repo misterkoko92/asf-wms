@@ -79,7 +79,7 @@
 
 .portal-bootstrap-enabled .portal-badge {
   display: inline-block;
-  padding: 2px 8px;
+  padding: calc(var(--wms-space-unit) * 0.25) var(--wms-space-unit);
   background: var(--wms-status-ready-bg);
   color: var(--wms-status-ready-text);
   border: 1px solid var(--wms-status-ready-border);

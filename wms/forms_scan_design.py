@@ -2,6 +2,7 @@ import re
 
 from django import forms
 
+from .design_style_presets import CUSTOM_STYLE_NAME_MAX_LENGTH
 from .design_tokens import (
     DESIGN_TOKEN_DEFAULTS,
     DESIGN_TOKEN_FAMILY_DEFINITIONS,
@@ -84,6 +85,26 @@ def _build_token_field(spec):
 
 
 class ScanDesignSettingsForm(forms.ModelForm):
+    style_preset = forms.ChoiceField(
+        required=False,
+        label="Style disponible",
+        choices=(),
+        help_text="Choisissez un preset puis appliquez-le.",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    style_custom_name = forms.CharField(
+        required=False,
+        max_length=CUSTOM_STYLE_NAME_MAX_LENGTH,
+        label="Nom du style personnalise",
+        help_text="Nom utilise pour enregistrer le style courant dans la liste.",
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Ex: Ops rectangulaire",
+            }
+        ),
+    )
+
     FONT_CHOICES = DESIGN_FONT_CHOICES
     DESIGN_FIELDS = (
         "design_font_h1",
@@ -202,11 +223,31 @@ class ScanDesignSettingsForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        style_presets = kwargs.pop("style_presets", ())
+        selected_style_preset = (kwargs.pop("selected_style_preset", "") or "").strip()
+        custom_style_name = kwargs.pop("custom_style_name", "")
         super().__init__(*args, **kwargs)
 
         self.fields["scan_bootstrap_enabled"].widget = forms.CheckboxInput(
             attrs={"class": "form-check-input"}
         )
+
+        style_choices = [
+            (str(preset["key"]), str(preset["label"]))
+            for preset in style_presets
+            if isinstance(preset, dict)
+            and str(preset.get("key") or "").strip()
+            and str(preset.get("label") or "").strip()
+        ]
+        if style_choices:
+            available_keys = {key for key, _label in style_choices}
+            if selected_style_preset in available_keys:
+                self.initial["style_preset"] = selected_style_preset
+            else:
+                self.initial["style_preset"] = style_choices[0][0]
+        self.fields["style_preset"].choices = style_choices
+        if custom_style_name:
+            self.initial["style_custom_name"] = custom_style_name
 
         base_choices = list(self.FONT_CHOICES)
         base_choice_values = {value for value, _label in base_choices}
@@ -242,6 +283,8 @@ class ScanDesignSettingsForm(forms.ModelForm):
 
     def _apply_preview_metadata(self):
         for field_name, field in self.fields.items():
+            if field_name not in self.PREVIEW_FIELDS:
+                continue
             field.widget.attrs["data-design-field"] = "1"
 
             preview_meta = dict(self.PREVIEW_FIELD_META.get(field_name, {}))

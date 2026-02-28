@@ -16,6 +16,19 @@
       grid-column: 1 / -1 !important;
     }
 
+    .scan-design-style-toolbar {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.85rem;
+      margin: 0 0 0.95rem;
+    }
+
+    .scan-design-style-actions {
+      margin: 0 0 0.9rem;
+      justify-content: flex-start;
+      flex-wrap: wrap;
+    }
+
     .scan-design-accordion {
       border: 1px solid var(--preview-border, #d9e2dc);
       border-radius: 0.85rem;
@@ -438,6 +451,10 @@
     }
 
     @media (max-width: 700px) {
+      .scan-design-style-toolbar {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
       .scan-design-family-grid {
         grid-template-columns: minmax(0, 1fr);
       }
@@ -457,6 +474,26 @@
   <div class="scan-card card border-0 ui-comp-card scan-design-editor-card">
     <form method="post" class="scan-filters ui-comp-form scan-design-form">
       {% csrf_token %}
+
+      <div class="scan-design-style-toolbar">
+        <div class="scan-field">
+          <label class="form-label" for="{{ form.style_preset.id_for_label }}">{{ form.style_preset.label }}</label>
+          {{ form.style_preset }}
+          {% if form.style_preset.errors %}<div class="scan-help">{{ form.style_preset.errors|join:", " }}</div>{% endif %}
+          {% if form.style_preset.help_text %}<div class="scan-help">{{ form.style_preset.help_text }}</div>{% endif %}
+        </div>
+        <div class="scan-field">
+          <label class="form-label" for="{{ form.style_custom_name.id_for_label }}">{{ form.style_custom_name.label }}</label>
+          {{ form.style_custom_name }}
+          {% if form.style_custom_name.errors %}<div class="scan-help">{{ form.style_custom_name.errors|join:", " }}</div>{% endif %}
+          {% if form.style_custom_name.help_text %}<div class="scan-help">{{ form.style_custom_name.help_text }}</div>{% endif %}
+        </div>
+      </div>
+
+      <div class="scan-filter-actions scan-design-style-actions">
+        <button type="submit" name="action" value="apply_preset" class="scan-scan-btn btn btn-outline-primary">Appliquer le style</button>
+        <button type="submit" name="action" value="save_custom_preset" class="scan-scan-btn btn btn-outline-secondary">Sauvegarder ce style</button>
+      </div>
 
       {% for section in design_sections %}
         <details class="scan-design-accordion" id="design-family-{{ section.key }}"{% if section.default_open %} open{% endif %}>

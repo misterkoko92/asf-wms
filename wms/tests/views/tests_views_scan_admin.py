@@ -340,6 +340,13 @@ class ScanAdminViewTests(TestCase):
         self.assertContains(response, 'data-design-live-preview="1"')
         self.assertContains(response, '<select name="design_font_h1"')
         self.assertContains(response, "<option value=\"DM Sans\"")
+        self.assertContains(response, '<select name="style_preset"')
+        self.assertContains(response, 'name="style_custom_name"')
+        self.assertContains(response, '<option value="wms-default"')
+        self.assertContains(response, '<option value="wms-rect"')
+        self.assertContains(response, '<option value="wms-contrast"')
+        self.assertContains(response, 'value="apply_preset"')
+        self.assertContains(response, 'value="save_custom_preset"')
 
     def test_scan_admin_design_preview_uses_non_bootstrap_progress_class(self):
         self.client.force_login(self.superuser)
@@ -411,6 +418,55 @@ class ScanAdminViewTests(TestCase):
         self.assertContains(dashboard_response, "--wms-color-btn-primary-border: #163f34;")
         self.assertContains(dashboard_response, "--wms-color-btn-success-hover-bg: #cfe9d8;")
         self.assertContains(dashboard_response, "--wms-color-btn-danger-active-bg: #e8c8c4;")
+
+    def test_scan_admin_design_apply_builtin_preset_updates_runtime_design_values(self):
+        self.client.force_login(self.superuser)
+        response = self.client.post(
+            reverse("scan:scan_admin_design"),
+            {
+                "action": "apply_preset",
+                "style_preset": "wms-rect",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("scan:scan_admin_design"))
+
+        runtime = WmsRuntimeSettings.get_solo()
+        self.assertEqual(runtime.design_selected_preset, "wms-rect")
+        self.assertEqual(runtime.design_color_primary, "#2f6d5f")
+        self.assertEqual(runtime.design_tokens["density_mode"], "dense")
+        self.assertEqual(runtime.design_tokens["btn_style_mode"], "outlined")
+        self.assertEqual(runtime.design_tokens["btn_radius"], 0)
+        self.assertEqual(runtime.design_tokens["nav_item_radius"], 0)
+        self.assertEqual(runtime.design_tokens["badge_radius"], 6)
+
+    def test_scan_admin_design_can_save_custom_style_preset(self):
+        self.client.force_login(self.superuser)
+        payload = self._design_form_payload(bootstrap_enabled=True)
+        payload.update(
+            {
+                "action": "save_custom_preset",
+                "style_preset": "wms-default",
+                "style_custom_name": "Mon Style Perso",
+            }
+        )
+        response = self.client.post(reverse("scan:scan_admin_design"), payload)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("scan:scan_admin_design"))
+
+        runtime = WmsRuntimeSettings.get_solo()
+        self.assertTrue(runtime.design_selected_preset.startswith("custom-mon-style-perso"))
+        self.assertIn(runtime.design_selected_preset, runtime.design_custom_presets)
+        saved = runtime.design_custom_presets[runtime.design_selected_preset]
+        self.assertEqual(saved["label"], "Mon Style Perso")
+        self.assertEqual(saved["fields"]["design_color_primary"], "#3a7f6f")
+        self.assertEqual(saved["tokens"]["btn_radius"], 12)
+        self.assertEqual(saved["tokens"]["btn_style_mode"], "outlined")
+
+        page = self.client.get(reverse("scan:scan_admin_design"))
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, f'<option value="{runtime.design_selected_preset}"')
+        self.assertContains(page, "Mon Style Perso")
 
     def test_scan_admin_design_bootstrap_toggle_applies_on_scan_portal_home_and_admin(self):
         self.client.force_login(self.superuser)

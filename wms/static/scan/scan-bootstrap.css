@@ -15,6 +15,8 @@
   --wms-color-secondary: #e7c3a8;
   --wms-color-background: #f6f8f5;
   --wms-color-surface: #fffdf9;
+  --wms-color-surface-alt: #f1f6f3;
+  --wms-color-panel: #fffdf9;
   --wms-color-border: #d9e2dc;
   --wms-color-text: #2f3a36;
   --wms-color-text-soft: #5a6964;
@@ -120,6 +122,8 @@
   --wms-status-info-bg: #e7f1ec;
   --wms-status-info-text: #355f53;
   --wms-status-info-border: #b8d2c8;
+  --wms-badge-radius: 999px;
+  --wms-badge-font-size: 12px;
   --wms-color-link: #2f6d5f;
   --wms-color-link-hover: #245648;
   --wms-color-focus-ring: #78a99b;
@@ -184,20 +188,20 @@
   --ink: var(--ds-text);
   --ink-soft: var(--ds-text-soft);
   --bg: var(--ds-bg);
-  --bg-2: #eef3ef;
-  --bg-accent: #f4f7f4;
-  --bg-accent-2: #f8f2ec;
+  --bg-2: var(--wms-color-surface-alt);
+  --bg-accent: var(--wms-color-surface-alt);
+  --bg-accent-2: var(--wms-color-secondary);
   --accent: var(--ds-primary);
   --accent-2: var(--ds-accent);
-  --accent-2-ink: #584b41;
+  --accent-2-ink: var(--wms-color-text);
   --card: var(--ds-surface);
   --panel: var(--ds-panel);
   --border: var(--ds-border);
   --border-strong: var(--ds-border-strong);
-  --table-header: #edf4f0;
-  --scan-btn-bg: #eff6f3;
+  --table-header: var(--wms-table-header-bg);
+  --scan-btn-bg: var(--wms-color-surface-alt);
   --bs-link-color: var(--accent);
-  --bs-link-hover-color: #4e7d70;
+  --bs-link-hover-color: var(--wms-color-link-hover);
 }
 
 .scan-bootstrap-enabled body,
@@ -307,7 +311,7 @@ body.scan-bootstrap-enabled {
 }
 
 .scan-bootstrap-enabled .scan-nav.scan-nav-bootstrap .scan-nav-account .dropdown-header {
-  font-size: 0.78rem;
+  font-size: var(--wms-font-size-small);
   color: var(--ink-soft);
 }
 
@@ -480,7 +484,7 @@ body.scan-bootstrap-enabled {
 }
 
 .scan-bootstrap-enabled .scan-help {
-  font-size: 0.8rem;
+  font-size: var(--wms-font-size-small);
   line-height: 1.45;
 }
 
@@ -653,7 +657,7 @@ body.scan-bootstrap-enabled {
 
 .scan-bootstrap-enabled .scan-switch-card .form-check-label,
 .scan-bootstrap-enabled .scan-design-switch .form-check-label {
-  font-size: 0.92rem;
+  font-size: var(--wms-font-size-small);
   color: var(--ds-text);
   font-weight: 700;
   letter-spacing: 0.005em;
@@ -671,7 +675,7 @@ body.scan-bootstrap-enabled {
 }
 
 .scan-bootstrap-enabled .form-check.form-switch .form-check-label {
-  font-size: 0.92rem;
+  font-size: var(--wms-font-size-small);
   color: var(--ds-text);
   letter-spacing: 0.005em;
   text-transform: none;
@@ -738,10 +742,10 @@ body.scan-bootstrap-enabled {
   align-items: center;
   gap: 0.35rem;
   border: 1px solid var(--scan-boot-border-strong);
-  border-radius: 999px;
+  border-radius: var(--wms-badge-radius);
   background: var(--scan-boot-surface-muted);
   color: var(--ds-text);
-  font-size: 0.78rem;
+  font-size: var(--wms-badge-font-size);
   line-height: 1;
   padding: 0.32rem 0.62rem;
 }

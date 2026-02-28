@@ -3,6 +3,7 @@ from django.db import models
 from django.db.models import F
 from django.utils import timezone
 
+from ..design_style_presets import DEFAULT_STYLE_PRESET_KEY
 from ..design_tokens import PRIORITY_ONE_TOKEN_DEFAULTS
 
 
@@ -151,6 +152,11 @@ class WmsRuntimeSettings(models.Model):
     design_color_text = models.CharField(max_length=16, default="#2f3a36")
     design_color_text_soft = models.CharField(max_length=16, default="#5a6964")
     design_tokens = models.JSONField(default=dict, blank=True)
+    design_selected_preset = models.CharField(
+        max_length=64,
+        default=DEFAULT_STYLE_PRESET_KEY,
+    )
+    design_custom_presets = models.JSONField(default=dict, blank=True)
     updated_by = models.ForeignKey(
         django_settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -213,6 +219,8 @@ class WmsRuntimeSettings(models.Model):
             "design_color_text": "#2f3a36",
             "design_color_text_soft": "#5a6964",
             "design_tokens": dict(PRIORITY_ONE_TOKEN_DEFAULTS),
+            "design_selected_preset": DEFAULT_STYLE_PRESET_KEY,
+            "design_custom_presets": {},
         }
 
     @classmethod
