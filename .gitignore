@@ -33,6 +33,10 @@ coverage.xml
 # OS files
 .DS_Store
 
+# Local git worktrees
+.worktrees/
+worktrees/
+
 # Tooling caches
 .ruff_cache/
 .pytest_cache/
