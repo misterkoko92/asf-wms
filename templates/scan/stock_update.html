@@ -26,8 +26,8 @@
         <a class="scan-submit secondary btn btn-secondary" href="{% url 'admin:wms_product_add' %}">Cr&eacute;er le produit dans la base</a>
       </div>
 
-      <div id="stock-update-fields">
-        <div class="scan-field">
+      <div id="stock-update-fields" class="scan-stock-update-main-row row g-3">
+        <div class="scan-field col-12 col-md-6 col-xl-3">
           <label class="form-label" for="id_quantity">Quantit&eacute;</label>
           {{ create_form.quantity }}
           {% for error in create_form.quantity.errors %}
@@ -35,7 +35,7 @@
           {% endfor %}
         </div>
 
-        <div class="scan-field">
+        <div class="scan-field col-12 col-md-6 col-xl-3">
           <label class="form-label" for="id_expires_on">Date p&eacute;remption</label>
           {{ create_form.expires_on }}
           {% for error in create_form.expires_on.errors %}
@@ -43,7 +43,7 @@
           {% endfor %}
         </div>
 
-        <div class="scan-field">
+        <div class="scan-field col-12 col-md-6 col-xl-3">
           <label class="form-label" for="id_lot_code">Numero de lot</label>
           {{ create_form.lot_code }}
           {% for error in create_form.lot_code.errors %}
@@ -51,38 +51,36 @@
           {% endfor %}
         </div>
 
-        <div class="scan-field">
+        <div class="scan-field col-12 col-md-6 col-xl-3">
           <label class="form-label" for="id_donor_contact">Donateur</label>
-          <div class="scan-inline">
-            {{ create_form.donor_contact }}
-            <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
-              Ajouter contact
-            </a>
-          </div>
+          {{ create_form.donor_contact }}
           {% for error in create_form.donor_contact.errors %}
             <div class="scan-message error">{{ error }}</div>
           {% endfor %}
         </div>
 
-        <div class="scan-divider"></div>
+        <div class="scan-filter-actions scan-stock-update-actions-inline col-12 d-flex flex-wrap flex-xl-nowrap gap-2 align-items-center">
+          <button type="submit" class="scan-submit btn btn-primary">Enregistrer</button>
+          <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+            Ajouter contact
+          </a>
+        </div>
 
-        <div class="scan-field">
+        <div class="scan-divider col-12"></div>
+
+        <div class="scan-field scan-stock-update-readonly-row col-12 col-md-4">
           <label class="form-label" for="id_brand_display">Marque</label>
           <input type="text" id="id_brand_display" readonly>
         </div>
 
-        <div class="scan-field">
+        <div class="scan-field scan-stock-update-readonly-row col-12 col-md-4">
           <label class="form-label" for="id_location_display">Emplacement</label>
           <input type="text" id="id_location_display" readonly>
         </div>
 
-        <div class="scan-field">
+        <div class="scan-field scan-stock-update-readonly-row col-12 col-md-4">
           <label class="form-label" for="id_warehouse_display">Entrep&ocirc;t</label>
           <input type="text" id="id_warehouse_display" readonly>
-        </div>
-
-        <div class="scan-field scan-field-gap">
-          <button type="submit" class="scan-submit btn btn-primary">Enregistrer</button>
         </div>
       </div>
     </form>

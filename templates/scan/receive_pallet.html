@@ -8,11 +8,11 @@
     {% if create_form.non_field_errors %}
       <div class="scan-message error">{{ create_form.non_field_errors }}</div>
     {% endif %}
-    <form method="post" novalidate class="scan-filters ui-comp-form">
+    <form method="post" novalidate class="scan-filters row g-3 ui-comp-form scan-receive-pallet-primary-row">
       {% csrf_token %}
       <input type="hidden" name="action" value="pallet_create">
 
-      <div class="scan-field">
+      <div class="scan-field col-12 col-md-6 col-xl-2">
         <label class="form-label" for="{{ create_form.received_on.id_for_label }}">Date r&eacute;ception</label>
         {{ create_form.received_on }}
         {% for error in create_form.received_on.errors %}
@@ -20,7 +20,7 @@
         {% endfor %}
       </div>
 
-      <div class="scan-field">
+      <div class="scan-field col-12 col-md-6 col-xl-2">
         <label class="form-label" for="{{ create_form.pallet_count.id_for_label }}">Nombre de palettes</label>
         {{ create_form.pallet_count }}
         {% for error in create_form.pallet_count.errors %}
@@ -28,33 +28,23 @@
         {% endfor %}
       </div>
 
-      <div class="scan-field">
+      <div class="scan-field col-12 col-md-6 col-xl-3">
         <label class="form-label" for="{{ create_form.source_contact.id_for_label }}">Donateur</label>
-        <div class="scan-inline">
-          {{ create_form.source_contact }}
-          <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
-            Ajouter donateur
-          </a>
-        </div>
+        {{ create_form.source_contact }}
         {% for error in create_form.source_contact.errors %}
           <div class="scan-message error">{{ error }}</div>
         {% endfor %}
       </div>
 
-      <div class="scan-field">
+      <div class="scan-field col-12 col-md-6 col-xl-3">
         <label class="form-label" for="{{ create_form.carrier_contact.id_for_label }}">Transporteur</label>
-        <div class="scan-inline">
-          {{ create_form.carrier_contact }}
-          <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
-            Ajouter transporteur
-          </a>
-        </div>
+        {{ create_form.carrier_contact }}
         {% for error in create_form.carrier_contact.errors %}
           <div class="scan-message error">{{ error }}</div>
         {% endfor %}
       </div>
 
-      <div class="scan-field">
+      <div class="scan-field col-12 col-md-6 col-xl-2">
         <label class="form-label" for="{{ create_form.transport_request_date.id_for_label }}">Date demande transport</label>
         {{ create_form.transport_request_date }}
         {% for error in create_form.transport_request_date.errors %}
@@ -62,8 +52,14 @@
         {% endfor %}
       </div>
 
-      <div class="scan-field scan-field-gap">
+      <div class="scan-filter-actions scan-receive-pallet-actions-inline col-12 d-flex flex-wrap flex-xl-nowrap gap-2 align-items-center">
         <button type="submit" class="scan-submit btn btn-primary">Enregistrer la r&eacute;ception palette</button>
+        <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+          Ajouter donateur
+        </a>
+        <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+          Ajouter transporteur
+        </a>
       </div>
     </form>
     <p class="scan-help">La r&eacute;f&eacute;rence est g&eacute;n&eacute;r&eacute;e automatiquement (format YY-XX-WWW-ZZ).</p>
