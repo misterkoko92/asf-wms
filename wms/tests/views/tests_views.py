@@ -38,6 +38,7 @@ from wms.models import (
     ShipmentStatus,
     ShipmentTrackingEvent,
     Warehouse,
+    WmsRuntimeSettings,
 )
 from wms.services import StockError
 
@@ -603,6 +604,71 @@ class ScanViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Liste picking - carton")
         self.assertContains(response, 'class="picking-table"')
+
+    def test_scan_carton_picking_applies_runtime_design_variables(self):
+        runtime = WmsRuntimeSettings.get_solo()
+        runtime.design_font_body = "Manrope"
+        runtime.design_color_text = "#1f2f3f"
+        runtime.design_color_text_soft = "#526273"
+        tokens = dict(runtime.design_tokens or {})
+        tokens.update(
+            {
+                "table_header_bg": "#dbe8f5",
+                "table_header_text": "#1f2f3f",
+                "table_border_color": "#9ab4cd",
+                "table_row_alt_bg": "#f1f7fd",
+            }
+        )
+        runtime.design_tokens = tokens
+        runtime.save()
+
+        carton = Carton.objects.create(code="C-PICK-2", status=CartonStatus.PICKING)
+        CartonItem.objects.create(
+            carton=carton,
+            product_lot=ProductLot.objects.first(),
+            quantity=2,
+        )
+
+        response = self.client.get(
+            reverse("scan:scan_carton_picking", kwargs={"carton_id": carton.id})
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "--wms-print-font-body: \"Manrope\", Arial, sans-serif;")
+        self.assertContains(response, "--wms-print-color-text: #1f2f3f;")
+        self.assertContains(response, "--wms-print-color-soft: #526273;")
+        self.assertContains(response, "--wms-print-table-header-bg: #dbe8f5;")
+        self.assertContains(response, "--wms-print-table-header-text: #1f2f3f;")
+        self.assertContains(response, "--wms-print-table-border: #9ab4cd;")
+        self.assertContains(response, "--wms-print-table-row-alt-bg: #f1f7fd;")
+
+    def test_scan_prepare_kits_picking_applies_runtime_design_variables(self):
+        runtime = WmsRuntimeSettings.get_solo()
+        runtime.design_color_surface = "#fdf7ef"
+        tokens = dict(runtime.design_tokens or {})
+        tokens.update(
+            {
+                "color_surface_alt": "#eef7f3",
+                "card_border_color": "#abc8bc",
+            }
+        )
+        runtime.design_tokens = tokens
+        runtime.save()
+
+        carton = Carton.objects.create(code="KIT-PICK-2", status=CartonStatus.PICKING)
+        CartonItem.objects.create(
+            carton=carton,
+            product_lot=ProductLot.objects.first(),
+            quantity=3,
+        )
+
+        response = self.client.get(
+            reverse("scan:scan_prepare_kits_picking"),
+            {"carton_ids": str(carton.id)},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "--wms-print-color-surface: #fdf7ef;")
+        self.assertContains(response, "--wms-print-picking-sheet-bg: #eef7f3;")
+        self.assertContains(response, "--wms-print-picking-sheet-border: #abc8bc;")
 
     def test_scan_pack_prefills_shipment_reference_from_querystring(self):
         response = self.client.get(

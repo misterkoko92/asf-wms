@@ -6,10 +6,46 @@
   <title>{% block title %}Document{% endblock %}</title>
   <style>
     @page { size: A5; margin: 10mm; }
-    body { font-family: Arial, sans-serif; font-size: 11pt; color: #000; margin: 0; }
-    h1 { font-size: 16pt; margin: 0 0 6mm 0; }
-    h2 { font-size: 12pt; margin: 4mm 0; }
-    .meta { font-size: 10pt; color: #444; }
+    :root {
+      --wms-print-font-body: Arial, sans-serif;
+      --wms-print-font-heading: Arial, sans-serif;
+      --wms-print-color-text: #000;
+      --wms-print-color-soft: #444;
+      --wms-print-color-surface: #fff;
+      --wms-print-color-border: #000;
+      --wms-print-table-border: #000;
+      --wms-print-table-header-bg: #f2f2f2;
+      --wms-print-table-header-text: #000;
+      --wms-print-table-row-alt-bg: #fff;
+      --wms-print-picking-sheet-bg: #f8faf9;
+      --wms-print-picking-sheet-border: #d9e2dd;
+      --wms-print-picking-meta-bg: #fff;
+      --wms-print-picking-meta-border: #cfd9d3;
+      --wms-print-picking-meta-text: #2f4a3d;
+    }
+    {% if wms_design_tokens %}
+      :root {
+        --wms-print-font-body: "{{ wms_design_tokens.font_body|default:'Nunito Sans' }}", Arial, sans-serif;
+        --wms-print-font-heading: "{{ wms_design_tokens.font_h2|default:'DM Sans' }}", Arial, sans-serif;
+        --wms-print-color-text: {{ wms_design_tokens.color_text }};
+        --wms-print-color-soft: {{ wms_design_tokens.color_text_soft }};
+        --wms-print-color-surface: {{ wms_design_tokens.color_surface }};
+        --wms-print-color-border: {{ wms_design_tokens.color_border }};
+        --wms-print-table-border: {{ wms_design_tokens.table_border_color }};
+        --wms-print-table-header-bg: {{ wms_design_tokens.table_header_bg }};
+        --wms-print-table-header-text: {{ wms_design_tokens.table_header_text }};
+        --wms-print-table-row-alt-bg: {{ wms_design_tokens.table_row_alt_bg }};
+        --wms-print-picking-sheet-bg: {{ wms_design_tokens.color_surface_alt }};
+        --wms-print-picking-sheet-border: {{ wms_design_tokens.card_border_color }};
+        --wms-print-picking-meta-bg: {{ wms_design_tokens.color_surface }};
+        --wms-print-picking-meta-border: {{ wms_design_tokens.color_border }};
+        --wms-print-picking-meta-text: {{ wms_design_tokens.color_text }};
+      }
+    {% endif %}
+    body { font-family: var(--wms-print-font-body); font-size: 11pt; color: var(--wms-print-color-text); margin: 0; }
+    h1 { font-family: var(--wms-print-font-heading); font-size: 16pt; margin: 0 0 6mm 0; }
+    h2 { font-family: var(--wms-print-font-heading); font-size: 12pt; margin: 4mm 0; }
+    .meta { font-size: 10pt; color: var(--wms-print-color-soft); }
     .block { margin: 5mm 0; }
     .print-header { display: flex; align-items: flex-start; justify-content: flex-start; margin-bottom: 6mm; }
     .print-logo { height: 18mm; }
@@ -20,11 +56,12 @@
       right: 10mm;
       bottom: 10mm;
       font-size: 8.5pt;
-      color: #444;
+      color: var(--wms-print-color-soft);
       line-height: 1.25;
     }
-    table { width: 100%; border-collapse: collapse; margin-top: 3mm; }
-    th, td { border: 1px solid #000; padding: 3px; font-size: 10pt; }
+    table { width: 100%; border-collapse: collapse; margin-top: 3mm; background: var(--wms-print-color-surface); }
+    th, td { border: 1px solid var(--wms-print-table-border); padding: 3px; font-size: 10pt; color: var(--wms-print-color-text); }
+    th { background: var(--wms-print-table-header-bg); color: var(--wms-print-table-header-text); }
     .signature { margin-top: 10mm; }
     {% block extra_style %}{% endblock %}
   </style>

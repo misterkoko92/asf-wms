@@ -5,10 +5,10 @@
 {% block extra_style %}
   .print-body { padding-bottom: 0; }
   .picking-sheet {
-    border: 1px solid #d9e2dd;
+    border: 1px solid var(--wms-print-picking-sheet-border);
     border-radius: 4mm;
     padding: 4mm 4.5mm 3.5mm;
-    background: #f8faf9;
+    background: var(--wms-print-picking-sheet-bg);
   }
   .picking-head {
     display: flex;
@@ -23,34 +23,34 @@
   .picking-meta {
     margin: 0;
     padding: 1.5mm 2.5mm;
-    border: 1px solid #cfd9d3;
+    border: 1px solid var(--wms-print-picking-meta-border);
     border-radius: 3mm;
-    background: #fff;
+    background: var(--wms-print-picking-meta-bg);
     font-size: 9.5pt;
-    color: #2f4a3d;
+    color: var(--wms-print-picking-meta-text);
   }
   .picking-table {
     width: 100%;
     border-collapse: collapse;
     margin-top: 2mm;
-    background: #fff;
+    background: var(--wms-print-color-surface);
   }
   .picking-table th,
   .picking-table td {
-    border: 1px solid #b7c8be;
+    border: 1px solid var(--wms-print-table-border);
     padding: 2.2mm 2mm;
     font-size: 9.5pt;
     vertical-align: top;
   }
   .picking-table th {
-    background: #e5eee9;
-    color: #21372d;
+    background: var(--wms-print-table-header-bg);
+    color: var(--wms-print-table-header-text);
     text-transform: uppercase;
     letter-spacing: 0.02em;
     font-size: 8.7pt;
   }
   .picking-table tbody tr:nth-child(even) {
-    background: #f8fbf9;
+    background: var(--wms-print-table-row-alt-bg);
   }
 {% endblock %}
 
