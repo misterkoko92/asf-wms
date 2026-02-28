@@ -86,6 +86,16 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "row g-3")
         self.assertContains(response, "table table-sm table-hover")
         self.assertContains(response, 'data-table-tools="1"')
+        self.assertContains(response, "form-check form-switch")
+        self.assertContains(response, "id_include_zero")
+        self.assertContains(response, "Inclure les produits avec stock")
+
+    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
+    def test_scan_bootstrap_nav_uses_title_case_for_state_pages(self):
+        response = self.client.get(reverse("scan:scan_stock"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Vue Stock")
+        self.assertContains(response, "Vue R&eacute;ception")
 
     @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_shipment_create_uses_bootstrap_and_preserves_js_hooks(self):
@@ -179,6 +189,12 @@ class ScanBootstrapUiTests(TestCase):
                     self.assertContains(response, marker)
 
     @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
+    def test_scan_shipments_tracking_week_filter_uses_extended_input_class(self):
+        response = self.client.get(reverse("scan:scan_shipments_tracking"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "scan-week-input")
+
+    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_superuser_admin_pages_use_design_component_classes(self):
         self.client.force_login(self.superuser)
         expectations = {
@@ -232,6 +248,12 @@ class ScanBootstrapUiTests(TestCase):
                 self.assertContains(response, "ui-comp-card")
                 self.assertContains(response, "ui-comp-title")
                 self.assertContains(response, "ui-comp-form")
+                if route_name == "scan:scan_pack":
+                    self.assertContains(response, "form-check form-switch")
+                    self.assertContains(
+                        response,
+                        "Autoriser l'ajout avec valeurs standard",
+                    )
 
     @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_receive_page_uses_design_component_classes(self):
@@ -248,6 +270,10 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "ui-comp-card")
         self.assertContains(response, "ui-comp-title")
         self.assertContains(response, "ui-comp-form")
+        self.assertContains(response, "form-check form-check-inline")
+        self.assertContains(response, "id_listing_file_type_pdf")
+        self.assertContains(response, "id_listing_file_type_excel")
+        self.assertContains(response, "id_listing_file_type_csv")
 
     @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_receive_association_page_uses_design_component_classes(self):

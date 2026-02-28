@@ -126,6 +126,147 @@ class ScanAdminViewTests(TestCase):
         self.assertContains(response, self.correspondent.name)
         self.assertContains(response, self.destination.city)
 
+    def test_scan_admin_contacts_filters_by_contact_type(self):
+        self.client.force_login(self.superuser)
+        person = Contact.objects.create(
+            name="Personne Contact",
+            contact_type="person",
+            is_active=True,
+        )
+        org = Contact.objects.create(
+            name="Organisation Contact",
+            contact_type="organization",
+            is_active=True,
+        )
+
+        response = self.client.get(
+            reverse("scan:scan_admin_contacts"),
+            {"contact_type": "person"},
+        )
+        self.assertEqual(response.status_code, 200)
+        rendered_contact_names = [contact.name for contact in response.context["contacts"]]
+        self.assertIn(person.name, rendered_contact_names)
+        self.assertNotIn(org.name, rendered_contact_names)
+
+    def test_scan_admin_contacts_can_create_update_and_delete_contact_in_page(self):
+        self.client.force_login(self.superuser)
+        shipper_tag = ContactTag.objects.create(name="Expediteur")
+        donor_tag = ContactTag.objects.create(name="Donateur")
+        shipper = Contact.objects.create(name="Shipper Link", is_active=True)
+        shipper.tags.add(shipper_tag)
+
+        create_response = self.client.post(
+            reverse("scan:scan_admin_contacts"),
+            {
+                "action": "create_contact",
+                "q": "",
+                "contact_type": "all",
+                "create-contact_type": "organization",
+                "create-name": "Contact Scan",
+                "create-title": "",
+                "create-first_name": "",
+                "create-last_name": "",
+                "create-organization": "",
+                "create-role": "Coordination",
+                "create-email": "scan-contact@example.com",
+                "create-email2": "",
+                "create-phone": "0102030405",
+                "create-phone2": "",
+                "create-siret": "",
+                "create-vat_number": "",
+                "create-legal_registration_number": "",
+                "create-use_organization_address": "",
+                "create-notes": "Note initiale",
+                "create-is_active": "on",
+                "create-tag_ids": [str(self.correspondent_tag.id), str(donor_tag.id)],
+                "create-destination_ids": [str(self.destination.id)],
+                "create-linked_shipper_ids": [str(shipper.id)],
+                "create-address_label": "Siège",
+                "create-address_line1": "1 Rue du Test",
+                "create-address_line2": "",
+                "create-address_postal_code": "75001",
+                "create-address_city": "Paris",
+                "create-address_region": "",
+                "create-address_country": "France",
+                "create-address_phone": "",
+                "create-address_email": "",
+                "create-remove_default_address": "",
+            },
+        )
+        self.assertEqual(create_response.status_code, 302)
+
+        created = Contact.objects.get(name="Contact Scan")
+        self.assertEqual(created.email, "scan-contact@example.com")
+        self.assertEqual(created.phone, "0102030405")
+        self.assertEqual(created.role, "Coordination")
+        self.assertTrue(created.tags.filter(pk=self.correspondent_tag.id).exists())
+        self.assertTrue(created.tags.filter(pk=donor_tag.id).exists())
+        self.assertTrue(created.destinations.filter(pk=self.destination.id).exists())
+        self.assertTrue(created.linked_shippers.filter(pk=shipper.id).exists())
+        self.assertEqual(created.addresses.count(), 1)
+        self.assertEqual(created.addresses.first().city, "Paris")
+
+        update_response = self.client.post(
+            reverse("scan:scan_admin_contacts"),
+            {
+                "action": "update_contact",
+                "q": "",
+                "contact_type": "all",
+                "contact_id": str(created.id),
+                "edit-contact_type": "organization",
+                "edit-name": "Contact Scan Modifié",
+                "edit-title": "",
+                "edit-first_name": "",
+                "edit-last_name": "",
+                "edit-organization": "",
+                "edit-role": "Logistique",
+                "edit-email": "updated-contact@example.com",
+                "edit-email2": "",
+                "edit-phone": "0607080910",
+                "edit-phone2": "",
+                "edit-siret": "",
+                "edit-vat_number": "",
+                "edit-legal_registration_number": "",
+                "edit-use_organization_address": "",
+                "edit-notes": "Note modifiée",
+                "edit-is_active": "on",
+                "edit-tag_ids": [str(self.correspondent_tag.id)],
+                "edit-destination_ids": [str(self.destination.id)],
+                "edit-linked_shipper_ids": [str(shipper.id)],
+                "edit-address_label": "Entrepôt",
+                "edit-address_line1": "2 Rue du Test",
+                "edit-address_line2": "",
+                "edit-address_postal_code": "69000",
+                "edit-address_city": "Lyon",
+                "edit-address_region": "",
+                "edit-address_country": "France",
+                "edit-address_phone": "",
+                "edit-address_email": "",
+                "edit-remove_default_address": "",
+            },
+        )
+        self.assertEqual(update_response.status_code, 302)
+
+        created.refresh_from_db()
+        self.assertEqual(created.name, "Contact Scan Modifié")
+        self.assertEqual(created.email, "updated-contact@example.com")
+        self.assertEqual(created.phone, "0607080910")
+        self.assertEqual(created.role, "Logistique")
+        self.assertEqual(created.addresses.count(), 1)
+        self.assertEqual(created.addresses.first().city, "Lyon")
+
+        delete_response = self.client.post(
+            reverse("scan:scan_admin_contacts"),
+            {
+                "action": "delete_contact",
+                "q": "",
+                "contact_type": "all",
+                "contact_id": str(created.id),
+            },
+        )
+        self.assertEqual(delete_response.status_code, 302)
+        self.assertFalse(Contact.objects.filter(pk=created.id).exists())
+
     def test_scan_admin_products_renders_kit_rows_and_admin_links(self):
         self.client.force_login(self.superuser)
         response = self.client.get(reverse("scan:scan_admin_products"))

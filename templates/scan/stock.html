@@ -51,18 +51,20 @@
           <option value="qty_desc" {% if sort == "qty_desc" %}selected{% endif %}>Stock d&eacute;croissant</option>
         </select>
       </div>
-      <div class="scan-field col-12 col-md-6 col-xl-3">
-        <label class="form-label" for="id_include_zero" class="form-check-label">
+      <div class="scan-field col-12 col-md-6 col-xl-3 d-flex flex-column justify-content-end">
+        <div class="form-check form-switch mt-2">
           <input
             type="checkbox"
             id="id_include_zero"
             name="include_zero"
             value="1"
-            class="form-check-input me-2"
+            class="form-check-input"
             {% if include_zero %}checked{% endif %}
           >
-          Inclure les produits avec stock &agrave; 0
-        </label>
+          <label class="form-check-label" for="id_include_zero">
+            Inclure les produits avec stock &agrave; 0
+          </label>
+        </div>
       </div>
 
       <div class="scan-filter-actions col-12 d-flex flex-wrap gap-2 align-items-center ui-comp-actions">

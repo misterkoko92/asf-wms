@@ -568,6 +568,27 @@ body.scan-bootstrap-enabled {
   row-gap: var(--wms-field-gap);
 }
 
+.scan-bootstrap-enabled .scan-filters.row {
+  display: flex;
+  margin-left: calc(-0.5 * var(--bs-gutter-x, 1.5rem));
+  margin-right: calc(-0.5 * var(--bs-gutter-x, 1.5rem));
+  row-gap: var(--wms-field-gap);
+}
+
+.scan-bootstrap-enabled .scan-filters.row > [class*="col-"] {
+  display: flex;
+  flex-direction: column;
+}
+
+.scan-bootstrap-enabled .scan-filters.row .scan-field {
+  margin-bottom: 0;
+  width: 100%;
+}
+
+.scan-bootstrap-enabled .scan-filters.row .scan-filter-actions {
+  margin-top: 0.15rem;
+}
+
 .scan-bootstrap-enabled .ui-comp-panel {
   border: 1px solid var(--scan-boot-border-strong);
   border-radius: 0.78rem;
@@ -584,6 +605,39 @@ body.scan-bootstrap-enabled {
 .scan-bootstrap-enabled .ui-comp-actions {
   border-top: 0;
   padding-top: 0;
+}
+
+.scan-bootstrap-enabled .form-check.form-switch .form-check-input {
+  cursor: pointer;
+}
+
+.scan-bootstrap-enabled .form-check.form-switch .form-check-label {
+  font-size: 0.92rem;
+  color: var(--ds-text);
+  letter-spacing: 0.005em;
+  text-transform: none;
+}
+
+.scan-bootstrap-enabled .scan-radio-inline-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+}
+
+.scan-bootstrap-enabled .scan-radio-inline-group .form-check {
+  margin-bottom: 0;
+  min-height: auto;
+}
+
+.scan-bootstrap-enabled .scan-week-input {
+  min-width: 15.5rem;
+  width: 100%;
+  max-width: 100%;
+}
+
+.scan-bootstrap-enabled .scan-contact-form select[multiple] {
+  min-height: 10rem;
 }
 
 .scan-bootstrap-enabled .ui-comp-toolbar {

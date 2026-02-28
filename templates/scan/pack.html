@@ -132,15 +132,19 @@
         </div>
       {% endif %}
       <div class="scan-field">
-        <label class="scan-switch-row">
-          <input type="checkbox" name="confirm_defaults" value="1" {% if confirm_defaults %}checked{% endif %}>
-          <span class="scan-switch" aria-hidden="true">
-            <span class="scan-switch-icon scan-switch-icon-off">x</span>
-            <span class="scan-switch-icon scan-switch-icon-on">OK</span>
-            <span class="scan-switch-knob"></span>
-          </span>
-          <span class="scan-switch-text">Valider les ajouts avec dimensions/poids par d&eacute;faut si n&eacute;cessaire.</span>
-        </label>
+        <div class="form-check form-switch">
+          <input
+            type="checkbox"
+            id="id_confirm_defaults"
+            name="confirm_defaults"
+            value="1"
+            class="form-check-input"
+            {% if confirm_defaults %}checked{% endif %}
+          >
+          <label class="form-check-label" for="id_confirm_defaults">
+            Autoriser l'ajout avec valeurs standard (1 x 1 x 1 cm et 5 g) pour les produits sans dimensions/poids.
+          </label>
+        </div>
       </div>
 
       <button type="submit" class="scan-submit btn btn-primary">Pr&eacute;parer</button>

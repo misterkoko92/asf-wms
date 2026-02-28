@@ -38,6 +38,17 @@
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Contacts (gestion dans la page)</h2>
+    <ul>
+      <li>La page <strong>Admin &gt; Contacts</strong> permet maintenant de g&eacute;rer les contacts sans passer par l'admin Django.</li>
+      <li>Le filtre principal est le <strong>type de contact</strong> (Organisation / Personne), avec recherche par nom, email, t&eacute;l&eacute;phone, ASF ID.</li>
+      <li>Vous pouvez cr&eacute;er, modifier et supprimer un contact depuis cette page.</li>
+      <li>Les champs m&eacute;tier sont modifiables: tags, destinations, exp&eacute;diteurs li&eacute;s, statut actif.</li>
+      <li>L'adresse principale est modifiable directement dans le formulaire de contact.</li>
+    </ul>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card">
     <h2 class="ui-comp-title">Donn&eacute;es de r&eacute;f&eacute;rence</h2>
     <p>Avant utilisation, vérifier ces données dans l'admin :</p>
     <ul>
@@ -60,6 +71,7 @@
     <ul>
       <li>Recherche multi-cl&eacute;s : nom, SKU, barcode, EAN.</li>
       <li>Filtres : catégorie, entrepôt. Tri : catégorie, nom, référence, stock.</li>
+      <li>Le switch <strong>Inclure les produits avec stock &agrave; 0</strong> permet d'afficher aussi les produits sans stock disponible.</li>
       <li>Le stock affiche correspond aux lots disponibles.</li>
       <li>La colonne <strong>Derni&egrave;re modification</strong> suit les mouvements de stock.</li>
       <li>Dans les pages <strong>Vue...</strong>, chaque en-t&ecirc;te de colonne est triable et filtrable.</li>
@@ -92,6 +104,7 @@
       <li>Choisir un format de carton (ou personnaliser les dimensions).</li>
       <li>Ajouter une ou plusieurs lignes produit + quantit&eacute; (scan possible).</li>
       <li>Le syst&egrave;me peut cr&eacute;er plusieurs cartons selon la capacit&eacute; (poids/volume).</li>
+      <li>Si un produit n'a pas de dimensions/poids, activez le switch d'autorisation pour appliquer les valeurs standard (1 x 1 x 1 cm et 5 g).</li>
       <li>Optionnel : r&eacute;f&eacute;rence exp&eacute;dition pour affecter directement les cartons.</li>
       <li>Optionnel : emplacement courant pour tracer le stockage temporaire.</li>
     </ul>

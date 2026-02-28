@@ -147,34 +147,40 @@
         </div>
         <div class="scan-field">
           <label class="form-label">Type de fichier</label>
-          <div class="scan-inline" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
-            <label class="form-label">
+          <div class="scan-radio-inline-group">
+            <div class="form-check form-check-inline">
               <input
                 type="radio"
+                id="id_listing_file_type_pdf"
                 name="listing_file_type"
                 value="pdf"
+                class="form-check-input"
                 {% if listing_file_type == "pdf" %}checked{% endif %}
               >
-              PDF
-            </label>
-            <label class="form-label">
+              <label class="form-check-label" for="id_listing_file_type_pdf">PDF</label>
+            </div>
+            <div class="form-check form-check-inline">
               <input
                 type="radio"
+                id="id_listing_file_type_excel"
                 name="listing_file_type"
                 value="excel"
+                class="form-check-input"
                 {% if listing_file_type == "excel" %}checked{% endif %}
               >
-              Excel
-            </label>
-            <label class="form-label">
+              <label class="form-check-label" for="id_listing_file_type_excel">Excel</label>
+            </div>
+            <div class="form-check form-check-inline">
               <input
                 type="radio"
+                id="id_listing_file_type_csv"
                 name="listing_file_type"
                 value="csv"
+                class="form-check-input"
                 {% if listing_file_type == "csv" %}checked{% endif %}
               >
-              CSV
-            </label>
+              <label class="form-check-label" for="id_listing_file_type_csv">CSV</label>
+            </div>
           </div>
         </div>
       </div>
@@ -184,25 +190,29 @@
         {% if listing_pdf_total_pages %}
           <div class="scan-help">Pages totales: {{ listing_pdf_total_pages }}</div>
         {% endif %}
-        <div class="scan-inline scan-inline-equal">
-          <label class="form-label">
+        <div class="scan-radio-inline-group">
+          <div class="form-check form-check-inline">
             <input
               type="radio"
+              id="id_listing_pdf_pages_mode_all"
               name="listing_pdf_pages_mode"
               value="all"
+              class="form-check-input"
               {% if listing_pdf_pages_mode != "custom" %}checked{% endif %}
             >
-            Toutes les pages
-          </label>
-          <label class="form-label">
+            <label class="form-check-label" for="id_listing_pdf_pages_mode_all">Toutes les pages</label>
+          </div>
+          <div class="form-check form-check-inline">
             <input
               type="radio"
+              id="id_listing_pdf_pages_mode_custom"
               name="listing_pdf_pages_mode"
               value="custom"
+              class="form-check-input"
               {% if listing_pdf_pages_mode == "custom" %}checked{% endif %}
             >
-            Personnalisé
-          </label>
+            <label class="form-check-label" for="id_listing_pdf_pages_mode_custom">Personnalisé</label>
+          </div>
         </div>
         <div class="scan-inline scan-inline-equal scan-inline-gap">
           <div>

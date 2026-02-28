@@ -6,108 +6,453 @@
   <div class="scan-card card border-0 ui-comp-card">
     <h2 class="ui-comp-title">Admin - Contacts</h2>
     <p class="scan-help ui-comp-note">
-      Cette page est r&eacute;serv&eacute;e aux superusers. Les actions ci-dessous ouvrent les formulaires
-      admin complets (modification des infos, tags, destinations, correspondants, adresses, etc.).
+      Gestion des contacts directement dans l'interface Scan (création, modification, suppression, tags, destinations et adresse principale).
     </p>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
-    <form method="get" class="scan-filters ui-comp-form">
-      <div class="scan-inline">
-        <div class="scan-field">
-          <label class="form-label" for="scan-admin-contacts-q">Recherche</label>
-          <input id="scan-admin-contacts-q" type="text" name="q" value="{{ query }}" placeholder="Nom, email, t&eacute;l&eacute;phone, ASF ID">
-        </div>
+    <form method="get" class="scan-filters row g-3 ui-comp-form">
+      <div class="scan-field col-12 col-md-5">
+        <label class="form-label" for="scan-admin-contacts-q">Recherche</label>
+        <input
+          id="scan-admin-contacts-q"
+          type="text"
+          name="q"
+          value="{{ query }}"
+          class="form-control"
+          placeholder="Nom, email, téléphone, ASF ID"
+        >
       </div>
-      <div class="scan-filter-actions">
-        <button type="submit">Filtrer</button>
-        <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'scan:scan_admin_contacts' %}">R&eacute;initialiser</a>
+      <div class="scan-field col-12 col-md-4">
+        <label class="form-label" for="scan-admin-contacts-type">Filtre principal: type de contact</label>
+        <select id="scan-admin-contacts-type" name="contact_type" class="form-select">
+          {% for value, label in contact_filter_choices %}
+            <option value="{{ value }}" {% if contact_filter == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="scan-filter-actions col-12 col-md-3 d-flex flex-wrap gap-2 align-items-end">
+        <button type="submit" class="scan-submit scan-submit-inline btn btn-primary">Filtrer</button>
+        <a class="btn btn-outline-secondary" href="{% url 'scan:scan_admin_contacts' %}">Réinitialiser</a>
       </div>
     </form>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
+    <h3 class="ui-comp-title h5 mb-3">Créer un contact</h3>
+    {% if create_form.non_field_errors %}
+      <div class="scan-message error">{{ create_form.non_field_errors|join:", " }}</div>
+    {% endif %}
+    <form method="post" class="scan-filters row g-3 ui-comp-form scan-contact-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="create_contact">
+      <input type="hidden" name="q" value="{{ query }}">
+      <input type="hidden" name="contact_type" value="{{ contact_filter }}">
+
+      <div class="scan-field col-12 col-md-4">
+        <label class="form-label" for="{{ create_form.contact_type.id_for_label }}">Type de contact</label>
+        {{ create_form.contact_type }}
+      </div>
+      <div class="scan-field col-12 col-md-4">
+        <label class="form-label" for="{{ create_form.name.id_for_label }}">Nom</label>
+        {{ create_form.name }}
+      </div>
+      <div class="scan-field col-12 col-md-4">
+        <label class="form-label" for="{{ create_form.role.id_for_label }}">Rôle</label>
+        {{ create_form.role }}
+      </div>
+
+      <div class="scan-field col-12 col-md-3">
+        <label class="form-label" for="{{ create_form.title.id_for_label }}">Civilité</label>
+        {{ create_form.title }}
+      </div>
+      <div class="scan-field col-12 col-md-3">
+        <label class="form-label" for="{{ create_form.first_name.id_for_label }}">Prénom</label>
+        {{ create_form.first_name }}
+      </div>
+      <div class="scan-field col-12 col-md-3">
+        <label class="form-label" for="{{ create_form.last_name.id_for_label }}">Nom de famille</label>
+        {{ create_form.last_name }}
+      </div>
+      <div class="scan-field col-12 col-md-3">
+        <label class="form-label" for="{{ create_form.organization.id_for_label }}">Organisation</label>
+        {{ create_form.organization }}
+      </div>
+
+      <div class="scan-field col-12 col-md-4">
+        <label class="form-label" for="{{ create_form.email.id_for_label }}">Email</label>
+        {{ create_form.email }}
+      </div>
+      <div class="scan-field col-12 col-md-4">
+        <label class="form-label" for="{{ create_form.email2.id_for_label }}">Email secondaire</label>
+        {{ create_form.email2 }}
+      </div>
+      <div class="scan-field col-12 col-md-4">
+        <label class="form-label" for="{{ create_form.phone.id_for_label }}">Téléphone</label>
+        {{ create_form.phone }}
+      </div>
+
+      <div class="scan-field col-12 col-md-4">
+        <label class="form-label" for="{{ create_form.phone2.id_for_label }}">Téléphone secondaire</label>
+        {{ create_form.phone2 }}
+      </div>
+      <div class="scan-field col-12 col-md-4">
+        <label class="form-label" for="{{ create_form.siret.id_for_label }}">SIRET</label>
+        {{ create_form.siret }}
+      </div>
+      <div class="scan-field col-12 col-md-4">
+        <label class="form-label" for="{{ create_form.vat_number.id_for_label }}">TVA</label>
+        {{ create_form.vat_number }}
+      </div>
+
+      <div class="scan-field col-12 col-md-4">
+        <label class="form-label" for="{{ create_form.legal_registration_number.id_for_label }}">N° enregistrement légal</label>
+        {{ create_form.legal_registration_number }}
+      </div>
+      <div class="scan-field col-12 col-md-4">
+        <label class="form-label" for="{{ create_form.tag_ids.id_for_label }}">Tags</label>
+        {{ create_form.tag_ids }}
+      </div>
+      <div class="scan-field col-12 col-md-4">
+        <label class="form-label" for="{{ create_form.destination_ids.id_for_label }}">Destinations</label>
+        {{ create_form.destination_ids }}
+      </div>
+
+      <div class="scan-field col-12">
+        <label class="form-label" for="{{ create_form.linked_shipper_ids.id_for_label }}">Expéditeurs liés</label>
+        {{ create_form.linked_shipper_ids }}
+      </div>
+
+      <div class="scan-field col-12">
+        <label class="form-label" for="{{ create_form.notes.id_for_label }}">Notes</label>
+        {{ create_form.notes }}
+      </div>
+
+      <div class="scan-field col-12 col-md-4">
+        <div class="form-check form-switch">
+          {{ create_form.use_organization_address }}
+          <label class="form-check-label" for="{{ create_form.use_organization_address.id_for_label }}">
+            Utiliser l'adresse de l'organisation
+          </label>
+        </div>
+      </div>
+      <div class="scan-field col-12 col-md-4">
+        <div class="form-check form-switch">
+          {{ create_form.is_active }}
+          <label class="form-check-label" for="{{ create_form.is_active.id_for_label }}">
+            Contact actif
+          </label>
+        </div>
+      </div>
+
+      <div class="scan-divider col-12"></div>
+      <div class="scan-field col-12 col-md-4">
+        <label class="form-label" for="{{ create_form.address_label.id_for_label }}">Libellé adresse</label>
+        {{ create_form.address_label }}
+      </div>
+      <div class="scan-field col-12 col-md-8">
+        <label class="form-label" for="{{ create_form.address_line1.id_for_label }}">Adresse ligne 1</label>
+        {{ create_form.address_line1 }}
+      </div>
+      <div class="scan-field col-12">
+        <label class="form-label" for="{{ create_form.address_line2.id_for_label }}">Adresse ligne 2</label>
+        {{ create_form.address_line2 }}
+      </div>
+      <div class="scan-field col-12 col-md-3">
+        <label class="form-label" for="{{ create_form.address_postal_code.id_for_label }}">Code postal</label>
+        {{ create_form.address_postal_code }}
+      </div>
+      <div class="scan-field col-12 col-md-3">
+        <label class="form-label" for="{{ create_form.address_city.id_for_label }}">Ville</label>
+        {{ create_form.address_city }}
+      </div>
+      <div class="scan-field col-12 col-md-3">
+        <label class="form-label" for="{{ create_form.address_region.id_for_label }}">Région</label>
+        {{ create_form.address_region }}
+      </div>
+      <div class="scan-field col-12 col-md-3">
+        <label class="form-label" for="{{ create_form.address_country.id_for_label }}">Pays</label>
+        {{ create_form.address_country }}
+      </div>
+      <div class="scan-field col-12 col-md-6">
+        <label class="form-label" for="{{ create_form.address_phone.id_for_label }}">Téléphone adresse</label>
+        {{ create_form.address_phone }}
+      </div>
+      <div class="scan-field col-12 col-md-6">
+        <label class="form-label" for="{{ create_form.address_email.id_for_label }}">Email adresse</label>
+        {{ create_form.address_email }}
+      </div>
+
+      {% if create_form.errors %}
+        <div class="scan-message error col-12">Merci de corriger les champs en erreur dans le formulaire de création.</div>
+      {% endif %}
+
+      <div class="scan-filter-actions col-12">
+        <button type="submit" class="scan-submit scan-submit-inline btn btn-primary">Créer le contact</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card">
+    <h3 class="ui-comp-title h5 mb-3">Contacts ({{ contacts|length }})</h3>
+    {% if contacts %}
+      <div class="scan-table-wrap table-responsive">
+        <table class="scan-table table table-sm table-hover" data-table-tools="1">
+          <thead>
+            <tr>
+              <th>Nom</th>
+              <th>Type</th>
+              <th>Tags</th>
+              <th>Email</th>
+              <th>Téléphone</th>
+              <th>Actif</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for contact in contacts %}
+              <tr>
+                <td>{{ contact.name }}</td>
+                <td>{{ contact.get_contact_type_display }}</td>
+                <td>
+                  {% for tag in contact.tags.all %}
+                    {{ tag.name }}{% if not forloop.last %}, {% endif %}
+                  {% empty %}
+                    -
+                  {% endfor %}
+                </td>
+                <td>{{ contact.email|default:"-" }}</td>
+                <td>{{ contact.phone|default:"-" }}</td>
+                <td>{% if contact.is_active %}Oui{% else %}Non{% endif %}</td>
+                <td>
+                  <div class="scan-inline-actions">
+                    <a
+                      class="scan-scan-btn btn btn-outline-primary"
+                      href="{% url 'scan:scan_admin_contacts' %}?q={{ query|urlencode }}&contact_type={{ contact_filter|urlencode }}&edit={{ contact.id }}"
+                    >
+                      Modifier ici
+                    </a>
+                    <form method="post" onsubmit="return confirm('Supprimer ce contact ?');">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="delete_contact">
+                      <input type="hidden" name="q" value="{{ query }}">
+                      <input type="hidden" name="contact_type" value="{{ contact_filter }}">
+                      <input type="hidden" name="contact_id" value="{{ contact.id }}">
+                      <button type="submit" class="scan-scan-btn btn btn-outline-danger">Supprimer</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="scan-help">Aucun contact trouvé.</p>
+    {% endif %}
+  </div>
+
+  {% if edit_form and edit_contact %}
+    <div class="scan-card card border-0 ui-comp-card">
+      <h3 class="ui-comp-title h5 mb-3">Modifier le contact: {{ edit_contact.name }}</h3>
+      {% if edit_form.non_field_errors %}
+        <div class="scan-message error">{{ edit_form.non_field_errors|join:", " }}</div>
+      {% endif %}
+      <form method="post" class="scan-filters row g-3 ui-comp-form scan-contact-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="update_contact">
+        <input type="hidden" name="q" value="{{ query }}">
+        <input type="hidden" name="contact_type" value="{{ contact_filter }}">
+        <input type="hidden" name="contact_id" value="{{ edit_contact.id }}">
+
+        <div class="scan-field col-12 col-md-4">
+          <label class="form-label" for="{{ edit_form.contact_type.id_for_label }}">Type de contact</label>
+          {{ edit_form.contact_type }}
+        </div>
+        <div class="scan-field col-12 col-md-4">
+          <label class="form-label" for="{{ edit_form.name.id_for_label }}">Nom</label>
+          {{ edit_form.name }}
+        </div>
+        <div class="scan-field col-12 col-md-4">
+          <label class="form-label" for="{{ edit_form.role.id_for_label }}">Rôle</label>
+          {{ edit_form.role }}
+        </div>
+
+        <div class="scan-field col-12 col-md-3">
+          <label class="form-label" for="{{ edit_form.title.id_for_label }}">Civilité</label>
+          {{ edit_form.title }}
+        </div>
+        <div class="scan-field col-12 col-md-3">
+          <label class="form-label" for="{{ edit_form.first_name.id_for_label }}">Prénom</label>
+          {{ edit_form.first_name }}
+        </div>
+        <div class="scan-field col-12 col-md-3">
+          <label class="form-label" for="{{ edit_form.last_name.id_for_label }}">Nom de famille</label>
+          {{ edit_form.last_name }}
+        </div>
+        <div class="scan-field col-12 col-md-3">
+          <label class="form-label" for="{{ edit_form.organization.id_for_label }}">Organisation</label>
+          {{ edit_form.organization }}
+        </div>
+
+        <div class="scan-field col-12 col-md-4">
+          <label class="form-label" for="{{ edit_form.email.id_for_label }}">Email</label>
+          {{ edit_form.email }}
+        </div>
+        <div class="scan-field col-12 col-md-4">
+          <label class="form-label" for="{{ edit_form.email2.id_for_label }}">Email secondaire</label>
+          {{ edit_form.email2 }}
+        </div>
+        <div class="scan-field col-12 col-md-4">
+          <label class="form-label" for="{{ edit_form.phone.id_for_label }}">Téléphone</label>
+          {{ edit_form.phone }}
+        </div>
+
+        <div class="scan-field col-12 col-md-4">
+          <label class="form-label" for="{{ edit_form.phone2.id_for_label }}">Téléphone secondaire</label>
+          {{ edit_form.phone2 }}
+        </div>
+        <div class="scan-field col-12 col-md-4">
+          <label class="form-label" for="{{ edit_form.siret.id_for_label }}">SIRET</label>
+          {{ edit_form.siret }}
+        </div>
+        <div class="scan-field col-12 col-md-4">
+          <label class="form-label" for="{{ edit_form.vat_number.id_for_label }}">TVA</label>
+          {{ edit_form.vat_number }}
+        </div>
+
+        <div class="scan-field col-12 col-md-4">
+          <label class="form-label" for="{{ edit_form.legal_registration_number.id_for_label }}">N° enregistrement légal</label>
+          {{ edit_form.legal_registration_number }}
+        </div>
+        <div class="scan-field col-12 col-md-4">
+          <label class="form-label" for="{{ edit_form.tag_ids.id_for_label }}">Tags</label>
+          {{ edit_form.tag_ids }}
+        </div>
+        <div class="scan-field col-12 col-md-4">
+          <label class="form-label" for="{{ edit_form.destination_ids.id_for_label }}">Destinations</label>
+          {{ edit_form.destination_ids }}
+        </div>
+
+        <div class="scan-field col-12">
+          <label class="form-label" for="{{ edit_form.linked_shipper_ids.id_for_label }}">Expéditeurs liés</label>
+          {{ edit_form.linked_shipper_ids }}
+        </div>
+
+        <div class="scan-field col-12">
+          <label class="form-label" for="{{ edit_form.notes.id_for_label }}">Notes</label>
+          {{ edit_form.notes }}
+        </div>
+
+        <div class="scan-field col-12 col-md-4">
+          <div class="form-check form-switch">
+            {{ edit_form.use_organization_address }}
+            <label class="form-check-label" for="{{ edit_form.use_organization_address.id_for_label }}">
+              Utiliser l'adresse de l'organisation
+            </label>
+          </div>
+        </div>
+        <div class="scan-field col-12 col-md-4">
+          <div class="form-check form-switch">
+            {{ edit_form.is_active }}
+            <label class="form-check-label" for="{{ edit_form.is_active.id_for_label }}">
+              Contact actif
+            </label>
+          </div>
+        </div>
+
+        <div class="scan-divider col-12"></div>
+        <div class="scan-field col-12 col-md-4">
+          <label class="form-label" for="{{ edit_form.address_label.id_for_label }}">Libellé adresse</label>
+          {{ edit_form.address_label }}
+        </div>
+        <div class="scan-field col-12 col-md-8">
+          <label class="form-label" for="{{ edit_form.address_line1.id_for_label }}">Adresse ligne 1</label>
+          {{ edit_form.address_line1 }}
+        </div>
+        <div class="scan-field col-12">
+          <label class="form-label" for="{{ edit_form.address_line2.id_for_label }}">Adresse ligne 2</label>
+          {{ edit_form.address_line2 }}
+        </div>
+        <div class="scan-field col-12 col-md-3">
+          <label class="form-label" for="{{ edit_form.address_postal_code.id_for_label }}">Code postal</label>
+          {{ edit_form.address_postal_code }}
+        </div>
+        <div class="scan-field col-12 col-md-3">
+          <label class="form-label" for="{{ edit_form.address_city.id_for_label }}">Ville</label>
+          {{ edit_form.address_city }}
+        </div>
+        <div class="scan-field col-12 col-md-3">
+          <label class="form-label" for="{{ edit_form.address_region.id_for_label }}">Région</label>
+          {{ edit_form.address_region }}
+        </div>
+        <div class="scan-field col-12 col-md-3">
+          <label class="form-label" for="{{ edit_form.address_country.id_for_label }}">Pays</label>
+          {{ edit_form.address_country }}
+        </div>
+        <div class="scan-field col-12 col-md-6">
+          <label class="form-label" for="{{ edit_form.address_phone.id_for_label }}">Téléphone adresse</label>
+          {{ edit_form.address_phone }}
+        </div>
+        <div class="scan-field col-12 col-md-6">
+          <label class="form-label" for="{{ edit_form.address_email.id_for_label }}">Email adresse</label>
+          {{ edit_form.address_email }}
+        </div>
+        <div class="scan-field col-12">
+          <div class="form-check">
+            {{ edit_form.remove_default_address }}
+            <label class="form-check-label" for="{{ edit_form.remove_default_address.id_for_label }}">
+              Supprimer l'adresse principale
+            </label>
+          </div>
+        </div>
+
+        {% if edit_form.errors %}
+          <div class="scan-message error col-12">Merci de corriger les champs en erreur dans le formulaire de modification.</div>
+        {% endif %}
+
+        <div class="scan-filter-actions col-12">
+          <button type="submit" class="scan-submit scan-submit-inline btn btn-primary">Enregistrer les modifications</button>
+        </div>
+      </form>
+    </div>
+  {% endif %}
+
+  <div class="scan-card card border-0 ui-comp-card">
+    <h3 class="ui-comp-title h5 mb-3">Correspondants ({{ correspondents|length }})</h3>
+    {% if correspondents %}
+      <div class="scan-table-wrap table-responsive">
+        <table class="scan-table table table-sm table-hover" data-table-tools="1">
+          <thead>
+            <tr>
+              <th>Nom</th>
+              <th>Email</th>
+              <th>Téléphone</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for contact in correspondents %}
+              <tr>
+                <td>{{ contact.name }}</td>
+                <td>{{ contact.email|default:"-" }}</td>
+                <td>{{ contact.phone|default:"-" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="scan-help">Aucun correspondant trouvé.</p>
+    {% endif %}
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card">
     <div class="scan-filter-actions">
       <a class="scan-scan-btn btn btn-outline-primary" href="{{ contacts_admin_url }}">Tous les contacts (admin)</a>
-      <a class="scan-scan-btn btn btn-outline-primary" href="{{ contact_add_url }}">Ajouter un contact</a>
-      <a class="scan-scan-btn btn btn-outline-primary" href="{{ contact_tag_add_url }}">Ajouter un tag</a>
-      <a class="scan-scan-btn btn btn-outline-primary" href="{{ destination_admin_url }}">Destinations</a>
-      <a class="scan-scan-btn btn btn-outline-primary" href="{{ destination_add_url }}">Ajouter une destination</a>
+      <a class="scan-scan-btn btn btn-outline-primary" href="{{ contact_add_url }}">Ajouter un contact (admin)</a>
+      <a class="scan-scan-btn btn btn-outline-primary" href="{{ contact_tag_add_url }}">Ajouter un tag (admin)</a>
+      <a class="scan-scan-btn btn btn-outline-primary" href="{{ destination_admin_url }}">Destinations (admin)</a>
+      <a class="scan-scan-btn btn btn-outline-primary" href="{{ destination_add_url }}">Ajouter une destination (admin)</a>
     </div>
-  </div>
-
-  <div class="scan-card card border-0 ui-comp-card">
-    <h3>Contacts ({% if contacts %}{{ contacts|length }}{% else %}0{% endif %})</h3>
-    {% if contacts %}
-      <table class="scan-table">
-        <thead>
-          <tr>
-            <th>Nom</th>
-            <th>Type</th>
-            <th>Tags</th>
-            <th>Destinations</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for contact in contacts %}
-            <tr>
-              <td>{{ contact.name }}</td>
-              <td>{{ contact.get_contact_type_display }}</td>
-              <td>
-                {% for tag in contact.tags.all %}
-                  {{ tag.name }}{% if not forloop.last %}, {% endif %}
-                {% empty %}
-                  -
-                {% endfor %}
-              </td>
-              <td>
-                {% for destination in contact.destinations.all %}
-                  {{ destination.city }}{% if not forloop.last %}, {% endif %}
-                {% empty %}
-                  Global
-                {% endfor %}
-              </td>
-              <td>
-                <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'admin:contacts_contact_change' contact.id %}">Modifier</a>
-                <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'admin:contacts_contact_delete' contact.id %}">Supprimer</a>
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    {% else %}
-      <p class="scan-help">Aucun contact trouv&eacute;.</p>
-    {% endif %}
-  </div>
-
-  <div class="scan-card card border-0 ui-comp-card">
-    <h3>Correspondants</h3>
-    {% if correspondents %}
-      <table class="scan-table">
-        <thead>
-          <tr>
-            <th>Nom</th>
-            <th>Email</th>
-            <th>T&eacute;l&eacute;phone</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for contact in correspondents %}
-            <tr>
-              <td>{{ contact.name }}</td>
-              <td>{{ contact.email|default:"-" }}</td>
-              <td>{{ contact.phone|default:"-" }}</td>
-              <td>
-                <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'admin:contacts_contact_change' contact.id %}">Modifier</a>
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    {% else %}
-      <p class="scan-help">Aucun correspondant trouv&eacute;.</p>
-    {% endif %}
   </div>
 {% endblock %}
