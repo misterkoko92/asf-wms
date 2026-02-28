@@ -27,7 +27,7 @@
       </div>
 
       <div id="stock-update-fields" class="scan-stock-update-main-row row g-3">
-        <div class="scan-field col-12 col-md-6 col-lg-3">
+        <div class="scan-field scan-stock-update-primary-field col-12 col-md-6 col-lg-3">
           <label class="form-label" for="id_quantity">Quantit&eacute;</label>
           {{ create_form.quantity }}
           {% for error in create_form.quantity.errors %}
@@ -35,7 +35,7 @@
           {% endfor %}
         </div>
 
-        <div class="scan-field col-12 col-md-6 col-lg-3">
+        <div class="scan-field scan-stock-update-primary-field col-12 col-md-6 col-lg-3">
           <label class="form-label" for="id_expires_on">Date p&eacute;remption</label>
           {{ create_form.expires_on }}
           {% for error in create_form.expires_on.errors %}
@@ -43,7 +43,7 @@
           {% endfor %}
         </div>
 
-        <div class="scan-field col-12 col-md-6 col-lg-3">
+        <div class="scan-field scan-stock-update-primary-field col-12 col-md-6 col-lg-3">
           <label class="form-label" for="id_lot_code">Numero de lot</label>
           {{ create_form.lot_code }}
           {% for error in create_form.lot_code.errors %}
@@ -51,7 +51,7 @@
           {% endfor %}
         </div>
 
-        <div class="scan-field col-12 col-md-6 col-lg-3">
+        <div class="scan-field scan-stock-update-primary-field col-12 col-md-6 col-lg-3">
           <label class="form-label" for="id_donor_contact">Donateur</label>
           {{ create_form.donor_contact }}
           {% for error in create_form.donor_contact.errors %}

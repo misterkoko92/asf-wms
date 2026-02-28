@@ -420,37 +420,46 @@ class ScanBootstrapUiTests(TestCase):
         self.assertEqual(dashboard_response.status_code, 200)
         self.assertContains(dashboard_response, "scan-dashboard-filter-row")
         self.assertContains(dashboard_response, "scan-dashboard-filter-actions-inline")
+        self.assertContains(dashboard_response, "scan-dashboard-field")
 
         stock_response = self.client.get(reverse("scan:scan_stock"))
         self.assertEqual(stock_response.status_code, 200)
         self.assertContains(stock_response, "scan-stock-filter-row")
         self.assertContains(stock_response, "scan-stock-filter-actions-inline")
+        self.assertContains(stock_response, "scan-stock-field")
+        self.assertContains(stock_response, "scan-stock-switch-field")
 
         receive_pallet_response = self.client.get(reverse("scan:scan_receive_pallet"))
         self.assertEqual(receive_pallet_response.status_code, 200)
         self.assertContains(receive_pallet_response, "scan-receive-pallet-primary-row")
         self.assertContains(receive_pallet_response, "scan-receive-pallet-actions-inline")
+        self.assertContains(receive_pallet_response, "scan-receive-pallet-field")
 
         receive_association_response = self.client.get(reverse("scan:scan_receive_association"))
         self.assertEqual(receive_association_response.status_code, 200)
         self.assertContains(receive_association_response, "scan-receive-association-primary-row")
         self.assertContains(receive_association_response, "scan-receive-association-actions-inline")
+        self.assertContains(receive_association_response, "scan-receive-association-field")
 
         stock_update_response = self.client.get(reverse("scan:scan_stock_update"))
         self.assertEqual(stock_update_response.status_code, 200)
         self.assertContains(stock_update_response, "scan-stock-update-main-row")
         self.assertContains(stock_update_response, "scan-stock-update-actions-inline")
+        self.assertContains(stock_update_response, "scan-stock-update-primary-field")
         self.assertContains(stock_update_response, "scan-stock-update-readonly-row")
 
         prepare_kits_response = self.client.get(reverse("scan:scan_prepare_kits"))
         self.assertEqual(prepare_kits_response.status_code, 200)
         self.assertContains(prepare_kits_response, "scan-prepare-kits-main-row")
         self.assertContains(prepare_kits_response, "scan-prepare-kits-actions-inline")
+        self.assertContains(prepare_kits_response, "scan-prepare-kits-top-field")
+        self.assertContains(prepare_kits_response, "scan-prepare-kits-composition-field")
 
         pack_response = self.client.get(reverse("scan:scan_pack"))
         self.assertEqual(pack_response.status_code, 200)
         self.assertContains(pack_response, "scan-pack-shipping-row")
         self.assertContains(pack_response, "scan-pack-shipping-actions-inline")
+        self.assertContains(pack_response, "scan-pack-shipping-field")
 
     @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_state_pages_use_bootstrap_card_shell(self):

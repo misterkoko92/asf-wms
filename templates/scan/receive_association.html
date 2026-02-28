@@ -11,7 +11,7 @@
     <form method="post" novalidate class="scan-filters row g-3 ui-comp-form scan-receive-association-primary-row">
       {% csrf_token %}
 
-      <div class="scan-field col-12 col-md-6 col-lg-2">
+      <div class="scan-field scan-receive-association-field col-12 col-md-6 col-lg-2">
         <label class="form-label" for="id_received_on">Date r&eacute;ception</label>
         {{ create_form.received_on }}
         {% for error in create_form.received_on.errors %}
@@ -19,7 +19,7 @@
         {% endfor %}
       </div>
 
-      <div class="scan-field col-12 col-md-6 col-lg-2">
+      <div class="scan-field scan-receive-association-field col-12 col-md-6 col-lg-2">
         <label class="form-label" for="id_carton_count">Nombre de cartons</label>
         {{ create_form.carton_count }}
         {% for error in create_form.carton_count.errors %}
@@ -27,7 +27,7 @@
         {% endfor %}
       </div>
 
-      <div class="scan-field col-12 col-md-6 col-lg-2">
+      <div class="scan-field scan-receive-association-field col-12 col-md-6 col-lg-2">
         <label class="form-label" for="id_hors_format_count">Nombre de hors format</label>
         {{ create_form.hors_format_count }}
         {% for error in create_form.hors_format_count.errors %}
@@ -35,7 +35,7 @@
         {% endfor %}
       </div>
 
-      <div class="scan-field col-12 col-md-6 col-lg-3">
+      <div class="scan-field scan-receive-association-field col-12 col-md-6 col-lg-3">
         <label class="form-label" for="id_source_contact">Nom de l'association</label>
         {{ create_form.source_contact }}
         {% for error in create_form.source_contact.errors %}
@@ -43,7 +43,7 @@
         {% endfor %}
       </div>
 
-      <div class="scan-field col-12 col-md-6 col-lg-3">
+      <div class="scan-field scan-receive-association-field col-12 col-md-6 col-lg-3">
         <label class="form-label" for="id_carrier_contact">Transporteur</label>
         {{ create_form.carrier_contact }}
         {% for error in create_form.carrier_contact.errors %}

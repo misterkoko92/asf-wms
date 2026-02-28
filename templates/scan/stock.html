@@ -6,12 +6,12 @@
   <div class="scan-card card border-0 ui-comp-card">
     <h2 class="h4 mb-3 ui-comp-title">Vue stock</h2>
     <form method="get" class="scan-filters row g-3 ui-comp-form scan-stock-filter-row">
-      <div class="scan-field col-12 col-md-6 col-lg-2">
+      <div class="scan-field scan-stock-field col-12 col-md-6 col-lg-2">
         <label class="form-label" for="id_q">Recherche</label>
         <input type="text" class="form-control" id="id_q" name="q" value="{{ query }}" placeholder="Nom, r&eacute;f&eacute;rence, code-barres">
       </div>
 
-      <div class="scan-field col-12 col-md-6 col-lg-2">
+      <div class="scan-field scan-stock-field col-12 col-md-6 col-lg-2">
         <label class="form-label" for="id_category">Cat&eacute;gorie</label>
         <select id="id_category" name="category" class="form-select">
           <option value="">Toutes cat&eacute;gories</option>
@@ -21,7 +21,7 @@
         </select>
       </div>
 
-      <div class="scan-field col-12 col-md-6 col-lg-2">
+      <div class="scan-field scan-stock-field col-12 col-md-6 col-lg-2">
         <label class="form-label" for="id_warehouse">Entrep&ocirc;t</label>
         <select id="id_warehouse" name="warehouse" class="form-select">
           <option value="">Tous entrep&ocirc;ts</option>
@@ -31,7 +31,7 @@
         </select>
       </div>
 
-      <div class="scan-field col-12 col-md-6 col-lg-2">
+      <div class="scan-field scan-stock-field col-12 col-md-6 col-lg-2">
         <label class="form-label" for="id_sort">Tri</label>
         <select id="id_sort" name="sort" class="form-select">
           <option value="category" {% if sort == "category" %}selected{% endif %}>Cat&eacute;gorie</option>
@@ -41,7 +41,7 @@
           <option value="qty_desc" {% if sort == "qty_desc" %}selected{% endif %}>Stock d&eacute;croissant</option>
         </select>
       </div>
-      <div class="scan-field col-12 col-md-6 col-lg-4 d-flex flex-column justify-content-end">
+      <div class="scan-field scan-stock-switch-field col-12 col-md-6 col-lg-4 d-flex flex-column justify-content-end">
         <div class="scan-switch-card mt-2">
           <div class="form-check form-switch">
             <input

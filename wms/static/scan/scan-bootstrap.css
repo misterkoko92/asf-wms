@@ -999,9 +999,115 @@ body.scan-bootstrap-enabled[data-btn-style-mode="outlined"] .btn-secondary {
 }
 
 @media (min-width: 992px) {
+  .scan-bootstrap-enabled .scan-filters.scan-dashboard-filter-row,
+  .scan-bootstrap-enabled .scan-filters.scan-stock-filter-row,
+  .scan-bootstrap-enabled .scan-filters.scan-receive-pallet-primary-row,
+  .scan-bootstrap-enabled .scan-filters.scan-receive-association-primary-row,
+  .scan-bootstrap-enabled .scan-filters.scan-prepare-kits-main-row,
+  .scan-bootstrap-enabled .scan-stock-update-main-row,
+  .scan-bootstrap-enabled .scan-pack-shipping-row {
+    margin-left: 0;
+    margin-right: 0;
+    column-gap: var(--wms-field-gap);
+    row-gap: var(--wms-field-gap);
+  }
+
+  .scan-bootstrap-enabled .scan-filters.scan-dashboard-filter-row > [class*="col-"],
+  .scan-bootstrap-enabled .scan-filters.scan-stock-filter-row > [class*="col-"],
+  .scan-bootstrap-enabled .scan-filters.scan-receive-pallet-primary-row > [class*="col-"],
+  .scan-bootstrap-enabled .scan-filters.scan-receive-association-primary-row > [class*="col-"],
+  .scan-bootstrap-enabled .scan-filters.scan-prepare-kits-main-row > [class*="col-"],
+  .scan-bootstrap-enabled .scan-stock-update-main-row > [class*="col-"],
+  .scan-bootstrap-enabled .scan-pack-shipping-row > [class*="col-"] {
+    padding-left: 0;
+    padding-right: 0;
+    width: auto;
+    max-width: none;
+  }
+
+  .scan-bootstrap-enabled .scan-filters.scan-dashboard-filter-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    align-items: end;
+  }
+
   .scan-bootstrap-enabled .scan-dashboard-filter-actions-inline {
     justify-content: flex-end;
+    justify-self: end;
     flex-wrap: nowrap !important;
+  }
+
+  .scan-bootstrap-enabled .scan-dashboard-filter-row .scan-help {
+    grid-column: 1 / -1;
+  }
+
+  .scan-bootstrap-enabled .scan-filters.scan-stock-filter-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(0, 1.2fr);
+    align-items: end;
+  }
+
+  .scan-bootstrap-enabled .scan-stock-filter-row .scan-stock-filter-actions-inline {
+    grid-column: 1 / -1;
+  }
+
+  .scan-bootstrap-enabled .scan-filters.scan-receive-pallet-primary-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1.4fr) minmax(0, 1fr);
+    align-items: end;
+  }
+
+  .scan-bootstrap-enabled .scan-receive-pallet-primary-row .scan-receive-pallet-actions-inline {
+    grid-column: 1 / -1;
+  }
+
+  .scan-bootstrap-enabled .scan-filters.scan-receive-association-primary-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1.5fr);
+    align-items: end;
+  }
+
+  .scan-bootstrap-enabled .scan-receive-association-primary-row .scan-receive-association-actions-inline,
+  .scan-bootstrap-enabled .scan-receive-association-primary-row .scan-divider,
+  .scan-bootstrap-enabled .scan-receive-association-primary-row .ui-comp-title,
+  .scan-bootstrap-enabled .scan-receive-association-primary-row .pack-lines {
+    grid-column: 1 / -1;
+  }
+
+  .scan-bootstrap-enabled .scan-stock-update-main-row {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    align-items: end;
+  }
+
+  .scan-bootstrap-enabled .scan-stock-update-main-row .scan-stock-update-primary-field {
+    grid-column: span 3;
+  }
+
+  .scan-bootstrap-enabled .scan-stock-update-main-row .scan-stock-update-actions-inline,
+  .scan-bootstrap-enabled .scan-stock-update-main-row .scan-divider {
+    grid-column: 1 / -1;
+  }
+
+  .scan-bootstrap-enabled .scan-stock-update-main-row .scan-stock-update-readonly-row {
+    grid-column: span 4;
+  }
+
+  .scan-bootstrap-enabled .scan-filters.scan-prepare-kits-main-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: end;
+  }
+
+  .scan-bootstrap-enabled .scan-prepare-kits-main-row .scan-prepare-kits-composition-field,
+  .scan-bootstrap-enabled .scan-prepare-kits-main-row .scan-prepare-kits-actions-inline {
+    grid-column: 1 / -1;
+  }
+
+  .scan-bootstrap-enabled .scan-pack-shipping-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: end;
   }
 
   .scan-bootstrap-enabled .scan-stock-filter-actions-inline,
