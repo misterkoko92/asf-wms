@@ -166,7 +166,33 @@ class PrintPackGraphTests(SimpleTestCase):
         with self.assertRaises(GraphPdfConversionError):
             convert_excel_to_pdf_via_graph(xlsx_bytes=b"xlsx-data", filename="")
 
-    def test_graph_export_pdf_placeholder_raises(self):
+    @override_settings(GRAPH_DRIVE_ID="drive-123")
+    def test_graph_export_pdf_uploads_converts_and_cleans_up(self):
+        responses = {
+            "PUT": self._UrlOpenResponse(json.dumps({"id": "item-42"}).encode("utf-8")),
+            "GET": self._UrlOpenResponse(b"%PDF-1.7 test"),
+            "DELETE": self._UrlOpenResponse(b"", status=204),
+        }
+        captured_methods = []
+
+        def _fake_urlopen(req, timeout):  # noqa: ARG001
+            method = req.get_method()
+            captured_methods.append(method)
+            return responses[method]
+
+        with mock.patch("wms.print_pack_graph.request.urlopen", side_effect=_fake_urlopen):
+            pdf_bytes = _graph_export_pdf(
+                token="token",
+                xlsx_bytes=b"xlsx-data",
+                filename="pack-b.xlsx",
+                timeout=12,
+            )
+
+        self.assertEqual(pdf_bytes, b"%PDF-1.7 test")
+        self.assertEqual(captured_methods, ["PUT", "GET", "DELETE"])
+
+    @override_settings(GRAPH_DRIVE_ID="")
+    def test_graph_export_pdf_raises_when_drive_id_is_missing(self):
         with self.assertRaises(GraphPdfConversionError):
             _graph_export_pdf(
                 token="token",
@@ -174,3 +200,17 @@ class PrintPackGraphTests(SimpleTestCase):
                 filename="pack-b.xlsx",
                 timeout=12,
             )
+
+    @override_settings(GRAPH_DRIVE_ID="drive-123")
+    def test_graph_export_pdf_raises_when_upload_response_has_no_item_id(self):
+        with mock.patch(
+            "wms.print_pack_graph.request.urlopen",
+            return_value=self._UrlOpenResponse(json.dumps({}).encode("utf-8")),
+        ):
+            with self.assertRaises(GraphPdfConversionError):
+                _graph_export_pdf(
+                    token="token",
+                    xlsx_bytes=b"xlsx-data",
+                    filename="pack-b.xlsx",
+                    timeout=12,
+                )
