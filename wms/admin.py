@@ -929,6 +929,89 @@ class ShipmentAdmin(admin.ModelAdmin):
         return render(request, "print/liste_colisage_carton.html", context)
 
 
+class PrintCellMappingInline(admin.TabularInline):
+    model = models.PrintCellMapping
+    extra = 0
+
+
+@admin.register(models.PrintPack)
+class PrintPackAdmin(admin.ModelAdmin):
+    list_display = (
+        "code",
+        "name",
+        "active",
+        "default_page_format",
+        "fallback_page_format",
+        "updated_at",
+    )
+    list_filter = ("active", "default_page_format", "fallback_page_format")
+    search_fields = ("code", "name")
+    ordering = ("code",)
+
+
+@admin.register(models.PrintPackDocument)
+class PrintPackDocumentAdmin(admin.ModelAdmin):
+    list_display = (
+        "pack",
+        "doc_type",
+        "variant",
+        "sequence",
+        "enabled",
+    )
+    list_filter = ("pack", "enabled")
+    search_fields = ("doc_type", "variant", "pack__code", "pack__name")
+    ordering = ("pack__code", "sequence", "id")
+    inlines = (PrintCellMappingInline,)
+
+
+@admin.register(models.PrintCellMapping)
+class PrintCellMappingAdmin(admin.ModelAdmin):
+    list_display = (
+        "pack_document",
+        "worksheet_name",
+        "cell_ref",
+        "source_key",
+        "transform",
+        "required",
+        "sequence",
+    )
+    list_filter = ("required", "pack_document__pack")
+    search_fields = ("worksheet_name", "cell_ref", "source_key")
+    ordering = ("pack_document__id", "sequence", "id")
+
+
+@admin.register(models.GeneratedPrintArtifact)
+class GeneratedPrintArtifactAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "pack_code",
+        "status",
+        "shipment",
+        "carton",
+        "sync_attempts",
+        "created_at",
+    )
+    list_filter = ("status", "pack_code")
+    search_fields = ("pack_code", "shipment__reference", "onedrive_path")
+    ordering = ("-created_at",)
+    readonly_fields = (
+        "shipment",
+        "carton",
+        "pack_code",
+        "status",
+        "pdf_file",
+        "checksum",
+        "created_by",
+        "created_at",
+        "onedrive_path",
+        "sync_attempts",
+        "last_sync_error",
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+
 @admin.register(models.StockMovement)
 class StockMovementAdmin(admin.ModelAdmin):
     change_list_template = "admin/wms/stockmovement/change_list.html"
