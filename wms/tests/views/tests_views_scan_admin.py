@@ -345,6 +345,7 @@ class ScanAdminViewTests(TestCase):
         self.assertContains(response, '<option value="wms-default"')
         self.assertContains(response, '<option value="wms-rect"')
         self.assertContains(response, '<option value="wms-contrast"')
+        self.assertContains(response, '<option value="wms-stream"')
         self.assertContains(response, 'value="apply_preset"')
         self.assertContains(response, 'value="save_custom_preset"')
 
@@ -439,6 +440,32 @@ class ScanAdminViewTests(TestCase):
         self.assertEqual(runtime.design_tokens["btn_radius"], 0)
         self.assertEqual(runtime.design_tokens["nav_item_radius"], 0)
         self.assertEqual(runtime.design_tokens["badge_radius"], 6)
+
+    def test_scan_admin_design_apply_stream_preset_updates_runtime_design_values(self):
+        self.client.force_login(self.superuser)
+        response = self.client.post(
+            reverse("scan:scan_admin_design"),
+            {
+                "action": "apply_preset",
+                "style_preset": "wms-stream",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("scan:scan_admin_design"))
+
+        runtime = WmsRuntimeSettings.get_solo()
+        self.assertEqual(runtime.design_selected_preset, "wms-stream")
+        self.assertEqual(runtime.design_font_h1, "Manrope")
+        self.assertEqual(runtime.design_font_h2, "Manrope")
+        self.assertEqual(runtime.design_font_h3, "Source Sans 3")
+        self.assertEqual(runtime.design_font_body, "Source Sans 3")
+        self.assertEqual(runtime.design_color_primary, "#5c2b80")
+        self.assertEqual(runtime.design_color_secondary, "#00c9a7")
+        self.assertEqual(runtime.design_tokens["btn_style_mode"], "elevated")
+        self.assertEqual(runtime.design_tokens["btn_radius"], 120)
+        self.assertEqual(runtime.design_tokens["card_radius"], 18)
+        self.assertEqual(runtime.design_tokens["dropdown_shadow"], "0 12px 26px rgba(15, 33, 61, 0.12)")
+        self.assertEqual(runtime.design_tokens["status_progress_bg"], "#e8f1ff")
 
     def test_scan_admin_design_can_save_custom_style_preset(self):
         self.client.force_login(self.superuser)
