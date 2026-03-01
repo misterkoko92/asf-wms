@@ -5,7 +5,7 @@ from django.conf import settings
 from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, HttpResponseBase
 from django.shortcuts import redirect, render
 from django.urls import path, reverse
 from django.utils import timezone
@@ -40,7 +40,8 @@ from .print_context import (
     build_product_label_context,
     build_product_qr_label_context,
 )
-from .print_pack_engine import generate_pack
+from .print_pack_engine import PrintPackEngineError, generate_pack
+from .print_pack_graph import GraphPdfConversionError
 from .print_pack_routing import resolve_carton_packing_pack, resolve_pack_request
 from .print_layouts import DEFAULT_LAYOUTS
 from .print_renderer import get_template_layout
@@ -57,7 +58,7 @@ from .services import (
     transfer_stock,
     unpack_carton,
 )
-from .shipment_view_helpers import render_shipment_document
+from .shipment_view_helpers import render_carton_document, render_shipment_document
 
 
 def _artifact_pdf_response(artifact):
@@ -68,6 +69,13 @@ def _artifact_pdf_response(artifact):
     )
     response["Content-Disposition"] = f'inline; filename="{filename}"'
     return response
+
+
+def _try_generate_pack_artifact(*, fallback_renderer, **kwargs):
+    try:
+        return generate_pack(**kwargs)
+    except (PrintPackEngineError, GraphPdfConversionError):
+        return fallback_renderer()
 
 class ProductKitItemInline(admin.TabularInline):
     model = models.ProductKitItem
@@ -909,12 +917,21 @@ class ShipmentAdmin(admin.ModelAdmin):
             raise Http404("Shipment not found")
         pack_route = resolve_pack_request(doc_type)
         if pack_route:
-            artifact = generate_pack(
+            artifact = _try_generate_pack_artifact(
                 pack_code=pack_route.pack_code,
                 shipment=shipment,
                 user=getattr(request, "user", None),
                 variant=pack_route.variant,
+                fallback_renderer=lambda: render_shipment_document(
+                    request,
+                    shipment,
+                    doc_type,
+                ),
             )
+            if isinstance(artifact, HttpResponseBase) or not hasattr(
+                artifact, "pdf_file"
+            ):
+                return artifact
             return _artifact_pdf_response(artifact)
         return render_shipment_document(request, shipment, doc_type)
 
@@ -926,13 +943,20 @@ class ShipmentAdmin(admin.ModelAdmin):
         if carton is None:
             raise Http404("Carton not found for shipment")
         pack_route = resolve_carton_packing_pack()
-        artifact = generate_pack(
+        artifact = _try_generate_pack_artifact(
             pack_code=pack_route.pack_code,
             shipment=shipment,
             carton=carton,
             user=getattr(request, "user", None),
             variant=pack_route.variant,
+            fallback_renderer=lambda: render_carton_document(
+                request,
+                shipment,
+                carton,
+            ),
         )
+        if isinstance(artifact, HttpResponseBase) or not hasattr(artifact, "pdf_file"):
+            return artifact
         return _artifact_pdf_response(artifact)
 
 

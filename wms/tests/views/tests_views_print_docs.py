@@ -15,6 +15,7 @@ from wms.models import (
     Warehouse,
 )
 from wms.print_pack_engine import PrintPackEngineError
+from wms.print_pack_graph import GraphPdfConversionError
 
 
 class PrintDocsViewsTests(TestCase):
@@ -115,6 +116,25 @@ class PrintDocsViewsTests(TestCase):
         with mock.patch(
             "wms.views_print_docs._generate_pack_pdf_response",
             side_effect=PrintPackEngineError("Unknown active pack: C"),
+        ), mock.patch(
+            "wms.views_print_docs.render_shipment_document",
+            return_value=HttpResponse("legacy"),
+        ) as legacy_mock:
+            response = self.client.get(
+                reverse(
+                    "scan:scan_shipment_document",
+                    kwargs={"shipment_id": shipment.id, "doc_type": "shipment_note"},
+                )
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.decode(), "legacy")
+        legacy_mock.assert_called_once_with(mock.ANY, shipment, "shipment_note")
+
+    def test_scan_shipment_document_falls_back_to_legacy_renderer_on_graph_failure(self):
+        shipment = self._create_shipment()
+        with mock.patch(
+            "wms.views_print_docs._generate_pack_pdf_response",
+            side_effect=GraphPdfConversionError("Graph is unavailable"),
         ), mock.patch(
             "wms.views_print_docs.render_shipment_document",
             return_value=HttpResponse("legacy"),

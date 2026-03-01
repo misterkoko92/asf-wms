@@ -7,6 +7,7 @@ from django.urls import reverse
 
 from wms.models import Carton, Shipment
 from wms.print_pack_engine import PrintPackEngineError
+from wms.print_pack_graph import GraphPdfConversionError
 
 
 class PrintLabelsViewsTests(TestCase):
@@ -80,6 +81,25 @@ class PrintLabelsViewsTests(TestCase):
         with mock.patch(
             "wms.views_print_labels.generate_pack",
             side_effect=PrintPackEngineError("Unknown active pack: D"),
+        ), mock.patch(
+            "wms.views_print_labels.render_shipment_labels",
+            return_value=HttpResponse("legacy-labels"),
+        ) as legacy_mock:
+            response = self.client.get(
+                reverse(
+                    "scan:scan_shipment_labels",
+                    kwargs={"shipment_id": shipment.id},
+                )
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.decode(), "legacy-labels")
+        legacy_mock.assert_called_once_with(mock.ANY, shipment)
+
+    def test_scan_shipment_labels_falls_back_to_legacy_renderer_on_graph_failure(self):
+        shipment = self._create_shipment()
+        with mock.patch(
+            "wms.views_print_labels.generate_pack",
+            side_effect=GraphPdfConversionError("Graph is unavailable"),
         ), mock.patch(
             "wms.views_print_labels.render_shipment_labels",
             return_value=HttpResponse("legacy-labels"),

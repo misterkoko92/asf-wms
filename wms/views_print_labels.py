@@ -6,6 +6,7 @@ from django.views.decorators.http import require_http_methods
 from .models import Shipment
 from .print_context import build_label_context
 from .print_pack_engine import PrintPackEngineError, generate_pack
+from .print_pack_graph import GraphPdfConversionError
 from .print_pack_routing import resolve_shipment_labels_pack, resolve_single_label_pack
 from .print_renderer import get_template_layout, render_layout_from_layout
 from .shipment_view_helpers import render_shipment_labels
@@ -83,7 +84,7 @@ def scan_shipment_labels(request, shipment_id):
             user=getattr(request, "user", None),
             variant=pack_route.variant,
         )
-    except PrintPackEngineError:
+    except (PrintPackEngineError, GraphPdfConversionError):
         return render_shipment_labels(request, shipment)
     return _artifact_pdf_response(artifact)
 
@@ -100,7 +101,7 @@ def scan_shipment_labels_public(request, shipment_ref):
             user=getattr(request, "user", None),
             variant=pack_route.variant,
         )
-    except PrintPackEngineError:
+    except (PrintPackEngineError, GraphPdfConversionError):
         return render_shipment_labels(request, shipment)
     return _artifact_pdf_response(artifact)
 
@@ -121,7 +122,7 @@ def scan_shipment_label(request, shipment_id, carton_id):
             user=getattr(request, "user", None),
             variant=pack_route.variant,
         )
-    except PrintPackEngineError:
+    except (PrintPackEngineError, GraphPdfConversionError):
         shipment.ensure_qr_code(request=request)
         cartons = list(shipment.carton_set.order_by("code"))
         position = _find_carton_position(cartons, carton_id)

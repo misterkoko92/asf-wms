@@ -27,6 +27,7 @@ from wms.admin import (
     ShipmentAdmin,
     StockMovementAdmin,
 )
+from wms.print_pack_graph import GraphPdfConversionError
 from wms.portal_permissions import ASSOCIATION_PORTAL_GROUP_NAME
 from wms.services import StockError
 
@@ -778,6 +779,17 @@ class ShipmentAndStockMovementAdminTests(_AdminTestBase):
         pdf_response_mock.assert_called_once_with(artifact)
 
         with mock.patch.object(shipment_admin, "get_object", return_value=shipment), mock.patch(
+            "wms.admin.generate_pack",
+            side_effect=GraphPdfConversionError("Graph down"),
+        ), mock.patch(
+            "wms.admin.render_shipment_document",
+            return_value="legacy-response",
+        ) as legacy_mock:
+            response = shipment_admin.print_document(request, shipment.id, "shipment_note")
+        self.assertEqual(response, "legacy-response")
+        legacy_mock.assert_called_once_with(request, shipment, "shipment_note")
+
+        with mock.patch.object(shipment_admin, "get_object", return_value=shipment), mock.patch(
             "wms.admin.render_shipment_document",
             return_value="legacy-response",
         ) as legacy_mock:
@@ -811,6 +823,17 @@ class ShipmentAndStockMovementAdminTests(_AdminTestBase):
             variant="per_carton_single",
         )
         pdf_response_mock.assert_called_once_with(artifact)
+
+        with mock.patch.object(shipment_admin, "get_object", return_value=shipment), mock.patch(
+            "wms.admin.generate_pack",
+            side_effect=GraphPdfConversionError("Graph down"),
+        ), mock.patch(
+            "wms.admin.render_carton_document",
+            return_value="legacy-carton",
+        ) as legacy_carton_mock:
+            response = shipment_admin.print_carton_packing_list(request, shipment.id, carton.id)
+        self.assertEqual(response, "legacy-carton")
+        legacy_carton_mock.assert_called_once_with(request, shipment, carton)
 
         readonly = stock_admin.get_readonly_fields(request)
         self.assertIn("movement_type", readonly)

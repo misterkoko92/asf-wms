@@ -6,6 +6,7 @@ from django.views.decorators.http import require_http_methods
 from .models import Carton, Shipment
 from .print_context import build_carton_picking_context
 from .print_pack_engine import PrintPackEngineError, generate_pack
+from .print_pack_graph import GraphPdfConversionError
 from .print_pack_routing import (
     resolve_carton_packing_pack,
     resolve_carton_picking_pack,
@@ -114,7 +115,7 @@ def _try_generate_pack_pdf_response(
             carton=carton,
             variant=variant,
         )
-    except PrintPackEngineError:
+    except (PrintPackEngineError, GraphPdfConversionError):
         return fallback_renderer()
 
 
