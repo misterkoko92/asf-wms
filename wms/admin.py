@@ -40,9 +40,14 @@ from .print_context import (
     build_product_label_context,
     build_product_qr_label_context,
 )
-from .print_pack_engine import PrintPackEngineError, generate_pack
+from .print_pack_engine import (
+    PrintPackEngineError,
+    generate_pack,
+    render_pack_xlsx_documents,
+)
 from .print_pack_graph import GraphPdfConversionError
 from .print_pack_routing import resolve_carton_packing_pack, resolve_pack_request
+from .print_pack_xlsx import build_xlsx_fallback_response
 from .print_layouts import DEFAULT_LAYOUTS
 from .print_renderer import get_template_layout
 from .print_utils import build_label_pages, extract_block_style
@@ -71,10 +76,33 @@ def _artifact_pdf_response(artifact):
     return response
 
 
+def _is_xlsx_fallback_enabled():
+    return bool(getattr(settings, "PRINT_PACK_XLSX_FALLBACK_ENABLED", False))
+
+
+def _generate_pack_xlsx_response(*, pack_code, shipment=None, carton=None, variant=None):
+    documents = render_pack_xlsx_documents(
+        pack_code=pack_code,
+        shipment=shipment,
+        carton=carton,
+        variant=variant,
+    )
+    return build_xlsx_fallback_response(documents=documents, pack_code=pack_code)
+
+
 def _try_generate_pack_artifact(*, fallback_renderer, **kwargs):
     try:
         return generate_pack(**kwargs)
-    except (PrintPackEngineError, GraphPdfConversionError):
+    except GraphPdfConversionError:
+        if _is_xlsx_fallback_enabled():
+            return _generate_pack_xlsx_response(
+                pack_code=kwargs.get("pack_code"),
+                shipment=kwargs.get("shipment"),
+                carton=kwargs.get("carton"),
+                variant=kwargs.get("variant"),
+            )
+        return fallback_renderer()
+    except PrintPackEngineError:
         return fallback_renderer()
 
 class ProductKitItemInline(admin.TabularInline):

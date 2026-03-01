@@ -845,6 +845,67 @@ class ShipmentAndStockMovementAdminTests(_AdminTestBase):
         self.assertEqual(response, "rendered-form")
         self.assertIn("Titre", str(render_mock.call_args))
 
+    @override_settings(PRINT_PACK_XLSX_FALLBACK_ENABLED=True)
+    def test_shipment_print_document_uses_xlsx_fallback_when_graph_fails_and_flag_enabled(
+        self,
+    ):
+        shipment_admin = ShipmentAdmin(models.Shipment, self.site)
+        request = self._request(superuser=True)
+        shipment = self._shipment(reference="260210")
+
+        with mock.patch.object(shipment_admin, "get_object", return_value=shipment), mock.patch(
+            "wms.admin.generate_pack",
+            side_effect=GraphPdfConversionError("Graph down"),
+        ), mock.patch(
+            "wms.admin._generate_pack_xlsx_response",
+            return_value="xlsx-fallback",
+        ) as xlsx_mock, mock.patch(
+            "wms.admin.render_shipment_document",
+            return_value="legacy-response",
+        ) as legacy_mock:
+            response = shipment_admin.print_document(request, shipment.id, "shipment_note")
+
+        self.assertEqual(response, "xlsx-fallback")
+        xlsx_mock.assert_called_once_with(
+            pack_code="C",
+            shipment=shipment,
+            carton=None,
+            variant="shipment",
+        )
+        legacy_mock.assert_not_called()
+
+    @override_settings(PRINT_PACK_XLSX_FALLBACK_ENABLED=True)
+    def test_shipment_print_carton_uses_xlsx_fallback_when_graph_fails_and_flag_enabled(
+        self,
+    ):
+        shipment_admin = ShipmentAdmin(models.Shipment, self.site)
+        request = self._request(superuser=True)
+        shipment = self._shipment(reference="260211")
+        carton = models.Carton.objects.create(code="CART-ADM-XLSX", shipment=shipment)
+
+        with mock.patch.object(shipment_admin, "get_object", return_value=shipment), mock.patch(
+            "wms.admin.generate_pack",
+            side_effect=GraphPdfConversionError("Graph down"),
+        ), mock.patch(
+            "wms.admin._generate_pack_xlsx_response",
+            return_value="xlsx-fallback",
+        ) as xlsx_mock, mock.patch(
+            "wms.admin.render_carton_document",
+            return_value="legacy-carton",
+        ) as legacy_mock:
+            response = shipment_admin.print_carton_packing_list(
+                request, shipment.id, carton.id
+            )
+
+        self.assertEqual(response, "xlsx-fallback")
+        xlsx_mock.assert_called_once_with(
+            pack_code="B",
+            shipment=shipment,
+            carton=carton,
+            variant="per_carton_single",
+        )
+        legacy_mock.assert_not_called()
+
 
 class OrderAndCartonAdminTests(_AdminTestBase):
     def _order(self, **overrides):
