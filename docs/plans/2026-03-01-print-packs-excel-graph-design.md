@@ -12,6 +12,12 @@ Décisions validées:
 - Archivage OneDrive: local temporaire puis synchro asynchrone OneDrive (job dédié).
 - Pas d'envoi mail automatique en V1.
 
+## Etat D'Implementation (2026-03-01)
+- Scope actif: **écrans Bootstrap/Django uniquement**.
+- Routes scan/admin/API historiques conservées et câblées sur `PrintPackEngine` pour les packs A/B/C/D.
+- Boutons legacy cartographiés et verrouillés par tests automatisés (helpers + API UI).
+- Next/React: travaux stoppés temporairement (tests conservés, exécutables ultérieurement).
+
 ## Scope V1
 - Pack A: `picking`.
 - Pack B: `liste de colisage (globale + par carton) + attestation donation`.
