@@ -429,3 +429,156 @@ class PrintTemplateVersion(models.Model):
 
     def __str__(self) -> str:
         return f"{self.template.doc_type} v{self.version}"
+
+
+class PrintPageFormat(models.TextChoices):
+    A4 = "A4", "A4"
+    A5 = "A5", "A5"
+
+
+class PrintPack(models.Model):
+    code = models.CharField(max_length=4, unique=True)
+    name = models.CharField(max_length=120)
+    description = models.TextField(blank=True)
+    active = models.BooleanField(default=True)
+    default_page_format = models.CharField(
+        max_length=4,
+        choices=PrintPageFormat.choices,
+        default=PrintPageFormat.A4,
+    )
+    fallback_page_format = models.CharField(
+        max_length=4,
+        choices=PrintPageFormat.choices,
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["code"]
+
+    def __str__(self) -> str:
+        return f"{self.code} - {self.name}"
+
+
+class PrintPackDocument(models.Model):
+    pack = models.ForeignKey(
+        PrintPack, on_delete=models.CASCADE, related_name="documents"
+    )
+    doc_type = models.CharField(max_length=60)
+    variant = models.CharField(max_length=40, blank=True, default="")
+    sequence = models.PositiveIntegerField(default=1)
+    xlsx_template_file = models.FileField(
+        upload_to="print_pack_templates/",
+        null=True,
+        blank=True,
+    )
+    enabled = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["pack__code", "sequence", "id"]
+        unique_together = ("pack", "doc_type", "variant")
+
+    def __str__(self) -> str:
+        variant = self.variant or "default"
+        return f"{self.pack.code}:{self.doc_type}:{variant}"
+
+
+class PrintCellMapping(models.Model):
+    pack_document = models.ForeignKey(
+        PrintPackDocument,
+        on_delete=models.CASCADE,
+        related_name="cell_mappings",
+    )
+    worksheet_name = models.CharField(max_length=120)
+    cell_ref = models.CharField(max_length=16)
+    source_key = models.CharField(max_length=200)
+    transform = models.CharField(max_length=80, blank=True)
+    required = models.BooleanField(default=False)
+    sequence = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ["pack_document__id", "sequence", "id"]
+        unique_together = ("pack_document", "worksheet_name", "cell_ref")
+
+    def __str__(self) -> str:
+        return f"{self.pack_document} {self.worksheet_name}!{self.cell_ref}"
+
+
+class GeneratedPrintArtifactStatus(models.TextChoices):
+    GENERATED = "generated", "Generated"
+    SYNC_PENDING = "sync_pending", "Sync pending"
+    SYNCED = "synced", "Synced"
+    SYNC_FAILED = "sync_failed", "Sync failed"
+    FAILED = "failed", "Failed"
+
+
+class GeneratedPrintArtifact(models.Model):
+    shipment = models.ForeignKey(
+        Shipment,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="generated_print_artifacts",
+    )
+    carton = models.ForeignKey(
+        Carton,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="generated_print_artifacts",
+    )
+    pack_code = models.CharField(max_length=4)
+    status = models.CharField(
+        max_length=20,
+        choices=GeneratedPrintArtifactStatus.choices,
+        default=GeneratedPrintArtifactStatus.GENERATED,
+    )
+    pdf_file = models.FileField(upload_to="generated_prints/", null=True, blank=True)
+    checksum = models.CharField(max_length=64, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="generated_print_artifacts",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    onedrive_path = models.CharField(max_length=500, blank=True)
+    sync_attempts = models.PositiveIntegerField(default=0)
+    last_sync_error = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.pack_code} ({self.status})"
+
+
+class GeneratedPrintArtifactItem(models.Model):
+    artifact = models.ForeignKey(
+        GeneratedPrintArtifact,
+        on_delete=models.CASCADE,
+        related_name="items",
+    )
+    doc_type = models.CharField(max_length=60)
+    variant = models.CharField(max_length=40, blank=True, default="")
+    sequence = models.PositiveIntegerField(default=1)
+    source_xlsx_file = models.FileField(
+        upload_to="generated_prints/source_xlsx/",
+        null=True,
+        blank=True,
+    )
+    generated_pdf_file = models.FileField(
+        upload_to="generated_prints/items/",
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        ordering = ["artifact__id", "sequence", "id"]
+
+    def __str__(self) -> str:
+        variant = self.variant or "default"
+        return f"{self.artifact_id}:{self.doc_type}:{variant}"
