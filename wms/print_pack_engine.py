@@ -52,6 +52,115 @@ def _unique_non_empty(values):
     return result
 
 
+def _format_weight_label(total_weight_g):
+    if total_weight_g is None:
+        total_weight_g = 0
+    weight_kg = float(total_weight_g) / 1000.0
+    if weight_kg.is_integer():
+        return f"{int(weight_kg)} kg"
+    return f"{weight_kg:.2f}".rstrip("0").rstrip(".") + " kg"
+
+
+def _build_contact_payload(*, contact, fallback_name, default_country=""):
+    base_name = _clean_text(fallback_name)
+    payload = {
+        "full_name": base_name,
+        "title_name": base_name,
+        "structure_name": "",
+        "postal_address": "",
+        "postal_code": "",
+        "city": "",
+        "country": _clean_text(default_country),
+        "phone_1": "",
+        "phone_2": "",
+        "phone_3": "",
+        "email_1": "",
+        "email_2": "",
+        "email_3": "",
+        "emergency_contact": "",
+        "postal_address_full": "",
+        "contact_primary": "",
+    }
+    if contact is None:
+        return payload
+
+    first_name = _clean_text(getattr(contact, "first_name", ""))
+    last_name = _clean_text(getattr(contact, "last_name", ""))
+    title = _clean_text(getattr(contact, "title", ""))
+    if first_name or last_name:
+        payload["title_name"] = _join_non_empty(
+            title,
+            first_name,
+            last_name.upper() if last_name else "",
+        )
+    elif _clean_text(getattr(contact, "name", "")):
+        payload["title_name"] = _clean_text(getattr(contact, "name", ""))
+    if not payload["title_name"]:
+        payload["title_name"] = base_name
+    payload["full_name"] = payload["title_name"]
+
+    organization = getattr(contact, "organization", None)
+    contact_name = _clean_text(getattr(contact, "name", ""))
+    if organization is not None and _clean_text(getattr(organization, "name", "")):
+        payload["structure_name"] = _clean_text(getattr(organization, "name", ""))
+    else:
+        contact_type = _clean_text(getattr(contact, "contact_type", ""))
+        if contact_type == "organization":
+            payload["structure_name"] = contact_name
+
+    address = None
+    if hasattr(contact, "get_effective_address"):
+        address = contact.get_effective_address()
+    if address is not None:
+        payload["postal_address"] = _join_non_empty(
+            getattr(address, "address_line1", ""),
+            getattr(address, "address_line2", ""),
+            separator=", ",
+        )
+        payload["postal_code"] = _clean_text(getattr(address, "postal_code", ""))
+        payload["city"] = _clean_text(getattr(address, "city", ""))
+        if _clean_text(getattr(address, "country", "")):
+            payload["country"] = _clean_text(getattr(address, "country", ""))
+
+    phones = _unique_non_empty(
+        [
+            getattr(contact, "phone", ""),
+            getattr(contact, "phone2", ""),
+            getattr(address, "phone", "") if address is not None else "",
+        ]
+    )
+    emails = _unique_non_empty(
+        [
+            getattr(contact, "email", ""),
+            getattr(contact, "email2", ""),
+            getattr(address, "email", "") if address is not None else "",
+        ]
+    )
+    payload["phone_1"] = phones[0] if len(phones) > 0 else ""
+    payload["phone_2"] = phones[1] if len(phones) > 1 else ""
+    payload["phone_3"] = phones[2] if len(phones) > 2 else ""
+    payload["email_1"] = emails[0] if len(emails) > 0 else ""
+    payload["email_2"] = emails[1] if len(emails) > 1 else ""
+    payload["email_3"] = emails[2] if len(emails) > 2 else ""
+    payload["emergency_contact"] = _first_line(getattr(contact, "notes", ""))
+    if not payload["emergency_contact"]:
+        payload["emergency_contact"] = _clean_text(getattr(contact, "role", ""))
+
+    city_line = _join_non_empty(payload["postal_code"], payload["city"])
+    payload["postal_address_full"] = _join_non_empty(
+        payload["postal_address"],
+        city_line,
+        payload["country"],
+        separator=", ",
+    )
+    payload["contact_primary"] = _join_non_empty(
+        payload["phone_1"],
+        payload["email_1"],
+        separator=", ",
+    )
+    return payload
+
+
 def _resolve_root_category_name(product):
     category = getattr(product, "category", None)
     if category is None:
@@ -68,90 +177,11 @@ def _resolve_root_category_name(product):
 
 
 def _build_recipient_payload(shipment):
-    recipient_contact = getattr(shipment, "recipient_contact_ref", None)
-    base_name = _clean_text(getattr(shipment, "recipient_name", ""))
-    payload = {
-        "full_name": base_name,
-        "title_name": base_name,
-        "structure_name": "",
-        "postal_address": "",
-        "postal_code": "",
-        "city": "",
-        "country": _clean_text(getattr(shipment, "destination_country", "")),
-        "phone_1": "",
-        "phone_2": "",
-        "phone_3": "",
-        "email_1": "",
-        "email_2": "",
-        "email_3": "",
-        "emergency_contact": "",
-    }
-    if recipient_contact is None:
-        return payload
-
-    first_name = _clean_text(getattr(recipient_contact, "first_name", ""))
-    last_name = _clean_text(getattr(recipient_contact, "last_name", ""))
-    title = _clean_text(getattr(recipient_contact, "title", ""))
-    if first_name or last_name:
-        payload["title_name"] = _join_non_empty(
-            title,
-            first_name,
-            last_name.upper() if last_name else "",
-        )
-    elif _clean_text(getattr(recipient_contact, "name", "")):
-        payload["title_name"] = _clean_text(getattr(recipient_contact, "name", ""))
-    if not payload["title_name"]:
-        payload["title_name"] = base_name
-    payload["full_name"] = payload["title_name"]
-
-    organization = getattr(recipient_contact, "organization", None)
-    contact_name = _clean_text(getattr(recipient_contact, "name", ""))
-    if organization is not None and _clean_text(getattr(organization, "name", "")):
-        payload["structure_name"] = _clean_text(getattr(organization, "name", ""))
-    else:
-        contact_type = _clean_text(getattr(recipient_contact, "contact_type", ""))
-        if contact_type == "organization":
-            payload["structure_name"] = contact_name
-
-    address = None
-    if hasattr(recipient_contact, "get_effective_address"):
-        address = recipient_contact.get_effective_address()
-    if address is not None:
-        payload["postal_address"] = _join_non_empty(
-            getattr(address, "address_line1", ""),
-            getattr(address, "address_line2", ""),
-            separator=", ",
-        )
-        payload["postal_code"] = _clean_text(getattr(address, "postal_code", ""))
-        payload["city"] = _clean_text(getattr(address, "city", ""))
-        if _clean_text(getattr(address, "country", "")):
-            payload["country"] = _clean_text(getattr(address, "country", ""))
-
-    phones = _unique_non_empty(
-        [
-            getattr(recipient_contact, "phone", ""),
-            getattr(recipient_contact, "phone2", ""),
-            getattr(address, "phone", "") if address is not None else "",
-        ]
+    return _build_contact_payload(
+        contact=getattr(shipment, "recipient_contact_ref", None),
+        fallback_name=getattr(shipment, "recipient_name", ""),
+        default_country=getattr(shipment, "destination_country", ""),
     )
-    emails = _unique_non_empty(
-        [
-            getattr(recipient_contact, "email", ""),
-            getattr(recipient_contact, "email2", ""),
-            getattr(address, "email", "") if address is not None else "",
-        ]
-    )
-    payload["phone_1"] = phones[0] if len(phones) > 0 else ""
-    payload["phone_2"] = phones[1] if len(phones) > 1 else ""
-    payload["phone_3"] = phones[2] if len(phones) > 2 else ""
-    payload["email_1"] = emails[0] if len(emails) > 0 else ""
-    payload["email_2"] = emails[1] if len(emails) > 1 else ""
-    payload["email_3"] = emails[2] if len(emails) > 2 else ""
-
-    payload["emergency_contact"] = _first_line(getattr(recipient_contact, "notes", ""))
-    if not payload["emergency_contact"]:
-        payload["emergency_contact"] = _clean_text(getattr(recipient_contact, "role", ""))
-    return payload
 
 
 def _build_mapping_payload(*, shipment=None, carton=None, document=None):
@@ -166,6 +196,8 @@ def _build_mapping_payload(*, shipment=None, carton=None, document=None):
         },
     }
     if shipment is not None:
+        origin_city = "PARIS"
+        origin_iata = "CDG"
         carton_count_attr = getattr(shipment, "carton_count", None)
         if carton_count_attr is not None:
             carton_total_count = carton_count_attr
@@ -181,6 +213,8 @@ def _build_mapping_payload(*, shipment=None, carton=None, document=None):
             destination_city = getattr(destination, "city", "") or ""
 
         shipment_items = []
+        total_weight_g = 0
+        hors_format_total_count = 0
         if hasattr(shipment, "carton_set"):
             carton_qs = shipment.carton_set.all().order_by("code")
             for carton_position, shipment_carton in enumerate(carton_qs, start=1):
@@ -190,14 +224,20 @@ def _build_mapping_payload(*, shipment=None, carton=None, document=None):
                 )
                 for carton_item in carton_items:
                     product = carton_item.product_lot.product
+                    root_category = _resolve_root_category_name(product)
+                    quantity = carton_item.quantity
+                    product_weight = getattr(product, "weight_g", None) or 0
+                    total_weight_g += product_weight * quantity
+                    if root_category.upper() == "HF":
+                        hors_format_total_count += quantity
                     shipment_items.append(
                         {
                             "carton_code": shipment_carton.code,
                             "carton_position": carton_position,
-                            "category_root": _resolve_root_category_name(product),
+                            "category_root": root_category,
                             "brand": product.brand or "",
                             "product_name": product.name,
-                            "quantity": carton_item.quantity,
+                            "quantity": quantity,
                             "expires_on": carton_item.product_lot.expires_on,
                         }
                     )
@@ -205,12 +245,26 @@ def _build_mapping_payload(*, shipment=None, carton=None, document=None):
             "id": shipment.id,
             "reference": shipment.reference,
             "carton_total_count": carton_total_count,
+            "origin_city": origin_city,
+            "origin_iata": origin_iata,
             "destination_iata": destination_iata,
             "destination_city": destination_city,
+            "total_weight_g": total_weight_g,
+            "total_weight_label": _format_weight_label(total_weight_g),
+            "hors_format_total_count": hors_format_total_count,
             "shipper_name": shipment.shipper_name,
+            "shipper": _build_contact_payload(
+                contact=getattr(shipment, "shipper_contact_ref", None),
+                fallback_name=shipment.shipper_name,
+            ),
             "recipient_name": shipment.recipient_name,
             "recipient": _build_recipient_payload(shipment),
             "correspondent_name": shipment.correspondent_name,
+            "correspondent": _build_contact_payload(
+                contact=getattr(shipment, "correspondent_contact_ref", None),
+                fallback_name=shipment.correspondent_name,
+                default_country=shipment.destination_country,
+            ),
             "destination_address": shipment.destination_address,
             "destination_country": shipment.destination_country,
             "requested_delivery_date": shipment.requested_delivery_date,

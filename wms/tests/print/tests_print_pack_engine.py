@@ -8,6 +8,7 @@ from contacts.models import Contact, ContactAddress, ContactType
 from wms.models import (
     Carton,
     CartonItem,
+    Destination,
     GeneratedPrintArtifactStatus,
     Location,
     Product,
@@ -235,4 +236,165 @@ class PrintPackEngineTests(TestCase):
         self.assertEqual(
             recipient_payload["emergency_contact"],
             "Urgence: +223 70 00 00 00",
+        )
+        self.assertEqual(
+            recipient_payload["postal_address_full"],
+            "10 Rue du Test, 75010 Paris, France",
+        )
+        self.assertEqual(
+            recipient_payload["contact_primary"],
+            "+33 1 23 45 67 89, jean@example.org",
+        )
+
+    def test_build_mapping_payload_includes_shipment_note_summary_and_party_contacts(self):
+        warehouse = Warehouse.objects.create(name="W")
+        location = Location.objects.create(
+            warehouse=warehouse,
+            zone="A",
+            aisle="01",
+            shelf="001",
+        )
+        hf_category = ProductCategory.objects.create(name="HF")
+        mm_category = ProductCategory.objects.create(name="MM")
+        hf_product = Product.objects.create(
+            sku="SKU-HF-1",
+            name="Hors format",
+            brand="ASF",
+            category=hf_category,
+            weight_g=2000,
+            default_location=location,
+            qr_code_image="qr_codes/test.png",
+        )
+        mm_product = Product.objects.create(
+            sku="SKU-MM-1",
+            name="Medical",
+            brand="ASF",
+            category=mm_category,
+            weight_g=1500,
+            default_location=location,
+            qr_code_image="qr_codes/test.png",
+        )
+        hf_lot = ProductLot.objects.create(
+            product=hf_product,
+            lot_code="LOT-HF",
+            quantity_on_hand=20,
+            location=location,
+        )
+        mm_lot = ProductLot.objects.create(
+            product=mm_product,
+            lot_code="LOT-MM",
+            quantity_on_hand=20,
+            location=location,
+        )
+
+        shipper_org = Contact.objects.create(
+            contact_type=ContactType.ORGANIZATION,
+            name="MSF Paris",
+        )
+        shipper = Contact.objects.create(
+            contact_type=ContactType.PERSON,
+            title="M.",
+            first_name="Jean",
+            last_name="Dupont",
+            organization=shipper_org,
+            phone="+33 1 00 00 00 00",
+            email="jean.dupont@example.org",
+        )
+        ContactAddress.objects.create(
+            contact=shipper,
+            is_default=True,
+            address_line1="1 Rue de Paris",
+            postal_code="75001",
+            city="Paris",
+            country="France",
+        )
+
+        recipient_org = Contact.objects.create(
+            contact_type=ContactType.ORGANIZATION,
+            name="MSF Abidjan",
+            phone="+225 1 11 11 11 11",
+            email="abidjan@example.org",
+        )
+        ContactAddress.objects.create(
+            contact=recipient_org,
+            is_default=True,
+            address_line1="10 Avenue Lagune",
+            postal_code="01 BP 1000",
+            city="Abidjan",
+            country="Cote d'Ivoire",
+        )
+
+        correspondent_org = Contact.objects.create(
+            contact_type=ContactType.ORGANIZATION,
+            name="MSF Bamako",
+            phone="+223 2 22 22 22 22",
+            email="bamako@example.org",
+        )
+        ContactAddress.objects.create(
+            contact=correspondent_org,
+            is_default=True,
+            address_line1="22 Rue Fleuve",
+            postal_code="BP 500",
+            city="Bamako",
+            country="Mali",
+        )
+
+        destination = Destination.objects.create(
+            city="Abidjan",
+            iata_code="ABJ",
+            country="Cote d'Ivoire",
+            correspondent_contact=correspondent_org,
+            is_active=True,
+        )
+        shipment = Shipment.objects.create(
+            shipper_name="Shipper Fallback",
+            shipper_contact_ref=shipper,
+            recipient_name="Recipient Fallback",
+            recipient_contact_ref=recipient_org,
+            correspondent_name="Correspondent Fallback",
+            correspondent_contact_ref=correspondent_org,
+            destination=destination,
+            destination_address="Port d'Abidjan",
+            destination_country="Cote d'Ivoire",
+            created_by=self.user,
+        )
+        carton = Carton.objects.create(code="C-001", shipment=shipment)
+        CartonItem.objects.create(carton=carton, product_lot=hf_lot, quantity=2)
+        CartonItem.objects.create(carton=carton, product_lot=mm_lot, quantity=2)
+
+        payload = _build_mapping_payload(shipment=shipment)
+
+        shipment_payload = payload["shipment"]
+        self.assertEqual(shipment_payload["origin_city"], "PARIS")
+        self.assertEqual(shipment_payload["origin_iata"], "CDG")
+        self.assertEqual(shipment_payload["destination_city"], "Abidjan")
+        self.assertEqual(shipment_payload["destination_iata"], "ABJ")
+        self.assertEqual(shipment_payload["total_weight_label"], "7 kg")
+        self.assertEqual(shipment_payload["hors_format_total_count"], 2)
+
+        self.assertEqual(shipment_payload["shipper"]["title_name"], "M. Jean DUPONT")
+        self.assertEqual(shipment_payload["shipper"]["structure_name"], "MSF Paris")
+        self.assertEqual(
+            shipment_payload["shipper"]["postal_address_full"],
+            "1 Rue de Paris, 75001 Paris, France",
+        )
+        self.assertEqual(
+            shipment_payload["shipper"]["contact_primary"],
+            "+33 1 00 00 00 00, jean.dupont@example.org",
+        )
+
+        self.assertEqual(shipment_payload["recipient"]["structure_name"], "MSF Abidjan")
+        self.assertEqual(shipment_payload["recipient"]["title_name"], "MSF Abidjan")
+        self.assertEqual(
+            shipment_payload["recipient"]["contact_primary"],
+            "+225 1 11 11 11 11, abidjan@example.org",
+        )
+
+        self.assertEqual(
+            shipment_payload["correspondent"]["structure_name"],
+            "MSF Bamako",
+        )
+        self.assertEqual(
+            shipment_payload["correspondent"]["contact_primary"],
+            "+223 2 22 22 22 22, bamako@example.org",
         )
