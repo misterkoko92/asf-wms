@@ -11,14 +11,19 @@
   <script>
     (function() {
       try {
-        var storedUi = localStorage.getItem('wms-ui');
-        if (storedUi) {
-          document.documentElement.setAttribute('data-ui', storedUi);
-        }
-        var storedTheme = localStorage.getItem('scan-theme');
-        if (storedTheme) {
-          document.documentElement.setAttribute('data-theme', storedTheme);
-        }
+        {% if scan_bootstrap_enabled %}
+          document.documentElement.setAttribute('data-ui', 'classic');
+          document.documentElement.setAttribute('data-theme', 'classic');
+        {% else %}
+          var storedUi = localStorage.getItem('wms-ui');
+          if (storedUi) {
+            document.documentElement.setAttribute('data-ui', storedUi);
+          }
+          var storedTheme = localStorage.getItem('scan-theme');
+          if (storedTheme) {
+            document.documentElement.setAttribute('data-theme', storedTheme);
+          }
+        {% endif %}
       } catch (err) {
         // Ignore storage errors.
       }
@@ -97,20 +102,22 @@
             </a>
           {% endif %}
         </div>
-        <div class="scan-ui-toggle">
-          <span class="scan-theme-label">Interface</span>
-          <button type="button" id="portal-ui-toggle" class="scan-ui-button" aria-pressed="false">
-            Classique
+        {% if not scan_bootstrap_enabled %}
+          <div class="scan-ui-toggle">
+            <span class="scan-theme-label">Interface</span>
+            <button type="button" id="portal-ui-toggle" class="scan-ui-button" aria-pressed="false">
+              Classique
+            </button>
+          </div>
+          <button
+            type="button"
+            id="portal-ui-reset-default"
+            class="scan-ui-reset"
+            title="Revenir à l'interface Benev et au thème Classique"
+          >
+            Benev + Classique
           </button>
-        </div>
-        <button
-          type="button"
-          id="portal-ui-reset-default"
-          class="scan-ui-reset"
-          title="Revenir à l'interface Benev et au thème Classique"
-        >
-          Benev + Classique
-        </button>
+        {% endif %}
       </div>
     </header>
 
@@ -129,79 +136,81 @@
   {% if scan_bootstrap_enabled %}
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
   {% endif %}
-  <script>
-    (function() {
-      var toggle = document.getElementById('portal-ui-toggle');
-      if (!toggle) {
-        return;
-      }
-      var root = document.documentElement;
-      var UI_KEY = 'wms-ui';
-      var UI_OPTIONS = ['classic', 'nova', 'studio', 'benev', 'timeline', 'spreadsheet'];
-      var UI_LABELS = {
-        classic: 'Classique',
-        nova: 'Nouveau',
-        studio: 'Studio',
-        benev: 'Benev',
-        timeline: 'Timeline',
-        spreadsheet: 'Spreadsheet'
-      };
-      var UI_TITLES = {
-        classic: 'Basculer vers Nouveau',
-        nova: 'Basculer vers Studio',
-        studio: 'Basculer vers Benev',
-        benev: 'Basculer vers Timeline',
-        timeline: 'Basculer vers Spreadsheet',
-        spreadsheet: 'Basculer vers Classique'
-      };
-      var normalize = function(value) {
-        return UI_OPTIONS.indexOf(value) !== -1 ? value : 'classic';
-      };
-      var applyUi = function(ui) {
-        var normalized = normalize(ui);
-        root.dataset.ui = normalized;
-        toggle.textContent = UI_LABELS[normalized] || 'Classique';
-        toggle.setAttribute('aria-pressed', normalized === 'classic' ? 'false' : 'true');
-        toggle.title = UI_TITLES[normalized] || 'Basculer vers Nouveau';
-      };
-      var initialUi = root.dataset.ui || 'classic';
-      try {
-        var stored = localStorage.getItem(UI_KEY);
-        if (stored) {
-          initialUi = stored;
+  {% if not scan_bootstrap_enabled %}
+    <script>
+      (function() {
+        var toggle = document.getElementById('portal-ui-toggle');
+        if (!toggle) {
+          return;
         }
-      } catch (err) {
-        // Ignore storage errors.
-      }
-      applyUi(initialUi);
-      toggle.addEventListener('click', function() {
-        var current = normalize(root.dataset.ui);
-        var currentIndex = UI_OPTIONS.indexOf(current);
-        var nextUi = UI_OPTIONS[(currentIndex + 1) % UI_OPTIONS.length];
-        applyUi(nextUi);
+        var root = document.documentElement;
+        var UI_KEY = 'wms-ui';
+        var UI_OPTIONS = ['classic', 'nova', 'studio', 'benev', 'timeline', 'spreadsheet'];
+        var UI_LABELS = {
+          classic: 'Classique',
+          nova: 'Nouveau',
+          studio: 'Studio',
+          benev: 'Benev',
+          timeline: 'Timeline',
+          spreadsheet: 'Spreadsheet'
+        };
+        var UI_TITLES = {
+          classic: 'Basculer vers Nouveau',
+          nova: 'Basculer vers Studio',
+          studio: 'Basculer vers Benev',
+          benev: 'Basculer vers Timeline',
+          timeline: 'Basculer vers Spreadsheet',
+          spreadsheet: 'Basculer vers Classique'
+        };
+        var normalize = function(value) {
+          return UI_OPTIONS.indexOf(value) !== -1 ? value : 'classic';
+        };
+        var applyUi = function(ui) {
+          var normalized = normalize(ui);
+          root.dataset.ui = normalized;
+          toggle.textContent = UI_LABELS[normalized] || 'Classique';
+          toggle.setAttribute('aria-pressed', normalized === 'classic' ? 'false' : 'true');
+          toggle.title = UI_TITLES[normalized] || 'Basculer vers Nouveau';
+        };
+        var initialUi = root.dataset.ui || 'classic';
         try {
-          localStorage.setItem(UI_KEY, nextUi);
+          var stored = localStorage.getItem(UI_KEY);
+          if (stored) {
+            initialUi = stored;
+          }
         } catch (err) {
           // Ignore storage errors.
         }
-      });
-
-      var resetButton = document.getElementById('portal-ui-reset-default');
-      if (resetButton) {
-        resetButton.addEventListener('click', function() {
-          root.dataset.ui = 'benev';
-          root.dataset.theme = 'classic';
-          applyUi('benev');
+        applyUi(initialUi);
+        toggle.addEventListener('click', function() {
+          var current = normalize(root.dataset.ui);
+          var currentIndex = UI_OPTIONS.indexOf(current);
+          var nextUi = UI_OPTIONS[(currentIndex + 1) % UI_OPTIONS.length];
+          applyUi(nextUi);
           try {
-            localStorage.setItem(UI_KEY, 'benev');
-            localStorage.setItem('scan-theme', 'classic');
+            localStorage.setItem(UI_KEY, nextUi);
           } catch (err) {
             // Ignore storage errors.
           }
         });
-      }
-    })();
-  </script>
+
+        var resetButton = document.getElementById('portal-ui-reset-default');
+        if (resetButton) {
+          resetButton.addEventListener('click', function() {
+            root.dataset.ui = 'benev';
+            root.dataset.theme = 'classic';
+            applyUi('benev');
+            try {
+              localStorage.setItem(UI_KEY, 'benev');
+              localStorage.setItem('scan-theme', 'classic');
+            } catch (err) {
+              // Ignore storage errors.
+            }
+          });
+        }
+      })();
+    </script>
+  {% endif %}
   <script defer src="{% static 'portal/portal_tables.js' %}"></script>
 </body>
 </html>

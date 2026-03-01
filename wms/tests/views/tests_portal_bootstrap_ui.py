@@ -3,6 +3,8 @@ from django.test import TestCase, override_settings
 from django.contrib.auth.tokens import default_token_generator
 from django.urls import reverse
 from django.utils.http import urlsafe_base64_encode
+from pathlib import Path
+from django.conf import settings
 
 from contacts.models import Contact, ContactAddress, ContactType
 from wms.models import (
@@ -89,6 +91,9 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "scan-bootstrap.css")
         self.assertContains(response, "portal-bootstrap.css")
         self.assertContains(response, "portal-bootstrap-enabled")
+        self.assertNotContains(response, 'id="portal-ui-toggle"')
+        self.assertNotContains(response, 'id="portal-ui-reset-default"')
+        self.assertNotContains(response, "localStorage.getItem('wms-ui')")
 
     @override_settings(SCAN_BOOTSTRAP_ENABLED=False)
     def test_portal_base_does_not_include_bootstrap_assets_when_disabled(self):
@@ -237,3 +242,12 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(change_password_response, "ui-comp-card")
         self.assertContains(change_password_response, "ui-comp-title")
         self.assertContains(change_password_response, "ui-comp-form")
+
+    def test_portal_bootstrap_css_avoids_unnecessary_important_flags(self):
+        css_path = Path(settings.BASE_DIR) / "wms" / "static" / "portal" / "portal-bootstrap.css"
+        css_content = css_path.read_text(encoding="utf-8")
+        self.assertNotIn("border: 1px solid var(--border-strong) !important;", css_content)
+        self.assertNotIn(
+            "border: var(--wms-card-border-width) solid var(--wms-card-border-color) !important;",
+            css_content,
+        )

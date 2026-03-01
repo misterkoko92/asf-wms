@@ -4,7 +4,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--wms-field-gap);
-  border: 1px solid var(--border-strong) !important;
+  border: 1px solid var(--border-strong);
   background: linear-gradient(170deg, var(--wms-card-bg) 0%, var(--wms-color-background) 100%);
   box-shadow: var(--wms-card-shadow);
 }
@@ -35,7 +35,7 @@
 }
 
 .portal-bootstrap-enabled .portal-card.card {
-  border: var(--wms-card-border-width) solid var(--wms-card-border-color) !important;
+  border: var(--wms-card-border-width) solid var(--wms-card-border-color);
   border-radius: var(--wms-card-radius);
   background: var(--wms-card-bg);
   box-shadow: var(--wms-card-shadow);

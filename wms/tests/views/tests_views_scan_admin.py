@@ -363,6 +363,11 @@ class ScanAdminViewTests(TestCase):
         self.assertIn(".scan-bootstrap-enabled .scan-scan-btn.btn,", css_content)
         self.assertIn(".scan-bootstrap-enabled .scan-submit.btn {", css_content)
         self.assertIn("border-radius: min(var(--wms-btn-radius), 0.45rem);", css_content)
+        self.assertIn(".scan-bootstrap-enabled .btn:not(.btn-sm):not(.btn-lg) {", css_content)
+        self.assertIn("display: inline-flex;", css_content)
+        self.assertIn("align-items: center;", css_content)
+        self.assertNotIn(".scan-bootstrap-enabled .scan-nav.scan-nav-bootstrap .navbar-toggler {\n  border: 1px solid var(--scan-boot-border-strong) !important;", css_content)
+        self.assertNotIn(".scan-bootstrap-enabled .scan-card.card {\n  border: var(--wms-card-border-width) solid var(--wms-card-border-color) !important;", css_content)
 
     def test_scan_admin_design_post_updates_runtime_design_values(self):
         self.client.force_login(self.superuser)

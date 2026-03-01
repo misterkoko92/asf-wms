@@ -257,7 +257,7 @@ body.scan-bootstrap-enabled {
 }
 
 .scan-bootstrap-enabled .scan-nav.scan-nav-bootstrap .navbar-toggler {
-  border: 1px solid var(--scan-boot-border-strong) !important;
+  border: 1px solid var(--scan-boot-border-strong);
   border-radius: 0.65rem;
   background: var(--scan-boot-surface);
   box-shadow: none;
@@ -342,7 +342,7 @@ body.scan-bootstrap-enabled {
 }
 
 .scan-bootstrap-enabled .scan-card.card {
-  border: var(--wms-card-border-width) solid var(--wms-card-border-color) !important;
+  border: var(--wms-card-border-width) solid var(--wms-card-border-color);
   background: var(--wms-card-bg);
   border-radius: var(--wms-card-radius);
   box-shadow: var(--wms-card-shadow);
@@ -427,16 +427,30 @@ body.scan-bootstrap-enabled {
 
 .scan-bootstrap-enabled .btn {
   border-radius: min(var(--wms-btn-radius), 0.45rem);
-  min-height: var(--wms-btn-height-md);
-  padding: 0.48rem var(--wms-btn-padding-x);
   font-weight: var(--wms-font-weight-button);
-  font-size: var(--wms-btn-font-size);
   letter-spacing: 0.005em;
-  line-height: 1.2;
   border-width: var(--wms-btn-border-width);
   border-style: solid;
   box-shadow: var(--wms-btn-shadow);
+  text-align: center;
+  vertical-align: middle;
   transition: border-color 0.12s ease, background-color 0.12s ease, color 0.12s ease;
+}
+
+.scan-bootstrap-enabled a.btn,
+.scan-bootstrap-enabled button.btn,
+.scan-bootstrap-enabled input.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.scan-bootstrap-enabled .btn:not(.btn-sm):not(.btn-lg) {
+  min-height: var(--wms-btn-height-md);
+  padding: 0.48rem var(--wms-btn-padding-x);
+  font-size: var(--wms-btn-font-size);
+  line-height: 1.2;
 }
 
 .scan-bootstrap-enabled .btn-primary {

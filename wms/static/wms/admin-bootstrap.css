@@ -41,13 +41,28 @@
 .admin-bootstrap-enabled .btn {
   border-radius: min(var(--wms-btn-radius, 0.45rem), 0.45rem);
   border-width: var(--wms-btn-border-width, 1px);
+  font-weight: var(--wms-font-weight-button, 700);
+  letter-spacing: 0.005em;
+  box-shadow: var(--wms-btn-shadow, none);
+  text-align: center;
+  vertical-align: middle;
+}
+
+.admin-bootstrap-enabled a.btn,
+.admin-bootstrap-enabled button.btn,
+.admin-bootstrap-enabled input.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  line-height: 1.2;
+}
+
+.admin-bootstrap-enabled .btn:not(.btn-sm):not(.btn-lg) {
   min-height: var(--wms-btn-height-md, 2.4rem);
   padding-left: var(--wms-btn-padding-x, 0.8rem);
   padding-right: var(--wms-btn-padding-x, 0.8rem);
-  font-weight: var(--wms-font-weight-button, 700);
   font-size: var(--wms-btn-font-size, 14px);
-  letter-spacing: 0.005em;
-  box-shadow: var(--wms-btn-shadow, none);
 }
 
 .admin-bootstrap-enabled .aligned p input,

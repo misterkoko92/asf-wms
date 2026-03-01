@@ -362,6 +362,7 @@ class ScanBootstrapUiTests(TestCase):
         self.assertNotContains(stock_response, 'id="ui-toggle"')
         self.assertNotContains(stock_response, 'id="theme-toggle"')
         self.assertNotContains(stock_response, 'id="ui-reset-default"')
+        self.assertNotContains(stock_response, "localStorage.getItem('wms-ui')")
         content = stock_response.content.decode()
         header_start = content.index('<header class="scan-header ui-comp-panel">')
         header_end = content.index("</header>", header_start)

@@ -1,3 +1,6 @@
+from pathlib import Path
+
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -64,6 +67,14 @@ class AdminBootstrapUiTests(TestCase):
         self.assertContains(response, "admin-bootstrap-docs")
         self.assertContains(response, "btn btn-outline-primary btn-sm")
         self.assertContains(response, "Impression A5")
+
+    def test_admin_bootstrap_css_centers_button_text(self):
+        css_path = Path(settings.BASE_DIR) / "wms" / "static" / "wms" / "admin-bootstrap.css"
+        css_content = css_path.read_text(encoding="utf-8")
+        self.assertIn(".admin-bootstrap-enabled .btn {", css_content)
+        self.assertIn("display: inline-flex;", css_content)
+        self.assertIn("align-items: center;", css_content)
+        self.assertIn("justify-content: center;", css_content)
 
     @override_settings(SCAN_BOOTSTRAP_ENABLED=False)
     def test_admin_templates_do_not_include_bootstrap_assets_when_disabled(self):

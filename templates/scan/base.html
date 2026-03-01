@@ -12,10 +12,14 @@
   <script>
     (function() {
       try {
-        var storedUi = localStorage.getItem('wms-ui');
-        if (storedUi) {
-          document.documentElement.setAttribute('data-ui', storedUi);
-        }
+        {% if scan_bootstrap_enabled %}
+          document.documentElement.setAttribute('data-ui', 'classic');
+        {% else %}
+          var storedUi = localStorage.getItem('wms-ui');
+          if (storedUi) {
+            document.documentElement.setAttribute('data-ui', storedUi);
+          }
+        {% endif %}
       } catch (err) {
         // Ignore storage errors.
       }
