@@ -21,6 +21,10 @@ media/
 staticfiles/
 data/*
 !data/.gitkeep
+!data/print_templates/
+!data/print_templates/*.xlsx
+!data/print_templates/*.xlsm
+data/print_templates/~$*
 
 # Logs and env files
 *.log

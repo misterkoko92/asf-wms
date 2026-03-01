@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from io import BytesIO
+from pathlib import Path
 
+from django.conf import settings
 from django.core.files.base import ContentFile
 from django.utils import timezone
 from openpyxl import load_workbook
@@ -318,13 +320,60 @@ def _build_mapping_payload(*, shipment=None, carton=None, document=None):
     return payload
 
 
+def _resolve_template_search_dirs():
+    configured_dirs = getattr(settings, "PRINT_PACK_TEMPLATE_DIRS", None)
+    if configured_dirs is None:
+        configured_dirs = [str(Path(settings.BASE_DIR) / "data" / "print_templates")]
+    if isinstance(configured_dirs, (str, Path)):
+        configured_dirs = [configured_dirs]
+
+    search_dirs = []
+    for entry in configured_dirs:
+        value = str(entry or "").strip()
+        if not value:
+            continue
+        search_dirs.append(Path(value))
+    return search_dirs
+
+
+def _resolve_template_filename(document):
+    pack_code = _clean_text(getattr(getattr(document, "pack", None), "code", ""))
+    doc_type = _clean_text(getattr(document, "doc_type", ""))
+    variant = _clean_text(getattr(document, "variant", ""))
+    if not (pack_code and doc_type and variant):
+        return ""
+    return f"{pack_code}__{doc_type}__{variant}.xlsx"
+
+
+def _read_template_bytes_from_search_dirs(document):
+    template_name = _resolve_template_filename(document)
+    if not template_name:
+        return None, []
+
+    attempted_paths = []
+    for directory in _resolve_template_search_dirs():
+        candidate = directory / template_name
+        attempted_paths.append(str(candidate))
+        if candidate.exists() and candidate.is_file():
+            with candidate.open("rb") as stream:
+                return stream.read(), attempted_paths
+    return None, attempted_paths
+
+
 def _render_document_xlsx_bytes(*, document, shipment=None, carton=None):
-    if not document.xlsx_template_file:
-        raise PrintPackEngineError(
-            f"Missing xlsx template file for doc_type={document.doc_type}."
-        )
-    with document.xlsx_template_file.open("rb") as stream:
-        template_bytes = stream.read()
+    template_bytes = None
+    if document.xlsx_template_file:
+        with document.xlsx_template_file.open("rb") as stream:
+            template_bytes = stream.read()
+    else:
+        template_bytes, attempted_paths = _read_template_bytes_from_search_dirs(document)
+        if template_bytes is None:
+            attempts_text = ", ".join(attempted_paths) if attempted_paths else "none"
+            raise PrintPackEngineError(
+                "Missing xlsx template file for doc_type="
+                f"{document.doc_type}. Searched: {attempts_text}"
+            )
+
     workbook = load_workbook(BytesIO(template_bytes))
     mappings = list(document.cell_mappings.order_by("sequence", "id"))
     payload = _build_mapping_payload(

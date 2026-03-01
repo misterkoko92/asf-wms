@@ -1,8 +1,12 @@
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest import mock
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
+from openpyxl import Workbook
 
 from contacts.models import Contact, ContactAddress, ContactType
 from wms.models import (
@@ -190,6 +194,32 @@ class PrintPackEngineTests(TestCase):
         self.assertEqual(documents[0].payload, b"xlsx-1")
         self.assertEqual(documents[1].payload, b"xlsx-2")
 
+    def test_render_pack_xlsx_documents_uses_seeded_templates_when_filefields_missing(
+        self,
+    ):
+        shipment = Shipment.objects.create(
+            shipper_name="Shipper",
+            recipient_name="Recipient",
+            destination_address="1 Rue Test",
+            destination_country="France",
+            created_by=self.user,
+        )
+        template_dir = Path(settings.BASE_DIR) / "data" / "print_templates"
+        with override_settings(PRINT_PACK_TEMPLATE_DIRS=[str(template_dir)]):
+            documents = render_pack_xlsx_documents(
+                pack_code="C",
+                shipment=shipment,
+                variant="shipment",
+            )
+
+        self.assertEqual(len(documents), 2)
+        self.assertTrue(documents[0].filename.startswith("C-shipment_note-"))
+        self.assertTrue(documents[0].filename.endswith(".xlsx"))
+        self.assertTrue(documents[1].filename.startswith("C-contact_label-"))
+        self.assertTrue(documents[1].filename.endswith(".xlsx"))
+        self.assertTrue(all(isinstance(entry.payload, bytes) for entry in documents))
+        self.assertTrue(all(len(entry.payload) > 0 for entry in documents))
+
     def test_build_mapping_payload_includes_shipment_and_carton_fields(self):
         shipment = SimpleNamespace(
             id=42,
@@ -226,6 +256,31 @@ class PrintPackEngineTests(TestCase):
         )
         with self.assertRaises(PrintPackEngineError):
             _render_document_xlsx_bytes(document=document)
+
+    def test_render_document_xlsx_bytes_reads_template_from_search_dir_when_db_file_missing(
+        self,
+    ):
+        pack = PrintPack.objects.create(code="TC", name="Template Canonical")
+        document = PrintPackDocument.objects.create(
+            pack=pack,
+            doc_type="shipment_note",
+            variant="shipment",
+            sequence=1,
+            enabled=True,
+            xlsx_template_file=None,
+        )
+        with TemporaryDirectory() as temp_dir:
+            template_path = Path(temp_dir) / "TC__shipment_note__shipment.xlsx"
+            workbook = Workbook()
+            workbook.active["A1"] = "Template"
+            workbook.save(template_path)
+            workbook.close()
+
+            with override_settings(PRINT_PACK_TEMPLATE_DIRS=[temp_dir]):
+                rendered_bytes = _render_document_xlsx_bytes(document=document)
+
+        self.assertIsInstance(rendered_bytes, bytes)
+        self.assertGreater(len(rendered_bytes), 0)
 
     def test_build_mapping_payload_includes_shipment_item_position_and_root_category(self):
         warehouse = Warehouse.objects.create(name="W")
