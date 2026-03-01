@@ -272,6 +272,14 @@ def _build_mapping_payload(*, shipment=None, carton=None, document=None):
             "items": shipment_items,
         }
     if carton is not None:
+        carton_position = ""
+        shipment_context = shipment or getattr(carton, "shipment", None)
+        if shipment_context is not None and hasattr(shipment_context, "carton_set"):
+            cartons = list(shipment_context.carton_set.all().order_by("code"))
+            for index, shipment_carton in enumerate(cartons, start=1):
+                if shipment_carton.id == carton.id:
+                    carton_position = index
+                    break
         items = []
         if hasattr(carton, "cartonitem_set"):
             for carton_item in carton.cartonitem_set.select_related(
@@ -297,6 +305,7 @@ def _build_mapping_payload(*, shipment=None, carton=None, document=None):
         payload["carton"] = {
             "id": carton.id,
             "code": carton.code,
+            "position": carton_position,
             "items": items,
         }
     return payload
@@ -328,6 +337,19 @@ def _artifact_basename(*, pack_code):
     return f"print-pack-{pack_code}-{stamp}"
 
 
+def _document_render_targets(*, document, shipment=None, carton=None):
+    if (
+        document.doc_type == "destination_label"
+        and (document.variant or "") == "all_labels"
+        and shipment is not None
+        and hasattr(shipment, "carton_set")
+    ):
+        cartons = list(shipment.carton_set.all().order_by("code"))
+        if cartons:
+            return [(shipment, shipment_carton) for shipment_carton in cartons]
+    return [(shipment, carton)]
+
+
 def generate_pack(*, pack_code, shipment=None, carton=None, user=None, variant=None):
     pack = PrintPack.objects.filter(code=pack_code, active=True).first()
     if pack is None:
@@ -350,35 +372,45 @@ def generate_pack(*, pack_code, shipment=None, carton=None, user=None, variant=N
 
     generated_pdfs = []
     for document in documents:
-        xlsx_bytes = _render_document_xlsx_bytes(
+        targets = _document_render_targets(
             document=document,
             shipment=shipment,
             carton=carton,
         )
-        xlsx_name = f"{pack.code}-{document.doc_type}-{document.id}.xlsx"
-        pdf_bytes = convert_excel_to_pdf_via_graph(
-            xlsx_bytes=xlsx_bytes,
-            filename=xlsx_name,
-        )
-        generated_pdfs.append(pdf_bytes)
+        for target_index, (target_shipment, target_carton) in enumerate(targets, start=1):
+            xlsx_bytes = _render_document_xlsx_bytes(
+                document=document,
+                shipment=target_shipment,
+                carton=target_carton,
+            )
+            filename_suffix = f"-{target_index}" if len(targets) > 1 else ""
+            xlsx_name = (
+                f"{pack.code}-{document.doc_type}-{document.id}{filename_suffix}.xlsx"
+            )
+            pdf_name = f"{pack.code}-{document.doc_type}-{document.id}{filename_suffix}.pdf"
+            pdf_bytes = convert_excel_to_pdf_via_graph(
+                xlsx_bytes=xlsx_bytes,
+                filename=xlsx_name,
+            )
+            generated_pdfs.append(pdf_bytes)
 
-        item = GeneratedPrintArtifactItem.objects.create(
-            artifact=artifact,
-            doc_type=document.doc_type,
-            variant=document.variant or "",
-            sequence=document.sequence,
-        )
-        item.source_xlsx_file.save(
-            xlsx_name,
-            ContentFile(xlsx_bytes),
-            save=False,
-        )
-        item.generated_pdf_file.save(
-            f"{pack.code}-{document.doc_type}-{document.id}.pdf",
-            ContentFile(pdf_bytes),
-            save=False,
-        )
-        item.save(update_fields=["source_xlsx_file", "generated_pdf_file"])
+            item = GeneratedPrintArtifactItem.objects.create(
+                artifact=artifact,
+                doc_type=document.doc_type,
+                variant=document.variant or "",
+                sequence=document.sequence,
+            )
+            item.source_xlsx_file.save(
+                xlsx_name,
+                ContentFile(xlsx_bytes),
+                save=False,
+            )
+            item.generated_pdf_file.save(
+                pdf_name,
+                ContentFile(pdf_bytes),
+                save=False,
+            )
+            item.save(update_fields=["source_xlsx_file", "generated_pdf_file"])
 
     if len(generated_pdfs) == 1:
         merged_pdf = generated_pdfs[0]

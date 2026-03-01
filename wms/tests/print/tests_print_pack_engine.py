@@ -95,6 +95,47 @@ class PrintPackEngineTests(TestCase):
         merge_mock.assert_called_once_with([b"%PDF-1", b"%PDF-2"])
         self.assertTrue(artifact.pdf_file.name.endswith(".pdf"))
 
+    def test_generate_pack_expands_destination_all_labels_per_carton(self):
+        pack = PrintPack.objects.create(code="PD", name="Pack D")
+        PrintPackDocument.objects.create(
+            pack=pack,
+            doc_type="destination_label",
+            variant="all_labels",
+            sequence=1,
+            enabled=True,
+        )
+        shipment = Shipment.objects.create(
+            shipper_name="Shipper",
+            recipient_name="Recipient",
+            destination_address="1 Rue Test",
+            destination_country="France",
+            created_by=self.user,
+        )
+        carton_one = Carton.objects.create(code="C-001", shipment=shipment)
+        carton_two = Carton.objects.create(code="C-002", shipment=shipment)
+
+        with mock.patch(
+            "wms.print_pack_engine._render_document_xlsx_bytes",
+            side_effect=[b"xlsx-1", b"xlsx-2"],
+        ) as render_mock, mock.patch(
+            "wms.print_pack_engine.convert_excel_to_pdf_via_graph",
+            side_effect=[b"%PDF-1", b"%PDF-2"],
+        ), mock.patch(
+            "wms.print_pack_engine.merge_pdf_documents",
+            return_value=b"%PDF-merged",
+        ) as merge_mock:
+            artifact = generate_pack(pack_code="PD", shipment=shipment, user=self.user)
+
+        self.assertEqual(render_mock.call_count, 2)
+        first_kwargs = render_mock.call_args_list[0].kwargs
+        second_kwargs = render_mock.call_args_list[1].kwargs
+        self.assertEqual(first_kwargs["shipment"], shipment)
+        self.assertEqual(second_kwargs["shipment"], shipment)
+        self.assertEqual(first_kwargs["carton"], carton_one)
+        self.assertEqual(second_kwargs["carton"], carton_two)
+        self.assertEqual(artifact.items.count(), 2)
+        merge_mock.assert_called_once_with([b"%PDF-1", b"%PDF-2"])
+
     def test_generate_pack_raises_when_pack_is_unknown(self):
         with self.assertRaises(PrintPackEngineError):
             generate_pack(pack_code="Z", user=self.user)
@@ -136,6 +177,7 @@ class PrintPackEngineTests(TestCase):
         self.assertEqual(payload["shipment"]["reference"], "260042")
         self.assertEqual(payload["shipment"]["recipient"]["full_name"], "CHU Nord")
         self.assertEqual(payload["carton"]["code"], "CARTON-9")
+        self.assertEqual(payload["carton"]["position"], "")
         self.assertEqual(payload["document"]["doc_type"], "shipment_note")
         self.assertEqual(payload["document"]["variant"], "shipment")
         self.assertTrue(payload["document"]["generated_on"])
@@ -187,6 +229,7 @@ class PrintPackEngineTests(TestCase):
         self.assertEqual(payload["shipment"]["items"][0]["carton_position"], 1)
         self.assertEqual(payload["shipment"]["items"][0]["category_root"], "MM")
         self.assertEqual(payload["carton"]["items"][0]["category_root"], "MM")
+        self.assertEqual(payload["carton"]["position"], 1)
 
     def test_build_mapping_payload_includes_recipient_contact_details(self):
         recipient = Contact.objects.create(
