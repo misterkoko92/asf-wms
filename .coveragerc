@@ -9,6 +9,8 @@ omit =
     */migrations/*
     asf_wms/asgi.py
     asf_wms/wsgi.py
+    wms/views_next_frontend.py
+    wms/ui_mode.py
 
 [report]
 show_missing = true

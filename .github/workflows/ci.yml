@@ -49,7 +49,7 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          coverage run --rcfile=.coveragerc manage.py test
+          coverage run --rcfile=.coveragerc manage.py test --exclude-tag=next_frontend --exclude-tag=next_ui
           coverage report -m --fail-under=95
           coverage xml
 

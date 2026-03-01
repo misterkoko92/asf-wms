@@ -4,13 +4,14 @@ from tempfile import TemporaryDirectory
 from unittest import mock
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase, override_settings
+from django.test import TestCase, override_settings, tag
 from django.urls import reverse
 
 from contacts.models import Contact, ContactType
 from wms.models import AssociationProfile, UiMode, UserUiPreference
 
 
+@tag("next_frontend")
 class NextFrontendViewsTests(TestCase):
     def setUp(self):
         user_model = get_user_model()

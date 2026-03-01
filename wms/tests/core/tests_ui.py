@@ -7,7 +7,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db.models import Sum
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
-from django.test import Client
+from django.test import Client, tag
 from django.urls import reverse
 from django.utils import timezone
 
@@ -142,6 +142,7 @@ class ScanUiTests(StaticLiveServerTestCase):
             browser.close()
 
 
+@tag("next_ui")
 @unittest.skipUnless(os.getenv("RUN_UI_TESTS") == "1", "UI tests disabled")
 @unittest.skipIf(sync_playwright is None, "Playwright not installed")
 @unittest.skipUnless(
