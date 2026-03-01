@@ -14,6 +14,7 @@ from wms.models import (
     Shipment,
     Warehouse,
 )
+from wms.print_pack_engine import PrintPackEngineError
 
 
 class PrintDocsViewsTests(TestCase):
@@ -83,6 +84,7 @@ class PrintDocsViewsTests(TestCase):
             mock.ANY,
             pack_code="C",
             shipment=shipment,
+            carton=None,
             variant="shipment",
         )
 
@@ -104,8 +106,28 @@ class PrintDocsViewsTests(TestCase):
             request,
             pack_code="C",
             shipment=shipment,
+            carton=None,
             variant="shipment",
         )
+
+    def test_scan_shipment_document_falls_back_to_legacy_renderer_when_pack_is_missing(self):
+        shipment = self._create_shipment()
+        with mock.patch(
+            "wms.views_print_docs._generate_pack_pdf_response",
+            side_effect=PrintPackEngineError("Unknown active pack: C"),
+        ), mock.patch(
+            "wms.views_print_docs.render_shipment_document",
+            return_value=HttpResponse("legacy"),
+        ) as legacy_mock:
+            response = self.client.get(
+                reverse(
+                    "scan:scan_shipment_document",
+                    kwargs={"shipment_id": shipment.id, "doc_type": "shipment_note"},
+                )
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.decode(), "legacy")
+        legacy_mock.assert_called_once_with(mock.ANY, shipment, "shipment_note")
 
     def test_scan_shipment_carton_document_404_when_carton_not_linked(self):
         shipment = self._create_shipment()

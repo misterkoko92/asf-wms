@@ -4,7 +4,8 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from .models import Carton, Shipment
-from .print_pack_engine import generate_pack
+from .print_context import build_carton_picking_context
+from .print_pack_engine import PrintPackEngineError, generate_pack
 from .print_pack_routing import (
     resolve_carton_packing_pack,
     resolve_carton_picking_pack,
@@ -15,11 +16,12 @@ from .shipment_document_handlers import (
     handle_shipment_document_delete,
     handle_shipment_document_upload,
 )
-from .shipment_view_helpers import render_shipment_document
+from .shipment_view_helpers import render_carton_document, render_shipment_document
 from .view_permissions import scan_staff_required
 
 TEMPLATE_DYNAMIC_DOCUMENT = "print/dynamic_document.html"
 TEMPLATE_PACKING_LIST_CARTON = "print/liste_colisage_carton.html"
+TEMPLATE_PICKING_LIST_CARTON = "print/picking_list_carton.html"
 
 
 def _get_shipment_by_id(shipment_id):
@@ -95,17 +97,39 @@ def _generate_pack_pdf_response(
     return _artifact_pdf_response(artifact)
 
 
+def _try_generate_pack_pdf_response(
+    request,
+    *,
+    pack_code,
+    shipment=None,
+    carton=None,
+    variant=None,
+    fallback_renderer,
+):
+    try:
+        return _generate_pack_pdf_response(
+            request,
+            pack_code=pack_code,
+            shipment=shipment,
+            carton=carton,
+            variant=variant,
+        )
+    except PrintPackEngineError:
+        return fallback_renderer()
+
+
 @scan_staff_required
 @require_http_methods(["GET"])
 def scan_shipment_document(request, shipment_id, doc_type):
     shipment = _get_shipment_by_id(shipment_id)
     pack_route = resolve_pack_request(doc_type)
     if pack_route:
-        return _generate_pack_pdf_response(
+        return _try_generate_pack_pdf_response(
             request,
             pack_code=pack_route.pack_code,
             shipment=shipment,
             variant=pack_route.variant,
+            fallback_renderer=lambda: render_shipment_document(request, shipment, doc_type),
         )
     return render_shipment_document(request, shipment, doc_type)
 
@@ -116,11 +140,12 @@ def scan_shipment_document_public(request, shipment_ref, doc_type):
     shipment = _get_shipment_by_reference(shipment_ref)
     pack_route = resolve_pack_request(doc_type)
     if pack_route:
-        return _generate_pack_pdf_response(
+        return _try_generate_pack_pdf_response(
             request,
             pack_code=pack_route.pack_code,
             shipment=shipment,
             variant=pack_route.variant,
+            fallback_renderer=lambda: render_shipment_document(request, shipment, doc_type),
         )
     return render_shipment_document(request, shipment, doc_type)
 
@@ -131,12 +156,13 @@ def scan_shipment_carton_document(request, shipment_id, carton_id):
     shipment = _get_shipment_by_id(shipment_id)
     carton = _get_shipment_carton_or_404(shipment, carton_id)
     pack_route = resolve_carton_packing_pack()
-    return _generate_pack_pdf_response(
+    return _try_generate_pack_pdf_response(
         request,
         pack_code=pack_route.pack_code,
         shipment=shipment,
         carton=carton,
         variant=pack_route.variant,
+        fallback_renderer=lambda: render_carton_document(request, shipment, carton),
     )
 
 
@@ -146,12 +172,13 @@ def scan_shipment_carton_document_public(request, shipment_ref, carton_id):
     shipment = _get_shipment_by_reference(shipment_ref)
     carton = _get_shipment_carton_or_404(shipment, carton_id)
     pack_route = resolve_carton_packing_pack()
-    return _generate_pack_pdf_response(
+    return _try_generate_pack_pdf_response(
         request,
         pack_code=pack_route.pack_code,
         shipment=shipment,
         carton=carton,
         variant=pack_route.variant,
+        fallback_renderer=lambda: render_carton_document(request, shipment, carton),
     )
 
 
@@ -164,12 +191,17 @@ def scan_carton_document(request, carton_id):
     )
     if carton.shipment_id:
         pack_route = resolve_carton_packing_pack()
-        return _generate_pack_pdf_response(
+        return _try_generate_pack_pdf_response(
             request,
             pack_code=pack_route.pack_code,
             shipment=carton.shipment,
             carton=carton,
             variant=pack_route.variant,
+            fallback_renderer=lambda: render_carton_document(
+                request,
+                carton.shipment,
+                carton,
+            ),
         )
     else:
         context = _build_standalone_carton_context(carton)
@@ -187,12 +219,17 @@ def scan_carton_picking(request, carton_id):
         pk=carton_id,
     )
     pack_route = resolve_carton_picking_pack()
-    return _generate_pack_pdf_response(
+    return _try_generate_pack_pdf_response(
         request,
         pack_code=pack_route.pack_code,
         shipment=carton.shipment,
         carton=carton,
         variant=pack_route.variant,
+        fallback_renderer=lambda: render(
+            request,
+            TEMPLATE_PICKING_LIST_CARTON,
+            build_carton_picking_context(carton),
+        ),
     )
 
 
