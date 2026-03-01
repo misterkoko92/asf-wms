@@ -5,9 +5,17 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from wms.models import (
+    Carton,
+    CartonItem,
     GeneratedPrintArtifactStatus,
+    Location,
+    Product,
+    ProductCategory,
+    ProductLot,
     PrintPack,
     PrintPackDocument,
+    Shipment,
+    Warehouse,
 )
 from wms.print_pack_engine import (
     PrintPackEngineError,
@@ -138,3 +146,42 @@ class PrintPackEngineTests(TestCase):
         )
         with self.assertRaises(PrintPackEngineError):
             _render_document_xlsx_bytes(document=document)
+
+    def test_build_mapping_payload_includes_shipment_item_position_and_root_category(self):
+        warehouse = Warehouse.objects.create(name="W")
+        location = Location.objects.create(
+            warehouse=warehouse,
+            zone="A",
+            aisle="01",
+            shelf="001",
+        )
+        root_category = ProductCategory.objects.create(name="MM")
+        sub_category = ProductCategory.objects.create(name="Sub", parent=root_category)
+        product = Product.objects.create(
+            sku="SKU-PAYLOAD-1",
+            name="Produit",
+            brand="ASF",
+            category=sub_category,
+            default_location=location,
+            qr_code_image="qr_codes/test.png",
+        )
+        lot = ProductLot.objects.create(
+            product=product,
+            lot_code="LOT-PAYLOAD",
+            quantity_on_hand=10,
+            location=location,
+        )
+        shipment = Shipment.objects.create(
+            shipper_name="Shipper",
+            recipient_name="Recipient",
+            destination_address="1 Rue Test",
+            destination_country="France",
+            created_by=self.user,
+        )
+        carton = Carton.objects.create(code="C-001", shipment=shipment)
+        CartonItem.objects.create(carton=carton, product_lot=lot, quantity=6)
+
+        payload = _build_mapping_payload(shipment=shipment)
+
+        self.assertEqual(payload["shipment"]["items"][0]["carton_position"], 1)
+        self.assertEqual(payload["shipment"]["items"][0]["category_root"], "MM")

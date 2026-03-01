@@ -19,6 +19,21 @@ class PrintPackEngineError(RuntimeError):
     """Raised when pack generation cannot be completed."""
 
 
+def _resolve_root_category_name(product):
+    category = getattr(product, "category", None)
+    if category is None:
+        return ""
+    visited_ids = set()
+    while getattr(category, "parent", None) is not None:
+        category_id = getattr(category, "id", None)
+        if category_id in visited_ids:
+            break
+        if category_id is not None:
+            visited_ids.add(category_id)
+        category = category.parent
+    return getattr(category, "name", "") or ""
+
+
 def _build_mapping_payload(*, shipment=None, carton=None, document=None):
     payload = {
         "shipment": {},
@@ -36,10 +51,37 @@ def _build_mapping_payload(*, shipment=None, carton=None, document=None):
             carton_total_count = shipment.carton_set.count()
         else:
             carton_total_count = 1
+        destination = getattr(shipment, "destination", None)
+        destination_iata = ""
+        if destination is not None:
+            destination_iata = getattr(destination, "iata_code", "") or ""
+
+        shipment_items = []
+        if hasattr(shipment, "carton_set"):
+            carton_qs = shipment.carton_set.all().order_by("code")
+            for carton_position, shipment_carton in enumerate(carton_qs, start=1):
+                carton_items = shipment_carton.cartonitem_set.select_related(
+                    "product_lot__product__category__parent",
+                    "product_lot__location",
+                )
+                for carton_item in carton_items:
+                    product = carton_item.product_lot.product
+                    shipment_items.append(
+                        {
+                            "carton_code": shipment_carton.code,
+                            "carton_position": carton_position,
+                            "category_root": _resolve_root_category_name(product),
+                            "brand": product.brand or "",
+                            "product_name": product.name,
+                            "quantity": carton_item.quantity,
+                            "expires_on": carton_item.product_lot.expires_on,
+                        }
+                    )
         payload["shipment"] = {
             "id": shipment.id,
             "reference": shipment.reference,
             "carton_total_count": carton_total_count,
+            "destination_iata": destination_iata,
             "shipper_name": shipment.shipper_name,
             "recipient_name": shipment.recipient_name,
             "recipient": {
@@ -50,6 +92,7 @@ def _build_mapping_payload(*, shipment=None, carton=None, document=None):
             "destination_country": shipment.destination_country,
             "requested_delivery_date": shipment.requested_delivery_date,
             "notes": shipment.notes,
+            "items": shipment_items,
         }
     if carton is not None:
         items = []
