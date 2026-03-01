@@ -25,7 +25,7 @@ class PrintPackEngineTests(TestCase):
         )
 
     def test_generate_pack_creates_single_document_artifact_without_merge(self):
-        pack = PrintPack.objects.create(code="A", name="Pack A")
+        pack = PrintPack.objects.create(code="PA", name="Pack A")
         PrintPackDocument.objects.create(
             pack=pack,
             doc_type="picking",
@@ -43,9 +43,9 @@ class PrintPackEngineTests(TestCase):
         ) as convert_mock, mock.patch(
             "wms.print_pack_engine.merge_pdf_documents"
         ) as merge_mock:
-            artifact = generate_pack(pack_code="A", user=self.user)
+            artifact = generate_pack(pack_code="PA", user=self.user)
 
-        self.assertEqual(artifact.pack_code, "A")
+        self.assertEqual(artifact.pack_code, "PA")
         self.assertEqual(artifact.status, GeneratedPrintArtifactStatus.SYNC_PENDING)
         self.assertEqual(artifact.items.count(), 1)
         render_mock.assert_called_once()
@@ -53,7 +53,7 @@ class PrintPackEngineTests(TestCase):
         merge_mock.assert_not_called()
 
     def test_generate_pack_merges_when_multiple_documents_are_present(self):
-        pack = PrintPack.objects.create(code="B", name="Pack B")
+        pack = PrintPack.objects.create(code="PB", name="Pack B")
         PrintPackDocument.objects.create(
             pack=pack,
             doc_type="packing_list_shipment",
@@ -79,7 +79,7 @@ class PrintPackEngineTests(TestCase):
             "wms.print_pack_engine.merge_pdf_documents",
             return_value=b"%PDF-merged",
         ) as merge_mock:
-            artifact = generate_pack(pack_code="B", user=self.user)
+            artifact = generate_pack(pack_code="PB", user=self.user)
 
         self.assertEqual(artifact.items.count(), 2)
         merge_mock.assert_called_once_with([b"%PDF-1", b"%PDF-2"])
@@ -90,7 +90,7 @@ class PrintPackEngineTests(TestCase):
             generate_pack(pack_code="Z", user=self.user)
 
     def test_generate_pack_raises_when_variant_filters_out_all_documents(self):
-        pack = PrintPack.objects.create(code="C", name="Pack C")
+        pack = PrintPack.objects.create(code="PC", name="Pack C")
         PrintPackDocument.objects.create(
             pack=pack,
             doc_type="shipment_note",
@@ -100,7 +100,7 @@ class PrintPackEngineTests(TestCase):
         )
 
         with self.assertRaises(PrintPackEngineError):
-            generate_pack(pack_code="C", variant="single_carton", user=self.user)
+            generate_pack(pack_code="PC", variant="single_carton", user=self.user)
 
     def test_build_mapping_payload_includes_shipment_and_carton_fields(self):
         shipment = SimpleNamespace(
