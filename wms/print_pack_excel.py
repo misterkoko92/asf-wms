@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from openpyxl.cell.cell import MergedCell
 from openpyxl.utils.cell import coordinate_from_string
 
 
@@ -50,6 +51,15 @@ def _iter_repeating_values(payload, source_key):
     return [_resolve_source_value(row, item_key) for row in rows]
 
 
+def _resolve_target_cell(worksheet, cell_ref):
+    cell = worksheet[cell_ref]
+    if isinstance(cell, MergedCell):
+        for merged_range in worksheet.merged_cells.ranges:
+            if cell.coordinate in merged_range:
+                return worksheet[merged_range.start_cell.coordinate]
+    return cell
+
+
 def _is_missing(value):
     return value is None or (isinstance(value, str) and value.strip() == "")
 
@@ -77,6 +87,7 @@ def fill_workbook_cells(workbook, mappings, payload):
 
         if worksheet_name not in workbook.sheetnames:
             raise PrintPackMappingError(f"Unknown worksheet: {worksheet_name}")
+        worksheet = workbook[worksheet_name]
 
         if "[]" in source_key:
             column, base_row = coordinate_from_string(cell_ref)
@@ -90,10 +101,11 @@ def fill_workbook_cells(workbook, mappings, payload):
                     raise PrintPackMappingError(
                         f"Missing required mapping value for {worksheet_name}!{column}{base_row + idx} ({source_key})"
                     )
-                workbook[worksheet_name][f"{column}{base_row + idx}"].value = _apply_transform(
-                    raw_value,
-                    transform,
+                target_cell = _resolve_target_cell(
+                    worksheet,
+                    f"{column}{base_row + idx}",
                 )
+                target_cell.value = _apply_transform(raw_value, transform)
             continue
 
         value = _resolve_source_value(payload, source_key)
@@ -102,5 +114,6 @@ def fill_workbook_cells(workbook, mappings, payload):
                 f"Missing required mapping value for {worksheet_name}!{cell_ref} ({source_key})"
             )
 
-        workbook[worksheet_name][cell_ref].value = _apply_transform(value, transform)
+        target_cell = _resolve_target_cell(worksheet, cell_ref)
+        target_cell.value = _apply_transform(value, transform)
     return workbook

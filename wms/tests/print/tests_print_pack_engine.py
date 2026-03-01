@@ -4,6 +4,7 @@ from unittest import mock
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
+from contacts.models import Contact, ContactAddress, ContactType
 from wms.models import (
     Carton,
     CartonItem,
@@ -134,10 +135,9 @@ class PrintPackEngineTests(TestCase):
         self.assertEqual(payload["shipment"]["reference"], "260042")
         self.assertEqual(payload["shipment"]["recipient"]["full_name"], "CHU Nord")
         self.assertEqual(payload["carton"]["code"], "CARTON-9")
-        self.assertEqual(
-            payload["document"],
-            {"doc_type": "shipment_note", "variant": "shipment"},
-        )
+        self.assertEqual(payload["document"]["doc_type"], "shipment_note")
+        self.assertEqual(payload["document"]["variant"], "shipment")
+        self.assertTrue(payload["document"]["generated_on"])
 
     def test_render_document_xlsx_bytes_raises_when_template_is_missing(self):
         document = SimpleNamespace(
@@ -186,3 +186,53 @@ class PrintPackEngineTests(TestCase):
         self.assertEqual(payload["shipment"]["items"][0]["carton_position"], 1)
         self.assertEqual(payload["shipment"]["items"][0]["category_root"], "MM")
         self.assertEqual(payload["carton"]["items"][0]["category_root"], "MM")
+
+    def test_build_mapping_payload_includes_recipient_contact_details(self):
+        recipient = Contact.objects.create(
+            contact_type=ContactType.PERSON,
+            title="M.",
+            first_name="Jean",
+            last_name="Dupont",
+            email="jean@example.org",
+            email2="secours@example.org",
+            phone="+33 1 23 45 67 89",
+            phone2="+33 6 11 22 33 44",
+            notes="Urgence: +223 70 00 00 00",
+        )
+        ContactAddress.objects.create(
+            contact=recipient,
+            is_default=True,
+            address_line1="10 Rue du Test",
+            postal_code="75010",
+            city="Paris",
+            country="France",
+            phone="+33 9 00 00 00 00",
+            email="adresse@example.org",
+        )
+        shipment = Shipment.objects.create(
+            shipper_name="Shipper",
+            recipient_name="Fallback Recipient",
+            recipient_contact_ref=recipient,
+            destination_address="1 Rue Test",
+            destination_country="France",
+            created_by=self.user,
+        )
+
+        payload = _build_mapping_payload(shipment=shipment)
+
+        recipient_payload = payload["shipment"]["recipient"]
+        self.assertEqual(recipient_payload["title_name"], "M. Jean DUPONT")
+        self.assertEqual(recipient_payload["postal_address"], "10 Rue du Test")
+        self.assertEqual(recipient_payload["postal_code"], "75010")
+        self.assertEqual(recipient_payload["city"], "Paris")
+        self.assertEqual(recipient_payload["country"], "France")
+        self.assertEqual(recipient_payload["phone_1"], "+33 1 23 45 67 89")
+        self.assertEqual(recipient_payload["phone_2"], "+33 6 11 22 33 44")
+        self.assertEqual(recipient_payload["phone_3"], "+33 9 00 00 00 00")
+        self.assertEqual(recipient_payload["email_1"], "jean@example.org")
+        self.assertEqual(recipient_payload["email_2"], "secours@example.org")
+        self.assertEqual(recipient_payload["email_3"], "adresse@example.org")
+        self.assertEqual(
+            recipient_payload["emergency_contact"],
+            "Urgence: +223 70 00 00 00",
+        )

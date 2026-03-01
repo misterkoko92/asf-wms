@@ -19,6 +19,39 @@ class PrintPackEngineError(RuntimeError):
     """Raised when pack generation cannot be completed."""
 
 
+def _clean_text(value):
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def _join_non_empty(*values, separator=" "):
+    parts = [_clean_text(value) for value in values if _clean_text(value)]
+    return separator.join(parts)
+
+
+def _first_line(value):
+    text = _clean_text(value)
+    if not text:
+        return ""
+    return text.splitlines()[0].strip()
+
+
+def _unique_non_empty(values):
+    result = []
+    seen = set()
+    for value in values:
+        text = _clean_text(value)
+        if not text:
+            continue
+        lowered = text.lower()
+        if lowered in seen:
+            continue
+        seen.add(lowered)
+        result.append(text)
+    return result
+
+
 def _resolve_root_category_name(product):
     category = getattr(product, "category", None)
     if category is None:
@@ -34,13 +67,102 @@ def _resolve_root_category_name(product):
     return getattr(category, "name", "") or ""
 
 
+def _build_recipient_payload(shipment):
+    recipient_contact = getattr(shipment, "recipient_contact_ref", None)
+    base_name = _clean_text(getattr(shipment, "recipient_name", ""))
+    payload = {
+        "full_name": base_name,
+        "title_name": base_name,
+        "structure_name": "",
+        "postal_address": "",
+        "postal_code": "",
+        "city": "",
+        "country": _clean_text(getattr(shipment, "destination_country", "")),
+        "phone_1": "",
+        "phone_2": "",
+        "phone_3": "",
+        "email_1": "",
+        "email_2": "",
+        "email_3": "",
+        "emergency_contact": "",
+    }
+    if recipient_contact is None:
+        return payload
+
+    first_name = _clean_text(getattr(recipient_contact, "first_name", ""))
+    last_name = _clean_text(getattr(recipient_contact, "last_name", ""))
+    title = _clean_text(getattr(recipient_contact, "title", ""))
+    if first_name or last_name:
+        payload["title_name"] = _join_non_empty(
+            title,
+            first_name,
+            last_name.upper() if last_name else "",
+        )
+    elif _clean_text(getattr(recipient_contact, "name", "")):
+        payload["title_name"] = _clean_text(getattr(recipient_contact, "name", ""))
+    if not payload["title_name"]:
+        payload["title_name"] = base_name
+    payload["full_name"] = payload["title_name"]
+
+    organization = getattr(recipient_contact, "organization", None)
+    contact_name = _clean_text(getattr(recipient_contact, "name", ""))
+    if organization is not None and _clean_text(getattr(organization, "name", "")):
+        payload["structure_name"] = _clean_text(getattr(organization, "name", ""))
+    else:
+        contact_type = _clean_text(getattr(recipient_contact, "contact_type", ""))
+        if contact_type == "organization":
+            payload["structure_name"] = contact_name
+
+    address = None
+    if hasattr(recipient_contact, "get_effective_address"):
+        address = recipient_contact.get_effective_address()
+    if address is not None:
+        payload["postal_address"] = _join_non_empty(
+            getattr(address, "address_line1", ""),
+            getattr(address, "address_line2", ""),
+            separator=", ",
+        )
+        payload["postal_code"] = _clean_text(getattr(address, "postal_code", ""))
+        payload["city"] = _clean_text(getattr(address, "city", ""))
+        if _clean_text(getattr(address, "country", "")):
+            payload["country"] = _clean_text(getattr(address, "country", ""))
+
+    phones = _unique_non_empty(
+        [
+            getattr(recipient_contact, "phone", ""),
+            getattr(recipient_contact, "phone2", ""),
+            getattr(address, "phone", "") if address is not None else "",
+        ]
+    )
+    emails = _unique_non_empty(
+        [
+            getattr(recipient_contact, "email", ""),
+            getattr(recipient_contact, "email2", ""),
+            getattr(address, "email", "") if address is not None else "",
+        ]
+    )
+    payload["phone_1"] = phones[0] if len(phones) > 0 else ""
+    payload["phone_2"] = phones[1] if len(phones) > 1 else ""
+    payload["phone_3"] = phones[2] if len(phones) > 2 else ""
+    payload["email_1"] = emails[0] if len(emails) > 0 else ""
+    payload["email_2"] = emails[1] if len(emails) > 1 else ""
+    payload["email_3"] = emails[2] if len(emails) > 2 else ""
+
+    payload["emergency_contact"] = _first_line(getattr(recipient_contact, "notes", ""))
+    if not payload["emergency_contact"]:
+        payload["emergency_contact"] = _clean_text(getattr(recipient_contact, "role", ""))
+    return payload
+
+
 def _build_mapping_payload(*, shipment=None, carton=None, document=None):
+    generated_on = timezone.localdate()
     payload = {
         "shipment": {},
         "carton": {},
         "document": {
             "doc_type": getattr(document, "doc_type", ""),
             "variant": getattr(document, "variant", ""),
+            "generated_on": generated_on,
         },
     }
     if shipment is not None:
@@ -53,8 +175,10 @@ def _build_mapping_payload(*, shipment=None, carton=None, document=None):
             carton_total_count = 1
         destination = getattr(shipment, "destination", None)
         destination_iata = ""
+        destination_city = ""
         if destination is not None:
             destination_iata = getattr(destination, "iata_code", "") or ""
+            destination_city = getattr(destination, "city", "") or ""
 
         shipment_items = []
         if hasattr(shipment, "carton_set"):
@@ -82,11 +206,10 @@ def _build_mapping_payload(*, shipment=None, carton=None, document=None):
             "reference": shipment.reference,
             "carton_total_count": carton_total_count,
             "destination_iata": destination_iata,
+            "destination_city": destination_city,
             "shipper_name": shipment.shipper_name,
             "recipient_name": shipment.recipient_name,
-            "recipient": {
-                "full_name": shipment.recipient_name,
-            },
+            "recipient": _build_recipient_payload(shipment),
             "correspondent_name": shipment.correspondent_name,
             "destination_address": shipment.destination_address,
             "destination_country": shipment.destination_country,

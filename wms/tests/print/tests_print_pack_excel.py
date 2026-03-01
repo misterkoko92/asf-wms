@@ -91,3 +91,60 @@ class PrintPackExcelTests(SimpleTestCase):
 
         with self.assertRaises(PrintPackMappingError):
             fill_workbook_cells(workbook, mappings, payload)
+
+    def test_fill_workbook_cells_writes_to_merged_range_anchor(self):
+        workbook = Workbook()
+        workbook.active.title = "Main"
+        sheet = workbook["Main"]
+        sheet.merge_cells("B7:H7")
+        mappings = [self._mapping(cell_ref="C7", source_key="shipment.destination_city")]
+        payload = {"shipment": {"destination_city": "ABIDJAN"}}
+
+        fill_workbook_cells(workbook, mappings, payload)
+
+        self.assertEqual(sheet["B7"].value, "ABIDJAN")
+
+    def test_fill_workbook_cells_supports_dict_mapping_and_object_payload(self):
+        workbook = Workbook()
+        workbook.active.title = "Main"
+        mappings = [
+            {
+                "worksheet_name": "Main",
+                "cell_ref": "A1",
+                "source_key": "shipment.recipient.full_name",
+                "transform": "",
+                "required": True,
+            }
+        ]
+        payload = {
+            "shipment": SimpleNamespace(
+                recipient=SimpleNamespace(full_name="John Doe"),
+            )
+        }
+
+        fill_workbook_cells(workbook, mappings, payload)
+
+        self.assertEqual(workbook["Main"]["A1"].value, "John Doe")
+
+    def test_fill_workbook_cells_raises_when_worksheet_is_unknown(self):
+        workbook = Workbook()
+        workbook.active.title = "Main"
+        mappings = [self._mapping(worksheet_name="Missing")]
+
+        with self.assertRaises(PrintPackMappingError):
+            fill_workbook_cells(workbook, mappings, payload={})
+
+    def test_fill_workbook_cells_raises_on_required_empty_repeating_value(self):
+        workbook = Workbook()
+        workbook.active.title = "Main"
+        mappings = [
+            self._mapping(
+                cell_ref="A14",
+                source_key="carton.items[].product_name",
+                required=True,
+            )
+        ]
+        payload = {"carton": {"items": [{"product_name": "   "}]}}
+
+        with self.assertRaises(PrintPackMappingError):
+            fill_workbook_cells(workbook, mappings, payload)
