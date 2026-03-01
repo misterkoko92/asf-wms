@@ -117,3 +117,42 @@ def fill_workbook_cells(workbook, mappings, payload):
         target_cell = _resolve_target_cell(worksheet, cell_ref)
         target_cell.value = _apply_transform(value, transform)
     return workbook
+
+
+def _display_length(value):
+    if value is None:
+        return 0
+    text = str(value)
+    if not text:
+        return 0
+    lines = text.splitlines() or [text]
+    return max(len(line) for line in lines)
+
+
+def autosize_workbook_columns(workbook, *, min_width=8, max_width=80, padding=2):
+    safe_min = max(1, int(min_width or 1))
+    safe_max = max(safe_min, int(max_width or safe_min))
+    safe_padding = max(0, int(padding or 0))
+
+    for worksheet in workbook.worksheets:
+        widths = {}
+        for row in worksheet.iter_rows(
+            min_row=1,
+            max_row=worksheet.max_row,
+            min_col=1,
+            max_col=worksheet.max_column,
+        ):
+            for cell in row:
+                if isinstance(cell, MergedCell):
+                    continue
+                length = _display_length(cell.value)
+                if length <= 0:
+                    continue
+                col_letter = cell.column_letter
+                widths[col_letter] = max(widths.get(col_letter, 0), length)
+
+        for col_letter, content_len in widths.items():
+            computed_width = content_len + safe_padding
+            bounded_width = min(safe_max, max(safe_min, computed_width))
+            worksheet.column_dimensions[col_letter].width = bounded_width
+    return workbook

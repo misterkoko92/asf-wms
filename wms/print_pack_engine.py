@@ -13,7 +13,7 @@ from .models import (
     GeneratedPrintArtifactStatus,
     PrintPack,
 )
-from .print_pack_excel import fill_workbook_cells
+from .print_pack_excel import autosize_workbook_columns, fill_workbook_cells
 from .print_pack_graph import convert_excel_to_pdf_via_graph
 from .print_pack_pdf import merge_pdf_documents
 
@@ -382,6 +382,7 @@ def _render_document_xlsx_bytes(*, document, shipment=None, carton=None):
         document=document,
     )
     fill_workbook_cells(workbook, mappings, payload)
+    autosize_workbook_columns(workbook)
     output = BytesIO()
     workbook.save(output)
     workbook.close()

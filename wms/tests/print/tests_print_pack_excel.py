@@ -4,7 +4,11 @@ from types import SimpleNamespace
 from django.test import SimpleTestCase
 from openpyxl import Workbook
 
-from wms.print_pack_excel import PrintPackMappingError, fill_workbook_cells
+from wms.print_pack_excel import (
+    PrintPackMappingError,
+    autosize_workbook_columns,
+    fill_workbook_cells,
+)
 
 
 class PrintPackExcelTests(SimpleTestCase):
@@ -148,3 +152,25 @@ class PrintPackExcelTests(SimpleTestCase):
 
         with self.assertRaises(PrintPackMappingError):
             fill_workbook_cells(workbook, mappings, payload)
+
+    def test_autosize_workbook_columns_adjusts_widths_from_cell_values(self):
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = "Main"
+        sheet["A1"] = "SHORT"
+        sheet["B1"] = "A very long value for autosize"
+
+        autosize_workbook_columns(workbook)
+
+        self.assertGreaterEqual(sheet.column_dimensions["A"].width, 8)
+        self.assertGreater(sheet.column_dimensions["B"].width, sheet.column_dimensions["A"].width)
+
+    def test_autosize_workbook_columns_respects_max_width_bound(self):
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = "Main"
+        sheet["C1"] = "x" * 500
+
+        autosize_workbook_columns(workbook, min_width=8, max_width=40, padding=2)
+
+        self.assertEqual(sheet.column_dimensions["C"].width, 40)
