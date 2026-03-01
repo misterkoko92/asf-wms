@@ -1,15 +1,34 @@
+import json
 from unittest import mock
+from urllib import error
 
 from django.test import SimpleTestCase, override_settings
 
 from wms.print_pack_graph import (
     GraphPdfConversionError,
+    _graph_export_pdf,
+    _request_graph_token,
+    _validate_https_url,
     convert_excel_to_pdf_via_graph,
     get_client_credentials_token,
 )
 
 
 class PrintPackGraphTests(SimpleTestCase):
+    class _UrlOpenResponse:
+        def __init__(self, body, status=200):
+            self._body = body
+            self.status = status
+
+        def read(self):
+            return self._body
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
     @override_settings(
         GRAPH_TENANT_ID="tenant-id",
         GRAPH_CLIENT_ID="client-id",
@@ -75,3 +94,83 @@ class PrintPackGraphTests(SimpleTestCase):
                     xlsx_bytes=b"xlsx-data",
                     filename="pack-b.xlsx",
                 )
+
+    def test_validate_https_url_rejects_non_https(self):
+        with self.assertRaises(GraphPdfConversionError):
+            _validate_https_url("http://example.org/token")
+
+    def test_request_graph_token_returns_access_token(self):
+        payload = json.dumps({"access_token": "token-123"}).encode("utf-8")
+        with mock.patch(
+            "wms.print_pack_graph.request.urlopen",
+            return_value=self._UrlOpenResponse(payload),
+        ) as urlopen_mock:
+            token = _request_graph_token(
+                tenant_id="tenant",
+                client_id="client",
+                client_secret="secret",
+                timeout=15,
+            )
+        self.assertEqual(token, "token-123")
+        request_obj = urlopen_mock.call_args.args[0]
+        self.assertEqual(
+            request_obj.full_url,
+            "https://login.microsoftonline.com/tenant/oauth2/v2.0/token",
+        )
+
+    def test_request_graph_token_raises_on_invalid_json_payload(self):
+        with mock.patch(
+            "wms.print_pack_graph.request.urlopen",
+            return_value=self._UrlOpenResponse(b"not-json"),
+        ):
+            with self.assertRaises(GraphPdfConversionError):
+                _request_graph_token(
+                    tenant_id="tenant",
+                    client_id="client",
+                    client_secret="secret",
+                    timeout=10,
+                )
+
+    def test_request_graph_token_raises_on_missing_access_token(self):
+        payload = json.dumps({"token_type": "Bearer"}).encode("utf-8")
+        with mock.patch(
+            "wms.print_pack_graph.request.urlopen",
+            return_value=self._UrlOpenResponse(payload),
+        ):
+            with self.assertRaises(GraphPdfConversionError):
+                _request_graph_token(
+                    tenant_id="tenant",
+                    client_id="client",
+                    client_secret="secret",
+                    timeout=10,
+                )
+
+    def test_request_graph_token_raises_on_url_error(self):
+        with mock.patch(
+            "wms.print_pack_graph.request.urlopen",
+            side_effect=error.URLError("network down"),
+        ):
+            with self.assertRaises(GraphPdfConversionError):
+                _request_graph_token(
+                    tenant_id="tenant",
+                    client_id="client",
+                    client_secret="secret",
+                    timeout=10,
+                )
+
+    def test_convert_excel_to_pdf_via_graph_rejects_empty_excel_payload(self):
+        with self.assertRaises(GraphPdfConversionError):
+            convert_excel_to_pdf_via_graph(xlsx_bytes=b"", filename="pack-b.xlsx")
+
+    def test_convert_excel_to_pdf_via_graph_rejects_missing_filename(self):
+        with self.assertRaises(GraphPdfConversionError):
+            convert_excel_to_pdf_via_graph(xlsx_bytes=b"xlsx-data", filename="")
+
+    def test_graph_export_pdf_placeholder_raises(self):
+        with self.assertRaises(GraphPdfConversionError):
+            _graph_export_pdf(
+                token="token",
+                xlsx_bytes=b"xlsx-data",
+                filename="pack-b.xlsx",
+                timeout=12,
+            )
