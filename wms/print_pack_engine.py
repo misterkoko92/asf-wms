@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from io import BytesIO
 
 from django.core.files.base import ContentFile
@@ -17,6 +18,12 @@ from .print_pack_pdf import merge_pdf_documents
 
 class PrintPackEngineError(RuntimeError):
     """Raised when pack generation cannot be completed."""
+
+
+@dataclass(frozen=True)
+class PackXlsxDocument:
+    filename: str
+    payload: bytes
 
 
 def _clean_text(value):
@@ -350,7 +357,7 @@ def _document_render_targets(*, document, shipment=None, carton=None):
     return [(shipment, carton)]
 
 
-def generate_pack(*, pack_code, shipment=None, carton=None, user=None, variant=None):
+def _resolve_pack_and_documents(*, pack_code, variant=None):
     pack = PrintPack.objects.filter(code=pack_code, active=True).first()
     if pack is None:
         raise PrintPackEngineError(f"Unknown active pack: {pack_code}")
@@ -361,6 +368,35 @@ def generate_pack(*, pack_code, shipment=None, carton=None, user=None, variant=N
     documents = list(documents_qs.order_by("sequence", "id"))
     if not documents:
         raise PrintPackEngineError(f"No enabled documents configured for pack {pack_code}.")
+    return pack, documents
+
+
+def render_pack_xlsx_documents(*, pack_code, shipment=None, carton=None, variant=None):
+    pack, documents = _resolve_pack_and_documents(pack_code=pack_code, variant=variant)
+
+    xlsx_documents = []
+    for document in documents:
+        targets = _document_render_targets(
+            document=document,
+            shipment=shipment,
+            carton=carton,
+        )
+        for target_index, (target_shipment, target_carton) in enumerate(targets, start=1):
+            xlsx_bytes = _render_document_xlsx_bytes(
+                document=document,
+                shipment=target_shipment,
+                carton=target_carton,
+            )
+            filename_suffix = f"-{target_index}" if len(targets) > 1 else ""
+            xlsx_name = (
+                f"{pack.code}-{document.doc_type}-{document.id}{filename_suffix}.xlsx"
+            )
+            xlsx_documents.append(PackXlsxDocument(filename=xlsx_name, payload=xlsx_bytes))
+    return xlsx_documents
+
+
+def generate_pack(*, pack_code, shipment=None, carton=None, user=None, variant=None):
+    pack, documents = _resolve_pack_and_documents(pack_code=pack_code, variant=variant)
 
     artifact = GeneratedPrintArtifact.objects.create(
         shipment=shipment,

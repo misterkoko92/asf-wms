@@ -2,7 +2,7 @@ from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
-from django.test import RequestFactory, TestCase
+from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 
 from wms.models import Carton, Shipment
@@ -114,6 +114,37 @@ class PrintLabelsViewsTests(TestCase):
         self.assertEqual(response.content.decode(), "legacy-labels")
         legacy_mock.assert_called_once_with(mock.ANY, shipment)
 
+    @override_settings(PRINT_PACK_XLSX_FALLBACK_ENABLED=True)
+    def test_scan_shipment_labels_returns_xlsx_fallback_on_graph_failure_when_enabled(
+        self,
+    ):
+        shipment = self._create_shipment()
+        with mock.patch(
+            "wms.views_print_labels.generate_pack",
+            side_effect=GraphPdfConversionError("Graph is unavailable"),
+        ), mock.patch(
+            "wms.views_print_labels._generate_pack_xlsx_response",
+            return_value=HttpResponse("xlsx-fallback"),
+        ) as xlsx_mock, mock.patch(
+            "wms.views_print_labels.render_shipment_labels",
+            return_value=HttpResponse("legacy-labels"),
+        ) as legacy_mock:
+            response = self.client.get(
+                reverse(
+                    "scan:scan_shipment_labels",
+                    kwargs={"shipment_id": shipment.id},
+                )
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.decode(), "xlsx-fallback")
+        xlsx_mock.assert_called_once_with(
+            pack_code="D",
+            shipment=shipment,
+            carton=None,
+            variant="all_labels",
+        )
+        legacy_mock.assert_not_called()
+
     def test_scan_shipment_label_returns_404_when_carton_missing(self):
         shipment = self._create_shipment()
         response = self.client.get(
@@ -152,3 +183,31 @@ class PrintLabelsViewsTests(TestCase):
             variant="single_label",
         )
         response_mock.assert_called_once()
+
+    @override_settings(PRINT_PACK_XLSX_FALLBACK_ENABLED=True)
+    def test_scan_shipment_label_returns_xlsx_fallback_on_graph_failure_when_enabled(
+        self,
+    ):
+        shipment = self._create_shipment()
+        carton = Carton.objects.create(code="C-LABEL-001", shipment=shipment)
+        with mock.patch(
+            "wms.views_print_labels.generate_pack",
+            side_effect=GraphPdfConversionError("Graph is unavailable"),
+        ), mock.patch(
+            "wms.views_print_labels._generate_pack_xlsx_response",
+            return_value=HttpResponse("xlsx-fallback"),
+        ) as xlsx_mock:
+            response = self.client.get(
+                reverse(
+                    "scan:scan_shipment_label",
+                    kwargs={"shipment_id": shipment.id, "carton_id": carton.id},
+                )
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.decode(), "xlsx-fallback")
+        xlsx_mock.assert_called_once_with(
+            pack_code="D",
+            shipment=shipment,
+            carton=carton,
+            variant="single_label",
+        )

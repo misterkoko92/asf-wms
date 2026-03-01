@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.http import Http404
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404, render
@@ -5,9 +6,14 @@ from django.views.decorators.http import require_http_methods
 
 from .models import Shipment
 from .print_context import build_label_context
-from .print_pack_engine import PrintPackEngineError, generate_pack
+from .print_pack_engine import (
+    PrintPackEngineError,
+    generate_pack,
+    render_pack_xlsx_documents,
+)
 from .print_pack_graph import GraphPdfConversionError
 from .print_pack_routing import resolve_shipment_labels_pack, resolve_single_label_pack
+from .print_pack_xlsx import build_xlsx_fallback_response
 from .print_renderer import get_template_layout, render_layout_from_layout
 from .shipment_view_helpers import render_shipment_labels
 from .view_permissions import scan_staff_required
@@ -72,6 +78,20 @@ def _artifact_pdf_response(artifact):
     return response
 
 
+def _is_xlsx_fallback_enabled():
+    return bool(getattr(settings, "PRINT_PACK_XLSX_FALLBACK_ENABLED", False))
+
+
+def _generate_pack_xlsx_response(*, pack_code, shipment=None, carton=None, variant=None):
+    documents = render_pack_xlsx_documents(
+        pack_code=pack_code,
+        shipment=shipment,
+        carton=carton,
+        variant=variant,
+    )
+    return build_xlsx_fallback_response(documents=documents, pack_code=pack_code)
+
+
 @scan_staff_required
 @require_http_methods(["GET"])
 def scan_shipment_labels(request, shipment_id):
@@ -84,7 +104,16 @@ def scan_shipment_labels(request, shipment_id):
             user=getattr(request, "user", None),
             variant=pack_route.variant,
         )
-    except (PrintPackEngineError, GraphPdfConversionError):
+    except GraphPdfConversionError:
+        if _is_xlsx_fallback_enabled():
+            return _generate_pack_xlsx_response(
+                pack_code=pack_route.pack_code,
+                shipment=shipment,
+                carton=None,
+                variant=pack_route.variant,
+            )
+        return render_shipment_labels(request, shipment)
+    except PrintPackEngineError:
         return render_shipment_labels(request, shipment)
     return _artifact_pdf_response(artifact)
 
@@ -101,7 +130,16 @@ def scan_shipment_labels_public(request, shipment_ref):
             user=getattr(request, "user", None),
             variant=pack_route.variant,
         )
-    except (PrintPackEngineError, GraphPdfConversionError):
+    except GraphPdfConversionError:
+        if _is_xlsx_fallback_enabled():
+            return _generate_pack_xlsx_response(
+                pack_code=pack_route.pack_code,
+                shipment=shipment,
+                carton=None,
+                variant=pack_route.variant,
+            )
+        return render_shipment_labels(request, shipment)
+    except PrintPackEngineError:
         return render_shipment_labels(request, shipment)
     return _artifact_pdf_response(artifact)
 
@@ -122,7 +160,28 @@ def scan_shipment_label(request, shipment_id, carton_id):
             user=getattr(request, "user", None),
             variant=pack_route.variant,
         )
-    except (PrintPackEngineError, GraphPdfConversionError):
+    except GraphPdfConversionError:
+        if _is_xlsx_fallback_enabled():
+            return _generate_pack_xlsx_response(
+                pack_code=pack_route.pack_code,
+                shipment=shipment,
+                carton=carton,
+                variant=pack_route.variant,
+            )
+        shipment.ensure_qr_code(request=request)
+        cartons = list(shipment.carton_set.order_by("code"))
+        position = _find_carton_position(cartons, carton_id)
+        if position is None:
+            raise Http404("Carton not found for shipment")
+        label_context = build_label_context(
+            shipment,
+            position=position,
+            total=len(cartons),
+        )
+        label_context["label_qr_url"] = label_context.get("label_qr_url") or ""
+        label_context["carton_id"] = carton_id
+        return _render_shipment_label(request, label_context=label_context)
+    except PrintPackEngineError:
         shipment.ensure_qr_code(request=request)
         cartons = list(shipment.carton_set.order_by("code"))
         position = _find_carton_position(cartons, carton_id)

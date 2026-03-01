@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
@@ -5,13 +6,18 @@ from django.views.decorators.http import require_http_methods
 
 from .models import Carton, Shipment
 from .print_context import build_carton_picking_context
-from .print_pack_engine import PrintPackEngineError, generate_pack
+from .print_pack_engine import (
+    PrintPackEngineError,
+    generate_pack,
+    render_pack_xlsx_documents,
+)
 from .print_pack_graph import GraphPdfConversionError
 from .print_pack_routing import (
     resolve_carton_packing_pack,
     resolve_carton_picking_pack,
     resolve_pack_request,
 )
+from .print_pack_xlsx import build_xlsx_fallback_response
 from .print_renderer import get_template_layout, render_layout_from_layout
 from .shipment_document_handlers import (
     handle_shipment_document_delete,
@@ -98,6 +104,20 @@ def _generate_pack_pdf_response(
     return _artifact_pdf_response(artifact)
 
 
+def _is_xlsx_fallback_enabled():
+    return bool(getattr(settings, "PRINT_PACK_XLSX_FALLBACK_ENABLED", False))
+
+
+def _generate_pack_xlsx_response(*, pack_code, shipment=None, carton=None, variant=None):
+    documents = render_pack_xlsx_documents(
+        pack_code=pack_code,
+        shipment=shipment,
+        carton=carton,
+        variant=variant,
+    )
+    return build_xlsx_fallback_response(documents=documents, pack_code=pack_code)
+
+
 def _try_generate_pack_pdf_response(
     request,
     *,
@@ -115,7 +135,16 @@ def _try_generate_pack_pdf_response(
             carton=carton,
             variant=variant,
         )
-    except (PrintPackEngineError, GraphPdfConversionError):
+    except GraphPdfConversionError:
+        if _is_xlsx_fallback_enabled():
+            return _generate_pack_xlsx_response(
+                pack_code=pack_code,
+                shipment=shipment,
+                carton=carton,
+                variant=variant,
+            )
+        return fallback_renderer()
+    except PrintPackEngineError:
         return fallback_renderer()
 
 

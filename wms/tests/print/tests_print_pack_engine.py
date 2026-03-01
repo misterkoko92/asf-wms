@@ -24,6 +24,7 @@ from wms.print_pack_engine import (
     _build_mapping_payload,
     _render_document_xlsx_bytes,
     generate_pack,
+    render_pack_xlsx_documents,
 )
 
 
@@ -152,6 +153,42 @@ class PrintPackEngineTests(TestCase):
 
         with self.assertRaises(PrintPackEngineError):
             generate_pack(pack_code="PC", variant="single_carton", user=self.user)
+
+    def test_render_pack_xlsx_documents_expands_destination_all_labels_per_carton(self):
+        pack = PrintPack.objects.create(code="PX", name="Pack X")
+        PrintPackDocument.objects.create(
+            pack=pack,
+            doc_type="destination_label",
+            variant="all_labels",
+            sequence=1,
+            enabled=True,
+        )
+        shipment = Shipment.objects.create(
+            shipper_name="Shipper",
+            recipient_name="Recipient",
+            destination_address="1 Rue Test",
+            destination_country="France",
+            created_by=self.user,
+        )
+        Carton.objects.create(code="C-001", shipment=shipment)
+        Carton.objects.create(code="C-002", shipment=shipment)
+
+        with mock.patch(
+            "wms.print_pack_engine._render_document_xlsx_bytes",
+            side_effect=[b"xlsx-1", b"xlsx-2"],
+        ) as render_mock:
+            documents = render_pack_xlsx_documents(
+                pack_code="PX",
+                shipment=shipment,
+                variant="all_labels",
+            )
+
+        self.assertEqual(render_mock.call_count, 2)
+        self.assertEqual(len(documents), 2)
+        self.assertTrue(documents[0].filename.endswith("-1.xlsx"))
+        self.assertTrue(documents[1].filename.endswith("-2.xlsx"))
+        self.assertEqual(documents[0].payload, b"xlsx-1")
+        self.assertEqual(documents[1].payload, b"xlsx-2")
 
     def test_build_mapping_payload_includes_shipment_and_carton_fields(self):
         shipment = SimpleNamespace(

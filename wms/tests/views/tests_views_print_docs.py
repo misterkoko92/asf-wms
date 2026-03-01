@@ -2,7 +2,7 @@ from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.http import Http404, HttpResponse
-from django.test import RequestFactory, TestCase
+from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 
 from wms.models import (
@@ -148,6 +148,37 @@ class PrintDocsViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "legacy")
         legacy_mock.assert_called_once_with(mock.ANY, shipment, "shipment_note")
+
+    @override_settings(PRINT_PACK_XLSX_FALLBACK_ENABLED=True)
+    def test_scan_shipment_document_returns_xlsx_fallback_on_graph_failure_when_enabled(
+        self,
+    ):
+        shipment = self._create_shipment()
+        with mock.patch(
+            "wms.views_print_docs._generate_pack_pdf_response",
+            side_effect=GraphPdfConversionError("Graph is unavailable"),
+        ), mock.patch(
+            "wms.views_print_docs._generate_pack_xlsx_response",
+            return_value=HttpResponse("xlsx-fallback"),
+        ) as xlsx_mock, mock.patch(
+            "wms.views_print_docs.render_shipment_document",
+            return_value=HttpResponse("legacy"),
+        ) as legacy_mock:
+            response = self.client.get(
+                reverse(
+                    "scan:scan_shipment_document",
+                    kwargs={"shipment_id": shipment.id, "doc_type": "shipment_note"},
+                )
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.decode(), "xlsx-fallback")
+        xlsx_mock.assert_called_once_with(
+            pack_code="C",
+            shipment=shipment,
+            carton=None,
+            variant="shipment",
+        )
+        legacy_mock.assert_not_called()
 
     def test_scan_shipment_carton_document_404_when_carton_not_linked(self):
         shipment = self._create_shipment()
