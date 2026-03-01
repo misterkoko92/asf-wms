@@ -2,9 +2,10 @@ from datetime import timedelta
 from unittest import mock
 
 from django.contrib.auth import get_user_model
+from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.models import Sum
-from django.test import TestCase
+from django.test import Client, TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -19,6 +20,8 @@ from wms.models import (
     Document,
     DocumentType,
     Destination,
+    GeneratedPrintArtifact,
+    GeneratedPrintArtifactStatus,
     IntegrationDirection,
     IntegrationEvent,
     IntegrationStatus,
@@ -1145,6 +1148,99 @@ class UiApiEndpointsTests(TestCase):
             "return_to=shipments_ready",
             payload["shipments"][0]["actions"]["tracking_url"],
         )
+
+    def test_ui_button_document_urls_keep_legacy_mapping_and_return_pdf(self):
+        shipment_carton = Carton.objects.create(
+            code="UI-BTN-CARTON",
+            status=CartonStatus.ASSIGNED,
+            shipment=self.shipment,
+        )
+        CartonItem.objects.create(
+            carton=shipment_carton,
+            product_lot=self.product_lot,
+            quantity=1,
+        )
+        artifact = GeneratedPrintArtifact.objects.create(
+            pack_code="B",
+            status=GeneratedPrintArtifactStatus.SYNC_PENDING,
+        )
+        artifact.pdf_file.save("button-mapping.pdf", ContentFile(b"%PDF-button"), save=True)
+        web_client = Client()
+        web_client.force_login(self.staff_user)
+
+        with mock.patch(
+            "wms.views_print_docs.generate_pack",
+            return_value=artifact,
+        ), mock.patch(
+            "wms.views_print_labels.generate_pack",
+            return_value=artifact,
+        ):
+            ready_response = self.staff_client.get("/api/v1/ui/shipments/ready/")
+            self.assertEqual(ready_response.status_code, 200)
+            shipment_row = next(
+                row
+                for row in ready_response.json()["shipments"]
+                if row["id"] == self.shipment.id
+            )
+            documents = shipment_row["documents"]
+            self.assertTrue(documents["shipment_note_url"].endswith("/doc/shipment_note/"))
+            self.assertTrue(
+                documents["packing_list_shipment_url"].endswith(
+                    "/doc/packing_list_shipment/"
+                )
+            )
+            self.assertTrue(
+                documents["donation_certificate_url"].endswith(
+                    "/doc/donation_certificate/"
+                )
+            )
+            self.assertTrue(documents["labels_url"].endswith("/labels/"))
+
+            for url in (
+                documents["shipment_note_url"],
+                documents["packing_list_shipment_url"],
+                documents["donation_certificate_url"],
+                documents["labels_url"],
+            ):
+                pdf_response = web_client.get(url)
+                self.assertEqual(pdf_response.status_code, 200)
+                self.assertTrue(
+                    pdf_response["Content-Type"].startswith("application/pdf")
+                )
+
+            label_detail_response = self.staff_client.get(
+                f"/api/v1/ui/shipments/{self.shipment.id}/labels/{shipment_carton.id}/"
+            )
+            self.assertEqual(label_detail_response.status_code, 200)
+            label_detail_url = label_detail_response.json()["url"]
+            self.assertTrue(label_detail_url.endswith(f"/labels/{shipment_carton.id}/"))
+            detail_pdf_response = web_client.get(label_detail_url)
+            self.assertEqual(detail_pdf_response.status_code, 200)
+            self.assertTrue(
+                detail_pdf_response["Content-Type"].startswith("application/pdf")
+            )
+
+            cartons_response = self.staff_client.get("/api/v1/ui/cartons/")
+            self.assertEqual(cartons_response.status_code, 200)
+            carton_row = next(
+                row
+                for row in cartons_response.json()["cartons"]
+                if row["id"] == shipment_carton.id
+            )
+            self.assertTrue(
+                carton_row["packing_list_url"].endswith(
+                    f"/shipment/{self.shipment.id}/carton/{shipment_carton.id}/doc/"
+                )
+            )
+            self.assertTrue(
+                carton_row["picking_url"].endswith(f"/carton/{shipment_carton.id}/picking/")
+            )
+            for url in (carton_row["packing_list_url"], carton_row["picking_url"]):
+                pdf_response = web_client.get(url)
+                self.assertEqual(pdf_response.status_code, 200)
+                self.assertTrue(
+                    pdf_response["Content-Type"].startswith("application/pdf")
+                )
 
     def test_ui_shipments_ready_archive_stale_drafts_archives_only_stale_temp_drafts(self):
         stale_draft = Shipment.objects.create(

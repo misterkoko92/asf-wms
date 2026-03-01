@@ -135,10 +135,14 @@ class CartonViewHelpersTests(TestCase):
             assigned_row["packing_list_url"],
             reverse("scan:scan_shipment_carton_document", args=[77, 10]),
         )
+        self.assertTrue(
+            assigned_row["packing_list_url"].endswith("/scan/shipment/77/carton/10/doc/")
+        )
         self.assertEqual(
             assigned_row["picking_url"],
             reverse("scan:scan_carton_picking", args=[10]),
         )
+        self.assertTrue(assigned_row["picking_url"].endswith("/scan/carton/10/picking/"))
         self.assertEqual(assigned_row["weight_kg"], 1.0)
         self.assertEqual(assigned_row["volume_percent"], 40)
 
@@ -150,6 +154,7 @@ class CartonViewHelpersTests(TestCase):
             draft_row["packing_list_url"],
             reverse("scan:scan_carton_document", args=[11]),
         )
+        self.assertTrue(draft_row["packing_list_url"].endswith("/scan/carton/11/doc/"))
         self.assertIsNone(draft_row["weight_kg"])
         self.assertIsNone(draft_row["volume_percent"])
 

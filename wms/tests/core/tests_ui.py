@@ -2011,6 +2011,12 @@ class NextUiTests(StaticLiveServerTestCase):
             page.wait_for_function(
                 "() => document.querySelectorAll(\"a[href*='donation_certificate']\").length > 0"
             )
+            page.wait_for_function(
+                "() => document.querySelectorAll(\"a[href*='shipment_note']\").length > 0"
+            )
+            page.wait_for_function(
+                "() => document.querySelectorAll(\"a[href*='/labels/']\").length > 0"
+            )
             context.close()
             browser.close()
 

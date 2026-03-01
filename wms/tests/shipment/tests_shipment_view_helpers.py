@@ -90,9 +90,44 @@ class ShipmentViewHelpersTests(TestCase):
         documents, carton_docs, additional_docs = build_shipment_document_links(shipment)
 
         self.assertEqual(len(documents), 6)
-        self.assertEqual(documents[0]["label"], "Bon d'expédition")
-        self.assertIn(f"/scan/shipment/{shipment.id}/doc/shipment_note/", documents[0]["url"])
-        self.assertEqual(carton_docs, [{"label": carton.code, "url": f"/scan/shipment/{shipment.id}/carton/{carton.id}/doc/"}])
+        self.assertEqual(
+            [(row["label"], row["url"]) for row in documents],
+            [
+                (
+                    "Bon d'expédition",
+                    f"/scan/shipment/{shipment.id}/doc/shipment_note/",
+                ),
+                (
+                    "Liste colisage (lot)",
+                    f"/scan/shipment/{shipment.id}/doc/packing_list_shipment/",
+                ),
+                (
+                    "Attestation donation",
+                    f"/scan/shipment/{shipment.id}/doc/donation_certificate/",
+                ),
+                (
+                    "Attestation aide humanitaire",
+                    f"/scan/shipment/{shipment.id}/doc/humanitarian_certificate/",
+                ),
+                (
+                    "Attestation douane",
+                    f"/scan/shipment/{shipment.id}/doc/customs/",
+                ),
+                (
+                    "Étiquettes colis",
+                    f"/scan/shipment/{shipment.id}/labels/",
+                ),
+            ],
+        )
+        self.assertEqual(
+            carton_docs,
+            [
+                {
+                    "label": carton.code,
+                    "url": f"/scan/shipment/{shipment.id}/carton/{carton.id}/doc/",
+                }
+            ],
+        )
         self.assertEqual(additional_docs.count(), 1)
 
     def test_next_tracking_status_handles_empty_choices(self):
