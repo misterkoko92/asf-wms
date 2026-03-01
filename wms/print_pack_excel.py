@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from openpyxl.utils.cell import coordinate_from_string
 
 
 class PrintPackMappingError(ValueError):
@@ -29,6 +30,26 @@ def _resolve_source_value(payload, source_key):
     return current
 
 
+def _split_repeating_source_key(source_key):
+    key = (source_key or "").strip()
+    if "[]" not in key:
+        return None, None
+    before, after = key.split("[]", 1)
+    return before.rstrip("."), after.lstrip(".")
+
+
+def _iter_repeating_values(payload, source_key):
+    list_key, item_key = _split_repeating_source_key(source_key)
+    if not list_key:
+        return []
+    rows = _resolve_source_value(payload, list_key)
+    if not isinstance(rows, (list, tuple)):
+        return []
+    if not item_key:
+        return list(rows)
+    return [_resolve_source_value(row, item_key) for row in rows]
+
+
 def _is_missing(value):
     return value is None or (isinstance(value, str) and value.strip() == "")
 
@@ -56,6 +77,24 @@ def fill_workbook_cells(workbook, mappings, payload):
 
         if worksheet_name not in workbook.sheetnames:
             raise PrintPackMappingError(f"Unknown worksheet: {worksheet_name}")
+
+        if "[]" in source_key:
+            column, base_row = coordinate_from_string(cell_ref)
+            values = _iter_repeating_values(payload, source_key)
+            if required and not values:
+                raise PrintPackMappingError(
+                    f"Missing required mapping value for {worksheet_name}!{cell_ref} ({source_key})"
+                )
+            for idx, raw_value in enumerate(values):
+                if required and _is_missing(raw_value):
+                    raise PrintPackMappingError(
+                        f"Missing required mapping value for {worksheet_name}!{column}{base_row + idx} ({source_key})"
+                    )
+                workbook[worksheet_name][f"{column}{base_row + idx}"].value = _apply_transform(
+                    raw_value,
+                    transform,
+                )
+            continue
 
         value = _resolve_source_value(payload, source_key)
         if required and _is_missing(value):

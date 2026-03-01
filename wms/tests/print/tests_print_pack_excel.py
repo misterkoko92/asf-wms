@@ -47,3 +47,47 @@ class PrintPackExcelTests(SimpleTestCase):
 
         with self.assertRaises(PrintPackMappingError):
             fill_workbook_cells(workbook, mappings, payload)
+
+    def test_fill_workbook_cells_writes_repeating_rows(self):
+        workbook = Workbook()
+        workbook.active.title = "Main"
+        mappings = [
+            self._mapping(
+                cell_ref="A14",
+                source_key="carton.items[].product_name",
+            ),
+            self._mapping(
+                cell_ref="C14",
+                source_key="carton.items[].quantity",
+            ),
+        ]
+        payload = {
+            "carton": {
+                "items": [
+                    {"product_name": "Gants", "quantity": 4},
+                    {"product_name": "Masques", "quantity": 10},
+                ]
+            }
+        }
+
+        fill_workbook_cells(workbook, mappings, payload)
+
+        self.assertEqual(workbook["Main"]["A14"].value, "Gants")
+        self.assertEqual(workbook["Main"]["A15"].value, "Masques")
+        self.assertEqual(workbook["Main"]["C14"].value, 4)
+        self.assertEqual(workbook["Main"]["C15"].value, 10)
+
+    def test_fill_workbook_cells_raises_when_repeating_value_is_required_and_missing(self):
+        workbook = Workbook()
+        workbook.active.title = "Main"
+        mappings = [
+            self._mapping(
+                cell_ref="A14",
+                source_key="carton.items[].product_name",
+                required=True,
+            )
+        ]
+        payload = {"carton": {"items": []}}
+
+        with self.assertRaises(PrintPackMappingError):
+            fill_workbook_cells(workbook, mappings, payload)

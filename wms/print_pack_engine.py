@@ -29,9 +29,17 @@ def _build_mapping_payload(*, shipment=None, carton=None, document=None):
         },
     }
     if shipment is not None:
+        carton_count_attr = getattr(shipment, "carton_count", None)
+        if carton_count_attr is not None:
+            carton_total_count = carton_count_attr
+        elif hasattr(shipment, "carton_set"):
+            carton_total_count = shipment.carton_set.count()
+        else:
+            carton_total_count = 1
         payload["shipment"] = {
             "id": shipment.id,
             "reference": shipment.reference,
+            "carton_total_count": carton_total_count,
             "shipper_name": shipment.shipper_name,
             "recipient_name": shipment.recipient_name,
             "recipient": {
@@ -44,9 +52,31 @@ def _build_mapping_payload(*, shipment=None, carton=None, document=None):
             "notes": shipment.notes,
         }
     if carton is not None:
+        items = []
+        if hasattr(carton, "cartonitem_set"):
+            for carton_item in carton.cartonitem_set.select_related(
+                "product_lot__product",
+                "product_lot__location",
+            ):
+                product = carton_item.product_lot.product
+                location = carton_item.product_lot.location
+                if location:
+                    location_label = f"{location.zone} - {location.aisle} - {location.shelf}"
+                else:
+                    location_label = ""
+                items.append(
+                    {
+                        "product_name": product.name,
+                        "brand": product.brand or "",
+                        "quantity": carton_item.quantity,
+                        "expires_on": carton_item.product_lot.expires_on,
+                        "location": location_label,
+                    }
+                )
         payload["carton"] = {
             "id": carton.id,
             "code": carton.code,
+            "items": items,
         }
     return payload
 
