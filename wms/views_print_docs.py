@@ -1,21 +1,25 @@
-from django.http import Http404
+from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from .models import Carton, Shipment
-from .print_context import build_carton_document_context, build_carton_picking_context
+from .print_pack_engine import generate_pack
+from .print_pack_routing import (
+    resolve_carton_packing_pack,
+    resolve_carton_picking_pack,
+    resolve_pack_request,
+)
 from .print_renderer import get_template_layout, render_layout_from_layout
 from .shipment_document_handlers import (
     handle_shipment_document_delete,
     handle_shipment_document_upload,
 )
-from .shipment_view_helpers import render_carton_document, render_shipment_document
+from .shipment_view_helpers import render_shipment_document
 from .view_permissions import scan_staff_required
 
 TEMPLATE_DYNAMIC_DOCUMENT = "print/dynamic_document.html"
 TEMPLATE_PACKING_LIST_CARTON = "print/liste_colisage_carton.html"
-TEMPLATE_PICKING_LIST_CARTON = "print/picking_list_carton.html"
 
 
 def _get_shipment_by_id(shipment_id):
@@ -68,10 +72,41 @@ def _render_carton_document_with_layout(request, context):
     return render(request, TEMPLATE_PACKING_LIST_CARTON, context)
 
 
+def _artifact_pdf_response(artifact):
+    filename = (artifact.pdf_file.name or "").split("/")[-1] or "document.pdf"
+    response = FileResponse(
+        artifact.pdf_file.open("rb"),
+        content_type="application/pdf",
+    )
+    response["Content-Disposition"] = f'inline; filename="{filename}"'
+    return response
+
+
+def _generate_pack_pdf_response(
+    request, *, pack_code, shipment=None, carton=None, variant=None
+):
+    artifact = generate_pack(
+        pack_code=pack_code,
+        shipment=shipment,
+        carton=carton,
+        user=getattr(request, "user", None),
+        variant=variant,
+    )
+    return _artifact_pdf_response(artifact)
+
+
 @scan_staff_required
 @require_http_methods(["GET"])
 def scan_shipment_document(request, shipment_id, doc_type):
     shipment = _get_shipment_by_id(shipment_id)
+    pack_route = resolve_pack_request(doc_type)
+    if pack_route:
+        return _generate_pack_pdf_response(
+            request,
+            pack_code=pack_route.pack_code,
+            shipment=shipment,
+            variant=pack_route.variant,
+        )
     return render_shipment_document(request, shipment, doc_type)
 
 
@@ -79,6 +114,14 @@ def scan_shipment_document(request, shipment_id, doc_type):
 @require_http_methods(["GET"])
 def scan_shipment_document_public(request, shipment_ref, doc_type):
     shipment = _get_shipment_by_reference(shipment_ref)
+    pack_route = resolve_pack_request(doc_type)
+    if pack_route:
+        return _generate_pack_pdf_response(
+            request,
+            pack_code=pack_route.pack_code,
+            shipment=shipment,
+            variant=pack_route.variant,
+        )
     return render_shipment_document(request, shipment, doc_type)
 
 
@@ -87,7 +130,14 @@ def scan_shipment_document_public(request, shipment_ref, doc_type):
 def scan_shipment_carton_document(request, shipment_id, carton_id):
     shipment = _get_shipment_by_id(shipment_id)
     carton = _get_shipment_carton_or_404(shipment, carton_id)
-    return render_carton_document(request, shipment, carton)
+    pack_route = resolve_carton_packing_pack()
+    return _generate_pack_pdf_response(
+        request,
+        pack_code=pack_route.pack_code,
+        shipment=shipment,
+        carton=carton,
+        variant=pack_route.variant,
+    )
 
 
 @scan_staff_required
@@ -95,7 +145,14 @@ def scan_shipment_carton_document(request, shipment_id, carton_id):
 def scan_shipment_carton_document_public(request, shipment_ref, carton_id):
     shipment = _get_shipment_by_reference(shipment_ref)
     carton = _get_shipment_carton_or_404(shipment, carton_id)
-    return render_carton_document(request, shipment, carton)
+    pack_route = resolve_carton_packing_pack()
+    return _generate_pack_pdf_response(
+        request,
+        pack_code=pack_route.pack_code,
+        shipment=shipment,
+        carton=carton,
+        variant=pack_route.variant,
+    )
 
 
 @scan_staff_required
@@ -106,7 +163,14 @@ def scan_carton_document(request, carton_id):
         pk=carton_id,
     )
     if carton.shipment_id:
-        context = build_carton_document_context(carton.shipment, carton)
+        pack_route = resolve_carton_packing_pack()
+        return _generate_pack_pdf_response(
+            request,
+            pack_code=pack_route.pack_code,
+            shipment=carton.shipment,
+            carton=carton,
+            variant=pack_route.variant,
+        )
     else:
         context = _build_standalone_carton_context(carton)
     return _render_carton_document_with_layout(request, context)
@@ -122,8 +186,14 @@ def scan_carton_picking(request, carton_id):
         ),
         pk=carton_id,
     )
-    context = build_carton_picking_context(carton)
-    return render(request, TEMPLATE_PICKING_LIST_CARTON, context)
+    pack_route = resolve_carton_picking_pack()
+    return _generate_pack_pdf_response(
+        request,
+        pack_code=pack_route.pack_code,
+        shipment=carton.shipment,
+        carton=carton,
+        variant=pack_route.variant,
+    )
 
 
 @scan_staff_required

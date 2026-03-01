@@ -66,12 +66,12 @@ class PrintDocsViewsTests(TestCase):
         CartonItem.objects.create(carton=carton, product_lot=lot, quantity=2)
         return carton
 
-    def test_scan_shipment_document_delegates_to_renderer(self):
+    def test_scan_shipment_document_routes_packed_doc_to_pack_engine(self):
         shipment = self._create_shipment()
         with mock.patch(
-            "wms.views_print_docs.render_shipment_document",
+            "wms.views_print_docs._generate_pack_pdf_response",
             return_value=HttpResponse("ok"),
-        ) as render_mock:
+        ) as pack_mock:
             response = self.client.get(
                 reverse(
                     "scan:scan_shipment_document",
@@ -79,23 +79,33 @@ class PrintDocsViewsTests(TestCase):
                 )
             )
         self.assertEqual(response.status_code, 200)
-        render_mock.assert_called_once_with(mock.ANY, shipment, "shipment_note")
+        pack_mock.assert_called_once_with(
+            mock.ANY,
+            pack_code="C",
+            shipment=shipment,
+            variant="shipment",
+        )
 
-    def test_scan_shipment_document_public_delegates_by_reference(self):
+    def test_scan_shipment_document_public_routes_packed_doc_to_pack_engine(self):
         from wms.views_print_docs import scan_shipment_document_public
 
         shipment = self._create_shipment()
         request = self.factory.get("/scan/public/")
         request.user = self.user
         with mock.patch(
-            "wms.views_print_docs.render_shipment_document",
+            "wms.views_print_docs._generate_pack_pdf_response",
             return_value=HttpResponse("ok"),
-        ) as render_mock:
+        ) as pack_mock:
             response = scan_shipment_document_public(
                 request, shipment.reference, "shipment_note"
             )
         self.assertEqual(response.status_code, 200)
-        render_mock.assert_called_once_with(request, shipment, "shipment_note")
+        pack_mock.assert_called_once_with(
+            request,
+            pack_code="C",
+            shipment=shipment,
+            variant="shipment",
+        )
 
     def test_scan_shipment_carton_document_404_when_carton_not_linked(self):
         shipment = self._create_shipment()
@@ -107,13 +117,13 @@ class PrintDocsViewsTests(TestCase):
         )
         self.assertEqual(response.status_code, 404)
 
-    def test_scan_shipment_carton_document_delegates_for_existing_carton(self):
+    def test_scan_shipment_carton_document_routes_to_pack_engine(self):
         shipment = self._create_shipment()
         carton = Carton.objects.create(code="C-SHIP-LOCAL", shipment=shipment)
         with mock.patch(
-            "wms.views_print_docs.render_carton_document",
+            "wms.views_print_docs._generate_pack_pdf_response",
             return_value=HttpResponse("ok"),
-        ) as render_mock:
+        ) as pack_mock:
             response = self.client.get(
                 reverse(
                     "scan:scan_shipment_carton_document",
@@ -121,9 +131,15 @@ class PrintDocsViewsTests(TestCase):
                 )
             )
         self.assertEqual(response.status_code, 200)
-        render_mock.assert_called_once_with(mock.ANY, shipment, carton)
+        pack_mock.assert_called_once_with(
+            mock.ANY,
+            pack_code="B",
+            shipment=shipment,
+            carton=carton,
+            variant="per_carton_single",
+        )
 
-    def test_scan_shipment_carton_document_public_delegates_for_existing_carton(self):
+    def test_scan_shipment_carton_document_public_routes_to_pack_engine(self):
         from wms.views_print_docs import scan_shipment_carton_document_public
 
         shipment = self._create_shipment()
@@ -131,14 +147,20 @@ class PrintDocsViewsTests(TestCase):
         request = self.factory.get("/scan/public/")
         request.user = self.user
         with mock.patch(
-            "wms.views_print_docs.render_carton_document",
+            "wms.views_print_docs._generate_pack_pdf_response",
             return_value=HttpResponse("ok"),
-        ) as render_mock:
+        ) as pack_mock:
             response = scan_shipment_carton_document_public(
                 request, shipment.reference, carton.id
             )
         self.assertEqual(response.status_code, 200)
-        render_mock.assert_called_once_with(request, shipment, carton)
+        pack_mock.assert_called_once_with(
+            request,
+            pack_code="B",
+            shipment=shipment,
+            carton=carton,
+            variant="per_carton_single",
+        )
 
     def test_scan_shipment_carton_document_public_raises_404_when_missing(self):
         from wms.views_print_docs import scan_shipment_carton_document_public
@@ -149,40 +171,27 @@ class PrintDocsViewsTests(TestCase):
         with self.assertRaises(Http404):
             scan_shipment_carton_document_public(request, shipment.reference, 999999)
 
-    def test_scan_carton_document_uses_dynamic_layout_when_available(self):
+    def test_scan_carton_document_routes_to_pack_engine_when_carton_has_shipment(self):
         shipment = self._create_shipment()
         carton = Carton.objects.create(code="C-SHIP-DYN", shipment=shipment)
-        context = {"carton_code": carton.code}
         with mock.patch(
-            "wms.views_print_docs.build_carton_document_context",
-            return_value=context,
-        ) as build_context_mock:
-            with mock.patch(
-                "wms.views_print_docs.get_template_layout",
-                return_value={"blocks": [{"id": "header"}]},
-            ):
-                with mock.patch(
-                    "wms.views_print_docs.render_layout_from_layout",
-                    return_value=[{"type": "header"}],
-                ) as render_layout_mock:
-                    with mock.patch(
-                        "wms.views_print_docs.render",
-                        side_effect=self._render_stub,
-                    ) as render_mock:
-                        response = self.client.get(
-                            reverse(
-                                "scan:scan_carton_document",
-                                kwargs={"carton_id": carton.id},
-                            )
-                        )
+            "wms.views_print_docs._generate_pack_pdf_response",
+            return_value=HttpResponse("ok"),
+        ) as pack_mock:
+            response = self.client.get(
+                reverse(
+                    "scan:scan_carton_document",
+                    kwargs={"carton_id": carton.id},
+                )
+            )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content.decode(), "print/dynamic_document.html")
-        build_context_mock.assert_called_once_with(shipment, carton)
-        render_layout_mock.assert_called_once_with(
-            {"blocks": [{"id": "header"}]},
-            context,
+        pack_mock.assert_called_once_with(
+            mock.ANY,
+            pack_code="B",
+            shipment=shipment,
+            carton=carton,
+            variant="per_carton_single",
         )
-        self.assertEqual(render_mock.call_args.args[2]["blocks"], [{"type": "header"}])
 
     def test_scan_carton_document_builds_fallback_context_without_shipment(self):
         carton = self._create_standalone_carton_with_item()
@@ -208,22 +217,23 @@ class PrintDocsViewsTests(TestCase):
         self.assertEqual(context["carton_weight_kg"], 1.0)
         self.assertTrue(context["hide_footer"])
 
-    def test_scan_carton_picking_renders_expected_template(self):
+    def test_scan_carton_picking_routes_to_pack_engine(self):
         carton = self._create_standalone_carton_with_item()
         with mock.patch(
-            "wms.views_print_docs.build_carton_picking_context",
-            return_value={"rows": ["ok"]},
-        ):
-            with mock.patch(
-                "wms.views_print_docs.render",
-                side_effect=self._render_stub,
-            ) as render_mock:
-                response = self.client.get(
-                    reverse("scan:scan_carton_picking", kwargs={"carton_id": carton.id})
-                )
+            "wms.views_print_docs._generate_pack_pdf_response",
+            return_value=HttpResponse("ok"),
+        ) as pack_mock:
+            response = self.client.get(
+                reverse("scan:scan_carton_picking", kwargs={"carton_id": carton.id})
+            )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content.decode(), "print/picking_list_carton.html")
-        self.assertEqual(render_mock.call_args.args[2]["rows"], ["ok"])
+        pack_mock.assert_called_once_with(
+            mock.ANY,
+            pack_code="A",
+            shipment=None,
+            carton=carton,
+            variant="single_carton",
+        )
 
     def test_scan_shipment_document_upload_delegates_to_handler(self):
         shipment = self._create_shipment()

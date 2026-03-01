@@ -18,11 +18,6 @@ class PrintLabelsViewsTests(TestCase):
         self.client.force_login(self.user)
         self.factory = RequestFactory()
 
-    def _render_stub(self, _request, template_name, context):
-        response = HttpResponse(template_name)
-        response.context_data = context
-        return response
-
     def _create_shipment(self):
         return Shipment.objects.create(
             shipper_name="Sender",
@@ -39,19 +34,31 @@ class PrintLabelsViewsTests(TestCase):
         request = self.factory.get("/scan/public-labels/")
         request.user = self.user
         with mock.patch(
-            "wms.views_print_labels.render_shipment_labels",
+            "wms.views_print_labels.generate_pack",
+            return_value=mock.Mock(name="artifact"),
+        ) as generate_mock, mock.patch(
+            "wms.views_print_labels._artifact_pdf_response",
             return_value=HttpResponse("ok"),
-        ) as render_mock:
+        ) as response_mock:
             response = scan_shipment_labels_public(request, shipment.reference)
         self.assertEqual(response.status_code, 200)
-        render_mock.assert_called_once_with(request, shipment)
+        generate_mock.assert_called_once_with(
+            pack_code="D",
+            shipment=shipment,
+            user=self.user,
+            variant="all_labels",
+        )
+        response_mock.assert_called_once()
 
     def test_scan_shipment_labels_delegates_by_id(self):
         shipment = self._create_shipment()
         with mock.patch(
-            "wms.views_print_labels.render_shipment_labels",
+            "wms.views_print_labels.generate_pack",
+            return_value=mock.Mock(name="artifact"),
+        ) as generate_mock, mock.patch(
+            "wms.views_print_labels._artifact_pdf_response",
             return_value=HttpResponse("ok"),
-        ) as render_mock:
+        ) as response_mock:
             response = self.client.get(
                 reverse(
                     "scan:scan_shipment_labels",
@@ -59,7 +66,13 @@ class PrintLabelsViewsTests(TestCase):
                 )
             )
         self.assertEqual(response.status_code, 200)
-        render_mock.assert_called_once_with(mock.ANY, shipment)
+        generate_mock.assert_called_once_with(
+            pack_code="D",
+            shipment=shipment,
+            user=self.user,
+            variant="all_labels",
+        )
+        response_mock.assert_called_once()
 
     def test_scan_shipment_label_returns_404_when_carton_missing(self):
         shipment = self._create_shipment()
@@ -71,86 +84,31 @@ class PrintLabelsViewsTests(TestCase):
         )
         self.assertEqual(response.status_code, 404)
 
-    def test_scan_shipment_label_uses_dynamic_layout_when_override_exists(self):
+    def test_scan_shipment_label_routes_to_single_label_pack(self):
         shipment = self._create_shipment()
         carton = Carton.objects.create(code="C-LABEL-001", shipment=shipment)
-        label_context = {
-            "label_city": "Paris",
-            "label_iata": "CDG",
-            "label_shipment_ref": shipment.reference,
-            "label_position": "1",
-            "label_total": "1",
-            "label_qr_url": "https://example.org/qr",
-        }
-        with mock.patch("wms.views_print_labels.Shipment.ensure_qr_code"):
-            with mock.patch(
-                "wms.views_print_labels.build_label_context",
-                return_value=label_context,
-            ):
-                with mock.patch(
-                    "wms.views_print_labels.get_template_layout",
-                    return_value={"blocks": [{"id": "city"}]},
-                ):
-                    with mock.patch(
-                        "wms.views_print_labels.render_layout_from_layout",
-                        return_value=[{"type": "city"}],
-                    ):
-                        with mock.patch(
-                            "wms.views_print_labels.render",
-                            side_effect=self._render_stub,
-                        ) as render_mock:
-                            response = self.client.get(
-                                reverse(
-                                    "scan:scan_shipment_label",
-                                    kwargs={
-                                        "shipment_id": shipment.id,
-                                        "carton_id": carton.id,
-                                    },
-                                )
-                            )
+        with mock.patch(
+            "wms.views_print_labels.generate_pack",
+            return_value=mock.Mock(name="artifact"),
+        ) as generate_mock, mock.patch(
+            "wms.views_print_labels._artifact_pdf_response",
+            return_value=HttpResponse("ok"),
+        ) as response_mock:
+            response = self.client.get(
+                reverse(
+                    "scan:scan_shipment_label",
+                    kwargs={
+                        "shipment_id": shipment.id,
+                        "carton_id": carton.id,
+                    },
+                )
+            )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content.decode(), "print/dynamic_labels.html")
-        self.assertEqual(
-            render_mock.call_args.args[2],
-            {"labels": [{"blocks": [{"type": "city"}]}]},
+        generate_mock.assert_called_once_with(
+            pack_code="D",
+            shipment=shipment,
+            carton=carton,
+            user=self.user,
+            variant="single_label",
         )
-
-    def test_scan_shipment_label_uses_default_template_without_override(self):
-        shipment = self._create_shipment()
-        carton = Carton.objects.create(code="C-LABEL-002", shipment=shipment)
-        label_context = {
-            "label_city": "Lyon",
-            "label_iata": "LYS",
-            "label_shipment_ref": shipment.reference,
-            "label_position": "1",
-            "label_total": "1",
-            "label_qr_url": "",
-        }
-        with mock.patch("wms.views_print_labels.Shipment.ensure_qr_code"):
-            with mock.patch(
-                "wms.views_print_labels.build_label_context",
-                return_value=label_context,
-            ):
-                with mock.patch(
-                    "wms.views_print_labels.get_template_layout",
-                    return_value=None,
-                ):
-                    with mock.patch(
-                        "wms.views_print_labels.render",
-                        side_effect=self._render_stub,
-                    ) as render_mock:
-                        response = self.client.get(
-                            reverse(
-                                "scan:scan_shipment_label",
-                                kwargs={
-                                    "shipment_id": shipment.id,
-                                    "carton_id": carton.id,
-                                },
-                            )
-                        )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content.decode(), "print/etiquette_expedition.html")
-        labels = render_mock.call_args.args[2]["labels"]
-        self.assertEqual(len(labels), 1)
-        self.assertEqual(labels[0]["city"], "Lyon")
-        self.assertEqual(labels[0]["carton_id"], carton.id)
+        response_mock.assert_called_once()
