@@ -181,7 +181,8 @@ class PrintPackEngineTests(TestCase):
         carton = Carton.objects.create(code="C-001", shipment=shipment)
         CartonItem.objects.create(carton=carton, product_lot=lot, quantity=6)
 
-        payload = _build_mapping_payload(shipment=shipment)
+        payload = _build_mapping_payload(shipment=shipment, carton=carton)
 
         self.assertEqual(payload["shipment"]["items"][0]["carton_position"], 1)
         self.assertEqual(payload["shipment"]["items"][0]["category_root"], "MM")
+        self.assertEqual(payload["carton"]["items"][0]["category_root"], "MM")

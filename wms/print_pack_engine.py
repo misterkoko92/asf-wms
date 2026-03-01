@@ -109,6 +109,7 @@ def _build_mapping_payload(*, shipment=None, carton=None, document=None):
                     location_label = ""
                 items.append(
                     {
+                        "category_root": _resolve_root_category_name(product),
                         "product_name": product.name,
                         "brand": product.brand or "",
                         "quantity": carton_item.quantity,
