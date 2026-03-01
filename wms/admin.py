@@ -5,7 +5,7 @@ from django.conf import settings
 from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from django.http import Http404
+from django.http import FileResponse, Http404
 from django.shortcuts import redirect, render
 from django.urls import path, reverse
 from django.utils import timezone
@@ -37,13 +37,13 @@ from .contact_filters import (
 from .emailing import enqueue_email_safe
 from .forms import AdjustStockForm, PackCartonForm, ReceiveStockForm, TransferStockForm
 from .print_context import (
-    build_carton_document_context,
     build_product_label_context,
     build_product_qr_label_context,
-    build_shipment_document_context,
 )
+from .print_pack_engine import generate_pack
+from .print_pack_routing import resolve_carton_packing_pack, resolve_pack_request
 from .print_layouts import DEFAULT_LAYOUTS
-from .print_renderer import get_template_layout, render_layout_from_layout
+from .print_renderer import get_template_layout
 from .print_utils import build_label_pages, extract_block_style
 from .services import (
     StockError,
@@ -57,6 +57,17 @@ from .services import (
     transfer_stock,
     unpack_carton,
 )
+from .shipment_view_helpers import render_shipment_document
+
+
+def _artifact_pdf_response(artifact):
+    filename = (artifact.pdf_file.name or "").split("/")[-1] or "document.pdf"
+    response = FileResponse(
+        artifact.pdf_file.open("rb"),
+        content_type="application/pdf",
+    )
+    response["Content-Disposition"] = f'inline; filename="{filename}"'
+    return response
 
 class ProductKitItemInline(admin.TabularInline):
     model = models.ProductKitItem
@@ -896,23 +907,16 @@ class ShipmentAdmin(admin.ModelAdmin):
         shipment = self.get_object(request, shipment_id)
         if shipment is None:
             raise Http404("Shipment not found")
-
-        allowed = {
-            "donation_certificate": "print/attestation_donation.html",
-            "humanitarian_certificate": "print/attestation_aide_humanitaire.html",
-            "customs": "print/attestation_douane.html",
-            "shipment_note": "print/bon_expedition.html",
-            "packing_list_shipment": "print/liste_colisage_lot.html",
-        }
-        template = allowed.get(doc_type)
-        if template is None:
-            raise Http404("Document type not found")
-        context = build_shipment_document_context(shipment, doc_type)
-        layout_override = get_template_layout(doc_type)
-        if layout_override:
-            blocks = render_layout_from_layout(layout_override, context)
-            return render(request, "print/dynamic_document.html", {"blocks": blocks})
-        return render(request, template, context)
+        pack_route = resolve_pack_request(doc_type)
+        if pack_route:
+            artifact = generate_pack(
+                pack_code=pack_route.pack_code,
+                shipment=shipment,
+                user=getattr(request, "user", None),
+                variant=pack_route.variant,
+            )
+            return _artifact_pdf_response(artifact)
+        return render_shipment_document(request, shipment, doc_type)
 
     def print_carton_packing_list(self, request, shipment_id, carton_id):
         shipment = self.get_object(request, shipment_id)
@@ -921,12 +925,15 @@ class ShipmentAdmin(admin.ModelAdmin):
         carton = shipment.carton_set.filter(pk=carton_id).first()
         if carton is None:
             raise Http404("Carton not found for shipment")
-        context = build_carton_document_context(shipment, carton)
-        layout_override = get_template_layout("packing_list_carton")
-        if layout_override:
-            blocks = render_layout_from_layout(layout_override, context)
-            return render(request, "print/dynamic_document.html", {"blocks": blocks})
-        return render(request, "print/liste_colisage_carton.html", context)
+        pack_route = resolve_carton_packing_pack()
+        artifact = generate_pack(
+            pack_code=pack_route.pack_code,
+            shipment=shipment,
+            carton=carton,
+            user=getattr(request, "user", None),
+            variant=pack_route.variant,
+        )
+        return _artifact_pdf_response(artifact)
 
 
 class PrintCellMappingInline(admin.TabularInline):

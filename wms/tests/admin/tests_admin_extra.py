@@ -759,36 +759,31 @@ class ShipmentAndStockMovementAdminTests(_AdminTestBase):
             with self.assertRaises(Http404):
                 shipment_admin.print_document(request, shipment.id, "unknown")
 
+        artifact = mock.Mock(name="artifact")
         with mock.patch.object(shipment_admin, "get_object", return_value=shipment), mock.patch(
-            "wms.admin.build_shipment_document_context",
-            return_value={"k": "v"},
-        ), mock.patch(
-            "wms.admin.get_template_layout",
-            return_value={"blocks": []},
-        ), mock.patch(
-            "wms.admin.render_layout_from_layout",
-            return_value=[{"block": 1}],
-        ), mock.patch(
-            "wms.admin.render",
-            return_value="dynamic-response",
-        ) as render_mock:
+            "wms.admin.generate_pack",
+            return_value=artifact,
+        ) as generate_mock, mock.patch(
+            "wms.admin._artifact_pdf_response",
+            return_value="pdf-response",
+        ) as pdf_response_mock:
             response = shipment_admin.print_document(request, shipment.id, "shipment_note")
-        self.assertEqual(response, "dynamic-response")
-        render_mock.assert_called_once()
+        self.assertEqual(response, "pdf-response")
+        generate_mock.assert_called_once_with(
+            pack_code="C",
+            shipment=shipment,
+            user=self.superuser,
+            variant="shipment",
+        )
+        pdf_response_mock.assert_called_once_with(artifact)
 
         with mock.patch.object(shipment_admin, "get_object", return_value=shipment), mock.patch(
-            "wms.admin.build_shipment_document_context",
-            return_value={"k": "v"},
-        ), mock.patch(
-            "wms.admin.get_template_layout",
-            return_value=None,
-        ), mock.patch(
-            "wms.admin.render",
-            return_value="template-response",
-        ) as render_mock:
-            response = shipment_admin.print_document(request, shipment.id, "shipment_note")
-        self.assertEqual(response, "template-response")
-        self.assertIn("print/bon_expedition.html", str(render_mock.call_args))
+            "wms.admin.render_shipment_document",
+            return_value="legacy-response",
+        ) as legacy_mock:
+            response = shipment_admin.print_document(request, shipment.id, "humanitarian_certificate")
+        self.assertEqual(response, "legacy-response")
+        legacy_mock.assert_called_once_with(request, shipment, "humanitarian_certificate")
 
         with mock.patch.object(shipment_admin, "get_object", return_value=shipment):
             with self.assertRaises(Http404):
@@ -798,35 +793,24 @@ class ShipmentAndStockMovementAdminTests(_AdminTestBase):
             with self.assertRaises(Http404):
                 shipment_admin.print_carton_packing_list(request, shipment.id, carton.id)
 
+        artifact = mock.Mock(name="carton_artifact")
         with mock.patch.object(shipment_admin, "get_object", return_value=shipment), mock.patch(
-            "wms.admin.build_carton_document_context",
-            return_value={"k": "v"},
-        ), mock.patch(
-            "wms.admin.get_template_layout",
-            return_value={"blocks": []},
-        ), mock.patch(
-            "wms.admin.render_layout_from_layout",
-            return_value=[{"block": 1}],
-        ), mock.patch(
-            "wms.admin.render",
-            return_value="carton-dynamic",
-        ):
+            "wms.admin.generate_pack",
+            return_value=artifact,
+        ) as generate_mock, mock.patch(
+            "wms.admin._artifact_pdf_response",
+            return_value="carton-pdf",
+        ) as pdf_response_mock:
             response = shipment_admin.print_carton_packing_list(request, shipment.id, carton.id)
-        self.assertEqual(response, "carton-dynamic")
-
-        with mock.patch.object(shipment_admin, "get_object", return_value=shipment), mock.patch(
-            "wms.admin.build_carton_document_context",
-            return_value={"k": "v"},
-        ), mock.patch(
-            "wms.admin.get_template_layout",
-            return_value=None,
-        ), mock.patch(
-            "wms.admin.render",
-            return_value="carton-template",
-        ) as render_mock:
-            response = shipment_admin.print_carton_packing_list(request, shipment.id, carton.id)
-        self.assertEqual(response, "carton-template")
-        self.assertIn("print/liste_colisage_carton.html", str(render_mock.call_args))
+        self.assertEqual(response, "carton-pdf")
+        generate_mock.assert_called_once_with(
+            pack_code="B",
+            shipment=shipment,
+            carton=carton,
+            user=self.superuser,
+            variant="per_carton_single",
+        )
+        pdf_response_mock.assert_called_once_with(artifact)
 
         readonly = stock_admin.get_readonly_fields(request)
         self.assertIn("movement_type", readonly)
