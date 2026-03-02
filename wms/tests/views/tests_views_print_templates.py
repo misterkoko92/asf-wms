@@ -1,13 +1,24 @@
 import json
+from io import BytesIO
 from unittest import mock
 
 from django.contrib.auth import get_user_model
+from django.core.files.base import ContentFile
 from django.http import HttpResponse
 from django.test import TestCase
 from django.urls import reverse
+from openpyxl import Workbook
 
 from contacts.models import Contact, ContactType
-from wms.models import Carton, Destination, PrintTemplate, PrintTemplateVersion, Product, Shipment
+from wms.models import (
+    Carton,
+    Destination,
+    PrintCellMapping,
+    PrintPack,
+    PrintPackDocument,
+    Product,
+    Shipment,
+)
 
 
 class PrintTemplateViewsTests(TestCase):
@@ -18,6 +29,28 @@ class PrintTemplateViewsTests(TestCase):
             password="pass1234",
         )
         self.client.force_login(self.superuser)
+        self.pack = PrintPack.objects.create(code="TZ", name="Template Zone")
+        self.pack_document = PrintPackDocument.objects.create(
+            pack=self.pack,
+            doc_type="shipment_note",
+            variant="shipment",
+            sequence=1,
+            enabled=True,
+        )
+        self.pack_document.xlsx_template_file.save(
+            "TZ__shipment_note__shipment.xlsx",
+            ContentFile(self._build_workbook_bytes()),
+            save=True,
+        )
+        PrintCellMapping.objects.create(
+            pack_document=self.pack_document,
+            worksheet_name="Feuil1",
+            cell_ref="A24",
+            source_key="shipment.shipper.title",
+            transform="",
+            required=True,
+            sequence=1,
+        )
 
     def _list_url(self):
         return reverse("scan:scan_print_templates")
@@ -33,126 +66,146 @@ class PrintTemplateViewsTests(TestCase):
         response.context_data = context
         return response
 
-    def test_scan_print_templates_list_displays_override_state(self):
-        PrintTemplate.objects.create(
-            doc_type="shipment_note",
-            layout={"blocks": [{"id": "header", "type": "text"}]},
-            updated_by=self.superuser,
-        )
+    def _build_workbook_bytes(self):
+        workbook = Workbook()
+        worksheet = workbook.active
+        worksheet.title = "Feuil1"
+        worksheet["A1"] = "Header"
+        worksheet["A60"] = "Footer"
+        worksheet["D1"] = "D"
+        worksheet["D60"] = "D"
+        worksheet.merge_cells("B5:B7")
+        other = workbook.create_sheet("Annexe")
+        other["A1"] = "Annexe"
+        output = BytesIO()
+        workbook.save(output)
+        workbook.close()
+        return output.getvalue()
+
+    def test_scan_print_templates_list_displays_print_pack_documents(self):
         response = self.client.get(self._list_url())
         self.assertEqual(response.status_code, 200)
         template_entry = next(
             item
             for item in response.context["templates"]
-            if item["doc_type"] == "shipment_note"
+            if item["route_key"] == str(self.pack_document.id)
         )
-        self.assertTrue(template_entry["has_override"])
-        self.assertEqual(template_entry["updated_by"], self.superuser)
+        self.assertEqual(template_entry["pack_code"], "TZ")
+        self.assertEqual(template_entry["variant"], "shipment")
+        self.assertEqual(template_entry["mapping_count"], 1)
+        self.assertTrue(template_entry["has_template_file"])
+        self.assertEqual(template_entry["route_key"], str(self.pack_document.id))
 
     def test_scan_print_template_edit_404_for_unknown_doc_type(self):
         response = self.client.get(self._edit_url("unknown-template"))
         self.assertEqual(response.status_code, 404)
 
-    def test_scan_print_template_edit_save_creates_template_and_version(self):
-        layout_data = {"blocks": [{"id": "header", "type": "text"}]}
+    def test_scan_print_template_edit_get_exposes_editor_context(self):
+        response = self.client.get(self._edit_url(str(self.pack_document.id)))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["pack_document"].id, self.pack_document.id)
+        self.assertEqual(response.context["worksheet_names"], ["Feuil1", "Annexe"])
+        self.assertEqual(len(response.context["mapping_rows"]), 1)
+        self.assertIn("shipment.reference", response.context["source_keys"])
+
+    def test_scan_print_template_edit_save_updates_mappings_and_versions(self):
         response = self.client.post(
-            self._edit_url("shipment_note"),
-            {"layout_json": json.dumps(layout_data)},
+            self._edit_url(str(self.pack_document.id)),
+            {
+                "action": "save",
+                "mapping_worksheet": ["Feuil1", "Feuil1"],
+                "mapping_column": ["A", "B"],
+                "mapping_row": ["11", "6"],
+                "mapping_source_key": ["carton.code", "shipment.shipper.structure_name"],
+                "mapping_transform": ["", "upper"],
+                "mapping_required": ["1", "0"],
+                "mapping_sequence": ["1", "2"],
+                "change_note": "batch update",
+            },
         )
         self.assertEqual(response.status_code, 302)
-        template = PrintTemplate.objects.get(doc_type="shipment_note")
-        self.assertEqual(template.layout, layout_data)
-        self.assertEqual(template.updated_by, self.superuser)
-        version = PrintTemplateVersion.objects.get(template=template)
+        self.pack_document.refresh_from_db()
+        mappings = list(self.pack_document.cell_mappings.order_by("sequence", "id"))
+        self.assertEqual(len(mappings), 2)
+        self.assertEqual(mappings[0].cell_ref, "A11")
+        self.assertEqual(mappings[0].source_key, "carton.code")
+        self.assertEqual(mappings[1].cell_ref, "B5")
+        self.assertEqual(mappings[1].source_key, "shipment.shipper.structure_name")
+        version = self.pack_document.versions.get()
         self.assertEqual(version.version, 1)
-        self.assertEqual(version.layout, layout_data)
+        self.assertEqual(version.change_note, "batch update")
         self.assertEqual(version.created_by, self.superuser)
 
-    def test_scan_print_template_edit_rejects_invalid_json(self):
+    def test_scan_print_template_edit_save_rejects_invalid_source_key(self):
         response = self.client.post(
-            self._edit_url("shipment_note"),
-            {"layout_json": "{"},
+            self._edit_url(str(self.pack_document.id)),
+            {
+                "action": "save",
+                "mapping_worksheet": ["Feuil1"],
+                "mapping_column": ["A"],
+                "mapping_row": ["11"],
+                "mapping_source_key": ["shipment.invalid"],
+                "mapping_transform": [""],
+                "mapping_required": ["1"],
+                "mapping_sequence": ["1"],
+            },
         )
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(PrintTemplate.objects.count(), 0)
-        self.assertEqual(PrintTemplateVersion.objects.count(), 0)
-
-    def test_scan_print_template_edit_no_change_does_not_create_version(self):
-        layout_data = {"blocks": [{"id": "header", "type": "text"}]}
-        template = PrintTemplate.objects.create(
-            doc_type="shipment_note",
-            layout=layout_data,
-            updated_by=self.superuser,
-        )
-        response = self.client.post(
-            self._edit_url("shipment_note"),
-            {"layout_json": json.dumps(layout_data)},
-        )
-        self.assertEqual(response.status_code, 302)
-        template.refresh_from_db()
-        self.assertEqual(template.layout, layout_data)
-        self.assertEqual(template.versions.count(), 0)
-
-    def test_scan_print_template_edit_reset_without_existing_template(self):
-        response = self.client.post(
-            self._edit_url("shipment_note"),
-            {"action": "reset"},
-        )
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(PrintTemplate.objects.count(), 0)
-
-    def test_scan_print_template_edit_reset_existing_template(self):
-        template = PrintTemplate.objects.create(
-            doc_type="shipment_note",
-            layout={"blocks": [{"id": "header", "type": "text"}]},
-            updated_by=self.superuser,
-        )
-        response = self.client.post(
-            self._edit_url("shipment_note"),
-            {"action": "reset"},
-        )
-        self.assertEqual(response.status_code, 302)
-        template.refresh_from_db()
-        self.assertEqual(template.layout, {})
-        self.assertEqual(template.versions.count(), 1)
-        self.assertEqual(template.versions.first().version, 1)
+        self.assertEqual(self.pack_document.cell_mappings.count(), 1)
+        self.assertEqual(self.pack_document.versions.count(), 0)
 
     def test_scan_print_template_edit_restore_requires_version_id(self):
-        PrintTemplate.objects.create(
-            doc_type="shipment_note",
-            layout={"blocks": [{"id": "header", "type": "text"}]},
-            updated_by=self.superuser,
-        )
         response = self.client.post(
-            self._edit_url("shipment_note"),
+            self._edit_url(str(self.pack_document.id)),
             {"action": "restore"},
         )
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(PrintTemplateVersion.objects.count(), 0)
+        self.assertEqual(self.pack_document.versions.count(), 0)
 
     def test_scan_print_template_edit_restore_applies_selected_version(self):
-        template = PrintTemplate.objects.create(
-            doc_type="shipment_note",
-            layout={"blocks": [{"id": "current", "type": "text"}]},
-            updated_by=self.superuser,
+        first_save = self.client.post(
+            self._edit_url(str(self.pack_document.id)),
+            {
+                "action": "save",
+                "mapping_worksheet": ["Feuil1"],
+                "mapping_column": ["A"],
+                "mapping_row": ["11"],
+                "mapping_source_key": ["carton.code"],
+                "mapping_transform": [""],
+                "mapping_required": ["1"],
+                "mapping_sequence": ["1"],
+            },
         )
-        restored_layout = {"blocks": [{"id": "restored", "type": "text"}]}
-        version = PrintTemplateVersion.objects.create(
-            template=template,
-            version=1,
-            layout=restored_layout,
-            created_by=self.superuser,
+        self.assertEqual(first_save.status_code, 302)
+        v1 = self.pack_document.versions.get(version=1)
+        second_save = self.client.post(
+            self._edit_url(str(self.pack_document.id)),
+            {
+                "action": "save",
+                "mapping_worksheet": ["Feuil1"],
+                "mapping_column": ["A"],
+                "mapping_row": ["11"],
+                "mapping_source_key": ["carton.position"],
+                "mapping_transform": [""],
+                "mapping_required": ["1"],
+                "mapping_sequence": ["1"],
+            },
         )
+        self.assertEqual(second_save.status_code, 302)
         response = self.client.post(
-            self._edit_url("shipment_note"),
-            {"action": "restore", "version_id": str(version.id)},
+            self._edit_url(str(self.pack_document.id)),
+            {"action": "restore", "version_id": str(v1.id)},
         )
         self.assertEqual(response.status_code, 302)
-        template.refresh_from_db()
-        self.assertEqual(template.layout, restored_layout)
-        versions = list(template.versions.order_by("version"))
-        self.assertEqual([item.version for item in versions], [1, 2])
-        self.assertEqual(versions[-1].layout, restored_layout)
+        self.pack_document.refresh_from_db()
+        restored_mapping = self.pack_document.cell_mappings.get(
+            worksheet_name="Feuil1",
+            cell_ref="A11",
+        )
+        self.assertEqual(restored_mapping.source_key, "carton.code")
+        versions = list(self.pack_document.versions.order_by("version"))
+        self.assertEqual([item.version for item in versions], [1, 2, 3])
+        self.assertEqual(versions[-1].change_type, "restore")
 
     def test_scan_print_template_preview_rejects_unknown_doc_type(self):
         response = self.client.post(
@@ -167,59 +220,6 @@ class PrintTemplateViewsTests(TestCase):
             {"doc_type": "shipment_note", "layout_json": "{"},
         )
         self.assertEqual(response.status_code, 400)
-
-    def test_scan_print_template_edit_get_builds_shipments_products_and_versions(self):
-        correspondent = Contact.objects.create(
-            name="Correspondent Template",
-            contact_type=ContactType.ORGANIZATION,
-        )
-        destination = Destination.objects.create(
-            city="Paris",
-            iata_code="PAR-TPL",
-            country="France",
-            correspondent_contact=correspondent,
-        )
-        Shipment.objects.create(
-            reference="SHP-B",
-            shipper_name="Sender B",
-            recipient_name="Recipient B",
-            destination=destination,
-            destination_address="1 Rue Paris",
-            destination_country="France",
-        )
-        Shipment.objects.create(
-            reference="SHP-A",
-            shipper_name="Sender A",
-            recipient_name="Recipient A",
-            destination=None,
-            destination_address="Fallback City",
-            destination_country="France",
-        )
-        Product.objects.create(name="Produit Sans SKU")
-        Product.objects.create(name="Produit Avec SKU", sku="SKU-TPL")
-        template = PrintTemplate.objects.create(
-            doc_type="product_label",
-            layout={"blocks": [{"id": "main", "type": "text"}]},
-            updated_by=self.superuser,
-        )
-        PrintTemplateVersion.objects.create(
-            template=template,
-            version=1,
-            layout={"blocks": [{"id": "v1", "type": "text"}]},
-            created_by=self.superuser,
-        )
-
-        response = self.client.get(self._edit_url("product_label"))
-
-        self.assertEqual(response.status_code, 200)
-        shipment_labels = [item["label"] for item in response.context["shipments"]]
-        self.assertIn("SHP-B - Paris", shipment_labels)
-        self.assertIn("SHP-A - Fallback City", shipment_labels)
-        product_labels = [item["label"] for item in response.context["products"]]
-        self.assertTrue(any("Produit Sans Sku" in label for label in product_labels))
-        self.assertIn("SKU-TPL - Produit Avec Sku", product_labels)
-        self.assertEqual(len(response.context["versions"]), 1)
-        self.assertEqual(response.context["versions"][0].version, 1)
 
     def test_scan_print_template_preview_shipment_label_without_shipment(self):
         with mock.patch(

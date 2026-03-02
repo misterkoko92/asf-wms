@@ -1,0 +1,24 @@
+.mapping-table {
+  min-width: 1200px;
+}
+
+.mapping-table th,
+.mapping-table td {
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.mapping-table td:nth-child(6),
+.mapping-table th:nth-child(6) {
+  min-width: 320px;
+}
+
+.mapping-table .form-select,
+.mapping-table .form-control {
+  min-width: 110px;
+}
+
+.mapping-table .mapping-cell-ref {
+  background-color: #f8f9fa;
+  font-family: monospace;
+}

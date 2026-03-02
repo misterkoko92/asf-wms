@@ -1,123 +1,198 @@
 {% extends "scan/base.html" %}
 {% load static %}
 
-{% block title %}Template {{ doc_label }}{% endblock %}
+{% block title %}Template XLSX {{ pack_document.pack.code }}{% endblock %}
 
 {% block extra_head %}
-  <link rel="stylesheet" href="{% static 'scan/print_template_editor.css' %}">
+  <link rel="stylesheet" href="{% static 'scan/print_pack_mapping_editor.css' %}">
 {% endblock %}
 
 {% block content %}
-
-  <div class="scan-card template-card ui-comp-card">
-    <div class="template-header">
+  <div class="scan-card card border-0 ui-comp-card mb-3">
+    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
       <div>
-        <h2 class="ui-comp-title">Template: {{ doc_label }}</h2>
-        <div class="template-meta">Type: <code>{{ doc_type }}</code></div>
+        <h2 class="ui-comp-title mb-1">Template XLSX</h2>
+        <p class="mb-1">
+          <strong>Pack:</strong> {{ pack_document.pack.code }} - {{ pack_document.pack.name }}
+        </p>
+        <p class="mb-1">
+          <strong>Document:</strong> <code>{{ pack_document.doc_type }}</code>
+          <strong class="ms-3">Variant:</strong> <code>{{ pack_document.variant|default:"default" }}</code>
+        </p>
+        <p class="mb-0">
+          <strong>Template actif:</strong>
+          {% if template_filename %}
+            {{ template_filename }}
+            {% if template_is_uploaded %}
+              <span class="badge text-bg-primary ms-2">Uploadé</span>
+            {% else %}
+              <span class="badge text-bg-secondary ms-2">Source</span>
+            {% endif %}
+          {% else %}
+            <span class="text-danger">Aucun template</span>
+          {% endif %}
+        </p>
       </div>
-      <div class="template-status">
-        <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'scan:scan_print_templates' %}">Retour</a>
-        {% if template and template.layout %}
-          <span class="template-badge template-badge-custom">Personnalisé</span>
-        {% else %}
-          <span class="template-badge">Par d&eacute;faut</span>
-        {% endif %}
+      <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'scan:scan_print_templates' %}">Retour</a>
+    </div>
+  </div>
+
+  <form method="post" enctype="multipart/form-data" class="scan-card card border-0 ui-comp-card mb-3">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="save">
+
+    <div class="row g-3 align-items-end mb-3">
+      <div class="col-12 col-lg-4">
+        <label for="id_xlsx_template_file" class="form-label fw-semibold">Remplacer le template XLSX</label>
+        <input id="id_xlsx_template_file" name="xlsx_template_file" type="file" accept=".xlsx" class="form-control">
+      </div>
+      <div class="col-12 col-lg-4">
+        <label for="id_change_note" class="form-label fw-semibold">Note de version (optionnel)</label>
+        <input id="id_change_note" name="change_note" type="text" class="form-control" maxlength="255" placeholder="Ex: mise à jour mapping expéditeur">
+      </div>
+      <div class="col-12 col-lg-4">
+        <p class="small text-muted mb-0">
+          Les cellules fusionnées sont normalisées automatiquement vers leur cellule d'ancrage
+          lors de l'enregistrement.
+        </p>
       </div>
     </div>
-    <p class="template-help ui-comp-note">
-      Glisser-déposer les blocs pour réorganiser. Éditez le contenu et les styles à gauche,
-      puis enregistrez. Les changements s'appliquent aux impressions.
-    </p>
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <h3 class="h5 mb-0">Mappings</h3>
+      <button type="button" class="btn btn-outline-secondary btn-sm" id="add-mapping-row">Ajouter une ligne</button>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mapping-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Worksheet</th>
+            <th>Colonne</th>
+            <th>Ligne</th>
+            <th>Cellule</th>
+            <th>Champ source</th>
+            <th>Transform</th>
+            <th>Required</th>
+            <th>Sequence</th>
+            <th>Fusion</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="mapping-rows">
+          {% for row in mapping_rows %}
+            <tr class="mapping-row">
+              <td class="mapping-index">{{ forloop.counter }}</td>
+              <td>
+                <select name="mapping_worksheet" class="form-select form-select-sm mapping-worksheet" data-selected="{{ row.worksheet_name }}"></select>
+              </td>
+              <td>
+                <select name="mapping_column" class="form-select form-select-sm mapping-column" data-selected="{{ row.column }}"></select>
+              </td>
+              <td>
+                <select name="mapping_row" class="form-select form-select-sm mapping-row-number" data-selected="{{ row.row }}"></select>
+              </td>
+              <td>
+                <input type="text" class="form-control form-control-sm mapping-cell-ref" value="{{ row.cell_ref }}" readonly>
+              </td>
+              <td>
+                <select name="mapping_source_key" class="form-select form-select-sm">
+                  <option value="">-- Choisir --</option>
+                  {% for source_key in source_keys %}
+                    <option value="{{ source_key }}"{% if source_key == row.source_key %} selected{% endif %}>{{ source_key }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td>
+                <select name="mapping_transform" class="form-select form-select-sm">
+                  {% for transform in transform_choices %}
+                    <option value="{{ transform }}"{% if transform == row.transform %} selected{% endif %}>
+                      {% if transform == "" %}
+                        none
+                      {% else %}
+                        {{ transform }}
+                      {% endif %}
+                    </option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td>
+                <select name="mapping_required" class="form-select form-select-sm">
+                  <option value="0"{% if not row.required %} selected{% endif %}>non</option>
+                  <option value="1"{% if row.required %} selected{% endif %}>oui</option>
+                </select>
+              </td>
+              <td>
+                <input type="number" name="mapping_sequence" class="form-control form-control-sm" value="{{ row.sequence }}" min="1" step="1">
+              </td>
+              <td>
+                <span class="small text-muted mapping-merged-range">{{ row.merged_range|default:"-" }}</span>
+              </td>
+              <td>
+                <button type="button" class="btn btn-outline-danger btn-sm remove-mapping-row">Supprimer</button>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="d-flex justify-content-end mt-3">
+      <button type="submit" class="scan-submit scan-submit-inline btn btn-primary">Enregistrer toutes les modifications</button>
+    </div>
+  </form>
+
+  <div class="scan-card card border-0 ui-comp-card">
+    <h3 class="h5 mb-2">Historique des versions</h3>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Version</th>
+            <th>Type</th>
+            <th>Note</th>
+            <th>Date</th>
+            <th>Auteur</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for version in versions %}
+            <tr>
+              <td>v{{ version.version }}</td>
+              <td>{{ version.change_type }}</td>
+              <td>{{ version.change_note|default:"-" }}</td>
+              <td>{{ version.created_at|date:"d/m/Y H:i" }}</td>
+              <td>
+                {% if version.created_by %}
+                  {{ version.created_by.get_full_name|default:version.created_by.username }}
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+              <td>
+                <form method="post" class="d-inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="restore">
+                  <input type="hidden" name="version_id" value="{{ version.id }}">
+                  <button type="submit" class="btn btn-outline-primary btn-sm">Restaurer</button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="6" class="text-muted">Aucune version disponible.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 
-  <div id="template-editor" class="template-editor" data-preview-url="{% url 'scan:scan_print_template_preview' %}">
-    <aside class="template-panel">
-      <div class="template-panel-section ui-comp-panel">
-        <h3 class="ui-comp-title">Bibliothèque de blocs</h3>
-        <div class="template-block-library" id="block-library"></div>
-      </div>
+  {{ worksheet_names|json_script:"mapping-worksheet-names" }}
+  {{ columns_by_worksheet|json_script:"mapping-columns-by-worksheet" }}
+  {{ rows_by_worksheet|json_script:"mapping-rows-by-worksheet" }}
 
-      <div class="template-panel-section ui-comp-panel">
-        <h3 class="ui-comp-title">Blocs du document</h3>
-        <ul class="template-block-list" id="block-list"></ul>
-      </div>
-
-      <div class="template-panel-section ui-comp-panel">
-        <h3 class="ui-comp-title">Propriétés</h3>
-        <div id="block-editor" class="template-block-editor">
-          <p class="template-muted">S&eacute;lectionnez un bloc pour le modifier.</p>
-        </div>
-      </div>
-
-      <div class="template-panel-section ui-comp-panel">
-        <h3 class="ui-comp-title">Versions</h3>
-        <div class="template-versions">
-          {% if versions %}
-            {% for version in versions %}
-              <form method="post" class="template-version-row ui-comp-form">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="restore">
-                <input type="hidden" name="version_id" value="{{ version.id }}">
-                <div>
-                  <strong>v{{ version.version }}</strong>
-                  <div class="template-version-meta">
-                    {{ version.created_at|date:"d/m/Y H:i" }}
-                    {% if version.created_by %} - {{ version.created_by.get_full_name|default:version.created_by.username }}{% endif %}
-                  </div>
-                </div>
-                <button type="submit" class="scan-scan-btn btn btn-outline-primary">Restaurer</button>
-              </form>
-            {% endfor %}
-          {% else %}
-            <div class="template-muted">Aucune version sauvegardée.</div>
-          {% endif %}
-        </div>
-      </div>
-    </aside>
-
-    <main class="template-preview">
-      <form id="template-form" method="post" class="template-toolbar ui-comp-form">
-        {% csrf_token %}
-        <input type="hidden" name="layout_json" id="layout-json">
-        <input type="hidden" name="action" id="layout-action" value="save">
-
-        <button type="submit" class="scan-submit scan-submit-inline btn btn-primary">Enregistrer</button>
-        <button type="button" class="scan-submit scan-submit-inline secondary btn btn-secondary" id="reset-layout">
-          Revenir par d&eacute;faut
-        </button>
-        <button type="button" class="scan-submit scan-submit-inline btn btn-primary" id="preview-layout">
-          Actualiser aperçu
-        </button>
-
-        {% if doc_type == "product_label" or doc_type == "product_qr" %}
-          <label class="template-preview-label" for="preview-product">Aperçu avec produit</label>
-          <select id="preview-product" class="template-preview-select">
-            <option value="">Exemple</option>
-            {% for product in products %}
-              <option value="{{ product.id }}">{{ product.label }}</option>
-            {% endfor %}
-          </select>
-        {% else %}
-          <label class="template-preview-label" for="preview-shipment">Aperçu avec exp.</label>
-          <select id="preview-shipment" class="template-preview-select">
-            <option value="">Exemple</option>
-            {% for shipment in shipments %}
-              <option value="{{ shipment.id }}">{{ shipment.label }}</option>
-            {% endfor %}
-          </select>
-        {% endif %}
-      </form>
-
-      <div class="template-preview-frame">
-        <iframe id="template-preview" title="Aperçu document"></iframe>
-      </div>
-      <div id="preview-status" class="template-muted"></div>
-    </main>
-  </div>
-
-  {{ layout|json_script:"layout-data" }}
-  {{ block_library|json_script:"block-library-data" }}
-  {{ doc_type|json_script:"doc-type-data" }}
-
-  <script src="{% static 'scan/print_template_editor.js' %}"></script>
+  <script src="{% static 'scan/print_pack_mapping_editor.js' %}"></script>
 {% endblock %}

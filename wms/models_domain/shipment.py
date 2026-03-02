@@ -485,6 +485,47 @@ class PrintPackDocument(models.Model):
         return f"{self.pack.code}:{self.doc_type}:{variant}"
 
 
+class PrintPackDocumentVersionChangeType(models.TextChoices):
+    SAVE = "save", "Save"
+    RESTORE = "restore", "Restore"
+
+
+class PrintPackDocumentVersion(models.Model):
+    pack_document = models.ForeignKey(
+        PrintPackDocument,
+        on_delete=models.CASCADE,
+        related_name="versions",
+    )
+    version = models.PositiveIntegerField()
+    xlsx_template_file = models.FileField(
+        upload_to="print_pack_template_versions/",
+        null=True,
+        blank=True,
+    )
+    mappings_snapshot = models.JSONField(default=list, blank=True)
+    change_type = models.CharField(
+        max_length=20,
+        choices=PrintPackDocumentVersionChangeType.choices,
+        default=PrintPackDocumentVersionChangeType.SAVE,
+    )
+    change_note = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="print_pack_document_versions",
+    )
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        unique_together = ("pack_document", "version")
+
+    def __str__(self) -> str:
+        return f"{self.pack_document} v{self.version}"
+
+
 class PrintCellMapping(models.Model):
     pack_document = models.ForeignKey(
         PrintPackDocument,

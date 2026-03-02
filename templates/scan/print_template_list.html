@@ -1,19 +1,22 @@
 {% extends "scan/base.html" %}
 
-{% block title %}Templates documents{% endblock %}
+{% block title %}Templates XLSX{% endblock %}
 
 {% block content %}
   <div class="scan-card card border-0 ui-comp-card">
-    <h2 class="ui-comp-title">Templates documents</h2>
-    <p>Gestion des templates visuels pour les impressions (superuser uniquement).</p>
+    <h2 class="ui-comp-title">Templates XLSX</h2>
+    <p>Gestion des templates et mappings Print Pack (superuser uniquement).</p>
 
     <div class="scan-table-wrap">
       <table class="scan-table">
         <thead>
           <tr>
+            <th>Pack</th>
             <th>Document</th>
-            <th>Type</th>
-            <th>Statut</th>
+            <th>Variant</th>
+            <th>Template XLSX</th>
+            <th>Mappings</th>
+            <th>Version</th>
             <th>Derni&egrave;re maj</th>
             <th>Par</th>
             <th></th>
@@ -22,13 +25,32 @@
         <tbody>
           {% for item in templates %}
             <tr>
-              <td>{{ item.label }}</td>
-              <td><small>{{ item.doc_type }}</small></td>
               <td>
-                {% if item.has_override %}
-                  Personnalisé
+                <strong>{{ item.pack_code }}</strong>
+                <br>
+                <small>{{ item.pack_name }}</small>
+              </td>
+              <td><small>{{ item.doc_type }}</small></td>
+              <td><small>{{ item.variant|default:"-" }}</small></td>
+              <td>
+                {% if item.has_template_file %}
+                  <small>{{ item.template_filename }}</small>
+                  <br>
+                  {% if item.template_is_uploaded %}
+                    Upload&eacute;
+                  {% else %}
+                    Fichier source
+                  {% endif %}
                 {% else %}
-                  Par d&eacute;faut
+                  -
+                {% endif %}
+              </td>
+              <td>{{ item.mapping_count }}</td>
+              <td>
+                {% if item.active_version %}
+                  v{{ item.active_version }}
+                {% else %}
+                  -
                 {% endif %}
               </td>
               <td>
@@ -46,14 +68,14 @@
                 {% endif %}
               </td>
               <td>
-                <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'scan:scan_print_template_edit' doc_type=item.doc_type %}">
+                <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'scan:scan_print_template_edit' doc_type=item.route_key %}">
                   Modifier
                 </a>
               </td>
             </tr>
           {% empty %}
             <tr>
-              <td colspan="6">Aucun template disponible.</td>
+              <td colspan="9">Aucun template disponible.</td>
             </tr>
           {% endfor %}
         </tbody>

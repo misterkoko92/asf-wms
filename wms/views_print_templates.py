@@ -1,21 +1,40 @@
 import json
+from io import BytesIO
+from os.path import basename
+from pathlib import Path
 
+from django.conf import settings
 from django.contrib import messages
+from django.core.files.base import ContentFile
 from django.db import transaction
-from django.db.models import Max
+from django.db.models import Count
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
+from openpyxl import load_workbook
+from openpyxl.utils.cell import column_index_from_string, coordinate_from_string
 
-from .models import PrintTemplate, PrintTemplateVersion, Product, Shipment
+from .models import (
+    PrintCellMapping,
+    PrintPackDocument,
+    PrintPackDocumentVersion,
+    Product,
+    Shipment,
+)
 from .print_context import (
     build_label_context,
     build_preview_context,
     build_product_label_context,
     build_sample_label_context,
 )
-from .print_layouts import BLOCK_LIBRARY, DEFAULT_LAYOUTS, DOCUMENT_TEMPLATES
-from .print_renderer import layout_changed, render_layout_from_layout
+from .print_layouts import DOCUMENT_TEMPLATES
+from .print_pack_mapping_catalog import ALLOWED_SOURCE_KEYS, is_allowed_source_key
+from .print_pack_template_versions import (
+    restore_print_pack_document_version,
+    save_print_pack_document_snapshot,
+)
+from .print_pack_workbook import build_column_choices, normalize_cell_ref, worksheet_row_choices
+from .print_renderer import render_layout_from_layout
 from .print_utils import build_label_pages, extract_block_style
 from .view_permissions import (
     require_superuser as _require_superuser,
@@ -33,154 +52,223 @@ ACTIVE_PRINT_TEMPLATES = "print_templates"
 SHELL_CLASS_WIDE = "scan-shell-wide"
 
 DOC_LABEL_MAP = dict(DOCUMENT_TEMPLATES)
-PRODUCT_DOC_TYPES = {"product_label", "product_qr"}
+VALID_TRANSFORMS = ("", "upper", "date_fr")
 
 
 def _redirect_template_edit(doc_type):
     return redirect("scan:scan_print_template_edit", doc_type=doc_type)
 
 
-def _load_print_template(doc_type):
-    return (
-        PrintTemplate.objects.filter(doc_type=doc_type)
-        .select_related("updated_by")
-        .first()
-    )
+def _resolve_pack_document(doc_type):
+    token = (doc_type or "").strip()
+    if not token:
+        return None
+    queryset = PrintPackDocument.objects.select_related("pack")
+    if token.isdigit():
+        return queryset.filter(pk=int(token)).first()
+    return queryset.filter(doc_type=token).order_by("pack__code", "sequence", "id").first()
 
 
-def _resolve_edit_layout_data(request, *, action, doc_type, template):
-    if action == "restore":
-        version_id = request.POST.get("version_id")
-        if not version_id:
-            messages.error(request, "Version requise.")
-            return None, _redirect_template_edit(doc_type)
-        version = get_object_or_404(
-            PrintTemplateVersion, pk=version_id, template__doc_type=doc_type
-        )
-        return version.layout or {}, None
-
-    if action == "reset":
-        if template is None:
-            messages.info(request, "Ce modèle est déjà sur la version par défaut.")
-            return None, _redirect_template_edit(doc_type)
-        return {}, None
-
-    layout_json = request.POST.get("layout_json") or ""
-    try:
-        return json.loads(layout_json) if layout_json else {}, None
-    except json.JSONDecodeError:
-        messages.error(request, "Le layout fourni est invalide.")
-        return None, _redirect_template_edit(doc_type)
+def _resolve_template_search_dirs():
+    configured_dirs = getattr(settings, "PRINT_PACK_TEMPLATE_DIRS", None)
+    if configured_dirs is None:
+        configured_dirs = [
+            Path(settings.BASE_DIR) / "print_templates",
+            Path(settings.BASE_DIR) / "data" / "print_templates",
+        ]
+    if isinstance(configured_dirs, (str, Path)):
+        configured_dirs = [configured_dirs]
+    directories = []
+    for entry in configured_dirs:
+        value = str(entry or "").strip()
+        if not value:
+            continue
+        directories.append(Path(value))
+    return directories
 
 
-def _save_template_layout(*, template, doc_type, layout_data, user):
-    with transaction.atomic():
-        if template is None:
-            template = PrintTemplate.objects.create(
-                doc_type=doc_type,
-                layout=layout_data,
-                updated_by=user,
-            )
-        else:
-            template.layout = layout_data
-            template.updated_by = user
-            template.save(update_fields=["layout", "updated_by", "updated_at"])
-
-        next_version = (
-            template.versions.aggregate(max_version=Max("version"))["max_version"] or 0
-        ) + 1
-        PrintTemplateVersion.objects.create(
-            template=template,
-            version=next_version,
-            layout=layout_data,
-            created_by=user,
-        )
-    return template
+def _build_pack_template_filename(pack_document):
+    variant = (pack_document.variant or "").strip() or "default"
+    return f"{pack_document.pack.code}__{pack_document.doc_type}__{variant}.xlsx"
 
 
-def _notify_edit_success(request, *, action):
-    if action == "reset":
-        messages.success(request, "Modèle remis par défaut.")
-    elif action == "restore":
-        messages.success(request, "Version restaurée.")
-    else:
-        messages.success(request, "Modèle enregistré.")
+def _resolve_filesystem_template_path(pack_document):
+    filename = _build_pack_template_filename(pack_document)
+    for directory in _resolve_template_search_dirs():
+        candidate = directory / filename
+        if candidate.exists() and candidate.is_file():
+            return candidate
+    return None
+
+
+def _resolve_effective_template_label(pack_document):
+    if pack_document.xlsx_template_file:
+        return basename(pack_document.xlsx_template_file.name or ""), True
+    filesystem_path = _resolve_filesystem_template_path(pack_document)
+    if filesystem_path is None:
+        return "", False
+    return filesystem_path.name, False
+
+
+def _read_effective_template_bytes(pack_document):
+    if pack_document.xlsx_template_file:
+        with pack_document.xlsx_template_file.open("rb") as stream:
+            return stream.read(), True
+    filesystem_path = _resolve_filesystem_template_path(pack_document)
+    if filesystem_path is None:
+        return None, False
+    with filesystem_path.open("rb") as stream:
+        return stream.read(), False
 
 
 def _build_template_list_items():
-    template_map = {
-        template.doc_type: template
-        for template in PrintTemplate.objects.select_related("updated_by")
-    }
+    queryset = (
+        PrintPackDocument.objects.select_related("pack")
+        .annotate(mapping_count=Count("cell_mappings"))
+        .prefetch_related("versions__created_by")
+        .order_by("pack__code", "sequence", "id")
+    )
     items = []
-    for doc_type, label in DOCUMENT_TEMPLATES:
-        template = template_map.get(doc_type)
+    for pack_document in queryset:
+        versions = sorted(
+            list(pack_document.versions.all()),
+            key=lambda version: version.version,
+            reverse=True,
+        )
+        latest_version = versions[0] if versions else None
+        template_filename, template_is_uploaded = _resolve_effective_template_label(
+            pack_document
+        )
         items.append(
             {
-                "doc_type": doc_type,
-                "label": label,
-                "has_override": bool(template and template.layout),
-                "updated_at": template.updated_at if template else None,
-                "updated_by": template.updated_by if template else None,
+                "route_key": str(pack_document.id),
+                "pack_code": pack_document.pack.code,
+                "pack_name": pack_document.pack.name,
+                "doc_type": pack_document.doc_type,
+                "variant": pack_document.variant,
+                "sequence": pack_document.sequence,
+                "mapping_count": int(getattr(pack_document, "mapping_count", 0) or 0),
+                "has_template_file": bool(template_filename),
+                "template_filename": template_filename,
+                "template_is_uploaded": template_is_uploaded,
+                "active_version": latest_version.version if latest_version else None,
+                "updated_at": latest_version.created_at if latest_version else None,
+                "updated_by": latest_version.created_by if latest_version else None,
             }
         )
     return items
 
 
-def _build_shipment_choices():
-    shipments = []
-    for shipment in (
-        Shipment.objects.filter(archived_at__isnull=True)
-        .select_related("destination")
-        .order_by("reference", "id")[:30]
-    ):
-        destination = (
-            shipment.destination.city
-            if shipment.destination and shipment.destination.city
-            else shipment.destination_address
+def _split_cell_ref(cell_ref):
+    try:
+        column, row = coordinate_from_string((cell_ref or "").strip().upper())
+    except ValueError:
+        return "", ""
+    return column, str(row)
+
+
+def _empty_mapping_row(*, worksheet_name="", sequence=1):
+    return {
+        "worksheet_name": worksheet_name,
+        "column": "",
+        "row": "",
+        "cell_ref": "",
+        "source_key": "",
+        "transform": "",
+        "required": False,
+        "sequence": sequence,
+        "merged_range": "",
+    }
+
+
+def _load_workbook_or_none(template_bytes):
+    if template_bytes is None:
+        return None
+    try:
+        return load_workbook(BytesIO(template_bytes))
+    except Exception:
+        return None
+
+
+def _build_workbook_meta(workbook):
+    if workbook is None:
+        return {
+            "worksheet_names": [],
+            "columns_by_worksheet": {},
+            "rows_by_worksheet": {},
+        }
+    all_columns = build_column_choices()
+    worksheet_names = list(workbook.sheetnames)
+    columns_by_worksheet = {}
+    rows_by_worksheet = {}
+    for worksheet_name in worksheet_names:
+        worksheet = workbook[worksheet_name]
+        max_column = max(1, int(getattr(worksheet, "max_column", 1) or 1))
+        column_count = min(len(all_columns), max_column + 10)
+        columns_by_worksheet[worksheet_name] = all_columns[:column_count]
+        rows_by_worksheet[worksheet_name] = [
+            str(row_number) for row_number in worksheet_row_choices(worksheet)
+        ]
+    return {
+        "worksheet_names": worksheet_names,
+        "columns_by_worksheet": columns_by_worksheet,
+        "rows_by_worksheet": rows_by_worksheet,
+    }
+
+
+def _build_mapping_rows(pack_document, workbook):
+    worksheet_names = list(workbook.sheetnames) if workbook is not None else []
+    default_worksheet = worksheet_names[0] if worksheet_names else ""
+    rows = []
+    for mapping in pack_document.cell_mappings.order_by("sequence", "id"):
+        column, row = _split_cell_ref(mapping.cell_ref)
+        merged_range = ""
+        if workbook is not None and mapping.worksheet_name in workbook.sheetnames:
+            _, merged_range = normalize_cell_ref(workbook[mapping.worksheet_name], mapping.cell_ref)
+        rows.append(
+            {
+                "worksheet_name": mapping.worksheet_name or default_worksheet,
+                "column": column,
+                "row": row,
+                "cell_ref": mapping.cell_ref,
+                "source_key": mapping.source_key,
+                "transform": mapping.transform or "",
+                "required": bool(mapping.required),
+                "sequence": mapping.sequence,
+                "merged_range": merged_range,
+            }
         )
-        label = shipment.reference
-        if destination:
-            label = f"{label} - {destination}"
-        shipments.append({"id": shipment.id, "label": label})
-    shipments.sort(key=lambda item: str(item["label"] or "").lower())
-    return shipments
+    if not rows:
+        rows.append(_empty_mapping_row(worksheet_name=default_worksheet, sequence=1))
+    return rows
 
 
-def _build_product_choices(doc_type):
-    if doc_type not in PRODUCT_DOC_TYPES:
-        return []
-
-    products = []
-    for product in Product.objects.order_by("name")[:30]:
-        label = product.name
-        if product.sku:
-            label = f"{product.sku} - {label}"
-        products.append({"id": product.id, "label": label})
-    products.sort(key=lambda item: str(item["label"] or "").lower())
-    return products
-
-
-def _build_template_versions(template):
-    if template is None:
-        return []
-    return list(template.versions.select_related("created_by").order_by("-version"))
-
-
-def _build_edit_context(*, doc_type, template):
-    default_layout = DEFAULT_LAYOUTS.get(doc_type, {"blocks": []})
-    layout = template.layout if template and template.layout else default_layout
+def _build_edit_context(pack_document):
+    template_filename, template_is_uploaded = _resolve_effective_template_label(pack_document)
+    template_bytes, _template_from_db = _read_effective_template_bytes(pack_document)
+    workbook = _load_workbook_or_none(template_bytes)
+    workbook_meta = _build_workbook_meta(workbook)
+    try:
+        mapping_rows = _build_mapping_rows(pack_document, workbook)
+    finally:
+        if workbook is not None:
+            workbook.close()
+    versions = list(
+        pack_document.versions.select_related("created_by").order_by("-version")
+    )
     return {
         "active": ACTIVE_PRINT_TEMPLATES,
         "shell_class": SHELL_CLASS_WIDE,
-        "doc_type": doc_type,
-        "doc_label": DOC_LABEL_MAP[doc_type],
-        "template": template,
-        "layout": layout,
-        "block_library": BLOCK_LIBRARY,
-        "shipments": _build_shipment_choices(),
-        "products": _build_product_choices(doc_type),
-        "versions": _build_template_versions(template),
+        "pack_document": pack_document,
+        "source_keys": ALLOWED_SOURCE_KEYS,
+        "transform_choices": VALID_TRANSFORMS,
+        "mapping_rows": mapping_rows,
+        "worksheet_names": workbook_meta["worksheet_names"],
+        "columns_by_worksheet": workbook_meta["columns_by_worksheet"],
+        "rows_by_worksheet": workbook_meta["rows_by_worksheet"],
+        "template_filename": template_filename,
+        "template_is_uploaded": template_is_uploaded,
+        "versions": versions,
     }
 
 
@@ -287,6 +375,259 @@ def _render_product_qr_preview(request, *, layout_data, product):
     )
 
 
+def _get_post_value(values, index, default=""):
+    if index < 0 or index >= len(values):
+        return default
+    return values[index]
+
+
+def _collect_mapping_rows(request):
+    worksheets = request.POST.getlist("mapping_worksheet")
+    columns = request.POST.getlist("mapping_column")
+    rows = request.POST.getlist("mapping_row")
+    source_keys = request.POST.getlist("mapping_source_key")
+    transforms = request.POST.getlist("mapping_transform")
+    required_flags = request.POST.getlist("mapping_required")
+    sequences = request.POST.getlist("mapping_sequence")
+    row_count = max(
+        len(worksheets),
+        len(columns),
+        len(rows),
+        len(source_keys),
+        len(transforms),
+        len(required_flags),
+        len(sequences),
+    )
+    parsed_rows = []
+    errors = []
+    for index in range(row_count):
+        worksheet_name = _get_post_value(worksheets, index, "").strip()
+        column = _get_post_value(columns, index, "").strip().upper()
+        row_value = _get_post_value(rows, index, "").strip()
+        source_key = _get_post_value(source_keys, index, "").strip()
+        transform = _get_post_value(transforms, index, "").strip()
+        required_raw = _get_post_value(required_flags, index, "0").strip().lower()
+        sequence_raw = _get_post_value(sequences, index, "").strip()
+        if not any(
+            (
+                worksheet_name,
+                column,
+                row_value,
+                source_key,
+                transform,
+                sequence_raw,
+            )
+        ):
+            continue
+        if not (worksheet_name and column and row_value and source_key):
+            errors.append(
+                f"Ligne {index + 1}: worksheet, colonne, ligne et champ source sont requis."
+            )
+            continue
+        if sequence_raw.isdigit() and int(sequence_raw) > 0:
+            sequence = int(sequence_raw)
+        else:
+            sequence = index + 1
+        parsed_rows.append(
+            {
+                "worksheet_name": worksheet_name,
+                "column": column,
+                "row": row_value,
+                "source_key": source_key,
+                "transform": transform,
+                "required": required_raw in {"1", "true", "yes", "on"},
+                "sequence": sequence,
+            }
+        )
+    return parsed_rows, errors
+
+
+def _validate_and_normalize_rows(parsed_rows, workbook):
+    normalized_rows = []
+    errors = []
+    if workbook is None:
+        return [], ["Template XLSX introuvable ou invalide."]
+    worksheet_map = {worksheet_name: workbook[worksheet_name] for worksheet_name in workbook.sheetnames}
+    seen_cells = set()
+    for index, row_data in enumerate(parsed_rows, start=1):
+        worksheet_name = row_data["worksheet_name"]
+        if worksheet_name not in worksheet_map:
+            errors.append(f"Ligne {index}: worksheet inconnu ({worksheet_name}).")
+            continue
+        worksheet = worksheet_map[worksheet_name]
+        try:
+            row_number = int(row_data["row"])
+        except (TypeError, ValueError):
+            errors.append(f"Ligne {index}: numéro de ligne invalide ({row_data['row']}).")
+            continue
+        if row_number <= 0 or row_number > max(1, int(worksheet.max_row or 1)):
+            errors.append(
+                f"Ligne {index}: numéro de ligne hors limites pour la feuille {worksheet_name}."
+            )
+            continue
+        column = row_data["column"].upper()
+        try:
+            column_index_from_string(column)
+        except ValueError:
+            errors.append(f"Ligne {index}: colonne invalide ({column}).")
+            continue
+        source_key = row_data["source_key"]
+        if not is_allowed_source_key(source_key):
+            errors.append(f"Ligne {index}: champ source invalide ({source_key}).")
+            continue
+        transform = row_data["transform"]
+        if transform not in VALID_TRANSFORMS:
+            errors.append(f"Ligne {index}: transformation invalide ({transform}).")
+            continue
+        normalized_cell_ref, _merged_range = normalize_cell_ref(
+            worksheet,
+            f"{column}{row_number}",
+        )
+        dedupe_key = (worksheet_name, normalized_cell_ref)
+        if dedupe_key in seen_cells:
+            errors.append(
+                f"Ligne {index}: cellule dupliquée ({worksheet_name}!{normalized_cell_ref})."
+            )
+            continue
+        seen_cells.add(dedupe_key)
+        normalized_rows.append(
+            {
+                "worksheet_name": worksheet_name,
+                "cell_ref": normalized_cell_ref,
+                "source_key": source_key,
+                "transform": transform,
+                "required": bool(row_data["required"]),
+                "sequence": int(row_data["sequence"]),
+            }
+        )
+    return normalized_rows, errors
+
+
+def _persist_pack_document_save(
+    *,
+    pack_document,
+    normalized_rows,
+    change_note,
+    uploaded_filename,
+    uploaded_bytes,
+    fallback_template_bytes,
+    user,
+):
+    with transaction.atomic():
+        should_save_template_file = uploaded_bytes is not None or (
+            not pack_document.xlsx_template_file and fallback_template_bytes is not None
+        )
+        if uploaded_bytes is not None:
+            template_filename = basename(uploaded_filename or "") or _build_pack_template_filename(
+                pack_document
+            )
+            pack_document.xlsx_template_file.save(
+                template_filename,
+                ContentFile(uploaded_bytes),
+                save=False,
+            )
+        elif not pack_document.xlsx_template_file and fallback_template_bytes is not None:
+            pack_document.xlsx_template_file.save(
+                _build_pack_template_filename(pack_document),
+                ContentFile(fallback_template_bytes),
+                save=False,
+            )
+        if should_save_template_file:
+            pack_document.save(update_fields=["xlsx_template_file"])
+
+        pack_document.cell_mappings.all().delete()
+        create_buffer = []
+        for row_data in normalized_rows:
+            create_buffer.append(
+                PrintCellMapping(
+                    pack_document=pack_document,
+                    worksheet_name=row_data["worksheet_name"],
+                    cell_ref=row_data["cell_ref"],
+                    source_key=row_data["source_key"],
+                    transform=row_data["transform"],
+                    required=row_data["required"],
+                    sequence=row_data["sequence"],
+                )
+            )
+        if create_buffer:
+            PrintCellMapping.objects.bulk_create(create_buffer)
+
+        save_print_pack_document_snapshot(
+            pack_document=pack_document,
+            created_by=user,
+            change_type="save",
+            change_note=change_note,
+        )
+
+
+def _handle_pack_document_save(request, pack_document):
+    uploaded_file = request.FILES.get("xlsx_template_file")
+    uploaded_filename = ""
+    uploaded_bytes = None
+    fallback_template_bytes = None
+    workbook = None
+    if uploaded_file is not None:
+        uploaded_filename = basename(uploaded_file.name or "")
+        if not uploaded_filename.lower().endswith(".xlsx"):
+            messages.error(request, "Le fichier doit être au format .xlsx.")
+            return
+        uploaded_bytes = uploaded_file.read()
+        workbook = _load_workbook_or_none(uploaded_bytes)
+        if workbook is None:
+            messages.error(request, "Le fichier XLSX uploadé est invalide.")
+            return
+    else:
+        fallback_template_bytes, _from_db = _read_effective_template_bytes(pack_document)
+        workbook = _load_workbook_or_none(fallback_template_bytes)
+        if workbook is None:
+            messages.error(
+                request,
+                "Aucun template XLSX disponible. Uploadez un fichier avant de mapper.",
+            )
+            return
+    try:
+        parsed_rows, parse_errors = _collect_mapping_rows(request)
+        if parse_errors:
+            for error in parse_errors:
+                messages.error(request, error)
+            return
+        normalized_rows, validation_errors = _validate_and_normalize_rows(parsed_rows, workbook)
+        if validation_errors:
+            for error in validation_errors:
+                messages.error(request, error)
+            return
+        _persist_pack_document_save(
+            pack_document=pack_document,
+            normalized_rows=normalized_rows,
+            change_note=(request.POST.get("change_note") or "").strip(),
+            uploaded_filename=uploaded_filename,
+            uploaded_bytes=uploaded_bytes,
+            fallback_template_bytes=fallback_template_bytes,
+            user=request.user,
+        )
+    finally:
+        workbook.close()
+    messages.success(request, "Template XLSX et mappings enregistrés.")
+
+
+def _handle_pack_document_restore(request, pack_document):
+    version_id = (request.POST.get("version_id") or "").strip()
+    if not version_id.isdigit():
+        messages.error(request, "Version requise.")
+        return
+    version = get_object_or_404(
+        PrintPackDocumentVersion,
+        pk=int(version_id),
+        pack_document=pack_document,
+    )
+    restore_print_pack_document_version(
+        version=version,
+        created_by=request.user,
+        change_note=(request.POST.get("change_note") or "").strip(),
+    )
+    messages.success(request, f"Version v{version.version} restaurée.")
+
+
 @scan_staff_required
 @require_http_methods(["GET"])
 def scan_print_templates(request):
@@ -306,39 +647,23 @@ def scan_print_templates(request):
 @require_http_methods(["GET", "POST"])
 def scan_print_template_edit(request, doc_type):
     _require_superuser(request)
-    if doc_type not in DOC_LABEL_MAP:
+    pack_document = _resolve_pack_document(doc_type)
+    if pack_document is None:
         raise Http404("Template not found")
-
-    template = _load_print_template(doc_type)
     if request.method == "POST":
-        action = (request.POST.get("action") or "save").strip()
-        layout_data, response = _resolve_edit_layout_data(
-            request,
-            action=action,
-            doc_type=doc_type,
-            template=template,
-        )
-        if response:
-            return response
-
-        previous_layout = template.layout if template else None
-        if not layout_changed(previous_layout, layout_data):
-            messages.info(request, "Aucun changement detecte.")
-            return _redirect_template_edit(doc_type)
-
-        _save_template_layout(
-            template=template,
-            doc_type=doc_type,
-            layout_data=layout_data,
-            user=request.user,
-        )
-        _notify_edit_success(request, action=action)
-        return _redirect_template_edit(doc_type)
+        action = (request.POST.get("action") or "save").strip().lower()
+        if action == "restore":
+            _handle_pack_document_restore(request, pack_document)
+        elif action == "save":
+            _handle_pack_document_save(request, pack_document)
+        else:
+            messages.error(request, f"Action inconnue: {action}")
+        return _redirect_template_edit(str(pack_document.id))
 
     return render(
         request,
         TEMPLATE_PRINT_TEMPLATE_EDIT,
-        _build_edit_context(doc_type=doc_type, template=template),
+        _build_edit_context(pack_document),
     )
 
 
