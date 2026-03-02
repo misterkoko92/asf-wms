@@ -219,23 +219,26 @@ def scan_carton_document(request, carton_id):
         Carton.objects.select_related("shipment"),
         pk=carton_id,
     )
+    pack_route = resolve_carton_packing_pack()
     if carton.shipment_id:
-        pack_route = resolve_carton_packing_pack()
-        return _try_generate_pack_pdf_response(
+        fallback_renderer = lambda: render_carton_document(
             request,
-            pack_code=pack_route.pack_code,
-            shipment=carton.shipment,
-            carton=carton,
-            variant=pack_route.variant,
-            fallback_renderer=lambda: render_carton_document(
-                request,
-                carton.shipment,
-                carton,
-            ),
+            carton.shipment,
+            carton,
         )
     else:
-        context = _build_standalone_carton_context(carton)
-    return _render_carton_document_with_layout(request, context)
+        fallback_renderer = lambda: _render_carton_document_with_layout(
+            request,
+            _build_standalone_carton_context(carton),
+        )
+    return _try_generate_pack_pdf_response(
+        request,
+        pack_code=pack_route.pack_code,
+        shipment=carton.shipment if carton.shipment_id else None,
+        carton=carton,
+        variant=pack_route.variant,
+        fallback_renderer=fallback_renderer,
+    )
 
 
 @scan_staff_required

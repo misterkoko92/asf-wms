@@ -1,3 +1,4 @@
+from copy import copy
 from datetime import date, datetime
 from openpyxl.cell.cell import MergedCell
 from openpyxl.utils.cell import coordinate_from_string
@@ -77,6 +78,13 @@ def _apply_transform(value, transform):
     return value
 
 
+def _write_cell_value(target_cell, value):
+    target_cell.value = value
+    alignment = copy(target_cell.alignment)
+    alignment.wrap_text = True
+    target_cell.alignment = alignment
+
+
 def fill_workbook_cells(workbook, mappings, payload):
     for mapping in mappings:
         worksheet_name = _mapping_get(mapping, "worksheet_name", "")
@@ -105,7 +113,10 @@ def fill_workbook_cells(workbook, mappings, payload):
                     worksheet,
                     f"{column}{base_row + idx}",
                 )
-                target_cell.value = _apply_transform(raw_value, transform)
+                _write_cell_value(
+                    target_cell,
+                    _apply_transform(raw_value, transform),
+                )
             continue
 
         value = _resolve_source_value(payload, source_key)
@@ -115,7 +126,10 @@ def fill_workbook_cells(workbook, mappings, payload):
             )
 
         target_cell = _resolve_target_cell(worksheet, cell_ref)
-        target_cell.value = _apply_transform(value, transform)
+        _write_cell_value(
+            target_cell,
+            _apply_transform(value, transform),
+        )
     return workbook
 
 

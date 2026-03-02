@@ -13,7 +13,7 @@ from .models import (
     GeneratedPrintArtifactStatus,
     PrintPack,
 )
-from .print_pack_excel import autosize_workbook_columns, fill_workbook_cells
+from .print_pack_excel import fill_workbook_cells
 from .print_pack_graph import convert_excel_to_pdf_via_graph
 from .print_pack_pdf import merge_pdf_documents
 
@@ -72,13 +72,20 @@ def _format_weight_label(total_weight_g):
 
 def _build_contact_payload(*, contact, fallback_name, default_country=""):
     base_name = _clean_text(fallback_name)
+    first_name = ""
+    last_name = ""
+    title = ""
     payload = {
         "full_name": base_name,
         "title_name": base_name,
+        "title": "",
+        "first_name": "",
+        "last_name": "",
         "structure_name": "",
         "postal_address": "",
         "postal_code": "",
         "city": "",
+        "postal_code_city": "",
         "country": _clean_text(default_country),
         "phone_1": "",
         "phone_2": "",
@@ -91,16 +98,21 @@ def _build_contact_payload(*, contact, fallback_name, default_country=""):
         "contact_primary": "",
     }
     if contact is None:
+        if base_name:
+            payload["structure_name"] = base_name
         return payload
 
     first_name = _clean_text(getattr(contact, "first_name", ""))
     last_name = _clean_text(getattr(contact, "last_name", ""))
     title = _clean_text(getattr(contact, "title", ""))
+    payload["title"] = title
+    payload["first_name"] = first_name
+    payload["last_name"] = last_name.upper() if last_name else ""
     if first_name or last_name:
         payload["title_name"] = _join_non_empty(
             title,
             first_name,
-            last_name.upper() if last_name else "",
+            payload["last_name"],
         )
     elif _clean_text(getattr(contact, "name", "")):
         payload["title_name"] = _clean_text(getattr(contact, "name", ""))
@@ -155,6 +167,13 @@ def _build_contact_payload(*, contact, fallback_name, default_country=""):
     if not payload["emergency_contact"]:
         payload["emergency_contact"] = _clean_text(getattr(contact, "role", ""))
 
+    if payload["postal_code"] and payload["city"]:
+        payload["postal_code_city"] = f"{payload['postal_code']} - {payload['city']}"
+    else:
+        payload["postal_code_city"] = _join_non_empty(
+            payload["postal_code"],
+            payload["city"],
+        )
     city_line = _join_non_empty(payload["postal_code"], payload["city"])
     payload["postal_address_full"] = _join_non_empty(
         payload["postal_address"],
@@ -382,11 +401,30 @@ def _render_document_xlsx_bytes(*, document, shipment=None, carton=None):
         document=document,
     )
     fill_workbook_cells(workbook, mappings, payload)
-    autosize_workbook_columns(workbook)
+    _apply_post_fill_template_rules(workbook=workbook, document=document, payload=payload)
     output = BytesIO()
     workbook.save(output)
     workbook.close()
     return output.getvalue()
+
+
+def _apply_post_fill_template_rules(*, workbook, document, payload):
+    doc_type = _clean_text(getattr(document, "doc_type", ""))
+    variant = _clean_text(getattr(document, "variant", ""))
+    if doc_type != "picking" or variant != "single_carton":
+        return
+    if "Feuil1" not in workbook.sheetnames:
+        return
+    worksheet = workbook["Feuil1"]
+    carton_items = payload.get("carton", {}).get("items", [])
+    item_count = len(carton_items) if isinstance(carton_items, list) else 0
+    first_optional_row = 15
+    if item_count <= 1:
+        first_row_to_hide = first_optional_row
+    else:
+        first_row_to_hide = first_optional_row + (item_count - 1)
+    for row_index in range(first_row_to_hide, worksheet.max_row + 1):
+        worksheet.row_dimensions[row_index].hidden = True
 
 
 def _artifact_basename(*, pack_code):

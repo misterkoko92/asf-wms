@@ -87,3 +87,234 @@ class PrintPackModelTests(TestCase):
         self.assertEqual(mapping.cell_ref, "D5")
         self.assertEqual(artifact.status, "sync_pending")
         self.assertEqual(item.doc_type, "packing_list_shipment")
+
+    def test_seeded_pack_mappings_match_current_cell_references(self):
+        picking_doc = PrintPackDocument.objects.get(
+            pack__code="A",
+            doc_type="picking",
+            variant="single_carton",
+        )
+        picking_mappings = {
+            mapping.cell_ref: mapping
+            for mapping in PrintCellMapping.objects.filter(pack_document=picking_doc)
+        }
+        self.assertEqual(picking_mappings["A11"].source_key, "carton.code")
+        self.assertEqual(picking_mappings["B11"].source_key, "carton.position")
+        self.assertFalse(picking_mappings["B11"].required)
+        self.assertEqual(
+            picking_mappings["C11"].source_key,
+            "shipment.carton_total_count",
+        )
+        self.assertEqual(picking_mappings["D11"].source_key, "shipment.reference")
+
+        contact_label_doc = PrintPackDocument.objects.get(
+            pack__code="C",
+            doc_type="contact_label",
+            variant="shipment",
+        )
+        contact_label_mappings = {
+            mapping.cell_ref: mapping
+            for mapping in PrintCellMapping.objects.filter(pack_document=contact_label_doc)
+        }
+        self.assertEqual(contact_label_mappings["A5"].source_key, "shipment.shipper.title")
+        self.assertEqual(
+            contact_label_mappings["A6"].source_key,
+            "shipment.shipper.first_name",
+        )
+        self.assertEqual(
+            contact_label_mappings["A7"].source_key,
+            "shipment.shipper.last_name",
+        )
+        self.assertEqual(
+            contact_label_mappings["B5"].source_key,
+            "shipment.shipper.structure_name",
+        )
+        self.assertEqual(
+            contact_label_mappings["C5"].source_key,
+            "shipment.shipper.postal_address",
+        )
+        self.assertEqual(
+            contact_label_mappings["C6"].source_key,
+            "shipment.shipper.postal_code_city",
+        )
+        self.assertEqual(contact_label_mappings["C7"].source_key, "shipment.shipper.country")
+        self.assertEqual(contact_label_mappings["D5"].source_key, "shipment.shipper.phone_1")
+        self.assertEqual(contact_label_mappings["D6"].source_key, "shipment.shipper.email_1")
+        self.assertEqual(
+            contact_label_mappings["A12"].source_key,
+            "shipment.recipient.title",
+        )
+        self.assertEqual(
+            contact_label_mappings["A13"].source_key,
+            "shipment.recipient.first_name",
+        )
+        self.assertEqual(
+            contact_label_mappings["A14"].source_key,
+            "shipment.recipient.last_name",
+        )
+        self.assertEqual(
+            contact_label_mappings["B12"].source_key,
+            "shipment.recipient.structure_name",
+        )
+        self.assertEqual(
+            contact_label_mappings["C12"].source_key,
+            "shipment.recipient.postal_address",
+        )
+        self.assertEqual(
+            contact_label_mappings["C13"].source_key,
+            "shipment.recipient.postal_code_city",
+        )
+        self.assertEqual(
+            contact_label_mappings["C14"].source_key,
+            "shipment.recipient.country",
+        )
+        self.assertEqual(
+            contact_label_mappings["D12"].source_key,
+            "shipment.recipient.phone_1",
+        )
+        self.assertEqual(
+            contact_label_mappings["D13"].source_key,
+            "shipment.recipient.email_1",
+        )
+        self.assertEqual(
+            contact_label_mappings["A19"].source_key,
+            "shipment.correspondent.title",
+        )
+        self.assertEqual(
+            contact_label_mappings["A20"].source_key,
+            "shipment.correspondent.first_name",
+        )
+        self.assertEqual(
+            contact_label_mappings["A21"].source_key,
+            "shipment.correspondent.last_name",
+        )
+        self.assertEqual(
+            contact_label_mappings["B19"].source_key,
+            "shipment.correspondent.structure_name",
+        )
+        self.assertEqual(
+            contact_label_mappings["C19"].source_key,
+            "shipment.correspondent.postal_address",
+        )
+        self.assertEqual(
+            contact_label_mappings["C20"].source_key,
+            "shipment.correspondent.postal_code_city",
+        )
+        self.assertEqual(
+            contact_label_mappings["C21"].source_key,
+            "shipment.correspondent.country",
+        )
+        self.assertEqual(
+            contact_label_mappings["D19"].source_key,
+            "shipment.correspondent.phone_1",
+        )
+        self.assertEqual(
+            contact_label_mappings["D20"].source_key,
+            "shipment.correspondent.email_1",
+        )
+
+        shipment_note_doc = PrintPackDocument.objects.get(
+            pack__code="C",
+            doc_type="shipment_note",
+            variant="shipment",
+        )
+        shipment_note_mappings = {
+            mapping.cell_ref: mapping
+            for mapping in PrintCellMapping.objects.filter(pack_document=shipment_note_doc)
+        }
+        self.assertEqual(shipment_note_mappings["A24"].source_key, "shipment.shipper.title")
+        self.assertEqual(
+            shipment_note_mappings["A25"].source_key,
+            "shipment.shipper.first_name",
+        )
+        self.assertEqual(
+            shipment_note_mappings["A26"].source_key,
+            "shipment.shipper.last_name",
+        )
+        self.assertEqual(
+            shipment_note_mappings["B24"].source_key,
+            "shipment.shipper.structure_name",
+        )
+        self.assertEqual(
+            shipment_note_mappings["C24"].source_key,
+            "shipment.shipper.postal_address",
+        )
+        self.assertEqual(
+            shipment_note_mappings["C25"].source_key,
+            "shipment.shipper.postal_code_city",
+        )
+        self.assertEqual(shipment_note_mappings["C26"].source_key, "shipment.shipper.country")
+        self.assertEqual(shipment_note_mappings["D24"].source_key, "shipment.shipper.phone_1")
+        self.assertEqual(shipment_note_mappings["D25"].source_key, "shipment.shipper.email_1")
+        self.assertEqual(
+            shipment_note_mappings["A31"].source_key,
+            "shipment.recipient.title",
+        )
+        self.assertEqual(
+            shipment_note_mappings["A32"].source_key,
+            "shipment.recipient.first_name",
+        )
+        self.assertEqual(
+            shipment_note_mappings["A33"].source_key,
+            "shipment.recipient.last_name",
+        )
+        self.assertEqual(
+            shipment_note_mappings["B31"].source_key,
+            "shipment.recipient.structure_name",
+        )
+        self.assertEqual(
+            shipment_note_mappings["C31"].source_key,
+            "shipment.recipient.postal_address",
+        )
+        self.assertEqual(
+            shipment_note_mappings["C32"].source_key,
+            "shipment.recipient.postal_code_city",
+        )
+        self.assertEqual(
+            shipment_note_mappings["C33"].source_key,
+            "shipment.recipient.country",
+        )
+        self.assertEqual(
+            shipment_note_mappings["D31"].source_key,
+            "shipment.recipient.phone_1",
+        )
+        self.assertEqual(
+            shipment_note_mappings["D32"].source_key,
+            "shipment.recipient.email_1",
+        )
+        self.assertEqual(
+            shipment_note_mappings["A38"].source_key,
+            "shipment.correspondent.title",
+        )
+        self.assertEqual(
+            shipment_note_mappings["A39"].source_key,
+            "shipment.correspondent.first_name",
+        )
+        self.assertEqual(
+            shipment_note_mappings["A40"].source_key,
+            "shipment.correspondent.last_name",
+        )
+        self.assertEqual(
+            shipment_note_mappings["B38"].source_key,
+            "shipment.correspondent.structure_name",
+        )
+        self.assertEqual(
+            shipment_note_mappings["C38"].source_key,
+            "shipment.correspondent.postal_address",
+        )
+        self.assertEqual(
+            shipment_note_mappings["C39"].source_key,
+            "shipment.correspondent.postal_code_city",
+        )
+        self.assertEqual(
+            shipment_note_mappings["C40"].source_key,
+            "shipment.correspondent.country",
+        )
+        self.assertEqual(
+            shipment_note_mappings["D38"].source_key,
+            "shipment.correspondent.phone_1",
+        )
+        self.assertEqual(
+            shipment_note_mappings["D39"].source_key,
+            "shipment.correspondent.email_1",
+        )

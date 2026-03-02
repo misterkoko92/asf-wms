@@ -1,3 +1,4 @@
+from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
@@ -6,7 +7,7 @@ from unittest import mock
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 
 from contacts.models import Contact, ContactAddress, ContactType
 from wms.models import (
@@ -358,9 +359,13 @@ class PrintPackEngineTests(TestCase):
 
         recipient_payload = payload["shipment"]["recipient"]
         self.assertEqual(recipient_payload["title_name"], "M. Jean DUPONT")
+        self.assertEqual(recipient_payload["title"], "M.")
+        self.assertEqual(recipient_payload["first_name"], "Jean")
+        self.assertEqual(recipient_payload["last_name"], "DUPONT")
         self.assertEqual(recipient_payload["postal_address"], "10 Rue du Test")
         self.assertEqual(recipient_payload["postal_code"], "75010")
         self.assertEqual(recipient_payload["city"], "Paris")
+        self.assertEqual(recipient_payload["postal_code_city"], "75010 - Paris")
         self.assertEqual(recipient_payload["country"], "France")
         self.assertEqual(recipient_payload["phone_1"], "+33 1 23 45 67 89")
         self.assertEqual(recipient_payload["phone_2"], "+33 6 11 22 33 44")
@@ -533,3 +538,119 @@ class PrintPackEngineTests(TestCase):
             shipment_payload["correspondent"]["contact_primary"],
             "+223 2 22 22 22 22, bamako@example.org",
         )
+
+    def test_render_document_xlsx_bytes_preserves_fixed_column_widths_and_wraps_text(self):
+        pack = PrintPack.objects.create(code="TW", name="Template Width")
+        document = PrintPackDocument.objects.create(
+            pack=pack,
+            doc_type="contact_label",
+            variant="shipment",
+            sequence=1,
+            enabled=True,
+        )
+        document.cell_mappings.create(
+            worksheet_name="Feuil1",
+            cell_ref="A1",
+            source_key="shipment.recipient_name",
+            transform="",
+            required=False,
+            sequence=1,
+        )
+
+        with TemporaryDirectory() as temp_dir:
+            template_path = Path(temp_dir) / "TW__contact_label__shipment.xlsx"
+            workbook = Workbook()
+            worksheet = workbook.active
+            worksheet.title = "Feuil1"
+            worksheet.column_dimensions["A"].width = 13.0
+            workbook.save(template_path)
+            workbook.close()
+
+            shipment = Shipment.objects.create(
+                shipper_name="Shipper",
+                recipient_name="Organisation destination tres longue pour test",
+                destination_address="1 Rue Test",
+                destination_country="France",
+                created_by=self.user,
+            )
+
+            with override_settings(PRINT_PACK_TEMPLATE_DIRS=[temp_dir]):
+                rendered_bytes = _render_document_xlsx_bytes(
+                    document=document,
+                    shipment=shipment,
+                )
+
+        rendered = load_workbook(BytesIO(rendered_bytes))
+        rendered_sheet = rendered["Feuil1"]
+        self.assertEqual(
+            rendered_sheet["A1"].value,
+            "Organisation destination tres longue pour test",
+        )
+        self.assertAlmostEqual(rendered_sheet.column_dimensions["A"].width, 13.0)
+        self.assertTrue(rendered_sheet["A1"].alignment.wrap_text)
+        rendered.close()
+
+    def test_render_document_xlsx_bytes_hides_unused_rows_for_picking_single_carton(self):
+        warehouse = Warehouse.objects.create(name="W")
+        location = Location.objects.create(
+            warehouse=warehouse,
+            zone="A",
+            aisle="01",
+            shelf="001",
+        )
+        product = Product.objects.create(
+            sku="SKU-PICK-1",
+            name="Produit Picking",
+            default_location=location,
+            qr_code_image="qr_codes/test.png",
+        )
+        lot = ProductLot.objects.create(
+            product=product,
+            lot_code="LOT-PICK-1",
+            quantity_on_hand=10,
+            location=location,
+        )
+        carton = Carton.objects.create(code="C-PICK-001")
+        CartonItem.objects.create(carton=carton, product_lot=lot, quantity=1)
+
+        pack = PrintPack.objects.create(code="TP", name="Template Picking")
+        document = PrintPackDocument.objects.create(
+            pack=pack,
+            doc_type="picking",
+            variant="single_carton",
+            sequence=1,
+            enabled=True,
+        )
+        document.cell_mappings.create(
+            worksheet_name="Feuil1",
+            cell_ref="A14",
+            source_key="carton.items[].product_name",
+            transform="",
+            required=False,
+            sequence=1,
+        )
+
+        with TemporaryDirectory() as temp_dir:
+            template_path = Path(temp_dir) / "TP__picking__single_carton.xlsx"
+            workbook = Workbook()
+            worksheet = workbook.active
+            worksheet.title = "Feuil1"
+            worksheet["A14"] = "LIGNE 14"
+            worksheet["A15"] = "LIGNE 15"
+            worksheet["A20"] = "LIGNE 20"
+            workbook.save(template_path)
+            workbook.close()
+
+            with override_settings(PRINT_PACK_TEMPLATE_DIRS=[temp_dir]):
+                rendered_bytes = _render_document_xlsx_bytes(
+                    document=document,
+                    carton=carton,
+                )
+
+        rendered = load_workbook(BytesIO(rendered_bytes))
+        rendered_sheet = rendered["Feuil1"]
+        self.assertEqual(rendered_sheet["A14"].value, "Produit Picking")
+        self.assertFalse(bool(rendered_sheet.row_dimensions[14].hidden))
+        self.assertTrue(bool(rendered_sheet.row_dimensions[15].hidden))
+        self.assertTrue(bool(rendered_sheet.row_dimensions[20].hidden))
+        rendered.close()

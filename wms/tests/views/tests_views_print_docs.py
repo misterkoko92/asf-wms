@@ -266,19 +266,41 @@ class PrintDocsViewsTests(TestCase):
             variant="per_carton_single",
         )
 
-    def test_scan_carton_document_builds_fallback_context_without_shipment(self):
+    def test_scan_carton_document_routes_to_pack_engine_without_shipment(self):
         carton = self._create_standalone_carton_with_item()
         with mock.patch(
+            "wms.views_print_docs._generate_pack_pdf_response",
+            return_value=HttpResponse("ok"),
+        ) as pack_mock:
+            response = self.client.get(
+                reverse("scan:scan_carton_document", kwargs={"carton_id": carton.id})
+            )
+        self.assertEqual(response.status_code, 200)
+        pack_mock.assert_called_once_with(
+            mock.ANY,
+            pack_code="B",
+            shipment=None,
+            carton=carton,
+            variant="per_carton_single",
+        )
+
+    def test_scan_carton_document_builds_fallback_context_without_shipment_when_pack_fails(
+        self,
+    ):
+        carton = self._create_standalone_carton_with_item()
+        with mock.patch(
+            "wms.views_print_docs._generate_pack_pdf_response",
+            side_effect=PrintPackEngineError("missing pack"),
+        ), mock.patch(
             "wms.views_print_docs.get_template_layout",
             return_value=None,
-        ):
-            with mock.patch(
-                "wms.views_print_docs.render",
-                side_effect=self._render_stub,
-            ) as render_mock:
-                response = self.client.get(
-                    reverse("scan:scan_carton_document", kwargs={"carton_id": carton.id})
-                )
+        ), mock.patch(
+            "wms.views_print_docs.render",
+            side_effect=self._render_stub,
+        ) as render_mock:
+            response = self.client.get(
+                reverse("scan:scan_carton_document", kwargs={"carton_id": carton.id})
+            )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "print/liste_colisage_carton.html")
         context = render_mock.call_args.args[2]
