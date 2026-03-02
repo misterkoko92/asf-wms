@@ -320,6 +320,26 @@ class ScanAdminViewTests(TestCase):
         self.assertContains(response, "Imprimer les deux")
         self.assertContains(
             response,
+            'class="scan-scan-btn btn btn-outline-primary">Filtrer</button>',
+        )
+        self.assertContains(
+            response,
+            'class="scan-scan-btn btn btn-outline-primary" formaction="'
+            + reverse("scan:scan_product_labels_print_labels")
+            + '">Imprimer etiquettes</button>',
+        )
+        self.assertContains(
+            response,
+            'class="scan-scan-btn btn btn-outline-primary" formaction="'
+            + reverse("scan:scan_product_labels_print_qr")
+            + '">Imprimer QR</button>',
+        )
+        self.assertContains(
+            response,
+            'class="scan-scan-btn btn btn-outline-primary" id="scan-print-both">Imprimer les deux</button>',
+        )
+        self.assertContains(
+            response,
             reverse("scan:scan_print_template_edit", args=["product_label"]),
         )
         self.assertContains(
