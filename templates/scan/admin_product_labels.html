@@ -13,10 +13,10 @@
 
   <div class="scan-card card border-0 ui-comp-card">
     <div class="scan-filter-actions">
-      <a class="scan-scan-btn btn btn-outline-primary" href="{{ products_admin_url }}">Produits (admin)</a>
-      <a class="scan-scan-btn btn btn-outline-primary" href="{{ print_templates_url }}">Templates</a>
-      <a class="scan-scan-btn btn btn-outline-primary" href="{{ product_label_template_url }}">Template product_label</a>
-      <a class="scan-scan-btn btn btn-outline-primary" href="{{ product_qr_template_url }}">Template product_qr</a>
+      <a class="scan-scan-btn btn btn-tertiary" href="{{ products_admin_url }}">Produits (admin)</a>
+      <a class="scan-scan-btn btn btn-tertiary" href="{{ print_templates_url }}">Templates</a>
+      <a class="scan-scan-btn btn btn-tertiary" href="{{ product_label_template_url }}">Template product_label</a>
+      <a class="scan-scan-btn btn btn-tertiary" href="{{ product_qr_template_url }}">Template product_qr</a>
     </div>
   </div>
 
@@ -46,8 +46,8 @@
         </div>
       </div>
       <div class="scan-filter-actions">
-        <button type="submit" class="scan-scan-btn btn btn-outline-primary">Filtrer</button>
-        <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'scan:scan_product_labels' %}">Reinitialiser</a>
+        <button type="submit" class="scan-scan-btn btn btn-secondary">Filtrer</button>
+        <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_product_labels' %}">Reinitialiser</a>
       </div>
     </form>
   </div>
@@ -59,9 +59,9 @@
       <input type="hidden" name="selection_mode" value="{{ selection_mode }}">
 
       <div class="scan-filter-actions mb-2">
-        <button type="submit" class="scan-scan-btn btn btn-outline-primary" formaction="{{ print_labels_url }}">Imprimer etiquettes</button>
-        <button type="submit" class="scan-scan-btn btn btn-outline-primary" formaction="{{ print_qr_url }}">Imprimer QR</button>
-        <button type="button" class="scan-scan-btn btn btn-outline-primary" id="scan-print-both">Imprimer les deux</button>
+        <button type="submit" class="scan-scan-btn btn btn-secondary" formaction="{{ print_labels_url }}">Imprimer etiquettes</button>
+        <button type="submit" class="scan-scan-btn btn btn-secondary" formaction="{{ print_qr_url }}">Imprimer QR</button>
+        <button type="button" class="scan-scan-btn btn btn-secondary" id="scan-print-both">Imprimer les deux</button>
       </div>
       <p class="scan-help">
         Mode actif:

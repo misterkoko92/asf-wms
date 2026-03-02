@@ -39,7 +39,7 @@
                 <td>{{ order.received_correspondent_at|date:"d/m/Y"|default:"-" }}</td>
                 <td>{{ order.received_recipient_at|date:"d/m/Y"|default:"-" }}</td>
                 <td>
-                  <a class="btn btn-outline-primary btn-sm" href="{% url 'portal:portal_order_detail' order.id %}">
+                  <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_order_detail' order.id %}">
                     Voir
                   </a>
                 </td>

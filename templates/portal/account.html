@@ -239,7 +239,7 @@
           {% endfor %}
         </div>
 
-        <button type="button" class="scan-scan-btn btn btn-outline-primary" id="add-contact-row">
+        <button type="button" class="scan-scan-btn btn btn-tertiary" id="add-contact-row">
           Ajouter un autre contact
         </button>
         <div class="scan-field portal-contact-submit">
@@ -269,7 +269,7 @@
                   <td>{{ doc.uploaded_at|date:"d/m/Y" }}</td>
                   <td>
                     {% if doc.file %}
-                      <a class="btn btn-outline-primary btn-sm" href="{{ doc.file.url }}" target="_blank">Télécharger</a>
+                      <a class="btn btn-tertiary btn-sm" href="{{ doc.file.url }}" target="_blank">Télécharger</a>
                     {% else %}
                       -
                     {% endif %}

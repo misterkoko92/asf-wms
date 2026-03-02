@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.contrib.auth.tokens import default_token_generator
 from django.urls import reverse
@@ -8,10 +9,14 @@ from django.conf import settings
 
 from contacts.models import Contact, ContactAddress, ContactType
 from wms.models import (
+    AccountDocument,
+    AccountDocumentType,
     AssociationProfile,
     AssociationRecipient,
     Destination,
     Order,
+    OrderDocument,
+    OrderDocumentType,
     OrderReviewStatus,
 )
 
@@ -110,7 +115,7 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "scan-card portal-card card border-0")
         self.assertContains(response, "table table-sm table-hover")
         self.assertContains(response, 'data-table-tools="1"')
-        self.assertContains(response, "btn btn-outline-primary btn-sm")
+        self.assertContains(response, "btn btn-tertiary btn-sm")
 
     @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_portal_order_create_uses_bootstrap_form_controls(self):
@@ -250,4 +255,82 @@ class PortalBootstrapUiTests(TestCase):
         self.assertNotIn(
             "border: var(--wms-card-border-width) solid var(--wms-card-border-color) !important;",
             css_content,
+        )
+
+    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
+    def test_portal_button_levels_follow_intended_semantics(self):
+        self.client.logout()
+        login_response = self.client.get(reverse("portal:portal_login"))
+        self.assertEqual(login_response.status_code, 200)
+        self.assertContains(
+            login_response,
+            "scan-scan-btn scan-doc-btn btn btn-tertiary",
+        )
+        self.assertContains(
+            login_response,
+            reverse("portal:portal_account_request"),
+        )
+        self.assertContains(
+            login_response,
+            '<button type="submit" class="scan-submit btn btn-primary">Se connecter</button>',
+            html=True,
+        )
+
+        self.client.force_login(self.user)
+        dashboard_response = self.client.get(reverse("portal:portal_dashboard"))
+        self.assertEqual(dashboard_response.status_code, 200)
+        self.assertContains(dashboard_response, "btn btn-tertiary btn-sm")
+        self.assertContains(
+            dashboard_response,
+            reverse("portal:portal_order_detail", kwargs={"order_id": self.order.id}),
+        )
+
+        recipients_response = self.client.get(reverse("portal:portal_recipients"))
+        self.assertEqual(recipients_response.status_code, 200)
+        self.assertContains(
+            recipients_response,
+            'class="btn btn-tertiary btn-sm" href="'
+            + reverse("portal:portal_recipients")
+            + "?edit=",
+        )
+
+        self.order.review_status = OrderReviewStatus.APPROVED
+        self.order.save(update_fields=["review_status"])
+        OrderDocument.objects.create(
+            order=self.order,
+            doc_type=OrderDocumentType.OTHER,
+            file=SimpleUploadedFile("portal-order-doc.pdf", b"pdf-content"),
+            uploaded_by=self.user,
+        )
+        order_detail_response = self.client.get(
+            reverse("portal:portal_order_detail", kwargs={"order_id": self.order.id})
+        )
+        self.assertEqual(order_detail_response.status_code, 200)
+        self.assertContains(order_detail_response, "btn btn-tertiary btn-sm")
+
+        AccountDocument.objects.create(
+            association_contact=self.user.association_profile.contact,
+            doc_type=AccountDocumentType.OTHER,
+            file=SimpleUploadedFile("portal-account-doc.pdf", b"pdf-content"),
+            uploaded_by=self.user,
+        )
+        account_response = self.client.get(reverse("portal:portal_account"))
+        self.assertEqual(account_response.status_code, 200)
+        self.assertContains(account_response, "btn btn-tertiary btn-sm")
+
+    @override_settings(SCAN_BOOTSTRAP_ENABLED=False)
+    def test_portal_legacy_neutral_controls_use_tertiary_level(self):
+        response = self.client.get(reverse("portal:portal_dashboard"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'id="portal-ui-toggle" class="scan-ui-button btn-tertiary"',
+        )
+        self.assertContains(
+            response,
+            'id="portal-ui-reset-default"',
+        )
+        self.assertContains(
+            response,
+            'class="scan-ui-reset btn-tertiary"',
         )

@@ -193,6 +193,9 @@
       --preview-btn-secondary-bg: #e7cdb3;
       --preview-btn-secondary-text: #2f3a36;
       --preview-btn-secondary-border: #ceaf90;
+      --preview-btn-tertiary-bg: #fffdf9;
+      --preview-btn-tertiary-text: #2f3a36;
+      --preview-btn-tertiary-border: #d9e2dc;
       --preview-btn-border-width: 1px;
       --preview-btn-padding-x: 14px;
       --preview-btn-font-size: 14px;
@@ -297,6 +300,12 @@
       border-color: var(--preview-btn-secondary-border, #ceaf90);
     }
 
+    .scan-design-preview .preview-button.tertiary {
+      background: var(--preview-btn-tertiary-bg, #fffdf9);
+      color: var(--preview-btn-tertiary-text, #2f3a36);
+      border-color: var(--preview-btn-tertiary-border, #d9e2dc);
+    }
+
     .scan-design-preview .preview-button.success {
       background: var(--preview-success-bg, #e8f4ee);
       border-color: var(--preview-success-border, #b8d6c8);
@@ -323,6 +332,11 @@
     .scan-design-preview[data-btn-style-mode="outlined"] .preview-button.secondary {
       background: transparent;
       color: var(--preview-btn-secondary-border, #ceaf90);
+    }
+
+    .scan-design-preview[data-btn-style-mode="outlined"] .preview-button.tertiary {
+      background: transparent;
+      color: var(--preview-btn-tertiary-border, #d9e2dc);
     }
 
     .scan-design-preview[data-btn-style-mode="soft"] .preview-button {
@@ -491,8 +505,8 @@
       </div>
 
       <div class="scan-filter-actions scan-design-style-actions">
-        <button type="submit" name="action" value="apply_preset" class="scan-scan-btn btn btn-outline-primary">Appliquer le style</button>
-        <button type="submit" name="action" value="save_custom_preset" class="scan-scan-btn btn btn-outline-secondary">Sauvegarder ce style</button>
+        <button type="submit" name="action" value="apply_preset" class="scan-scan-btn btn btn-secondary">Appliquer le style</button>
+        <button type="submit" name="action" value="save_custom_preset" class="scan-scan-btn btn btn-secondary">Sauvegarder ce style</button>
       </div>
 
       {% for section in design_sections %}
@@ -557,7 +571,7 @@
 
       <div class="scan-filter-actions">
         <button type="submit" name="action" value="save" class="scan-submit btn btn-primary">Enregistrer</button>
-        <button type="submit" name="action" value="reset" class="scan-scan-btn btn btn-outline-secondary">Réinitialiser (valeurs recommandées)</button>
+        <button type="submit" name="action" value="reset" class="scan-scan-btn btn btn-tertiary">Réinitialiser (valeurs recommandées)</button>
       </div>
     </form>
   </div>
@@ -594,6 +608,9 @@
         --preview-btn-secondary-bg: {{ preview_values.design_color_btn_secondary_bg }};
         --preview-btn-secondary-text: {{ preview_values.design_color_btn_secondary_text }};
         --preview-btn-secondary-border: {{ preview_values.design_color_btn_secondary_border }};
+        --preview-btn-tertiary-bg: {{ preview_values.design_color_btn_tertiary_bg }};
+        --preview-btn-tertiary-text: {{ preview_values.design_color_btn_tertiary_text }};
+        --preview-btn-tertiary-border: {{ preview_values.design_color_btn_tertiary_border }};
         --preview-card-radius: {{ preview_values.design_card_radius }}px;
         --preview-card-shadow: {{ preview_values.design_card_shadow }};
         --preview-nav-active-bg: {{ preview_values.design_nav_item_active_bg }};
@@ -654,6 +671,7 @@
       <div>
         <span class="preview-button primary">Action principale</span>
         <span class="preview-button secondary">Action secondaire</span>
+        <span class="preview-button tertiary">Action tertiaire</span>
         <span class="preview-button success">Succès</span>
         <span class="preview-button warning">Alerte</span>
         <span class="preview-button danger">Danger</span>

@@ -48,7 +48,7 @@
                         </option>
                       {% endfor %}
                     </select>
-                    <button type="submit" class="scan-scan-btn btn btn-outline-primary">Mettre &agrave; jour</button>
+                    <button type="submit" class="scan-scan-btn btn btn-secondary">Mettre &agrave; jour</button>
                   </form>
                 </td>
                 <td>
@@ -57,7 +57,7 @@
                       {% csrf_token %}
                       <input type="hidden" name="action" value="create_shipment">
                       <input type="hidden" name="order_id" value="{{ row.order.id }}">
-                      <button type="submit" class="scan-scan-btn btn btn-outline-primary">Cr&eacute;er l'exp&eacute;dition</button>
+                      <button type="submit" class="scan-scan-btn btn btn-success">Cr&eacute;er l'exp&eacute;dition</button>
                     </form>
                   {% else %}
                     -
@@ -68,7 +68,7 @@
                     {% if row.documents %}
                       <div class="scan-docs">
                         {% for doc in row.documents %}
-                          <a class="scan-scan-btn btn btn-outline-primary scan-doc-btn" href="{{ doc.url }}" target="_blank" rel="noopener">
+                          <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{{ doc.url }}" target="_blank" rel="noopener">
                             {{ doc.label }}
                           </a>
                         {% endfor %}

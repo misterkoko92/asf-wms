@@ -76,11 +76,11 @@
         Portail association
       </div>
       <nav class="portal-nav ui-comp-actions">
-        <a class="btn btn-outline-secondary btn-sm" href="{% url 'portal:portal_dashboard' %}">Commandes</a>
-        <a class="btn btn-outline-secondary btn-sm" href="{% url 'portal:portal_order_create' %}">Nouvelle commande</a>
-        <a class="btn btn-outline-secondary btn-sm" href="{% url 'portal:portal_recipients' %}">Destinataires</a>
-        <a class="btn btn-outline-secondary btn-sm" href="{% url 'portal:portal_account' %}">Compte</a>
-        <a class="btn btn-outline-danger btn-sm" href="{% url 'portal:portal_logout' %}">Déconnexion</a>
+        <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_dashboard' %}">Commandes</a>
+        <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_order_create' %}">Nouvelle commande</a>
+        <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_recipients' %}">Destinataires</a>
+        <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_account' %}">Compte</a>
+        <a class="btn btn-danger btn-sm" href="{% url 'portal:portal_logout' %}">Déconnexion</a>
       </nav>
       <div class="portal-actions ui-comp-actions">
         <div class="scan-ui-mode-switch">
@@ -105,14 +105,14 @@
         {% if not scan_bootstrap_enabled %}
           <div class="scan-ui-toggle">
             <span class="scan-theme-label">Interface</span>
-            <button type="button" id="portal-ui-toggle" class="scan-ui-button" aria-pressed="false">
+            <button type="button" id="portal-ui-toggle" class="scan-ui-button btn-tertiary" aria-pressed="false">
               Classique
             </button>
           </div>
           <button
             type="button"
             id="portal-ui-reset-default"
-            class="scan-ui-reset"
+            class="scan-ui-reset btn-tertiary"
             title="Revenir à l'interface Benev et au thème Classique"
           >
             Benev + Classique

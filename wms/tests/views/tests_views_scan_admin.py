@@ -102,6 +102,9 @@ class ScanAdminViewTests(TestCase):
             "design_color_btn_secondary_bg": "#efd5bb",
             "design_color_btn_secondary_text": "#2f3a36",
             "design_color_btn_secondary_border": "#d7b998",
+            "design_color_btn_tertiary_bg": "#f8fcfa",
+            "design_color_btn_tertiary_text": "#22322e",
+            "design_color_btn_tertiary_border": "#bfd3ca",
             "design_color_btn_warning_bg": "#faecd9",
             "design_color_btn_warning_text": "#6d4f1f",
             "design_color_btn_warning_border": "#dbb782",
@@ -320,23 +323,23 @@ class ScanAdminViewTests(TestCase):
         self.assertContains(response, "Imprimer les deux")
         self.assertContains(
             response,
-            'class="scan-scan-btn btn btn-outline-primary">Filtrer</button>',
+            'class="scan-scan-btn btn btn-secondary">Filtrer</button>',
         )
         self.assertContains(
             response,
-            'class="scan-scan-btn btn btn-outline-primary" formaction="'
+            'class="scan-scan-btn btn btn-secondary" formaction="'
             + reverse("scan:scan_product_labels_print_labels")
             + '">Imprimer etiquettes</button>',
         )
         self.assertContains(
             response,
-            'class="scan-scan-btn btn btn-outline-primary" formaction="'
+            'class="scan-scan-btn btn btn-secondary" formaction="'
             + reverse("scan:scan_product_labels_print_qr")
             + '">Imprimer QR</button>',
         )
         self.assertContains(
             response,
-            'class="scan-scan-btn btn btn-outline-primary" id="scan-print-both">Imprimer les deux</button>',
+            'class="scan-scan-btn btn btn-secondary" id="scan-print-both">Imprimer les deux</button>',
         )
         self.assertContains(
             response,
@@ -442,10 +445,14 @@ class ScanAdminViewTests(TestCase):
         self.assertContains(response, "design_color_btn_danger_bg")
         self.assertContains(response, "design_color_btn_danger_hover_bg")
         self.assertContains(response, "design_color_btn_primary_border")
+        self.assertContains(response, "design_color_btn_tertiary_bg")
+        self.assertContains(response, "design_color_btn_tertiary_text")
+        self.assertContains(response, "design_color_btn_tertiary_border")
         self.assertContains(response, 'id="design-family-foundations"')
         self.assertContains(response, 'id="design-family-buttons"')
         self.assertContains(response, "scan-design-accordion")
         self.assertContains(response, 'data-design-live-preview="1"')
+        self.assertContains(response, "Action tertiaire")
         self.assertContains(response, '<select name="design_font_h1"')
         self.assertContains(response, "<option value=\"DM Sans\"")
         self.assertContains(response, '<select name="style_preset"')
@@ -508,6 +515,9 @@ class ScanAdminViewTests(TestCase):
         self.assertEqual(runtime.design_tokens["table_cell_padding_x"], 11)
         self.assertEqual(runtime.design_tokens["color_btn_primary_bg"], "#245648")
         self.assertEqual(runtime.design_tokens["color_btn_primary_border"], "#163f34")
+        self.assertEqual(runtime.design_tokens["color_btn_tertiary_bg"], "#f8fcfa")
+        self.assertEqual(runtime.design_tokens["color_btn_tertiary_text"], "#22322e")
+        self.assertEqual(runtime.design_tokens["color_btn_tertiary_border"], "#bfd3ca")
         self.assertEqual(runtime.design_tokens["color_btn_success_bg"], "#dcefe4")
         self.assertEqual(runtime.design_tokens["color_btn_success_hover_bg"], "#cfe9d8")
         self.assertEqual(runtime.design_tokens["color_btn_success_active_bg"], "#c2e0ce")
@@ -530,6 +540,8 @@ class ScanAdminViewTests(TestCase):
         self.assertContains(dashboard_response, "--wms-table-row-hover-bg: #edf6f2;")
         self.assertContains(dashboard_response, "--wms-color-btn-primary-bg: #245648;")
         self.assertContains(dashboard_response, "--wms-color-btn-primary-border: #163f34;")
+        self.assertContains(dashboard_response, "--wms-color-btn-tertiary-bg: #f8fcfa;")
+        self.assertContains(dashboard_response, "--wms-color-btn-tertiary-border: #bfd3ca;")
         self.assertContains(dashboard_response, "--wms-color-btn-success-hover-bg: #cfe9d8;")
         self.assertContains(dashboard_response, "--wms-color-btn-danger-active-bg: #e8c8c4;")
 
@@ -553,6 +565,9 @@ class ScanAdminViewTests(TestCase):
         self.assertEqual(runtime.design_tokens["btn_radius"], 0)
         self.assertEqual(runtime.design_tokens["nav_item_radius"], 0)
         self.assertEqual(runtime.design_tokens["badge_radius"], 6)
+        self.assertEqual(runtime.design_tokens["color_btn_tertiary_bg"], "#ffffff")
+        self.assertEqual(runtime.design_tokens["color_btn_tertiary_text"], "#1f2926")
+        self.assertEqual(runtime.design_tokens["color_btn_tertiary_border"], "#c8d4cd")
 
     def test_scan_admin_design_apply_stream_preset_updates_runtime_design_values(self):
         self.client.force_login(self.superuser)
@@ -579,6 +594,9 @@ class ScanAdminViewTests(TestCase):
         self.assertEqual(runtime.design_tokens["card_radius"], 18)
         self.assertEqual(runtime.design_tokens["dropdown_shadow"], "0 12px 26px rgba(15, 33, 61, 0.12)")
         self.assertEqual(runtime.design_tokens["status_progress_bg"], "#e8f1ff")
+        self.assertEqual(runtime.design_tokens["color_btn_tertiary_bg"], "#ffffff")
+        self.assertEqual(runtime.design_tokens["color_btn_tertiary_text"], "#1f2633")
+        self.assertEqual(runtime.design_tokens["color_btn_tertiary_border"], "#d9e4f2")
 
     def test_scan_admin_design_can_save_custom_style_preset(self):
         self.client.force_login(self.superuser)

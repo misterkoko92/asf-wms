@@ -97,7 +97,7 @@
                   {% endif %}
                 </td>
                 <td class="portal-recipient-actions ui-comp-actions">
-                  <a class="btn btn-outline-primary btn-sm" href="{% url 'portal:portal_recipients' %}?edit={{ recipient.id }}">Modifier</a>
+                  <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_recipients' %}?edit={{ recipient.id }}">Modifier</a>
                 </td>
               </tr>
             {% endfor %}
@@ -208,7 +208,7 @@
       </div>
       <button type="submit" class="scan-submit btn btn-primary">{% if editing_recipient %}Enregistrer{% else %}Ajouter{% endif %}</button>
       {% if editing_recipient %}
-        <a class="btn btn-outline-secondary btn-sm portal-recipient-cancel" href="{% url 'portal:portal_recipients' %}">Annuler</a>
+        <a class="btn btn-tertiary btn-sm portal-recipient-cancel" href="{% url 'portal:portal_recipients' %}">Annuler</a>
       {% endif %}
     </form>
   </div>

@@ -33,7 +33,7 @@
           {% endif %}
         </p>
       </div>
-      <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'scan:scan_print_templates' %}">Retour</a>
+      <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_print_templates' %}">Retour</a>
     </div>
   </div>
 
@@ -60,7 +60,7 @@
 
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
       <h3 class="h5 mb-0">Mappings</h3>
-      <button type="button" class="btn btn-outline-secondary btn-sm" id="add-mapping-row">Ajouter une ligne</button>
+      <button type="button" class="btn btn-tertiary btn-sm" id="add-mapping-row">Ajouter une ligne</button>
     </div>
 
     <div class="table-responsive">
@@ -130,7 +130,7 @@
                 <span class="small text-muted mapping-merged-range">{{ row.merged_range|default:"-" }}</span>
               </td>
               <td>
-                <button type="button" class="btn btn-outline-danger btn-sm remove-mapping-row">Supprimer</button>
+                <button type="button" class="btn btn-danger btn-sm remove-mapping-row">Supprimer</button>
               </td>
             </tr>
           {% endfor %}
@@ -176,7 +176,7 @@
                   {% csrf_token %}
                   <input type="hidden" name="action" value="restore">
                   <input type="hidden" name="version_id" value="{{ version.id }}">
-                  <button type="submit" class="btn btn-outline-primary btn-sm">Restaurer</button>
+                  <button type="submit" class="btn btn-warning btn-sm">Restaurer</button>
                 </form>
               </td>
             </tr>

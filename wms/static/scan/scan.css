@@ -163,6 +163,22 @@ h3 {
   cursor: pointer;
 }
 
+.btn-tertiary {
+  border: 1px solid var(--wms-color-btn-tertiary-border, var(--border-strong));
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: var(--wms-color-btn-tertiary-bg, var(--panel));
+  color: var(--wms-color-btn-tertiary-text, var(--ink));
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn-tertiary:hover {
+  background: var(--wms-color-btn-tertiary-hover-bg, var(--bg-2));
+  color: var(--wms-color-btn-tertiary-text, var(--ink));
+}
+
 .scan-ui-reset {
   display: inline-flex;
   align-items: center;
@@ -178,7 +194,8 @@ h3 {
 
 .scan-theme-button:focus,
 .scan-ui-button:focus,
-.scan-ui-reset:focus {
+.scan-ui-reset:focus,
+.btn-tertiary:focus {
   outline: 2px solid var(--accent-2);
   outline-offset: 2px;
 }
@@ -976,11 +993,11 @@ h3 {
 }
 
 .scan-sync-banner button {
-  border: 0;
+  border: 1px solid var(--border-strong);
   border-radius: 999px;
   padding: 6px 12px;
-  background: var(--accent);
-  color: var(--text-on-accent);
+  background: var(--panel);
+  color: var(--ink);
   font-weight: 700;
   cursor: pointer;
   font-size: 12px;
@@ -2645,4 +2662,23 @@ h3 {
   :root[data-ui="spreadsheet"] .scan-table {
     min-width: 560px;
   }
+}
+
+.scan-ui-button.btn-tertiary,
+.scan-theme-button.btn-tertiary,
+.scan-ui-reset.btn-tertiary,
+.scan-nav-trigger.btn-tertiary,
+.scan-choice-close.btn-tertiary {
+  border: 1px solid var(--wms-color-btn-tertiary-border, var(--border-strong));
+  background: var(--wms-color-btn-tertiary-bg, var(--panel));
+  color: var(--wms-color-btn-tertiary-text, var(--ink));
+}
+
+.scan-ui-button.btn-tertiary:hover,
+.scan-theme-button.btn-tertiary:hover,
+.scan-ui-reset.btn-tertiary:hover,
+.scan-nav-trigger.btn-tertiary:hover,
+.scan-choice-close.btn-tertiary:hover {
+  background: var(--wms-color-btn-tertiary-hover-bg, var(--bg-2));
+  color: var(--wms-color-btn-tertiary-text, var(--ink));
 }

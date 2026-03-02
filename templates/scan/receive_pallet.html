@@ -54,10 +54,10 @@
 
       <div class="scan-filter-actions scan-receive-pallet-actions-inline col-12 d-flex flex-wrap flex-lg-nowrap gap-2 align-items-center">
         <button type="submit" class="scan-submit btn btn-primary">Enregistrer la r&eacute;ception palette</button>
-        <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+        <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
           Ajouter donateur
         </a>
-        <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+        <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
           Ajouter transporteur
         </a>
       </div>
@@ -114,7 +114,7 @@
         <label class="form-label" for="{{ listing_form.source_contact.id_for_label }}">Donateur</label>
         <div class="scan-inline">
           {{ listing_form.source_contact }}
-          <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+          <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
             Ajouter donateur
           </a>
         </div>
@@ -127,7 +127,7 @@
         <label class="form-label" for="{{ listing_form.carrier_contact.id_for_label }}">Transporteur</label>
         <div class="scan-inline">
           {{ listing_form.carrier_contact }}
-          <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+          <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
             Ajouter transporteur
           </a>
         </div>

@@ -470,6 +470,27 @@ DESIGN_TOKEN_SPECS = {
         "Bordure du bouton secondaire.",
         preview_var="--preview-btn-secondary-border",
     ),
+    "color_btn_tertiary_bg": _color_spec(
+        "#fffdf9",
+        "buttons",
+        "Btn tertiaire - fond",
+        "Fond du bouton tertiaire.",
+        preview_var="--preview-btn-tertiary-bg",
+    ),
+    "color_btn_tertiary_text": _color_spec(
+        "#2f3a36",
+        "buttons",
+        "Btn tertiaire - texte",
+        "Texte du bouton tertiaire.",
+        preview_var="--preview-btn-tertiary-text",
+    ),
+    "color_btn_tertiary_border": _color_spec(
+        "#d9e2dc",
+        "buttons",
+        "Btn tertiaire - bordure",
+        "Bordure du bouton tertiaire.",
+        preview_var="--preview-btn-tertiary-border",
+    ),
     "input_height": _int_spec(
         42,
         24,

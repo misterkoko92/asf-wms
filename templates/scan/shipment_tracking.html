@@ -33,7 +33,7 @@
           <div class="scan-field">
             <a
               id="tracking-back-to-list"
-              class="scan-scan-btn btn btn-outline-primary"
+              class="scan-scan-btn btn btn-tertiary"
               href="{{ back_to_url }}"
             >
               Revenir &agrave; la liste des exp&eacute;ditions
@@ -54,14 +54,14 @@
                   {% csrf_token %}
                   <input type="hidden" name="action" value="resolve_dispute">
                   <input type="hidden" name="return_to" value="{{ return_to }}">
-                  <button type="submit" class="scan-scan-btn btn btn-outline-primary">Résoudre litige et remettre Prêt</button>
+                  <button type="submit" class="scan-scan-btn btn btn-success">Résoudre litige et remettre Prêt</button>
                 </form>
               {% else %}
                 <form method="post" class="ui-comp-form">
                   {% csrf_token %}
                   <input type="hidden" name="action" value="set_disputed">
                   <input type="hidden" name="return_to" value="{{ return_to }}">
-                  <button type="submit" class="scan-scan-btn btn btn-outline-primary">Déclarer litige</button>
+                  <button type="submit" class="scan-scan-btn btn btn-warning">Déclarer litige</button>
                 </form>
               {% endif %}
             </div>
@@ -72,7 +72,7 @@
           <label class="form-label">Documents liés</label>
           <div class="scan-docs">
             {% for doc in documents %}
-              <a class="scan-scan-btn scan-doc-btn btn btn-outline-primary" href="{{ doc.url }}" target="_blank" rel="noopener">
+              <a class="scan-scan-btn scan-doc-btn btn btn-tertiary" href="{{ doc.url }}" target="_blank" rel="noopener">
                 {{ doc.label }}
               </a>
             {% endfor %}
@@ -84,7 +84,7 @@
           {% if carton_docs %}
             <div class="scan-docs">
               {% for doc in carton_docs %}
-                <a class="scan-scan-btn scan-doc-btn btn btn-outline-primary" href="{{ doc.url }}" target="_blank" rel="noopener">
+                <a class="scan-scan-btn scan-doc-btn btn btn-tertiary" href="{{ doc.url }}" target="_blank" rel="noopener">
                   {{ doc.label }}
                 </a>
               {% endfor %}
@@ -99,7 +99,7 @@
           {% if additional_docs %}
             <div class="scan-docs">
               {% for document in additional_docs %}
-                <a class="scan-scan-btn scan-doc-btn btn btn-outline-primary" href="{{ document.file.url }}" target="_blank" rel="noopener">
+                <a class="scan-scan-btn scan-doc-btn btn btn-tertiary" href="{{ document.file.url }}" target="_blank" rel="noopener">
                   {{ document.file.name|default:"Document" }}
                 </a>
               {% endfor %}
@@ -226,7 +226,7 @@
           <button
             type="button"
             id="tracking-leave-discard"
-            class="scan-scan-btn btn btn-outline-primary"
+            class="scan-scan-btn btn btn-tertiary"
           >
             NON
           </button>

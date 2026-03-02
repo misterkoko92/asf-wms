@@ -32,11 +32,11 @@
           Lien priv&eacute; r&eacute;serv&eacute; aux associations. Un espace avec compte et validation sera ajoute ensuite.
         </p>
         <div class="scan-inline ui-comp-actions">
-          <a class="scan-scan-btn scan-doc-btn btn btn-outline-primary" href="{% url 'scan:scan_public_account_request' link.token %}">
+          <a class="scan-scan-btn scan-doc-btn btn btn-secondary" href="{% url 'scan:scan_public_account_request' link.token %}">
             Cr&eacute;er un compte
           </a>
           {% if summary_url %}
-            <a class="scan-scan-btn scan-doc-btn btn btn-outline-primary" href="{{ summary_url }}" target="_blank" rel="noopener">
+            <a class="scan-scan-btn scan-doc-btn btn btn-tertiary" href="{{ summary_url }}" target="_blank" rel="noopener">
               T&eacute;l&eacute;charger recapitulatif PDF
             </a>
           {% endif %}

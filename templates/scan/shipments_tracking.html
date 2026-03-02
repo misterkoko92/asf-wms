@@ -30,7 +30,7 @@
       </div>
       <div class="scan-filter-actions col-12 d-flex flex-wrap gap-2 align-items-center">
         <button type="submit" class="scan-scan-btn btn btn-primary">Filtrer</button>
-        <a class="btn btn-outline-secondary" href="{% url 'scan:scan_shipments_tracking' %}">R&eacute;initialiser</a>
+        <a class="btn btn-tertiary" href="{% url 'scan:scan_shipments_tracking' %}">R&eacute;initialiser</a>
       </div>
     </form>
 
@@ -65,13 +65,13 @@
                 <td>{{ shipment.delivered_at|date:"d/m/y H\\hi"|default:"-" }}</td>
                 <td>
                   <div class="scan-inline-actions">
-                    <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'scan:scan_shipment_track' shipment.tracking_token %}?return_to=shipments_tracking">
+                    <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_shipment_track' shipment.tracking_token %}?return_to=shipments_tracking">
                       Suivi/MAJ
                     </a>
                     {% if shipment.is_closed %}
                       <button
                         type="button"
-                        class="scan-scan-btn btn btn-outline-success scan-shipment-close-btn is-closed"
+                        class="scan-scan-btn btn btn-success scan-shipment-close-btn is-closed"
                         disabled
                       >
                         Dossier cl&ocirc;tur&eacute;
@@ -85,7 +85,7 @@
                         <input type="hidden" name="closed" value="{{ closed_filter }}">
                         <button
                           type="submit"
-                          class="scan-scan-btn btn btn-outline-success scan-shipment-close-btn is-ready"
+                          class="scan-scan-btn btn btn-success scan-shipment-close-btn is-ready"
                         >
                           Clore le dossier
                         </button>
@@ -93,7 +93,7 @@
                     {% else %}
                       <button
                         type="button"
-                        class="scan-scan-btn btn btn-outline-danger scan-shipment-close-btn is-blocked"
+                        class="scan-scan-btn btn btn-danger scan-shipment-close-btn is-blocked"
                         onclick="window.alert('{{ close_inactive_message }}'); return false;"
                       >
                         Clore le dossier

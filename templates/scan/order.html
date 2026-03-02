@@ -12,7 +12,7 @@
         <label class="form-label" for="id_order">Commande existante</label>
         <div class="scan-inline">
           {{ select_form.order }}
-          <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'admin:wms_order_add' %}" target="_blank" rel="noopener">
+          <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:wms_order_add' %}" target="_blank" rel="noopener">
             Ajouter commande
           </a>
         </div>
@@ -44,7 +44,7 @@
         <label class="form-label" for="id_shipper_contact">Exp&eacute;diteur (contact)</label>
         <div class="scan-inline">
           {{ create_form.shipper_contact }}
-          <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+          <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
             Ajouter exp&eacute;diteur
           </a>
         </div>
@@ -53,7 +53,7 @@
         <label class="form-label" for="id_recipient_contact">Destinataire (contact)</label>
         <div class="scan-inline">
           {{ create_form.recipient_contact }}
-          <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+          <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
             Ajouter destinataire
           </a>
         </div>
@@ -62,7 +62,7 @@
         <label class="form-label" for="id_correspondent_contact">Correspondant (contact)</label>
         <div class="scan-inline">
           {{ create_form.correspondent_contact }}
-          <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+          <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
             Ajouter correspondant
           </a>
         </div>
@@ -128,7 +128,7 @@
           <label class="form-label" for="id_product_code">Code produit</label>
           <div class="scan-inline">
             {{ line_form.product_code }}
-            <button type="button" class="scan-scan-btn btn btn-outline-primary" data-scan-target="id_product_code">Scan</button>
+            <button type="button" class="scan-scan-btn btn btn-tertiary" data-scan-target="id_product_code">Scan</button>
           </div>
           {% for error in line_form.product_code.errors %}
             <div class="scan-message error">{{ error }}</div>

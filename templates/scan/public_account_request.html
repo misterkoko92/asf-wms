@@ -35,11 +35,11 @@
           Choisissez votre profil puis envoyez votre demande. Un administrateur ASF doit valider le compte.
         </p>
         {% if link %}
-          <a class="scan-scan-btn scan-doc-btn btn btn-outline-primary" href="{% url 'scan:scan_public_order' link.token %}">
+          <a class="scan-scan-btn scan-doc-btn btn btn-tertiary" href="{% url 'scan:scan_public_order' link.token %}">
             Retour &agrave; la commande
           </a>
         {% else %}
-          <a class="scan-scan-btn scan-doc-btn btn btn-outline-primary" href="{% url 'portal:portal_login' %}">
+          <a class="scan-scan-btn scan-doc-btn btn btn-tertiary" href="{% url 'portal:portal_login' %}">
             Retour au portail
           </a>
         {% endif %}

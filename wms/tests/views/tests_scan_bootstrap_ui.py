@@ -1,12 +1,15 @@
 from datetime import date
 
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from wms.models import (
+    Document,
     Location,
     Product,
+    ProductKitItem,
     ProductLot,
     ProductLotStatus,
     PublicOrderLink,
@@ -317,12 +320,12 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(list_response, "ui-comp-title")
 
         edit_response = self.client.get(
-            reverse("scan:scan_print_template_edit", args=["shipment_label"])
+            reverse("scan:scan_print_template_edit", args=["shipment_note"])
         )
         self.assertEqual(edit_response.status_code, 200)
         self.assertContains(edit_response, "ui-comp-card")
         self.assertContains(edit_response, "ui-comp-title")
-        self.assertContains(edit_response, "ui-comp-form")
+        self.assertContains(edit_response, "<form")
 
         self.client.force_login(self.staff_user)
         faq_response = self.client.get(reverse("scan:scan_faq"))
@@ -502,7 +505,7 @@ class ScanBootstrapUiTests(TestCase):
                 response = self.client.get(reverse(route_name))
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, "scan-card card border-0")
-                self.assertContains(response, "btn btn-outline-primary")
+                self.assertContains(response, "btn btn-tertiary")
 
     @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_receive_pages_use_bootstrap_layout(self):
@@ -526,7 +529,7 @@ class ScanBootstrapUiTests(TestCase):
                 response = self.client.get(reverse(route_name))
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, "scan-card card border-0")
-                self.assertContains(response, "btn btn-outline-primary")
+                self.assertContains(response, "btn btn-tertiary")
 
     @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_superuser_pages_use_bootstrap_layout(self):
@@ -557,3 +560,159 @@ class ScanBootstrapUiTests(TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, 'class="scan-shell')
                 self.assertContains(response, 'class="scan-bootstrap-enabled"')
+
+    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
+    def test_non_portal_button_levels_follow_intended_semantics(self):
+        self.client.force_login(self.superuser)
+        component = Product.objects.create(
+            sku="UI-LVL-COMP",
+            name="Composant UI Levels",
+            qr_code_image="qr_codes/ui_levels_comp.png",
+        )
+        kit = Product.objects.create(
+            sku="UI-LVL-KIT",
+            name="Kit UI Levels",
+            qr_code_image="qr_codes/ui_levels_kit.png",
+        )
+        ProductKitItem.objects.create(kit=kit, component=component, quantity=2)
+
+        admin_products_response = self.client.get(reverse("scan:scan_admin_products"))
+        self.assertEqual(admin_products_response.status_code, 200)
+        self.assertContains(
+            admin_products_response,
+            '<button type="submit" class="scan-submit btn btn-primary">Filtrer</button>',
+            html=True,
+        )
+        self.assertContains(
+            admin_products_response,
+            'class="scan-scan-btn btn btn-danger"',
+        )
+        self.assertContains(
+            admin_products_response,
+            reverse("admin:wms_product_delete", args=[kit.id]),
+        )
+
+        product_labels_response = self.client.get(reverse("scan:scan_product_labels"))
+        self.assertEqual(product_labels_response.status_code, 200)
+        self.assertContains(
+            product_labels_response,
+            '<a class="scan-scan-btn btn btn-tertiary" href="'
+            + reverse("scan:scan_product_labels")
+            + '">Reinitialiser</a>',
+            html=True,
+        )
+
+        print_template_edit_response = self.client.get(
+            reverse("scan:scan_print_template_edit", args=["shipment_note"])
+        )
+        self.assertEqual(print_template_edit_response.status_code, 200)
+        self.assertContains(
+            print_template_edit_response,
+            '<a class="scan-scan-btn btn btn-tertiary" href="'
+            + reverse("scan:scan_print_templates")
+            + '">Retour</a>',
+            html=True,
+        )
+
+        settings_response = self.client.get(reverse("scan:scan_settings"))
+        self.assertEqual(settings_response.status_code, 200)
+        self.assertContains(
+            settings_response,
+            'name="action" value="apply_preset" class="scan-submit secondary btn btn-secondary"',
+        )
+        self.assertContains(
+            settings_response,
+            'name="action" value="preview" class="scan-submit secondary btn btn-secondary"',
+        )
+
+        self.client.force_login(self.staff_user)
+        out_response = self.client.get(reverse("scan:scan_out"))
+        self.assertEqual(out_response.status_code, 200)
+        self.assertContains(
+            out_response,
+            '<button type="submit" class="scan-submit btn btn-danger">Enregistrer suppression</button>',
+            html=True,
+        )
+
+        public_link = PublicOrderLink.objects.create(label="Public UI Levels")
+        public_account_response = self.client.get(
+            reverse("scan:scan_public_account_request", args=[public_link.token])
+        )
+        self.assertEqual(public_account_response.status_code, 200)
+        self.assertContains(
+            public_account_response,
+            'class="scan-scan-btn scan-doc-btn btn btn-tertiary"',
+        )
+        self.assertContains(
+            public_account_response,
+            reverse("scan:scan_public_order", args=[public_link.token]),
+        )
+
+        shipment = Shipment.objects.create(
+            shipper_name="Shipper UI",
+            recipient_name="Recipient UI",
+            destination_address="1 Rue UI",
+            status=ShipmentStatus.DRAFT,
+        )
+        Document.objects.create(
+            shipment=shipment,
+            doc_type="additional",
+            file=SimpleUploadedFile("ui-levels.txt", b"ui levels"),
+        )
+        shipment_edit_response = self.client.get(
+            reverse("scan:scan_shipment_edit", kwargs={"shipment_id": shipment.id})
+        )
+        self.assertEqual(shipment_edit_response.status_code, 200)
+        self.assertContains(
+            shipment_edit_response,
+            'class="scan-scan-btn btn btn-danger scan-doc-btn">Supprimer</button>',
+        )
+
+        shipment_track_response = self.client.get(
+            reverse("scan:scan_shipment_track", args=[shipment.tracking_token])
+        )
+        self.assertEqual(shipment_track_response.status_code, 200)
+        self.assertContains(
+            shipment_track_response,
+            'id="tracking-leave-discard"',
+        )
+        self.assertContains(
+            shipment_track_response,
+            'class="scan-scan-btn btn btn-tertiary"',
+        )
+
+    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
+    def test_scan_base_bootstrap_neutral_controls_use_tertiary_or_secondary_levels(self):
+        response = self.client.get(reverse("scan:scan_stock"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "navbar-toggler border-0 px-2 btn-tertiary")
+        self.assertContains(response, "nav-link dropdown-toggle btn-tertiary")
+        self.assertContains(
+            response,
+            '<button type="button" id="scan-sync-reload" class="btn btn-tertiary btn-sm">Recharger</button>',
+            html=True,
+        )
+        self.assertContains(
+            response,
+            '<button type="button" id="scan-close" class="btn btn-tertiary btn-sm">Fermer</button>',
+            html=True,
+        )
+
+    @override_settings(SCAN_BOOTSTRAP_ENABLED=False)
+    def test_scan_base_legacy_neutral_controls_use_tertiary_level(self):
+        self.client.force_login(self.superuser)
+        response = self.client.get(reverse("scan:scan_stock"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="ui-toggle" class="scan-ui-button btn-tertiary"')
+        self.assertContains(response, 'id="theme-toggle" class="scan-theme-button btn-tertiary"')
+        self.assertContains(response, 'id="ui-reset-default"')
+        self.assertContains(response, 'class="scan-ui-reset btn-tertiary"')
+        self.assertContains(response, 'class="scan-nav-trigger btn-tertiary"')
+
+    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
+    def test_scan_ui_lab_uses_tertiary_buttons_for_neutral_examples(self):
+        self.client.force_login(self.superuser)
+        response = self.client.get(reverse("scan:scan_ui_lab"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Action tertiaire")
+        self.assertContains(response, "btn btn-tertiary p-0")
