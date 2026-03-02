@@ -1,4 +1,5 @@
 {% extends "portal/base.html" %}
+{% load wms_status %}
 
 {% block title %}Mes commandes{% endblock %}
 
@@ -30,7 +31,11 @@
             {% for order in orders %}
               <tr>
                 <td>{{ order.reference|default:"Commande " }}{% if not order.reference %}{{ order.id }}{% endif %}</td>
-                <td><span class="portal-badge">{{ order.get_status_display }}</span></td>
+                <td>
+                  <span class="{% status_portal_badge_class order.status 'order' %}">
+                    {{ order.get_status_display }}
+                  </span>
+                </td>
                 <td>{{ order.escale_label|default:"-" }}</td>
                 <td>{{ order.recipient_name }}</td>
                 <td>{{ order.created_at|date:"d/m/Y" }}</td>

@@ -14,10 +14,12 @@ from wms.models import (
     AssociationProfile,
     AssociationRecipient,
     Destination,
+    DocumentReviewStatus,
     Order,
     OrderDocument,
     OrderDocumentType,
     OrderReviewStatus,
+    OrderStatus,
 )
 
 
@@ -116,6 +118,31 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "table table-sm table-hover")
         self.assertContains(response, 'data-table-tools="1"')
         self.assertContains(response, "btn btn-tertiary btn-sm")
+
+    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
+    def test_portal_pages_apply_status_badge_levels(self):
+        self.order.status = OrderStatus.READY
+        self.order.review_status = OrderReviewStatus.CHANGES_REQUESTED
+        self.order.save(update_fields=["status", "review_status"])
+        OrderDocument.objects.create(
+            order=self.order,
+            doc_type=OrderDocumentType.OTHER,
+            status=DocumentReviewStatus.REJECTED,
+            file=SimpleUploadedFile("portal-order-rejected.pdf", b"pdf-content"),
+            uploaded_by=self.user,
+        )
+
+        dashboard_response = self.client.get(reverse("portal:portal_dashboard"))
+        self.assertEqual(dashboard_response.status_code, 200)
+        self.assertContains(dashboard_response, "portal-badge is-ready")
+
+        detail_response = self.client.get(
+            reverse("portal:portal_order_detail", kwargs={"order_id": self.order.id})
+        )
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertContains(detail_response, "portal-badge is-ready")
+        self.assertContains(detail_response, "portal-badge is-warning")
+        self.assertContains(detail_response, "portal-badge is-error")
 
     @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_portal_order_create_uses_bootstrap_form_controls(self):

@@ -1,4 +1,5 @@
 {% extends "scan/base.html" %}
+{% load wms_status %}
 
 {% block title %}WMS Scan - R&eacute;ception{% endblock %}
 
@@ -111,7 +112,9 @@
         </div>
         <div class="scan-meta-item">
           <strong>Statut</strong>
-          {{ selected_receipt.get_status_display }}
+          <span class="{% status_pill_class selected_receipt.status 'receipt' %}">
+            {{ selected_receipt.get_status_display }}
+          </span>
         </div>
         <div class="scan-meta-item">
           <strong>Date r&eacute;ception</strong>
@@ -241,9 +244,9 @@
                   <td>{{ line.location|default:"-" }}</td>
                   <td class="status">
                     {% if line.received_lot_id %}
-                      R&eacute;ceptionn&eacute;
+                      <span class="ui-comp-status-pill is-ready">R&eacute;ceptionn&eacute;</span>
                     {% else %}
-                      En attente
+                      <span class="ui-comp-status-pill is-progress">En attente</span>
                     {% endif %}
                   </td>
                 </tr>

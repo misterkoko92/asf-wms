@@ -1,4 +1,5 @@
 {% extends "scan/base.html" %}
+{% load wms_status %}
 
 {% block title %}WMS Scan - Vue Commande{% endblock %}
 
@@ -37,6 +38,11 @@
                   </div>
                 </td>
                 <td>
+                  <div class="scan-field-gap">
+                    <span class="{% status_pill_class row.order.review_status 'order_review' %}">
+                      {{ row.order.get_review_status_display }}
+                    </span>
+                  </div>
                   <form method="post" class="scan-inline">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="update_status">

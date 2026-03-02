@@ -44,7 +44,9 @@
                       </label>
                     </form>
                   {% else %}
-                    <div>{{ carton.status_label }}</div>
+                    <div>
+                      <span class="ui-comp-status-pill is-{{ carton.status_tone }}">{{ carton.status_label }}</span>
+                    </div>
                     {% if carton.can_mark_labeled %}
                       <form method="post" class="scan-toggle-form scan-field-gap">
                         {% csrf_token %}

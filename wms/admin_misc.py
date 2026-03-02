@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.utils import timezone
 
 from . import models
+from .admin_badges import render_admin_status_badge
 
 
 @admin.register(models.ProductCategory)
@@ -82,9 +83,19 @@ class _OrderDocumentStatusMixin:
 
 @admin.register(models.OrderDocument)
 class OrderDocumentAdmin(_OrderDocumentStatusMixin, admin.ModelAdmin):
-    list_display = ("doc_type", "order", "status", "uploaded_at")
+    list_display = ("doc_type", "order", "status_badge", "uploaded_at")
     list_filter = ("status", "doc_type")
     search_fields = ("order__reference",)
+
+    def status_badge(self, obj):
+        return render_admin_status_badge(
+            status_value=obj.status,
+            label=obj.get_status_display(),
+            domain="document_review",
+        )
+
+    status_badge.short_description = "status"
+    status_badge.admin_order_field = "status"
 
 
 @admin.register(models.Warehouse)
@@ -144,8 +155,18 @@ class IntegrationEventAdmin(admin.ModelAdmin):
         "source",
         "target",
         "event_type",
-        "status",
+        "status_badge",
     )
     list_filter = ("direction", "status", "source", "event_type")
     search_fields = ("source", "target", "event_type", "external_id")
     readonly_fields = ("created_at", "processed_at")
+
+    def status_badge(self, obj):
+        return render_admin_status_badge(
+            status_value=obj.status,
+            label=obj.get_status_display(),
+            domain="integration",
+        )
+
+    status_badge.short_description = "status"
+    status_badge.admin_order_field = "status"

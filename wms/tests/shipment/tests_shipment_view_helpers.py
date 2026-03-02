@@ -388,11 +388,54 @@ class ShipmentViewHelpersTests(TestCase):
 
         rows = build_shipments_ready_rows([draft, partial, shipped])
         self.assertEqual(rows[0]["status_label"], "Brouillon")
+        self.assertEqual(rows[0]["status_tone"], "progress")
         self.assertTrue(rows[0]["can_edit"])
         self.assertEqual(rows[1]["status_label"], "EN COURS (1/3)")
+        self.assertEqual(rows[1]["status_tone"], "progress")
         self.assertEqual(rows[1]["destination_iata"], "CDG")
         self.assertEqual(rows[2]["status_label"], ShipmentStatus(ShipmentStatus.SHIPPED).label)
+        self.assertEqual(rows[2]["status_tone"], "progress")
         self.assertFalse(rows[2]["can_edit"])
+
+    def test_build_shipments_ready_rows_marks_disputed_status_as_error(self):
+        now = timezone.now()
+
+        class FakeFiltered:
+            def __init__(self, count):
+                self._count = count
+
+            def count(self):
+                return self._count
+
+        class FakeCartonSet:
+            def __init__(self, total, ready):
+                self._total = total
+                self._ready = ready
+
+            def count(self):
+                return self._total
+
+            def filter(self, **_kwargs):
+                return FakeFiltered(self._ready)
+
+        disputed = SimpleNamespace(
+            id=9,
+            reference="S-009",
+            tracking_token="token-9",
+            carton_count=1,
+            ready_count=1,
+            carton_set=FakeCartonSet(total=1, ready=1),
+            destination=None,
+            shipper_name="ASF",
+            recipient_name="D",
+            created_at=now,
+            ready_at=now,
+            status=ShipmentStatus.PACKED,
+            is_disputed=True,
+        )
+
+        rows = build_shipments_ready_rows([disputed])
+        self.assertEqual(rows[0]["status_tone"], "error")
 
     def test_build_shipments_ready_rows_formats_party_names_from_contact_refs(self):
         now = timezone.now()

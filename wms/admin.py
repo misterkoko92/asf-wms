@@ -13,6 +13,7 @@ from django.utils.html import format_html, format_html_join
 
 from . import models
 from . import admin_misc  # noqa: F401
+from .admin_badges import render_admin_status_badge
 from .admin_account_request_approval import (
     approve_account_request,
     build_account_access_lines,
@@ -246,7 +247,7 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
         "association_name",
         "requested_username",
         "email",
-        "status",
+        "status_badge",
         "created_at",
         "reviewed_at",
     )
@@ -337,6 +338,16 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
 
     account_access_info.short_description = "Accès portail"
 
+    def status_badge(self, obj):
+        return render_admin_status_badge(
+            status_value=obj.status,
+            label=obj.get_status_display(),
+            domain="account_request",
+        )
+
+    status_badge.short_description = "status"
+    status_badge.admin_order_field = "status"
+
     readonly_fields = ("created_at", "reviewed_at", "account_access_info")
     fieldsets = (
         (
@@ -410,9 +421,19 @@ class _DocumentStatusMixin:
 
 @admin.register(models.AccountDocument)
 class AccountDocumentAdmin(_DocumentStatusMixin, admin.ModelAdmin):
-    list_display = ("doc_type", "association_contact", "status", "uploaded_at")
+    list_display = ("doc_type", "association_contact", "status_badge", "uploaded_at")
     list_filter = ("status", "doc_type")
     search_fields = ("association_contact__name",)
+
+    def status_badge(self, obj):
+        return render_admin_status_badge(
+            status_value=obj.status,
+            label=obj.get_status_display(),
+            domain="document_review",
+        )
+
+    status_badge.short_description = "status"
+    status_badge.admin_order_field = "status"
 
 
 class RackColorAdminForm(forms.ModelForm):
@@ -525,7 +546,7 @@ class ReceiptAdmin(admin.ModelAdmin):
     list_display = (
         "reference",
         "receipt_type",
-        "status",
+        "status_badge",
         "received_on",
         "pallet_count",
         "carton_count",
@@ -545,6 +566,16 @@ class ReceiptAdmin(admin.ModelAdmin):
     date_hierarchy = "received_on"
     inlines = [ReceiptLineInline, ReceiptHorsFormatInline]
     actions = ("receive_lines",)
+
+    def status_badge(self, obj):
+        return render_admin_status_badge(
+            status_value=obj.status,
+            label=obj.get_status_display(),
+            domain="receipt",
+        )
+
+    status_badge.short_description = "status"
+    status_badge.admin_order_field = "status"
 
     def receive_lines(self, request, queryset):
         processed = 0
@@ -599,7 +630,7 @@ class ProductLotAdmin(admin.ModelAdmin):
     list_display = (
         "product",
         "lot_code",
-        "status",
+        "status_badge",
         "quantity_on_hand",
         "quantity_reserved",
         "quantity_available",
@@ -622,6 +653,16 @@ class ProductLotAdmin(admin.ModelAdmin):
         return max(0, obj.quantity_on_hand - obj.quantity_reserved)
 
     quantity_available.short_description = "Disponible"
+
+    def status_badge(self, obj):
+        return render_admin_status_badge(
+            status_value=obj.status,
+            label=obj.get_status_display(),
+            domain="product_lot",
+        )
+
+    status_badge.short_description = "status"
+    status_badge.admin_order_field = "status"
 
     def release_quarantine(self, request, queryset):
         if not request.user.is_superuser:
@@ -667,7 +708,7 @@ class OrderLineInline(admin.TabularInline):
 class OrderAdmin(admin.ModelAdmin):
     list_display = (
         "reference",
-        "status",
+        "status_badge",
         "shipper_name",
         "recipient_name",
         "shipment_reference",
@@ -683,6 +724,16 @@ class OrderAdmin(admin.ModelAdmin):
         return obj.shipment.reference if obj.shipment else "-"
 
     shipment_reference.short_description = "Expédition"
+
+    def status_badge(self, obj):
+        return render_admin_status_badge(
+            status_value=obj.status,
+            label=obj.get_status_display(),
+            domain="order",
+        )
+
+    status_badge.short_description = "status"
+    status_badge.admin_order_field = "status"
 
     def create_shipment(self, request, queryset):
         created = 0
@@ -731,12 +782,22 @@ class OrderAdmin(admin.ModelAdmin):
 
 @admin.register(models.Carton)
 class CartonAdmin(admin.ModelAdmin):
-    list_display = ("code", "status", "shipment", "current_location", "created_at")
+    list_display = ("code", "status_badge", "shipment", "current_location", "created_at")
     list_filter = ("status", "current_location__warehouse")
     search_fields = ("code", "shipment__reference")
     list_select_related = ("shipment", "current_location")
     inlines = (CartonItemInline,)
     actions = ("unpack_cartons",)
+
+    def status_badge(self, obj):
+        return render_admin_status_badge(
+            status_value=obj.status,
+            label=obj.get_status_display(),
+            domain="carton",
+        )
+
+    status_badge.short_description = "status"
+    status_badge.admin_order_field = "status"
 
     def save_model(self, request, obj, form, change):
         original = None
@@ -838,7 +899,7 @@ class ShipmentAdmin(admin.ModelAdmin):
     )
     list_display = (
         "reference",
-        "status",
+        "status_badge",
         "is_disputed",
         "shipper_name",
         "recipient_name",
@@ -857,6 +918,20 @@ class ShipmentAdmin(admin.ModelAdmin):
         return "-"
 
     qr_code_preview.short_description = "QR code"
+
+    def status_badge(self, obj):
+        label = obj.get_status_display()
+        if obj.is_disputed:
+            label = f"Litige - {label}"
+        return render_admin_status_badge(
+            status_value=obj.status,
+            label=label,
+            domain="shipment",
+            is_disputed=obj.is_disputed,
+        )
+
+    status_badge.short_description = "status"
+    status_badge.admin_order_field = "status"
 
     def get_urls(self):
         urls = super().get_urls()
@@ -979,7 +1054,7 @@ class GeneratedPrintArtifactAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "pack_code",
-        "status",
+        "status_badge",
         "shipment",
         "carton",
         "sync_attempts",
@@ -1001,6 +1076,16 @@ class GeneratedPrintArtifactAdmin(admin.ModelAdmin):
         "sync_attempts",
         "last_sync_error",
     )
+
+    def status_badge(self, obj):
+        return render_admin_status_badge(
+            status_value=obj.status,
+            label=obj.get_status_display(),
+            domain="artifact",
+        )
+
+    status_badge.short_description = "status"
+    status_badge.admin_order_field = "status"
 
     def has_add_permission(self, request):
         return False

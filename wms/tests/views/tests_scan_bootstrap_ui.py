@@ -8,6 +8,8 @@ from django.urls import reverse
 from wms.models import (
     Document,
     Location,
+    Order,
+    OrderReviewStatus,
     Product,
     ProductKitItem,
     ProductLot,
@@ -167,6 +169,37 @@ class ScanBootstrapUiTests(TestCase):
                 self.assertEqual(response.status_code, 200)
                 for marker in markers:
                     self.assertContains(response, marker)
+
+    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
+    def test_scan_state_pages_render_status_pill_levels(self):
+        Shipment.objects.create(
+            shipper_name="Shipper Progress",
+            recipient_name="Recipient Progress",
+            destination_address="1 rue de la Paix",
+            status=ShipmentStatus.DRAFT,
+        )
+        Shipment.objects.create(
+            shipper_name="Shipper Error",
+            recipient_name="Recipient Error",
+            destination_address="2 rue de la Paix",
+            status=ShipmentStatus.PACKED,
+            is_disputed=True,
+        )
+        response = self.client.get(reverse("scan:scan_shipments_ready"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "ui-comp-status-pill is-progress")
+        self.assertContains(response, "ui-comp-status-pill is-error")
+
+        Order.objects.create(
+            shipper_name="ASF",
+            recipient_name="Association X",
+            destination_address="3 rue de la Paix",
+            destination_country="France",
+            review_status=OrderReviewStatus.CHANGES_REQUESTED,
+        )
+        orders_response = self.client.get(reverse("scan:scan_orders_view"))
+        self.assertEqual(orders_response.status_code, 200)
+        self.assertContains(orders_response, "ui-comp-status-pill is-warning")
 
     @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_dashboard_and_tracking_views_use_design_component_classes(self):

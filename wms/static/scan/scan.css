@@ -2272,7 +2272,7 @@ h3 {
   border-color: var(--timeline-portal-nav-hover-border);
 }
 
-:root[data-ui="timeline"] .portal-badge {
+:root[data-ui="timeline"] .portal-badge:not(.is-ready):not(.is-warning):not(.is-error) {
   background: var(--timeline-badge-bg);
   color: var(--timeline-badge-text);
   border: 1px solid var(--timeline-badge-border);
@@ -2612,7 +2612,7 @@ h3 {
   border-color: var(--spreadsheet-portal-nav-hover-border);
 }
 
-:root[data-ui="spreadsheet"] .portal-badge {
+:root[data-ui="spreadsheet"] .portal-badge:not(.is-ready):not(.is-warning):not(.is-error) {
   background: var(--spreadsheet-badge-bg);
   color: var(--spreadsheet-badge-text);
   border: 1px solid var(--spreadsheet-badge-border);
@@ -2662,6 +2662,57 @@ h3 {
   :root[data-ui="spreadsheet"] .scan-table {
     min-width: 560px;
   }
+}
+
+.ui-comp-status-pill {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--wms-badge-radius);
+  font-size: var(--wms-badge-font-size);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  padding: 0.25rem 0.56rem;
+}
+
+.ui-comp-status-pill.is-ready {
+  background: var(--wms-status-ready-bg);
+  border-color: var(--wms-status-ready-border);
+  color: var(--wms-status-ready-text);
+}
+
+.ui-comp-status-pill.is-progress,
+.portal-badge {
+  background: var(--wms-status-progress-bg);
+  border-color: var(--wms-status-progress-border);
+  color: var(--wms-status-progress-text);
+}
+
+.ui-comp-status-pill.is-warning,
+.portal-badge.is-warning {
+  background: var(--wms-status-warning-bg);
+  border-color: var(--wms-status-warning-border);
+  color: var(--wms-status-warning-text);
+}
+
+.ui-comp-status-pill.is-error,
+.portal-badge.is-error {
+  background: var(--wms-status-error-bg);
+  border-color: var(--wms-status-error-border);
+  color: var(--wms-status-error-text);
+}
+
+.ui-comp-status-pill.is-info {
+  background: var(--wms-status-info-bg);
+  border-color: var(--wms-status-info-border);
+  color: var(--wms-status-info-text);
+}
+
+.portal-badge.is-ready {
+  background: var(--wms-status-ready-bg);
+  border-color: var(--wms-status-ready-border);
+  color: var(--wms-status-ready-text);
 }
 
 .scan-ui-button.btn-tertiary,

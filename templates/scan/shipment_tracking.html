@@ -1,4 +1,5 @@
 {% load static %}
+{% load wms_status %}
 <!doctype html>
 <html lang="fr">
 <head>
@@ -44,8 +45,12 @@
         <div class="scan-field">
           <label class="form-label">Statut actuel</label>
           <div class="scan-help">
-            {{ shipment.get_status_display }}
-            {% if shipment.is_disputed %} | Litige en cours{% endif %}
+            <span class="{% status_pill_class shipment.status 'shipment' shipment.is_disputed %}">
+              {{ shipment.get_status_display }}
+            </span>
+            {% if shipment.is_disputed %}
+              <span class="ui-comp-status-pill is-error">Litige en cours</span>
+            {% endif %}
           </div>
           {% if can_update_tracking %}
             <div class="scan-inline scan-field-gap">
@@ -186,7 +191,11 @@
                 {% for event in events %}
                   <tr>
                     <td>{{ event.created_at|date:"Y/m/d H\\hi" }}</td>
-                    <td>{{ event.get_status_display }}</td>
+                    <td>
+                      <span class="{% status_pill_class event.status 'tracking' %}">
+                        {{ event.get_status_display }}
+                      </span>
+                    </td>
                     <td>{{ event.actor_name }}</td>
                     <td>{{ event.actor_structure }}</td>
                     <td>{{ event.comments|default:"-" }}</td>

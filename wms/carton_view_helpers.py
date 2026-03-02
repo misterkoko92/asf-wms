@@ -2,6 +2,7 @@ from django.urls import reverse
 
 from .models import CartonFormat, CartonStatus, ShipmentStatus
 from .scan_helpers import build_product_group_key, build_product_label
+from .status_badges import resolve_status_tone
 
 LOCKED_SHIPMENT_STATUSES = {
     ShipmentStatus.PLANNED,
@@ -89,6 +90,7 @@ def build_cartons_ready_rows(cartons_qs, *, carton_capacity_cm3):
                 "created_at": carton.created_at,
                 "status_label": status_label,
                 "status_value": carton.status,
+                "status_tone": resolve_status_tone(carton.status, domain="carton"),
                 "can_toggle": (not is_assigned)
                 and carton.status != CartonStatus.SHIPPED,
                 "can_mark_labeled": is_assigned

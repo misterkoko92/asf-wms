@@ -80,11 +80,36 @@
 .portal-bootstrap-enabled .portal-badge {
   display: inline-block;
   padding: calc(var(--wms-space-unit) * 0.25) var(--wms-space-unit);
-  background: var(--wms-status-ready-bg);
-  color: var(--wms-status-ready-text);
-  border: 1px solid var(--wms-status-ready-border);
+  background: var(--wms-status-progress-bg);
+  color: var(--wms-status-progress-text);
+  border: 1px solid var(--wms-status-progress-border);
   border-radius: var(--wms-badge-radius);
   font-size: var(--wms-badge-font-size);
+  line-height: 1;
+}
+
+.portal-bootstrap-enabled .portal-badge.is-ready {
+  background: var(--wms-status-ready-bg);
+  color: var(--wms-status-ready-text);
+  border-color: var(--wms-status-ready-border);
+}
+
+.portal-bootstrap-enabled .portal-badge.is-progress {
+  background: var(--wms-status-progress-bg);
+  color: var(--wms-status-progress-text);
+  border-color: var(--wms-status-progress-border);
+}
+
+.portal-bootstrap-enabled .portal-badge.is-warning {
+  background: var(--wms-status-warning-bg);
+  color: var(--wms-status-warning-text);
+  border-color: var(--wms-status-warning-border);
+}
+
+.portal-bootstrap-enabled .portal-badge.is-error {
+  background: var(--wms-status-error-bg);
+  color: var(--wms-status-error-text);
+  border-color: var(--wms-status-error-border);
 }
 
 .portal-bootstrap-enabled .portal-products-panel {

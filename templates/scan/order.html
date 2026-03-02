@@ -1,4 +1,5 @@
 {% extends "scan/base.html" %}
+{% load wms_status %}
 
 {% block title %}WMS Scan - Commandes{% endblock %}
 
@@ -101,7 +102,9 @@
         </div>
         <div class="scan-meta-item">
           <strong>Statut</strong>
-          {{ selected_order.get_status_display }}
+          <span class="{% status_pill_class selected_order.status 'order' %}">
+            {{ selected_order.get_status_display }}
+          </span>
         </div>
         <div class="scan-meta-item">
           <strong>Exp&eacute;dition</strong>

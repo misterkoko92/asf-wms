@@ -45,7 +45,9 @@
                 <td>{{ shipment.recipient_name }}</td>
                 <td>{{ shipment.created_at|date:"d/m/y H\\hi" }}</td>
                 <td>{{ shipment.ready_at|date:"d/m/y H\\hi"|default:"-" }}</td>
-                <td class="status">{{ shipment.status_label }}</td>
+                <td class="status">
+                  <span class="ui-comp-status-pill is-{{ shipment.status_tone }}">{{ shipment.status_label }}</span>
+                </td>
                 <td>
                   <details class="scan-doc-menu">
                     <summary class="scan-scan-btn btn btn-tertiary scan-doc-menu-toggle">Documents</summary>

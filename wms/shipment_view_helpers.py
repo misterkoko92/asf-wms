@@ -10,6 +10,7 @@ from .print_context import (
     build_shipment_document_context,
 )
 from .print_renderer import get_template_layout, render_layout_from_layout
+from .status_badges import BADGE_TONE_PROGRESS, BADGE_TONE_READY, resolve_status_tone
 from .view_utils import resolve_contact_by_name
 
 TEMPLATE_DYNAMIC_DOCUMENT = "print/dynamic_document.html"
@@ -135,6 +136,20 @@ def _shipment_status_label(shipment, progress_label):
     if getattr(shipment, "is_disputed", False):
         return f"Litige - {base_label}"
     return base_label
+
+
+def _shipment_status_tone(shipment, progress_label):
+    if getattr(shipment, "is_disputed", False):
+        return resolve_status_tone(
+            shipment.status,
+            domain="shipment",
+            is_disputed=True,
+        )
+    if shipment.status in STATUS_LOCKED_SHIPMENT or shipment.status == ShipmentStatus.DRAFT:
+        return resolve_status_tone(shipment.status, domain="shipment")
+    if progress_label == "PRET":
+        return BADGE_TONE_READY
+    return BADGE_TONE_PROGRESS
 
 
 def _shipment_party_label(contact, fallback_name):
@@ -264,6 +279,7 @@ def build_shipments_ready_rows(shipments_qs):
         total, ready = _shipment_carton_totals(shipment)
         progress_label = _shipment_progress_label(total=total, ready=ready)
         status_label = _shipment_status_label(shipment, progress_label)
+        status_tone = _shipment_status_tone(shipment, progress_label)
         shipper_contact = _resolve_shipment_party_contact(
             shipment,
             ref_attr="shipper_contact_ref",
@@ -296,6 +312,7 @@ def build_shipments_ready_rows(shipments_qs):
                 "created_at": shipment.created_at,
                 "ready_at": shipment.ready_at,
                 "status_label": status_label,
+                "status_tone": status_tone,
                 "can_edit": shipment.status not in STATUS_LOCKED_SHIPMENT,
             }
         )
