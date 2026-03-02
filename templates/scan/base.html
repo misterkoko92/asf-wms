@@ -152,7 +152,7 @@
                   </ul>
                 </li>
                 <li class="nav-item dropdown">
-                  <button class="nav-link dropdown-toggle{% if active == 'out' or active == 'faq' or active == 'imports' or active == 'print_templates' %} active{% endif %}" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                  <button class="nav-link dropdown-toggle{% if active == 'out' or active == 'faq' or active == 'imports' or active == 'print_templates' or active == 'product_labels' %} active{% endif %}" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                     Gestion
                   </button>
                   <ul class="dropdown-menu">
@@ -161,6 +161,7 @@
                     {% if request.user.is_superuser %}
                       <li><a href="{% url 'scan:scan_import' %}" class="dropdown-item{% if active == 'imports' %} active{% endif %}">Imports</a></li>
                       <li><a href="{% url 'scan:scan_print_templates' %}" class="dropdown-item{% if active == 'print_templates' %} active{% endif %}">Templates</a></li>
+                      <li><a href="{% url 'scan:scan_product_labels' %}" class="dropdown-item{% if active == 'product_labels' %} active{% endif %}">Etiquette Produit</a></li>
                     {% endif %}
                   </ul>
                 </li>
@@ -248,6 +249,7 @@
               {% if request.user.is_superuser %}
                 <a href="{% url 'scan:scan_import' %}" class="{% if active == 'imports' %}active{% endif %}">Imports</a>
                 <a href="{% url 'scan:scan_print_templates' %}" class="{% if active == 'print_templates' %}active{% endif %}">Templates</a>
+                <a href="{% url 'scan:scan_product_labels' %}" class="{% if active == 'product_labels' %}active{% endif %}">Etiquette Produit</a>
               {% endif %}
             </div>
           </div>

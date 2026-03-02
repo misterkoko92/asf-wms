@@ -172,71 +172,34 @@ class ProductAdminTests(_AdminTestBase):
         product_b.save(update_fields=["qr_code_image"])
         models.RackColor.objects.create(warehouse=self.warehouse, zone="A", color="#FF0000")
 
-        with mock.patch("wms.admin.get_template_layout", return_value={"blocks": []}), mock.patch(
-            "wms.admin.build_product_label_context",
-            side_effect=lambda product, rack_color=None: {"product": product.id, "rack": rack_color},
-        ) as build_context_mock, mock.patch(
-            "wms.admin.build_label_pages",
-            return_value=(["p1"], {"page_rows": "4"}),
-        ) as build_pages_mock, mock.patch(
-            "wms.admin.render",
+        queryset = models.Product.objects.filter(pk__in=[product_a.pk, product_b.pk])
+        with mock.patch(
+            "wms.admin.render_product_labels_response",
             return_value="labels-rendered",
-        ) as render_mock:
-            response = admin_obj.print_product_labels(
-                request,
-                models.Product.objects.filter(pk__in=[product_a.pk, product_b.pk]),
-            )
+        ) as labels_renderer_mock:
+            response = admin_obj.print_product_labels(request, queryset)
         self.assertEqual(response, "labels-rendered")
-        self.assertEqual(build_context_mock.call_count, 2)
-        build_pages_mock.assert_called_once()
-        self.assertIn("print/product_labels.html", str(render_mock.call_args))
+        labels_renderer_mock.assert_called_once()
+        self.assertEqual(labels_renderer_mock.call_args.args[0], request)
+        delegated_qs = labels_renderer_mock.call_args.args[1]
+        self.assertSetEqual(
+            set(delegated_qs.values_list("pk", flat=True)),
+            {product_a.pk, product_b.pk},
+        )
 
-        with mock.patch("wms.admin.get_template_layout", return_value={"blocks": []}), mock.patch(
-            "wms.admin.extract_block_style",
-            return_value={"page_rows": "oops", "page_columns": "bad"},
-        ), mock.patch(
-            "wms.admin.build_product_qr_label_context",
-            side_effect=lambda product: {"product": product.id},
-        ) as qr_context_mock, mock.patch(
-            "wms.admin.build_label_pages",
-            return_value=(["q1"], {"page_rows": "5", "page_columns": "3"}),
-        ) as build_pages_mock, mock.patch(
-            "wms.admin.render",
+        with mock.patch(
+            "wms.admin.render_product_qr_labels_response",
             return_value="qr-rendered",
-        ) as render_mock, mock.patch(
-            "wms.models.Product.generate_qr_code",
-            autospec=True,
-            side_effect=lambda self: setattr(self, "qr_code_image", "qr_codes/generated.png"),
-        ) as generate_mock:
-            response = admin_obj.print_product_qr_labels(
-                request,
-                models.Product.objects.filter(pk__in=[product_a.pk, product_b.pk]),
-            )
+        ) as qr_renderer_mock:
+            response = admin_obj.print_product_qr_labels(request, queryset)
         self.assertEqual(response, "qr-rendered")
-        self.assertEqual(generate_mock.call_count, 1)
-        self.assertEqual(qr_context_mock.call_count, 2)
-        build_pages_mock.assert_called_once()
-        self.assertIn("print/product_qr_labels.html", str(render_mock.call_args))
-
-        with mock.patch("wms.admin.get_template_layout", return_value={"blocks": []}), mock.patch(
-            "wms.admin.extract_block_style",
-            return_value={"page_rows": "2", "page_columns": "4"},
-        ), mock.patch(
-            "wms.admin.build_product_qr_label_context",
-            return_value={"product": 1},
-        ), mock.patch(
-            "wms.admin.build_label_pages",
-            return_value=(["q2"], {"page_rows": "2", "page_columns": "4"}),
-        ) as build_pages_mock, mock.patch(
-            "wms.admin.render",
-            return_value="qr-rendered-2",
-        ):
-            response = admin_obj.print_product_qr_labels(
-                request,
-                models.Product.objects.filter(pk=product_a.pk),
-            )
-        self.assertEqual(response, "qr-rendered-2")
-        self.assertEqual(build_pages_mock.call_args.kwargs["labels_per_page"], 8)
+        qr_renderer_mock.assert_called_once()
+        self.assertEqual(qr_renderer_mock.call_args.args[0], request)
+        delegated_qr_qs = qr_renderer_mock.call_args.args[1]
+        self.assertSetEqual(
+            set(delegated_qr_qs.values_list("pk", flat=True)),
+            {product_a.pk, product_b.pk},
+        )
 
 
 class PublicAccountRequestAdminTests(_AdminTestBase):

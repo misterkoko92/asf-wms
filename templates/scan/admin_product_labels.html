@@ -1,0 +1,162 @@
+{% extends "scan/base.html" %}
+
+{% block title %}WMS Scan - Etiquette Produit{% endblock %}
+
+{% block content %}
+  <div class="scan-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">Gestion - Etiquette Produit</h2>
+    <p class="scan-help ui-comp-note">
+      Impression des etiquettes produit et QR code depuis le site (superuser uniquement).
+      Le rendu conserve les regles actuelles (rack color et templates d'impression).
+    </p>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card">
+    <div class="scan-filter-actions">
+      <a class="scan-scan-btn btn btn-outline-primary" href="{{ products_admin_url }}">Produits (admin)</a>
+      <a class="scan-scan-btn btn btn-outline-primary" href="{{ print_templates_url }}">Templates</a>
+      <a class="scan-scan-btn btn btn-outline-primary" href="{{ product_label_template_url }}">Template product_label</a>
+      <a class="scan-scan-btn btn btn-outline-primary" href="{{ product_qr_template_url }}">Template product_qr</a>
+    </div>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card">
+    <form method="get" class="scan-filters ui-comp-form">
+      <div class="scan-inline">
+        <div class="scan-field">
+          <label class="form-label" for="scan-product-labels-q">Recherche produit</label>
+          <input
+            id="scan-product-labels-q"
+            type="text"
+            name="q"
+            value="{{ query }}"
+            placeholder="Nom, SKU, code barre, EAN"
+          >
+        </div>
+        <div class="scan-field">
+          <label class="form-label" for="scan-product-selection-mode">Mode</label>
+          <select
+            id="scan-product-selection-mode"
+            class="form-select"
+            name="selection_mode"
+          >
+            <option value="{{ selection_mode_selection }}"{% if selection_mode == selection_mode_selection %} selected{% endif %}>Selection manuelle</option>
+            <option value="{{ selection_mode_all_filtered }}"{% if selection_mode == selection_mode_all_filtered %} selected{% endif %}>Tous les produits filtres</option>
+          </select>
+        </div>
+      </div>
+      <div class="scan-filter-actions">
+        <button type="submit">Filtrer</button>
+        <a class="scan-scan-btn btn btn-outline-primary" href="{% url 'scan:scan_product_labels' %}">Reinitialiser</a>
+      </div>
+    </form>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card">
+    <form id="scan-product-print-form" method="post" action="{{ print_labels_url }}" target="_blank">
+      {% csrf_token %}
+      <input type="hidden" name="q" value="{{ query }}">
+      <input type="hidden" name="selection_mode" value="{{ selection_mode }}">
+
+      <div class="scan-filter-actions mb-2">
+        <button type="submit" formaction="{{ print_labels_url }}">Imprimer etiquettes</button>
+        <button type="submit" formaction="{{ print_qr_url }}">Imprimer QR</button>
+        <button type="button" id="scan-print-both">Imprimer les deux</button>
+      </div>
+      <p class="scan-help">
+        Mode actif:
+        <strong>
+          {% if selection_mode == selection_mode_all_filtered %}
+            tous les produits filtres
+          {% else %}
+            selection manuelle
+          {% endif %}
+        </strong>
+      </p>
+
+      {% if products %}
+        <table class="scan-table">
+          <thead>
+            <tr>
+              <th style="width: 80px;">
+                <input id="scan-product-select-all" type="checkbox">
+              </th>
+              <th>Nom</th>
+              <th>SKU</th>
+              <th>Code barre</th>
+              <th>EAN</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for product in products %}
+              <tr>
+                <td>
+                  <input
+                    type="checkbox"
+                    name="product_ids"
+                    value="{{ product.id }}"
+                    class="scan-product-row-check"
+                  >
+                </td>
+                <td>{{ product.name }}</td>
+                <td>{{ product.sku }}</td>
+                <td>{{ product.barcode|default:"-" }}</td>
+                <td>{{ product.ean|default:"-" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="scan-help">Aucun produit trouve.</p>
+      {% endif %}
+    </form>
+  </div>
+
+  <script>
+    (function () {
+      const selectAll = document.getElementById("scan-product-select-all");
+      const rowChecks = Array.from(document.querySelectorAll(".scan-product-row-check"));
+      if (selectAll && rowChecks.length > 0) {
+        selectAll.addEventListener("change", function () {
+          rowChecks.forEach(function (checkbox) {
+            checkbox.checked = selectAll.checked;
+          });
+        });
+      }
+
+      const printBoth = document.getElementById("scan-print-both");
+      const form = document.getElementById("scan-product-print-form");
+      if (!printBoth || !form) {
+        return;
+      }
+
+      const targets = ["{{ print_labels_url }}", "{{ print_qr_url }}"];
+      const submitToTarget = function (targetUrl) {
+        const tempForm = document.createElement("form");
+        tempForm.method = "post";
+        tempForm.action = targetUrl;
+        tempForm.target = "_blank";
+        tempForm.style.display = "none";
+
+        const formData = new FormData(form);
+        formData.forEach(function (value, key) {
+          const hiddenInput = document.createElement("input");
+          hiddenInput.type = "hidden";
+          hiddenInput.name = key;
+          hiddenInput.value = value;
+          tempForm.appendChild(hiddenInput);
+        });
+
+        document.body.appendChild(tempForm);
+        tempForm.submit();
+        tempForm.remove();
+      };
+
+      printBoth.addEventListener("click", function () {
+        targets.forEach(function (targetUrl) {
+          submitToTarget(targetUrl);
+        });
+      });
+    })();
+  </script>
+{% endblock %}

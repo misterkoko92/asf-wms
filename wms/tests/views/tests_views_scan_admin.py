@@ -2,6 +2,7 @@ from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.messages import get_messages
 from django.test import TestCase
 from django.urls import reverse
 
@@ -121,6 +122,7 @@ class ScanAdminViewTests(TestCase):
             "scan:scan_admin_contacts",
             "scan:scan_admin_products",
             "scan:scan_admin_design",
+            "scan:scan_product_labels",
         ):
             with self.subTest(route_name=route_name):
                 response = self.client.get(reverse(route_name))
@@ -133,6 +135,7 @@ class ScanAdminViewTests(TestCase):
             "scan:scan_admin_contacts",
             "scan:scan_admin_products",
             "scan:scan_admin_design",
+            "scan:scan_product_labels",
         ):
             with self.subTest(route_name=route_name):
                 response = self.client.get(reverse(route_name))
@@ -303,6 +306,91 @@ class ScanAdminViewTests(TestCase):
         self.assertContains(response, reverse("admin:wms_product_delete", args=[self.kit.id]))
         self.assertContains(response, self.kit.name)
         self.assertContains(response, self.component.name)
+
+    def test_scan_product_labels_page_renders_management_actions_for_superuser(self):
+        self.client.force_login(self.superuser)
+        response = self.client.get(reverse("scan:scan_product_labels"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["active"], "product_labels")
+        self.assertContains(response, reverse("scan:scan_product_labels"))
+        self.assertContains(response, reverse("scan:scan_product_labels_print_labels"))
+        self.assertContains(response, reverse("scan:scan_product_labels_print_qr"))
+        self.assertContains(response, "Imprimer etiquettes")
+        self.assertContains(response, "Imprimer QR")
+        self.assertContains(response, "Imprimer les deux")
+        self.assertContains(
+            response,
+            reverse("scan:scan_print_template_edit", args=["product_label"]),
+        )
+        self.assertContains(
+            response,
+            reverse("scan:scan_print_template_edit", args=["product_qr"]),
+        )
+
+    def test_scan_product_labels_print_labels_uses_selected_products(self):
+        self.client.force_login(self.superuser)
+        response = self.client.post(
+            reverse("scan:scan_product_labels_print_labels"),
+            {
+                "selection_mode": "selection",
+                "product_ids": [str(self.kit.id)],
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "print/product_labels.html")
+        self.assertContains(response, self.kit.name)
+        self.assertNotContains(response, self.component.name)
+
+    def test_scan_product_labels_print_qr_generates_missing_qr(self):
+        self.client.force_login(self.superuser)
+        product_without_qr = Product.objects.create(
+            sku="SCAN-ADMIN-NO-QR",
+            name="Gants sans QR",
+            qr_code_image="",
+        )
+        product_without_qr.qr_code_image = ""
+        product_without_qr.save(update_fields=["qr_code_image"])
+
+        response = self.client.post(
+            reverse("scan:scan_product_labels_print_qr"),
+            {
+                "selection_mode": "selection",
+                "product_ids": [str(product_without_qr.id)],
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "print/product_qr_labels.html")
+        product_without_qr.refresh_from_db()
+        self.assertTrue(bool(product_without_qr.qr_code_image))
+
+    def test_scan_product_labels_print_labels_supports_all_filtered_mode(self):
+        self.client.force_login(self.superuser)
+        response = self.client.post(
+            reverse("scan:scan_product_labels_print_labels"),
+            {
+                "selection_mode": "all_filtered",
+                "q": "Kit",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "print/product_labels.html")
+        self.assertContains(response, self.kit.name)
+        self.assertNotContains(response, self.component.name)
+
+    def test_scan_product_labels_print_labels_selection_mode_requires_products(self):
+        self.client.force_login(self.superuser)
+        response = self.client.post(
+            reverse("scan:scan_product_labels_print_labels"),
+            {"selection_mode": "selection", "q": "Kit"},
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertRedirects(
+            response,
+            reverse("scan:scan_product_labels") + "?q=Kit",
+        )
+        message_texts = [str(message) for message in get_messages(response.wsgi_request)]
+        self.assertIn("Aucun produit selectionne.", message_texts)
 
     def test_scan_admin_design_renders_design_form(self):
         self.client.force_login(self.superuser)

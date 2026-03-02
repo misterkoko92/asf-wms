@@ -36,10 +36,6 @@ from .contact_filters import (
 )
 from .emailing import enqueue_email_safe
 from .forms import AdjustStockForm, PackCartonForm, ReceiveStockForm, TransferStockForm
-from .print_context import (
-    build_product_label_context,
-    build_product_qr_label_context,
-)
 from .print_pack_engine import (
     PrintPackEngineError,
     generate_pack,
@@ -48,9 +44,10 @@ from .print_pack_engine import (
 from .print_pack_graph import GraphPdfConversionError
 from .print_pack_routing import resolve_carton_packing_pack, resolve_pack_request
 from .print_pack_xlsx import build_xlsx_fallback_response
-from .print_layouts import DEFAULT_LAYOUTS
-from .print_renderer import get_template_layout
-from .print_utils import build_label_pages, extract_block_style
+from .product_label_printing import (
+    render_product_labels_response,
+    render_product_qr_labels_response,
+)
 from .services import (
     StockError,
     adjust_stock,
@@ -219,80 +216,18 @@ class ProductAdmin(admin.ModelAdmin):
     generate_qr_codes.short_description = "Générer les QR codes"
 
     def print_product_labels(self, request, queryset):
-        products = (
-            queryset.select_related("default_location", "default_location__warehouse")
-            .order_by("name")
-            .all()
-        )
-        if not products:
+        if not queryset.exists():
             self.message_user(request, "Aucun produit sélectionné.", level=messages.WARNING)
             return None
-        warehouse_ids = set()
-        for product in products:
-            if product.default_location_id:
-                warehouse_ids.add(product.default_location.warehouse_id)
-        rack_color_map = {}
-        if warehouse_ids:
-            rack_colors = models.RackColor.objects.filter(warehouse_id__in=warehouse_ids)
-            rack_color_map = {
-                (color.warehouse_id, color.zone.lower()): color.color
-                for color in rack_colors
-            }
-        layout_override = get_template_layout("product_label")
-        layout = layout_override or DEFAULT_LAYOUTS.get("product_label", {"blocks": []})
-        contexts = []
-        for product in products:
-            rack_color = None
-            location = product.default_location
-            if location:
-                rack_color = rack_color_map.get(
-                    (location.warehouse_id, location.zone.lower())
-                )
-            contexts.append(build_product_label_context(product, rack_color=rack_color))
-        pages, page_style = build_label_pages(
-            layout,
-            contexts,
-            block_type="product_label",
-            labels_per_page=4,
-        )
-        return render(
-            request,
-            "print/product_labels.html",
-            {"pages": pages, "page_style": page_style},
-        )
+        return render_product_labels_response(request, queryset)
 
     print_product_labels.short_description = "Imprimer étiquettes produit"
 
     def print_product_qr_labels(self, request, queryset):
-        products = queryset.order_by("name").all()
-        if not products:
+        if not queryset.exists():
             self.message_user(request, "Aucun produit sélectionné.", level=messages.WARNING)
             return None
-        for product in products:
-            if not product.qr_code_image:
-                product.generate_qr_code()
-                product.save(update_fields=["qr_code_image"])
-        layout_override = get_template_layout("product_qr")
-        layout = layout_override or DEFAULT_LAYOUTS.get("product_qr", {"blocks": []})
-        page_style = extract_block_style(layout, "product_qr_label")
-        try:
-            rows = int(page_style.get("page_rows") or 5)
-            cols = int(page_style.get("page_columns") or 3)
-        except (TypeError, ValueError):
-            rows, cols = 5, 3
-        labels_per_page = max(1, rows * cols)
-        contexts = [build_product_qr_label_context(product) for product in products]
-        pages, page_style = build_label_pages(
-            layout,
-            contexts,
-            block_type="product_qr_label",
-            labels_per_page=labels_per_page,
-        )
-        return render(
-            request,
-            "print/product_qr_labels.html",
-            {"pages": pages, "page_style": page_style},
-        )
+        return render_product_qr_labels_response(request, queryset)
 
     print_product_qr_labels.short_description = "Imprimer QR produits"
 

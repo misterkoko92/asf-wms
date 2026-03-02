@@ -19,13 +19,19 @@ from contacts.tagging import TAG_CORRESPONDENT, TAG_SHIPPER
 
 from .kit_components import KitCycleError, get_unit_component_quantities
 from .models import Destination, Product
+from .product_label_printing import (
+    render_product_labels_response,
+    render_product_qr_labels_response,
+)
 from .view_permissions import require_superuser as _require_superuser
 from .view_permissions import scan_staff_required
 
 TEMPLATE_SCAN_ADMIN_CONTACTS = "scan/admin_contacts.html"
 TEMPLATE_SCAN_ADMIN_PRODUCTS = "scan/admin_products.html"
+TEMPLATE_SCAN_PRODUCT_LABELS = "scan/admin_product_labels.html"
 ACTIVE_SCAN_ADMIN_CONTACTS = "admin_contacts"
 ACTIVE_SCAN_ADMIN_PRODUCTS = "admin_products"
+ACTIVE_SCAN_PRODUCT_LABELS = "product_labels"
 
 CONTACT_FILTER_ALL = "all"
 CONTACT_FILTER_CHOICES = (
@@ -38,6 +44,13 @@ CONTACT_FILTER_VALUES = {choice[0] for choice in CONTACT_FILTER_CHOICES}
 ACTION_CREATE_CONTACT = "create_contact"
 ACTION_UPDATE_CONTACT = "update_contact"
 ACTION_DELETE_CONTACT = "delete_contact"
+
+PRODUCT_SELECTION_MODE_SELECTION = "selection"
+PRODUCT_SELECTION_MODE_ALL_FILTERED = "all_filtered"
+PRODUCT_SELECTION_MODE_VALUES = {
+    PRODUCT_SELECTION_MODE_SELECTION,
+    PRODUCT_SELECTION_MODE_ALL_FILTERED,
+}
 
 
 class ScanAdminContactForm(forms.ModelForm):
@@ -327,6 +340,58 @@ def _build_contacts_redirect(*, query, contact_filter, edit_id=None):
     return redirect(url)
 
 
+def _apply_product_query(queryset, query):
+    if not query:
+        return queryset
+    return queryset.filter(
+        Q(name__icontains=query)
+        | Q(sku__icontains=query)
+        | Q(barcode__icontains=query)
+        | Q(ean__icontains=query)
+    )
+
+
+def _build_product_labels_queryset(query):
+    queryset = Product.objects.filter(is_active=True).order_by("name", "id")
+    return _apply_product_query(queryset, query)
+
+
+def _normalize_product_selection_mode(raw_value):
+    value = (raw_value or PRODUCT_SELECTION_MODE_SELECTION).strip().lower()
+    if value in PRODUCT_SELECTION_MODE_VALUES:
+        return value
+    return PRODUCT_SELECTION_MODE_SELECTION
+
+
+def _build_product_labels_redirect(*, query, selection_mode):
+    params = {}
+    if query:
+        params["q"] = query
+    if selection_mode != PRODUCT_SELECTION_MODE_SELECTION:
+        params["selection_mode"] = selection_mode
+    url = reverse("scan:scan_product_labels")
+    if params:
+        url = f"{url}?{urlencode(params)}"
+    return redirect(url)
+
+
+def _resolve_product_labels_selection(request):
+    query = (request.POST.get("q") or "").strip()
+    selection_mode = _normalize_product_selection_mode(request.POST.get("selection_mode"))
+    queryset = _build_product_labels_queryset(query)
+    if selection_mode == PRODUCT_SELECTION_MODE_ALL_FILTERED:
+        return list(queryset), query, selection_mode
+
+    product_ids = []
+    for raw_value in request.POST.getlist("product_ids"):
+        value = (raw_value or "").strip()
+        if value.isdigit():
+            product_ids.append(int(value))
+    if not product_ids:
+        return [], query, selection_mode
+    return list(queryset.filter(pk__in=product_ids)), query, selection_mode
+
+
 @scan_staff_required
 @require_http_methods(["GET", "POST"])
 def scan_admin_contacts(request):
@@ -511,3 +576,58 @@ def scan_admin_products(request):
             "product_add_url": reverse("admin:wms_product_add"),
         },
     )
+
+
+@scan_staff_required
+@require_http_methods(["GET"])
+def scan_product_labels(request):
+    _require_superuser(request)
+    query = (request.GET.get("q") or "").strip()
+    selection_mode = _normalize_product_selection_mode(request.GET.get("selection_mode"))
+    products = list(_build_product_labels_queryset(query))
+    return render(
+        request,
+        TEMPLATE_SCAN_PRODUCT_LABELS,
+        {
+            "active": ACTIVE_SCAN_PRODUCT_LABELS,
+            "query": query,
+            "selection_mode": selection_mode,
+            "products": products,
+            "selection_mode_selection": PRODUCT_SELECTION_MODE_SELECTION,
+            "selection_mode_all_filtered": PRODUCT_SELECTION_MODE_ALL_FILTERED,
+            "products_admin_url": reverse("admin:wms_product_changelist"),
+            "print_templates_url": reverse("scan:scan_print_templates"),
+            "product_label_template_url": reverse(
+                "scan:scan_print_template_edit",
+                args=["product_label"],
+            ),
+            "product_qr_template_url": reverse(
+                "scan:scan_print_template_edit",
+                args=["product_qr"],
+            ),
+            "print_labels_url": reverse("scan:scan_product_labels_print_labels"),
+            "print_qr_url": reverse("scan:scan_product_labels_print_qr"),
+        },
+    )
+
+
+@scan_staff_required
+@require_http_methods(["POST"])
+def scan_product_labels_print_labels(request):
+    _require_superuser(request)
+    products, query, selection_mode = _resolve_product_labels_selection(request)
+    if not products:
+        messages.warning(request, "Aucun produit selectionne.")
+        return _build_product_labels_redirect(query=query, selection_mode=selection_mode)
+    return render_product_labels_response(request, products)
+
+
+@scan_staff_required
+@require_http_methods(["POST"])
+def scan_product_labels_print_qr(request):
+    _require_superuser(request)
+    products, query, selection_mode = _resolve_product_labels_selection(request)
+    if not products:
+        messages.warning(request, "Aucun produit selectionne.")
+        return _build_product_labels_redirect(query=query, selection_mode=selection_mode)
+    return render_product_qr_labels_response(request, products)
