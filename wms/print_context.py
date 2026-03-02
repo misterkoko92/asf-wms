@@ -351,14 +351,20 @@ def resolve_rack_color(location):
 def build_product_label_context(product, rack_color=None):
     def _normalize_location_part(value):
         token = str(value or "").strip()
+        if not token:
+            return None, False
         if token.upper() == "TEMP":
-            return ""
-        return token
+            return token, True
+        return token, False
 
     location = product.default_location
-    rack = _normalize_location_part(location.zone) if location else None
-    aisle = _normalize_location_part(location.aisle) if location else None
-    shelf = _normalize_location_part(location.shelf) if location else None
+    if location:
+        rack, rack_hidden = _normalize_location_part(location.zone)
+        aisle, aisle_hidden = _normalize_location_part(location.aisle)
+        shelf, shelf_hidden = _normalize_location_part(location.shelf)
+    else:
+        rack, aisle, shelf = None, None, None
+        rack_hidden = aisle_hidden = shelf_hidden = False
     if rack_color is None:
         rack_color = resolve_rack_color(location)
     return {
@@ -369,6 +375,9 @@ def build_product_label_context(product, rack_color=None):
         "product_rack": rack,
         "product_aisle": aisle,
         "product_shelf": shelf,
+        "product_rack_hidden": rack_hidden,
+        "product_aisle_hidden": aisle_hidden,
+        "product_shelf_hidden": shelf_hidden,
         "rack_color": rack_color,
     }
 

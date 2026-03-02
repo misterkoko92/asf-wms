@@ -333,9 +333,12 @@ class PrintContextTests(SimpleTestCase):
         )
         with mock.patch("wms.print_context.resolve_rack_color", return_value="Green"):
             temp_context = build_product_label_context(temp_product)
-        self.assertEqual(temp_context["product_rack"], "")
-        self.assertEqual(temp_context["product_aisle"], "")
-        self.assertEqual(temp_context["product_shelf"], "")
+        self.assertEqual(temp_context["product_rack"], "TEMP")
+        self.assertEqual(temp_context["product_aisle"], "temp")
+        self.assertEqual(temp_context["product_shelf"], "Temp")
+        self.assertTrue(temp_context["product_rack_hidden"])
+        self.assertTrue(temp_context["product_aisle_hidden"])
+        self.assertTrue(temp_context["product_shelf_hidden"])
 
     def test_build_product_qr_and_sample_context_builders(self):
         product = SimpleNamespace(
