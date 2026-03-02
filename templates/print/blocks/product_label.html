@@ -57,15 +57,15 @@
   <div class="product-label-footer">
     <div class="pl-foot">
       <div class="pl-pill">{{ block.title_rack|default:"RACK" }}</div>
-      <div class="pl-foot-value">{{ product_rack|default:"-" }}</div>
+      <div class="pl-foot-value">{{ product_rack|default_if_none:"-" }}</div>
     </div>
     <div class="pl-foot">
       <div class="pl-pill">{{ block.title_aisle|default:"ETAGERE" }}</div>
-      <div class="pl-foot-value">{{ product_aisle|default:"-" }}</div>
+      <div class="pl-foot-value">{{ product_aisle|default_if_none:"-" }}</div>
     </div>
     <div class="pl-foot">
       <div class="pl-pill">{{ block.title_shelf|default:"BAC" }}</div>
-      <div class="pl-foot-value">{{ product_shelf|default:"-" }}</div>
+      <div class="pl-foot-value">{{ product_shelf|default_if_none:"-" }}</div>
     </div>
   </div>
 </div>

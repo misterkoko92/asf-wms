@@ -349,10 +349,16 @@ def resolve_rack_color(location):
 
 
 def build_product_label_context(product, rack_color=None):
+    def _normalize_location_part(value):
+        token = str(value or "").strip()
+        if token.upper() == "TEMP":
+            return ""
+        return token
+
     location = product.default_location
-    rack = location.zone if location else ""
-    aisle = location.aisle if location else ""
-    shelf = location.shelf if location else ""
+    rack = _normalize_location_part(location.zone) if location else None
+    aisle = _normalize_location_part(location.aisle) if location else None
+    shelf = _normalize_location_part(location.shelf) if location else None
     if rack_color is None:
         rack_color = resolve_rack_color(location)
     return {

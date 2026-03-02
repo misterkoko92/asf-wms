@@ -318,6 +318,25 @@ class PrintContextTests(SimpleTestCase):
         resolver_mock.assert_not_called()
         self.assertEqual(explicit_context["rack_color"], "Red")
 
+        temp_location = SimpleNamespace(
+            warehouse=SimpleNamespace(id=1),
+            zone="TEMP",
+            aisle="temp",
+            shelf=" Temp ",
+        )
+        temp_product = SimpleNamespace(
+            name="Mask Temp",
+            brand="BrandX",
+            color="Blue",
+            photo=None,
+            default_location=temp_location,
+        )
+        with mock.patch("wms.print_context.resolve_rack_color", return_value="Green"):
+            temp_context = build_product_label_context(temp_product)
+        self.assertEqual(temp_context["product_rack"], "")
+        self.assertEqual(temp_context["product_aisle"], "")
+        self.assertEqual(temp_context["product_shelf"], "")
+
     def test_build_product_qr_and_sample_context_builders(self):
         product = SimpleNamespace(
             name="Mask",
