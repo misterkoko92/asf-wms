@@ -274,9 +274,15 @@
   <div class="scan-card card border-0 ui-comp-card">
     <h2 class="ui-comp-title">Templates (admin)</h2>
     <ul>
-      <li>Personnaliser visuellement les documents.</li>
-      <li>Utiliser l'aper&ccedil;u pour v&eacute;rifier le rendu.</li>
-      <li>Apr&egrave;s modification, recharger la page si besoin.</li>
+      <li>La page <strong>Gestion &gt; Templates</strong> pilote les templates XLSX Print Pack (superuser uniquement).</li>
+      <li>Chaque ligne correspond &agrave; un document: <strong>pack + doc_type + variant</strong>.</li>
+      <li>Vous pouvez uploader/remplacer le fichier <strong>.xlsx</strong> actif du document.</li>
+      <li>Le mapping se fait par ligne, avec listes d&eacute;roulantes: <strong>worksheet</strong>, <strong>colonne</strong>, <strong>ligne</strong>, <strong>champ source</strong>.</li>
+      <li>Les champs source sont limit&eacute;s &agrave; un catalogue backend (pas de saisie manuelle libre).</li>
+      <li>Plusieurs changements peuvent &ecirc;tre enregistr&eacute;s en une seule sauvegarde.</li>
+      <li>Si une cellule est fusionn&eacute;e, le mapping est normalis&eacute; automatiquement sur la cellule d'ancrage.</li>
+      <li>Chaque sauvegarde cr&eacute;e une version (snapshot fichier + mappings) avec restauration possible depuis l'historique.</li>
+      <li>En cas de rollback, restaurer une version applique le fichier XLSX et les mappings associ&eacute;s.</li>
     </ul>
   </div>
 
