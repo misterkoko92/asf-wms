@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 from unittest import mock
 
+from django.db import IntegrityError
 from django.test import RequestFactory, TestCase
 
 from wms.models import CartonStatus, ShipmentStatus
@@ -156,6 +157,51 @@ class ScanShipmentHandlersTests(TestCase):
 
         self.assertIsNone(response)
         self.assertIn((None, "Carton indisponible."), form.errors)
+
+    def test_handle_shipment_create_post_adds_form_error_on_integrity_error(self):
+        request = self._request({"carton_count": "1"})
+        form = _FakeForm(valid=True, cleaned_data=self._cleaned_data(carton_count=1))
+
+        with mock.patch(
+            "wms.scan_shipment_handlers.parse_shipment_lines",
+            return_value=(
+                [{"carton_id": "", "product_code": "P-001", "quantity": "1"}],
+                [{"product": "P", "quantity": 1}],
+                {},
+            ),
+        ):
+            with mock.patch(
+                "wms.scan_shipment_handlers.build_destination_label",
+                return_value="Paris - France",
+            ):
+                with mock.patch(
+                    "wms.scan_shipment_handlers.Shipment.objects.create",
+                    side_effect=IntegrityError("duplicate key"),
+                ):
+                    with mock.patch("wms.scan_shipment_handlers.logger.exception") as log_mock:
+                        response, carton_count, line_values, line_errors = (
+                            handle_shipment_create_post(
+                                request,
+                                form=form,
+                                available_carton_ids=set(),
+                            )
+                        )
+
+        self.assertIsNone(response)
+        self.assertEqual(carton_count, 1)
+        self.assertEqual(
+            line_values,
+            [{"carton_id": "", "product_code": "P-001", "quantity": "1"}],
+        )
+        self.assertEqual(line_errors, {})
+        self.assertIn(
+            (
+                None,
+                "Erreur technique lors de la création de l'expédition. Merci de réessayer.",
+            ),
+            form.errors,
+        )
+        log_mock.assert_called_once()
 
     def test_handle_shipment_create_post_skips_processing_when_line_errors_present(self):
         request = self._request({"carton_count": "3"})

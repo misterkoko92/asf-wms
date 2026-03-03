@@ -1,5 +1,6 @@
 from django.db.models import Q
 
+from contacts.models import ContactType
 from contacts.querysets import contacts_with_tags
 from contacts.tagging import (
     TAG_CORRESPONDENT,
@@ -8,6 +9,13 @@ from contacts.tagging import (
     TAG_SHIPPER,
     TAG_TRANSPORTER,
 )
+
+
+def filter_structure_contacts(queryset):
+    return queryset.filter(
+        Q(contact_type=ContactType.ORGANIZATION)
+        | Q(organization__isnull=False)
+    ).distinct()
 
 
 def filter_contacts_for_destination(queryset, destination):

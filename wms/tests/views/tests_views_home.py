@@ -3,6 +3,11 @@ from django.urls import reverse
 
 
 class HomePageTests(TestCase):
+    def test_favicon_route_redirects_to_scan_icon(self):
+        response = self.client.get("/favicon.ico")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], "/static/scan/icon.svg")
+
     def test_home_page_is_simplified_and_has_connection_block(self):
         response = self.client.get(reverse("home"))
 

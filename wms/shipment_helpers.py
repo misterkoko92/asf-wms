@@ -3,6 +3,7 @@ from .contact_filters import (
     TAG_RECIPIENT,
     TAG_SHIPPER,
     contacts_with_tags,
+    filter_structure_contacts,
 )
 from contacts.destination_scope import (
     contact_destination_ids,
@@ -36,12 +37,12 @@ def build_shipment_contact_payload():
         "correspondent_contact"
     )
     shipper_contacts = (
-        contacts_with_tags(TAG_SHIPPER)
+        filter_structure_contacts(contacts_with_tags(TAG_SHIPPER))
         .select_related("organization")
         .prefetch_related("destinations")
     )
     recipient_contacts = (
-        contacts_with_tags(TAG_RECIPIENT)
+        filter_structure_contacts(contacts_with_tags(TAG_RECIPIENT))
         .select_related("organization")
         .prefetch_related("addresses", "destinations", "linked_shippers")
     )

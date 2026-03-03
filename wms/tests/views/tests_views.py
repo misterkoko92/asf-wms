@@ -292,6 +292,17 @@ class ScanViewTests(TestCase):
                 self.assertEqual(response.status_code, 302)
                 self.assertIn("/admin/login/", response.url)
 
+    def test_scan_internal_routes_for_staff_do_not_return_server_errors(self):
+        for route_name, method, kwargs, data in self._scan_internal_route_specs():
+            with self.subTest(route_name=route_name, method=method):
+                response = self._request_scan_route(
+                    route_name,
+                    method=method,
+                    kwargs=kwargs,
+                    data=data,
+                )
+                self.assertLess(response.status_code, 500)
+
     def test_scan_cartons_ready_blocks_assigned_update(self):
         shipment = Shipment.objects.create(
             status=ShipmentStatus.DRAFT,
@@ -892,6 +903,24 @@ class ScanViewTests(TestCase):
         shipment.refresh_from_db()
         self.assertEqual(shipment.destination_id, new_destination.id)
 
+    def test_scan_shipment_edit_with_missing_additional_document_file_does_not_500(self):
+        shipment = Shipment.objects.create(
+            status=ShipmentStatus.DRAFT,
+            shipper_name=self.shipper.name,
+            recipient_name=self.recipient.name,
+            correspondent_name=self.correspondent.name,
+            destination=self.destination,
+            destination_address=str(self.destination),
+            destination_country=self.destination.country,
+            created_by=self.user,
+        )
+        Document.objects.create(shipment=shipment, doc_type="additional")
+
+        response = self.client.get(reverse("scan:scan_shipment_edit", args=[shipment.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Document indisponible (fichier manquant)")
+
     def test_scan_shipment_edit_prefills_order_line_values_without_assigned_cartons(self):
         shipment = Shipment.objects.create(
             status=ShipmentStatus.DRAFT,
@@ -1087,6 +1116,16 @@ class ScanViewTests(TestCase):
             response,
             f'href="{reverse("scan:scan_shipments_tracking")}"',
         )
+
+    def test_scan_shipment_track_with_missing_additional_document_file_does_not_500(self):
+        shipment, _carton = self._create_shipment_with_carton()
+        Document.objects.create(shipment=shipment, doc_type="additional")
+
+        response = self.client.get(
+            reverse("scan:scan_shipment_track", args=[shipment.tracking_token])
+        )
+
+        self.assertEqual(response.status_code, 200)
 
     def test_scan_shipment_track_uses_ready_return_target_in_link(self):
         shipment, _carton = self._create_shipment_with_carton()

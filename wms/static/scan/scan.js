@@ -2118,7 +2118,17 @@
       empty.value = '';
       empty.textContent = '---';
       fragment.appendChild(empty);
-      const sortedOptions = [...options].sort((left, right) =>
+
+      const uniqueOptionsById = new Map();
+      options.forEach(option => {
+        const optionId = asId(option && option.id);
+        if (!optionId || uniqueOptionsById.has(optionId)) {
+          return;
+        }
+        uniqueOptionsById.set(optionId, option);
+      });
+
+      const sortedOptions = [...uniqueOptionsById.values()].sort((left, right) =>
         String(left.name || '').localeCompare(String(right.name || ''), 'fr', {
           sensitivity: 'base'
         })
@@ -2131,7 +2141,7 @@
       });
       select.innerHTML = '';
       select.appendChild(fragment);
-      if (selectedValue && options.some(option => String(option.id) === String(selectedValue))) {
+      if (selectedValue && uniqueOptionsById.has(String(selectedValue))) {
         select.value = String(selectedValue);
       } else {
         select.value = '';

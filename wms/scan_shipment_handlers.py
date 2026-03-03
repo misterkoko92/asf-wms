@@ -1,4 +1,5 @@
 import re
+import logging
 
 from django.contrib import messages
 from django.db import IntegrityError, connection, transaction
@@ -27,6 +28,7 @@ SAVE_DRAFT_ACTION = "save_draft"
 SAVE_DRAFT_PACK_ACTION = "save_draft_pack"
 TEMP_SHIPMENT_REFERENCE_RE = re.compile(r"^EXP-TEMP-(\d+)$")
 TEMP_SHIPMENT_REFERENCE_MAX_RETRIES = 5
+logger = logging.getLogger(__name__)
 
 
 def _parse_carton_count(raw_value):
@@ -255,6 +257,12 @@ def handle_shipment_create_post(request, *, form, available_carton_ids):
             response = redirect("scan:scan_shipment_create")
         except StockError as exc:
             form.add_error(None, str(exc))
+        except IntegrityError:
+            logger.exception("Integrity error while creating shipment")
+            form.add_error(
+                None,
+                "Erreur technique lors de la création de l'expédition. Merci de réessayer.",
+            )
     return response, carton_count, line_values, line_errors
 
 

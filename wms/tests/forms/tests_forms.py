@@ -288,6 +288,105 @@ class FormsTests(TestCase):
         self.assertIn(linked_recipient.id, recipient_ids)
         self.assertNotIn(other_recipient.id, recipient_ids)
 
+    def test_scan_shipment_form_excludes_people_without_organization_from_shipper_and_recipient(self):
+        correspondent = self._create_contact("Correspondent Struct")
+        correspondent_tag = ContactTag.objects.create(name="correspondant")
+        correspondent.tags.add(correspondent_tag)
+        destination = Destination.objects.create(
+            city="Lome",
+            iata_code="LFW-STRUCT",
+            country="Togo",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        organization = Contact.objects.create(
+            name="Structure Shipment",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        shipper_tag = ContactTag.objects.create(name="expediteur")
+        recipient_tag = ContactTag.objects.create(name="destinataire")
+
+        shipper_org = Contact.objects.create(
+            name="Shipper Org",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        shipper_org.tags.add(shipper_tag)
+        shipper_org.destinations.add(destination)
+
+        shipper_person_with_org = Contact.objects.create(
+            name="Shipper Person With Org",
+            contact_type=ContactType.PERSON,
+            first_name="Jean",
+            last_name="Dupont",
+            organization=organization,
+            is_active=True,
+        )
+        shipper_person_with_org.tags.add(shipper_tag)
+        shipper_person_with_org.destinations.add(destination)
+
+        shipper_person_no_org = Contact.objects.create(
+            name="Shipper Person No Org",
+            contact_type=ContactType.PERSON,
+            first_name="Paul",
+            last_name="Martin",
+            is_active=True,
+        )
+        shipper_person_no_org.tags.add(shipper_tag)
+        shipper_person_no_org.destinations.add(destination)
+
+        recipient_org = Contact.objects.create(
+            name="Recipient Org",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        recipient_org.tags.add(recipient_tag)
+        recipient_org.destinations.add(destination)
+        recipient_org.linked_shippers.add(shipper_org)
+
+        recipient_person_with_org = Contact.objects.create(
+            name="Recipient Person With Org",
+            contact_type=ContactType.PERSON,
+            first_name="Alice",
+            last_name="Yao",
+            organization=organization,
+            is_active=True,
+        )
+        recipient_person_with_org.tags.add(recipient_tag)
+        recipient_person_with_org.destinations.add(destination)
+        recipient_person_with_org.linked_shippers.add(shipper_org)
+
+        recipient_person_no_org = Contact.objects.create(
+            name="Recipient Person No Org",
+            contact_type=ContactType.PERSON,
+            first_name="Lea",
+            last_name="Ndiaye",
+            is_active=True,
+        )
+        recipient_person_no_org.tags.add(recipient_tag)
+        recipient_person_no_org.destinations.add(destination)
+        recipient_person_no_org.linked_shippers.add(shipper_org)
+
+        form = ScanShipmentForm(
+            data={
+                "destination": str(destination.id),
+                "shipper_contact": str(shipper_org.id),
+            },
+            destination_id=str(destination.id),
+        )
+
+        shipper_ids = set(form.fields["shipper_contact"].queryset.values_list("id", flat=True))
+        recipient_ids = set(form.fields["recipient_contact"].queryset.values_list("id", flat=True))
+
+        self.assertIn(shipper_org.id, shipper_ids)
+        self.assertIn(shipper_person_with_org.id, shipper_ids)
+        self.assertNotIn(shipper_person_no_org.id, shipper_ids)
+
+        self.assertIn(recipient_org.id, recipient_ids)
+        self.assertIn(recipient_person_with_org.id, recipient_ids)
+        self.assertNotIn(recipient_person_no_org.id, recipient_ids)
+
     def test_scan_shipment_form_init_does_not_auto_select_single_choices(self):
         correspondent = self._create_contact("Correspondent Seq")
         correspondent_tag = ContactTag.objects.create(name="correspondant")
@@ -317,7 +416,7 @@ class FormsTests(TestCase):
         self.assertIsNone(form.fields["recipient_contact"].initial)
         self.assertIsNone(form.fields["correspondent_contact"].initial)
 
-    def test_scan_shipment_form_labels_use_organization_then_contact_format(self):
+    def test_scan_shipment_form_labels_include_contact_details_for_organization_contacts(self):
         organization = Contact.objects.create(
             name="ASSOCIATION TEST",
             contact_type=ContactType.ORGANIZATION,
@@ -350,6 +449,7 @@ class FormsTests(TestCase):
             title="Mme",
             first_name="Alice",
             last_name="Martin",
+            organization=organization,
         )
         recipient.tags.add(recipient_tag)
         recipient.linked_shippers.add(shipper)
@@ -364,8 +464,8 @@ class FormsTests(TestCase):
 
         shipper_label = form.fields["shipper_contact"].label_from_instance(shipper)
         recipient_label = form.fields["recipient_contact"].label_from_instance(recipient)
-        self.assertEqual(shipper_label, "ASSOCIATION TEST")
-        self.assertEqual(recipient_label, "Mme, Alice, MARTIN")
+        self.assertEqual(shipper_label, "ASSOCIATION TEST (M., Jean, DUPONT)")
+        self.assertEqual(recipient_label, "ASSOCIATION TEST (Mme, Alice, MARTIN)")
 
     def test_scan_shipment_form_clean_rejects_contact_for_other_destination(self):
         expected_correspondent = self._create_contact("Corr Expected")

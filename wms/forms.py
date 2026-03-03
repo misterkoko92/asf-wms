@@ -10,6 +10,7 @@ from .contact_filters import (
     TAG_TRANSPORTER,
     contacts_with_tags,
     filter_contacts_for_destination,
+    filter_structure_contacts,
     filter_recipients_for_shipper,
 )
 from .contact_labels import build_contact_select_label
@@ -429,7 +430,7 @@ class ScanShipmentForm(forms.Form):
             destinations=destinations,
             destination_id=destination_id,
         )
-        shipper_contacts = contacts_with_tags(TAG_SHIPPER)
+        shipper_contacts = filter_structure_contacts(contacts_with_tags(TAG_SHIPPER))
         if selected_destination:
             shipper_contacts = filter_contacts_for_destination(
                 shipper_contacts,
@@ -441,7 +442,7 @@ class ScanShipmentForm(forms.Form):
         self.fields["shipper_contact"].label_from_instance = build_contact_select_label
         selected_shipper = self._resolve_selected_shipper()
 
-        recipients = contacts_with_tags(TAG_RECIPIENT)
+        recipients = filter_structure_contacts(contacts_with_tags(TAG_RECIPIENT))
         correspondents = contacts_with_tags(TAG_CORRESPONDENT)
 
         if selected_shipper:

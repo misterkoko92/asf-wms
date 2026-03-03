@@ -236,9 +236,13 @@
           <div class="scan-docs">
             {% for document in documents %}
               <div class="scan-inline">
-                <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{{ document.file.url }}" target="_blank" rel="noopener">
-                  {{ document.file.name|default:"Document" }}
-                </a>
+                {% if document.file %}
+                  <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{{ document.file.url }}" target="_blank" rel="noopener">
+                    {{ document.file.name|default:"Document" }}
+                  </a>
+                {% else %}
+                  <span class="scan-help">Document indisponible (fichier manquant)</span>
+                {% endif %}
                 <form method="post" action="{% url 'scan:scan_shipment_document_delete' shipment.id document.id %}">
                   {% csrf_token %}
                   <button type="submit" class="scan-scan-btn btn btn-danger scan-doc-btn">Supprimer</button>

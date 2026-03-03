@@ -104,9 +104,13 @@
           {% if additional_docs %}
             <div class="scan-docs">
               {% for document in additional_docs %}
-                <a class="scan-scan-btn scan-doc-btn btn btn-tertiary" href="{{ document.file.url }}" target="_blank" rel="noopener">
-                  {{ document.file.name|default:"Document" }}
-                </a>
+                {% if document.file %}
+                  <a class="scan-scan-btn scan-doc-btn btn btn-tertiary" href="{{ document.file.url }}" target="_blank" rel="noopener">
+                    {{ document.file.name|default:"Document" }}
+                  </a>
+                {% else %}
+                  <span class="scan-help">Document indisponible (fichier manquant)</span>
+                {% endif %}
               {% endfor %}
             </div>
           {% else %}
