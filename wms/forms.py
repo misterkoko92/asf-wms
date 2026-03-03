@@ -2,6 +2,7 @@ from django import forms
 from django.utils import timezone
 
 from contacts.models import Contact, ContactType
+from contacts.tagging import normalize_tag_name
 from .contact_filters import (
     TAG_CORRESPONDENT,
     TAG_DONOR,
@@ -502,12 +503,202 @@ class ScanShipmentForm(forms.Form):
             return None
         return self.fields["shipper_contact"].queryset.filter(pk=shipper_value).first()
 
+    def _raw_field_value(self, field_name):
+        if not self.is_bound:
+            return ""
+        return (self.data.get(field_name) or "").strip()
+
+    @staticmethod
+    def _parse_pk(raw_value):
+        if raw_value in (None, ""):
+            return None
+        try:
+            return int(raw_value)
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _contact_matches_tag(contact, expected_tag_names):
+        expected_tags = {
+            normalize_tag_name(tag_name)
+            for tag_name in expected_tag_names
+            if normalize_tag_name(tag_name)
+        }
+        if not expected_tags:
+            return True
+        contact_tags = {
+            normalize_tag_name(tag_name)
+            for tag_name in contact.tags.values_list("name", flat=True)
+            if normalize_tag_name(tag_name)
+        }
+        return bool(expected_tags.intersection(contact_tags))
+
+    def _has_invalid_choice_error(self, field_name):
+        field_errors = self._errors.get(field_name)
+        if not field_errors:
+            return False
+        return any(error.code == "invalid_choice" for error in field_errors.as_data())
+
+    def _replace_invalid_choice_error(self, field_name, message):
+        field_errors = self._errors.get(field_name)
+        if not field_errors:
+            return
+        existing_errors = field_errors.as_data()
+        if not any(error.code == "invalid_choice" for error in existing_errors):
+            return
+
+        remaining_messages = []
+        for error in existing_errors:
+            if error.code == "invalid_choice":
+                continue
+            remaining_messages.extend(error.messages)
+
+        if remaining_messages:
+            self._errors[field_name] = self.error_class(remaining_messages)
+        else:
+            self._errors.pop(field_name, None)
+        self.add_error(field_name, message)
+
+    def _resolve_contact_from_raw(self, raw_value):
+        contact_id = self._parse_pk(raw_value)
+        if contact_id is None:
+            return None
+        return (
+            Contact.objects.select_related("organization")
+            .prefetch_related("tags")
+            .filter(pk=contact_id)
+            .first()
+        )
+
+    def _invalid_destination_message(self, raw_value):
+        destination_id = self._parse_pk(raw_value)
+        if destination_id is None:
+            return "Destination invalide: valeur incorrecte."
+        destination = Destination.objects.filter(pk=destination_id).first()
+        if destination is None:
+            return "Destination invalide: la destination n'existe plus."
+        if not destination.is_active:
+            return "Destination invalide: la destination est inactive."
+        return "Destination invalide: ce choix n'est plus disponible."
+
+    def _invalid_contact_message(
+        self,
+        *,
+        field_name,
+        raw_value,
+        destination,
+        shipper,
+        shipper_has_errors=False,
+    ):
+        prefix = {
+            "shipper_contact": "Expéditeur invalide",
+            "recipient_contact": "Destinataire invalide",
+            "correspondent_contact": "Correspondant invalide",
+        }.get(field_name, "Contact invalide")
+
+        contact_id = self._parse_pk(raw_value)
+        if contact_id is None:
+            return f"{prefix}: valeur incorrecte."
+
+        contact = self._resolve_contact_from_raw(raw_value)
+        if contact is None:
+            return f"{prefix}: ce contact n'existe plus."
+        if not contact.is_active:
+            return f"{prefix}: ce contact est inactif."
+
+        if field_name in {"shipper_contact", "recipient_contact"} and (
+            contact.contact_type == ContactType.PERSON and contact.organization_id is None
+        ):
+            return f"{prefix}: ce contact est un particulier sans organisation."
+
+        expected_tags = {
+            "shipper_contact": TAG_SHIPPER,
+            "recipient_contact": TAG_RECIPIENT,
+            "correspondent_contact": TAG_CORRESPONDENT,
+        }.get(field_name)
+        if expected_tags and not self._contact_matches_tag(contact, expected_tags):
+            return f"{prefix}: ce contact n'a pas le tag requis."
+
+        if destination and not filter_contacts_for_destination(
+            Contact.objects.filter(pk=contact.pk), destination
+        ).exists():
+            return f"{prefix}: ce contact n'est pas disponible pour la destination sélectionnée."
+
+        if field_name == "recipient_contact":
+            if shipper_has_errors:
+                return f"{prefix}: l'expéditeur sélectionné n'est pas valide."
+            if shipper is None:
+                return f"{prefix}: sélectionnez d'abord un expéditeur valide."
+            if not filter_recipients_for_shipper(
+                Contact.objects.filter(pk=contact.pk),
+                shipper,
+            ).exists():
+                return f"{prefix}: ce destinataire n'est pas lié à l'expéditeur sélectionné."
+
+        if (
+            field_name == "correspondent_contact"
+            and destination
+            and destination.correspondent_contact_id
+            and contact.id != destination.correspondent_contact_id
+        ):
+            return f"{prefix}: ce correspondant n'est pas lié à la destination sélectionnée."
+
+        return f"{prefix}: ce choix n'est plus disponible."
+
+    def _apply_invalid_choice_messages(self, *, destination, shipper):
+        if self._has_invalid_choice_error("destination"):
+            self._replace_invalid_choice_error(
+                "destination",
+                self._invalid_destination_message(self._raw_field_value("destination")),
+            )
+
+        shipper_has_invalid_choice = self._has_invalid_choice_error("shipper_contact")
+        if shipper_has_invalid_choice:
+            self._replace_invalid_choice_error(
+                "shipper_contact",
+                self._invalid_contact_message(
+                    field_name="shipper_contact",
+                    raw_value=self._raw_field_value("shipper_contact"),
+                    destination=destination,
+                    shipper=None,
+                ),
+            )
+
+        shipper_for_recipient = shipper
+        if shipper_for_recipient is None:
+            shipper_for_recipient = self._resolve_contact_from_raw(
+                self._raw_field_value("shipper_contact")
+            )
+        if self._has_invalid_choice_error("recipient_contact"):
+            self._replace_invalid_choice_error(
+                "recipient_contact",
+                self._invalid_contact_message(
+                    field_name="recipient_contact",
+                    raw_value=self._raw_field_value("recipient_contact"),
+                    destination=destination,
+                    shipper=shipper_for_recipient,
+                    shipper_has_errors=shipper_has_invalid_choice,
+                ),
+            )
+
+        if self._has_invalid_choice_error("correspondent_contact"):
+            self._replace_invalid_choice_error(
+                "correspondent_contact",
+                self._invalid_contact_message(
+                    field_name="correspondent_contact",
+                    raw_value=self._raw_field_value("correspondent_contact"),
+                    destination=destination,
+                    shipper=None,
+                ),
+            )
+
     def clean(self):
         cleaned = super().clean()
         destination = cleaned.get("destination")
         shipper = cleaned.get("shipper_contact")
         recipient = cleaned.get("recipient_contact")
         correspondent = cleaned.get("correspondent_contact")
+        self._apply_invalid_choice_messages(destination=destination, shipper=shipper)
         if destination and shipper and not filter_contacts_for_destination(
             Contact.objects.filter(pk=shipper.pk),
             destination,

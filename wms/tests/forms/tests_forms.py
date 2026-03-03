@@ -624,6 +624,128 @@ class FormsTests(TestCase):
             form.errors["correspondent_contact"], ["Correspondant non lie a la destination."]
         )
 
+    def test_scan_shipment_form_invalid_choice_explains_recipient_person_without_organization(
+        self,
+    ):
+        correspondent = self._create_contact("Corr Invalid Recipient")
+        correspondent_tag = ContactTag.objects.create(name="correspondant")
+        correspondent.tags.add(correspondent_tag)
+        destination = Destination.objects.create(
+            city="Lome",
+            iata_code="LFW-INV",
+            country="Togo",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        shipper_tag = ContactTag.objects.create(name="expediteur")
+        shipper = self._create_contact("Shipper Valid")
+        shipper.tags.add(shipper_tag)
+        shipper.destinations.add(destination)
+        recipient_tag = ContactTag.objects.create(name="destinataire")
+        recipient_without_org = Contact.objects.create(
+            name="Recipient Person",
+            contact_type=ContactType.PERSON,
+            first_name="Lea",
+            last_name="Martin",
+            is_active=True,
+        )
+        recipient_without_org.tags.add(recipient_tag)
+        recipient_without_org.destinations.add(destination)
+        recipient_without_org.linked_shippers.add(shipper)
+
+        form = ScanShipmentForm(
+            data={
+                "destination": str(destination.id),
+                "shipper_contact": str(shipper.id),
+                "recipient_contact": str(recipient_without_org.id),
+                "correspondent_contact": str(correspondent.id),
+                "carton_count": "1",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(
+            form.errors["recipient_contact"],
+            ["Destinataire invalide: ce contact est un particulier sans organisation."],
+        )
+
+    def test_scan_shipment_form_invalid_choice_explains_recipient_not_linked_to_shipper(self):
+        correspondent = self._create_contact("Corr Invalid Link")
+        correspondent_tag = ContactTag.objects.create(name="correspondant")
+        correspondent.tags.add(correspondent_tag)
+        destination = Destination.objects.create(
+            city="Douala",
+            iata_code="DLA-INV",
+            country="Cameroun",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        shipper_tag = ContactTag.objects.create(name="expediteur")
+        shipper_a = self._create_contact("Shipper A Invalid Link")
+        shipper_a.tags.add(shipper_tag)
+        shipper_a.destinations.add(destination)
+        shipper_b = self._create_contact("Shipper B Invalid Link")
+        shipper_b.tags.add(shipper_tag)
+        shipper_b.destinations.add(destination)
+        recipient_tag = ContactTag.objects.create(name="destinataire")
+        recipient = self._create_contact("Recipient Invalid Link")
+        recipient.tags.add(recipient_tag)
+        recipient.destinations.add(destination)
+        recipient.linked_shippers.add(shipper_b)
+
+        form = ScanShipmentForm(
+            data={
+                "destination": str(destination.id),
+                "shipper_contact": str(shipper_a.id),
+                "recipient_contact": str(recipient.id),
+                "correspondent_contact": str(correspondent.id),
+                "carton_count": "1",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(
+            form.errors["recipient_contact"],
+            ["Destinataire invalide: ce destinataire n'est pas lié à l'expéditeur sélectionné."],
+        )
+
+    def test_scan_shipment_form_invalid_choice_explains_shipper_outside_destination_scope(self):
+        correspondent = self._create_contact("Corr Invalid Shipper")
+        correspondent_tag = ContactTag.objects.create(name="correspondant")
+        correspondent.tags.add(correspondent_tag)
+        destination = Destination.objects.create(
+            city="Paris",
+            iata_code="CDG-INV",
+            country="France",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        other_destination = Destination.objects.create(
+            city="Lyon",
+            iata_code="LYS-INV",
+            country="France",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        shipper_tag = ContactTag.objects.create(name="expediteur")
+        shipper_wrong_scope = self._create_contact("Shipper Wrong Scope")
+        shipper_wrong_scope.tags.add(shipper_tag)
+        shipper_wrong_scope.destinations.add(other_destination)
+
+        form = ScanShipmentForm(
+            data={
+                "destination": str(destination.id),
+                "shipper_contact": str(shipper_wrong_scope.id),
+                "carton_count": "1",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(
+            form.errors["shipper_contact"],
+            ["Expéditeur invalide: ce contact n'est pas disponible pour la destination sélectionnée."],
+        )
+
     def test_shipment_tracking_form_uses_first_choice_for_unknown_initial(self):
         form = ShipmentTrackingForm(initial_status="unknown-status")
 
