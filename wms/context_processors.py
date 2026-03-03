@@ -83,7 +83,7 @@ def _resolve_design_tokens():
 
 
 def _resolve_scan_bootstrap_enabled():
-    fallback = bool(getattr(settings, "SCAN_BOOTSTRAP_ENABLED", False))
+    fallback = bool(getattr(settings, "SCAN_BOOTSTRAP_ENABLED", True))
     try:
         runtime = get_runtime_settings_instance()
     except (ProgrammingError, OperationalError):

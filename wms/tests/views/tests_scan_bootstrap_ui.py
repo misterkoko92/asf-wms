@@ -62,6 +62,11 @@ class ScanBootstrapUiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.context["scan_bootstrap_enabled"])
 
+    def test_scan_context_exposes_bootstrap_flag_enabled_by_default(self):
+        response = self.client.get(reverse("scan:scan_stock"))
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["scan_bootstrap_enabled"])
+
     @override_settings(SCAN_BOOTSTRAP_ENABLED=False)
     def test_scan_base_does_not_include_bootstrap_assets_when_disabled(self):
         response = self.client.get(reverse("scan:scan_stock"))

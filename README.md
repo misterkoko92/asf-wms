@@ -123,7 +123,7 @@ Notes:
 - `INTEGRATION_API_KEY` (optional, for integration endpoints)
 - `ACCOUNT_REQUEST_THROTTLE_SECONDS` (optional, default `300`)
 - `PUBLIC_ORDER_THROTTLE_SECONDS` (optional, default `300`)
-- `SCAN_BOOTSTRAP_ENABLED` (optional, default `false`, état Bootstrap initial/fallback; pilotable ensuite via `scan/admin/design/`)
+- `SCAN_BOOTSTRAP_ENABLED` (optional, default `true`, Bootstrap actif par défaut; pilotable ensuite via `scan/admin/design/`)
 - MySQL (optional): `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_ENGINE`
   - If `DB_NAME` is set, Django uses MySQL; otherwise it uses SQLite.
 
@@ -147,13 +147,13 @@ export IMPORT_DEFAULT_PASSWORD="TempPWD!"
 export INTEGRATION_API_KEY="change-me"
 export ACCOUNT_REQUEST_THROTTLE_SECONDS="300"
 export PUBLIC_ORDER_THROTTLE_SECONDS="300"
-export SCAN_BOOTSTRAP_ENABLED="false"
+export SCAN_BOOTSTRAP_ENABLED="true"
 ```
 
 ## Scan Bootstrap rollout
 - Feature flag: `SCAN_BOOTSTRAP_ENABLED`.
-- `false`: interface scan legacy inchangée.
 - `true`: Bootstrap 5.3.3 (CSS + bundle JS via CDN jsDelivr) + pont de styles local `scan-bootstrap.css`.
+- `false`: rollback immédiat vers l'interface legacy.
 - Le switch superuser `scan/admin/design/` permet désormais d'activer/désactiver Bootstrap globalement (scan, portal, home/login et templates admin personnalisés) sans redéploiement.
 - Routes pilotes à vérifier en priorité: `/scan/stock/` et `/scan/shipment/create/`.
 
