@@ -497,7 +497,7 @@
       <div class="scan-choice-modal">
         <div class="scan-choice-header">
           <strong>Selection produit</strong>
-          <button type="button" class="scan-choice-close">Fermer</button>
+          <button type="button" class="scan-choice-close btn-tertiary">Fermer</button>
         </div>
         <div class="scan-choice-status" id="scan-ocr-status"></div>
         <div class="scan-choice-raw" id="scan-ocr-raw"></div>
