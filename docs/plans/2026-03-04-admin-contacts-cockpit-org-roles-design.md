@@ -158,6 +158,20 @@ Chaque commande est transactionnelle et renvoie des messages explicites.
 3. V3: scopes shipper + bindings recipient.
 4. V4: creation guidee + retrait final du legacy.
 
+## Etat implementation (2026-03-04)
+
+- V1 a V4 implementees sur la branche `codex/admin-contacts-cockpit`.
+- Les actions cockpit couvertes:
+1. roles organisation (`assign_role`, `unassign_role`),
+2. contacts organisation (`upsert_org_contact`, `link_role_contact`, `unlink_role_contact`, `set_primary_role_contact`),
+3. scopes expediteur (`upsert_shipper_scope`, `disable_shipper_scope`),
+4. bindings destinataire (`upsert_recipient_binding`, `close_recipient_binding`),
+5. creation guidee (`create_guided_contact`).
+- Gate legacy actif:
+1. quand `legacy_contact_write_enabled=False`, `create_contact`, `update_contact`, `delete_contact` sont bloques dans la vue,
+2. les formulaires legacy sont masques dans le template,
+3. les liens admin Django restent accessibles en panneau de secours.
+
 ## Strategie de test
 
 - Tests vue/permissions/filtres sur `scan_admin_contacts`.
