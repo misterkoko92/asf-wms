@@ -26,6 +26,7 @@ from .product_label_printing import (
 from .scan_admin_contacts_cockpit import (
     ACTION_ASSIGN_ROLE,
     ACTION_CLOSE_RECIPIENT_BINDING,
+    ACTION_CREATE_GUIDED_CONTACT,
     ACTION_DISABLE_SHIPPER_SCOPE,
     ACTION_LINK_ROLE_CONTACT,
     ACTION_SET_PRIMARY_ROLE_CONTACT,
@@ -37,6 +38,7 @@ from .scan_admin_contacts_cockpit import (
     assign_role,
     build_cockpit_context,
     close_recipient_binding,
+    create_guided_contact,
     disable_shipper_scope,
     link_role_contact,
     parse_cockpit_filters,
@@ -529,6 +531,13 @@ def scan_admin_contacts(request):
             return _build_contacts_redirect(query=query, contact_filter=contact_filter)
         elif action == ACTION_CLOSE_RECIPIENT_BINDING:
             ok, message = close_recipient_binding(data=request.POST)
+            if ok:
+                messages.success(request, message)
+            else:
+                messages.error(request, message)
+            return _build_contacts_redirect(query=query, contact_filter=contact_filter)
+        elif action == ACTION_CREATE_GUIDED_CONTACT:
+            ok, message = create_guided_contact(data=request.POST)
             if ok:
                 messages.success(request, message)
             else:

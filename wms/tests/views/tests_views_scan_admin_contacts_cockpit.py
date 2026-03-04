@@ -542,3 +542,59 @@ class ScanAdminContactsCockpitViewTests(TestCase):
                 valid_from__year=2030,
             ).exists()
         )
+
+    def test_create_guided_contact_creates_organization_and_role_assignment(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.post(
+            reverse("scan:scan_admin_contacts"),
+            {
+                "action": "create_guided_contact",
+                "entity_kind": "organization",
+                "organization_name": "Guided Org",
+                "role": OrganizationRole.SHIPPER,
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        organization = Contact.objects.filter(
+            name="Guided Org",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        ).first()
+        self.assertIsNotNone(organization)
+        self.assertTrue(
+            OrganizationRoleAssignment.objects.filter(
+                organization=organization,
+                role=OrganizationRole.SHIPPER,
+            ).exists()
+        )
+
+    def test_create_guided_contact_creates_person_linked_to_existing_org(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.post(
+            reverse("scan:scan_admin_contacts"),
+            {
+                "action": "create_guided_contact",
+                "entity_kind": "person",
+                "organization_id": str(self.other_org.id),
+                "first_name": "Aya",
+                "last_name": "Diallo",
+                "email": "aya.diallo@example.org",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(
+            Contact.objects.filter(
+                contact_type=ContactType.PERSON,
+                organization=self.other_org,
+                first_name="Aya",
+                last_name="Diallo",
+                email="aya.diallo@example.org",
+                is_active=True,
+            ).exists()
+        )

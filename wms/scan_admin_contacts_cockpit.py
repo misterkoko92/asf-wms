@@ -8,6 +8,7 @@ from django.utils import timezone
 from contacts.models import Contact, ContactType
 
 from .forms_scan_admin_contacts_cockpit import (
+    GuidedContactCreateForm,
     OrganizationContactUpsertForm,
     RecipientBindingCloseForm,
     RecipientBindingUpsertForm,
@@ -37,6 +38,7 @@ ACTION_UPSERT_SHIPPER_SCOPE = "upsert_shipper_scope"
 ACTION_DISABLE_SHIPPER_SCOPE = "disable_shipper_scope"
 ACTION_UPSERT_RECIPIENT_BINDING = "upsert_recipient_binding"
 ACTION_CLOSE_RECIPIENT_BINDING = "close_recipient_binding"
+ACTION_CREATE_GUIDED_CONTACT = "create_guided_contact"
 
 
 def parse_cockpit_filters(*, role: str = "", shipper_org_id: str = "") -> dict:
@@ -380,6 +382,55 @@ def close_recipient_binding(*, data) -> tuple[bool, str]:
     except ValidationError as exc:
         return False, _validation_message(exc)
     return True, "Binding destinataire cloture."
+
+
+def create_guided_contact(*, data) -> tuple[bool, str]:
+    form = GuidedContactCreateForm(data)
+    if not form.is_valid():
+        return False, "Donnees de creation guidee invalides."
+
+    entity_kind = form.cleaned_data["entity_kind"]
+    role = _normalize_role(form.cleaned_data.get("role") or "")
+    is_active = form.cleaned_data.get("is_active")
+    if "is_active" not in form.data:
+        is_active = True
+
+    if entity_kind == "organization":
+        organization = Contact.objects.create(
+            contact_type=ContactType.ORGANIZATION,
+            name=(form.cleaned_data.get("organization_name") or "").strip(),
+            email=(form.cleaned_data.get("email") or "").strip(),
+            phone=(form.cleaned_data.get("phone") or "").strip(),
+            is_active=is_active,
+        )
+        if role:
+            OrganizationRoleAssignment.objects.get_or_create(
+                organization=organization,
+                role=role,
+                defaults={"is_active": False},
+            )
+        return True, "Organisation creee."
+
+    organization = _resolve_active_organization(form.cleaned_data.get("organization_id"))
+    if organization is None:
+        return False, "Organisation invalide."
+    person = Contact.objects.create(
+        contact_type=ContactType.PERSON,
+        organization=organization,
+        name=(form.cleaned_data.get("name") or "").strip(),
+        first_name=(form.cleaned_data.get("first_name") or "").strip(),
+        last_name=(form.cleaned_data.get("last_name") or "").strip(),
+        email=(form.cleaned_data.get("email") or "").strip(),
+        phone=(form.cleaned_data.get("phone") or "").strip(),
+        is_active=is_active,
+    )
+    if role:
+        OrganizationRoleAssignment.objects.get_or_create(
+            organization=organization,
+            role=role,
+            defaults={"is_active": False},
+        )
+    return True, f"Contact {person.name} cree."
 
 
 def _build_organizations_queryset(*, query: str, filters: dict):
