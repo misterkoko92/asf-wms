@@ -5,6 +5,12 @@ from contacts.destination_scope import contact_destination_ids
 from contacts.querysets import contacts_with_tags
 
 from ..contact_filters import TAG_CORRESPONDENT, TAG_RECIPIENT, TAG_SHIPPER
+from ..organization_role_resolvers import (
+    OrganizationRoleResolutionError,
+    is_org_roles_engine_enabled,
+    resolve_recipient_binding_for_operation,
+    resolve_shipper_for_operation,
+)
 from .stock import (
     StockConsumeResult,
     StockError,
@@ -167,6 +173,27 @@ def _build_shipment_defaults_from_order(order: Order):
         shipper_contact=shipper_contact,
         recipient_contact=recipient_contact,
     )
+
+    if is_org_roles_engine_enabled():
+        if shipper_contact is None:
+            raise StockError("Expediteur requis.")
+        if recipient_contact is None:
+            raise StockError("Destinataire requis.")
+        if destination is None:
+            raise StockError("Escale requise.")
+        try:
+            resolve_shipper_for_operation(
+                shipper_org=shipper_contact,
+                destination=destination,
+            )
+            resolve_recipient_binding_for_operation(
+                shipper_org=shipper_contact,
+                recipient_org=recipient_contact,
+                destination=destination,
+            )
+        except OrganizationRoleResolutionError as exc:
+            raise StockError(str(exc)) from exc
+
     correspondent_contact = _resolve_correspondent_contact_for_order(
         order,
         destination=destination,

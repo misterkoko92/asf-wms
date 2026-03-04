@@ -2,7 +2,14 @@ from django.contrib import messages
 from django.shortcuts import redirect
 from django.urls import reverse
 
-from .models import Order, OrderStatus
+from .models import Destination, Order, OrderStatus
+from .organization_role_resolvers import (
+    OrganizationRoleResolutionError,
+    is_legacy_contact_write_enabled,
+    is_org_roles_engine_enabled,
+    resolve_recipient_binding_for_operation,
+    resolve_shipper_for_operation,
+)
 from .scan_helpers import resolve_product
 from .services import (
     StockError,
@@ -37,6 +44,57 @@ def handle_order_action(
         shipper_contact = create_form.cleaned_data["shipper_contact"]
         recipient_contact = create_form.cleaned_data["recipient_contact"]
         correspondent_contact = create_form.cleaned_data["correspondent_contact"]
+
+        if not is_legacy_contact_write_enabled():
+            create_form.add_error(
+                None,
+                "Les ecritures legacy contacts sont desactivees.",
+            )
+            return None, None, None
+
+        if is_org_roles_engine_enabled():
+            if shipper_contact is None:
+                create_form.add_error("shipper_contact", "Expediteur requis.")
+            if recipient_contact is None:
+                create_form.add_error("recipient_contact", "Destinataire requis.")
+
+            destination = None
+            destination_city = (create_form.cleaned_data.get("destination_city") or "").strip()
+            destination_country = (
+                (create_form.cleaned_data.get("destination_country") or "").strip()
+            )
+            if destination_city:
+                destination_qs = Destination.objects.filter(
+                    is_active=True,
+                    city__iexact=destination_city,
+                )
+                if destination_country:
+                    destination_qs = destination_qs.filter(
+                        country__iexact=destination_country
+                    )
+                destination = destination_qs.order_by("id").first()
+            if destination is None:
+                create_form.add_error(
+                    "destination_city",
+                    "Escale invalide pour le mode organization roles.",
+                )
+
+            if not create_form.errors:
+                try:
+                    resolve_shipper_for_operation(
+                        shipper_org=shipper_contact,
+                        destination=destination,
+                    )
+                    resolve_recipient_binding_for_operation(
+                        shipper_org=shipper_contact,
+                        recipient_org=recipient_contact,
+                        destination=destination,
+                    )
+                except OrganizationRoleResolutionError as exc:
+                    create_form.add_error(None, str(exc))
+            if create_form.errors:
+                return None, None, None
+
         order = Order.objects.create(
             reference="",
             status=OrderStatus.DRAFT,

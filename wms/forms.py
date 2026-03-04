@@ -15,6 +15,15 @@ from .contact_filters import (
     filter_recipients_for_shipper,
 )
 from .contact_labels import build_contact_select_label
+from .organization_role_resolvers import (
+    OrganizationRoleResolutionError,
+    eligible_recipients_for_shipper_destination,
+    eligible_shippers_for_destination,
+    is_org_roles_engine_enabled,
+    is_legacy_contact_write_enabled,
+    resolve_recipient_binding_for_operation,
+    resolve_shipper_for_operation,
+)
 from .scan_helpers import resolve_product
 from .models import (
     Carton,
@@ -431,14 +440,18 @@ class ScanShipmentForm(forms.Form):
             destinations=destinations,
             destination_id=destination_id,
         )
-        shipper_contacts = filter_structure_contacts(contacts_with_tags(TAG_SHIPPER))
-        if selected_destination:
-            shipper_contacts = filter_contacts_for_destination(
-                shipper_contacts,
-                selected_destination,
-            )
+        org_roles_engine_enabled = is_org_roles_engine_enabled()
+        if org_roles_engine_enabled:
+            shipper_contacts = eligible_shippers_for_destination(selected_destination)
         else:
-            shipper_contacts = shipper_contacts.none()
+            shipper_contacts = filter_structure_contacts(contacts_with_tags(TAG_SHIPPER))
+            if selected_destination:
+                shipper_contacts = filter_contacts_for_destination(
+                    shipper_contacts,
+                    selected_destination,
+                )
+            else:
+                shipper_contacts = shipper_contacts.none()
         self.fields["shipper_contact"].queryset = shipper_contacts.order_by("name")
         self.fields["shipper_contact"].label_from_instance = build_contact_select_label
         selected_shipper = self._resolve_selected_shipper()
@@ -447,12 +460,18 @@ class ScanShipmentForm(forms.Form):
         correspondents = contacts_with_tags(TAG_CORRESPONDENT)
 
         if selected_shipper:
-            recipients = filter_recipients_for_shipper(recipients, selected_shipper)
-            if selected_destination:
-                recipients = filter_contacts_for_destination(
-                    recipients,
-                    selected_destination,
+            if org_roles_engine_enabled:
+                recipients = eligible_recipients_for_shipper_destination(
+                    shipper_org=selected_shipper,
+                    destination=selected_destination,
                 )
+            else:
+                recipients = filter_recipients_for_shipper(recipients, selected_shipper)
+                if selected_destination:
+                    recipients = filter_contacts_for_destination(
+                        recipients,
+                        selected_destination,
+                    )
         else:
             recipients = recipients.none()
 
@@ -737,6 +756,25 @@ class ScanShipmentForm(forms.Form):
                     "correspondent_contact",
                     "Correspondant non lie a la destination.",
                 )
+
+        if is_org_roles_engine_enabled():
+            if shipper:
+                try:
+                    resolve_shipper_for_operation(
+                        shipper_org=shipper,
+                        destination=destination,
+                    )
+                except OrganizationRoleResolutionError as exc:
+                    self.add_error("shipper_contact", str(exc))
+            if shipper and recipient:
+                try:
+                    resolve_recipient_binding_for_operation(
+                        shipper_org=shipper,
+                        recipient_org=recipient,
+                        destination=destination,
+                    )
+                except OrganizationRoleResolutionError as exc:
+                    self.add_error("recipient_contact", str(exc))
         return cleaned
 
 
@@ -827,6 +865,14 @@ class ScanOrderCreateForm(forms.Form):
         widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
     )
     notes = forms.CharField(label="Notes", required=False, widget=forms.Textarea(attrs={"rows": 3}))
+
+    def clean(self):
+        cleaned = super().clean()
+        if not is_legacy_contact_write_enabled():
+            raise forms.ValidationError(
+                "Les ecritures legacy contacts sont desactivees."
+            )
+        return cleaned
 
 
 class ScanOrderLineForm(forms.Form):

@@ -1,0 +1,205 @@
+from django.test import TestCase
+
+from contacts.models import Contact, ContactTag, ContactType
+from wms.forms import ScanOrderCreateForm, ScanShipmentForm
+from wms.models import (
+    Destination,
+    DocumentRequirementTemplate,
+    OrganizationContact,
+    OrganizationRole,
+    OrganizationRoleAssignment,
+    OrganizationRoleContact,
+    RecipientBinding,
+    ShipperScope,
+    WmsRuntimeSettings,
+)
+
+
+class FormsOrgRolesGateTests(TestCase):
+    def _create_org(self, name: str) -> Contact:
+        return Contact.objects.create(
+            name=name,
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+
+    def _create_destination(self, iata: str, correspondent: Contact) -> Destination:
+        return Destination.objects.create(
+            city=f"City {iata}",
+            iata_code=iata,
+            country="Country",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+
+    def test_scan_order_create_form_blocks_legacy_mode_when_write_disabled(self):
+        runtime = WmsRuntimeSettings.get_solo()
+        runtime.legacy_contact_write_enabled = False
+        runtime.save(update_fields=["legacy_contact_write_enabled"])
+
+        form = ScanOrderCreateForm(
+            data={
+                "shipper_name": "Shipper",
+                "recipient_name": "Recipient",
+                "correspondent_name": "",
+                "shipper_contact": "",
+                "recipient_contact": "",
+                "correspondent_contact": "",
+                "destination_address": "1 Rue Test",
+                "destination_city": "Bamako",
+                "destination_country": "Mali",
+                "requested_delivery_date": "",
+                "notes": "",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertTrue(
+            any("legacy" in error.lower() for error in form.non_field_errors())
+        )
+
+    def test_scan_shipment_form_filters_recipients_from_bindings_when_engine_enabled(self):
+        runtime = WmsRuntimeSettings.get_solo()
+        runtime.org_roles_engine_enabled = True
+        runtime.save(update_fields=["org_roles_engine_enabled"])
+
+        correspondent = self._create_org("Correspondent")
+        correspondent_tag, _ = ContactTag.objects.get_or_create(name="correspondant")
+        correspondent.tags.add(correspondent_tag)
+
+        destination = self._create_destination("BKO", correspondent)
+        shipper = self._create_org("Shipper")
+        recipient_allowed = self._create_org("Recipient Allowed")
+        recipient_blocked = self._create_org("Recipient Blocked")
+
+        shipper_assignment = OrganizationRoleAssignment.objects.create(
+            organization=shipper,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
+        OrganizationRoleAssignment.objects.create(
+            organization=recipient_allowed,
+            role=OrganizationRole.RECIPIENT,
+            is_active=True,
+        )
+        OrganizationRoleAssignment.objects.create(
+            organization=recipient_blocked,
+            role=OrganizationRole.RECIPIENT,
+            is_active=True,
+        )
+        ShipperScope.objects.create(
+            role_assignment=shipper_assignment,
+            destination=destination,
+            all_destinations=False,
+            is_active=True,
+        )
+        RecipientBinding.objects.create(
+            shipper_org=shipper,
+            recipient_org=recipient_allowed,
+            destination=destination,
+            is_active=True,
+        )
+
+        form = ScanShipmentForm(
+            destination_id=str(destination.id),
+            initial={"shipper_contact": str(shipper.id)},
+        )
+
+        recipient_ids = set(
+            form.fields["recipient_contact"].queryset.values_list("id", flat=True)
+        )
+        self.assertIn(shipper.id, form.fields["shipper_contact"].queryset.values_list("id", flat=True))
+        self.assertIn(recipient_allowed.id, recipient_ids)
+        self.assertNotIn(recipient_blocked.id, recipient_ids)
+
+    def test_scan_shipment_form_blocks_recipient_pending_review_or_non_compliant(self):
+        runtime = WmsRuntimeSettings.get_solo()
+        runtime.org_roles_engine_enabled = True
+        runtime.save(update_fields=["org_roles_engine_enabled"])
+
+        correspondent = self._create_org("Correspondent DLA")
+        correspondent_tag, _ = ContactTag.objects.get_or_create(name="correspondant")
+        correspondent.tags.add(correspondent_tag)
+        destination = self._create_destination("DLA", correspondent)
+
+        shipper = self._create_org("Shipper DLA")
+        recipient = self._create_org("Recipient DLA")
+
+        shipper_assignment = OrganizationRoleAssignment.objects.create(
+            organization=shipper,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
+        recipient_assignment = OrganizationRoleAssignment.objects.create(
+            organization=recipient,
+            role=OrganizationRole.RECIPIENT,
+            is_active=False,
+        )
+        ShipperScope.objects.create(
+            role_assignment=shipper_assignment,
+            destination=destination,
+            all_destinations=False,
+            is_active=True,
+        )
+        RecipientBinding.objects.create(
+            shipper_org=shipper,
+            recipient_org=recipient,
+            destination=destination,
+            is_active=True,
+        )
+
+        form_pending = ScanShipmentForm(
+            data={
+                "destination": str(destination.id),
+                "shipper_contact": str(shipper.id),
+                "recipient_contact": str(recipient.id),
+                "correspondent_contact": str(correspondent.id),
+                "carton_count": "1",
+            },
+            destination_id=str(destination.id),
+        )
+        self.assertFalse(form_pending.is_valid())
+        self.assertTrue(
+            any("revue" in error.lower() for error in form_pending.errors.get("recipient_contact", []))
+        )
+
+        recipient_primary_contact = OrganizationContact.objects.create(
+            organization=recipient,
+            first_name="Recipient",
+            last_name="Primary",
+            email="recipient-primary@example.org",
+            is_active=True,
+        )
+        OrganizationRoleContact.objects.create(
+            role_assignment=recipient_assignment,
+            contact=recipient_primary_contact,
+            is_primary=True,
+            is_active=True,
+        )
+        recipient_assignment.is_active = True
+        recipient_assignment.save(update_fields=["is_active"])
+        DocumentRequirementTemplate.objects.create(
+            role=OrganizationRole.RECIPIENT,
+            code="recipient-legal-doc",
+            label="Doc recipient",
+            is_required=True,
+            is_active=True,
+        )
+
+        form_non_compliant = ScanShipmentForm(
+            data={
+                "destination": str(destination.id),
+                "shipper_contact": str(shipper.id),
+                "recipient_contact": str(recipient.id),
+                "correspondent_contact": str(correspondent.id),
+                "carton_count": "1",
+            },
+            destination_id=str(destination.id),
+        )
+        self.assertFalse(form_non_compliant.is_valid())
+        self.assertTrue(
+            any(
+                "conforme" in error.lower() or "document" in error.lower()
+                for error in form_non_compliant.errors.get("recipient_contact", [])
+            )
+        )

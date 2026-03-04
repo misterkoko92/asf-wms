@@ -1,10 +1,15 @@
 from contacts.models import Contact, ContactAddress, ContactTag
 
 from .contact_filters import TAG_SHIPPER
+from .organization_role_resolvers import is_legacy_contact_write_enabled
 from .scan_helpers import parse_int
+from .services import StockError
 
 
 def upsert_public_order_contact(form_data):
+    if not is_legacy_contact_write_enabled():
+        raise StockError("Les ecritures legacy contacts sont desactivees.")
+
     contact_id = parse_int(form_data.get("association_contact_id"))
     contact = None
     if contact_id:

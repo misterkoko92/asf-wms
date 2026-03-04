@@ -7,6 +7,11 @@ from django.shortcuts import redirect
 from django.urls import reverse
 
 from .carton_status_events import set_carton_status
+from .organization_role_resolvers import (
+    OrganizationRoleResolutionError,
+    resolve_recipient_binding_for_operation,
+    resolve_shipper_for_operation,
+)
 from .models import (
     Carton,
     CartonStatus,
@@ -17,6 +22,7 @@ from .models import (
 from .services import StockError, pack_carton, pack_carton_from_reserved
 from .shipment_helpers import build_destination_label, parse_shipment_lines
 from .shipment_status import sync_shipment_ready_state
+from .runtime_settings import get_runtime_config
 
 LOCKED_SHIPMENT_STATUSES = {
     ShipmentStatus.PLANNED,
@@ -97,6 +103,23 @@ def _related_order_for_shipment(shipment):
         return None
 
 
+def _validate_org_role_selection(*, shipper_contact, recipient_contact, destination):
+    if not get_runtime_config().org_roles_engine_enabled:
+        return
+    try:
+        resolve_shipper_for_operation(
+            shipper_org=shipper_contact,
+            destination=destination,
+        )
+        resolve_recipient_binding_for_operation(
+            shipper_org=shipper_contact,
+            recipient_org=recipient_contact,
+            destination=destination,
+        )
+    except OrganizationRoleResolutionError as exc:
+        raise StockError(str(exc)) from exc
+
+
 def _handle_shipment_save_draft_post(request, *, form, redirect_to_pack=False):
     destination_value = (form.data.get("destination") or "").strip()
     if not destination_value:
@@ -133,6 +156,16 @@ def _handle_shipment_save_draft_post(request, *, form, redirect_to_pack=False):
             "correspondent_contact",
             "Contact non disponible pour cette destination.",
         )
+        return None
+
+    try:
+        _validate_org_role_selection(
+            shipper_contact=shipper_contact,
+            recipient_contact=recipient_contact,
+            destination=destination,
+        )
+    except StockError as exc:
+        form.add_error(None, str(exc))
         return None
 
     destination_label = build_destination_label(destination)
@@ -199,6 +232,11 @@ def handle_shipment_create_post(request, *, form, available_carton_ids):
                 shipper_contact = form.cleaned_data["shipper_contact"]
                 recipient_contact = form.cleaned_data["recipient_contact"]
                 correspondent_contact = form.cleaned_data["correspondent_contact"]
+                _validate_org_role_selection(
+                    shipper_contact=shipper_contact,
+                    recipient_contact=recipient_contact,
+                    destination=destination,
+                )
                 destination_label = build_destination_label(destination)
                 shipment = Shipment.objects.create(
                     status=ShipmentStatus.DRAFT,
@@ -286,6 +324,11 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
                 shipper_contact = form.cleaned_data["shipper_contact"]
                 recipient_contact = form.cleaned_data["recipient_contact"]
                 correspondent_contact = form.cleaned_data["correspondent_contact"]
+                _validate_org_role_selection(
+                    shipper_contact=shipper_contact,
+                    recipient_contact=recipient_contact,
+                    destination=destination,
+                )
                 destination_label = build_destination_label(destination)
 
                 shipment.destination = destination

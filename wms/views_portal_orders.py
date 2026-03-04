@@ -26,6 +26,12 @@ from .order_helpers import (
     build_order_product_rows,
     split_ready_rows_into_kits,
 )
+from .organization_role_resolvers import (
+    OrganizationRoleResolutionError,
+    is_org_roles_engine_enabled,
+    resolve_recipient_binding_for_operation,
+    resolve_shipper_for_operation,
+)
 from .order_notifications import send_portal_order_notifications
 from .portal_helpers import (
     build_destination_address,
@@ -567,6 +573,26 @@ def portal_order_create(request):
             errors,
             selected_destination=selected_destination,
         )
+
+        if (
+            not errors
+            and not line_errors
+            and not ready_carton_line_errors
+            and not ready_kit_line_errors
+        ):
+            if is_org_roles_engine_enabled():
+                try:
+                    resolve_shipper_for_operation(
+                        shipper_org=profile.contact,
+                        destination=selected_destination,
+                    )
+                    resolve_recipient_binding_for_operation(
+                        shipper_org=profile.contact,
+                        recipient_org=destination["recipient_contact"],
+                        destination=selected_destination,
+                    )
+                except OrganizationRoleResolutionError as exc:
+                    errors.append(str(exc))
 
         if (
             not errors
