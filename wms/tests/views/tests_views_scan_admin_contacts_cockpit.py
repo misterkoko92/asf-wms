@@ -179,3 +179,185 @@ class ScanAdminContactsCockpitViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         assignment.refresh_from_db()
         self.assertFalse(assignment.is_active)
+
+    def test_upsert_org_contact_creates_new_contact(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.post(
+            reverse("scan:scan_admin_contacts"),
+            {
+                "action": "upsert_org_contact",
+                "organization_id": str(self.other_org.id),
+                "first_name": "Aya",
+                "last_name": "Diallo",
+                "email": "aya.diallo@example.org",
+                "phone": "+22370000000",
+                "is_active": "1",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(
+            OrganizationContact.objects.filter(
+                organization=self.other_org,
+                first_name="Aya",
+                last_name="Diallo",
+                email="aya.diallo@example.org",
+                is_active=True,
+            ).exists()
+        )
+
+    def test_link_role_contact_rejects_contact_from_other_org(self):
+        self.client.force_login(self.superuser)
+        assignment = OrganizationRoleAssignment.objects.create(
+            organization=self.other_org,
+            role=OrganizationRole.SHIPPER,
+            is_active=False,
+        )
+        external_contact = OrganizationContact.objects.create(
+            organization=self.shipper,
+            first_name="External",
+            last_name="Contact",
+            email="external@example.org",
+            is_active=True,
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_admin_contacts"),
+            {
+                "action": "link_role_contact",
+                "role_assignment_id": str(assignment.id),
+                "organization_contact_id": str(external_contact.id),
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "meme organisation")
+        self.assertFalse(
+            OrganizationRoleContact.objects.filter(
+                role_assignment=assignment,
+                contact=external_contact,
+            ).exists()
+        )
+
+    def test_link_role_contact_creates_active_link(self):
+        self.client.force_login(self.superuser)
+        assignment = OrganizationRoleAssignment.objects.create(
+            organization=self.other_org,
+            role=OrganizationRole.SHIPPER,
+            is_active=False,
+        )
+        org_contact = OrganizationContact.objects.create(
+            organization=self.other_org,
+            first_name="Link",
+            last_name="Contact",
+            email="link@example.org",
+            is_active=True,
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_admin_contacts"),
+            {
+                "action": "link_role_contact",
+                "role_assignment_id": str(assignment.id),
+                "organization_contact_id": str(org_contact.id),
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(
+            OrganizationRoleContact.objects.filter(
+                role_assignment=assignment,
+                contact=org_contact,
+                is_active=True,
+            ).exists()
+        )
+
+    def test_set_primary_role_contact_switches_primary_contact(self):
+        self.client.force_login(self.superuser)
+        assignment = OrganizationRoleAssignment.objects.create(
+            organization=self.other_org,
+            role=OrganizationRole.SHIPPER,
+            is_active=False,
+        )
+        first_contact = OrganizationContact.objects.create(
+            organization=self.other_org,
+            first_name="First",
+            last_name="Primary",
+            email="first.primary@example.org",
+            is_active=True,
+        )
+        second_contact = OrganizationContact.objects.create(
+            organization=self.other_org,
+            first_name="Second",
+            last_name="Primary",
+            email="second.primary@example.org",
+            is_active=True,
+        )
+        first_link = OrganizationRoleContact.objects.create(
+            role_assignment=assignment,
+            contact=first_contact,
+            is_primary=True,
+            is_active=True,
+        )
+        second_link = OrganizationRoleContact.objects.create(
+            role_assignment=assignment,
+            contact=second_contact,
+            is_primary=False,
+            is_active=True,
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_admin_contacts"),
+            {
+                "action": "set_primary_role_contact",
+                "role_assignment_id": str(assignment.id),
+                "organization_contact_id": str(second_contact.id),
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        first_link.refresh_from_db()
+        second_link.refresh_from_db()
+        self.assertFalse(first_link.is_primary)
+        self.assertTrue(second_link.is_primary)
+
+    def test_unlink_role_contact_deactivates_link(self):
+        self.client.force_login(self.superuser)
+        assignment = OrganizationRoleAssignment.objects.create(
+            organization=self.other_org,
+            role=OrganizationRole.SHIPPER,
+            is_active=False,
+        )
+        org_contact = OrganizationContact.objects.create(
+            organization=self.other_org,
+            first_name="Inactive",
+            last_name="Target",
+            email="inactive.target@example.org",
+            is_active=True,
+        )
+        role_contact = OrganizationRoleContact.objects.create(
+            role_assignment=assignment,
+            contact=org_contact,
+            is_primary=True,
+            is_active=True,
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_admin_contacts"),
+            {
+                "action": "unlink_role_contact",
+                "role_assignment_id": str(assignment.id),
+                "organization_contact_id": str(org_contact.id),
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        role_contact.refresh_from_db()
+        self.assertFalse(role_contact.is_active)
+        self.assertFalse(role_contact.is_primary)

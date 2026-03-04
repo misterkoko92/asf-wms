@@ -1,16 +1,31 @@
 from __future__ import annotations
 
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.db.models import Q
 
 from contacts.models import Contact, ContactType
 
-from .models import OrganizationRole, OrganizationRoleAssignment, RecipientBinding
+from .forms_scan_admin_contacts_cockpit import (
+    OrganizationContactUpsertForm,
+    RoleContactActionForm,
+)
+from .models import (
+    OrganizationContact,
+    OrganizationRole,
+    OrganizationRoleAssignment,
+    OrganizationRoleContact,
+    RecipientBinding,
+)
 
 
 ROLE_VALUES = {choice[0] for choice in OrganizationRole.choices}
 ACTION_ASSIGN_ROLE = "assign_role"
 ACTION_UNASSIGN_ROLE = "unassign_role"
+ACTION_UPSERT_ORG_CONTACT = "upsert_org_contact"
+ACTION_LINK_ROLE_CONTACT = "link_role_contact"
+ACTION_UNLINK_ROLE_CONTACT = "unlink_role_contact"
+ACTION_SET_PRIMARY_ROLE_CONTACT = "set_primary_role_contact"
 
 
 def parse_cockpit_filters(*, role: str = "", shipper_org_id: str = "") -> dict:
@@ -105,6 +120,130 @@ def unassign_role(*, organization_id: str, role: str) -> tuple[bool, str]:
     assignment.is_active = False
     assignment.save(update_fields=["is_active"])
     return True, f"Role {assignment.get_role_display()} desactive."
+
+
+def _resolve_role_assignment(role_assignment_id: int | None):
+    if not role_assignment_id:
+        return None
+    return OrganizationRoleAssignment.objects.select_related("organization").filter(
+        pk=role_assignment_id
+    ).first()
+
+
+def _resolve_org_contact(organization_contact_id: int | None):
+    if not organization_contact_id:
+        return None
+    return OrganizationContact.objects.select_related("organization").filter(
+        pk=organization_contact_id
+    ).first()
+
+
+def _resolve_role_contact_action_targets(data) -> tuple[bool, str, object, object]:
+    form = RoleContactActionForm(data)
+    if not form.is_valid():
+        return False, "Donnees de liaison invalides.", None, None
+    assignment = _resolve_role_assignment(form.cleaned_data["role_assignment_id"])
+    if assignment is None:
+        return False, "Affectation de role introuvable.", None, None
+    org_contact = _resolve_org_contact(form.cleaned_data["organization_contact_id"])
+    if org_contact is None:
+        return False, "Contact organisation introuvable.", None, None
+    if org_contact.organization_id != assignment.organization_id:
+        return False, "Le contact doit appartenir a la meme organisation.", None, None
+    return True, "", assignment, org_contact
+
+
+def upsert_org_contact(*, data) -> tuple[bool, str]:
+    form = OrganizationContactUpsertForm(data)
+    if not form.is_valid():
+        return False, "Donnees de contact invalides."
+
+    organization = _resolve_active_organization(form.cleaned_data["organization_id"])
+    if organization is None:
+        return False, "Organisation invalide."
+
+    organization_contact_id = form.cleaned_data.get("organization_contact_id")
+    org_contact = None
+    if organization_contact_id:
+        org_contact = _resolve_org_contact(organization_contact_id)
+        if org_contact is None:
+            return False, "Contact organisation introuvable."
+        if org_contact.organization_id != organization.id:
+            return False, "Le contact doit appartenir a la meme organisation."
+    if org_contact is None:
+        org_contact = OrganizationContact(organization=organization)
+
+    org_contact.title = form.cleaned_data["title"]
+    org_contact.first_name = form.cleaned_data["first_name"]
+    org_contact.last_name = form.cleaned_data["last_name"]
+    org_contact.email = form.cleaned_data["email"]
+    org_contact.phone = form.cleaned_data["phone"]
+    org_contact.is_active = bool(form.cleaned_data["is_active"])
+
+    try:
+        org_contact.save()
+    except ValidationError as exc:
+        return False, _validation_message(exc)
+
+    if organization_contact_id:
+        return True, "Contact organisation mis a jour."
+    return True, "Contact organisation cree."
+
+
+def link_role_contact(*, data) -> tuple[bool, str]:
+    ok, message, assignment, org_contact = _resolve_role_contact_action_targets(data)
+    if not ok:
+        return False, message
+
+    role_contact, _created = OrganizationRoleContact.objects.get_or_create(
+        role_assignment=assignment,
+        contact=org_contact,
+        defaults={"is_primary": False, "is_active": True},
+    )
+    if not role_contact.is_active:
+        role_contact.is_active = True
+        role_contact.save(update_fields=["is_active"])
+    return True, "Contact lie au role."
+
+
+def unlink_role_contact(*, data) -> tuple[bool, str]:
+    ok, message, assignment, org_contact = _resolve_role_contact_action_targets(data)
+    if not ok:
+        return False, message
+
+    role_contact = OrganizationRoleContact.objects.filter(
+        role_assignment=assignment,
+        contact=org_contact,
+    ).first()
+    if role_contact is None:
+        return False, "Liaison role-contact introuvable."
+
+    role_contact.is_active = False
+    role_contact.is_primary = False
+    role_contact.save(update_fields=["is_active", "is_primary"])
+    return True, "Contact delie du role."
+
+
+def set_primary_role_contact(*, data) -> tuple[bool, str]:
+    ok, message, assignment, org_contact = _resolve_role_contact_action_targets(data)
+    if not ok:
+        return False, message
+
+    with transaction.atomic():
+        OrganizationRoleContact.objects.filter(
+            role_assignment=assignment,
+            is_primary=True,
+        ).update(is_primary=False)
+        role_contact, _created = OrganizationRoleContact.objects.get_or_create(
+            role_assignment=assignment,
+            contact=org_contact,
+            defaults={"is_primary": True, "is_active": True},
+        )
+        role_contact.is_active = True
+        role_contact.is_primary = True
+        role_contact.save(update_fields=["is_active", "is_primary"])
+
+    return True, "Contact principal mis a jour."
 
 
 def _build_organizations_queryset(*, query: str, filters: dict):

@@ -25,11 +25,19 @@ from .product_label_printing import (
 )
 from .scan_admin_contacts_cockpit import (
     ACTION_ASSIGN_ROLE,
+    ACTION_LINK_ROLE_CONTACT,
+    ACTION_SET_PRIMARY_ROLE_CONTACT,
     ACTION_UNASSIGN_ROLE,
+    ACTION_UNLINK_ROLE_CONTACT,
+    ACTION_UPSERT_ORG_CONTACT,
     assign_role,
     build_cockpit_context,
+    link_role_contact,
     parse_cockpit_filters,
+    set_primary_role_contact,
     unassign_role,
+    unlink_role_contact,
+    upsert_org_contact,
 )
 from .view_permissions import require_superuser as _require_superuser
 from .view_permissions import scan_staff_required
@@ -457,6 +465,34 @@ def scan_admin_contacts(request):
                 organization_id=request.POST.get("organization_id") or "",
                 role=request.POST.get("role") or "",
             )
+            if ok:
+                messages.success(request, message)
+            else:
+                messages.error(request, message)
+            return _build_contacts_redirect(query=query, contact_filter=contact_filter)
+        elif action == ACTION_UPSERT_ORG_CONTACT:
+            ok, message = upsert_org_contact(data=request.POST)
+            if ok:
+                messages.success(request, message)
+            else:
+                messages.error(request, message)
+            return _build_contacts_redirect(query=query, contact_filter=contact_filter)
+        elif action == ACTION_LINK_ROLE_CONTACT:
+            ok, message = link_role_contact(data=request.POST)
+            if ok:
+                messages.success(request, message)
+            else:
+                messages.error(request, message)
+            return _build_contacts_redirect(query=query, contact_filter=contact_filter)
+        elif action == ACTION_UNLINK_ROLE_CONTACT:
+            ok, message = unlink_role_contact(data=request.POST)
+            if ok:
+                messages.success(request, message)
+            else:
+                messages.error(request, message)
+            return _build_contacts_redirect(query=query, contact_filter=contact_filter)
+        elif action == ACTION_SET_PRIMARY_ROLE_CONTACT:
+            ok, message = set_primary_role_contact(data=request.POST)
             if ok:
                 messages.success(request, message)
             else:
