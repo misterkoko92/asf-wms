@@ -24,6 +24,7 @@ Last functional alignment update: **February 19, 2026**.
 
 - `docs/import/products_template.csv`: import template for products.
 - `docs/import/sample_products.csv`: sample product data.
+- `docs/import/organization_roles_template.xlsx`: template workbook for organization roles migration review (shipper/recipient/correspondent/contact/portal profile).
 - `docs/templates/`: printable template references.
 
 ## Repository layout (high-level)
