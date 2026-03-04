@@ -373,23 +373,64 @@ def _apply_recipient_bindings(
             stats=stats,
         )
 
-        binding, created = RecipientBinding.objects.get_or_create(
+        desired_active = True if is_active is None else is_active
+        base_queryset = RecipientBinding.objects.filter(
+            shipper_org=shipper_org,
+            recipient_org=recipient_org,
+            destination=destination,
+        )
+
+        # Prefer updating an existing version with the same valid_from to keep
+        # idempotence and avoid duplicating historical rows.
+        exact_binding = (
+            base_queryset.filter(valid_from=valid_from)
+            .order_by("-id")
+            .first()
+        )
+
+        if exact_binding is not None:
+            if desired_active:
+                base_queryset.filter(is_active=True).exclude(pk=exact_binding.pk).update(
+                    is_active=False,
+                    updated_at=timezone.now(),
+                )
+            updates = []
+            if exact_binding.is_active != desired_active:
+                exact_binding.is_active = desired_active
+                updates.append("is_active")
+            if exact_binding.valid_to != valid_to:
+                exact_binding.valid_to = valid_to
+                updates.append("valid_to")
+            if updates:
+                updates.append("updated_at")
+                exact_binding.save(update_fields=updates)
+                stats.recipient_bindings_updated += 1
+            continue
+
+        # If another active binding already exists for the same triplet, reuse
+        # it instead of creating a new active version (single-active invariant).
+        if desired_active:
+            active_binding = (
+                base_queryset.filter(is_active=True)
+                .order_by("-valid_from", "-id")
+                .first()
+            )
+            if active_binding is not None:
+                if active_binding.valid_to != valid_to:
+                    active_binding.valid_to = valid_to
+                    active_binding.save(update_fields=["valid_to", "updated_at"])
+                    stats.recipient_bindings_updated += 1
+                continue
+
+        RecipientBinding.objects.create(
             shipper_org=shipper_org,
             recipient_org=recipient_org,
             destination=destination,
             valid_from=valid_from,
-            defaults={
-                "is_active": is_active if is_active is not None else True,
-                "valid_to": valid_to,
-            },
+            is_active=desired_active,
+            valid_to=valid_to,
         )
-        if created:
-            stats.recipient_bindings_created += 1
-        else:
-            binding.is_active = is_active if is_active is not None else binding.is_active
-            binding.valid_to = valid_to
-            binding.save(update_fields=["is_active", "valid_to", "updated_at"])
-            stats.recipient_bindings_updated += 1
+        stats.recipient_bindings_created += 1
 
 
 def _apply_correspondents(
