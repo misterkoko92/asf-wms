@@ -1,7 +1,14 @@
 from django.test import TestCase
 
 from contacts.models import Contact, ContactAddress, ContactTag, ContactType
-from wms.models import Destination, Product
+from wms.models import (
+    Destination,
+    OrganizationRole,
+    OrganizationRoleAssignment,
+    Product,
+    RecipientBinding,
+    ShipperScope,
+)
 from wms.shipment_helpers import (
     build_destination_label,
     build_shipment_contact_payload,
@@ -94,6 +101,7 @@ class ShipmentHelpersTests(TestCase):
                     "name": "Shipper Org",
                     "destination_id": destination.id,
                     "destination_ids": [destination.id],
+                    "scoped_destination_ids": [],
                 }
             ],
         )
@@ -104,6 +112,7 @@ class ShipmentHelpersTests(TestCase):
         self.assertEqual(recipients_json[0]["destination_id"], destination.id)
         self.assertEqual(recipients_json[0]["destination_ids"], [destination.id])
         self.assertEqual(recipients_json[0]["linked_shipper_ids"], [])
+        self.assertEqual(recipients_json[0]["binding_pairs"], [])
         self.assertEqual(
             correspondents_json,
             [
@@ -346,6 +355,89 @@ class ShipmentHelpersTests(TestCase):
         self.assertEqual(
             recipient_labels[recipient_b.id],
             "ASSOCIATION DUP (Mme, Lea, YAO)",
+        )
+
+    def test_build_shipment_contact_payload_uses_org_roles_scope_and_binding_pairs(self):
+        correspondent = Contact.objects.create(name="Corr Roles")
+        destination_abj = Destination.objects.create(
+            city="Abidjan",
+            iata_code="ABJ-ROLE",
+            country="Cote d'Ivoire",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        destination_dla = Destination.objects.create(
+            city="Douala",
+            iata_code="DLA-ROLE",
+            country="Cameroun",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+
+        shipper_tag = ContactTag.objects.create(name="expediteur")
+        recipient_tag = ContactTag.objects.create(name="destinataire")
+
+        shipper_org = Contact.objects.create(
+            name="Shipper Roles",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        shipper_org.tags.add(shipper_tag)
+
+        recipient_org = Contact.objects.create(
+            name="Recipient Roles",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        recipient_org.tags.add(recipient_tag)
+
+        shipper_assignment = OrganizationRoleAssignment.objects.create(
+            organization=shipper_org,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
+        OrganizationRoleAssignment.objects.create(
+            organization=recipient_org,
+            role=OrganizationRole.RECIPIENT,
+            is_active=True,
+        )
+
+        ShipperScope.objects.create(
+            role_assignment=shipper_assignment,
+            destination=destination_abj,
+            all_destinations=False,
+            is_active=True,
+        )
+        RecipientBinding.objects.create(
+            shipper_org=shipper_org,
+            recipient_org=recipient_org,
+            destination=destination_abj,
+            is_active=True,
+        )
+        RecipientBinding.objects.create(
+            shipper_org=shipper_org,
+            recipient_org=recipient_org,
+            destination=destination_dla,
+            is_active=True,
+        )
+
+        _, shippers_json, recipients_json, _ = build_shipment_contact_payload()
+
+        shipper_entry = next(entry for entry in shippers_json if entry["id"] == shipper_org.id)
+        recipient_entry = next(entry for entry in recipients_json if entry["id"] == recipient_org.id)
+        self.assertEqual(shipper_entry["scoped_destination_ids"], [destination_abj.id])
+        self.assertEqual(
+            recipient_entry["binding_pairs"],
+            [
+                {
+                    "shipper_id": shipper_org.id,
+                    "destination_id": destination_abj.id,
+                },
+                {
+                    "shipper_id": shipper_org.id,
+                    "destination_id": destination_dla.id,
+                },
+            ],
         )
 
     def test_parse_shipment_lines_collects_all_error_branches(self):

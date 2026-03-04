@@ -42,6 +42,7 @@ from .scan_shipment_handlers import (
     handle_shipment_create_post,
     handle_shipment_edit_post,
 )
+from .organization_role_resolvers import is_org_roles_engine_enabled
 from .runtime_settings import is_shipment_track_legacy_enabled
 from .services import StockError
 from .shipment_form_helpers import (
@@ -151,6 +152,7 @@ def _render_shipment_form(
         shipper_contacts_json=support["shipper_contacts_json"],
         recipient_contacts_json=support["recipient_contacts_json"],
         correspondent_contacts_json=support["correspondent_contacts_json"],
+        org_roles_engine_enabled=is_org_roles_engine_enabled(),
     )
     context["active"] = active
     if extra_context:

@@ -2071,6 +2071,8 @@
 
     const asId = value => (value || value === 0 ? String(value).trim() : '');
     const selectValue = select => asId(select && select.value ? select.value : '');
+    const orgRolesEngineEnabled =
+      shipmentForm && shipmentForm.dataset.orgRolesEngineEnabled === '1';
     const asIdList = values =>
       Array.isArray(values)
         ? values
@@ -2088,6 +2090,18 @@
     const destinationMap = new Map(
       destinations.map(destination => [String(destination.id), destination])
     );
+    const matchesExplicitDestination = (contact, destinationId) => {
+      if (!contact || !destinationId) {
+        return false;
+      }
+      const explicitDestinationIds = orgRolesEngineEnabled
+        ? asIdList(contact.scoped_destination_ids)
+        : asIdList(contact.destination_ids);
+      if (!explicitDestinationIds.length) {
+        return false;
+      }
+      return explicitDestinationIds.includes(String(destinationId));
+    };
     const matchesDestination = (contact, destinationId) => {
       if (!contact || !destinationId) {
         return false;
@@ -2111,14 +2125,23 @@
       }
       return linkedShipperIds.includes(String(shipperId));
     };
-
-    const renderOptions = (select, options, selectedValue) => {
-      const fragment = document.createDocumentFragment();
-      const empty = document.createElement('option');
-      empty.value = '';
-      empty.textContent = '---';
-      fragment.appendChild(empty);
-
+    const matchesRecipientBindingPair = (recipient, shipperId, destinationId) => {
+      if (!recipient || !shipperId || !destinationId) {
+        return false;
+      }
+      const bindingPairs = Array.isArray(recipient.binding_pairs)
+        ? recipient.binding_pairs
+        : [];
+      if (!bindingPairs.length) {
+        return false;
+      }
+      return bindingPairs.some(
+        pair =>
+          asId(pair && pair.shipper_id) === String(shipperId) &&
+          asId(pair && pair.destination_id) === String(destinationId)
+      );
+    };
+    const sortUniqueOptions = options => {
       const uniqueOptionsById = new Map();
       options.forEach(option => {
         const optionId = asId(option && option.id);
@@ -2127,21 +2150,80 @@
         }
         uniqueOptionsById.set(optionId, option);
       });
-
-      const sortedOptions = [...uniqueOptionsById.values()].sort((left, right) =>
+      return [...uniqueOptionsById.values()].sort((left, right) =>
         String(left.name || '').localeCompare(String(right.name || ''), 'fr', {
           sensitivity: 'base'
         })
       );
+    };
+
+    const renderOptions = (select, options, selectedValue) => {
+      const fragment = document.createDocumentFragment();
+      const empty = document.createElement('option');
+      empty.value = '';
+      empty.textContent = '---';
+      fragment.appendChild(empty);
+
+      const sortedOptions = sortUniqueOptions(options);
+      const optionIds = new Set();
       sortedOptions.forEach(option => {
         const optionEl = document.createElement('option');
         optionEl.value = String(option.id);
         optionEl.textContent = option.name;
         fragment.appendChild(optionEl);
+        optionIds.add(String(option.id));
       });
       select.innerHTML = '';
       select.appendChild(fragment);
-      if (selectedValue && uniqueOptionsById.has(String(selectedValue))) {
+      if (selectedValue && optionIds.has(String(selectedValue))) {
+        select.value = String(selectedValue);
+      } else {
+        select.value = '';
+      }
+    };
+
+    const renderShipperOptions = (
+      select,
+      { explicitDestinationOptions, allShipperOptions },
+      selectedValue
+    ) => {
+      const fragment = document.createDocumentFragment();
+      const empty = document.createElement('option');
+      empty.value = '';
+      empty.textContent = '---';
+      fragment.appendChild(empty);
+
+      const explicitOptions = sortUniqueOptions(explicitDestinationOptions);
+      const allOptions = sortUniqueOptions(allShipperOptions);
+      const optionIds = new Set();
+
+      explicitOptions.forEach(option => {
+        const optionEl = document.createElement('option');
+        optionEl.value = String(option.id);
+        optionEl.textContent = option.name;
+        fragment.appendChild(optionEl);
+        optionIds.add(String(option.id));
+      });
+
+      if (explicitOptions.length && allOptions.length) {
+        const separator = document.createElement('option');
+        separator.value = '';
+        separator.textContent = '-----';
+        separator.disabled = true;
+        fragment.appendChild(separator);
+      }
+
+      allOptions.forEach(option => {
+        const optionEl = document.createElement('option');
+        optionEl.value = String(option.id);
+        optionEl.textContent = option.name;
+        fragment.appendChild(optionEl);
+        optionIds.add(String(option.id));
+      });
+
+      select.innerHTML = '';
+      select.appendChild(fragment);
+      if (selectedValue && optionIds.has(String(selectedValue))) {
         select.value = String(selectedValue);
       } else {
         select.value = '';
@@ -2170,12 +2252,20 @@
 
       setVisible(shipperSection, true);
       const destination = destinationMap.get(destinationId) || null;
-      const shipperOptions = shippers.filter(shipper =>
-        matchesDestination(shipper, destinationId)
+      const explicitDestinationShipperOptions = shippers.filter(shipper =>
+        matchesExplicitDestination(shipper, destinationId)
       );
-      renderOptions(shipperSelect, shipperOptions, selectedShipper);
+      const allShipperOptions = [...shippers];
+      renderShipperOptions(
+        shipperSelect,
+        {
+          explicitDestinationOptions: explicitDestinationShipperOptions,
+          allShipperOptions
+        },
+        selectedShipper
+      );
       const resolvedShipper = selectValue(shipperSelect);
-      setVisible(shipperEmptyMessage, shipperOptions.length === 0);
+      setVisible(shipperEmptyMessage, allShipperOptions.length === 0);
 
       const canShowRecipientAndCorrespondent = Boolean(resolvedShipper);
       setVisible(recipientSection, canShowRecipientAndCorrespondent);
@@ -2184,10 +2274,16 @@
       let recipientOptions = [];
       let correspondentOptions = [];
       if (canShowRecipientAndCorrespondent) {
-        recipientOptions = recipients.filter(recipient =>
-          matchesLinkedShipper(recipient, resolvedShipper) &&
-          matchesDestination(recipient, destinationId)
-        );
+        if (orgRolesEngineEnabled) {
+          recipientOptions = recipients.filter(recipient =>
+            matchesRecipientBindingPair(recipient, resolvedShipper, destinationId)
+          );
+        } else {
+          recipientOptions = recipients.filter(recipient =>
+            matchesLinkedShipper(recipient, resolvedShipper) &&
+            matchesDestination(recipient, destinationId)
+          );
+        }
         correspondentOptions = correspondents.filter(correspondent =>
           matchesDestination(correspondent, destinationId)
         );

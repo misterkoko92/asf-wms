@@ -18,7 +18,6 @@ from .contact_labels import build_contact_select_label
 from .organization_role_resolvers import (
     OrganizationRoleResolutionError,
     eligible_recipients_for_shipper_destination,
-    eligible_shippers_for_destination,
     is_org_roles_engine_enabled,
     is_legacy_contact_write_enabled,
     resolve_recipient_binding_for_operation,
@@ -441,10 +440,13 @@ class ScanShipmentForm(forms.Form):
             destination_id=destination_id,
         )
         org_roles_engine_enabled = is_org_roles_engine_enabled()
+        all_shipper_contacts = filter_structure_contacts(contacts_with_tags(TAG_SHIPPER))
         if org_roles_engine_enabled:
-            shipper_contacts = eligible_shippers_for_destination(selected_destination)
+            shipper_contacts = (
+                all_shipper_contacts if selected_destination else all_shipper_contacts.none()
+            )
         else:
-            shipper_contacts = filter_structure_contacts(contacts_with_tags(TAG_SHIPPER))
+            shipper_contacts = all_shipper_contacts
             if selected_destination:
                 shipper_contacts = filter_contacts_for_destination(
                     shipper_contacts,

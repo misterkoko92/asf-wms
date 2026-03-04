@@ -66,11 +66,16 @@ class FormsOrgRolesGateTests(TestCase):
         correspondent = self._create_org("Correspondent")
         correspondent_tag, _ = ContactTag.objects.get_or_create(name="correspondant")
         correspondent.tags.add(correspondent_tag)
+        shipper_tag, _ = ContactTag.objects.get_or_create(name="expediteur")
+        recipient_tag, _ = ContactTag.objects.get_or_create(name="destinataire")
 
         destination = self._create_destination("BKO", correspondent)
         shipper = self._create_org("Shipper")
         recipient_allowed = self._create_org("Recipient Allowed")
         recipient_blocked = self._create_org("Recipient Blocked")
+        shipper.tags.add(shipper_tag)
+        recipient_allowed.tags.add(recipient_tag)
+        recipient_blocked.tags.add(recipient_tag)
 
         shipper_assignment = OrganizationRoleAssignment.objects.create(
             organization=shipper,
@@ -112,6 +117,89 @@ class FormsOrgRolesGateTests(TestCase):
         self.assertIn(recipient_allowed.id, recipient_ids)
         self.assertNotIn(recipient_blocked.id, recipient_ids)
 
+    def test_scan_shipment_form_keeps_all_shippers_selectable_when_engine_enabled(self):
+        runtime = WmsRuntimeSettings.get_solo()
+        runtime.org_roles_engine_enabled = True
+        runtime.save(update_fields=["org_roles_engine_enabled"])
+
+        correspondent = self._create_org("Correspondent Scope")
+        correspondent_tag, _ = ContactTag.objects.get_or_create(name="correspondant")
+        correspondent.tags.add(correspondent_tag)
+        shipper_tag, _ = ContactTag.objects.get_or_create(name="expediteur")
+        recipient_tag, _ = ContactTag.objects.get_or_create(name="destinataire")
+
+        destination = self._create_destination("CMN", correspondent)
+        other_destination = self._create_destination("NBO", correspondent)
+        shipper_in_scope = self._create_org("Shipper In Scope")
+        shipper_out_scope = self._create_org("Shipper Out Scope")
+        recipient = self._create_org("Recipient Scope")
+        shipper_in_scope.tags.add(shipper_tag)
+        shipper_out_scope.tags.add(shipper_tag)
+        recipient.tags.add(recipient_tag)
+
+        shipper_assignment = OrganizationRoleAssignment.objects.create(
+            organization=shipper_in_scope,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
+        OrganizationRoleAssignment.objects.create(
+            organization=shipper_out_scope,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
+        OrganizationRoleAssignment.objects.create(
+            organization=recipient,
+            role=OrganizationRole.RECIPIENT,
+            is_active=True,
+        )
+        ShipperScope.objects.create(
+            role_assignment=shipper_assignment,
+            destination=destination,
+            all_destinations=False,
+            is_active=True,
+        )
+        RecipientBinding.objects.create(
+            shipper_org=shipper_in_scope,
+            recipient_org=recipient,
+            destination=destination,
+            is_active=True,
+        )
+
+        out_scope_assignment = OrganizationRoleAssignment.objects.get(
+            organization=shipper_out_scope,
+            role=OrganizationRole.SHIPPER,
+        )
+        ShipperScope.objects.create(
+            role_assignment=out_scope_assignment,
+            destination=other_destination,
+            all_destinations=False,
+            is_active=True,
+        )
+
+        form = ScanShipmentForm(
+            data={
+                "destination": str(destination.id),
+                "shipper_contact": str(shipper_out_scope.id),
+                "recipient_contact": str(recipient.id),
+                "correspondent_contact": str(correspondent.id),
+                "carton_count": "1",
+            },
+            destination_id=str(destination.id),
+        )
+
+        shipper_ids = set(
+            form.fields["shipper_contact"].queryset.values_list("id", flat=True)
+        )
+        self.assertIn(shipper_in_scope.id, shipper_ids)
+        self.assertIn(shipper_out_scope.id, shipper_ids)
+        self.assertFalse(form.is_valid())
+        self.assertTrue(
+            any(
+                "escale" in error.lower() or "destination" in error.lower()
+                for error in form.errors.get("shipper_contact", [])
+            )
+        )
+
     def test_scan_shipment_form_blocks_recipient_pending_review_or_non_compliant(self):
         runtime = WmsRuntimeSettings.get_solo()
         runtime.org_roles_engine_enabled = True
@@ -120,10 +208,14 @@ class FormsOrgRolesGateTests(TestCase):
         correspondent = self._create_org("Correspondent DLA")
         correspondent_tag, _ = ContactTag.objects.get_or_create(name="correspondant")
         correspondent.tags.add(correspondent_tag)
+        shipper_tag, _ = ContactTag.objects.get_or_create(name="expediteur")
+        recipient_tag, _ = ContactTag.objects.get_or_create(name="destinataire")
         destination = self._create_destination("DLA", correspondent)
 
         shipper = self._create_org("Shipper DLA")
         recipient = self._create_org("Recipient DLA")
+        shipper.tags.add(shipper_tag)
+        recipient.tags.add(recipient_tag)
 
         shipper_assignment = OrganizationRoleAssignment.objects.create(
             organization=shipper,

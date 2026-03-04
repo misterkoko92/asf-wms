@@ -14,7 +14,7 @@
     {% if form.non_field_errors %}
       <div class="scan-message error">{{ form.non_field_errors }}</div>
     {% endif %}
-    <form method="post" novalidate class="ui-comp-form" id="shipment-form" data-shipment-edit="{% if is_edit %}1{% else %}0{% endif %}" data-form-bound="{% if form.is_bound %}1{% else %}0{% endif %}">
+    <form method="post" novalidate class="ui-comp-form" id="shipment-form" data-shipment-edit="{% if is_edit %}1{% else %}0{% endif %}" data-form-bound="{% if form.is_bound %}1{% else %}0{% endif %}" data-org-roles-engine-enabled="{% if org_roles_engine_enabled %}1{% else %}0{% endif %}">
       {% csrf_token %}
 
       <div class="scan-field ui-comp-panel">
