@@ -28,3 +28,17 @@ class ShipperScopeUpsertForm(forms.Form):
 
 class ShipperScopeDisableForm(forms.Form):
     scope_id = forms.IntegerField(min_value=1)
+
+
+class RecipientBindingUpsertForm(forms.Form):
+    binding_id = forms.IntegerField(required=False, min_value=1)
+    shipper_org_id = forms.IntegerField(min_value=1)
+    recipient_org_id = forms.IntegerField(min_value=1)
+    destination_id = forms.IntegerField(min_value=1)
+    valid_from = forms.DateTimeField(required=False)
+    valid_to = forms.DateTimeField(required=False)
+
+
+class RecipientBindingCloseForm(forms.Form):
+    binding_id = forms.IntegerField(min_value=1)
+    valid_to = forms.DateTimeField(required=True)

@@ -467,3 +467,78 @@ class ScanAdminContactsCockpitViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         scope.refresh_from_db()
         self.assertFalse(scope.is_active)
+
+    def test_upsert_recipient_binding_creates_active_binding(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.post(
+            reverse("scan:scan_admin_contacts"),
+            {
+                "action": "upsert_recipient_binding",
+                "shipper_org_id": str(self.shipper.id),
+                "recipient_org_id": str(self.other_org.id),
+                "destination_id": str(self.destination.id),
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(
+            RecipientBinding.objects.filter(
+                shipper_org=self.shipper,
+                recipient_org=self.other_org,
+                destination=self.destination,
+                is_active=True,
+            ).exists()
+        )
+
+    def test_close_recipient_binding_sets_valid_to_and_inactive(self):
+        self.client.force_login(self.superuser)
+        binding = RecipientBinding.objects.create(
+            shipper_org=self.shipper,
+            recipient_org=self.other_org,
+            destination=self.destination,
+            is_active=True,
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_admin_contacts"),
+            {
+                "action": "close_recipient_binding",
+                "binding_id": str(binding.id),
+                "valid_to": "2030-01-01T10:00",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        binding.refresh_from_db()
+        self.assertFalse(binding.is_active)
+        self.assertIsNotNone(binding.valid_to)
+
+    def test_upsert_recipient_binding_rejects_invalid_validity_window(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.post(
+            reverse("scan:scan_admin_contacts"),
+            {
+                "action": "upsert_recipient_binding",
+                "shipper_org_id": str(self.shipper.id),
+                "recipient_org_id": str(self.other_org.id),
+                "destination_id": str(self.destination.id),
+                "valid_from": "2030-01-02T10:00",
+                "valid_to": "2030-01-01T10:00",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "La fin de validite doit etre posterieure au debut.")
+        self.assertFalse(
+            RecipientBinding.objects.filter(
+                shipper_org=self.shipper,
+                recipient_org=self.other_org,
+                destination=self.destination,
+                valid_from__year=2030,
+            ).exists()
+        )

@@ -3,11 +3,14 @@ from __future__ import annotations
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q
+from django.utils import timezone
 
 from contacts.models import Contact, ContactType
 
 from .forms_scan_admin_contacts_cockpit import (
     OrganizationContactUpsertForm,
+    RecipientBindingCloseForm,
+    RecipientBindingUpsertForm,
     RoleContactActionForm,
     ShipperScopeDisableForm,
     ShipperScopeUpsertForm,
@@ -32,6 +35,8 @@ ACTION_UNLINK_ROLE_CONTACT = "unlink_role_contact"
 ACTION_SET_PRIMARY_ROLE_CONTACT = "set_primary_role_contact"
 ACTION_UPSERT_SHIPPER_SCOPE = "upsert_shipper_scope"
 ACTION_DISABLE_SHIPPER_SCOPE = "disable_shipper_scope"
+ACTION_UPSERT_RECIPIENT_BINDING = "upsert_recipient_binding"
+ACTION_CLOSE_RECIPIENT_BINDING = "close_recipient_binding"
 
 
 def parse_cockpit_filters(*, role: str = "", shipper_org_id: str = "") -> dict:
@@ -309,6 +314,72 @@ def disable_shipper_scope(*, data) -> tuple[bool, str]:
     scope.is_active = False
     scope.save(update_fields=["is_active"])
     return True, "Scope expediteur desactive."
+
+
+def _resolve_active_org_by_id(org_id: int | None):
+    return _resolve_active_organization(org_id)
+
+
+def upsert_recipient_binding(*, data) -> tuple[bool, str]:
+    form = RecipientBindingUpsertForm(data)
+    if not form.is_valid():
+        return False, "Donnees de binding destinataire invalides."
+
+    shipper_org = _resolve_active_org_by_id(form.cleaned_data["shipper_org_id"])
+    if shipper_org is None:
+        return False, "Expediteur invalide."
+    recipient_org = _resolve_active_org_by_id(form.cleaned_data["recipient_org_id"])
+    if recipient_org is None:
+        return False, "Destinataire invalide."
+    destination = Destination.objects.filter(
+        pk=form.cleaned_data["destination_id"],
+        is_active=True,
+    ).first()
+    if destination is None:
+        return False, "Escale invalide."
+
+    binding = None
+    binding_id = form.cleaned_data.get("binding_id")
+    if binding_id:
+        binding = RecipientBinding.objects.filter(pk=binding_id).first()
+        if binding is None:
+            return False, "Binding destinataire introuvable."
+    if binding is None:
+        binding = RecipientBinding()
+
+    binding.shipper_org = shipper_org
+    binding.recipient_org = recipient_org
+    binding.destination = destination
+    binding.is_active = True
+    binding.valid_from = form.cleaned_data.get("valid_from") or binding.valid_from
+    if binding.valid_from is None:
+        binding.valid_from = timezone.now()
+    binding.valid_to = form.cleaned_data.get("valid_to")
+
+    try:
+        binding.save()
+    except ValidationError as exc:
+        return False, _validation_message(exc)
+
+    return True, "Binding destinataire enregistre."
+
+
+def close_recipient_binding(*, data) -> tuple[bool, str]:
+    form = RecipientBindingCloseForm(data)
+    if not form.is_valid():
+        return False, "Donnees de cloture binding invalides."
+
+    binding = RecipientBinding.objects.filter(pk=form.cleaned_data["binding_id"]).first()
+    if binding is None:
+        return False, "Binding destinataire introuvable."
+
+    binding.valid_to = form.cleaned_data["valid_to"]
+    binding.is_active = False
+    try:
+        binding.save(update_fields=["valid_to", "is_active"])
+    except ValidationError as exc:
+        return False, _validation_message(exc)
+    return True, "Binding destinataire cloture."
 
 
 def _build_organizations_queryset(*, query: str, filters: dict):
