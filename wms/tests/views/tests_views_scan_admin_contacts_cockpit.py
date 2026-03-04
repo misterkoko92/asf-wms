@@ -618,3 +618,49 @@ class ScanAdminContactsCockpitViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Mode legacy desactive")
+
+    def test_cockpit_forms_render_when_legacy_write_disabled(self):
+        self.client.force_login(self.superuser)
+        runtime = WmsRuntimeSettings.get_solo()
+        runtime.legacy_contact_write_enabled = False
+        runtime.save(update_fields=["legacy_contact_write_enabled"])
+
+        response = self.client.get(reverse("scan:scan_admin_contacts"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="action" value="assign_role"')
+        self.assertContains(response, 'name="action" value="upsert_org_contact"')
+        self.assertContains(response, 'name="action" value="upsert_shipper_scope"')
+        self.assertContains(response, 'name="action" value="upsert_recipient_binding"')
+        self.assertContains(response, 'name="action" value="create_guided_contact"')
+        self.assertNotContains(response, 'name="action" value="create_contact"')
+
+    def test_org_role_action_still_works_when_legacy_write_disabled(self):
+        self.client.force_login(self.superuser)
+        runtime = WmsRuntimeSettings.get_solo()
+        runtime.legacy_contact_write_enabled = False
+        runtime.save(update_fields=["legacy_contact_write_enabled"])
+
+        response = self.client.post(
+            reverse("scan:scan_admin_contacts"),
+            {
+                "action": "upsert_org_contact",
+                "organization_id": str(self.other_org.id),
+                "first_name": "Nina",
+                "last_name": "Role",
+                "email": "nina.role@example.org",
+                "is_active": "1",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(
+            OrganizationContact.objects.filter(
+                organization=self.other_org,
+                first_name="Nina",
+                last_name="Role",
+                email="nina.role@example.org",
+                is_active=True,
+            ).exists()
+        )

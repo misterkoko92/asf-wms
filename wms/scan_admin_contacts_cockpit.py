@@ -484,6 +484,7 @@ def build_cockpit_rows(*, query: str, filters: dict) -> list[dict]:
             {
                 "organization": organization,
                 "active_roles": active_roles,
+                "active_role_labels": [assignment.get_role_display() for assignment in assignments],
                 "recipient_bindings_count": recipient_bindings_count,
             }
         )
@@ -491,9 +492,60 @@ def build_cockpit_rows(*, query: str, filters: dict) -> list[dict]:
 
 
 def build_cockpit_context(*, query: str, filters: dict) -> dict:
+    organizations = list(
+        Contact.objects.filter(
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        ).order_by("name", "id")
+    )
+    role_assignments = list(
+        OrganizationRoleAssignment.objects.select_related("organization")
+        .filter(organization__is_active=True)
+        .order_by("organization__name", "role", "id")
+    )
+    organization_contacts = list(
+        OrganizationContact.objects.select_related("organization")
+        .filter(organization__is_active=True)
+        .order_by("organization__name", "last_name", "first_name", "id")
+    )
+    destinations = list(
+        Destination.objects.filter(is_active=True).order_by("city", "iata_code", "id")
+    )
+    shipper_scopes = list(
+        ShipperScope.objects.select_related(
+            "role_assignment__organization",
+            "destination",
+        ).order_by("-is_active", "role_assignment__organization__name", "id")
+    )
+    recipient_bindings = list(
+        RecipientBinding.objects.select_related(
+            "shipper_org",
+            "recipient_org",
+            "destination",
+        ).order_by(
+            "-is_active",
+            "shipper_org__name",
+            "recipient_org__name",
+            "destination__iata_code",
+            "id",
+        )
+    )
+    shipper_role_assignments = [
+        assignment
+        for assignment in role_assignments
+        if assignment.role == OrganizationRole.SHIPPER
+    ]
     return {
         "query": query,
         "cockpit_filters": filters,
         "cockpit_rows": build_cockpit_rows(query=query, filters=filters),
         "cockpit_mode": "org_roles",
+        "cockpit_role_choices": OrganizationRole.choices,
+        "cockpit_organizations": organizations,
+        "cockpit_role_assignments": role_assignments,
+        "cockpit_shipper_role_assignments": shipper_role_assignments,
+        "cockpit_organization_contacts": organization_contacts,
+        "cockpit_destinations": destinations,
+        "cockpit_shipper_scopes": shipper_scopes,
+        "cockpit_recipient_bindings": recipient_bindings,
     }

@@ -13,7 +13,7 @@
   <div class="scan-card card border-0 ui-comp-card">
     <h3 class="ui-comp-title h5 mb-3">Recherche et filtres</h3>
     <form method="get" class="scan-filters row g-3 ui-comp-form">
-      <div class="scan-field col-12 col-md-5">
+      <div class="scan-field col-12 col-md-4">
         <label class="form-label" for="scan-admin-contacts-q">Recherche</label>
         <input
           id="scan-admin-contacts-q"
@@ -24,7 +24,7 @@
           placeholder="Nom, email, téléphone, ASF ID"
         >
       </div>
-      <div class="scan-field col-12 col-md-4">
+      <div class="scan-field col-12 col-md-3">
         <label class="form-label" for="scan-admin-contacts-type">Filtre principal: type de contact</label>
         <select id="scan-admin-contacts-type" name="contact_type" class="form-select">
           {% for value, label in contact_filter_choices %}
@@ -32,7 +32,27 @@
           {% endfor %}
         </select>
       </div>
-      <div class="scan-filter-actions col-12 col-md-3 d-flex flex-wrap gap-2 align-items-end">
+      <div class="scan-field col-12 col-md-2">
+        <label class="form-label" for="scan-admin-contacts-role">Rôle org</label>
+        <select id="scan-admin-contacts-role" name="role" class="form-select">
+          <option value="">Tous</option>
+          {% for value, label in cockpit_role_choices %}
+            <option value="{{ value }}" {% if cockpit_filters.role == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="scan-field col-12 col-md-3">
+        <label class="form-label" for="scan-admin-contacts-shipper-filter">Destinataires d'un expéditeur</label>
+        <select id="scan-admin-contacts-shipper-filter" name="shipper_org_id" class="form-select">
+          <option value="">Tous</option>
+          {% for organization in cockpit_organizations %}
+            <option value="{{ organization.id }}" {% if cockpit_filters.shipper_org_id == organization.id|stringformat:"s" %}selected{% endif %}>
+              {{ organization.name }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="scan-filter-actions col-12 d-flex flex-wrap gap-2 align-items-end">
         <button type="submit" class="scan-submit scan-submit-inline btn btn-primary">Filtrer</button>
         <a class="btn btn-tertiary" href="{% url 'scan:scan_admin_contacts' %}">Réinitialiser</a>
       </div>
@@ -49,6 +69,413 @@
         Mode legacy desactive: utilisez les actions org-role. Les liens admin restent disponibles en secours.
       </p>
     {% endif %}
+
+    <div class="row g-3 ui-comp-form">
+      <div class="col-12 col-xl-6">
+        <div class="ui-comp-panel p-3 border rounded-3">
+          <h4 class="h6 mb-2">Rôles organisation</h4>
+          <form method="post" class="row g-2">
+            {% csrf_token %}
+            <input type="hidden" name="q" value="{{ query }}">
+            <input type="hidden" name="contact_type" value="{{ contact_filter }}">
+            <div class="col-12 col-md-6">
+              <label class="form-label">Organisation</label>
+              <select name="organization_id" class="form-select" required>
+                <option value="">Choisir...</option>
+                {% for organization in cockpit_organizations %}
+                  <option value="{{ organization.id }}">{{ organization.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Rôle</label>
+              <select name="role" class="form-select" required>
+                <option value="">Choisir...</option>
+                {% for value, label in cockpit_role_choices %}
+                  <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 d-flex flex-wrap gap-2">
+              <button type="submit" name="action" value="assign_role" class="btn btn-primary">Activer rôle</button>
+              <button type="submit" name="action" value="unassign_role" class="btn btn-warning">Désactiver rôle</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="col-12 col-xl-6">
+        <div class="ui-comp-panel p-3 border rounded-3">
+          <h4 class="h6 mb-2">Contact organisation</h4>
+          <form method="post" class="row g-2">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="upsert_org_contact">
+            <input type="hidden" name="q" value="{{ query }}">
+            <input type="hidden" name="contact_type" value="{{ contact_filter }}">
+            <div class="col-12 col-md-6">
+              <label class="form-label">Organisation</label>
+              <select name="organization_id" class="form-select" required>
+                <option value="">Choisir...</option>
+                {% for organization in cockpit_organizations %}
+                  <option value="{{ organization.id }}">{{ organization.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Contact existant (optionnel)</label>
+              <select name="organization_contact_id" class="form-select">
+                <option value="">Nouveau contact</option>
+                {% for org_contact in cockpit_organization_contacts %}
+                  <option value="{{ org_contact.id }}">
+                    {{ org_contact.organization.name }} - {{ org_contact.first_name }} {{ org_contact.last_name }} {{ org_contact.email }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label">Civilité</label>
+              <input type="text" name="title" class="form-control" maxlength="10">
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label">Prénom</label>
+              <input type="text" name="first_name" class="form-control" maxlength="120">
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label">Nom</label>
+              <input type="text" name="last_name" class="form-control" maxlength="120">
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Email</label>
+              <input type="email" name="email" class="form-control">
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Téléphone</label>
+              <input type="text" name="phone" class="form-control" maxlength="40">
+            </div>
+            <div class="col-12">
+              <div class="form-check form-switch">
+                <input id="scan-org-contact-active" type="checkbox" name="is_active" class="form-check-input" checked>
+                <label for="scan-org-contact-active" class="form-check-label">Contact actif</label>
+              </div>
+            </div>
+            <div class="col-12">
+              <button type="submit" class="btn btn-primary">Créer / mettre à jour</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="col-12 col-xl-6">
+        <div class="ui-comp-panel p-3 border rounded-3">
+          <h4 class="h6 mb-2">Lier un contact à un rôle</h4>
+          <form method="post" class="row g-2">
+            {% csrf_token %}
+            <input type="hidden" name="q" value="{{ query }}">
+            <input type="hidden" name="contact_type" value="{{ contact_filter }}">
+            <div class="col-12 col-md-6">
+              <label class="form-label">Affectation de rôle</label>
+              <select name="role_assignment_id" class="form-select" required>
+                <option value="">Choisir...</option>
+                {% for assignment in cockpit_role_assignments %}
+                  <option value="{{ assignment.id }}">
+                    {{ assignment.organization.name }} - {{ assignment.get_role_display }}{% if not assignment.is_active %} (inactif){% endif %}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Contact organisation</label>
+              <select name="organization_contact_id" class="form-select" required>
+                <option value="">Choisir...</option>
+                {% for org_contact in cockpit_organization_contacts %}
+                  <option value="{{ org_contact.id }}">
+                    {{ org_contact.organization.name }} - {{ org_contact.first_name }} {{ org_contact.last_name }} {{ org_contact.email }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 d-flex flex-wrap gap-2">
+              <button type="submit" name="action" value="link_role_contact" class="btn btn-primary">Lier</button>
+              <button type="submit" name="action" value="set_primary_role_contact" class="btn btn-secondary">Définir principal</button>
+              <button type="submit" name="action" value="unlink_role_contact" class="btn btn-warning">Délier</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="col-12 col-xl-6">
+        <div class="ui-comp-panel p-3 border rounded-3">
+          <h4 class="h6 mb-2">Scopes expéditeur</h4>
+          <form method="post" class="row g-2">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="upsert_shipper_scope">
+            <input type="hidden" name="q" value="{{ query }}">
+            <input type="hidden" name="contact_type" value="{{ contact_filter }}">
+            <div class="col-12 col-md-6">
+              <label class="form-label">Affectation shipper</label>
+              <select name="role_assignment_id" class="form-select" required>
+                <option value="">Choisir...</option>
+                {% for assignment in cockpit_shipper_role_assignments %}
+                  <option value="{{ assignment.id }}">{{ assignment.organization.name }} - {{ assignment.get_role_display }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Scope existant (optionnel)</label>
+              <select name="scope_id" class="form-select">
+                <option value="">Nouveau scope</option>
+                {% for scope in cockpit_shipper_scopes %}
+                  <option value="{{ scope.id }}">
+                    {{ scope.role_assignment.organization.name }} - {% if scope.all_destinations %}Toutes escales{% else %}{{ scope.destination.iata_code }}{% endif %}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Destination</label>
+              <select name="destination_id" class="form-select">
+                <option value="">Aucune (mode global)</option>
+                {% for destination in cockpit_destinations %}
+                  <option value="{{ destination.id }}">{{ destination.iata_code }} - {{ destination.city }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-6 d-flex align-items-end">
+              <div class="form-check form-switch">
+                <input id="scan-scope-all-destinations" type="checkbox" name="all_destinations" class="form-check-input">
+                <label for="scan-scope-all-destinations" class="form-check-label">Toutes les escales</label>
+              </div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Validité début</label>
+              <input type="datetime-local" name="valid_from" class="form-control">
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Validité fin</label>
+              <input type="datetime-local" name="valid_to" class="form-control">
+            </div>
+            <div class="col-12">
+              <button type="submit" class="btn btn-primary">Créer / mettre à jour scope</button>
+            </div>
+          </form>
+          <hr>
+          <form method="post" class="row g-2">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="disable_shipper_scope">
+            <input type="hidden" name="q" value="{{ query }}">
+            <input type="hidden" name="contact_type" value="{{ contact_filter }}">
+            <div class="col-12 col-md-8">
+              <label class="form-label">Scope à désactiver</label>
+              <select name="scope_id" class="form-select" required>
+                <option value="">Choisir...</option>
+                {% for scope in cockpit_shipper_scopes %}
+                  {% if scope.is_active %}
+                    <option value="{{ scope.id }}">
+                      {{ scope.role_assignment.organization.name }} - {% if scope.all_destinations %}Toutes escales{% else %}{{ scope.destination.iata_code }}{% endif %}
+                    </option>
+                  {% endif %}
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-4 d-flex align-items-end">
+              <button type="submit" class="btn btn-warning">Désactiver scope</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="col-12 col-xl-6">
+        <div class="ui-comp-panel p-3 border rounded-3">
+          <h4 class="h6 mb-2">Bindings destinataire</h4>
+          <form method="post" class="row g-2">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="upsert_recipient_binding">
+            <input type="hidden" name="q" value="{{ query }}">
+            <input type="hidden" name="contact_type" value="{{ contact_filter }}">
+            <div class="col-12 col-md-6">
+              <label class="form-label">Binding existant (optionnel)</label>
+              <select name="binding_id" class="form-select">
+                <option value="">Nouveau binding</option>
+                {% for binding in cockpit_recipient_bindings %}
+                  <option value="{{ binding.id }}">
+                    {{ binding.shipper_org.name }} → {{ binding.recipient_org.name }} ({{ binding.destination.iata_code }})
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Expéditeur</label>
+              <select name="shipper_org_id" class="form-select" required>
+                <option value="">Choisir...</option>
+                {% for organization in cockpit_organizations %}
+                  <option value="{{ organization.id }}">{{ organization.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Destinataire</label>
+              <select name="recipient_org_id" class="form-select" required>
+                <option value="">Choisir...</option>
+                {% for organization in cockpit_organizations %}
+                  <option value="{{ organization.id }}">{{ organization.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Destination</label>
+              <select name="destination_id" class="form-select" required>
+                <option value="">Choisir...</option>
+                {% for destination in cockpit_destinations %}
+                  <option value="{{ destination.id }}">{{ destination.iata_code }} - {{ destination.city }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Validité début</label>
+              <input type="datetime-local" name="valid_from" class="form-control">
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Validité fin</label>
+              <input type="datetime-local" name="valid_to" class="form-control">
+            </div>
+            <div class="col-12">
+              <button type="submit" class="btn btn-primary">Créer / mettre à jour binding</button>
+            </div>
+          </form>
+          <hr>
+          <form method="post" class="row g-2">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="close_recipient_binding">
+            <input type="hidden" name="q" value="{{ query }}">
+            <input type="hidden" name="contact_type" value="{{ contact_filter }}">
+            <div class="col-12 col-md-6">
+              <label class="form-label">Binding à clôturer</label>
+              <select name="binding_id" class="form-select" required>
+                <option value="">Choisir...</option>
+                {% for binding in cockpit_recipient_bindings %}
+                  {% if binding.is_active %}
+                    <option value="{{ binding.id }}">
+                      {{ binding.shipper_org.name }} → {{ binding.recipient_org.name }} ({{ binding.destination.iata_code }})
+                    </option>
+                  {% endif %}
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Date de fin</label>
+              <input type="datetime-local" name="valid_to" class="form-control" required>
+            </div>
+            <div class="col-12">
+              <button type="submit" class="btn btn-warning">Clôturer binding</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="col-12 col-xl-6">
+        <div class="ui-comp-panel p-3 border rounded-3">
+          <h4 class="h6 mb-2">Création guidée</h4>
+          <form method="post" class="row g-2">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create_guided_contact">
+            <input type="hidden" name="q" value="{{ query }}">
+            <input type="hidden" name="contact_type" value="{{ contact_filter }}">
+            <div class="col-12 col-md-6">
+              <label class="form-label">Je crée</label>
+              <select name="entity_kind" class="form-select" required>
+                <option value="organization">Organisation</option>
+                <option value="person">Personne</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Rôle initial (optionnel)</label>
+              <select name="role" class="form-select">
+                <option value="">Aucun</option>
+                {% for value, label in cockpit_role_choices %}
+                  <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Nom organisation</label>
+              <input type="text" name="organization_name" class="form-control" maxlength="200">
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Organisation cible (si personne)</label>
+              <select name="organization_id" class="form-select">
+                <option value="">Choisir...</option>
+                {% for organization in cockpit_organizations %}
+                  <option value="{{ organization.id }}">{{ organization.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label">Nom complet</label>
+              <input type="text" name="name" class="form-control" maxlength="200">
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label">Prénom</label>
+              <input type="text" name="first_name" class="form-control" maxlength="120">
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label">Nom</label>
+              <input type="text" name="last_name" class="form-control" maxlength="120">
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Email</label>
+              <input type="email" name="email" class="form-control">
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Téléphone</label>
+              <input type="text" name="phone" class="form-control" maxlength="40">
+            </div>
+            <div class="col-12">
+              <div class="form-check form-switch">
+                <input id="scan-guided-contact-active" type="checkbox" name="is_active" class="form-check-input" checked>
+                <label for="scan-guided-contact-active" class="form-check-label">Actif</label>
+              </div>
+            </div>
+            <div class="col-12">
+              <button type="submit" class="btn btn-primary">Créer</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card">
+    <h3 class="ui-comp-title h5 mb-3">Tableau organisations (cockpit)</h3>
+    <div class="scan-table-wrap table-responsive">
+      <table class="scan-table table table-sm table-hover" data-table-tools="1">
+        <thead>
+          <tr>
+            <th>Organisation</th>
+            <th>Rôles actifs</th>
+            <th>Bindings destinataire actifs</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in cockpit_rows %}
+            <tr>
+              <td>{{ row.organization.name }}</td>
+              <td>
+                {% if row.active_role_labels %}
+                  {{ row.active_role_labels|join:", " }}
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+              <td>{{ row.recipient_bindings_count }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="3">Aucune organisation ne correspond aux filtres.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 
   {% if legacy_contact_write_enabled %}
