@@ -3,7 +3,14 @@ from django.test import TestCase
 from django.urls import reverse
 
 from contacts.models import Contact, ContactType
-from wms.models import Destination, OrganizationRole, OrganizationRoleAssignment, RecipientBinding
+from wms.models import (
+    Destination,
+    OrganizationContact,
+    OrganizationRole,
+    OrganizationRoleAssignment,
+    OrganizationRoleContact,
+    RecipientBinding,
+)
 
 
 class ScanAdminContactsCockpitViewTests(TestCase):
@@ -57,6 +64,21 @@ class ScanAdminContactsCockpitViewTests(TestCase):
             is_active=True,
         )
 
+    def _create_primary_role_contact(self, *, assignment):
+        org_contact = OrganizationContact.objects.create(
+            organization=assignment.organization,
+            first_name="Primary",
+            last_name="Contact",
+            email="primary@example.org",
+            is_active=True,
+        )
+        return OrganizationRoleContact.objects.create(
+            role_assignment=assignment,
+            contact=org_contact,
+            is_primary=True,
+            is_active=True,
+        )
+
     def test_scan_admin_contacts_renders_org_role_cockpit(self):
         self.client.force_login(self.superuser)
 
@@ -91,3 +113,69 @@ class ScanAdminContactsCockpitViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         rows = response.context["cockpit_rows"]
         self.assertEqual([row["organization"].id for row in rows], [self.recipient.id])
+
+    def test_assign_role_requires_primary_email_contact(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.post(
+            reverse("scan:scan_admin_contacts"),
+            {
+                "action": "assign_role",
+                "organization_id": str(self.other_org.id),
+                "role": OrganizationRole.SHIPPER,
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "contact principal actif")
+        assignment = OrganizationRoleAssignment.objects.get(
+            organization=self.other_org,
+            role=OrganizationRole.SHIPPER,
+        )
+        self.assertFalse(assignment.is_active)
+
+    def test_assign_role_activates_when_primary_email_contact_exists(self):
+        self.client.force_login(self.superuser)
+        assignment = OrganizationRoleAssignment.objects.create(
+            organization=self.other_org,
+            role=OrganizationRole.SHIPPER,
+            is_active=False,
+        )
+        self._create_primary_role_contact(assignment=assignment)
+
+        response = self.client.post(
+            reverse("scan:scan_admin_contacts"),
+            {
+                "action": "assign_role",
+                "organization_id": str(self.other_org.id),
+                "role": OrganizationRole.SHIPPER,
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        assignment.refresh_from_db()
+        self.assertTrue(assignment.is_active)
+
+    def test_unassign_role_deactivates_assignment(self):
+        self.client.force_login(self.superuser)
+        assignment = OrganizationRoleAssignment.objects.create(
+            organization=self.other_org,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_admin_contacts"),
+            {
+                "action": "unassign_role",
+                "organization_id": str(self.other_org.id),
+                "role": OrganizationRole.SHIPPER,
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        assignment.refresh_from_db()
+        self.assertFalse(assignment.is_active)

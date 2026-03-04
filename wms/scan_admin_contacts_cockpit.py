@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from django.core.exceptions import ValidationError
 from django.db.models import Q
 
 from contacts.models import Contact, ContactType
@@ -8,6 +9,8 @@ from .models import OrganizationRole, OrganizationRoleAssignment, RecipientBindi
 
 
 ROLE_VALUES = {choice[0] for choice in OrganizationRole.choices}
+ACTION_ASSIGN_ROLE = "assign_role"
+ACTION_UNASSIGN_ROLE = "unassign_role"
 
 
 def parse_cockpit_filters(*, role: str = "", shipper_org_id: str = "") -> dict:
@@ -21,6 +24,87 @@ def parse_cockpit_filters(*, role: str = "", shipper_org_id: str = "") -> dict:
         "role": normalized_role,
         "shipper_org_id": normalized_shipper_org_id,
     }
+
+
+def _to_int(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _normalize_role(role: str) -> str:
+    normalized_role = (role or "").strip().lower()
+    if normalized_role in ROLE_VALUES:
+        return normalized_role
+    return ""
+
+
+def _validation_message(exc: ValidationError) -> str:
+    if getattr(exc, "message_dict", None):
+        for messages in exc.message_dict.values():
+            if messages:
+                return str(messages[0])
+    if getattr(exc, "messages", None):
+        return str(exc.messages[0])
+    return "Validation impossible."
+
+
+def _resolve_active_organization(organization_id: str):
+    resolved_id = _to_int(organization_id)
+    if not resolved_id:
+        return None
+    return Contact.objects.filter(
+        pk=resolved_id,
+        contact_type=ContactType.ORGANIZATION,
+        is_active=True,
+    ).first()
+
+
+def assign_role(*, organization_id: str, role: str) -> tuple[bool, str]:
+    organization = _resolve_active_organization(organization_id)
+    if organization is None:
+        return False, "Organisation invalide."
+    normalized_role = _normalize_role(role)
+    if not normalized_role:
+        return False, "Role invalide."
+
+    assignment, _created = OrganizationRoleAssignment.objects.get_or_create(
+        organization=organization,
+        role=normalized_role,
+        defaults={"is_active": False},
+    )
+    assignment.is_active = True
+    try:
+        assignment.save()
+    except ValidationError as exc:
+        assignment.is_active = False
+        assignment.save(update_fields=["is_active"])
+        return False, _validation_message(exc)
+
+    return True, f"Role {assignment.get_role_display()} active."
+
+
+def unassign_role(*, organization_id: str, role: str) -> tuple[bool, str]:
+    organization = _resolve_active_organization(organization_id)
+    if organization is None:
+        return False, "Organisation invalide."
+    normalized_role = _normalize_role(role)
+    if not normalized_role:
+        return False, "Role invalide."
+
+    assignment = OrganizationRoleAssignment.objects.filter(
+        organization=organization,
+        role=normalized_role,
+    ).first()
+    if assignment is None:
+        return False, "Role introuvable."
+    if not assignment.is_active:
+        return True, f"Role {assignment.get_role_display()} deja inactif."
+
+    assignment.is_active = False
+    assignment.save(update_fields=["is_active"])
+    return True, f"Role {assignment.get_role_display()} desactive."
 
 
 def _build_organizations_queryset(*, query: str, filters: dict):

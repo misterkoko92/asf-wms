@@ -23,7 +23,14 @@ from .product_label_printing import (
     render_product_labels_response,
     render_product_qr_labels_response,
 )
-from .scan_admin_contacts_cockpit import build_cockpit_context, parse_cockpit_filters
+from .scan_admin_contacts_cockpit import (
+    ACTION_ASSIGN_ROLE,
+    ACTION_UNASSIGN_ROLE,
+    assign_role,
+    build_cockpit_context,
+    parse_cockpit_filters,
+    unassign_role,
+)
 from .view_permissions import require_superuser as _require_superuser
 from .view_permissions import scan_staff_required
 
@@ -435,7 +442,27 @@ def scan_admin_contacts(request):
 
     if request.method == "POST":
         action = (request.POST.get("action") or "").strip()
-        if action == ACTION_CREATE_CONTACT:
+        if action == ACTION_ASSIGN_ROLE:
+            ok, message = assign_role(
+                organization_id=request.POST.get("organization_id") or "",
+                role=request.POST.get("role") or "",
+            )
+            if ok:
+                messages.success(request, message)
+            else:
+                messages.error(request, message)
+            return _build_contacts_redirect(query=query, contact_filter=contact_filter)
+        elif action == ACTION_UNASSIGN_ROLE:
+            ok, message = unassign_role(
+                organization_id=request.POST.get("organization_id") or "",
+                role=request.POST.get("role") or "",
+            )
+            if ok:
+                messages.success(request, message)
+            else:
+                messages.error(request, message)
+            return _build_contacts_redirect(query=query, contact_filter=contact_filter)
+        elif action == ACTION_CREATE_CONTACT:
             create_form = ScanAdminContactForm(request.POST, prefix="create")
             if create_form.is_valid():
                 contact = create_form.save()
