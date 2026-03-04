@@ -123,6 +123,9 @@ class WmsRuntimeSettings(models.Model):
     email_queue_retry_max_seconds = models.PositiveIntegerField(default=3600)
     email_queue_processing_timeout_seconds = models.PositiveIntegerField(default=900)
     enable_shipment_track_legacy = models.BooleanField(default=True)
+    org_roles_engine_enabled = models.BooleanField(default=False)
+    legacy_contact_write_enabled = models.BooleanField(default=True)
+    org_roles_review_max_open_percent = models.PositiveIntegerField(default=20)
     scan_bootstrap_enabled = models.BooleanField(default=True)
     design_font_heading = models.CharField(
         max_length=160,
@@ -203,6 +206,20 @@ class WmsRuntimeSettings(models.Model):
             "enable_shipment_track_legacy": bool(
                 getattr(django_settings, "ENABLE_SHIPMENT_TRACK_LEGACY", True)
             ),
+            "org_roles_engine_enabled": bool(
+                getattr(django_settings, "ORG_ROLES_ENGINE_ENABLED", False)
+            ),
+            "legacy_contact_write_enabled": bool(
+                getattr(django_settings, "LEGACY_CONTACT_WRITE_ENABLED", True)
+            ),
+            "org_roles_review_max_open_percent": min(
+                100,
+                _safe_int(
+                    getattr(django_settings, "ORG_ROLES_REVIEW_MAX_OPEN_PERCENT", 20),
+                    default=20,
+                    minimum=0,
+                ),
+            ),
             "scan_bootstrap_enabled": bool(
                 getattr(django_settings, "SCAN_BOOTSTRAP_ENABLED", True)
             ),
@@ -235,6 +252,14 @@ class WmsRuntimeSettings(models.Model):
         self.pk = 1
         if self.email_queue_retry_max_seconds < self.email_queue_retry_base_seconds:
             self.email_queue_retry_max_seconds = self.email_queue_retry_base_seconds
+        self.org_roles_review_max_open_percent = min(
+            100,
+            _safe_int(
+                self.org_roles_review_max_open_percent,
+                default=20,
+                minimum=0,
+            ),
+        )
         super().save(*args, **kwargs)
 
 

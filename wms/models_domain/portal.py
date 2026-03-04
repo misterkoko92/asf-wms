@@ -1125,3 +1125,147 @@ class ContactSubscription(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
+
+
+class DocumentRequirementTemplate(models.Model):
+    role = models.CharField(max_length=40, choices=OrganizationRole.choices)
+    code = models.SlugField(max_length=80)
+    label = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    is_required = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["role", "code", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["role", "code"],
+                name="wms_doc_requirement_template_unique_role_code",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.get_role_display()} - {self.label}"
+
+
+class OrganizationRoleDocument(models.Model):
+    role_assignment = models.ForeignKey(
+        OrganizationRoleAssignment,
+        on_delete=models.CASCADE,
+        related_name="role_documents",
+    )
+    requirement_template = models.ForeignKey(
+        DocumentRequirementTemplate,
+        on_delete=models.PROTECT,
+        related_name="organization_role_documents",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=DocumentReviewStatus.choices,
+        default=DocumentReviewStatus.PENDING,
+    )
+    file = models.FileField(upload_to="organization_role_documents/", blank=True)
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="organization_role_documents_uploaded",
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="organization_role_documents_reviewed",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = [
+            "role_assignment__organization__name",
+            "requirement_template__code",
+            "-uploaded_at",
+            "id",
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["role_assignment", "requirement_template"],
+                name="wms_role_document_unique_requirement",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return (
+            f"{self.role_assignment} - {self.requirement_template.code}"
+            f" ({self.get_status_display()})"
+        )
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if (
+            self.role_assignment_id
+            and self.requirement_template_id
+            and self.role_assignment.role != self.requirement_template.role
+        ):
+            errors["requirement_template"] = (
+                "Le template documentaire doit correspondre au role de l'affectation."
+            )
+
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
+class ComplianceOverride(models.Model):
+    role_assignment = models.ForeignKey(
+        OrganizationRoleAssignment,
+        on_delete=models.CASCADE,
+        related_name="compliance_overrides",
+    )
+    reason = models.TextField()
+    expires_at = models.DateTimeField()
+    ticket_reference = models.CharField(max_length=120, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="compliance_overrides_created",
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["expires_at", "role_assignment__organization__name", "id"]
+
+    def __str__(self) -> str:
+        return (
+            f"Override conformite {self.role_assignment}"
+            f" jusqu'au {timezone.localtime(self.expires_at).strftime('%Y-%m-%d %H:%M')}"
+        )
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.expires_at is None:
+            errors["expires_at"] = "La date d'expiration est obligatoire."
+        if not (self.reason or "").strip():
+            errors["reason"] = "Le motif d'override est obligatoire."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)

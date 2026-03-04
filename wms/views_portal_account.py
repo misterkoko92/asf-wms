@@ -17,12 +17,19 @@ from .models import (
     AssociationRecipient,
     Destination,
     DocumentReviewStatus,
+    OrganizationRole,
+    OrganizationRoleAssignment,
 )
 from .portal_helpers import get_contact_address
 from .portal_recipient_sync import sync_association_recipient_to_contact
 from .scan_helpers import parse_int
 from .upload_utils import validate_upload
-from .view_permissions import association_required
+from .view_permissions import (
+    BLOCKED_REASON_MISSING_DELIVERY_CONTACT,
+    BLOCKED_REASON_QUERY_PARAM,
+    BLOCKED_MESSAGES,
+    association_required,
+)
 
 TEMPLATE_RECIPIENTS = "portal/recipients.html"
 TEMPLATE_ACCOUNT = "portal/account.html"
@@ -59,12 +66,6 @@ ERROR_ASSOCIATION_NAME_REQUIRED = "Nom de l'association requis."
 ERROR_ASSOCIATION_ADDRESS_REQUIRED = "Adresse requise."
 ERROR_CONTACT_ROWS_LIMIT = f"Maximum {MAX_PORTAL_CONTACTS} contacts."
 ERROR_CONTACT_REQUIRED = "Ajoutez au moins un contact email."
-BLOCKED_REASON_PARAM = "blocked"
-BLOCKED_REASON_MISSING_DELIVERY_CONTACT = "missing_delivery_contact"
-BLOCKED_MESSAGE_MISSING_DELIVERY_CONTACT = (
-    "Compte bloqué: ajoutez au moins un destinataire avec la case "
-    '"Contact utilisé pour la réception dans l\'escale de livraison" cochée.'
-)
 
 
 def _split_multi_values(value):
@@ -212,7 +213,13 @@ def _create_recipient(profile, form_data):
         association_contact=profile.contact,
         **payload,
     )
-    sync_association_recipient_to_contact(recipient)
+    synced_contact = sync_association_recipient_to_contact(recipient)
+    if synced_contact:
+        OrganizationRoleAssignment.objects.get_or_create(
+            organization=synced_contact,
+            role=OrganizationRole.RECIPIENT,
+            defaults={"is_active": True},
+        )
     return recipient
 
 
@@ -221,7 +228,13 @@ def _update_recipient(recipient, form_data):
     for field_name, value in payload.items():
         setattr(recipient, field_name, value)
     recipient.save(update_fields=list(payload.keys()))
-    sync_association_recipient_to_contact(recipient)
+    synced_contact = sync_association_recipient_to_contact(recipient)
+    if synced_contact:
+        OrganizationRoleAssignment.objects.get_or_create(
+            organization=synced_contact,
+            role=OrganizationRole.RECIPIENT,
+            defaults={"is_active": True},
+        )
     return recipient
 
 
@@ -548,10 +561,10 @@ def portal_recipients(request):
     editing_recipient = None
     destinations = list(Destination.objects.filter(is_active=True).order_by("city"))
     destinations_by_id = {destination.id: destination for destination in destinations}
-    blocked_reason = (request.GET.get(BLOCKED_REASON_PARAM) or "").strip()
+    blocked_reason = (request.GET.get(BLOCKED_REASON_QUERY_PARAM) or "").strip()
     blocked_popup_message = ""
-    if blocked_reason == BLOCKED_REASON_MISSING_DELIVERY_CONTACT:
-        blocked_popup_message = BLOCKED_MESSAGE_MISSING_DELIVERY_CONTACT
+    if blocked_reason in {BLOCKED_REASON_MISSING_DELIVERY_CONTACT}:
+        blocked_popup_message = BLOCKED_MESSAGES.get(blocked_reason, "")
 
     if request.method == "POST" and request.POST.get("action") in {
         ACTION_CREATE_RECIPIENT,

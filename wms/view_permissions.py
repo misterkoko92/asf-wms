@@ -1,12 +1,34 @@
 from functools import wraps
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect
 from django.urls import reverse
 
-from .models import AssociationRecipient
+from .compliance import is_role_operation_allowed
+from .models import AssociationRecipient, OrganizationRole, OrganizationRoleAssignment
 from .portal_helpers import get_association_profile
+
+BLOCKED_REASON_QUERY_PARAM = "blocked"
+BLOCKED_REASON_MISSING_DELIVERY_CONTACT = "missing_delivery_contact"
+BLOCKED_REASON_REVIEW_PENDING = "review_pending"
+BLOCKED_REASON_COMPLIANCE_REQUIRED = "compliance_required"
+BLOCKED_MESSAGE_MISSING_DELIVERY_CONTACT = (
+    "Compte bloqué: ajoutez au moins un destinataire avec la case "
+    '"Contact utilisé pour la réception dans l\'escale de livraison" cochée.'
+)
+BLOCKED_MESSAGE_REVIEW_PENDING = (
+    "Compte expéditeur en cours de revue ASF. Accès commandes bloqué temporairement."
+)
+BLOCKED_MESSAGE_COMPLIANCE_REQUIRED = (
+    "Compte bloqué: documents expéditeur non conformes ou non validés par ASF."
+)
+BLOCKED_MESSAGES = {
+    BLOCKED_REASON_MISSING_DELIVERY_CONTACT: BLOCKED_MESSAGE_MISSING_DELIVERY_CONTACT,
+    BLOCKED_REASON_REVIEW_PENDING: BLOCKED_MESSAGE_REVIEW_PENDING,
+    BLOCKED_REASON_COMPLIANCE_REQUIRED: BLOCKED_MESSAGE_COMPLIANCE_REQUIRED,
+}
 
 
 def require_superuser(request):
@@ -26,6 +48,23 @@ def scan_staff_required(view):
 
 
 def association_required(view):
+    def _resolve_shipper_access_block_reason(profile):
+        role_assignment = (
+            OrganizationRoleAssignment.objects.filter(
+                organization=profile.contact,
+                role=OrganizationRole.SHIPPER,
+            )
+            .order_by("id")
+            .first()
+        )
+        if role_assignment is None:
+            return None
+        if not role_assignment.is_active:
+            return BLOCKED_REASON_REVIEW_PENDING
+        if not is_role_operation_allowed(role_assignment):
+            return BLOCKED_REASON_COMPLIANCE_REQUIRED
+        return None
+
     def wrapped(request, *args, **kwargs):
         profile = get_association_profile(request.user)
         if not profile:
@@ -35,19 +74,28 @@ def association_required(view):
             if request.path != change_url:
                 return redirect(change_url)
         recipients_url = reverse("portal:portal_recipients")
+        account_url = reverse("portal:portal_account")
         allowed_paths = {
             recipients_url,
-            reverse("portal:portal_account"),
+            account_url,
             reverse("portal:portal_logout"),
             reverse("portal:portal_change_password"),
         }
+        shipper_block_reason = _resolve_shipper_access_block_reason(profile)
+        if shipper_block_reason and request.path not in allowed_paths:
+            blocked_message = BLOCKED_MESSAGES.get(shipper_block_reason)
+            if blocked_message:
+                messages.error(request, blocked_message)
+            return redirect(f"{account_url}?{BLOCKED_REASON_QUERY_PARAM}={shipper_block_reason}")
         has_delivery_contact = AssociationRecipient.objects.filter(
             association_contact=profile.contact,
             is_active=True,
             is_delivery_contact=True,
         ).exists()
         if not has_delivery_contact and request.path not in allowed_paths:
-            return redirect(f"{recipients_url}?blocked=missing_delivery_contact")
+            return redirect(
+                f"{recipients_url}?{BLOCKED_REASON_QUERY_PARAM}={BLOCKED_REASON_MISSING_DELIVERY_CONTACT}"
+            )
         request.association_profile = profile
         return view(request, *args, **kwargs)
 

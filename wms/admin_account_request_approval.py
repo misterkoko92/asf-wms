@@ -182,6 +182,11 @@ def approve_account_request(
         profile.must_change_password = True
         profile.save(update_fields=["contact", "must_change_password"])
         assign_association_portal_group(user)
+        models.OrganizationRoleAssignment.objects.get_or_create(
+            organization=contact,
+            role=models.OrganizationRole.SHIPPER,
+            defaults={"is_active": False},
+        )
 
         models.AccountDocument.objects.filter(
             account_request=account_request,

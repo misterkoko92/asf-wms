@@ -15,6 +15,9 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
         "email_queue_retry_max_seconds",
         "email_queue_processing_timeout_seconds",
         "enable_shipment_track_legacy",
+        "org_roles_engine_enabled",
+        "legacy_contact_write_enabled",
+        "org_roles_review_max_open_percent",
     )
     MIN_ONE_FIELDS = (
         "low_stock_threshold",
@@ -45,7 +48,10 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
             "email_queue_retry_base_seconds",
             "email_queue_retry_max_seconds",
             "email_queue_processing_timeout_seconds",
+            "org_roles_review_max_open_percent",
             "enable_shipment_track_legacy",
+            "org_roles_engine_enabled",
+            "legacy_contact_write_enabled",
         ]
         labels = {
             "low_stock_threshold": "Seuil stock bas",
@@ -56,7 +62,10 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
             "email_queue_retry_base_seconds": "Queue email: retry base (secondes)",
             "email_queue_retry_max_seconds": "Queue email: retry max (secondes)",
             "email_queue_processing_timeout_seconds": "Queue email: timeout processing (secondes)",
+            "org_roles_review_max_open_percent": "Migration roles org: max dossiers ouverts (%)",
             "enable_shipment_track_legacy": "Activer la route legacy suivi expédition",
+            "org_roles_engine_enabled": "Activer le moteur organization roles",
+            "legacy_contact_write_enabled": "Autoriser les écritures legacy contacts",
         }
         help_texts = {
             "low_stock_threshold": "Produit considéré en stock bas sous ce seuil.",
@@ -67,7 +76,10 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
             "email_queue_retry_base_seconds": "Délai de base du backoff exponentiel.",
             "email_queue_retry_max_seconds": "Délai maximal du backoff exponentiel.",
             "email_queue_processing_timeout_seconds": "Au-delà, un événement processing est considéré bloqué.",
+            "org_roles_review_max_open_percent": "Seuil max de dossiers destinataires en revue avant alerte/go-live.",
             "enable_shipment_track_legacy": "Permet la route /scan/shipment/track/<reference>/.",
+            "org_roles_engine_enabled": "Bascule des résolveurs vers le nouveau modèle role-based.",
+            "legacy_contact_write_enabled": "Permet de continuer les écritures sur les objets legacy Contact.",
         }
         widgets = {
             "low_stock_threshold": forms.NumberInput(attrs={"min": 1, "step": 1}),
@@ -79,6 +91,9 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
             "email_queue_retry_max_seconds": forms.NumberInput(attrs={"min": 1, "step": 1}),
             "email_queue_processing_timeout_seconds": forms.NumberInput(
                 attrs={"min": 1, "step": 1}
+            ),
+            "org_roles_review_max_open_percent": forms.NumberInput(
+                attrs={"min": 0, "max": 100, "step": 1}
             ),
         }
 
@@ -97,9 +112,31 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
                 if not isinstance(validator, MinValueValidator)
             ]
             field.validators.append(MinValueValidator(1))
+        self.fields["org_roles_review_max_open_percent"].required = False
+        self.fields["org_roles_review_max_open_percent"].min_value = 0
+        self.fields["org_roles_review_max_open_percent"].max_value = 100
 
     def clean(self):
         cleaned_data = super().clean()
+        for boolean_field in ("org_roles_engine_enabled", "legacy_contact_write_enabled"):
+            if boolean_field not in self.data:
+                if getattr(self.instance, "pk", None):
+                    cleaned_data[boolean_field] = bool(
+                        getattr(self.instance, boolean_field, False)
+                    )
+                else:
+                    cleaned_data[boolean_field] = bool(
+                        self.fields[boolean_field].initial
+                    )
+        review_percent = cleaned_data.get("org_roles_review_max_open_percent")
+        if review_percent is None:
+            if getattr(self.instance, "pk", None):
+                cleaned_data["org_roles_review_max_open_percent"] = (
+                    self.instance.org_roles_review_max_open_percent
+                )
+            else:
+                cleaned_data["org_roles_review_max_open_percent"] = 20
+
         retry_base = cleaned_data.get("email_queue_retry_base_seconds")
         retry_max = cleaned_data.get("email_queue_retry_max_seconds")
         if (
