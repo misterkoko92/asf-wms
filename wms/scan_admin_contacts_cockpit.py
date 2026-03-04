@@ -9,13 +9,17 @@ from contacts.models import Contact, ContactType
 from .forms_scan_admin_contacts_cockpit import (
     OrganizationContactUpsertForm,
     RoleContactActionForm,
+    ShipperScopeDisableForm,
+    ShipperScopeUpsertForm,
 )
 from .models import (
+    Destination,
     OrganizationContact,
     OrganizationRole,
     OrganizationRoleAssignment,
     OrganizationRoleContact,
     RecipientBinding,
+    ShipperScope,
 )
 
 
@@ -26,6 +30,8 @@ ACTION_UPSERT_ORG_CONTACT = "upsert_org_contact"
 ACTION_LINK_ROLE_CONTACT = "link_role_contact"
 ACTION_UNLINK_ROLE_CONTACT = "unlink_role_contact"
 ACTION_SET_PRIMARY_ROLE_CONTACT = "set_primary_role_contact"
+ACTION_UPSERT_SHIPPER_SCOPE = "upsert_shipper_scope"
+ACTION_DISABLE_SHIPPER_SCOPE = "disable_shipper_scope"
 
 
 def parse_cockpit_filters(*, role: str = "", shipper_org_id: str = "") -> dict:
@@ -244,6 +250,65 @@ def set_primary_role_contact(*, data) -> tuple[bool, str]:
         role_contact.save(update_fields=["is_active", "is_primary"])
 
     return True, "Contact principal mis a jour."
+
+
+def upsert_shipper_scope(*, data) -> tuple[bool, str]:
+    form = ShipperScopeUpsertForm(data)
+    if not form.is_valid():
+        return False, "Donnees de scope expediteur invalides."
+
+    assignment = _resolve_role_assignment(form.cleaned_data["role_assignment_id"])
+    if assignment is None:
+        return False, "Affectation de role introuvable."
+    if assignment.role != OrganizationRole.SHIPPER:
+        return False, "Le scope d'escales est reserve au role expediteur."
+
+    scope = None
+    scope_id = form.cleaned_data.get("scope_id")
+    if scope_id:
+        scope = ShipperScope.objects.filter(pk=scope_id).first()
+        if scope is None:
+            return False, "Scope expediteur introuvable."
+        if scope.role_assignment_id != assignment.id:
+            return False, "Scope expediteur incompatible avec l'affectation."
+    if scope is None:
+        scope = ShipperScope(role_assignment=assignment)
+
+    destination = None
+    destination_id = form.cleaned_data.get("destination_id")
+    if destination_id:
+        destination = Destination.objects.filter(pk=destination_id, is_active=True).first()
+        if destination is None:
+            return False, "Escale invalide."
+
+    scope.all_destinations = bool(form.cleaned_data["all_destinations"])
+    scope.destination = destination
+    scope.is_active = True
+    scope.valid_from = form.cleaned_data.get("valid_from") or scope.valid_from
+    scope.valid_to = form.cleaned_data.get("valid_to")
+
+    try:
+        scope.save()
+    except ValidationError as exc:
+        return False, _validation_message(exc)
+
+    return True, "Scope expediteur enregistre."
+
+
+def disable_shipper_scope(*, data) -> tuple[bool, str]:
+    form = ShipperScopeDisableForm(data)
+    if not form.is_valid():
+        return False, "Scope expediteur invalide."
+
+    scope = ShipperScope.objects.filter(pk=form.cleaned_data["scope_id"]).first()
+    if scope is None:
+        return False, "Scope expediteur introuvable."
+    if not scope.is_active:
+        return True, "Scope expediteur deja inactif."
+
+    scope.is_active = False
+    scope.save(update_fields=["is_active"])
+    return True, "Scope expediteur desactive."
 
 
 def _build_organizations_queryset(*, query: str, filters: dict):

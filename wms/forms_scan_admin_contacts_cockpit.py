@@ -15,3 +15,16 @@ class OrganizationContactUpsertForm(forms.Form):
 class RoleContactActionForm(forms.Form):
     role_assignment_id = forms.IntegerField(min_value=1)
     organization_contact_id = forms.IntegerField(min_value=1)
+
+
+class ShipperScopeUpsertForm(forms.Form):
+    role_assignment_id = forms.IntegerField(min_value=1)
+    scope_id = forms.IntegerField(required=False, min_value=1)
+    all_destinations = forms.BooleanField(required=False)
+    destination_id = forms.IntegerField(required=False, min_value=1)
+    valid_from = forms.DateTimeField(required=False)
+    valid_to = forms.DateTimeField(required=False)
+
+
+class ShipperScopeDisableForm(forms.Form):
+    scope_id = forms.IntegerField(min_value=1)

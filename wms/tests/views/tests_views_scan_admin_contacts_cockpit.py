@@ -10,6 +10,7 @@ from wms.models import (
     OrganizationRoleAssignment,
     OrganizationRoleContact,
     RecipientBinding,
+    ShipperScope,
 )
 
 
@@ -361,3 +362,108 @@ class ScanAdminContactsCockpitViewTests(TestCase):
         role_contact.refresh_from_db()
         self.assertFalse(role_contact.is_active)
         self.assertFalse(role_contact.is_primary)
+
+    def test_upsert_shipper_scope_creates_global_scope(self):
+        self.client.force_login(self.superuser)
+        assignment = OrganizationRoleAssignment.objects.create(
+            organization=self.other_org,
+            role=OrganizationRole.SHIPPER,
+            is_active=False,
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_admin_contacts"),
+            {
+                "action": "upsert_shipper_scope",
+                "role_assignment_id": str(assignment.id),
+                "all_destinations": "1",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(
+            ShipperScope.objects.filter(
+                role_assignment=assignment,
+                all_destinations=True,
+                is_active=True,
+            ).exists()
+        )
+
+    def test_upsert_shipper_scope_creates_destination_scope(self):
+        self.client.force_login(self.superuser)
+        assignment = OrganizationRoleAssignment.objects.create(
+            organization=self.other_org,
+            role=OrganizationRole.SHIPPER,
+            is_active=False,
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_admin_contacts"),
+            {
+                "action": "upsert_shipper_scope",
+                "role_assignment_id": str(assignment.id),
+                "destination_id": str(self.destination.id),
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(
+            ShipperScope.objects.filter(
+                role_assignment=assignment,
+                destination=self.destination,
+                all_destinations=False,
+                is_active=True,
+            ).exists()
+        )
+
+    def test_upsert_shipper_scope_requires_global_xor_destination(self):
+        self.client.force_login(self.superuser)
+        assignment = OrganizationRoleAssignment.objects.create(
+            organization=self.other_org,
+            role=OrganizationRole.SHIPPER,
+            is_active=False,
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_admin_contacts"),
+            {
+                "action": "upsert_shipper_scope",
+                "role_assignment_id": str(assignment.id),
+                "all_destinations": "1",
+                "destination_id": str(self.destination.id),
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "soit toutes les escales, soit une escale cible")
+        self.assertFalse(ShipperScope.objects.filter(role_assignment=assignment).exists())
+
+    def test_disable_shipper_scope_deactivates_scope(self):
+        self.client.force_login(self.superuser)
+        assignment = OrganizationRoleAssignment.objects.create(
+            organization=self.other_org,
+            role=OrganizationRole.SHIPPER,
+            is_active=False,
+        )
+        scope = ShipperScope.objects.create(
+            role_assignment=assignment,
+            destination=self.destination,
+            all_destinations=False,
+            is_active=True,
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_admin_contacts"),
+            {
+                "action": "disable_shipper_scope",
+                "scope_id": str(scope.id),
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        scope.refresh_from_db()
+        self.assertFalse(scope.is_active)
