@@ -45,6 +45,7 @@ EVENT_BY_COLUMN = {
 @dataclass
 class ImportStats:
     organizations_rows: int = 0
+    organizations_created: int = 0
     organization_assignments_created: int = 0
     organization_assignments_updated: int = 0
     shipper_scopes_rows: int = 0
@@ -144,13 +145,28 @@ def _sheet_rows(*, workbook, sheet_name):
     return rows
 
 
-def _single_org_by_name(name: str, *, row_label: str) -> Contact:
+def _single_org_by_name(
+    name: str,
+    *,
+    row_label: str,
+    create_missing_organizations: bool = False,
+    stats: ImportStats | None = None,
+) -> Contact:
     query = Contact.objects.filter(
         contact_type=ContactType.ORGANIZATION,
         name__iexact=name.strip(),
     ).order_by("-is_active", "id")
     count = query.count()
     if count == 0:
+        if create_missing_organizations:
+            contact = Contact.objects.create(
+                contact_type=ContactType.ORGANIZATION,
+                name=name.strip(),
+                is_active=True,
+            )
+            if stats is not None:
+                stats.organizations_created += 1
+            return contact
         raise CommandError(f"{row_label}: organisation introuvable: {name}")
     if count > 1:
         ids = list(query.values_list("id", flat=True))
@@ -185,7 +201,12 @@ def _ensure_role_assignment(*, organization, role, is_active, stats: ImportStats
     return assignment
 
 
-def _apply_organizations(rows, stats: ImportStats):
+def _apply_organizations(
+    rows,
+    stats: ImportStats,
+    *,
+    create_missing_organizations: bool,
+):
     for row in rows:
         row_label = f"Organizations row {row['_row_number']}"
         stats.organizations_rows += 1
@@ -196,7 +217,12 @@ def _apply_organizations(rows, stats: ImportStats):
         if role not in ROLE_VALUES:
             raise CommandError(f"{row_label}: role invalide '{role}'")
         role_active = _bool_or_none(row.get("role_active"))
-        organization = _single_org_by_name(organization_name, row_label=row_label)
+        organization = _single_org_by_name(
+            organization_name,
+            row_label=row_label,
+            create_missing_organizations=create_missing_organizations,
+            stats=stats,
+        )
         _ensure_role_assignment(
             organization=organization,
             role=role,
@@ -205,7 +231,12 @@ def _apply_organizations(rows, stats: ImportStats):
         )
 
 
-def _apply_shipper_scopes(rows, stats: ImportStats):
+def _apply_shipper_scopes(
+    rows,
+    stats: ImportStats,
+    *,
+    create_missing_organizations: bool,
+):
     for row in rows:
         row_label = f"ShipperScopes row {row['_row_number']}"
         stats.shipper_scopes_rows += 1
@@ -218,7 +249,12 @@ def _apply_shipper_scopes(rows, stats: ImportStats):
 
         if not organization_name:
             raise CommandError(f"{row_label}: organization_name requis")
-        organization = _single_org_by_name(organization_name, row_label=row_label)
+        organization = _single_org_by_name(
+            organization_name,
+            row_label=row_label,
+            create_missing_organizations=create_missing_organizations,
+            stats=stats,
+        )
         assignment = _ensure_role_assignment(
             organization=organization,
             role=OrganizationRole.SHIPPER,
@@ -288,7 +324,12 @@ def _apply_shipper_scopes(rows, stats: ImportStats):
                 stats.shipper_scopes_updated += 1
 
 
-def _apply_recipient_bindings(rows, stats: ImportStats):
+def _apply_recipient_bindings(
+    rows,
+    stats: ImportStats,
+    *,
+    create_missing_organizations: bool,
+):
     for row in rows:
         row_label = f"RecipientBindings row {row['_row_number']}"
         stats.recipient_bindings_rows += 1
@@ -305,8 +346,18 @@ def _apply_recipient_bindings(rows, stats: ImportStats):
                 "et destination_iata sont requis"
             )
 
-        recipient_org = _single_org_by_name(recipient_name, row_label=row_label)
-        shipper_org = _single_org_by_name(shipper_name, row_label=row_label)
+        recipient_org = _single_org_by_name(
+            recipient_name,
+            row_label=row_label,
+            create_missing_organizations=create_missing_organizations,
+            stats=stats,
+        )
+        shipper_org = _single_org_by_name(
+            shipper_name,
+            row_label=row_label,
+            create_missing_organizations=create_missing_organizations,
+            stats=stats,
+        )
         destination = _destination_by_iata(iata_code, row_label=row_label)
 
         _ensure_role_assignment(
@@ -341,7 +392,12 @@ def _apply_recipient_bindings(rows, stats: ImportStats):
             stats.recipient_bindings_updated += 1
 
 
-def _apply_correspondents(rows, stats: ImportStats):
+def _apply_correspondents(
+    rows,
+    stats: ImportStats,
+    *,
+    create_missing_organizations: bool,
+):
     for row in rows:
         row_label = f"Correspondents row {row['_row_number']}"
         stats.correspondents_rows += 1
@@ -358,7 +414,12 @@ def _apply_correspondents(rows, stats: ImportStats):
             )
 
         destination = _destination_by_iata(iata_code, row_label=row_label)
-        correspondent_org = _single_org_by_name(correspondent_name, row_label=row_label)
+        correspondent_org = _single_org_by_name(
+            correspondent_name,
+            row_label=row_label,
+            create_missing_organizations=create_missing_organizations,
+            stats=stats,
+        )
         _ensure_role_assignment(
             organization=correspondent_org,
             role=OrganizationRole.CORRESPONDENT,
@@ -392,11 +453,21 @@ def _apply_correspondents(rows, stats: ImportStats):
         if scope_type in {"shipper_override", "shipper_and_recipient_override"}:
             if not shipper_name:
                 raise CommandError(f"{row_label}: shipper_organization_name requis")
-            shipper_org = _single_org_by_name(shipper_name, row_label=row_label)
+            shipper_org = _single_org_by_name(
+                shipper_name,
+                row_label=row_label,
+                create_missing_organizations=create_missing_organizations,
+                stats=stats,
+            )
         if scope_type in {"recipient_override", "shipper_and_recipient_override"}:
             if not recipient_name:
                 raise CommandError(f"{row_label}: recipient_organization_name requis")
-            recipient_org = _single_org_by_name(recipient_name, row_label=row_label)
+            recipient_org = _single_org_by_name(
+                recipient_name,
+                row_label=row_label,
+                create_missing_organizations=create_missing_organizations,
+                stats=stats,
+            )
 
         override, created = DestinationCorrespondentOverride.objects.get_or_create(
             destination=destination,
@@ -470,7 +541,14 @@ def _find_or_create_organization_contact(*, organization, row, row_label, stats)
     return contact, created
 
 
-def _apply_subscriptions(*, role_contact, row, row_label, stats):
+def _apply_subscriptions(
+    *,
+    role_contact,
+    row,
+    row_label,
+    stats,
+    create_missing_organizations: bool,
+):
     channel = row.get("notification_channel", "").strip().lower() or NotificationChannel.EMAIL
     if channel not in CHANNEL_VALUES:
         raise CommandError(f"{row_label}: notification_channel invalide '{channel}'")
@@ -484,9 +562,19 @@ def _apply_subscriptions(*, role_contact, row, row_label, stats):
     if destination_iata:
         destination = _destination_by_iata(destination_iata, row_label=row_label)
     if shipper_filter_name:
-        shipper_org = _single_org_by_name(shipper_filter_name, row_label=row_label)
+        shipper_org = _single_org_by_name(
+            shipper_filter_name,
+            row_label=row_label,
+            create_missing_organizations=create_missing_organizations,
+            stats=stats,
+        )
     if recipient_filter_name:
-        recipient_org = _single_org_by_name(recipient_filter_name, row_label=row_label)
+        recipient_org = _single_org_by_name(
+            recipient_filter_name,
+            row_label=row_label,
+            create_missing_organizations=create_missing_organizations,
+            stats=stats,
+        )
 
     role_contact.subscriptions.all().delete()
     for column_name, event_type in EVENT_BY_COLUMN.items():
@@ -505,7 +593,12 @@ def _apply_subscriptions(*, role_contact, row, row_label, stats):
         stats.subscriptions_created += 1
 
 
-def _apply_organization_contacts(rows, stats: ImportStats):
+def _apply_organization_contacts(
+    rows,
+    stats: ImportStats,
+    *,
+    create_missing_organizations: bool,
+):
     for row in rows:
         row_label = f"OrganizationContacts row {row['_row_number']}"
         stats.organization_contacts_rows += 1
@@ -514,7 +607,12 @@ def _apply_organization_contacts(rows, stats: ImportStats):
         if not organization_name or role not in ROLE_VALUES:
             raise CommandError(f"{row_label}: organization_name/role invalides")
 
-        organization = _single_org_by_name(organization_name, row_label=row_label)
+        organization = _single_org_by_name(
+            organization_name,
+            row_label=row_label,
+            create_missing_organizations=create_missing_organizations,
+            stats=stats,
+        )
         assignment = _ensure_role_assignment(
             organization=organization,
             role=role,
@@ -559,7 +657,13 @@ def _apply_organization_contacts(rows, stats: ImportStats):
                 is_primary=True,
             ).exclude(pk=role_contact.pk).update(is_primary=False, updated_at=timezone.now())
 
-        _apply_subscriptions(role_contact=role_contact, row=row, row_label=row_label, stats=stats)
+        _apply_subscriptions(
+            role_contact=role_contact,
+            row=row,
+            row_label=row_label,
+            stats=stats,
+            create_missing_organizations=create_missing_organizations,
+        )
 
 
 def _resolve_review_item(*, review_item, note):
@@ -569,7 +673,12 @@ def _resolve_review_item(*, review_item, note):
     review_item.save(update_fields=["status", "resolved_at", "resolution_note", "updated_at"])
 
 
-def _apply_migration_review(rows, stats: ImportStats):
+def _apply_migration_review(
+    rows,
+    stats: ImportStats,
+    *,
+    create_missing_organizations: bool,
+):
     for row in rows:
         row_label = f"MigrationReview row {row['_row_number']}"
         stats.migration_review_rows += 1
@@ -611,7 +720,12 @@ def _apply_migration_review(rows, stats: ImportStats):
         recipient_org = _resolve_recipient_organization(review_item)
         if recipient_org is None:
             raise CommandError(f"{row_label}: destinataire introuvable depuis review item")
-        shipper_org = _single_org_by_name(shipper_name, row_label=row_label)
+        shipper_org = _single_org_by_name(
+            shipper_name,
+            row_label=row_label,
+            create_missing_organizations=create_missing_organizations,
+            stats=stats,
+        )
         destination = _destination_by_iata(iata_code, row_label=row_label)
 
         shipper_assignment = _ensure_role_assignment(
@@ -673,6 +787,7 @@ def _print_summary(command, stats: ImportStats, *, dry_run: bool):
     command.stdout.write(command.style.MIGRATE_HEADING(f"Import org roles template [{mode}]"))
     lines = [
         f"- Organizations rows: {stats.organizations_rows}",
+        f"- Organizations created on-the-fly: {stats.organizations_created}",
         (
             "- OrganizationRoleAssignment: "
             f"created={stats.organization_assignments_created}, "
@@ -732,10 +847,21 @@ class Command(BaseCommand):
             action="store_true",
             help="Valide et calcule le resultat sans persister en base.",
         )
+        parser.add_argument(
+            "--create-missing-organizations",
+            action="store_true",
+            help=(
+                "Cree automatiquement les organisations manquantes "
+                "(contacts type structure actifs)."
+            ),
+        )
 
     def handle(self, *args, **options):
         input_path = _resolve_path(options["input"])
         dry_run = bool(options.get("dry_run"))
+        create_missing_organizations = bool(
+            options.get("create_missing_organizations")
+        )
         if not input_path.exists():
             raise CommandError(f"Fichier introuvable: {input_path}")
 
@@ -743,20 +869,35 @@ class Command(BaseCommand):
         stats = ImportStats()
 
         def _apply():
-            _apply_organizations(_sheet_rows(workbook=workbook, sheet_name="Organizations"), stats)
-            _apply_shipper_scopes(_sheet_rows(workbook=workbook, sheet_name="ShipperScopes"), stats)
+            _apply_organizations(
+                _sheet_rows(workbook=workbook, sheet_name="Organizations"),
+                stats,
+                create_missing_organizations=create_missing_organizations,
+            )
+            _apply_shipper_scopes(
+                _sheet_rows(workbook=workbook, sheet_name="ShipperScopes"),
+                stats,
+                create_missing_organizations=create_missing_organizations,
+            )
             _apply_recipient_bindings(
                 _sheet_rows(workbook=workbook, sheet_name="RecipientBindings"),
                 stats,
+                create_missing_organizations=create_missing_organizations,
             )
-            _apply_correspondents(_sheet_rows(workbook=workbook, sheet_name="Correspondents"), stats)
+            _apply_correspondents(
+                _sheet_rows(workbook=workbook, sheet_name="Correspondents"),
+                stats,
+                create_missing_organizations=create_missing_organizations,
+            )
             _apply_organization_contacts(
                 _sheet_rows(workbook=workbook, sheet_name="OrganizationContacts"),
                 stats,
+                create_missing_organizations=create_missing_organizations,
             )
             _apply_migration_review(
                 _sheet_rows(workbook=workbook, sheet_name="MigrationReview"),
                 stats,
+                create_missing_organizations=create_missing_organizations,
             )
 
         if dry_run:
