@@ -4,6 +4,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.utils import timezone
 
 from .catalog import Product
 from .inventory import Destination, ProductLot
@@ -550,3 +551,577 @@ class OrderDocument(models.Model):
 
     def __str__(self) -> str:
         return f"{self.get_doc_type_display()} - {self.order}"
+
+
+class OrganizationRole(models.TextChoices):
+    SHIPPER = "shipper", "Expéditeur"
+    RECIPIENT = "recipient", "Destinataire"
+    CORRESPONDENT = "correspondent", "Correspondant"
+    DONOR = "donor", "Donateur"
+    TRANSPORTER = "transporter", "Transporteur"
+
+
+class OrganizationRoleAssignment(models.Model):
+    organization = models.ForeignKey(
+        "contacts.Contact",
+        on_delete=models.PROTECT,
+        related_name="organization_role_assignments",
+    )
+    role = models.CharField(max_length=40, choices=OrganizationRole.choices)
+    is_active = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["organization__name", "role", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "role"],
+                name="wms_org_role_assignment_unique",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.organization} - {self.get_role_display()}"
+
+    def _has_primary_email_contact(self) -> bool:
+        if not self.pk:
+            return False
+        return self.role_contacts.filter(
+            is_active=True,
+            is_primary=True,
+            contact__is_active=True,
+        ).exclude(contact__email="").exists()
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.organization_id:
+            from contacts.models import ContactType
+
+            if self.organization.contact_type != ContactType.ORGANIZATION:
+                errors["organization"] = "L'organisation doit être un contact de type structure."
+            elif not self.organization.is_active:
+                errors["organization"] = "L'organisation doit être active."
+
+        if self.is_active and self.pk and not self._has_primary_email_contact():
+            errors["is_active"] = (
+                "Un role actif requiert un contact principal actif avec une adresse email."
+            )
+
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
+class OrganizationContact(models.Model):
+    organization = models.ForeignKey(
+        "contacts.Contact",
+        on_delete=models.CASCADE,
+        related_name="organization_contacts",
+    )
+    title = models.CharField(
+        max_length=10,
+        choices=AssociationContactTitle.choices,
+        blank=True,
+    )
+    last_name = models.CharField(max_length=120, blank=True)
+    first_name = models.CharField(max_length=120, blank=True)
+    email = models.EmailField(blank=True)
+    phone = models.CharField(max_length=40, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["organization__name", "last_name", "first_name", "id"]
+
+    def __str__(self) -> str:
+        display = " ".join(
+            part for part in [self.first_name, self.last_name] if (part or "").strip()
+        ).strip()
+        return display or self.email or f"Contact organisation #{self.pk}"
+
+    def clean(self):
+        super().clean()
+        if not self.organization_id:
+            return
+        from contacts.models import ContactType
+
+        if self.organization.contact_type != ContactType.ORGANIZATION:
+            raise ValidationError(
+                {"organization": "Le contact organisation doit être de type structure."}
+            )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
+class OrganizationRoleContact(models.Model):
+    role_assignment = models.ForeignKey(
+        OrganizationRoleAssignment,
+        on_delete=models.CASCADE,
+        related_name="role_contacts",
+    )
+    contact = models.ForeignKey(
+        OrganizationContact,
+        on_delete=models.CASCADE,
+        related_name="role_assignments",
+    )
+    is_primary = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["role_assignment", "-is_primary", "contact__last_name", "contact__first_name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["role_assignment", "contact"],
+                name="wms_org_role_contact_unique_pair",
+            ),
+            models.UniqueConstraint(
+                fields=["role_assignment"],
+                condition=models.Q(is_primary=True, is_active=True),
+                name="wms_org_role_contact_single_primary",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        suffix = " (principal)" if self.is_primary else ""
+        return f"{self.role_assignment}{suffix} - {self.contact}"
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.role_assignment_id and self.contact_id:
+            if self.contact.organization_id != self.role_assignment.organization_id:
+                errors["contact"] = (
+                    "Le contact doit appartenir à la même organisation que l'affectation de role."
+                )
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
+class ShipperScope(models.Model):
+    role_assignment = models.ForeignKey(
+        OrganizationRoleAssignment,
+        on_delete=models.CASCADE,
+        related_name="shipper_scopes",
+    )
+    all_destinations = models.BooleanField(default=False)
+    destination = models.ForeignKey(
+        Destination,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="shipper_scopes",
+    )
+    is_active = models.BooleanField(default=True)
+    valid_from = models.DateTimeField(default=timezone.now)
+    valid_to = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = [
+            "role_assignment__organization__name",
+            "role_assignment__id",
+            "-all_destinations",
+            "destination__city",
+            "id",
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["role_assignment", "destination"],
+                name="wms_shipper_scope_unique_assignment_destination",
+            ),
+            models.UniqueConstraint(
+                fields=["role_assignment"],
+                condition=models.Q(all_destinations=True, is_active=True),
+                name="wms_shipper_scope_single_active_global",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        if self.all_destinations:
+            return f"{self.role_assignment} - toutes escales"
+        return f"{self.role_assignment} - {self.destination}"
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.role_assignment_id and self.role_assignment.role != OrganizationRole.SHIPPER:
+            errors["role_assignment"] = "Le scope d'escales est reserve au role expediteur."
+
+        if self.all_destinations and self.destination_id:
+            errors["__all__"] = "Choisir soit toutes les escales, soit une escale cible."
+        elif not self.all_destinations and not self.destination_id:
+            errors["__all__"] = "Une escale est obligatoire si toutes les escales n'est pas selectionne."
+
+        if self.valid_to and self.valid_from and self.valid_to <= self.valid_from:
+            errors["valid_to"] = "La fin de validite doit etre posterieure au debut."
+
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
+class RecipientBinding(models.Model):
+    shipper_org = models.ForeignKey(
+        "contacts.Contact",
+        on_delete=models.PROTECT,
+        related_name="recipient_bindings_as_shipper",
+    )
+    recipient_org = models.ForeignKey(
+        "contacts.Contact",
+        on_delete=models.PROTECT,
+        related_name="recipient_bindings_as_recipient",
+    )
+    destination = models.ForeignKey(
+        Destination,
+        on_delete=models.PROTECT,
+        related_name="recipient_bindings",
+    )
+    is_active = models.BooleanField(default=True)
+    valid_from = models.DateTimeField(default=timezone.now)
+    valid_to = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = [
+            "recipient_org__name",
+            "shipper_org__name",
+            "destination__city",
+            "-valid_from",
+            "id",
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["shipper_org", "recipient_org", "destination", "valid_from"],
+                name="wms_recipient_binding_unique_version",
+            ),
+            models.UniqueConstraint(
+                fields=["shipper_org", "recipient_org", "destination"],
+                condition=models.Q(is_active=True),
+                name="wms_recipient_binding_single_active",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.shipper_org} -> {self.recipient_org} ({self.destination})"
+
+    def clean(self):
+        super().clean()
+        errors = {}
+
+        if self.valid_to and self.valid_from and self.valid_to <= self.valid_from:
+            errors["valid_to"] = "La fin de validite doit etre posterieure au debut."
+
+        if self.shipper_org_id:
+            from contacts.models import ContactType
+
+            if self.shipper_org.contact_type != ContactType.ORGANIZATION:
+                errors["shipper_org"] = "L'expediteur doit etre une structure."
+            elif not self.shipper_org.is_active:
+                errors["shipper_org"] = "L'expediteur doit etre actif."
+
+        if self.recipient_org_id:
+            from contacts.models import ContactType
+
+            if self.recipient_org.contact_type != ContactType.ORGANIZATION:
+                errors["recipient_org"] = "Le destinataire doit etre une structure."
+            elif not self.recipient_org.is_active:
+                errors["recipient_org"] = "Le destinataire doit etre actif."
+
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
+class DestinationCorrespondentDefault(models.Model):
+    destination = models.ForeignKey(
+        Destination,
+        on_delete=models.CASCADE,
+        related_name="destination_correspondent_defaults",
+    )
+    correspondent_org = models.ForeignKey(
+        "contacts.Contact",
+        on_delete=models.PROTECT,
+        related_name="destination_correspondent_defaults",
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["destination__city", "correspondent_org__name", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["destination", "correspondent_org"],
+                name="wms_destination_corr_default_unique",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.destination} - {self.correspondent_org}"
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.correspondent_org_id:
+            from contacts.models import ContactType
+
+            if self.correspondent_org.contact_type != ContactType.ORGANIZATION:
+                errors["correspondent_org"] = "Le correspondant doit etre une structure."
+            elif self.is_active and not self.correspondent_org.is_active:
+                errors["correspondent_org"] = "Le correspondant actif doit etre actif."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
+class DestinationCorrespondentOverride(models.Model):
+    destination = models.ForeignKey(
+        Destination,
+        on_delete=models.CASCADE,
+        related_name="destination_correspondent_overrides",
+    )
+    correspondent_org = models.ForeignKey(
+        "contacts.Contact",
+        on_delete=models.PROTECT,
+        related_name="destination_correspondent_overrides",
+    )
+    shipper_org = models.ForeignKey(
+        "contacts.Contact",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="destination_correspondent_overrides_as_shipper",
+    )
+    recipient_org = models.ForeignKey(
+        "contacts.Contact",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="destination_correspondent_overrides_as_recipient",
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = [
+            "destination__city",
+            "correspondent_org__name",
+            "shipper_org__name",
+            "recipient_org__name",
+            "id",
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["destination", "correspondent_org", "shipper_org", "recipient_org"],
+                name="wms_destination_corr_override_unique_key",
+            ),
+            models.CheckConstraint(
+                check=models.Q(shipper_org__isnull=False) | models.Q(recipient_org__isnull=False),
+                name="wms_destination_corr_override_requires_scope",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        scope_parts = []
+        if self.shipper_org_id:
+            scope_parts.append(f"expediteur={self.shipper_org}")
+        if self.recipient_org_id:
+            scope_parts.append(f"destinataire={self.recipient_org}")
+        scope = ", ".join(scope_parts) or "scope manquant"
+        return f"{self.destination} - {self.correspondent_org} [{scope}]"
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        from contacts.models import ContactType
+
+        if self.correspondent_org_id:
+            if self.correspondent_org.contact_type != ContactType.ORGANIZATION:
+                errors["correspondent_org"] = "Le correspondant doit etre une structure."
+            elif self.is_active and not self.correspondent_org.is_active:
+                errors["correspondent_org"] = "Le correspondant actif doit etre actif."
+
+        if self.shipper_org_id:
+            if self.shipper_org.contact_type != ContactType.ORGANIZATION:
+                errors["shipper_org"] = "L'expediteur de scope doit etre une structure."
+            elif not self.shipper_org.is_active:
+                errors["shipper_org"] = "L'expediteur de scope doit etre actif."
+
+        if self.recipient_org_id:
+            if self.recipient_org.contact_type != ContactType.ORGANIZATION:
+                errors["recipient_org"] = "Le destinataire de scope doit etre une structure."
+            elif not self.recipient_org.is_active:
+                errors["recipient_org"] = "Le destinataire de scope doit etre actif."
+
+        if not self.shipper_org_id and not self.recipient_org_id:
+            errors["__all__"] = "Definir au moins un scope expediteur ou destinataire."
+
+        if errors:
+            raise ValidationError(errors)
+
+    def matches(self, *, shipper_org=None, recipient_org=None) -> bool:
+        if self.shipper_org_id and (not shipper_org or shipper_org.id != self.shipper_org_id):
+            return False
+        if self.recipient_org_id and (not recipient_org or recipient_org.id != self.recipient_org_id):
+            return False
+        return True
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
+class NotificationChannel(models.TextChoices):
+    EMAIL = "email", "Email"
+
+
+class RoleEventType(models.TextChoices):
+    SHIPMENT_STATUS_UPDATED = "shipment_status_updated", "Mise a jour statut expedition"
+    SHIPMENT_DELIVERED = "shipment_delivered", "Livraison expedition"
+    SHIPMENT_TRACKING_UPDATED = "shipment_tracking_updated", "Mise a jour tracking expedition"
+    ORDER_DOCUMENT_REQUESTED = "order_document_requested", "Demande de document commande"
+
+
+class RoleEventPolicy(models.Model):
+    role = models.CharField(max_length=40, choices=OrganizationRole.choices)
+    event_type = models.CharField(max_length=60, choices=RoleEventType.choices)
+    is_visible = models.BooleanField(default=True)
+    is_notifiable = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["role", "event_type", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["role", "event_type"],
+                name="wms_role_event_policy_unique_role_event",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.get_role_display()} - {self.get_event_type_display()}"
+
+
+class ContactSubscription(models.Model):
+    role_contact = models.ForeignKey(
+        OrganizationRoleContact,
+        on_delete=models.CASCADE,
+        related_name="subscriptions",
+    )
+    event_type = models.CharField(max_length=60, choices=RoleEventType.choices)
+    channel = models.CharField(
+        max_length=20,
+        choices=NotificationChannel.choices,
+        default=NotificationChannel.EMAIL,
+    )
+    destination = models.ForeignKey(
+        Destination,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="contact_subscriptions",
+    )
+    shipper_org = models.ForeignKey(
+        "contacts.Contact",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="contact_subscriptions_as_shipper",
+    )
+    recipient_org = models.ForeignKey(
+        "contacts.Contact",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="contact_subscriptions_as_recipient",
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = [
+            "role_contact__role_assignment__organization__name",
+            "event_type",
+            "channel",
+            "id",
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "role_contact",
+                    "event_type",
+                    "channel",
+                    "destination",
+                    "shipper_org",
+                    "recipient_org",
+                ],
+                name="wms_contact_subscription_unique_filter_combo",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.role_contact} - {self.event_type} ({self.channel})"
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        from contacts.models import ContactType
+
+        if self.shipper_org_id:
+            if self.shipper_org.contact_type != ContactType.ORGANIZATION:
+                errors["shipper_org"] = "Le filtre expediteur doit etre une structure."
+            elif not self.shipper_org.is_active:
+                errors["shipper_org"] = "Le filtre expediteur doit etre actif."
+
+        if self.recipient_org_id:
+            if self.recipient_org.contact_type != ContactType.ORGANIZATION:
+                errors["recipient_org"] = "Le filtre destinataire doit etre une structure."
+            elif not self.recipient_org.is_active:
+                errors["recipient_org"] = "Le filtre destinataire doit etre actif."
+
+        if errors:
+            raise ValidationError(errors)
+
+    def matches_context(self, *, destination=None, shipper_org=None, recipient_org=None) -> bool:
+        if self.destination_id and (not destination or destination.id != self.destination_id):
+            return False
+        if self.shipper_org_id and (not shipper_org or shipper_org.id != self.shipper_org_id):
+            return False
+        if self.recipient_org_id and (
+            not recipient_org or recipient_org.id != self.recipient_org_id
+        ):
+            return False
+        return True
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
