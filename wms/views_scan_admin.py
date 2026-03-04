@@ -23,6 +23,7 @@ from .product_label_printing import (
     render_product_labels_response,
     render_product_qr_labels_response,
 )
+from .scan_admin_contacts_cockpit import build_cockpit_context, parse_cockpit_filters
 from .view_permissions import require_superuser as _require_superuser
 from .view_permissions import scan_staff_required
 
@@ -397,6 +398,12 @@ def _resolve_product_labels_selection(request):
 def scan_admin_contacts(request):
     _require_superuser(request)
     query = (request.GET.get("q") or request.POST.get("q") or "").strip()
+    cockpit_filters = parse_cockpit_filters(
+        role=request.GET.get("role") or request.POST.get("role") or "",
+        shipper_org_id=request.GET.get("shipper_org_id")
+        or request.POST.get("shipper_org_id")
+        or "",
+    )
     contact_filter = _normalize_contact_filter(
         request.GET.get("contact_type") or request.POST.get("contact_type")
     )
@@ -480,6 +487,8 @@ def scan_admin_contacts(request):
         edit_contact = contacts[0]
         edit_form = ScanAdminContactForm(instance=edit_contact, prefix="edit")
 
+    cockpit_context = build_cockpit_context(query=query, filters=cockpit_filters)
+
     return render(
         request,
         TEMPLATE_SCAN_ADMIN_CONTACTS,
@@ -498,6 +507,7 @@ def scan_admin_contacts(request):
             "contact_tag_add_url": reverse("admin:contacts_contacttag_add"),
             "destination_admin_url": reverse("admin:wms_destination_changelist"),
             "destination_add_url": reverse("admin:wms_destination_add"),
+            **cockpit_context,
         },
     )
 

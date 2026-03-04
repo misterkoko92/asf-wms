@@ -4,13 +4,14 @@
 
 {% block content %}
   <div class="scan-card card border-0 ui-comp-card">
-    <h2 class="ui-comp-title">Admin - Contacts</h2>
+    <h2 class="ui-comp-title">Pilotage contacts org-role</h2>
     <p class="scan-help ui-comp-note">
-      Gestion des contacts directement dans l'interface Scan (création, modification, suppression, tags, destinations et adresse principale).
+      Gestion centralisee des organisations, roles, contacts et mappings metier depuis l'interface Scan.
     </p>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
+    <h3 class="ui-comp-title h5 mb-3">Recherche et filtres</h3>
     <form method="get" class="scan-filters row g-3 ui-comp-form">
       <div class="scan-field col-12 col-md-5">
         <label class="form-label" for="scan-admin-contacts-q">Recherche</label>
@@ -36,6 +37,13 @@
         <a class="btn btn-tertiary" href="{% url 'scan:scan_admin_contacts' %}">Réinitialiser</a>
       </div>
     </form>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card">
+    <h3 class="ui-comp-title h5 mb-3">Actions metier</h3>
+    <p class="scan-help ui-comp-note">
+      Actions de creation et de mise a jour directement dans le cockpit.
+    </p>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
