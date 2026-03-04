@@ -10,23 +10,32 @@ from django.utils import timezone
 
 from contacts.models import Contact
 
+from .correspondent_routing import (
+    build_coordination_message_for_correspondent,
+    resolve_correspondent_organizations,
+)
 from .emailing import (
     get_admin_emails,
     get_group_emails,
     send_or_enqueue_email_safe,
 )
+from .notification_policy import resolve_notification_recipients
 from .models import (
     AssociationProfile,
     AssociationRecipient,
+    OrganizationRole,
+    OrganizationRoleAssignment,
     Order,
     OrderReviewStatus,
     OrderStatus,
+    RoleEventType,
     Shipment,
     ShipmentStatus,
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
     WmsChange,
 )
+from .organization_role_resolvers import is_org_roles_engine_enabled
 from .workflow_observability import (
     log_shipment_status_transition,
     log_shipment_tracking_event,
@@ -63,6 +72,14 @@ def _uniq_emails(values):
         seen.add(key)
         emails.append(value)
     return emails
+
+
+def _org_roles_notifications_enabled() -> bool:
+    try:
+        return is_org_roles_engine_enabled()
+    except Exception:
+        # Some signal unit tests run in SimpleTestCase without DB access.
+        return False
 
 
 def _bump_change(**kwargs) -> None:
@@ -183,6 +200,212 @@ def _shipment_correspondant_recipients(shipment):
     return _uniq_emails(group_recipients + [correspondent_email])
 
 
+def _active_role_assignment(*, organization, role):
+    if organization is None:
+        return None
+    return (
+        OrganizationRoleAssignment.objects.filter(
+            organization=organization,
+            role=role,
+            is_active=True,
+        )
+        .order_by("id")
+        .first()
+    )
+
+
+def _queue_role_event_email(
+    *,
+    subject,
+    message,
+    recipients,
+    dedup_registry,
+):
+    filtered_recipients = []
+    for recipient in recipients:
+        normalized = (recipient or "").strip().lower()
+        if not normalized:
+            continue
+        if normalized in dedup_registry:
+            continue
+        dedup_registry.add(normalized)
+        filtered_recipients.append(recipient.strip())
+
+    if not filtered_recipients:
+        return
+
+    transaction.on_commit(
+        lambda: send_or_enqueue_email_safe(
+            subject=subject,
+            message=message,
+            recipient=filtered_recipients,
+        )
+    )
+
+
+def _dispatch_shipment_role_event(
+    *,
+    shipment,
+    event_type,
+    subject,
+    message,
+    shipper_org,
+    recipient_org,
+    destination,
+    include_correspondents=False,
+):
+    dedup_registry = set()
+    shipper_assignment = _active_role_assignment(
+        organization=shipper_org,
+        role=OrganizationRole.SHIPPER,
+    )
+    recipient_assignment = _active_role_assignment(
+        organization=recipient_org,
+        role=OrganizationRole.RECIPIENT,
+    )
+
+    for assignment in (shipper_assignment, recipient_assignment):
+        if assignment is None:
+            continue
+        recipients = resolve_notification_recipients(
+            role_assignment=assignment,
+            event_type=event_type,
+            destination=destination,
+            shipper_org=shipper_org,
+            recipient_org=recipient_org,
+        )
+        _queue_role_event_email(
+            subject=subject,
+            message=message,
+            recipients=recipients,
+            dedup_registry=dedup_registry,
+        )
+
+    if not include_correspondents:
+        return
+
+    correspondents = resolve_correspondent_organizations(
+        destination=destination,
+        shipper_org=shipper_org,
+        recipient_org=recipient_org,
+    )
+    for correspondent in correspondents:
+        correspondent_assignment = _active_role_assignment(
+            organization=correspondent,
+            role=OrganizationRole.CORRESPONDENT,
+        )
+        if correspondent_assignment is None:
+            continue
+        recipients = resolve_notification_recipients(
+            role_assignment=correspondent_assignment,
+            event_type=event_type,
+            destination=destination,
+            shipper_org=shipper_org,
+            recipient_org=recipient_org,
+        )
+        coordination_message = build_coordination_message_for_correspondent(
+            current_correspondent=correspondent,
+            all_correspondents=correspondents,
+        )
+        correspondent_message = message
+        if coordination_message:
+            correspondent_message = (
+                f"{correspondent_message}\n\n{coordination_message}"
+            )
+        _queue_role_event_email(
+            subject=subject,
+            message=correspondent_message,
+            recipients=recipients,
+            dedup_registry=dedup_registry,
+        )
+
+
+def _notify_role_based_shipment_status_change(*, shipment, old_label, new_label):
+    shipper_org = getattr(shipment, "shipper_contact_ref", None)
+    recipient_org = getattr(shipment, "recipient_contact_ref", None)
+    destination = getattr(shipment, "destination", None)
+    party_message = render_to_string(
+        SHIPMENT_STATUS_PARTY_TEMPLATE,
+        {
+            "shipment_reference": shipment.reference,
+            "old_status": old_label,
+            "new_status": new_label,
+            "destination_label": str(destination)
+            if destination
+            else shipment.destination_address,
+            "changed_at": timezone.localtime(timezone.now()),
+            "tracking_url": shipment.get_tracking_url(),
+        },
+    )
+    _dispatch_shipment_role_event(
+        shipment=shipment,
+        event_type=RoleEventType.SHIPMENT_STATUS_UPDATED,
+        subject=f"ASF WMS - Expédition {shipment.reference} : statut {new_label}",
+        message=party_message,
+        shipper_org=shipper_org,
+        recipient_org=recipient_org,
+        destination=destination,
+        include_correspondents=True,
+    )
+
+    if shipment.status != ShipmentStatus.DELIVERED:
+        return
+
+    delivered_message = render_to_string(
+        "emails/shipment_delivery_notification.txt",
+        {
+            "shipment_reference": shipment.reference,
+            "destination_label": str(destination)
+            if destination
+            else shipment.destination_address,
+            "delivered_at": timezone.localtime(timezone.now()),
+            "tracking_url": shipment.get_tracking_url(),
+        },
+    )
+    _dispatch_shipment_role_event(
+        shipment=shipment,
+        event_type=RoleEventType.SHIPMENT_DELIVERED,
+        subject=f"ASF WMS - Expedition {shipment.reference} : livraison confirmee",
+        message=delivered_message,
+        shipper_org=shipper_org,
+        recipient_org=recipient_org,
+        destination=destination,
+        include_correspondents=True,
+    )
+
+
+def _notify_role_based_tracking_event(*, tracking_event):
+    shipment = tracking_event.shipment
+    shipper_org = getattr(shipment, "shipper_contact_ref", None)
+    recipient_org = getattr(shipment, "recipient_contact_ref", None)
+    destination = getattr(shipment, "destination", None)
+    tracking_label = (
+        tracking_event.get_status_display()
+        if hasattr(tracking_event, "get_status_display")
+        else tracking_event.status
+    )
+    message = "\n".join(
+        [
+            f"Expedition: {shipment.reference}",
+            f"Statut suivi: {tracking_label}",
+            f"Acteur: {tracking_event.actor_name or '-'}",
+            f"Structure: {tracking_event.actor_structure or '-'}",
+            f"Commentaires: {tracking_event.comments or '-'}",
+            f"Tracking: {shipment.get_tracking_url()}",
+        ]
+    )
+    _dispatch_shipment_role_event(
+        shipment=shipment,
+        event_type=RoleEventType.SHIPMENT_TRACKING_UPDATED,
+        subject=f"ASF WMS - Suivi expédition {shipment.reference}",
+        message=message,
+        shipper_org=shipper_org,
+        recipient_org=recipient_org,
+        destination=destination,
+        include_correspondents=True,
+    )
+
+
 def _queue_shipment_party_notification(*, shipment, old_label, new_label):
     recipients = _shipment_party_recipients(shipment)
     if not recipients:
@@ -298,6 +521,14 @@ def _notify_shipment_status_change(sender, instance, created, **kwargs) -> None:
             new_label = ShipmentStatus(instance.status).label
         except ValueError:
             new_label = instance.status
+    if _org_roles_notifications_enabled():
+        _notify_role_based_shipment_status_change(
+            shipment=instance,
+            old_label=old_label,
+            new_label=new_label,
+        )
+        return
+
     if instance.status in SHIPMENT_CONTACT_NOTIFICATION_STATUSES:
         _queue_shipment_party_notification(
             shipment=instance,
@@ -348,6 +579,10 @@ def _notify_tracking_event(sender, instance, created, **kwargs) -> None:
                 recipient=recipients,
             )
         )
+    if _org_roles_notifications_enabled():
+        _notify_role_based_tracking_event(tracking_event=instance)
+        return
+
     tracking_status = getattr(instance, "status", "")
     if tracking_status in SHIPMENT_CORRESPONDANT_TRACKING_STATUSES:
         tracking_status_label = tracking_status
