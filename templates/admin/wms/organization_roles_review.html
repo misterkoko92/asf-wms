@@ -1,0 +1,111 @@
+{% extends "admin/base_site.html" %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">Accueil</a>
+  &rsaquo; Revue migration roles organisation
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+  <h1>{{ title }}</h1>
+  <p>{{ open_items_count }} item(s) ouvert(s) a traiter.</p>
+
+  {% if review_items %}
+  <table id="result_list" style="width: 100%; border-collapse: collapse;">
+    <thead>
+      <tr>
+        <th style="text-align: left;">Organisation</th>
+        <th style="text-align: left;">Role</th>
+        <th style="text-align: left;">Raison</th>
+        <th style="text-align: left;">Suggestion expediteur</th>
+        <th style="text-align: left;">Suggestion escale</th>
+        <th style="text-align: left;">Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in review_items %}
+      <tr>
+        <td>
+          {% if row.recipient_org %}
+            {{ row.recipient_org.name }}
+          {% elif row.item.organization %}
+            {{ row.item.organization.name }}
+          {% elif row.item.legacy_contact %}
+            {{ row.item.legacy_contact.name }}
+          {% else %}
+            Item #{{ row.item.id }}
+          {% endif %}
+        </td>
+        <td>{{ row.item.get_role_display }}</td>
+        <td>
+          <code>{{ row.item.reason_code }}</code>
+        </td>
+        <td>
+          {% with suggested=row.suggested_shipper_id %}
+            {% for option in row.shipper_options %}
+              {% if option.id == suggested %}
+                {{ option.name }}
+              {% endif %}
+            {% empty %}
+              -
+            {% endfor %}
+          {% endwith %}
+        </td>
+        <td>
+          {% with suggested=row.suggested_destination_id %}
+            {% for option in row.destination_options %}
+              {% if option.id == suggested %}
+                {{ option.city }} ({{ option.iata_code }})
+              {% endif %}
+            {% empty %}
+              -
+            {% endfor %}
+          {% endwith %}
+        </td>
+        <td>
+          <form method="post" style="display: grid; gap: 8px; max-width: 420px;">
+            {% csrf_token %}
+            <input type="hidden" name="item_id" value="{{ row.item.id }}">
+
+            <label>
+              Expediteur
+              <select name="shipper_org_id" style="min-width: 260px;">
+                <option value="">-- selectionner --</option>
+                {% for option in row.shipper_options %}
+                  <option value="{{ option.id }}" {% if option.id == row.suggested_shipper_id %}selected{% endif %}>{{ option.name }}</option>
+                {% endfor %}
+              </select>
+            </label>
+
+            <label>
+              Escale
+              <select name="destination_id" style="min-width: 260px;">
+                <option value="">-- selectionner --</option>
+                {% for option in row.destination_options %}
+                  <option value="{{ option.id }}" {% if option.id == row.suggested_destination_id %}selected{% endif %}>{{ option.city }} ({{ option.iata_code }})</option>
+                {% endfor %}
+              </select>
+            </label>
+
+            <label>
+              Note de resolution
+              <input type="text" name="resolution_note" value="{{ row.item.resolution_note|default:'' }}" maxlength="500">
+            </label>
+
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button type="submit" name="action" value="resolve_binding" class="default">Valider mapping</button>
+              <button type="submit" name="action" value="resolve_without_binding">Cloturer sans mapping</button>
+            </div>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p>Aucun item ouvert dans la file de revue migration.</p>
+  {% endif %}
+</div>
+{% endblock %}

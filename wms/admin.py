@@ -19,6 +19,7 @@ from .admin_account_request_approval import (
     build_account_access_lines,
     build_portal_urls,
 )
+from .admin_organization_roles_review import get_organization_roles_review_urls
 from .admin_carton_handlers import (
     sync_carton_shipment_stock_movements,
     unpack_cartons_batch,
@@ -1198,3 +1199,22 @@ class StockMovementAdmin(admin.ModelAdmin):
             title=title,
             render_fn=render,
         )
+
+
+def _install_organization_roles_review_admin_url():
+    if getattr(admin.site, "_wms_org_roles_review_url_installed", False):
+        return
+
+    original_get_urls = admin.site.get_urls
+
+    def _get_urls():
+        return (
+            get_organization_roles_review_urls(admin_site=admin.site)
+            + original_get_urls()
+        )
+
+    admin.site.get_urls = _get_urls
+    admin.site._wms_org_roles_review_url_installed = True
+
+
+_install_organization_roles_review_admin_url()
