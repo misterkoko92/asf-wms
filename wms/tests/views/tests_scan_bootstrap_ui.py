@@ -18,6 +18,7 @@ from wms.models import (
     Shipment,
     ShipmentStatus,
     Warehouse,
+    WmsRuntimeSettings,
 )
 
 @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
@@ -265,6 +266,19 @@ class ScanBootstrapUiTests(TestCase):
                 self.assertEqual(response.status_code, 200)
                 for marker in markers:
                     self.assertContains(response, marker)
+
+    def test_scan_admin_contacts_bootstrap_keeps_fallback_links_when_legacy_disabled(self):
+        self.client.force_login(self.superuser)
+        runtime = WmsRuntimeSettings.get_solo()
+        runtime.legacy_contact_write_enabled = False
+        runtime.save(update_fields=["legacy_contact_write_enabled"])
+
+        response = self.client.get(reverse("scan:scan_admin_contacts"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Mode legacy desactive")
+        self.assertContains(response, reverse("admin:contacts_contact_changelist"))
+        self.assertNotContains(response, 'name="action" value="create_contact"')
 
     def test_scan_order_page_uses_design_component_classes(self):
         response = self.client.get(reverse("scan:scan_order"))

@@ -49,6 +49,7 @@ from .scan_admin_contacts_cockpit import (
     upsert_shipper_scope,
     upsert_org_contact,
 )
+from .organization_role_resolvers import is_legacy_contact_write_enabled
 from .view_permissions import require_superuser as _require_superuser
 from .view_permissions import scan_staff_required
 
@@ -70,6 +71,11 @@ CONTACT_FILTER_VALUES = {choice[0] for choice in CONTACT_FILTER_CHOICES}
 ACTION_CREATE_CONTACT = "create_contact"
 ACTION_UPDATE_CONTACT = "update_contact"
 ACTION_DELETE_CONTACT = "delete_contact"
+LEGACY_CONTACT_ACTIONS = {
+    ACTION_CREATE_CONTACT,
+    ACTION_UPDATE_CONTACT,
+    ACTION_DELETE_CONTACT,
+}
 
 PRODUCT_SELECTION_MODE_SELECTION = "selection"
 PRODUCT_SELECTION_MODE_ALL_FILTERED = "all_filtered"
@@ -422,6 +428,7 @@ def _resolve_product_labels_selection(request):
 @require_http_methods(["GET", "POST"])
 def scan_admin_contacts(request):
     _require_superuser(request)
+    legacy_contact_write_enabled = is_legacy_contact_write_enabled()
     query = (request.GET.get("q") or request.POST.get("q") or "").strip()
     cockpit_filters = parse_cockpit_filters(
         role=request.GET.get("role") or request.POST.get("role") or "",
@@ -460,6 +467,12 @@ def scan_admin_contacts(request):
 
     if request.method == "POST":
         action = (request.POST.get("action") or "").strip()
+        if action in LEGACY_CONTACT_ACTIONS and not legacy_contact_write_enabled:
+            messages.error(
+                request,
+                "Mode legacy desactive: utilisez les actions org-role.",
+            )
+            return _build_contacts_redirect(query=query, contact_filter=contact_filter)
         if action == ACTION_ASSIGN_ROLE:
             ok, message = assign_role(
                 organization_id=request.POST.get("organization_id") or "",
@@ -615,6 +628,7 @@ def scan_admin_contacts(request):
             "contact_tag_add_url": reverse("admin:contacts_contacttag_add"),
             "destination_admin_url": reverse("admin:wms_destination_changelist"),
             "destination_add_url": reverse("admin:wms_destination_add"),
+            "legacy_contact_write_enabled": legacy_contact_write_enabled,
             **cockpit_context,
         },
     )

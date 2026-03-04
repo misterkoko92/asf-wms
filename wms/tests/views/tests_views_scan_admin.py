@@ -177,6 +177,23 @@ class ScanAdminViewTests(TestCase):
         self.assertIn(person.name, rendered_contact_names)
         self.assertNotIn(org.name, rendered_contact_names)
 
+    def test_scan_admin_contacts_hides_legacy_forms_when_runtime_flag_disabled(self):
+        self.client.force_login(self.superuser)
+        runtime = WmsRuntimeSettings.get_solo()
+        runtime.legacy_contact_write_enabled = False
+        runtime.save(update_fields=["legacy_contact_write_enabled"])
+
+        response = self.client.get(reverse("scan:scan_admin_contacts"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Mode legacy desactive")
+        self.assertNotContains(response, 'name="action" value="create_contact"')
+        self.assertContains(response, reverse("admin:contacts_contact_changelist"))
+        self.assertContains(response, reverse("admin:contacts_contact_add"))
+        self.assertContains(response, reverse("admin:contacts_contacttag_add"))
+        self.assertContains(response, reverse("admin:wms_destination_changelist"))
+        self.assertContains(response, reverse("admin:wms_destination_add"))
+
     def test_scan_admin_contacts_can_create_update_and_delete_contact_in_page(self):
         self.client.force_login(self.superuser)
         shipper_tag = ContactTag.objects.create(name="Expediteur")

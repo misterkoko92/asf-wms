@@ -11,6 +11,7 @@ from wms.models import (
     OrganizationRoleContact,
     RecipientBinding,
     ShipperScope,
+    WmsRuntimeSettings,
 )
 
 
@@ -598,3 +599,22 @@ class ScanAdminContactsCockpitViewTests(TestCase):
                 is_active=True,
             ).exists()
         )
+
+    def test_legacy_actions_blocked_when_runtime_flag_disabled(self):
+        self.client.force_login(self.superuser)
+        runtime = WmsRuntimeSettings.get_solo()
+        runtime.legacy_contact_write_enabled = False
+        runtime.save(update_fields=["legacy_contact_write_enabled"])
+
+        response = self.client.post(
+            reverse("scan:scan_admin_contacts"),
+            {
+                "action": "create_contact",
+                "q": "",
+                "contact_type": "all",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Mode legacy desactive")

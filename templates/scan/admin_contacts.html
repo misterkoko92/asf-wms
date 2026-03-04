@@ -44,18 +44,24 @@
     <p class="scan-help ui-comp-note">
       Actions de creation et de mise a jour directement dans le cockpit.
     </p>
+    {% if not legacy_contact_write_enabled %}
+      <p class="scan-help ui-comp-note">
+        Mode legacy desactive: utilisez les actions org-role. Les liens admin restent disponibles en secours.
+      </p>
+    {% endif %}
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card">
-    <h3 class="ui-comp-title h5 mb-3">Créer un contact</h3>
-    {% if create_form.non_field_errors %}
-      <div class="scan-message error">{{ create_form.non_field_errors|join:", " }}</div>
-    {% endif %}
-    <form method="post" class="scan-filters row g-3 ui-comp-form scan-contact-form">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="create_contact">
-      <input type="hidden" name="q" value="{{ query }}">
-      <input type="hidden" name="contact_type" value="{{ contact_filter }}">
+  {% if legacy_contact_write_enabled %}
+    <div class="scan-card card border-0 ui-comp-card">
+      <h3 class="ui-comp-title h5 mb-3">Créer un contact</h3>
+      {% if create_form.non_field_errors %}
+        <div class="scan-message error">{{ create_form.non_field_errors|join:", " }}</div>
+      {% endif %}
+      <form method="post" class="scan-filters row g-3 ui-comp-form scan-contact-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create_contact">
+        <input type="hidden" name="q" value="{{ query }}">
+        <input type="hidden" name="contact_type" value="{{ contact_filter }}">
 
       <div class="scan-field col-12 col-md-4">
         <label class="form-label" for="{{ create_form.contact_type.id_for_label }}">Type de contact</label>
@@ -195,15 +201,16 @@
         {{ create_form.address_email }}
       </div>
 
-      {% if create_form.errors %}
-        <div class="scan-message error col-12">Merci de corriger les champs en erreur dans le formulaire de création.</div>
-      {% endif %}
+        {% if create_form.errors %}
+          <div class="scan-message error col-12">Merci de corriger les champs en erreur dans le formulaire de création.</div>
+        {% endif %}
 
-      <div class="scan-filter-actions col-12">
-        <button type="submit" class="scan-submit scan-submit-inline btn btn-primary">Créer le contact</button>
-      </div>
-    </form>
-  </div>
+        <div class="scan-filter-actions col-12">
+          <button type="submit" class="scan-submit scan-submit-inline btn btn-primary">Créer le contact</button>
+        </div>
+      </form>
+    </div>
+  {% endif %}
 
   <div class="scan-card card border-0 ui-comp-card">
     <h3 class="ui-comp-title h5 mb-3">Contacts ({{ contacts|length }})</h3>
@@ -237,22 +244,26 @@
                 <td>{{ contact.phone|default:"-" }}</td>
                 <td>{% if contact.is_active %}Oui{% else %}Non{% endif %}</td>
                 <td>
-                  <div class="scan-inline-actions">
-                    <a
-                      class="scan-scan-btn btn btn-tertiary"
-                      href="{% url 'scan:scan_admin_contacts' %}?q={{ query|urlencode }}&contact_type={{ contact_filter|urlencode }}&edit={{ contact.id }}"
-                    >
-                      Modifier ici
-                    </a>
-                    <form method="post" onsubmit="return confirm('Supprimer ce contact ?');">
-                      {% csrf_token %}
-                      <input type="hidden" name="action" value="delete_contact">
-                      <input type="hidden" name="q" value="{{ query }}">
-                      <input type="hidden" name="contact_type" value="{{ contact_filter }}">
-                      <input type="hidden" name="contact_id" value="{{ contact.id }}">
-                      <button type="submit" class="scan-scan-btn btn btn-danger">Supprimer</button>
-                    </form>
-                  </div>
+                  {% if legacy_contact_write_enabled %}
+                    <div class="scan-inline-actions">
+                      <a
+                        class="scan-scan-btn btn btn-tertiary"
+                        href="{% url 'scan:scan_admin_contacts' %}?q={{ query|urlencode }}&contact_type={{ contact_filter|urlencode }}&edit={{ contact.id }}"
+                      >
+                        Modifier ici
+                      </a>
+                      <form method="post" onsubmit="return confirm('Supprimer ce contact ?');">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="delete_contact">
+                        <input type="hidden" name="q" value="{{ query }}">
+                        <input type="hidden" name="contact_type" value="{{ contact_filter }}">
+                        <input type="hidden" name="contact_id" value="{{ contact.id }}">
+                        <button type="submit" class="scan-scan-btn btn btn-danger">Supprimer</button>
+                      </form>
+                    </div>
+                  {% else %}
+                    <span class="scan-help">Edition legacy desactivee.</span>
+                  {% endif %}
                 </td>
               </tr>
             {% endfor %}
@@ -264,7 +275,7 @@
     {% endif %}
   </div>
 
-  {% if edit_form and edit_contact %}
+  {% if legacy_contact_write_enabled and edit_form and edit_contact %}
     <div class="scan-card card border-0 ui-comp-card">
       <h3 class="ui-comp-title h5 mb-3">Modifier le contact: {{ edit_contact.name }}</h3>
       {% if edit_form.non_field_errors %}
@@ -463,6 +474,7 @@
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
+    <h3 class="ui-comp-title h5 mb-3">Secours admin Django</h3>
     <div class="scan-filter-actions">
       <a class="scan-scan-btn btn btn-tertiary" href="{{ contacts_admin_url }}">Tous les contacts (admin)</a>
       <a class="scan-scan-btn btn btn-tertiary" href="{{ contact_add_url }}">Ajouter un contact (admin)</a>
