@@ -14,6 +14,10 @@ from .correspondent_routing import (
     build_coordination_message_for_correspondent,
     resolve_correspondent_organizations,
 )
+from .default_shipper_bindings import (
+    ensure_default_shipper_bindings_for_destination_id,
+    ensure_default_shipper_bindings_for_recipient_assignment_id,
+)
 from .emailing import (
     get_admin_emails,
     get_group_emails,
@@ -23,6 +27,7 @@ from .notification_policy import resolve_notification_recipients
 from .models import (
     AssociationProfile,
     AssociationRecipient,
+    Destination,
     OrganizationRole,
     OrganizationRoleAssignment,
     Order,
@@ -741,6 +746,34 @@ def _sync_profile_contact_email_from_user(sender, instance, **kwargs) -> None:
     Contact.objects.filter(pk=profile.contact_id).update(email=target_email)
 
 
+def _sync_default_shipper_bindings_for_recipient_role(
+    sender, instance, created, **kwargs
+) -> None:
+    if instance.role != OrganizationRole.RECIPIENT:
+        return
+    if not instance.is_active:
+        return
+
+    role_assignment_id = instance.id
+    transaction.on_commit(
+        lambda: ensure_default_shipper_bindings_for_recipient_assignment_id(
+            role_assignment_id
+        )
+    )
+
+
+def _sync_default_shipper_bindings_for_destination(
+    sender, instance, created, **kwargs
+) -> None:
+    if not instance.is_active:
+        return
+
+    destination_id = instance.id
+    transaction.on_commit(
+        lambda: ensure_default_shipper_bindings_for_destination_id(destination_id)
+    )
+
+
 def register_change_signals() -> None:
     for app_label in ("wms", "contacts"):
         app_config = apps.get_app_config(app_label)
@@ -801,4 +834,14 @@ def register_change_signals() -> None:
         _sync_profile_contact_email_from_user,
         sender=get_user_model(),
         dispatch_uid="wms_association_profile_sync_contact_email_from_user_post_save",
+    )
+    post_save.connect(
+        _sync_default_shipper_bindings_for_recipient_role,
+        sender=OrganizationRoleAssignment,
+        dispatch_uid="wms_default_shipper_bindings_recipient_role_post_save",
+    )
+    post_save.connect(
+        _sync_default_shipper_bindings_for_destination,
+        sender=Destination,
+        dispatch_uid="wms_default_shipper_bindings_destination_post_save",
     )
