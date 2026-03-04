@@ -8,9 +8,6 @@ DEFAULT_UI_MODE = UiMode.LEGACY
 
 
 def normalize_ui_mode(raw_value: Optional[str]) -> str:
-    value = (raw_value or "").strip().lower()
-    if value == UiMode.NEXT:
-        return UiMode.NEXT
     return UiMode.LEGACY
 
 
@@ -37,4 +34,4 @@ def set_ui_mode_for_user(user, mode: str) -> str:
 
 
 def is_next_ui_mode(mode: str) -> bool:
-    return normalize_ui_mode(mode) == UiMode.NEXT
+    return False

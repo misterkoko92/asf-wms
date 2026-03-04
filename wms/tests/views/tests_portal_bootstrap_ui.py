@@ -22,7 +22,7 @@ from wms.models import (
     OrderStatus,
 )
 
-
+@override_settings(SCAN_BOOTSTRAP_ENABLED=True)
 class PortalBootstrapUiTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(
@@ -81,7 +81,6 @@ class PortalBootstrapUiTests(TestCase):
         )
         self.client.force_login(self.user)
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_portal_base_includes_bootstrap_assets_when_enabled(self):
         response = self.client.get(reverse("portal:portal_dashboard"))
         self.assertEqual(response.status_code, 200)
@@ -102,15 +101,6 @@ class PortalBootstrapUiTests(TestCase):
         self.assertNotContains(response, 'id="portal-ui-reset-default"')
         self.assertNotContains(response, "localStorage.getItem('wms-ui')")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=False)
-    def test_portal_base_does_not_include_bootstrap_assets_when_disabled(self):
-        response = self.client.get(reverse("portal:portal_dashboard"))
-        self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, "bootstrap@5.3.3")
-        self.assertNotContains(response, "scan-bootstrap.css")
-        self.assertNotContains(response, "portal-bootstrap.css")
-
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_portal_dashboard_uses_bootstrap_table_layout(self):
         response = self.client.get(reverse("portal:portal_dashboard"))
         self.assertEqual(response.status_code, 200)
@@ -119,7 +109,6 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, 'data-table-tools="1"')
         self.assertContains(response, "btn btn-tertiary btn-sm")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_portal_pages_apply_status_badge_levels(self):
         self.order.status = OrderStatus.READY
         self.order.review_status = OrderReviewStatus.CHANGES_REQUESTED
@@ -144,7 +133,6 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(detail_response, "portal-badge is-warning")
         self.assertContains(detail_response, "portal-badge is-error")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_portal_order_create_uses_bootstrap_form_controls(self):
         response = self.client.get(reverse("portal:portal_order_create"))
         self.assertEqual(response.status_code, 200)
@@ -153,7 +141,6 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "table table-sm table-hover")
         self.assertContains(response, "btn btn-primary")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_portal_account_uses_bootstrap_forms_and_tables(self):
         response = self.client.get(reverse("portal:portal_account"))
         self.assertEqual(response.status_code, 200)
@@ -162,7 +149,6 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "form-select")
         self.assertContains(response, "btn btn-primary")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_portal_recipients_uses_bootstrap_forms_and_tables(self):
         response = self.client.get(reverse("portal:portal_recipients"))
         self.assertEqual(response.status_code, 200)
@@ -171,7 +157,6 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "form-select")
         self.assertContains(response, "btn btn-primary")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_portal_order_detail_uses_bootstrap_tables(self):
         self.order.review_status = OrderReviewStatus.APPROVED
         self.order.save(update_fields=["review_status"])
@@ -183,7 +168,6 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "table table-sm table-hover")
         self.assertContains(response, "btn btn-primary")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_portal_auth_pages_include_bootstrap_assets(self):
         self.client.logout()
 
@@ -216,7 +200,6 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(set_password_response, "ui-comp-title")
         self.assertContains(set_password_response, "ui-comp-form")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_portal_account_request_uses_bootstrap_controls(self):
         self.client.logout()
         response = self.client.get(reverse("portal:portal_account_request"))
@@ -226,7 +209,6 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "form-control")
         self.assertContains(response, "btn btn-primary")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_portal_pages_use_design_component_classes(self):
         dashboard_response = self.client.get(reverse("portal:portal_dashboard"))
         self.assertEqual(dashboard_response.status_code, 200)
@@ -284,7 +266,6 @@ class PortalBootstrapUiTests(TestCase):
             css_content,
         )
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_portal_button_levels_follow_intended_semantics(self):
         self.client.logout()
         login_response = self.client.get(reverse("portal:portal_login"))
@@ -346,18 +327,12 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(account_response, "btn btn-tertiary btn-sm")
 
     @override_settings(SCAN_BOOTSTRAP_ENABLED=False)
-    def test_portal_legacy_neutral_controls_use_tertiary_level(self):
+    def test_portal_base_does_not_render_legacy_controls_when_setting_is_disabled(self):
         response = self.client.get(reverse("portal:portal_dashboard"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(
-            response,
-            'id="portal-ui-toggle" class="scan-ui-button btn-tertiary"',
-        )
-        self.assertContains(
-            response,
-            'id="portal-ui-reset-default"',
-        )
-        self.assertContains(
-            response,
-            'class="scan-ui-reset btn-tertiary"',
-        )
+        self.assertContains(response, "bootstrap@5.3.3")
+        self.assertContains(response, "scan-bootstrap.css")
+        self.assertContains(response, "portal-bootstrap.css")
+        self.assertNotContains(response, 'id="portal-ui-toggle"')
+        self.assertNotContains(response, 'id="portal-ui-reset-default"')
+        self.assertNotContains(response, "Essayer interface Next")

@@ -143,6 +143,7 @@ class ScanUiTests(StaticLiveServerTestCase):
 
 
 @tag("next_ui")
+@unittest.skip("Next UI archived while Next frontend remains dormant.")
 @unittest.skipUnless(os.getenv("RUN_UI_TESTS") == "1", "UI tests disabled")
 @unittest.skipIf(sync_playwright is None, "Playwright not installed")
 @unittest.skipUnless(

@@ -105,6 +105,9 @@ def _apply_style_snapshot(runtime_settings, snapshot):
 def scan_admin_design(request):
     _require_superuser(request)
     runtime_settings = get_runtime_settings_instance()
+    if not getattr(runtime_settings, "scan_bootstrap_enabled", True):
+        runtime_settings.scan_bootstrap_enabled = True
+        runtime_settings.save(update_fields=["scan_bootstrap_enabled", "updated_at"])
     style_presets, custom_presets = _build_style_presets(runtime_settings)
     preset_map = _style_preset_map(style_presets)
     selected_style_preset = _resolve_selected_style_preset(runtime_settings, preset_map)
@@ -119,12 +122,14 @@ def scan_admin_design(request):
             defaults = runtime_settings._defaults_from_settings()  # noqa: SLF001
             for field_name in ScanDesignSettingsForm.RUNTIME_FIELDS:
                 setattr(runtime_settings, field_name, defaults[field_name])
+            runtime_settings.scan_bootstrap_enabled = True
             runtime_settings.design_selected_preset = DEFAULT_STYLE_PRESET_KEY
             runtime_settings.updated_by = (
                 request.user if request.user.is_authenticated else None
             )
             runtime_settings.save(
                 update_fields=[
+                    "scan_bootstrap_enabled",
                     *ScanDesignSettingsForm.RUNTIME_FIELDS,
                     "design_selected_preset",
                     "updated_by",
@@ -147,12 +152,14 @@ def scan_admin_design(request):
                 preview_values = _preview_values_from_post(form, request.POST)
             else:
                 _apply_style_snapshot(runtime_settings, preset)
+                runtime_settings.scan_bootstrap_enabled = True
                 runtime_settings.design_selected_preset = preset["key"]
                 runtime_settings.updated_by = (
                     request.user if request.user.is_authenticated else None
                 )
                 runtime_settings.save(
                     update_fields=[
+                        "scan_bootstrap_enabled",
                         *ScanDesignSettingsForm.RUNTIME_FIELDS,
                         "design_selected_preset",
                         "updated_by",
@@ -175,6 +182,7 @@ def scan_admin_design(request):
                     form.add_error("style_custom_name", "Le nom du style est obligatoire.")
                 else:
                     runtime_settings = form.save(commit=False)
+                    runtime_settings.scan_bootstrap_enabled = True
                     runtime_settings.design_font_heading = runtime_settings.design_font_h2
                     runtime_settings.design_custom_presets = normalize_custom_style_presets(
                         runtime_settings.design_custom_presets
@@ -204,6 +212,7 @@ def scan_admin_design(request):
                 pass
             else:
                 runtime_settings = form.save(commit=False)
+                runtime_settings.scan_bootstrap_enabled = True
                 runtime_settings.design_font_heading = runtime_settings.design_font_h2
                 if selected_style_preset in preset_map:
                     runtime_settings.design_selected_preset = selected_style_preset

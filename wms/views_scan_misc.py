@@ -11,13 +11,13 @@ SHELL_CLASS_WIDE = "scan-shell-wide"
 SCAN_SW_ALLOWED_SCOPE = "/scan/"
 CACHE_CONTROL_NO_CACHE = "no-cache"
 
-SERVICE_WORKER_JS = """const CACHE_NAME = 'wms-scan-v45';
+SERVICE_WORKER_JS = """const CACHE_NAME = 'wms-scan-v49';
 const ASSETS = [
   '/static/scan/scan.css',
   '/static/scan/scan.js',
   '/static/scan/zxing.min.js',
   '/static/scan/manifest.json',
-  '/static/scan/icon.svg'
+  '/static/scan/icon.png'
 ];
 
 self.addEventListener('install', event => {

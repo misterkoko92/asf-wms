@@ -138,23 +138,22 @@ def ui_mode_set(request, mode=None):
     if not request.user.is_authenticated:
         return redirect_to_login(request.get_full_path(), login_url=reverse("admin:login"))
 
-    requested_mode = normalize_ui_mode(
-        mode or request.POST.get("mode") or request.GET.get("mode")
-    )
+    requested_mode_raw = mode or request.POST.get("mode") or request.GET.get("mode")
+    requested_mode = normalize_ui_mode(requested_mode_raw)
     set_ui_mode_for_user(request.user, requested_mode)
-    if requested_mode == UiMode.NEXT:
-        messages.success(request, "Mode Next active.")
+    if str(requested_mode_raw or "").strip().lower() == UiMode.NEXT:
+        messages.info(
+            request,
+            "Mode Next en veille: interface Bootstrap maintenue.",
+        )
     else:
-        messages.success(request, "Mode interface actuelle active.")
+        messages.success(request, "Mode Bootstrap actif.")
 
     next_url = _safe_next_url(
         request, request.POST.get("next") or request.GET.get("next") or ""
     )
     if not next_url:
-        if requested_mode == UiMode.NEXT:
-            next_url = _default_next_url_for_user(request.user)
-        else:
-            next_url = _default_legacy_url_for_user(request.user)
+        next_url = _default_legacy_url_for_user(request.user)
     return redirect(next_url)
 
 

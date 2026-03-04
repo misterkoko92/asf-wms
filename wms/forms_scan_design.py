@@ -133,7 +133,6 @@ class ScanDesignSettingsForm(forms.ModelForm):
     TOKEN_FIELDS = tuple(TOKEN_FIELD_TO_KEY.keys())
     PREVIEW_FIELDS = DESIGN_FIELDS + TOKEN_FIELDS
     RUNTIME_FIELDS = (
-        "scan_bootstrap_enabled",
         "design_font_heading",
         *DESIGN_FIELDS,
         "design_tokens",
@@ -141,7 +140,7 @@ class ScanDesignSettingsForm(forms.ModelForm):
 
     SECTION_DEFINITIONS = DESIGN_TOKEN_FAMILY_DEFINITIONS
     SECTION_STATIC_FIELDS = {
-        "foundations": ("scan_bootstrap_enabled",),
+        "foundations": (),
         "typography": ("design_font_h1", "design_font_h2", "design_font_h3", "design_font_body"),
         "global_colors": (
             "design_color_primary",
@@ -180,7 +179,6 @@ class ScanDesignSettingsForm(forms.ModelForm):
     class Meta:
         model = WmsRuntimeSettings
         fields = [
-            "scan_bootstrap_enabled",
             "design_font_h1",
             "design_font_h2",
             "design_font_h3",
@@ -194,7 +192,6 @@ class ScanDesignSettingsForm(forms.ModelForm):
             "design_color_text_soft",
         ]
         labels = {
-            "scan_bootstrap_enabled": "Activer Bootstrap global",
             "design_font_h1": "Typo titre H1",
             "design_font_h2": "Typo titre H2",
             "design_font_h3": "Typo titre H3",
@@ -208,7 +205,6 @@ class ScanDesignSettingsForm(forms.ModelForm):
             "design_color_text_soft": "Couleur texte secondaire",
         }
         help_texts = {
-            "scan_bootstrap_enabled": "Active la couche Bootstrap sur scan/portal/home/login/admin personnalisés.",
             "design_font_h1": "Police du titre principal.",
             "design_font_h2": "Police des titres de section.",
             "design_font_h3": "Police des sous-titres.",
@@ -227,10 +223,6 @@ class ScanDesignSettingsForm(forms.ModelForm):
         selected_style_preset = (kwargs.pop("selected_style_preset", "") or "").strip()
         custom_style_name = kwargs.pop("custom_style_name", "")
         super().__init__(*args, **kwargs)
-
-        self.fields["scan_bootstrap_enabled"].widget = forms.CheckboxInput(
-            attrs={"class": "form-check-input"}
-        )
 
         style_choices = [
             (str(preset["key"]), str(preset["label"]))

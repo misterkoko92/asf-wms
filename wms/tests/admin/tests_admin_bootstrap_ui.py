@@ -8,7 +8,7 @@ from django.urls import reverse
 from contacts.models import Contact, ContactType
 from wms.models import Destination, Shipment
 
-
+@override_settings(SCAN_BOOTSTRAP_ENABLED=True)
 class AdminBootstrapUiTests(TestCase):
     def setUp(self):
         self.superuser = get_user_model().objects.create_superuser(
@@ -38,7 +38,6 @@ class AdminBootstrapUiTests(TestCase):
             destination_country="France",
         )
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_admin_stockmovement_changelist_includes_bootstrap_assets(self):
         response = self.client.get(reverse("admin:wms_stockmovement_changelist"))
         self.assertEqual(response.status_code, 200)
@@ -50,7 +49,6 @@ class AdminBootstrapUiTests(TestCase):
         self.assertContains(response, "admin-bootstrap-enabled")
         self.assertContains(response, "btn btn-outline-primary btn-sm")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_admin_stockmovement_form_includes_bootstrap_buttons(self):
         response = self.client.get(reverse("admin:wms_stockmovement_receive"))
         self.assertEqual(response.status_code, 200)
@@ -58,7 +56,6 @@ class AdminBootstrapUiTests(TestCase):
         self.assertContains(response, "btn btn-primary")
         self.assertContains(response, "btn btn-outline-secondary")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_admin_shipment_change_form_includes_bootstrap_doc_actions(self):
         response = self.client.get(
             reverse("admin:wms_shipment_change", args=[self.shipment.id])
@@ -77,8 +74,8 @@ class AdminBootstrapUiTests(TestCase):
         self.assertIn("justify-content: center;", css_content)
 
     @override_settings(SCAN_BOOTSTRAP_ENABLED=False)
-    def test_admin_templates_do_not_include_bootstrap_assets_when_disabled(self):
+    def test_admin_templates_keep_bootstrap_assets_when_setting_is_disabled(self):
         response = self.client.get(reverse("admin:wms_stockmovement_changelist"))
         self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, "bootstrap@5.3.3")
-        self.assertNotContains(response, "wms/admin-bootstrap.css")
+        self.assertContains(response, "bootstrap@5.3.3")
+        self.assertContains(response, "wms/admin-bootstrap.css")

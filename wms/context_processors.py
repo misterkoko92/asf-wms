@@ -1,4 +1,3 @@
-from django.conf import settings
 from django.db.utils import OperationalError, ProgrammingError
 
 from .design_tokens import (
@@ -83,15 +82,7 @@ def _resolve_design_tokens():
 
 
 def _resolve_scan_bootstrap_enabled():
-    fallback = bool(getattr(settings, "SCAN_BOOTSTRAP_ENABLED", True))
-    try:
-        runtime = get_runtime_settings_instance()
-    except (ProgrammingError, OperationalError):
-        return fallback
-    runtime_value = getattr(runtime, "scan_bootstrap_enabled", None)
-    if runtime_value is None:
-        return fallback
-    return bool(runtime_value)
+    return True
 
 
 def admin_notifications(request):

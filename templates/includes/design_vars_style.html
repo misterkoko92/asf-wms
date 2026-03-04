@@ -1,11 +1,6 @@
 {% if wms_design_tokens %}
   <style id="wms-design-vars">
-    :root,
-    :root[data-ui="nova"],
-    :root[data-ui="studio"],
-    :root[data-ui="benev"],
-    :root[data-ui="timeline"],
-    :root[data-ui="spreadsheet"] {
+    :root {
       --wms-font-heading-h1: {{ wms_design_tokens.font_h1 }};
       --wms-font-heading-h2: {{ wms_design_tokens.font_h2 }};
       --wms-font-heading-h3: {{ wms_design_tokens.font_h3 }};

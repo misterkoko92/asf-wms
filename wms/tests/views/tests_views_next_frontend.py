@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
+import unittest
 from unittest import mock
 
 from django.contrib.auth import get_user_model
@@ -12,6 +13,7 @@ from wms.models import AssociationProfile, UiMode, UserUiPreference
 
 
 @tag("next_frontend")
+@unittest.skip("Next frontend tests archived while Next frontend remains dormant.")
 class NextFrontendViewsTests(TestCase):
     def setUp(self):
         user_model = get_user_model()
@@ -51,31 +53,31 @@ class NextFrontendViewsTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn("/admin/login/", response.url)
 
-    def test_ui_mode_set_next_redirects_staff_to_scan_app(self):
+    def test_ui_mode_set_next_keeps_staff_on_scan_legacy(self):
         self.client.force_login(self.staff_user)
 
         response = self.client.post(reverse("ui_mode_set"), {"mode": "next"})
 
         self.assertRedirects(
             response,
-            "/app/scan/dashboard/",
+            "/scan/dashboard/",
             fetch_redirect_response=False,
         )
         preference = UserUiPreference.objects.get(user=self.staff_user)
-        self.assertEqual(preference.ui_mode, UiMode.NEXT)
+        self.assertEqual(preference.ui_mode, UiMode.LEGACY)
 
-    def test_ui_mode_set_next_redirects_portal_user_to_portal_app(self):
+    def test_ui_mode_set_next_keeps_portal_user_on_portal_legacy(self):
         self.client.force_login(self.portal_user)
 
         response = self.client.post(reverse("ui_mode_set"), {"mode": "next"})
 
         self.assertRedirects(
             response,
-            "/app/portal/dashboard/",
+            "/portal/",
             fetch_redirect_response=False,
         )
         preference = UserUiPreference.objects.get(user=self.portal_user)
-        self.assertEqual(preference.ui_mode, UiMode.NEXT)
+        self.assertEqual(preference.ui_mode, UiMode.LEGACY)
 
     def test_ui_mode_set_legacy_redirects_portal_user_to_portal_legacy(self):
         self.client.force_login(self.portal_user)

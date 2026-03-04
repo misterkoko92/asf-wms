@@ -20,7 +20,7 @@ from wms.models import (
     Warehouse,
 )
 
-
+@override_settings(SCAN_BOOTSTRAP_ENABLED=True)
 class ScanBootstrapUiTests(TestCase):
     def setUp(self):
         self.staff_user = get_user_model().objects.create_user(
@@ -56,29 +56,17 @@ class ScanBootstrapUiTests(TestCase):
             location=location,
         )
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
-    def test_scan_context_exposes_bootstrap_flag(self):
-        response = self.client.get(reverse("scan:scan_stock"))
-        self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.context["scan_bootstrap_enabled"])
-
     def test_scan_context_exposes_bootstrap_flag_enabled_by_default(self):
         response = self.client.get(reverse("scan:scan_stock"))
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.context["scan_bootstrap_enabled"])
 
     @override_settings(SCAN_BOOTSTRAP_ENABLED=False)
-    def test_scan_base_does_not_include_bootstrap_assets_when_disabled(self):
-        response = self.client.get(reverse("scan:scan_stock"))
-        self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, "scan-bootstrap.css")
-        self.assertNotContains(response, "bootstrap@5.3.3")
-
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
-    def test_scan_base_includes_bootstrap_assets_when_enabled(self):
+    def test_scan_base_keeps_bootstrap_assets_when_setting_is_disabled(self):
         response = self.client.get(reverse("scan:scan_stock"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "scan-bootstrap.css")
+        self.assertContains(response, "bootstrap@5.3.3")
         self.assertContains(response, "family=DM+Sans")
         self.assertContains(response, "family=Nunito+Sans")
         self.assertContains(
@@ -89,8 +77,11 @@ class ScanBootstrapUiTests(TestCase):
             response,
             "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js",
         )
+        self.assertNotContains(response, 'id="ui-toggle"')
+        self.assertNotContains(response, 'id="theme-toggle"')
+        self.assertNotContains(response, 'id="ui-reset-default"')
+        self.assertNotContains(response, "Essayer interface Next")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_stock_uses_bootstrap_layout_and_keeps_table_tools(self):
         response = self.client.get(reverse("scan:scan_stock"))
         self.assertEqual(response.status_code, 200)
@@ -102,14 +93,12 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "id_include_zero")
         self.assertContains(response, "Inclure les produits avec stock")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_bootstrap_nav_uses_title_case_for_state_pages(self):
         response = self.client.get(reverse("scan:scan_stock"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Vue Stock")
         self.assertContains(response, "Vue R&eacute;ception")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_shipment_create_uses_bootstrap_and_preserves_js_hooks(self):
         response = self.client.get(reverse("scan:scan_shipment_create"))
         self.assertEqual(response.status_code, 200)
@@ -118,7 +107,6 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "btn btn-primary")
         self.assertContains(response, 'id="shipment-details-section"')
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_stock_and_shipment_create_use_design_component_classes(self):
         stock_response = self.client.get(reverse("scan:scan_stock"))
         self.assertEqual(stock_response.status_code, 200)
@@ -133,7 +121,6 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(shipment_response, "ui-comp-panel")
         self.assertContains(shipment_response, "ui-comp-note")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_kits_pages_use_design_component_classes(self):
         kits_view_response = self.client.get(reverse("scan:scan_kits_view"))
         self.assertEqual(kits_view_response.status_code, 200)
@@ -148,7 +135,6 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(prepare_kits_response, "ui-comp-panel")
         self.assertContains(prepare_kits_response, "ui-comp-actions")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_state_tables_use_design_component_classes(self):
         expectations = {
             "scan:scan_cartons_ready": [
@@ -175,7 +161,6 @@ class ScanBootstrapUiTests(TestCase):
                 for marker in markers:
                     self.assertContains(response, marker)
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_state_pages_render_status_pill_levels(self):
         Shipment.objects.create(
             shipper_name="Shipper Progress",
@@ -206,7 +191,6 @@ class ScanBootstrapUiTests(TestCase):
         self.assertEqual(orders_response.status_code, 200)
         self.assertContains(orders_response, "ui-comp-status-pill is-warning")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_dashboard_and_tracking_views_use_design_component_classes(self):
         expectations = {
             "scan:scan_dashboard": [
@@ -231,13 +215,11 @@ class ScanBootstrapUiTests(TestCase):
                 for marker in markers:
                     self.assertContains(response, marker)
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_shipments_tracking_week_filter_uses_extended_input_class(self):
         response = self.client.get(reverse("scan:scan_shipments_tracking"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "scan-week-input")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_shipments_tracking_uses_design_classes_for_close_buttons(self):
         Shipment.objects.create(
             shipper_name="Shipper Tracking",
@@ -252,7 +234,6 @@ class ScanBootstrapUiTests(TestCase):
         self.assertNotContains(response, "background:#fdecec")
         self.assertNotContains(response, "border-color:#9fcfb0")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_superuser_admin_pages_use_design_component_classes(self):
         self.client.force_login(self.superuser)
         expectations = {
@@ -285,7 +266,6 @@ class ScanBootstrapUiTests(TestCase):
                 for marker in markers:
                     self.assertContains(response, marker)
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_order_page_uses_design_component_classes(self):
         response = self.client.get(reverse("scan:scan_order"))
         self.assertEqual(response.status_code, 200)
@@ -293,7 +273,6 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "ui-comp-title")
         self.assertContains(response, "ui-comp-form")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_preparation_forms_use_design_component_classes(self):
         for route_name in [
             "scan:scan_pack",
@@ -314,7 +293,6 @@ class ScanBootstrapUiTests(TestCase):
                         "Autoriser l'ajout avec valeurs standard",
                     )
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_receive_page_uses_design_component_classes(self):
         response = self.client.get(reverse("scan:scan_receive"))
         self.assertEqual(response.status_code, 200)
@@ -322,7 +300,6 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "ui-comp-title")
         self.assertContains(response, "ui-comp-form")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_receive_pallet_page_uses_design_component_classes(self):
         response = self.client.get(reverse("scan:scan_receive_pallet"))
         self.assertEqual(response.status_code, 200)
@@ -334,7 +311,6 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "id_listing_file_type_excel")
         self.assertContains(response, "id_listing_file_type_csv")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_receive_association_page_uses_design_component_classes(self):
         response = self.client.get(reverse("scan:scan_receive_association"))
         self.assertEqual(response.status_code, 200)
@@ -342,7 +318,6 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "ui-comp-title")
         self.assertContains(response, "ui-comp-form")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_misc_pages_use_design_component_classes(self):
         self.client.force_login(self.superuser)
 
@@ -384,7 +359,6 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(tracking_response, "ui-comp-title")
         self.assertContains(tracking_response, "ui-comp-form")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_remaining_pages_use_design_component_classes(self):
         stock_response = self.client.get(reverse("scan:scan_stock"))
         self.assertEqual(stock_response.status_code, 200)
@@ -448,7 +422,6 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(public_account_response, "ui-comp-title")
         self.assertContains(public_account_response, "ui-comp-form")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_dashboard_uses_bootstrap_filters(self):
         response = self.client.get(reverse("scan:scan_dashboard"))
         self.assertEqual(response.status_code, 200)
@@ -456,7 +429,6 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "row g-3")
         self.assertContains(response, "btn btn-primary")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_forms_keep_requested_controls_on_single_desktop_rows(self):
         dashboard_response = self.client.get(reverse("scan:scan_dashboard"))
         self.assertEqual(dashboard_response.status_code, 200)
@@ -503,7 +475,6 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(pack_response, "scan-pack-shipping-actions-inline")
         self.assertContains(pack_response, "scan-pack-shipping-field")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_state_pages_use_bootstrap_card_shell(self):
         for route_name in [
             "scan:scan_cartons_ready",
@@ -518,7 +489,6 @@ class ScanBootstrapUiTests(TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, "scan-card card border-0")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_receipts_and_tracking_use_bootstrap_form_controls(self):
         receipts_response = self.client.get(reverse("scan:scan_receipts_view"))
         self.assertEqual(receipts_response.status_code, 200)
@@ -531,7 +501,6 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(tracking_response, "row g-3")
         self.assertContains(tracking_response, "btn btn-primary")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_preparation_pages_use_bootstrap_layout(self):
         for route_name in [
             "scan:scan_prepare_kits",
@@ -545,7 +514,6 @@ class ScanBootstrapUiTests(TestCase):
                 self.assertContains(response, "scan-card card border-0")
                 self.assertContains(response, "btn btn-tertiary")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_receive_pages_use_bootstrap_layout(self):
         for route_name in [
             "scan:scan_receive",
@@ -558,7 +526,6 @@ class ScanBootstrapUiTests(TestCase):
                 self.assertContains(response, "scan-card card border-0")
                 self.assertContains(response, "form-label")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_order_and_tracking_pages_use_bootstrap_layout(self):
         for route_name in [
             "scan:scan_order",
@@ -569,7 +536,6 @@ class ScanBootstrapUiTests(TestCase):
                 self.assertContains(response, "scan-card card border-0")
                 self.assertContains(response, "btn btn-tertiary")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_superuser_pages_use_bootstrap_layout(self):
         self.client.force_login(self.superuser)
         for route_name in [
@@ -585,7 +551,6 @@ class ScanBootstrapUiTests(TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, "scan-card card border-0")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_routes_still_render_shell_with_bootstrap_enabled(self):
         for route_name in [
             "scan:scan_dashboard",
@@ -599,7 +564,6 @@ class ScanBootstrapUiTests(TestCase):
                 self.assertContains(response, 'class="scan-shell')
                 self.assertContains(response, 'class="scan-bootstrap-enabled"')
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_non_portal_button_levels_follow_intended_semantics(self):
         self.client.force_login(self.superuser)
         component = Product.objects.create(
@@ -719,7 +683,6 @@ class ScanBootstrapUiTests(TestCase):
             'class="scan-scan-btn btn btn-tertiary"',
         )
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_base_bootstrap_neutral_controls_use_tertiary_or_secondary_levels(self):
         response = self.client.get(reverse("scan:scan_stock"))
         self.assertEqual(response.status_code, 200)
@@ -736,18 +699,6 @@ class ScanBootstrapUiTests(TestCase):
             html=True,
         )
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=False)
-    def test_scan_base_legacy_neutral_controls_use_tertiary_level(self):
-        self.client.force_login(self.superuser)
-        response = self.client.get(reverse("scan:scan_stock"))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'id="ui-toggle" class="scan-ui-button btn-tertiary"')
-        self.assertContains(response, 'id="theme-toggle" class="scan-theme-button btn-tertiary"')
-        self.assertContains(response, 'id="ui-reset-default"')
-        self.assertContains(response, 'class="scan-ui-reset btn-tertiary"')
-        self.assertContains(response, 'class="scan-nav-trigger btn-tertiary"')
-
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_ui_lab_uses_tertiary_buttons_for_neutral_examples(self):
         self.client.force_login(self.superuser)
         response = self.client.get(reverse("scan:scan_ui_lab"))

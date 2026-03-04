@@ -11,7 +11,7 @@ urlpatterns = [
     path("", TemplateView.as_view(template_name="home.html"), name="home"),
     path(
         "favicon.ico",
-        RedirectView.as_view(url=staticfiles_storage.url("scan/icon.svg"), permanent=False),
+        RedirectView.as_view(url=staticfiles_storage.url("scan/icon.png"), permanent=False),
     ),
     path(
         "password-help/",

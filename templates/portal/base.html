@@ -1,6 +1,6 @@
 {% load static %}
 <!doctype html>
-<html lang="fr" data-ui="classic" data-theme="classic">
+<html lang="fr" data-theme="classic">
 <head>
   <meta charset="utf-8">
   <title>{% block title %}Portail association{% endblock %}</title>
@@ -8,96 +8,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700;800&family=Nunito+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script>
-    (function() {
-      try {
-        {% if scan_bootstrap_enabled %}
-          document.documentElement.setAttribute('data-ui', 'classic');
-          document.documentElement.setAttribute('data-theme', 'classic');
-        {% else %}
-          var storedUi = localStorage.getItem('wms-ui');
-          if (storedUi) {
-            document.documentElement.setAttribute('data-ui', storedUi);
-          }
-          var storedTheme = localStorage.getItem('scan-theme');
-          if (storedTheme) {
-            document.documentElement.setAttribute('data-theme', storedTheme);
-          }
-        {% endif %}
-      } catch (err) {
-        // Ignore storage errors.
-      }
-    })();
-  </script>
-  {% if scan_bootstrap_enabled %}
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-  {% endif %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
   <link rel="stylesheet" href="{% static 'scan/scan.css' %}">
-  {% if scan_bootstrap_enabled %}
-    <link rel="stylesheet" href="{% static 'scan/scan-bootstrap.css' %}">
-    <link rel="stylesheet" href="{% static 'portal/portal-bootstrap.css' %}">
-  {% endif %}
+  <link rel="stylesheet" href="{% static 'scan/scan-bootstrap.css' %}">
+  <link rel="stylesheet" href="{% static 'portal/portal-bootstrap.css' %}">
   {% include "includes/design_vars_style.html" %}
-  {% if not scan_bootstrap_enabled %}
-    <style>
-      .portal-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
-      .portal-nav { display: flex; flex-wrap: wrap; gap: 10px; }
-      .portal-actions { display: flex; align-items: center; gap: 10px; }
-      .portal-nav a { text-decoration: none; font-weight: 600; }
-      .portal-card { margin-bottom: 12px; }
-      .portal-table { width: 100%; border-collapse: collapse; }
-      .portal-table th, .portal-table td { padding: 7px 9px; border-bottom: 1px solid #ddd; text-align: left; }
-      .portal-table th { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.04em; }
-      .portal-badge {
-        display: inline-block;
-        padding: 2px 8px;
-        border-radius: 999px;
-        border: 1px solid var(--wms-status-progress-border);
-        background: var(--wms-status-progress-bg);
-        color: var(--wms-status-progress-text);
-        font-size: 0.8rem;
-        line-height: 1.2;
-      }
-      .portal-badge.is-ready {
-        border-color: var(--wms-status-ready-border);
-        background: var(--wms-status-ready-bg);
-        color: var(--wms-status-ready-text);
-      }
-      .portal-badge.is-progress {
-        border-color: var(--wms-status-progress-border);
-        background: var(--wms-status-progress-bg);
-        color: var(--wms-status-progress-text);
-      }
-      .portal-badge.is-warning {
-        border-color: var(--wms-status-warning-border);
-        background: var(--wms-status-warning-bg);
-        color: var(--wms-status-warning-text);
-      }
-      .portal-badge.is-error {
-        border-color: var(--wms-status-error-border);
-        background: var(--wms-status-error-bg);
-        color: var(--wms-status-error-text);
-      }
-      .portal-products-panel { display: grid; gap: 10px; }
-      .portal-products-table-wrap { max-height: 420px; overflow: auto; }
-      .portal-products-table-wrap .scan-table { min-width: 680px; }
-      .portal-products-table-wrap .scan-table thead tr:first-child th { position: sticky; top: 0; z-index: 2; }
-      .portal-products-actions {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        flex-wrap: wrap;
-      }
-      .portal-products-actions .scan-help { margin: 0; }
-      @media (max-width: 900px) {
-        .portal-products-table-wrap { max-height: 52vh; }
-        .portal-products-actions .scan-submit { width: 100%; }
-      }
-    </style>
-  {% endif %}
 </head>
-<body{% if scan_bootstrap_enabled %} class="scan-bootstrap-enabled portal-bootstrap-enabled"{% endif %}>
+<body class="scan-bootstrap-enabled portal-bootstrap-enabled">
   <div class="scan-shell">
     <header class="scan-card portal-card portal-header card border-0 ui-comp-panel">
       <div>
@@ -111,43 +28,6 @@
         <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_account' %}">Compte</a>
         <a class="btn btn-danger btn-sm" href="{% url 'portal:portal_logout' %}">Déconnexion</a>
       </nav>
-      <div class="portal-actions ui-comp-actions">
-        <div class="scan-ui-mode-switch">
-          {% if wms_ui_mode_is_next %}
-            <a
-              href="{% url 'ui_mode_set_mode' 'legacy' %}?next={{ request.get_full_path|urlencode }}"
-              class="scan-ui-reset"
-              title="Revenir immédiatement sur l'interface actuelle"
-            >
-              Retour interface actuelle
-            </a>
-          {% else %}
-            <a
-              href="{% url 'ui_mode_set_mode' 'next' %}?next=/app/portal/dashboard/"
-              class="scan-ui-reset"
-              title="Basculer vers le nouveau frontend Next"
-            >
-              Essayer interface Next
-            </a>
-          {% endif %}
-        </div>
-        {% if not scan_bootstrap_enabled %}
-          <div class="scan-ui-toggle">
-            <span class="scan-theme-label">Interface</span>
-            <button type="button" id="portal-ui-toggle" class="scan-ui-button btn-tertiary" aria-pressed="false">
-              Classique
-            </button>
-          </div>
-          <button
-            type="button"
-            id="portal-ui-reset-default"
-            class="scan-ui-reset btn-tertiary"
-            title="Revenir à l'interface Benev et au thème Classique"
-          >
-            Benev + Classique
-          </button>
-        {% endif %}
-      </div>
     </header>
 
     <main class="scan-main">
@@ -162,84 +42,7 @@
       {% block content %}{% endblock %}
     </main>
   </div>
-  {% if scan_bootstrap_enabled %}
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-  {% endif %}
-  {% if not scan_bootstrap_enabled %}
-    <script>
-      (function() {
-        var toggle = document.getElementById('portal-ui-toggle');
-        if (!toggle) {
-          return;
-        }
-        var root = document.documentElement;
-        var UI_KEY = 'wms-ui';
-        var UI_OPTIONS = ['classic', 'nova', 'studio', 'benev', 'timeline', 'spreadsheet'];
-        var UI_LABELS = {
-          classic: 'Classique',
-          nova: 'Nouveau',
-          studio: 'Studio',
-          benev: 'Benev',
-          timeline: 'Timeline',
-          spreadsheet: 'Spreadsheet'
-        };
-        var UI_TITLES = {
-          classic: 'Basculer vers Nouveau',
-          nova: 'Basculer vers Studio',
-          studio: 'Basculer vers Benev',
-          benev: 'Basculer vers Timeline',
-          timeline: 'Basculer vers Spreadsheet',
-          spreadsheet: 'Basculer vers Classique'
-        };
-        var normalize = function(value) {
-          return UI_OPTIONS.indexOf(value) !== -1 ? value : 'classic';
-        };
-        var applyUi = function(ui) {
-          var normalized = normalize(ui);
-          root.dataset.ui = normalized;
-          toggle.textContent = UI_LABELS[normalized] || 'Classique';
-          toggle.setAttribute('aria-pressed', normalized === 'classic' ? 'false' : 'true');
-          toggle.title = UI_TITLES[normalized] || 'Basculer vers Nouveau';
-        };
-        var initialUi = root.dataset.ui || 'classic';
-        try {
-          var stored = localStorage.getItem(UI_KEY);
-          if (stored) {
-            initialUi = stored;
-          }
-        } catch (err) {
-          // Ignore storage errors.
-        }
-        applyUi(initialUi);
-        toggle.addEventListener('click', function() {
-          var current = normalize(root.dataset.ui);
-          var currentIndex = UI_OPTIONS.indexOf(current);
-          var nextUi = UI_OPTIONS[(currentIndex + 1) % UI_OPTIONS.length];
-          applyUi(nextUi);
-          try {
-            localStorage.setItem(UI_KEY, nextUi);
-          } catch (err) {
-            // Ignore storage errors.
-          }
-        });
-
-        var resetButton = document.getElementById('portal-ui-reset-default');
-        if (resetButton) {
-          resetButton.addEventListener('click', function() {
-            root.dataset.ui = 'benev';
-            root.dataset.theme = 'classic';
-            applyUi('benev');
-            try {
-              localStorage.setItem(UI_KEY, 'benev');
-              localStorage.setItem('scan-theme', 'classic');
-            } catch (err) {
-              // Ignore storage errors.
-            }
-          });
-        }
-      })();
-    </script>
-  {% endif %}
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
   <script defer src="{% static 'portal/portal_tables.js' %}"></script>
 </body>
 </html>

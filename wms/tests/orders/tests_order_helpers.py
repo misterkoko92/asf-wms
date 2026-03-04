@@ -133,8 +133,15 @@ class OrderHelpersTests(TestCase):
         )
 
     def test_attach_order_documents_to_shipment_returns_early_without_inputs(self):
-        attach_order_documents_to_shipment(None, object())
-        attach_order_documents_to_shipment(object(), None)
+        with mock.patch("wms.order_helpers.Document.objects.filter") as filter_mock:
+            with mock.patch("wms.order_helpers.Document.objects.create") as create_mock:
+                result_missing_order = attach_order_documents_to_shipment(None, object())
+                result_missing_shipment = attach_order_documents_to_shipment(object(), None)
+
+        self.assertIsNone(result_missing_order)
+        self.assertIsNone(result_missing_shipment)
+        filter_mock.assert_not_called()
+        create_mock.assert_not_called()
 
     def test_attach_order_documents_to_shipment_copies_only_wanted_unique_documents(self):
         shipment = SimpleNamespace(id=1)

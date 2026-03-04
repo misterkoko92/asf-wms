@@ -15,7 +15,7 @@ class UiModeHelpersTests(TestCase):
     def test_normalize_ui_mode_defaults_to_legacy(self):
         self.assertEqual(normalize_ui_mode(None), UiMode.LEGACY)
         self.assertEqual(normalize_ui_mode("anything"), UiMode.LEGACY)
-        self.assertEqual(normalize_ui_mode("NEXT"), UiMode.NEXT)
+        self.assertEqual(normalize_ui_mode("NEXT"), UiMode.LEGACY)
 
     def test_get_ui_mode_for_anonymous_user_returns_default(self):
         self.assertEqual(get_ui_mode_for_user(AnonymousUser()), DEFAULT_UI_MODE)
@@ -28,7 +28,7 @@ class UiModeHelpersTests(TestCase):
 
         saved_mode = set_ui_mode_for_user(user, UiMode.NEXT)
 
-        self.assertEqual(saved_mode, UiMode.NEXT)
+        self.assertEqual(saved_mode, UiMode.LEGACY)
         preference = UserUiPreference.objects.get(user=user)
-        self.assertEqual(preference.ui_mode, UiMode.NEXT)
-        self.assertEqual(get_ui_mode_for_user(user), UiMode.NEXT)
+        self.assertEqual(preference.ui_mode, UiMode.LEGACY)
+        self.assertEqual(get_ui_mode_for_user(user), UiMode.LEGACY)
