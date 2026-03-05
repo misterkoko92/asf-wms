@@ -3,7 +3,16 @@
 {% block title %}WMS Scan - FAQ & Documentation{% endblock %}
 
 {% block content %}
-  <div class="scan-card card border-0 ui-comp-card">
+  <div class="scan-card card border-0 ui-comp-card scan-faq-summary-card">
+    <h2 class="ui-comp-title">Sommaire</h2>
+    <p class="scan-help">
+      Cliquez sur un titre pour aller directement à la section.
+    </p>
+    <ul id="scan-faq-summary-list" class="scan-faq-summary-list"></ul>
+  </div>
+
+  <div id="scan-faq-content" data-faq-collapsible="true">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
     <h2 class="ui-comp-title">Vue d'ensemble</h2>
     <p>
       Cette page d&eacute;crit le fonctionnement complet du WMS Scan, du stock &agrave;
@@ -26,7 +35,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
     <h2 class="ui-comp-title">Acc&egrave;s &amp; r&ocirc;les</h2>
     <ul>
       <li>Les pages /scan internes sont prot&eacute;g&eacute;es par login staff.</li>
@@ -37,7 +46,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
     <h2 class="ui-comp-title">Contacts (pilotage org-role)</h2>
     <ul>
       <li>La page <strong>Admin &gt; Contacts</strong> pilote le mod&egrave;le <strong>organization roles</strong> (sans CRUD legacy dans Scan).</li>
@@ -49,7 +58,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
     <h2 class="ui-comp-title">Donn&eacute;es de r&eacute;f&eacute;rence</h2>
     <p>Avant utilisation, v&eacute;rifier ces donn&eacute;es :</p>
     <ul>
@@ -69,7 +78,7 @@
     </p>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
     <h2 class="ui-comp-title">Vue stock</h2>
     <ul>
       <li>Recherche multi-cl&eacute;s : nom, SKU, barcode, EAN.</li>
@@ -81,7 +90,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
     <h2 class="ui-comp-title">MAJ stock</h2>
     <ul>
       <li>S&eacute;lection produit par nom, SKU, barcode ou EAN (scan cam&eacute;ra possible).</li>
@@ -92,7 +101,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
     <h2 class="ui-comp-title">Supprimer produit</h2>
     <ul>
       <li>Retire du stock pour casse, perte ou correction.</li>
@@ -101,7 +110,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
     <h2 class="ui-comp-title">Pr&eacute;paration (cartons)</h2>
     <ul>
       <li>Choisir un format de carton (ou personnaliser les dimensions).</li>
@@ -121,7 +130,7 @@
     </p>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
     <h2 class="ui-comp-title">Cr&eacute;er une exp&eacute;dition</h2>
     <ul>
       <li>S&eacute;quencement: destination d'abord, puis exp&eacute;diteur, puis destinataire + correspondant, puis le reste du formulaire.</li>
@@ -138,7 +147,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
     <h2 class="ui-comp-title">Vue Colis</h2>
     <ul>
       <li>Liste tous les cartons pr&eacute;par&eacute;s avec leur statut et contenu.</li>
@@ -149,7 +158,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
     <h2 class="ui-comp-title">Vue Exp&eacute;ditions</h2>
     <ul>
       <li><strong>Brouillon</strong> : exp&eacute;dition temporaire (r&eacute;f&eacute;rence <strong>EXP-TEMP-XX</strong>) sauvegard&eacute;e pour reprise ult&eacute;rieure.</li>
@@ -172,7 +181,7 @@
     </p>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
     <h2 class="ui-comp-title">Suivi des exp&eacute;ditions (Gestion)</h2>
     <ul>
       <li>Cette vue affiche les exp&eacute;ditions en statut <strong>Planifi&eacute;</strong>, <strong>Exp&eacute;di&eacute;</strong>, <strong>Re&ccedil;u escale</strong> et <strong>Livr&eacute;</strong>.</li>
@@ -183,7 +192,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
     <h2 class="ui-comp-title">Documents & &eacute;tiquettes</h2>
     <ul>
       <li>Bon d'exp&eacute;dition, listes de colisage et attestation sont g&eacute;n&eacute;r&eacute;s par exp&eacute;dition.</li>
@@ -193,7 +202,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
     <h2 class="ui-comp-title">Vue Commande (associations)</h2>
     <ul>
       <li>Liste des demandes associations avec statut de revue.</li>
@@ -203,7 +212,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
     <h2 class="ui-comp-title">R&eacute;ception palette</h2>
     <ul>
       <li>Enregistre une r&eacute;ception avec donateur + transporteur.</li>
@@ -231,7 +240,7 @@
     </p>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
     <h2 class="ui-comp-title">R&eacute;ception association</h2>
     <ul>
       <li>Enregistre cartons + hors format pour une association.</li>
@@ -240,7 +249,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
     <h2 class="ui-comp-title">R&eacute;ception standard (don/palette)</h2>
     <ul>
       <li>Cr&eacute;er une r&eacute;ception puis ajouter des lignes produits.</li>
@@ -250,7 +259,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
     <h2 class="ui-comp-title">Vue r&eacute;ception</h2>
     <ul>
       <li>Filtre rapide : Palette, Association ou Tout.</li>
@@ -258,7 +267,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
     <h2 class="ui-comp-title">Imports (admin)</h2>
     <ul>
       <li>Ajout unitaire ou import CSV/XLS/XLSX par bloc.</li>
@@ -274,7 +283,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
     <h2 class="ui-comp-title">Templates (admin)</h2>
     <ul>
       <li>La page <strong>Gestion &gt; Templates</strong> pilote les templates XLSX Print Pack (superuser uniquement).</li>
@@ -289,7 +298,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
     <h2 class="ui-comp-title">Suivi exp&eacute;dition (QR)</h2>
     <ul>
       <li>Un QR code est généré à la création de l'expédition.</li>
@@ -309,7 +318,7 @@
     </p>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
     <h2 class="ui-comp-title">Scanner & synchronisation</h2>
     <ul>
       <li>Le bouton <strong>Scan</strong> ouvre la cam&eacute;ra et remplit le champ cible.</li>
@@ -320,7 +329,7 @@
     </ul>
   </div>
 
-  <div class="scan-card card border-0 ui-comp-card">
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
     <h2 class="ui-comp-title">FAQ rapide</h2>
     <ul>
       <li><strong>Mes listes sont vides</strong> : v&eacute;rifier les r&ocirc;les actifs, scopes exp&eacute;diteurs et bindings destinataires.</li>
@@ -331,5 +340,6 @@
       <li><strong>Correspondant introuvable</strong> : v&eacute;rifier le correspondant li&eacute; sur la destination s&eacute;lectionn&eacute;e.</li>
       <li><strong>Le QR n'ouvre rien</strong> : v&eacute;rifier SITE_BASE_URL et relancer l'app.</li>
     </ul>
+  </div>
   </div>
 {% endblock %}

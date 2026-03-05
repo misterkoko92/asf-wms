@@ -630,6 +630,31 @@ body.scan-bootstrap-enabled {
   color: var(--ds-text);
 }
 
+.scan-bootstrap-enabled .scan-faq-summary-list {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.scan-bootstrap-enabled .scan-faq-summary-list li + li {
+  margin-top: 0.3rem;
+}
+
+.scan-bootstrap-enabled .scan-faq-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.scan-bootstrap-enabled .scan-faq-toggle {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.scan-bootstrap-enabled .scan-faq-card-body {
+  padding-top: 0.4rem;
+}
+
 .scan-bootstrap-enabled .ui-comp-form {
   row-gap: var(--wms-field-gap);
 }

@@ -19,6 +19,19 @@ class ScanMiscViewsTests(TestCase):
         self.assertEqual(response.context["active"], "faq")
         self.assertEqual(response.context["shell_class"], "scan-shell-wide")
 
+    def test_scan_faq_includes_summary_container(self):
+        response = self.client.get(reverse("scan:scan_faq"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Sommaire")
+        self.assertContains(response, 'id="scan-faq-summary-list"')
+        self.assertContains(response, 'id="scan-faq-content"')
+
+    def test_scan_faq_sections_are_marked_collapsible(self):
+        response = self.client.get(reverse("scan:scan_faq"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-faq-section="true"')
+        self.assertContains(response, 'data-faq-collapsible="true"')
+
     def test_scan_ui_lab_renders_template(self):
         response = self.client.get(reverse("scan:scan_ui_lab"))
         self.assertEqual(response.status_code, 200)

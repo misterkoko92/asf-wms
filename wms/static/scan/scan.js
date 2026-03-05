@@ -109,6 +109,22 @@
       .toLowerCase();
   }
 
+  function buildFaqSectionId(title, usedIds) {
+    const slug = normalizeText(title)
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+    const baseSlug = slug || 'section';
+    let index = 1;
+    let sectionId = `faq-${baseSlug}`;
+    while (usedIds.has(sectionId) || document.getElementById(sectionId)) {
+      index += 1;
+      sectionId = `faq-${baseSlug}-${index}`;
+    }
+    usedIds.add(sectionId);
+    return sectionId;
+  }
+
   function createProductMatcher(entries) {
     return value => {
       const raw = (value || '').trim();
@@ -2849,6 +2865,89 @@
     setInterval(fetchSync, intervalMs);
   }
 
+  function setupFaqEnhancements() {
+    const faqContent = document.getElementById('scan-faq-content');
+    const summaryList = document.getElementById('scan-faq-summary-list');
+    if (!faqContent || !summaryList) {
+      return;
+    }
+    if (faqContent.dataset.faqInitialized === 'true') {
+      return;
+    }
+    faqContent.dataset.faqInitialized = 'true';
+
+    const sections = faqContent.querySelectorAll('[data-faq-section="true"]');
+    if (!sections.length) {
+      return;
+    }
+
+    const usedIds = new Set();
+    summaryList.innerHTML = '';
+
+    sections.forEach(card => {
+      const title = card.querySelector('h2.ui-comp-title');
+      if (!title) {
+        return;
+      }
+      const titleText = title.textContent.trim();
+      if (!titleText) {
+        return;
+      }
+
+      if (!card.id) {
+        card.id = buildFaqSectionId(titleText, usedIds);
+      } else {
+        usedIds.add(card.id);
+      }
+
+      const summaryItem = document.createElement('li');
+      const summaryLink = document.createElement('a');
+      summaryLink.href = `#${card.id}`;
+      summaryLink.textContent = titleText;
+      summaryItem.appendChild(summaryLink);
+      summaryList.appendChild(summaryItem);
+
+      if (faqContent.dataset.faqCollapsible !== 'true') {
+        return;
+      }
+
+      const bodyId = `${card.id}-content`;
+      let content = card.querySelector('.scan-faq-card-body');
+      if (!content) {
+        content = document.createElement('div');
+        content.className = 'scan-faq-card-body';
+        while (title.nextSibling) {
+          content.appendChild(title.nextSibling);
+        }
+        card.appendChild(content);
+      }
+      content.id = bodyId;
+
+      title.classList.add('scan-faq-title');
+      let toggleButton = title.querySelector('.scan-faq-toggle');
+      if (!toggleButton) {
+        toggleButton = document.createElement('button');
+        toggleButton.type = 'button';
+        toggleButton.className = 'btn btn-tertiary btn-sm scan-faq-toggle';
+        title.appendChild(toggleButton);
+      }
+      toggleButton.setAttribute('aria-controls', bodyId);
+
+      const setExpanded = expanded => {
+        content.hidden = !expanded;
+        card.classList.toggle('scan-faq-collapsed', !expanded);
+        toggleButton.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        toggleButton.textContent = expanded ? 'Reduire' : 'Developper';
+      };
+
+      setExpanded(true);
+      toggleButton.addEventListener('click', () => {
+        const expanded = toggleButton.getAttribute('aria-expanded') === 'true';
+        setExpanded(!expanded);
+      });
+    });
+  }
+
   document.addEventListener('click', event => {
     const trigger = event.target.closest('[data-scan-target]');
     if (!trigger) {
@@ -2882,6 +2981,7 @@
   setupReceiptLines();
   setupTableTools();
   setupLiveSync();
+  setupFaqEnhancements();
 
   const receivedOnInput = document.getElementById('id_received_on');
   if (receivedOnInput && !receivedOnInput.value) {
