@@ -1,6 +1,8 @@
+from types import SimpleNamespace
+
 from django.test import RequestFactory, TestCase
 
-from wms.carton_handlers import handle_carton_status_update
+from wms.carton_handlers import _shipment_is_locked, handle_carton_status_update
 from wms.models import Carton, CartonStatus, Shipment, ShipmentStatus
 
 
@@ -46,6 +48,98 @@ class CartonHandlersTests(TestCase):
         )
         carton = Carton.objects.create(
             code="CT-HANDLER-2",
+            status=CartonStatus.ASSIGNED,
+            shipment=shipment,
+        )
+        request = self.factory.post(
+            "/scan/cartons-ready",
+            {
+                "action": "mark_carton_labeled",
+                "carton_id": str(carton.id),
+            },
+        )
+
+        response = handle_carton_status_update(request)
+
+        self.assertEqual(response.status_code, 302)
+        carton.refresh_from_db()
+        self.assertEqual(carton.status, CartonStatus.ASSIGNED)
+
+    def test_shipment_is_locked_handles_missing_and_locked_status(self):
+        self.assertFalse(_shipment_is_locked(SimpleNamespace(shipment=None)))
+
+        locked_carton = SimpleNamespace(
+            shipment=SimpleNamespace(status=ShipmentStatus.PLANNED, is_disputed=False)
+        )
+        self.assertTrue(_shipment_is_locked(locked_carton))
+
+    def test_mark_carton_labeled_updates_when_shipment_is_editable(self):
+        shipment = Shipment.objects.create(
+            status=ShipmentStatus.PICKING,
+            is_disputed=False,
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            destination_address="1 rue test",
+            destination_country="France",
+        )
+        carton = Carton.objects.create(
+            code="CT-HANDLER-3",
+            status=CartonStatus.ASSIGNED,
+            shipment=shipment,
+        )
+        request = self.factory.post(
+            "/scan/cartons-ready",
+            {
+                "action": "mark_carton_labeled",
+                "carton_id": str(carton.id),
+            },
+        )
+
+        response = handle_carton_status_update(request)
+
+        self.assertEqual(response.status_code, 302)
+        carton.refresh_from_db()
+        self.assertEqual(carton.status, CartonStatus.LABELED)
+
+    def test_mark_carton_assigned_updates_from_labeled(self):
+        shipment = Shipment.objects.create(
+            status=ShipmentStatus.PICKING,
+            is_disputed=False,
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            destination_address="1 rue test",
+            destination_country="France",
+        )
+        carton = Carton.objects.create(
+            code="CT-HANDLER-4",
+            status=CartonStatus.LABELED,
+            shipment=shipment,
+        )
+        request = self.factory.post(
+            "/scan/cartons-ready",
+            {
+                "action": "mark_carton_assigned",
+                "carton_id": str(carton.id),
+            },
+        )
+
+        response = handle_carton_status_update(request)
+
+        self.assertEqual(response.status_code, 302)
+        carton.refresh_from_db()
+        self.assertEqual(carton.status, CartonStatus.ASSIGNED)
+
+    def test_mark_carton_labeled_ignored_when_shipment_status_is_locked(self):
+        shipment = Shipment.objects.create(
+            status=ShipmentStatus.SHIPPED,
+            is_disputed=False,
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            destination_address="1 rue test",
+            destination_country="France",
+        )
+        carton = Carton.objects.create(
+            code="CT-HANDLER-5",
             status=CartonStatus.ASSIGNED,
             shipment=shipment,
         )
