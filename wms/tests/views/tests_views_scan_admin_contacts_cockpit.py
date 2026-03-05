@@ -1,3 +1,5 @@
+import re
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
@@ -79,6 +81,13 @@ class ScanAdminContactsCockpitViewTests(TestCase):
             is_primary=True,
             is_active=True,
         )
+
+    def _extract_select_markup(self, *, response, select_id: str) -> str:
+        html = response.content.decode("utf-8")
+        pattern = rf'<select[^>]*id="{re.escape(select_id)}"[^>]*>(.*?)</select>'
+        match = re.search(pattern, html, flags=re.DOTALL)
+        self.assertIsNotNone(match)
+        return match.group(1)
 
     def test_scan_admin_contacts_renders_org_role_cockpit(self):
         self.client.force_login(self.superuser)
@@ -493,6 +502,11 @@ class ScanAdminContactsCockpitViewTests(TestCase):
 
     def test_upsert_recipient_binding_creates_active_binding(self):
         self.client.force_login(self.superuser)
+        OrganizationRoleAssignment.objects.create(
+            organization=self.other_org,
+            role=OrganizationRole.RECIPIENT,
+            is_active=True,
+        )
 
         response = self.client.post(
             reverse("scan:scan_admin_contacts"),
@@ -512,6 +526,91 @@ class ScanAdminContactsCockpitViewTests(TestCase):
                 recipient_org=self.other_org,
                 destination=self.destination,
                 is_active=True,
+            ).exists()
+        )
+
+    def test_binding_form_context_exposes_role_filtered_organizations(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_admin_contacts"))
+
+        self.assertEqual(response.status_code, 200)
+        shipper_ids = [org.id for org in response.context["cockpit_binding_shipper_organizations"]]
+        recipient_ids = [org.id for org in response.context["cockpit_binding_recipient_organizations"]]
+        self.assertEqual(shipper_ids, [self.shipper.id])
+        self.assertEqual(recipient_ids, [self.recipient.id])
+        self.assertEqual(
+            response.context["cockpit_recipient_default_destination_by_org_id"][self.recipient.id],
+            self.destination.id,
+        )
+        shipper_select = self._extract_select_markup(
+            response=response,
+            select_id="scan-binding-shipper-org-id",
+        )
+        recipient_select = self._extract_select_markup(
+            response=response,
+            select_id="scan-binding-recipient-org-id",
+        )
+        self.assertIn(f'value="{self.shipper.id}"', shipper_select)
+        self.assertNotIn(f'value="{self.recipient.id}"', shipper_select)
+        self.assertNotIn(f'value="{self.other_org.id}"', shipper_select)
+        self.assertIn(
+            f'value="{self.recipient.id}" data-default-destination-id="{self.destination.id}"',
+            recipient_select,
+        )
+        self.assertNotIn(f'value="{self.shipper.id}"', recipient_select)
+        self.assertNotIn(f'value="{self.other_org.id}"', recipient_select)
+
+    def test_upsert_recipient_binding_rejects_invalid_shipper_role(self):
+        self.client.force_login(self.superuser)
+        OrganizationRoleAssignment.objects.create(
+            organization=self.other_org,
+            role=OrganizationRole.RECIPIENT,
+            is_active=True,
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_admin_contacts"),
+            {
+                "action": "upsert_recipient_binding",
+                "shipper_org_id": str(self.other_org.id),
+                "recipient_org_id": str(self.other_org.id),
+                "destination_id": str(self.destination.id),
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Expediteur sans role actif")
+        self.assertFalse(
+            RecipientBinding.objects.filter(
+                shipper_org=self.other_org,
+                recipient_org=self.other_org,
+                destination=self.destination,
+            ).exists()
+        )
+
+    def test_upsert_recipient_binding_rejects_invalid_recipient_role(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.post(
+            reverse("scan:scan_admin_contacts"),
+            {
+                "action": "upsert_recipient_binding",
+                "shipper_org_id": str(self.shipper.id),
+                "recipient_org_id": str(self.other_org.id),
+                "destination_id": str(self.destination.id),
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Destinataire sans role actif")
+        self.assertFalse(
+            RecipientBinding.objects.filter(
+                shipper_org=self.shipper,
+                recipient_org=self.other_org,
+                destination=self.destination,
             ).exists()
         )
 
@@ -541,6 +640,11 @@ class ScanAdminContactsCockpitViewTests(TestCase):
 
     def test_upsert_recipient_binding_rejects_invalid_validity_window(self):
         self.client.force_login(self.superuser)
+        OrganizationRoleAssignment.objects.create(
+            organization=self.other_org,
+            role=OrganizationRole.RECIPIENT,
+            is_active=True,
+        )
 
         response = self.client.post(
             reverse("scan:scan_admin_contacts"),

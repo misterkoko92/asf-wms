@@ -376,6 +376,16 @@ def _resolve_active_org_by_id(org_id: int | None):
     return _resolve_active_organization(org_id)
 
 
+def _organization_has_active_role(*, organization, role: str) -> bool:
+    if organization is None:
+        return False
+    return OrganizationRoleAssignment.objects.filter(
+        organization=organization,
+        role=role,
+        is_active=True,
+    ).exists()
+
+
 def upsert_recipient_binding(*, data) -> tuple[bool, str]:
     form = RecipientBindingUpsertForm(data)
     if not form.is_valid():
@@ -384,9 +394,19 @@ def upsert_recipient_binding(*, data) -> tuple[bool, str]:
     shipper_org = _resolve_active_org_by_id(form.cleaned_data["shipper_org_id"])
     if shipper_org is None:
         return False, "Expediteur invalide."
+    if not _organization_has_active_role(
+        organization=shipper_org,
+        role=OrganizationRole.SHIPPER,
+    ):
+        return False, "Expediteur sans role actif."
     recipient_org = _resolve_active_org_by_id(form.cleaned_data["recipient_org_id"])
     if recipient_org is None:
         return False, "Destinataire invalide."
+    if not _organization_has_active_role(
+        organization=recipient_org,
+        role=OrganizationRole.RECIPIENT,
+    ):
+        return False, "Destinataire sans role actif."
     destination = Destination.objects.filter(
         pk=form.cleaned_data["destination_id"],
         is_active=True,
@@ -569,7 +589,9 @@ def build_cockpit_context(*, query: str, filters: dict) -> dict:
         Contact.objects.filter(
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
-        ).order_by("name", "id")
+        )
+        .prefetch_related("destinations")
+        .order_by("name", "id")
     )
     role_assignments = list(
         OrganizationRoleAssignment.objects.select_related("organization")
@@ -617,6 +639,45 @@ def build_cockpit_context(*, query: str, filters: dict) -> dict:
             "id",
         )
     )
+    active_shipper_org_ids = {
+        assignment.organization_id
+        for assignment in role_assignments
+        if assignment.role == OrganizationRole.SHIPPER and assignment.is_active
+    }
+    active_recipient_org_ids = {
+        assignment.organization_id
+        for assignment in role_assignments
+        if assignment.role == OrganizationRole.RECIPIENT and assignment.is_active
+    }
+    binding_shipper_organizations = [
+        organization for organization in organizations if organization.id in active_shipper_org_ids
+    ]
+    binding_recipient_organizations = [
+        organization for organization in organizations if organization.id in active_recipient_org_ids
+    ]
+    active_destination_ids = {destination.id for destination in destinations}
+    latest_destination_by_recipient_id: dict[int, int] = {}
+    active_recipient_bindings = list(
+        RecipientBinding.objects.filter(is_active=True)
+        .order_by("recipient_org_id", "-valid_from", "-id")
+        .values_list("recipient_org_id", "destination_id")
+    )
+    for recipient_org_id, destination_id in active_recipient_bindings:
+        if recipient_org_id not in latest_destination_by_recipient_id:
+            latest_destination_by_recipient_id[recipient_org_id] = destination_id
+    recipient_default_destination_by_org_id: dict[int, int | None] = {}
+    for organization in binding_recipient_organizations:
+        suggested_destination_id = latest_destination_by_recipient_id.get(organization.id)
+        if not suggested_destination_id and organization.destination_id in active_destination_ids:
+            suggested_destination_id = organization.destination_id
+        if not suggested_destination_id:
+            scoped_destination_ids = sorted(
+                {destination.id for destination in organization.destinations.all() if destination.is_active}
+            )
+            if len(scoped_destination_ids) == 1:
+                suggested_destination_id = scoped_destination_ids[0]
+        recipient_default_destination_by_org_id[organization.id] = suggested_destination_id
+        setattr(organization, "default_destination_id", suggested_destination_id or "")
     shipper_role_assignments = [
         assignment
         for assignment in role_assignments
@@ -629,6 +690,9 @@ def build_cockpit_context(*, query: str, filters: dict) -> dict:
         "cockpit_mode": "org_roles",
         "cockpit_role_choices": OrganizationRole.choices,
         "cockpit_organizations": organizations,
+        "cockpit_binding_shipper_organizations": binding_shipper_organizations,
+        "cockpit_binding_recipient_organizations": binding_recipient_organizations,
+        "cockpit_recipient_default_destination_by_org_id": recipient_default_destination_by_org_id,
         "cockpit_role_assignments": role_assignments,
         "cockpit_shipper_role_assignments": shipper_role_assignments,
         "cockpit_organization_contacts": organization_contacts,

@@ -403,6 +403,7 @@
                     data-shipper-org-id="{{ binding.shipper_org_id }}"
                     data-recipient-org-id="{{ binding.recipient_org_id }}"
                     data-destination-id="{{ binding.destination_id }}"
+                    data-is-active="{% if binding.is_active %}1{% else %}0{% endif %}"
                     data-valid-from="{% if binding.valid_from %}{{ binding.valid_from|date:'Y-m-d\\TH:i' }}{% endif %}"
                     data-valid-to="{% if binding.valid_to %}{{ binding.valid_to|date:'Y-m-d\\TH:i' }}{% endif %}"
                   >
@@ -415,7 +416,7 @@
               <label class="form-label" for="scan-binding-shipper-org-id">Expéditeur</label>
               <select id="scan-binding-shipper-org-id" name="shipper_org_id" class="form-select" required>
                 <option value="">Choisir...</option>
-                {% for organization in cockpit_organizations %}
+                {% for organization in cockpit_binding_shipper_organizations %}
                   <option value="{{ organization.id }}">{{ organization.name }}</option>
                 {% endfor %}
               </select>
@@ -424,8 +425,8 @@
               <label class="form-label" for="scan-binding-recipient-org-id">Destinataire</label>
               <select id="scan-binding-recipient-org-id" name="recipient_org_id" class="form-select" required>
                 <option value="">Choisir...</option>
-                {% for organization in cockpit_organizations %}
-                  <option value="{{ organization.id }}">{{ organization.name }}</option>
+                {% for organization in cockpit_binding_recipient_organizations %}
+                  <option value="{{ organization.id }}" data-default-destination-id="{{ organization.default_destination_id }}">{{ organization.name }}</option>
                 {% endfor %}
               </select>
             </div>
@@ -724,6 +725,62 @@
       var bindingDestinationSelect = document.getElementById("scan-binding-destination-id");
       var bindingValidFromInput = document.getElementById("scan-binding-valid-from");
       var bindingValidToInput = document.getElementById("scan-binding-valid-to");
+      var bindingActiveDestinationByPair = {};
+
+      function _bindingPairKey(shipperOrgId, recipientOrgId) {
+        return shipperOrgId + ":" + recipientOrgId;
+      }
+
+      if (bindingSelect) {
+        Array.prototype.forEach.call(bindingSelect.options, function (option) {
+          if (!option || !option.value) {
+            return;
+          }
+          if ((option.dataset.isActive || "0") !== "1") {
+            return;
+          }
+          var shipperOrgId = option.dataset.shipperOrgId || "";
+          var recipientOrgId = option.dataset.recipientOrgId || "";
+          var destinationId = option.dataset.destinationId || "";
+          if (!shipperOrgId || !recipientOrgId || !destinationId) {
+            return;
+          }
+          bindingActiveDestinationByPair[_bindingPairKey(shipperOrgId, recipientOrgId)] =
+            destinationId;
+        });
+      }
+
+      function applySuggestedDestinationFromSelection() {
+        if (!bindingRecipientSelect || !bindingDestinationSelect) {
+          return;
+        }
+        var recipientOption = bindingRecipientSelect.options[bindingRecipientSelect.selectedIndex];
+        if (!recipientOption || !recipientOption.value) {
+          return;
+        }
+        var suggestedDestinationId = "";
+        if (bindingShipperSelect && bindingShipperSelect.value) {
+          suggestedDestinationId =
+            bindingActiveDestinationByPair[
+              _bindingPairKey(bindingShipperSelect.value, recipientOption.value)
+            ] || "";
+        }
+        if (!suggestedDestinationId) {
+          suggestedDestinationId = recipientOption.dataset.defaultDestinationId || "";
+        }
+        if (!suggestedDestinationId) {
+          return;
+        }
+        var hasMatchingOption = Array.prototype.some.call(
+          bindingDestinationSelect.options,
+          function (option) {
+            return option.value === suggestedDestinationId;
+          }
+        );
+        if (hasMatchingOption) {
+          bindingDestinationSelect.value = suggestedDestinationId;
+        }
+      }
 
       function hydrateBindingFormFromSelection() {
         if (!bindingSelect) {
@@ -752,6 +809,12 @@
 
       if (bindingSelect) {
         bindingSelect.addEventListener("change", hydrateBindingFormFromSelection);
+      }
+      if (bindingRecipientSelect) {
+        bindingRecipientSelect.addEventListener("change", applySuggestedDestinationFromSelection);
+      }
+      if (bindingShipperSelect) {
+        bindingShipperSelect.addEventListener("change", applySuggestedDestinationFromSelection);
       }
 
       var guidedEntityKind = document.getElementById("scan-guided-entity-kind");
