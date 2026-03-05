@@ -1,6 +1,7 @@
-{% load static %}
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
 <!doctype html>
-<html lang="fr" data-theme="classic">
+<html lang="{{ LANGUAGE_CODE|default:'fr' }}" data-theme="classic">
 <head>
   <meta charset="utf-8">
   <title>{% block title %}Portail association{% endblock %}</title>
@@ -12,6 +13,7 @@
   <link rel="stylesheet" href="{% static 'scan/scan.css' %}">
   <link rel="stylesheet" href="{% static 'scan/scan-bootstrap.css' %}">
   <link rel="stylesheet" href="{% static 'portal/portal-bootstrap.css' %}">
+  <link rel="stylesheet" href="{% static 'wms/language-switch.css' %}">
   {% include "includes/design_vars_style.html" %}
 </head>
 <body class="scan-bootstrap-enabled portal-bootstrap-enabled">
@@ -21,13 +23,16 @@
         <strong class="ui-comp-title">ASF WMS</strong><br>
         Portail association
       </div>
-      <nav class="portal-nav ui-comp-actions">
-        <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_dashboard' %}">Commandes</a>
-        <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_order_create' %}">Nouvelle commande</a>
-        <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_recipients' %}">Destinataires</a>
-        <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_account' %}">Compte</a>
-        <a class="btn btn-danger btn-sm" href="{% url 'portal:portal_logout' %}">Déconnexion</a>
-      </nav>
+      <div class="portal-actions ui-comp-actions">
+        {% include "includes/language_switch.html" %}
+        <nav class="portal-nav">
+          <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_dashboard' %}">Commandes</a>
+          <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_order_create' %}">Nouvelle commande</a>
+          <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_recipients' %}">Destinataires</a>
+          <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_account' %}">Compte</a>
+          <a class="btn btn-danger btn-sm" href="{% url 'portal:portal_logout' %}">Déconnexion</a>
+        </nav>
+      </div>
     </header>
 
     <main class="scan-main">

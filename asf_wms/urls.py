@@ -21,6 +21,7 @@ urlpatterns = [
     path("ui/mode/", ui_mode_set, name="ui_mode_set"),
     path("ui/mode/<str:mode>/", ui_mode_set, name="ui_mode_set_mode"),
     path("ui/frontend-log/", frontend_log_event, name="frontend_log_event"),
+    path("i18n/", include("django.conf.urls.i18n")),
     path("app/", next_frontend, name="next_frontend_root"),
     path("app/<path:path>", next_frontend, name="next_frontend"),
     path("admin/", admin.site.urls),

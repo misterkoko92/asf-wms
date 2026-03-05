@@ -1,0 +1,47 @@
+.wms-language-switch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.wms-language-switch-top {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.5rem;
+}
+
+.wms-language-switch__form {
+  display: inline-flex;
+  gap: 0.25rem;
+  margin: 0;
+}
+
+.wms-language-switch__btn {
+  border: 1px solid #bfd3ca;
+  border-radius: 999px;
+  background: #f8fcfa;
+  color: #1f2b27;
+  font-size: 0.82rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+}
+
+.wms-language-switch__btn.is-active {
+  background: #245648;
+  border-color: #1b4639;
+  color: #f5fbf8;
+}
+
+.wms-language-switch--compact {
+  margin-left: 0.4rem;
+  vertical-align: middle;
+}
+
+.wms-language-switch--compact .wms-language-switch__btn {
+  font-size: 0.72rem;
+  padding: 0.2rem 0.45rem;
+}

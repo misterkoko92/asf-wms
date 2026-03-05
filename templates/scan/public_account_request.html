@@ -1,6 +1,7 @@
-{% load static %}
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
 <!doctype html>
-<html lang="fr">
+<html lang="{{ LANGUAGE_CODE|default:'fr' }}">
 <head>
   <meta charset="utf-8">
   <title>Cr&eacute;ation de compte</title>
@@ -17,10 +18,14 @@
   {% endif %}
   {% include "includes/design_vars_style.html" %}
   <link rel="stylesheet" href="{% static 'scan/address_autocomplete.css' %}">
+  <link rel="stylesheet" href="{% static 'wms/language-switch.css' %}">
 </head>
 <body{% if scan_bootstrap_enabled %} class="scan-bootstrap-enabled"{% endif %}>
   <div class="scan-shell">
     <main class="scan-main">
+      <div class="wms-language-switch-top">
+        {% include "includes/language_switch.html" %}
+      </div>
       {% if messages %}
         <div class="scan-messages">
           {% for message in messages %}

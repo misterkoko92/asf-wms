@@ -1,6 +1,7 @@
-{% load static %}
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
 <!doctype html>
-<html lang="fr">
+<html lang="{{ LANGUAGE_CODE|default:'fr' }}">
 <head>
   <meta charset="utf-8">
   <title>{{ page_title }}</title>
@@ -16,11 +17,15 @@
     <link rel="stylesheet" href="{% static 'scan/scan-bootstrap.css' %}">
     <link rel="stylesheet" href="{% static 'portal/portal-bootstrap.css' %}">
   {% endif %}
+  <link rel="stylesheet" href="{% static 'wms/language-switch.css' %}">
   {% include "includes/design_vars_style.html" %}
 </head>
 <body{% if scan_bootstrap_enabled %} class="scan-bootstrap-enabled portal-bootstrap-enabled"{% endif %}>
   <div class="scan-shell">
     <main class="scan-main">
+      <div class="wms-language-switch-top">
+        {% include "includes/language_switch.html" %}
+      </div>
       <div class="scan-card card border-0 ui-comp-card">
         <h2 class="ui-comp-title">{{ heading }}</h2>
         <p class="scan-help">{{ lead }}</p>
