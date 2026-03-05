@@ -2881,7 +2881,11 @@
       return;
     }
 
+    const collapsible = faqContent.dataset.faqCollapsible === 'true';
+    const defaultExpanded = faqContent.dataset.faqDefaultExpanded === 'true';
+    const openOnSummaryClick = faqContent.dataset.faqOpenOnSummaryClick === 'true';
     const usedIds = new Set();
+    const sectionOpeners = new Map();
     summaryList.innerHTML = '';
 
     sections.forEach(card => {
@@ -2900,52 +2904,71 @@
         usedIds.add(card.id);
       }
 
+      if (collapsible) {
+        const bodyId = `${card.id}-content`;
+        let content = card.querySelector('.scan-faq-card-body');
+        if (!content) {
+          content = document.createElement('div');
+          content.className = 'scan-faq-card-body';
+          while (title.nextSibling) {
+            content.appendChild(title.nextSibling);
+          }
+          card.appendChild(content);
+        }
+        content.id = bodyId;
+
+        title.classList.add('scan-faq-title');
+        let toggleButton = title.querySelector('.scan-faq-toggle');
+        if (!toggleButton) {
+          toggleButton = document.createElement('button');
+          toggleButton.type = 'button';
+          toggleButton.className = 'btn btn-tertiary btn-sm scan-faq-toggle';
+          title.appendChild(toggleButton);
+        }
+        toggleButton.setAttribute('aria-controls', bodyId);
+
+        const setExpanded = expanded => {
+          content.hidden = !expanded;
+          card.classList.toggle('scan-faq-collapsed', !expanded);
+          toggleButton.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+          toggleButton.textContent = expanded ? 'Masquer' : 'Afficher';
+        };
+
+        setExpanded(defaultExpanded);
+        toggleButton.addEventListener('click', () => {
+          const expanded = toggleButton.getAttribute('aria-expanded') === 'true';
+          setExpanded(!expanded);
+        });
+        sectionOpeners.set(card.id, () => setExpanded(true));
+      }
+
       const summaryItem = document.createElement('li');
+      summaryItem.className = 'scan-faq-summary-item';
       const summaryLink = document.createElement('a');
+      summaryLink.className = 'scan-faq-summary-link';
       summaryLink.href = `#${card.id}`;
       summaryLink.textContent = titleText;
+      if (openOnSummaryClick && sectionOpeners.has(card.id)) {
+        summaryLink.addEventListener('click', () => {
+          const openCard = sectionOpeners.get(card.id);
+          if (openCard) {
+            openCard();
+          }
+        });
+      }
       summaryItem.appendChild(summaryLink);
       summaryList.appendChild(summaryItem);
-
-      if (faqContent.dataset.faqCollapsible !== 'true') {
-        return;
-      }
-
-      const bodyId = `${card.id}-content`;
-      let content = card.querySelector('.scan-faq-card-body');
-      if (!content) {
-        content = document.createElement('div');
-        content.className = 'scan-faq-card-body';
-        while (title.nextSibling) {
-          content.appendChild(title.nextSibling);
-        }
-        card.appendChild(content);
-      }
-      content.id = bodyId;
-
-      title.classList.add('scan-faq-title');
-      let toggleButton = title.querySelector('.scan-faq-toggle');
-      if (!toggleButton) {
-        toggleButton = document.createElement('button');
-        toggleButton.type = 'button';
-        toggleButton.className = 'btn btn-tertiary btn-sm scan-faq-toggle';
-        title.appendChild(toggleButton);
-      }
-      toggleButton.setAttribute('aria-controls', bodyId);
-
-      const setExpanded = expanded => {
-        content.hidden = !expanded;
-        card.classList.toggle('scan-faq-collapsed', !expanded);
-        toggleButton.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-        toggleButton.textContent = expanded ? 'Reduire' : 'Developper';
-      };
-
-      setExpanded(true);
-      toggleButton.addEventListener('click', () => {
-        const expanded = toggleButton.getAttribute('aria-expanded') === 'true';
-        setExpanded(!expanded);
-      });
     });
+
+    if (openOnSummaryClick && collapsible) {
+      const hashId = (window.location.hash || '').replace(/^#/, '');
+      if (hashId && sectionOpeners.has(hashId)) {
+        const openCard = sectionOpeners.get(hashId);
+        if (openCard) {
+          openCard();
+        }
+      }
+    }
   }
 
   document.addEventListener('click', event => {

@@ -632,11 +632,39 @@ body.scan-bootstrap-enabled {
 
 .scan-bootstrap-enabled .scan-faq-summary-list {
   margin: 0;
-  padding-left: 1.1rem;
+  padding-left: 0;
 }
 
-.scan-bootstrap-enabled .scan-faq-summary-list li + li {
-  margin-top: 0.3rem;
+.scan-bootstrap-enabled .scan-faq-summary-list.scan-faq-summary-grid {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.55rem;
+}
+
+.scan-bootstrap-enabled .scan-faq-summary-item {
+  margin: 0;
+  padding: 0;
+}
+
+.scan-bootstrap-enabled .scan-faq-summary-link {
+  display: block;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--scan-boot-border-strong);
+  border-radius: 0.7rem;
+  background: var(--scan-boot-surface-muted);
+  color: var(--ds-text);
+  font-weight: 600;
+  line-height: 1.25;
+  text-decoration: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.scan-bootstrap-enabled .scan-faq-summary-link:hover,
+.scan-bootstrap-enabled .scan-faq-summary-link:focus {
+  background: var(--scan-boot-surface);
+  border-color: var(--wms-input-focus-border);
+  color: var(--ds-text);
 }
 
 .scan-bootstrap-enabled .scan-faq-title {
