@@ -1,5 +1,7 @@
 from django import forms
 
+from .models import OrganizationRole
+
 
 class OrganizationContactUpsertForm(forms.Form):
     organization_id = forms.IntegerField(min_value=1)
@@ -64,15 +66,42 @@ class GuidedContactCreateForm(forms.Form):
     def clean(self):
         cleaned = super().clean()
         entity_kind = cleaned.get("entity_kind")
-        if entity_kind == "organization" and not (cleaned.get("organization_name") or "").strip():
-            self.add_error("organization_name", "Nom organisation requis.")
+
+        role_value = (cleaned.get("role") or "").strip().lower()
+        if role_value and role_value not in {choice[0] for choice in OrganizationRole.choices}:
+            self.add_error("role", "Role initial invalide.")
+
+        organization_name = (cleaned.get("organization_name") or "").strip()
+        person_fields = ("name", "first_name", "last_name", "email", "phone")
+        has_person_payload = any((cleaned.get(field_name) or "").strip() for field_name in person_fields)
+
+        if entity_kind == "organization":
+            if not organization_name:
+                self.add_error("organization_name", "Nom organisation requis.")
+            if not role_value:
+                self.add_error("role", "Role initial requis.")
+            if has_person_payload:
+                for field_name in person_fields:
+                    if not (cleaned.get(field_name) or "").strip():
+                        self.add_error(
+                            field_name,
+                            "Champ requis pour creer automatiquement le contact principal.",
+                        )
+
         if entity_kind == "person":
             if not cleaned.get("organization_id"):
                 self.add_error("organization_id", "Organisation requise.")
-            has_identity = any(
-                (cleaned.get(field_name) or "").strip()
-                for field_name in ("name", "first_name", "last_name")
-            )
-            if not has_identity:
-                self.add_error("name", "Nom du contact requis.")
+            if organization_name:
+                self.add_error(
+                    "organization_name",
+                    "Nom organisation non applicable pour une creation de personne.",
+                )
+            if role_value:
+                self.add_error(
+                    "role",
+                    "Role initial non applicable pour une creation de personne.",
+                )
+            for field_name in person_fields:
+                if not (cleaned.get(field_name) or "").strip():
+                    self.add_error(field_name, "Champ requis.")
         return cleaned

@@ -391,6 +391,29 @@ class ScanAdminContactsCockpitViewTests(TestCase):
             ).exists()
         )
 
+    def test_upsert_shipper_scope_defaults_to_global_when_destination_empty(self):
+        self.client.force_login(self.superuser)
+        assignment = OrganizationRoleAssignment.objects.create(
+            organization=self.other_org,
+            role=OrganizationRole.SHIPPER,
+            is_active=False,
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_admin_contacts"),
+            {
+                "action": "upsert_shipper_scope",
+                "role_assignment_id": str(assignment.id),
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        scope = ShipperScope.objects.filter(role_assignment=assignment).first()
+        self.assertIsNotNone(scope)
+        self.assertTrue(scope.all_destinations)
+        self.assertIsNone(scope.destination)
+
     def test_upsert_shipper_scope_creates_destination_scope(self):
         self.client.force_login(self.superuser)
         assignment = OrganizationRoleAssignment.objects.create(
@@ -581,9 +604,11 @@ class ScanAdminContactsCockpitViewTests(TestCase):
                 "action": "create_guided_contact",
                 "entity_kind": "person",
                 "organization_id": str(self.other_org.id),
+                "name": "Aya Diallo",
                 "first_name": "Aya",
                 "last_name": "Diallo",
                 "email": "aya.diallo@example.org",
+                "phone": "+22370010000",
             },
             follow=True,
         )
@@ -596,6 +621,56 @@ class ScanAdminContactsCockpitViewTests(TestCase):
                 first_name="Aya",
                 last_name="Diallo",
                 email="aya.diallo@example.org",
+                phone="+22370010000",
+                is_active=True,
+            ).exists()
+        )
+
+    def test_create_guided_org_with_person_payload_creates_primary_org_contact(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.post(
+            reverse("scan:scan_admin_contacts"),
+            {
+                "action": "create_guided_contact",
+                "entity_kind": "organization",
+                "organization_name": "Guided Primary Org",
+                "role": OrganizationRole.SHIPPER,
+                "name": "Nina Role",
+                "first_name": "Nina",
+                "last_name": "Role",
+                "email": "nina.role@example.org",
+                "phone": "+33102030405",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        organization = Contact.objects.filter(
+            name="Guided Primary Org",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        ).first()
+        self.assertIsNotNone(organization)
+        assignment = OrganizationRoleAssignment.objects.filter(
+            organization=organization,
+            role=OrganizationRole.SHIPPER,
+        ).first()
+        self.assertIsNotNone(assignment)
+        org_contact = OrganizationContact.objects.filter(
+            organization=organization,
+            first_name="Nina",
+            last_name="Role",
+            email="nina.role@example.org",
+            phone="+33102030405",
+            is_active=True,
+        ).first()
+        self.assertIsNotNone(org_contact)
+        self.assertTrue(
+            OrganizationRoleContact.objects.filter(
+                role_assignment=assignment,
+                contact=org_contact,
+                is_primary=True,
                 is_active=True,
             ).exists()
         )

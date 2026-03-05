@@ -288,7 +288,10 @@ def upsert_shipper_scope(*, data) -> tuple[bool, str]:
         if destination is None:
             return False, "Escale invalide."
 
-    scope.all_destinations = bool(form.cleaned_data["all_destinations"])
+    all_destinations = bool(form.cleaned_data["all_destinations"])
+    if destination is None and not all_destinations:
+        all_destinations = True
+    scope.all_destinations = all_destinations
     scope.destination = destination
     scope.is_active = True
     scope.valid_from = form.cleaned_data.get("valid_from") or scope.valid_from
@@ -403,12 +406,48 @@ def create_guided_contact(*, data) -> tuple[bool, str]:
             phone=(form.cleaned_data.get("phone") or "").strip(),
             is_active=is_active,
         )
+        assignment = None
         if role:
-            OrganizationRoleAssignment.objects.get_or_create(
+            assignment, _created = OrganizationRoleAssignment.objects.get_or_create(
                 organization=organization,
                 role=role,
                 defaults={"is_active": False},
             )
+
+        should_create_primary_contact = any(
+            (form.cleaned_data.get(field_name) or "").strip()
+            for field_name in ("name", "first_name", "last_name", "email", "phone")
+        )
+        if should_create_primary_contact:
+            if assignment is None:
+                return False, "Role initial requis pour definir un contact principal."
+            org_contact = OrganizationContact.objects.create(
+                organization=organization,
+                first_name=(form.cleaned_data.get("first_name") or "").strip(),
+                last_name=(form.cleaned_data.get("last_name") or "").strip(),
+                email=(form.cleaned_data.get("email") or "").strip(),
+                phone=(form.cleaned_data.get("phone") or "").strip(),
+                is_active=is_active,
+            )
+            with transaction.atomic():
+                OrganizationRoleContact.objects.filter(
+                    role_assignment=assignment,
+                    is_primary=True,
+                ).update(is_primary=False)
+                role_contact, _created = OrganizationRoleContact.objects.get_or_create(
+                    role_assignment=assignment,
+                    contact=org_contact,
+                    defaults={"is_primary": True, "is_active": True},
+                )
+                role_contact.is_primary = True
+                role_contact.is_active = True
+                role_contact.save(update_fields=["is_primary", "is_active"])
+            assignment.is_active = True
+            try:
+                assignment.save(update_fields=["is_active"])
+            except ValidationError:
+                assignment.is_active = False
+                assignment.save(update_fields=["is_active"])
         return True, "Organisation creee."
 
     organization = _resolve_active_organization(form.cleaned_data.get("organization_id"))
@@ -508,6 +547,20 @@ def build_cockpit_context(*, query: str, filters: dict) -> dict:
         .filter(organization__is_active=True)
         .order_by("organization__name", "last_name", "first_name", "id")
     )
+    linked_contact_ids = set(
+        OrganizationRoleContact.objects.filter(is_active=True).values_list("contact_id", flat=True)
+    )
+    organization_contacts = sorted(
+        organization_contacts,
+        key=lambda current: (
+            f"{(current.last_name or '').strip()} {(current.first_name or '').strip()} {(current.email or '').strip()}".lower(),
+            (current.organization.name or "").lower(),
+            current.id,
+        ),
+    )
+    linked_organization_contacts = [
+        current for current in organization_contacts if current.id in linked_contact_ids
+    ]
     destinations = list(
         Destination.objects.filter(is_active=True).order_by("city", "iata_code", "id")
     )
@@ -545,6 +598,8 @@ def build_cockpit_context(*, query: str, filters: dict) -> dict:
         "cockpit_role_assignments": role_assignments,
         "cockpit_shipper_role_assignments": shipper_role_assignments,
         "cockpit_organization_contacts": organization_contacts,
+        "cockpit_linked_organization_contacts": linked_organization_contacts,
+        "cockpit_all_organization_contacts": organization_contacts,
         "cockpit_destinations": destinations,
         "cockpit_shipper_scopes": shipper_scopes,
         "cockpit_recipient_bindings": recipient_bindings,

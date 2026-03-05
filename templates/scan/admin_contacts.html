@@ -74,11 +74,15 @@
       <div class="col-12 col-xl-6">
         <div class="ui-comp-panel p-3 border rounded-3">
           <h4 class="h6 mb-2 d-flex align-items-center gap-2">
-            Activer / désactiver un rôle sur une organisation
-            <span
-              class="badge rounded-pill text-bg-light border"
-              title="Sélectionnez une organisation et un rôle métier, puis activez ou désactivez ce rôle."
-            >?</span>
+            Activer / desactiver un role sur une organisation
+            <button
+              type="button"
+              class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
+              data-bs-toggle="tooltip"
+              data-bs-trigger="hover focus click"
+              title="Selectionnez une organisation et un role metier, puis activez ou desactivez ce role."
+              aria-label="Aide sur les roles organisation"
+            >?</button>
           </h4>
           <form method="post" class="row g-2">
             {% csrf_token %}
@@ -113,20 +117,24 @@
       <div class="col-12 col-xl-6">
         <div class="ui-comp-panel p-3 border rounded-3">
           <h4 class="h6 mb-2 d-flex align-items-center gap-2">
-            Créer ou mettre à jour une personne rattachée à une organisation
-            <span
-              class="badge rounded-pill text-bg-light border"
-              title="Créez un nouveau contact d'organisation ou mettez à jour un contact existant de la même organisation."
-            >?</span>
+            Creer ou mettre a jour une personne rattachee a une organisation
+            <button
+              type="button"
+              class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
+              data-bs-toggle="tooltip"
+              data-bs-trigger="hover focus click"
+              title="Creez un nouveau contact d'organisation ou mettez a jour un contact existant de la meme organisation."
+              aria-label="Aide sur les contacts organisation"
+            >?</button>
           </h4>
-          <form method="post" class="row g-2">
+          <form id="scan-org-contact-upsert-form" method="post" class="row g-2">
             {% csrf_token %}
             <input type="hidden" name="action" value="upsert_org_contact">
             <input type="hidden" name="q" value="{{ query }}">
             <input type="hidden" name="contact_type" value="{{ contact_filter }}">
             <div class="col-12 col-md-6">
-              <label class="form-label">Organisation</label>
-              <select name="organization_id" class="form-select" required>
+              <label class="form-label" for="scan-org-contact-organization">Organisation</label>
+              <select id="scan-org-contact-organization" name="organization_id" class="form-select" required>
                 <option value="">Choisir...</option>
                 {% for organization in cockpit_organizations %}
                   <option value="{{ organization.id }}">{{ organization.name }}</option>
@@ -134,35 +142,62 @@
               </select>
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label">Contact existant (optionnel)</label>
-              <select name="organization_contact_id" class="form-select">
+              <label class="form-label" for="scan-org-contact-existing">Contact existant (optionnel)</label>
+              <select id="scan-org-contact-existing" name="organization_contact_id" class="form-select">
                 <option value="">Nouveau contact</option>
-                {% for org_contact in cockpit_organization_contacts %}
-                  <option value="{{ org_contact.id }}">
-                    {{ org_contact.organization.name }} - {{ org_contact.first_name }} {{ org_contact.last_name }} {{ org_contact.email }}
+                <option value="" disabled>---</option>
+                <option value="" disabled>Contacts deja lies</option>
+                {% for org_contact in cockpit_linked_organization_contacts %}
+                  <option
+                    value="{{ org_contact.id }}"
+                    data-organization-id="{{ org_contact.organization_id }}"
+                    data-title="{{ org_contact.title }}"
+                    data-first-name="{{ org_contact.first_name }}"
+                    data-last-name="{{ org_contact.last_name }}"
+                    data-email="{{ org_contact.email }}"
+                    data-phone="{{ org_contact.phone }}"
+                    data-is-active="{% if org_contact.is_active %}1{% else %}0{% endif %}"
+                  >
+                    {{ org_contact.last_name }} {{ org_contact.first_name }} - {{ org_contact.organization.name }}{% if org_contact.email %} - {{ org_contact.email }}{% endif %}
+                  </option>
+                {% endfor %}
+                <option value="" disabled>---</option>
+                <option value="" disabled>Tous les contacts</option>
+                {% for org_contact in cockpit_all_organization_contacts %}
+                  <option
+                    value="{{ org_contact.id }}"
+                    data-organization-id="{{ org_contact.organization_id }}"
+                    data-title="{{ org_contact.title }}"
+                    data-first-name="{{ org_contact.first_name }}"
+                    data-last-name="{{ org_contact.last_name }}"
+                    data-email="{{ org_contact.email }}"
+                    data-phone="{{ org_contact.phone }}"
+                    data-is-active="{% if org_contact.is_active %}1{% else %}0{% endif %}"
+                  >
+                    {{ org_contact.last_name }} {{ org_contact.first_name }} - {{ org_contact.organization.name }}{% if org_contact.email %} - {{ org_contact.email }}{% endif %}
                   </option>
                 {% endfor %}
               </select>
             </div>
             <div class="col-12 col-md-4">
-              <label class="form-label">Civilité</label>
-              <input type="text" name="title" class="form-control" maxlength="10">
+              <label class="form-label" for="scan-org-contact-title">Civilite</label>
+              <input id="scan-org-contact-title" type="text" name="title" class="form-control" maxlength="10">
             </div>
             <div class="col-12 col-md-4">
-              <label class="form-label">Prénom</label>
-              <input type="text" name="first_name" class="form-control" maxlength="120">
+              <label class="form-label" for="scan-org-contact-first-name">Prenom</label>
+              <input id="scan-org-contact-first-name" type="text" name="first_name" class="form-control" maxlength="120">
             </div>
             <div class="col-12 col-md-4">
-              <label class="form-label">Nom</label>
-              <input type="text" name="last_name" class="form-control" maxlength="120">
+              <label class="form-label" for="scan-org-contact-last-name">Nom</label>
+              <input id="scan-org-contact-last-name" type="text" name="last_name" class="form-control" maxlength="120">
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label">Email</label>
-              <input type="email" name="email" class="form-control">
+              <label class="form-label" for="scan-org-contact-email">Email</label>
+              <input id="scan-org-contact-email" type="email" name="email" class="form-control">
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label">Téléphone</label>
-              <input type="text" name="phone" class="form-control" maxlength="40">
+              <label class="form-label" for="scan-org-contact-phone">Telephone</label>
+              <input id="scan-org-contact-phone" type="text" name="phone" class="form-control" maxlength="40">
             </div>
             <div class="col-12">
               <div class="form-check form-switch">
@@ -180,11 +215,15 @@
       <div class="col-12 col-xl-6">
         <div class="ui-comp-panel p-3 border rounded-3">
           <h4 class="h6 mb-2 d-flex align-items-center gap-2">
-            Associer une personne à un rôle (et définir le principal)
-            <span
-              class="badge rounded-pill text-bg-light border"
-              title="Utilisez cette carte pour lier/délier un contact à un rôle existant, ou définir le contact principal pour ce rôle."
-            >?</span>
+            Associer une personne a un role (et definir le principal)
+            <button
+              type="button"
+              class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
+              data-bs-toggle="tooltip"
+              data-bs-trigger="hover focus click"
+              title="Utilisez cette carte pour lier ou delier un contact a un role existant, ou definir le contact principal pour ce role."
+              aria-label="Aide sur les liaisons role-contact"
+            >?</button>
           </h4>
           <form method="post" class="row g-2">
             {% csrf_token %}
@@ -205,9 +244,18 @@
               <label class="form-label">Contact organisation</label>
               <select name="organization_contact_id" class="form-select" required>
                 <option value="">Choisir...</option>
-                {% for org_contact in cockpit_organization_contacts %}
+                <option value="" disabled>---</option>
+                <option value="" disabled>Contacts deja lies</option>
+                {% for org_contact in cockpit_linked_organization_contacts %}
                   <option value="{{ org_contact.id }}">
-                    {{ org_contact.organization.name }} - {{ org_contact.first_name }} {{ org_contact.last_name }} {{ org_contact.email }}
+                    {{ org_contact.last_name }} {{ org_contact.first_name }} - {{ org_contact.organization.name }}{% if org_contact.email %} - {{ org_contact.email }}{% endif %}
+                  </option>
+                {% endfor %}
+                <option value="" disabled>---</option>
+                <option value="" disabled>Tous les contacts</option>
+                {% for org_contact in cockpit_all_organization_contacts %}
+                  <option value="{{ org_contact.id }}">
+                    {{ org_contact.last_name }} {{ org_contact.first_name }} - {{ org_contact.organization.name }}{% if org_contact.email %} - {{ org_contact.email }}{% endif %}
                   </option>
                 {% endfor %}
               </select>
@@ -224,20 +272,24 @@
       <div class="col-12 col-xl-6">
         <div class="ui-comp-panel p-3 border rounded-3">
           <h4 class="h6 mb-2 d-flex align-items-center gap-2">
-            Définir le périmètre d'un expéditeur (escales autorisées)
-            <span
-              class="badge rounded-pill text-bg-light border"
-              title="Configurez si un expéditeur est autorisé sur toutes les escales ou uniquement sur une escale donnée, avec dates de validité."
-            >?</span>
+            Definir le perimetre d'un expediteur (escales autorisees)
+            <button
+              type="button"
+              class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
+              data-bs-toggle="tooltip"
+              data-bs-trigger="hover focus click"
+              title="Configurez si un expediteur est autorise sur toutes les escales ou uniquement sur une escale donnee, avec dates de validite."
+              aria-label="Aide sur les perimetres expediteur"
+            >?</button>
           </h4>
-          <form method="post" class="row g-2">
+          <form id="scan-shipper-scope-upsert-form" method="post" class="row g-2">
             {% csrf_token %}
             <input type="hidden" name="action" value="upsert_shipper_scope">
             <input type="hidden" name="q" value="{{ query }}">
             <input type="hidden" name="contact_type" value="{{ contact_filter }}">
             <div class="col-12 col-md-6">
-              <label class="form-label">Affectation shipper</label>
-              <select name="role_assignment_id" class="form-select" required>
+              <label class="form-label" for="scan-shipper-scope-role-assignment">Choisir un expediteur</label>
+              <select id="scan-shipper-scope-role-assignment" name="role_assignment_id" class="form-select" required>
                 <option value="">Choisir...</option>
                 {% for assignment in cockpit_shipper_role_assignments %}
                   <option value="{{ assignment.id }}">{{ assignment.organization.name }} - {{ assignment.get_role_display }}</option>
@@ -245,8 +297,18 @@
               </select>
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label">Scope existant (optionnel)</label>
-              <select name="scope_id" class="form-select">
+              <label class="form-label d-flex align-items-center gap-2" for="scan-shipper-scope-id">
+                Regle de perimetre existante (optionnel)
+                <button
+                  type="button"
+                  class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
+                  data-bs-toggle="tooltip"
+                  data-bs-trigger="hover focus click"
+                  title="Selectionnez une regle existante pour la modifier au lieu d'en creer une nouvelle."
+                  aria-label="Aide sur les regles de perimetre existantes"
+                >?</button>
+              </label>
+              <select id="scan-shipper-scope-id" name="scope_id" class="form-select">
                 <option value="">Nouveau scope</option>
                 {% for scope in cockpit_shipper_scopes %}
                   <option value="{{ scope.id }}">
@@ -256,8 +318,8 @@
               </select>
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label">Destination</label>
-              <select name="destination_id" class="form-select">
+              <label class="form-label" for="scan-shipper-scope-destination">Destination</label>
+              <select id="scan-shipper-scope-destination" name="destination_id" class="form-select">
                 <option value="">Aucune (mode global)</option>
                 {% for destination in cockpit_destinations %}
                   <option value="{{ destination.id }}">{{ destination.iata_code }} - {{ destination.city }}</option>
@@ -289,8 +351,18 @@
             <input type="hidden" name="q" value="{{ query }}">
             <input type="hidden" name="contact_type" value="{{ contact_filter }}">
             <div class="col-12 col-md-8">
-              <label class="form-label">Scope à désactiver</label>
-              <select name="scope_id" class="form-select" required>
+              <label class="form-label d-flex align-items-center gap-2" for="scan-shipper-scope-disable-id">
+                Regle de perimetre a desactiver
+                <button
+                  type="button"
+                  class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
+                  data-bs-toggle="tooltip"
+                  data-bs-trigger="hover focus click"
+                  title="Choisissez ici la regle active a fermer pour retirer une autorisation d'escale."
+                  aria-label="Aide sur la desactivation de perimetre"
+                >?</button>
+              </label>
+              <select id="scan-shipper-scope-disable-id" name="scope_id" class="form-select" required>
                 <option value="">Choisir...</option>
                 {% for scope in cockpit_shipper_scopes %}
                   {% if scope.is_active %}
@@ -311,31 +383,42 @@
       <div class="col-12 col-xl-6">
         <div class="ui-comp-panel p-3 border rounded-3">
           <h4 class="h6 mb-2 d-flex align-items-center gap-2">
-            Autoriser un destinataire pour un expéditeur et une escale
-            <span
-              class="badge rounded-pill text-bg-light border"
-              title="Créez ou mettez à jour un binding shipper→recipient sur une escale précise, puis clôturez-le si besoin."
-            >?</span>
+            Lier un destinataire a un expediteur et a une escale
+            <button
+              type="button"
+              class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
+              data-bs-toggle="tooltip"
+              data-bs-trigger="hover focus click"
+              title="Creez ou mettez a jour un lien expediteur vers destinataire sur une escale precise, puis cloturez-le si besoin."
+              aria-label="Aide sur les liens expediteur-destinataire"
+            >?</button>
           </h4>
-          <form method="post" class="row g-2">
+          <form id="scan-recipient-binding-upsert-form" method="post" class="row g-2">
             {% csrf_token %}
             <input type="hidden" name="action" value="upsert_recipient_binding">
             <input type="hidden" name="q" value="{{ query }}">
             <input type="hidden" name="contact_type" value="{{ contact_filter }}">
             <div class="col-12 col-md-6">
-              <label class="form-label">Binding existant (optionnel)</label>
-              <select name="binding_id" class="form-select">
+              <label class="form-label" for="scan-binding-existing">Lien existant (optionnel)</label>
+              <select id="scan-binding-existing" name="binding_id" class="form-select">
                 <option value="">Nouveau binding</option>
                 {% for binding in cockpit_recipient_bindings %}
-                  <option value="{{ binding.id }}">
+                  <option
+                    value="{{ binding.id }}"
+                    data-shipper-org-id="{{ binding.shipper_org_id }}"
+                    data-recipient-org-id="{{ binding.recipient_org_id }}"
+                    data-destination-id="{{ binding.destination_id }}"
+                    data-valid-from="{% if binding.valid_from %}{{ binding.valid_from|date:'Y-m-d\\TH:i' }}{% endif %}"
+                    data-valid-to="{% if binding.valid_to %}{{ binding.valid_to|date:'Y-m-d\\TH:i' }}{% endif %}"
+                  >
                     {{ binding.shipper_org.name }} → {{ binding.recipient_org.name }} ({{ binding.destination.iata_code }})
                   </option>
                 {% endfor %}
               </select>
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label">Expéditeur</label>
-              <select name="shipper_org_id" class="form-select" required>
+              <label class="form-label" for="scan-binding-shipper-org-id">Expediteur</label>
+              <select id="scan-binding-shipper-org-id" name="shipper_org_id" class="form-select" required>
                 <option value="">Choisir...</option>
                 {% for organization in cockpit_organizations %}
                   <option value="{{ organization.id }}">{{ organization.name }}</option>
@@ -343,8 +426,8 @@
               </select>
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label">Destinataire</label>
-              <select name="recipient_org_id" class="form-select" required>
+              <label class="form-label" for="scan-binding-recipient-org-id">Destinataire</label>
+              <select id="scan-binding-recipient-org-id" name="recipient_org_id" class="form-select" required>
                 <option value="">Choisir...</option>
                 {% for organization in cockpit_organizations %}
                   <option value="{{ organization.id }}">{{ organization.name }}</option>
@@ -352,8 +435,8 @@
               </select>
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label">Destination</label>
-              <select name="destination_id" class="form-select" required>
+              <label class="form-label" for="scan-binding-destination-id">Destination</label>
+              <select id="scan-binding-destination-id" name="destination_id" class="form-select" required>
                 <option value="">Choisir...</option>
                 {% for destination in cockpit_destinations %}
                   <option value="{{ destination.id }}">{{ destination.iata_code }} - {{ destination.city }}</option>
@@ -361,12 +444,12 @@
               </select>
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label">Validité début</label>
-              <input type="datetime-local" name="valid_from" class="form-control">
+              <label class="form-label" for="scan-binding-valid-from">Validite debut</label>
+              <input id="scan-binding-valid-from" type="datetime-local" name="valid_from" class="form-control">
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label">Validité fin</label>
-              <input type="datetime-local" name="valid_to" class="form-control">
+              <label class="form-label" for="scan-binding-valid-to">Validite fin</label>
+              <input id="scan-binding-valid-to" type="datetime-local" name="valid_to" class="form-control">
             </div>
             <div class="col-12">
               <button type="submit" class="btn btn-primary">Créer / mettre à jour binding</button>
@@ -379,7 +462,7 @@
             <input type="hidden" name="q" value="{{ query }}">
             <input type="hidden" name="contact_type" value="{{ contact_filter }}">
             <div class="col-12 col-md-6">
-              <label class="form-label">Binding à clôturer</label>
+              <label class="form-label">Lien a cloturer</label>
               <select name="binding_id" class="form-select" required>
                 <option value="">Choisir...</option>
                 {% for binding in cockpit_recipient_bindings %}
@@ -405,27 +488,31 @@
       <div class="col-12 col-xl-6">
         <div class="ui-comp-panel p-3 border rounded-3">
           <h4 class="h6 mb-2 d-flex align-items-center gap-2">
-            Assistant de création rapide (organisation ou personne)
-            <span
-              class="badge rounded-pill text-bg-light border"
-              title="Assistant simplifié pour créer une organisation ou une personne, avec rôle initial optionnel."
-            >?</span>
+            Assistant de creation rapide (organisation ou personne)
+            <button
+              type="button"
+              class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
+              data-bs-toggle="tooltip"
+              data-bs-trigger="hover focus click"
+              title="Assistant simplifie pour creer une organisation ou une personne, avec role initial selon le mode choisi."
+              aria-label="Aide sur la creation guidee"
+            >?</button>
           </h4>
-          <form method="post" class="row g-2">
+          <form id="scan-guided-contact-form" method="post" class="row g-2">
             {% csrf_token %}
             <input type="hidden" name="action" value="create_guided_contact">
             <input type="hidden" name="q" value="{{ query }}">
             <input type="hidden" name="contact_type" value="{{ contact_filter }}">
             <div class="col-12 col-md-6">
-              <label class="form-label">Je crée</label>
-              <select name="entity_kind" class="form-select" required>
-                <option value="organization">Organisation</option>
-                <option value="person">Personne</option>
+              <label class="form-label" for="scan-guided-entity-kind">Je cree</label>
+              <select id="scan-guided-entity-kind" name="entity_kind" class="form-select" required>
+                <option value="organization">une organisation</option>
+                <option value="person">une personne</option>
               </select>
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label">Rôle initial (optionnel)</label>
-              <select name="role" class="form-select">
+              <label class="form-label" for="scan-guided-role">Role initial</label>
+              <select id="scan-guided-role" name="role" class="form-select" required>
                 <option value="">Aucun</option>
                 {% for value, label in cockpit_role_choices %}
                   <option value="{{ value }}">{{ label }}</option>
@@ -433,12 +520,12 @@
               </select>
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label">Nom organisation</label>
-              <input type="text" name="organization_name" class="form-control" maxlength="200">
+              <label class="form-label" for="scan-guided-organization-name">Nom de l'organisation</label>
+              <input id="scan-guided-organization-name" type="text" name="organization_name" class="form-control" maxlength="200" required>
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label">Organisation cible (si personne)</label>
-              <select name="organization_id" class="form-select">
+              <label class="form-label" for="scan-guided-organization-id">Organisation cible (si personne)</label>
+              <select id="scan-guided-organization-id" name="organization_id" class="form-select" disabled>
                 <option value="">Choisir...</option>
                 {% for organization in cockpit_organizations %}
                   <option value="{{ organization.id }}">{{ organization.name }}</option>
@@ -446,24 +533,24 @@
               </select>
             </div>
             <div class="col-12 col-md-4">
-              <label class="form-label">Nom complet</label>
-              <input type="text" name="name" class="form-control" maxlength="200">
+              <label class="form-label" for="scan-guided-name">Nom complet</label>
+              <input id="scan-guided-name" type="text" name="name" class="form-control" maxlength="200">
             </div>
             <div class="col-12 col-md-4">
-              <label class="form-label">Prénom</label>
-              <input type="text" name="first_name" class="form-control" maxlength="120">
+              <label class="form-label" for="scan-guided-first-name">Prenom</label>
+              <input id="scan-guided-first-name" type="text" name="first_name" class="form-control" maxlength="120">
             </div>
             <div class="col-12 col-md-4">
-              <label class="form-label">Nom</label>
-              <input type="text" name="last_name" class="form-control" maxlength="120">
+              <label class="form-label" for="scan-guided-last-name">Nom</label>
+              <input id="scan-guided-last-name" type="text" name="last_name" class="form-control" maxlength="120">
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label">Email</label>
-              <input type="email" name="email" class="form-control">
+              <label class="form-label" for="scan-guided-email">Email</label>
+              <input id="scan-guided-email" type="email" name="email" class="form-control">
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label">Téléphone</label>
-              <input type="text" name="phone" class="form-control" maxlength="40">
+              <label class="form-label" for="scan-guided-phone">Telephone</label>
+              <input id="scan-guided-phone" type="text" name="phone" class="form-control" maxlength="40">
             </div>
             <div class="col-12">
               <div class="form-check form-switch">
@@ -946,4 +1033,161 @@
       <a class="scan-scan-btn btn btn-tertiary" href="{{ destination_add_url }}">Ajouter une destination (admin)</a>
     </div>
   </div>
+
+  <script>
+    window.addEventListener("load", function () {
+      if (window.bootstrap && window.bootstrap.Tooltip) {
+        document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (trigger) {
+          window.bootstrap.Tooltip.getOrCreateInstance(trigger);
+        });
+      }
+
+      var orgContactSelect = document.getElementById("scan-org-contact-existing");
+      var orgSelect = document.getElementById("scan-org-contact-organization");
+      var titleInput = document.getElementById("scan-org-contact-title");
+      var firstNameInput = document.getElementById("scan-org-contact-first-name");
+      var lastNameInput = document.getElementById("scan-org-contact-last-name");
+      var emailInput = document.getElementById("scan-org-contact-email");
+      var phoneInput = document.getElementById("scan-org-contact-phone");
+      var isActiveInput = document.getElementById("scan-org-contact-active");
+
+      function hydrateOrgContactFormFromSelection() {
+        if (!orgContactSelect) {
+          return;
+        }
+        var selectedOption = orgContactSelect.options[orgContactSelect.selectedIndex];
+        if (!selectedOption || !selectedOption.value) {
+          if (titleInput) titleInput.value = "";
+          if (firstNameInput) firstNameInput.value = "";
+          if (lastNameInput) lastNameInput.value = "";
+          if (emailInput) emailInput.value = "";
+          if (phoneInput) phoneInput.value = "";
+          if (isActiveInput) isActiveInput.checked = true;
+          return;
+        }
+        if (orgSelect && selectedOption.dataset.organizationId) {
+          orgSelect.value = selectedOption.dataset.organizationId;
+        }
+        if (titleInput) titleInput.value = selectedOption.dataset.title || "";
+        if (firstNameInput) firstNameInput.value = selectedOption.dataset.firstName || "";
+        if (lastNameInput) lastNameInput.value = selectedOption.dataset.lastName || "";
+        if (emailInput) emailInput.value = selectedOption.dataset.email || "";
+        if (phoneInput) phoneInput.value = selectedOption.dataset.phone || "";
+        if (isActiveInput) {
+          isActiveInput.checked = (selectedOption.dataset.isActive || "0") === "1";
+        }
+      }
+
+      if (orgContactSelect) {
+        orgContactSelect.addEventListener("change", hydrateOrgContactFormFromSelection);
+      }
+
+      var bindingSelect = document.getElementById("scan-binding-existing");
+      var bindingShipperSelect = document.getElementById("scan-binding-shipper-org-id");
+      var bindingRecipientSelect = document.getElementById("scan-binding-recipient-org-id");
+      var bindingDestinationSelect = document.getElementById("scan-binding-destination-id");
+      var bindingValidFromInput = document.getElementById("scan-binding-valid-from");
+      var bindingValidToInput = document.getElementById("scan-binding-valid-to");
+
+      function hydrateBindingFormFromSelection() {
+        if (!bindingSelect) {
+          return;
+        }
+        var selectedOption = bindingSelect.options[bindingSelect.selectedIndex];
+        if (!selectedOption || !selectedOption.value) {
+          return;
+        }
+        if (bindingShipperSelect) {
+          bindingShipperSelect.value = selectedOption.dataset.shipperOrgId || "";
+        }
+        if (bindingRecipientSelect) {
+          bindingRecipientSelect.value = selectedOption.dataset.recipientOrgId || "";
+        }
+        if (bindingDestinationSelect) {
+          bindingDestinationSelect.value = selectedOption.dataset.destinationId || "";
+        }
+        if (bindingValidFromInput) {
+          bindingValidFromInput.value = selectedOption.dataset.validFrom || "";
+        }
+        if (bindingValidToInput) {
+          bindingValidToInput.value = selectedOption.dataset.validTo || "";
+        }
+      }
+
+      if (bindingSelect) {
+        bindingSelect.addEventListener("change", hydrateBindingFormFromSelection);
+      }
+
+      var guidedEntityKind = document.getElementById("scan-guided-entity-kind");
+      var guidedRole = document.getElementById("scan-guided-role");
+      var guidedOrganizationName = document.getElementById("scan-guided-organization-name");
+      var guidedOrganizationId = document.getElementById("scan-guided-organization-id");
+      var guidedName = document.getElementById("scan-guided-name");
+      var guidedFirstName = document.getElementById("scan-guided-first-name");
+      var guidedLastName = document.getElementById("scan-guided-last-name");
+      var guidedEmail = document.getElementById("scan-guided-email");
+      var guidedPhone = document.getElementById("scan-guided-phone");
+
+      function applyGuidedMode() {
+        if (!guidedEntityKind) {
+          return;
+        }
+        var isOrganizationMode = guidedEntityKind.value === "organization";
+        if (guidedRole) {
+          guidedRole.disabled = !isOrganizationMode;
+          guidedRole.required = isOrganizationMode;
+          if (!isOrganizationMode) {
+            guidedRole.value = "";
+          }
+        }
+        if (guidedOrganizationName) {
+          guidedOrganizationName.disabled = !isOrganizationMode;
+          guidedOrganizationName.required = isOrganizationMode;
+          if (!isOrganizationMode) {
+            guidedOrganizationName.value = "";
+          }
+        }
+        if (guidedOrganizationId) {
+          guidedOrganizationId.disabled = isOrganizationMode;
+          guidedOrganizationId.required = !isOrganizationMode;
+          if (isOrganizationMode) {
+            guidedOrganizationId.value = "";
+          }
+        }
+
+        var personFields = [guidedName, guidedFirstName, guidedLastName, guidedEmail, guidedPhone];
+        personFields.forEach(function (field) {
+          if (!field) {
+            return;
+          }
+          field.required = !isOrganizationMode;
+        });
+      }
+
+      if (guidedEntityKind) {
+        guidedEntityKind.addEventListener("change", applyGuidedMode);
+        applyGuidedMode();
+      }
+
+      var shipperScopeForm = document.getElementById("scan-shipper-scope-upsert-form");
+      var shipperScopeDestination = document.getElementById("scan-shipper-scope-destination");
+      var shipperScopeAllDestinations = document.getElementById("scan-scope-all-destinations");
+
+      function syncScopeDefaultToAllDestinations() {
+        if (!shipperScopeDestination || !shipperScopeAllDestinations) {
+          return;
+        }
+        if (!shipperScopeDestination.value) {
+          shipperScopeAllDestinations.checked = true;
+        }
+      }
+
+      if (shipperScopeDestination) {
+        shipperScopeDestination.addEventListener("change", syncScopeDefaultToAllDestinations);
+      }
+      if (shipperScopeForm) {
+        shipperScopeForm.addEventListener("submit", syncScopeDefaultToAllDestinations);
+      }
+    });
+  </script>
 {% endblock %}
