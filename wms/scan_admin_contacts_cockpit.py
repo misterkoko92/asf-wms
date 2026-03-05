@@ -120,37 +120,6 @@ def _find_similar_organizations(*, name: str, limit: int = 3):
     return matches
 
 
-def _find_similar_people(*, organization_id: int, full_name: str, email: str, limit: int = 3):
-    normalized_target_name = _normalize_match_value(full_name)
-    normalized_target_email = (email or "").strip().lower()
-    if not normalized_target_name and not normalized_target_email:
-        return []
-
-    queryset = Contact.objects.filter(
-        contact_type=ContactType.PERSON,
-        organization_id=organization_id,
-    ).order_by("name", "id")
-    matches = []
-    for person in queryset:
-        candidate_name = " ".join(
-            part for part in [person.name, person.first_name, person.last_name] if (part or "").strip()
-        ).strip()
-        normalized_candidate_name = _normalize_match_value(candidate_name)
-        candidate_email = (person.email or "").strip().lower()
-        email_match = bool(
-            normalized_target_email and candidate_email and normalized_target_email == candidate_email
-        )
-        name_match = _is_fuzzy_match(
-            source=normalized_target_name,
-            candidate=normalized_candidate_name,
-        )
-        if email_match or name_match:
-            matches.append(person)
-            if len(matches) >= limit:
-                break
-    return matches
-
-
 def _format_duplicate_message(*, prefix: str, items) -> str:
     if not items:
         return ""
@@ -480,106 +449,61 @@ def create_guided_contact(*, data) -> tuple[bool, str]:
     if "is_active" not in form.data:
         is_active = True
 
-    if entity_kind in {"organization", "organization_with_contact"}:
-        organization_name = (form.cleaned_data.get("organization_name") or "").strip()
-        similar_organizations = _find_similar_organizations(name=organization_name)
-        if similar_organizations:
-            return (
-                False,
-                _format_duplicate_message(
-                    prefix="Organisation similaire deja presente",
-                    items=similar_organizations,
-                ),
-            )
-
-        organization = Contact.objects.create(
-            contact_type=ContactType.ORGANIZATION,
-            name=organization_name,
-            email=(form.cleaned_data.get("email") or "").strip(),
-            phone=(form.cleaned_data.get("phone") or "").strip(),
-            is_active=is_active,
-        )
-        assignment, _created = OrganizationRoleAssignment.objects.get_or_create(
-            organization=organization,
-            role=role,
-            defaults={"is_active": False},
-        )
-
-        if entity_kind == "organization_with_contact":
-            org_contact = OrganizationContact.objects.create(
-                organization=organization,
-                first_name=(form.cleaned_data.get("first_name") or "").strip(),
-                last_name=(form.cleaned_data.get("last_name") or "").strip(),
-                email=(form.cleaned_data.get("email") or "").strip(),
-                phone=(form.cleaned_data.get("phone") or "").strip(),
-                is_active=is_active,
-            )
-            with transaction.atomic():
-                OrganizationRoleContact.objects.filter(
-                    role_assignment=assignment,
-                    is_primary=True,
-                ).update(is_primary=False)
-                role_contact, _created = OrganizationRoleContact.objects.get_or_create(
-                    role_assignment=assignment,
-                    contact=org_contact,
-                    defaults={"is_primary": True, "is_active": True},
-                )
-                role_contact.is_primary = True
-                role_contact.is_active = True
-                role_contact.save(update_fields=["is_primary", "is_active"])
-            assignment.is_active = True
-            try:
-                assignment.save(update_fields=["is_active"])
-            except ValidationError:
-                assignment.is_active = False
-                assignment.save(update_fields=["is_active"])
-            return True, "Organisation et contact rattache crees."
-
-        return True, "Organisation creee."
-
-    organization = _resolve_active_organization(form.cleaned_data.get("organization_id"))
-    if organization is None:
-        return False, "Organisation invalide."
-    full_name = (form.cleaned_data.get("name") or "").strip()
-    if not full_name:
-        full_name = " ".join(
-            part
-            for part in [
-                (form.cleaned_data.get("first_name") or "").strip(),
-                (form.cleaned_data.get("last_name") or "").strip(),
-            ]
-            if part
-        ).strip()
-    similar_people = _find_similar_people(
-        organization_id=organization.id,
-        full_name=full_name,
-        email=(form.cleaned_data.get("email") or "").strip(),
-    )
-    if similar_people:
+    organization_name = (form.cleaned_data.get("organization_name") or "").strip()
+    similar_organizations = _find_similar_organizations(name=organization_name)
+    if similar_organizations:
         return (
             False,
             _format_duplicate_message(
-                prefix="Personne similaire deja presente dans cette organisation",
-                items=similar_people,
+                prefix="Organisation similaire deja presente",
+                items=similar_organizations,
             ),
         )
-    person = Contact.objects.create(
-        contact_type=ContactType.PERSON,
-        organization=organization,
-        name=(form.cleaned_data.get("name") or "").strip(),
-        first_name=(form.cleaned_data.get("first_name") or "").strip(),
-        last_name=(form.cleaned_data.get("last_name") or "").strip(),
+
+    organization = Contact.objects.create(
+        contact_type=ContactType.ORGANIZATION,
+        name=organization_name,
         email=(form.cleaned_data.get("email") or "").strip(),
         phone=(form.cleaned_data.get("phone") or "").strip(),
         is_active=is_active,
     )
-    if role:
-        OrganizationRoleAssignment.objects.get_or_create(
+    assignment, _created = OrganizationRoleAssignment.objects.get_or_create(
+        organization=organization,
+        role=role,
+        defaults={"is_active": False},
+    )
+
+    if entity_kind == "organization_with_contact":
+        org_contact = OrganizationContact.objects.create(
             organization=organization,
-            role=role,
-            defaults={"is_active": False},
+            first_name=(form.cleaned_data.get("first_name") or "").strip(),
+            last_name=(form.cleaned_data.get("last_name") or "").strip(),
+            email=(form.cleaned_data.get("email") or "").strip(),
+            phone=(form.cleaned_data.get("phone") or "").strip(),
+            is_active=is_active,
         )
-    return True, f"Contact {person.name} cree."
+        with transaction.atomic():
+            OrganizationRoleContact.objects.filter(
+                role_assignment=assignment,
+                is_primary=True,
+            ).update(is_primary=False)
+            role_contact, _created = OrganizationRoleContact.objects.get_or_create(
+                role_assignment=assignment,
+                contact=org_contact,
+                defaults={"is_primary": True, "is_active": True},
+            )
+            role_contact.is_primary = True
+            role_contact.is_active = True
+            role_contact.save(update_fields=["is_primary", "is_active"])
+        assignment.is_active = True
+        try:
+            assignment.save(update_fields=["is_active"])
+        except ValidationError:
+            assignment.is_active = False
+            assignment.save(update_fields=["is_active"])
+        return True, "Organisation et contact rattache crees."
+
+    return True, "Organisation creee."
 
 
 def _build_organizations_queryset(*, query: str, filters: dict):

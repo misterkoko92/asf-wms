@@ -595,7 +595,7 @@ class ScanAdminContactsCockpitViewTests(TestCase):
             ).exists()
         )
 
-    def test_create_guided_contact_creates_person_linked_to_existing_org(self):
+    def test_create_guided_contact_rejects_person_mode(self):
         self.client.force_login(self.superuser)
 
         response = self.client.post(
@@ -614,15 +614,12 @@ class ScanAdminContactsCockpitViewTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(
+        self.assertContains(response, "Donnees de creation guidee invalides.")
+        self.assertFalse(
             Contact.objects.filter(
                 contact_type=ContactType.PERSON,
                 organization=self.other_org,
-                first_name="Aya",
-                last_name="Diallo",
                 email="aya.diallo@example.org",
-                phone="+22370010000",
-                is_active=True,
             ).exists()
         )
 
@@ -703,36 +700,14 @@ class ScanAdminContactsCockpitViewTests(TestCase):
             ).exists()
         )
 
-    def test_create_guided_contact_rejects_similar_person_in_same_organization(self):
+    def test_guided_assistant_ui_no_longer_exposes_person_mode(self):
         self.client.force_login(self.superuser)
-        Contact.objects.create(
-            contact_type=ContactType.PERSON,
-            organization=self.other_org,
-            name="Aya Diallo",
-            first_name="Aya",
-            last_name="Diallo",
-            email="aya.diallo@example.org",
-            phone="+22370010000",
-            is_active=True,
-        )
 
-        response = self.client.post(
-            reverse("scan:scan_admin_contacts"),
-            {
-                "action": "create_guided_contact",
-                "entity_kind": "person",
-                "organization_id": str(self.other_org.id),
-                "name": "Aya Dallo",
-                "first_name": "Aya",
-                "last_name": "Dallo",
-                "email": "aya.diallo@example.org",
-                "phone": "+22370010000",
-            },
-            follow=True,
-        )
+        response = self.client.get(reverse("scan:scan_admin_contacts"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Personne similaire deja presente")
+        self.assertNotContains(response, '<option value="person">une personne</option>')
+        self.assertNotContains(response, "Organisation cible (si personne)")
 
     def test_legacy_actions_blocked_when_runtime_flag_disabled(self):
         self.client.force_login(self.superuser)

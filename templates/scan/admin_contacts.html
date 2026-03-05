@@ -488,13 +488,13 @@
       <div class="col-12 col-xl-6">
         <div class="ui-comp-panel p-3 border rounded-3">
           <h4 class="h6 mb-2 d-flex align-items-center gap-2">
-            Assistant de creation rapide (organisation ou personne)
+            Assistant de creation rapide (organisation)
             <button
               type="button"
               class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
               data-bs-toggle="tooltip"
               data-bs-trigger="hover focus click"
-              title="Assistant simplifie pour creer une organisation ou une personne, avec role initial selon le mode choisi."
+              title="Assistant simplifie pour creer une organisation seule, ou une organisation avec un contact principal rattache."
               aria-label="Aide sur la creation guidee"
             >?</button>
           </h4>
@@ -507,7 +507,6 @@
               <label class="form-label" for="scan-guided-entity-kind">Je cree</label>
               <select id="scan-guided-entity-kind" name="entity_kind" class="form-select" required>
                 <option value="organization">une organisation</option>
-                <option value="person">une personne</option>
                 <option value="organization_with_contact">une organisation et une personne liee</option>
               </select>
             </div>
@@ -523,15 +522,6 @@
             <div class="col-12 col-md-6">
               <label class="form-label" for="scan-guided-organization-name">Nom de l'organisation</label>
               <input id="scan-guided-organization-name" type="text" name="organization_name" class="form-control" maxlength="200" required>
-            </div>
-            <div class="col-12 col-md-6">
-              <label class="form-label" for="scan-guided-organization-id">Organisation cible (si personne)</label>
-              <select id="scan-guided-organization-id" name="organization_id" class="form-select" disabled>
-                <option value="">Choisir...</option>
-                {% for organization in cockpit_organizations %}
-                  <option value="{{ organization.id }}">{{ organization.name }}</option>
-                {% endfor %}
-              </select>
             </div>
             <div class="col-12 col-md-4">
               <label class="form-label" for="scan-guided-name">Nom complet</label>
@@ -1122,7 +1112,6 @@
       var guidedEntityKind = document.getElementById("scan-guided-entity-kind");
       var guidedRole = document.getElementById("scan-guided-role");
       var guidedOrganizationName = document.getElementById("scan-guided-organization-name");
-      var guidedOrganizationId = document.getElementById("scan-guided-organization-id");
       var guidedName = document.getElementById("scan-guided-name");
       var guidedFirstName = document.getElementById("scan-guided-first-name");
       var guidedLastName = document.getElementById("scan-guided-last-name");
@@ -1134,29 +1123,14 @@
           return;
         }
         var mode = guidedEntityKind.value;
-        var isOrganizationOnlyMode = mode === "organization";
-        var isPersonMode = mode === "person";
         var isOrganizationWithContactMode = mode === "organization_with_contact";
         if (guidedRole) {
-          guidedRole.disabled = isPersonMode;
-          guidedRole.required = !isPersonMode;
-          if (isPersonMode) {
-            guidedRole.value = "";
-          }
+          guidedRole.disabled = false;
+          guidedRole.required = true;
         }
         if (guidedOrganizationName) {
-          guidedOrganizationName.disabled = isPersonMode;
-          guidedOrganizationName.required = !isPersonMode;
-          if (isPersonMode) {
-            guidedOrganizationName.value = "";
-          }
-        }
-        if (guidedOrganizationId) {
-          guidedOrganizationId.disabled = !isPersonMode;
-          guidedOrganizationId.required = isPersonMode;
-          if (!isPersonMode) {
-            guidedOrganizationId.value = "";
-          }
+          guidedOrganizationName.disabled = false;
+          guidedOrganizationName.required = true;
         }
 
         var personFields = [guidedName, guidedFirstName, guidedLastName, guidedEmail, guidedPhone];
@@ -1164,9 +1138,9 @@
           if (!field) {
             return;
           }
-          field.disabled = isOrganizationOnlyMode;
-          field.required = isPersonMode || isOrganizationWithContactMode;
-          if (isOrganizationOnlyMode) {
+          field.disabled = !isOrganizationWithContactMode;
+          field.required = isOrganizationWithContactMode;
+          if (!isOrganizationWithContactMode) {
             field.value = "";
           }
         });
