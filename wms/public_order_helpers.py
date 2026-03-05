@@ -1,95 +1,132 @@
-from contacts.models import Contact, ContactAddress, ContactTag
+from contacts.models import Contact, ContactType
 
-from .contact_filters import TAG_SHIPPER
-from .organization_role_resolvers import is_legacy_contact_write_enabled
+from .models import (
+    OrganizationContact,
+    OrganizationRole,
+    OrganizationRoleAssignment,
+    OrganizationRoleContact,
+)
 from .scan_helpers import parse_int
-from .services import StockError
 
 
-def upsert_public_order_contact(form_data):
-    if not is_legacy_contact_write_enabled():
-        raise StockError("Les ecritures legacy contacts sont desactivees.")
+def _clean_text(value):
+    return (value or "").strip()
 
+
+def _resolve_existing_contact(form_data):
     contact_id = parse_int(form_data.get("association_contact_id"))
-    contact = None
     if contact_id:
         contact = Contact.objects.filter(id=contact_id, is_active=True).first()
-    if not contact:
-        contact = Contact.objects.filter(
-            name__iexact=form_data.get("association_name"), is_active=True
-        ).first()
+        if contact:
+            return contact
 
-    if not contact:
-        contact = Contact.objects.create(
-            name=form_data.get("association_name"),
-            email=form_data.get("association_email"),
-            phone=form_data.get("association_phone"),
-            is_active=True,
-        )
-        tag, _ = ContactTag.objects.get_or_create(name=TAG_SHIPPER[0])
-        contact.tags.add(tag)
-        ContactAddress.objects.create(
-            contact=contact,
-            address_line1=form_data.get("association_line1"),
-            address_line2=form_data.get("association_line2"),
-            postal_code=form_data.get("association_postal_code"),
-            city=form_data.get("association_city"),
-            country=form_data.get("association_country") or "France",
-            phone=form_data.get("association_phone"),
-            email=form_data.get("association_email"),
-            is_default=True,
-        )
-        return contact
+    association_name = _clean_text(form_data.get("association_name"))
+    if not association_name:
+        return None
+    return Contact.objects.filter(
+        name__iexact=association_name,
+        is_active=True,
+    ).first()
 
+
+def _sync_contact_identity(contact, form_data):
     updated_fields = []
-    if (
-        form_data.get("association_email")
-        and contact.email != form_data.get("association_email")
-    ):
-        contact.email = form_data.get("association_email")
+    association_name = _clean_text(form_data.get("association_name"))
+    association_email = _clean_text(form_data.get("association_email"))
+    association_phone = _clean_text(form_data.get("association_phone"))
+
+    if association_name and contact.name != association_name:
+        contact.name = association_name
+        updated_fields.append("name")
+    if association_email and contact.email != association_email:
+        contact.email = association_email
         updated_fields.append("email")
-    if (
-        form_data.get("association_phone")
-        and contact.phone != form_data.get("association_phone")
-    ):
-        contact.phone = form_data.get("association_phone")
+    if association_phone and contact.phone != association_phone:
+        contact.phone = association_phone
         updated_fields.append("phone")
+    if contact.contact_type != ContactType.ORGANIZATION:
+        contact.contact_type = ContactType.ORGANIZATION
+        updated_fields.append("contact_type")
+    if not contact.is_active:
+        contact.is_active = True
+        updated_fields.append("is_active")
     if updated_fields:
         contact.save(update_fields=updated_fields)
 
-    address = (
-        contact.addresses.filter(is_default=True).first()
-        or contact.addresses.first()
+
+def _ensure_recipient_org_role(contact, form_data):
+    assignment, _ = OrganizationRoleAssignment.objects.get_or_create(
+        organization=contact,
+        role=OrganizationRole.RECIPIENT,
+        defaults={"is_active": False},
     )
-    if address:
-        address.address_line1 = form_data.get("association_line1")
-        address.address_line2 = form_data.get("association_line2")
-        address.postal_code = form_data.get("association_postal_code")
-        address.city = form_data.get("association_city")
-        address.country = form_data.get("association_country") or "France"
-        address.phone = form_data.get("association_phone")
-        address.email = form_data.get("association_email")
-        address.save(
-            update_fields=[
-                "address_line1",
-                "address_line2",
-                "postal_code",
-                "city",
-                "country",
-                "phone",
-                "email",
-            ]
+
+    association_email = _clean_text(form_data.get("association_email"))
+    association_phone = _clean_text(form_data.get("association_phone"))
+
+    org_contact = None
+    if association_email:
+        org_contact = OrganizationContact.objects.filter(
+            organization=contact,
+            email__iexact=association_email,
+        ).order_by("id").first()
+    if org_contact is None:
+        org_contact = OrganizationContact.objects.filter(
+            organization=contact
+        ).order_by("id").first()
+
+    if org_contact is None:
+        org_contact = OrganizationContact.objects.create(
+            organization=contact,
+            last_name=contact.name or "",
+            email=association_email,
+            phone=association_phone,
+            is_active=True,
         )
     else:
-        ContactAddress.objects.create(
-            contact=contact,
-            address_line1=form_data.get("association_line1"),
-            address_line2=form_data.get("association_line2"),
-            postal_code=form_data.get("association_postal_code"),
-            city=form_data.get("association_city"),
-            country=form_data.get("association_country") or "France",
-            phone=form_data.get("association_phone"),
-            email=form_data.get("association_email"),
-            is_default=True,
+        org_contact_updates = []
+        if association_email and org_contact.email != association_email:
+            org_contact.email = association_email
+            org_contact_updates.append("email")
+        if association_phone and org_contact.phone != association_phone:
+            org_contact.phone = association_phone
+            org_contact_updates.append("phone")
+        if not org_contact.is_active:
+            org_contact.is_active = True
+            org_contact_updates.append("is_active")
+        if org_contact_updates:
+            org_contact.save(update_fields=org_contact_updates)
+
+    role_contact, _ = OrganizationRoleContact.objects.get_or_create(
+        role_assignment=assignment,
+        contact=org_contact,
+        defaults={"is_primary": True, "is_active": True},
+    )
+    if not role_contact.is_active or not role_contact.is_primary:
+        role_contact.is_active = True
+        role_contact.is_primary = True
+        role_contact.save(update_fields=["is_active", "is_primary"])
+    OrganizationRoleContact.objects.filter(
+        role_assignment=assignment,
+        is_primary=True,
+    ).exclude(pk=role_contact.pk).update(is_primary=False)
+
+    if not assignment.is_active and _clean_text(org_contact.email):
+        assignment.is_active = True
+        assignment.save(update_fields=["is_active"])
+
+
+def upsert_public_order_contact(form_data):
+    contact = _resolve_existing_contact(form_data)
+    if not contact:
+        contact = Contact.objects.create(
+            name=_clean_text(form_data.get("association_name")),
+            contact_type=ContactType.ORGANIZATION,
+            email=_clean_text(form_data.get("association_email")),
+            phone=_clean_text(form_data.get("association_phone")),
+            is_active=True,
         )
+
+    _sync_contact_identity(contact, form_data)
+    _ensure_recipient_org_role(contact, form_data)
     return contact

@@ -34,11 +34,6 @@ class OrganizationRoleResolutionError(Exception):
 def is_org_roles_engine_enabled() -> bool:
     return bool(get_runtime_config().org_roles_engine_enabled)
 
-
-def is_legacy_contact_write_enabled() -> bool:
-    return bool(get_runtime_config().legacy_contact_write_enabled)
-
-
 def _current_window_q(prefix: str = ""):
     now = timezone.now()
     return Q(**{f"{prefix}valid_from__lte": now}) & (

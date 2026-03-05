@@ -3,8 +3,13 @@
 ## Scope covered
 
 - Task 9: Admin review dashboard for migration queue.
-- Task 10: Legacy write gate + role-based shipper/recipient resolution in order/shipment flows.
+- Task 10: Role-based shipper/recipient resolution in order/shipment flows.
 - Task 11: Role-based notification routing in signals with dedup and correspondent coordination note.
+
+## Status update (2026-03-05)
+
+- Final no-legacy cutover delivered: `legacy_contact_write_enabled` removed from runtime model/config/forms and scan/public/admin flows.
+- Verification evidence is tracked in `docs/plans/2026-03-05-no-legacy-final-cutover-verification.md`.
 
 ## Verification evidence
 
@@ -47,7 +52,6 @@
 ## Rollout gates
 
 - `org_roles_engine_enabled`: keep disabled until migration review queue and bindings are validated.
-- `legacy_contact_write_enabled`: keep enabled during migration cleanup; disable when org-role data quality is confirmed.
 - `org_roles_review_max_open_percent`: configured threshold currently set to 20.
 
 ## Go/No-Go decision (current local evidence)
@@ -61,4 +65,3 @@
 2. Run `migrate_contacts_to_org_roles --dry-run` and validate review queue volume vs threshold.
 3. Use admin review dashboard to resolve open migration items.
 4. Enable `org_roles_engine_enabled`.
-5. After stabilization, disable `legacy_contact_write_enabled`.

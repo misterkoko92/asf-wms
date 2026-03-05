@@ -19,7 +19,6 @@ from .organization_role_resolvers import (
     OrganizationRoleResolutionError,
     eligible_recipients_for_shipper_destination,
     is_org_roles_engine_enabled,
-    is_legacy_contact_write_enabled,
     resolve_recipient_binding_for_operation,
     resolve_shipper_for_operation,
 )
@@ -869,12 +868,7 @@ class ScanOrderCreateForm(forms.Form):
     notes = forms.CharField(label="Notes", required=False, widget=forms.Textarea(attrs={"rows": 3}))
 
     def clean(self):
-        cleaned = super().clean()
-        if not is_legacy_contact_write_enabled():
-            raise forms.ValidationError(
-                "Les ecritures legacy contacts sont desactivees."
-            )
-        return cleaned
+        return super().clean()
 
 
 class ScanOrderLineForm(forms.Form):

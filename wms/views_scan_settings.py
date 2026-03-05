@@ -43,7 +43,6 @@ SETTINGS_PRESETS = {
             "email_queue_processing_timeout_seconds": 900,
             "enable_shipment_track_legacy": True,
             "org_roles_engine_enabled": False,
-            "legacy_contact_write_enabled": True,
             "org_roles_review_max_open_percent": 20,
         },
     },

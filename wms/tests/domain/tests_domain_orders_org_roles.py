@@ -31,13 +31,7 @@ class DomainOrdersOrgRolesTests(TestCase):
         )
         runtime = WmsRuntimeSettings.get_solo()
         runtime.org_roles_engine_enabled = True
-        runtime.legacy_contact_write_enabled = True
-        runtime.save(
-            update_fields=[
-                "org_roles_engine_enabled",
-                "legacy_contact_write_enabled",
-            ]
-        )
+        runtime.save(update_fields=["org_roles_engine_enabled"])
 
     def _create_org(self, name: str) -> Contact:
         return Contact.objects.create(

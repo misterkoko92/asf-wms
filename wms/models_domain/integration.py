@@ -124,7 +124,6 @@ class WmsRuntimeSettings(models.Model):
     email_queue_processing_timeout_seconds = models.PositiveIntegerField(default=900)
     enable_shipment_track_legacy = models.BooleanField(default=True)
     org_roles_engine_enabled = models.BooleanField(default=False)
-    legacy_contact_write_enabled = models.BooleanField(default=True)
     org_roles_review_max_open_percent = models.PositiveIntegerField(default=20)
     scan_bootstrap_enabled = models.BooleanField(default=True)
     design_font_heading = models.CharField(
@@ -208,9 +207,6 @@ class WmsRuntimeSettings(models.Model):
             ),
             "org_roles_engine_enabled": bool(
                 getattr(django_settings, "ORG_ROLES_ENGINE_ENABLED", False)
-            ),
-            "legacy_contact_write_enabled": bool(
-                getattr(django_settings, "LEGACY_CONTACT_WRITE_ENABLED", True)
             ),
             "org_roles_review_max_open_percent": min(
                 100,

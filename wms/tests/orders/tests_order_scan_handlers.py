@@ -99,6 +99,40 @@ class OrderScanHandlersTests(TestCase):
         self.assertIsNone(order_lines)
         self.assertIsNone(remaining_total)
 
+    def test_handle_order_action_create_order_not_blocked_when_legacy_write_is_disabled(self):
+        create_form = _DummyForm(
+            is_valid=True,
+            cleaned_data={
+                "shipper_name": "Sender",
+                "recipient_name": "Recipient",
+                "correspondent_name": "",
+                "shipper_contact": None,
+                "recipient_contact": None,
+                "correspondent_contact": None,
+                "destination_address": "10 Rue Test",
+                "destination_city": "Paris",
+                "destination_country": "France",
+                "requested_delivery_date": None,
+                "notes": "",
+            },
+        )
+
+        with mock.patch("wms.order_scan_handlers.messages.success"):
+            response, order_lines, remaining_total = handle_order_action(
+                self._request(),
+                action="create_order",
+                select_form=_DummyForm(is_valid=False),
+                create_form=create_form,
+                line_form=_DummyForm(is_valid=False),
+                selected_order=None,
+            )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Order.objects.count(), 1)
+        self.assertEqual(create_form.errors, [])
+        self.assertIsNone(order_lines)
+        self.assertIsNone(remaining_total)
+
     def test_handle_order_action_add_line_requires_selected_order(self):
         line_form = _DummyForm(
             is_valid=True,

@@ -32,11 +32,7 @@ class FormsOrgRolesGateTests(TestCase):
             is_active=True,
         )
 
-    def test_scan_order_create_form_blocks_legacy_mode_when_write_disabled(self):
-        runtime = WmsRuntimeSettings.get_solo()
-        runtime.legacy_contact_write_enabled = False
-        runtime.save(update_fields=["legacy_contact_write_enabled"])
-
+    def test_scan_order_create_form_stays_valid_without_legacy_runtime_gate(self):
         form = ScanOrderCreateForm(
             data={
                 "shipper_name": "Shipper",
@@ -53,10 +49,7 @@ class FormsOrgRolesGateTests(TestCase):
             }
         )
 
-        self.assertFalse(form.is_valid())
-        self.assertTrue(
-            any("legacy" in error.lower() for error in form.non_field_errors())
-        )
+        self.assertTrue(form.is_valid())
 
     def test_scan_shipment_form_filters_recipients_from_bindings_when_engine_enabled(self):
         runtime = WmsRuntimeSettings.get_solo()

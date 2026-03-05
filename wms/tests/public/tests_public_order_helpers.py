@@ -1,7 +1,6 @@
 from django.test import TestCase
 
 from contacts.models import Contact, ContactAddress
-from wms.contact_filters import TAG_SHIPPER
 from wms.public_order_helpers import upsert_public_order_contact
 
 
@@ -21,21 +20,17 @@ class PublicOrderHelpersTests(TestCase):
         data.update(overrides)
         return data
 
-    def test_upsert_creates_contact_with_shipper_tag_and_default_address(self):
-        contact = upsert_public_order_contact(
-            self._form_data(association_country="")
-        )
+    def test_upsert_creates_contact_without_legacy_tag_or_address_side_effects(self):
+        contact = upsert_public_order_contact(self._form_data(association_country=""))
+
         self.assertTrue(contact.is_active)
         self.assertEqual(contact.name, "Association Test")
         self.assertEqual(contact.email, "asso@example.com")
         self.assertEqual(contact.phone, "0102030405")
-        self.assertTrue(contact.tags.filter(name=TAG_SHIPPER[0]).exists())
-        address = contact.addresses.get()
-        self.assertTrue(address.is_default)
-        self.assertEqual(address.address_line1, "1 Rue Test")
-        self.assertEqual(address.country, "France")
+        self.assertEqual(contact.tags.count(), 0)
+        self.assertEqual(contact.addresses.count(), 0)
 
-    def test_upsert_updates_existing_contact_and_default_address_by_id(self):
+    def test_upsert_updates_existing_contact_by_id_without_mutating_legacy_addresses(self):
         contact = Contact.objects.create(
             name="Association Existing",
             email="old@example.com",
@@ -48,6 +43,8 @@ class PublicOrderHelpersTests(TestCase):
             city="Old City",
             postal_code="11111",
             country="France",
+            email="address-old@example.com",
+            phone="0111111111",
             is_default=True,
         )
 
@@ -70,13 +67,11 @@ class PublicOrderHelpersTests(TestCase):
         address.refresh_from_db()
         self.assertEqual(contact.email, "new@example.com")
         self.assertEqual(contact.phone, "0999888777")
-        self.assertEqual(address.address_line1, "2 Rue New")
-        self.assertEqual(address.address_line2, "Etage 3")
-        self.assertEqual(address.postal_code, "69000")
-        self.assertEqual(address.city, "Lyon")
-        self.assertEqual(address.country, "Belgique")
-        self.assertEqual(address.email, "new@example.com")
-        self.assertEqual(address.phone, "0999888777")
+        self.assertEqual(address.address_line1, "Old Street")
+        self.assertEqual(address.city, "Old City")
+        self.assertEqual(address.country, "France")
+        self.assertEqual(address.email, "address-old@example.com")
+        self.assertEqual(address.phone, "0111111111")
 
     def test_upsert_falls_back_to_name_match_when_contact_id_is_invalid(self):
         contact = Contact.objects.create(
@@ -100,10 +95,9 @@ class PublicOrderHelpersTests(TestCase):
         contact.refresh_from_db()
         self.assertEqual(contact.email, "updated@example.com")
         self.assertEqual(contact.phone, "0123456789")
-        address = contact.addresses.get()
-        self.assertEqual(address.address_line1, "3 Rue Name")
+        self.assertEqual(contact.addresses.count(), 0)
 
-    def test_upsert_ignorés_inactive_contact_id_and_creates_new_contact(self):
+    def test_upsert_ignores_inactive_contact_id_and_creates_new_contact(self):
         inactive = Contact.objects.create(
             name="Association Inactive",
             is_active=False,
@@ -120,8 +114,10 @@ class PublicOrderHelpersTests(TestCase):
         self.assertEqual(Contact.objects.count(), 2)
         self.assertTrue(result.is_active)
         self.assertEqual(result.name, "Association New Active")
+        self.assertEqual(result.tags.count(), 0)
+        self.assertEqual(result.addresses.count(), 0)
 
-    def test_upsert_creates_address_for_existing_contact_without_any_address(self):
+    def test_upsert_does_not_create_address_for_existing_contact_without_any_address(self):
         contact = Contact.objects.create(
             name="Association No Address",
             is_active=True,
@@ -136,11 +132,7 @@ class PublicOrderHelpersTests(TestCase):
         )
 
         self.assertEqual(result.id, contact.id)
-        self.assertEqual(contact.addresses.count(), 1)
-        address = contact.addresses.get()
-        self.assertTrue(address.is_default)
-        self.assertEqual(address.address_line1, "7 Rue Added")
-        self.assertEqual(address.country, "France")
+        self.assertEqual(contact.addresses.count(), 0)
 
     def test_upsert_does_not_overwrite_contact_email_or_phone_with_empty_values(self):
         contact = Contact.objects.create(
@@ -149,7 +141,7 @@ class PublicOrderHelpersTests(TestCase):
             phone="0600000000",
             is_active=True,
         )
-        ContactAddress.objects.create(
+        address = ContactAddress.objects.create(
             contact=contact,
             address_line1="Current Address",
             city="Paris",
@@ -169,7 +161,7 @@ class PublicOrderHelpersTests(TestCase):
 
         self.assertEqual(result.id, contact.id)
         contact.refresh_from_db()
+        address.refresh_from_db()
         self.assertEqual(contact.email, "persist@example.com")
         self.assertEqual(contact.phone, "0600000000")
-        address = contact.addresses.get()
-        self.assertEqual(address.address_line1, "Updated Address")
+        self.assertEqual(address.address_line1, "Current Address")

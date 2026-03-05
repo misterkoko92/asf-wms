@@ -16,7 +16,6 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
         "email_queue_processing_timeout_seconds",
         "enable_shipment_track_legacy",
         "org_roles_engine_enabled",
-        "legacy_contact_write_enabled",
         "org_roles_review_max_open_percent",
     )
     MIN_ONE_FIELDS = (
@@ -51,7 +50,6 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
             "org_roles_review_max_open_percent",
             "enable_shipment_track_legacy",
             "org_roles_engine_enabled",
-            "legacy_contact_write_enabled",
         ]
         labels = {
             "low_stock_threshold": "Seuil stock bas",
@@ -65,7 +63,6 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
             "org_roles_review_max_open_percent": "Migration roles org: max dossiers ouverts (%)",
             "enable_shipment_track_legacy": "Activer la route legacy suivi expédition",
             "org_roles_engine_enabled": "Activer le moteur organization roles",
-            "legacy_contact_write_enabled": "Autoriser les écritures legacy contacts",
         }
         help_texts = {
             "low_stock_threshold": "Produit considéré en stock bas sous ce seuil.",
@@ -79,7 +76,6 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
             "org_roles_review_max_open_percent": "Seuil max de dossiers destinataires en revue avant alerte/go-live.",
             "enable_shipment_track_legacy": "Permet la route /scan/shipment/track/<reference>/.",
             "org_roles_engine_enabled": "Bascule des résolveurs vers le nouveau modèle role-based.",
-            "legacy_contact_write_enabled": "Permet de continuer les écritures sur les objets legacy Contact.",
         }
         widgets = {
             "low_stock_threshold": forms.NumberInput(attrs={"min": 1, "step": 1}),
@@ -118,7 +114,7 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        for boolean_field in ("org_roles_engine_enabled", "legacy_contact_write_enabled"):
+        for boolean_field in ("org_roles_engine_enabled",):
             if boolean_field not in self.data:
                 if getattr(self.instance, "pk", None):
                     cleaned_data[boolean_field] = bool(

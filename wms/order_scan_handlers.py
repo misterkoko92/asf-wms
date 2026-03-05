@@ -5,7 +5,6 @@ from django.urls import reverse
 from .models import Destination, Order, OrderStatus
 from .organization_role_resolvers import (
     OrganizationRoleResolutionError,
-    is_legacy_contact_write_enabled,
     is_org_roles_engine_enabled,
     resolve_recipient_binding_for_operation,
     resolve_shipper_for_operation,
@@ -44,13 +43,6 @@ def handle_order_action(
         shipper_contact = create_form.cleaned_data["shipper_contact"]
         recipient_contact = create_form.cleaned_data["recipient_contact"]
         correspondent_contact = create_form.cleaned_data["correspondent_contact"]
-
-        if not is_legacy_contact_write_enabled():
-            create_form.add_error(
-                None,
-                "Les ecritures legacy contacts sont desactivees.",
-            )
-            return None, None, None
 
         if is_org_roles_engine_enabled():
             if shipper_contact is None:

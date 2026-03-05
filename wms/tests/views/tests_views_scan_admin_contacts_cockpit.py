@@ -11,7 +11,6 @@ from wms.models import (
     OrganizationRoleContact,
     RecipientBinding,
     ShipperScope,
-    WmsRuntimeSettings,
 )
 
 
@@ -709,11 +708,8 @@ class ScanAdminContactsCockpitViewTests(TestCase):
         self.assertNotContains(response, '<option value="person">une personne</option>')
         self.assertNotContains(response, "Organisation cible (si personne)")
 
-    def test_legacy_actions_blocked_when_runtime_flag_disabled(self):
+    def test_legacy_create_contact_action_is_rejected(self):
         self.client.force_login(self.superuser)
-        runtime = WmsRuntimeSettings.get_solo()
-        runtime.legacy_contact_write_enabled = False
-        runtime.save(update_fields=["legacy_contact_write_enabled"])
 
         response = self.client.post(
             reverse("scan:scan_admin_contacts"),
@@ -726,13 +722,10 @@ class ScanAdminContactsCockpitViewTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Mode legacy désactivé")
+        self.assertContains(response, "Action de contact non reconnue.")
 
-    def test_cockpit_forms_render_when_legacy_write_disabled(self):
+    def test_cockpit_forms_render_without_legacy_contact_crud_actions(self):
         self.client.force_login(self.superuser)
-        runtime = WmsRuntimeSettings.get_solo()
-        runtime.legacy_contact_write_enabled = False
-        runtime.save(update_fields=["legacy_contact_write_enabled"])
 
         response = self.client.get(reverse("scan:scan_admin_contacts"))
 
@@ -743,12 +736,12 @@ class ScanAdminContactsCockpitViewTests(TestCase):
         self.assertContains(response, 'name="action" value="upsert_recipient_binding"')
         self.assertContains(response, 'name="action" value="create_guided_contact"')
         self.assertNotContains(response, 'name="action" value="create_contact"')
+        self.assertNotContains(response, 'name="action" value="update_contact"')
+        self.assertNotContains(response, 'name="action" value="delete_contact"')
+        self.assertNotContains(response, "Mode legacy désactivé")
 
-    def test_org_role_action_still_works_when_legacy_write_disabled(self):
+    def test_org_role_action_still_works_without_legacy_contact_crud(self):
         self.client.force_login(self.superuser)
-        runtime = WmsRuntimeSettings.get_solo()
-        runtime.legacy_contact_write_enabled = False
-        runtime.save(update_fields=["legacy_contact_write_enabled"])
 
         response = self.client.post(
             reverse("scan:scan_admin_contacts"),
