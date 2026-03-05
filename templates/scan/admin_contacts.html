@@ -73,7 +73,13 @@
     <div class="row g-3 ui-comp-form">
       <div class="col-12 col-xl-6">
         <div class="ui-comp-panel p-3 border rounded-3">
-          <h4 class="h6 mb-2">Rôles organisation</h4>
+          <h4 class="h6 mb-2 d-flex align-items-center gap-2">
+            Activer / désactiver un rôle sur une organisation
+            <span
+              class="badge rounded-pill text-bg-light border"
+              title="Sélectionnez une organisation et un rôle métier, puis activez ou désactivez ce rôle."
+            >?</span>
+          </h4>
           <form method="post" class="row g-2">
             {% csrf_token %}
             <input type="hidden" name="q" value="{{ query }}">
@@ -106,7 +112,13 @@
 
       <div class="col-12 col-xl-6">
         <div class="ui-comp-panel p-3 border rounded-3">
-          <h4 class="h6 mb-2">Contact organisation</h4>
+          <h4 class="h6 mb-2 d-flex align-items-center gap-2">
+            Créer ou mettre à jour une personne rattachée à une organisation
+            <span
+              class="badge rounded-pill text-bg-light border"
+              title="Créez un nouveau contact d'organisation ou mettez à jour un contact existant de la même organisation."
+            >?</span>
+          </h4>
           <form method="post" class="row g-2">
             {% csrf_token %}
             <input type="hidden" name="action" value="upsert_org_contact">
@@ -167,7 +179,13 @@
 
       <div class="col-12 col-xl-6">
         <div class="ui-comp-panel p-3 border rounded-3">
-          <h4 class="h6 mb-2">Lier un contact à un rôle</h4>
+          <h4 class="h6 mb-2 d-flex align-items-center gap-2">
+            Associer une personne à un rôle (et définir le principal)
+            <span
+              class="badge rounded-pill text-bg-light border"
+              title="Utilisez cette carte pour lier/délier un contact à un rôle existant, ou définir le contact principal pour ce rôle."
+            >?</span>
+          </h4>
           <form method="post" class="row g-2">
             {% csrf_token %}
             <input type="hidden" name="q" value="{{ query }}">
@@ -205,7 +223,13 @@
 
       <div class="col-12 col-xl-6">
         <div class="ui-comp-panel p-3 border rounded-3">
-          <h4 class="h6 mb-2">Scopes expéditeur</h4>
+          <h4 class="h6 mb-2 d-flex align-items-center gap-2">
+            Définir le périmètre d'un expéditeur (escales autorisées)
+            <span
+              class="badge rounded-pill text-bg-light border"
+              title="Configurez si un expéditeur est autorisé sur toutes les escales ou uniquement sur une escale donnée, avec dates de validité."
+            >?</span>
+          </h4>
           <form method="post" class="row g-2">
             {% csrf_token %}
             <input type="hidden" name="action" value="upsert_shipper_scope">
@@ -286,7 +310,13 @@
 
       <div class="col-12 col-xl-6">
         <div class="ui-comp-panel p-3 border rounded-3">
-          <h4 class="h6 mb-2">Bindings destinataire</h4>
+          <h4 class="h6 mb-2 d-flex align-items-center gap-2">
+            Autoriser un destinataire pour un expéditeur et une escale
+            <span
+              class="badge rounded-pill text-bg-light border"
+              title="Créez ou mettez à jour un binding shipper→recipient sur une escale précise, puis clôturez-le si besoin."
+            >?</span>
+          </h4>
           <form method="post" class="row g-2">
             {% csrf_token %}
             <input type="hidden" name="action" value="upsert_recipient_binding">
@@ -374,7 +404,13 @@
 
       <div class="col-12 col-xl-6">
         <div class="ui-comp-panel p-3 border rounded-3">
-          <h4 class="h6 mb-2">Création guidée</h4>
+          <h4 class="h6 mb-2 d-flex align-items-center gap-2">
+            Assistant de création rapide (organisation ou personne)
+            <span
+              class="badge rounded-pill text-bg-light border"
+              title="Assistant simplifié pour créer une organisation ou une personne, avec rôle initial optionnel."
+            >?</span>
+          </h4>
           <form method="post" class="row g-2">
             {% csrf_token %}
             <input type="hidden" name="action" value="create_guided_contact">
