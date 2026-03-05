@@ -38,23 +38,26 @@
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
-    <h2 class="ui-comp-title">Contacts (gestion dans la page)</h2>
+    <h2 class="ui-comp-title">Contacts (pilotage org-role)</h2>
     <ul>
-      <li>La page <strong>Admin &gt; Contacts</strong> permet maintenant de g&eacute;rer les contacts sans passer par l'admin Django.</li>
-      <li>Le filtre principal est le <strong>type de contact</strong> (Organisation / Personne), avec recherche par nom, email, t&eacute;l&eacute;phone, ASF ID.</li>
-      <li>Vous pouvez cr&eacute;er, modifier et supprimer un contact depuis cette page.</li>
-      <li>Les champs m&eacute;tier sont modifiables: tags, destinations, exp&eacute;diteurs li&eacute;s, statut actif.</li>
-      <li>L'adresse principale est modifiable directement dans le formulaire de contact.</li>
+      <li>La page <strong>Admin &gt; Contacts</strong> pilote le mod&egrave;le <strong>organization roles</strong> (sans CRUD legacy dans Scan).</li>
+      <li>Actions disponibles: activer/d&eacute;sactiver un r&ocirc;le, g&eacute;rer les contacts d'organisation, lier un contact &agrave; un r&ocirc;le, d&eacute;finir le principal.</li>
+      <li>P&eacute;rim&egrave;tre exp&eacute;diteur: scopes globaux ou par destination.</li>
+      <li>P&eacute;rim&egrave;tre destinataire: bindings exp&eacute;diteur + destination.</li>
+      <li>Onboarding guid&eacute;: cr&eacute;ation d'une organisation + r&ocirc;le + contact principal depuis le cockpit.</li>
+      <li>Les liens admin Django restent disponibles en secours pour les op&eacute;rations de maintenance.</li>
     </ul>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
     <h2 class="ui-comp-title">Donn&eacute;es de r&eacute;f&eacute;rence</h2>
-    <p>Avant utilisation, vérifier ces données dans l'admin :</p>
+    <p>Avant utilisation, v&eacute;rifier ces donn&eacute;es :</p>
     <ul>
-      <li><strong>Contacts</strong> avec tags : exp&eacute;diteur, destinataire, correspondant, donateur, transporteur.</li>
-      <li>Pour les exp&eacute;diteurs/correspondants: renseigner <strong>Destinations</strong> (vide = global).</li>
-      <li>Pour les destinataires: renseigner <strong>Exp&eacute;diteurs li&eacute;s</strong> (vide = tous les exp&eacute;diteurs).</li>
+      <li><strong>Organisations</strong> actives (type Organisation).</li>
+      <li><strong>R&ocirc;les actifs</strong> selon le besoin m&eacute;tier (exp&eacute;diteur, destinataire, correspondant, donateur, transporteur).</li>
+      <li>Pour un r&ocirc;le actif: un <strong>contact principal actif avec email</strong> doit &ecirc;tre li&eacute;.</li>
+      <li>Pour les exp&eacute;diteurs: d&eacute;finir les <strong>scopes</strong> (global ou destination).</li>
+      <li>Pour les destinataires: d&eacute;finir les <strong>bindings</strong> avec les exp&eacute;diteurs et destinations autoris&eacute;s.</li>
       <li><strong>Destinations</strong> : ville, code IATA, pays, correspondant li&eacute;.</li>
       <li><strong>Formats de carton</strong> : un format par d&eacute;faut pour la pr&eacute;paration.</li>
       <li><strong>Entrep&ocirc;ts</strong> et <strong>Emplacements</strong> : entrep&ocirc;t / rack / &eacute;tag&egrave;re / bac.</li>
@@ -320,7 +323,8 @@
   <div class="scan-card card border-0 ui-comp-card">
     <h2 class="ui-comp-title">FAQ rapide</h2>
     <ul>
-      <li><strong>Mes listes sont vides</strong> : v&eacute;rifier les tags + destinations (exp&eacute;diteurs/correspondants) et les exp&eacute;diteurs li&eacute;s (destinataires).</li>
+      <li><strong>Mes listes sont vides</strong> : v&eacute;rifier les r&ocirc;les actifs, scopes exp&eacute;diteurs et bindings destinataires.</li>
+      <li><strong>Je ne vois plus &quot;cr&eacute;er / modifier / supprimer contact&quot; dans Scan</strong> : c'est normal, le CRUD legacy a &eacute;t&eacute; retir&eacute; au profit du cockpit org-role.</li>
       <li><strong>Stock à zéro</strong> : vérifier les lots disponibles et leur emplacement.</li>
       <li><strong>Cam&eacute;ra ne s'ouvre pas</strong> : autoriser la cam&eacute;ra, tester un autre navigateur.</li>
       <li><strong>Un carton est bloqu&eacute;</strong> : un carton exp&eacute;di&eacute; est non modifiable, et une exp&eacute;dition planifi&eacute;e/verrouill&eacute;e bloque les changements colis.</li>
