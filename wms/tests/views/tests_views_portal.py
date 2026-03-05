@@ -203,58 +203,24 @@ class PortalAuthViewsTests(PortalBaseTestCase):
     def test_portal_login_get_shows_recovery_links(self):
         response = self.client.get(self.login_url)
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, reverse("portal:portal_first_connection"))
         self.assertContains(response, reverse("portal:portal_forgot_password"))
-        self.assertContains(response, "Premiere connexion")
-        self.assertContains(response, "Mot de passe oublie")
-
-    def test_portal_first_connection_get_renders_form(self):
-        response = self.client.get(reverse("portal:portal_first_connection"))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Premiere connexion")
-        self.assertContains(response, 'name="email"')
+        self.assertContains(response, "Mot de passe oubli")
+        self.assertContains(response, "Premi&egrave;re connexion")
 
     def test_portal_forgot_password_get_renders_form(self):
         response = self.client.get(reverse("portal:portal_forgot_password"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Mot de passe oublie")
+        self.assertContains(response, "Mot de passe oubli")
+        self.assertContains(response, "Première connexion")
         self.assertContains(response, 'name="email"')
 
-    def test_portal_first_connection_post_requires_email(self):
+    def test_portal_forgot_password_post_requires_email(self):
         response = self.client.post(
-            reverse("portal:portal_first_connection"),
+            reverse("portal:portal_forgot_password"),
             {"email": ""},
         )
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Email requis.")
-
-    def test_portal_first_connection_post_sends_email_for_eligible_account(self):
-        user = self._create_portal_user("portal-auth-first", "first@example.com")
-        self._create_profile(user, must_change_password=True)
-        uidb64 = urlsafe_base64_encode(str(user.pk).encode())
-
-        with mock.patch(
-            "wms.views_portal_auth.send_or_enqueue_email_safe",
-            return_value=True,
-        ) as send_mock:
-            response = self.client.post(
-                reverse("portal:portal_first_connection"),
-                {"email": user.email},
-                REMOTE_ADDR="10.0.0.2",
-            )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Si votre email est reconnu")
-        send_mock.assert_called_once()
-        self.assertEqual(
-            send_mock.call_args.kwargs["subject"],
-            "ASF WMS - Premiere connexion portail",
-        )
-        self.assertEqual(send_mock.call_args.kwargs["recipient"], [user.email])
-        self.assertIn(
-            f"/portal/set-password/{uidb64}/",
-            send_mock.call_args.kwargs["message"],
-        )
 
     def test_portal_forgot_password_post_sends_email_for_eligible_account(self):
         user = self._create_portal_user("portal-auth-forgot", "forgot@example.com")
@@ -276,9 +242,62 @@ class PortalAuthViewsTests(PortalBaseTestCase):
         send_mock.assert_called_once()
         self.assertEqual(
             send_mock.call_args.kwargs["subject"],
-            "ASF WMS - Mot de passe oublie portail",
+            "ASF WMS - Mot de passe oublié / Première connexion portail",
         )
         self.assertEqual(send_mock.call_args.kwargs["recipient"], ["forgot@example.com"])
+        self.assertIn(
+            f"/portal/set-password/{uidb64}/",
+            send_mock.call_args.kwargs["message"],
+        )
+
+    def test_portal_forgot_password_post_sends_email_for_first_connection_account(self):
+        user = self._create_portal_user("portal-auth-first", "first@example.com")
+        self._create_profile(user, must_change_password=True)
+        uidb64 = urlsafe_base64_encode(str(user.pk).encode())
+
+        with mock.patch(
+            "wms.views_portal_auth.send_or_enqueue_email_safe",
+            return_value=True,
+        ) as send_mock:
+            response = self.client.post(
+                reverse("portal:portal_forgot_password"),
+                {"email": user.email},
+                REMOTE_ADDR="10.0.0.2",
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Si votre email est reconnu")
+        send_mock.assert_called_once()
+        self.assertEqual(
+            send_mock.call_args.kwargs["subject"],
+            "ASF WMS - Mot de passe oublié / Première connexion portail",
+        )
+        self.assertEqual(send_mock.call_args.kwargs["recipient"], [user.email])
+        self.assertIn(
+            f"/portal/set-password/{uidb64}/",
+            send_mock.call_args.kwargs["message"],
+        )
+
+    def test_portal_forgot_password_post_sends_email_for_unusable_password_account(self):
+        user = self._create_portal_user("portal-auth-unusable", "unusable@example.com")
+        self._create_profile(user, must_change_password=False)
+        user.set_unusable_password()
+        user.save(update_fields=["password"])
+        uidb64 = urlsafe_base64_encode(str(user.pk).encode())
+
+        with mock.patch(
+            "wms.views_portal_auth.send_or_enqueue_email_safe",
+            return_value=True,
+        ) as send_mock:
+            response = self.client.post(
+                reverse("portal:portal_forgot_password"),
+                {"email": user.email},
+                REMOTE_ADDR="10.0.0.7",
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Si votre email est reconnu")
+        send_mock.assert_called_once()
         self.assertIn(
             f"/portal/set-password/{uidb64}/",
             send_mock.call_args.kwargs["message"],
@@ -296,10 +315,7 @@ class PortalAuthViewsTests(PortalBaseTestCase):
         send_mock.assert_not_called()
 
     def test_portal_recovery_post_keeps_generic_success_for_ineligible_account(self):
-        user = self._create_portal_user("portal-auth-no-pass", "nopass@example.com")
-        self._create_profile(user, must_change_password=False)
-        user.set_unusable_password()
-        user.save(update_fields=["password"])
+        user = self._create_portal_user("portal-auth-no-profile", "no-profile@example.com")
 
         with mock.patch("wms.views_portal_auth.send_or_enqueue_email_safe") as send_mock:
             response = self.client.post(
@@ -320,12 +336,12 @@ class PortalAuthViewsTests(PortalBaseTestCase):
             return_value=True,
         ) as send_mock:
             first_response = self.client.post(
-                reverse("portal:portal_first_connection"),
+                reverse("portal:portal_forgot_password"),
                 {"email": user.email},
                 REMOTE_ADDR="10.0.0.6",
             )
             second_response = self.client.post(
-                reverse("portal:portal_first_connection"),
+                reverse("portal:portal_forgot_password"),
                 {"email": user.email},
                 REMOTE_ADDR="10.0.0.6",
             )

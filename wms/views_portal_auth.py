@@ -25,9 +25,6 @@ TEMPLATE_SET_PASSWORD = "portal/set_password.html"  # nosec B105
 TEMPLATE_CHANGE_PASSWORD = "portal/change_password.html"  # nosec B105
 TEMPLATE_ACCESS_RECOVERY = "portal/access_recovery.html"
 
-MODE_RECOVERY_FIRST = "first"
-MODE_RECOVERY_FORGOT = "forgot"
-
 ERROR_LOGIN_REQUIRED = "Email et mot de passe requis."
 ERROR_LOGIN_INVALID = "Identifiants invalides."
 ERROR_ACCOUNT_INACTIVE = "Compte inactif."
@@ -39,42 +36,34 @@ MESSAGE_RECOVERY_SUBMITTED = (
     "Si votre email est reconnu, vous recevrez un lien pour definir votre mot de passe."
 )
 
-SUBJECT_RECOVERY_FIRST = "ASF WMS - Premiere connexion portail"
-SUBJECT_RECOVERY_FORGOT = "ASF WMS - Mot de passe oublie portail"
+RECOVERY_PAGE_TITLE = "Mot de passe oublié / Première connexion"
+RECOVERY_HEADING = "Mot de passe oublié / Première connexion"
+RECOVERY_LEAD = (
+    "Saisissez votre email pour recevoir un lien de definition ou de "
+    "reinitialisation du mot de passe."
+)
+RECOVERY_SUBMIT_LABEL = "Recevoir le lien"
+RECOVERY_EMAIL_TEMPLATE = "emails/portal_forgot_password.txt"
+RECOVERY_EMAIL_SUBJECT = (
+    "ASF WMS - Mot de passe oublié / Première connexion portail"
+)
 
 RECOVERY_THROTTLE_SECONDS_DEFAULT = 300
-
-RECOVERY_MODE_CONFIG = {
-    MODE_RECOVERY_FIRST: {
-        "page_title": "Premiere connexion",
-        "heading": "Premiere connexion",
-        "lead": "Saisissez votre email pour recevoir un lien de definition du mot de passe.",
-        "submit_label": "Recevoir le lien",
-        "template": "emails/portal_first_connection.txt",
-        "subject": SUBJECT_RECOVERY_FIRST,
-    },
-    MODE_RECOVERY_FORGOT: {
-        "page_title": "Mot de passe oublie",
-        "heading": "Mot de passe oublie",
-        "lead": "Saisissez votre email pour recevoir un lien de reinitialisation.",
-        "submit_label": "Reinitialiser le mot de passe",
-        "template": "emails/portal_forgot_password.txt",
-        "subject": SUBJECT_RECOVERY_FORGOT,
-    },
-}
 
 
 def _build_login_context(*, errors, identifier, next_url):
     return {"errors": errors, "identifier": identifier, "next": next_url}
 
 
-def _build_recovery_context(*, mode, errors, email, success_message):
-    mode_config = RECOVERY_MODE_CONFIG[mode]
+def _build_recovery_context(*, errors, email, success_message):
     return {
         "errors": errors,
         "email": email,
         "success_message": success_message,
-        **mode_config,
+        "page_title": RECOVERY_PAGE_TITLE,
+        "heading": RECOVERY_HEADING,
+        "lead": RECOVERY_LEAD,
+        "submit_label": RECOVERY_SUBMIT_LABEL,
     }
 
 
@@ -135,20 +124,18 @@ def _get_recovery_throttle_seconds():
     return max(0, value)
 
 
-def _reserve_recovery_throttle_slot(*, mode, email, client_ip):
+def _reserve_recovery_throttle_slot(*, email, client_ip):
     timeout = _get_recovery_throttle_seconds()
     if timeout <= 0:
         return True
 
     normalized_email = _normalize_email(email)
     normalized_ip = (client_ip or "").strip() or "unknown"
-    cache_key = (
-        f"portal-access-recovery:{mode}:email:{normalized_email}:ip:{normalized_ip}"
-    )
+    cache_key = f"portal-access-recovery:email:{normalized_email}:ip:{normalized_ip}"
     return cache.add(cache_key, "1", timeout=timeout)
 
 
-def _resolve_recovery_user(*, email, mode):
+def _resolve_recovery_user(*, email):
     user = get_user_model().objects.filter(email__iexact=email).first()
     if not user or not user.is_active:
         return None
@@ -156,18 +143,7 @@ def _resolve_recovery_user(*, email, mode):
     profile = get_association_profile(user)
     if not profile:
         return None
-
-    if mode == MODE_RECOVERY_FIRST:
-        if profile.must_change_password or not user.has_usable_password():
-            return user
-        return None
-
-    if mode == MODE_RECOVERY_FORGOT:
-        if user.has_usable_password():
-            return user
-        return None
-
-    return None
+    return user
 
 
 def _build_set_password_url(request, user):
@@ -177,12 +153,11 @@ def _build_set_password_url(request, user):
     return request.build_absolute_uri(path)
 
 
-def _send_recovery_email(*, request, user, email, mode):
-    mode_config = RECOVERY_MODE_CONFIG[mode]
+def _send_recovery_email(*, request, user, email):
     set_password_url = _build_set_password_url(request, user)
     login_url = request.build_absolute_uri(reverse("portal:portal_login"))
     message = render_to_string(
-        mode_config["template"],
+        RECOVERY_EMAIL_TEMPLATE,
         {
             "email": email,
             "set_password_url": set_password_url,
@@ -190,13 +165,13 @@ def _send_recovery_email(*, request, user, email, mode):
         },
     )
     send_or_enqueue_email_safe(
-        subject=mode_config["subject"],
+        subject=RECOVERY_EMAIL_SUBJECT,
         message=message,
         recipient=[email],
     )
 
 
-def _portal_access_recovery(request, *, mode):
+def _portal_access_recovery(request):
     if request.user.is_authenticated:
         profile = get_association_profile(request.user)
         if profile:
@@ -213,17 +188,15 @@ def _portal_access_recovery(request, *, mode):
         else:
             client_ip = _get_client_ip(request)
             if _reserve_recovery_throttle_slot(
-                mode=mode,
                 email=email,
                 client_ip=client_ip,
             ):
-                user = _resolve_recovery_user(email=email, mode=mode)
+                user = _resolve_recovery_user(email=email)
                 if user is not None:
                     _send_recovery_email(
                         request=request,
                         user=user,
                         email=email,
-                        mode=mode,
                     )
             success_message = MESSAGE_RECOVERY_SUBMITTED
             email = ""
@@ -232,7 +205,6 @@ def _portal_access_recovery(request, *, mode):
         request,
         TEMPLATE_ACCESS_RECOVERY,
         _build_recovery_context(
-            mode=mode,
             errors=errors,
             email=email,
             success_message=success_message,
@@ -288,13 +260,8 @@ def portal_login(request):
 
 
 @require_http_methods(["GET", "POST"])
-def portal_first_connection(request):
-    return _portal_access_recovery(request, mode=MODE_RECOVERY_FIRST)
-
-
-@require_http_methods(["GET", "POST"])
 def portal_forgot_password(request):
-    return _portal_access_recovery(request, mode=MODE_RECOVERY_FORGOT)
+    return _portal_access_recovery(request)
 
 
 @login_required(login_url="portal:portal_login")
