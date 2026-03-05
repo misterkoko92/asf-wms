@@ -508,12 +508,13 @@
               <select id="scan-guided-entity-kind" name="entity_kind" class="form-select" required>
                 <option value="organization">une organisation</option>
                 <option value="person">une personne</option>
+                <option value="organization_with_contact">une organisation et une personne liee</option>
               </select>
             </div>
             <div class="col-12 col-md-6">
               <label class="form-label" for="scan-guided-role">Role initial</label>
               <select id="scan-guided-role" name="role" class="form-select" required>
-                <option value="">Aucun</option>
+                <option value="">Choisir...</option>
                 {% for value, label in cockpit_role_choices %}
                   <option value="{{ value }}">{{ label }}</option>
                 {% endfor %}
@@ -1132,25 +1133,28 @@
         if (!guidedEntityKind) {
           return;
         }
-        var isOrganizationMode = guidedEntityKind.value === "organization";
+        var mode = guidedEntityKind.value;
+        var isOrganizationOnlyMode = mode === "organization";
+        var isPersonMode = mode === "person";
+        var isOrganizationWithContactMode = mode === "organization_with_contact";
         if (guidedRole) {
-          guidedRole.disabled = !isOrganizationMode;
-          guidedRole.required = isOrganizationMode;
-          if (!isOrganizationMode) {
+          guidedRole.disabled = isPersonMode;
+          guidedRole.required = !isPersonMode;
+          if (isPersonMode) {
             guidedRole.value = "";
           }
         }
         if (guidedOrganizationName) {
-          guidedOrganizationName.disabled = !isOrganizationMode;
-          guidedOrganizationName.required = isOrganizationMode;
-          if (!isOrganizationMode) {
+          guidedOrganizationName.disabled = isPersonMode;
+          guidedOrganizationName.required = !isPersonMode;
+          if (isPersonMode) {
             guidedOrganizationName.value = "";
           }
         }
         if (guidedOrganizationId) {
-          guidedOrganizationId.disabled = isOrganizationMode;
-          guidedOrganizationId.required = !isOrganizationMode;
-          if (isOrganizationMode) {
+          guidedOrganizationId.disabled = !isPersonMode;
+          guidedOrganizationId.required = isPersonMode;
+          if (!isPersonMode) {
             guidedOrganizationId.value = "";
           }
         }
@@ -1160,7 +1164,11 @@
           if (!field) {
             return;
           }
-          field.required = !isOrganizationMode;
+          field.disabled = isOrganizationOnlyMode;
+          field.required = isPersonMode || isOrganizationWithContactMode;
+          if (isOrganizationOnlyMode) {
+            field.value = "";
+          }
         });
       }
 

@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import re
+import unicodedata
+from difflib import SequenceMatcher
+
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q
@@ -76,6 +80,84 @@ def _validation_message(exc: ValidationError) -> str:
     if getattr(exc, "messages", None):
         return str(exc.messages[0])
     return "Validation impossible."
+
+
+def _normalize_match_value(value: str) -> str:
+    raw_value = (value or "").strip()
+    if not raw_value:
+        return ""
+    normalized = unicodedata.normalize("NFKD", raw_value)
+    normalized = normalized.encode("ascii", "ignore").decode("ascii")
+    normalized = normalized.lower()
+    normalized = re.sub(r"[^a-z0-9]+", " ", normalized).strip()
+    return re.sub(r"\s+", " ", normalized)
+
+
+def _is_fuzzy_match(*, source: str, candidate: str) -> bool:
+    if not source or not candidate:
+        return False
+    if source == candidate:
+        return True
+    if source in candidate or candidate in source:
+        return True
+    return SequenceMatcher(None, source, candidate).ratio() >= 0.88
+
+
+def _find_similar_organizations(*, name: str, limit: int = 3):
+    normalized_target = _normalize_match_value(name)
+    if not normalized_target:
+        return []
+    matches = []
+    for organization in Contact.objects.filter(contact_type=ContactType.ORGANIZATION).order_by(
+        "name",
+        "id",
+    ):
+        normalized_candidate = _normalize_match_value(organization.name)
+        if _is_fuzzy_match(source=normalized_target, candidate=normalized_candidate):
+            matches.append(organization)
+            if len(matches) >= limit:
+                break
+    return matches
+
+
+def _find_similar_people(*, organization_id: int, full_name: str, email: str, limit: int = 3):
+    normalized_target_name = _normalize_match_value(full_name)
+    normalized_target_email = (email or "").strip().lower()
+    if not normalized_target_name and not normalized_target_email:
+        return []
+
+    queryset = Contact.objects.filter(
+        contact_type=ContactType.PERSON,
+        organization_id=organization_id,
+    ).order_by("name", "id")
+    matches = []
+    for person in queryset:
+        candidate_name = " ".join(
+            part for part in [person.name, person.first_name, person.last_name] if (part or "").strip()
+        ).strip()
+        normalized_candidate_name = _normalize_match_value(candidate_name)
+        candidate_email = (person.email or "").strip().lower()
+        email_match = bool(
+            normalized_target_email and candidate_email and normalized_target_email == candidate_email
+        )
+        name_match = _is_fuzzy_match(
+            source=normalized_target_name,
+            candidate=normalized_candidate_name,
+        )
+        if email_match or name_match:
+            matches.append(person)
+            if len(matches) >= limit:
+                break
+    return matches
+
+
+def _format_duplicate_message(*, prefix: str, items) -> str:
+    if not items:
+        return ""
+    labels = ", ".join((item.name or "").strip() for item in items[:3] if (item.name or "").strip())
+    if labels:
+        return f"{prefix}: {labels}."
+    return prefix
 
 
 def _resolve_active_organization(organization_id: str):
@@ -398,29 +480,32 @@ def create_guided_contact(*, data) -> tuple[bool, str]:
     if "is_active" not in form.data:
         is_active = True
 
-    if entity_kind == "organization":
+    if entity_kind in {"organization", "organization_with_contact"}:
+        organization_name = (form.cleaned_data.get("organization_name") or "").strip()
+        similar_organizations = _find_similar_organizations(name=organization_name)
+        if similar_organizations:
+            return (
+                False,
+                _format_duplicate_message(
+                    prefix="Organisation similaire deja presente",
+                    items=similar_organizations,
+                ),
+            )
+
         organization = Contact.objects.create(
             contact_type=ContactType.ORGANIZATION,
-            name=(form.cleaned_data.get("organization_name") or "").strip(),
+            name=organization_name,
             email=(form.cleaned_data.get("email") or "").strip(),
             phone=(form.cleaned_data.get("phone") or "").strip(),
             is_active=is_active,
         )
-        assignment = None
-        if role:
-            assignment, _created = OrganizationRoleAssignment.objects.get_or_create(
-                organization=organization,
-                role=role,
-                defaults={"is_active": False},
-            )
-
-        should_create_primary_contact = any(
-            (form.cleaned_data.get(field_name) or "").strip()
-            for field_name in ("name", "first_name", "last_name", "email", "phone")
+        assignment, _created = OrganizationRoleAssignment.objects.get_or_create(
+            organization=organization,
+            role=role,
+            defaults={"is_active": False},
         )
-        if should_create_primary_contact:
-            if assignment is None:
-                return False, "Role initial requis pour definir un contact principal."
+
+        if entity_kind == "organization_with_contact":
             org_contact = OrganizationContact.objects.create(
                 organization=organization,
                 first_name=(form.cleaned_data.get("first_name") or "").strip(),
@@ -448,11 +533,36 @@ def create_guided_contact(*, data) -> tuple[bool, str]:
             except ValidationError:
                 assignment.is_active = False
                 assignment.save(update_fields=["is_active"])
+            return True, "Organisation et contact rattache crees."
+
         return True, "Organisation creee."
 
     organization = _resolve_active_organization(form.cleaned_data.get("organization_id"))
     if organization is None:
         return False, "Organisation invalide."
+    full_name = (form.cleaned_data.get("name") or "").strip()
+    if not full_name:
+        full_name = " ".join(
+            part
+            for part in [
+                (form.cleaned_data.get("first_name") or "").strip(),
+                (form.cleaned_data.get("last_name") or "").strip(),
+            ]
+            if part
+        ).strip()
+    similar_people = _find_similar_people(
+        organization_id=organization.id,
+        full_name=full_name,
+        email=(form.cleaned_data.get("email") or "").strip(),
+    )
+    if similar_people:
+        return (
+            False,
+            _format_duplicate_message(
+                prefix="Personne similaire deja presente dans cette organisation",
+                items=similar_people,
+            ),
+        )
     person = Contact.objects.create(
         contact_type=ContactType.PERSON,
         organization=organization,

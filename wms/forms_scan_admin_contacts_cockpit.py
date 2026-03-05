@@ -51,6 +51,7 @@ class GuidedContactCreateForm(forms.Form):
         choices=(
             ("organization", "organization"),
             ("person", "person"),
+            ("organization_with_contact", "organization_with_contact"),
         )
     )
     organization_name = forms.CharField(required=False, max_length=200)
@@ -80,13 +81,11 @@ class GuidedContactCreateForm(forms.Form):
                 self.add_error("organization_name", "Nom organisation requis.")
             if not role_value:
                 self.add_error("role", "Role initial requis.")
-            if has_person_payload:
-                for field_name in person_fields:
-                    if not (cleaned.get(field_name) or "").strip():
-                        self.add_error(
-                            field_name,
-                            "Champ requis pour creer automatiquement le contact principal.",
-                        )
+            if cleaned.get("organization_id"):
+                self.add_error(
+                    "organization_id",
+                    "Organisation cible non applicable pour une creation d'organisation.",
+                )
 
         if entity_kind == "person":
             if not cleaned.get("organization_id"):
@@ -104,4 +103,20 @@ class GuidedContactCreateForm(forms.Form):
             for field_name in person_fields:
                 if not (cleaned.get(field_name) or "").strip():
                     self.add_error(field_name, "Champ requis.")
+        if entity_kind == "organization_with_contact":
+            if not organization_name:
+                self.add_error("organization_name", "Nom organisation requis.")
+            if not role_value:
+                self.add_error("role", "Role initial requis.")
+            if cleaned.get("organization_id"):
+                self.add_error(
+                    "organization_id",
+                    "Organisation cible non applicable pour ce mode.",
+                )
+            for field_name in person_fields:
+                if not (cleaned.get(field_name) or "").strip():
+                    self.add_error(
+                        field_name,
+                        "Champ requis pour creer la personne rattachee.",
+                    )
         return cleaned
