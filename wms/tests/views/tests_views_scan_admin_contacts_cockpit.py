@@ -89,7 +89,7 @@ class ScanAdminContactsCockpitViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Pilotage contacts org-role")
         self.assertContains(response, "Recherche et filtres")
-        self.assertContains(response, "Actions metier")
+        self.assertContains(response, "Actions métier")
         self.assertEqual(response.context["active"], "admin_contacts")
 
     def test_filter_by_role_returns_only_matching_orgs(self):
@@ -726,7 +726,7 @@ class ScanAdminContactsCockpitViewTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Mode legacy desactive")
+        self.assertContains(response, "Mode legacy désactivé")
 
     def test_cockpit_forms_render_when_legacy_write_disabled(self):
         self.client.force_login(self.superuser)

@@ -6,7 +6,7 @@
   <div class="scan-card card border-0 ui-comp-card">
     <h2 class="ui-comp-title">Pilotage contacts org-role</h2>
     <p class="scan-help ui-comp-note">
-      Gestion centralisee des organisations, roles, contacts et mappings metier depuis l'interface Scan.
+      Gestion centralisée des organisations, rôles, contacts et mappings métier depuis l'interface Scan.
     </p>
   </div>
 
@@ -60,28 +60,28 @@
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
-    <h3 class="ui-comp-title h5 mb-3">Actions metier</h3>
+    <h3 class="ui-comp-title h5 mb-3">Actions métier</h3>
     <p class="scan-help ui-comp-note">
-      Actions de creation et de mise a jour directement dans le cockpit.
+      Actions de création et de mise à jour directement dans le cockpit.
     </p>
     {% if not legacy_contact_write_enabled %}
       <p class="scan-help ui-comp-note">
-        Mode legacy desactive: utilisez les actions org-role. Les liens admin restent disponibles en secours.
+        Mode legacy désactivé: utilisez les actions org-role. Les liens admin restent disponibles en secours.
       </p>
     {% endif %}
 
     <div class="row g-3 ui-comp-form">
-      <div class="col-12 col-xl-6">
+      <div class="col-12 col-xl-6" style="order: 3;">
         <div class="ui-comp-panel p-3 border rounded-3">
           <h4 class="h6 mb-2 d-flex align-items-center gap-2">
-            Activer / desactiver un role sur une organisation
+            Activer / désactiver un rôle sur une organisation
             <button
               type="button"
               class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
               data-bs-toggle="tooltip"
               data-bs-trigger="hover focus click"
-              title="Selectionnez une organisation et un role metier, puis activez ou desactivez ce role."
-              aria-label="Aide sur les roles organisation"
+              title="Sélectionnez une organisation et un rôle métier, puis activez ou désactivez ce rôle."
+              aria-label="Aide sur les rôles d'organisation"
             >?</button>
           </h4>
           <form method="post" class="row g-2">
@@ -114,16 +114,16 @@
         </div>
       </div>
 
-      <div class="col-12 col-xl-6">
+      <div class="col-12 col-xl-6" style="order: 2;">
         <div class="ui-comp-panel p-3 border rounded-3">
           <h4 class="h6 mb-2 d-flex align-items-center gap-2">
-            Creer ou mettre a jour une personne rattachee a une organisation
+            Créer ou mettre à jour une personne rattachée à une organisation
             <button
               type="button"
               class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
               data-bs-toggle="tooltip"
               data-bs-trigger="hover focus click"
-              title="Creez un nouveau contact d'organisation ou mettez a jour un contact existant de la meme organisation."
+              title="Créez un nouveau contact d'organisation ou mettez à jour un contact existant de la même organisation."
               aria-label="Aide sur les contacts organisation"
             >?</button>
           </h4>
@@ -146,7 +146,7 @@
               <select id="scan-org-contact-existing" name="organization_contact_id" class="form-select">
                 <option value="">Nouveau contact</option>
                 <option value="" disabled>---</option>
-                <option value="" disabled>Contacts deja lies</option>
+                <option value="" disabled>Contacts déjà liés</option>
                 {% for org_contact in cockpit_linked_organization_contacts %}
                   <option
                     value="{{ org_contact.id }}"
@@ -180,11 +180,11 @@
               </select>
             </div>
             <div class="col-12 col-md-4">
-              <label class="form-label" for="scan-org-contact-title">Civilite</label>
+              <label class="form-label" for="scan-org-contact-title">Civilité</label>
               <input id="scan-org-contact-title" type="text" name="title" class="form-control" maxlength="10">
             </div>
             <div class="col-12 col-md-4">
-              <label class="form-label" for="scan-org-contact-first-name">Prenom</label>
+              <label class="form-label" for="scan-org-contact-first-name">Prénom</label>
               <input id="scan-org-contact-first-name" type="text" name="first_name" class="form-control" maxlength="120">
             </div>
             <div class="col-12 col-md-4">
@@ -196,7 +196,7 @@
               <input id="scan-org-contact-email" type="email" name="email" class="form-control">
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label" for="scan-org-contact-phone">Telephone</label>
+              <label class="form-label" for="scan-org-contact-phone">Téléphone</label>
               <input id="scan-org-contact-phone" type="text" name="phone" class="form-control" maxlength="40">
             </div>
             <div class="col-12">
@@ -212,17 +212,17 @@
         </div>
       </div>
 
-      <div class="col-12 col-xl-6">
+      <div class="col-12 col-xl-6" style="order: 4;">
         <div class="ui-comp-panel p-3 border rounded-3">
           <h4 class="h6 mb-2 d-flex align-items-center gap-2">
-            Associer une personne a un role (et definir le principal)
+            Associer une personne à un rôle (et définir le principal)
             <button
               type="button"
               class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
               data-bs-toggle="tooltip"
               data-bs-trigger="hover focus click"
-              title="Utilisez cette carte pour lier ou delier un contact a un role existant, ou definir le contact principal pour ce role."
-              aria-label="Aide sur les liaisons role-contact"
+              title="Utilisez cette carte pour lier ou délier un contact à un rôle existant, ou définir le contact principal pour ce rôle."
+              aria-label="Aide sur les liaisons rôle-contact"
             >?</button>
           </h4>
           <form method="post" class="row g-2">
@@ -245,7 +245,7 @@
               <select name="organization_contact_id" class="form-select" required>
                 <option value="">Choisir...</option>
                 <option value="" disabled>---</option>
-                <option value="" disabled>Contacts deja lies</option>
+                <option value="" disabled>Contacts déjà liés</option>
                 {% for org_contact in cockpit_linked_organization_contacts %}
                   <option value="{{ org_contact.id }}">
                     {{ org_contact.last_name }} {{ org_contact.first_name }} - {{ org_contact.organization.name }}{% if org_contact.email %} - {{ org_contact.email }}{% endif %}
@@ -269,17 +269,17 @@
         </div>
       </div>
 
-      <div class="col-12 col-xl-6">
+      <div class="col-12 col-xl-6" style="order: 5;">
         <div class="ui-comp-panel p-3 border rounded-3">
           <h4 class="h6 mb-2 d-flex align-items-center gap-2">
-            Definir le perimetre d'un expediteur (escales autorisees)
+            Définir le périmètre d'un expéditeur (escales autorisées)
             <button
               type="button"
               class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
               data-bs-toggle="tooltip"
               data-bs-trigger="hover focus click"
-              title="Configurez si un expediteur est autorise sur toutes les escales ou uniquement sur une escale donnee, avec dates de validite."
-              aria-label="Aide sur les perimetres expediteur"
+              title="Configurez si un expéditeur est autorisé sur toutes les escales ou uniquement sur une escale donnée, avec des dates de validité."
+              aria-label="Aide sur les périmètres expéditeur"
             >?</button>
           </h4>
           <form id="scan-shipper-scope-upsert-form" method="post" class="row g-2">
@@ -288,7 +288,7 @@
             <input type="hidden" name="q" value="{{ query }}">
             <input type="hidden" name="contact_type" value="{{ contact_filter }}">
             <div class="col-12 col-md-6">
-              <label class="form-label" for="scan-shipper-scope-role-assignment">Choisir un expediteur</label>
+              <label class="form-label" for="scan-shipper-scope-role-assignment">Choisir un expéditeur</label>
               <select id="scan-shipper-scope-role-assignment" name="role_assignment_id" class="form-select" required>
                 <option value="">Choisir...</option>
                 {% for assignment in cockpit_shipper_role_assignments %}
@@ -298,18 +298,18 @@
             </div>
             <div class="col-12 col-md-6">
               <label class="form-label d-flex align-items-center gap-2" for="scan-shipper-scope-id">
-                Regle de perimetre existante (optionnel)
+                Règle de périmètre existante (optionnel)
                 <button
                   type="button"
                   class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
                   data-bs-toggle="tooltip"
                   data-bs-trigger="hover focus click"
-                  title="Selectionnez une regle existante pour la modifier au lieu d'en creer une nouvelle."
-                  aria-label="Aide sur les regles de perimetre existantes"
+                  title="Sélectionnez une règle existante pour la modifier au lieu d'en créer une nouvelle."
+                  aria-label="Aide sur les règles de périmètre existantes"
                 >?</button>
               </label>
               <select id="scan-shipper-scope-id" name="scope_id" class="form-select">
-                <option value="">Nouveau scope</option>
+                <option value="">Nouveau périmètre</option>
                 {% for scope in cockpit_shipper_scopes %}
                   <option value="{{ scope.id }}">
                     {{ scope.role_assignment.organization.name }} - {% if scope.all_destinations %}Toutes escales{% else %}{{ scope.destination.iata_code }}{% endif %}
@@ -341,7 +341,7 @@
               <input type="datetime-local" name="valid_to" class="form-control">
             </div>
             <div class="col-12">
-              <button type="submit" class="btn btn-primary">Créer / mettre à jour scope</button>
+              <button type="submit" class="btn btn-primary">Créer / mettre à jour le périmètre</button>
             </div>
           </form>
           <hr>
@@ -352,14 +352,14 @@
             <input type="hidden" name="contact_type" value="{{ contact_filter }}">
             <div class="col-12 col-md-8">
               <label class="form-label d-flex align-items-center gap-2" for="scan-shipper-scope-disable-id">
-                Regle de perimetre a desactiver
+                Règle de périmètre à désactiver
                 <button
                   type="button"
                   class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
                   data-bs-toggle="tooltip"
                   data-bs-trigger="hover focus click"
-                  title="Choisissez ici la regle active a fermer pour retirer une autorisation d'escale."
-                  aria-label="Aide sur la desactivation de perimetre"
+                  title="Choisissez ici la règle active à fermer pour retirer une autorisation d'escale."
+                  aria-label="Aide sur la désactivation de périmètre"
                 >?</button>
               </label>
               <select id="scan-shipper-scope-disable-id" name="scope_id" class="form-select" required>
@@ -374,23 +374,23 @@
               </select>
             </div>
             <div class="col-12 col-md-4 d-flex align-items-end">
-              <button type="submit" class="btn btn-warning">Désactiver scope</button>
+              <button type="submit" class="btn btn-warning">Désactiver le périmètre</button>
             </div>
           </form>
         </div>
       </div>
 
-      <div class="col-12 col-xl-6">
+      <div class="col-12 col-xl-6" style="order: 6;">
         <div class="ui-comp-panel p-3 border rounded-3">
           <h4 class="h6 mb-2 d-flex align-items-center gap-2">
-            Lier un destinataire a un expediteur et a une escale
+            Lier un destinataire à un expéditeur et à une escale
             <button
               type="button"
               class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
               data-bs-toggle="tooltip"
               data-bs-trigger="hover focus click"
-              title="Creez ou mettez a jour un lien expediteur vers destinataire sur une escale precise, puis cloturez-le si besoin."
-              aria-label="Aide sur les liens expediteur-destinataire"
+              title="Créez ou mettez à jour un lien expéditeur vers destinataire sur une escale précise, puis clôturez-le si besoin."
+              aria-label="Aide sur les liens expéditeur-destinataire"
             >?</button>
           </h4>
           <form id="scan-recipient-binding-upsert-form" method="post" class="row g-2">
@@ -401,7 +401,7 @@
             <div class="col-12 col-md-6">
               <label class="form-label" for="scan-binding-existing">Lien existant (optionnel)</label>
               <select id="scan-binding-existing" name="binding_id" class="form-select">
-                <option value="">Nouveau binding</option>
+                <option value="">Nouveau lien</option>
                 {% for binding in cockpit_recipient_bindings %}
                   <option
                     value="{{ binding.id }}"
@@ -417,7 +417,7 @@
               </select>
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label" for="scan-binding-shipper-org-id">Expediteur</label>
+              <label class="form-label" for="scan-binding-shipper-org-id">Expéditeur</label>
               <select id="scan-binding-shipper-org-id" name="shipper_org_id" class="form-select" required>
                 <option value="">Choisir...</option>
                 {% for organization in cockpit_organizations %}
@@ -444,15 +444,15 @@
               </select>
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label" for="scan-binding-valid-from">Validite debut</label>
+              <label class="form-label" for="scan-binding-valid-from">Validité début</label>
               <input id="scan-binding-valid-from" type="datetime-local" name="valid_from" class="form-control">
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label" for="scan-binding-valid-to">Validite fin</label>
+              <label class="form-label" for="scan-binding-valid-to">Validité fin</label>
               <input id="scan-binding-valid-to" type="datetime-local" name="valid_to" class="form-control">
             </div>
             <div class="col-12">
-              <button type="submit" class="btn btn-primary">Créer / mettre à jour binding</button>
+              <button type="submit" class="btn btn-primary">Créer / mettre à jour le lien</button>
             </div>
           </form>
           <hr>
@@ -462,7 +462,7 @@
             <input type="hidden" name="q" value="{{ query }}">
             <input type="hidden" name="contact_type" value="{{ contact_filter }}">
             <div class="col-12 col-md-6">
-              <label class="form-label">Lien a cloturer</label>
+              <label class="form-label">Lien à clôturer</label>
               <select name="binding_id" class="form-select" required>
                 <option value="">Choisir...</option>
                 {% for binding in cockpit_recipient_bindings %}
@@ -479,23 +479,23 @@
               <input type="datetime-local" name="valid_to" class="form-control" required>
             </div>
             <div class="col-12">
-              <button type="submit" class="btn btn-warning">Clôturer binding</button>
+              <button type="submit" class="btn btn-warning">Clôturer le lien</button>
             </div>
           </form>
         </div>
       </div>
 
-      <div class="col-12 col-xl-6">
+      <div class="col-12 col-xl-6" style="order: 1;">
         <div class="ui-comp-panel p-3 border rounded-3">
           <h4 class="h6 mb-2 d-flex align-items-center gap-2">
-            Assistant de creation rapide (organisation)
+            Assistant de création rapide (organisation)
             <button
               type="button"
               class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
               data-bs-toggle="tooltip"
               data-bs-trigger="hover focus click"
-              title="Assistant simplifie pour creer une organisation seule, ou une organisation avec un contact principal rattache."
-              aria-label="Aide sur la creation guidee"
+              title="Assistant simplifié pour créer une organisation seule, ou une organisation avec un contact principal rattaché."
+              aria-label="Aide sur la création guidée"
             >?</button>
           </h4>
           <form id="scan-guided-contact-form" method="post" class="row g-2">
@@ -504,14 +504,14 @@
             <input type="hidden" name="q" value="{{ query }}">
             <input type="hidden" name="contact_type" value="{{ contact_filter }}">
             <div class="col-12 col-md-6">
-              <label class="form-label" for="scan-guided-entity-kind">Je cree</label>
+              <label class="form-label" for="scan-guided-entity-kind">Je crée</label>
               <select id="scan-guided-entity-kind" name="entity_kind" class="form-select" required>
                 <option value="organization">une organisation</option>
-                <option value="organization_with_contact">une organisation et une personne liee</option>
+                <option value="organization_with_contact">une organisation et une personne liée</option>
               </select>
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label" for="scan-guided-role">Role initial</label>
+              <label class="form-label" for="scan-guided-role">Rôle initial</label>
               <select id="scan-guided-role" name="role" class="form-select" required>
                 <option value="">Choisir...</option>
                 {% for value, label in cockpit_role_choices %}
@@ -528,7 +528,7 @@
               <input id="scan-guided-name" type="text" name="name" class="form-control" maxlength="200">
             </div>
             <div class="col-12 col-md-4">
-              <label class="form-label" for="scan-guided-first-name">Prenom</label>
+              <label class="form-label" for="scan-guided-first-name">Prénom</label>
               <input id="scan-guided-first-name" type="text" name="first_name" class="form-control" maxlength="120">
             </div>
             <div class="col-12 col-md-4">
@@ -540,7 +540,7 @@
               <input id="scan-guided-email" type="email" name="email" class="form-control">
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label" for="scan-guided-phone">Telephone</label>
+              <label class="form-label" for="scan-guided-phone">Téléphone</label>
               <input id="scan-guided-phone" type="text" name="phone" class="form-control" maxlength="40">
             </div>
             <div class="col-12">
@@ -803,7 +803,7 @@
                       </form>
                     </div>
                   {% else %}
-                    <span class="scan-help">Edition legacy desactivee.</span>
+                    <span class="scan-help">Édition legacy désactivée.</span>
                   {% endif %}
                 </td>
               </tr>

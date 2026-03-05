@@ -186,7 +186,7 @@ class ScanAdminViewTests(TestCase):
         response = self.client.get(reverse("scan:scan_admin_contacts"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Mode legacy desactive")
+        self.assertContains(response, "Mode legacy désactivé")
         self.assertNotContains(response, 'name="action" value="create_contact"')
         self.assertContains(response, 'name="action" value="assign_role"')
         self.assertContains(response, 'name="action" value="create_guided_contact"')

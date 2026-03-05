@@ -470,7 +470,7 @@ def scan_admin_contacts(request):
         if action in LEGACY_CONTACT_ACTIONS and not legacy_contact_write_enabled:
             messages.error(
                 request,
-                "Mode legacy desactive: utilisez les actions org-role.",
+                "Mode legacy désactivé: utilisez les actions org-role.",
             )
             return _build_contacts_redirect(query=query, contact_filter=contact_filter)
         if action == ACTION_ASSIGN_ROLE:
