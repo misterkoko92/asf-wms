@@ -100,3 +100,12 @@ class ScanRuntimeSettingsFormTests(TestCase):
         )
 
         self.assertTrue(form.is_valid())
+
+    def test_form_without_instance_applies_default_engine_and_review_values(self):
+        form = ScanRuntimeSettingsForm(
+            data=self._payload(change_note=""),
+        )
+
+        self.assertTrue(form.is_valid())
+        self.assertFalse(form.cleaned_data["org_roles_engine_enabled"])
+        self.assertEqual(form.cleaned_data["org_roles_review_max_open_percent"], 20)

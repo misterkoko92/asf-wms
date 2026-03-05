@@ -41,6 +41,17 @@ class PortalPermissionsTests(TestCase):
         group = Group.objects.get(name=ASSOCIATION_PORTAL_GROUP_NAME)
         self.assertTrue(user.groups.filter(id=group.id).exists())
 
+    def test_assign_association_portal_group_ignores_unsaved_user(self):
+        unsaved_user = get_user_model()(username="unsaved-portal-user")
+        before_count = Group.objects.filter(name=ASSOCIATION_PORTAL_GROUP_NAME).count()
+
+        assign_association_portal_group(unsaved_user, sync_permissions=True)
+
+        self.assertEqual(
+            Group.objects.filter(name=ASSOCIATION_PORTAL_GROUP_NAME).count(),
+            before_count,
+        )
+
     def test_association_profile_creation_auto_assigns_group(self):
         user = get_user_model().objects.create_user(
             username="portal-profile-user",

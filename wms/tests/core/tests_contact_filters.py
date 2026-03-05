@@ -1,6 +1,7 @@
 from django.test import TestCase
 
-from contacts.models import Contact, ContactTag
+from contacts.models import Contact, ContactTag, ContactType
+from contacts.rules import ensure_default_shipper_for_recipient, tags_match
 from wms.contact_filters import (
     TAG_RECIPIENT,
     TAG_SHIPPER,
@@ -60,6 +61,13 @@ class ContactFiltersTests(TestCase):
         results = list(contacts_with_tags(TAG_RECIPIENT))
 
         self.assertEqual(results, [contact])
+
+    def test_contacts_with_tags_returns_empty_when_requested_tags_normalize_to_empty(self):
+        self._create_contact("Any Contact", tags=("expediteur",))
+
+        results = list(contacts_with_tags(["   ", None]))
+
+        self.assertEqual(results, [])
 
     def test_filter_contacts_for_destination_supports_multi_destination_scope(self):
         destination = Destination.objects.create(
@@ -148,3 +156,27 @@ class ContactFiltersTests(TestCase):
         filtered = filter_recipients_for_shipper(queryset, shipper_a)
 
         self.assertEqual(list(filtered), [global_recipient, linked_recipient])
+
+    def test_filter_recipients_for_shipper_returns_empty_when_shipper_missing(self):
+        recipient = self._create_contact("Recipient Global", tags=("destinataire",))
+
+        filtered = filter_recipients_for_shipper(
+            Contact.objects.filter(pk=recipient.pk),
+            None,
+        )
+
+        self.assertEqual(list(filtered), [])
+
+    def test_ensure_default_shipper_for_recipient_returns_false_for_unsaved_contact(self):
+        unsaved_contact = Contact(
+            name="Unsaved Recipient",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+
+        self.assertFalse(ensure_default_shipper_for_recipient(unsaved_contact))
+
+    def test_tags_match_returns_false_when_expected_tags_normalize_to_empty(self):
+        tag = ContactTag(name="destinataire")
+
+        self.assertFalse(tags_match([tag], ["  ", None]))
