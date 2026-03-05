@@ -21,6 +21,7 @@ from .forms_scan_admin_contacts_cockpit import (
     ShipperScopeUpsertForm,
 )
 from .models import (
+    AssociationContactTitle,
     Destination,
     OrganizationContact,
     OrganizationRole,
@@ -43,6 +44,57 @@ ACTION_DISABLE_SHIPPER_SCOPE = "disable_shipper_scope"
 ACTION_UPSERT_RECIPIENT_BINDING = "upsert_recipient_binding"
 ACTION_CLOSE_RECIPIENT_BINDING = "close_recipient_binding"
 ACTION_CREATE_GUIDED_CONTACT = "create_guided_contact"
+CONTACT_TITLE_GROUP_KEYS = (
+    (
+        "Classiques",
+        (
+            AssociationContactTitle.MR,
+            AssociationContactTitle.MRS,
+            AssociationContactTitle.MS,
+        ),
+    ),
+    (
+        "Religieux",
+        (
+            AssociationContactTitle.PERE,
+            AssociationContactTitle.SOEUR,
+            AssociationContactTitle.FRERE,
+            AssociationContactTitle.ABBE,
+            AssociationContactTitle.IMAM,
+            AssociationContactTitle.RABBIN,
+            AssociationContactTitle.PASTEUR,
+            AssociationContactTitle.EVEQUE,
+            AssociationContactTitle.MONSEIGNEUR,
+        ),
+    ),
+    (
+        "Médicaux",
+        (
+            AssociationContactTitle.DR,
+            AssociationContactTitle.PR,
+        ),
+    ),
+    (
+        "Officiels",
+        (
+            AssociationContactTitle.PRESIDENT,
+            AssociationContactTitle.MINISTRE,
+            AssociationContactTitle.AMBASSADEUR,
+            AssociationContactTitle.MAIRE,
+            AssociationContactTitle.PREFET,
+            AssociationContactTitle.GOUVERNEUR,
+            AssociationContactTitle.DEPUTE,
+            AssociationContactTitle.SENATEUR,
+            AssociationContactTitle.GENERAL,
+            AssociationContactTitle.COLONEL,
+            AssociationContactTitle.COMMANDANT,
+            AssociationContactTitle.CAPITAINE,
+            AssociationContactTitle.LIEUTENANT,
+            AssociationContactTitle.ADJUDANT,
+            AssociationContactTitle.SERGENT,
+        ),
+    ),
+)
 
 
 def parse_cockpit_filters(*, role: str = "", shipper_org_id: str = "") -> dict:
@@ -376,6 +428,15 @@ def _resolve_active_org_by_id(org_id: int | None):
     return _resolve_active_organization(org_id)
 
 
+def _build_contact_title_groups() -> list[dict]:
+    labels_by_value = dict(AssociationContactTitle.choices)
+    groups = []
+    for group_label, group_values in CONTACT_TITLE_GROUP_KEYS:
+        group_choices = [(value, labels_by_value[value]) for value in group_values]
+        groups.append({"label": group_label, "choices": group_choices})
+    return groups
+
+
 def _organization_has_active_role(*, organization, role: str) -> bool:
     if organization is None:
         return False
@@ -689,6 +750,7 @@ def build_cockpit_context(*, query: str, filters: dict) -> dict:
         "cockpit_rows": build_cockpit_rows(query=query, filters=filters),
         "cockpit_mode": "org_roles",
         "cockpit_role_choices": OrganizationRole.choices,
+        "cockpit_contact_title_groups": _build_contact_title_groups(),
         "cockpit_organizations": organizations,
         "cockpit_binding_shipper_organizations": binding_shipper_organizations,
         "cockpit_binding_recipient_organizations": binding_recipient_organizations,

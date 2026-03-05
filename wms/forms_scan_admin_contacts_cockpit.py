@@ -1,6 +1,16 @@
+import re
+import unicodedata
+
 from django import forms
 
-from .models import OrganizationRole
+from .models import AssociationContactTitle, OrganizationRole
+
+
+def _normalize_title_key(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", (value or "").strip())
+    normalized = normalized.encode("ascii", "ignore").decode("ascii")
+    normalized = normalized.lower()
+    return re.sub(r"[^a-z0-9]+", "", normalized)
 
 
 class OrganizationContactUpsertForm(forms.Form):
@@ -12,6 +22,35 @@ class OrganizationContactUpsertForm(forms.Form):
     email = forms.EmailField(required=False)
     phone = forms.CharField(required=False, max_length=40)
     is_active = forms.BooleanField(required=False)
+
+    def clean_title(self):
+        raw_title = (self.cleaned_data.get("title") or "").strip()
+        if not raw_title:
+            return ""
+
+        normalized_input = raw_title
+        while (
+            len(normalized_input) >= 2
+            and normalized_input[0] == normalized_input[-1]
+            and normalized_input[0] in {"'", '"'}
+        ):
+            normalized_input = normalized_input[1:-1].strip()
+        if not normalized_input:
+            return ""
+
+        normalized_lookup = {}
+        for value, label in AssociationContactTitle.choices:
+            normalized_lookup[_normalize_title_key(value)] = value
+            normalized_lookup[_normalize_title_key(label)] = value
+        normalized_lookup[_normalize_title_key("m")] = AssociationContactTitle.MR
+        normalized_lookup[_normalize_title_key("monsieur")] = AssociationContactTitle.MR
+        normalized_lookup[_normalize_title_key("madame")] = AssociationContactTitle.MRS
+        normalized_lookup[_normalize_title_key("mademoiselle")] = AssociationContactTitle.MS
+
+        resolved_value = normalized_lookup.get(_normalize_title_key(normalized_input))
+        if resolved_value:
+            return resolved_value
+        raise forms.ValidationError("Civilite invalide.")
 
 
 class RoleContactActionForm(forms.Form):

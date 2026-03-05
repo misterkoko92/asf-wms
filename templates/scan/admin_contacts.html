@@ -176,7 +176,16 @@
             </div>
             <div class="col-12 col-md-4">
               <label class="form-label" for="scan-org-contact-title">Civilité</label>
-              <input id="scan-org-contact-title" type="text" name="title" class="form-control" maxlength="10">
+              <select id="scan-org-contact-title" name="title" class="form-select">
+                <option value="">Aucune</option>
+                {% for group in cockpit_contact_title_groups %}
+                  <optgroup label="{{ group.label }}">
+                    {% for value, label in group.choices %}
+                      <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                  </optgroup>
+                {% endfor %}
+              </select>
             </div>
             <div class="col-12 col-md-4">
               <label class="form-label" for="scan-org-contact-first-name">Prénom</label>
@@ -193,6 +202,9 @@
             <div class="col-12 col-md-6">
               <label class="form-label" for="scan-org-contact-phone">Téléphone</label>
               <input id="scan-org-contact-phone" type="text" name="phone" class="form-control" maxlength="40">
+              <div class="form-text">
+                Optionnel. Format international attendu: <code>+33000000000</code> ou <code>+33 6 20 20 20 20</code>.
+              </div>
             </div>
             <div class="col-12">
               <div class="form-check form-switch">

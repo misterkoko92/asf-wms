@@ -6,6 +6,7 @@ from django.urls import reverse
 
 from contacts.models import Contact, ContactType
 from wms.models import (
+    AssociationContactTitle,
     Destination,
     OrganizationContact,
     OrganizationRole,
@@ -198,6 +199,7 @@ class ScanAdminContactsCockpitViewTests(TestCase):
             {
                 "action": "upsert_org_contact",
                 "organization_id": str(self.other_org.id),
+                "title": AssociationContactTitle.MRS,
                 "first_name": "Aya",
                 "last_name": "Diallo",
                 "email": "aya.diallo@example.org",
@@ -211,9 +213,74 @@ class ScanAdminContactsCockpitViewTests(TestCase):
         self.assertTrue(
             OrganizationContact.objects.filter(
                 organization=self.other_org,
+                title=AssociationContactTitle.MRS,
                 first_name="Aya",
                 last_name="Diallo",
                 email="aya.diallo@example.org",
+                is_active=True,
+            ).exists()
+        )
+
+    def test_org_contact_form_renders_grouped_title_selector(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_admin_contacts"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="scan-org-contact-title"')
+        self.assertContains(response, 'optgroup label="Classiques"')
+        self.assertContains(response, 'optgroup label="Religieux"')
+        self.assertContains(response, 'optgroup label="Médicaux"')
+        self.assertContains(response, 'optgroup label="Officiels"')
+        self.assertContains(
+            response,
+            f'<option value="{AssociationContactTitle.MRS}">Mme</option>',
+            html=True,
+        )
+        self.assertContains(
+            response,
+            f'<option value="{AssociationContactTitle.DR}">Dr</option>',
+            html=True,
+        )
+        self.assertContains(
+            response,
+            f'<option value="{AssociationContactTitle.PERE}">Père</option>',
+            html=True,
+        )
+        self.assertContains(
+            response,
+            f'<option value="{AssociationContactTitle.PRESIDENT}">Président</option>',
+            html=True,
+        )
+        self.assertContains(response, "Optionnel. Format international attendu:")
+        self.assertContains(response, "<code>+33000000000</code>", html=True)
+        self.assertContains(response, "<code>+33 6 20 20 20 20</code>", html=True)
+
+    def test_upsert_org_contact_normalizes_quoted_human_title(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.post(
+            reverse("scan:scan_admin_contacts"),
+            {
+                "action": "upsert_org_contact",
+                "organization_id": str(self.other_org.id),
+                "title": "'Mme'",
+                "first_name": "Nina",
+                "last_name": "Role",
+                "email": "nina.role@example.org",
+                "is_active": "1",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(
+            OrganizationContact.objects.filter(
+                organization=self.other_org,
+                title=AssociationContactTitle.MRS,
+                first_name="Nina",
+                last_name="Role",
+                email="nina.role@example.org",
                 is_active=True,
             ).exists()
         )
