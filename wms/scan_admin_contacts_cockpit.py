@@ -481,8 +481,19 @@ def upsert_recipient_binding(*, data) -> tuple[bool, str]:
         binding = RecipientBinding.objects.filter(pk=binding_id).first()
         if binding is None:
             return False, "Binding destinataire introuvable."
+    existing_active_binding = RecipientBinding.objects.filter(
+        shipper_org=shipper_org,
+        recipient_org=recipient_org,
+        destination=destination,
+        is_active=True,
+    ).first()
     if binding is None:
-        binding = RecipientBinding()
+        binding = existing_active_binding or RecipientBinding()
+    elif existing_active_binding and existing_active_binding.id != binding.id:
+        return (
+            False,
+            "Un binding actif existe deja pour cet expediteur, ce destinataire et cette escale.",
+        )
 
     binding.shipper_org = shipper_org
     binding.recipient_org = recipient_org

@@ -681,6 +681,42 @@ class ScanAdminContactsCockpitViewTests(TestCase):
             ).exists()
         )
 
+    def test_upsert_recipient_binding_updates_existing_active_tuple_without_constraint_error(self):
+        self.client.force_login(self.superuser)
+
+        existing_binding = RecipientBinding.objects.get(
+            shipper_org=self.shipper,
+            recipient_org=self.recipient,
+            destination=self.destination,
+            is_active=True,
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_admin_contacts"),
+            {
+                "action": "upsert_recipient_binding",
+                "shipper_org_id": str(self.shipper.id),
+                "recipient_org_id": str(self.recipient.id),
+                "destination_id": str(self.destination.id),
+                "valid_to": "2030-01-01T10:00",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Binding destinataire enregistre.")
+        self.assertEqual(
+            RecipientBinding.objects.filter(
+                shipper_org=self.shipper,
+                recipient_org=self.recipient,
+                destination=self.destination,
+                is_active=True,
+            ).count(),
+            1,
+        )
+        existing_binding.refresh_from_db()
+        self.assertIsNotNone(existing_binding.valid_to)
+
     def test_close_recipient_binding_sets_valid_to_and_inactive(self):
         self.client.force_login(self.superuser)
         binding = RecipientBinding.objects.create(
