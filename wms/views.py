@@ -7,6 +7,8 @@ from .views_portal import (
     portal_account_request,
     portal_change_password,
     portal_dashboard,
+    portal_first_connection,
+    portal_forgot_password,
     portal_login,
     portal_logout,
     portal_order_create,
@@ -69,6 +71,8 @@ from .views_scan import (
 
 PORTAL_EXPORTS = (
     "portal_login",
+    "portal_first_connection",
+    "portal_forgot_password",
     "portal_logout",
     "portal_set_password",
     "portal_change_password",

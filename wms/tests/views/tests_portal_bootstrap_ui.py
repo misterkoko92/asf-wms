@@ -184,6 +184,8 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(login_response, "ui-comp-card")
         self.assertContains(login_response, "ui-comp-title")
         self.assertContains(login_response, "ui-comp-form")
+        self.assertContains(login_response, reverse("portal:portal_first_connection"))
+        self.assertContains(login_response, reverse("portal:portal_forgot_password"))
 
         uidb64 = urlsafe_base64_encode(str(self.user.pk).encode())
         set_password_url = reverse(
@@ -199,6 +201,29 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(set_password_response, "ui-comp-card")
         self.assertContains(set_password_response, "ui-comp-title")
         self.assertContains(set_password_response, "ui-comp-form")
+
+    def test_portal_recovery_pages_include_bootstrap_assets(self):
+        self.client.logout()
+
+        first_connection_response = self.client.get(reverse("portal:portal_first_connection"))
+        self.assertEqual(first_connection_response.status_code, 200)
+        self.assertContains(first_connection_response, "family=DM+Sans")
+        self.assertContains(first_connection_response, "family=Nunito+Sans")
+        self.assertContains(first_connection_response, "scan-bootstrap.css")
+        self.assertContains(first_connection_response, "portal-bootstrap.css")
+        self.assertContains(first_connection_response, "ui-comp-card")
+        self.assertContains(first_connection_response, "ui-comp-title")
+        self.assertContains(first_connection_response, "ui-comp-form")
+        self.assertContains(first_connection_response, "form-control")
+        self.assertContains(first_connection_response, "btn btn-primary")
+
+        forgot_password_response = self.client.get(reverse("portal:portal_forgot_password"))
+        self.assertEqual(forgot_password_response.status_code, 200)
+        self.assertContains(forgot_password_response, "ui-comp-card")
+        self.assertContains(forgot_password_response, "ui-comp-title")
+        self.assertContains(forgot_password_response, "ui-comp-form")
+        self.assertContains(forgot_password_response, "form-control")
+        self.assertContains(forgot_password_response, "btn btn-primary")
 
     def test_portal_account_request_uses_bootstrap_controls(self):
         self.client.logout()

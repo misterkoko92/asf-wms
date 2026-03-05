@@ -3,7 +3,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <title>Connexion association</title>
+  <title>{{ page_title }}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,15 +22,15 @@
   <div class="scan-shell">
     <main class="scan-main">
       <div class="scan-card card border-0 ui-comp-card">
-        <h2 class="ui-comp-title">Connexion association</h2>
-        <p class="scan-help">Utilisez votre email et votre mot de passe.</p>
-        <p class="scan-help">Pas de compte ? Envoyez une demande, elle sera valid&eacute;e par un administrateur ASF.</p>
-        <a class="scan-scan-btn scan-doc-btn btn btn-tertiary" href="{% url 'portal:portal_account_request' %}">
-          Demander un compte
-        </a>
+        <h2 class="ui-comp-title">{{ heading }}</h2>
+        <p class="scan-help">{{ lead }}</p>
+        <p class="scan-help"><a href="{% url 'portal:portal_login' %}">Retour a la connexion</a></p>
       </div>
 
       <div class="scan-card card border-0 ui-comp-card">
+        {% if success_message %}
+          <div class="scan-message success">{{ success_message }}</div>
+        {% endif %}
         {% if errors %}
           <div class="scan-message error">
             {% for error in errors %}
@@ -41,23 +41,11 @@
 
         <form method="post" novalidate class="ui-comp-form">
           {% csrf_token %}
-          {% if next %}
-            <input type="hidden" name="next" value="{{ next }}">
-          {% endif %}
           <div class="scan-field">
-            <label class="form-label" for="identifier">Email</label>
-            <input class="form-control" type="text" id="identifier" name="identifier" value="{{ identifier|default:'' }}" required>
+            <label class="form-label" for="email">Email</label>
+            <input class="form-control" type="email" id="email" name="email" value="{{ email|default:'' }}" required>
           </div>
-          <div class="scan-field">
-            <label class="form-label" for="password">Mot de passe</label>
-            <input class="form-control" type="password" id="password" name="password" required>
-          </div>
-          <p class="scan-help">
-            <a href="{% url 'portal:portal_first_connection' %}">Premiere connexion</a>
-            &middot;
-            <a href="{% url 'portal:portal_forgot_password' %}">Mot de passe oublie</a>
-          </p>
-          <button type="submit" class="scan-submit btn btn-primary">Se connecter</button>
+          <button type="submit" class="scan-submit btn btn-primary">{{ submit_label }}</button>
         </form>
       </div>
     </main>

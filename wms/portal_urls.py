@@ -6,6 +6,16 @@ app_name = "portal"
 
 urlpatterns = [
     path("login/", views.portal_login, name="portal_login"),
+    path(
+        "first-connection/",
+        views.portal_first_connection,
+        name="portal_first_connection",
+    ),
+    path(
+        "forgot-password/",
+        views.portal_forgot_password,
+        name="portal_forgot_password",
+    ),
     path("logout/", views.portal_logout, name="portal_logout"),
     path("change-password/", views.portal_change_password, name="portal_change_password"),
     path(
