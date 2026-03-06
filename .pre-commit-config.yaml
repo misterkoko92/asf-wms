@@ -2,7 +2,11 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
+      - id: check-json
       - id: check-merge-conflict
+      - id: check-toml
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
       - id: end-of-file-fixer
       - id: trailing-whitespace
       - id: check-yaml
@@ -11,9 +15,28 @@ repos:
     rev: v0.8.6
     hooks:
       - id: ruff
-        args: ["--config=.ruff.toml"]
         files: ^(asf_wms|api|contacts|wms)/.*\.py$
         exclude: ^(wms/migrations/|contacts/migrations/)
+      - id: ruff-format
+        files: ^(asf_wms|api|contacts|wms)/.*\.py$
+        exclude: ^(wms/migrations/|contacts/migrations/)
+
+  - repo: https://github.com/djlint/djLint
+    rev: v1.36.4
+    hooks:
+      - id: djlint-django
+        args: ["--profile=django", "--ignore=H006,H021,H023,H030,H031,T003,D018"]
+        files: ^templates/.*\.html$
+        exclude: ^templates/app/next_build_missing\.html$
+
+  - repo: local
+    hooks:
+      - id: detect-secrets
+        name: detect-secrets
+        entry: detect-secrets-hook --baseline .secrets.baseline
+        language: python
+        additional_dependencies: ["detect-secrets==1.5.0"]
+        exclude: ^\.secrets\.baseline$
 
   - repo: https://github.com/PyCQA/bandit
     rev: 1.9.3

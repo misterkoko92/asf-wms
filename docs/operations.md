@@ -7,13 +7,27 @@ This runbook is for day-to-day operations, releases, and incident handling.
 Before any production deployment, run the full gate:
 
 ```bash
-python manage.py check
-python manage.py check --deploy --fail-level WARNING
-python manage.py makemigrations --check --dry-run
-python manage.py test
-ruff check .
-bandit -r asf_wms api contacts wms -x "wms/migrations,contacts/migrations,wms/tests,api/tests,contacts/tests"
+uv sync --frozen
+make pre-commit
+make ci
 ```
+
+Emergency fallback if `uv sync --frozen` is blocked on the machine:
+
+```bash
+python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt
+make pre-commit
+make ci
+```
+
+Tooling roles:
+
+- `make typecheck` is the blocking type gate.
+- `make typecheck-pyright` is an informational shadow signal.
+- `make export-requirements` regenerates `requirements.txt` and `requirements-dev.txt` from `uv.lock`.
+- `SKIP=<hook-id> git commit ...` is acceptable only as a temporary local escape hatch while fixing a false positive; do not remove the hook from CI without investigation.
+- Keep `mypy` as the release gate even if `pyright` becomes noisy.
 
 Reference audit: `docs/audit_2026-02-19.md`.
 
@@ -79,28 +93,24 @@ Integration/security values:
 From repo root:
 
 ```bash
-python -m pip install -r requirements.txt
-python -m pip install -r requirements-dev.txt
-# optional modern path (installs into .venv with uv)
-# make install-dev-uv
-make check
-make migrate-check
-make deploy-check
-make deploy-check-prod-like
-# optional formatting shadow check (non-blocking until global reformat window)
-# make fmt-check
-make lint
-make typecheck
-# optional shadow type-check (non-blocking rollout)
-# make typecheck-pyright
-make bandit
-make coverage
-make audit
+uv sync --frozen
+pre-commit install
+make pre-commit
+make ci
 ```
 
-`make typecheck` is intentionally scoped to selected core modules defined in `mypy.ini`.
-`make typecheck-pyright` mirrors this critical-module scope through `pyrightconfig.json` and is currently intended as a shadow signal before any gate switch.
-`make fmt-check` is currently a shadow check only; enable it as a hard gate after a dedicated repository-wide reformat pass.
+Fallback when `uv` is unavailable or native `mysqlclient` prerequisites are missing:
+
+```bash
+python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt
+make pre-commit
+make ci
+```
+
+`make ci` is the global verification gate for local release readiness.
+`make typecheck` is intentionally scoped to selected core modules defined in `mypy.ini` and remains blocking.
+`make typecheck-pyright` mirrors this critical-module scope through `pyrightconfig.json` and remains informational until a longer green period proves it is stable.
 `make coverage` is the source of truth for the coverage gate (`COVERAGE_FAIL_UNDER`, default `93`) and excludes paused Next/frontend tags by default.
 `make deploy-check-prod-like` sources `.env.deploy.example` (or `DEPLOY_ENV_FILE=...`) to run a reproducible local deploy check profile.
 
@@ -108,6 +118,7 @@ Notes:
 
 - `make audit-soft` always writes `pip-audit-report.json`; if `pypi.org` is unreachable, the report contains an explicit skip reason.
 - `make audit` remains the strict command (network required) for a full local vulnerability run.
+- After editing dependencies, run `make lock` then `make export-requirements` to avoid drift between `uv.lock` and exported requirements files.
 
 ## 3) Deploy sequence
 
@@ -126,6 +137,15 @@ Run the document scan worker regularly (cron/systemd timer):
 ```bash
 python manage.py process_document_scan_queue --limit=200
 ```
+
+### 3.0) Tooling rollback
+
+If the standardized Python tooling blocks a release or hotfix:
+
+1. Fallback to `pip install -r requirements.txt && pip install -r requirements-dev.txt`.
+2. Keep `make typecheck` as the blocking type gate; treat `make typecheck-pyright` as informational noise until tuned.
+3. If a local `pre-commit` hook is a false positive, bypass it temporarily with `SKIP=<hook-id> git commit ...` and fix the hook or baseline immediately after.
+4. If dependency artifacts drift, regenerate with `make export-requirements` from the committed `uv.lock`.
 
 ### 3.0) Scan Bootstrap progressive rollout (`SCAN_BOOTSTRAP_ENABLED`)
 
