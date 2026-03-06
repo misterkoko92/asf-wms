@@ -1,0 +1,52 @@
+[project]
+name = "asf-wms"
+version = "0.0.0"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "Django==4.2.11",
+    "djangorestframework==3.15.2",
+    "gunicorn==21.2.0",
+    "mysqlclient==2.2.4",
+    "openpyxl==3.1.5",
+    "xlrd==2.0.1",
+    "qrcode==7.4.2",
+    "Pillow==10.3.0",
+    "pdfplumber==0.11.4",
+    "pypdf==4.3.1",
+]
+
+[dependency-groups]
+dev = [
+    "coverage>=7.6,<8",
+    "ruff>=0.7,<1",
+    "pip-audit>=2.8,<3",
+    "bandit>=1.8,<2",
+    "pre-commit>=4.0,<5",
+    "mypy>=1.14,<2",
+    "django-stubs>=5.2,<6",
+    "djangorestframework-stubs>=3.16,<4",
+    "detect-secrets>=1.5,<2",
+    "djlint>=1.36,<2",
+    "uv>=0.6,<1",
+    "pyright>=1.1,<2",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+extend-exclude = [
+    ".venv",
+    "frontend-next",
+    "wms/migrations",
+    "contacts/migrations",
+    "wms/views_next_frontend.py",
+    "wms/ui_mode.py",
+    "wms/tests/views/tests_views_next_frontend.py",
+]
+
+[tool.ruff.lint]
+select = ["E9", "F63", "F7", "F82", "I", "UP"]
+
+[tool.uv]
+package = false
+default-groups = ["dev"]
