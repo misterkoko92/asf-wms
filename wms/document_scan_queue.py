@@ -1,4 +1,4 @@
-import subprocess
+import subprocess  # nosec B404
 from datetime import timedelta
 from pathlib import Path
 

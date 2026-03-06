@@ -58,7 +58,7 @@ def _read_file_header(file_obj, length):
         try:
             seek(position if position is not None else 0)
         except Exception:
-            pass
+            position = None
 
     if isinstance(header, str):
         return header.encode()
