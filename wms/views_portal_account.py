@@ -27,9 +27,9 @@ from .portal_recipient_sync import sync_association_recipient_to_contact
 from .scan_helpers import parse_int
 from .upload_utils import validate_upload
 from .view_permissions import (
+    BLOCKED_MESSAGES,
     BLOCKED_REASON_MISSING_DELIVERY_CONTACT,
     BLOCKED_REASON_QUERY_PARAM,
-    BLOCKED_MESSAGES,
     association_required,
 )
 
@@ -384,9 +384,7 @@ def _extract_contact_rows(post_data):
             continue
         if not row["email"]:
             errors.append(f"Ligne {index + 1}: email requis.")
-        if not (
-            row["is_administrative"] or row["is_shipping"] or row["is_billing"]
-        ):
+        if not (row["is_administrative"] or row["is_shipping"] or row["is_billing"]):
             errors.append(f"Ligne {index + 1}: cochez au moins un type.")
         rows.append(row)
 
@@ -540,9 +538,9 @@ def _build_portal_account_context(
     portal_contact_rows=None,
 ):
     association = profile.contact
-    account_documents = AccountDocument.objects.filter(
-        association_contact=association
-    ).order_by("-uploaded_at")
+    account_documents = AccountDocument.objects.filter(association_contact=association).order_by(
+        "-uploaded_at"
+    )
     return {
         "association": association,
         "address": address,

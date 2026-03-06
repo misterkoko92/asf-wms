@@ -66,9 +66,7 @@ def _select_default_correspondent():
     tag_query = Q()
     for name in TAG_CORRESPONDENT:
         tag_query |= Q(tags__name__iexact=name)
-    correspondent = (
-        Contact.objects.filter(is_active=True).filter(tag_query).distinct().first()
-    )
+    correspondent = Contact.objects.filter(is_active=True).filter(tag_query).distinct().first()
     if correspondent:
         return correspondent
     tag, _ = ContactTag.objects.get_or_create(name=TAG_CORRESPONDENT[0])

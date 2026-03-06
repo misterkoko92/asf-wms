@@ -1,6 +1,5 @@
 from django.conf import settings
-from django.http import Http404
-from django.http import FileResponse
+from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_http_methods
 

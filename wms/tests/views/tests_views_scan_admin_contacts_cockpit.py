@@ -603,7 +603,9 @@ class ScanAdminContactsCockpitViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         shipper_ids = [org.id for org in response.context["cockpit_binding_shipper_organizations"]]
-        recipient_ids = [org.id for org in response.context["cockpit_binding_recipient_organizations"]]
+        recipient_ids = [
+            org.id for org in response.context["cockpit_binding_recipient_organizations"]
+        ]
         self.assertEqual(shipper_ids, [self.shipper.id])
         self.assertEqual(recipient_ids, [self.recipient.id])
         self.assertEqual(

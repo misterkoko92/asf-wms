@@ -1,6 +1,32 @@
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 
+from .ui_views import (
+    UiCartonsView,
+    UiDashboardView,
+    UiPortalAccountView,
+    UiPortalDashboardView,
+    UiPortalOrdersView,
+    UiPortalRecipientDetailView,
+    UiPortalRecipientsView,
+    UiPrintTemplateDetailView,
+    UiPrintTemplatesView,
+    UiShipmentCloseView,
+    UiShipmentCreateView,
+    UiShipmentDocumentDetailView,
+    UiShipmentDocumentsView,
+    UiShipmentFormOptionsView,
+    UiShipmentLabelDetailView,
+    UiShipmentLabelsView,
+    UiShipmentsReadyArchiveView,
+    UiShipmentsReadyView,
+    UiShipmentsTrackingView,
+    UiShipmentTrackingEventCreateView,
+    UiShipmentUpdateView,
+    UiStockOutView,
+    UiStockUpdateView,
+    UiStockView,
+)
 from .views import (
     IntegrationDestinationViewSet,
     IntegrationEventViewSet,
@@ -10,37 +36,13 @@ from .views import (
     ProductViewSet,
     ReceiveStockView,
 )
-from .ui_views import (
-    UiCartonsView,
-    UiPortalAccountView,
-    UiDashboardView,
-    UiPrintTemplateDetailView,
-    UiPrintTemplatesView,
-    UiPortalDashboardView,
-    UiPortalOrdersView,
-    UiPortalRecipientDetailView,
-    UiPortalRecipientsView,
-    UiShipmentCloseView,
-    UiShipmentCreateView,
-    UiShipmentDocumentDetailView,
-    UiShipmentDocumentsView,
-    UiShipmentFormOptionsView,
-    UiShipmentLabelDetailView,
-    UiShipmentLabelsView,
-    UiShipmentsReadyView,
-    UiShipmentsReadyArchiveView,
-    UiShipmentsTrackingView,
-    UiShipmentTrackingEventCreateView,
-    UiShipmentUpdateView,
-    UiStockOutView,
-    UiStockUpdateView,
-    UiStockView,
-)
 
 router = DefaultRouter()
 router.register("products", ProductViewSet, basename="product")
 router.register("orders", OrderViewSet, basename="order")
-router.register("integrations/shipments", IntegrationShipmentViewSet, basename="integration-shipments")
+router.register(
+    "integrations/shipments", IntegrationShipmentViewSet, basename="integration-shipments"
+)
 router.register(
     "integrations/destinations",
     IntegrationDestinationViewSet,

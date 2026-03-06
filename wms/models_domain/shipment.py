@@ -181,9 +181,7 @@ class ShipmentTrackingStatus(models.TextChoices):
 
 
 class ShipmentTrackingEvent(models.Model):
-    shipment = models.ForeignKey(
-        Shipment, on_delete=models.CASCADE, related_name="tracking_events"
-    )
+    shipment = models.ForeignKey(Shipment, on_delete=models.CASCADE, related_name="tracking_events")
     status = models.CharField(max_length=40, choices=ShipmentTrackingStatus.choices)
     actor_name = models.CharField(max_length=120)
     actor_structure = models.CharField(max_length=120)
@@ -271,12 +269,8 @@ class Carton(models.Model):
         blank=True,
         validators=[MinValueValidator(Decimal("0.01"))],
     )
-    current_location = models.ForeignKey(
-        Location, on_delete=models.PROTECT, null=True, blank=True
-    )
-    shipment = models.ForeignKey(
-        Shipment, on_delete=models.SET_NULL, null=True, blank=True
-    )
+    current_location = models.ForeignKey(Location, on_delete=models.PROTECT, null=True, blank=True)
+    shipment = models.ForeignKey(Shipment, on_delete=models.SET_NULL, null=True, blank=True)
     prepared_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True
     )
@@ -357,12 +351,8 @@ class StockMovement(models.Model):
     )
     reason_code = models.CharField(max_length=80, blank=True)
     reason_notes = models.TextField(blank=True)
-    related_carton = models.ForeignKey(
-        Carton, on_delete=models.SET_NULL, null=True, blank=True
-    )
-    related_shipment = models.ForeignKey(
-        Shipment, on_delete=models.SET_NULL, null=True, blank=True
-    )
+    related_carton = models.ForeignKey(Carton, on_delete=models.SET_NULL, null=True, blank=True)
+    related_shipment = models.ForeignKey(Shipment, on_delete=models.SET_NULL, null=True, blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True
     )
@@ -421,9 +411,7 @@ class PrintTemplate(models.Model):
 
 
 class PrintTemplateVersion(models.Model):
-    template = models.ForeignKey(
-        PrintTemplate, on_delete=models.CASCADE, related_name="versions"
-    )
+    template = models.ForeignKey(PrintTemplate, on_delete=models.CASCADE, related_name="versions")
     version = models.PositiveIntegerField()
     layout = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -471,9 +459,7 @@ class PrintPack(models.Model):
 
 
 class PrintPackDocument(models.Model):
-    pack = models.ForeignKey(
-        PrintPack, on_delete=models.CASCADE, related_name="documents"
-    )
+    pack = models.ForeignKey(PrintPack, on_delete=models.CASCADE, related_name="documents")
     doc_type = models.CharField(max_length=60)
     variant = models.CharField(max_length=40, blank=True, default="")
     sequence = models.PositiveIntegerField(default=1)

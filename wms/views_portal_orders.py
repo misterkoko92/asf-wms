@@ -15,26 +15,26 @@ from .models import (
     Order,
     OrderDocument,
     OrderDocumentType,
-    ProductCategory,
     OrderReviewStatus,
+    ProductCategory,
     ShipmentTrackingStatus,
 )
 from .order_helpers import (
     build_carton_format_data,
-    build_ready_carton_rows,
-    build_ready_carton_selection,
     build_order_line_estimates,
     build_order_line_items,
     build_order_product_rows,
+    build_ready_carton_rows,
+    build_ready_carton_selection,
     split_ready_rows_into_kits,
 )
+from .order_notifications import send_portal_order_notifications
 from .organization_role_resolvers import (
     OrganizationRoleResolutionError,
     is_org_roles_engine_enabled,
     resolve_recipient_binding_for_operation,
     resolve_shipper_for_operation,
 )
-from .order_notifications import send_portal_order_notifications
 from .portal_helpers import (
     build_destination_address,
     get_contact_address,
@@ -42,7 +42,8 @@ from .portal_helpers import (
 )
 from .portal_order_handlers import create_portal_order
 from .portal_recipient_sync import sync_association_recipient_to_contact
-from .scan_helpers import build_product_selection_data, parse_int as parse_int_safe
+from .scan_helpers import build_product_selection_data
+from .scan_helpers import parse_int as parse_int_safe
 from .services import StockError
 from .upload_utils import validate_upload
 from .view_permissions import association_required
@@ -60,9 +61,7 @@ DEFAULT_COUNTRY = "France"
 ERROR_RECIPIENT_REQUIRED = "Destinataire requis."
 ERROR_DESTINATION_REQUIRED = "Destination requise."
 ERROR_DESTINATION_INVALID = "Destination invalide."
-ERROR_RECIPIENT_UNAVAILABLE_FOR_DESTINATION = (
-    "Destinataire non disponible pour cette destination."
-)
+ERROR_RECIPIENT_UNAVAILABLE_FOR_DESTINATION = "Destinataire non disponible pour cette destination."
 ERROR_PRODUCT_REQUIRED = "Ajoutez au moins un produit."
 ERROR_ASSOCIATION_ADDRESS_REQUIRED = "Adresse association manquante."
 ERROR_RECIPIENT_INVALID = "Destinataire invalide."
@@ -87,9 +86,7 @@ def _get_dashboard_orders(profile):
             shipped_at=Coalesce(
                 Max(
                     "shipment__tracking_events__created_at",
-                    filter=Q(
-                        shipment__tracking_events__status=ShipmentTrackingStatus.BOARDING_OK
-                    ),
+                    filter=Q(shipment__tracking_events__status=ShipmentTrackingStatus.BOARDING_OK),
                 ),
                 F("shipment__created_at"),
                 output_field=DateTimeField(),
@@ -116,7 +113,9 @@ def _get_active_recipients(profile):
         AssociationRecipient.objects.filter(
             association_contact=profile.contact,
             is_active=True,
-        ).select_related("destination").order_by(
+        )
+        .select_related("destination")
+        .order_by(
             "structure_name",
             "name",
             "contact_last_name",
@@ -126,16 +125,11 @@ def _get_active_recipients(profile):
 
 
 def _get_active_destinations():
-    return list(
-        Destination.objects.filter(is_active=True).order_by("city", "country", "iata_code")
-    )
+    return list(Destination.objects.filter(is_active=True).order_by("city", "country", "iata_code"))
 
 
 def _build_destination_options(destinations):
-    return [
-        {"id": str(destination.id), "label": str(destination)}
-        for destination in destinations
-    ]
+    return [{"id": str(destination.id), "label": str(destination)} for destination in destinations]
 
 
 def _build_recipient_options(profile, recipients):

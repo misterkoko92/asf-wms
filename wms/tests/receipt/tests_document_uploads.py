@@ -104,17 +104,13 @@ class DocumentUploadsTests(SimpleTestCase):
 
     def test_validate_document_upload_rejects_invalid_doc_type(self):
         request = self.factory.post("/portal/account/", data={"doc_type": "unknown"})
-        payload, error = validate_document_upload(
-            request, doc_type_choices=self.doc_type_choices
-        )
+        payload, error = validate_document_upload(request, doc_type_choices=self.doc_type_choices)
         self.assertIsNone(payload)
         self.assertEqual(error, "Type de document invalide.")
 
     def test_validate_document_upload_requires_file(self):
         request = self.factory.post("/portal/account/", data={"doc_type": "other"})
-        payload, error = validate_document_upload(
-            request, doc_type_choices=self.doc_type_choices
-        )
+        payload, error = validate_document_upload(request, doc_type_choices=self.doc_type_choices)
         self.assertIsNone(payload)
         self.assertEqual(error, "Fichier requis.")
 
@@ -124,9 +120,7 @@ class DocumentUploadsTests(SimpleTestCase):
             "/portal/account/",
             data={"doc_type": "other", "doc_file": uploaded},
         )
-        payload, error = validate_document_upload(
-            request, doc_type_choices=self.doc_type_choices
-        )
+        payload, error = validate_document_upload(request, doc_type_choices=self.doc_type_choices)
         self.assertIsNone(payload)
         self.assertEqual(error, "Format non autorise: notes.txt")
 
@@ -136,15 +130,13 @@ class DocumentUploadsTests(SimpleTestCase):
             "/portal/account/",
             data={"doc_type": "other", "doc_file": uploaded},
         )
-        payload, error = validate_document_upload(
-            request, doc_type_choices=self.doc_type_choices
-        )
+        payload, error = validate_document_upload(request, doc_type_choices=self.doc_type_choices)
         self.assertIsNone(error)
         self.assertEqual(payload[0], "other")
         self.assertEqual(payload[1].name, "piece.pdf")
 
     def test_validate_document_upload_supports_custom_file_field(self):
-        uploaded = SimpleUploadedFile("proof.jpg", b"\xFF\xD8\xFF\xE0jpg-data")
+        uploaded = SimpleUploadedFile("proof.jpg", b"\xff\xd8\xff\xe0jpg-data")
         request = self.factory.post(
             "/portal/account/",
             data={"doc_type": "statutes", "attachment": uploaded},

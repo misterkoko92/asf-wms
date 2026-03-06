@@ -11,15 +11,16 @@ from rest_framework.test import APIClient
 
 from contacts.models import Contact, ContactTag, ContactType
 from wms.models import (
+    TEMP_SHIPMENT_REFERENCE_PREFIX,
     AssociationContactTitle,
     AssociationProfile,
     AssociationRecipient,
     Carton,
     CartonItem,
     CartonStatus,
+    Destination,
     Document,
     DocumentType,
-    Destination,
     GeneratedPrintArtifact,
     GeneratedPrintArtifactStatus,
     IntegrationDirection,
@@ -40,7 +41,6 @@ from wms.models import (
     ShipmentStatus,
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
-    TEMP_SHIPMENT_REFERENCE_PREFIX,
     Warehouse,
 )
 
@@ -312,10 +312,7 @@ class UiApiEndpointsTests(TestCase):
         payload = response.json()
         self.assertIn("filters", payload)
         self.assertIn("destinations", payload["filters"])
-        destination_ids = {
-            row["id"]
-            for row in payload["filters"]["destinations"]
-        }
+        destination_ids = {row["id"] for row in payload["filters"]["destinations"]}
         self.assertIn(self.destination.id, destination_ids)
         self.assertIn(secondary_destination.id, destination_ids)
 
@@ -352,15 +349,10 @@ class UiApiEndpointsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertEqual(payload["filters"]["period"], "week")
-        period_values = {
-            row["value"]
-            for row in payload["filters"]["period_choices"]
-        }
+        period_values = {row["value"] for row in payload["filters"]["period_choices"]}
         self.assertSetEqual(period_values, {"today", "7d", "30d", "week"})
         shipments_card = next(
-            card
-            for card in payload["activity_cards"]
-            if card["label"] == "Expeditions creees"
+            card for card in payload["activity_cards"] if card["label"] == "Expeditions creees"
         )
         self.assertEqual(shipments_card["value"], 1)
 
@@ -428,9 +420,7 @@ class UiApiEndpointsTests(TestCase):
             sum(row["count"] for row in payload["shipment_chart_rows"]),
             payload["shipments_total"],
         )
-        row_by_status = {
-            row["status"]: row for row in payload["shipment_chart_rows"]
-        }
+        row_by_status = {row["status"]: row for row in payload["shipment_chart_rows"]}
         self.assertEqual(row_by_status[ShipmentStatus.PLANNED]["count"], 1)
         self.assertEqual(row_by_status[ShipmentStatus.SHIPPED]["count"], 1)
 
@@ -539,12 +529,24 @@ class UiApiEndpointsTests(TestCase):
         )
 
         Carton.objects.create(code="UI-CARTON-PICKING", status=CartonStatus.PICKING)
-        Carton.objects.create(code="UI-CARTON-ASSIGNED-RUN", status=CartonStatus.ASSIGNED, shipment=self.shipment)
-        Carton.objects.create(code="UI-CARTON-ASSIGNED-TNR", status=CartonStatus.ASSIGNED, shipment=secondary_shipment)
-        Carton.objects.create(code="UI-CARTON-LABELED-RUN", status=CartonStatus.LABELED, shipment=self.shipment)
-        Carton.objects.create(code="UI-CARTON-LABELED-TNR", status=CartonStatus.LABELED, shipment=secondary_shipment)
-        Carton.objects.create(code="UI-CARTON-SHIPPED-RUN", status=CartonStatus.SHIPPED, shipment=self.shipment)
-        Carton.objects.create(code="UI-CARTON-SHIPPED-TNR", status=CartonStatus.SHIPPED, shipment=secondary_shipment)
+        Carton.objects.create(
+            code="UI-CARTON-ASSIGNED-RUN", status=CartonStatus.ASSIGNED, shipment=self.shipment
+        )
+        Carton.objects.create(
+            code="UI-CARTON-ASSIGNED-TNR", status=CartonStatus.ASSIGNED, shipment=secondary_shipment
+        )
+        Carton.objects.create(
+            code="UI-CARTON-LABELED-RUN", status=CartonStatus.LABELED, shipment=self.shipment
+        )
+        Carton.objects.create(
+            code="UI-CARTON-LABELED-TNR", status=CartonStatus.LABELED, shipment=secondary_shipment
+        )
+        Carton.objects.create(
+            code="UI-CARTON-SHIPPED-RUN", status=CartonStatus.SHIPPED, shipment=self.shipment
+        )
+        Carton.objects.create(
+            code="UI-CARTON-SHIPPED-TNR", status=CartonStatus.SHIPPED, shipment=secondary_shipment
+        )
 
         response = self.staff_client.get("/api/v1/ui/dashboard/")
         self.assertEqual(response.status_code, 200)
@@ -564,9 +566,7 @@ class UiApiEndpointsTests(TestCase):
         )
         self.assertEqual(filtered_response.status_code, 200)
         filtered_payload = filtered_response.json()
-        filtered_cards = {
-            card["label"]: card for card in filtered_payload["carton_cards"]
-        }
+        filtered_cards = {card["label"]: card for card in filtered_payload["carton_cards"]}
         self.assertEqual(filtered_cards["En preparation"]["value"], 1)
         self.assertEqual(filtered_cards["Prets non affectes"]["value"], 2)
         self.assertEqual(filtered_cards["Affectes non etiquetes"]["value"], 1)
@@ -756,28 +756,20 @@ class UiApiEndpointsTests(TestCase):
         self.assertGreater(payload["tracking_alert_hours"], 0)
         cards = {card["label"]: card for card in payload["tracking_cards"]}
         self.assertEqual(
-            cards[
-                f"Planifiees sans mise a bord >{payload['tracking_alert_hours']}h"
-            ]["value"],
+            cards[f"Planifiees sans mise a bord >{payload['tracking_alert_hours']}h"]["value"],
             1,
         )
         self.assertEqual(
-            cards[
-                f"Expediees sans recu escale >{payload['tracking_alert_hours']}h"
-            ]["value"],
+            cards[f"Expediees sans recu escale >{payload['tracking_alert_hours']}h"]["value"],
             1,
         )
         self.assertEqual(
-            cards[
-                f"Recu escale sans livraison >{payload['tracking_alert_hours']}h"
-            ]["value"],
+            cards[f"Recu escale sans livraison >{payload['tracking_alert_hours']}h"]["value"],
             1,
         )
         self.assertEqual(cards["Dossiers cloturables"]["value"], 1)
         self.assertEqual(
-            cards[
-                f"Planifiees sans mise a bord >{payload['tracking_alert_hours']}h"
-            ]["tone"],
+            cards[f"Planifiees sans mise a bord >{payload['tracking_alert_hours']}h"]["tone"],
             "danger",
         )
         self.assertEqual(cards["Dossiers cloturables"]["tone"], "success")
@@ -822,9 +814,9 @@ class UiApiEndpointsTests(TestCase):
             event_type="send_sms",
             status=IntegrationStatus.FAILED,
         )
-        IntegrationEvent.objects.filter(
-            pk__in=[fresh_processing.pk, stale_processing.pk]
-        ).update(status=IntegrationStatus.PROCESSING)
+        IntegrationEvent.objects.filter(pk__in=[fresh_processing.pk, stale_processing.pk]).update(
+            status=IntegrationStatus.PROCESSING
+        )
 
         response = self.staff_client.get("/api/v1/ui/dashboard/")
         self.assertEqual(response.status_code, 200)
@@ -1064,9 +1056,7 @@ class UiApiEndpointsTests(TestCase):
         self.assertFalse(payload_default["filters"]["include_zero"])
         self.assertEqual(payload_default["meta"]["total_products"], 0)
 
-        response = self.staff_client.get(
-            "/api/v1/ui/stock/?q=UI-API-ZERO-001&include_zero=1"
-        )
+        response = self.staff_client.get("/api/v1/ui/stock/?q=UI-API-ZERO-001&include_zero=1")
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertTrue(payload["filters"]["include_zero"])
@@ -1124,11 +1114,7 @@ class UiApiEndpointsTests(TestCase):
         self.assertIn("recipient_contacts", payload)
         self.assertIn("correspondent_contacts", payload)
         destination_row = next(
-            (
-                item
-                for item in payload["destinations"]
-                if item.get("id") == self.destination.id
-            ),
+            (item for item in payload["destinations"] if item.get("id") == self.destination.id),
             None,
         )
         self.assertIsNotNone(destination_row)
@@ -1168,31 +1154,28 @@ class UiApiEndpointsTests(TestCase):
         web_client = Client()
         web_client.force_login(self.staff_user)
 
-        with mock.patch(
-            "wms.views_print_docs.generate_pack",
-            return_value=artifact,
-        ), mock.patch(
-            "wms.views_print_labels.generate_pack",
-            return_value=artifact,
+        with (
+            mock.patch(
+                "wms.views_print_docs.generate_pack",
+                return_value=artifact,
+            ),
+            mock.patch(
+                "wms.views_print_labels.generate_pack",
+                return_value=artifact,
+            ),
         ):
             ready_response = self.staff_client.get("/api/v1/ui/shipments/ready/")
             self.assertEqual(ready_response.status_code, 200)
             shipment_row = next(
-                row
-                for row in ready_response.json()["shipments"]
-                if row["id"] == self.shipment.id
+                row for row in ready_response.json()["shipments"] if row["id"] == self.shipment.id
             )
             documents = shipment_row["documents"]
             self.assertTrue(documents["shipment_note_url"].endswith("/doc/shipment_note/"))
             self.assertTrue(
-                documents["packing_list_shipment_url"].endswith(
-                    "/doc/packing_list_shipment/"
-                )
+                documents["packing_list_shipment_url"].endswith("/doc/packing_list_shipment/")
             )
             self.assertTrue(
-                documents["donation_certificate_url"].endswith(
-                    "/doc/donation_certificate/"
-                )
+                documents["donation_certificate_url"].endswith("/doc/donation_certificate/")
             )
             self.assertTrue(documents["labels_url"].endswith("/labels/"))
 
@@ -1204,9 +1187,7 @@ class UiApiEndpointsTests(TestCase):
             ):
                 pdf_response = web_client.get(url)
                 self.assertEqual(pdf_response.status_code, 200)
-                self.assertTrue(
-                    pdf_response["Content-Type"].startswith("application/pdf")
-                )
+                self.assertTrue(pdf_response["Content-Type"].startswith("application/pdf"))
 
             label_detail_response = self.staff_client.get(
                 f"/api/v1/ui/shipments/{self.shipment.id}/labels/{shipment_carton.id}/"
@@ -1216,16 +1197,12 @@ class UiApiEndpointsTests(TestCase):
             self.assertTrue(label_detail_url.endswith(f"/labels/{shipment_carton.id}/"))
             detail_pdf_response = web_client.get(label_detail_url)
             self.assertEqual(detail_pdf_response.status_code, 200)
-            self.assertTrue(
-                detail_pdf_response["Content-Type"].startswith("application/pdf")
-            )
+            self.assertTrue(detail_pdf_response["Content-Type"].startswith("application/pdf"))
 
             cartons_response = self.staff_client.get("/api/v1/ui/cartons/")
             self.assertEqual(cartons_response.status_code, 200)
             carton_row = next(
-                row
-                for row in cartons_response.json()["cartons"]
-                if row["id"] == shipment_carton.id
+                row for row in cartons_response.json()["cartons"] if row["id"] == shipment_carton.id
             )
             self.assertTrue(
                 carton_row["packing_list_url"].endswith(
@@ -1238,9 +1215,7 @@ class UiApiEndpointsTests(TestCase):
             for url in (carton_row["packing_list_url"], carton_row["picking_url"]):
                 pdf_response = web_client.get(url)
                 self.assertEqual(pdf_response.status_code, 200)
-                self.assertTrue(
-                    pdf_response["Content-Type"].startswith("application/pdf")
-                )
+                self.assertTrue(pdf_response["Content-Type"].startswith("application/pdf"))
 
     def test_ui_shipments_ready_archive_stale_drafts_archives_only_stale_temp_drafts(self):
         stale_draft = Shipment.objects.create(
@@ -1326,9 +1301,7 @@ class UiApiEndpointsTests(TestCase):
             {self.shipment.reference, closed_shipment.reference},
         )
 
-        tracked_row = next(
-            row for row in payload_all["shipments"] if row["id"] == self.shipment.id
-        )
+        tracked_row = next(row for row in payload_all["shipments"] if row["id"] == self.shipment.id)
         self.assertIn("actions", tracked_row)
         self.assertIn("tracking_url", tracked_row["actions"])
         self.assertIn(
@@ -1344,9 +1317,7 @@ class UiApiEndpointsTests(TestCase):
         self.assertEqual(payload_open["shipments"][0]["reference"], self.shipment.reference)
 
     def test_ui_shipments_tracking_invalid_week_returns_warning(self):
-        response = self.staff_client.get(
-            "/api/v1/ui/shipments/tracking/?planned_week=invalid-week"
-        )
+        response = self.staff_client.get("/api/v1/ui/shipments/tracking/?planned_week=invalid-week")
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertEqual(payload["filters"]["planned_week"], "invalid-week")
@@ -1654,7 +1625,9 @@ class UiApiEndpointsTests(TestCase):
         payload = response.json()
         self.assertTrue(payload["ok"])
         created_order = Order.objects.get(pk=payload["order"]["id"])
-        self.assertEqual(created_order.association_contact_id, self.portal_order.association_contact_id)
+        self.assertEqual(
+            created_order.association_contact_id, self.portal_order.association_contact_id
+        )
         self.assertEqual(created_order.lines.count(), 1)
         self.assertIsNotNone(created_order.shipment_id)
 
@@ -1813,7 +1786,9 @@ class UiApiEndpointsTests(TestCase):
             ).exists()
         )
 
-        refreshed_list = self.staff_client.get(f"/api/v1/ui/shipments/{self.shipment.id}/documents/")
+        refreshed_list = self.staff_client.get(
+            f"/api/v1/ui/shipments/{self.shipment.id}/documents/"
+        )
         self.assertEqual(refreshed_list.status_code, 200)
         additional_ids = [doc["id"] for doc in refreshed_list.json()["additional_documents"]]
         self.assertIn(doc_id, additional_ids)
@@ -1847,7 +1822,10 @@ class UiApiEndpointsTests(TestCase):
             f"/api/v1/ui/shipments/{self.shipment.id}/labels/{carton_a.id}/"
         )
         self.assertEqual(detail_response.status_code, 200)
-        self.assertIn(f"/scan/shipment/{self.shipment.id}/labels/{carton_a.id}/", detail_response.json()["url"])
+        self.assertIn(
+            f"/scan/shipment/{self.shipment.id}/labels/{carton_a.id}/",
+            detail_response.json()["url"],
+        )
 
         missing_response = self.staff_client.get(
             f"/api/v1/ui/shipments/{self.shipment.id}/labels/{self.available_carton.id}/"
@@ -1875,11 +1853,7 @@ class UiApiEndpointsTests(TestCase):
             "/api/v1/ui/templates/shipment_note/",
             {
                 "action": "save",
-                "layout": {
-                    "blocks": [
-                        {"id": "text-1", "type": "text", "text": "template custom"}
-                    ]
-                },
+                "layout": {"blocks": [{"id": "text-1", "type": "text", "text": "template custom"}]},
             },
             format="json",
         )
@@ -1893,11 +1867,7 @@ class UiApiEndpointsTests(TestCase):
             "/api/v1/ui/templates/shipment_note/",
             {
                 "action": "save",
-                "layout": {
-                    "blocks": [
-                        {"id": "text-1", "type": "text", "text": "template custom"}
-                    ]
-                },
+                "layout": {"blocks": [{"id": "text-1", "type": "text", "text": "template custom"}]},
             },
             format="json",
         )
@@ -1960,17 +1930,13 @@ class UiApiEndpointsTests(TestCase):
             (
                 "post",
                 "/api/v1/ui/shipments/",
-                self._shipment_mutation_payload(
-                    lines=[{"product_code": self.product.sku}]
-                ),
+                self._shipment_mutation_payload(lines=[{"product_code": self.product.sku}]),
                 "json",
             ),
             (
                 "patch",
                 f"/api/v1/ui/shipments/{self.shipment.id}/",
-                self._shipment_mutation_payload(
-                    lines=[{"carton_id": self.available_carton.id}]
-                ),
+                self._shipment_mutation_payload(lines=[{"carton_id": self.available_carton.id}]),
                 "json",
             ),
             (

@@ -98,13 +98,9 @@ def _validate_ready_for_planning(shipment):
     if total == 0:
         return "Aucun colis affecté à cette expédition."
     if assigned_or_ready < total:
-        return (
-            "Tous les colis doivent être affectés avant de poursuivre la planification."
-        )
+        return "Tous les colis doivent être affectés avant de poursuivre la planification."
     if ready < total:
-        return (
-            "Tous les colis doivent être étiquetés avant de poursuivre la planification."
-        )
+        return "Tous les colis doivent être étiquetés avant de poursuivre la planification."
     return ""
 
 

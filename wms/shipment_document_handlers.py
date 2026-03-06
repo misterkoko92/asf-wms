@@ -12,12 +12,12 @@ def handle_shipment_document_upload(request, *, shipment_id):
     uploaded = request.FILES.get("document_file")
     if not uploaded:
         messages.error(request, "Fichier requis.")
-        return redirect("scan:scan_shipment_edit", shipment_id=shipment.id)
+        return redirect("scan:scan_shipment_edit", shipment_id=shipment.pk)
 
     validation_error = validate_upload(uploaded)
     if validation_error:
         messages.error(request, validation_error)
-        return redirect("scan:scan_shipment_edit", shipment_id=shipment.id)
+        return redirect("scan:scan_shipment_edit", shipment_id=shipment.pk)
 
     document = Document.objects.create(
         shipment=shipment,
@@ -28,7 +28,7 @@ def handle_shipment_document_upload(request, *, shipment_id):
     )
     queue_document_scan(document)
     messages.success(request, "Document ajouté.")
-    return redirect("scan:scan_shipment_edit", shipment_id=shipment.id)
+    return redirect("scan:scan_shipment_edit", shipment_id=shipment.pk)
 
 
 def handle_shipment_document_delete(request, *, shipment_id, document_id):
@@ -40,4 +40,4 @@ def handle_shipment_document_delete(request, *, shipment_id, document_id):
         document.file.delete(save=False)
     document.delete()
     messages.success(request, "Document supprime.")
-    return redirect("scan:scan_shipment_edit", shipment_id=shipment.id)
+    return redirect("scan:scan_shipment_edit", shipment_id=shipment.pk)

@@ -3,6 +3,7 @@ from .import_utils import get_value, parse_str
 from .models import Location, RackColor, Warehouse
 from .text_utils import normalize_upper
 
+
 def get_or_create_location(warehouse_name, zone, aisle, shelf):
     if not all([warehouse_name, zone, aisle, shelf]):
         return None

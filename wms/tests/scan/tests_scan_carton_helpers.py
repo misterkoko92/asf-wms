@@ -22,9 +22,7 @@ from wms.scan_carton_helpers import (
 class ScanCartonHelpersTests(TestCase):
     def test_build_available_cartons_filters_and_sums_weight(self):
         warehouse = Warehouse.objects.create(name="Main")
-        location = Location.objects.create(
-            warehouse=warehouse, zone="A", aisle="01", shelf="001"
-        )
+        location = Location.objects.create(warehouse=warehouse, zone="A", aisle="01", shelf="001")
         product = Product.objects.create(name="Item", sku="SKU-1", weight_g=100)
         lot = ProductLot.objects.create(
             product=product,
@@ -123,9 +121,7 @@ class ScanCartonHelpersTests(TestCase):
         self.assertEqual(size["max_weight_g"], fmt.max_weight_g)
 
     def test_resolve_carton_size_invalid_custom(self):
-        size, errors = resolve_carton_size(
-            carton_format_id="custom", default_format=None, data={}
-        )
+        size, errors = resolve_carton_size(carton_format_id="custom", default_format=None, data={})
         self.assertIsNone(size)
         self.assertTrue(errors)
 
@@ -165,7 +161,5 @@ class ScanCartonHelpersTests(TestCase):
         self.assertEqual(size["max_weight_g"], 1000)
 
     def test_get_carton_volume_cm3_multiplies_dimensions(self):
-        volume = get_carton_volume_cm3(
-            {"length_cm": 10, "width_cm": 20, "height_cm": 30}
-        )
+        volume = get_carton_volume_cm3({"length_cm": 10, "width_cm": 20, "height_cm": 30})
         self.assertEqual(volume, 6000)

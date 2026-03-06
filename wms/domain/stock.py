@@ -7,14 +7,13 @@ from django.db.models import Case, F, IntegerField, Value, When
 from django.db.models.expressions import ExpressionWrapper
 from django.utils import timezone
 
-from .dto import PackCartonInput, ReceiveStockInput
 from ..carton_status_events import set_carton_status
 from ..kit_components import KitCycleError, get_component_quantities
 from ..models import (
     Carton,
+    CartonFormat,
     CartonItem,
     CartonStatus,
-    CartonFormat,
     Location,
     MovementType,
     Product,
@@ -28,6 +27,7 @@ from ..models import (
     StockMovement,
 )
 from ..shipment_status import sync_shipment_ready_state
+from .dto import PackCartonInput, ReceiveStockInput
 
 
 class StockError(ValueError):
@@ -73,9 +73,7 @@ def _root_category_name(product):
 def _dominant_type_code(carton):
     weight_by_type = {}
     qty_by_type = {}
-    items = carton.cartonitem_set.select_related(
-        "product_lot__product__category__parent"
-    )
+    items = carton.cartonitem_set.select_related("product_lot__product__category__parent")
     for item in items:
         product = item.product_lot.product
         type_label = _root_category_name(product)
@@ -195,9 +193,7 @@ def _prepare_carton(
     if carton is None:
         date_str = timezone.localdate().strftime("%Y%m%d")
         while True:
-            code = carton_code or generate_carton_code(
-                type_code="XX", date_str=date_str
-            )
+            code = carton_code or generate_carton_code(type_code="XX", date_str=date_str)
             try:
                 carton = Carton.objects.create(
                     code=code,
@@ -457,9 +453,7 @@ def consume_stock(
         raise StockError("Quantité invalide.")
     with transaction.atomic():
         lots = list(fefo_lots(product, for_update=True))
-        available_total = sum(
-            max(0, lot.quantity_on_hand - lot.quantity_reserved) for lot in lots
-        )
+        available_total = sum(max(0, lot.quantity_on_hand - lot.quantity_reserved) for lot in lots)
         if available_total < quantity:
             raise StockError(f"Stock insuffisant: {available_total} disponible(s).")
         remaining = quantity

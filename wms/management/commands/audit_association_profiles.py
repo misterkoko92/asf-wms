@@ -87,16 +87,12 @@ class Command(BaseCommand):
                 )
         else:
             issue_count += 1
-            self.stdout.write(
-                self.style.WARNING("- Groupe Association_Portail absent")
-            )
+            self.stdout.write(self.style.WARNING("- Groupe Association_Portail absent"))
 
         if issue_count == 0:
             self.stdout.write(self.style.SUCCESS("Aucune anomalie détectée."))
             return
 
-        self.stdout.write(
-            self.style.WARNING(f"{issue_count} anomalie(s) détectée(s).")
-        )
+        self.stdout.write(self.style.WARNING(f"{issue_count} anomalie(s) détectée(s)."))
         if fail_on_issues:
             raise CommandError("Audit en échec: anomalies détectées.")

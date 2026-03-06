@@ -8,6 +8,7 @@ from django.urls import reverse
 from contacts.models import Contact, ContactType
 from wms.models import Destination, Shipment
 
+
 @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
 class AdminBootstrapUiTests(TestCase):
     def setUp(self):
@@ -57,9 +58,7 @@ class AdminBootstrapUiTests(TestCase):
         self.assertContains(response, "btn btn-outline-secondary")
 
     def test_admin_shipment_change_form_includes_bootstrap_doc_actions(self):
-        response = self.client.get(
-            reverse("admin:wms_shipment_change", args=[self.shipment.id])
-        )
+        response = self.client.get(reverse("admin:wms_shipment_change", args=[self.shipment.id]))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "admin-bootstrap-docs")
         self.assertContains(response, "btn btn-outline-primary btn-sm")

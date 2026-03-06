@@ -142,7 +142,9 @@ def resolve_status_tone(status_value, *, domain="", is_disputed=False):
     return _GLOBAL_STATUS_TONES.get(status_key, _DEFAULT_TONE)
 
 
-def build_status_class(status_value, *, domain="", is_disputed=False, base_class="ui-comp-status-pill"):
+def build_status_class(
+    status_value, *, domain="", is_disputed=False, base_class="ui-comp-status-pill"
+):
     tone = resolve_status_tone(
         status_value,
         domain=domain,

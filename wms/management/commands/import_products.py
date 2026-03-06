@@ -1,21 +1,31 @@
 import csv
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
-from django.core.management.base import BaseCommand, CommandError
 from django.core.files import File
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-from wms.models import Location, Product, ProductCategory, ProductTag, RackColor, Warehouse
-from wms.services import StockError, receive_stock
 from wms.import_utils import (
     get_value as get_value_base,
+)
+from wms.import_utils import (
     normalize_header as normalize_header_base,
+)
+from wms.import_utils import (
     parse_bool as parse_bool_base,
+)
+from wms.import_utils import (
     parse_decimal as parse_decimal_base,
+)
+from wms.import_utils import (
     parse_int as parse_int_base,
+)
+from wms.import_utils import (
     parse_str as parse_str_base,
 )
+from wms.models import Location, Product, ProductCategory, ProductTag, RackColor, Warehouse
+from wms.services import StockError, receive_stock
 
 try:
     from openpyxl import load_workbook
@@ -92,9 +102,7 @@ def apply_quantity(product, quantity, location, dry_run: bool, row_number: int):
         raise CommandError(f"Row {row_number}: invalid quantity value.")
     stock_location = location or product.default_location
     if stock_location is None:
-        raise CommandError(
-            f"Row {row_number}: location required to import quantity."
-        )
+        raise CommandError(f"Row {row_number}: location required to import quantity.")
     if dry_run:
         return
     try:
@@ -136,8 +144,8 @@ def get_or_create_location(warehouse_name, zone, aisle, shelf, row_number, stder
         return None
     if not all([warehouse_name, zone, aisle, shelf]):
         stderr.write(
-            "Row {}: incomplete location (warehouse/zone/aisle/shelf or "
-            "entrepot/rack/etagere/bac).".format(row_number)
+            f"Row {row_number}: incomplete location (warehouse/zone/aisle/shelf or "
+            "entrepot/rack/etagere/bac)."
         )
         return None
     warehouse, _ = Warehouse.objects.get_or_create(name=warehouse_name)
@@ -240,9 +248,7 @@ class Command(BaseCommand):
             for index, row in enumerate(rows, start=2):
                 try:
                     sku = parse_str(get_value(row, "sku"))
-                    name = parse_str(
-                        get_value(row, "name", "nom", "nom_produit", "produit")
-                    )
+                    name = parse_str(get_value(row, "name", "nom", "nom_produit", "produit"))
                     if not name:
                         raise CommandError("Missing required field: name")
                     if options["update"] and not sku:
@@ -317,9 +323,7 @@ class Command(BaseCommand):
                             defaults={"color": rack_color},
                         )
 
-                    barcode = parse_str(
-                        get_value(row, "barcode", "code_barre", "codebarre")
-                    )
+                    barcode = parse_str(get_value(row, "barcode", "code_barre", "codebarre"))
                     brand = parse_str(get_value(row, "brand", "marque"))
                     color = parse_str(get_value(row, "color", "couleur"))
                     photo_path = resolve_photo_path(
@@ -343,9 +347,7 @@ class Command(BaseCommand):
                         get_value(row, "quarantine_default", "quarantaine_defaut")
                     )
                     notes = parse_str(get_value(row, "notes", "note"))
-                    quantity = parse_int(
-                        get_value(row, "quantity", "quantite", "stock", "qty")
-                    )
+                    quantity = parse_int(get_value(row, "quantity", "quantite", "stock", "qty"))
 
                     if product is None:
                         product = Product(sku=sku or "", name=name)
@@ -423,9 +425,7 @@ class Command(BaseCommand):
                     if notes is not None:
                         updates["notes"] = notes
 
-                    photo_updated = attach_photo(
-                        product, photo_path, options["dry_run"]
-                    )
+                    photo_updated = attach_photo(product, photo_path, options["dry_run"])
                     if photo_updated:
                         updates["photo"] = product.photo
 

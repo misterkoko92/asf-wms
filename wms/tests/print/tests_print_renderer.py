@@ -2,8 +2,8 @@ from unittest import mock
 
 from django.test import TestCase
 
-from wms.models import PrintTemplate
 from wms import print_renderer
+from wms.models import PrintTemplate
 
 
 class PrintRendererTests(TestCase):

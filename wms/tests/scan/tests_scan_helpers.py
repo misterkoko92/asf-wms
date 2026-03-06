@@ -1,8 +1,8 @@
 from django.test import TestCase
 from django.urls import reverse
 
-from wms.scan_helpers import build_packing_result
 from wms.models import Carton, CartonItem, Location, Product, ProductLot, Warehouse
+from wms.scan_helpers import build_packing_result
 
 
 class PackingResultTests(TestCase):
@@ -11,9 +11,7 @@ class PackingResultTests(TestCase):
         self.location = Location.objects.create(
             warehouse=self.warehouse, zone="A", aisle="01", shelf="001"
         )
-        self.product = Product.objects.create(
-            sku="SKU-1", name="Compresses", brand="ACME"
-        )
+        self.product = Product.objects.create(sku="SKU-1", name="Compresses", brand="ACME")
 
     def test_build_packing_result_groups_by_lot(self):
         carton = Carton.objects.create(code="C-LOT")

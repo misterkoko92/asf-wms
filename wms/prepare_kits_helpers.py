@@ -121,7 +121,9 @@ def _build_prepare_result(prepared_carton_ids):
         picking_url = (
             reverse("scan:scan_prepare_kits_picking")
             + "?"
-            + urlencode({"carton_ids": ",".join(str(carton_id) for carton_id in prepared_carton_ids)})
+            + urlencode(
+                {"carton_ids": ",".join(str(carton_id) for carton_id in prepared_carton_ids)}
+            )
         )
     return {
         "carton_count": len(prepared_carton_ids),
@@ -164,7 +166,10 @@ def build_prepare_kits_page_context(*, selected_kit_id=None, prepared_carton_ids
         max_theoretical_units = []
         for component_id, required_quantity in sorted(
             component_quantities.items(),
-            key=lambda pair: ((component_by_id.get(pair[0]).name if component_by_id.get(pair[0]) else "").lower(), pair[0]),
+            key=lambda pair: (
+                (component_by_id.get(pair[0]).name if component_by_id.get(pair[0]) else "").lower(),
+                pair[0],
+            ),
         ):
             if required_quantity <= 0:
                 continue
@@ -173,7 +178,9 @@ def build_prepare_kits_page_context(*, selected_kit_id=None, prepared_carton_ids
                 continue
             available_units = int(available_by_component_id.get(component_id, 0) or 0)
             max_theoretical_units.append(available_units // required_quantity)
-            location = first_location_by_component_id.get(component_id) or component.default_location
+            location = (
+                first_location_by_component_id.get(component_id) or component.default_location
+            )
             component_rows.append(
                 {
                     "name": component.name,
@@ -240,7 +247,9 @@ def build_prepare_kits_picking_context(carton_ids):
     carton_ids = [int(carton_id) for carton_id in carton_ids if carton_id]
     cartons = list(
         Carton.objects.filter(id__in=carton_ids)
-        .prefetch_related("cartonitem_set__product_lot__product", "cartonitem_set__product_lot__location")
+        .prefetch_related(
+            "cartonitem_set__product_lot__product", "cartonitem_set__product_lot__location"
+        )
         .order_by("code", "id")
     )
     if not cartons:

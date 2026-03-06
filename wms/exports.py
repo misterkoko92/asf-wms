@@ -2,9 +2,9 @@ import csv
 import io
 
 from django.contrib.auth import get_user_model
-from django.http import HttpResponse
 from django.db.models import F, IntegerField, Sum
 from django.db.models.expressions import ExpressionWrapper
+from django.http import HttpResponse
 
 from contacts.destination_scope import contact_destination_ids
 from contacts.models import Contact
@@ -72,9 +72,7 @@ def export_products_csv():
         "notes",
         "photo",
     ]
-    rack_colors = {
-        (rack.warehouse_id, rack.zone): rack.color for rack in RackColor.objects.all()
-    }
+    rack_colors = {(rack.warehouse_id, rack.zone): rack.color for rack in RackColor.objects.all()}
     available_expr = ExpressionWrapper(
         F("quantity_on_hand") - F("quantity_reserved"), output_field=IntegerField()
     )
@@ -83,9 +81,7 @@ def export_products_csv():
         .values("product_id")
         .annotate(total=Sum(available_expr))
     )
-    quantity_by_product = {
-        row["product_id"]: max(0, row["total"] or 0) for row in stock_totals
-    }
+    quantity_by_product = {row["product_id"]: max(0, row["total"] or 0) for row in stock_totals}
     rows = []
     products = (
         Product.objects.select_related(
@@ -145,9 +141,7 @@ def export_products_csv():
 
 def export_locations_csv():
     header = ["entrepot", "rack", "etagere", "bac", "notes", "rack_color"]
-    rack_colors = {
-        (rack.warehouse_id, rack.zone): rack.color for rack in RackColor.objects.all()
-    }
+    rack_colors = {(rack.warehouse_id, rack.zone): rack.color for rack in RackColor.objects.all()}
     rows = []
     locations = Location.objects.select_related("warehouse").all()
     for location in locations:
@@ -245,8 +239,7 @@ def export_contacts_csv():
         linked_shipper_names = []
         if linked_shippers_relation is not None and hasattr(linked_shippers_relation, "all"):
             linked_shipper_names = sorted(
-                getattr(shipper, "name", str(shipper))
-                for shipper in linked_shippers_relation.all()
+                getattr(shipper, "name", str(shipper)) for shipper in linked_shippers_relation.all()
             )
         linked_shippers = "|".join(linked_shipper_names)
         destination = destination_labels[0] if len(destination_labels) == 1 else ""

@@ -10,7 +10,6 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
-
 from openpyxl import Workbook
 
 from contacts.models import Contact, ContactType
@@ -955,7 +954,13 @@ class ImportOrgRolesTemplateCommandTests(TestCase):
         stats = command_module.ImportStats()
         with self.assertRaisesMessage(CommandError, "item de revue introuvable"):
             command_module._apply_migration_review(
-                [{"_row_number": "2", "resolution_action": "resolve_binding", "row_id": "MR-999999"}],
+                [
+                    {
+                        "_row_number": "2",
+                        "resolution_action": "resolve_binding",
+                        "row_id": "MR-999999",
+                    }
+                ],
                 stats,
                 create_missing_organizations=False,
             )
@@ -1080,7 +1085,9 @@ class ImportOrgRolesTemplateCommandTests(TestCase):
         self.assertEqual(stats.recipient_bindings_created, 1)
         self.assertEqual(stats.migration_review_resolved, 1)
 
-    def test_apply_migration_review_resolve_binding_updates_inactive_scope_without_new_binding(self):
+    def test_apply_migration_review_resolve_binding_updates_inactive_scope_without_new_binding(
+        self,
+    ):
         recipient = self._create_org("Recipient Existing")
         shipper = self._create_org("Shipper Existing")
         destination = self._create_destination("RAK")

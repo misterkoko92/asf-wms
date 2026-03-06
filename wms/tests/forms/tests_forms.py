@@ -126,7 +126,9 @@ class FormsTests(TestCase):
         receipt_b = Receipt.objects.create(reference="B-RECEIPT", warehouse=self.warehouse)
         receipt_a = Receipt.objects.create(reference="A-RECEIPT", warehouse=self.warehouse)
 
-        form = ScanReceiptSelectForm(receipts_qs=Receipt.objects.filter(id__in=[receipt_b.id, receipt_a.id]))
+        form = ScanReceiptSelectForm(
+            receipts_qs=Receipt.objects.filter(id__in=[receipt_b.id, receipt_a.id])
+        )
 
         refs = list(form.fields["receipt"].queryset.values_list("reference", flat=True))
         self.assertEqual(refs, ["A-RECEIPT", "B-RECEIPT"])
@@ -288,7 +290,9 @@ class FormsTests(TestCase):
         self.assertIn(linked_recipient.id, recipient_ids)
         self.assertNotIn(other_recipient.id, recipient_ids)
 
-    def test_scan_shipment_form_excludes_people_without_organization_from_shipper_and_recipient(self):
+    def test_scan_shipment_form_excludes_people_without_organization_from_shipper_and_recipient(
+        self,
+    ):
         correspondent = self._create_contact("Correspondent Struct")
         correspondent_tag = ContactTag.objects.create(name="correspondant")
         correspondent.tags.add(correspondent_tag)
@@ -743,7 +747,9 @@ class FormsTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertEqual(
             form.errors["shipper_contact"],
-            ["Expéditeur invalide: ce contact n'est pas disponible pour la destination sélectionnée."],
+            [
+                "Expéditeur invalide: ce contact n'est pas disponible pour la destination sélectionnée."
+            ],
         )
 
     def test_shipment_tracking_form_uses_first_choice_for_unknown_initial(self):

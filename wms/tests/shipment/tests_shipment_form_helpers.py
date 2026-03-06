@@ -9,8 +9,8 @@ from wms.shipment_form_helpers import (
     build_shipment_edit_line_values,
     build_shipment_form_context,
     build_shipment_form_payload,
-    build_shipment_order_product_options,
     build_shipment_order_line_values,
+    build_shipment_order_product_options,
 )
 
 
@@ -56,9 +56,7 @@ class ShipmentFormHelpersTests(SimpleTestCase):
                     "wms.shipment_form_helpers.build_shipment_contact_payload",
                     return_value=([{"id": 10}], [{"id": 15}], [{"id": 20}], [{"id": 30}]),
                 ):
-                    payload = build_shipment_form_payload(
-                        product_options=custom_product_options
-                    )
+                    payload = build_shipment_form_payload(product_options=custom_product_options)
 
         self.assertEqual(payload[0], custom_product_options)
         product_options_mock.assert_not_called()
@@ -216,6 +214,7 @@ class ShipmentFormHelpersTests(SimpleTestCase):
                 {"carton_id": "", "product_code": "Product B", "quantity": "2"},
             ],
         )
+
     def test_build_shipment_order_product_options_uses_remaining_quantities(self):
         product_a = SimpleNamespace(
             id=10,
@@ -273,6 +272,7 @@ class ShipmentFormHelpersTests(SimpleTestCase):
                 }
             ],
         )
+
     def test_build_shipment_form_context_returns_expected_mapping(self):
         context = build_shipment_form_context(
             form=object(),

@@ -1,6 +1,6 @@
+import tempfile
 from decimal import Decimal
 from pathlib import Path
-import tempfile
 from unittest import mock
 
 from django.test import TestCase
@@ -302,7 +302,11 @@ class ImportProductsRowsDeepTests(TestCase):
         self.assertEqual(errors, [])
         self.assertEqual(warnings, [])
         self.assertEqual(
-            sum(ProductLot.objects.filter(product=product).values_list("quantity_on_hand", flat=True)),
+            sum(
+                ProductLot.objects.filter(product=product).values_list(
+                    "quantity_on_hand", flat=True
+                )
+            ),
             700,
         )
 
@@ -339,7 +343,11 @@ class ImportProductsRowsDeepTests(TestCase):
         self.assertEqual(warnings, [])
         self.assertEqual(stats, {"distinct_products": 1, "temp_location_rows": 0})
         self.assertEqual(
-            sum(ProductLot.objects.filter(product=product).values_list("quantity_on_hand", flat=True)),
+            sum(
+                ProductLot.objects.filter(product=product).values_list(
+                    "quantity_on_hand", flat=True
+                )
+            ),
             500,
         )
 

@@ -1,5 +1,5 @@
-from openpyxl import Workbook
 from django.test import SimpleTestCase
+from openpyxl import Workbook
 
 from wms.print_pack_mapping_catalog import ALLOWED_SOURCE_KEYS, is_allowed_source_key
 from wms.print_pack_workbook import (

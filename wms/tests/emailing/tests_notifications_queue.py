@@ -1,7 +1,7 @@
 from unittest import mock
 
-from django.contrib.auth.models import Group
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.test import RequestFactory, TestCase
 
 from contacts.models import Contact
@@ -149,9 +149,7 @@ class PublicOrderNotificationsQueueTests(TestCase):
                     "wms.public_order_handlers.enqueue_email_safe",
                     side_effect=[False, True],
                 ):
-                    with mock.patch(
-                        "wms.public_order_handlers.LOGGER.warning"
-                    ) as warning_mock:
+                    with mock.patch("wms.public_order_handlers.LOGGER.warning") as warning_mock:
                         send_public_order_notifications(
                             request=request,
                             token=link.token,
@@ -309,9 +307,7 @@ class PortalOrderNotificationsQueueTests(TestCase):
         )
         self.assertEqual(len(events), 2)
 
-        payload_by_subject = {
-            event.payload.get("subject"): event.payload for event in events
-        }
+        payload_by_subject = {event.payload.get("subject"): event.payload for event in events}
         admin_payload = payload_by_subject.get("ASF WMS - Nouvelle commande")
         self.assertIsNotNone(admin_payload)
         self.assertEqual(admin_payload.get("recipient"), ["admin@example.com"])
@@ -392,9 +388,7 @@ class PortalOrderNotificationsQueueTests(TestCase):
                     "wms.order_notifications.enqueue_email_safe",
                     side_effect=[False, False],
                 ):
-                    with mock.patch(
-                        "wms.order_notifications.LOGGER.warning"
-                    ) as warning_mock:
+                    with mock.patch("wms.order_notifications.LOGGER.warning") as warning_mock:
                         send_portal_order_notifications(
                             request=request,
                             profile=self.profile,

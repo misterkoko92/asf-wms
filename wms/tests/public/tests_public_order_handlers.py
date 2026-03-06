@@ -61,7 +61,9 @@ class PublicOrderHandlersTests(TestCase):
             return_value=contact,
         ) as upsert_mock:
             with mock.patch("wms.public_order_handlers.create_shipment_for_order") as shipment_mock:
-                with mock.patch("wms.public_order_handlers.reserve_stock_for_order") as reserve_mock:
+                with mock.patch(
+                    "wms.public_order_handlers.reserve_stock_for_order"
+                ) as reserve_mock:
                     order, returned_contact = create_public_order(
                         link=self.link,
                         form_data=self._form_data(),
@@ -169,7 +171,9 @@ class PublicOrderHandlersTests(TestCase):
                     "wms.public_order_handlers.render_to_string",
                     side_effect=["confirmation-body", "admin-body"],
                 ):
-                    with mock.patch("wms.public_order_handlers.send_email_safe", return_value=False):
+                    with mock.patch(
+                        "wms.public_order_handlers.send_email_safe", return_value=False
+                    ):
                         with mock.patch(
                             "wms.public_order_handlers.enqueue_email_safe",
                             side_effect=[True, False],
@@ -218,7 +222,9 @@ class PublicOrderHandlersTests(TestCase):
                     "wms.public_order_handlers.render_to_string",
                     side_effect=["confirmation-body", "admin-body"],
                 ) as render_mock:
-                    with mock.patch("wms.public_order_handlers.send_email_safe", return_value=False):
+                    with mock.patch(
+                        "wms.public_order_handlers.send_email_safe", return_value=False
+                    ):
                         with mock.patch(
                             "wms.public_order_handlers.enqueue_email_safe",
                             side_effect=[True, True],

@@ -44,7 +44,14 @@ class ImportLocationsExtraTests(TestCase):
         )
         rows = [
             {"warehouse": "Main", "zone": "a", "aisle": "01", "shelf": "001", "notes": "NEW"},
-            {"warehouse": "Main", "zone": "b", "aisle": "02", "shelf": "002", "notes": "ok", "rack_color": "Red"},
+            {
+                "warehouse": "Main",
+                "zone": "b",
+                "aisle": "02",
+                "shelf": "002",
+                "notes": "ok",
+                "rack_color": "Red",
+            },
             {"warehouse": "Main", "zone": "C"},
             {"warehouse": "", "zone": "", "aisle": "", "shelf": ""},
         ]

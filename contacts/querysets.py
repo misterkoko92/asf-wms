@@ -8,9 +8,7 @@ def contacts_with_tags(tag_names):
         return queryset.order_by("name")
 
     normalized_targets = {
-        normalized
-        for normalized in (normalize_tag_name(name) for name in tag_names)
-        if normalized
+        normalized for normalized in (normalize_tag_name(name) for name in tag_names) if normalized
     }
     if not normalized_targets:
         return queryset.none()

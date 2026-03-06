@@ -129,10 +129,12 @@ class SignalsOrgRoleNotificationsTests(TestCase):
         )
         shipment.status = ShipmentStatus.SHIPPED
 
-        with mock.patch("wms.signals._shipment_status_admin_recipients", return_value=[]), mock.patch(
-            "wms.signals.send_or_enqueue_email_safe"
-        ) as send_mock, mock.patch(
-            "wms.signals.transaction.on_commit", side_effect=lambda callback: callback()
+        with (
+            mock.patch("wms.signals._shipment_status_admin_recipients", return_value=[]),
+            mock.patch("wms.signals.send_or_enqueue_email_safe") as send_mock,
+            mock.patch(
+                "wms.signals.transaction.on_commit", side_effect=lambda callback: callback()
+            ),
         ):
             _notify_shipment_status_change(None, shipment, created=False)
 
@@ -183,10 +185,12 @@ class SignalsOrgRoleNotificationsTests(TestCase):
         )
         shipment.status = ShipmentStatus.SHIPPED
 
-        with mock.patch("wms.signals._shipment_status_admin_recipients", return_value=[]), mock.patch(
-            "wms.signals.send_or_enqueue_email_safe"
-        ) as send_mock, mock.patch(
-            "wms.signals.transaction.on_commit", side_effect=lambda callback: callback()
+        with (
+            mock.patch("wms.signals._shipment_status_admin_recipients", return_value=[]),
+            mock.patch("wms.signals.send_or_enqueue_email_safe") as send_mock,
+            mock.patch(
+                "wms.signals.transaction.on_commit", side_effect=lambda callback: callback()
+            ),
         ):
             _notify_shipment_status_change(None, shipment, created=False)
 
@@ -243,10 +247,12 @@ class SignalsOrgRoleNotificationsTests(TestCase):
         )
         shipment.status = ShipmentStatus.PLANNED
 
-        with mock.patch("wms.signals._shipment_status_admin_recipients", return_value=[]), mock.patch(
-            "wms.signals.send_or_enqueue_email_safe"
-        ) as send_mock, mock.patch(
-            "wms.signals.transaction.on_commit", side_effect=lambda callback: callback()
+        with (
+            mock.patch("wms.signals._shipment_status_admin_recipients", return_value=[]),
+            mock.patch("wms.signals.send_or_enqueue_email_safe") as send_mock,
+            mock.patch(
+                "wms.signals.transaction.on_commit", side_effect=lambda callback: callback()
+            ),
         ):
             _notify_shipment_status_change(None, shipment, created=False)
 
@@ -297,10 +303,12 @@ class SignalsOrgRoleNotificationsTests(TestCase):
             comments="ok",
         )
 
-        with mock.patch("wms.signals.get_admin_emails", return_value=[]), mock.patch(
-            "wms.signals.send_or_enqueue_email_safe"
-        ) as send_mock, mock.patch(
-            "wms.signals.transaction.on_commit", side_effect=lambda callback: callback()
+        with (
+            mock.patch("wms.signals.get_admin_emails", return_value=[]),
+            mock.patch("wms.signals.send_or_enqueue_email_safe") as send_mock,
+            mock.patch(
+                "wms.signals.transaction.on_commit", side_effect=lambda callback: callback()
+            ),
         ):
             _notify_tracking_event(None, tracking_event, created=True)
 

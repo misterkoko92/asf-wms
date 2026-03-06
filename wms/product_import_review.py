@@ -4,8 +4,8 @@ from django.db.models.functions import Coalesce
 
 from .import_services import DEFAULT_QUANTITY_MODE, normalize_quantity_mode
 from .import_utils import get_value, parse_str
-from .scan_helpers import parse_int
 from .models import Product, ProductLotStatus
+from .scan_helpers import parse_int
 
 
 def row_is_empty(row):
@@ -37,9 +37,7 @@ def build_match_context(pending):
     if not pending:
         return None
     match_ids = {
-        match_id
-        for item in pending.get("matches", [])
-        for match_id in item.get("match_ids", [])
+        match_id for item in pending.get("matches", []) for match_id in item.get("match_ids", [])
     }
     if match_ids:
         available_expr = ExpressionWrapper(

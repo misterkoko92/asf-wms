@@ -315,9 +315,7 @@ class PalletListingHandlersTests(TestCase):
             "wms.pallet_listing_handlers.list_excel_sheets",
             return_value=["Main"],
         ):
-            with mock.patch(
-                "wms.pallet_listing_handlers.extract_tabular_data"
-            ) as extract_mock:
+            with mock.patch("wms.pallet_listing_handlers.extract_tabular_data") as extract_mock:
                 response = handle_pallet_listing_action(
                     request,
                     action="listing_upload",
@@ -383,9 +381,7 @@ class PalletListingHandlersTests(TestCase):
         )
         state = init_listing_state()
         with mock.patch("wms.pallet_listing_handlers.get_pdf_page_count", return_value=10):
-            with mock.patch(
-                "wms.pallet_listing_handlers.extract_tabular_data"
-            ) as extract_mock:
+            with mock.patch("wms.pallet_listing_handlers.extract_tabular_data") as extract_mock:
                 response = handle_pallet_listing_action(
                     request,
                     action="listing_upload",
@@ -653,9 +649,7 @@ class PalletListingHandlersTests(TestCase):
                     "wms.pallet_listing_handlers.resolve_default_warehouse",
                     return_value=None,
                 ):
-                    with mock.patch(
-                        "wms.pallet_listing_handlers.messages.error"
-                    ) as error_mock:
+                    with mock.patch("wms.pallet_listing_handlers.messages.error") as error_mock:
                         response = handle_pallet_listing_action(
                             request,
                             action="listing_confirm",
@@ -773,9 +767,7 @@ class PalletListingHandlersTests(TestCase):
                         "wms.pallet_listing_handlers.apply_pallet_listing_import",
                         return_value=(0, 0, [], None),
                     ):
-                        with mock.patch(
-                            "wms.pallet_listing_handlers.clear_pending_listing"
-                        ):
+                        with mock.patch("wms.pallet_listing_handlers.clear_pending_listing"):
                             with mock.patch(
                                 "wms.pallet_listing_handlers.messages.error"
                             ) as error_mock:

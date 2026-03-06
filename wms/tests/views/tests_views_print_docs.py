@@ -99,9 +99,7 @@ class PrintDocsViewsTests(TestCase):
             "wms.views_print_docs._generate_pack_pdf_response",
             return_value=HttpResponse("ok"),
         ) as pack_mock:
-            response = scan_shipment_document_public(
-                request, shipment.reference, "shipment_note"
-            )
+            response = scan_shipment_document_public(request, shipment.reference, "shipment_note")
         self.assertEqual(response.status_code, 200)
         pack_mock.assert_called_once_with(
             request,
@@ -113,13 +111,16 @@ class PrintDocsViewsTests(TestCase):
 
     def test_scan_shipment_document_falls_back_to_legacy_renderer_when_pack_is_missing(self):
         shipment = self._create_shipment()
-        with mock.patch(
-            "wms.views_print_docs._generate_pack_pdf_response",
-            side_effect=PrintPackEngineError("Unknown active pack: C"),
-        ), mock.patch(
-            "wms.views_print_docs.render_shipment_document",
-            return_value=HttpResponse("legacy"),
-        ) as legacy_mock:
+        with (
+            mock.patch(
+                "wms.views_print_docs._generate_pack_pdf_response",
+                side_effect=PrintPackEngineError("Unknown active pack: C"),
+            ),
+            mock.patch(
+                "wms.views_print_docs.render_shipment_document",
+                return_value=HttpResponse("legacy"),
+            ) as legacy_mock,
+        ):
             response = self.client.get(
                 reverse(
                     "scan:scan_shipment_document",
@@ -132,13 +133,16 @@ class PrintDocsViewsTests(TestCase):
 
     def test_scan_shipment_document_falls_back_to_legacy_renderer_on_graph_failure(self):
         shipment = self._create_shipment()
-        with mock.patch(
-            "wms.views_print_docs._generate_pack_pdf_response",
-            side_effect=GraphPdfConversionError("Graph is unavailable"),
-        ), mock.patch(
-            "wms.views_print_docs.render_shipment_document",
-            return_value=HttpResponse("legacy"),
-        ) as legacy_mock:
+        with (
+            mock.patch(
+                "wms.views_print_docs._generate_pack_pdf_response",
+                side_effect=GraphPdfConversionError("Graph is unavailable"),
+            ),
+            mock.patch(
+                "wms.views_print_docs.render_shipment_document",
+                return_value=HttpResponse("legacy"),
+            ) as legacy_mock,
+        ):
             response = self.client.get(
                 reverse(
                     "scan:scan_shipment_document",
@@ -154,16 +158,20 @@ class PrintDocsViewsTests(TestCase):
         self,
     ):
         shipment = self._create_shipment()
-        with mock.patch(
-            "wms.views_print_docs._generate_pack_pdf_response",
-            side_effect=GraphPdfConversionError("Graph is unavailable"),
-        ), mock.patch(
-            "wms.views_print_docs._generate_pack_xlsx_response",
-            return_value=HttpResponse("xlsx-fallback"),
-        ) as xlsx_mock, mock.patch(
-            "wms.views_print_docs.render_shipment_document",
-            return_value=HttpResponse("legacy"),
-        ) as legacy_mock:
+        with (
+            mock.patch(
+                "wms.views_print_docs._generate_pack_pdf_response",
+                side_effect=GraphPdfConversionError("Graph is unavailable"),
+            ),
+            mock.patch(
+                "wms.views_print_docs._generate_pack_xlsx_response",
+                return_value=HttpResponse("xlsx-fallback"),
+            ) as xlsx_mock,
+            mock.patch(
+                "wms.views_print_docs.render_shipment_document",
+                return_value=HttpResponse("legacy"),
+            ) as legacy_mock,
+        ):
             response = self.client.get(
                 reverse(
                     "scan:scan_shipment_document",
@@ -223,9 +231,7 @@ class PrintDocsViewsTests(TestCase):
             "wms.views_print_docs._generate_pack_pdf_response",
             return_value=HttpResponse("ok"),
         ) as pack_mock:
-            response = scan_shipment_carton_document_public(
-                request, shipment.reference, carton.id
-            )
+            response = scan_shipment_carton_document_public(request, shipment.reference, carton.id)
         self.assertEqual(response.status_code, 200)
         pack_mock.assert_called_once_with(
             request,
@@ -288,16 +294,20 @@ class PrintDocsViewsTests(TestCase):
         self,
     ):
         carton = self._create_standalone_carton_with_item()
-        with mock.patch(
-            "wms.views_print_docs._generate_pack_pdf_response",
-            side_effect=PrintPackEngineError("missing pack"),
-        ), mock.patch(
-            "wms.views_print_docs.get_template_layout",
-            return_value=None,
-        ), mock.patch(
-            "wms.views_print_docs.render",
-            side_effect=self._render_stub,
-        ) as render_mock:
+        with (
+            mock.patch(
+                "wms.views_print_docs._generate_pack_pdf_response",
+                side_effect=PrintPackEngineError("missing pack"),
+            ),
+            mock.patch(
+                "wms.views_print_docs.get_template_layout",
+                return_value=None,
+            ),
+            mock.patch(
+                "wms.views_print_docs.render",
+                side_effect=self._render_stub,
+            ) as render_mock,
+        ):
             response = self.client.get(
                 reverse("scan:scan_carton_document", kwargs={"carton_id": carton.id})
             )

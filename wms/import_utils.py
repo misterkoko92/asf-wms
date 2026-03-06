@@ -3,7 +3,7 @@ import csv
 import io
 import re
 import unicodedata
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from io import BytesIO
 
 try:
@@ -54,7 +54,7 @@ def decode_text(data):
         return ""
     if isinstance(data, str):
         return data
-    if not isinstance(data, (bytes, bytearray)):
+    if not isinstance(data, bytes | bytearray):
         return str(data)
     data = bytes(data)
     if not data:
@@ -342,7 +342,7 @@ def parse_decimal(value):
         return None
     if isinstance(value, Decimal):
         return value
-    if isinstance(value, (int, float)):
+    if isinstance(value, int | float):
         return Decimal(str(value))
     text = str(value).strip()
     if not text:

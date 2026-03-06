@@ -1,5 +1,6 @@
 from .models import Location, Warehouse
 
+
 def resolve_default_warehouse():
     return (
         Warehouse.objects.filter(code__iexact="REC").first()

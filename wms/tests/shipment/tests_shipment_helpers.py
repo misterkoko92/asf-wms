@@ -424,7 +424,9 @@ class ShipmentHelpersTests(TestCase):
         _, shippers_json, recipients_json, _ = build_shipment_contact_payload()
 
         shipper_entry = next(entry for entry in shippers_json if entry["id"] == shipper_org.id)
-        recipient_entry = next(entry for entry in recipients_json if entry["id"] == recipient_org.id)
+        recipient_entry = next(
+            entry for entry in recipients_json if entry["id"] == recipient_org.id
+        )
         self.assertEqual(shipper_entry["scoped_destination_ids"], [destination_abj.id])
         self.assertEqual(
             recipient_entry["binding_pairs"],

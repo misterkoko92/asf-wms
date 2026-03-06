@@ -4,21 +4,20 @@ Use this checklist for each production release.
 
 ## A) Before merge
 
+- [ ] `uv sync --frozen`
+- [ ] `pre-commit install`
+- [ ] `make pre-commit`
+- [ ] `make ci`
+- [ ] `make typecheck` is green and remains the blocking type gate.
+- [ ] `make typecheck-pyright` reviewed as informational only.
+- [ ] `make export-requirements` re-run after any dependency change.
+
+Fallback if `uv` is blocked locally:
+
 - [ ] `python -m pip install -r requirements.txt`
 - [ ] `python -m pip install -r requirements-dev.txt`
-- [ ] Optional modern install path: `make install-dev-uv`
-- [ ] `make check`
-- [ ] `make migrate-check`
-- [ ] `make deploy-check`
-- [ ] `make deploy-check-prod-like` (with `.env.deploy.example` or `DEPLOY_ENV_FILE=...`)
-- [ ] Optional shadow formatting check: `make fmt-check` (non-blocking until repository-wide reformat)
-- [ ] `make lint`
-- [ ] `make typecheck`
-- [ ] Optional shadow type-check: `make typecheck-pyright` (non-blocking while mypy remains release gate)
-- [ ] `make bandit`
-- [ ] `make coverage`
-- [ ] `make audit` (if network allows)
-- [ ] `make audit-soft` and archive `pip-audit-report.json` when strict audit cannot run locally
+- [ ] `make pre-commit`
+- [ ] `make ci`
 
 ## B) Before deploy
 
@@ -70,3 +69,14 @@ Rollback actions:
 - [ ] Re-run smoke tests.
 - [ ] Re-run `python manage.py process_email_queue --include-failed --limit=100` after stability is restored.
 - [ ] Re-run `python manage.py process_document_scan_queue --include-failed --limit=100` after stability is restored.
+- [ ] If local tooling blocks the hotfix path, fallback to `pip install -r requirements*.txt`.
+- [ ] If exported dependency files drift, regenerate them from `uv.lock` with `make export-requirements`.
+- [ ] If a local hook is a false positive, bypass only that hook temporarily with `SKIP=<hook-id> git commit ...`.
+- [ ] Do not remove `mypy` from the blocking gate because `pyright` is noisy.
+
+## F) Tooling success metrics
+
+- [ ] No new secret detected in review or CI.
+- [ ] No forgotten formatting diff detected by `pre-commit` or CI.
+- [ ] No drift between `uv.lock` and exported `requirements*.txt`.
+- [ ] Four consecutive weeks of green CI before any discussion of replacing `mypy`.

@@ -18,11 +18,7 @@ def get_carton_capacity_cm3():
         default_format = CartonFormat.objects.first()
     if not default_format:
         return None
-    return (
-        default_format.length_cm
-        * default_format.width_cm
-        * default_format.height_cm
-    )
+    return default_format.length_cm * default_format.width_cm * default_format.height_cm
 
 
 def build_cartons_ready_rows(cartons_qs, *, carton_capacity_cm3):
@@ -51,17 +47,13 @@ def build_cartons_ready_rows(cartons_qs, *, carton_capacity_cm3):
                 volume_total_cm3 += product.volume_cm3 * item.quantity
             else:
                 missing_volume = True
-        packing_list = sorted(
-            product_totals.values(), key=lambda row: row["label"]
-        )
+        packing_list = sorted(product_totals.values(), key=lambda row: row["label"])
         if weight_total_g == 0 and missing_weight:
             weight_kg = None
         else:
             weight_kg = weight_total_g / 1000 if weight_total_g else None
         if carton_capacity_cm3 and volume_total_cm3 and not missing_volume:
-            volume_percent = round(
-                float(volume_total_cm3) / float(carton_capacity_cm3) * 100
-            )
+            volume_percent = round(float(volume_total_cm3) / float(carton_capacity_cm3) * 100)
         else:
             volume_percent = None
         is_assigned = carton.shipment_id is not None
@@ -91,8 +83,7 @@ def build_cartons_ready_rows(cartons_qs, *, carton_capacity_cm3):
                 "status_label": status_label,
                 "status_value": carton.status,
                 "status_tone": resolve_status_tone(carton.status, domain="carton"),
-                "can_toggle": (not is_assigned)
-                and carton.status != CartonStatus.SHIPPED,
+                "can_toggle": (not is_assigned) and carton.status != CartonStatus.SHIPPED,
                 "can_mark_labeled": is_assigned
                 and not shipment_locked
                 and carton.status in {CartonStatus.ASSIGNED, CartonStatus.PACKED},

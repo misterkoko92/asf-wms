@@ -24,9 +24,7 @@ def _snapshot_mappings(pack_document):
 
 
 def _next_version_number(pack_document):
-    latest = (
-        pack_document.versions.aggregate(max_version=Max("version"))["max_version"] or 0
-    )
+    latest = pack_document.versions.aggregate(max_version=Max("version"))["max_version"] or 0
     return latest + 1
 
 

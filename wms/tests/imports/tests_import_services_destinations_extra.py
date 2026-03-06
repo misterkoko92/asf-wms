@@ -27,15 +27,21 @@ class ImportDestinationsExtraTests(TestCase):
             ("Lome", None, "Togo"),
         )
         self.assertEqual(_parse_destination_label("CDG"), (None, "CDG", None))
-        self.assertEqual(_parse_destination_label("Nouakchott City"), ("Nouakchott City", None, None))
+        self.assertEqual(
+            _parse_destination_label("Nouakchott City"), ("Nouakchott City", None, None)
+        )
 
     def test_generate_destination_code_handles_collisions_and_empty_base(self):
         correspondent = Contact.objects.create(
             name="C1",
             contact_type=ContactType.ORGANIZATION,
         )
-        Destination.objects.create(city="D1", iata_code="DEST", country="France", correspondent_contact=correspondent)
-        Destination.objects.create(city="D2", iata_code="DEST2", country="France", correspondent_contact=correspondent)
+        Destination.objects.create(
+            city="D1", iata_code="DEST", country="France", correspondent_contact=correspondent
+        )
+        Destination.objects.create(
+            city="D2", iata_code="DEST2", country="France", correspondent_contact=correspondent
+        )
         self.assertEqual(_generate_destination_code("DEST"), "DEST3")
         self.assertEqual(_generate_destination_code(""), "DEST3")
 

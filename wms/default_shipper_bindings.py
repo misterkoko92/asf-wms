@@ -108,11 +108,7 @@ def _ensure_bindings_for_pairs(
 
 
 def ensure_default_shipper_bindings_for_destination_id(destination_id: int) -> int:
-    destination = (
-        Destination.objects.filter(pk=destination_id, is_active=True)
-        .only("id")
-        .first()
-    )
+    destination = Destination.objects.filter(pk=destination_id, is_active=True).only("id").first()
     if destination is None:
         return 0
 
@@ -158,9 +154,7 @@ def ensure_default_shipper_bindings_for_recipient_assignment_id(
         return 0
     _ensure_default_shipper_assignment_and_scope(shipper_org)
 
-    destination_ids = list(
-        Destination.objects.filter(is_active=True).values_list("id", flat=True)
-    )
+    destination_ids = list(Destination.objects.filter(is_active=True).values_list("id", flat=True))
     return _ensure_bindings_for_pairs(
         shipper_org=shipper_org,
         recipient_org_ids=[role_assignment.organization_id],

@@ -15,9 +15,7 @@ def extract_block_style(layout, block_type):
     return {}
 
 
-def build_label_pages(
-    layout, contexts, block_type="product_label", labels_per_page=4
-):
+def build_label_pages(layout, contexts, block_type="product_label", labels_per_page=4):
     labels = []
     for context in contexts:
         blocks = render_layout_from_layout(layout, context)

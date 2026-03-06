@@ -36,7 +36,9 @@ class PrintPackExcelTests(SimpleTestCase):
     def test_fill_workbook_cells_formats_dates(self):
         workbook = Workbook()
         workbook.active.title = "Main"
-        mappings = [self._mapping(source_key="shipment.requested_delivery_date", transform="date_fr")]
+        mappings = [
+            self._mapping(source_key="shipment.requested_delivery_date", transform="date_fr")
+        ]
         payload = {"shipment": {"requested_delivery_date": date(2026, 3, 1)}}
 
         fill_workbook_cells(workbook, mappings, payload)

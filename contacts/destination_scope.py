@@ -45,9 +45,7 @@ def sync_contact_destination_scope(contact):
     if not getattr(contact, "pk", None):
         return []
 
-    destination_ids = _normalize_destination_ids(
-        contact.destinations.values_list("id", flat=True)
-    )
+    destination_ids = _normalize_destination_ids(contact.destinations.values_list("id", flat=True))
     legacy_destination_id = getattr(contact, "destination_id", None)
 
     if not destination_ids and legacy_destination_id:

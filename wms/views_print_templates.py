@@ -38,6 +38,8 @@ from .print_renderer import render_layout_from_layout
 from .print_utils import build_label_pages, extract_block_style
 from .view_permissions import (
     require_superuser as _require_superuser,
+)
+from .view_permissions import (
     scan_staff_required,
 )
 
@@ -76,7 +78,7 @@ def _resolve_template_search_dirs():
             Path(settings.BASE_DIR) / "print_templates",
             Path(settings.BASE_DIR) / "data" / "print_templates",
         ]
-    if isinstance(configured_dirs, (str, Path)):
+    if isinstance(configured_dirs, str | Path):
         configured_dirs = [configured_dirs]
     directories = []
     for entry in configured_dirs:
@@ -136,9 +138,7 @@ def _build_template_list_items():
             reverse=True,
         )
         latest_version = versions[0] if versions else None
-        template_filename, template_is_uploaded = _resolve_effective_template_label(
-            pack_document
-        )
+        template_filename, template_is_uploaded = _resolve_effective_template_label(pack_document)
         items.append(
             {
                 "route_key": str(pack_document.id),
@@ -253,9 +253,7 @@ def _build_edit_context(pack_document):
     finally:
         if workbook is not None:
             workbook.close()
-    versions = list(
-        pack_document.versions.select_related("created_by").order_by("-version")
-    )
+    versions = list(pack_document.versions.select_related("created_by").order_by("-version"))
     return {
         "active": ACTIVE_PRINT_TEMPLATES,
         "shell_class": SHELL_CLASS_WIDE,
@@ -447,7 +445,9 @@ def _validate_and_normalize_rows(parsed_rows, workbook):
     errors = []
     if workbook is None:
         return [], ["Template XLSX introuvable ou invalide."]
-    worksheet_map = {worksheet_name: workbook[worksheet_name] for worksheet_name in workbook.sheetnames}
+    worksheet_map = {
+        worksheet_name: workbook[worksheet_name] for worksheet_name in workbook.sheetnames
+    }
     seen_cells = set()
     for index, row_data in enumerate(parsed_rows, start=1):
         worksheet_name = row_data["worksheet_name"]

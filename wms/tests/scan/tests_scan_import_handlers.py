@@ -114,9 +114,7 @@ class ScanImportHandlersTests(TestCase):
         self.assertIn("Import produit annule.", self._messages(request))
 
     def test_product_confirm_requires_match_selection_for_update(self):
-        request = self._build_post_request(
-            {"action": "product_confirm", "pending_token": "tok"}
-        )
+        request = self._build_post_request({"action": "product_confirm", "pending_token": "tok"})
         request.session["product_import_pending"] = {
             "token": "tok",
             "matches": [{"row_index": 2, "match_ids": [10, 11]}],
@@ -234,9 +232,7 @@ class ScanImportHandlersTests(TestCase):
                 response = scan_import_handlers.handle_scan_import_action(
                     request,
                     default_password="TempPwd!",
-                    clear_pending_import=self._clear_pending_import_callback(
-                        request, tracker
-                    ),
+                    clear_pending_import=self._clear_pending_import_callback(request, tracker),
                 )
 
         self.assertEqual(response.status_code, 302)
@@ -406,15 +402,19 @@ class ScanImportHandlersTests(TestCase):
                 "sku": "SKU-ERR",
             }
         )
-        with mock.patch(
-            "wms.scan_import_handlers.extract_product_identity",
-            return_value=("SKU-ERR", "Produit Err", "ASF"),
-        ), mock.patch(
-            "wms.scan_import_handlers.find_product_matches",
-            return_value=([], "none"),
-        ), mock.patch(
-            "wms.scan_import_handlers.import_products_rows",
-            return_value=(0, 0, ["erreur prioritaire", "autre"], []),
+        with (
+            mock.patch(
+                "wms.scan_import_handlers.extract_product_identity",
+                return_value=("SKU-ERR", "Produit Err", "ASF"),
+            ),
+            mock.patch(
+                "wms.scan_import_handlers.find_product_matches",
+                return_value=([], "none"),
+            ),
+            mock.patch(
+                "wms.scan_import_handlers.import_products_rows",
+                return_value=(0, 0, ["erreur prioritaire", "autre"], []),
+            ),
         ):
             response = scan_import_handlers.handle_scan_import_action(
                 request,
@@ -442,9 +442,7 @@ class ScanImportHandlersTests(TestCase):
 
     def test_product_file_rejects_unsupported_extension(self):
         uploaded = SimpleUploadedFile("produits.txt", b"invalid")
-        request = self._build_post_request(
-            {"action": "product_file", "import_file": uploaded}
-        )
+        request = self._build_post_request({"action": "product_file", "import_file": uploaded})
         response = scan_import_handlers.handle_scan_import_action(
             request,
             default_password="TempPwd!",
@@ -458,9 +456,7 @@ class ScanImportHandlersTests(TestCase):
 
     def test_product_file_with_matches_stores_pending_and_renders(self):
         uploaded = SimpleUploadedFile("produits.csv", b"sku,name\nA,Produit A\n")
-        request = self._build_post_request(
-            {"action": "product_file", "import_file": uploaded}
-        )
+        request = self._build_post_request({"action": "product_file", "import_file": uploaded})
         with mock.patch(
             "wms.scan_import_handlers.decode_text",
             return_value="sku,name\nA,Produit A\n",
@@ -489,12 +485,10 @@ class ScanImportHandlersTests(TestCase):
                                     "wms.scan_import_handlers.render_scan_import",
                                     return_value=HttpResponse("pending"),
                                 ):
-                                    response = (
-                                        scan_import_handlers.handle_scan_import_action(
-                                            request,
-                                            default_password="TempPwd!",
-                                            clear_pending_import=lambda: None,
-                                        )
+                                    response = scan_import_handlers.handle_scan_import_action(
+                                        request,
+                                        default_password="TempPwd!",
+                                        clear_pending_import=lambda: None,
                                     )
         self.assertEqual(response.status_code, 200)
         pending = request.session.get("product_import_pending")
@@ -510,27 +504,35 @@ class ScanImportHandlersTests(TestCase):
         request = self._build_post_request(
             {"action": "product_file", "import_file": uploaded, "stock_mode": "overwrite"}
         )
-        with mock.patch(
-            "wms.scan_import_handlers.decode_text",
-            return_value="sku,name\nA,Produit A\n",
-        ), mock.patch(
-            "wms.scan_import_handlers.iter_import_rows",
-            return_value=[{"sku": "A", "name": "Produit A"}],
-        ), mock.patch(
-            "wms.scan_import_handlers.row_is_empty",
-            return_value=False,
-        ), mock.patch(
-            "wms.scan_import_handlers.extract_product_identity",
-            return_value=("SKU-1", "Produit 1", "ASF"),
-        ), mock.patch(
-            "wms.scan_import_handlers.find_product_matches",
-            return_value=([SimpleNamespace(id=99)], "sku"),
-        ), mock.patch(
-            "wms.scan_import_handlers.summarize_import_row",
-            return_value="SKU-1 | Produit 1",
-        ), mock.patch(
-            "wms.scan_import_handlers.render_scan_import",
-            return_value=HttpResponse("pending"),
+        with (
+            mock.patch(
+                "wms.scan_import_handlers.decode_text",
+                return_value="sku,name\nA,Produit A\n",
+            ),
+            mock.patch(
+                "wms.scan_import_handlers.iter_import_rows",
+                return_value=[{"sku": "A", "name": "Produit A"}],
+            ),
+            mock.patch(
+                "wms.scan_import_handlers.row_is_empty",
+                return_value=False,
+            ),
+            mock.patch(
+                "wms.scan_import_handlers.extract_product_identity",
+                return_value=("SKU-1", "Produit 1", "ASF"),
+            ),
+            mock.patch(
+                "wms.scan_import_handlers.find_product_matches",
+                return_value=([SimpleNamespace(id=99)], "sku"),
+            ),
+            mock.patch(
+                "wms.scan_import_handlers.summarize_import_row",
+                return_value="SKU-1 | Produit 1",
+            ),
+            mock.patch(
+                "wms.scan_import_handlers.render_scan_import",
+                return_value=HttpResponse("pending"),
+            ),
         ):
             response = scan_import_handlers.handle_scan_import_action(
                 request,
@@ -578,12 +580,10 @@ class ScanImportHandlersTests(TestCase):
                                     {"distinct_products": 2, "temp_location_rows": 0},
                                 ),
                             ) as import_rows_mock:
-                                response = (
-                                    scan_import_handlers.handle_scan_import_action(
-                                        request,
-                                        default_password="TempPwd!",
-                                        clear_pending_import=lambda: None,
-                                    )
+                                response = scan_import_handlers.handle_scan_import_action(
+                                    request,
+                                    default_password="TempPwd!",
+                                    clear_pending_import=lambda: None,
                                 )
         self.assertEqual(response.status_code, 302)
         self.assertEqual(
@@ -604,28 +604,33 @@ class ScanImportHandlersTests(TestCase):
 
     def test_product_file_skips_empty_rows_before_match_detection(self):
         uploaded = SimpleUploadedFile("produits.csv", b"sku,name\n,\nA,Produit A\n")
-        request = self._build_post_request(
-            {"action": "product_file", "import_file": uploaded}
-        )
+        request = self._build_post_request({"action": "product_file", "import_file": uploaded})
         rows = [{}, {"sku": "A", "name": "Produit A"}]
-        with mock.patch(
-            "wms.scan_import_handlers.decode_text",
-            return_value="sku,name\n,\nA,Produit A\n",
-        ), mock.patch(
-            "wms.scan_import_handlers.iter_import_rows",
-            return_value=rows,
-        ), mock.patch(
-            "wms.scan_import_handlers.row_is_empty",
-            side_effect=[True, False],
-        ), mock.patch(
-            "wms.scan_import_handlers.extract_product_identity",
-            return_value=("SKU-1", "Produit 1", "ASF"),
-        ) as extract_identity_mock, mock.patch(
-            "wms.scan_import_handlers.find_product_matches",
-            return_value=([], "none"),
-        ) as find_matches_mock, mock.patch(
-            "wms.scan_import_handlers.import_products_rows",
-            return_value=(1, 0, [], []),
+        with (
+            mock.patch(
+                "wms.scan_import_handlers.decode_text",
+                return_value="sku,name\n,\nA,Produit A\n",
+            ),
+            mock.patch(
+                "wms.scan_import_handlers.iter_import_rows",
+                return_value=rows,
+            ),
+            mock.patch(
+                "wms.scan_import_handlers.row_is_empty",
+                side_effect=[True, False],
+            ),
+            mock.patch(
+                "wms.scan_import_handlers.extract_product_identity",
+                return_value=("SKU-1", "Produit 1", "ASF"),
+            ) as extract_identity_mock,
+            mock.patch(
+                "wms.scan_import_handlers.find_product_matches",
+                return_value=([], "none"),
+            ) as find_matches_mock,
+            mock.patch(
+                "wms.scan_import_handlers.import_products_rows",
+                return_value=(1, 0, [], []),
+            ),
         ):
             response = scan_import_handlers.handle_scan_import_action(
                 request,
@@ -689,21 +694,23 @@ class ScanImportHandlersTests(TestCase):
 
     def test_file_action_non_user_file_calls_importer_without_password(self):
         uploaded = SimpleUploadedFile("locations.csv", b"name\nRack A\n")
-        request = self._build_post_request(
-            {"action": "location_file", "import_file": uploaded}
-        )
+        request = self._build_post_request({"action": "location_file", "import_file": uploaded})
         importer = mock.Mock(return_value=(1, 0, [], []))
         rows = [{"name": "Rack A"}]
-        with mock.patch.dict(
-            scan_import_handlers.IMPORT_FILE_ACTIONS,
-            {"location_file": ("emplacements", importer)},
-            clear=False,
-        ), mock.patch(
-            "wms.scan_import_handlers.iter_import_rows",
-            return_value=rows,
-        ), mock.patch(
-            "wms.scan_import_handlers.normalize_import_result",
-            return_value=(1, 0, [], []),
+        with (
+            mock.patch.dict(
+                scan_import_handlers.IMPORT_FILE_ACTIONS,
+                {"location_file": ("emplacements", importer)},
+                clear=False,
+            ),
+            mock.patch(
+                "wms.scan_import_handlers.iter_import_rows",
+                return_value=rows,
+            ),
+            mock.patch(
+                "wms.scan_import_handlers.normalize_import_result",
+                return_value=(1, 0, [], []),
+            ),
         ):
             response = scan_import_handlers.handle_scan_import_action(
                 request,
@@ -716,9 +723,7 @@ class ScanImportHandlersTests(TestCase):
 
     def test_file_action_reports_value_error(self):
         uploaded = SimpleUploadedFile("locations.csv", b"invalid")
-        request = self._build_post_request(
-            {"action": "location_file", "import_file": uploaded}
-        )
+        request = self._build_post_request({"action": "location_file", "import_file": uploaded})
         importer = mock.Mock()
         with mock.patch.dict(
             scan_import_handlers.IMPORT_FILE_ACTIONS,
@@ -742,9 +747,7 @@ class ScanImportHandlersTests(TestCase):
         importer.assert_not_called()
 
     def test_single_action_user_single_passes_default_password(self):
-        request = self._build_post_request(
-            {"action": "user_single", "email": "user@example.com"}
-        )
+        request = self._build_post_request({"action": "user_single", "email": "user@example.com"})
         importer = mock.Mock(return_value=(1, 0, [], []))
         with mock.patch.dict(
             scan_import_handlers.IMPORT_SINGLE_ACTIONS,
@@ -767,9 +770,7 @@ class ScanImportHandlersTests(TestCase):
         self.assertIn("Utilisateur ajouté.", self._messages(request))
 
     def test_single_action_reports_value_error(self):
-        request = self._build_post_request(
-            {"action": "category_single", "name": "Sante"}
-        )
+        request = self._build_post_request({"action": "category_single", "name": "Sante"})
         importer = mock.Mock(side_effect=ValueError("nom requis"))
         with mock.patch.dict(
             scan_import_handlers.IMPORT_SINGLE_ACTIONS,
@@ -785,9 +786,7 @@ class ScanImportHandlersTests(TestCase):
         self.assertIn("Ajout categorie: nom requis", self._messages(request))
 
     def test_single_action_reports_first_error_and_warnings(self):
-        request = self._build_post_request(
-            {"action": "warehouse_single", "code": "WH1"}
-        )
+        request = self._build_post_request({"action": "warehouse_single", "code": "WH1"})
         importer = mock.Mock(return_value=(0, 0, [], []))
         with mock.patch.dict(
             scan_import_handlers.IMPORT_SINGLE_ACTIONS,
@@ -806,9 +805,7 @@ class ScanImportHandlersTests(TestCase):
         self.assertEqual(response_error.status_code, 302)
         self.assertIn("erreur unique", self._messages(request))
 
-        request_warn = self._build_post_request(
-            {"action": "warehouse_single", "code": "WH2"}
-        )
+        request_warn = self._build_post_request({"action": "warehouse_single", "code": "WH2"})
         with mock.patch.dict(
             scan_import_handlers.IMPORT_SINGLE_ACTIONS,
             {"warehouse_single": ("entrepot", importer)},

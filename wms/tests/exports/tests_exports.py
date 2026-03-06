@@ -40,7 +40,9 @@ class ExportsTests(SimpleTestCase):
             brand="BrandX",
             color="Blue",
             category=category_leaf,
-            tags=SimpleNamespace(all=lambda: [SimpleNamespace(name="Urgent"), SimpleNamespace(name="Medical")]),
+            tags=SimpleNamespace(
+                all=lambda: [SimpleNamespace(name="Urgent"), SimpleNamespace(name="Medical")]
+            ),
             default_location=location,
             barcode="BC1",
             ean="EAN1",
@@ -150,7 +152,9 @@ class ExportsTests(SimpleTestCase):
                 ) as location_response_mock:
                     self.assertEqual(exports.export_locations_csv(), "locations-response")
         self.assertEqual(location_response_mock.call_args.args[0], "locations_export.csv")
-        self.assertEqual(location_response_mock.call_args.args[2], [["WH-A", "Z1", "A1", "S1", "n1", "Red"]])
+        self.assertEqual(
+            location_response_mock.call_args.args[2], [["WH-A", "Z1", "A1", "S1", "n1", "Red"]]
+        )
 
         categories_qs = mock.MagicMock()
         categories_qs.all.return_value = [
@@ -170,7 +174,10 @@ class ExportsTests(SimpleTestCase):
 
         with mock.patch(
             "wms.exports.Warehouse.objects.all",
-            return_value=[SimpleNamespace(name="WH-A", code="A"), SimpleNamespace(name="WH-B", code="")],
+            return_value=[
+                SimpleNamespace(name="WH-A", code="A"),
+                SimpleNamespace(name="WH-B", code=""),
+            ],
         ):
             with mock.patch(
                 "wms.exports._build_csv_response",
@@ -194,7 +201,9 @@ class ExportsTests(SimpleTestCase):
             phone="123",
             phone2="",
             use_organization_address=True,
-            tags=SimpleNamespace(all=lambda: [SimpleNamespace(name="TagB"), SimpleNamespace(name="TagA")]),
+            tags=SimpleNamespace(
+                all=lambda: [SimpleNamespace(name="TagB"), SimpleNamespace(name="TagA")]
+            ),
             destination=None,
             get_effective_addresses=lambda: [],
             siret="",
@@ -240,7 +249,10 @@ class ExportsTests(SimpleTestCase):
         )
 
         contacts_qs = mock.MagicMock()
-        contacts_qs.prefetch_related.return_value = [contact_without_address, contact_with_addresses]
+        contacts_qs.prefetch_related.return_value = [
+            contact_without_address,
+            contact_with_addresses,
+        ]
         with mock.patch(
             "wms.exports.Contact.objects.select_related",
             return_value=contacts_qs,

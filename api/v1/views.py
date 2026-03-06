@@ -21,6 +21,13 @@ from wms.models import (
     Shipment,
 )
 
+from .integration_filters import (
+    apply_integration_destination_filters,
+    apply_integration_event_filters,
+    apply_integration_shipment_filters,
+)
+from .permissions import IntegrationKeyOrAuth, IntegrationKeyOrStaff
+from .product_filters import apply_product_filters
 from .serializers import (
     IntegrationDestinationSerializer,
     IntegrationEventSerializer,
@@ -30,13 +37,6 @@ from .serializers import (
     PackCartonSerializer,
     ProductSerializer,
     ReceiveStockSerializer,
-)
-from .permissions import IntegrationKeyOrAuth, IntegrationKeyOrStaff
-from .product_filters import apply_product_filters
-from .integration_filters import (
-    apply_integration_destination_filters,
-    apply_integration_event_filters,
-    apply_integration_shipment_filters,
 )
 
 
@@ -136,9 +136,7 @@ class IntegrationShipmentViewSet(viewsets.ReadOnlyModelViewSet):
             .annotate(carton_count=Count("carton"))
             .all()
         )
-        queryset = apply_integration_shipment_filters(
-            queryset, self.request.query_params
-        )
+        queryset = apply_integration_shipment_filters(queryset, self.request.query_params)
         return queryset.order_by("-created_at")
 
 
@@ -148,9 +146,7 @@ class IntegrationDestinationViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         queryset = Destination.objects.select_related("correspondent_contact").all()
-        queryset = apply_integration_destination_filters(
-            queryset, self.request.query_params
-        )
+        queryset = apply_integration_destination_filters(queryset, self.request.query_params)
         return queryset.order_by("city")
 
 
@@ -197,11 +193,7 @@ class IntegrationEventViewSet(
             and event.event_type == EMAIL_QUEUE_EVENT_TYPE
         ):
             raise ValidationError(
-                {
-                    "detail": (
-                        "Outbound email queue events are read-only via this API."
-                    )
-                }
+                {"detail": ("Outbound email queue events are read-only via this API.")}
             )
         status_value = serializer.validated_data.get("status")
         processed_at = serializer.validated_data.get("processed_at")

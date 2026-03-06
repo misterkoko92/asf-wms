@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
-
 from openpyxl import load_workbook
 
 from wms import models
@@ -68,9 +67,7 @@ def _build_export_rows(*, include_resolved: bool):
             suggested_destination_id=review_row.get("suggested_destination_id"),
         )
         default_action = (
-            "resolve_binding"
-            if suggested_shipper_name and proposed_destination_iata
-            else ""
+            "resolve_binding" if suggested_shipper_name and proposed_destination_iata else ""
         )
         exported_rows.append(
             [
@@ -89,8 +86,7 @@ def _build_export_rows(*, include_resolved: bool):
 
 class Command(BaseCommand):
     help = (
-        "Alimente le template XLSX de revue Organization Roles avec les "
-        "items MigrationReviewItem."
+        "Alimente le template XLSX de revue Organization Roles avec les items MigrationReviewItem."
     )
 
     def add_arguments(self, parser):
@@ -122,9 +118,7 @@ class Command(BaseCommand):
 
         workbook = load_workbook(template_path)
         if TARGET_SHEET_NAME not in workbook.sheetnames:
-            raise CommandError(
-                f"Onglet '{TARGET_SHEET_NAME}' absent du template: {template_path}"
-            )
+            raise CommandError(f"Onglet '{TARGET_SHEET_NAME}' absent du template: {template_path}")
 
         worksheet = workbook[TARGET_SHEET_NAME]
         if worksheet.max_row > 1:

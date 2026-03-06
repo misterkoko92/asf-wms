@@ -88,15 +88,11 @@ class ScanShipmentHandlersTests(TestCase):
                         "wms.scan_shipment_handlers.Carton.objects.filter",
                         return_value=carton_query,
                     ):
-                        with mock.patch(
-                            "wms.scan_shipment_handlers.pack_carton"
-                        ) as pack_mock:
+                        with mock.patch("wms.scan_shipment_handlers.pack_carton") as pack_mock:
                             with mock.patch(
                                 "wms.scan_shipment_handlers.sync_shipment_ready_state"
                             ) as sync_mock:
-                                with mock.patch(
-                                    "wms.scan_shipment_handlers.messages.success"
-                                ):
+                                with mock.patch("wms.scan_shipment_handlers.messages.success"):
                                     with mock.patch(
                                         "wms.scan_shipment_handlers.redirect",
                                         return_value=SimpleNamespace(status_code=302, url="/next"),
@@ -104,9 +100,7 @@ class ScanShipmentHandlersTests(TestCase):
                                         with mock.patch(
                                             "wms.scan_shipment_handlers.connection",
                                             SimpleNamespace(
-                                                features=SimpleNamespace(
-                                                    has_select_for_update=True
-                                                )
+                                                features=SimpleNamespace(has_select_for_update=True)
                                             ),
                                         ):
                                             response, carton_count, line_values, line_errors = (
@@ -211,9 +205,7 @@ class ScanShipmentHandlersTests(TestCase):
             "wms.scan_shipment_handlers.parse_shipment_lines",
             return_value=([{"line": 1}], [], {"1": "invalid"}),
         ):
-            with mock.patch(
-                "wms.scan_shipment_handlers.Shipment.objects.create"
-            ) as create_mock:
+            with mock.patch("wms.scan_shipment_handlers.Shipment.objects.create") as create_mock:
                 response, carton_count, line_values, line_errors = handle_shipment_create_post(
                     request,
                     form=form,
@@ -324,15 +316,11 @@ class ScanShipmentHandlersTests(TestCase):
                     "wms.scan_shipment_handlers.Carton.objects.filter",
                     return_value=carton_query,
                 ):
-                    with mock.patch(
-                        "wms.scan_shipment_handlers.pack_carton"
-                    ) as pack_mock:
+                    with mock.patch("wms.scan_shipment_handlers.pack_carton") as pack_mock:
                         with mock.patch(
                             "wms.scan_shipment_handlers.sync_shipment_ready_state"
                         ) as sync_mock:
-                            with mock.patch(
-                                "wms.scan_shipment_handlers.messages.success"
-                            ):
+                            with mock.patch("wms.scan_shipment_handlers.messages.success"):
                                 with mock.patch(
                                     "wms.scan_shipment_handlers.redirect",
                                     return_value=SimpleNamespace(status_code=302, url="/ready"),
@@ -340,9 +328,7 @@ class ScanShipmentHandlersTests(TestCase):
                                     with mock.patch(
                                         "wms.scan_shipment_handlers.connection",
                                         SimpleNamespace(
-                                            features=SimpleNamespace(
-                                                has_select_for_update=True
-                                            )
+                                            features=SimpleNamespace(has_select_for_update=True)
                                         ),
                                     ):
                                         response, carton_count, line_values, line_errors = (
@@ -395,18 +381,10 @@ class ScanShipmentHandlersTests(TestCase):
                     "wms.scan_shipment_handlers.pack_carton_from_reserved",
                     return_value=reserved_carton,
                 ) as reserved_mock:
-                    with mock.patch(
-                        "wms.scan_shipment_handlers.pack_carton"
-                    ) as pack_mock:
-                        with mock.patch(
-                            "wms.scan_shipment_handlers.set_carton_status"
-                        ):
-                            with mock.patch(
-                                "wms.scan_shipment_handlers.sync_shipment_ready_state"
-                            ):
-                                with mock.patch(
-                                    "wms.scan_shipment_handlers.messages.success"
-                                ):
+                    with mock.patch("wms.scan_shipment_handlers.pack_carton") as pack_mock:
+                        with mock.patch("wms.scan_shipment_handlers.set_carton_status"):
+                            with mock.patch("wms.scan_shipment_handlers.sync_shipment_ready_state"):
+                                with mock.patch("wms.scan_shipment_handlers.messages.success"):
                                     with mock.patch(
                                         "wms.scan_shipment_handlers.redirect",
                                         return_value=SimpleNamespace(
@@ -480,9 +458,7 @@ class ScanShipmentHandlersTests(TestCase):
             carton_set=mock.MagicMock(),
             save=mock.Mock(),
         )
-        shipment.carton_set.exclude.return_value = [
-            SimpleNamespace(status=CartonStatus.SHIPPED)
-        ]
+        shipment.carton_set.exclude.return_value = [SimpleNamespace(status=CartonStatus.SHIPPED)]
 
         with mock.patch(
             "wms.scan_shipment_handlers.parse_shipment_lines",

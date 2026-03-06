@@ -164,17 +164,23 @@ class ImportUtilsTests(SimpleTestCase):
         self.assertEqual(rows, [{"nom": "Mask"}])
 
     def test_iter_import_rows_dispatches_and_rejects_unknown_extension(self):
-        with mock.patch("wms.import_utils.iter_csv_rows", return_value=iter([{"a": 1}])) as csv_mock:
+        with mock.patch(
+            "wms.import_utils.iter_csv_rows", return_value=iter([{"a": 1}])
+        ) as csv_mock:
             rows = list(import_utils.iter_import_rows(b"x", ".csv"))
         self.assertEqual(rows, [{"a": 1}])
         csv_mock.assert_called_once()
 
-        with mock.patch("wms.import_utils.iter_xlsx_rows", return_value=iter([{"x": 1}])) as xlsx_mock:
+        with mock.patch(
+            "wms.import_utils.iter_xlsx_rows", return_value=iter([{"x": 1}])
+        ) as xlsx_mock:
             rows = list(import_utils.iter_import_rows(b"x", ".xlsx"))
         self.assertEqual(rows, [{"x": 1}])
         xlsx_mock.assert_called_once()
 
-        with mock.patch("wms.import_utils.iter_xls_rows", return_value=iter([{"x": 2}])) as xls_mock:
+        with mock.patch(
+            "wms.import_utils.iter_xls_rows", return_value=iter([{"x": 2}])
+        ) as xls_mock:
             rows = list(import_utils.iter_import_rows(b"x", ".xls"))
         self.assertEqual(rows, [{"x": 2}])
         xls_mock.assert_called_once()
@@ -183,7 +189,9 @@ class ImportUtilsTests(SimpleTestCase):
             import_utils.iter_import_rows(b"x", ".pdf")
 
     def test_sanitize_headers_and_coerce_cell(self):
-        self.assertEqual(import_utils._sanitize_headers([], row_length=2), ["Colonne 1", "Colonne 2"])
+        self.assertEqual(
+            import_utils._sanitize_headers([], row_length=2), ["Colonne 1", "Colonne 2"]
+        )
         self.assertEqual(
             import_utils._sanitize_headers(["Nom", ""], row_length=3),
             ["Nom", "Colonne 2", "Colonne 3"],

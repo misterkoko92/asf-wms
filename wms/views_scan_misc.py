@@ -1,6 +1,7 @@
 from django.http import HttpResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
+
 from .view_permissions import scan_staff_required
 
 TEMPLATE_SCAN_FAQ = "scan/faq.html"

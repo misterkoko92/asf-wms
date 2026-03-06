@@ -1,24 +1,11 @@
 from django.db import connection, transaction
 
-from contacts.models import Contact
 from contacts.destination_scope import contact_destination_ids
+from contacts.models import Contact
 from contacts.querysets import contacts_with_tags
 
-from ..contact_filters import TAG_CORRESPONDENT, TAG_RECIPIENT, TAG_SHIPPER
-from ..organization_role_resolvers import (
-    OrganizationRoleResolutionError,
-    is_org_roles_engine_enabled,
-    resolve_recipient_binding_for_operation,
-    resolve_shipper_for_operation,
-)
-from .stock import (
-    StockConsumeResult,
-    StockError,
-    _prepare_carton,
-    ensure_carton_code,
-    fefo_lots,
-)
 from ..carton_status_events import set_carton_status
+from ..contact_filters import TAG_CORRESPONDENT, TAG_RECIPIENT, TAG_SHIPPER
 from ..models import (
     Carton,
     CartonFormat,
@@ -34,10 +21,22 @@ from ..models import (
     ShipmentStatus,
     StockMovement,
 )
+from ..organization_role_resolvers import (
+    OrganizationRoleResolutionError,
+    is_org_roles_engine_enabled,
+    resolve_recipient_binding_for_operation,
+    resolve_shipper_for_operation,
+)
 from ..scan_helpers import build_packing_bins
 from ..shipment_helpers import build_destination_label
 from ..shipment_status import sync_shipment_ready_state
-
+from .stock import (
+    StockConsumeResult,
+    StockError,
+    _prepare_carton,
+    ensure_carton_code,
+    fefo_lots,
+)
 
 LOCKED_SHIPMENT_STATUSES = {
     ShipmentStatus.PLANNED,
@@ -154,15 +153,16 @@ def _resolve_destination_for_order(
 def _resolve_correspondent_contact_for_order(order: Order, *, destination: Destination | None):
     if _active_contact(order.correspondent_contact):
         return order.correspondent_contact
-    if destination and destination.correspondent_contact and destination.correspondent_contact.is_active:
+    if (
+        destination
+        and destination.correspondent_contact
+        and destination.correspondent_contact.is_active
+    ):
         return destination.correspondent_contact
-    return (
-        _resolve_tagged_contact_by_name(
-            tag_aliases=TAG_CORRESPONDENT,
-            name=order.correspondent_name,
-        )
-        or _resolve_contact_by_name(order.correspondent_name)
-    )
+    return _resolve_tagged_contact_by_name(
+        tag_aliases=TAG_CORRESPONDENT,
+        name=order.correspondent_name,
+    ) or _resolve_contact_by_name(order.correspondent_name)
 
 
 def _build_shipment_defaults_from_order(order: Order):
@@ -205,9 +205,7 @@ def _build_shipment_defaults_from_order(order: Order):
         destination_address = build_destination_label(destination)
         destination_country = _normalized_text(destination.country) or destination_country
 
-    shipper_name = _normalized_text(
-        shipper_contact.name if shipper_contact else order.shipper_name
-    )
+    shipper_name = _normalized_text(shipper_contact.name if shipper_contact else order.shipper_name)
     recipient_name = _normalized_text(
         recipient_contact.name if recipient_contact else order.recipient_name
     )
@@ -278,9 +276,7 @@ def reserve_stock_for_order(*, order: Order):
                 max(0, lot.quantity_on_hand - lot.quantity_reserved) for lot in lots
             )
             if available_total < needed:
-                raise StockError(
-                    f"{line.product.name}: stock insuffisant ({available_total})."
-                )
+                raise StockError(f"{line.product.name}: stock insuffisant ({available_total}).")
             remaining = needed
             for lot in lots:
                 if remaining <= 0:
@@ -291,9 +287,7 @@ def reserve_stock_for_order(*, order: Order):
                 take = min(remaining, available)
                 lot.quantity_reserved += take
                 lot.save(update_fields=["quantity_reserved"])
-                OrderReservation.objects.create(
-                    order_line=line, product_lot=lot, quantity=take
-                )
+                OrderReservation.objects.create(order_line=line, product_lot=lot, quantity=take)
                 remaining -= take
             line.reserved_quantity += needed
             line.save(update_fields=["reserved_quantity"])
@@ -455,9 +449,7 @@ def assign_ready_cartons_to_order(*, order: Order):
     if shipment.status in LOCKED_SHIPMENT_STATUSES:
         raise StockError("Expédition verrouillée: affectation des colis impossible.")
     line_by_product = {line.product_id: line for line in order.lines.all()}
-    remaining = {
-        line.product_id: line.remaining_quantity for line in order.lines.all()
-    }
+    remaining = {line.product_id: line.remaining_quantity for line in order.lines.all()}
     ready_cartons = (
         Carton.objects.filter(status=CartonStatus.PACKED, shipment__isnull=True)
         .prefetch_related("cartonitem_set__product_lot__product")
@@ -510,9 +502,7 @@ def prepare_order(*, user, order: Order):
     assigned = assign_ready_cartons_to_order(order=order)
 
     remaining_lines = [
-        line
-        for line in order.lines.select_related("product")
-        if line.remaining_quantity > 0
+        line for line in order.lines.select_related("product") if line.remaining_quantity > 0
     ]
     if remaining_lines:
         carton_format = CartonFormat.objects.filter(is_default=True).first()

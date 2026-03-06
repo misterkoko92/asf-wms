@@ -16,8 +16,8 @@ from django.utils.http import (
 )
 from django.views.decorators.http import require_http_methods
 
-from .emailing import send_or_enqueue_email_safe
 from .client_ip import get_client_ip
+from .emailing import send_or_enqueue_email_safe
 from .portal_helpers import get_association_profile
 from .view_permissions import association_required
 
@@ -45,9 +45,7 @@ RECOVERY_LEAD = (
 )
 RECOVERY_SUBMIT_LABEL = "Recevoir le lien"
 RECOVERY_EMAIL_TEMPLATE = "emails/portal_forgot_password.txt"
-RECOVERY_EMAIL_SUBJECT = (
-    "ASF WMS - Mot de passe oublié / Première connexion portail"
-)
+RECOVERY_EMAIL_SUBJECT = "ASF WMS - Mot de passe oublié / Première connexion portail"
 
 RECOVERY_THROTTLE_SECONDS_DEFAULT = 300
 

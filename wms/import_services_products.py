@@ -1,19 +1,18 @@
+import unicodedata
 from decimal import ROUND_HALF_UP
 from pathlib import Path
-import unicodedata
 
-from django.db import transaction
 from django.core.files import File
+from django.db import transaction
 
 from .import_services_categories import build_category_path
 from .import_services_common import _row_is_empty
 from .import_services_locations import get_or_create_location
 from .import_services_tags import build_product_tags
 from .import_utils import get_value, parse_bool, parse_decimal, parse_int, parse_str
+from .models import Product, ProductLot, RackColor
 from .services import StockError, adjust_stock, receive_stock
 from .text_utils import normalize_title, normalize_upper
-from .models import Product, ProductLot, RackColor
-
 
 QUANTITY_MODE_MOVEMENT = "movement"
 QUANTITY_MODE_OVERWRITE = "overwrite"
@@ -44,9 +43,7 @@ def _find_sku_matches_ignoring_case_and_special_chars(sku):
         return []
     queryset = Product.objects.exclude(sku="").only("id", "sku", "name", "brand")
     return [
-        product
-        for product in queryset
-        if _normalize_match_value(product.sku) == normalized_sku
+        product for product in queryset if _normalize_match_value(product.sku) == normalized_sku
     ]
 
 
@@ -55,11 +52,7 @@ def _find_name_brand_matches_ignoring_case_and_special_chars(name, brand):
     normalized_brand = _normalize_match_value(brand)
     if not normalized_name or not normalized_brand:
         return []
-    queryset = (
-        Product.objects.exclude(name="")
-        .exclude(brand="")
-        .only("id", "sku", "name", "brand")
-    )
+    queryset = Product.objects.exclude(name="").exclude(brand="").only("id", "sku", "name", "brand")
     return [
         product
         for product in queryset
@@ -88,9 +81,7 @@ def find_product_matches(*, sku, name, brand):
         if matches:
             return matches, "sku"
     if name and brand:
-        matches = list(
-            Product.objects.filter(name__iexact=name, brand__iexact=brand)
-        )
+        matches = list(Product.objects.filter(name__iexact=name, brand__iexact=brand))
         if matches:
             return matches, "name_brand"
         matches = _find_name_brand_matches_ignoring_case_and_special_chars(
@@ -135,9 +126,7 @@ def compute_volume(length_cm, width_cm, height_cm):
 
 def _overwrite_product_quantity(*, product, quantity, location, user=None):
     lots = list(
-        ProductLot.objects.filter(product=product)
-        .select_related("location")
-        .order_by("id")
+        ProductLot.objects.filter(product=product).select_related("location").order_by("id")
     )
     for lot in lots:
         removable = max(0, lot.quantity_on_hand - lot.quantity_reserved)
@@ -155,9 +144,7 @@ def _overwrite_product_quantity(*, product, quantity, location, user=None):
         ProductLot.objects.filter(product=product).values_list("quantity_on_hand", flat=True)
     )
     if current_total > quantity:
-        raise ValueError(
-            "Ecrasement impossible: stock reserve superieur a la quantite importee."
-        )
+        raise ValueError("Ecrasement impossible: stock reserve superieur a la quantite importee.")
     delta = quantity - current_total
     if delta <= 0:
         return
@@ -483,9 +470,7 @@ def import_products_rows(
             if sku and Product.objects.filter(sku__iexact=sku).exists():
                 row = dict(row)
                 row["sku"] = ""
-                warnings.append(
-                    f"Ligne {index}: SKU {sku} déjà utilisé, SKU auto-généré."
-                )
+                warnings.append(f"Ligne {index}: SKU {sku} déjà utilisé, SKU auto-généré.")
         try:
             if collect_stats:
                 (

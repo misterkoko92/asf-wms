@@ -9,6 +9,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from .models import (
+    TEMP_SHIPMENT_REFERENCE_PREFIX,
     Carton,
     CartonStatus,
     Destination,
@@ -25,7 +26,6 @@ from .models import (
     Shipment,
     ShipmentStatus,
     ShipmentTrackingStatus,
-    TEMP_SHIPMENT_REFERENCE_PREFIX,
 )
 from .runtime_settings import get_runtime_config
 from .view_permissions import scan_staff_required
@@ -113,9 +113,7 @@ def _annotate_tracking_dates(queryset):
         ),
         received_correspondent_at=Max(
             "tracking_events__created_at",
-            filter=Q(
-                tracking_events__status=ShipmentTrackingStatus.RECEIVED_CORRESPONDENT
-            ),
+            filter=Q(tracking_events__status=ShipmentTrackingStatus.RECEIVED_CORRESPONDENT),
         ),
         received_recipient_at=Max(
             "tracking_events__created_at",
@@ -129,10 +127,7 @@ def _status_count_map(shipments_qs):
         item["status"]: item["total"]
         for item in shipments_qs.values("status").annotate(total=Count("id"))
     }
-    return {
-        status: status_counts.get(status, 0)
-        for status in SHIPMENT_STATUS_ORDER
-    }
+    return {status: status_counts.get(status, 0) for status in SHIPMENT_STATUS_ORDER}
 
 
 def _build_chart_rows(status_count_map):
@@ -167,9 +162,7 @@ def _stock_snapshot(*, low_stock_threshold):
         status=ProductLotStatus.AVAILABLE,
         quantity_on_hand__gt=0,
     )
-    total_available_qty = (
-        available_lots.aggregate(total=Sum(lot_available_expr))["total"] or 0
-    )
+    total_available_qty = available_lots.aggregate(total=Sum(lot_available_expr))["total"] or 0
 
     products_with_qty = active_products.annotate(
         available_qty=Coalesce(
@@ -190,9 +183,7 @@ def _stock_snapshot(*, low_stock_threshold):
         "available_lots_count": available_lots.count(),
         "total_available_qty": total_available_qty,
         "low_stock_count": low_stock_qs.count(),
-        "low_stock_rows": list(
-            low_stock_qs.values("name", "sku", "available_qty")[:10]
-        ),
+        "low_stock_rows": list(low_stock_qs.values("name", "sku", "available_qty")[:10]),
     }
 
 
@@ -322,9 +313,7 @@ def scan_dashboard(request):
     low_stock_threshold = runtime_config.low_stock_threshold
     tracking_alert_hours = runtime_config.tracking_alert_hours
     workflow_blockage_hours = runtime_config.workflow_blockage_hours
-    queue_processing_timeout_seconds = (
-        runtime_config.email_queue_processing_timeout_seconds
-    )
+    queue_processing_timeout_seconds = runtime_config.email_queue_processing_timeout_seconds
 
     period = _normalize_period(request.GET.get("period"))
     period_start = _period_start(period)
@@ -545,17 +534,13 @@ def scan_dashboard(request):
         ),
         _build_card(
             label="Cmd en attente de validation",
-            value=Order.objects.filter(
-                review_status=OrderReviewStatus.PENDING
-            ).count(),
+            value=Order.objects.filter(review_status=OrderReviewStatus.PENDING).count(),
             help_text="Demandes à valider.",
             url=reverse("scan:scan_orders_view"),
         ),
         _build_card(
             label="Cmd à modifier",
-            value=Order.objects.filter(
-                review_status=OrderReviewStatus.CHANGES_REQUESTED
-            ).count(),
+            value=Order.objects.filter(review_status=OrderReviewStatus.CHANGES_REQUESTED).count(),
             help_text="Retours en correction.",
             url=reverse("scan:scan_orders_view"),
             tone="warn",
@@ -630,8 +615,7 @@ def scan_dashboard(request):
             label="Queue email bloquée (timeout)",
             value=email_queue_snapshot["stale_processing_count"],
             help_text=(
-                "Événements processing au-delà du timeout "
-                f"({queue_processing_timeout_seconds}s)."
+                f"Événements processing au-delà du timeout ({queue_processing_timeout_seconds}s)."
             ),
             url=reverse("scan:scan_dashboard"),
             tone="danger" if email_queue_snapshot["stale_processing_count"] else "success",
@@ -671,9 +655,7 @@ def scan_dashboard(request):
             help_text="Livrés mais non clôturés.",
             url=reverse("scan:scan_shipments_tracking"),
             tone=(
-                "warn"
-                if workflow_blockage_snapshot["open_delivered_cases_count"]
-                else "success"
+                "warn" if workflow_blockage_snapshot["open_delivered_cases_count"] else "success"
             ),
         ),
         _build_card(
@@ -682,9 +664,7 @@ def scan_dashboard(request):
             help_text="Blocages opérationnels à traiter.",
             url=reverse("scan:scan_shipments_tracking"),
             tone=(
-                "danger"
-                if workflow_blockage_snapshot["open_disputed_cases_count"]
-                else "success"
+                "danger" if workflow_blockage_snapshot["open_disputed_cases_count"] else "success"
             ),
         ),
     ]
@@ -700,9 +680,7 @@ def scan_dashboard(request):
             help_text=(
                 "Aucune expédition complétée sur ce segment."
                 if row["completed_count"] == 0
-                else (
-                    f"Moyenne {row['average_hours']}h, max {row['max_hours']}h."
-                )
+                else (f"Moyenne {row['average_hours']}h, max {row['max_hours']}h.")
             ),
             url=reverse("scan:scan_shipments_tracking"),
             tone=(

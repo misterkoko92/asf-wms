@@ -63,12 +63,8 @@ class PortalRecipientSyncTests(TestCase):
         )
         self.assertTrue(first.destinations.filter(pk=self.destination_a.id).exists())
         self.assertTrue(first.linked_shippers.filter(pk=self.association.id).exists())
-        self.assertTrue(
-            contacts_with_tags(TAG_RECIPIENT).filter(pk=first.id).exists()
-        )
-        self.assertTrue(
-            contacts_with_tags(TAG_SHIPPER).filter(pk=self.association.id).exists()
-        )
+        self.assertTrue(contacts_with_tags(TAG_RECIPIENT).filter(pk=first.id).exists())
+        self.assertTrue(contacts_with_tags(TAG_SHIPPER).filter(pk=self.association.id).exists())
 
     def test_sync_updates_contact_when_recipient_changes_destination(self):
         recipient = self._create_recipient()

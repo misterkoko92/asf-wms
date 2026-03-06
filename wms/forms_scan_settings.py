@@ -99,9 +99,7 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
             field = self.fields[field_name]
             field.min_value = 1
             field.widget.attrs["min"] = 1
-            field.error_messages["min_value"] = (
-                "La valeur doit être supérieure ou égale à 1."
-            )
+            field.error_messages["min_value"] = "La valeur doit être supérieure ou égale à 1."
             field.validators = [
                 validator
                 for validator in field.validators
@@ -117,13 +115,9 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
         for boolean_field in ("org_roles_engine_enabled",):
             if boolean_field not in self.data:
                 if getattr(self.instance, "pk", None):
-                    cleaned_data[boolean_field] = bool(
-                        getattr(self.instance, boolean_field, False)
-                    )
+                    cleaned_data[boolean_field] = bool(getattr(self.instance, boolean_field, False))
                 else:
-                    cleaned_data[boolean_field] = bool(
-                        self.fields[boolean_field].initial
-                    )
+                    cleaned_data[boolean_field] = bool(self.fields[boolean_field].initial)
         review_percent = cleaned_data.get("org_roles_review_max_open_percent")
         if review_percent is None:
             if getattr(self.instance, "pk", None):
@@ -135,11 +129,7 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
 
         retry_base = cleaned_data.get("email_queue_retry_base_seconds")
         retry_max = cleaned_data.get("email_queue_retry_max_seconds")
-        if (
-            retry_base is not None
-            and retry_max is not None
-            and retry_max < retry_base
-        ):
+        if retry_base is not None and retry_max is not None and retry_max < retry_base:
             self.add_error(
                 "email_queue_retry_max_seconds",
                 "Le retry max doit être supérieur ou égal au retry base.",

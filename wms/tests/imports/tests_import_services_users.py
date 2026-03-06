@@ -35,9 +35,7 @@ class ImportUsersTests(TestCase):
         self.assertTrue(user.check_password("Default123"))
 
     def test_import_users_updates_existing_user(self):
-        user = get_user_model().objects.create_user(
-            username="carol", password="OldPass"
-        )
+        user = get_user_model().objects.create_user(username="carol", password="OldPass")
         rows = [{"username": "carol", "is_staff": "oui"}]
         created, updated, errors = import_users(rows, default_password="")
         self.assertEqual(errors, [])

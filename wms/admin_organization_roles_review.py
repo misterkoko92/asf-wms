@@ -48,22 +48,21 @@ def _active_org_contacts(queryset):
 
 
 def _open_review_items_queryset():
-    return models.MigrationReviewItem.objects.filter(
-        status=models.MigrationReviewItemStatus.OPEN
-    ).select_related(
-        "organization",
-        "legacy_contact",
-        "legacy_contact__organization",
-    ).order_by("created_at", "id")
+    return (
+        models.MigrationReviewItem.objects.filter(status=models.MigrationReviewItemStatus.OPEN)
+        .select_related(
+            "organization",
+            "legacy_contact",
+            "legacy_contact__organization",
+        )
+        .order_by("created_at", "id")
+    )
 
 
 def _resolve_recipient_organization(review_item: models.MigrationReviewItem):
-    if (
-        review_item.organization_id
-        and review_item.organization
-        and review_item.organization.contact_type == ContactType.ORGANIZATION
-    ):
-        return review_item.organization
+    organization = review_item.organization
+    if organization and organization.contact_type == ContactType.ORGANIZATION:
+        return organization
 
     legacy_contact = review_item.legacy_contact
     if not legacy_contact:
@@ -82,8 +81,9 @@ def _collect_destination_ids_for_contact(contact: Contact | None) -> set[int]:
     if not contact:
         return set()
     destination_ids = set(contact.destinations.values_list("id", flat=True))
-    if contact.destination_id:
-        destination_ids.add(contact.destination_id)
+    destination = contact.destination
+    if destination:
+        destination_ids.add(destination.pk)
     return destination_ids
 
 
@@ -100,9 +100,7 @@ def _collect_shipper_options(
 
     if recipient_org:
         shipper_ids.update(
-            _active_org_contacts(recipient_org.linked_shippers.all()).values_list(
-                "id", flat=True
-            )
+            _active_org_contacts(recipient_org.linked_shippers.all()).values_list("id", flat=True)
         )
         shipper_ids.update(
             models.RecipientBinding.objects.filter(recipient_org=recipient_org).values_list(
@@ -113,9 +111,7 @@ def _collect_shipper_options(
     legacy_contact = review_item.legacy_contact
     if legacy_contact:
         shipper_ids.update(
-            _active_org_contacts(legacy_contact.linked_shippers.all()).values_list(
-                "id", flat=True
-            )
+            _active_org_contacts(legacy_contact.linked_shippers.all()).values_list("id", flat=True)
         )
 
     if shipper_ids:
@@ -128,9 +124,7 @@ def _collect_shipper_options(
         )
 
     # Fallback for manual review when no explicit legacy links are available.
-    return list(
-        _active_org_contacts(contacts_with_tags(TAG_SHIPPER)).order_by("name")
-    )
+    return list(_active_org_contacts(contacts_with_tags(TAG_SHIPPER)).order_by("name"))
 
 
 def _collect_destination_options(
@@ -170,6 +164,7 @@ def _latest_recipient_binding(recipient_org: Contact | None):
         return None
     return (
         models.RecipientBinding.objects.filter(recipient_org=recipient_org, is_active=True)
+        .select_related("shipper_org", "destination")
         .order_by("-valid_from", "-created_at", "-id")
         .first()
     )
@@ -190,14 +185,12 @@ def _suggest_shipper_id(
         return payload_shipper_id
 
     latest_binding = _latest_recipient_binding(recipient_org)
-    if latest_binding and latest_binding.shipper_org_id in option_ids:
-        return latest_binding.shipper_org_id
+    if latest_binding and latest_binding.shipper_org.pk in option_ids:
+        return latest_binding.shipper_org.pk
 
     if recipient_org:
         linked_ids = list(
-            _active_org_contacts(recipient_org.linked_shippers.all()).values_list(
-                "id", flat=True
-            )
+            _active_org_contacts(recipient_org.linked_shippers.all()).values_list("id", flat=True)
         )
         if len(linked_ids) == 1 and linked_ids[0] in option_ids:
             return linked_ids[0]
@@ -223,15 +216,19 @@ def _suggest_destination_id(
         return payload_destination_id
 
     latest_binding = _latest_recipient_binding(recipient_org)
-    if latest_binding and latest_binding.destination_id in option_ids:
-        return latest_binding.destination_id
+    if latest_binding and latest_binding.destination.pk in option_ids:
+        return latest_binding.destination.pk
 
     legacy_contact = review_item.legacy_contact
-    if legacy_contact and legacy_contact.destination_id in option_ids:
-        return legacy_contact.destination_id
+    if (
+        legacy_contact
+        and legacy_contact.destination
+        and legacy_contact.destination.pk in option_ids
+    ):
+        return legacy_contact.destination.pk
 
-    if recipient_org and recipient_org.destination_id in option_ids:
-        return recipient_org.destination_id
+    if recipient_org and recipient_org.destination and recipient_org.destination.pk in option_ids:
+        return recipient_org.destination.pk
 
     if len(option_ids) == 1:
         return next(iter(option_ids))
@@ -333,11 +330,11 @@ def _handle_resolve_binding(*, request, review_item):
     with transaction.atomic():
         shipper_assignment = _ensure_role_assignment(
             organization=shipper_org,
-            role=models.OrganizationRole.SHIPPER,
+            role=str(models.OrganizationRole.SHIPPER),
         )
         _ensure_role_assignment(
             organization=recipient_org,
-            role=models.OrganizationRole.RECIPIENT,
+            role=str(models.OrganizationRole.RECIPIENT),
         )
         models.ShipperScope.objects.get_or_create(
             role_assignment=shipper_assignment,

@@ -8,15 +8,11 @@ def build_order_scan_state(request, *, action):
     select_form = ScanOrderSelectForm(
         request.POST if action == "select_order" else None, orders_qs=orders_qs
     )
-    create_form = ScanOrderCreateForm(
-        request.POST if action == "create_order" else None
-    )
+    create_form = ScanOrderCreateForm(request.POST if action == "create_order" else None)
 
     order_id = request.GET.get("order") or request.POST.get("order_id")
     selected_order = (
-        Order.objects.select_related("shipment").filter(id=order_id).first()
-        if order_id
-        else None
+        Order.objects.select_related("shipment").filter(id=order_id).first() if order_id else None
     )
 
     line_form = ScanOrderLineForm(

@@ -5,15 +5,14 @@ from .import_utils import get_value, parse_str
 from .models import ProductCategory
 from .text_utils import normalize_category_name
 
+
 def build_category_path(parts):
     parent = None
     for name in parts:
         if not name:
             continue
         normalized = normalize_category_name(name, is_root=parent is None)
-        category, _ = ProductCategory.objects.get_or_create(
-            name=normalized, parent=parent
-        )
+        category, _ = ProductCategory.objects.get_or_create(name=normalized, parent=parent)
         parent = category
     return parent
 
@@ -42,9 +41,7 @@ def import_categories(rows):
             parent = None
             if parent_name:
                 parent_name = normalize_category_name(parent_name, is_root=True)
-                parent, _ = ProductCategory.objects.get_or_create(
-                    name=parent_name, parent=None
-                )
+                parent, _ = ProductCategory.objects.get_or_create(name=parent_name, parent=None)
             ProductCategory.objects.get_or_create(name=name, parent=parent)
             created += 1
         except ValueError as exc:

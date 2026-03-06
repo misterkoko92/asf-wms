@@ -9,12 +9,12 @@ from django.views.decorators.http import require_http_methods
 
 from .forms_scan_settings import ScanRuntimeSettingsForm
 from .models import (
+    TEMP_SHIPMENT_REFERENCE_PREFIX,
     IntegrationDirection,
     IntegrationEvent,
     IntegrationStatus,
     Shipment,
     ShipmentStatus,
-    TEMP_SHIPMENT_REFERENCE_PREFIX,
     WmsRuntimeSettingsAudit,
 )
 from .runtime_settings import get_runtime_settings_instance, is_shipment_track_legacy_enabled
@@ -192,10 +192,9 @@ def scan_settings(request):
         form = ScanRuntimeSettingsForm(instance=runtime_settings)
 
     try:
-        recent_audits = (
-            WmsRuntimeSettingsAudit.objects.select_related("changed_by")
-            .filter(settings=runtime_settings)[:10]
-        )
+        recent_audits = WmsRuntimeSettingsAudit.objects.select_related("changed_by").filter(
+            settings=runtime_settings
+        )[:10]
     except (ProgrammingError, OperationalError):
         recent_audits = []
 

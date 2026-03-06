@@ -1,6 +1,10 @@
 from django.db.models import Q
 from django.utils import timezone
 
+from contacts.destination_scope import (
+    contact_destination_ids,
+    contact_primary_destination_id,
+)
 from contacts.models import ContactType
 
 from .contact_filters import (
@@ -9,10 +13,6 @@ from .contact_filters import (
     TAG_SHIPPER,
     contacts_with_tags,
     filter_structure_contacts,
-)
-from contacts.destination_scope import (
-    contact_destination_ids,
-    contact_primary_destination_id,
 )
 from .contact_labels import build_contact_select_label
 from .models import (
@@ -45,30 +45,29 @@ def _contact_organization_id(contact):
 def _current_window_q(prefix=""):
     now = timezone.now()
     return Q(**{f"{prefix}valid_from__lte": now}) & (
-        Q(**{f"{prefix}valid_to__isnull": True})
-        | Q(**{f"{prefix}valid_to__gt": now})
+        Q(**{f"{prefix}valid_to__isnull": True}) | Q(**{f"{prefix}valid_to__gt": now})
     )
 
 
 def _build_shipper_scope_destination_ids_by_org():
-    rows = ShipperScope.objects.filter(
-        role_assignment__role=OrganizationRole.SHIPPER,
-        role_assignment__is_active=True,
-        role_assignment__organization__is_active=True,
-        is_active=True,
-        all_destinations=False,
-    ).filter(
-        _current_window_q()
-    ).values_list(
-        "role_assignment__organization_id",
-        "destination_id",
+    rows = (
+        ShipperScope.objects.filter(
+            role_assignment__role=OrganizationRole.SHIPPER,
+            role_assignment__is_active=True,
+            role_assignment__organization__is_active=True,
+            is_active=True,
+            all_destinations=False,
+        )
+        .filter(_current_window_q())
+        .values_list(
+            "role_assignment__organization_id",
+            "destination_id",
+        )
     )
 
     scoped_destination_ids_by_org = {}
     for organization_id, destination_id in rows:
-        scoped_destination_ids_by_org.setdefault(organization_id, set()).add(
-            destination_id
-        )
+        scoped_destination_ids_by_org.setdefault(organization_id, set()).add(destination_id)
     return {
         organization_id: sorted(destination_ids)
         for organization_id, destination_ids in scoped_destination_ids_by_org.items()
@@ -76,14 +75,18 @@ def _build_shipper_scope_destination_ids_by_org():
 
 
 def _build_recipient_binding_pairs_by_org():
-    rows = RecipientBinding.objects.filter(
-        is_active=True,
-        shipper_org__is_active=True,
-        recipient_org__is_active=True,
-    ).filter(_current_window_q()).values_list(
-        "recipient_org_id",
-        "shipper_org_id",
-        "destination_id",
+    rows = (
+        RecipientBinding.objects.filter(
+            is_active=True,
+            shipper_org__is_active=True,
+            recipient_org__is_active=True,
+        )
+        .filter(_current_window_q())
+        .values_list(
+            "recipient_org_id",
+            "shipper_org_id",
+            "destination_id",
+        )
     )
 
     binding_pairs_by_org = {}
@@ -124,10 +127,7 @@ def build_shipment_contact_payload():
         .select_related("organization")
         .prefetch_related("addresses", "destinations", "linked_shippers")
     )
-    correspondent_contacts = (
-        contacts_with_tags(TAG_CORRESPONDENT)
-        .prefetch_related("destinations")
-    )
+    correspondent_contacts = contacts_with_tags(TAG_CORRESPONDENT).prefetch_related("destinations")
     shipper_scope_destination_ids_by_org = _build_shipper_scope_destination_ids_by_org()
     recipient_binding_pairs_by_org = _build_recipient_binding_pairs_by_org()
 

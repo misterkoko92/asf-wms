@@ -15,19 +15,20 @@ from django.utils.http import urlsafe_base64_encode
 from contacts.models import Contact, ContactAddress, ContactType
 from contacts.querysets import contacts_with_tags
 from contacts.tagging import TAG_RECIPIENT, TAG_SHIPPER
+from wms import portal_helpers
 from wms.forms import ScanShipmentForm
 from wms.models import (
     AccountDocument,
     AccountDocumentType,
-    AssociationProfile,
     AssociationPortalContact,
+    AssociationProfile,
     AssociationRecipient,
     Carton,
     CartonItem,
     CartonStatus,
     Destination,
-    DocumentScanStatus,
     DocumentReviewStatus,
+    DocumentScanStatus,
     IntegrationEvent,
     IntegrationStatus,
     Location,
@@ -44,7 +45,6 @@ from wms.models import (
     ShipmentTrackingStatus,
     Warehouse,
 )
-from wms import portal_helpers
 from wms.services import StockError
 
 
@@ -819,9 +819,7 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
                         "wms.views_portal_orders.create_portal_order",
                         return_value=fake_order,
                     ) as create_order_mock:
-                        with mock.patch(
-                            "wms.views_portal_orders.send_portal_order_notifications"
-                        ):
+                        with mock.patch("wms.views_portal_orders.send_portal_order_notifications"):
                             response = self.client.post(
                                 self.order_create_url,
                                 {
@@ -971,9 +969,7 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertEqual(response.status_code, 302)
 
         order = (
-            Order.objects.filter(association_contact=self.profile.contact)
-            .order_by("-id")
-            .first()
+            Order.objects.filter(association_contact=self.profile.contact).order_by("-id").first()
         )
         self.assertIsNotNone(order)
         self.assertIsNotNone(order.shipment_id)
@@ -1109,9 +1105,7 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertEqual(response.status_code, 302)
 
         order = (
-            Order.objects.filter(association_contact=self.profile.contact)
-            .order_by("-id")
-            .first()
+            Order.objects.filter(association_contact=self.profile.contact).order_by("-id").first()
         )
         self.assertIsNotNone(order)
         ready_line = order.lines.get(product=component)
@@ -1157,9 +1151,7 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertEqual(portal_response.status_code, 302)
 
         order = (
-            Order.objects.filter(association_contact=self.profile.contact)
-            .order_by("-id")
-            .first()
+            Order.objects.filter(association_contact=self.profile.contact).order_by("-id").first()
         )
         self.assertIsNotNone(order)
         self.assertEqual(order.review_status, OrderReviewStatus.PENDING)
@@ -1417,16 +1409,10 @@ class PortalAccountViewsTests(PortalBaseTestCase):
 
         synced_contact = contacts_with_tags(TAG_RECIPIENT).filter(name="Structure C").first()
         self.assertIsNotNone(synced_contact)
-        self.assertTrue(
-            synced_contact.linked_shippers.filter(pk=self.profile.contact_id).exists()
-        )
+        self.assertTrue(synced_contact.linked_shippers.filter(pk=self.profile.contact_id).exists())
         self.assertTrue(synced_contact.destinations.filter(pk=self.destination.id).exists())
-        self.assertTrue(
-            self.profile.contact.destinations.filter(pk=self.destination.id).exists()
-        )
-        self.assertTrue(
-            contacts_with_tags(TAG_SHIPPER).filter(pk=self.profile.contact_id).exists()
-        )
+        self.assertTrue(self.profile.contact.destinations.filter(pk=self.destination.id).exists())
+        self.assertTrue(contacts_with_tags(TAG_SHIPPER).filter(pk=self.profile.contact_id).exists())
 
         form = ScanShipmentForm(
             data={
@@ -1521,9 +1507,7 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertEqual(choices["gen"], "Général")
 
     def test_portal_recipients_get_shows_blocking_popup_message(self):
-        response = self.client.get(
-            f"{self.recipients_url}?blocked=missing_delivery_contact"
-        )
+        response = self.client.get(f"{self.recipients_url}?blocked=missing_delivery_contact")
         self.assertEqual(response.status_code, 200)
         self.assertIn("Compte bloqué", response.content.decode())
 
@@ -1666,9 +1650,7 @@ class PortalAccountViewsTests(PortalBaseTestCase):
             self.account_url,
             {
                 "action": "upload_account_docs",
-                "doc_file_statutes": SimpleUploadedFile(
-                    "statuts.pdf", b"%PDF-1.4 statutes"
-                ),
+                "doc_file_statutes": SimpleUploadedFile("statuts.pdf", b"%PDF-1.4 statutes"),
                 "doc_file_other": SimpleUploadedFile("other.pdf", b"%PDF-1.4 other"),
             },
         )

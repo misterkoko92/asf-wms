@@ -58,7 +58,14 @@ class ProductImportReviewTests(SimpleTestCase):
 
         pending = {
             "token": "tok-1",
-            "matches": [{"row_index": 2, "match_type": "unknown", "row_summary": {"sku": "X"}, "match_ids": []}],
+            "matches": [
+                {
+                    "row_index": 2,
+                    "match_type": "unknown",
+                    "row_summary": {"sku": "X"},
+                    "match_ids": [],
+                }
+            ],
             "default_action": "create",
         }
         context = build_match_context(pending)

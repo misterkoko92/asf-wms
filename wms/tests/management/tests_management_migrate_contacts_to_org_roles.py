@@ -89,9 +89,7 @@ class MigrateContactsToOrgRolesCommandTests(TestCase):
 
         call_command("migrate_contacts_to_org_roles", stdout=StringIO())
 
-        self.assertFalse(
-            RecipientBinding.objects.filter(recipient_org=recipient).exists()
-        )
+        self.assertFalse(RecipientBinding.objects.filter(recipient_org=recipient).exists())
         self.assertTrue(
             MigrationReviewItem.objects.filter(
                 organization=recipient,
@@ -111,9 +109,7 @@ class MigrateContactsToOrgRolesCommandTests(TestCase):
 
         call_command("migrate_contacts_to_org_roles", stdout=StringIO())
 
-        self.assertFalse(
-            RecipientBinding.objects.filter(recipient_org=recipient).exists()
-        )
+        self.assertFalse(RecipientBinding.objects.filter(recipient_org=recipient).exists())
         self.assertTrue(
             MigrationReviewItem.objects.filter(
                 organization=recipient,

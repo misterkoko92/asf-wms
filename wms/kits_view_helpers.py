@@ -141,7 +141,9 @@ def build_kits_view_rows():
             if component_last_movement_by_id.get(component_id) is not None
         ]
         ready_dates = carton_dates_by_kit_id.get(kit.id, [])
-        last_modified_at = max(movement_dates + ready_dates) if (movement_dates or ready_dates) else None
+        last_modified_at = (
+            max(movement_dates + ready_dates) if (movement_dates or ready_dates) else None
+        )
         rows.append(
             {
                 "id": kit.id,

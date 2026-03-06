@@ -30,7 +30,9 @@ class ImportWmsDataHelpersTests(TestCase):
         self.assertTrue(import_wms_data.parse_bool("oui"))
         self.assertFalse(import_wms_data.parse_bool("non"))
 
-        self.assertEqual(import_wms_data.extract_email("contact@example.org"), "contact@example.org")
+        self.assertEqual(
+            import_wms_data.extract_email("contact@example.org"), "contact@example.org"
+        )
         self.assertEqual(import_wms_data.extract_email("bad mail"), "")
         self.assertEqual(import_wms_data.extract_email(""), "")
 
@@ -187,9 +189,7 @@ class ImportWmsDataHelpersTests(TestCase):
 
         import_wms_data.merge_association_tags()
 
-        self.assertTrue(
-            contact.tags.filter(name=import_wms_data.TAG_SHIPPER).exists()
-        )
+        self.assertTrue(contact.tags.filter(name=import_wms_data.TAG_SHIPPER).exists())
         self.assertFalse(ContactTag.objects.filter(name="association").exists())
         self.assertFalse(ContactTag.objects.filter(name="nom association").exists())
 
@@ -235,26 +235,32 @@ class ImportWmsDataCommandTests(TestCase):
                 )
                 stats["contacts_created"] += 1
 
-            with mock.patch.object(
-                import_wms_data.Command,
-                "_import_donors",
-                new=fake_import_donors,
-            ), mock.patch.object(
-                import_wms_data.Command,
-                "_import_shippers",
-                return_value=None,
-            ), mock.patch.object(
-                import_wms_data.Command,
-                "_import_recipients",
-                return_value=None,
-            ), mock.patch.object(
-                import_wms_data.Command,
-                "_import_correspondents",
-                return_value=None,
-            ), mock.patch.object(
-                import_wms_data.Command,
-                "_import_destinations",
-                return_value=None,
+            with (
+                mock.patch.object(
+                    import_wms_data.Command,
+                    "_import_donors",
+                    new=fake_import_donors,
+                ),
+                mock.patch.object(
+                    import_wms_data.Command,
+                    "_import_shippers",
+                    return_value=None,
+                ),
+                mock.patch.object(
+                    import_wms_data.Command,
+                    "_import_recipients",
+                    return_value=None,
+                ),
+                mock.patch.object(
+                    import_wms_data.Command,
+                    "_import_correspondents",
+                    return_value=None,
+                ),
+                mock.patch.object(
+                    import_wms_data.Command,
+                    "_import_destinations",
+                    return_value=None,
+                ),
             ):
                 call_command("import_wms_data", str(path), "--dry-run", stdout=out)
 
@@ -283,16 +289,19 @@ class ImportWmsDataCommandTests(TestCase):
         header_map = {"be_donateur": [0]}
         rows = [([""], header_map), (["Donor A"], header_map), (["Donor B"], header_map)]
 
-        with mock.patch(
-            "wms.management.commands.import_wms_data.iter_excel_rows",
-            return_value=iter(rows),
-        ), mock.patch(
-            "wms.management.commands.import_wms_data.upsert_contact",
-            side_effect=[
-                (mock.sentinel.contact_a, True, False),
-                (mock.sentinel.contact_b, False, True),
-            ],
-        ) as upsert_contact_mock:
+        with (
+            mock.patch(
+                "wms.management.commands.import_wms_data.iter_excel_rows",
+                return_value=iter(rows),
+            ),
+            mock.patch(
+                "wms.management.commands.import_wms_data.upsert_contact",
+                side_effect=[
+                    (mock.sentinel.contact_a, True, False),
+                    (mock.sentinel.contact_b, False, True),
+                ],
+            ) as upsert_contact_mock,
+        ):
             command._import_donors(path, stats)
 
         self.assertEqual(stats["rows_skipped"], 1)
@@ -358,19 +367,23 @@ class ImportWmsDataCommandTests(TestCase):
                 header_map,
             ),
         ]
-        with mock.patch(
-            "wms.management.commands.import_wms_data.iter_excel_rows",
-            return_value=iter(rows),
-        ), mock.patch(
-            "wms.management.commands.import_wms_data.upsert_contact",
-            side_effect=[
-                (mock.sentinel.contact_a, True, False),
-                (mock.sentinel.contact_b, False, True),
-            ],
-        ) as upsert_contact_mock, mock.patch(
-            "wms.management.commands.import_wms_data.upsert_address",
-            return_value=True,
-        ) as upsert_address_mock:
+        with (
+            mock.patch(
+                "wms.management.commands.import_wms_data.iter_excel_rows",
+                return_value=iter(rows),
+            ),
+            mock.patch(
+                "wms.management.commands.import_wms_data.upsert_contact",
+                side_effect=[
+                    (mock.sentinel.contact_a, True, False),
+                    (mock.sentinel.contact_b, False, True),
+                ],
+            ) as upsert_contact_mock,
+            mock.patch(
+                "wms.management.commands.import_wms_data.upsert_address",
+                return_value=True,
+            ) as upsert_address_mock,
+        ):
             command._import_shippers(path, stats)
 
         self.assertEqual(stats["rows_skipped"], 1)
@@ -432,18 +445,22 @@ class ImportWmsDataCommandTests(TestCase):
                 header_map,
             ),
         ]
-        with mock.patch(
-            "wms.management.commands.import_wms_data.iter_excel_rows",
-            return_value=iter(rows),
-        ), mock.patch(
-            "wms.management.commands.import_wms_data.upsert_contact",
-            side_effect=[
-                (mock.sentinel.contact_a, True, False),
-                (mock.sentinel.contact_b, False, True),
-            ],
-        ) as upsert_contact_mock, mock.patch(
-            "wms.management.commands.import_wms_data.upsert_address",
-            return_value=True,
+        with (
+            mock.patch(
+                "wms.management.commands.import_wms_data.iter_excel_rows",
+                return_value=iter(rows),
+            ),
+            mock.patch(
+                "wms.management.commands.import_wms_data.upsert_contact",
+                side_effect=[
+                    (mock.sentinel.contact_a, True, False),
+                    (mock.sentinel.contact_b, False, True),
+                ],
+            ) as upsert_contact_mock,
+            mock.patch(
+                "wms.management.commands.import_wms_data.upsert_address",
+                return_value=True,
+            ),
         ):
             command._import_recipients(path, stats)
 
@@ -506,18 +523,22 @@ class ImportWmsDataCommandTests(TestCase):
                 header_map,
             ),
         ]
-        with mock.patch(
-            "wms.management.commands.import_wms_data.iter_excel_rows",
-            return_value=iter(rows),
-        ), mock.patch(
-            "wms.management.commands.import_wms_data.upsert_contact",
-            side_effect=[
-                (mock.sentinel.contact_a, True, False),
-                (mock.sentinel.contact_b, False, True),
-            ],
-        ) as upsert_contact_mock, mock.patch(
-            "wms.management.commands.import_wms_data.upsert_address",
-            return_value=True,
+        with (
+            mock.patch(
+                "wms.management.commands.import_wms_data.iter_excel_rows",
+                return_value=iter(rows),
+            ),
+            mock.patch(
+                "wms.management.commands.import_wms_data.upsert_contact",
+                side_effect=[
+                    (mock.sentinel.contact_a, True, False),
+                    (mock.sentinel.contact_b, False, True),
+                ],
+            ) as upsert_contact_mock,
+            mock.patch(
+                "wms.management.commands.import_wms_data.upsert_address",
+                return_value=True,
+            ),
         ):
             command._import_correspondents(path, stats)
 
@@ -612,9 +633,12 @@ class ImportWmsDataCommandTests(TestCase):
             ("paris", "france"): correspondent,
             ("marseille", "france"): correspondent,
         }
-        with mock.patch.object(command, "_build_correspondent_map", return_value=mapping), mock.patch(
-            "wms.management.commands.import_wms_data.iter_excel_rows",
-            return_value=iter(rows),
+        with (
+            mock.patch.object(command, "_build_correspondent_map", return_value=mapping),
+            mock.patch(
+                "wms.management.commands.import_wms_data.iter_excel_rows",
+                return_value=iter(rows),
+            ),
         ):
             command._import_destinations(path, stats)
 

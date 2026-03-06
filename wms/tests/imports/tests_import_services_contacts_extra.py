@@ -425,6 +425,4 @@ class ImportContactsExtraTests(TestCase):
             {"Shipper Existing", "Shipper Created"},
         )
         created_shipper = Contact.objects.get(name="Shipper Created")
-        self.assertTrue(
-            created_shipper.tags.filter(name__iexact="expediteur").exists()
-        )
+        self.assertTrue(created_shipper.tags.filter(name__iexact="expediteur").exists())

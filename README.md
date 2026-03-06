@@ -15,31 +15,33 @@ WMS for catalog, lot-based stock, cartons, shipments, and shipment tracking.
 
 ## Local setup
 - Python 3.11 or 3.12 recommended (Django 4.2 LTS)
-- Create venv and install deps
+- `uv` is the recommended local workflow; `requirements*.txt` remain compatibility exports
+- `mysqlclient` needs native build prerequisites (`pkg-config` and MySQL/MariaDB client development libraries) on a clean machine
 - Run migrations and create admin user
 - See `.env.example` for a full list of expected environment variables
 
 ```bash
-python -m venv .venv
+python -m pip install uv
+uv sync --frozen
 source .venv/bin/activate
-pip install -r requirements.txt
+pre-commit install
 python manage.py migrate
 python manage.py createsuperuser
 python manage.py runserver
 ```
 
-Alternative with `uv`:
+Fallback with `pip`:
 
 ```bash
-uv venv .venv
+python -m venv .venv
 source .venv/bin/activate
-uv pip install --python .venv/bin/python -r requirements.txt
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
 ```
 
 ## Tests and coverage
 ```bash
-pip install -r requirements-dev.txt
-# or: make install-dev-uv
+uv sync --frozen
 make test
 make coverage
 ```
@@ -58,13 +60,40 @@ make fmt-check
 make lint
 # baseline typed modules (see mypy.ini)
 make typecheck
-# pyright shadow run (same critical module scope)
+# pyright standard-mode shadow run (same critical module scope, Django stubs in dev deps)
 make typecheck-pyright
 make bandit
 make audit
 make audit-soft
 make pre-commit
 ```
+
+Install the git hooks once per clone:
+
+```bash
+pre-commit install
+```
+
+## Dependency workflow
+```bash
+# refresh the lockfile after changing pyproject.toml
+make lock
+
+# regenerate compatibility exports for pip-based environments
+make export-requirements
+```
+
+## Automation
+- Dependabot opens weekly update PRs for Python dependencies and GitHub Actions.
+- CI runs a dedicated `pre-commit` job and a separate `uv`-based validation job.
+
+## Rollout and rollback
+- Default developer path: `uv sync --frozen`, then `make pre-commit` before push and `make ci` before merge.
+- Blocking type gate: `make typecheck`.
+- Informational shadow type signal: `make typecheck-pyright`.
+- Emergency fallback install path: `pip install -r requirements.txt && pip install -r requirements-dev.txt`.
+- Re-export compatibility requirements after dependency changes: `make export-requirements`.
+- If a local hook is noisy, skip it temporarily with `SKIP=<hook-id> git commit ...` while fixing the rule or baseline. Do not remove `mypy` from the release gate because `pyright` is noisy.
 
 ## Operations quick commands
 ```bash

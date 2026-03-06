@@ -3,7 +3,6 @@ from django.urls import reverse
 from .models import Carton
 from .scan_carton_helpers import get_carton_volume_cm3
 from .scan_product_helpers import (
-
     build_product_group_key,
     build_product_label,
     get_product_volume_cm3,
@@ -58,9 +57,7 @@ def build_packing_bins(
                     f"{product.name}: poids/volume manquants, valeurs par défaut appliquées."
                 )
             else:
-                errors.append(
-                    f"{product.name}: poids et volume manquants pour la préparation."
-                )
+                errors.append(f"{product.name}: poids et volume manquants pour la préparation.")
                 continue
         if weight_g is None:
             warnings.append(f"{product.name}: poids manquant, calcul sur volume uniquement.")
@@ -68,13 +65,9 @@ def build_packing_bins(
             warnings.append(f"{product.name}: volume manquant, calcul sur poids uniquement.")
 
         if weight_g is not None and weight_g > carton_weight_f:
-            errors.append(
-                f"{product.name}: poids unitaire superieur au poids max du carton."
-            )
+            errors.append(f"{product.name}: poids unitaire superieur au poids max du carton.")
         if volume_f is not None and volume_f > carton_volume_f:
-            errors.append(
-                f"{product.name}: volume unitaire superieur au volume max du carton."
-            )
+            errors.append(f"{product.name}: volume unitaire superieur au volume max du carton.")
 
         items.append(
             {
@@ -110,13 +103,9 @@ def build_packing_bins(
                 ):
                     max_fit = remaining_qty
                     if item["volume"] > 0:
-                        max_fit = min(
-                            max_fit, int(bin_data["remaining_volume"] // item["volume"])
-                        )
+                        max_fit = min(max_fit, int(bin_data["remaining_volume"] // item["volume"]))
                     if item["weight"] > 0:
-                        max_fit = min(
-                            max_fit, int(bin_data["remaining_weight"] // item["weight"])
-                        )
+                        max_fit = min(max_fit, int(bin_data["remaining_weight"] // item["weight"]))
                     if max_fit <= 0:
                         continue
                     bin_data["remaining_volume"] -= item["volume"] * max_fit
@@ -186,9 +175,7 @@ def build_packing_result(carton_ids):
                     "quantity": 0,
                 }
             aggregate[key]["quantity"] += item.quantity
-        items_sorted = sorted(
-            rows.values(), key=lambda row: row["label"]
-        )
+        items_sorted = sorted(rows.values(), key=lambda row: row["label"])
         if carton.shipment_id:
             packing_list_url = reverse(
                 "scan:scan_shipment_carton_document",

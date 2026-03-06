@@ -1,6 +1,5 @@
 """Scan views re-exported for URL routing."""
 
-from .views_scan_dashboard import scan_dashboard
 from .views_scan_admin import (
     scan_admin_contacts,
     scan_admin_products,
@@ -8,14 +7,15 @@ from .views_scan_admin import (
     scan_product_labels_print_labels,
     scan_product_labels_print_qr,
 )
+from .views_scan_dashboard import scan_dashboard
 from .views_scan_design import scan_admin_design
 from .views_scan_misc import scan_faq, scan_service_worker, scan_ui_lab
 from .views_scan_orders import scan_order, scan_orders_view
 from .views_scan_receipts import (
+    scan_receipts_view,
     scan_receive,
     scan_receive_association,
     scan_receive_pallet,
-    scan_receipts_view,
 )
 from .views_scan_settings import scan_settings
 from .views_scan_shipments import (
@@ -28,8 +28,8 @@ from .views_scan_shipments import (
     scan_shipment_edit,
     scan_shipment_track,
     scan_shipment_track_legacy,
-    scan_shipments_tracking,
     scan_shipments_ready,
+    scan_shipments_tracking,
 )
 from .views_scan_stock import scan_out, scan_stock, scan_stock_update, scan_sync
 

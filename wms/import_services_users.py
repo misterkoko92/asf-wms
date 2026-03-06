@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from .import_services_common import _row_is_empty
 from .import_utils import get_value, parse_bool, parse_str
 
+
 def import_users(rows, default_password):
     created = 0
     updated = 0

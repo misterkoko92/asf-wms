@@ -11,8 +11,11 @@ from rest_framework.response import Response
 def _to_plain_errors(value: Any) -> Any:
     if isinstance(value, Mapping):
         return {str(key): _to_plain_errors(item) for key, item in value.items()}
-    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
-        return [str(item) if not isinstance(item, (Mapping, Sequence)) else _to_plain_errors(item) for item in value]
+    if isinstance(value, Sequence) and not isinstance(value, str | bytes | bytearray):
+        return [
+            str(item) if not isinstance(item, Mapping | Sequence) else _to_plain_errors(item)
+            for item in value
+        ]
     return str(value)
 
 

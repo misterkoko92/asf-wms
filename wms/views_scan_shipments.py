@@ -25,6 +25,7 @@ from .models import (
     Shipment,
     ShipmentStatus,
 )
+from .organization_role_resolvers import is_org_roles_engine_enabled
 from .pack_handlers import build_pack_defaults, handle_pack_post
 from .prepare_kits_helpers import (
     _parse_carton_ids,
@@ -32,6 +33,7 @@ from .prepare_kits_helpers import (
     build_prepare_kits_picking_context,
     prepare_kits,
 )
+from .runtime_settings import is_shipment_track_legacy_enabled
 from .scan_helpers import (
     build_carton_formats,
     build_packing_result,
@@ -42,8 +44,6 @@ from .scan_shipment_handlers import (
     handle_shipment_create_post,
     handle_shipment_edit_post,
 )
-from .organization_role_resolvers import is_org_roles_engine_enabled
-from .runtime_settings import is_shipment_track_legacy_enabled
 from .services import StockError
 from .shipment_form_helpers import (
     build_carton_selection_data,
@@ -51,8 +51,8 @@ from .shipment_form_helpers import (
     build_shipment_edit_line_values,
     build_shipment_form_context,
     build_shipment_form_payload,
-    build_shipment_order_product_options,
     build_shipment_order_line_values,
+    build_shipment_order_product_options,
 )
 from .shipment_tracking_handlers import (
     allowed_tracking_statuses_for_shipment,
@@ -65,14 +65,15 @@ from .shipment_view_helpers import (
     build_shipments_tracking_rows,
     next_tracking_status,
 )
-from .workflow_observability import log_shipment_case_closed
+from .view_permissions import scan_staff_required
+from .view_utils import sorted_choices
 from .views_scan_shipments_support import (
     ACTIVE_SHIPMENT,
     ACTIVE_SHIPMENTS_READY,
     ACTIVE_SHIPMENTS_TRACKING,
     ARCHIVE_STALE_DRAFTS_ACTION,
-    CLOSED_FILTER_EXCLUDE,
     CLOSE_SHIPMENT_ACTION,
+    CLOSED_FILTER_EXCLUDE,
     RETURN_TO_SHIPMENTS_TRACKING,
     _build_shipments_tracking_queryset,
     _build_shipments_tracking_redirect_url,
@@ -85,8 +86,7 @@ from .views_scan_shipments_support import (
     _stale_drafts_age_days,
     _stale_drafts_queryset,
 )
-from .view_permissions import scan_staff_required
-from .view_utils import sorted_choices
+from .workflow_observability import log_shipment_case_closed
 
 logger = logging.getLogger(__name__)
 
@@ -161,9 +161,7 @@ def _render_shipment_form(
 
 
 def _build_tracking_page_data(shipment):
-    documents, carton_docs, additional_docs = build_shipment_document_links(
-        shipment, public=True
-    )
+    documents, carton_docs, additional_docs = build_shipment_document_links(shipment, public=True)
     events = shipment.tracking_events.select_related("created_by").all()
     return documents, carton_docs, additional_docs, events
 
@@ -217,9 +215,7 @@ def scan_cartons_ready(request):
         .distinct()
         .order_by("-created_at")
     )
-    cartons = build_cartons_ready_rows(
-        cartons_qs, carton_capacity_cm3=carton_capacity_cm3
-    )
+    cartons = build_cartons_ready_rows(cartons_qs, carton_capacity_cm3=carton_capacity_cm3)
 
     return render(
         request,
@@ -255,9 +251,7 @@ def scan_kits_view(request):
 @require_http_methods(["GET", "POST"])
 def scan_prepare_kits(request):
     selected_kit_id = (
-        request.POST.get("kit_id")
-        if request.method == "POST"
-        else request.GET.get("kit_id")
+        request.POST.get("kit_id") if request.method == "POST" else request.GET.get("kit_id")
     )
     form_initial = {}
     if request.method == "GET" and selected_kit_id:
@@ -341,9 +335,7 @@ def scan_shipments_ready(request):
             carton_count=Count("carton", distinct=True),
             ready_count=Count(
                 "carton",
-                filter=Q(
-                    carton__status__in=[CartonStatus.LABELED, CartonStatus.SHIPPED]
-                ),
+                filter=Q(carton__status__in=[CartonStatus.LABELED, CartonStatus.SHIPPED]),
                 distinct=True,
             ),
         )
@@ -368,16 +360,16 @@ def scan_shipments_ready(request):
 @require_http_methods(["GET", "POST"])
 def scan_shipments_tracking(request):
     source = request.POST if request.method == "POST" else request.GET
-    planned_week_value, week_start, week_end = _parse_planned_week(
-        source.get("planned_week")
-    )
+    planned_week_value, week_start, week_end = _parse_planned_week(source.get("planned_week"))
     closed_filter = _normalize_closed_filter(source.get("closed"))
 
     if request.method == "POST":
         if (request.POST.get("action") or "").strip() == CLOSE_SHIPMENT_ACTION:
-            shipment = _build_shipments_tracking_queryset().filter(
-                pk=request.POST.get("shipment_id")
-            ).first()
+            shipment = (
+                _build_shipments_tracking_queryset()
+                .filter(pk=request.POST.get("shipment_id"))
+                .first()
+            )
             if shipment is None:
                 messages.error(request, "Expédition introuvable.")
             elif shipment.closed_at:
@@ -389,9 +381,7 @@ def scan_shipments_tracking(request):
                 )
             else:
                 shipment.closed_at = timezone.now()
-                shipment.closed_by = (
-                    request.user if request.user.is_authenticated else None
-                )
+                shipment.closed_by = request.user if request.user.is_authenticated else None
                 shipment.save(update_fields=["closed_at", "closed_by"])
                 log_shipment_case_closed(
                     shipment=shipment,
@@ -452,9 +442,7 @@ def scan_pack(request):
         packing_result = build_packing_result(packed_carton_ids)
 
     if request.method == "POST":
-        response, pack_state = handle_pack_post(
-            request, form=form, default_format=default_format
-        )
+        response, pack_state = handle_pack_post(request, form=form, default_format=default_format)
         carton_format_id = pack_state["carton_format_id"]
         carton_custom = pack_state["carton_custom"]
         line_count = pack_state["line_count"]
@@ -567,14 +555,10 @@ def scan_shipment_edit(request, shipment_id):
     order_line_values = []
     if not assigned_cartons:
         if related_order_lines:
-            order_line_values = build_shipment_order_line_values(
-                related_order_lines
-            )
+            order_line_values = build_shipment_order_line_values(related_order_lines)
     order_product_options = None
     if related_order is not None:
-        order_product_options = build_shipment_order_product_options(
-            related_order_lines
-        )
+        order_product_options = build_shipment_order_product_options(related_order_lines)
 
     initial = build_shipment_edit_initial(
         shipment,
@@ -582,9 +566,7 @@ def scan_shipment_edit(request, shipment_id):
         order_line_count=len(order_line_values),
     )
     destination_id = request.POST.get("destination") or initial["destination"]
-    form = ScanShipmentForm(
-        request.POST or None, destination_id=destination_id, initial=initial
-    )
+    form = ScanShipmentForm(request.POST or None, destination_id=destination_id, initial=initial)
     support = _build_shipment_form_support(
         extra_carton_options=assigned_carton_options,
         product_options=order_product_options,

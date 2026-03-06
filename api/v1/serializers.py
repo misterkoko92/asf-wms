@@ -185,9 +185,7 @@ class IntegrationShipmentSerializer(serializers.ModelSerializer):
 
 
 class IntegrationDestinationSerializer(serializers.ModelSerializer):
-    correspondent_name = serializers.CharField(
-        source="correspondent_contact.name", allow_null=True
-    )
+    correspondent_name = serializers.CharField(source="correspondent_contact.name", allow_null=True)
 
     class Meta:
         model = Destination
@@ -325,8 +323,6 @@ class UiPrintTemplateMutationSerializer(serializers.Serializer):
             attrs["layout"] = {}
             return attrs
         if not isinstance(layout, dict):
-            raise serializers.ValidationError(
-                {"layout": ["Le layout doit etre un objet JSON."]}
-            )
+            raise serializers.ValidationError({"layout": ["Le layout doit etre un objet JSON."]})
         attrs["layout"] = layout
         return attrs

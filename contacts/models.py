@@ -93,9 +93,7 @@ class Contact(models.Model):
 
     def save(self, *args, **kwargs):
         if self.contact_type == ContactType.PERSON and not self.name:
-            full_name = " ".join(
-                part for part in [self.first_name, self.last_name] if part
-            ).strip()
+            full_name = " ".join(part for part in [self.first_name, self.last_name] if part).strip()
             if full_name:
                 self.name = full_name
         super().save(*args, **kwargs)
@@ -133,10 +131,7 @@ class ContactAddress(models.Model):
                 is_default=False
             )
         super().save(*args, **kwargs)
-        if (
-            self.contact.contact_type == ContactType.ORGANIZATION
-            and self.is_default
-        ):
+        if self.contact.contact_type == ContactType.ORGANIZATION and self.is_default:
             _sync_people_for_org(self.contact)
 
 
@@ -213,5 +208,6 @@ def _contact_pre_delete(sender, instance, **kwargs):
         person.organization = None
         person.use_organization_address = False
         person.save(update_fields=["notes", "organization", "use_organization_address"])
+
 
 # Create your models here.

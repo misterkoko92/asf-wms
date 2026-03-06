@@ -195,9 +195,7 @@ class DefaultShipperBindingsHelpersTests(TestCase):
             self.assertIsNone(_resolve_default_shipper_organization())
 
         inactive_default_shipper = self._create_org("Inactive ASF")
-        inactive_default_shipper_tag, _ = ContactTag.objects.get_or_create(
-            name="expediteur"
-        )
+        inactive_default_shipper_tag, _ = ContactTag.objects.get_or_create(name="expediteur")
         inactive_default_shipper.tags.add(inactive_default_shipper_tag)
         inactive_default_shipper.is_active = False
         inactive_default_shipper.save(update_fields=["is_active"])
@@ -314,8 +312,8 @@ class DefaultShipperBindingsHelpersTests(TestCase):
         destination_a = self._create_destination("BKO")
         destination_b = self._create_destination("DLA")
 
-        created_missing_assignment = (
-            ensure_default_shipper_bindings_for_recipient_assignment_id(999999)
+        created_missing_assignment = ensure_default_shipper_bindings_for_recipient_assignment_id(
+            999999
         )
         self.assertEqual(created_missing_assignment, 0)
 

@@ -352,9 +352,7 @@ class ScanShipmentsViewsTests(TestCase):
                                 "wms.views_scan_shipments.render",
                                 side_effect=self._render_stub,
                             ):
-                                response = self.client.get(
-                                    reverse("scan:scan_shipment_create")
-                                )
+                                response = self.client.get(reverse("scan:scan_shipment_create"))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "scan/shipment_create.html")
         self.assertEqual(response.context_data["context_key"], "value")
@@ -379,9 +377,7 @@ class ScanShipmentsViewsTests(TestCase):
                         "wms.views_scan_shipments.handle_shipment_create_post",
                         return_value=(HttpResponse("created"), 1, [], {}),
                     ):
-                        response = self.client.post(
-                            reverse("scan:scan_shipment_create"), {}
-                        )
+                        response = self.client.post(reverse("scan:scan_shipment_create"), {})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "created")
 
@@ -478,7 +474,9 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertTrue(response.context_data["is_edit"])
         self.assertEqual(response.context_data["shipment"].id, shipment.id)
         self.assertIn("tracking_url", response.context_data)
-        self.assertEqual(response.context_data["carton_docs"], [{"id": carton.id, "code": carton.code}])
+        self.assertEqual(
+            response.context_data["carton_docs"], [{"id": carton.id, "code": carton.code}]
+        )
 
     def test_scan_shipment_edit_post_returns_handler_response_when_available(self):
         shipment = self._create_shipment(status=ShipmentStatus.DRAFT)

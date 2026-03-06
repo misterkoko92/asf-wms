@@ -1,8 +1,8 @@
 from unittest import mock
 
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Group
 from django.contrib.auth.hashers import check_password
+from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
@@ -13,11 +13,13 @@ from wms.models import (
     AccountDocument,
     AccountDocumentType,
     DocumentScanStatus,
+    IntegrationDirection,
+    IntegrationEvent,
+    IntegrationStatus,
     PublicAccountRequest,
     PublicAccountRequestStatus,
     PublicAccountRequestType,
 )
-from wms.models import IntegrationDirection, IntegrationEvent, IntegrationStatus
 
 
 class AccountRequestHelpersTests(TestCase):
@@ -122,9 +124,7 @@ class AccountRequestHelpersTests(TestCase):
             password="pass1234",
             is_staff=True,
         )
-        Group.objects.get_or_create(name="Account_User_Validation")[0].user_set.add(
-            grouped_staff
-        )
+        Group.objects.get_or_create(name="Account_User_Validation")[0].user_set.add(grouped_staff)
 
         with mock.patch("wms.emailing.send_email_safe", return_value=False):
             with self.captureOnCommitCallbacks(execute=True):
@@ -263,9 +263,10 @@ class AccountRequestFormHandlerTests(TestCase):
             self.url,
             self._payload(association_name="", email="", line1=""),
         )
-        with mock.patch.object(request.FILES, "getlist", return_value=[None]), mock.patch(
-            "wms.account_request_handlers.validate_upload"
-        ) as validate_mock:
+        with (
+            mock.patch.object(request.FILES, "getlist", return_value=[None]),
+            mock.patch("wms.account_request_handlers.validate_upload") as validate_mock,
+        ):
             response = account_request_handlers.handle_account_request_form(
                 request,
                 redirect_url=self.url,

@@ -5,6 +5,7 @@ RUFF ?= $(shell [ -x .venv/bin/ruff ] && echo .venv/bin/ruff || echo ruff)
 BANDIT ?= $(shell [ -x .venv/bin/bandit ] && echo .venv/bin/bandit || echo bandit)
 MYPY ?= $(shell [ -x .venv/bin/mypy ] && echo .venv/bin/mypy || echo mypy)
 PYRIGHT ?= $(shell [ -x .venv/bin/pyright ] && echo .venv/bin/pyright || echo pyright)
+PYRIGHT_CONFIG ?= pyrightconfig.json
 PIP_AUDIT ?= $(shell [ -x .venv/bin/pip-audit ] && echo .venv/bin/pip-audit || echo pip-audit)
 PIP_AUDIT_SOFT_ARGS ?= --disable-pip --no-deps
 PIP_AUDIT_REPORT ?= pip-audit-report.json
@@ -12,13 +13,14 @@ PRE_COMMIT ?= $(shell [ -x .venv/bin/pre-commit ] && echo .venv/bin/pre-commit |
 COVERAGE ?= $(shell [ -x .venv/bin/coverage ] && echo .venv/bin/coverage || echo coverage)
 COVERAGE_FAIL_UNDER ?= 93
 COVERAGE_TEST_ARGS ?= --exclude-tag=next_frontend --exclude-tag=next_ui
+UV_EXPORT_ARGS ?= --frozen --no-header --no-annotate --no-hashes
 DEPLOY_ENV_FILE ?= .env.deploy.example
 FORMAT_SCOPE ?= asf_wms api contacts wms manage.py
 FORMAT_EXCLUDES ?= --exclude frontend-next --exclude wms/views_next_frontend.py --exclude wms/ui_mode.py --exclude wms/tests/views/tests_views_next_frontend.py
 
 BANDIT_EXCLUDES := wms/migrations,contacts/migrations,wms/tests,api/tests,contacts/tests
 
-.PHONY: install install-dev install-uv install-dev-uv check deploy-check deploy-check-prod-like migrate-check fmt fmt-check lint typecheck typecheck-pyright bandit audit audit-soft security test test-next-ui scan-queue scan-queue-retry scan-queue-health scan-queue-stale scan-queue-runtime-check coverage pre-commit ci
+.PHONY: install install-dev sync sync-no-dev lock export-requirements install-uv install-dev-uv check deploy-check deploy-check-prod-like migrate-check fmt fmt-check lint typecheck typecheck-pyright bandit audit audit-soft security test test-next-ui scan-queue scan-queue-retry scan-queue-health scan-queue-stale scan-queue-runtime-check coverage pre-commit ci
 
 install:
 	$(PIP) install -r requirements.txt
@@ -26,16 +28,32 @@ install:
 install-dev: install
 	$(PIP) install -r requirements-dev.txt
 
-install-uv:
+sync-no-dev:
 	@command -v $(UV) >/dev/null 2>&1 || (echo "Missing uv. Install it first with: python -m pip install uv" >&2; exit 1)
-	$(UV) venv .venv
-	$(UV) pip install --python .venv/bin/python -r requirements.txt
+	$(UV) sync --frozen --no-dev
 
-install-dev-uv: install-uv
-	$(UV) pip install --python .venv/bin/python -r requirements-dev.txt
+sync:
+	@command -v $(UV) >/dev/null 2>&1 || (echo "Missing uv. Install it first with: python -m pip install uv" >&2; exit 1)
+	$(UV) sync --frozen
+
+lock:
+	@command -v $(UV) >/dev/null 2>&1 || (echo "Missing uv. Install it first with: python -m pip install uv" >&2; exit 1)
+	$(UV) lock
+
+export-requirements: lock
+	$(UV) export $(UV_EXPORT_ARGS) --no-dev --no-emit-project --format requirements.txt -o requirements.txt
+	$(UV) export $(UV_EXPORT_ARGS) --only-group dev --no-emit-project --format requirements.txt -o requirements-dev.txt
+
+install-uv: sync-no-dev
+
+install-dev-uv: sync
 
 check:
-	$(PYTHON) -m pip check
+	@if $(PYTHON) -c "import pip" >/dev/null 2>&1; then \
+		$(PYTHON) -m pip check; \
+	else \
+		$(UV) pip check --python $(PYTHON); \
+	fi
 
 deploy-check:
 	$(PYTHON) manage.py check --deploy --fail-level WARNING
@@ -60,8 +78,8 @@ typecheck:
 	$(MYPY) --config-file mypy.ini
 
 typecheck-pyright:
-	@command -v $(PYRIGHT) >/dev/null 2>&1 || (echo "Missing pyright. Install dev deps first: python -m pip install -r requirements-dev.txt" >&2; exit 1)
-	$(PYRIGHT) -p pyrightconfig.json
+	@command -v $(PYRIGHT) >/dev/null 2>&1 || (echo "Missing pyright. Install dev deps first with: uv sync --frozen or make install-dev" >&2; exit 1)
+	$(PYRIGHT) -p $(PYRIGHT_CONFIG)
 
 bandit:
 	$(BANDIT) -r asf_wms api contacts wms -x "$(BANDIT_EXCLUDES)"
@@ -111,4 +129,4 @@ coverage:
 pre-commit:
 	$(PRE_COMMIT) run --all-files
 
-ci: check deploy-check migrate-check lint bandit coverage audit-soft
+ci: check deploy-check-prod-like migrate-check lint bandit coverage audit-soft

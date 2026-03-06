@@ -18,8 +18,8 @@ from wms.order_helpers import (
     attach_order_documents_to_shipment,
     build_carton_format_data,
     build_order_creator_info,
-    build_order_line_items,
     build_order_line_estimates,
+    build_order_line_items,
     build_order_product_rows,
     estimate_cartons_for_line,
 )
@@ -150,12 +150,8 @@ class OrderHelpersTests(TestCase):
         duplicated_file = SimpleNamespace(name="dup.pdf")
         docs = [
             SimpleNamespace(doc_type=OrderDocumentType.DONATION_ATTESTATION, file=None),
-            SimpleNamespace(
-                doc_type=OrderDocumentType.DONATION_ATTESTATION, file=duplicated_file
-            ),
-            SimpleNamespace(
-                doc_type=OrderDocumentType.HUMANITARIAN_ATTESTATION, file=new_file
-            ),
+            SimpleNamespace(doc_type=OrderDocumentType.DONATION_ATTESTATION, file=duplicated_file),
+            SimpleNamespace(doc_type=OrderDocumentType.HUMANITARIAN_ATTESTATION, file=new_file),
         ]
         order = SimpleNamespace(documents=mock.MagicMock())
         order.documents.filter.return_value = docs
@@ -169,9 +165,7 @@ class OrderHelpersTests(TestCase):
             with mock.patch("wms.order_helpers.Document.objects.create") as create_mock:
                 attach_order_documents_to_shipment(order, shipment)
 
-        filter_mock.assert_called_once_with(
-            shipment=shipment, doc_type=DocumentType.ADDITIONAL
-        )
+        filter_mock.assert_called_once_with(shipment=shipment, doc_type=DocumentType.ADDITIONAL)
         order.documents.filter.assert_called_once()
         create_mock.assert_called_once_with(
             shipment=shipment,

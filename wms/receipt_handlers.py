@@ -10,9 +10,7 @@ from .services import StockError, receive_receipt_line
 def get_receipt_lines_state(receipt):
     if not receipt:
         return [], 0
-    receipt_lines = list(
-        receipt.lines.select_related("product", "location", "received_lot").all()
-    )
+    receipt_lines = list(receipt.lines.select_related("product", "location", "received_lot").all())
     pending_count = sum(1 for line in receipt_lines if not line.received_lot_id)
     return receipt_lines, pending_count
 
@@ -116,9 +114,7 @@ def handle_receipt_action(
             if not product:
                 line_form.add_error("product_code", "Produit introuvable.")
             else:
-                location = (
-                    line_form.cleaned_data["location"] or product.default_location
-                )
+                location = line_form.cleaned_data["location"] or product.default_location
                 if location is None:
                     line_form.add_error(
                         "location",
@@ -146,9 +142,7 @@ def handle_receipt_action(
                             )
                         except StockError as exc:
                             line_form.add_error(None, str(exc))
-                            receipt_lines, pending_count = get_receipt_lines_state(
-                                selected_receipt
-                            )
+                            receipt_lines, pending_count = get_receipt_lines_state(selected_receipt)
                             return None, receipt_lines, pending_count
                     else:
                         messages.success(
@@ -156,9 +150,7 @@ def handle_receipt_action(
                             f"Ligne ajoutée: {product.name} ({line.quantity}).",
                         )
                     return (
-                        redirect(
-                            f"{reverse('scan:scan_receive')}?receipt={selected_receipt.id}"
-                        ),
+                        redirect(f"{reverse('scan:scan_receive')}?receipt={selected_receipt.id}"),
                         None,
                         None,
                     )

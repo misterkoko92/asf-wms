@@ -8,6 +8,8 @@ from .exports import EXPORT_HANDLERS
 from .scan_import_handlers import handle_scan_import_action, render_scan_import
 from .view_permissions import (
     require_superuser as _require_superuser,
+)
+from .view_permissions import (
     scan_staff_required,
 )
 

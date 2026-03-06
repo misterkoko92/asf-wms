@@ -3,9 +3,9 @@ from unittest import mock
 
 from django.test import RequestFactory, TestCase
 
+from wms.services import StockError
 from wms.stock_out_handlers import handle_stock_out_post
 from wms.stock_update_handlers import handle_stock_update_post
-from wms.services import StockError
 
 
 class _FakeForm:

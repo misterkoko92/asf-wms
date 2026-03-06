@@ -31,8 +31,12 @@ class PortalOrderHandlersTests(SimpleTestCase):
                 "wms.portal_order_handlers.transaction.atomic",
                 return_value=contextlib.nullcontext(),
             ):
-                with mock.patch("wms.portal_order_handlers.create_shipment_for_order") as shipment_mock:
-                    with mock.patch("wms.portal_order_handlers.reserve_stock_for_order") as reserve_mock:
+                with mock.patch(
+                    "wms.portal_order_handlers.create_shipment_for_order"
+                ) as shipment_mock:
+                    with mock.patch(
+                        "wms.portal_order_handlers.reserve_stock_for_order"
+                    ) as reserve_mock:
                         created = create_portal_order(
                             user=user,
                             profile=profile,
@@ -77,7 +81,9 @@ class PortalOrderHandlersTests(SimpleTestCase):
             )
         )
 
-        with mock.patch("wms.portal_order_handlers.Order.objects.create", return_value=order) as create_mock:
+        with mock.patch(
+            "wms.portal_order_handlers.Order.objects.create", return_value=order
+        ) as create_mock:
             with mock.patch(
                 "wms.portal_order_handlers.transaction.atomic",
                 return_value=contextlib.nullcontext(),

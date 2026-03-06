@@ -49,7 +49,9 @@ class ProductFiltersTests(SimpleTestCase):
         self.assertIn(("prefetch_related", ("tags",), {}), queryset.calls)
         self.assertFalse(any(method == "distinct" for method, _args, _kwargs in queryset.calls))
 
-        annotate_calls = [kwargs for method, _args, kwargs in queryset.calls if method == "annotate"]
+        annotate_calls = [
+            kwargs for method, _args, kwargs in queryset.calls if method == "annotate"
+        ]
         self.assertEqual(len(annotate_calls), 1)
         self.assertIn("available_stock", annotate_calls[0])
 

@@ -13,7 +13,9 @@ from wms.signals import (
 class SignalsExtraTests(SimpleTestCase):
     @override_settings(SITE_BASE_URL="example.org/base/")
     def test_build_site_url_adds_https_prefix_when_missing_scheme(self):
-        self.assertEqual(_build_site_url("/admin/shipment/1"), "https://example.org/base/admin/shipment/1")
+        self.assertEqual(
+            _build_site_url("/admin/shipment/1"), "https://example.org/base/admin/shipment/1"
+        )
 
     def test_notify_shipment_status_change_falls_back_for_unknown_status_codes(self):
         instance = SimpleNamespace(
@@ -30,16 +32,16 @@ class SignalsExtraTests(SimpleTestCase):
             "wms.signals._shipment_status_admin_recipients",
             return_value=["admin@example.com"],
         ):
-                with mock.patch("wms.signals.reverse", return_value="/admin/url/"):
-                    with mock.patch("wms.signals.render_to_string", return_value="body") as render_mock:
+            with mock.patch("wms.signals.reverse", return_value="/admin/url/"):
+                with mock.patch("wms.signals.render_to_string", return_value="body") as render_mock:
+                    with mock.patch(
+                        "wms.signals.send_or_enqueue_email_safe"
+                    ) as send_or_enqueue_mock:
                         with mock.patch(
-                            "wms.signals.send_or_enqueue_email_safe"
-                        ) as send_or_enqueue_mock:
-                            with mock.patch(
-                                "wms.signals.transaction.on_commit",
-                                side_effect=lambda callback: callback(),
-                            ):
-                                _notify_shipment_status_change(None, instance, created=False)
+                            "wms.signals.transaction.on_commit",
+                            side_effect=lambda callback: callback(),
+                        ):
+                            _notify_shipment_status_change(None, instance, created=False)
 
         send_or_enqueue_mock.assert_called_once()
         context = render_mock.call_args.args[1]

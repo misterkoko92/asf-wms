@@ -109,9 +109,7 @@ def create_portal_order(
             user=user,
         )
 
-        if order.lines.exists() and all(
-            line.remaining_quantity == 0 for line in order.lines.all()
-        ):
+        if order.lines.exists() and all(line.remaining_quantity == 0 for line in order.lines.all()):
             order.status = OrderStatus.READY
             order.save(update_fields=["status"])
     return order

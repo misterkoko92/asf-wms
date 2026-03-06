@@ -39,16 +39,12 @@ class PublicAccountRequestViewTests(TestCase):
             expires_at=timezone.now() - timedelta(days=1),
         )
 
-        response = self.client.get(
-            reverse("scan:scan_public_account_request", args=[link.token])
-        )
+        response = self.client.get(reverse("scan:scan_public_account_request", args=[link.token]))
 
         self.assertEqual(response.status_code, 404)
 
     def test_scan_public_account_request_returns_404_for_missing_link(self):
-        response = self.client.get(
-            reverse("scan:scan_public_account_request", args=[uuid4()])
-        )
+        response = self.client.get(reverse("scan:scan_public_account_request", args=[uuid4()]))
         self.assertEqual(response.status_code, 404)
 
     def test_scan_public_account_request_returns_404_for_inactive_link(self):
@@ -57,8 +53,6 @@ class PublicAccountRequestViewTests(TestCase):
             is_active=False,
         )
 
-        response = self.client.get(
-            reverse("scan:scan_public_account_request", args=[link.token])
-        )
+        response = self.client.get(reverse("scan:scan_public_account_request", args=[link.token]))
 
         self.assertEqual(response.status_code, 404)

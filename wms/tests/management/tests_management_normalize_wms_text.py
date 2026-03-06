@@ -12,9 +12,7 @@ class NormalizeWmsTextCommandTests(TestCase):
         warehouse = Warehouse.objects.create(name="Main")
 
         product = Product.objects.create(name="Produit test", brand="ASF")
-        Product.objects.filter(pk=product.pk).update(
-            name="masque chirurgical", brand="acme"
-        )
+        Product.objects.filter(pk=product.pk).update(name="masque chirurgical", brand="acme")
 
         category = ProductCategory.objects.create(name="Medical")
         ProductCategory.objects.filter(pk=category.pk).update(name="medical")

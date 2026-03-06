@@ -9,6 +9,7 @@ from .models import Product, Receipt, ReceiptLine, ReceiptStatus, ReceiptType
 from .scan_helpers import resolve_product
 from .services import StockError, receive_receipt_line
 
+
 def apply_pallet_listing_import(
     row_payloads,
     *,
@@ -38,9 +39,7 @@ def apply_pallet_listing_import(
         if override_code:
             product = resolve_product(override_code)
             if not product:
-                errors.append(
-                    f"Ligne {row_index}: produit introuvable pour {override_code}."
-                )
+                errors.append(f"Ligne {row_index}: produit introuvable pour {override_code}.")
                 continue
         if not product and selection.startswith("product:"):
             product_id = selection.split("product:", 1)[1]
@@ -82,8 +81,7 @@ def apply_pallet_listing_import(
                     ).first(),
                     received_on=receipt_meta.get("received_on") or timezone.localdate(),
                     pallet_count=receipt_meta.get("pallet_count") or 0,
-                    transport_request_date=receipt_meta.get("transport_request_date")
-                    or None,
+                    transport_request_date=receipt_meta.get("transport_request_date") or None,
                     warehouse=warehouse,
                     created_by=user,
                 )

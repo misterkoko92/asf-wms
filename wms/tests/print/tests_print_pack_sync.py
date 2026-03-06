@@ -204,13 +204,16 @@ class PrintPackSyncTests(TestCase):
         cm.__enter__.return_value = response
         cm.__exit__.return_value = False
 
-        with mock.patch(
-            "wms.print_pack_sync.get_client_credentials_token",
-            return_value="token-abc",
-        ) as token_mock, mock.patch(
-            "wms.print_pack_sync.request.urlopen",
-            return_value=cm,
-        ) as urlopen_mock:
+        with (
+            mock.patch(
+                "wms.print_pack_sync.get_client_credentials_token",
+                return_value="token-abc",
+            ) as token_mock,
+            mock.patch(
+                "wms.print_pack_sync.request.urlopen",
+                return_value=cm,
+            ) as urlopen_mock,
+        ):
             onedrive_path = _upload_artifact_pdf_to_onedrive(artifact=artifact, timeout=9)
 
         generated_filename = artifact.pdf_file.name.split("/")[-1]
@@ -268,12 +271,15 @@ class PrintPackSyncTests(TestCase):
             hdrs=None,
             fp=BytesIO(b'{"error":"throttled"}'),
         )
-        with mock.patch(
-            "wms.print_pack_sync.get_client_credentials_token",
-            return_value="token-abc",
-        ), mock.patch(
-            "wms.print_pack_sync.request.urlopen",
-            side_effect=http_error,
+        with (
+            mock.patch(
+                "wms.print_pack_sync.get_client_credentials_token",
+                return_value="token-abc",
+            ),
+            mock.patch(
+                "wms.print_pack_sync.request.urlopen",
+                side_effect=http_error,
+            ),
         ):
             with self.assertRaisesMessage(
                 PrintArtifactSyncError,
@@ -284,12 +290,15 @@ class PrintPackSyncTests(TestCase):
     @override_settings(GRAPH_DRIVE_ID="drive-123")
     def test_upload_artifact_pdf_to_onedrive_wraps_url_errors(self):
         artifact = self._create_artifact()
-        with mock.patch(
-            "wms.print_pack_sync.get_client_credentials_token",
-            return_value="token-abc",
-        ), mock.patch(
-            "wms.print_pack_sync.request.urlopen",
-            side_effect=urllib_error.URLError("connection reset"),
+        with (
+            mock.patch(
+                "wms.print_pack_sync.get_client_credentials_token",
+                return_value="token-abc",
+            ),
+            mock.patch(
+                "wms.print_pack_sync.request.urlopen",
+                side_effect=urllib_error.URLError("connection reset"),
+            ),
         ):
             with self.assertRaisesMessage(
                 PrintArtifactSyncError,

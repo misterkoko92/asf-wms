@@ -1,4 +1,3 @@
-
 def _value_is_blank(value):
     if value is None:
         return True

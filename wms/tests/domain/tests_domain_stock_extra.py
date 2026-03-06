@@ -6,7 +6,9 @@ from django.contrib.auth import get_user_model
 from django.db import IntegrityError
 from django.test import TestCase
 
+from wms.domain.dto import PackCartonInput, ReceiveStockInput
 from wms.domain.stock import (
+    StockError,
     _carton_date_str,
     _dominant_type_code,
     _get_optional,
@@ -25,14 +27,12 @@ from wms.domain.stock import (
     receive_stock_from_input,
     transfer_stock,
     unpack_carton,
-    StockError,
 )
-from wms.domain.dto import PackCartonInput, ReceiveStockInput
 from wms.models import (
     Carton,
     CartonItem,
-    CartonStatusEvent,
     CartonStatus,
+    CartonStatusEvent,
     Location,
     MovementType,
     Product,
@@ -180,9 +180,7 @@ class DomainStockExtraTests(TestCase):
         self.assertEqual(_next_carton_sequence("20260101"), 3)
 
     def test_next_carton_sequence_ignorés_non_integer_seq_values(self):
-        fake_match = SimpleNamespace(
-            group=lambda key: {"date": "20260101", "seq": "NaN"}[key]
-        )
+        fake_match = SimpleNamespace(group=lambda key: {"date": "20260101", "seq": "NaN"}[key])
         fake_regex = SimpleNamespace(match=lambda _code: fake_match)
         with mock.patch("wms.domain.stock.CARTON_CODE_RE", fake_regex):
             Carton.objects.create(code="XX-20260101-2", status=CartonStatus.DRAFT)
@@ -277,9 +275,7 @@ class DomainStockExtraTests(TestCase):
 
         lot.refresh_from_db()
         self.assertEqual(lot.quantity_on_hand, 9)
-        movements = list(
-            StockMovement.objects.filter(product_lot=lot).order_by("created_at")
-        )
+        movements = list(StockMovement.objects.filter(product_lot=lot).order_by("created_at"))
         self.assertEqual(len(movements), 2)
         self.assertEqual(movements[0].from_location_id, self.location.id)
         self.assertIsNone(movements[0].to_location_id)
@@ -365,7 +361,9 @@ class DomainStockExtraTests(TestCase):
             unpack_carton(user=self.user, carton=shipped_carton)
         with self.assertRaisesMessage(StockError, "Carton vide."):
             unpack_carton(user=self.user, carton=empty_carton)
-        with self.assertRaisesMessage(StockError, "Impossible de modifier une expédition en litige."):
+        with self.assertRaisesMessage(
+            StockError, "Impossible de modifier une expédition en litige."
+        ):
             unpack_carton(user=self.user, carton=disputed_carton)
 
     def test_unpack_carton_restores_stock_and_resets_carton(self):
@@ -525,9 +523,7 @@ class DomainStockExtraTests(TestCase):
         with mock.patch("wms.domain.stock._carton_date_str", return_value="20260101"):
             with mock.patch("wms.domain.stock._dominant_type_code", return_value="AB"):
                 with mock.patch("wms.domain.stock._next_carton_sequence", side_effect=[1, 2, 3]):
-                    with mock.patch(
-                        "wms.domain.stock.Carton.objects.filter"
-                    ) as filter_mock:
+                    with mock.patch("wms.domain.stock.Carton.objects.filter") as filter_mock:
                         filter_mock.return_value.exclude.return_value.exists.return_value = False
                         with mock.patch.object(
                             carton,
@@ -542,9 +538,7 @@ class DomainStockExtraTests(TestCase):
         with mock.patch("wms.domain.stock._carton_date_str", return_value="20260101"):
             with mock.patch("wms.domain.stock._dominant_type_code", return_value="AB"):
                 with mock.patch("wms.domain.stock._next_carton_sequence", side_effect=[1, 2, 3]):
-                    with mock.patch(
-                        "wms.domain.stock.Carton.objects.filter"
-                    ) as filter_mock:
+                    with mock.patch("wms.domain.stock.Carton.objects.filter") as filter_mock:
                         filter_mock.return_value.exclude.return_value.exists.return_value = False
                         with mock.patch.object(
                             carton,

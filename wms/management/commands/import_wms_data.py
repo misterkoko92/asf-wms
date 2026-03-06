@@ -421,9 +421,7 @@ class Command(BaseCommand):
             correspondent = correspondent_map.get(key)
             if not correspondent:
                 stats["warnings"] += 1
-                self.stderr.write(
-                    f"Destination sans correspondant: {city}, {country} ({iata})"
-                )
+                self.stderr.write(f"Destination sans correspondant: {city}, {country} ({iata})")
                 continue
             destination = Destination.objects.filter(iata_code__iexact=iata).first()
             defaults = {

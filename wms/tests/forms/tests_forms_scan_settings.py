@@ -19,9 +19,7 @@ class ScanRuntimeSettingsFormTests(TestCase):
             "email_queue_retry_base_seconds": runtime.email_queue_retry_base_seconds,
             "email_queue_retry_max_seconds": runtime.email_queue_retry_max_seconds,
             "email_queue_processing_timeout_seconds": runtime.email_queue_processing_timeout_seconds,
-            "enable_shipment_track_legacy": (
-                "on" if runtime.enable_shipment_track_legacy else ""
-            ),
+            "enable_shipment_track_legacy": ("on" if runtime.enable_shipment_track_legacy else ""),
             "change_note": "Mise a jour test",
         }
         data.update(overrides)

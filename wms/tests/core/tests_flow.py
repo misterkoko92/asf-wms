@@ -8,9 +8,7 @@ from wms.services import prepare_order, reserve_stock_for_order
 
 class FlowTests(TestCase):
     def setUp(self):
-        self.user = get_user_model().objects.create_user(
-            username="flow-user", password="pass1234"
-        )
+        self.user = get_user_model().objects.create_user(username="flow-user", password="pass1234")
 
     def test_import_to_order_prepare_flow(self):
         row = {
