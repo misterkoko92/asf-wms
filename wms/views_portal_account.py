@@ -8,6 +8,8 @@ from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
 from .account_request_handlers import handle_account_request_form
+from .document_scan import DocumentScanStatus
+from .document_scan_queue import queue_document_scan
 from .document_uploads import validate_document_upload
 from .models import (
     AccountDocument,
@@ -271,13 +273,16 @@ def _handle_account_document_upload(request, association):
         return redirect("portal:portal_account")
 
     doc_type, uploaded = payload
-    AccountDocument.objects.create(
+    document = AccountDocument.objects.create(
         association_contact=association,
         doc_type=doc_type,
         status=DocumentReviewStatus.PENDING,
         file=uploaded,
         uploaded_by=request.user,
+        scan_status=DocumentScanStatus.PENDING,
+        scan_message="Scan antivirus en cours.",
     )
+    queue_document_scan(document)
     messages.success(request, MESSAGE_DOCUMENT_ADDED)
     return redirect("portal:portal_account")
 
@@ -507,13 +512,16 @@ def _handle_account_document_uploads(request, association):
         if validation_error:
             messages.error(request, validation_error)
             continue
-        AccountDocument.objects.create(
+        document = AccountDocument.objects.create(
             association_contact=association,
             doc_type=doc_type,
             status=DocumentReviewStatus.PENDING,
             file=uploaded,
             uploaded_by=request.user,
+            scan_status=DocumentScanStatus.PENDING,
+            scan_message="Scan antivirus en cours.",
         )
+        queue_document_scan(document)
         created += 1
     if not created:
         messages.error(request, ERROR_NO_DOCUMENT_SELECTED)

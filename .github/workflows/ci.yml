@@ -43,15 +43,20 @@ jobs:
       - name: Lint (fatal rules)
         run: ruff check .
 
+      - name: Type check (mypy scoped)
+        run: make typecheck
+
+      - name: Type check (pyright shadow)
+        continue-on-error: true
+        run: make typecheck-pyright
+
       - name: Security scan (Bandit)
         run: |
           bandit -r asf_wms api contacts wms -x "wms/migrations,contacts/migrations,wms/tests,api/tests,contacts/tests"
 
       - name: Run tests with coverage
         run: |
-          coverage run --rcfile=.coveragerc manage.py test --exclude-tag=next_frontend --exclude-tag=next_ui
-          coverage report -m --fail-under=91
-          coverage xml
+          COVERAGE_FAIL_UNDER=93 make coverage
 
       - name: Dependency vulnerability audit (informational)
         continue-on-error: true

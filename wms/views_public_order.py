@@ -7,6 +7,7 @@ from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
 from .contact_payloads import build_shipper_contact_payload
+from .client_ip import get_client_ip
 from .models import Order
 from .order_helpers import (
     build_carton_format_data,
@@ -85,10 +86,7 @@ def _build_summary_url(token, order_query):
 
 
 def _get_client_ip(request):
-    forwarded = (request.META.get("HTTP_X_FORWARDED_FOR") or "").strip()
-    if forwarded:
-        return forwarded.split(",")[0].strip() or "unknown"
-    return (request.META.get("REMOTE_ADDR") or "").strip() or "unknown"
+    return get_client_ip(request)
 
 
 def _get_public_order_throttle_seconds():

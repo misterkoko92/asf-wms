@@ -89,3 +89,46 @@ class AuditAssociationProfilesCommandTests(TestCase):
                 "--fail-on-issues",
                 stdout=StringIO(),
             )
+
+    def test_command_reports_contact_consistency_issues(self):
+        profile = self._create_profile(username="portal-audit-contact")
+        Contact.objects.filter(pk=profile.contact_id).update(
+            contact_type=ContactType.PERSON,
+            is_active=False,
+            email="different@example.com",
+        )
+        get_user_model().objects.filter(pk=profile.user_id).update(
+            email="user-mismatch@example.com"
+        )
+        profile.contact.addresses.all().delete()
+
+        output = StringIO()
+        call_command("audit_association_profiles", stdout=output)
+        text = output.getvalue()
+
+        self.assertIn("contact non organisation", text)
+        self.assertIn("contact inactif", text)
+        self.assertIn("email user/contact incohérent", text)
+        self.assertIn("adresse manquante", text)
+        self.assertIn("aucun destinataire portail avec contact réception actif", text)
+
+    def test_command_reports_orphan_user_and_missing_group(self):
+        group = Group.objects.get(name=ASSOCIATION_PORTAL_GROUP_NAME)
+        orphan_user = get_user_model().objects.create_user(
+            username="portal-orphan-user",
+            email="orphan@example.com",
+            password="pass1234",
+        )
+        orphan_user.groups.add(group)
+
+        output_orphan = StringIO()
+        call_command("audit_association_profiles", stdout=output_orphan)
+        self.assertIn(
+            "groupe Association_Portail sans profil association",
+            output_orphan.getvalue(),
+        )
+
+        group.delete()
+        output_missing_group = StringIO()
+        call_command("audit_association_profiles", stdout=output_missing_group)
+        self.assertIn("Groupe Association_Portail absent", output_missing_group.getvalue())

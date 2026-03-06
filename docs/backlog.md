@@ -70,3 +70,11 @@ Backlog aligné avec l'audit global du **19/02/2026** (`docs/audit_2026-02-19.md
 - [ ] API v2 orientée intégration externe (CRM/BI/ops).
 - [ ] Portail association enrichi (suivi dossier détaillé, notifications fines).
 - [ ] Étude d'une application contacts transverse ASF (référentiel unique multi-missions).
+
+## 7) Modernisation outillage Python (qualité/sécurité)
+
+- [x] Ajouter un formatter unique avec Ruff (`make fmt`, `make fmt-check`).
+- [x] Ajouter un chemin d'installation `uv` en parallèle de `pip` (`make install-uv`, `make install-dev-uv`).
+- [x] Ajouter un baseline `pyright` sur le même périmètre critique que `mypy` (`pyrightconfig.json`, `make typecheck-pyright`).
+- [x] Exécuter `pyright` en shadow dans CI pendant 1-2 semaines (non bloquant, activation 2026-03-06).
+- [ ] Décider le basculement du gate typage `mypy -> pyright` selon critères de stabilité.

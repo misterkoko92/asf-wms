@@ -6,6 +6,7 @@ from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils import timezone
 
+from ..document_scan import DocumentScanStatus
 from .catalog import Product
 from .inventory import Destination, ProductLot
 from .shipment import Shipment
@@ -449,6 +450,13 @@ class AccountDocument(models.Model):
         default=DocumentReviewStatus.PENDING,
     )
     file = models.FileField(upload_to="account_documents/")
+    scan_status = models.CharField(
+        max_length=20,
+        choices=DocumentScanStatus.choices,
+        default=DocumentScanStatus.CLEAN,
+    )
+    scan_message = models.CharField(max_length=255, blank=True)
+    scan_updated_at = models.DateTimeField(null=True, blank=True)
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
     )
@@ -533,6 +541,13 @@ class OrderDocument(models.Model):
         default=DocumentReviewStatus.PENDING,
     )
     file = models.FileField(upload_to="order_documents/")
+    scan_status = models.CharField(
+        max_length=20,
+        choices=DocumentScanStatus.choices,
+        default=DocumentScanStatus.CLEAN,
+    )
+    scan_message = models.CharField(max_length=255, blank=True)
+    scan_updated_at = models.DateTimeField(null=True, blank=True)
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
     )

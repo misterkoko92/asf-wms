@@ -1,7 +1,13 @@
 from django.test import TestCase
 
 from contacts.models import Contact, ContactAddress
-from wms.public_order_helpers import upsert_public_order_contact
+from wms.models import (
+    OrganizationContact,
+    OrganizationRole,
+    OrganizationRoleAssignment,
+    OrganizationRoleContact,
+)
+from wms.public_order_helpers import _resolve_existing_contact, upsert_public_order_contact
 
 
 class PublicOrderHelpersTests(TestCase):
@@ -165,3 +171,87 @@ class PublicOrderHelpersTests(TestCase):
         self.assertEqual(contact.email, "persist@example.com")
         self.assertEqual(contact.phone, "0600000000")
         self.assertEqual(address.address_line1, "Current Address")
+
+    def test_resolve_existing_contact_returns_none_without_id_or_name(self):
+        self.assertIsNone(
+            _resolve_existing_contact(
+                {
+                    "association_contact_id": "",
+                    "association_name": "   ",
+                }
+            )
+        )
+
+    def test_upsert_normalizes_active_non_org_contact_and_updates_identity(self):
+        contact = Contact.objects.create(
+            contact_type="person",
+            name="Legacy Person",
+            email="legacy@example.com",
+            phone="000000",
+            is_active=True,
+        )
+
+        updated = upsert_public_order_contact(
+            self._form_data(
+                association_contact_id=str(contact.id),
+                association_name="Association Reactivated",
+                association_email="reactivated@example.com",
+                association_phone="0555666777",
+            )
+        )
+
+        self.assertEqual(updated.id, contact.id)
+        contact.refresh_from_db()
+        self.assertEqual(contact.contact_type, "organization")
+        self.assertEqual(contact.name, "Association Reactivated")
+        self.assertEqual(contact.email, "reactivated@example.com")
+        self.assertEqual(contact.phone, "0555666777")
+
+    def test_upsert_updates_org_role_contact_and_activates_assignment(self):
+        contact = Contact.objects.create(
+            name="Association Role Contact",
+            email="role-old@example.com",
+            phone="0000",
+            is_active=True,
+        )
+        assignment = OrganizationRoleAssignment.objects.create(
+            organization=contact,
+            role=OrganizationRole.RECIPIENT,
+            is_active=False,
+        )
+        org_contact = OrganizationContact.objects.create(
+            organization=contact,
+            first_name="Role",
+            last_name="Owner",
+            email="role-old@example.com",
+            phone="0000",
+            is_active=False,
+        )
+        OrganizationRoleContact.objects.create(
+            role_assignment=assignment,
+            contact=org_contact,
+            is_primary=False,
+            is_active=False,
+        )
+
+        result = upsert_public_order_contact(
+            self._form_data(
+                association_name=contact.name,
+                association_email="role-new@example.com",
+                association_phone="0777888999",
+            )
+        )
+
+        self.assertEqual(result.id, contact.id)
+        assignment.refresh_from_db()
+        org_contact.refresh_from_db()
+        role_contact = OrganizationRoleContact.objects.get(
+            role_assignment=assignment,
+            contact=org_contact,
+        )
+        self.assertTrue(assignment.is_active)
+        self.assertEqual(org_contact.email, "role-new@example.com")
+        self.assertEqual(org_contact.phone, "0777888999")
+        self.assertTrue(org_contact.is_active)
+        self.assertTrue(role_contact.is_active)
+        self.assertTrue(role_contact.is_primary)

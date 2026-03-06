@@ -1,10 +1,10 @@
-from pathlib import Path
-
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect
 
+from .document_scan import DocumentScanStatus
+from .document_scan_queue import queue_document_scan
 from .models import Document, DocumentType, Shipment
-from .upload_utils import ALLOWED_UPLOAD_EXTENSIONS
+from .upload_utils import validate_upload
 
 
 def handle_shipment_document_upload(request, *, shipment_id):
@@ -14,14 +14,19 @@ def handle_shipment_document_upload(request, *, shipment_id):
         messages.error(request, "Fichier requis.")
         return redirect("scan:scan_shipment_edit", shipment_id=shipment.id)
 
-    extension = Path(uploaded.name).suffix.lower()
-    if extension not in ALLOWED_UPLOAD_EXTENSIONS:
-        messages.error(request, "Format de fichier non autorisé.")
+    validation_error = validate_upload(uploaded)
+    if validation_error:
+        messages.error(request, validation_error)
         return redirect("scan:scan_shipment_edit", shipment_id=shipment.id)
 
-    Document.objects.create(
-        shipment=shipment, doc_type=DocumentType.ADDITIONAL, file=uploaded
+    document = Document.objects.create(
+        shipment=shipment,
+        doc_type=DocumentType.ADDITIONAL,
+        file=uploaded,
+        scan_status=DocumentScanStatus.PENDING,
+        scan_message="Scan antivirus en cours.",
     )
+    queue_document_scan(document)
     messages.success(request, "Document ajouté.")
     return redirect("scan:scan_shipment_edit", shipment_id=shipment.id)
 

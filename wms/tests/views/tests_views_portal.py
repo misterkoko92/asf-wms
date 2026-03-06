@@ -26,7 +26,10 @@ from wms.models import (
     CartonItem,
     CartonStatus,
     Destination,
+    DocumentScanStatus,
     DocumentReviewStatus,
+    IntegrationEvent,
+    IntegrationStatus,
     Location,
     Order,
     OrderDocument,
@@ -1275,7 +1278,7 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
 
     def test_portal_order_detail_uploads_document_when_valid(self):
         order = self._order(review_status=OrderReviewStatus.APPROVED)
-        uploaded = SimpleUploadedFile("attestation.pdf", b"pdf-content")
+        uploaded = SimpleUploadedFile("attestation.pdf", b"%PDF-1.4 attestation")
         with mock.patch(
             "wms.views_portal_orders.validate_document_upload",
             return_value=((OrderDocumentType.OTHER, uploaded), None),
@@ -1289,10 +1292,15 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         document = OrderDocument.objects.get(order=order)
         self.assertEqual(document.doc_type, OrderDocumentType.OTHER)
         self.assertEqual(document.status, DocumentReviewStatus.PENDING)
+        self.assertEqual(document.scan_status, DocumentScanStatus.PENDING)
+        event = IntegrationEvent.objects.get()
+        self.assertEqual(event.source, "wms.document_scan")
+        self.assertEqual(event.event_type, "scan_document")
+        self.assertEqual(event.status, IntegrationStatus.PENDING)
 
     def test_portal_order_detail_uploads_documents_by_type_rows(self):
         order = self._order(review_status=OrderReviewStatus.APPROVED)
-        uploaded = SimpleUploadedFile("invoice.pdf", b"pdf-content")
+        uploaded = SimpleUploadedFile("invoice.pdf", b"%PDF-1.4 invoice")
         response = self.client.post(
             reverse("portal:portal_order_detail", kwargs={"order_id": order.id}),
             {
@@ -1304,6 +1312,26 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertEqual(order.documents.count(), 1)
         document = OrderDocument.objects.get(order=order)
         self.assertEqual(document.doc_type, OrderDocumentType.INVOICE)
+        self.assertEqual(document.scan_status, DocumentScanStatus.PENDING)
+        self.assertEqual(IntegrationEvent.objects.count(), 1)
+
+    def test_portal_order_detail_hides_download_link_for_quarantined_document(self):
+        order = self._order(review_status=OrderReviewStatus.APPROVED)
+        document = order.documents.create(
+            doc_type=OrderDocumentType.OTHER,
+            status=DocumentReviewStatus.PENDING,
+            file=SimpleUploadedFile("quarantine.pdf", b"%PDF-1.4 quarantine"),
+            scan_status=DocumentScanStatus.PENDING,
+            scan_message="Scan antivirus en cours.",
+        )
+
+        response = self.client.get(
+            reverse("portal:portal_order_detail", kwargs={"order_id": order.id})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Quarantaine (scan antivirus en cours).")
+        self.assertNotContains(response, document.file.url)
 
 
 class PortalAccountViewsTests(PortalBaseTestCase):
@@ -1612,7 +1640,7 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertEqual(AccountDocument.objects.count(), 0)
 
     def test_portal_account_upload_doc_creates_document(self):
-        uploaded = SimpleUploadedFile("statuts.pdf", b"pdf-content")
+        uploaded = SimpleUploadedFile("statuts.pdf", b"%PDF-1.4 statutes")
         with mock.patch(
             "wms.views_portal_account.validate_document_upload",
             return_value=((AccountDocumentType.OTHER, uploaded), None),
@@ -1627,14 +1655,21 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         document = AccountDocument.objects.get()
         self.assertEqual(document.doc_type, AccountDocumentType.OTHER)
         self.assertEqual(document.status, DocumentReviewStatus.PENDING)
+        self.assertEqual(document.scan_status, DocumentScanStatus.PENDING)
+        event = IntegrationEvent.objects.get()
+        self.assertEqual(event.source, "wms.document_scan")
+        self.assertEqual(event.event_type, "scan_document")
+        self.assertEqual(event.status, IntegrationStatus.PENDING)
 
     def test_portal_account_upload_docs_creates_documents_by_type_row(self):
         response = self.client.post(
             self.account_url,
             {
                 "action": "upload_account_docs",
-                "doc_file_statutes": SimpleUploadedFile("statuts.pdf", b"pdf-content"),
-                "doc_file_other": SimpleUploadedFile("other.pdf", b"pdf-content"),
+                "doc_file_statutes": SimpleUploadedFile(
+                    "statuts.pdf", b"%PDF-1.4 statutes"
+                ),
+                "doc_file_other": SimpleUploadedFile("other.pdf", b"%PDF-1.4 other"),
             },
         )
         self.assertEqual(response.status_code, 302)
@@ -1645,6 +1680,27 @@ class PortalAccountViewsTests(PortalBaseTestCase):
             {doc.doc_type for doc in docs},
             {AccountDocumentType.STATUTES, AccountDocumentType.OTHER},
         )
+        self.assertEqual(
+            {doc.scan_status for doc in docs},
+            {DocumentScanStatus.PENDING},
+        )
+        self.assertEqual(IntegrationEvent.objects.count(), 2)
+
+    def test_portal_account_hides_download_link_for_quarantined_document(self):
+        document = AccountDocument.objects.create(
+            association_contact=self.profile.contact,
+            doc_type=AccountDocumentType.OTHER,
+            status=DocumentReviewStatus.PENDING,
+            file=SimpleUploadedFile("quarantine.pdf", b"%PDF-1.4 quarantine"),
+            scan_status=DocumentScanStatus.PENDING,
+            scan_message="Scan antivirus en cours.",
+        )
+
+        response = self.client.get(self.account_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Quarantaine (scan antivirus en cours).")
+        self.assertNotContains(response, document.file.url)
 
     def test_portal_account_request_delegates_to_handler(self):
         with mock.patch(

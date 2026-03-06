@@ -48,6 +48,11 @@ Security-related values (recommended in production):
 - `SESSION_COOKIE_SECURE=true`
 - `CSRF_COOKIE_SECURE=true`
 - `USE_PROXY_SSL_HEADER=true` (if reverse proxy terminates TLS)
+- `TRUSTED_PROXY_IPS` (comma-separated proxy IPs allowed to provide `X-Forwarded-For`)
+- `DOCUMENT_SCAN_BACKEND=clamav` (or `noop` for local/dev only)
+- `DOCUMENT_SCAN_CLAMAV_COMMAND=clamscan`
+- `DOCUMENT_SCAN_TIMEOUT_SECONDS=30`
+- `DOCUMENT_SCAN_QUEUE_PROCESSING_TIMEOUT_SECONDS=900`
 - `CSRF_TRUSTED_ORIGINS=https://your-domain`
 - `SECURE_HSTS_SECONDS=31536000`
 - `SECURE_HSTS_INCLUDE_SUBDOMAINS=true`
@@ -74,24 +79,35 @@ Integration/security values:
 From repo root:
 
 ```bash
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
+python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt
+# optional modern path (installs into .venv with uv)
+# make install-dev-uv
 make check
 make migrate-check
 make deploy-check
+make deploy-check-prod-like
+# optional formatting shadow check (non-blocking until global reformat window)
+# make fmt-check
 make lint
 make typecheck
+# optional shadow type-check (non-blocking rollout)
+# make typecheck-pyright
 make bandit
 make coverage
 make audit
 ```
 
 `make typecheck` is intentionally scoped to selected core modules defined in `mypy.ini`.
+`make typecheck-pyright` mirrors this critical-module scope through `pyrightconfig.json` and is currently intended as a shadow signal before any gate switch.
+`make fmt-check` is currently a shadow check only; enable it as a hard gate after a dedicated repository-wide reformat pass.
+`make coverage` is the source of truth for the coverage gate (`COVERAGE_FAIL_UNDER`, default `93`) and excludes paused Next/frontend tags by default.
+`make deploy-check-prod-like` sources `.env.deploy.example` (or `DEPLOY_ENV_FILE=...`) to run a reproducible local deploy check profile.
 
 Notes:
 
-- `pip-audit` may fail in restricted/offline environments; this is informational in CI.
-- If `pip-audit` fails locally due network, keep deployment gate on tests/lint/deploy-check and rerun audit when network is available.
+- `make audit-soft` always writes `pip-audit-report.json`; if `pypi.org` is unreachable, the report contains an explicit skip reason.
+- `make audit` remains the strict command (network required) for a full local vulnerability run.
 
 ## 3) Deploy sequence
 
@@ -104,6 +120,12 @@ python manage.py check --deploy --fail-level WARNING
 ```
 
 Then restart the app process (systemd, supervisor, platform-specific service).
+
+Run the document scan worker regularly (cron/systemd timer):
+
+```bash
+python manage.py process_document_scan_queue --limit=200
+```
 
 ### 3.0) Scan Bootstrap progressive rollout (`SCAN_BOOTSTRAP_ENABLED`)
 
@@ -207,7 +229,56 @@ Processing events stuck beyond timeout:
 python manage.py shell -c "from django.conf import settings; from django.utils import timezone; from datetime import timedelta; from wms.models import IntegrationEvent, IntegrationDirection, IntegrationStatus; timeout=max(1,int(getattr(settings,'EMAIL_QUEUE_PROCESSING_TIMEOUT_SECONDS',900))); cutoff=timezone.now()-timedelta(seconds=timeout); qs=IntegrationEvent.objects.filter(direction=IntegrationDirection.OUTBOUND, source='wms.email', event_type='send_email', status=IntegrationStatus.PROCESSING, processed_at__lte=cutoff); print({'timeout_seconds': timeout, 'stale_processing': qs.count()})"
 ```
 
-## 6) Observability dashboard
+## 6) Document scan queue operations
+
+Queue processor command:
+
+```bash
+python manage.py process_document_scan_queue --limit=100
+python manage.py process_document_scan_queue --include-failed --limit=100
+# Runtime readiness check (strict production profile)
+python manage.py check_document_scan_runtime --max-failed=0 --max-stale-processing=0
+# Make shortcut
+make scan-queue-runtime-check
+# Dev-only (if ClamAV is intentionally unavailable locally)
+DOCUMENT_SCAN_BACKEND=noop python manage.py check_document_scan_runtime --allow-noop
+```
+
+Suggested cron (every minute):
+
+```cron
+* * * * * cd /path/to/asf-wms && /path/to/asf-wms/.venv/bin/python manage.py process_document_scan_queue --limit=100 >> /var/log/asf-wms-document-scan-queue.log 2>&1
+```
+
+Queue health snapshot:
+
+```bash
+python manage.py shell -c "from wms.document_scan_queue import DOCUMENT_SCAN_QUEUE_EVENT_TYPE, DOCUMENT_SCAN_QUEUE_SOURCE; from wms.models import IntegrationDirection, IntegrationEvent; qs=IntegrationEvent.objects.filter(direction=IntegrationDirection.OUTBOUND, source=DOCUMENT_SCAN_QUEUE_SOURCE, event_type=DOCUMENT_SCAN_QUEUE_EVENT_TYPE); print({s: qs.filter(status=s).count() for s in ['pending','processing','processed','failed']})"
+```
+
+Recent failed events:
+
+```bash
+python manage.py shell -c "from wms.document_scan_queue import DOCUMENT_SCAN_QUEUE_EVENT_TYPE, DOCUMENT_SCAN_QUEUE_SOURCE; from wms.models import IntegrationDirection, IntegrationEvent, IntegrationStatus; qs=IntegrationEvent.objects.filter(direction=IntegrationDirection.OUTBOUND, source=DOCUMENT_SCAN_QUEUE_SOURCE, event_type=DOCUMENT_SCAN_QUEUE_EVENT_TYPE, status=IntegrationStatus.FAILED).order_by('-created_at')[:20]; print(list(qs.values('id','created_at','processed_at','error_message','payload')))"
+```
+
+Processing events stuck beyond timeout:
+
+```bash
+python manage.py shell -c "from datetime import timedelta; from django.conf import settings; from django.utils import timezone; from wms.document_scan_queue import DOCUMENT_SCAN_QUEUE_EVENT_TYPE, DOCUMENT_SCAN_QUEUE_SOURCE; from wms.models import IntegrationDirection, IntegrationEvent, IntegrationStatus; timeout=max(1,int(getattr(settings,'DOCUMENT_SCAN_QUEUE_PROCESSING_TIMEOUT_SECONDS',900))); cutoff=timezone.now()-timedelta(seconds=timeout); qs=IntegrationEvent.objects.filter(direction=IntegrationDirection.OUTBOUND, source=DOCUMENT_SCAN_QUEUE_SOURCE, event_type=DOCUMENT_SCAN_QUEUE_EVENT_TYPE, status=IntegrationStatus.PROCESSING, processed_at__lte=cutoff); print({'timeout_seconds': timeout, 'stale_processing': qs.count()})"
+```
+
+PythonAnywhere helpers:
+
+```bash
+./deploy/pythonanywhere/process_document_scan_queue.sh
+INCLUDE_FAILED=true ./deploy/pythonanywhere/process_document_scan_queue.sh
+./deploy/pythonanywhere/flush_document_scan_queue.sh active
+```
+
+`flush_document_scan_queue.sh all` deletes all scan events and must be reserved for emergency cleanup.
+
+## 7) Observability dashboard
 
 Main view: `/scan/dashboard/`
 
@@ -222,7 +293,7 @@ Operational cards added for phase 3:
   - Planifié -> Livré
   - each card displays `breaches / completed segments`.
 
-## 7) Structured workflow logs
+## 8) Structured workflow logs
 
 Workflow transitions are emitted on logger `wms.workflow` as JSON messages:
 
@@ -234,7 +305,7 @@ Workflow transitions are emitted on logger `wms.workflow` as JSON messages:
 
 If your platform supports log filtering, filter by logger name `wms.workflow` and parse JSON fields (`event_type`, `shipment.reference`, `previous_status`, `new_status`).
 
-## 8) Incident playbooks
+## 9) Incident playbooks
 
 ### A) Queue backlog growing
 
@@ -243,33 +314,41 @@ If your platform supports log filtering, filter by logger name `wms.workflow` an
 3. Validate SMTP/Brevo credentials and network egress.
 4. Temporarily increase retry tuning (`EMAIL_QUEUE_*`) if provider latency is high.
 
-### B) Many failed events after release
+### B) Document scan queue backlog or failures
+
+1. Verify env vars (`DOCUMENT_SCAN_*`) and ensure `DOCUMENT_SCAN_BACKEND=clamav` in production.
+2. Run `python manage.py check_document_scan_runtime --max-failed=0 --max-stale-processing=0`.
+3. Run `python manage.py process_document_scan_queue --include-failed --limit=500`.
+4. Validate ClamAV availability (`clamscan --version`) and host PATH for the app process.
+5. If failures persist, keep infected downloads blocked, switch to incident mode, and purge only active queue events once root cause is fixed.
+
+### C) Many email failed events after release
 
 1. Verify env vars (`EMAIL_*`, `BREVO_*`, `DEFAULT_FROM_EMAIL`).
 2. Replay failed events with `--include-failed`.
 3. If still failing, rollback release and replay queue once stable.
 
-### C) Deployment checks failing
+### D) Deployment checks failing
 
 1. `python manage.py check --deploy --fail-level WARNING`
 2. Fix security/env mismatch before opening traffic.
 3. Re-run smoke tests after fix.
 
-### D) Workflow blockages increasing (>72h)
+### E) Workflow blockages increasing (>72h)
 
 1. Open `/scan/dashboard/` and review "Blocages workflow".
 2. Resolve oldest "Cmd validées sans expédition >72h" from `/scan/orders/`.
 3. Resolve stale shipment drafts/picking from `/scan/shipments-ready/`.
 4. Review delivered-but-open cases in `/scan/shipments-tracking/` and close valid dossiers.
 
-### E) SLA breaches rising
+### F) SLA breaches rising
 
 1. Open `/scan/dashboard/` and review "Suivi SLA" cards.
 2. Cross-check delayed shipments in `/scan/shipments-tracking/` (planned/shipped/received statuses).
 3. Prioritize shipments with no progression and open litiges.
 4. Export weekly ops review with breach counts by segment.
 
-## 9) Backup and restore basics
+## 10) Backup and restore basics
 
 SQLite:
 
@@ -289,12 +368,13 @@ Restore MySQL:
 mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p "$DB_NAME" < asf_wms.sql
 ```
 
-## 10) Recurring maintenance
+## 11) Recurring maintenance
 
 Weekly:
 
 - Run full test + coverage and security checks.
 - Review open failed email events and oldest pending items.
+- Review failed/stale document scan queue events and backlog size.
 
 Monthly:
 
@@ -302,7 +382,7 @@ Monthly:
 - Re-run `pip-audit` and review vulnerabilities.
 - Run `python manage.py normalize_wms_text` if data normalization drift appears.
 
-## 11) Shipment and carton status rules
+## 12) Shipment and carton status rules
 
 ### Carton statuses
 

@@ -5,6 +5,8 @@ from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 
+from .document_scan import DocumentScanStatus
+from .document_scan_queue import queue_document_scan
 from .document_uploads import validate_document_upload
 from .models import (
     AssociationRecipient,
@@ -405,13 +407,16 @@ def _handle_order_document_upload(request, order):
         return redirect("portal:portal_order_detail", order_id=order.id)
 
     doc_type, uploaded = payload
-    OrderDocument.objects.create(
+    document = OrderDocument.objects.create(
         order=order,
         doc_type=doc_type,
         status=DocumentReviewStatus.PENDING,
         file=uploaded,
         uploaded_by=request.user,
+        scan_status=DocumentScanStatus.PENDING,
+        scan_message="Scan antivirus en cours.",
     )
+    queue_document_scan(document)
     messages.success(request, MESSAGE_ORDER_DOCUMENT_ADDED)
     return redirect("portal:portal_order_detail", order_id=order.id)
 
@@ -430,13 +435,16 @@ def _handle_order_document_uploads(request, order):
         if validation_error:
             messages.error(request, validation_error)
             continue
-        OrderDocument.objects.create(
+        document = OrderDocument.objects.create(
             order=order,
             doc_type=doc_type,
             status=DocumentReviewStatus.PENDING,
             file=uploaded,
             uploaded_by=request.user,
+            scan_status=DocumentScanStatus.PENDING,
+            scan_message="Scan antivirus en cours.",
         )
+        queue_document_scan(document)
         created += 1
 
     if not created:

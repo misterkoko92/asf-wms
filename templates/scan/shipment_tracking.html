@@ -57,7 +57,7 @@
               <span class="ui-comp-status-pill is-error">Litige en cours</span>
             {% endif %}
           </div>
-          {% if can_update_tracking %}
+          {% if can_manage_dispute %}
             <div class="scan-inline scan-field-gap">
               {% if shipment.is_disputed %}
                 <form method="post" class="ui-comp-form">
@@ -109,10 +109,14 @@
           {% if additional_docs %}
             <div class="scan-docs">
               {% for document in additional_docs %}
-                {% if document.file %}
+                {% if document.file and document.scan_status == "clean" %}
                   <a class="scan-scan-btn scan-doc-btn btn btn-tertiary" href="{{ document.file.url }}" target="_blank" rel="noopener">
                     {{ document.file.name|default:"Document" }}
                   </a>
+                {% elif document.scan_status == "infected" %}
+                  <span class="scan-help">Document bloque (fichier suspect).</span>
+                {% elif document.file %}
+                  <span class="scan-help">Document en quarantaine (scan antivirus en cours).</span>
                 {% else %}
                   <span class="scan-help">Document indisponible (fichier manquant)</span>
                 {% endif %}

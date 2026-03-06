@@ -17,6 +17,7 @@ from django.utils.http import (
 from django.views.decorators.http import require_http_methods
 
 from .emailing import send_or_enqueue_email_safe
+from .client_ip import get_client_ip
 from .portal_helpers import get_association_profile
 from .view_permissions import association_required
 
@@ -105,10 +106,7 @@ def _normalize_email(raw_value):
 
 
 def _get_client_ip(request):
-    forwarded = (request.META.get("HTTP_X_FORWARDED_FOR") or "").strip()
-    if forwarded:
-        return forwarded.split(",")[0].strip() or "unknown"
-    return (request.META.get("REMOTE_ADDR") or "").strip() or "unknown"
+    return get_client_ip(request)
 
 
 def _get_recovery_throttle_seconds():

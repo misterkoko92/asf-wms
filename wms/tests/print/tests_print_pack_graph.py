@@ -1,4 +1,5 @@
 import json
+from io import BytesIO
 from unittest import mock
 from urllib import error
 
@@ -6,8 +7,11 @@ from django.test import SimpleTestCase, override_settings
 
 from wms.print_pack_graph import (
     GraphPdfConversionError,
+    _decode_http_error,
+    _download_pdf_export,
     _graph_export_pdf,
     _request_graph_token,
+    _upload_workbook_item,
     _validate_https_url,
     convert_excel_to_pdf_via_graph,
     get_client_credentials_token,
@@ -213,4 +217,108 @@ class PrintPackGraphTests(SimpleTestCase):
                     xlsx_bytes=b"xlsx-data",
                     filename="pack-b.xlsx",
                     timeout=12,
+                )
+
+    def test_decode_http_error_returns_message_for_non_http_error(self):
+        message = _decode_http_error(ValueError("boom"))
+        self.assertEqual(message, "boom")
+
+    def test_decode_http_error_falls_back_to_exception_string_when_body_unreadable(self):
+        exc = error.HTTPError(
+            url="https://graph.microsoft.com/v1.0/test",
+            code=500,
+            msg="server error",
+            hdrs=None,
+            fp=None,
+        )
+        exc.read = mock.Mock(side_effect=OSError("read failed"))
+
+        message = _decode_http_error(exc)
+
+        self.assertIn("HTTP Error 500", message)
+
+    @override_settings(GRAPH_DRIVE_ID="drive-123")
+    def test_upload_workbook_item_raises_graph_error_on_http_error(self):
+        http_error = error.HTTPError(
+            url="https://graph.microsoft.com/v1.0/drives/drive-123/root:/tmp/content",
+            code=429,
+            msg="Too Many Requests",
+            hdrs=None,
+            fp=BytesIO(b'{"error":"rate_limited"}'),
+        )
+        with mock.patch("wms.print_pack_graph.request.urlopen", side_effect=http_error):
+            with self.assertRaises(GraphPdfConversionError) as exc:
+                _upload_workbook_item(
+                    token="token",
+                    drive_id="drive-123",
+                    xlsx_bytes=b"xlsx-data",
+                    filename="pack-b.xlsx",
+                    timeout=10,
+                )
+
+        self.assertIn("HTTP 429", str(exc.exception))
+        self.assertIn("rate_limited", str(exc.exception))
+
+    @override_settings(GRAPH_DRIVE_ID="drive-123")
+    def test_upload_workbook_item_raises_graph_error_on_url_error(self):
+        with mock.patch(
+            "wms.print_pack_graph.request.urlopen",
+            side_effect=error.URLError("network down"),
+        ):
+            with self.assertRaises(GraphPdfConversionError):
+                _upload_workbook_item(
+                    token="token",
+                    drive_id="drive-123",
+                    xlsx_bytes=b"xlsx-data",
+                    filename="pack-b.xlsx",
+                    timeout=10,
+                )
+
+    @override_settings(GRAPH_DRIVE_ID="drive-123")
+    def test_upload_workbook_item_raises_on_invalid_json_payload(self):
+        with mock.patch(
+            "wms.print_pack_graph.request.urlopen",
+            return_value=self._UrlOpenResponse(b"not-json"),
+        ):
+            with self.assertRaises(GraphPdfConversionError):
+                _upload_workbook_item(
+                    token="token",
+                    drive_id="drive-123",
+                    xlsx_bytes=b"xlsx-data",
+                    filename="pack-b.xlsx",
+                    timeout=10,
+                )
+
+    @override_settings(GRAPH_DRIVE_ID="drive-123")
+    def test_download_pdf_export_raises_graph_error_on_http_error(self):
+        http_error = error.HTTPError(
+            url="https://graph.microsoft.com/v1.0/drives/drive-123/items/item-42/content?format=pdf",
+            code=500,
+            msg="server error",
+            hdrs=None,
+            fp=BytesIO(b"graph-error"),
+        )
+        with mock.patch("wms.print_pack_graph.request.urlopen", side_effect=http_error):
+            with self.assertRaises(GraphPdfConversionError) as exc:
+                _download_pdf_export(
+                    token="token",
+                    drive_id="drive-123",
+                    item_id="item-42",
+                    timeout=10,
+                )
+
+        self.assertIn("HTTP 500", str(exc.exception))
+
+    @override_settings(GRAPH_DRIVE_ID="drive-123")
+    def test_download_pdf_export_raises_graph_error_on_url_error(self):
+        with mock.patch(
+            "wms.print_pack_graph.request.urlopen",
+            side_effect=error.URLError("network down"),
+        ):
+            with self.assertRaises(GraphPdfConversionError):
+                _download_pdf_export(
+                    token="token",
+                    drive_id="drive-123",
+                    item_id="item-42",
+                    timeout=10,
                 )

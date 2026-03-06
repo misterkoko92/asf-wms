@@ -550,3 +550,145 @@ class ScanShipmentHandlersTests(TestCase):
                 )
         self.assertIsNone(response)
         self.assertIn((None, "Carton indisponible."), form_unavailable.errors)
+
+    def test_handle_shipment_edit_post_rejects_locked_shipment(self):
+        request = self._request({"carton_count": "1"})
+        form = _FakeForm(valid=True, cleaned_data=self._cleaned_data(carton_count=1))
+        shipment = SimpleNamespace(
+            id=55,
+            reference="S-LOCKED",
+            status=ShipmentStatus.PLANNED,
+            carton_set=mock.MagicMock(),
+            save=mock.Mock(),
+        )
+
+        with mock.patch(
+            "wms.scan_shipment_handlers.parse_shipment_lines",
+            return_value=([{"line": 1}], [], {}),
+        ):
+            response, *_ = handle_shipment_edit_post(
+                request,
+                form=form,
+                shipment=shipment,
+                allowed_carton_ids=set(),
+            )
+
+        self.assertIsNone(response)
+        self.assertIn(
+            (None, "Expédition verrouillée: modification des colis impossible."),
+            form.errors,
+        )
+
+    def test_handle_shipment_edit_post_rejects_disputed_shipment(self):
+        request = self._request({"carton_count": "1"})
+        form = _FakeForm(valid=True, cleaned_data=self._cleaned_data(carton_count=1))
+        shipment = SimpleNamespace(
+            id=56,
+            reference="S-DISPUTED",
+            status=ShipmentStatus.DRAFT,
+            is_disputed=True,
+            carton_set=mock.MagicMock(),
+            save=mock.Mock(),
+        )
+
+        with mock.patch(
+            "wms.scan_shipment_handlers.parse_shipment_lines",
+            return_value=([{"line": 1}], [], {}),
+        ):
+            response, *_ = handle_shipment_edit_post(
+                request,
+                form=form,
+                shipment=shipment,
+                allowed_carton_ids=set(),
+            )
+
+        self.assertIsNone(response)
+        self.assertIn(
+            (None, "Expédition en litige: modification des colis impossible."),
+            form.errors,
+        )
+
+    def test_handle_shipment_edit_post_rejects_selected_carton_not_packed(self):
+        request = self._request({"carton_count": "1"})
+        form = _FakeForm(valid=True, cleaned_data=self._cleaned_data(carton_count=1))
+        shipment = SimpleNamespace(
+            id=57,
+            reference="S-EDIT-NOT-PACKED",
+            status=ShipmentStatus.DRAFT,
+            carton_set=mock.MagicMock(),
+            save=mock.Mock(),
+        )
+        shipment.carton_set.exclude.return_value = []
+        unavailable_query = mock.MagicMock()
+        unavailable_query.first.return_value = SimpleNamespace(
+            shipment_id=None,
+            status=CartonStatus.ASSIGNED,
+            shipment=None,
+        )
+
+        with mock.patch(
+            "wms.scan_shipment_handlers.parse_shipment_lines",
+            return_value=([{"line": 1}], [{"carton_id": 123}], {}),
+        ):
+            with mock.patch(
+                "wms.scan_shipment_handlers.build_destination_label",
+                return_value="Paris - France",
+            ):
+                with mock.patch(
+                    "wms.scan_shipment_handlers.Carton.objects.filter",
+                    return_value=unavailable_query,
+                ):
+                    response, *_ = handle_shipment_edit_post(
+                        request,
+                        form=form,
+                        shipment=shipment,
+                        allowed_carton_ids={123},
+                    )
+
+        self.assertIsNone(response)
+        self.assertIn((None, "Carton indisponible."), form.errors)
+
+    def test_handle_shipment_edit_post_rejects_quantity_above_related_order_remaining(self):
+        request = self._request({"carton_count": "1"})
+        form = _FakeForm(valid=True, cleaned_data=self._cleaned_data(carton_count=1))
+        related_order_line = SimpleNamespace(product_id=7, remaining_quantity=1)
+        lines_manager = mock.MagicMock()
+        lines_manager.select_related.return_value.all.return_value = [related_order_line]
+        product = SimpleNamespace(id=7, name="Produit limite")
+        shipment = SimpleNamespace(
+            id=58,
+            reference="S-EDIT-ORDER-QTY",
+            status=ShipmentStatus.DRAFT,
+            carton_set=mock.MagicMock(),
+            save=mock.Mock(),
+            order=SimpleNamespace(lines=lines_manager),
+        )
+        shipment.carton_set.exclude.return_value = []
+
+        with mock.patch(
+            "wms.scan_shipment_handlers.parse_shipment_lines",
+            return_value=([{"line": 1}], [{"product": product, "quantity": 2}], {}),
+        ):
+            with mock.patch(
+                "wms.scan_shipment_handlers.build_destination_label",
+                return_value="Paris - France",
+            ):
+                with mock.patch(
+                    "wms.scan_shipment_handlers.pack_carton_from_reserved"
+                ) as reserved_mock:
+                    response, *_ = handle_shipment_edit_post(
+                        request,
+                        form=form,
+                        shipment=shipment,
+                        allowed_carton_ids=set(),
+                    )
+
+        self.assertIsNone(response)
+        self.assertIn(
+            (
+                None,
+                "Produit limite: quantité demandée supérieure au reliquat de la commande.",
+            ),
+            form.errors,
+        )
+        reserved_mock.assert_not_called()

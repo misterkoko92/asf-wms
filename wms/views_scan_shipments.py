@@ -179,6 +179,7 @@ def _render_shipment_tracking(
     return_to,
 ):
     documents, carton_docs, additional_docs, events = _build_tracking_page_data(shipment)
+    is_staff_user = bool(request.user.is_authenticated and request.user.is_staff)
     return render(
         request,
         TEMPLATE_SHIPMENT_TRACKING,
@@ -192,9 +193,8 @@ def _render_shipment_tracking(
             "events": events,
             "form": form,
             "can_update_tracking": can_update_tracking,
-            "show_back_to_list": bool(
-                request.user.is_authenticated and request.user.is_staff
-            ),
+            "can_manage_dispute": is_staff_user,
+            "show_back_to_list": is_staff_user,
             "back_to_url": back_to_url,
             "return_to": return_to,
         },

@@ -1,15 +1,24 @@
 PYTHON ?= $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo python3)
 PIP ?= $(PYTHON) -m pip
+UV ?= $(shell [ -x .venv/bin/uv ] && echo .venv/bin/uv || echo uv)
 RUFF ?= $(shell [ -x .venv/bin/ruff ] && echo .venv/bin/ruff || echo ruff)
 BANDIT ?= $(shell [ -x .venv/bin/bandit ] && echo .venv/bin/bandit || echo bandit)
 MYPY ?= $(shell [ -x .venv/bin/mypy ] && echo .venv/bin/mypy || echo mypy)
+PYRIGHT ?= $(shell [ -x .venv/bin/pyright ] && echo .venv/bin/pyright || echo pyright)
 PIP_AUDIT ?= $(shell [ -x .venv/bin/pip-audit ] && echo .venv/bin/pip-audit || echo pip-audit)
+PIP_AUDIT_SOFT_ARGS ?= --disable-pip --no-deps
+PIP_AUDIT_REPORT ?= pip-audit-report.json
 PRE_COMMIT ?= $(shell [ -x .venv/bin/pre-commit ] && echo .venv/bin/pre-commit || echo pre-commit)
 COVERAGE ?= $(shell [ -x .venv/bin/coverage ] && echo .venv/bin/coverage || echo coverage)
+COVERAGE_FAIL_UNDER ?= 93
+COVERAGE_TEST_ARGS ?= --exclude-tag=next_frontend --exclude-tag=next_ui
+DEPLOY_ENV_FILE ?= .env.deploy.example
+FORMAT_SCOPE ?= asf_wms api contacts wms manage.py
+FORMAT_EXCLUDES ?= --exclude frontend-next --exclude wms/views_next_frontend.py --exclude wms/ui_mode.py --exclude wms/tests/views/tests_views_next_frontend.py
 
 BANDIT_EXCLUDES := wms/migrations,contacts/migrations,wms/tests,api/tests,contacts/tests
 
-.PHONY: install install-dev check deploy-check migrate-check lint typecheck bandit audit audit-soft security test test-next-ui coverage pre-commit ci
+.PHONY: install install-dev install-uv install-dev-uv check deploy-check deploy-check-prod-like migrate-check fmt fmt-check lint typecheck typecheck-pyright bandit audit audit-soft security test test-next-ui scan-queue scan-queue-retry scan-queue-health scan-queue-stale scan-queue-runtime-check coverage pre-commit ci
 
 install:
 	$(PIP) install -r requirements.txt
@@ -17,20 +26,42 @@ install:
 install-dev: install
 	$(PIP) install -r requirements-dev.txt
 
+install-uv:
+	@command -v $(UV) >/dev/null 2>&1 || (echo "Missing uv. Install it first with: python -m pip install uv" >&2; exit 1)
+	$(UV) venv .venv
+	$(UV) pip install --python .venv/bin/python -r requirements.txt
+
+install-dev-uv: install-uv
+	$(UV) pip install --python .venv/bin/python -r requirements-dev.txt
+
 check:
 	$(PYTHON) -m pip check
 
 deploy-check:
 	$(PYTHON) manage.py check --deploy --fail-level WARNING
 
+deploy-check-prod-like:
+	@test -f "$(DEPLOY_ENV_FILE)" || (echo "Missing env file: $(DEPLOY_ENV_FILE)" >&2; exit 1)
+	@set -a; . "$(DEPLOY_ENV_FILE)"; set +a; $(PYTHON) manage.py check --deploy --fail-level WARNING
+
 migrate-check:
 	$(PYTHON) manage.py makemigrations --check --dry-run
+
+fmt:
+	$(RUFF) format $(FORMAT_EXCLUDES) $(FORMAT_SCOPE)
+
+fmt-check:
+	$(RUFF) format --check $(FORMAT_EXCLUDES) $(FORMAT_SCOPE)
 
 lint:
 	$(RUFF) check .
 
 typecheck:
 	$(MYPY) --config-file mypy.ini
+
+typecheck-pyright:
+	@command -v $(PYRIGHT) >/dev/null 2>&1 || (echo "Missing pyright. Install dev deps first: python -m pip install -r requirements-dev.txt" >&2; exit 1)
+	$(PYRIGHT) -p pyrightconfig.json
 
 bandit:
 	$(BANDIT) -r asf_wms api contacts wms -x "$(BANDIT_EXCLUDES)"
@@ -39,7 +70,15 @@ audit:
 	$(PIP_AUDIT) -r requirements.txt
 
 audit-soft:
-	$(PIP_AUDIT) -r requirements.txt || true
+	@set -e; \
+	if ! $(PYTHON) -c "import socket; socket.getaddrinfo('pypi.org', 443)" >/dev/null 2>&1; then \
+		echo '{"error":"pip-audit skipped: pypi.org is not reachable from this environment"}' > $(PIP_AUDIT_REPORT); \
+		cat $(PIP_AUDIT_REPORT); \
+	else \
+		$(PIP_AUDIT) -r requirements.txt $(PIP_AUDIT_SOFT_ARGS) --format json --output $(PIP_AUDIT_REPORT) || true; \
+		test -f $(PIP_AUDIT_REPORT) || echo '{"error":"pip-audit did not produce output"}' > $(PIP_AUDIT_REPORT); \
+		cat $(PIP_AUDIT_REPORT); \
+	fi
 
 security: bandit audit
 
@@ -49,9 +88,24 @@ test:
 test-next-ui:
 	RUN_UI_TESTS=1 $(PYTHON) manage.py test wms.tests.core.tests_ui.NextUiTests
 
+scan-queue:
+	$(PYTHON) manage.py process_document_scan_queue --limit=100
+
+scan-queue-retry:
+	$(PYTHON) manage.py process_document_scan_queue --include-failed --limit=100
+
+scan-queue-health:
+	$(PYTHON) manage.py shell -c "from wms.document_scan_queue import DOCUMENT_SCAN_QUEUE_EVENT_TYPE, DOCUMENT_SCAN_QUEUE_SOURCE; from wms.models import IntegrationDirection, IntegrationEvent; qs=IntegrationEvent.objects.filter(direction=IntegrationDirection.OUTBOUND, source=DOCUMENT_SCAN_QUEUE_SOURCE, event_type=DOCUMENT_SCAN_QUEUE_EVENT_TYPE); print({s: qs.filter(status=s).count() for s in ['pending','processing','processed','failed']})"
+
+scan-queue-stale:
+	$(PYTHON) manage.py shell -c "from datetime import timedelta; from django.conf import settings; from django.utils import timezone; from wms.document_scan_queue import DOCUMENT_SCAN_QUEUE_EVENT_TYPE, DOCUMENT_SCAN_QUEUE_SOURCE; from wms.models import IntegrationDirection, IntegrationEvent, IntegrationStatus; timeout=max(1,int(getattr(settings,'DOCUMENT_SCAN_QUEUE_PROCESSING_TIMEOUT_SECONDS',900))); cutoff=timezone.now()-timedelta(seconds=timeout); qs=IntegrationEvent.objects.filter(direction=IntegrationDirection.OUTBOUND, source=DOCUMENT_SCAN_QUEUE_SOURCE, event_type=DOCUMENT_SCAN_QUEUE_EVENT_TYPE, status=IntegrationStatus.PROCESSING, processed_at__lte=cutoff); print({'timeout_seconds': timeout, 'stale_processing': qs.count()})"
+
+scan-queue-runtime-check:
+	$(PYTHON) manage.py check_document_scan_runtime --max-failed=0 --max-stale-processing=0
+
 coverage:
-	$(COVERAGE) run --rcfile=.coveragerc manage.py test
-	$(COVERAGE) report -m --fail-under=95
+	$(COVERAGE) run --rcfile=.coveragerc manage.py test $(COVERAGE_TEST_ARGS)
+	$(COVERAGE) report -m --fail-under=$(COVERAGE_FAIL_UNDER)
 	$(COVERAGE) xml
 
 pre-commit:

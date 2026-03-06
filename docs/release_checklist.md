@@ -6,20 +6,27 @@ Use this checklist for each production release.
 
 - [ ] `python -m pip install -r requirements.txt`
 - [ ] `python -m pip install -r requirements-dev.txt`
+- [ ] Optional modern install path: `make install-dev-uv`
 - [ ] `make check`
 - [ ] `make migrate-check`
 - [ ] `make deploy-check`
+- [ ] `make deploy-check-prod-like` (with `.env.deploy.example` or `DEPLOY_ENV_FILE=...`)
+- [ ] Optional shadow formatting check: `make fmt-check` (non-blocking until repository-wide reformat)
 - [ ] `make lint`
 - [ ] `make typecheck`
+- [ ] Optional shadow type-check: `make typecheck-pyright` (non-blocking while mypy remains release gate)
 - [ ] `make bandit`
 - [ ] `make coverage`
 - [ ] `make audit` (if network allows)
+- [ ] `make audit-soft` and archive `pip-audit-report.json` when strict audit cannot run locally
 
 ## B) Before deploy
 
 - [ ] Confirm production env vars are set (`DJANGO_SECRET_KEY`, `DJANGO_DEBUG=false`, `DJANGO_ALLOWED_HOSTS`, `SITE_BASE_URL`, security flags).
 - [ ] Validate env values against `.env.example` baseline.
 - [ ] Confirm mail provider env vars (`EMAIL_*` and/or `BREVO_*`).
+- [ ] Confirm document scan env vars (`DOCUMENT_SCAN_BACKEND=clamav`, `DOCUMENT_SCAN_CLAMAV_COMMAND`, queue timeout settings).
+- [ ] Ensure ClamAV binary is available on host (`clamscan --version`).
 - [ ] Confirm `INTEGRATION_API_KEY` for integration endpoints.
 - [ ] Confirm backup available (SQLite file or MySQL dump).
 - [ ] If scan frontend assets changed (`wms/static/scan/scan.js`, `wms/static/scan/scan.css`, manifest/icon), bump `CACHE_NAME` in `wms/views_scan_misc.py` (`wms-scan-vNN`).
@@ -41,6 +48,9 @@ Use this checklist for each production release.
 - [ ] Validate draft flow: "Enregistrer en brouillon" creates `EXP-TEMP-XX` and is visible in Vue Expéditions.
 - [ ] Run `python manage.py process_email_queue --limit=100`
 - [ ] Check queue health (pending/failed counts)
+- [ ] Run `python manage.py process_document_scan_queue --limit=100`
+- [ ] Check document scan queue health (pending/failed/stale processing counts)
+- [ ] Run `python manage.py check_document_scan_runtime --max-failed=0 --max-stale-processing=0`
 - [ ] Verify no spike in app errors/log warnings
 
 ## E) Rollback criteria
@@ -51,6 +61,7 @@ Rollback immediately if one of these persists after a quick fix attempt:
 - [ ] Authentication or admin access broken.
 - [ ] Migrations applied but app is unstable.
 - [ ] Email queue failures spike and cannot be replayed safely.
+- [ ] Document scan queue failures spike or ClamAV is unavailable.
 
 Rollback actions:
 
@@ -58,3 +69,4 @@ Rollback actions:
 - [ ] Re-run `python manage.py migrate` if rollback includes schema-compatible migrations.
 - [ ] Re-run smoke tests.
 - [ ] Re-run `python manage.py process_email_queue --include-failed --limit=100` after stability is restored.
+- [ ] Re-run `python manage.py process_document_scan_queue --include-failed --limit=100` after stability is restored.

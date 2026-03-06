@@ -9,6 +9,7 @@ from django.core.validators import MinValueValidator
 from django.db import models
 from django.urls import reverse
 
+from ..document_scan import DocumentScanStatus
 from .catalog import Product
 from .inventory import Destination, Location, ProductLot
 
@@ -388,6 +389,13 @@ class Document(models.Model):
     shipment = models.ForeignKey(Shipment, on_delete=models.CASCADE)
     doc_type = models.CharField(max_length=40, choices=DocumentType.choices)
     file = models.FileField(upload_to="documents/", null=True, blank=True)
+    scan_status = models.CharField(
+        max_length=20,
+        choices=DocumentScanStatus.choices,
+        default=DocumentScanStatus.CLEAN,
+    )
+    scan_message = models.CharField(max_length=255, blank=True)
+    scan_updated_at = models.DateTimeField(null=True, blank=True)
     generated_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

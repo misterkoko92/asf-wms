@@ -31,8 +31,10 @@ data/print_templates/~$*
 .env
 .env.*
 !.env.example
+!.env.deploy.example
 .coverage
 coverage.xml
+pip-audit-report.json
 
 # OS files
 .DS_Store

@@ -9,6 +9,7 @@ from django.db.models.functions import Length
 from django.utils import timezone
 
 from . import reference_sequences
+from .document_scan import DocumentScanStatus
 from .models_domain.catalog import Product, ProductCategory, ProductKitItem, ProductTag
 from .models_domain.integration import (
     IntegrationDirection,
@@ -185,6 +186,7 @@ __all__ = [
     "ShipperScope",
     "RecipientBinding",
     "DocumentReviewStatus",
+    "DocumentScanStatus",
     "AccountDocumentType",
     "AccountDocument",
     "OrderLine",

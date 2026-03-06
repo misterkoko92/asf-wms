@@ -38,6 +38,7 @@ READY_CARTON_STATUSES = {
 }
 DEFAULT_RETURN_LIST_VIEW = "scan:scan_shipments_tracking"
 DEFAULT_RETURN_TO_KEY = "shipments_tracking"
+DISPUTE_STAFF_ONLY_MESSAGE = "Action litige réservée aux utilisateurs staff."
 
 
 def _redirect_to_tracking(
@@ -60,6 +61,11 @@ def _redirect_to_tracking(
 
 def _latest_tracking_status(shipment):
     return shipment.tracking_events.values_list("status", flat=True).first()
+
+
+def _can_manage_dispute(request) -> bool:
+    user = getattr(request, "user", None)
+    return bool(user and user.is_authenticated and user.is_staff)
 
 
 def allowed_tracking_statuses_for_shipment(shipment):
@@ -127,6 +133,14 @@ def _handle_dispute_action(
     return_to_key=DEFAULT_RETURN_TO_KEY,
 ):
     action = (request.POST.get("action") or "").strip()
+    if action in {"set_disputed", "resolve_dispute"} and not _can_manage_dispute(request):
+        messages.error(request, DISPUTE_STAFF_ONLY_MESSAGE)
+        return _redirect_to_tracking(
+            shipment,
+            return_to_list=return_to_list,
+            return_to_view=return_to_view,
+            return_to_key=return_to_key,
+        )
     if action == "set_disputed":
         previous_status = shipment.status
         if not shipment.is_disputed:

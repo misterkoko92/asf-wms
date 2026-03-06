@@ -8,6 +8,7 @@ from contacts.models import Contact, ContactAddress
 from wms.models import (
     AssociationProfile,
     CartonFormat,
+    DocumentScanStatus,
     DocumentType,
     Order,
     OrderDocumentType,
@@ -176,7 +177,32 @@ class OrderHelpersTests(TestCase):
             shipment=shipment,
             doc_type=DocumentType.ADDITIONAL,
             file=new_file,
+            scan_status=DocumentScanStatus.CLEAN,
         )
+
+    def test_attach_order_documents_to_shipment_skips_non_clean_documents(self):
+        shipment = SimpleNamespace(id=1)
+        waiting_file = SimpleNamespace(name="waiting.pdf")
+        docs = [
+            SimpleNamespace(
+                doc_type=OrderDocumentType.DONATION_ATTESTATION,
+                file=waiting_file,
+                scan_status=DocumentScanStatus.PENDING,
+            ),
+        ]
+        order = SimpleNamespace(documents=mock.MagicMock())
+        order.documents.filter.return_value = docs
+        filter_result = mock.MagicMock()
+        filter_result.values_list.return_value = []
+
+        with mock.patch(
+            "wms.order_helpers.Document.objects.filter",
+            return_value=filter_result,
+        ):
+            with mock.patch("wms.order_helpers.Document.objects.create") as create_mock:
+                attach_order_documents_to_shipment(order, shipment)
+
+        create_mock.assert_not_called()
 
     def test_estimate_cartons_for_line_uses_single_weight_constraint(self):
         product = self._create_product(

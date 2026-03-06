@@ -28,9 +28,18 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
+Alternative with `uv`:
+
+```bash
+uv venv .venv
+source .venv/bin/activate
+uv pip install --python .venv/bin/python -r requirements.txt
+```
+
 ## Tests and coverage
 ```bash
 pip install -r requirements-dev.txt
+# or: make install-dev-uv
 make test
 make coverage
 ```
@@ -42,12 +51,18 @@ make ci
 # granular targets
 make check
 make deploy-check
+make deploy-check-prod-like
 make migrate-check
+make fmt
+make fmt-check
 make lint
 # baseline typed modules (see mypy.ini)
 make typecheck
+# pyright shadow run (same critical module scope)
+make typecheck-pyright
 make bandit
 make audit
+make audit-soft
 make pre-commit
 ```
 
@@ -61,6 +76,21 @@ python manage.py process_email_queue --include-failed --limit=100
 
 # Inspect queue status counts
 python manage.py shell -c "from wms.models import IntegrationEvent, IntegrationDirection; qs=IntegrationEvent.objects.filter(direction=IntegrationDirection.OUTBOUND, source='wms.email', event_type='send_email'); print({s: qs.filter(status=s).count() for s in ['pending','processing','processed','failed']})"
+
+# Process document scan queue (default: 100 events)
+python manage.py process_document_scan_queue --limit=100
+
+# Retry failed document scan events
+python manage.py process_document_scan_queue --include-failed --limit=100
+
+# Inspect document scan queue status counts
+python manage.py shell -c "from wms.document_scan_queue import DOCUMENT_SCAN_QUEUE_EVENT_TYPE, DOCUMENT_SCAN_QUEUE_SOURCE; from wms.models import IntegrationDirection, IntegrationEvent; qs=IntegrationEvent.objects.filter(direction=IntegrationDirection.OUTBOUND, source=DOCUMENT_SCAN_QUEUE_SOURCE, event_type=DOCUMENT_SCAN_QUEUE_EVENT_TYPE); print({s: qs.filter(status=s).count() for s in ['pending','processing','processed','failed']})"
+
+# Runtime readiness check (strict profile)
+python manage.py check_document_scan_runtime --max-failed=0 --max-stale-processing=0
+
+# Dev-only profile when ClamAV is intentionally unavailable
+DOCUMENT_SCAN_BACKEND=noop python manage.py check_document_scan_runtime --allow-noop
 ```
 
 ## Docs

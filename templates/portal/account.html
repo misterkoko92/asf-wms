@@ -202,8 +202,12 @@
                   </td>
                   <td>{{ doc.uploaded_at|date:"d/m/Y" }}</td>
                   <td>
-                    {% if doc.file %}
+                    {% if doc.file and doc.scan_status == "clean" %}
                       <a class="btn btn-tertiary btn-sm" href="{{ doc.file.url }}" target="_blank">Télécharger</a>
+                    {% elif doc.scan_status == "infected" %}
+                      <span class="scan-help">Bloqué (fichier suspect).</span>
+                    {% elif doc.file %}
+                      <span class="scan-help">Quarantaine (scan antivirus en cours).</span>
                     {% else %}
                       -
                     {% endif %}

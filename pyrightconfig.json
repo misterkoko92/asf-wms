@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/pyright/main/packages/pyright/schema/pyrightconfig.schema.json",
+  "pythonVersion": "3.11",
+  "venvPath": ".",
+  "venv": ".venv",
+  "typeCheckingMode": "basic",
+  "reportMissingImports": "none",
+  "reportMissingTypeStubs": "none",
+  "include": [
+    "wms/emailing.py",
+    "wms/reference_sequences.py",
+    "wms/public_link_helpers.py",
+    "wms/portal_helpers.py",
+    "wms/document_scan.py",
+    "wms/document_scan_queue.py",
+    "wms/document_uploads.py",
+    "wms/upload_utils.py",
+    "wms/client_ip.py",
+    "wms/shipment_document_handlers.py",
+    "wms/shipment_tracking_handlers.py",
+    "wms/order_helpers.py",
+    "wms/order_scan_handlers.py",
+    "wms/public_order_helpers.py",
+    "wms/views_public_order.py",
+    "wms/organization_role_resolvers.py",
+    "wms/admin_organization_roles_review.py",
+    "wms/management/commands/process_document_scan_queue.py",
+    "wms/management/commands/check_document_scan_runtime.py",
+    "wms/management/commands/import_org_roles_template.py"
+  ]
+}

@@ -181,6 +181,44 @@ class ShipmentTrackingDisputeFlowTests(TestCase):
         self.assertEqual(shipment.status, ShipmentStatus.PLANNED)
         self.assertEqual(ShipmentTrackingEvent.objects.filter(shipment=shipment).count(), 0)
 
+    def test_anonymous_user_cannot_set_disputed(self):
+        shipment = self._create_shipment(status=ShipmentStatus.PLANNED)
+        self.client.logout()
+
+        response = self.client.post(
+            reverse("scan:scan_shipment_track", args=[shipment.tracking_token]),
+            {"action": "set_disputed"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        shipment.refresh_from_db()
+        self.assertFalse(shipment.is_disputed)
+        self.assertIsNone(shipment.disputed_at)
+
+    def test_anonymous_user_cannot_resolve_disputed_shipment(self):
+        shipment = self._create_shipment(
+            status=ShipmentStatus.SHIPPED,
+            is_disputed=True,
+        )
+        carton = Carton.objects.create(
+            code="CT-DSP-ANON",
+            status=CartonStatus.SHIPPED,
+            shipment=shipment,
+        )
+        self.client.logout()
+
+        response = self.client.post(
+            reverse("scan:scan_shipment_track", args=[shipment.tracking_token]),
+            {"action": "resolve_dispute"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        shipment.refresh_from_db()
+        carton.refresh_from_db()
+        self.assertTrue(shipment.is_disputed)
+        self.assertEqual(shipment.status, ShipmentStatus.SHIPPED)
+        self.assertEqual(carton.status, CartonStatus.SHIPPED)
+
     def test_resolve_dispute_resets_status_to_ready(self):
         shipment = self._create_shipment(
             status=ShipmentStatus.SHIPPED,

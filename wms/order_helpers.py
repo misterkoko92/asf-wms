@@ -2,6 +2,7 @@ import hashlib
 import math
 from collections import defaultdict
 
+from .document_scan import DocumentScanStatus, is_scan_clean
 from .kit_components import KitCycleError, get_unit_component_quantities
 from .models import (
     Carton,
@@ -67,12 +68,15 @@ def attach_order_documents_to_shipment(order, shipment):
     for doc in order.documents.filter(doc_type__in=wanted_types):
         if not doc.file:
             continue
+        if not is_scan_clean(doc):
+            continue
         if doc.file.name in existing_files:
             continue
         Document.objects.create(
             shipment=shipment,
             doc_type=DocumentType.ADDITIONAL,
             file=doc.file,
+            scan_status=DocumentScanStatus.CLEAN,
         )
 
 

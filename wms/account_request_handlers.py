@@ -15,6 +15,9 @@ from django.urls import reverse
 from contacts.models import Contact
 
 from .contact_payloads import build_shipper_contact_payload
+from .client_ip import get_client_ip
+from .document_scan import DocumentScanStatus
+from .document_scan_queue import queue_document_scan
 from .emailing import get_admin_emails, get_group_emails, send_or_enqueue_email_safe
 from .models import (
     AccountDocument,
@@ -250,13 +253,16 @@ def _create_account_request(*, link, contact, form_data):
 
 def _create_account_request_documents(*, account_request, contact, uploads):
     for doc_type, file_obj in uploads:
-        AccountDocument.objects.create(
+        document = AccountDocument.objects.create(
             association_contact=contact,
             account_request=account_request,
             doc_type=doc_type,
             status=DocumentReviewStatus.PENDING,
             file=file_obj,
+            scan_status=DocumentScanStatus.PENDING,
+            scan_message="Scan antivirus en cours.",
         )
+        queue_document_scan(document)
 
 
 def _build_admin_account_request_url(request):
@@ -280,10 +286,7 @@ def _render_account_request_form(request, *, link, contact_payload, form_data, e
 
 
 def _get_client_ip(request):
-    forwarded = (request.META.get("HTTP_X_FORWARDED_FOR") or "").strip()
-    if forwarded:
-        return forwarded.split(",")[0].strip() or "unknown"
-    return (request.META.get("REMOTE_ADDR") or "").strip() or "unknown"
+    return get_client_ip(request)
 
 
 def _get_account_request_throttle_seconds():

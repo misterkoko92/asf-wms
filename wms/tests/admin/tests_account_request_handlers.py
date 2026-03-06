@@ -12,6 +12,7 @@ from wms import account_request_handlers
 from wms.models import (
     AccountDocument,
     AccountDocumentType,
+    DocumentScanStatus,
     PublicAccountRequest,
     PublicAccountRequestStatus,
     PublicAccountRequestType,
@@ -23,9 +24,14 @@ class AccountRequestHelpersTests(TestCase):
     def setUp(self):
         self.factory = RequestFactory()
 
-    def test_get_client_ip_handles_empty_forwarded_token(self):
+    def test_get_client_ip_ignores_forwarded_for_without_trusted_proxy(self):
         request = self.factory.get("/", HTTP_X_FORWARDED_FOR=" , 203.0.113.9")
-        self.assertEqual(account_request_handlers._get_client_ip(request), "unknown")
+        self.assertEqual(account_request_handlers._get_client_ip(request), "127.0.0.1")
+
+    @override_settings(TRUSTED_PROXY_IPS=["127.0.0.1"])
+    def test_get_client_ip_uses_first_non_empty_forwarded_for_when_proxy_is_trusted(self):
+        request = self.factory.get("/", HTTP_X_FORWARDED_FOR=" , 203.0.113.9, 10.0.0.2")
+        self.assertEqual(account_request_handlers._get_client_ip(request), "203.0.113.9")
 
     @override_settings(ACCOUNT_REQUEST_THROTTLE_SECONDS="invalid")
     def test_get_account_request_throttle_seconds_invalid_value_falls_back_to_default(self):
@@ -225,6 +231,12 @@ class AccountRequestFormHandlerTests(TestCase):
         self.assertEqual(AccountDocument.objects.count(), 1)
         document = AccountDocument.objects.get()
         self.assertEqual(document.doc_type, AccountDocumentType.STATUTES)
+        self.assertEqual(document.scan_status, DocumentScanStatus.PENDING)
+        scan_event = IntegrationEvent.objects.filter(
+            source="wms.document_scan",
+            event_type="scan_document",
+        ).first()
+        self.assertIsNotNone(scan_event)
 
     @override_settings(ACCOUNT_REQUEST_THROTTLE_SECONDS=0)
     def test_form_validates_main_and_other_uploads(self):

@@ -3,6 +3,13 @@ from django.test import TestCase
 from django.urls import reverse
 
 from contacts.models import Contact, ContactType
+from wms.admin_organization_roles_review import (
+    _collect_destination_ids_for_contact,
+    _latest_recipient_binding,
+    _resolve_recipient_organization,
+    _suggest_destination_id,
+    _suggest_shipper_id,
+)
 from wms import models
 from wms.organization_roles_backfill import (
     REVIEW_REASON_MISSING_DESTINATION,
@@ -170,3 +177,194 @@ class OrganizationRolesReviewAdminTests(TestCase):
                 role=models.OrganizationRole.RECIPIENT,
             ).exists()
         )
+
+    def test_resolve_recipient_organization_falls_back_to_legacy_contact_or_legacy_org(self):
+        recipient_org = self._create_org("Recipient Legacy")
+        legacy_person = Contact.objects.create(
+            name="Legacy Person",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+            organization=recipient_org,
+        )
+        review_item_from_person = models.MigrationReviewItem.objects.create(
+            organization=None,
+            legacy_contact=legacy_person,
+            role=models.OrganizationRole.RECIPIENT,
+            reason_code=REVIEW_REASON_MISSING_SHIPPER_LINKS,
+            status=models.MigrationReviewItemStatus.OPEN,
+            payload={},
+        )
+        self.assertEqual(
+            _resolve_recipient_organization(review_item_from_person).id,
+            recipient_org.id,
+        )
+
+        legacy_org = self._create_org("Legacy Organization")
+        review_item_from_org = models.MigrationReviewItem.objects.create(
+            organization=None,
+            legacy_contact=legacy_org,
+            role=models.OrganizationRole.RECIPIENT,
+            reason_code=REVIEW_REASON_MISSING_SHIPPER_LINKS,
+            status=models.MigrationReviewItemStatus.OPEN,
+            payload={},
+        )
+        self.assertEqual(
+            _resolve_recipient_organization(review_item_from_org).id,
+            legacy_org.id,
+        )
+
+    def test_resolve_recipient_organization_returns_none_without_legacy_contact(self):
+        review_item = models.MigrationReviewItem.objects.create(
+            organization=None,
+            legacy_contact=None,
+            role=models.OrganizationRole.RECIPIENT,
+            reason_code=REVIEW_REASON_MISSING_SHIPPER_LINKS,
+            status=models.MigrationReviewItemStatus.OPEN,
+            payload={},
+        )
+
+        self.assertIsNone(_resolve_recipient_organization(review_item))
+
+    def test_collect_destination_ids_for_contact_includes_m2m_and_direct_destination(self):
+        recipient_org = self._create_org("Recipient Destinations")
+        destination_a = self._create_destination("BKO")
+        destination_b = self._create_destination("ABJ")
+        recipient_org.destination = destination_a
+        recipient_org.save(update_fields=["destination"])
+        recipient_org.destinations.add(destination_b)
+
+        destination_ids = _collect_destination_ids_for_contact(recipient_org)
+
+        self.assertEqual(destination_ids, {destination_a.id, destination_b.id})
+
+    def test_suggest_shipper_and_destination_fallbacks_cover_history_and_single_option(self):
+        recipient_org = self._create_org("Recipient Suggest Fallback")
+        shipper_org = self._create_org("Shipper Suggest Fallback")
+        destination = self._create_destination("NBO")
+        recipient_org.linked_shippers.add(shipper_org)
+        recipient_org.destination = destination
+        recipient_org.save(update_fields=["destination"])
+        models.RecipientBinding.objects.create(
+            shipper_org=shipper_org,
+            recipient_org=recipient_org,
+            destination=destination,
+            is_active=True,
+        )
+        review_item = models.MigrationReviewItem.objects.create(
+            organization=recipient_org,
+            role=models.OrganizationRole.RECIPIENT,
+            reason_code=REVIEW_REASON_MISSING_SHIPPER_LINKS,
+            status=models.MigrationReviewItemStatus.OPEN,
+            payload={},
+        )
+
+        suggested_shipper_id = _suggest_shipper_id(
+            review_item=review_item,
+            recipient_org=recipient_org,
+            shipper_options=[shipper_org],
+        )
+        suggested_destination_id = _suggest_destination_id(
+            review_item=review_item,
+            recipient_org=recipient_org,
+            destination_options=[destination],
+        )
+        self.assertEqual(suggested_shipper_id, shipper_org.id)
+        self.assertEqual(suggested_destination_id, destination.id)
+        self.assertIsNotNone(_latest_recipient_binding(recipient_org))
+        self.assertIsNone(_latest_recipient_binding(None))
+
+    def test_resolve_binding_rejects_invalid_shipper_and_invalid_destination(self):
+        recipient_org = self._create_org("Recipient Errors")
+        shipper_org = self._create_org("Shipper Errors")
+        destination = self._create_destination("CMN")
+        review_item = models.MigrationReviewItem.objects.create(
+            organization=recipient_org,
+            role=models.OrganizationRole.RECIPIENT,
+            reason_code=REVIEW_REASON_MISSING_SHIPPER_LINKS,
+            status=models.MigrationReviewItemStatus.OPEN,
+            payload={},
+        )
+
+        self.client.force_login(self.superuser)
+        response_invalid_shipper = self.client.post(
+            self.url,
+            {
+                "action": "resolve_binding",
+                "item_id": str(review_item.id),
+                "shipper_org_id": "999999",
+                "destination_id": str(destination.id),
+            },
+            follow=False,
+        )
+        self.assertEqual(response_invalid_shipper.status_code, 302)
+        self.assertEqual(
+            models.RecipientBinding.objects.filter(recipient_org=recipient_org).count(),
+            0,
+        )
+
+        response_invalid_destination = self.client.post(
+            self.url,
+            {
+                "action": "resolve_binding",
+                "item_id": str(review_item.id),
+                "shipper_org_id": str(shipper_org.id),
+                "destination_id": "999999",
+            },
+            follow=False,
+        )
+        self.assertEqual(response_invalid_destination.status_code, 302)
+        self.assertEqual(
+            models.RecipientBinding.objects.filter(recipient_org=recipient_org).count(),
+            0,
+        )
+
+    def test_post_resolve_without_binding_closes_item(self):
+        recipient_org = self._create_org("Recipient Close")
+        review_item = models.MigrationReviewItem.objects.create(
+            organization=recipient_org,
+            role=models.OrganizationRole.RECIPIENT,
+            reason_code=REVIEW_REASON_MISSING_DESTINATION,
+            status=models.MigrationReviewItemStatus.OPEN,
+            payload={},
+        )
+
+        self.client.force_login(self.superuser)
+        response = self.client.post(
+            self.url,
+            {
+                "action": "resolve_without_binding",
+                "item_id": str(review_item.id),
+                "resolution_note": "No binding needed",
+            },
+            follow=False,
+        )
+        self.assertEqual(response.status_code, 302)
+        review_item.refresh_from_db()
+        self.assertEqual(review_item.status, models.MigrationReviewItemStatus.RESOLVED)
+        self.assertEqual(review_item.resolved_by_id, self.superuser.id)
+        self.assertEqual(review_item.resolution_note, "No binding needed")
+
+    def test_post_with_missing_item_or_unknown_action_redirects(self):
+        recipient_org = self._create_org("Recipient Unknown")
+        review_item = models.MigrationReviewItem.objects.create(
+            organization=recipient_org,
+            role=models.OrganizationRole.RECIPIENT,
+            reason_code=REVIEW_REASON_MISSING_DESTINATION,
+            status=models.MigrationReviewItemStatus.OPEN,
+            payload={},
+        )
+        self.client.force_login(self.superuser)
+
+        missing_item_response = self.client.post(
+            self.url,
+            {"action": "resolve_binding", "item_id": "999999"},
+            follow=False,
+        )
+        self.assertEqual(missing_item_response.status_code, 302)
+
+        unknown_action_response = self.client.post(
+            self.url,
+            {"action": "unknown", "item_id": str(review_item.id)},
+            follow=False,
+        )
+        self.assertEqual(unknown_action_response.status_code, 302)
