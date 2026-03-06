@@ -49,7 +49,11 @@ install-uv: sync-no-dev
 install-dev-uv: sync
 
 check:
-	$(PYTHON) -m pip check
+	@if $(PYTHON) -c "import pip" >/dev/null 2>&1; then \
+		$(PYTHON) -m pip check; \
+	else \
+		$(UV) pip check --python $(PYTHON); \
+	fi
 
 deploy-check:
 	$(PYTHON) manage.py check --deploy --fail-level WARNING
