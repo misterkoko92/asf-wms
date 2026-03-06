@@ -1,11 +1,10 @@
 from datetime import date
 from unittest import mock
 
-from django.contrib.auth import get_user_model
 from django.contrib.admin.sites import AdminSite
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from django.test import RequestFactory
-from django.test import TestCase
+from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
 from wms.admin import PublicAccountRequestAdmin
@@ -48,9 +47,7 @@ from wms.services import (
 
 class StockFlowTests(TestCase):
     def setUp(self):
-        self.user = get_user_model().objects.create_user(
-            username="tester", password="pass1234"
-        )
+        self.user = get_user_model().objects.create_user(username="tester", password="pass1234")
         self.warehouse = Warehouse.objects.create(name="Test WH", code="TWH")
         self.location = Location.objects.create(
             warehouse=self.warehouse, zone="A", aisle="01", shelf="001"
@@ -159,9 +156,7 @@ class StockFlowTests(TestCase):
 
 class KitPackingTests(TestCase):
     def setUp(self):
-        self.user = get_user_model().objects.create_user(
-            username="kit-user", password="pass1234"
-        )
+        self.user = get_user_model().objects.create_user(username="kit-user", password="pass1234")
         self.warehouse = Warehouse.objects.create(name="Kit WH", code="KWH")
         self.location = Location.objects.create(
             warehouse=self.warehouse, zone="K", aisle="01", shelf="001"
@@ -288,9 +283,7 @@ class ShipmentReferenceTests(TestCase):
         )
 
     def test_shipment_reference_sequence_increments(self):
-        user = get_user_model().objects.create_user(
-            username="sequser", password="pass1234"
-        )
+        user = get_user_model().objects.create_user(username="sequser", password="pass1234")
         with mock.patch("wms.models.timezone.localdate", return_value=date(2026, 1, 2)):
             shipment_1 = self._create_shipment(user)
             shipment_2 = self._create_shipment(user)
@@ -298,17 +291,13 @@ class ShipmentReferenceTests(TestCase):
         self.assertEqual(shipment_2.reference, "260002")
 
     def test_shipment_reference_resets_each_year(self):
-        user = get_user_model().objects.create_user(
-            username="sequser2", password="pass1234"
-        )
+        user = get_user_model().objects.create_user(username="sequser2", password="pass1234")
         with mock.patch("wms.models.timezone.localdate", return_value=date(2027, 1, 2)):
             shipment = self._create_shipment(user)
         self.assertEqual(shipment.reference, "270001")
 
     def test_tracking_path_uses_tracking_token(self):
-        user = get_user_model().objects.create_user(
-            username="sequser3", password="pass1234"
-        )
+        user = get_user_model().objects.create_user(username="sequser3", password="pass1234")
         shipment = self._create_shipment(user)
         self.assertEqual(
             shipment.get_tracking_path(),
@@ -388,9 +377,7 @@ class ReceiptTests(TestCase):
 
 class OrderReservationTests(TestCase):
     def setUp(self):
-        self.user = get_user_model().objects.create_user(
-            username="order-user", password="pass1234"
-        )
+        self.user = get_user_model().objects.create_user(username="order-user", password="pass1234")
         self.warehouse = Warehouse.objects.create(name="Stock", code="STK")
         self.location = Location.objects.create(
             warehouse=self.warehouse, zone="S", aisle="01", shelf="001"

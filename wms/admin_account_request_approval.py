@@ -15,9 +15,7 @@ from .portal_permissions import assign_association_portal_group
 
 ACCOUNT_ACCESS_PENDING = "Disponible après validation."
 ACCOUNT_ACCESS_USER_NOT_FOUND = "Utilisateur introuvable."
-ACCOUNT_ACCESS_MISSING_BASE_URL = (
-    "SITE_BASE_URL non configurée, utiliser l'URL du site."
-)
+ACCOUNT_ACCESS_MISSING_BASE_URL = "SITE_BASE_URL non configurée, utiliser l'URL du site."
 
 
 def _portal_paths(*, user):
@@ -63,15 +61,14 @@ def approve_account_request(
 
     if account_request.account_type == models.PublicAccountRequestType.USER:
         requested_username = (
-            (account_request.requested_username or account_request.email or "")
-            .strip()
-        )
+            account_request.requested_username or account_request.email or ""
+        ).strip()
         if not requested_username:
             return False, "username manquant"
 
-        username_reserved = user_model.objects.filter(
-            username__iexact=requested_username
-        ).exclude(email__iexact=account_request.email)
+        username_reserved = user_model.objects.filter(username__iexact=requested_username).exclude(
+            email__iexact=account_request.email
+        )
         if username_reserved.exists():
             return False, "username reserve"
 
@@ -149,8 +146,7 @@ def approve_account_request(
         address = (
             contact.get_effective_address()
             if hasattr(contact, "get_effective_address")
-            else contact.addresses.filter(is_default=True).first()
-            or contact.addresses.first()
+            else contact.addresses.filter(is_default=True).first() or contact.addresses.first()
         )
         if not address:
             ContactAddress.objects.create(
@@ -196,9 +192,7 @@ def approve_account_request(
         account_request.status = models.PublicAccountRequestStatus.APPROVED
         account_request.reviewed_at = timezone.now()
         account_request.reviewed_by = request.user
-        account_request.save(
-            update_fields=["status", "reviewed_at", "reviewed_by", "contact"]
-        )
+        account_request.save(update_fields=["status", "reviewed_at", "reviewed_by", "contact"])
 
     login_url, set_password_url = portal_url_builder(request=request, user=user)
     message = render_to_string(
@@ -219,10 +213,7 @@ def approve_account_request(
 
 
 def build_account_access_lines(*, account_request, site_base_url):
-    if (
-        not account_request
-        or account_request.status != models.PublicAccountRequestStatus.APPROVED
-    ):
+    if not account_request or account_request.status != models.PublicAccountRequestStatus.APPROVED:
         return None, ACCOUNT_ACCESS_PENDING
 
     user = get_user_model().objects.filter(email__iexact=account_request.email).first()

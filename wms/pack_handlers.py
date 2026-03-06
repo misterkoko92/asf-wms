@@ -18,9 +18,7 @@ from .services import StockError, pack_carton
 
 
 def build_pack_defaults(default_format):
-    carton_format_id = (
-        str(default_format.id) if default_format is not None else "custom"
-    )
+    carton_format_id = str(default_format.id) if default_format is not None else "custom"
     carton_custom = {
         "length_cm": default_format.length_cm if default_format else Decimal("40"),
         "width_cm": default_format.width_cm if default_format else Decimal("30"),
@@ -49,9 +47,7 @@ def handle_pack_post(request, *, form, default_format):
         data=request.POST,
     )
     if not carton_format_id:
-        carton_format_id = (
-            str(default_format.id) if default_format is not None else "custom"
-        )
+        carton_format_id = str(default_format.id) if default_format is not None else "custom"
 
     line_errors = {}
     line_items = []
@@ -82,19 +78,13 @@ def handle_pack_post(request, *, form, default_format):
                 quantity = parse_int(quantity_raw)
                 if quantity is None or quantity <= 0:
                     errors.append("Quantité invalide.")
-            product = (
-                resolve_product(product_code, include_kits=True)
-                if product_code
-                else None
-            )
+            product = resolve_product(product_code, include_kits=True) if product_code else None
             if product_code and not product:
                 errors.append("Produit introuvable.")
             if errors:
                 line_errors[str(index)] = errors
             else:
-                line_items.append(
-                    {"product": product, "quantity": quantity, "index": index}
-                )
+                line_items.append({"product": product, "quantity": quantity, "index": index})
 
         if form.is_valid() and not line_errors and not carton_errors:
             if not line_items:
@@ -149,21 +139,15 @@ def handle_pack_post(request, *, form, default_format):
                                         carton=carton,
                                         carton_code=None,
                                         shipment=shipment,
-                                        current_location=form.cleaned_data[
-                                            "current_location"
-                                        ],
+                                        current_location=form.cleaned_data["current_location"],
                                         carton_size=carton_size,
                                     )
                                 if carton:
                                     created_cartons.append(carton)
                         for warning in pack_warnings:
                             messages.warning(request, warning)
-                        request.session["pack_results"] = [
-                            carton.id for carton in created_cartons
-                        ]
-                        messages.success(
-                            request, f"{len(created_cartons)} carton(s) préparé(s)."
-                        )
+                        request.session["pack_results"] = [carton.id for carton in created_cartons]
+                        messages.success(request, f"{len(created_cartons)} carton(s) préparé(s).")
                         return (
                             redirect("scan:scan_pack"),
                             {

@@ -1,5 +1,5 @@
-from datetime import date
 from contextlib import nullcontext
+from datetime import date
 from decimal import Decimal
 from unittest import mock
 
@@ -150,9 +150,7 @@ class WmsModelMethodsTests(TestCase):
             tva=Decimal("0.2000"),
             qr_code_image="qr_codes/tax2.png",
         )
-        Product.objects.filter(pk=persisted_tax_product.pk).update(
-            tva=Decimal("20.0000")
-        )
+        Product.objects.filter(pk=persisted_tax_product.pk).update(tva=Decimal("20.0000"))
         persisted_tax_product.refresh_from_db()
         persisted_tax_product.save(update_fields=["name"])
         persisted_tax_product.refresh_from_db()
@@ -168,7 +166,9 @@ class WmsModelMethodsTests(TestCase):
         self.location.notes = "normalized"
         self.location.save(update_fields=["notes"])
         self.location.refresh_from_db()
-        self.assertEqual((self.location.zone, self.location.aisle, self.location.shelf), ("A", "B", "C"))
+        self.assertEqual(
+            (self.location.zone, self.location.aisle, self.location.shelf), ("A", "B", "C")
+        )
 
         rack = RackColor.objects.create(
             warehouse=self.warehouse,
@@ -304,11 +304,14 @@ class WmsModelMethodsTests(TestCase):
         def _fake_generate(*, request=None):
             shipment_no_qr.qr_code_image = "qr_codes/shipments/generated.png"
 
-        with mock.patch.object(
-            shipment_no_qr,
-            "generate_qr_code",
-            side_effect=_fake_generate,
-        ) as generate_mock, mock.patch.object(shipment_no_qr, "save") as save_mock:
+        with (
+            mock.patch.object(
+                shipment_no_qr,
+                "generate_qr_code",
+                side_effect=_fake_generate,
+            ) as generate_mock,
+            mock.patch.object(shipment_no_qr, "save") as save_mock,
+        ):
             shipment_no_qr.ensure_qr_code()
         generate_mock.assert_called_once_with(request=None)
         save_mock.assert_called_once_with(update_fields=["qr_code_image"])
@@ -527,10 +530,13 @@ class WmsModelMethodsTests(TestCase):
         ReceiptSequence.objects.filter(year=2031).delete()
         ReceiptDonorSequence.objects.filter(year=2031, donor=self.contact).delete()
 
-        with mock.patch("wms.models.connection.features.has_select_for_update", True), mock.patch(
-            "django.db.models.query.QuerySet.select_for_update",
-            autospec=True,
-            side_effect=lambda self, *args, **kwargs: self,
+        with (
+            mock.patch("wms.models.connection.features.has_select_for_update", True),
+            mock.patch(
+                "django.db.models.query.QuerySet.select_for_update",
+                autospec=True,
+                side_effect=lambda self, *args, **kwargs: self,
+            ),
         ):
             receipt_ref = generate_receipt_reference(
                 received_on=date(2031, 2, 1),
@@ -545,13 +551,17 @@ class WmsModelMethodsTests(TestCase):
         Shipment.objects.filter(pk=shipment_b.pk).update(reference="320010")
         Shipment.objects.filter(pk=shipment_a.pk).update(reference="320123")
 
-        with mock.patch("wms.models.timezone.localdate", return_value=date(2032, 1, 10)), mock.patch(
-            "wms.models.connection.features.has_select_for_update",
-            True,
-        ), mock.patch(
-            "django.db.models.query.QuerySet.select_for_update",
-            autospec=True,
-            side_effect=lambda self, *args, **kwargs: self,
+        with (
+            mock.patch("wms.models.timezone.localdate", return_value=date(2032, 1, 10)),
+            mock.patch(
+                "wms.models.connection.features.has_select_for_update",
+                True,
+            ),
+            mock.patch(
+                "django.db.models.query.QuerySet.select_for_update",
+                autospec=True,
+                side_effect=lambda self, *args, **kwargs: self,
+            ),
         ):
             shipment_ref = generate_shipment_reference()
         self.assertEqual(shipment_ref, "320124")
@@ -606,27 +616,36 @@ class WmsModelMethodsTests(TestCase):
         donor_refs_query = mock.Mock()
         donor_refs_query.values_list.return_value = ["NO_MATCH", "BAD_COUNT", "GOOD_DONOR"]
 
-        with mock.patch("wms.models.transaction.atomic", return_value=nullcontext()), mock.patch(
-            "wms.models.connection.features.has_select_for_update",
-            True,
-        ), mock.patch(
-            "wms.models.ReceiptSequence.objects.filter",
-            side_effect=[sequence_missing_query, sequence_existing_query],
-        ), mock.patch(
-            "wms.models.ReceiptSequence.objects.create",
-            side_effect=IntegrityError(),
-        ), mock.patch(
-            "wms.models.ReceiptDonorSequence.objects.filter",
-            side_effect=[donor_missing_query, donor_existing_query],
-        ), mock.patch(
-            "wms.models.ReceiptDonorSequence.objects.create",
-            side_effect=IntegrityError(),
-        ), mock.patch(
-            "wms.models.Receipt.objects.filter",
-            side_effect=[refs_query, donor_refs_query],
-        ), mock.patch(
-            "wms.models.RECEIPT_REFERENCE_RE",
-            _FakeRegex(),
+        with (
+            mock.patch("wms.models.transaction.atomic", return_value=nullcontext()),
+            mock.patch(
+                "wms.models.connection.features.has_select_for_update",
+                True,
+            ),
+            mock.patch(
+                "wms.models.ReceiptSequence.objects.filter",
+                side_effect=[sequence_missing_query, sequence_existing_query],
+            ),
+            mock.patch(
+                "wms.models.ReceiptSequence.objects.create",
+                side_effect=IntegrityError(),
+            ),
+            mock.patch(
+                "wms.models.ReceiptDonorSequence.objects.filter",
+                side_effect=[donor_missing_query, donor_existing_query],
+            ),
+            mock.patch(
+                "wms.models.ReceiptDonorSequence.objects.create",
+                side_effect=IntegrityError(),
+            ),
+            mock.patch(
+                "wms.models.Receipt.objects.filter",
+                side_effect=[refs_query, donor_refs_query],
+            ),
+            mock.patch(
+                "wms.models.RECEIPT_REFERENCE_RE",
+                _FakeRegex(),
+            ),
         ):
             reference = generate_receipt_reference(
                 received_on=date(2033, 1, 1),
@@ -656,21 +675,28 @@ class WmsModelMethodsTests(TestCase):
         shipment_filter_query.order_by.return_value = shipment_order_query
         shipment_annotate_query.filter.return_value = shipment_filter_query
 
-        with mock.patch("wms.models.transaction.atomic", return_value=nullcontext()), mock.patch(
-            "wms.models.timezone.localdate",
-            return_value=date(2034, 1, 1),
-        ), mock.patch(
-            "wms.models.connection.features.has_select_for_update",
-            True,
-        ), mock.patch(
-            "wms.models.ShipmentSequence.objects.filter",
-            side_effect=[sequence_missing_query, sequence_existing_query],
-        ), mock.patch(
-            "wms.models.ShipmentSequence.objects.create",
-            side_effect=IntegrityError(),
-        ), mock.patch(
-            "wms.models.Shipment.objects.annotate",
-            return_value=shipment_annotate_query,
+        with (
+            mock.patch("wms.models.transaction.atomic", return_value=nullcontext()),
+            mock.patch(
+                "wms.models.timezone.localdate",
+                return_value=date(2034, 1, 1),
+            ),
+            mock.patch(
+                "wms.models.connection.features.has_select_for_update",
+                True,
+            ),
+            mock.patch(
+                "wms.models.ShipmentSequence.objects.filter",
+                side_effect=[sequence_missing_query, sequence_existing_query],
+            ),
+            mock.patch(
+                "wms.models.ShipmentSequence.objects.create",
+                side_effect=IntegrityError(),
+            ),
+            mock.patch(
+                "wms.models.Shipment.objects.annotate",
+                return_value=shipment_annotate_query,
+            ),
         ):
             reference = generate_shipment_reference()
 

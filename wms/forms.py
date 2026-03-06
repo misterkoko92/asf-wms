@@ -3,6 +3,7 @@ from django.utils import timezone
 
 from contacts.models import Contact, ContactType
 from contacts.tagging import normalize_tag_name
+
 from .contact_filters import (
     TAG_CORRESPONDENT,
     TAG_DONOR,
@@ -11,10 +12,26 @@ from .contact_filters import (
     TAG_TRANSPORTER,
     contacts_with_tags,
     filter_contacts_for_destination,
-    filter_structure_contacts,
     filter_recipients_for_shipper,
+    filter_structure_contacts,
 )
 from .contact_labels import build_contact_select_label
+from .models import (
+    Carton,
+    CartonStatus,
+    Destination,
+    Location,
+    Order,
+    Product,
+    ProductLot,
+    ProductLotStatus,
+    Receipt,
+    ReceiptType,
+    Shipment,
+    ShipmentStatus,
+    ShipmentTrackingStatus,
+    Warehouse,
+)
 from .organization_role_resolvers import (
     OrganizationRoleResolutionError,
     eligible_recipients_for_shipper_destination,
@@ -23,22 +40,6 @@ from .organization_role_resolvers import (
     resolve_shipper_for_operation,
 )
 from .scan_helpers import resolve_product
-from .models import (
-    Carton,
-    CartonStatus,
-    Destination,
-    Location,
-    Product,
-    ProductLot,
-    ProductLotStatus,
-    Receipt,
-    ReceiptType,
-    Order,
-    Shipment,
-    ShipmentStatus,
-    ShipmentTrackingStatus,
-    Warehouse,
-)
 
 
 def _contact_label(contact):
@@ -117,9 +118,9 @@ class PackCartonForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["carton"].queryset = (
-            Carton.objects.exclude(status=CartonStatus.SHIPPED).order_by("code")
-        )
+        self.fields["carton"].queryset = Carton.objects.exclude(
+            status=CartonStatus.SHIPPED
+        ).order_by("code")
         self.fields["shipment"].queryset = (
             Shipment.objects.filter(archived_at__isnull=True)
             .exclude(
@@ -157,8 +158,8 @@ class ScanReceiptSelectForm(forms.Form):
             queryset = queryset.order_by("reference", "id")
         field = self.fields["receipt"]
         field.queryset = queryset
-        field.label_from_instance = (
-            lambda obj: f"{obj.reference or f'Réception {obj.id}'}"
+        field.label_from_instance = lambda obj: (
+            f"{obj.reference or f'Réception {obj.id}'}"
             f" - {obj.get_receipt_type_display()} ({obj.get_status_display()})"
             f" - {obj.received_on:%d/%m/%Y}"
         )
@@ -429,9 +430,11 @@ class ScanShipmentForm(forms.Form):
 
     def __init__(self, *args, destination_id=None, **kwargs):
         super().__init__(*args, **kwargs)
-        destinations = Destination.objects.filter(is_active=True).select_related(
-            "correspondent_contact"
-        ).order_by("city")
+        destinations = (
+            Destination.objects.filter(is_active=True)
+            .select_related("correspondent_contact")
+            .order_by("city")
+        )
         self.fields["destination"].queryset = destinations
 
         selected_destination = self._resolve_selected_destination(
@@ -477,9 +480,7 @@ class ScanShipmentForm(forms.Form):
             recipients = recipients.none()
 
         if selected_destination:
-            correspondents = filter_contacts_for_destination(
-                correspondents, selected_destination
-            )
+            correspondents = filter_contacts_for_destination(correspondents, selected_destination)
             if selected_destination.correspondent_contact_id:
                 correspondents = correspondents.filter(
                     pk=selected_destination.correspondent_contact_id
@@ -639,9 +640,12 @@ class ScanShipmentForm(forms.Form):
         if expected_tags and not self._contact_matches_tag(contact, expected_tags):
             return f"{prefix}: ce contact n'a pas le tag requis."
 
-        if destination and not filter_contacts_for_destination(
-            Contact.objects.filter(pk=contact.pk), destination
-        ).exists():
+        if (
+            destination
+            and not filter_contacts_for_destination(
+                Contact.objects.filter(pk=contact.pk), destination
+            ).exists()
+        ):
             return f"{prefix}: ce contact n'est pas disponible pour la destination sélectionnée."
 
         if field_name == "recipient_contact":
@@ -719,34 +723,50 @@ class ScanShipmentForm(forms.Form):
         recipient = cleaned.get("recipient_contact")
         correspondent = cleaned.get("correspondent_contact")
         self._apply_invalid_choice_messages(destination=destination, shipper=shipper)
-        if destination and shipper and not filter_contacts_for_destination(
-            Contact.objects.filter(pk=shipper.pk),
-            destination,
-        ).exists():
+        if (
+            destination
+            and shipper
+            and not filter_contacts_for_destination(
+                Contact.objects.filter(pk=shipper.pk),
+                destination,
+            ).exists()
+        ):
             self.add_error(
                 "shipper_contact",
                 "Contact non disponible pour cette destination.",
             )
-        if shipper and recipient and not filter_recipients_for_shipper(
-            Contact.objects.filter(pk=recipient.pk),
-            shipper,
-        ).exists():
+        if (
+            shipper
+            and recipient
+            and not filter_recipients_for_shipper(
+                Contact.objects.filter(pk=recipient.pk),
+                shipper,
+            ).exists()
+        ):
             self.add_error(
                 "recipient_contact",
                 "Destinataire non disponible pour cet expéditeur.",
             )
-        if destination and recipient and not filter_contacts_for_destination(
-            Contact.objects.filter(pk=recipient.pk),
-            destination,
-        ).exists():
+        if (
+            destination
+            and recipient
+            and not filter_contacts_for_destination(
+                Contact.objects.filter(pk=recipient.pk),
+                destination,
+            ).exists()
+        ):
             self.add_error(
                 "recipient_contact",
                 "Destinataire non disponible pour cette destination.",
             )
-        if destination and correspondent and not filter_contacts_for_destination(
-            Contact.objects.filter(pk=correspondent.pk),
-            destination,
-        ).exists():
+        if (
+            destination
+            and correspondent
+            and not filter_contacts_for_destination(
+                Contact.objects.filter(pk=correspondent.pk),
+                destination,
+            ).exists()
+        ):
             self.add_error(
                 "correspondent_contact",
                 "Contact non disponible pour cette destination.",
@@ -830,8 +850,8 @@ class ScanOrderSelectForm(forms.Form):
             queryset = queryset.order_by("reference", "id")
         field = self.fields["order"]
         field.queryset = queryset
-        field.label_from_instance = (
-            lambda obj: f"{obj.reference or f'Commande {obj.id}'}"
+        field.label_from_instance = lambda obj: (
+            f"{obj.reference or f'Commande {obj.id}'}"
             f" - {obj.get_status_display()} - {obj.created_at:%d/%m/%Y}"
         )
 

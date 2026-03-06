@@ -7,6 +7,7 @@ from django.db.models.functions import Coalesce
 from .kit_components import KitCycleError, get_unit_component_quantities
 from .models import Product, ProductLotStatus
 
+
 def resolve_product(code: str, *, include_kits: bool = False):
     code = (code or "").strip()
     if not code:
@@ -36,9 +37,7 @@ def resolve_product(code: str, *, include_kits: bool = False):
     )
     if product:
         return product
-    candidates = list(
-        products.filter(name__istartswith=code).order_by("name")[:2]
-    )
+    candidates = list(products.filter(name__istartswith=code).order_by("name")[:2])
     if len(candidates) == 1:
         return candidates[0]
     return None

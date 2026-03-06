@@ -5,9 +5,9 @@ from django.test import TestCase
 
 from wms.models import Location, Product, ProductKitItem, ProductLot, Warehouse
 from wms.scan_product_helpers import (
-    build_product_options,
     build_product_group_key,
     build_product_label,
+    build_product_options,
     build_product_selection_data,
     get_product_volume_cm3,
     get_product_weight_g,

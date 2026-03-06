@@ -1,5 +1,5 @@
 import uuid
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 from io import BytesIO
 
 import qrcode
@@ -36,9 +36,7 @@ class ProductCategory(models.Model):
     def save(self, *args, **kwargs):
         update_fields = kwargs.get("update_fields")
         if self.name:
-            normalized = normalize_category_name(
-                self.name, is_root=self.parent_id is None
-            )
+            normalized = normalize_category_name(self.name, is_root=self.parent_id is None)
             if normalized != self.name:
                 self.name = normalized
                 if update_fields is not None:
@@ -66,9 +64,7 @@ class Product(models.Model):
     brand = models.CharField(max_length=120, blank=True)
     color = models.CharField(max_length=120, blank=True)
     photo = models.ImageField(upload_to="product_photos/", blank=True)
-    category = models.ForeignKey(
-        ProductCategory, on_delete=models.PROTECT, null=True, blank=True
-    )
+    category = models.ForeignKey(ProductCategory, on_delete=models.PROTECT, null=True, blank=True)
     tags = models.ManyToManyField(ProductTag, blank=True)
     barcode = models.CharField(max_length=80, blank=True)
     ean = models.CharField(max_length=32, blank=True)
@@ -124,12 +120,8 @@ class Product(models.Model):
         blank=True,
         validators=[MinValueValidator(Decimal("0.01"))],
     )
-    weight_g = models.IntegerField(
-        null=True, blank=True, validators=[MinValueValidator(1)]
-    )
-    volume_cm3 = models.IntegerField(
-        null=True, blank=True, validators=[MinValueValidator(1)]
-    )
+    weight_g = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(1)])
+    volume_cm3 = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(1)])
 
     storage_conditions = models.CharField(max_length=200, blank=True)
     perishable = models.BooleanField(default=False)
@@ -211,12 +203,8 @@ class Product(models.Model):
 
 
 class ProductKitItem(models.Model):
-    kit = models.ForeignKey(
-        Product, on_delete=models.CASCADE, related_name="kit_items"
-    )
-    component = models.ForeignKey(
-        Product, on_delete=models.PROTECT, related_name="kit_components"
-    )
+    kit = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="kit_items")
+    component = models.ForeignKey(Product, on_delete=models.PROTECT, related_name="kit_components")
     quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
 
     class Meta:

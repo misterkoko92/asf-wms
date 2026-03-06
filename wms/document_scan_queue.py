@@ -35,10 +35,14 @@ def _safe_int(value, *, default, minimum):
 
 
 def _scan_backend():
-    backend = str(
-        getattr(settings, "DOCUMENT_SCAN_BACKEND", DOCUMENT_SCAN_BACKEND_CLAMAV)
-        or DOCUMENT_SCAN_BACKEND_CLAMAV
-    ).strip().lower()
+    backend = (
+        str(
+            getattr(settings, "DOCUMENT_SCAN_BACKEND", DOCUMENT_SCAN_BACKEND_CLAMAV)
+            or DOCUMENT_SCAN_BACKEND_CLAMAV
+        )
+        .strip()
+        .lower()
+    )
     if backend in {DOCUMENT_SCAN_BACKEND_CLAMAV, DOCUMENT_SCAN_BACKEND_NOOP}:
         return backend
     return DOCUMENT_SCAN_BACKEND_CLAMAV
@@ -160,9 +164,9 @@ def _base_scan_queue_queryset():
 
 
 def _candidate_statuses(include_failed):
-    statuses = [IntegrationStatus.PENDING]
+    statuses = [str(IntegrationStatus.PENDING)]
     if include_failed:
-        statuses.append(IntegrationStatus.FAILED)
+        statuses.append(str(IntegrationStatus.FAILED))
     return statuses
 
 
@@ -180,15 +184,19 @@ def _claim_queue_event(
     statuses,
     stale_processing_before,
 ):
-    return queue_queryset.filter(pk=event.pk).filter(
-        _queue_claim_filter(
-            statuses=statuses,
-            stale_processing_before=stale_processing_before,
+    return (
+        queue_queryset.filter(pk=event.pk)
+        .filter(
+            _queue_claim_filter(
+                statuses=statuses,
+                stale_processing_before=stale_processing_before,
+            )
         )
-    ).update(
-        status=IntegrationStatus.PROCESSING,
-        processed_at=timezone.now(),
-        error_message="",
+        .update(
+            status=IntegrationStatus.PROCESSING,
+            processed_at=timezone.now(),
+            error_message="",
+        )
     )
 
 
@@ -241,15 +249,12 @@ def process_document_scan_queue(
     statuses = _candidate_statuses(include_failed)
 
     queue_queryset = _base_scan_queue_queryset()
-    selector_queryset = (
-        queue_queryset.filter(
-            _queue_claim_filter(
-                statuses=statuses,
-                stale_processing_before=stale_processing_before,
-            )
+    selector_queryset = queue_queryset.filter(
+        _queue_claim_filter(
+            statuses=statuses,
+            stale_processing_before=stale_processing_before,
         )
-        .order_by("created_at", "id")[:safe_limit]
-    )
+    ).order_by("created_at", "id")[:safe_limit]
 
     selected_events = []
     result = {

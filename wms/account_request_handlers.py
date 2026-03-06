@@ -1,10 +1,10 @@
 import logging
 
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.password_validation import validate_password
-from django.contrib import messages
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -14,8 +14,8 @@ from django.urls import reverse
 
 from contacts.models import Contact
 
-from .contact_payloads import build_shipper_contact_payload
 from .client_ip import get_client_ip
+from .contact_payloads import build_shipper_contact_payload
 from .document_scan import DocumentScanStatus
 from .document_scan_queue import queue_document_scan
 from .emailing import get_admin_emails, get_group_emails, send_or_enqueue_email_safe
@@ -56,9 +56,7 @@ ERROR_THROTTLE_LIMIT = (
     "Une demande récente a déjà été envoyée. Merci de patienter quelques minutes."
 )
 
-SUCCESS_ACCOUNT_REQUEST_SENT = (
-    "Demande envoyee. L'equipe ASF validera votre compte."
-)
+SUCCESS_ACCOUNT_REQUEST_SENT = "Demande envoyee. L'equipe ASF validera votre compte."
 
 DOC_UPLOAD_FIELD_MAPPINGS = (
     (AccountDocumentType.STATUTES, "doc_statutes"),

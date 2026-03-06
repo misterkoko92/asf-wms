@@ -1,5 +1,5 @@
-import re
 import logging
+import re
 
 from django.contrib import messages
 from django.db import IntegrityError, connection, transaction
@@ -7,22 +7,22 @@ from django.shortcuts import redirect
 from django.urls import reverse
 
 from .carton_status_events import set_carton_status
+from .models import (
+    TEMP_SHIPMENT_REFERENCE_PREFIX,
+    Carton,
+    CartonStatus,
+    Shipment,
+    ShipmentStatus,
+)
 from .organization_role_resolvers import (
     OrganizationRoleResolutionError,
     resolve_recipient_binding_for_operation,
     resolve_shipper_for_operation,
 )
-from .models import (
-    Carton,
-    CartonStatus,
-    Shipment,
-    ShipmentStatus,
-    TEMP_SHIPMENT_REFERENCE_PREFIX,
-)
+from .runtime_settings import get_runtime_config
 from .services import StockError, pack_carton, pack_carton_from_reserved
 from .shipment_helpers import build_destination_label, parse_shipment_lines
 from .shipment_status import sync_shipment_ready_state
-from .runtime_settings import get_runtime_config
 
 LOCKED_SHIPMENT_STATUSES = {
     ShipmentStatus.PLANNED,
@@ -364,9 +364,7 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
                 selected_carton_ids = {
                     item["carton_id"] for item in line_items if "carton_id" in item
                 }
-                cartons_to_remove = shipment.carton_set.exclude(
-                    id__in=selected_carton_ids
-                )
+                cartons_to_remove = shipment.carton_set.exclude(id__in=selected_carton_ids)
                 for carton in cartons_to_remove:
                     if carton.status == CartonStatus.SHIPPED:
                         raise StockError("Impossible de retirer un carton expédié.")
@@ -415,9 +413,7 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
                         if related_order is not None:
                             order_line = order_lines_by_product.get(item["product"].id)
                             if order_line is None:
-                                raise StockError(
-                                    "Produit non présent dans la commande liée."
-                                )
+                                raise StockError("Produit non présent dans la commande liée.")
                             if item["quantity"] > order_line.remaining_quantity:
                                 raise StockError(
                                     f"{item['product'].name}: quantité demandée supérieure au reliquat de la commande."

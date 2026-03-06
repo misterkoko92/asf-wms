@@ -7,8 +7,8 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.test import TestCase, override_settings
 
-from wms.document_scan import DocumentScanStatus
 from wms import document_scan_queue as queue_module
+from wms.document_scan import DocumentScanStatus
 from wms.document_scan_queue import (
     process_document_scan_queue,
     queue_document_scan,
@@ -182,9 +182,7 @@ class DocumentScanQueueTests(TestCase):
 
     @mock.patch("wms.document_scan_queue.apps.get_model", side_effect=LookupError("bad model"))
     def test_resolve_document_instance_handles_unknown_model_label(self, _get_model_mock):
-        document_obj, error = queue_module._resolve_document_instance(
-            {"model": "wms.Bad", "pk": 1}
-        )
+        document_obj, error = queue_module._resolve_document_instance({"model": "wms.Bad", "pk": 1})
         self.assertIsNone(document_obj)
         self.assertEqual(error, "Modèle document inconnu: wms.Bad.")
 

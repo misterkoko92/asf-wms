@@ -1,12 +1,12 @@
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
 
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.validators import EmailValidator
 from django.db import connection, transaction
 from django.db.models import Count, ExpressionWrapper, F, IntegerField, Max, Q, Sum
 from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
-from django.core.validators import EmailValidator
-from django.core.exceptions import ValidationError as DjangoValidationError
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
@@ -14,15 +14,17 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from wms.carton_status_events import set_carton_status
+from wms.carton_view_helpers import build_cartons_ready_rows, get_carton_capacity_cm3
 from wms.forms import ScanOutForm, ScanShipmentForm, ScanStockUpdateForm, ShipmentTrackingForm
 from wms.models import (
+    TEMP_SHIPMENT_REFERENCE_PREFIX,
     AssociationContactTitle,
     AssociationRecipient,
     Carton,
     CartonStatus,
+    Destination,
     Document,
     DocumentType,
-    Destination,
     IntegrationDirection,
     IntegrationEvent,
     IntegrationStatus,
@@ -41,9 +43,8 @@ from wms.models import (
     ShipmentStatus,
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
-    TEMP_SHIPMENT_REFERENCE_PREFIX,
 )
-from wms.carton_view_helpers import build_cartons_ready_rows, get_carton_capacity_cm3
+from wms.order_notifications import send_portal_order_notifications
 from wms.portal_helpers import (
     build_destination_address,
     get_association_profile,
@@ -51,14 +52,20 @@ from wms.portal_helpers import (
 )
 from wms.portal_order_handlers import create_portal_order
 from wms.portal_recipient_sync import sync_association_recipient_to_contact
+from wms.print_layouts import DEFAULT_LAYOUTS, DOCUMENT_TEMPLATES
 from wms.runtime_settings import get_runtime_config
+from wms.scan_product_helpers import resolve_product
 from wms.scan_shipment_handlers import LOCKED_SHIPMENT_STATUSES
 from wms.scan_shipment_helpers import resolve_shipment
-from wms.scan_product_helpers import resolve_product
-from wms.services import StockError, consume_stock, pack_carton, pack_carton_from_reserved, receive_stock
-from wms.print_layouts import DEFAULT_LAYOUTS, DOCUMENT_TEMPLATES
-from wms.shipment_helpers import build_destination_label, parse_shipment_lines
+from wms.services import (
+    StockError,
+    consume_stock,
+    pack_carton,
+    pack_carton_from_reserved,
+    receive_stock,
+)
 from wms.shipment_form_helpers import build_shipment_form_payload
+from wms.shipment_helpers import build_destination_label, parse_shipment_lines
 from wms.shipment_status import sync_shipment_ready_state
 from wms.shipment_tracking_handlers import (
     TRACKING_TO_SHIPMENT_STATUS,
@@ -72,25 +79,24 @@ from wms.shipment_view_helpers import (
 )
 from wms.stock_view_helpers import build_stock_context
 from wms.upload_utils import ALLOWED_UPLOAD_EXTENSIONS
+from wms.views_portal_account import _save_profile_updates
 from wms.views_scan_shipments_support import (
     CLOSED_FILTER_EXCLUDE,
-    _stale_drafts_age_days,
-    _stale_drafts_queryset,
     _build_shipments_tracking_queryset,
     _normalize_closed_filter,
     _parse_planned_week,
     _shipment_can_be_closed,
+    _stale_drafts_age_days,
+    _stale_drafts_queryset,
 )
 from wms.workflow_observability import log_shipment_case_closed, log_workflow_event
-from wms.views_portal_account import _save_profile_updates
-from wms.order_notifications import send_portal_order_notifications
 
 from .permissions import IsAssociationProfileUser, IsStaffUser
 from .serializers import (
-    UiPrintTemplateMutationSerializer,
     UiPortalAccountUpdateSerializer,
     UiPortalOrderCreateSerializer,
     UiPortalRecipientMutationSerializer,
+    UiPrintTemplateMutationSerializer,
     UiShipmentMutationSerializer,
     UiShipmentTrackingEventSerializer,
     UiStockOutSerializer,
@@ -147,9 +153,7 @@ def _dashboard_stock_snapshot(*, low_stock_threshold: int):
         status=ProductLotStatus.AVAILABLE,
         quantity_on_hand__gt=0,
     )
-    total_available_qty = (
-        available_lots.aggregate(total=Sum(lot_available_expr))["total"] or 0
-    )
+    total_available_qty = available_lots.aggregate(total=Sum(lot_available_expr))["total"] or 0
 
     products_with_qty = active_products.annotate(
         available_qty=Coalesce(
@@ -169,9 +173,7 @@ def _dashboard_stock_snapshot(*, low_stock_threshold: int):
         "available_lots_count": available_lots.count(),
         "total_available_qty": total_available_qty,
         "low_stock_count": low_stock_qs.count(),
-        "low_stock_rows": list(
-            low_stock_qs.values("id", "sku", "name", "available_qty")[:10]
-        ),
+        "low_stock_rows": list(low_stock_qs.values("id", "sku", "name", "available_qty")[:10]),
     }
 
 
@@ -444,7 +446,9 @@ def _portal_order_destination_payload(*, profile, recipient_id, selected_destina
         return {
             "recipient_name": profile.contact.name,
             "recipient_contact": profile.contact,
-            "destination_city": selected_destination.city if selected_destination else (address.city or ""),
+            "destination_city": selected_destination.city
+            if selected_destination
+            else (address.city or ""),
             "destination_country": (
                 selected_destination.country
                 if selected_destination
@@ -719,9 +723,7 @@ class UiDashboardView(APIView):
         tracking_alert_hours = runtime.tracking_alert_hours
         workflow_blockage_hours = runtime.workflow_blockage_hours
         queue_processing_timeout_seconds = runtime.email_queue_processing_timeout_seconds
-        stock_snapshot = _dashboard_stock_snapshot(
-            low_stock_threshold=low_stock_threshold
-        )
+        stock_snapshot = _dashboard_stock_snapshot(low_stock_threshold=low_stock_threshold)
         low_stock_rows = stock_snapshot["low_stock_rows"]
         period = _normalize_dashboard_period(request.GET.get("period"))
         period_start = _dashboard_period_start(period)
@@ -754,20 +756,14 @@ class UiDashboardView(APIView):
             ),
             received_correspondent_at=Max(
                 "tracking_events__created_at",
-                filter=Q(
-                    tracking_events__status=ShipmentTrackingStatus.RECEIVED_CORRESPONDENT
-                ),
+                filter=Q(tracking_events__status=ShipmentTrackingStatus.RECEIVED_CORRESPONDENT),
             ),
             received_recipient_at=Max(
                 "tracking_events__created_at",
-                filter=Q(
-                    tracking_events__status=ShipmentTrackingStatus.RECEIVED_RECIPIENT
-                ),
+                filter=Q(tracking_events__status=ShipmentTrackingStatus.RECEIVED_RECIPIENT),
             ),
         )
-        week_start = timezone.localdate() - timedelta(
-            days=timezone.localdate().isoweekday() - 1
-        )
+        week_start = timezone.localdate() - timedelta(days=timezone.localdate().isoweekday() - 1)
         week_end = week_start + timedelta(days=7)
         in_transit_count = (
             status_count_map.get(ShipmentStatus.PLANNED, 0)
@@ -791,16 +787,13 @@ class UiDashboardView(APIView):
             "open_shipments": open_shipments_qs.count(),
             "stock_alerts": len(low_stock_rows),
             "open_disputes": disputed_qs.count(),
-            "pending_orders": Order.objects.filter(
-                review_status=OrderReviewStatus.PENDING
-            ).count(),
+            "pending_orders": Order.objects.filter(review_status=OrderReviewStatus.PENDING).count(),
             "shipments_delayed": delayed_qs.count(),
         }
 
-        timeline_events = (
-            ShipmentTrackingEvent.objects.select_related("shipment")
-            .order_by("-created_at")[:8]
-        )
+        timeline_events = ShipmentTrackingEvent.objects.select_related("shipment").order_by(
+            "-created_at"
+        )[:8]
         timeline = [
             {
                 "id": event.id,
@@ -834,10 +827,9 @@ class UiDashboardView(APIView):
                     "owner": "qualite",
                 }
             )
-        for order in (
-            Order.objects.filter(review_status=OrderReviewStatus.PENDING)
-            .order_by("-created_at")[:3]
-        ):
+        for order in Order.objects.filter(review_status=OrderReviewStatus.PENDING).order_by(
+            "-created_at"
+        )[:3]:
             pending_actions.append(
                 {
                     "type": "order_review",
@@ -1018,9 +1010,7 @@ class UiDashboardView(APIView):
             },
             {
                 "label": "Cmd en attente de validation",
-                "value": Order.objects.filter(
-                    review_status=OrderReviewStatus.PENDING
-                ).count(),
+                "value": Order.objects.filter(review_status=OrderReviewStatus.PENDING).count(),
                 "help": "Demandes a valider.",
                 "url": reverse("scan:scan_orders_view"),
                 "tone": "neutral",
@@ -1084,20 +1074,14 @@ class UiDashboardView(APIView):
             {
                 "label": f"Expediees sans recu escale >{tracking_alert_hours}h",
                 "value": shipped_alert_count,
-                "help": (
-                    "Sans confirmation correspondant depuis "
-                    f"{tracking_alert_hours}h."
-                ),
+                "help": (f"Sans confirmation correspondant depuis {tracking_alert_hours}h."),
                 "url": reverse("scan:scan_shipments_tracking"),
                 "tone": "danger" if shipped_alert_count else "success",
             },
             {
                 "label": f"Recu escale sans livraison >{tracking_alert_hours}h",
                 "value": correspondent_alert_count,
-                "help": (
-                    "Sans confirmation destinataire depuis "
-                    f"{tracking_alert_hours}h."
-                ),
+                "help": (f"Sans confirmation destinataire depuis {tracking_alert_hours}h."),
                 "url": reverse("scan:scan_shipments_tracking"),
                 "tone": "danger" if correspondent_alert_count else "success",
             },
@@ -1142,9 +1126,7 @@ class UiDashboardView(APIView):
                     f"({queue_processing_timeout_seconds}s)."
                 ),
                 "url": reverse("scan:scan_dashboard"),
-                "tone": (
-                    "danger" if technical_snapshot["stale_processing_count"] else "success"
-                ),
+                "tone": ("danger" if technical_snapshot["stale_processing_count"] else "success"),
             },
         ]
         workflow_blockage_snapshot = _dashboard_workflow_blockage_snapshot(
@@ -1198,9 +1180,7 @@ class UiDashboardView(APIView):
             },
         ]
         sla_rows = _build_dashboard_sla_rows(
-            shipments_with_tracking.filter(
-                status__in=list(DASHBOARD_SHIPMENT_STATUS_ORDER)[3:]
-            ),
+            shipments_with_tracking.filter(status__in=list(DASHBOARD_SHIPMENT_STATUS_ORDER)[3:]),
             tracking_alert_hours=tracking_alert_hours,
         )
         sla_cards = [
@@ -1280,14 +1260,10 @@ class UiStockView(APIView):
                 "brand": product.brand or "",
                 "category_id": product.category_id,
                 "category_name": product.category.name if product.category else "",
-                "location": str(product.default_location)
-                if product.default_location_id
-                else "",
+                "location": str(product.default_location) if product.default_location_id else "",
                 "stock_total": int(product.stock_total or 0),
                 "last_movement_at": (
-                    product.last_movement_at.isoformat()
-                    if product.last_movement_at
-                    else None
+                    product.last_movement_at.isoformat() if product.last_movement_at else None
                 ),
                 "state": _stock_state(
                     int(product.stock_total or 0),
@@ -1297,12 +1273,10 @@ class UiStockView(APIView):
             for product in products_qs
         ]
         categories = [
-            {"id": category.id, "name": category.name}
-            for category in context["categories"]
+            {"id": category.id, "name": category.name} for category in context["categories"]
         ]
         warehouses = [
-            {"id": warehouse.id, "name": warehouse.name}
-            for warehouse in context["warehouses"]
+            {"id": warehouse.id, "name": warehouse.name} for warehouse in context["warehouses"]
         ]
         return Response(
             {
@@ -1492,18 +1466,14 @@ class UiCartonsView(APIView):
             .distinct()
             .order_by("-created_at")
         )
-        rows = build_cartons_ready_rows(
-            cartons_qs, carton_capacity_cm3=carton_capacity_cm3
-        )
+        rows = build_cartons_ready_rows(cartons_qs, carton_capacity_cm3=carton_capacity_cm3)
         cartons = []
         for row in rows:
             cartons.append(
                 {
                     "id": row["id"],
                     "code": row["code"],
-                    "created_at": (
-                        row["created_at"].isoformat() if row["created_at"] else None
-                    ),
+                    "created_at": (row["created_at"].isoformat() if row["created_at"] else None),
                     "status_label": row["status_label"],
                     "status_value": row["status_value"],
                     "shipment_reference": row["shipment_reference"] or "",
@@ -1565,9 +1535,7 @@ class UiShipmentsReadyView(APIView):
                 carton_count=Count("carton", distinct=True),
                 ready_count=Count(
                     "carton",
-                    filter=Q(
-                        carton__status__in=[CartonStatus.LABELED, CartonStatus.SHIPPED]
-                    ),
+                    filter=Q(carton__status__in=[CartonStatus.LABELED, CartonStatus.SHIPPED]),
                     distinct=True,
                 ),
             )
@@ -1589,9 +1557,7 @@ class UiShipmentsReadyView(APIView):
                     "destination_iata": row["destination_iata"] or "",
                     "shipper_name": row["shipper_name"] or "",
                     "recipient_name": row["recipient_name"] or "",
-                    "created_at": (
-                        row["created_at"].isoformat() if row["created_at"] else None
-                    ),
+                    "created_at": (row["created_at"].isoformat() if row["created_at"] else None),
                     "ready_at": row["ready_at"].isoformat() if row["ready_at"] else None,
                     "status_label": row["status_label"] or "",
                     "can_edit": bool(row["can_edit"]),
@@ -1690,15 +1656,11 @@ class UiShipmentsTrackingView(APIView):
                     "carton_count": row["carton_count"],
                     "shipper_name": row["shipper_name"],
                     "recipient_name": row["recipient_name"],
-                    "planned_at": (
-                        row["planned_at"].isoformat() if row["planned_at"] else None
-                    ),
+                    "planned_at": (row["planned_at"].isoformat() if row["planned_at"] else None),
                     "boarding_ok_at": (
                         row["boarding_ok_at"].isoformat() if row["boarding_ok_at"] else None
                     ),
-                    "shipped_at": (
-                        row["shipped_at"].isoformat() if row["shipped_at"] else None
-                    ),
+                    "shipped_at": (row["shipped_at"].isoformat() if row["shipped_at"] else None),
                     "received_correspondent_at": (
                         row["received_correspondent_at"].isoformat()
                         if row["received_correspondent_at"]
@@ -2143,7 +2105,9 @@ class UiShipmentCloseView(APIView):
     permission_classes = [IsStaffUser]
 
     def post(self, request, shipment_id):
-        shipment = get_object_or_404(Shipment.objects.filter(archived_at__isnull=True), pk=shipment_id)
+        shipment = get_object_or_404(
+            Shipment.objects.filter(archived_at__isnull=True), pk=shipment_id
+        )
         if shipment.closed_at:
             return Response(
                 {
@@ -2230,9 +2194,7 @@ class UiShipmentDocumentsView(APIView):
             return api_error(
                 message="Format de fichier non autorise.",
                 code="document_file_invalid_extension",
-                field_errors={
-                    "document_file": ["Format de fichier non autorise."]
-                },
+                field_errors={"document_file": ["Format de fichier non autorise."]},
             )
 
         document = Document.objects.create(
@@ -2425,9 +2387,7 @@ class UiPrintTemplateDetailView(APIView):
             layout_data=layout_data,
             user=request.user,
         )
-        template = (
-            PrintTemplate.objects.filter(pk=template.id).select_related("updated_by").first()
-        )
+        template = PrintTemplate.objects.filter(pk=template.id).select_related("updated_by").first()
         return Response(
             {
                 "ok": True,
@@ -2509,7 +2469,9 @@ class UiPortalOrdersView(APIView):
         quantity_by_product_id = {}
         for line in requested_lines:
             product_id = line["product_id"]
-            quantity_by_product_id[product_id] = quantity_by_product_id.get(product_id, 0) + line["quantity"]
+            quantity_by_product_id[product_id] = (
+                quantity_by_product_id.get(product_id, 0) + line["quantity"]
+            )
         line_items = [
             (products_by_id[product_id], quantity)
             for product_id, quantity in quantity_by_product_id.items()
@@ -2579,7 +2541,9 @@ class UiPortalRecipientsView(APIView):
             .select_related("destination")
             .order_by("structure_name", "name", "contact_last_name", "contact_first_name")
         )
-        destinations = Destination.objects.filter(is_active=True).order_by("city", "country", "iata_code")
+        destinations = Destination.objects.filter(is_active=True).order_by(
+            "city", "country", "iata_code"
+        )
         return Response(
             {
                 "recipients": [_portal_recipient_row(recipient) for recipient in recipients],
@@ -2601,14 +2565,18 @@ class UiPortalRecipientsView(APIView):
             )
 
         payload = serializer.validated_data
-        destination = Destination.objects.filter(pk=payload["destination_id"], is_active=True).first()
+        destination = Destination.objects.filter(
+            pk=payload["destination_id"], is_active=True
+        ).first()
         if destination is None:
             return api_error(
                 message="Escale de livraison requise.",
                 code="destination_required",
                 field_errors={"destination_id": ["Escale de livraison requise."]},
             )
-        if payload.get("contact_title") and payload["contact_title"] not in dict(AssociationContactTitle.choices):
+        if payload.get("contact_title") and payload["contact_title"] not in dict(
+            AssociationContactTitle.choices
+        ):
             return api_error(
                 message="Titre de contact invalide.",
                 code="contact_title_invalid",
@@ -2620,18 +2588,14 @@ class UiPortalRecipientsView(APIView):
             return api_error(
                 message="Emails invalides.",
                 code="emails_invalid",
-                field_errors={
-                    "emails": [f"Emails invalides: {', '.join(invalid_values)}."]
-                },
+                field_errors={"emails": [f"Emails invalides: {', '.join(invalid_values)}."]},
             )
         if payload.get("notify_deliveries") and not email_values:
             return api_error(
                 message="Ajoutez au moins un email pour activer l'alerte de livraison.",
                 code="notify_email_required",
                 field_errors={
-                    "emails": [
-                        "Ajoutez au moins un email pour activer l'alerte de livraison."
-                    ]
+                    "emails": ["Ajoutez au moins un email pour activer l'alerte de livraison."]
                 },
             )
 
@@ -2687,14 +2651,18 @@ class UiPortalRecipientDetailView(APIView):
             )
 
         payload = serializer.validated_data
-        destination = Destination.objects.filter(pk=payload["destination_id"], is_active=True).first()
+        destination = Destination.objects.filter(
+            pk=payload["destination_id"], is_active=True
+        ).first()
         if destination is None:
             return api_error(
                 message="Escale de livraison requise.",
                 code="destination_required",
                 field_errors={"destination_id": ["Escale de livraison requise."]},
             )
-        if payload.get("contact_title") and payload["contact_title"] not in dict(AssociationContactTitle.choices):
+        if payload.get("contact_title") and payload["contact_title"] not in dict(
+            AssociationContactTitle.choices
+        ):
             return api_error(
                 message="Titre de contact invalide.",
                 code="contact_title_invalid",
@@ -2706,18 +2674,14 @@ class UiPortalRecipientDetailView(APIView):
             return api_error(
                 message="Emails invalides.",
                 code="emails_invalid",
-                field_errors={
-                    "emails": [f"Emails invalides: {', '.join(invalid_values)}."]
-                },
+                field_errors={"emails": [f"Emails invalides: {', '.join(invalid_values)}."]},
             )
         if payload.get("notify_deliveries") and not email_values:
             return api_error(
                 message="Ajoutez au moins un email pour activer l'alerte de livraison.",
                 code="notify_email_required",
                 field_errors={
-                    "emails": [
-                        "Ajoutez au moins un email pour activer l'alerte de livraison."
-                    ]
+                    "emails": ["Ajoutez au moins un email pour activer l'alerte de livraison."]
                 },
             )
 
@@ -2843,9 +2807,7 @@ class UiPortalDashboardView(APIView):
                 "review_status": order.review_status,
                 "review_status_label": order.get_review_status_display(),
                 "shipment_id": order.shipment_id,
-                "shipment_reference": (
-                    order.shipment.reference if order.shipment_id else ""
-                ),
+                "shipment_reference": (order.shipment.reference if order.shipment_id else ""),
                 "requested_delivery_date": (
                     order.requested_delivery_date.isoformat()
                     if order.requested_delivery_date

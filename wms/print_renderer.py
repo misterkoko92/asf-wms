@@ -107,7 +107,7 @@ def _render_text_block(block, context):
     tag = _normalize_text_tag(block.get("tag"))
     text = _render_template_string(block.get("text", ""), context)
     style = _build_style(block.get("style", {}))
-    return format_html("<{tag} style=\"{style}\">{text}</{tag}>", tag=tag, style=style, text=text)
+    return format_html('<{tag} style="{style}">{text}</{tag}>', tag=tag, style=style, text=text)
 
 
 def _render_simple_template_block(block_type, context):

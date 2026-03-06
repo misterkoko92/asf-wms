@@ -18,8 +18,8 @@ from wms.models import (
     Carton,
     CartonFormat,
     CartonItem,
-    CartonStatusEvent,
     CartonStatus,
+    CartonStatusEvent,
     Destination,
     Location,
     MovementType,
@@ -466,7 +466,9 @@ class DomainOrdersExtraTests(TestCase):
         self.assertEqual(line.reservations.count(), 1)
 
     def test_consume_reserved_stock_rejects_non_positive_quantity(self):
-        _order, line = self._create_order(status=OrderStatus.RESERVED, quantity=2, reserved_quantity=2)
+        _order, line = self._create_order(
+            status=OrderStatus.RESERVED, quantity=2, reserved_quantity=2
+        )
         with self.assertRaisesMessage(StockError, "Quantité invalide."):
             consume_reserved_stock(
                 user=self.user,

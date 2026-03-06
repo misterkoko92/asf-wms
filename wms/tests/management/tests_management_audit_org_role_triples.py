@@ -113,8 +113,7 @@ class AuditOrgRoleTriplesCommandTests(TestCase):
         refused_missing_binding = [
             row
             for row in dla_rows
-            if row["status"] == "refused"
-            and row["reason_code"] == "recipient_binding_missing"
+            if row["status"] == "refused" and row["reason_code"] == "recipient_binding_missing"
         ]
         self.assertEqual(len(refused_missing_binding), 1)
         self.assertEqual(refused_missing_binding[0]["shipper_org_name"], "Shipper OK")
@@ -126,8 +125,7 @@ class AuditOrgRoleTriplesCommandTests(TestCase):
         refused_out_of_scope = [
             row
             for row in dla_rows
-            if row["status"] == "refused"
-            and row["reason_code"] == "shipper_out_of_scope"
+            if row["status"] == "refused" and row["reason_code"] == "shipper_out_of_scope"
         ]
         self.assertEqual(len(refused_out_of_scope), 2)
 

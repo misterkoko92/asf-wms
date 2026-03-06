@@ -63,13 +63,16 @@ class PrintPackGraphTests(SimpleTestCase):
             get_client_credentials_token()
 
     def test_convert_excel_to_pdf_via_graph_returns_pdf_bytes(self):
-        with mock.patch(
-            "wms.print_pack_graph.get_client_credentials_token",
-            return_value="graph-token",
-        ) as token_mock, mock.patch(
-            "wms.print_pack_graph._graph_export_pdf",
-            return_value=b"%PDF-1.4 sample",
-        ) as export_mock:
+        with (
+            mock.patch(
+                "wms.print_pack_graph.get_client_credentials_token",
+                return_value="graph-token",
+            ) as token_mock,
+            mock.patch(
+                "wms.print_pack_graph._graph_export_pdf",
+                return_value=b"%PDF-1.4 sample",
+            ) as export_mock,
+        ):
             pdf_bytes = convert_excel_to_pdf_via_graph(
                 xlsx_bytes=b"xlsx-data",
                 filename="pack-b.xlsx",
@@ -86,12 +89,15 @@ class PrintPackGraphTests(SimpleTestCase):
         )
 
     def test_convert_excel_to_pdf_via_graph_rejects_non_pdf_payload(self):
-        with mock.patch(
-            "wms.print_pack_graph.get_client_credentials_token",
-            return_value="graph-token",
-        ), mock.patch(
-            "wms.print_pack_graph._graph_export_pdf",
-            return_value=b"not-a-pdf",
+        with (
+            mock.patch(
+                "wms.print_pack_graph.get_client_credentials_token",
+                return_value="graph-token",
+            ),
+            mock.patch(
+                "wms.print_pack_graph._graph_export_pdf",
+                return_value=b"not-a-pdf",
+            ),
         ):
             with self.assertRaises(GraphPdfConversionError):
                 convert_excel_to_pdf_via_graph(

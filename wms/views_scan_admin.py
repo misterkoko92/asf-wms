@@ -38,9 +38,9 @@ from .scan_admin_contacts_cockpit import (
     set_primary_role_contact,
     unassign_role,
     unlink_role_contact,
+    upsert_org_contact,
     upsert_recipient_binding,
     upsert_shipper_scope,
-    upsert_org_contact,
 )
 from .view_permissions import require_superuser as _require_superuser
 from .view_permissions import scan_staff_required

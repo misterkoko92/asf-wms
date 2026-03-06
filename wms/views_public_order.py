@@ -6,8 +6,8 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
-from .contact_payloads import build_shipper_contact_payload
 from .client_ip import get_client_ip
+from .contact_payloads import build_shipper_contact_payload
 from .models import Order
 from .order_helpers import (
     build_carton_format_data,
@@ -17,7 +17,8 @@ from .order_helpers import (
 from .portal_helpers import get_default_carton_format
 from .public_link_helpers import get_active_public_order_link_or_404
 from .public_order_handlers import create_public_order, send_public_order_notifications
-from .scan_helpers import build_product_selection_data, parse_int as parse_int_safe
+from .scan_helpers import build_product_selection_data
+from .scan_helpers import parse_int as parse_int_safe
 from .services import StockError
 
 TEMPLATE_PUBLIC_ORDER = "scan/public_order.html"
@@ -34,6 +35,10 @@ ERROR_THROTTLE_LIMIT = (
 )
 
 PUBLIC_ORDER_THROTTLE_SECONDS_DEFAULT = 300
+
+
+def _object_id(value):
+    return getattr(value, "pk", getattr(value, "id", ""))
 
 
 def _get_public_order_or_404(link, order_id):
@@ -177,10 +182,11 @@ def _build_public_order_context(
 def scan_public_order_summary(request, token, order_id):
     link = get_active_public_order_link_or_404(token)
     order = _get_public_order_or_404(link, order_id)
+    order_lines = getattr(order, "lines").all()
 
     carton_format = get_default_carton_format()
     line_rows, total_cartons = build_order_line_estimates(
-        order.lines.all(),
+        order_lines,
         carton_format,
         estimate_key="cartons_estimated",
     )
@@ -269,7 +275,7 @@ def scan_public_order(request, token):
                 )
                 messages.success(request, MESSAGE_PUBLIC_ORDER_SENT)
                 return redirect(
-                    f"{reverse('scan:scan_public_order', args=[token])}?order={order.id}"
+                    f"{reverse('scan:scan_public_order', args=[token])}?order={_object_id(order)}"
                 )
 
     return render(

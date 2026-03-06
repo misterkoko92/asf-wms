@@ -26,9 +26,7 @@ from wms.models import (
 
 class ApiTests(TestCase):
     def setUp(self):
-        self.user = get_user_model().objects.create_user(
-            username="api-user", password="pass1234"
-        )
+        self.user = get_user_model().objects.create_user(username="api-user", password="pass1234")
         self.client = APIClient()
         self.client.force_authenticate(self.user)
         self.warehouse = Warehouse.objects.create(name="API WH", code="API")

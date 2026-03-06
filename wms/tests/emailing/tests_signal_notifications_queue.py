@@ -174,9 +174,7 @@ class ShipmentSignalEmailQueueTests(TestCase):
             )
         )
         self.assertEqual(len(events), 2)
-        delivery_subject = (
-            f"ASF WMS - Expedition {self.shipment.reference} : livraison confirmee"
-        )
+        delivery_subject = f"ASF WMS - Expedition {self.shipment.reference} : livraison confirmee"
         delivery_event = next(
             event for event in events if event.payload.get("subject") == delivery_subject
         )
@@ -192,9 +190,7 @@ class ShipmentSignalEmailQueueTests(TestCase):
             password="pass1234",
             is_staff=True,
         )
-        Group.objects.get_or_create(name="Shipment_Status_Update")[0].user_set.add(
-            grouped_staff
-        )
+        Group.objects.get_or_create(name="Shipment_Status_Update")[0].user_set.add(grouped_staff)
 
         with self.captureOnCommitCallbacks(execute=True):
             self.shipment.status = ShipmentStatus.SHIPPED
@@ -248,9 +244,9 @@ class ShipmentSignalEmailQueueTests(TestCase):
             password="pass1234",
             is_staff=True,
         )
-        Group.objects.get_or_create(
-            name="Shipment_Status_Update_Correspondant"
-        )[0].user_set.add(grouped_staff)
+        Group.objects.get_or_create(name="Shipment_Status_Update_Correspondant")[0].user_set.add(
+            grouped_staff
+        )
         self.shipment.correspondent_contact_ref = correspondent
         self.shipment.save(update_fields=["correspondent_contact_ref"])
 
@@ -282,9 +278,9 @@ class ShipmentSignalEmailQueueTests(TestCase):
             password="pass1234",
             is_staff=True,
         )
-        Group.objects.get_or_create(
-            name="Shipment_Status_Update_Correspondant"
-        )[0].user_set.add(grouped_staff)
+        Group.objects.get_or_create(name="Shipment_Status_Update_Correspondant")[0].user_set.add(
+            grouped_staff
+        )
         self.shipment.correspondent_contact_ref = correspondent
         self.shipment.status = ShipmentStatus.PLANNED
         self.shipment.save(update_fields=["correspondent_contact_ref", "status"])

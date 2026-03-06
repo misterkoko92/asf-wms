@@ -10,7 +10,6 @@ from .import_services_destinations import _get_or_create_destination
 from .import_services_tags import build_contact_tags
 from .import_utils import get_value, parse_bool, parse_str
 
-
 DESTINATION_KEYS = ("destination", "dest", "destination_name")
 DESTINATIONS_KEYS = ("destinations", "destination_scope", "destinations_scope")
 LINKED_SHIPPERS_KEYS = ("linked_shippers", "expediteurs_lies", "expediteurs_lie")
@@ -23,10 +22,7 @@ def _row_has_any_key(row, *keys):
 def _parse_multi_values(value):
     if value is None:
         return []
-    parts = [
-        token.strip()
-        for token in re.split(r"[|\n]", str(value))
-    ]
+    parts = [token.strip() for token in re.split(r"[|\n]", str(value))]
     return [part for part in parts if part]
 
 
@@ -89,9 +85,7 @@ def _resolve_linked_shippers_for_row(*, row, warnings, index):
                 contact_type=ContactType.ORGANIZATION,
                 notes="créé automatiquement depuis linked_shippers",
             )
-            warnings.append(
-                f"Ligne {index}: expéditeur lié créé automatiquement ({name})."
-            )
+            warnings.append(f"Ligne {index}: expéditeur lié créé automatiquement ({name}).")
         if not linked_shipper.tags.filter(pk=shipper_tag.pk).exists():
             linked_shipper.tags.add(shipper_tag)
         if linked_shipper.pk not in seen:
@@ -154,15 +148,14 @@ def import_contacts(rows):
             if contact_type == ContactType.PERSON and not (name or first_name or last_name):
                 raise ValueError("Nom ou prenom requis pour un individu.")
 
-            contact_lookup = name or " ".join(
-                part for part in [first_name, last_name] if part
-            ).strip()
+            contact_lookup = (
+                name or " ".join(part for part in [first_name, last_name] if part).strip()
+            )
             if not contact_lookup:
                 raise ValueError("Nom contact requis.")
-            contact = (
-                Contact.objects.filter(name__iexact=contact_lookup, contact_type=contact_type)
-                .first()
-            )
+            contact = Contact.objects.filter(
+                name__iexact=contact_lookup, contact_type=contact_type
+            ).first()
             was_created = False
             if not contact:
                 contact = Contact.objects.create(
@@ -224,9 +217,7 @@ def import_contacts(rows):
                 if was_created:
                     contact.tags.set(tags)
                 else:
-                    existing_tag_names = set(
-                        contact.tags.values_list("name", flat=True)
-                    )
+                    existing_tag_names = set(contact.tags.values_list("name", flat=True))
                     new_tags = [tag for tag in tags if tag.name not in existing_tag_names]
                     if new_tags:
                         contact.tags.add(*new_tags)
@@ -245,12 +236,10 @@ def import_contacts(rows):
                 if use_org_address and not (organization_name or contact.organization):
                     raise ValueError("Société requise pour utiliser l'adresse.")
                 if organization_name:
-                    organization = (
-                        Contact.objects.filter(
-                            name__iexact=organization_name,
-                            contact_type=ContactType.ORGANIZATION,
-                        ).first()
-                    )
+                    organization = Contact.objects.filter(
+                        name__iexact=organization_name,
+                        contact_type=ContactType.ORGANIZATION,
+                    ).first()
                     if not organization:
                         organization = Contact.objects.create(
                             name=organization_name,
@@ -289,17 +278,13 @@ def import_contacts(rows):
             if address_line1 and not contact.use_organization_address:
                 address_label = parse_str(get_value(row, "address_label", "label")) or ""
                 address_line2 = parse_str(get_value(row, "address_line2")) or ""
-                postal_code = (
-                    parse_str(get_value(row, "postal_code", "code_postal")) or ""
-                )
+                postal_code = parse_str(get_value(row, "postal_code", "code_postal")) or ""
                 city = parse_str(get_value(row, "city", "ville")) or ""
                 region = parse_str(get_value(row, "region")) or ""
                 country = parse_str(get_value(row, "country", "pays")) or "France"
                 phone = parse_str(get_value(row, "address_phone")) or ""
                 email = parse_str(get_value(row, "address_email")) or ""
-                is_default = parse_bool(
-                    get_value(row, "address_is_default", "default")
-                )
+                is_default = parse_bool(get_value(row, "address_is_default", "default"))
                 notes = parse_str(get_value(row, "address_notes")) or ""
                 existing_address = ContactAddress.objects.filter(
                     contact=contact,

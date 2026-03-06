@@ -19,15 +19,18 @@ class ReferencesModuleTests(SimpleTestCase):
         get_model_mock.assert_called_once_with("wms", "Receipt")
 
     def test_generate_receipt_reference_delegates_with_expected_dependencies(self):
-        with mock.patch.object(
-            references,
-            "_model",
-            side_effect=["ReceiptModel", "ReceiptSeqModel", "ReceiptDonorSeqModel"],
-        ) as model_mock, mock.patch.object(
-            references.reference_sequences,
-            "generate_receipt_reference",
-            return_value="31-08-CON-05",
-        ) as generate_mock:
+        with (
+            mock.patch.object(
+                references,
+                "_model",
+                side_effect=["ReceiptModel", "ReceiptSeqModel", "ReceiptDonorSeqModel"],
+            ) as model_mock,
+            mock.patch.object(
+                references.reference_sequences,
+                "generate_receipt_reference",
+                return_value="31-08-CON-05",
+            ) as generate_mock,
+        ):
             result = references.generate_receipt_reference(
                 received_on=date(2031, 2, 1),
                 source_contact="contact",
@@ -55,15 +58,18 @@ class ReferencesModuleTests(SimpleTestCase):
         self.assertIs(kwargs["localdate_fn"], references.timezone.localdate)
 
     def test_generate_shipment_reference_delegates_with_expected_dependencies(self):
-        with mock.patch.object(
-            references,
-            "_model",
-            side_effect=["ShipmentModel", "ShipmentSeqModel"],
-        ) as model_mock, mock.patch.object(
-            references.reference_sequences,
-            "generate_shipment_reference",
-            return_value="320124",
-        ) as generate_mock:
+        with (
+            mock.patch.object(
+                references,
+                "_model",
+                side_effect=["ShipmentModel", "ShipmentSeqModel"],
+            ) as model_mock,
+            mock.patch.object(
+                references.reference_sequences,
+                "generate_shipment_reference",
+                return_value="320124",
+            ) as generate_mock,
+        ):
             result = references.generate_shipment_reference()
 
         self.assertEqual(result, "320124")

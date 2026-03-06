@@ -10,6 +10,5 @@ class DocumentScanStatus(models.TextChoices):
 
 def is_scan_clean(document_obj) -> bool:
     return (
-        getattr(document_obj, "scan_status", DocumentScanStatus.CLEAN)
-        == DocumentScanStatus.CLEAN
+        getattr(document_obj, "scan_status", DocumentScanStatus.CLEAN) == DocumentScanStatus.CLEAN
     )

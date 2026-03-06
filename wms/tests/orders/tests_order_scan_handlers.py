@@ -6,7 +6,6 @@ from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
 from contacts.models import Contact, ContactType
-from wms.organization_role_resolvers import OrganizationRoleResolutionError
 from wms.models import (
     Destination,
     Location,
@@ -19,6 +18,7 @@ from wms.models import (
     Warehouse,
 )
 from wms.order_scan_handlers import handle_order_action
+from wms.organization_role_resolvers import OrganizationRoleResolutionError
 from wms.services import StockError
 
 

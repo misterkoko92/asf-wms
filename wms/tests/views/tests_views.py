@@ -9,11 +9,11 @@ from django.utils import timezone
 
 from contacts.models import Contact, ContactAddress, ContactTag, ContactType
 from wms.models import (
-    AssociationRecipient,
     AssociationProfile,
+    AssociationRecipient,
     Carton,
-    CartonItem,
     CartonFormat,
+    CartonItem,
     CartonStatus,
     Destination,
     Document,
@@ -118,9 +118,7 @@ class ScanViewTests(TestCase):
         )
 
     def _create_contact(self, name, tags, address_country, contact_type=ContactType.ORGANIZATION):
-        contact = Contact.objects.create(
-            name=name, contact_type=contact_type, is_active=True
-        )
+        contact = Contact.objects.create(name=name, contact_type=contact_type, is_active=True)
         for tag in tags:
             tag_obj, _ = ContactTag.objects.get_or_create(name=tag)
             contact.tags.add(tag_obj)
@@ -506,10 +504,7 @@ class ScanViewTests(TestCase):
         selected_kit = response.context["selected_kit"]
         self.assertEqual(selected_kit["id"], kit.id)
         self.assertEqual(selected_kit["theoretical_stock"], 5)
-        component_map = {
-            row["name"]: row["quantity"]
-            for row in selected_kit["component_rows"]
-        }
+        component_map = {row["name"]: row["quantity"] for row in selected_kit["component_rows"]}
         self.assertEqual(component_map["Seringue"], 2)
         self.assertEqual(component_map["Compresse"], 4)
 
@@ -573,8 +568,7 @@ class ScanViewTests(TestCase):
         self.assertEqual(len(cartons), 2)
         for carton in cartons:
             quantity_by_lot = {
-                item.product_lot_id: item.quantity
-                for item in carton.cartonitem_set.all()
+                item.product_lot_id: item.quantity for item in carton.cartonitem_set.all()
             }
             self.assertEqual(quantity_by_lot[lot_a.id], 2)
             self.assertEqual(quantity_by_lot[lot_b.id], 3)
@@ -644,7 +638,7 @@ class ScanViewTests(TestCase):
             reverse("scan:scan_carton_picking", kwargs={"carton_id": carton.id})
         )
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "--wms-print-font-body: \"Manrope\", Arial, sans-serif;")
+        self.assertContains(response, '--wms-print-font-body: "Manrope", Arial, sans-serif;')
         self.assertContains(response, "--wms-print-color-text: #1f2f3f;")
         self.assertContains(response, "--wms-print-color-soft: #526273;")
         self.assertContains(response, "--wms-print-table-header-bg: #dbe8f5;")
@@ -803,9 +797,7 @@ class ScanViewTests(TestCase):
             destination_country=self.destination.country,
             created_by=self.user,
         )
-        Shipment.objects.filter(pk=stale.pk).update(
-            created_at=timezone.now() - timedelta(days=45)
-        )
+        Shipment.objects.filter(pk=stale.pk).update(created_at=timezone.now() - timedelta(days=45))
 
         response = self.client.get(reverse("scan:scan_shipments_ready"))
         self.assertEqual(response.status_code, 200)
@@ -823,9 +815,7 @@ class ScanViewTests(TestCase):
             destination_country=self.destination.country,
             created_by=self.user,
         )
-        Shipment.objects.filter(pk=stale.pk).update(
-            created_at=timezone.now() - timedelta(days=40)
-        )
+        Shipment.objects.filter(pk=stale.pk).update(created_at=timezone.now() - timedelta(days=40))
         fresh = Shipment.objects.create(
             reference="EXP-TEMP-03",
             status=ShipmentStatus.DRAFT,
@@ -970,9 +960,7 @@ class ScanViewTests(TestCase):
         )
         product_options = response.context["products_json"]
         self.assertEqual(len(product_options), 2)
-        available_by_sku = {
-            item["sku"]: item["available_stock"] for item in product_options
-        }
+        available_by_sku = {item["sku"]: item["available_stock"] for item in product_options}
         self.assertEqual(available_by_sku[self.product.sku], 3)
         self.assertEqual(available_by_sku[product_b.sku], 2)
 
@@ -1098,9 +1086,7 @@ class ScanViewTests(TestCase):
             },
         )
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(
-            ShipmentTrackingEvent.objects.filter(shipment=shipment).count(), 1
-        )
+        self.assertEqual(ShipmentTrackingEvent.objects.filter(shipment=shipment).count(), 1)
 
     def test_scan_shipment_track_shows_back_to_shipments_button_for_staff(self):
         shipment, _carton = self._create_shipment_with_carton()
@@ -1233,9 +1219,7 @@ class ScanViewTests(TestCase):
             },
         )
         self.assertEqual(response.status_code, 405)
-        self.assertEqual(
-            ShipmentTrackingEvent.objects.filter(shipment=shipment).count(), 0
-        )
+        self.assertEqual(ShipmentTrackingEvent.objects.filter(shipment=shipment).count(), 0)
 
     def test_scan_shipment_track_legacy_blocks_non_staff(self):
         shipment, _carton = self._create_shipment_with_carton()
@@ -1269,9 +1253,7 @@ class ScanViewTests(TestCase):
             },
         )
         self.assertEqual(response.status_code, 405)
-        self.assertEqual(
-            ShipmentTrackingEvent.objects.filter(shipment=shipment).count(), 0
-        )
+        self.assertEqual(ShipmentTrackingEvent.objects.filter(shipment=shipment).count(), 0)
 
 
 class PortalPermissionTests(TestCase):

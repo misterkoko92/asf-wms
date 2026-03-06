@@ -251,9 +251,7 @@ class ScanDashboardViewTests(TestCase):
             destination_address="A",
             created_by=self.staff_user,
         )
-        Order.objects.filter(pk=approved.pk).update(
-            created_at=timezone.now() - timedelta(hours=90)
-        )
+        Order.objects.filter(pk=approved.pk).update(created_at=timezone.now() - timedelta(hours=90))
 
     def _create_carton_data(self):
         Carton.objects.create(code="CT-PICK", status=CartonStatus.PICKING)
@@ -345,17 +343,14 @@ class ScanDashboardViewTests(TestCase):
         self.assertEqual(technical_cards["Queue email bloquée (timeout)"], 1)
 
         workflow_cards = {
-            card["label"]: card["value"]
-            for card in response.context["workflow_blockage_cards"]
+            card["label"]: card["value"] for card in response.context["workflow_blockage_cards"]
         }
         self.assertEqual(workflow_cards["Expéditions Création/En cours >72h"], 1)
         self.assertEqual(workflow_cards["Cmd validées sans expédition >72h"], 1)
         self.assertEqual(workflow_cards["Dossiers livrés non clos"], 1)
         self.assertEqual(workflow_cards["Dossiers en litige ouverts"], 1)
 
-        sla_cards = {
-            card["label"]: card["value"] for card in response.context["sla_cards"]
-        }
+        sla_cards = {card["label"]: card["value"] for card in response.context["sla_cards"]}
         self.assertEqual(sla_cards["Planifié -> OK mise à bord >72h"], "0 / 1")
         self.assertEqual(sla_cards["OK mise à bord -> Reçu escale >72h"], "0 / 1")
         self.assertEqual(sla_cards["Reçu escale -> Livré >72h"], "0 / 1")
@@ -429,7 +424,6 @@ class ScanDashboardViewTests(TestCase):
         self.assertIn("Planifiées sans mise à bord >48h", tracking_cards)
 
         workflow_cards = {
-            card["label"]: card["value"]
-            for card in response.context["workflow_blockage_cards"]
+            card["label"]: card["value"] for card in response.context["workflow_blockage_cards"]
         }
         self.assertIn("Expéditions Création/En cours >96h", workflow_cards)

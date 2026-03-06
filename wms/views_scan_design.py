@@ -124,9 +124,7 @@ def scan_admin_design(request):
                 setattr(runtime_settings, field_name, defaults[field_name])
             runtime_settings.scan_bootstrap_enabled = True
             runtime_settings.design_selected_preset = DEFAULT_STYLE_PRESET_KEY
-            runtime_settings.updated_by = (
-                request.user if request.user.is_authenticated else None
-            )
+            runtime_settings.updated_by = request.user if request.user.is_authenticated else None
             runtime_settings.save(
                 update_fields=[
                     "scan_bootstrap_enabled",

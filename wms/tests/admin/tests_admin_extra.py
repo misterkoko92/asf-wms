@@ -27,8 +27,8 @@ from wms.admin import (
     ShipmentAdmin,
     StockMovementAdmin,
 )
-from wms.print_pack_graph import GraphPdfConversionError
 from wms.portal_permissions import ASSOCIATION_PORTAL_GROUP_NAME
+from wms.print_pack_graph import GraphPdfConversionError
 from wms.services import StockError
 
 
@@ -116,8 +116,12 @@ class ProductAdminTests(_AdminTestBase):
             is_active=False,
         )
         with mock.patch.object(admin_obj, "message_user") as message_user_mock:
-            admin_obj.archive_products(request, models.Product.objects.filter(pk__in=[p1.pk, p2.pk]))
-            admin_obj.unarchive_products(request, models.Product.objects.filter(pk__in=[p1.pk, p2.pk]))
+            admin_obj.archive_products(
+                request, models.Product.objects.filter(pk__in=[p1.pk, p2.pk])
+            )
+            admin_obj.unarchive_products(
+                request, models.Product.objects.filter(pk__in=[p1.pk, p2.pk])
+            )
         self.assertEqual(message_user_mock.call_count, 2)
         p1.refresh_from_db()
         p2.refresh_from_db()
@@ -222,7 +226,9 @@ class PublicAccountRequestAdminTests(_AdminTestBase):
             email=self.account_request.email,
             password="pass1234",
         )
-        ok, reason = self.admin_obj._approve_request(self._request(superuser=True), self.account_request)
+        ok, reason = self.admin_obj._approve_request(
+            self._request(superuser=True), self.account_request
+        )
         self.assertFalse(ok)
         self.assertEqual(reason, "email reserve")
 
@@ -245,12 +251,17 @@ class PublicAccountRequestAdminTests(_AdminTestBase):
             status=models.PublicAccountRequestStatus.PENDING,
         )
 
-        with mock.patch.object(self.admin_obj, "_approve_request", return_value=(True, "")) as approve_mock, mock.patch.object(
-            self.admin_obj, "message_user"
-        ) as message_user_mock:
+        with (
+            mock.patch.object(
+                self.admin_obj, "_approve_request", return_value=(True, "")
+            ) as approve_mock,
+            mock.patch.object(self.admin_obj, "message_user") as message_user_mock,
+        ):
             self.admin_obj.approve_requests(
                 self._request(superuser=True),
-                models.PublicAccountRequest.objects.filter(pk__in=[approved_request.pk, pending_request.pk]),
+                models.PublicAccountRequest.objects.filter(
+                    pk__in=[approved_request.pk, pending_request.pk]
+                ),
             )
         approve_mock.assert_called_once()
         self.assertEqual(message_user_mock.call_count, 2)
@@ -271,9 +282,12 @@ class PublicAccountRequestAdminTests(_AdminTestBase):
             status=models.PublicAccountRequestStatus.PENDING,
         )
         save_target.status = models.PublicAccountRequestStatus.APPROVED
-        with mock.patch.object(self.admin_obj, "_approve_request", return_value=(True, "")) as approve_mock, mock.patch.object(
-            self.admin_obj, "message_user"
-        ) as message_user_mock:
+        with (
+            mock.patch.object(
+                self.admin_obj, "_approve_request", return_value=(True, "")
+            ) as approve_mock,
+            mock.patch.object(self.admin_obj, "message_user") as message_user_mock,
+        ):
             self.admin_obj.save_model(
                 self._request(superuser=True),
                 save_target,
@@ -281,11 +295,19 @@ class PublicAccountRequestAdminTests(_AdminTestBase):
                 change=True,
             )
         approve_mock.assert_called_once()
-        self.assertTrue(any("Compte créé automatiquement" in str(args) for args, _ in message_user_mock.call_args_list))
+        self.assertTrue(
+            any(
+                "Compte créé automatiquement" in str(args)
+                for args, _ in message_user_mock.call_args_list
+            )
+        )
 
-        with mock.patch.object(self.admin_obj, "_approve_request", return_value=(False, "email reserve")) as approve_mock, mock.patch.object(
-            self.admin_obj, "message_user"
-        ) as message_user_mock:
+        with (
+            mock.patch.object(
+                self.admin_obj, "_approve_request", return_value=(False, "email reserve")
+            ) as approve_mock,
+            mock.patch.object(self.admin_obj, "message_user") as message_user_mock,
+        ):
             save_target.status = models.PublicAccountRequestStatus.APPROVED
             self.admin_obj.save_model(
                 self._request(superuser=True),
@@ -294,7 +316,9 @@ class PublicAccountRequestAdminTests(_AdminTestBase):
                 change=True,
             )
         approve_mock.assert_called_once()
-        self.assertTrue(any("Validation ignorée" in str(args) for args, _ in message_user_mock.call_args_list))
+        self.assertTrue(
+            any("Validation ignorée" in str(args) for args, _ in message_user_mock.call_args_list)
+        )
 
         not_approved = models.PublicAccountRequest(
             association_name="Tmp",
@@ -302,7 +326,9 @@ class PublicAccountRequestAdminTests(_AdminTestBase):
             address_line1="X",
             status=models.PublicAccountRequestStatus.PENDING,
         )
-        self.assertIn("Disponible après validation", self.admin_obj.account_access_info(not_approved))
+        self.assertIn(
+            "Disponible après validation", self.admin_obj.account_access_info(not_approved)
+        )
 
         approved_no_user = models.PublicAccountRequest(
             association_name="Tmp2",
@@ -310,7 +336,9 @@ class PublicAccountRequestAdminTests(_AdminTestBase):
             address_line1="Y",
             status=models.PublicAccountRequestStatus.APPROVED,
         )
-        self.assertEqual(self.admin_obj.account_access_info(approved_no_user), "Utilisateur introuvable.")
+        self.assertEqual(
+            self.admin_obj.account_access_info(approved_no_user), "Utilisateur introuvable."
+        )
 
         portal_user = get_user_model().objects.create_user(
             username="portal-user",
@@ -358,7 +386,9 @@ class PublicAccountRequestAdminTests(_AdminTestBase):
         models.AssociationProfile.objects.create(user=user, contact=old_contact)
 
         with mock.patch("wms.admin.enqueue_email_safe") as enqueue_mock:
-            ok, reason = self.admin_obj._approve_request(self._request(superuser=True), account_request)
+            ok, reason = self.admin_obj._approve_request(
+                self._request(superuser=True), account_request
+            )
 
         self.assertTrue(ok)
         self.assertEqual(reason, "")
@@ -368,7 +398,9 @@ class PublicAccountRequestAdminTests(_AdminTestBase):
         profile = models.AssociationProfile.objects.get(user=user)
         self.assertEqual(profile.contact_id, target_contact.id)
         self.assertTrue(profile.must_change_password)
-        self.assertTrue(target_contact.tags.filter(name=ContactTag.objects.get(name="expediteur").name).exists())
+        self.assertTrue(
+            target_contact.tags.filter(name=ContactTag.objects.get(name="expediteur").name).exists()
+        )
         enqueue_mock.assert_called_once()
 
     def test_approve_requests_skip_counter_and_save_model_early_returns(self):
@@ -378,9 +410,12 @@ class PublicAccountRequestAdminTests(_AdminTestBase):
             address_line1="3 Rue C",
             status=models.PublicAccountRequestStatus.PENDING,
         )
-        with mock.patch.object(self.admin_obj, "_approve_request", return_value=(False, "email reserve")) as approve_mock, mock.patch.object(
-            self.admin_obj, "message_user"
-        ) as message_user_mock:
+        with (
+            mock.patch.object(
+                self.admin_obj, "_approve_request", return_value=(False, "email reserve")
+            ) as approve_mock,
+            mock.patch.object(self.admin_obj, "message_user") as message_user_mock,
+        ):
             self.admin_obj.approve_requests(
                 self._request(superuser=True),
                 models.PublicAccountRequest.objects.filter(pk=pending.pk),
@@ -580,8 +615,12 @@ class DocumentAndReceiptAdminTests(_AdminTestBase):
         request = self._request(superuser=True)
 
         with mock.patch.object(account_admin, "message_user") as message_user_mock:
-            account_admin.mark_approved(request, models.AccountDocument.objects.filter(pk=document.pk))
-            account_admin.mark_rejected(request, models.AccountDocument.objects.filter(pk=document.pk))
+            account_admin.mark_approved(
+                request, models.AccountDocument.objects.filter(pk=document.pk)
+            )
+            account_admin.mark_rejected(
+                request, models.AccountDocument.objects.filter(pk=document.pk)
+            )
         self.assertEqual(message_user_mock.call_count, 2)
         document.refresh_from_db()
         self.assertEqual(document.status, models.DocumentReviewStatus.REJECTED)
@@ -603,22 +642,34 @@ class DocumentAndReceiptAdminTests(_AdminTestBase):
             location=self.location,
         )
         receipt_admin = ReceiptAdmin(models.Receipt, self.site)
-        with mock.patch("wms.admin.receive_receipt_line", side_effect=[None, StockError("boom")]), mock.patch.object(
-            receipt_admin, "message_user"
-        ) as message_user_mock:
+        with (
+            mock.patch("wms.admin.receive_receipt_line", side_effect=[None, StockError("boom")]),
+            mock.patch.object(receipt_admin, "message_user") as message_user_mock,
+        ):
             receipt_admin.receive_lines(request, models.Receipt.objects.filter(pk=receipt.pk))
-        self.assertTrue(any("ligne(s) réceptionnée(s)" in str(args) for args, _ in message_user_mock.call_args_list))
+        self.assertTrue(
+            any(
+                "ligne(s) réceptionnée(s)" in str(args)
+                for args, _ in message_user_mock.call_args_list
+            )
+        )
         self.assertTrue(any("boom" in str(args) for args, _ in message_user_mock.call_args_list))
 
         receipt_line_admin = ReceiptLineAdmin(models.ReceiptLine, self.site)
-        with mock.patch("wms.admin.receive_receipt_line", side_effect=[None, StockError("boom2")]), mock.patch.object(
-            receipt_line_admin, "message_user"
-        ) as message_user_mock:
+        with (
+            mock.patch("wms.admin.receive_receipt_line", side_effect=[None, StockError("boom2")]),
+            mock.patch.object(receipt_line_admin, "message_user") as message_user_mock,
+        ):
             receipt_line_admin.receive_selected_lines(
                 request,
                 models.ReceiptLine.objects.filter(pk__in=[line_ok.pk, line_err.pk]),
             )
-        self.assertTrue(any("ligne(s) réceptionnée(s)" in str(args) for args, _ in message_user_mock.call_args_list))
+        self.assertTrue(
+            any(
+                "ligne(s) réceptionnée(s)" in str(args)
+                for args, _ in message_user_mock.call_args_list
+            )
+        )
         self.assertTrue(any("boom2" in str(args) for args, _ in message_user_mock.call_args_list))
 
         received_lot = models.ProductLot.objects.create(
@@ -639,8 +690,9 @@ class DocumentAndReceiptAdminTests(_AdminTestBase):
             received_lot=received_lot,
         )
         with mock.patch("wms.admin.receive_receipt_line") as receive_mock:
-            with mock.patch.object(receipt_admin, "message_user"), mock.patch.object(
-                receipt_line_admin, "message_user"
+            with (
+                mock.patch.object(receipt_admin, "message_user"),
+                mock.patch.object(receipt_line_admin, "message_user"),
             ):
                 receipt_admin.receive_lines(
                     request,
@@ -668,7 +720,10 @@ class ProductLotAndOtherAdminTests(_AdminTestBase):
             location=self.location,
         )
 
-        self.assertEqual(lot_admin.get_readonly_fields(request_user, lot), ("quantity_on_hand", "quantity_reserved"))
+        self.assertEqual(
+            lot_admin.get_readonly_fields(request_user, lot),
+            ("quantity_on_hand", "quantity_reserved"),
+        )
         self.assertEqual(lot_admin.get_readonly_fields(request_user, None), ())
         self.assertEqual(lot_admin.quantity_available(lot), 7)
 
@@ -676,7 +731,9 @@ class ProductLotAndOtherAdminTests(_AdminTestBase):
             lot_admin.release_quarantine(request_user, models.ProductLot.objects.filter(pk=lot.pk))
         lot.refresh_from_db()
         self.assertEqual(lot.status, models.ProductLotStatus.QUARANTINED)
-        self.assertTrue(any("Seuls les admins" in str(args) for args, _ in message_user_mock.call_args_list))
+        self.assertTrue(
+            any("Seuls les admins" in str(args) for args, _ in message_user_mock.call_args_list)
+        )
 
         with mock.patch.object(lot_admin, "message_user") as message_user_mock:
             lot_admin.release_quarantine(request_admin, models.ProductLot.objects.filter(pk=lot.pk))
@@ -695,7 +752,9 @@ class ProductLotAndOtherAdminTests(_AdminTestBase):
 
         destination_admin = DestinationAdmin(models.Destination, self.site)
         db_field = models.Destination._meta.get_field("correspondent_contact")
-        with mock.patch("wms.admin.contacts_with_tags", return_value=Contact.objects.filter(pk=self.contact.pk)) as contacts_mock:
+        with mock.patch(
+            "wms.admin.contacts_with_tags", return_value=Contact.objects.filter(pk=self.contact.pk)
+        ) as contacts_mock:
             field = destination_admin.formfield_for_foreignkey(db_field, request_user)
         contacts_mock.assert_called_once()
         self.assertEqual(list(field.queryset), [self.contact])
@@ -712,7 +771,9 @@ class ShipmentAndStockMovementAdminTests(_AdminTestBase):
         self.assertEqual(shipment_admin.qr_code_preview(SimpleNamespace(qr_code_image=None)), "-")
         self.assertIn(
             "/media/qr.png",
-            shipment_admin.qr_code_preview(SimpleNamespace(qr_code_image=SimpleNamespace(url="/media/qr.png"))),
+            shipment_admin.qr_code_preview(
+                SimpleNamespace(qr_code_image=SimpleNamespace(url="/media/qr.png"))
+            ),
         )
 
         with mock.patch.object(shipment_admin, "get_object", return_value=None):
@@ -724,13 +785,17 @@ class ShipmentAndStockMovementAdminTests(_AdminTestBase):
                 shipment_admin.print_document(request, shipment.id, "unknown")
 
         artifact = mock.Mock(name="artifact")
-        with mock.patch.object(shipment_admin, "get_object", return_value=shipment), mock.patch(
-            "wms.admin.generate_pack",
-            return_value=artifact,
-        ) as generate_mock, mock.patch(
-            "wms.admin._artifact_pdf_response",
-            return_value="pdf-response",
-        ) as pdf_response_mock:
+        with (
+            mock.patch.object(shipment_admin, "get_object", return_value=shipment),
+            mock.patch(
+                "wms.admin.generate_pack",
+                return_value=artifact,
+            ) as generate_mock,
+            mock.patch(
+                "wms.admin._artifact_pdf_response",
+                return_value="pdf-response",
+            ) as pdf_response_mock,
+        ):
             response = shipment_admin.print_document(request, shipment.id, "shipment_note")
         self.assertEqual(response, "pdf-response")
         generate_mock.assert_called_once_with(
@@ -741,22 +806,31 @@ class ShipmentAndStockMovementAdminTests(_AdminTestBase):
         )
         pdf_response_mock.assert_called_once_with(artifact)
 
-        with mock.patch.object(shipment_admin, "get_object", return_value=shipment), mock.patch(
-            "wms.admin.generate_pack",
-            side_effect=GraphPdfConversionError("Graph down"),
-        ), mock.patch(
-            "wms.admin.render_shipment_document",
-            return_value="legacy-response",
-        ) as legacy_mock:
+        with (
+            mock.patch.object(shipment_admin, "get_object", return_value=shipment),
+            mock.patch(
+                "wms.admin.generate_pack",
+                side_effect=GraphPdfConversionError("Graph down"),
+            ),
+            mock.patch(
+                "wms.admin.render_shipment_document",
+                return_value="legacy-response",
+            ) as legacy_mock,
+        ):
             response = shipment_admin.print_document(request, shipment.id, "shipment_note")
         self.assertEqual(response, "legacy-response")
         legacy_mock.assert_called_once_with(request, shipment, "shipment_note")
 
-        with mock.patch.object(shipment_admin, "get_object", return_value=shipment), mock.patch(
-            "wms.admin.render_shipment_document",
-            return_value="legacy-response",
-        ) as legacy_mock:
-            response = shipment_admin.print_document(request, shipment.id, "humanitarian_certificate")
+        with (
+            mock.patch.object(shipment_admin, "get_object", return_value=shipment),
+            mock.patch(
+                "wms.admin.render_shipment_document",
+                return_value="legacy-response",
+            ) as legacy_mock,
+        ):
+            response = shipment_admin.print_document(
+                request, shipment.id, "humanitarian_certificate"
+            )
         self.assertEqual(response, "legacy-response")
         legacy_mock.assert_called_once_with(request, shipment, "humanitarian_certificate")
 
@@ -769,13 +843,17 @@ class ShipmentAndStockMovementAdminTests(_AdminTestBase):
                 shipment_admin.print_carton_packing_list(request, shipment.id, carton.id)
 
         artifact = mock.Mock(name="carton_artifact")
-        with mock.patch.object(shipment_admin, "get_object", return_value=shipment), mock.patch(
-            "wms.admin.generate_pack",
-            return_value=artifact,
-        ) as generate_mock, mock.patch(
-            "wms.admin._artifact_pdf_response",
-            return_value="carton-pdf",
-        ) as pdf_response_mock:
+        with (
+            mock.patch.object(shipment_admin, "get_object", return_value=shipment),
+            mock.patch(
+                "wms.admin.generate_pack",
+                return_value=artifact,
+            ) as generate_mock,
+            mock.patch(
+                "wms.admin._artifact_pdf_response",
+                return_value="carton-pdf",
+            ) as pdf_response_mock,
+        ):
             response = shipment_admin.print_carton_packing_list(request, shipment.id, carton.id)
         self.assertEqual(response, "carton-pdf")
         generate_mock.assert_called_once_with(
@@ -787,13 +865,17 @@ class ShipmentAndStockMovementAdminTests(_AdminTestBase):
         )
         pdf_response_mock.assert_called_once_with(artifact)
 
-        with mock.patch.object(shipment_admin, "get_object", return_value=shipment), mock.patch(
-            "wms.admin.generate_pack",
-            side_effect=GraphPdfConversionError("Graph down"),
-        ), mock.patch(
-            "wms.admin.render_carton_document",
-            return_value="legacy-carton",
-        ) as legacy_carton_mock:
+        with (
+            mock.patch.object(shipment_admin, "get_object", return_value=shipment),
+            mock.patch(
+                "wms.admin.generate_pack",
+                side_effect=GraphPdfConversionError("Graph down"),
+            ),
+            mock.patch(
+                "wms.admin.render_carton_document",
+                return_value="legacy-carton",
+            ) as legacy_carton_mock,
+        ):
             response = shipment_admin.print_carton_packing_list(request, shipment.id, carton.id)
         self.assertEqual(response, "legacy-carton")
         legacy_carton_mock.assert_called_once_with(request, shipment, carton)
@@ -816,16 +898,21 @@ class ShipmentAndStockMovementAdminTests(_AdminTestBase):
         request = self._request(superuser=True)
         shipment = self._shipment(reference="260210")
 
-        with mock.patch.object(shipment_admin, "get_object", return_value=shipment), mock.patch(
-            "wms.admin.generate_pack",
-            side_effect=GraphPdfConversionError("Graph down"),
-        ), mock.patch(
-            "wms.admin._generate_pack_xlsx_response",
-            return_value="xlsx-fallback",
-        ) as xlsx_mock, mock.patch(
-            "wms.admin.render_shipment_document",
-            return_value="legacy-response",
-        ) as legacy_mock:
+        with (
+            mock.patch.object(shipment_admin, "get_object", return_value=shipment),
+            mock.patch(
+                "wms.admin.generate_pack",
+                side_effect=GraphPdfConversionError("Graph down"),
+            ),
+            mock.patch(
+                "wms.admin._generate_pack_xlsx_response",
+                return_value="xlsx-fallback",
+            ) as xlsx_mock,
+            mock.patch(
+                "wms.admin.render_shipment_document",
+                return_value="legacy-response",
+            ) as legacy_mock,
+        ):
             response = shipment_admin.print_document(request, shipment.id, "shipment_note")
 
         self.assertEqual(response, "xlsx-fallback")
@@ -846,19 +933,22 @@ class ShipmentAndStockMovementAdminTests(_AdminTestBase):
         shipment = self._shipment(reference="260211")
         carton = models.Carton.objects.create(code="CART-ADM-XLSX", shipment=shipment)
 
-        with mock.patch.object(shipment_admin, "get_object", return_value=shipment), mock.patch(
-            "wms.admin.generate_pack",
-            side_effect=GraphPdfConversionError("Graph down"),
-        ), mock.patch(
-            "wms.admin._generate_pack_xlsx_response",
-            return_value="xlsx-fallback",
-        ) as xlsx_mock, mock.patch(
-            "wms.admin.render_carton_document",
-            return_value="legacy-carton",
-        ) as legacy_mock:
-            response = shipment_admin.print_carton_packing_list(
-                request, shipment.id, carton.id
-            )
+        with (
+            mock.patch.object(shipment_admin, "get_object", return_value=shipment),
+            mock.patch(
+                "wms.admin.generate_pack",
+                side_effect=GraphPdfConversionError("Graph down"),
+            ),
+            mock.patch(
+                "wms.admin._generate_pack_xlsx_response",
+                return_value="xlsx-fallback",
+            ) as xlsx_mock,
+            mock.patch(
+                "wms.admin.render_carton_document",
+                return_value="legacy-carton",
+            ) as legacy_mock,
+        ):
+            response = shipment_admin.print_carton_packing_list(request, shipment.id, carton.id)
 
         self.assertEqual(response, "xlsx-fallback")
         xlsx_mock.assert_called_once_with(
@@ -893,35 +983,59 @@ class OrderAndCartonAdminTests(_AdminTestBase):
         self.assertEqual(admin_obj.shipment_reference(order_with_shipment), shipment.reference)
         self.assertEqual(admin_obj.shipment_reference(order_without_shipment), "-")
 
-        with mock.patch("wms.admin.create_shipment_for_order") as create_shipment_mock, mock.patch.object(
-            admin_obj, "message_user"
-        ) as message_user_mock:
+        with (
+            mock.patch("wms.admin.create_shipment_for_order") as create_shipment_mock,
+            mock.patch.object(admin_obj, "message_user") as message_user_mock,
+        ):
             admin_obj.create_shipment(
                 request,
-                models.Order.objects.filter(pk__in=[order_with_shipment.pk, order_without_shipment.pk]),
+                models.Order.objects.filter(
+                    pk__in=[order_with_shipment.pk, order_without_shipment.pk]
+                ),
             )
         create_shipment_mock.assert_called_once_with(order=order_without_shipment)
-        self.assertTrue(any("expédition(s) créée(s)" in str(args) for args, _ in message_user_mock.call_args_list))
+        self.assertTrue(
+            any(
+                "expédition(s) créée(s)" in str(args)
+                for args, _ in message_user_mock.call_args_list
+            )
+        )
 
-        with mock.patch("wms.admin.reserve_stock_for_order", side_effect=[None, StockError("reserve-error")]), mock.patch.object(
-            admin_obj, "message_user"
-        ) as message_user_mock:
+        with (
+            mock.patch(
+                "wms.admin.reserve_stock_for_order", side_effect=[None, StockError("reserve-error")]
+            ),
+            mock.patch.object(admin_obj, "message_user") as message_user_mock,
+        ):
             admin_obj.reserve_order(
                 request,
-                models.Order.objects.filter(pk__in=[order_with_shipment.pk, order_without_shipment.pk]),
+                models.Order.objects.filter(
+                    pk__in=[order_with_shipment.pk, order_without_shipment.pk]
+                ),
             )
-        self.assertTrue(any("réservée(s)" in str(args) for args, _ in message_user_mock.call_args_list))
-        self.assertTrue(any("reserve-error" in str(args) for args, _ in message_user_mock.call_args_list))
+        self.assertTrue(
+            any("réservée(s)" in str(args) for args, _ in message_user_mock.call_args_list)
+        )
+        self.assertTrue(
+            any("reserve-error" in str(args) for args, _ in message_user_mock.call_args_list)
+        )
 
-        with mock.patch("wms.admin.prepare_order", side_effect=[None, StockError("prepare-error")]), mock.patch.object(
-            admin_obj, "message_user"
-        ) as message_user_mock:
+        with (
+            mock.patch("wms.admin.prepare_order", side_effect=[None, StockError("prepare-error")]),
+            mock.patch.object(admin_obj, "message_user") as message_user_mock,
+        ):
             admin_obj.prepare_order_action(
                 request,
-                models.Order.objects.filter(pk__in=[order_with_shipment.pk, order_without_shipment.pk]),
+                models.Order.objects.filter(
+                    pk__in=[order_with_shipment.pk, order_without_shipment.pk]
+                ),
             )
-        self.assertTrue(any("préparée(s)" in str(args) for args, _ in message_user_mock.call_args_list))
-        self.assertTrue(any("prepare-error" in str(args) for args, _ in message_user_mock.call_args_list))
+        self.assertTrue(
+            any("préparée(s)" in str(args) for args, _ in message_user_mock.call_args_list)
+        )
+        self.assertTrue(
+            any("prepare-error" in str(args) for args, _ in message_user_mock.call_args_list)
+        )
 
     def test_carton_admin_save_model_and_unpack_action(self):
         admin_obj = CartonAdmin(models.Carton, self.site)
@@ -975,14 +1089,17 @@ class OrderAndCartonAdminTests(_AdminTestBase):
         self.assertEqual(new_movement.quantity, 2)
         self.assertEqual(new_movement.created_by_id, self.superuser.id)
 
-        with mock.patch("wms.admin.unpack_carton", side_effect=[None, StockError("skip")]), mock.patch.object(
-            admin_obj, "message_user"
-        ) as message_user_mock:
+        with (
+            mock.patch("wms.admin.unpack_carton", side_effect=[None, StockError("skip")]),
+            mock.patch.object(admin_obj, "message_user") as message_user_mock,
+        ):
             admin_obj.unpack_cartons(
                 request,
                 models.Carton.objects.filter(pk__in=[carton.pk, carton_new.pk]),
             )
-        self.assertTrue(any("déconditionné(s)" in str(args) for args, _ in message_user_mock.call_args_list))
+        self.assertTrue(
+            any("déconditionné(s)" in str(args) for args, _ in message_user_mock.call_args_list)
+        )
         self.assertTrue(any("ignorés" in str(args) for args, _ in message_user_mock.call_args_list))
 
 
@@ -1022,9 +1139,12 @@ class StockMovementAdminViewsTests(_AdminTestBase):
                 "storage_conditions": "",
             }
         )
-        with mock.patch("wms.admin.ReceiveStockForm", return_value=form_missing_location), mock.patch.object(
-            admin_obj, "_render_form", return_value="receive-rendered"
-        ) as render_form_mock:
+        with (
+            mock.patch("wms.admin.ReceiveStockForm", return_value=form_missing_location),
+            mock.patch.object(
+                admin_obj, "_render_form", return_value="receive-rendered"
+            ) as render_form_mock,
+        ):
             response = admin_obj.receive_view(post_request)
         self.assertEqual(response, "receive-rendered")
         form_missing_location.add_error.assert_called_once()
@@ -1049,27 +1169,32 @@ class StockMovementAdminViewsTests(_AdminTestBase):
                 "storage_conditions": "dry",
             }
         )
-        with mock.patch("wms.admin.ReceiveStockForm", return_value=form_receive_success), mock.patch(
-            "wms.admin.receive_stock",
-            return_value=lot,
-        ) as receive_stock_mock, mock.patch(
-            "wms.admin.redirect",
-            return_value="receive-redirect",
-        ) as redirect_mock, mock.patch.object(
-            admin_obj, "message_user"
-        ) as message_user_mock:
+        with (
+            mock.patch("wms.admin.ReceiveStockForm", return_value=form_receive_success),
+            mock.patch(
+                "wms.admin.receive_stock",
+                return_value=lot,
+            ) as receive_stock_mock,
+            mock.patch(
+                "wms.admin.redirect",
+                return_value="receive-redirect",
+            ) as redirect_mock,
+            mock.patch.object(admin_obj, "message_user") as message_user_mock,
+        ):
             response = admin_obj.receive_view(post_request)
         self.assertEqual(response, "receive-redirect")
         receive_stock_mock.assert_called_once()
         redirect_mock.assert_called_once()
         message_user_mock.assert_called_once()
 
-        with mock.patch("wms.admin.ReceiveStockForm", return_value=self._FakeForm(valid=False)), mock.patch.object(
-            admin_obj, "_render_form", return_value="receive-invalid"
+        with (
+            mock.patch("wms.admin.ReceiveStockForm", return_value=self._FakeForm(valid=False)),
+            mock.patch.object(admin_obj, "_render_form", return_value="receive-invalid"),
         ):
             self.assertEqual(admin_obj.receive_view(post_request), "receive-invalid")
-        with mock.patch("wms.admin.ReceiveStockForm", return_value=self._FakeForm(valid=False)), mock.patch.object(
-            admin_obj, "_render_form", return_value="receive-get"
+        with (
+            mock.patch("wms.admin.ReceiveStockForm", return_value=self._FakeForm(valid=False)),
+            mock.patch.object(admin_obj, "_render_form", return_value="receive-get"),
         ):
             self.assertEqual(admin_obj.receive_view(get_request), "receive-get")
 
@@ -1082,14 +1207,17 @@ class StockMovementAdminViewsTests(_AdminTestBase):
                 "reason_notes": "note",
             }
         )
-        with mock.patch("wms.admin.AdjustStockForm", return_value=form_adjust_success), mock.patch(
-            "wms.admin.adjust_stock",
-            return_value=None,
-        ) as adjust_stock_mock, mock.patch(
-            "wms.admin.redirect",
-            return_value="adjust-redirect",
-        ), mock.patch.object(
-            admin_obj, "message_user"
+        with (
+            mock.patch("wms.admin.AdjustStockForm", return_value=form_adjust_success),
+            mock.patch(
+                "wms.admin.adjust_stock",
+                return_value=None,
+            ) as adjust_stock_mock,
+            mock.patch(
+                "wms.admin.redirect",
+                return_value="adjust-redirect",
+            ),
+            mock.patch.object(admin_obj, "message_user"),
         ):
             self.assertEqual(admin_obj.adjust_view(post_request), "adjust-redirect")
         adjust_stock_mock.assert_called_once()
@@ -1102,15 +1230,20 @@ class StockMovementAdminViewsTests(_AdminTestBase):
                 "reason_notes": "",
             }
         )
-        with mock.patch("wms.admin.AdjustStockForm", return_value=form_adjust_error), mock.patch(
-            "wms.admin.adjust_stock",
-            side_effect=StockError("insufficient"),
-        ), mock.patch.object(admin_obj, "_render_form", return_value="adjust-render"):
+        with (
+            mock.patch("wms.admin.AdjustStockForm", return_value=form_adjust_error),
+            mock.patch(
+                "wms.admin.adjust_stock",
+                side_effect=StockError("insufficient"),
+            ),
+            mock.patch.object(admin_obj, "_render_form", return_value="adjust-render"),
+        ):
             self.assertEqual(admin_obj.adjust_view(post_request), "adjust-render")
         form_adjust_error.add_error.assert_called_once()
 
-        with mock.patch("wms.admin.AdjustStockForm", return_value=self._FakeForm(valid=False)), mock.patch.object(
-            admin_obj, "_render_form", return_value="adjust-get"
+        with (
+            mock.patch("wms.admin.AdjustStockForm", return_value=self._FakeForm(valid=False)),
+            mock.patch.object(admin_obj, "_render_form", return_value="adjust-get"),
         ):
             self.assertEqual(admin_obj.adjust_view(get_request), "adjust-get")
 
@@ -1118,14 +1251,17 @@ class StockMovementAdminViewsTests(_AdminTestBase):
         form_transfer_success = self._FakeForm(
             cleaned_data={"product_lot": lot, "to_location": self.location}
         )
-        with mock.patch("wms.admin.TransferStockForm", return_value=form_transfer_success), mock.patch(
-            "wms.admin.transfer_stock",
-            return_value=None,
-        ) as transfer_stock_mock, mock.patch(
-            "wms.admin.redirect",
-            return_value="transfer-redirect",
-        ), mock.patch.object(
-            admin_obj, "message_user"
+        with (
+            mock.patch("wms.admin.TransferStockForm", return_value=form_transfer_success),
+            mock.patch(
+                "wms.admin.transfer_stock",
+                return_value=None,
+            ) as transfer_stock_mock,
+            mock.patch(
+                "wms.admin.redirect",
+                return_value="transfer-redirect",
+            ),
+            mock.patch.object(admin_obj, "message_user"),
         ):
             self.assertEqual(admin_obj.transfer_view(post_request), "transfer-redirect")
         transfer_stock_mock.assert_called_once()
@@ -1133,15 +1269,20 @@ class StockMovementAdminViewsTests(_AdminTestBase):
         form_transfer_error = self._FakeForm(
             cleaned_data={"product_lot": lot, "to_location": self.location}
         )
-        with mock.patch("wms.admin.TransferStockForm", return_value=form_transfer_error), mock.patch(
-            "wms.admin.transfer_stock",
-            side_effect=StockError("same"),
-        ), mock.patch.object(admin_obj, "_render_form", return_value="transfer-render"):
+        with (
+            mock.patch("wms.admin.TransferStockForm", return_value=form_transfer_error),
+            mock.patch(
+                "wms.admin.transfer_stock",
+                side_effect=StockError("same"),
+            ),
+            mock.patch.object(admin_obj, "_render_form", return_value="transfer-render"),
+        ):
             self.assertEqual(admin_obj.transfer_view(post_request), "transfer-render")
         form_transfer_error.add_error.assert_called_once()
 
-        with mock.patch("wms.admin.TransferStockForm", return_value=self._FakeForm(valid=False)), mock.patch.object(
-            admin_obj, "_render_form", return_value="transfer-get"
+        with (
+            mock.patch("wms.admin.TransferStockForm", return_value=self._FakeForm(valid=False)),
+            mock.patch.object(admin_obj, "_render_form", return_value="transfer-get"),
         ):
             self.assertEqual(admin_obj.transfer_view(get_request), "transfer-get")
 
@@ -1158,14 +1299,17 @@ class StockMovementAdminViewsTests(_AdminTestBase):
                 "current_location": self.location,
             }
         )
-        with mock.patch("wms.admin.PackCartonForm", return_value=form_pack_success), mock.patch(
-            "wms.admin.pack_carton",
-            return_value=carton,
-        ) as pack_carton_mock, mock.patch(
-            "wms.admin.redirect",
-            return_value="pack-redirect",
-        ), mock.patch.object(
-            admin_obj, "message_user"
+        with (
+            mock.patch("wms.admin.PackCartonForm", return_value=form_pack_success),
+            mock.patch(
+                "wms.admin.pack_carton",
+                return_value=carton,
+            ) as pack_carton_mock,
+            mock.patch(
+                "wms.admin.redirect",
+                return_value="pack-redirect",
+            ),
+            mock.patch.object(admin_obj, "message_user"),
         ):
             self.assertEqual(admin_obj.pack_view(post_request), "pack-redirect")
         pack_carton_mock.assert_called_once()
@@ -1189,14 +1333,19 @@ class StockMovementAdminViewsTests(_AdminTestBase):
                     "current_location": self.location,
                 }
             )
-            with mock.patch("wms.admin.PackCartonForm", return_value=form_pack_error), mock.patch(
-                "wms.admin.pack_carton",
-                side_effect=StockError(message),
-            ), mock.patch.object(admin_obj, "_render_form", return_value="pack-render"):
+            with (
+                mock.patch("wms.admin.PackCartonForm", return_value=form_pack_error),
+                mock.patch(
+                    "wms.admin.pack_carton",
+                    side_effect=StockError(message),
+                ),
+                mock.patch.object(admin_obj, "_render_form", return_value="pack-render"),
+            ):
                 self.assertEqual(admin_obj.pack_view(post_request), "pack-render")
             form_pack_error.add_error.assert_called_once_with(field, message)
 
-        with mock.patch("wms.admin.PackCartonForm", return_value=self._FakeForm(valid=False)), mock.patch.object(
-            admin_obj, "_render_form", return_value="pack-get"
+        with (
+            mock.patch("wms.admin.PackCartonForm", return_value=self._FakeForm(valid=False)),
+            mock.patch.object(admin_obj, "_render_form", return_value="pack-get"),
         ):
             self.assertEqual(admin_obj.pack_view(get_request), "pack-get")

@@ -41,13 +41,16 @@ class PrintLabelsViewsTests(TestCase):
         shipment = self._create_shipment()
         request = self.factory.get("/scan/public-labels/")
         request.user = self.user
-        with mock.patch(
-            "wms.views_print_labels.generate_pack",
-            return_value=mock.Mock(name="artifact"),
-        ) as generate_mock, mock.patch(
-            "wms.views_print_labels._artifact_pdf_response",
-            return_value=HttpResponse("ok"),
-        ) as response_mock:
+        with (
+            mock.patch(
+                "wms.views_print_labels.generate_pack",
+                return_value=mock.Mock(name="artifact"),
+            ) as generate_mock,
+            mock.patch(
+                "wms.views_print_labels._artifact_pdf_response",
+                return_value=HttpResponse("ok"),
+            ) as response_mock,
+        ):
             response = scan_shipment_labels_public(request, shipment.reference)
         self.assertEqual(response.status_code, 200)
         generate_mock.assert_called_once_with(
@@ -60,13 +63,16 @@ class PrintLabelsViewsTests(TestCase):
 
     def test_scan_shipment_labels_delegates_by_id(self):
         shipment = self._create_shipment()
-        with mock.patch(
-            "wms.views_print_labels.generate_pack",
-            return_value=mock.Mock(name="artifact"),
-        ) as generate_mock, mock.patch(
-            "wms.views_print_labels._artifact_pdf_response",
-            return_value=HttpResponse("ok"),
-        ) as response_mock:
+        with (
+            mock.patch(
+                "wms.views_print_labels.generate_pack",
+                return_value=mock.Mock(name="artifact"),
+            ) as generate_mock,
+            mock.patch(
+                "wms.views_print_labels._artifact_pdf_response",
+                return_value=HttpResponse("ok"),
+            ) as response_mock,
+        ):
             response = self.client.get(
                 reverse(
                     "scan:scan_shipment_labels",
@@ -84,13 +90,16 @@ class PrintLabelsViewsTests(TestCase):
 
     def test_scan_shipment_labels_falls_back_to_legacy_renderer_when_pack_is_missing(self):
         shipment = self._create_shipment()
-        with mock.patch(
-            "wms.views_print_labels.generate_pack",
-            side_effect=PrintPackEngineError("Unknown active pack: D"),
-        ), mock.patch(
-            "wms.views_print_labels.render_shipment_labels",
-            return_value=HttpResponse("legacy-labels"),
-        ) as legacy_mock:
+        with (
+            mock.patch(
+                "wms.views_print_labels.generate_pack",
+                side_effect=PrintPackEngineError("Unknown active pack: D"),
+            ),
+            mock.patch(
+                "wms.views_print_labels.render_shipment_labels",
+                return_value=HttpResponse("legacy-labels"),
+            ) as legacy_mock,
+        ):
             response = self.client.get(
                 reverse(
                     "scan:scan_shipment_labels",
@@ -103,13 +112,16 @@ class PrintLabelsViewsTests(TestCase):
 
     def test_scan_shipment_labels_falls_back_to_legacy_renderer_on_graph_failure(self):
         shipment = self._create_shipment()
-        with mock.patch(
-            "wms.views_print_labels.generate_pack",
-            side_effect=GraphPdfConversionError("Graph is unavailable"),
-        ), mock.patch(
-            "wms.views_print_labels.render_shipment_labels",
-            return_value=HttpResponse("legacy-labels"),
-        ) as legacy_mock:
+        with (
+            mock.patch(
+                "wms.views_print_labels.generate_pack",
+                side_effect=GraphPdfConversionError("Graph is unavailable"),
+            ),
+            mock.patch(
+                "wms.views_print_labels.render_shipment_labels",
+                return_value=HttpResponse("legacy-labels"),
+            ) as legacy_mock,
+        ):
             response = self.client.get(
                 reverse(
                     "scan:scan_shipment_labels",
@@ -125,16 +137,20 @@ class PrintLabelsViewsTests(TestCase):
         self,
     ):
         shipment = self._create_shipment()
-        with mock.patch(
-            "wms.views_print_labels.generate_pack",
-            side_effect=GraphPdfConversionError("Graph is unavailable"),
-        ), mock.patch(
-            "wms.views_print_labels._generate_pack_xlsx_response",
-            return_value=HttpResponse("xlsx-fallback"),
-        ) as xlsx_mock, mock.patch(
-            "wms.views_print_labels.render_shipment_labels",
-            return_value=HttpResponse("legacy-labels"),
-        ) as legacy_mock:
+        with (
+            mock.patch(
+                "wms.views_print_labels.generate_pack",
+                side_effect=GraphPdfConversionError("Graph is unavailable"),
+            ),
+            mock.patch(
+                "wms.views_print_labels._generate_pack_xlsx_response",
+                return_value=HttpResponse("xlsx-fallback"),
+            ) as xlsx_mock,
+            mock.patch(
+                "wms.views_print_labels.render_shipment_labels",
+                return_value=HttpResponse("legacy-labels"),
+            ) as legacy_mock,
+        ):
             response = self.client.get(
                 reverse(
                     "scan:scan_shipment_labels",
@@ -164,13 +180,16 @@ class PrintLabelsViewsTests(TestCase):
     def test_scan_shipment_label_routes_to_single_label_pack(self):
         shipment = self._create_shipment()
         carton = Carton.objects.create(code="C-LABEL-001", shipment=shipment)
-        with mock.patch(
-            "wms.views_print_labels.generate_pack",
-            return_value=mock.Mock(name="artifact"),
-        ) as generate_mock, mock.patch(
-            "wms.views_print_labels._artifact_pdf_response",
-            return_value=HttpResponse("ok"),
-        ) as response_mock:
+        with (
+            mock.patch(
+                "wms.views_print_labels.generate_pack",
+                return_value=mock.Mock(name="artifact"),
+            ) as generate_mock,
+            mock.patch(
+                "wms.views_print_labels._artifact_pdf_response",
+                return_value=HttpResponse("ok"),
+            ) as response_mock,
+        ):
             response = self.client.get(
                 reverse(
                     "scan:scan_shipment_label",
@@ -196,13 +215,16 @@ class PrintLabelsViewsTests(TestCase):
     ):
         shipment = self._create_shipment()
         carton = Carton.objects.create(code="C-LABEL-001", shipment=shipment)
-        with mock.patch(
-            "wms.views_print_labels.generate_pack",
-            side_effect=GraphPdfConversionError("Graph is unavailable"),
-        ), mock.patch(
-            "wms.views_print_labels._generate_pack_xlsx_response",
-            return_value=HttpResponse("xlsx-fallback"),
-        ) as xlsx_mock:
+        with (
+            mock.patch(
+                "wms.views_print_labels.generate_pack",
+                side_effect=GraphPdfConversionError("Graph is unavailable"),
+            ),
+            mock.patch(
+                "wms.views_print_labels._generate_pack_xlsx_response",
+                return_value=HttpResponse("xlsx-fallback"),
+            ) as xlsx_mock,
+        ):
             response = self.client.get(
                 reverse(
                     "scan:scan_shipment_label",
@@ -233,16 +255,20 @@ class PrintLabelsViewsTests(TestCase):
             "label_qr_url": "",
             "carton_id": 1,
         }
-        with mock.patch(
-            "wms.views_print_labels.get_template_layout",
-            return_value={"blocks": ["x"]},
-        ), mock.patch(
-            "wms.views_print_labels.render_layout_from_layout",
-            return_value=[{"type": "text", "value": "ok"}],
-        ) as render_layout_mock, mock.patch(
-            "wms.views_print_labels.render",
-            return_value=HttpResponse("dynamic-label"),
-        ) as render_mock:
+        with (
+            mock.patch(
+                "wms.views_print_labels.get_template_layout",
+                return_value={"blocks": ["x"]},
+            ),
+            mock.patch(
+                "wms.views_print_labels.render_layout_from_layout",
+                return_value=[{"type": "text", "value": "ok"}],
+            ) as render_layout_mock,
+            mock.patch(
+                "wms.views_print_labels.render",
+                return_value=HttpResponse("dynamic-label"),
+            ) as render_mock,
+        ):
             response = _render_shipment_label(request, label_context=label_context)
 
         self.assertEqual(response.status_code, 200)
@@ -251,13 +277,16 @@ class PrintLabelsViewsTests(TestCase):
         render_mock.assert_called_once()
 
     def test_generate_pack_xlsx_response_builds_fallback_from_documents(self):
-        with mock.patch(
-            "wms.views_print_labels.render_pack_xlsx_documents",
-            return_value=[{"filename": "labels.xlsx", "content": b"x"}],
-        ) as docs_mock, mock.patch(
-            "wms.views_print_labels.build_xlsx_fallback_response",
-            return_value=HttpResponse("xlsx"),
-        ) as fallback_mock:
+        with (
+            mock.patch(
+                "wms.views_print_labels.render_pack_xlsx_documents",
+                return_value=[{"filename": "labels.xlsx", "content": b"x"}],
+            ) as docs_mock,
+            mock.patch(
+                "wms.views_print_labels.build_xlsx_fallback_response",
+                return_value=HttpResponse("xlsx"),
+            ) as fallback_mock,
+        ):
             response = _generate_pack_xlsx_response(
                 pack_code="D",
                 shipment=mock.Mock(),
@@ -290,13 +319,16 @@ class PrintLabelsViewsTests(TestCase):
         shipment = self._create_shipment()
         request = self.factory.get("/scan/public-labels/")
         request.user = self.user
-        with mock.patch(
-            "wms.views_print_labels.generate_pack",
-            side_effect=GraphPdfConversionError("Graph is unavailable"),
-        ), mock.patch(
-            "wms.views_print_labels.render_shipment_labels",
-            return_value=HttpResponse("legacy-public"),
-        ) as legacy_mock:
+        with (
+            mock.patch(
+                "wms.views_print_labels.generate_pack",
+                side_effect=GraphPdfConversionError("Graph is unavailable"),
+            ),
+            mock.patch(
+                "wms.views_print_labels.render_shipment_labels",
+                return_value=HttpResponse("legacy-public"),
+            ) as legacy_mock,
+        ):
             response = scan_shipment_labels_public(request, shipment.reference)
 
         self.assertEqual(response.status_code, 200)
@@ -309,13 +341,16 @@ class PrintLabelsViewsTests(TestCase):
         shipment = self._create_shipment()
         request = self.factory.get("/scan/public-labels/")
         request.user = self.user
-        with mock.patch(
-            "wms.views_print_labels.generate_pack",
-            side_effect=PrintPackEngineError("pack missing"),
-        ), mock.patch(
-            "wms.views_print_labels.render_shipment_labels",
-            return_value=HttpResponse("legacy-public"),
-        ) as legacy_mock:
+        with (
+            mock.patch(
+                "wms.views_print_labels.generate_pack",
+                side_effect=PrintPackEngineError("pack missing"),
+            ),
+            mock.patch(
+                "wms.views_print_labels.render_shipment_labels",
+                return_value=HttpResponse("legacy-public"),
+            ) as legacy_mock,
+        ):
             response = scan_shipment_labels_public(request, shipment.reference)
 
         self.assertEqual(response.status_code, 200)
@@ -325,12 +360,15 @@ class PrintLabelsViewsTests(TestCase):
     def test_scan_shipment_label_graph_fallback_raises_404_when_carton_not_in_ordered_set(self):
         shipment = self._create_shipment()
         carton = Carton.objects.create(code="C-LABEL-404", shipment=shipment)
-        with mock.patch(
-            "wms.views_print_labels.generate_pack",
-            side_effect=GraphPdfConversionError("Graph is unavailable"),
-        ), mock.patch(
-            "wms.views_print_labels._find_carton_position",
-            return_value=None,
+        with (
+            mock.patch(
+                "wms.views_print_labels.generate_pack",
+                side_effect=GraphPdfConversionError("Graph is unavailable"),
+            ),
+            mock.patch(
+                "wms.views_print_labels._find_carton_position",
+                return_value=None,
+            ),
         ):
             response = self.client.get(
                 reverse(
@@ -344,23 +382,27 @@ class PrintLabelsViewsTests(TestCase):
     def test_scan_shipment_label_falls_back_to_legacy_renderer_on_pack_error(self):
         shipment = self._create_shipment()
         carton = Carton.objects.create(code="C-LABEL-LEGACY", shipment=shipment)
-        with mock.patch(
-            "wms.views_print_labels.generate_pack",
-            side_effect=PrintPackEngineError("pack missing"),
-        ), mock.patch(
-            "wms.views_print_labels.build_label_context",
-            return_value={
-                "label_city": "Paris",
-                "label_iata": "CDG",
-                "label_shipment_ref": "S-100",
-                "label_position": 1,
-                "label_total": 1,
-                "label_qr_url": "",
-            },
-        ), mock.patch(
-            "wms.views_print_labels._render_shipment_label",
-            return_value=HttpResponse("legacy-single"),
-        ) as render_label_mock:
+        with (
+            mock.patch(
+                "wms.views_print_labels.generate_pack",
+                side_effect=PrintPackEngineError("pack missing"),
+            ),
+            mock.patch(
+                "wms.views_print_labels.build_label_context",
+                return_value={
+                    "label_city": "Paris",
+                    "label_iata": "CDG",
+                    "label_shipment_ref": "S-100",
+                    "label_position": 1,
+                    "label_total": 1,
+                    "label_qr_url": "",
+                },
+            ),
+            mock.patch(
+                "wms.views_print_labels._render_shipment_label",
+                return_value=HttpResponse("legacy-single"),
+            ) as render_label_mock,
+        ):
             response = self.client.get(
                 reverse(
                     "scan:scan_shipment_label",

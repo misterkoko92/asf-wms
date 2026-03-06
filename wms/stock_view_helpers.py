@@ -47,21 +47,16 @@ def build_stock_context(request):
     if warehouse_id:
         stock_lots = stock_lots.filter(location__warehouse_id=warehouse_id)
     stock_total_subquery = (
-        stock_lots.values("product_id")
-        .annotate(total=Sum(available_expr))
-        .values("total")
+        stock_lots.values("product_id").annotate(total=Sum(available_expr)).values("total")
     )
 
     movements = StockMovement.objects.filter(product_id=OuterRef("pk"))
     if warehouse_id:
         movements = movements.filter(
-            Q(to_location__warehouse_id=warehouse_id)
-            | Q(from_location__warehouse_id=warehouse_id)
+            Q(to_location__warehouse_id=warehouse_id) | Q(from_location__warehouse_id=warehouse_id)
         )
     last_movement_subquery = (
-        movements.values("product_id")
-        .annotate(last=Max("created_at"))
-        .values("last")
+        movements.values("product_id").annotate(last=Max("created_at")).values("last")
     )
 
     products = products.annotate(
@@ -69,9 +64,7 @@ def build_stock_context(request):
             Subquery(stock_total_subquery, output_field=IntegerField()),
             0,
         ),
-        last_movement_at=Subquery(
-            last_movement_subquery, output_field=DateTimeField()
-        ),
+        last_movement_at=Subquery(last_movement_subquery, output_field=DateTimeField()),
     )
     if not include_zero:
         products = products.filter(stock_total__gt=0)

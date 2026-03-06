@@ -33,9 +33,7 @@ def is_role_compliant(role_assignment, *, now=None) -> bool:
         is_required=True,
         is_active=True,
     )
-    required_template_ids = set(
-        required_templates_qs.values_list("id", flat=True)
-    )
+    required_template_ids = set(required_templates_qs.values_list("id", flat=True))
     if not required_template_ids:
         return True
 

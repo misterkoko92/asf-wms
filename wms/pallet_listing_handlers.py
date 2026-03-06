@@ -29,7 +29,6 @@ from .pallet_listing import (
 )
 from .scan_helpers import resolve_default_warehouse
 
-
 LISTING_MAX_FILE_SIZE_MB = getattr(settings, "LISTING_MAX_FILE_SIZE_MB", 10)
 
 
@@ -75,12 +74,8 @@ def hydrate_listing_state_from_pending(state, pending_data):
             pdf_pages_label = f"{pdf_pages['start']} - {pdf_pages['end']}"
         else:
             pdf_pages_label = "Toutes les pages"
-    source_contact = Contact.objects.filter(
-        id=receipt_meta.get("source_contact_id")
-    ).first()
-    carrier_contact = Contact.objects.filter(
-        id=receipt_meta.get("carrier_contact_id")
-    ).first()
+    source_contact = Contact.objects.filter(id=receipt_meta.get("source_contact_id")).first()
+    carrier_contact = Contact.objects.filter(id=receipt_meta.get("carrier_contact_id")).first()
     listing_meta = {
         "received_on": receipt_meta.get("received_on"),
         "pallet_count": receipt_meta.get("pallet_count"),
@@ -129,9 +124,7 @@ def handle_pallet_listing_action(
 
     if action == "listing_upload":
         listing_file_type = (request.POST.get("listing_file_type") or "").strip()
-        listing_pdf_pages_mode = (
-            request.POST.get("listing_pdf_pages_mode") or "all"
-        ).strip()
+        listing_pdf_pages_mode = (request.POST.get("listing_pdf_pages_mode") or "all").strip()
         listing_pdf_page_start = (request.POST.get("listing_pdf_page_start") or "").strip()
         listing_pdf_page_end = (request.POST.get("listing_pdf_page_end") or "").strip()
         listing_sheet_name = (request.POST.get("listing_sheet_name") or "").strip()
@@ -154,9 +147,7 @@ def handle_pallet_listing_action(
         else:
             max_size_bytes = LISTING_MAX_FILE_SIZE_MB * 1024 * 1024
             if uploaded.size and uploaded.size > max_size_bytes:
-                listing_errors.append(
-                    f"Fichier trop volumineux (> {LISTING_MAX_FILE_SIZE_MB} MB)."
-                )
+                listing_errors.append(f"Fichier trop volumineux (> {LISTING_MAX_FILE_SIZE_MB} MB).")
             extension = Path(uploaded.name).suffix.lower()
             if extension == ".pdf":
                 listing_file_type = "pdf"
@@ -185,12 +176,14 @@ def handle_pallet_listing_action(
                         state["listing_sheet_names"] = sheet_names
                         if listing_sheet_name:
                             if listing_sheet_name not in sheet_names:
-                                listing_errors.append(
-                                    f"Feuille inconnue: {listing_sheet_name}."
-                                )
+                                listing_errors.append(f"Feuille inconnue: {listing_sheet_name}.")
                         else:
                             listing_sheet_name = sheet_names[0]
-                if extension == ".pdf" and listing_pdf_pages_mode == "custom" and not listing_errors:
+                if (
+                    extension == ".pdf"
+                    and listing_pdf_pages_mode == "custom"
+                    and not listing_errors
+                ):
                     try:
                         state["listing_pdf_total_pages"] = str(get_pdf_page_count(data))
                     except ValueError as exc:
@@ -218,7 +211,11 @@ def handle_pallet_listing_action(
                     if listing_errors:
                         pdf_page_start = None
                         pdf_page_end = None
-                if extension == ".pdf" and listing_pdf_pages_mode != "custom" and not listing_errors:
+                if (
+                    extension == ".pdf"
+                    and listing_pdf_pages_mode != "custom"
+                    and not listing_errors
+                ):
                     try:
                         state["listing_pdf_total_pages"] = str(get_pdf_page_count(data))
                     except ValueError as exc:
@@ -243,9 +240,7 @@ def handle_pallet_listing_action(
                     except ValueError as exc:
                         listing_errors.append(str(exc))
                 if not listing_errors:
-                    with tempfile.NamedTemporaryFile(
-                        delete=False, suffix=extension
-                    ) as temp_file:
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=extension) as temp_file:
                         temp_file.write(data)
                         temp_path = temp_file.name
                     mapping_defaults = build_listing_mapping_defaults(headers)
@@ -304,17 +299,13 @@ def handle_pallet_listing_action(
             if not field:
                 continue
             if field in used_fields:
-                listing_errors.append(
-                    f"Champ {field} assigne deux fois ({used_fields[field]})."
-                )
+                listing_errors.append(f"Champ {field} assigne deux fois ({used_fields[field]}).")
                 continue
             mapping[idx] = field
             used_fields[field] = idx + 1
         missing_fields = PALLET_LISTING_REQUIRED_FIELDS - set(mapping.values())
         if missing_fields:
-            listing_errors.append(
-                "Champs requis manquants: " + ", ".join(sorted(missing_fields))
-            )
+            listing_errors.append("Champs requis manquants: " + ", ".join(sorted(missing_fields)))
         if listing_errors:
             state["listing_stage"] = "mapping"
             headers, rows = load_listing_table(pending)
@@ -349,19 +340,15 @@ def handle_pallet_listing_action(
             row_data = {}
             if apply_flag:
                 for field, _ in PALLET_REVIEW_FIELDS:
-                    row_data[field] = request.POST.get(
-                        f"row_{row_index}_{field}"
-                    ) or row.get(field)
+                    row_data[field] = request.POST.get(f"row_{row_index}_{field}") or row.get(field)
                 for key, _ in PALLET_LOCATION_FIELDS:
-                    row_data[key] = request.POST.get(
-                        f"row_{row_index}_{key}"
-                    ) or row.get(key)
-                row_data["quantity"] = request.POST.get(
-                    f"row_{row_index}_quantity"
-                ) or row.get("quantity")
-                row_data["rack_color"] = request.POST.get(
-                    f"row_{row_index}_rack_color"
-                ) or row.get("rack_color")
+                    row_data[key] = request.POST.get(f"row_{row_index}_{key}") or row.get(key)
+                row_data["quantity"] = request.POST.get(f"row_{row_index}_quantity") or row.get(
+                    "quantity"
+                )
+                row_data["rack_color"] = request.POST.get(f"row_{row_index}_rack_color") or row.get(
+                    "rack_color"
+                )
             row_payloads.append(
                 {
                     "apply": apply_flag,

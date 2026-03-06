@@ -20,6 +20,7 @@ from wms.models import (
     Warehouse,
 )
 
+
 @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
 class ScanBootstrapUiTests(TestCase):
     def setUp(self):

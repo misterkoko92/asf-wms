@@ -343,7 +343,7 @@ def _resolve_template_search_dirs():
     configured_dirs = getattr(settings, "PRINT_PACK_TEMPLATE_DIRS", None)
     if configured_dirs is None:
         configured_dirs = [str(Path(settings.BASE_DIR) / "data" / "print_templates")]
-    if isinstance(configured_dirs, (str, Path)):
+    if isinstance(configured_dirs, str | Path):
         configured_dirs = [configured_dirs]
 
     search_dirs = []
@@ -476,9 +476,7 @@ def render_pack_xlsx_documents(*, pack_code, shipment=None, carton=None, variant
                 carton=target_carton,
             )
             filename_suffix = f"-{target_index}" if len(targets) > 1 else ""
-            xlsx_name = (
-                f"{pack.code}-{document.doc_type}-{document.id}{filename_suffix}.xlsx"
-            )
+            xlsx_name = f"{pack.code}-{document.doc_type}-{document.id}{filename_suffix}.xlsx"
             xlsx_documents.append(PackXlsxDocument(filename=xlsx_name, payload=xlsx_bytes))
     return xlsx_documents
 
@@ -508,9 +506,7 @@ def generate_pack(*, pack_code, shipment=None, carton=None, user=None, variant=N
                 carton=target_carton,
             )
             filename_suffix = f"-{target_index}" if len(targets) > 1 else ""
-            xlsx_name = (
-                f"{pack.code}-{document.doc_type}-{document.id}{filename_suffix}.xlsx"
-            )
+            xlsx_name = f"{pack.code}-{document.doc_type}-{document.id}{filename_suffix}.xlsx"
             pdf_name = f"{pack.code}-{document.doc_type}-{document.id}{filename_suffix}.pdf"
             pdf_bytes = convert_excel_to_pdf_via_graph(
                 xlsx_bytes=xlsx_bytes,

@@ -79,7 +79,10 @@ def _build_carton_document_link(shipment, carton):
 
 def _build_label_link(shipment, *, public=False):
     shipment_identifier = shipment.reference if public else shipment.id
-    return {"label": "Étiquettes colis", "url": reverse(DOC_ROUTE_LABELS, args=[shipment_identifier])}
+    return {
+        "label": "Étiquettes colis",
+        "url": reverse(DOC_ROUTE_LABELS, args=[shipment_identifier]),
+    }
 
 
 def _build_label_payload(*, label_context, carton_id, fallback_qr_url):
@@ -106,7 +109,9 @@ def _build_dynamic_label_context(label):
 
 
 def _shipment_carton_totals(shipment):
-    total = shipment.carton_count if shipment.carton_count is not None else shipment.carton_set.count()
+    total = (
+        shipment.carton_count if shipment.carton_count is not None else shipment.carton_set.count()
+    )
     ready = (
         shipment.ready_count
         if shipment.ready_count is not None
@@ -298,9 +303,7 @@ def build_shipments_ready_rows(shipments_qs):
                 "reference": shipment.reference,
                 "tracking_token": shipment.tracking_token,
                 "carton_count": total,
-                "destination_iata": shipment.destination.iata_code
-                if shipment.destination
-                else "",
+                "destination_iata": shipment.destination.iata_code if shipment.destination else "",
                 "shipper_name": _shipment_party_label(
                     shipper_contact,
                     shipment.shipper_name,
@@ -350,9 +353,7 @@ def build_shipments_tracking_rows(shipments_qs):
                 delivered_at,
             ]
         )
-        is_fully_completed = (
-            tracking_steps_complete and shipment.status == ShipmentStatus.DELIVERED
-        )
+        is_fully_completed = tracking_steps_complete and shipment.status == ShipmentStatus.DELIVERED
         is_disputed = bool(getattr(shipment, "is_disputed", False))
         is_closed = bool(getattr(shipment, "closed_at", None))
 

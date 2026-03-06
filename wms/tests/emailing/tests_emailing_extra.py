@@ -3,21 +3,21 @@ import os
 from unittest import mock
 from urllib.error import URLError
 
-from django.contrib.auth.models import Group
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from wms.emailing import (
+    EMAIL_QUEUE_EVENT_TYPE,
+    EMAIL_QUEUE_SOURCE,
+    EMAIL_QUEUE_TARGET,
     _brevo_settings,
     _normalize_recipients,
     _parse_next_attempt,
     _queue_meta,
     _safe_int,
     _send_with_brevo,
-    EMAIL_QUEUE_EVENT_TYPE,
-    EMAIL_QUEUE_SOURCE,
-    EMAIL_QUEUE_TARGET,
     enqueue_email_safe,
     get_admin_emails,
     get_order_admin_emails,
@@ -186,7 +186,9 @@ class BrevoAndFallbackSendTests(TestCase):
         BREVO_SENDER_EMAIL="",
     )
     def test_send_with_brevo_returns_false_when_missing_credentials(self):
-        with mock.patch.dict(os.environ, {"BREVO_API_KEY": "", "BREVO_SENDER_EMAIL": ""}, clear=False):
+        with mock.patch.dict(
+            os.environ, {"BREVO_API_KEY": "", "BREVO_SENDER_EMAIL": ""}, clear=False
+        ):
             sent = _send_with_brevo(
                 subject="Subject",
                 message="Message",

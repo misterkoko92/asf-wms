@@ -1,5 +1,6 @@
 from decimal import Decimal, InvalidOperation
 
+
 def parse_decimal(value):
     if value is None:
         return None

@@ -137,12 +137,8 @@ class ImportProductsHelpersTests(TestCase):
         self.assertEqual({tag.name for tag in tags}, {"cold", "urgent"})
 
         stderr = StringIO()
-        self.assertIsNone(
-            import_products.get_or_create_location(None, None, None, None, 1, stderr)
-        )
-        self.assertIsNone(
-            import_products.get_or_create_location("W1", "A", "", "C", 2, stderr)
-        )
+        self.assertIsNone(import_products.get_or_create_location(None, None, None, None, 1, stderr))
+        self.assertIsNone(import_products.get_or_create_location("W1", "A", "", "C", 2, stderr))
         self.assertIn("Row 2: incomplete location", stderr.getvalue())
 
         location = import_products.get_or_create_location("W1", "A", "B", "C", 3, stderr)
@@ -276,14 +272,18 @@ class ImportProductsCommandTests(TestCase):
         ]
         out = StringIO()
         err = StringIO()
-        with mock.patch(
-            "wms.management.commands.import_products.iter_csv_rows",
-            return_value=iter(rows),
-        ), mock.patch(
-            "wms.management.commands.import_products.apply_quantity"
-        ) as apply_quantity_mock, mock.patch(
-            "wms.management.commands.import_products.attach_photo",
-            return_value=False,
+        with (
+            mock.patch(
+                "wms.management.commands.import_products.iter_csv_rows",
+                return_value=iter(rows),
+            ),
+            mock.patch(
+                "wms.management.commands.import_products.apply_quantity"
+            ) as apply_quantity_mock,
+            mock.patch(
+                "wms.management.commands.import_products.attach_photo",
+                return_value=False,
+            ),
         ):
             call_command(
                 "import_products",
@@ -344,14 +344,18 @@ class ImportProductsCommandTests(TestCase):
             }
         ]
         out = StringIO()
-        with mock.patch(
-            "wms.management.commands.import_products.iter_csv_rows",
-            return_value=iter(rows),
-        ), mock.patch(
-            "wms.management.commands.import_products.apply_quantity"
-        ) as apply_quantity_mock, mock.patch(
-            "wms.management.commands.import_products.attach_photo",
-            return_value=True,
+        with (
+            mock.patch(
+                "wms.management.commands.import_products.iter_csv_rows",
+                return_value=iter(rows),
+            ),
+            mock.patch(
+                "wms.management.commands.import_products.apply_quantity"
+            ) as apply_quantity_mock,
+            mock.patch(
+                "wms.management.commands.import_products.attach_photo",
+                return_value=True,
+            ),
         ):
             call_command("import_products", str(path), "--update", stdout=out)
 
@@ -402,14 +406,16 @@ class ImportProductsCommandTests(TestCase):
         path = self._make_input_file(".csv")
         rows = [{"sku": "DRY-1", "name": "Dry product"}]
         out = StringIO()
-        with mock.patch(
-            "wms.management.commands.import_products.iter_csv_rows",
-            return_value=iter(rows),
-        ), mock.patch(
-            "wms.management.commands.import_products.apply_quantity"
-        ), mock.patch(
-            "wms.management.commands.import_products.attach_photo",
-            return_value=False,
+        with (
+            mock.patch(
+                "wms.management.commands.import_products.iter_csv_rows",
+                return_value=iter(rows),
+            ),
+            mock.patch("wms.management.commands.import_products.apply_quantity"),
+            mock.patch(
+                "wms.management.commands.import_products.attach_photo",
+                return_value=False,
+            ),
         ):
             call_command("import_products", str(path), "--dry-run", stdout=out)
         self.assertFalse(Product.objects.filter(sku="DRY-1").exists())

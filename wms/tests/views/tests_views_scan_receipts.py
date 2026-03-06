@@ -42,9 +42,7 @@ class ScanReceiptsViewsTests(TestCase):
                 "wms.views_scan_receipts.render",
                 side_effect=self._render_stub,
             ):
-                response = self.client.get(
-                    f"{reverse('scan:scan_receipts_view')}?type=pallet"
-                )
+                response = self.client.get(f"{reverse('scan:scan_receipts_view')}?type=pallet")
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "scan/receipts_view.html")
@@ -63,9 +61,7 @@ class ScanReceiptsViewsTests(TestCase):
                 "wms.views_scan_receipts.render",
                 side_effect=self._render_stub,
             ):
-                response = self.client.get(
-                    f"{reverse('scan:scan_receipts_view')}?type=association"
-                )
+                response = self.client.get(f"{reverse('scan:scan_receipts_view')}?type=association")
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context_data["filter_value"], "association")
@@ -83,9 +79,7 @@ class ScanReceiptsViewsTests(TestCase):
                 "wms.views_scan_receipts.render",
                 side_effect=self._render_stub,
             ):
-                response = self.client.get(
-                    f"{reverse('scan:scan_receipts_view')}?type=unknown"
-                )
+                response = self.client.get(f"{reverse('scan:scan_receipts_view')}?type=unknown")
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context_data["filter_value"], "all")

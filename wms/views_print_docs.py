@@ -49,9 +49,7 @@ def _get_shipment_carton_or_404(shipment, carton_id):
 def _build_standalone_carton_context(carton):
     item_rows = []
     weight_total_g = 0
-    for item in carton.cartonitem_set.select_related(
-        "product_lot", "product_lot__product"
-    ):
+    for item in carton.cartonitem_set.select_related("product_lot", "product_lot__product"):
         product = item.product_lot.product
         if product.weight_g:
             weight_total_g += product.weight_g * item.quantity
@@ -91,9 +89,7 @@ def _artifact_pdf_response(artifact):
     return response
 
 
-def _generate_pack_pdf_response(
-    request, *, pack_code, shipment=None, carton=None, variant=None
-):
+def _generate_pack_pdf_response(request, *, pack_code, shipment=None, carton=None, variant=None):
     artifact = generate_pack(
         pack_code=pack_code,
         shipment=shipment,

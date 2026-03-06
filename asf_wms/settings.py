@@ -67,18 +67,12 @@ CSRF_COOKIE_SECURE = _env_bool(
     "CSRF_COOKIE_SECURE",
     not DEBUG and not RUNNING_TESTS,
 )
-SECURE_HSTS_SECONDS = int(
-    os.environ.get("SECURE_HSTS_SECONDS", "0" if DEBUG else "31536000")
-)
-SECURE_HSTS_INCLUDE_SUBDOMAINS = _env_bool(
-    "SECURE_HSTS_INCLUDE_SUBDOMAINS", not DEBUG
-)
+SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", "0" if DEBUG else "31536000"))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = _env_bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", not DEBUG)
 SECURE_HSTS_PRELOAD = _env_bool("SECURE_HSTS_PRELOAD", not DEBUG)
 SECURE_CONTENT_TYPE_NOSNIFF = _env_bool("SECURE_CONTENT_TYPE_NOSNIFF", True)
 X_FRAME_OPTIONS = os.environ.get("X_FRAME_OPTIONS", "DENY")
-SECURE_REFERRER_POLICY = os.environ.get(
-    "SECURE_REFERRER_POLICY", "same-origin"
-)
+SECURE_REFERRER_POLICY = os.environ.get("SECURE_REFERRER_POLICY", "same-origin")
 CSRF_TRUSTED_ORIGINS = _env_list("CSRF_TRUSTED_ORIGINS")
 DATA_UPLOAD_MAX_NUMBER_FIELDS = _env_int("DATA_UPLOAD_MAX_NUMBER_FIELDS", 5000)
 if _env_bool("USE_PROXY_SSL_HEADER", not DEBUG):
@@ -205,9 +199,7 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-EMAIL_BACKEND = os.environ.get(
-    "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
-)
+EMAIL_BACKEND = os.environ.get("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "no-reply@example.com")
 EMAIL_HOST = os.environ.get("EMAIL_HOST", "")
 EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
@@ -240,9 +232,7 @@ _default_authentication_classes = [
     "rest_framework.authentication.SessionAuthentication",
 ]
 if ENABLE_BASIC_AUTH:
-    _default_authentication_classes.append(
-        "rest_framework.authentication.BasicAuthentication"
-    )
+    _default_authentication_classes.append("rest_framework.authentication.BasicAuthentication")
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": tuple(_default_authentication_classes),
@@ -270,9 +260,7 @@ GRAPH_REQUEST_TIMEOUT_SECONDS = _env_int("GRAPH_REQUEST_TIMEOUT_SECONDS", 30)
 PRINT_PACK_TEMPLATE_DIRS = _env_list("PRINT_PACK_TEMPLATE_DIRS")
 if not PRINT_PACK_TEMPLATE_DIRS:
     PRINT_PACK_TEMPLATE_DIRS = [str(BASE_DIR / "data" / "print_templates")]
-PRINT_PACK_XLSX_FALLBACK_ENABLED = _env_bool(
-    "PRINT_PACK_XLSX_FALLBACK_ENABLED", False
-)
+PRINT_PACK_XLSX_FALLBACK_ENABLED = _env_bool("PRINT_PACK_XLSX_FALLBACK_ENABLED", False)
 ACCOUNT_REQUEST_THROTTLE_SECONDS = _env_int("ACCOUNT_REQUEST_THROTTLE_SECONDS", 300)
 PORTAL_AUTH_RECOVERY_THROTTLE_SECONDS = _env_int(
     "PORTAL_AUTH_RECOVERY_THROTTLE_SECONDS",
@@ -282,8 +270,6 @@ PUBLIC_ORDER_THROTTLE_SECONDS = _env_int("PUBLIC_ORDER_THROTTLE_SECONDS", 300)
 EMAIL_QUEUE_MAX_ATTEMPTS = _env_int("EMAIL_QUEUE_MAX_ATTEMPTS", 5)
 EMAIL_QUEUE_RETRY_BASE_SECONDS = _env_int("EMAIL_QUEUE_RETRY_BASE_SECONDS", 60)
 EMAIL_QUEUE_RETRY_MAX_SECONDS = _env_int("EMAIL_QUEUE_RETRY_MAX_SECONDS", 3600)
-EMAIL_QUEUE_PROCESSING_TIMEOUT_SECONDS = _env_int(
-    "EMAIL_QUEUE_PROCESSING_TIMEOUT_SECONDS", 900
-)
+EMAIL_QUEUE_PROCESSING_TIMEOUT_SECONDS = _env_int("EMAIL_QUEUE_PROCESSING_TIMEOUT_SECONDS", 900)
 ENABLE_SHIPMENT_TRACK_LEGACY = _env_bool("ENABLE_SHIPMENT_TRACK_LEGACY", True)
 SCAN_BOOTSTRAP_ENABLED = _env_bool("SCAN_BOOTSTRAP_ENABLED", True)

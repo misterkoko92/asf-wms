@@ -1,9 +1,8 @@
 from pathlib import Path
 
-from .import_utils import extract_tabular_data, normalize_header, parse_str
 from .import_services import extract_product_identity, find_product_matches
+from .import_utils import extract_tabular_data, normalize_header, parse_str
 from .product_display import build_product_display
-
 
 PALLET_LISTING_REQUIRED_FIELDS = {"name", "quantity"}
 
@@ -197,10 +196,7 @@ def build_listing_review_rows(rows, mapping, *, start_index=2):
     match_labels = {"name_brand": "Nom + Marque"}
     review = []
     for row_index, row in enumerate(mapped_rows, start=start_index):
-        values = {
-            field: _clean_listing_value(row.get(field))
-            for field, _ in PALLET_REVIEW_FIELDS
-        }
+        values = {field: _clean_listing_value(row.get(field)) for field, _ in PALLET_REVIEW_FIELDS}
         for key, _ in PALLET_LOCATION_FIELDS:
             values[key] = _clean_listing_value(row.get(key))
         values["quantity"] = _clean_listing_value(row.get("quantity"))

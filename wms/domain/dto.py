@@ -9,11 +9,11 @@ class ReceiveStockInput:
     quantity: int
     location_id: int
     lot_code: str = ""
-    received_on: Optional[date] = None
-    expires_on: Optional[date] = None
-    status: Optional[str] = None
-    storage_conditions: Optional[str] = None
-    source_receipt_id: Optional[int] = None
+    received_on: date | None = None
+    expires_on: date | None = None
+    status: str | None = None
+    storage_conditions: str | None = None
+    source_receipt_id: int | None = None
 
     def validate(self) -> None:
         if self.quantity <= 0:
@@ -24,10 +24,10 @@ class ReceiveStockInput:
 class PackCartonInput:
     product_id: int
     quantity: int
-    carton_id: Optional[int] = None
-    carton_code: Optional[str] = None
-    shipment_id: Optional[int] = None
-    current_location_id: Optional[int] = None
+    carton_id: int | None = None
+    carton_code: str | None = None
+    shipment_id: int | None = None
+    current_location_id: int | None = None
 
     def validate(self) -> None:
         if self.quantity <= 0:

@@ -7,8 +7,8 @@ from django.urls import reverse
 from contacts.models import Contact
 from wms.emailing import process_email_queue
 from wms.models import (
-    AssociationRecipient,
     AssociationProfile,
+    AssociationRecipient,
     Destination,
     IntegrationDirection,
     IntegrationEvent,
@@ -210,13 +210,9 @@ class EmailFlowsEndToEndTests(TestCase):
             self._email_events_queryset().filter(status=IntegrationStatus.PENDING)
         )
         self.assertEqual(len(pending_events), 3)
-        delivery_subject = (
-            f"ASF WMS - Expedition {shipment.reference} : livraison confirmee"
-        )
+        delivery_subject = f"ASF WMS - Expedition {shipment.reference} : livraison confirmee"
         delivery_event = next(
-            event
-            for event in pending_events
-            if event.payload.get("subject") == delivery_subject
+            event for event in pending_events if event.payload.get("subject") == delivery_subject
         )
         self.assertEqual(
             delivery_event.payload.get("recipient"),
@@ -225,9 +221,7 @@ class EmailFlowsEndToEndTests(TestCase):
 
         parties_subject = f"ASF WMS - Expédition {shipment.reference} : statut Livré"
         parties_event = next(
-            event
-            for event in pending_events
-            if event.payload.get("subject") == parties_subject
+            event for event in pending_events if event.payload.get("subject") == parties_subject
         )
         self.assertEqual(
             parties_event.payload.get("recipient"),

@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, time
 from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
-
 from openpyxl import load_workbook
 
 from contacts.models import Contact, ContactType
-
 from wms.admin_organization_roles_review import _resolve_recipient_organization
 from wms.models import (
     ContactSubscription,
@@ -117,7 +116,7 @@ def _parse_datetime_or_none(value):
     d = parse_date(raw)
     if d is not None:
         return timezone.make_aware(
-            timezone.datetime.combine(d, timezone.datetime.min.time()),
+            datetime.combine(d, time.min),
             timezone.get_current_timezone(),
         )
     raise ValueError(f"Date/heure invalide: {value!r}")
@@ -129,15 +128,11 @@ def _sheet_rows(*, workbook, sheet_name):
     sheet = workbook[sheet_name]
     headers = [_normalize(cell.value) for cell in sheet[1]]
     rows = []
-    for row_number, row_values in enumerate(
-        sheet.iter_rows(min_row=2, values_only=True), start=2
-    ):
+    for row_number, row_values in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
         if all(_normalize(value) == "" for value in row_values):
             continue
         row = {
-            headers[index]: _normalize(row_values[index])
-            if index < len(row_values)
-            else ""
+            headers[index]: _normalize(row_values[index]) if index < len(row_values) else ""
             for index in range(len(headers))
         }
         row["_row_number"] = str(row_number)
@@ -170,10 +165,11 @@ def _single_org_by_name(
         raise CommandError(f"{row_label}: organisation introuvable: {name}")
     if count > 1:
         ids = list(query.values_list("id", flat=True))
-        raise CommandError(
-            f"{row_label}: organisation ambigue '{name}' (ids={ids})"
-        )
-    return query.first()
+        raise CommandError(f"{row_label}: organisation ambigue '{name}' (ids={ids})")
+    matched_contact = query.first()
+    if matched_contact is None:
+        raise CommandError(f"{row_label}: organisation introuvable: {name}")
+    return matched_contact
 
 
 def _destination_by_iata(iata_code: str, *, row_label: str) -> Destination:
@@ -183,7 +179,10 @@ def _destination_by_iata(iata_code: str, *, row_label: str) -> Destination:
         raise CommandError(f"{row_label}: escale introuvable: {iata_code}")
     if count > 1:
         raise CommandError(f"{row_label}: escale ambigue: {iata_code}")
-    return query.first()
+    destination = query.first()
+    if destination is None:
+        raise CommandError(f"{row_label}: escale introuvable: {iata_code}")
+    return destination
 
 
 def _ensure_role_assignment(*, organization, role, is_active, stats: ImportStats):
@@ -382,11 +381,7 @@ def _apply_recipient_bindings(
 
         # Prefer updating an existing version with the same valid_from to keep
         # idempotence and avoid duplicating historical rows.
-        exact_binding = (
-            base_queryset.filter(valid_from=valid_from)
-            .order_by("-id")
-            .first()
-        )
+        exact_binding = base_queryset.filter(valid_from=valid_from).order_by("-id").first()
 
         if exact_binding is not None:
             if desired_active:
@@ -411,9 +406,7 @@ def _apply_recipient_bindings(
         # it instead of creating a new active version (single-active invariant).
         if desired_active:
             active_binding = (
-                base_queryset.filter(is_active=True)
-                .order_by("-valid_from", "-id")
-                .first()
+                base_queryset.filter(is_active=True).order_by("-valid_from", "-id").first()
             )
             if active_binding is not None:
                 if active_binding.valid_to != valid_to:
@@ -900,9 +893,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         input_path = _resolve_path(options["input"])
         dry_run = bool(options.get("dry_run"))
-        create_missing_organizations = bool(
-            options.get("create_missing_organizations")
-        )
+        create_missing_organizations = bool(options.get("create_missing_organizations"))
         if not input_path.exists():
             raise CommandError(f"Fichier introuvable: {input_path}")
 

@@ -3,6 +3,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from contacts.models import Contact, ContactType
+from wms import models
 from wms.admin_organization_roles_review import (
     _collect_destination_ids_for_contact,
     _latest_recipient_binding,
@@ -10,7 +11,6 @@ from wms.admin_organization_roles_review import (
     _suggest_destination_id,
     _suggest_shipper_id,
 )
-from wms import models
 from wms.organization_roles_backfill import (
     REVIEW_REASON_MISSING_DESTINATION,
     REVIEW_REASON_MISSING_SHIPPER_LINKS,

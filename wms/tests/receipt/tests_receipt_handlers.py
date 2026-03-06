@@ -226,7 +226,9 @@ class ReceiptHandlersTests(TestCase):
         selected_receipt = SimpleNamespace(
             id=3,
             status=ReceiptStatus.DRAFT,
-            lines=SimpleNamespace(create=lambda **kwargs: SimpleNamespace(quantity=kwargs["quantity"])),
+            lines=SimpleNamespace(
+                create=lambda **kwargs: SimpleNamespace(quantity=kwargs["quantity"])
+            ),
         )
         line_form_missing_product = _FakeForm(
             valid=True,
@@ -301,7 +303,9 @@ class ReceiptHandlersTests(TestCase):
             "storage_conditions": "",
         }
 
-        line_form_success = _FakeForm(valid=True, cleaned_data={**base_cleaned, "receive_now": False})
+        line_form_success = _FakeForm(
+            valid=True, cleaned_data={**base_cleaned, "receive_now": False}
+        )
         with mock.patch("wms.receipt_handlers.resolve_product", return_value=product):
             with mock.patch("wms.receipt_handlers.messages.success"):
                 response, lines, pending = handle_receipt_action(
@@ -316,7 +320,9 @@ class ReceiptHandlersTests(TestCase):
         self.assertIsNone(lines)
         self.assertIsNone(pending)
 
-        line_form_receive_now = _FakeForm(valid=True, cleaned_data={**base_cleaned, "receive_now": True})
+        line_form_receive_now = _FakeForm(
+            valid=True, cleaned_data={**base_cleaned, "receive_now": True}
+        )
         with mock.patch("wms.receipt_handlers.resolve_product", return_value=product):
             with mock.patch(
                 "wms.receipt_handlers.receive_receipt_line",
@@ -347,7 +353,9 @@ class ReceiptHandlersTests(TestCase):
             lines=SimpleNamespace(create=lambda **kwargs: line_model),
         )
         location = SimpleNamespace(id=2)
-        product = SimpleNamespace(default_location=location, storage_conditions="Cold", name="Gloves")
+        product = SimpleNamespace(
+            default_location=location, storage_conditions="Cold", name="Gloves"
+        )
         line_form = _FakeForm(
             valid=True,
             cleaned_data={

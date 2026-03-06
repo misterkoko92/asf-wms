@@ -29,9 +29,7 @@ class OrderReviewStatus(models.TextChoices):
 
 class Order(models.Model):
     reference = models.CharField(max_length=80, blank=True)
-    status = models.CharField(
-        max_length=20, choices=OrderStatus.choices, default=OrderStatus.DRAFT
-    )
+    status = models.CharField(max_length=20, choices=OrderStatus.choices, default=OrderStatus.DRAFT)
     review_status = models.CharField(
         max_length=30,
         choices=OrderReviewStatus.choices,
@@ -122,9 +120,7 @@ class PublicAccountRequestType(models.TextChoices):
 
 
 class PublicAccountRequest(models.Model):
-    link = models.ForeignKey(
-        PublicOrderLink, on_delete=models.SET_NULL, null=True, blank=True
-    )
+    link = models.ForeignKey(PublicOrderLink, on_delete=models.SET_NULL, null=True, blank=True)
     contact = models.ForeignKey(
         "contacts.Contact", on_delete=models.SET_NULL, null=True, blank=True
     )
@@ -192,13 +188,9 @@ class AssociationProfile(models.Model):
             from contacts.models import ContactType
 
             if self.contact.contact_type != ContactType.ORGANIZATION:
-                errors["contact"] = (
-                    "Le contact d'association doit être une organisation."
-                )
+                errors["contact"] = "Le contact d'association doit être une organisation."
             elif not self.contact.is_active:
-                errors["contact"] = (
-                    "Le contact d'association doit être actif."
-                )
+                errors["contact"] = "Le contact d'association doit être actif."
         if errors:
             raise ValidationError(errors)
 
@@ -481,12 +473,8 @@ class OrderLine(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="lines")
     product = models.ForeignKey(Product, on_delete=models.PROTECT)
     quantity = models.IntegerField(validators=[MinValueValidator(1)])
-    reserved_quantity = models.IntegerField(
-        default=0, validators=[MinValueValidator(0)]
-    )
-    prepared_quantity = models.IntegerField(
-        default=0, validators=[MinValueValidator(0)]
-    )
+    reserved_quantity = models.IntegerField(default=0, validators=[MinValueValidator(0)])
+    prepared_quantity = models.IntegerField(default=0, validators=[MinValueValidator(0)])
 
     class Meta:
         ordering = ["order", "product"]
@@ -511,9 +499,7 @@ class OrderLine(models.Model):
 
 
 class OrderReservation(models.Model):
-    order_line = models.ForeignKey(
-        OrderLine, on_delete=models.CASCADE, related_name="reservations"
-    )
+    order_line = models.ForeignKey(OrderLine, on_delete=models.CASCADE, related_name="reservations")
     product_lot = models.ForeignKey(ProductLot, on_delete=models.PROTECT)
     quantity = models.IntegerField(validators=[MinValueValidator(1)])
     created_at = models.DateTimeField(auto_now_add=True)
@@ -602,11 +588,15 @@ class OrganizationRoleAssignment(models.Model):
     def _has_primary_email_contact(self) -> bool:
         if not self.pk:
             return False
-        return self.role_contacts.filter(
-            is_active=True,
-            is_primary=True,
-            contact__is_active=True,
-        ).exclude(contact__email="").exists()
+        return (
+            self.role_contacts.filter(
+                is_active=True,
+                is_primary=True,
+                contact__is_active=True,
+            )
+            .exclude(contact__email="")
+            .exists()
+        )
 
     def clean(self):
         super().clean()
@@ -780,7 +770,9 @@ class ShipperScope(models.Model):
         if self.all_destinations and self.destination_id:
             errors["__all__"] = "Choisir soit toutes les escales, soit une escale cible."
         elif not self.all_destinations and not self.destination_id:
-            errors["__all__"] = "Une escale est obligatoire si toutes les escales n'est pas selectionne."
+            errors["__all__"] = (
+                "Une escale est obligatoire si toutes les escales n'est pas selectionne."
+            )
 
         if self.valid_to and self.valid_from and self.valid_to <= self.valid_from:
             errors["valid_to"] = "La fin de validite doit etre posterieure au debut."
@@ -1003,7 +995,9 @@ class DestinationCorrespondentOverride(models.Model):
     def matches(self, *, shipper_org=None, recipient_org=None) -> bool:
         if self.shipper_org_id and (not shipper_org or shipper_org.id != self.shipper_org_id):
             return False
-        if self.recipient_org_id and (not recipient_org or recipient_org.id != self.recipient_org_id):
+        if self.recipient_org_id and (
+            not recipient_org or recipient_org.id != self.recipient_org_id
+        ):
             return False
         return True
 

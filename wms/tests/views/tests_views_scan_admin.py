@@ -362,7 +362,7 @@ class ScanAdminViewTests(TestCase):
         self.assertContains(response, 'data-design-live-preview="1"')
         self.assertContains(response, "Action tertiaire")
         self.assertContains(response, '<select name="design_font_h1"')
-        self.assertContains(response, "<option value=\"DM Sans\"")
+        self.assertContains(response, '<option value="DM Sans"')
         self.assertContains(response, '<select name="style_preset"')
         self.assertContains(response, 'name="style_custom_name"')
         self.assertContains(response, '<option value="wms-default"')
@@ -389,8 +389,14 @@ class ScanAdminViewTests(TestCase):
         self.assertIn(".scan-bootstrap-enabled .btn:not(.btn-sm):not(.btn-lg) {", css_content)
         self.assertIn("display: inline-flex;", css_content)
         self.assertIn("align-items: center;", css_content)
-        self.assertNotIn(".scan-bootstrap-enabled .scan-nav.scan-nav-bootstrap .navbar-toggler {\n  border: 1px solid var(--scan-boot-border-strong) !important;", css_content)
-        self.assertNotIn(".scan-bootstrap-enabled .scan-card.card {\n  border: var(--wms-card-border-width) solid var(--wms-card-border-color) !important;", css_content)
+        self.assertNotIn(
+            ".scan-bootstrap-enabled .scan-nav.scan-nav-bootstrap .navbar-toggler {\n  border: 1px solid var(--scan-boot-border-strong) !important;",
+            css_content,
+        )
+        self.assertNotIn(
+            ".scan-bootstrap-enabled .scan-card.card {\n  border: var(--wms-card-border-width) solid var(--wms-card-border-color) !important;",
+            css_content,
+        )
 
     def test_scan_admin_design_post_updates_runtime_design_values(self):
         self.client.force_login(self.superuser)
@@ -500,7 +506,9 @@ class ScanAdminViewTests(TestCase):
         self.assertEqual(runtime.design_tokens["btn_style_mode"], "elevated")
         self.assertEqual(runtime.design_tokens["btn_radius"], 120)
         self.assertEqual(runtime.design_tokens["card_radius"], 18)
-        self.assertEqual(runtime.design_tokens["dropdown_shadow"], "0 12px 26px rgba(15, 33, 61, 0.12)")
+        self.assertEqual(
+            runtime.design_tokens["dropdown_shadow"], "0 12px 26px rgba(15, 33, 61, 0.12)"
+        )
         self.assertEqual(runtime.design_tokens["status_progress_bg"], "#e8f1ff")
         self.assertEqual(runtime.design_tokens["color_btn_tertiary_bg"], "#ffffff")
         self.assertEqual(runtime.design_tokens["color_btn_tertiary_text"], "#1f2633")

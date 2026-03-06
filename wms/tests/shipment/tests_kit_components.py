@@ -2,7 +2,11 @@ from types import SimpleNamespace
 
 from django.test import SimpleTestCase
 
-from wms.kit_components import KitCycleError, get_component_quantities, get_unit_component_quantities
+from wms.kit_components import (
+    KitCycleError,
+    get_component_quantities,
+    get_unit_component_quantities,
+)
 
 
 class _KitItemsManager:
@@ -40,12 +44,8 @@ class KitComponentsTests(SimpleTestCase):
     def test_get_unit_component_quantities_raises_cycle_error_with_path(self):
         product_a = self._make_product(1)
         product_b = self._make_product(2)
-        product_a.kit_items = _KitItemsManager(
-            [SimpleNamespace(component=product_b, quantity=1)]
-        )
-        product_b.kit_items = _KitItemsManager(
-            [SimpleNamespace(component=product_a, quantity=1)]
-        )
+        product_a.kit_items = _KitItemsManager([SimpleNamespace(component=product_b, quantity=1)])
+        product_b.kit_items = _KitItemsManager([SimpleNamespace(component=product_a, quantity=1)])
 
         with self.assertRaises(KitCycleError) as exc:
             get_unit_component_quantities(product_a)

@@ -5,8 +5,8 @@ from urllib.parse import urlparse
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.db.models import Sum
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
+from django.db.models import Sum
 from django.test import Client, tag
 from django.urls import reverse
 from django.utils import timezone
@@ -14,6 +14,7 @@ from django.utils import timezone
 from contacts.models import Contact, ContactTag, ContactType
 from contacts.tagging import TAG_CORRESPONDENT, TAG_RECIPIENT, TAG_SHIPPER
 from wms.models import (
+    TEMP_SHIPMENT_REFERENCE_PREFIX,
     AssociationContactTitle,
     AssociationProfile,
     AssociationRecipient,
@@ -26,13 +27,13 @@ from wms.models import (
     IntegrationDirection,
     IntegrationEvent,
     IntegrationStatus,
+    Location,
     Order,
     OrderReviewStatus,
-    Location,
-    ProductLotStatus,
     PrintTemplate,
     Product,
     ProductLot,
+    ProductLotStatus,
     Receipt,
     ReceiptStatus,
     ReceiptType,
@@ -40,7 +41,6 @@ from wms.models import (
     ShipmentStatus,
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
-    TEMP_SHIPMENT_REFERENCE_PREFIX,
     Warehouse,
 )
 
@@ -62,9 +62,7 @@ class ScanUiTests(StaticLiveServerTestCase):
         self.client.force_login(self.user)
         self.session_cookie = self.client.cookies[settings.SESSION_COOKIE_NAME]
         warehouse = Warehouse.objects.create(name="UI WH", code="UI")
-        location = Location.objects.create(
-            warehouse=warehouse, zone="A", aisle="01", shelf="001"
-        )
+        location = Location.objects.create(warehouse=warehouse, zone="A", aisle="01", shelf="001")
         Product.objects.create(
             sku="UI-001",
             name="UI Product",
@@ -433,9 +431,7 @@ class NextUiTests(StaticLiveServerTestCase):
     def test_next_scan_dashboard_loads_for_staff(self):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
-            context = self._new_context_with_session(
-                browser, auth_cookies=self.staff_auth_cookies
-            )
+            context = self._new_context_with_session(browser, auth_cookies=self.staff_auth_cookies)
             page = context.new_page()
             page.goto(
                 f"{self.live_server_url}/app/scan/dashboard/",
@@ -451,9 +447,7 @@ class NextUiTests(StaticLiveServerTestCase):
     def test_next_scan_dashboard_displays_live_timeline_and_actions(self):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
-            context = self._new_context_with_session(
-                browser, auth_cookies=self.staff_auth_cookies
-            )
+            context = self._new_context_with_session(browser, auth_cookies=self.staff_auth_cookies)
             page = context.new_page()
             page.goto(
                 f"{self.live_server_url}/app/scan/dashboard/",
@@ -474,9 +468,7 @@ class NextUiTests(StaticLiveServerTestCase):
     def test_next_scan_dashboard_filters_by_destination(self):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
-            context = self._new_context_with_session(
-                browser, auth_cookies=self.staff_auth_cookies
-            )
+            context = self._new_context_with_session(browser, auth_cookies=self.staff_auth_cookies)
             page = context.new_page()
             page.goto(
                 f"{self.live_server_url}/app/scan/dashboard/",
@@ -495,9 +487,7 @@ class NextUiTests(StaticLiveServerTestCase):
                 """,
                 arg=3,
             )
-            page.get_by_label("Destination").select_option(
-                str(self.secondary_destination.id)
-            )
+            page.get_by_label("Destination").select_option(str(self.secondary_destination.id))
             page.get_by_role("button", name="Filtrer").click()
             page.wait_for_function(
                 """
@@ -517,9 +507,7 @@ class NextUiTests(StaticLiveServerTestCase):
     def test_next_scan_dashboard_displays_low_stock_table(self):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
-            context = self._new_context_with_session(
-                browser, auth_cookies=self.staff_auth_cookies
-            )
+            context = self._new_context_with_session(browser, auth_cookies=self.staff_auth_cookies)
             page = context.new_page()
             page.goto(
                 f"{self.live_server_url}/app/scan/dashboard/",
@@ -548,9 +536,7 @@ class NextUiTests(StaticLiveServerTestCase):
     def test_next_scan_dashboard_displays_shipment_chart(self):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
-            context = self._new_context_with_session(
-                browser, auth_cookies=self.staff_auth_cookies
-            )
+            context = self._new_context_with_session(browser, auth_cookies=self.staff_auth_cookies)
             page = context.new_page()
             page.goto(
                 f"{self.live_server_url}/app/scan/dashboard/",
@@ -570,18 +556,14 @@ class NextUiTests(StaticLiveServerTestCase):
                 """,
                 arg=3,
             )
-            page.wait_for_function(
-                "() => document.querySelectorAll('.chart-row').length > 0"
-            )
+            page.wait_for_function("() => document.querySelectorAll('.chart-row').length > 0")
             context.close()
             browser.close()
 
     def test_next_scan_dashboard_displays_shipment_cards(self):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
-            context = self._new_context_with_session(
-                browser, auth_cookies=self.staff_auth_cookies
-            )
+            context = self._new_context_with_session(browser, auth_cookies=self.staff_auth_cookies)
             page = context.new_page()
             page.goto(
                 f"{self.live_server_url}/app/scan/dashboard/",
@@ -637,9 +619,7 @@ class NextUiTests(StaticLiveServerTestCase):
 
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
-            context = self._new_context_with_session(
-                browser, auth_cookies=self.staff_auth_cookies
-            )
+            context = self._new_context_with_session(browser, auth_cookies=self.staff_auth_cookies)
             page = context.new_page()
             page.goto(
                 f"{self.live_server_url}/app/scan/dashboard/",
@@ -678,9 +658,7 @@ class NextUiTests(StaticLiveServerTestCase):
                 """,
                 arg=2,
             )
-            page.get_by_label("Destination").select_option(
-                str(self.secondary_destination.id)
-            )
+            page.get_by_label("Destination").select_option(str(self.secondary_destination.id))
             page.get_by_role("button", name="Filtrer").click()
             page.wait_for_function(
                 """
@@ -737,9 +715,7 @@ class NextUiTests(StaticLiveServerTestCase):
 
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
-            context = self._new_context_with_session(
-                browser, auth_cookies=self.staff_auth_cookies
-            )
+            context = self._new_context_with_session(browser, auth_cookies=self.staff_auth_cookies)
             page = context.new_page()
             page.goto(
                 f"{self.live_server_url}/app/scan/dashboard/",
@@ -908,9 +884,7 @@ class NextUiTests(StaticLiveServerTestCase):
 
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
-            context = self._new_context_with_session(
-                browser, auth_cookies=self.staff_auth_cookies
-            )
+            context = self._new_context_with_session(browser, auth_cookies=self.staff_auth_cookies)
             page = context.new_page()
             page.goto(
                 f"{self.live_server_url}/app/scan/dashboard/",
@@ -984,15 +958,13 @@ class NextUiTests(StaticLiveServerTestCase):
             status=IntegrationStatus.FAILED,
             error_message="provider down",
         )
-        IntegrationEvent.objects.filter(
-            pk__in=[fresh_processing.pk, stale_processing.pk]
-        ).update(status=IntegrationStatus.PROCESSING)
+        IntegrationEvent.objects.filter(pk__in=[fresh_processing.pk, stale_processing.pk]).update(
+            status=IntegrationStatus.PROCESSING
+        )
 
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
-            context = self._new_context_with_session(
-                browser, auth_cookies=self.staff_auth_cookies
-            )
+            context = self._new_context_with_session(browser, auth_cookies=self.staff_auth_cookies)
             page = context.new_page()
             page.goto(
                 f"{self.live_server_url}/app/scan/dashboard/",
@@ -1145,9 +1117,7 @@ class NextUiTests(StaticLiveServerTestCase):
 
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
-            context = self._new_context_with_session(
-                browser, auth_cookies=self.staff_auth_cookies
-            )
+            context = self._new_context_with_session(browser, auth_cookies=self.staff_auth_cookies)
             page = context.new_page()
             page.goto(
                 f"{self.live_server_url}/app/scan/dashboard/",
@@ -1237,9 +1207,7 @@ class NextUiTests(StaticLiveServerTestCase):
 
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
-            context = self._new_context_with_session(
-                browser, auth_cookies=self.staff_auth_cookies
-            )
+            context = self._new_context_with_session(browser, auth_cookies=self.staff_auth_cookies)
             page = context.new_page()
             page.goto(
                 f"{self.live_server_url}/app/scan/dashboard/",
@@ -1278,9 +1246,7 @@ class NextUiTests(StaticLiveServerTestCase):
     def test_next_shipment_documents_invalid_id_shows_inline_error(self):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
-            context = self._new_context_with_session(
-                browser, auth_cookies=self.staff_auth_cookies
-            )
+            context = self._new_context_with_session(browser, auth_cookies=self.staff_auth_cookies)
             page = context.new_page()
             page.goto(
                 f"{self.live_server_url}/app/scan/shipment-documents/",
@@ -1298,9 +1264,7 @@ class NextUiTests(StaticLiveServerTestCase):
     def test_next_portal_dashboard_loads_for_association_user(self):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
-            context = self._new_context_with_session(
-                browser, auth_cookies=self.portal_auth_cookies
-            )
+            context = self._new_context_with_session(browser, auth_cookies=self.portal_auth_cookies)
             page = context.new_page()
             page.goto(
                 f"{self.live_server_url}/app/portal/dashboard/",
@@ -1316,9 +1280,7 @@ class NextUiTests(StaticLiveServerTestCase):
     def test_next_shipment_documents_upload_and_delete_workflow(self):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
-            context = self._new_context_with_session(
-                browser, auth_cookies=self.staff_auth_cookies
-            )
+            context = self._new_context_with_session(browser, auth_cookies=self.staff_auth_cookies)
             page = context.new_page()
             page.goto(
                 f"{self.live_server_url}/app/scan/shipment-documents/",
@@ -1336,14 +1298,10 @@ class NextUiTests(StaticLiveServerTestCase):
                 }
             )
             page.get_by_role("button", name="Upload").click()
-            page.wait_for_function(
-                "document.body.innerText.includes('Document televerse.')"
-            )
+            page.wait_for_function("document.body.innerText.includes('Document televerse.')")
             self.assertGreater(page.get_by_role("button", name="Supprimer").count(), 0)
             page.get_by_role("button", name="Supprimer").first.click()
-            page.wait_for_function(
-                "document.body.innerText.includes('Document supprime.')"
-            )
+            page.wait_for_function("document.body.innerText.includes('Document supprime.')")
             context.close()
             browser.close()
         self.assertEqual(
@@ -1374,13 +1332,9 @@ class NextUiTests(StaticLiveServerTestCase):
                 '{\n  "blocks": [{"id": "next-ui-test", "type": "text", "text": "Next UI"}]\n}'
             )
             page.get_by_role("button", name="Sauver").click()
-            page.wait_for_function(
-                "document.body.innerText.includes('Template enregistre.')"
-            )
+            page.wait_for_function("document.body.innerText.includes('Template enregistre.')")
             page.get_by_role("button", name="Reset").click()
-            page.wait_for_function(
-                "document.body.innerText.includes('Template reinitialise.')"
-            )
+            page.wait_for_function("document.body.innerText.includes('Template reinitialise.')")
             context.close()
             browser.close()
         template = PrintTemplate.objects.get(doc_type=doc_type)
@@ -1390,9 +1344,7 @@ class NextUiTests(StaticLiveServerTestCase):
     def test_next_stock_update_and_out_workflow(self):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
-            context = self._new_context_with_session(
-                browser, auth_cookies=self.staff_auth_cookies
-            )
+            context = self._new_context_with_session(browser, auth_cookies=self.staff_auth_cookies)
             page = context.new_page()
             page.goto(
                 f"{self.live_server_url}/app/scan/stock/",
@@ -1404,17 +1356,13 @@ class NextUiTests(StaticLiveServerTestCase):
             page.get_by_label("Expire le (MAJ)").fill("2026-12-31")
             page.get_by_label("Lot (MAJ)").fill("NEXT-LOT-UI")
             page.get_by_role("button", name="Valider MAJ").click()
-            page.wait_for_function(
-                "document.body.innerText.includes('Stock mis a jour.')"
-            )
+            page.wait_for_function("document.body.innerText.includes('Stock mis a jour.')")
 
             page.get_by_label("Product code (Sortie)").fill(self.stock_product.sku)
             page.get_by_label("Quantite (Sortie)").fill("1")
             page.get_by_label("Raison (Sortie)").fill("next_ui_test")
             page.get_by_role("button", name="Valider sortie").click()
-            page.wait_for_function(
-                "document.body.innerText.includes('Sortie stock enregistree.')"
-            )
+            page.wait_for_function("document.body.innerText.includes('Sortie stock enregistree.')")
             context.close()
             browser.close()
         self.assertEqual(ProductLot.objects.filter(product=self.stock_product).count(), 1)
@@ -1426,9 +1374,7 @@ class NextUiTests(StaticLiveServerTestCase):
     def test_next_stock_filters_by_query_workflow(self):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
-            context = self._new_context_with_session(
-                browser, auth_cookies=self.staff_auth_cookies
-            )
+            context = self._new_context_with_session(browser, auth_cookies=self.staff_auth_cookies)
             page = context.new_page()
             page.goto(
                 f"{self.live_server_url}/app/scan/stock/",
@@ -1477,9 +1423,7 @@ class NextUiTests(StaticLiveServerTestCase):
 
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
-            context = self._new_context_with_session(
-                browser, auth_cookies=self.staff_auth_cookies
-            )
+            context = self._new_context_with_session(browser, auth_cookies=self.staff_auth_cookies)
             page = context.new_page()
             page.goto(
                 f"{self.live_server_url}/app/scan/stock/",
@@ -1517,9 +1461,7 @@ class NextUiTests(StaticLiveServerTestCase):
     def test_next_shipment_create_tracking_close_workflow(self):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
-            context = self._new_context_with_session(
-                browser, auth_cookies=self.staff_auth_cookies
-            )
+            context = self._new_context_with_session(browser, auth_cookies=self.staff_auth_cookies)
             page = context.new_page()
             page.goto(
                 f"{self.live_server_url}/app/scan/shipment-create/",
@@ -1528,15 +1470,15 @@ class NextUiTests(StaticLiveServerTestCase):
             page.wait_for_selector("h1")
             page.get_by_label("Destination", exact=True).select_option(str(self.destination.id))
             page.get_by_label("Expediteur", exact=True).select_option(str(self.shipper_contact.id))
-            page.get_by_label("Destinataire", exact=True).select_option(str(self.recipient_contact.id))
+            page.get_by_label("Destinataire", exact=True).select_option(
+                str(self.recipient_contact.id)
+            )
             page.get_by_label("Correspondant", exact=True).select_option(
                 str(self.correspondent_contact.id)
             )
             page.get_by_label("Carton", exact=True).select_option(str(self.available_carton.id))
             page.get_by_role("button", name="Creer expedition").click()
-            page.wait_for_function(
-                "document.body.innerText.includes('Expedition creee.')"
-            )
+            page.wait_for_function("document.body.innerText.includes('Expedition creee.')")
             create_status_text = page.locator("body").inner_text().lower()
             self.assertIn("expedition #", create_status_text)
             self.assertNotIn("shipment #", create_status_text)
@@ -1548,25 +1490,19 @@ class NextUiTests(StaticLiveServerTestCase):
                 ShipmentTrackingStatus.RECEIVED_CORRESPONDENT
             )
             page.get_by_role("button", name="Envoyer suivi").click()
-            page.wait_for_function(
-                "document.body.innerText.includes('Suivi mis a jour.')"
-            )
+            page.wait_for_function("document.body.innerText.includes('Suivi mis a jour.')")
 
             page.get_by_label("Statut suivi", exact=True).select_option(
                 ShipmentTrackingStatus.RECEIVED_RECIPIENT
             )
             page.get_by_role("button", name="Envoyer suivi").click()
-            page.wait_for_function(
-                "document.body.innerText.includes('Suivi mis a jour.')"
-            )
+            page.wait_for_function("document.body.innerText.includes('Suivi mis a jour.')")
 
             page.get_by_label("Expedition (Cloture)", exact=True).fill(
                 str(self.workflow_tracking_shipment.id)
             )
             page.get_by_role("button", name="Cloturer expedition").click()
-            page.wait_for_function(
-                "document.body.innerText.includes('Dossier cloture.')"
-            )
+            page.wait_for_function("document.body.innerText.includes('Dossier cloture.')")
             context.close()
             browser.close()
         self.available_carton.refresh_from_db()
@@ -1579,9 +1515,7 @@ class NextUiTests(StaticLiveServerTestCase):
         carton_ids_before = set(Carton.objects.values_list("id", flat=True))
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
-            context = self._new_context_with_session(
-                browser, auth_cookies=self.staff_auth_cookies
-            )
+            context = self._new_context_with_session(browser, auth_cookies=self.staff_auth_cookies)
             page = context.new_page()
             page.goto(
                 f"{self.live_server_url}/app/scan/shipment-create/",
@@ -1590,19 +1524,17 @@ class NextUiTests(StaticLiveServerTestCase):
             page.wait_for_selector("h1")
             page.get_by_label("Destination", exact=True).select_option(str(self.destination.id))
             page.get_by_label("Expediteur", exact=True).select_option(str(self.shipper_contact.id))
-            page.get_by_label("Destinataire", exact=True).select_option(str(self.recipient_contact.id))
+            page.get_by_label("Destinataire", exact=True).select_option(
+                str(self.recipient_contact.id)
+            )
             page.get_by_label("Correspondant", exact=True).select_option(
                 str(self.correspondent_contact.id)
             )
             page.get_by_label("Carton", exact=True).select_option("")
-            page.get_by_label("Code produit (Creation)").fill(
-                self.shipment_pack_product.sku
-            )
+            page.get_by_label("Code produit (Creation)").fill(self.shipment_pack_product.sku)
             page.get_by_label("Quantite (Creation)").fill("2")
             page.get_by_role("button", name="Creer expedition").click()
-            page.wait_for_function(
-                "document.body.innerText.includes('Expedition creee.')"
-            )
+            page.wait_for_function("document.body.innerText.includes('Expedition creee.')")
             create_status_text = page.locator("body").inner_text().lower()
             self.assertIn("expedition #", create_status_text)
             self.assertNotIn("shipment #", create_status_text)
@@ -1627,9 +1559,7 @@ class NextUiTests(StaticLiveServerTestCase):
     def test_next_shipment_create_replaces_placeholder_actions_with_admin_links(self):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
-            context = self._new_context_with_session(
-                browser, auth_cookies=self.staff_auth_cookies
-            )
+            context = self._new_context_with_session(browser, auth_cookies=self.staff_auth_cookies)
             page = context.new_page()
             page.goto(
                 f"{self.live_server_url}/app/scan/shipment-create/",
@@ -1647,7 +1577,9 @@ class NextUiTests(StaticLiveServerTestCase):
             recipient_link = page.get_by_role("link", name="Ajouter destinataire")
             correspondent_link = page.get_by_role("link", name="Ajouter correspondant")
             self.assertEqual(recipient_link.get_attribute("href"), "/admin/contacts/contact/add/")
-            self.assertEqual(correspondent_link.get_attribute("href"), "/admin/contacts/contact/add/")
+            self.assertEqual(
+                correspondent_link.get_attribute("href"), "/admin/contacts/contact/add/"
+            )
 
             page.wait_for_function(
                 """
@@ -1681,9 +1613,7 @@ class NextUiTests(StaticLiveServerTestCase):
 
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
-            context = self._new_context_with_session(
-                browser, auth_cookies=self.staff_auth_cookies
-            )
+            context = self._new_context_with_session(browser, auth_cookies=self.staff_auth_cookies)
             page = context.new_page()
             page.goto(
                 f"{self.live_server_url}/app/scan/shipment-create/",
@@ -1693,9 +1623,7 @@ class NextUiTests(StaticLiveServerTestCase):
             page.get_by_label("Destination", exact=True).select_option(
                 str(empty_shipper_destination.id)
             )
-            page.wait_for_function(
-                "document.body.innerText.includes('API connectee.')"
-            )
+            page.wait_for_function("document.body.innerText.includes('API connectee.')")
             body_text = page.locator("body").inner_text()
             self.assertIn("aucun expediteur trouve dans la base", body_text.lower())
             self.assertNotIn("carton id", body_text.lower())
@@ -1714,9 +1642,7 @@ class NextUiTests(StaticLiveServerTestCase):
     def test_next_shipment_create_selects_use_business_labels_without_id_prefix(self):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
-            context = self._new_context_with_session(
-                browser, auth_cookies=self.staff_auth_cookies
-            )
+            context = self._new_context_with_session(browser, auth_cookies=self.staff_auth_cookies)
             page = context.new_page()
             page.goto(
                 f"{self.live_server_url}/app/scan/shipment-create/",
@@ -1800,9 +1726,7 @@ class NextUiTests(StaticLiveServerTestCase):
     def test_next_shipments_tracking_route_workflow(self):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
-            context = self._new_context_with_session(
-                browser, auth_cookies=self.staff_auth_cookies
-            )
+            context = self._new_context_with_session(browser, auth_cookies=self.staff_auth_cookies)
             page = context.new_page()
             page.goto(
                 f"{self.live_server_url}/app/scan/shipments-tracking/",
@@ -1841,25 +1765,19 @@ class NextUiTests(StaticLiveServerTestCase):
                 ShipmentTrackingStatus.RECEIVED_CORRESPONDENT
             )
             page.get_by_role("button", name="Envoyer suivi").click()
-            page.wait_for_function(
-                "document.body.innerText.includes('Suivi mis a jour.')"
-            )
+            page.wait_for_function("document.body.innerText.includes('Suivi mis a jour.')")
 
             page.get_by_label("Statut suivi", exact=True).select_option(
                 ShipmentTrackingStatus.RECEIVED_RECIPIENT
             )
             page.get_by_role("button", name="Envoyer suivi").click()
-            page.wait_for_function(
-                "document.body.innerText.includes('Suivi mis a jour.')"
-            )
+            page.wait_for_function("document.body.innerText.includes('Suivi mis a jour.')")
 
             page.get_by_label("Expedition (Cloture)", exact=True).fill(
                 str(self.workflow_tracking_shipment.id)
             )
             page.get_by_role("button", name="Cloturer expedition").click()
-            page.wait_for_function(
-                "document.body.innerText.includes('Dossier cloture.')"
-            )
+            page.wait_for_function("document.body.innerText.includes('Dossier cloture.')")
             context.close()
             browser.close()
         self.workflow_tracking_shipment.refresh_from_db()
@@ -1868,9 +1786,7 @@ class NextUiTests(StaticLiveServerTestCase):
     def test_next_shipments_tracking_route_lists_shipments(self):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
-            context = self._new_context_with_session(
-                browser, auth_cookies=self.staff_auth_cookies
-            )
+            context = self._new_context_with_session(browser, auth_cookies=self.staff_auth_cookies)
             page = context.new_page()
             page.goto(
                 f"{self.live_server_url}/app/scan/shipments-tracking/",
@@ -1931,9 +1847,7 @@ class NextUiTests(StaticLiveServerTestCase):
 
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
-            context = self._new_context_with_session(
-                browser, auth_cookies=self.staff_auth_cookies
-            )
+            context = self._new_context_with_session(browser, auth_cookies=self.staff_auth_cookies)
             page = context.new_page()
             page.goto(
                 f"{self.live_server_url}/app/scan/shipments-tracking/",
@@ -1975,9 +1889,7 @@ class NextUiTests(StaticLiveServerTestCase):
     def test_next_shipments_ready_route_lists_shipments(self):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
-            context = self._new_context_with_session(
-                browser, auth_cookies=self.staff_auth_cookies
-            )
+            context = self._new_context_with_session(browser, auth_cookies=self.staff_auth_cookies)
             page = context.new_page()
             page.goto(
                 f"{self.live_server_url}/app/scan/shipments-ready/",
@@ -1994,9 +1906,7 @@ class NextUiTests(StaticLiveServerTestCase):
     def test_next_shipments_ready_route_shows_legacy_document_links(self):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
-            context = self._new_context_with_session(
-                browser, auth_cookies=self.staff_auth_cookies
-            )
+            context = self._new_context_with_session(browser, auth_cookies=self.staff_auth_cookies)
             page = context.new_page()
             page.goto(
                 f"{self.live_server_url}/app/scan/shipments-ready/",
@@ -2043,9 +1953,7 @@ class NextUiTests(StaticLiveServerTestCase):
 
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
-            context = self._new_context_with_session(
-                browser, auth_cookies=self.staff_auth_cookies
-            )
+            context = self._new_context_with_session(browser, auth_cookies=self.staff_auth_cookies)
             page = context.new_page()
             page.goto(
                 f"{self.live_server_url}/app/scan/shipments-ready/",
@@ -2070,9 +1978,7 @@ class NextUiTests(StaticLiveServerTestCase):
     def test_next_cartons_route_lists_cartons(self):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
-            context = self._new_context_with_session(
-                browser, auth_cookies=self.staff_auth_cookies
-            )
+            context = self._new_context_with_session(browser, auth_cookies=self.staff_auth_cookies)
             page = context.new_page()
             page.goto(
                 f"{self.live_server_url}/app/scan/cartons/",
@@ -2096,9 +2002,7 @@ class NextUiTests(StaticLiveServerTestCase):
         ).count()
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
-            context = self._new_context_with_session(
-                browser, auth_cookies=self.portal_auth_cookies
-            )
+            context = self._new_context_with_session(browser, auth_cookies=self.portal_auth_cookies)
             page = context.new_page()
             page.goto(
                 f"{self.live_server_url}/app/portal/dashboard/",
@@ -2106,18 +2010,14 @@ class NextUiTests(StaticLiveServerTestCase):
             )
             page.wait_for_selector("h1")
 
-            page.get_by_label("Destination ID (Commande)").select_option(
-                str(self.destination.id)
-            )
+            page.get_by_label("Destination ID (Commande)").select_option(str(self.destination.id))
             page.get_by_label("Destinataire ID (Commande)").select_option(
                 str(self.portal_recipient.id)
             )
             page.get_by_label("Product ID (Commande)").fill(str(self.portal_product.id))
             page.get_by_label("Quantite (Commande)").fill("2")
             page.get_by_role("button", name="Envoyer commande").click()
-            page.wait_for_function(
-                "document.body.innerText.includes('Commande envoyee.')"
-            )
+            page.wait_for_function("document.body.innerText.includes('Commande envoyee.')")
 
             page.get_by_label("Destination ID (Destinataire)").select_option(
                 str(self.destination.id)
@@ -2125,23 +2025,17 @@ class NextUiTests(StaticLiveServerTestCase):
             page.get_by_label("Structure (Destinataire)").fill(created_recipient_name)
             page.get_by_label("Adresse 1 (Destinataire)").fill("20 Rue Next Portal")
             page.get_by_role("button", name="Ajouter destinataire").click()
-            page.wait_for_function(
-                "document.body.innerText.includes('Destinataire ajoute.')"
-            )
+            page.wait_for_function("document.body.innerText.includes('Destinataire ajoute.')")
 
             page.get_by_label("Structure (Edition)").fill(updated_recipient_name)
             page.get_by_role("button", name="Modifier destinataire").click()
-            page.wait_for_function(
-                "document.body.innerText.includes('Destinataire modifie.')"
-            )
+            page.wait_for_function("document.body.innerText.includes('Destinataire modifie.')")
 
             page.get_by_label("Association name (Compte)").fill(updated_association_name)
             page.get_by_label("Adresse 1 (Compte)").fill("99 Rue Association")
             page.get_by_label("Email contact (Compte)").fill(updated_contact_email)
             page.get_by_role("button", name="Sauver compte").click()
-            page.wait_for_function(
-                "document.body.innerText.includes('Compte mis a jour.')"
-            )
+            page.wait_for_function("document.body.innerText.includes('Compte mis a jour.')")
 
             context.close()
             browser.close()

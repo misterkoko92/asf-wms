@@ -6,7 +6,6 @@ from wms.models import ProductLotStatus
 
 from .query_utils import parse_bool, parse_decimal, parse_int
 
-
 TEXT_FILTERS = (
     ("name", "name__icontains"),
     ("brand", "brand__icontains"),
@@ -95,15 +94,19 @@ def apply_product_filters(queryset, params):
         F("productlot__quantity_on_hand") - F("productlot__quantity_reserved"),
         output_field=IntegerField(),
     )
-    queryset = queryset.annotate(
-        available_stock=Coalesce(
-            Sum(
-                available_expr,
-                filter=Q(productlot__status=ProductLotStatus.AVAILABLE),
-            ),
-            0,
+    queryset = (
+        queryset.annotate(
+            available_stock=Coalesce(
+                Sum(
+                    available_expr,
+                    filter=Q(productlot__status=ProductLotStatus.AVAILABLE),
+                ),
+                0,
+            )
         )
-    ).select_related("category").prefetch_related("tags")
+        .select_related("category")
+        .prefetch_related("tags")
+    )
 
     available_stock_value = parse_int(params.get("available_stock"))
     if available_stock_value is not None:

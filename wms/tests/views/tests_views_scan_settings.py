@@ -40,9 +40,7 @@ class ScanSettingsViewTests(TestCase):
             "email_queue_retry_base_seconds": runtime.email_queue_retry_base_seconds,
             "email_queue_retry_max_seconds": runtime.email_queue_retry_max_seconds,
             "email_queue_processing_timeout_seconds": runtime.email_queue_processing_timeout_seconds,
-            "enable_shipment_track_legacy": (
-                "on" if runtime.enable_shipment_track_legacy else ""
-            ),
+            "enable_shipment_track_legacy": ("on" if runtime.enable_shipment_track_legacy else ""),
             "change_note": "Mise a jour test",
         }
         data.update(overrides)
@@ -249,19 +247,13 @@ class ScanSettingsEndToEndTests(TestCase):
     def _technical_cards(self):
         response = self.client.get(reverse("scan:scan_dashboard"))
         self.assertEqual(response.status_code, 200)
-        return {
-            card["label"]: card["value"] for card in response.context["technical_cards"]
-        }
+        return {card["label"]: card["value"] for card in response.context["technical_cards"]}
 
     def test_settings_change_updates_stale_draft_detection_flow(self):
         stale = self._create_temp_draft_shipment(reference="EXP-TEMP-E2E-01")
         fresh = self._create_temp_draft_shipment(reference="EXP-TEMP-E2E-02")
-        Shipment.objects.filter(pk=stale.pk).update(
-            created_at=timezone.now() - timedelta(days=20)
-        )
-        Shipment.objects.filter(pk=fresh.pk).update(
-            created_at=timezone.now() - timedelta(days=5)
-        )
+        Shipment.objects.filter(pk=stale.pk).update(created_at=timezone.now() - timedelta(days=20))
+        Shipment.objects.filter(pk=fresh.pk).update(created_at=timezone.now() - timedelta(days=5))
 
         response = self.client.post(
             reverse("scan:scan_settings"),

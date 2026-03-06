@@ -6,9 +6,7 @@ from django.utils import timezone
 
 from .print_pack_engine import PrintPackEngineError
 
-XLSX_CONTENT_TYPE = (
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-)
+XLSX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 ZIP_CONTENT_TYPE = "application/zip"
 
 

@@ -103,10 +103,10 @@ class FormsOrgRolesGateTests(TestCase):
             initial={"shipper_contact": str(shipper.id)},
         )
 
-        recipient_ids = set(
-            form.fields["recipient_contact"].queryset.values_list("id", flat=True)
+        recipient_ids = set(form.fields["recipient_contact"].queryset.values_list("id", flat=True))
+        self.assertIn(
+            shipper.id, form.fields["shipper_contact"].queryset.values_list("id", flat=True)
         )
-        self.assertIn(shipper.id, form.fields["shipper_contact"].queryset.values_list("id", flat=True))
         self.assertIn(recipient_allowed.id, recipient_ids)
         self.assertNotIn(recipient_blocked.id, recipient_ids)
 
@@ -180,9 +180,7 @@ class FormsOrgRolesGateTests(TestCase):
             destination_id=str(destination.id),
         )
 
-        shipper_ids = set(
-            form.fields["shipper_contact"].queryset.values_list("id", flat=True)
-        )
+        shipper_ids = set(form.fields["shipper_contact"].queryset.values_list("id", flat=True))
         self.assertIn(shipper_in_scope.id, shipper_ids)
         self.assertIn(shipper_out_scope.id, shipper_ids)
         self.assertFalse(form.is_valid())
@@ -245,7 +243,10 @@ class FormsOrgRolesGateTests(TestCase):
         )
         self.assertFalse(form_pending.is_valid())
         self.assertTrue(
-            any("revue" in error.lower() for error in form_pending.errors.get("recipient_contact", []))
+            any(
+                "revue" in error.lower()
+                for error in form_pending.errors.get("recipient_contact", [])
+            )
         )
 
         recipient_primary_contact = OrganizationContact.objects.create(

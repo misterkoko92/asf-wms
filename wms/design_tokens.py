@@ -88,7 +88,12 @@ TABLE_HEADER_LETTER_SPACING_CHOICES = (
 DESIGN_TOKEN_FAMILY_DEFINITIONS = (
     ("foundations", "Fondations", "Densite, espacements et largeur de page.", True),
     ("typography", "Typographie", "Tailles, interlignes et poids des textes.", False),
-    ("global_colors", "Couleurs globales", "Couleurs de base, liens, focus et etats desactives.", True),
+    (
+        "global_colors",
+        "Couleurs globales",
+        "Couleurs de base, liens, focus et etats desactives.",
+        True,
+    ),
     ("buttons", "Boutons", "Style, dimensions et couleurs des actions.", True),
     ("inputs", "Champs", "Apparence des champs de saisie.", False),
     ("cards", "Cards / Panneaux", "Contours, ombres et en-tetes des modules.", False),
@@ -110,7 +115,9 @@ def _choice_spec(default, choices, family, label, help_text, preview_var=None):
     }
 
 
-def _int_spec(default, minimum, maximum, family, label, help_text, preview_var=None, preview_unit="px"):
+def _int_spec(
+    default, minimum, maximum, family, label, help_text, preview_var=None, preview_unit="px"
+):
     return {
         "kind": "int",
         "default": int(default),
@@ -1072,14 +1079,10 @@ DESIGN_TOKEN_DEFAULTS = {
     token_key: spec["default"] for token_key, spec in DESIGN_TOKEN_SPECS.items()
 }
 
-DESIGN_TOKEN_FIELD_TO_KEY = {
-    f"design_{token_key}": token_key for token_key in DESIGN_TOKEN_SPECS
-}
+DESIGN_TOKEN_FIELD_TO_KEY = {f"design_{token_key}": token_key for token_key in DESIGN_TOKEN_SPECS}
 
 DESIGN_TOKEN_COLOR_KEYS = tuple(
-    token_key
-    for token_key, spec in DESIGN_TOKEN_SPECS.items()
-    if spec["kind"] == "color"
+    token_key for token_key, spec in DESIGN_TOKEN_SPECS.items() if spec["kind"] == "color"
 )
 DESIGN_TOKEN_INT_KEYS = tuple(
     token_key for token_key, spec in DESIGN_TOKEN_SPECS.items() if spec["kind"] == "int"

@@ -282,7 +282,9 @@ def get_builtin_style_preset_map():
 
 def build_style_snapshot_from_runtime(runtime_settings):
     fields = {
-        field_name: str(getattr(runtime_settings, field_name, DESIGN_STYLE_FIELD_DEFAULTS[field_name]))
+        field_name: str(
+            getattr(runtime_settings, field_name, DESIGN_STYLE_FIELD_DEFAULTS[field_name])
+        )
         for field_name in DESIGN_STYLE_FIELDS
     }
     tokens = normalize_priority_one_tokens(getattr(runtime_settings, "design_tokens", {}))

@@ -115,7 +115,9 @@ class ImportServicesPalletTests(SimpleTestCase):
             "override_code": "SKU-7",
         }
         with mock.patch("wms.import_services_pallet.resolve_product", return_value=product):
-            with mock.patch("wms.import_services_pallet.resolve_listing_location", return_value=None):
+            with mock.patch(
+                "wms.import_services_pallet.resolve_listing_location", return_value=None
+            ):
                 created, skipped, errors, receipt = apply_pallet_listing_import(
                     [payload],
                     user=self.user,
@@ -128,11 +130,23 @@ class ImportServicesPalletTests(SimpleTestCase):
         self.assertIsNone(receipt)
 
     def test_apply_pallet_listing_import_success_reuses_receipt_and_defaults_dates(self):
-        product_1 = SimpleNamespace(default_location=SimpleNamespace(id=1), storage_conditions="Cold")
+        product_1 = SimpleNamespace(
+            default_location=SimpleNamespace(id=1), storage_conditions="Cold"
+        )
         product_2 = SimpleNamespace(default_location=SimpleNamespace(id=2), storage_conditions="")
         payloads = [
-            {"apply": True, "row_index": 8, "row_data": {"quantity": "2"}, "selection": "product:11"},
-            {"apply": True, "row_index": 9, "row_data": {"quantity": "1"}, "selection": "product:12"},
+            {
+                "apply": True,
+                "row_index": 8,
+                "row_data": {"quantity": "2"},
+                "selection": "product:11",
+            },
+            {
+                "apply": True,
+                "row_index": 9,
+                "row_data": {"quantity": "1"},
+                "selection": "product:12",
+            },
         ]
         receipt = SimpleNamespace(id=50, reference="RCP-50")
         source_qs = SimpleNamespace(first=lambda: "source-contact")
@@ -156,21 +170,27 @@ class ImportServicesPalletTests(SimpleTestCase):
                         "wms.import_services_pallet.Receipt.objects.create",
                         return_value=receipt,
                     ) as receipt_create_mock:
-                        with mock.patch("wms.import_services_pallet.ReceiptLine.objects.create") as line_create_mock:
-                            with mock.patch("wms.import_services_pallet.receive_receipt_line") as receive_mock:
+                        with mock.patch(
+                            "wms.import_services_pallet.ReceiptLine.objects.create"
+                        ) as line_create_mock:
+                            with mock.patch(
+                                "wms.import_services_pallet.receive_receipt_line"
+                            ) as receive_mock:
                                 with mock.patch(
                                     "wms.import_services_pallet.timezone.localdate",
                                     return_value=date(2026, 1, 20),
                                 ):
-                                    created, skipped, errors, out_receipt = apply_pallet_listing_import(
-                                        payloads,
-                                        user=self.user,
-                                        warehouse=self.warehouse,
-                                        receipt_meta={
-                                            "source_contact_id": 1,
-                                            "carrier_contact_id": 2,
-                                            "pallet_count": 4,
-                                        },
+                                    created, skipped, errors, out_receipt = (
+                                        apply_pallet_listing_import(
+                                            payloads,
+                                            user=self.user,
+                                            warehouse=self.warehouse,
+                                            receipt_meta={
+                                                "source_contact_id": 1,
+                                                "carrier_contact_id": 2,
+                                                "pallet_count": 4,
+                                            },
+                                        )
                                     )
 
         self.assertEqual(created, 2)

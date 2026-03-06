@@ -10,8 +10,8 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
 from django.db.models import Q
-from django.utils.dateparse import parse_datetime
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 
 from .models import (
     IntegrationDirection,
@@ -68,11 +68,7 @@ def get_group_emails(group_name, *, require_staff=True):
     if require_staff:
         filters["is_staff"] = True
     return _normalize_recipients(
-        list(
-            User.objects.filter(**filters)
-            .exclude(email="")
-            .values_list("email", flat=True)
-        )
+        list(User.objects.filter(**filters).exclude(email="").values_list("email", flat=True))
     )
 
 
@@ -210,9 +206,9 @@ def _coerce_process_limit(limit):
 
 
 def _queue_candidate_statuses(include_failed):
-    statuses = [IntegrationStatus.PENDING]
+    statuses = [str(IntegrationStatus.PENDING)]
     if include_failed:
-        statuses.append(IntegrationStatus.FAILED)
+        statuses.append(str(IntegrationStatus.FAILED))
     return statuses
 
 
@@ -249,15 +245,19 @@ def _claim_queue_event(
     statuses,
     stale_processing_before,
 ):
-    return queue_queryset.filter(pk=event.pk).filter(
-        _queue_claim_filter(
-            statuses=statuses,
-            stale_processing_before=stale_processing_before,
+    return (
+        queue_queryset.filter(pk=event.pk)
+        .filter(
+            _queue_claim_filter(
+                statuses=statuses,
+                stale_processing_before=stale_processing_before,
+            )
         )
-    ).update(
-        status=IntegrationStatus.PROCESSING,
-        processed_at=timezone.now(),
-        error_message="",
+        .update(
+            status=IntegrationStatus.PROCESSING,
+            processed_at=timezone.now(),
+            error_message="",
+        )
     )
 
 
@@ -287,10 +287,7 @@ def _apply_send_result(*, event, payload, meta, queue_config):
     attempts = meta["attempts"] + 1
     if attempts >= queue_config["max_attempts"]:
         event.status = IntegrationStatus.FAILED
-        event.error_message = (
-            "send_email_safe returned False "
-            f"after {attempts} attempt(s)."
-        )
+        event.error_message = f"send_email_safe returned False after {attempts} attempt(s)."
         _set_queue_meta(
             payload,
             attempts=attempts,
@@ -483,9 +480,7 @@ def process_email_queue(
         processing_timeout_seconds=processing_timeout_seconds,
     )
     now = timezone.now()
-    stale_processing_before = now - timedelta(
-        seconds=queue_config["processing_timeout_seconds"]
-    )
+    stale_processing_before = now - timedelta(seconds=queue_config["processing_timeout_seconds"])
 
     statuses = _queue_candidate_statuses(include_failed)
 

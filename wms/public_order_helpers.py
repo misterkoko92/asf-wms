@@ -66,14 +66,18 @@ def _ensure_recipient_org_role(contact, form_data):
 
     org_contact = None
     if association_email:
-        org_contact = OrganizationContact.objects.filter(
-            organization=contact,
-            email__iexact=association_email,
-        ).order_by("id").first()
+        org_contact = (
+            OrganizationContact.objects.filter(
+                organization=contact,
+                email__iexact=association_email,
+            )
+            .order_by("id")
+            .first()
+        )
     if org_contact is None:
-        org_contact = OrganizationContact.objects.filter(
-            organization=contact
-        ).order_by("id").first()
+        org_contact = (
+            OrganizationContact.objects.filter(organization=contact).order_by("id").first()
+        )
 
     if org_contact is None:
         org_contact = OrganizationContact.objects.create(

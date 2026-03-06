@@ -99,9 +99,7 @@ class ProductLot(models.Model):
         max_length=20, choices=ProductLotStatus.choices, default=ProductLotStatus.AVAILABLE
     )
     quantity_on_hand = models.IntegerField(default=0)
-    quantity_reserved = models.IntegerField(
-        default=0, validators=[MinValueValidator(0)]
-    )
+    quantity_reserved = models.IntegerField(default=0, validators=[MinValueValidator(0)])
     location = models.ForeignKey(Location, on_delete=models.PROTECT)
     source_receipt = models.ForeignKey(
         "Receipt",
@@ -233,9 +231,7 @@ class ReceiptLine(models.Model):
 
 
 class ReceiptHorsFormat(models.Model):
-    receipt = models.ForeignKey(
-        Receipt, on_delete=models.CASCADE, related_name="hors_format_items"
-    )
+    receipt = models.ForeignKey(Receipt, on_delete=models.CASCADE, related_name="hors_format_items")
     line_number = models.PositiveIntegerField(validators=[MinValueValidator(1)])
     description = models.TextField()
 

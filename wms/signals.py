@@ -23,16 +23,15 @@ from .emailing import (
     get_group_emails,
     send_or_enqueue_email_safe,
 )
-from .notification_policy import resolve_notification_recipients
 from .models import (
     AssociationProfile,
     AssociationRecipient,
     Destination,
-    OrganizationRole,
-    OrganizationRoleAssignment,
     Order,
     OrderReviewStatus,
     OrderStatus,
+    OrganizationRole,
+    OrganizationRoleAssignment,
     RoleEventType,
     Shipment,
     ShipmentStatus,
@@ -40,6 +39,7 @@ from .models import (
     ShipmentTrackingStatus,
     WmsChange,
 )
+from .notification_policy import resolve_notification_recipients
 from .organization_role_resolvers import is_org_roles_engine_enabled
 from .workflow_observability import (
     log_shipment_status_transition,
@@ -50,9 +50,7 @@ SHIPMENT_STATUS_UPDATE_GROUP_DEFAULT = "Shipment_Status_Update"
 SHIPMENT_STATUS_CORRESPONDANT_GROUP_DEFAULT = "Shipment_Status_Update_Correspondant"
 ORDER_STATUS_ASSOCIATION_TEMPLATE = "emails/order_status_association_notification.txt"
 SHIPMENT_STATUS_PARTY_TEMPLATE = "emails/shipment_status_party_notification.txt"
-SHIPMENT_STATUS_CORRESPONDANT_TEMPLATE = (
-    "emails/shipment_status_correspondant_notification.txt"
-)
+SHIPMENT_STATUS_CORRESPONDANT_TEMPLATE = "emails/shipment_status_correspondant_notification.txt"
 SHIPMENT_CONTACT_NOTIFICATION_STATUSES = {
     ShipmentStatus.PLANNED,
     ShipmentStatus.SHIPPED,
@@ -178,9 +176,7 @@ def _shipment_status_admin_recipients():
         "SHIPMENT_STATUS_UPDATE_GROUP_NAME",
         SHIPMENT_STATUS_UPDATE_GROUP_DEFAULT,
     )
-    return _uniq_emails(
-        get_admin_emails() + get_group_emails(group_name, require_staff=True)
-    )
+    return _uniq_emails(get_admin_emails() + get_group_emails(group_name, require_staff=True))
 
 
 def _shipment_party_recipients(shipment):
@@ -199,9 +195,7 @@ def _shipment_correspondant_recipients(shipment):
         SHIPMENT_STATUS_CORRESPONDANT_GROUP_DEFAULT,
     )
     group_recipients = get_group_emails(group_name, require_staff=True)
-    correspondent_email = getattr(
-        getattr(shipment, "correspondent_contact_ref", None), "email", ""
-    )
+    correspondent_email = getattr(getattr(shipment, "correspondent_contact_ref", None), "email", "")
     return _uniq_emails(group_recipients + [correspondent_email])
 
 
@@ -314,9 +308,7 @@ def _dispatch_shipment_role_event(
         )
         correspondent_message = message
         if coordination_message:
-            correspondent_message = (
-                f"{correspondent_message}\n\n{coordination_message}"
-            )
+            correspondent_message = f"{correspondent_message}\n\n{coordination_message}"
         _queue_role_event_email(
             subject=subject,
             message=correspondent_message,
@@ -335,9 +327,7 @@ def _notify_role_based_shipment_status_change(*, shipment, old_label, new_label)
             "shipment_reference": shipment.reference,
             "old_status": old_label,
             "new_status": new_label,
-            "destination_label": str(destination)
-            if destination
-            else shipment.destination_address,
+            "destination_label": str(destination) if destination else shipment.destination_address,
             "changed_at": timezone.localtime(timezone.now()),
             "tracking_url": shipment.get_tracking_url(),
         },
@@ -360,9 +350,7 @@ def _notify_role_based_shipment_status_change(*, shipment, old_label, new_label)
         "emails/shipment_delivery_notification.txt",
         {
             "shipment_reference": shipment.reference,
-            "destination_label": str(destination)
-            if destination
-            else shipment.destination_address,
+            "destination_label": str(destination) if destination else shipment.destination_address,
             "delivered_at": timezone.localtime(timezone.now()),
             "tracking_url": shipment.get_tracking_url(),
         },
@@ -462,9 +450,7 @@ def _queue_shipment_correspondant_notification(
     )
     transaction.on_commit(
         lambda: send_or_enqueue_email_safe(
-            subject=(
-                f"ASF WMS - Suivi correspondant {shipment.reference} : {new_label}"
-            ),
+            subject=(f"ASF WMS - Suivi correspondant {shipment.reference} : {new_label}"),
             message=message,
             recipient=recipients,
         )
@@ -493,9 +479,7 @@ def _notify_shipment_status_change(sender, instance, created, **kwargs) -> None:
             new_label = ShipmentStatus(instance.status).label
         except ValueError:
             new_label = instance.status
-        admin_url = _build_site_url(
-            reverse("admin:wms_shipment_change", args=[instance.id])
-        )
+        admin_url = _build_site_url(reverse("admin:wms_shipment_change", args=[instance.id]))
         message = render_to_string(
             "emails/shipment_status_admin_notification.txt",
             {
@@ -561,9 +545,7 @@ def _notify_tracking_event(sender, instance, created, **kwargs) -> None:
     shipment = instance.shipment
     recipients = get_admin_emails()
     if recipients:
-        admin_url = _build_site_url(
-            reverse("admin:wms_shipment_change", args=[shipment.id])
-        )
+        admin_url = _build_site_url(reverse("admin:wms_shipment_change", args=[shipment.id]))
         message = render_to_string(
             "emails/shipment_tracking_admin_notification.txt",
             {
@@ -606,10 +588,14 @@ def _capture_order_state(sender, instance, **kwargs) -> None:
         instance._previous_order_status = None
         instance._previous_order_review_status = None
         return
-    previous_values = sender.objects.filter(pk=instance.pk).values(
-        "status",
-        "review_status",
-    ).first()
+    previous_values = (
+        sender.objects.filter(pk=instance.pk)
+        .values(
+            "status",
+            "review_status",
+        )
+        .first()
+    )
     if not previous_values:
         instance._previous_order_status = None
         instance._previous_order_review_status = None
@@ -665,9 +651,7 @@ def _notify_order_status_change(sender, instance, created, **kwargs) -> None:
     if not recipients:
         return
 
-    admin_url = _build_site_url(
-        reverse("admin:wms_order_change", args=[instance.id])
-    )
+    admin_url = _build_site_url(reverse("admin:wms_order_change", args=[instance.id]))
     message = render_to_string(
         ORDER_STATUS_ASSOCIATION_TEMPLATE,
         {
@@ -733,11 +717,7 @@ def _sync_profile_user_email_from_contact(sender, instance, **kwargs) -> None:
 
 
 def _sync_profile_contact_email_from_user(sender, instance, **kwargs) -> None:
-    profile = (
-        AssociationProfile.objects.select_related("contact")
-        .filter(user=instance)
-        .first()
-    )
+    profile = AssociationProfile.objects.select_related("contact").filter(user=instance).first()
     if not profile:
         return
     target_email = (instance.email or "").strip()
@@ -746,9 +726,7 @@ def _sync_profile_contact_email_from_user(sender, instance, **kwargs) -> None:
     Contact.objects.filter(pk=profile.contact_id).update(email=target_email)
 
 
-def _sync_default_shipper_bindings_for_recipient_role(
-    sender, instance, created, **kwargs
-) -> None:
+def _sync_default_shipper_bindings_for_recipient_role(sender, instance, created, **kwargs) -> None:
     if instance.role != OrganizationRole.RECIPIENT:
         return
     if not instance.is_active:
@@ -756,15 +734,11 @@ def _sync_default_shipper_bindings_for_recipient_role(
 
     role_assignment_id = instance.id
     transaction.on_commit(
-        lambda: ensure_default_shipper_bindings_for_recipient_assignment_id(
-            role_assignment_id
-        )
+        lambda: ensure_default_shipper_bindings_for_recipient_assignment_id(role_assignment_id)
     )
 
 
-def _sync_default_shipper_bindings_for_destination(
-    sender, instance, created, **kwargs
-) -> None:
+def _sync_default_shipper_bindings_for_destination(sender, instance, created, **kwargs) -> None:
     if not instance.is_active:
         return
 

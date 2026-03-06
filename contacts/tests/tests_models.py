@@ -63,7 +63,9 @@ class ContactModelsTests(TestCase):
         self.assertEqual(person_address.country, "France")
 
         effective_addresses = list(person.get_effective_addresses())
-        self.assertEqual([addr.id for addr in effective_addresses], [organization.addresses.get().id])
+        self.assertEqual(
+            [addr.id for addr in effective_addresses], [organization.addresses.get().id]
+        )
         self.assertEqual(person.get_effective_address().id, organization.addresses.get().id)
 
     def test_contact_address_str_and_sync_people_when_org_default_changes(self):

@@ -126,10 +126,7 @@ def _upload_workbook_item(*, token, drive_id, xlsx_bytes, filename, timeout):
 
 
 def _download_pdf_export(*, token, drive_id, item_id, timeout):
-    url = (
-        f"https://graph.microsoft.com/v1.0/drives/{drive_id}/items/{item_id}/content"
-        "?format=pdf"
-    )
+    url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/items/{item_id}/content?format=pdf"
     _validate_https_url(url)
     req = request.Request(
         url,
@@ -206,8 +203,6 @@ def convert_excel_to_pdf_via_graph(*, xlsx_bytes, filename, timeout=30):
         filename=filename,
         timeout=timeout,
     )
-    if not isinstance(pdf_bytes, (bytes, bytearray)) or not bytes(pdf_bytes).startswith(
-        b"%PDF"
-    ):
+    if not isinstance(pdf_bytes, bytes | bytearray) or not bytes(pdf_bytes).startswith(b"%PDF"):
         raise GraphPdfConversionError("Graph conversion did not return a valid PDF payload.")
     return bytes(pdf_bytes)

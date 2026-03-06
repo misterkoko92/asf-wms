@@ -126,7 +126,9 @@ def build_shipment_edit_initial(shipment, assigned_cartons, *, order_line_count=
     if shipment.destination and shipment.destination.correspondent_contact_id:
         correspondent_contact = shipment.destination.correspondent_contact
     else:
-        correspondent_contact = getattr(shipment, "correspondent_contact_ref", None) or resolve_contact_by_name(
+        correspondent_contact = getattr(
+            shipment, "correspondent_contact_ref", None
+        ) or resolve_contact_by_name(
             TAG_CORRESPONDENT,
             shipment.correspondent_name,
         )
@@ -135,9 +137,7 @@ def build_shipment_edit_initial(shipment, assigned_cartons, *, order_line_count=
         "destination": shipment.destination_id,
         "shipper_contact": shipper_contact.id if shipper_contact else None,
         "recipient_contact": recipient_contact.id if recipient_contact else None,
-        "correspondent_contact": correspondent_contact.id
-        if correspondent_contact
-        else None,
+        "correspondent_contact": correspondent_contact.id if correspondent_contact else None,
         "carton_count": max(1, len(assigned_cartons), int(order_line_count or 0)),
     }
 

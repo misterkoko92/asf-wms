@@ -1,6 +1,7 @@
 from .models import Carton, CartonFormat, CartonStatus
 from .scan_parse import parse_decimal, parse_int
 
+
 def build_available_cartons():
     cartons = (
         Carton.objects.filter(status=CartonStatus.PACKED, shipment__isnull=True)
@@ -45,16 +46,10 @@ def build_carton_formats():
 
 
 def get_carton_volume_cm3(carton_size):
-    return (
-        carton_size["length_cm"]
-        * carton_size["width_cm"]
-        * carton_size["height_cm"]
-    )
+    return carton_size["length_cm"] * carton_size["width_cm"] * carton_size["height_cm"]
 
 
-def resolve_carton_size(
-    *, carton_format_id: str | None, default_format: CartonFormat | None, data
-):
+def resolve_carton_size(*, carton_format_id: str | None, default_format: CartonFormat | None, data):
     errors = []
     if not carton_format_id and default_format:
         carton_format_id = str(default_format.id)
@@ -64,9 +59,7 @@ def resolve_carton_size(
             format_id = int(carton_format_id)
         except ValueError:
             format_id = None
-        format_obj = (
-            CartonFormat.objects.filter(id=format_id).first() if format_id else None
-        )
+        format_obj = CartonFormat.objects.filter(id=format_id).first() if format_id else None
         if not format_obj:
             errors.append("Format de carton invalide.")
             return None, errors

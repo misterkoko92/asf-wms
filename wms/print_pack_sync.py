@@ -126,9 +126,7 @@ def _apply_sync_success(*, artifact, onedrive_path):
     artifact.sync_attempts = artifact.sync_attempts + 1
     artifact.onedrive_path = onedrive_path
     artifact.last_sync_error = ""
-    artifact.save(
-        update_fields=["status", "sync_attempts", "onedrive_path", "last_sync_error"]
-    )
+    artifact.save(update_fields=["status", "sync_attempts", "onedrive_path", "last_sync_error"])
 
 
 def _apply_sync_failure(*, artifact, error_message, max_attempts):
@@ -160,8 +158,9 @@ def process_print_artifact_queue(
         statuses.append(GeneratedPrintArtifactStatus.SYNC_FAILED)
 
     artifacts = list(
-        GeneratedPrintArtifact.objects.filter(status__in=statuses)
-        .order_by("created_at", "id")[:safe_limit]
+        GeneratedPrintArtifact.objects.filter(status__in=statuses).order_by("created_at", "id")[
+            :safe_limit
+        ]
     )
 
     result = {

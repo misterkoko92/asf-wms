@@ -18,6 +18,10 @@ from .services import (
 )
 
 
+def _object_id(value):
+    return getattr(value, "pk", getattr(value, "id", ""))
+
+
 def get_order_state(order):
     if not order:
         return [], 0
@@ -37,7 +41,7 @@ def handle_order_action(
 ):
     if action == "select_order" and select_form.is_valid():
         order = select_form.cleaned_data["order"]
-        return redirect(f"{reverse('scan:scan_order')}?order={order.id}"), None, None
+        return redirect(f"{reverse('scan:scan_order')}?order={_object_id(order)}"), None, None
 
     if action == "create_order" and create_form.is_valid():
         shipper_contact = create_form.cleaned_data["shipper_contact"]
@@ -53,17 +57,15 @@ def handle_order_action(
             destination = None
             destination_city = (create_form.cleaned_data.get("destination_city") or "").strip()
             destination_country = (
-                (create_form.cleaned_data.get("destination_country") or "").strip()
-            )
+                create_form.cleaned_data.get("destination_country") or ""
+            ).strip()
             if destination_city:
                 destination_qs = Destination.objects.filter(
                     is_active=True,
                     city__iexact=destination_city,
                 )
                 if destination_country:
-                    destination_qs = destination_qs.filter(
-                        country__iexact=destination_country
-                    )
+                    destination_qs = destination_qs.filter(country__iexact=destination_country)
                 destination = destination_qs.order_by("id").first()
             if destination is None:
                 create_form.add_error(
@@ -107,11 +109,12 @@ def handle_order_action(
             notes=create_form.cleaned_data["notes"] or "",
         )
         create_shipment_for_order(order=order)
+        order_id = _object_id(order)
         messages.success(
             request,
-            f"Commande créée: {order.reference or f'Commande {order.id}'}",
+            f"Commande créée: {order.reference or f'Commande {order_id}'}",
         )
-        return redirect(f"{reverse('scan:scan_order')}?order={order.id}"), None, None
+        return redirect(f"{reverse('scan:scan_order')}?order={order_id}"), None, None
 
     if action == "add_line":
         if not selected_order:
@@ -147,9 +150,7 @@ def handle_order_action(
                     order_lines, remaining_total = get_order_state(selected_order)
                     return None, order_lines, remaining_total
                 return (
-                    redirect(
-                        f"{reverse('scan:scan_order')}?order={selected_order.id}"
-                    ),
+                    redirect(f"{reverse('scan:scan_order')}?order={_object_id(selected_order)}"),
                     None,
                     None,
                 )
@@ -161,7 +162,7 @@ def handle_order_action(
         except StockError as exc:
             messages.error(request, str(exc))
         return (
-            redirect(f"{reverse('scan:scan_order')}?order={selected_order.id}"),
+            redirect(f"{reverse('scan:scan_order')}?order={_object_id(selected_order)}"),
             None,
             None,
         )

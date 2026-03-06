@@ -153,18 +153,12 @@ class Command(BaseCommand):
         if not recipient_assignments:
             raise CommandError("Aucun role assignment destinataire candidat pour l'audit.")
 
-        estimated_total = (
-            len(destinations) * len(shipper_assignments) * len(recipient_assignments)
-        )
+        estimated_total = len(destinations) * len(shipper_assignments) * len(recipient_assignments)
+        self.stdout.write(self.style.MIGRATE_HEADING("Audit triples org roles [APPLY]"))
         self.stdout.write(
-            self.style.MIGRATE_HEADING("Audit triples org roles [APPLY]")
-        )
-        self.stdout.write(
-            (
-                f"- Destinations: {len(destinations)} | "
-                f"Shippers: {len(shipper_assignments)} | "
-                f"Recipients: {len(recipient_assignments)}"
-            )
+            f"- Destinations: {len(destinations)} | "
+            f"Shippers: {len(shipper_assignments)} | "
+            f"Recipients: {len(recipient_assignments)}"
         )
         self.stdout.write(f"- Triples estimes: {estimated_total}")
         if max_triples:

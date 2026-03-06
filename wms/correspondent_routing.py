@@ -46,9 +46,7 @@ def build_coordination_message_for_correspondent(
     all_correspondents: Iterable[Contact],
 ) -> str:
     other_correspondents = [
-        org
-        for org in all_correspondents
-        if org.id and org.id != current_correspondent.id
+        org for org in all_correspondents if org.id and org.id != current_correspondent.id
     ]
     if not other_correspondents:
         return ""

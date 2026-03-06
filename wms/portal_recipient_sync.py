@@ -46,9 +46,7 @@ def _recipient_display_name(recipient) -> str:
 
 def _get_or_create_recipient_tag() -> ContactTag:
     normalized_targets = {
-        normalize_tag_name(alias)
-        for alias in TAG_RECIPIENT
-        if normalize_tag_name(alias)
+        normalize_tag_name(alias) for alias in TAG_RECIPIENT if normalize_tag_name(alias)
     }
     for tag in ContactTag.objects.only("id", "name"):
         if normalize_tag_name(tag.name) in normalized_targets:
@@ -58,9 +56,7 @@ def _get_or_create_recipient_tag() -> ContactTag:
 
 def _get_or_create_shipper_tag() -> ContactTag:
     normalized_targets = {
-        normalize_tag_name(alias)
-        for alias in TAG_SHIPPER
-        if normalize_tag_name(alias)
+        normalize_tag_name(alias) for alias in TAG_SHIPPER if normalize_tag_name(alias)
     }
     for tag in ContactTag.objects.only("id", "name"):
         if normalize_tag_name(tag.name) in normalized_targets:
@@ -93,11 +89,7 @@ def _candidate_shipper_ids_for_association(association_contact):
     if email:
         filters |= Q(email__iexact=email)
 
-    shipper_ids = set(
-        contacts_with_tags(TAG_SHIPPER)
-        .filter(filters)
-        .values_list("id", flat=True)
-    )
+    shipper_ids = set(contacts_with_tags(TAG_SHIPPER).filter(filters).values_list("id", flat=True))
     shipper_ids.add(association_contact.pk)
     return sorted(shipper_ids)
 
@@ -105,9 +97,13 @@ def _candidate_shipper_ids_for_association(association_contact):
 def _find_synced_contact_by_marker(recipient):
     if not recipient.pk:
         return None
-    return Contact.objects.filter(
-        notes__startswith=_source_marker(recipient.pk),
-    ).order_by("-id").first()
+    return (
+        Contact.objects.filter(
+            notes__startswith=_source_marker(recipient.pk),
+        )
+        .order_by("-id")
+        .first()
+    )
 
 
 def _find_legacy_synced_contact(recipient):
@@ -167,9 +163,7 @@ def sync_association_recipient_to_contact(recipient):
     primary_email = _first_multi_value(recipient.emails, recipient.email)
     primary_phone = _first_multi_value(recipient.phones, recipient.phone)
 
-    contact = _find_synced_contact_by_marker(recipient) or _find_legacy_synced_contact(
-        recipient
-    )
+    contact = _find_synced_contact_by_marker(recipient) or _find_legacy_synced_contact(recipient)
     if contact is None:
         contact = Contact.objects.create(
             contact_type=ContactType.ORGANIZATION,
@@ -209,9 +203,7 @@ def sync_association_recipient_to_contact(recipient):
         contact=contact,
         destination_ids=[recipient.destination_id] if recipient.destination_id else [],
     )
-    for shipper_id in _candidate_shipper_ids_for_association(
-        recipient.association_contact
-    ):
+    for shipper_id in _candidate_shipper_ids_for_association(recipient.association_contact):
         contact.linked_shippers.add(shipper_id)
     ensure_default_shipper_for_recipient(contact)
     return contact

@@ -379,7 +379,9 @@ class ScanDesignSettingsForm(forms.ModelForm):
                 *self.SECTION_STATIC_FIELDS.get(key, ()),
                 *DESIGN_TOKEN_FAMILY_FIELDS.get(key, ()),
             ]
-            bound_fields = [self[field_name] for field_name in field_names if field_name in self.fields]
+            bound_fields = [
+                self[field_name] for field_name in field_names if field_name in self.fields
+            ]
             sections.append(
                 {
                     "key": key,

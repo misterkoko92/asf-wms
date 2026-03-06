@@ -61,9 +61,9 @@ def attach_order_documents_to_shipment(order, shipment):
         OrderDocumentType.HUMANITARIAN_ATTESTATION,
     }
     existing_files = set(
-        Document.objects.filter(
-            shipment=shipment, doc_type=DocumentType.ADDITIONAL
-        ).values_list("file", flat=True)
+        Document.objects.filter(shipment=shipment, doc_type=DocumentType.ADDITIONAL).values_list(
+            "file", flat=True
+        )
     )
     for doc in order.documents.filter(doc_type__in=wanted_types):
         if not doc.file:
@@ -121,9 +121,7 @@ def build_carton_format_data(carton_format):
     }
 
 
-def build_order_line_items(
-    post_data, *, product_options, product_by_id, available_by_id
-):
+def build_order_line_items(post_data, *, product_options, product_by_id, available_by_id):
     line_items = []
     line_errors = {}
     line_quantities = {}
@@ -150,9 +148,7 @@ def build_order_line_items(
     return line_items, line_quantities, line_errors
 
 
-def build_order_product_rows(
-    product_options, product_by_id, line_quantities, carton_format
-):
+def build_order_product_rows(product_options, product_by_id, line_quantities, carton_format):
     total_estimated_cartons = 0
     product_rows = []
     for item in product_options:
@@ -186,9 +182,7 @@ def build_order_product_rows(
 
 
 def _ready_carton_signature(*, product_lines, expires_on):
-    line_signature = "|".join(
-        f"{line['product_id']}:{line['quantity']}" for line in product_lines
-    )
+    line_signature = "|".join(f"{line['product_id']}:{line['quantity']}" for line in product_lines)
     expires_signature = expires_on.isoformat() if expires_on else ""
     return f"{line_signature}|{expires_signature}"
 
@@ -222,7 +216,8 @@ def build_ready_carton_rows(*, selected_quantities=None, line_errors=None):
         product_name_by_id = {}
         product_category_paths = {}
         expires_dates = []
-        for item in carton.cartonitem_set.all():
+        carton_items = getattr(carton, "cartonitem_set").all()
+        for item in carton_items:
             product = item.product_lot.product
             product_qty_by_id[product.id] += item.quantity
             product_name_by_id[product.id] = product.name or "-"
@@ -256,8 +251,7 @@ def build_ready_carton_rows(*, selected_quantities=None, line_errors=None):
             {
                 tuple(path_ids)
                 for path_ids in [
-                    product_category_paths.get(line["product_id"], [])
-                    for line in product_lines
+                    product_category_paths.get(line["product_id"], []) for line in product_lines
                 ]
                 if path_ids
             }
@@ -273,7 +267,7 @@ def build_ready_carton_rows(*, selected_quantities=None, line_errors=None):
                 "category_paths": [list(path_ids) for path_ids in category_paths],
             },
         )
-        group["carton_ids"].append(carton.id)
+        group["carton_ids"].append(carton.pk)
 
     rows = []
     for group in grouped.values():
@@ -297,8 +291,7 @@ def build_ready_carton_rows(*, selected_quantities=None, line_errors=None):
     rows.sort(
         key=lambda row: (
             " | ".join(
-                f"{line['product_name']}:{line['quantity']}"
-                for line in row["product_lines"]
+                f"{line['product_name']}:{line['quantity']}" for line in row["product_lines"]
             ).lower(),
             row["expires_on"].isoformat() if row["expires_on"] else "",
         )

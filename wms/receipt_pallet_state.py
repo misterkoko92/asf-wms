@@ -14,9 +14,7 @@ from .receipt_pallet_handlers import handle_pallet_create_post
 
 def build_receive_pallet_state(request, *, action):
     create_form = ScanReceiptPalletForm(
-        request.POST
-        if request.method == "POST" and action in ("", "pallet_create")
-        else None
+        request.POST if request.method == "POST" and action in ("", "pallet_create") else None
     )
     listing_form = ScanReceiptPalletForm(
         request.POST if action == "listing_upload" else None,

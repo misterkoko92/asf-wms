@@ -11,19 +11,21 @@ from django.urls import path, reverse
 from django.utils import timezone
 from django.utils.html import format_html, format_html_join
 
-from . import models
-from . import admin_misc  # noqa: F401
-from .admin_badges import render_admin_status_badge
+from . import (
+    admin_misc,  # noqa: F401
+    models,
+)
 from .admin_account_request_approval import (
     approve_account_request,
     build_account_access_lines,
     build_portal_urls,
 )
-from .admin_organization_roles_review import get_organization_roles_review_urls
+from .admin_badges import render_admin_status_badge
 from .admin_carton_handlers import (
     sync_carton_shipment_stock_movements,
     unpack_cartons_batch,
 )
+from .admin_organization_roles_review import get_organization_roles_review_urls
 from .admin_stockmovement_views import (
     build_stockmovement_form_response,
     handle_adjust_view,
@@ -56,8 +58,8 @@ from .services import (
     create_shipment_for_order,
     pack_carton,
     prepare_order,
-    receive_stock,
     receive_receipt_line,
+    receive_stock,
     reserve_stock_for_order,
     transfer_stock,
     unpack_carton,
@@ -103,6 +105,7 @@ def _try_generate_pack_artifact(*, fallback_renderer, **kwargs):
         return fallback_renderer()
     except PrintPackEngineError:
         return fallback_renderer()
+
 
 class ProductKitItemInline(admin.TabularInline):
     model = models.ProductKitItem
@@ -274,9 +277,7 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
         for account_request in queryset.select_related("contact"):
             if account_request.status == models.PublicAccountRequestStatus.APPROVED:
                 user_exists = (
-                    get_user_model()
-                    .objects.filter(email__iexact=account_request.email)
-                    .exists()
+                    get_user_model().objects.filter(email__iexact=account_request.email).exists()
                 )
                 if user_exists:
                     skipped += 1
@@ -302,16 +303,12 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
         previous_status = None
         if change and obj.pk:
             previous_status = (
-                self.model.objects.filter(pk=obj.pk)
-                .values_list("status", flat=True)
-                .first()
+                self.model.objects.filter(pk=obj.pk).values_list("status", flat=True).first()
             )
         super().save_model(request, obj, form, change)
         if obj.status != models.PublicAccountRequestStatus.APPROVED:
             return
-        user_exists = (
-            get_user_model().objects.filter(email__iexact=obj.email).exists()
-        )
+        user_exists = get_user_model().objects.filter(email__iexact=obj.email).exists()
         if previous_status == models.PublicAccountRequestStatus.APPROVED and user_exists:
             return
         ok, reason = self._approve_request(request, obj)
@@ -465,9 +462,7 @@ class RackColorAdminForm(forms.ModelForm):
         zones_qs = models.Location.objects.all()
         if warehouse_id:
             zones_qs = zones_qs.filter(warehouse_id=warehouse_id)
-        zones = list(
-            zones_qs.order_by("zone").values_list("zone", flat=True).distinct()
-        )
+        zones = list(zones_qs.order_by("zone").values_list("zone", flat=True).distinct())
         current_zone = self.instance.zone if self.instance else None
         if current_zone and current_zone not in zones:
             zones.insert(0, current_zone)
@@ -493,9 +488,7 @@ class RackColorAdminForm(forms.ModelForm):
         warehouse = cleaned_data.get("warehouse")
         zone = cleaned_data.get("zone")
         if warehouse and zone:
-            exists = models.Location.objects.filter(
-                warehouse=warehouse, zone=zone
-            ).exists()
+            exists = models.Location.objects.filter(warehouse=warehouse, zone=zone).exists()
             if not exists:
                 self.add_error("zone", "Rack inexistant pour cet entrepôt.")
         return cleaned_data
@@ -861,6 +854,7 @@ class ShipmentTrackingEventInline(admin.TabularInline):
     )
     fields = readonly_fields
 
+
 @admin.register(models.Destination)
 class DestinationAdmin(admin.ModelAdmin):
     list_display = ("city", "iata_code", "country", "correspondent_contact", "is_active")
@@ -967,9 +961,7 @@ class ShipmentAdmin(admin.ModelAdmin):
                     doc_type,
                 ),
             )
-            if isinstance(artifact, HttpResponseBase) or not hasattr(
-                artifact, "pdf_file"
-            ):
+            if isinstance(artifact, HttpResponseBase) or not hasattr(artifact, "pdf_file"):
                 return artifact
             return _artifact_pdf_response(artifact)
         return render_shipment_document(request, shipment, doc_type)
@@ -1208,10 +1200,7 @@ def _install_organization_roles_review_admin_url():
     original_get_urls = admin.site.get_urls
 
     def _get_urls():
-        return (
-            get_organization_roles_review_urls(admin_site=admin.site)
-            + original_get_urls()
-        )
+        return get_organization_roles_review_urls(admin_site=admin.site) + original_get_urls()
 
     admin.site.get_urls = _get_urls
     admin.site._wms_org_roles_review_url_installed = True

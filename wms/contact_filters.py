@@ -13,23 +13,17 @@ from contacts.tagging import (
 
 def filter_structure_contacts(queryset):
     return queryset.filter(
-        Q(contact_type=ContactType.ORGANIZATION)
-        | Q(organization__isnull=False)
+        Q(contact_type=ContactType.ORGANIZATION) | Q(organization__isnull=False)
     ).distinct()
 
 
 def filter_contacts_for_destination(queryset, destination):
     if not destination:
         return queryset.filter(Q(destinations__isnull=True)).distinct()
-    return queryset.filter(
-        Q(destinations=destination)
-        | Q(destinations__isnull=True)
-    ).distinct()
+    return queryset.filter(Q(destinations=destination) | Q(destinations__isnull=True)).distinct()
 
 
 def filter_recipients_for_shipper(queryset, shipper):
     if not shipper:
         return queryset.none()
-    return queryset.filter(
-        Q(linked_shippers=shipper) | Q(linked_shippers__isnull=True)
-    ).distinct()
+    return queryset.filter(Q(linked_shippers=shipper) | Q(linked_shippers__isnull=True)).distinct()

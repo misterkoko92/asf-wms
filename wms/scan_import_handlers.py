@@ -171,7 +171,11 @@ def _build_pending_decisions(request, pending):
 
 def _load_pending_rows(*, pending, clear_pending_import):
     if pending.get("source") != "file":
-        return pending.get("rows", []), None, pending.get("start_index", PRODUCT_IMPORT_START_INDEX_SINGLE)
+        return (
+            pending.get("rows", []),
+            None,
+            pending.get("start_index", PRODUCT_IMPORT_START_INDEX_SINGLE),
+        )
 
     temp_path = Path(pending.get("temp_path", ""))
     if not temp_path.exists():
@@ -199,9 +203,7 @@ def _collect_file_matches(rows):
         if row_is_empty(row):
             continue
         sku, name, brand = extract_product_identity(row)
-        matched, match_type = find_product_matches(
-            sku=sku, name=name, brand=brand
-        )
+        matched, match_type = find_product_matches(sku=sku, name=name, brand=brand)
         if matched:
             matches.append(
                 _build_match_entry(

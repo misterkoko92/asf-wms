@@ -10,9 +10,7 @@ def build_receipts_view_rows(receipts_qs):
 
         hors_format_count = receipt.hors_format_count
         hors_format_desc = "; ".join(
-            item.description.strip()
-            for item in receipt.hors_format_items.all()
-            if item.description
+            item.description.strip() for item in receipt.hors_format_items.all() if item.description
         )
         if hors_format_count and hors_format_desc:
             hors_format = f"{hors_format_count} : {hors_format_desc}"

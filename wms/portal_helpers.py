@@ -24,11 +24,7 @@ def get_contact_address(contact):
 def get_association_profile(user):
     if not user or not user.is_authenticated:
         return None
-    return (
-        AssociationProfile.objects.select_related("contact")
-        .filter(user=user)
-        .first()
-    )
+    return AssociationProfile.objects.select_related("contact").filter(user=user).first()
 
 
 def get_default_carton_format():

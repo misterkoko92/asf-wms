@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any
 
 ALLOWED_UPLOAD_EXTENSIONS = {
     ".pdf",
@@ -12,7 +13,7 @@ ALLOWED_UPLOAD_EXTENSIONS = {
 }
 PORTAL_MAX_FILE_SIZE_MB = 10
 
-_OFFICE_LEGACY_SIGNATURE = b"\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1"
+_OFFICE_LEGACY_SIGNATURE = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
 _ZIP_SIGNATURES = (
     b"PK\x03\x04",
     b"PK\x05\x06",
@@ -21,8 +22,8 @@ _ZIP_SIGNATURES = (
 _MAGIC_SIGNATURES_BY_EXTENSION = {
     ".pdf": (b"%PDF-",),
     ".png": (b"\x89PNG\r\n\x1a\n",),
-    ".jpg": (b"\xFF\xD8\xFF",),
-    ".jpeg": (b"\xFF\xD8\xFF",),
+    ".jpg": (b"\xff\xd8\xff",),
+    ".jpeg": (b"\xff\xd8\xff",),
     ".doc": (_OFFICE_LEGACY_SIGNATURE,),
     ".xls": (_OFFICE_LEGACY_SIGNATURE,),
     ".docx": _ZIP_SIGNATURES,
@@ -35,7 +36,7 @@ _MAX_SIGNATURE_BYTES = max(
 )
 
 
-def _read_file_header(file_obj, length):
+def _read_file_header(file_obj, length) -> bytes:
     read = getattr(file_obj, "read", None)
     if not callable(read):
         return b""
@@ -49,7 +50,7 @@ def _read_file_header(file_obj, length):
             position = None
 
     try:
-        header = read(length) or b""
+        header: Any = read(length) or b""
     except Exception:
         header = b""
 
@@ -60,9 +61,13 @@ def _read_file_header(file_obj, length):
         except Exception:
             position = None
 
+    if isinstance(header, bytes):
+        return header
+    if isinstance(header, bytearray):
+        return bytes(header)
     if isinstance(header, str):
         return header.encode()
-    return header
+    return b""
 
 
 def _has_valid_file_signature(file_obj, suffix):

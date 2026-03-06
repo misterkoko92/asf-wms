@@ -1,5 +1,6 @@
 from copy import copy
 from datetime import date, datetime
+
 from openpyxl.cell.cell import MergedCell
 from openpyxl.utils.cell import coordinate_from_string
 
@@ -45,7 +46,7 @@ def _iter_repeating_values(payload, source_key):
     if not list_key:
         return []
     rows = _resolve_source_value(payload, list_key)
-    if not isinstance(rows, (list, tuple)):
+    if not isinstance(rows, list | tuple):
         return []
     if not item_key:
         return list(rows)
@@ -72,7 +73,7 @@ def _apply_transform(value, transform):
     if transform_key == "upper":
         return str(value).upper()
     if transform_key == "date_fr":
-        if isinstance(value, (date, datetime)):
+        if isinstance(value, date | datetime):
             return value.strftime("%d/%m/%Y")
         return str(value)
     return value

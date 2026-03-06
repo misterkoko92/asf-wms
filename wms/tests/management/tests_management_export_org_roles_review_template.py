@@ -96,12 +96,10 @@ class ExportOrgRolesReviewTemplateHelpersTests(TestCase):
         )
 
         open_ids = {
-            item.id
-            for item in command_module._open_review_items_queryset(include_resolved=False)
+            item.id for item in command_module._open_review_items_queryset(include_resolved=False)
         }
         all_ids = {
-            item.id
-            for item in command_module._open_review_items_queryset(include_resolved=True)
+            item.id for item in command_module._open_review_items_queryset(include_resolved=True)
         }
 
         self.assertEqual(open_ids, {open_item.id})
@@ -116,9 +114,7 @@ class ExportOrgRolesReviewTemplateHelpersTests(TestCase):
                 "recipient_org": SimpleNamespace(name="Recipient A"),
                 "shipper_options": [SimpleNamespace(id=100, name="Shipper A")],
                 "suggested_shipper_id": 100,
-                "destination_options": [
-                    SimpleNamespace(id=55, iata_code="ABJ", city="Abidjan")
-                ],
+                "destination_options": [SimpleNamespace(id=55, iata_code="ABJ", city="Abidjan")],
                 "suggested_destination_id": 55,
             },
             {
@@ -130,14 +126,17 @@ class ExportOrgRolesReviewTemplateHelpersTests(TestCase):
             },
         ]
 
-        with mock.patch.object(
-            command_module,
-            "_open_review_items_queryset",
-            return_value=[first_item, second_item],
-        ), mock.patch.object(
-            command_module,
-            "_build_review_row",
-            side_effect=review_rows,
+        with (
+            mock.patch.object(
+                command_module,
+                "_open_review_items_queryset",
+                return_value=[first_item, second_item],
+            ),
+            mock.patch.object(
+                command_module,
+                "_build_review_row",
+                side_effect=review_rows,
+            ),
         ):
             rows = command_module._build_export_rows(include_resolved=False)
 
@@ -164,9 +163,7 @@ class ExportOrgRolesReviewTemplateCommandTests(TestCase):
     def _create_template(self, *, path: Path, include_target_sheet: bool):
         workbook = Workbook()
         worksheet = workbook.active
-        worksheet.title = (
-            command_module.TARGET_SHEET_NAME if include_target_sheet else "OtherSheet"
-        )
+        worksheet.title = command_module.TARGET_SHEET_NAME if include_target_sheet else "OtherSheet"
         worksheet.append(
             [
                 "review_id",
@@ -210,7 +207,16 @@ class ExportOrgRolesReviewTemplateCommandTests(TestCase):
             output_path = Path(tmp_dir) / "nested" / "filled.xlsx"
             self._create_template(path=template_path, include_target_sheet=True)
             rows = [
-                ["MR-1", "Recipient 1", "reason_a", "Shipper A", "DLA", "Douala", "resolve_binding", ""],
+                [
+                    "MR-1",
+                    "Recipient 1",
+                    "reason_a",
+                    "Shipper A",
+                    "DLA",
+                    "Douala",
+                    "resolve_binding",
+                    "",
+                ],
                 ["MR-2", "Recipient 2", "reason_b", "", "", "", "", ""],
             ]
 

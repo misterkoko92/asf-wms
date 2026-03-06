@@ -10,13 +10,13 @@ from .documents import (
     build_shipment_type_labels,
     compute_weight_total_g,
 )
+from .models import CartonFormat, CartonItem, RackColor
 from .scan_helpers import (
     build_product_group_key,
     build_product_label,
     get_product_volume_cm3,
     get_product_weight_g,
 )
-from .models import CartonFormat, CartonItem, RackColor
 
 
 def _build_destination_info(shipment):
@@ -35,10 +35,7 @@ def _build_destination_info(shipment):
 
 def build_shipment_document_context(shipment, doc_type):
     cartons = list(shipment.carton_set.all().order_by("code"))
-    carton_labels = {
-        carton.id: f"Colis N°{index}"
-        for index, carton in enumerate(cartons, start=1)
-    }
+    carton_labels = {carton.id: f"Colis N°{index}" for index, carton in enumerate(cartons, start=1)}
     item_rows = build_shipment_item_rows(shipment, carton_labels=carton_labels)
     aggregate_rows = build_shipment_aggregate_rows(shipment)
     default_format = CartonFormat.objects.filter(is_default=True).first()
@@ -50,16 +47,11 @@ def build_shipment_document_context(shipment, doc_type):
         "product_lot__product"
     ):
         product = item.product_lot.product
-        if (
-            get_product_weight_g(product) is None
-            and get_product_volume_cm3(product) is None
-        ):
+        if get_product_weight_g(product) is None and get_product_volume_cm3(product) is None:
             missing_by_carton[item.carton_id] = True
 
     has_missing_defaults = bool(missing_by_carton)
-    hide_measurements = (
-        doc_type in {"packing_list_shipment"} and has_missing_defaults
-    )
+    hide_measurements = doc_type in {"packing_list_shipment"} and has_missing_defaults
     for index, row in enumerate(carton_rows, start=1):
         row["label"] = f"Colis N°{index}"
         if hide_measurements:
@@ -67,28 +59,20 @@ def build_shipment_document_context(shipment, doc_type):
             row["volume_m3"] = None
         else:
             row["weight_kg"] = row["weight_g"] / 1000 if row.get("weight_g") else None
-            row["volume_m3"] = (
-                row["volume_cm3"] / 1_000_000 if row.get("volume_cm3") else None
-            )
+            row["volume_m3"] = row["volume_cm3"] / 1_000_000 if row.get("volume_cm3") else None
         if row.get("length_cm") and row.get("width_cm") and row.get("height_cm"):
-            row["dimensions_cm"] = (
-                f"{row['length_cm']} x {row['width_cm']} x {row['height_cm']}"
-            )
+            row["dimensions_cm"] = f"{row['length_cm']} x {row['width_cm']} x {row['height_cm']}"
         else:
             row["dimensions_cm"] = None
     weight_total_g = compute_weight_total_g(carton_rows)
     weight_total_kg = weight_total_g / 1000 if weight_total_g else 0
-    volume_total_m3 = sum(
-        row["volume_cm3"] for row in carton_rows if row.get("volume_cm3")
-    )
+    volume_total_m3 = sum(row["volume_cm3"] for row in carton_rows if row.get("volume_cm3"))
     volume_total_m3 = volume_total_m3 / 1_000_000 if volume_total_m3 else None
     if hide_measurements:
         weight_total_kg = None
         volume_total_m3 = None
     type_labels = build_shipment_type_labels(shipment)
-    destination_city, destination_iata, destination_label = _build_destination_info(
-        shipment
-    )
+    destination_city, destination_iata, destination_label = _build_destination_info(shipment)
     shipper_info = build_contact_info(TAG_SHIPPER, shipment.shipper_name)
     recipient_info = build_contact_info(TAG_RECIPIENT, shipment.recipient_name)
     correspondent_info = build_contact_info(TAG_CORRESPONDENT, shipment.correspondent_name)
@@ -96,8 +80,7 @@ def build_shipment_document_context(shipment, doc_type):
     description = f"{len(cartons)} cartons, {len(aggregate_rows)} produits"
     if shipment.requested_delivery_date:
         description += (
-            f", livraison souhaitee "
-            f"{shipment.requested_delivery_date.strftime('%d/%m/%Y')}"
+            f", livraison souhaitee {shipment.requested_delivery_date.strftime('%d/%m/%Y')}"
         )
     rows_for_template = item_rows
 
@@ -140,14 +123,9 @@ def build_carton_document_context(shipment, carton):
     item_rows = []
     weight_total_g = 0
     has_missing_defaults = False
-    for item in carton.cartonitem_set.select_related(
-        "product_lot", "product_lot__product"
-    ):
+    for item in carton.cartonitem_set.select_related("product_lot", "product_lot__product"):
         product = item.product_lot.product
-        if (
-            get_product_weight_g(product) is None
-            and get_product_volume_cm3(product) is None
-        ):
+        if get_product_weight_g(product) is None and get_product_volume_cm3(product) is None:
             has_missing_defaults = True
         if product.weight_g:
             weight_total_g += product.weight_g * item.quantity

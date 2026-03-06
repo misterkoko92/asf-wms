@@ -93,11 +93,15 @@ class Command(BaseCommand):
 
         queue_queryset = _scan_queue_queryset()
         counts = {
-            IntegrationStatus.PENDING: queue_queryset.filter(status=IntegrationStatus.PENDING).count(),
+            IntegrationStatus.PENDING: queue_queryset.filter(
+                status=IntegrationStatus.PENDING
+            ).count(),
             IntegrationStatus.PROCESSING: queue_queryset.filter(
                 status=IntegrationStatus.PROCESSING
             ).count(),
-            IntegrationStatus.FAILED: queue_queryset.filter(status=IntegrationStatus.FAILED).count(),
+            IntegrationStatus.FAILED: queue_queryset.filter(
+                status=IntegrationStatus.FAILED
+            ).count(),
             IntegrationStatus.PROCESSED: queue_queryset.filter(
                 status=IntegrationStatus.PROCESSED
             ).count(),
@@ -136,10 +140,7 @@ class Command(BaseCommand):
             issues.append(
                 f"failed={counts[IntegrationStatus.FAILED]} depasse --max-failed={max_failed}."
             )
-        if (
-            max_stale_processing is not None
-            and stale_processing > max_stale_processing
-        ):
+        if max_stale_processing is not None and stale_processing > max_stale_processing:
             issues.append(
                 "stale_processing="
                 f"{stale_processing} depasse --max-stale-processing={max_stale_processing}."

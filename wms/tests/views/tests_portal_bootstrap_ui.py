@@ -1,11 +1,12 @@
+from pathlib import Path
+
+from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.tokens import default_token_generator
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
-from django.contrib.auth.tokens import default_token_generator
 from django.urls import reverse
 from django.utils.http import urlsafe_base64_encode
-from pathlib import Path
-from django.conf import settings
 
 from contacts.models import Contact, ContactAddress, ContactType
 from wms.models import (
@@ -21,6 +22,7 @@ from wms.models import (
     OrderReviewStatus,
     OrderStatus,
 )
+
 
 @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
 class PortalBootstrapUiTests(TestCase):
@@ -252,7 +254,9 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(order_detail_response, "ui-comp-card")
         self.assertContains(order_detail_response, "ui-comp-title")
         self.assertContains(order_detail_response, "ui-comp-form")
-        self.assertNotContains(order_detail_response, ".portal-tight .portal-card { margin-bottom: 10px; }")
+        self.assertNotContains(
+            order_detail_response, ".portal-tight .portal-card { margin-bottom: 10px; }"
+        )
 
         recipients_response = self.client.get(reverse("portal:portal_recipients"))
         self.assertEqual(recipients_response.status_code, 200)

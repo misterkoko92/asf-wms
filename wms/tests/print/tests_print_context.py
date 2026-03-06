@@ -92,25 +92,49 @@ class PrintContextTests(SimpleTestCase):
         carton_items_qs = mock.MagicMock()
         carton_items_qs.select_related.return_value = [item]
 
-        with mock.patch("wms.print_context.build_shipment_item_rows", return_value=[{"product": "Mask"}]):
-            with mock.patch("wms.print_context.build_shipment_aggregate_rows", return_value=[{"product": "Mask"}]):
+        with mock.patch(
+            "wms.print_context.build_shipment_item_rows", return_value=[{"product": "Mask"}]
+        ):
+            with mock.patch(
+                "wms.print_context.build_shipment_aggregate_rows",
+                return_value=[{"product": "Mask"}],
+            ):
                 with mock.patch(
                     "wms.print_context.CartonFormat.objects.filter",
                     return_value=SimpleNamespace(first=lambda: None),
                 ):
-                    with mock.patch("wms.print_context.CartonFormat.objects.first", return_value=SimpleNamespace(id=1)):
-                        with mock.patch("wms.print_context.build_carton_rows", return_value=cart_rows):
+                    with mock.patch(
+                        "wms.print_context.CartonFormat.objects.first",
+                        return_value=SimpleNamespace(id=1),
+                    ):
+                        with mock.patch(
+                            "wms.print_context.build_carton_rows", return_value=cart_rows
+                        ):
                             with mock.patch(
                                 "wms.print_context.CartonItem.objects.filter",
                                 return_value=carton_items_qs,
                             ):
-                                with mock.patch("wms.print_context.get_product_weight_g", return_value=None):
-                                    with mock.patch("wms.print_context.get_product_volume_cm3", return_value=None):
-                                        with mock.patch("wms.print_context.compute_weight_total_g", return_value=3000):
-                                            with mock.patch("wms.print_context.build_shipment_type_labels", return_value="TypeX"):
+                                with mock.patch(
+                                    "wms.print_context.get_product_weight_g", return_value=None
+                                ):
+                                    with mock.patch(
+                                        "wms.print_context.get_product_volume_cm3",
+                                        return_value=None,
+                                    ):
+                                        with mock.patch(
+                                            "wms.print_context.compute_weight_total_g",
+                                            return_value=3000,
+                                        ):
+                                            with mock.patch(
+                                                "wms.print_context.build_shipment_type_labels",
+                                                return_value="TypeX",
+                                            ):
                                                 with mock.patch(
                                                     "wms.print_context.build_contact_info",
-                                                    side_effect=lambda tag, name: {"tag": tag, "name": name},
+                                                    side_effect=lambda tag, name: {
+                                                        "tag": tag,
+                                                        "name": name,
+                                                    },
                                                 ):
                                                     with mock.patch(
                                                         "wms.print_context.build_org_context",
@@ -163,7 +187,10 @@ class PrintContextTests(SimpleTestCase):
         carton_items_qs.select_related.return_value = []
 
         with mock.patch("wms.print_context.build_shipment_item_rows", return_value=[]):
-            with mock.patch("wms.print_context.build_shipment_aggregate_rows", return_value=[{"product": "Mask"}]):
+            with mock.patch(
+                "wms.print_context.build_shipment_aggregate_rows",
+                return_value=[{"product": "Mask"}],
+            ):
                 with mock.patch(
                     "wms.print_context.CartonFormat.objects.filter",
                     return_value=SimpleNamespace(first=lambda: SimpleNamespace(id=9)),
@@ -173,14 +200,24 @@ class PrintContextTests(SimpleTestCase):
                             "wms.print_context.CartonItem.objects.filter",
                             return_value=carton_items_qs,
                         ):
-                            with mock.patch("wms.print_context.compute_weight_total_g", return_value=1500):
-                                with mock.patch("wms.print_context.build_shipment_type_labels", return_value="TypeY"):
-                                    with mock.patch("wms.print_context.build_contact_info", return_value={"x": "y"}):
+                            with mock.patch(
+                                "wms.print_context.compute_weight_total_g", return_value=1500
+                            ):
+                                with mock.patch(
+                                    "wms.print_context.build_shipment_type_labels",
+                                    return_value="TypeY",
+                                ):
+                                    with mock.patch(
+                                        "wms.print_context.build_contact_info",
+                                        return_value={"x": "y"},
+                                    ):
                                         with mock.patch(
                                             "wms.print_context.build_org_context",
                                             return_value={"org": "ASF"},
                                         ):
-                                            context = build_shipment_document_context(shipment, "shipment_note")
+                                            context = build_shipment_document_context(
+                                                shipment, "shipment_note"
+                                            )
 
         self.assertFalse(context["hide_footer"])
         self.assertFalse(context["show_carton_column"])
@@ -235,9 +272,7 @@ class PrintContextTests(SimpleTestCase):
         item_c = SimpleNamespace(product_lot=lot_b, quantity=1)
         carton = SimpleNamespace(
             code="C-50",
-            cartonitem_set=SimpleNamespace(
-                select_related=lambda *_args: [item_a, item_b, item_c]
-            ),
+            cartonitem_set=SimpleNamespace(select_related=lambda *_args: [item_a, item_b, item_c]),
         )
 
         with mock.patch(
@@ -286,7 +321,9 @@ class PrintContextTests(SimpleTestCase):
     def test_resolve_rack_color_and_product_label_context(self):
         self.assertIsNone(resolve_rack_color(None))
 
-        location = SimpleNamespace(warehouse=SimpleNamespace(id=1), zone="A1", aisle="B1", shelf="C1")
+        location = SimpleNamespace(
+            warehouse=SimpleNamespace(id=1), zone="A1", aisle="B1", shelf="C1"
+        )
         product = SimpleNamespace(
             name="Mask",
             brand="BrandX",
@@ -306,7 +343,9 @@ class PrintContextTests(SimpleTestCase):
         ):
             self.assertIsNone(resolve_rack_color(location))
 
-        with mock.patch("wms.print_context.resolve_rack_color", return_value="Green") as resolver_mock:
+        with mock.patch(
+            "wms.print_context.resolve_rack_color", return_value="Green"
+        ) as resolver_mock:
             context = build_product_label_context(product)
         resolver_mock.assert_called_once_with(location)
         self.assertEqual(context["rack_color"], "Green")
@@ -368,47 +407,65 @@ class PrintContextTests(SimpleTestCase):
         )
         product = SimpleNamespace(id=1)
 
-        with mock.patch("wms.print_context.build_label_context", return_value={"k": "v"}) as label_mock:
+        with mock.patch(
+            "wms.print_context.build_label_context", return_value={"k": "v"}
+        ) as label_mock:
             result = build_preview_context("shipment_label", shipment=shipment)
         label_mock.assert_called_once_with(shipment, position=1, total=10)
         self.assertEqual(result, {"k": "v"})
 
-        with mock.patch("wms.print_context.build_sample_label_context", return_value={"sample": 1}) as sample_label_mock:
+        with mock.patch(
+            "wms.print_context.build_sample_label_context", return_value={"sample": 1}
+        ) as sample_label_mock:
             result = build_preview_context("shipment_label")
         sample_label_mock.assert_called_once()
         self.assertEqual(result, {"sample": 1})
 
-        with mock.patch("wms.print_context.build_product_label_context", return_value={"pl": 1}) as product_label_mock:
+        with mock.patch(
+            "wms.print_context.build_product_label_context", return_value={"pl": 1}
+        ) as product_label_mock:
             result = build_preview_context("product_label", product=product)
         product_label_mock.assert_called_once_with(product)
         self.assertEqual(result, {"pl": 1})
 
-        with mock.patch("wms.print_context.build_sample_product_label_context", return_value={"spl": 1}) as sample_product_label_mock:
+        with mock.patch(
+            "wms.print_context.build_sample_product_label_context", return_value={"spl": 1}
+        ) as sample_product_label_mock:
             result = build_preview_context("product_label")
         sample_product_label_mock.assert_called_once()
         self.assertEqual(result, {"spl": 1})
 
-        with mock.patch("wms.print_context.build_product_qr_label_context", return_value={"pq": 1}) as product_qr_mock:
+        with mock.patch(
+            "wms.print_context.build_product_qr_label_context", return_value={"pq": 1}
+        ) as product_qr_mock:
             result = build_preview_context("product_qr", product=product)
         product_qr_mock.assert_called_once_with(product)
         self.assertEqual(result, {"pq": 1})
 
-        with mock.patch("wms.print_context.build_sample_product_qr_label_context", return_value={"spq": 1}) as sample_product_qr_mock:
+        with mock.patch(
+            "wms.print_context.build_sample_product_qr_label_context", return_value={"spq": 1}
+        ) as sample_product_qr_mock:
             result = build_preview_context("product_qr")
         sample_product_qr_mock.assert_called_once()
         self.assertEqual(result, {"spq": 1})
 
-        with mock.patch("wms.print_context.build_carton_document_context", return_value={"carton": 1}) as carton_doc_mock:
+        with mock.patch(
+            "wms.print_context.build_carton_document_context", return_value={"carton": 1}
+        ) as carton_doc_mock:
             result = build_preview_context("packing_list_carton", shipment=shipment)
         carton_doc_mock.assert_called_once()
         self.assertEqual(result, {"carton": 1})
 
-        with mock.patch("wms.print_context.build_shipment_document_context", return_value={"ship": 1}) as ship_doc_mock:
+        with mock.patch(
+            "wms.print_context.build_shipment_document_context", return_value={"ship": 1}
+        ) as ship_doc_mock:
             result = build_preview_context("shipment_note", shipment=shipment)
         ship_doc_mock.assert_called_once_with(shipment, "shipment_note")
         self.assertEqual(result, {"ship": 1})
 
-        with mock.patch("wms.print_context.build_sample_document_context", return_value={"sample_doc": 1}) as sample_doc_mock:
+        with mock.patch(
+            "wms.print_context.build_sample_document_context", return_value={"sample_doc": 1}
+        ) as sample_doc_mock:
             result = build_preview_context("shipment_note")
         sample_doc_mock.assert_called_once_with("shipment_note")
         self.assertEqual(result, {"sample_doc": 1})

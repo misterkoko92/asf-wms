@@ -10,23 +10,18 @@ ERROR_RECIPIENT_LINKED_SHIPPERS_REQUIRED = (
 
 def tags_match(tag_objects, expected_tags):
     expected = {
-        normalize_tag_name(tag_name)
-        for tag_name in expected_tags
-        if normalize_tag_name(tag_name)
+        normalize_tag_name(tag_name) for tag_name in expected_tags if normalize_tag_name(tag_name)
     }
     if not expected:
         return False
     return any(
-        normalize_tag_name(getattr(tag, "name", tag)) in expected
-        for tag in (tag_objects or [])
+        normalize_tag_name(getattr(tag, "name", tag)) in expected for tag in (tag_objects or [])
     )
 
 
 def get_default_recipient_shipper():
     return (
-        contacts_with_tags(TAG_SHIPPER)
-        .filter(name__iexact=DEFAULT_RECIPIENT_SHIPPER_NAME)
-        .first()
+        contacts_with_tags(TAG_SHIPPER).filter(name__iexact=DEFAULT_RECIPIENT_SHIPPER_NAME).first()
         or Contact.objects.filter(
             is_active=True,
             name__iexact=DEFAULT_RECIPIENT_SHIPPER_NAME,

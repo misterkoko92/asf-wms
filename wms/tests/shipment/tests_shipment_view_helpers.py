@@ -6,7 +6,14 @@ from django.test import RequestFactory, TestCase
 from django.utils import timezone
 
 from contacts.models import Contact, ContactType
-from wms.models import Carton, Document, DocumentType, Shipment, ShipmentStatus, ShipmentTrackingStatus
+from wms.models import (
+    Carton,
+    Document,
+    DocumentType,
+    Shipment,
+    ShipmentStatus,
+    ShipmentTrackingStatus,
+)
 from wms.shipment_view_helpers import (
     build_carton_options,
     build_shipment_document_links,
@@ -169,9 +176,7 @@ class ShipmentViewHelpersTests(TestCase):
                         "wms.shipment_view_helpers.render",
                         side_effect=self._render_stub,
                     ) as render_mock:
-                        response = render_shipment_document(
-                            self.request, shipment, "shipment_note"
-                        )
+                        response = render_shipment_document(self.request, shipment, "shipment_note")
         self.assertEqual(response.content.decode(), "print/dynamic_document.html")
         self.assertEqual(render_mock.call_args.args[2], {"blocks": [{"type": "header"}]})
 
@@ -189,9 +194,7 @@ class ShipmentViewHelpersTests(TestCase):
                     "wms.shipment_view_helpers.render",
                     side_effect=self._render_stub,
                 ) as render_mock:
-                    response = render_shipment_document(
-                        self.request, shipment, "shipment_note"
-                    )
+                    response = render_shipment_document(self.request, shipment, "shipment_note")
         self.assertEqual(response.content.decode(), "print/bon_expedition.html")
         self.assertEqual(render_mock.call_args.args[2], {"shipment_ref": shipment.reference})
 
@@ -215,9 +218,7 @@ class ShipmentViewHelpersTests(TestCase):
                         "wms.shipment_view_helpers.render",
                         side_effect=self._render_stub,
                     ):
-                        dynamic_response = render_carton_document(
-                            self.request, shipment, carton
-                        )
+                        dynamic_response = render_carton_document(self.request, shipment, carton)
 
         with mock.patch(
             "wms.shipment_view_helpers.build_carton_document_context",
@@ -231,9 +232,7 @@ class ShipmentViewHelpersTests(TestCase):
                     "wms.shipment_view_helpers.render",
                     side_effect=self._render_stub,
                 ):
-                    default_response = render_carton_document(
-                        self.request, shipment, carton
-                    )
+                    default_response = render_carton_document(self.request, shipment, carton)
 
         self.assertEqual(dynamic_response.content.decode(), "print/dynamic_document.html")
         self.assertEqual(default_response.content.decode(), "print/liste_colisage_carton.html")
@@ -314,7 +313,9 @@ class ShipmentViewHelpersTests(TestCase):
                             response = render_shipment_labels(self.request, shipment)
 
         self.assertEqual(response.content.decode(), "print/dynamic_labels.html")
-        self.assertEqual(render_mock.call_args.args[2], {"labels": [{"blocks": [{"type": "label"}]}]})
+        self.assertEqual(
+            render_mock.call_args.args[2], {"labels": [{"blocks": [{"type": "label"}]}]}
+        )
         self.assertEqual(render_layout_mock.call_count, 1)
         self.assertEqual(render_layout_mock.call_args.args[1]["label_qr_url"], "custom-qr")
         self.assertEqual(render_layout_mock.call_args.args[1]["label_position"], "1")

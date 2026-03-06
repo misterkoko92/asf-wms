@@ -22,13 +22,16 @@ class PrintPackPdfTests(SimpleTestCase):
 
         fake_writer.write.side_effect = _write
 
-        with mock.patch(
-            "wms.print_pack_pdf.PdfReader",
-            side_effect=[fake_reader_1, fake_reader_2],
-        ) as reader_mock, mock.patch(
-            "wms.print_pack_pdf.PdfWriter",
-            return_value=fake_writer,
-        ) as writer_mock:
+        with (
+            mock.patch(
+                "wms.print_pack_pdf.PdfReader",
+                side_effect=[fake_reader_1, fake_reader_2],
+            ) as reader_mock,
+            mock.patch(
+                "wms.print_pack_pdf.PdfWriter",
+                return_value=fake_writer,
+            ) as writer_mock,
+        ):
             merged = merge_pdf_documents([b"%PDF-a", b"%PDF-b"])
 
         self.assertTrue(merged.startswith(b"%PDF"))

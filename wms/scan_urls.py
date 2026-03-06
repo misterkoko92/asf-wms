@@ -101,7 +101,9 @@ urlpatterns = [
         views.scan_public_order_summary,
         name="scan_public_order_summary",
     ),
-    path("templates/preview/", views.scan_print_template_preview, name="scan_print_template_preview"),
+    path(
+        "templates/preview/", views.scan_print_template_preview, name="scan_print_template_preview"
+    ),
     path("templates/", views.scan_print_templates, name="scan_print_templates"),
     path(
         "templates/<str:doc_type>/",

@@ -1,6 +1,5 @@
-from django.test import TestCase
-
 from django.contrib.auth import get_user_model
+from django.test import TestCase
 from django.utils import timezone
 
 from contacts.models import Contact, ContactAddress, ContactTag, ContactType
@@ -157,9 +156,7 @@ class ListingImportTests(TestCase):
             password="pass",
         )
         warehouse = Warehouse.objects.create(name="Main")
-        location = Location.objects.create(
-            warehouse=warehouse, zone="A", aisle="1", shelf="1"
-        )
+        location = Location.objects.create(warehouse=warehouse, zone="A", aisle="1", shelf="1")
         product = Product.objects.create(
             name="Gants",
             sku="GNT-1",

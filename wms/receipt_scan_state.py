@@ -4,15 +4,11 @@ from .receipt_handlers import get_receipt_lines_state
 
 
 def build_receipt_scan_state(request, *, action):
-    receipts_qs = Receipt.objects.select_related("warehouse").order_by(
-        "reference", "id"
-    )[:50]
+    receipts_qs = Receipt.objects.select_related("warehouse").order_by("reference", "id")[:50]
     select_form = ScanReceiptSelectForm(
         request.POST if action == "select_receipt" else None, receipts_qs=receipts_qs
     )
-    create_form = ScanReceiptCreateForm(
-        request.POST if action == "create_receipt" else None
-    )
+    create_form = ScanReceiptCreateForm(request.POST if action == "create_receipt" else None)
 
     receipt_id = request.GET.get("receipt") or request.POST.get("receipt_id")
     selected_receipt = Receipt.objects.filter(id=receipt_id).first() if receipt_id else None

@@ -11,10 +11,7 @@ def build_orders_view_rows(orders_qs):
     for order in orders_qs:
         association_contact = order.association_contact or order.recipient_contact
         association_name = (
-            association_contact.name
-            if association_contact
-            else order.recipient_name
-            or "-"
+            association_contact.name if association_contact else order.recipient_name or "-"
         )
         creator = build_order_creator_info(order)
         docs = [

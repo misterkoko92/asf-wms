@@ -3,6 +3,7 @@ from contacts.models import ContactTag
 from .import_utils import parse_tokens
 from .models import ProductTag
 
+
 def build_product_tags(raw_value):
     names = parse_tokens(raw_value)
     tags = []

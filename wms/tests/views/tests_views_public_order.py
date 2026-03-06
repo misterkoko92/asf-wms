@@ -167,9 +167,7 @@ class PublicOrderViewsTests(TestCase):
                     "wms.views_public_order.build_order_line_items",
                     return_value=([], {}, {}),
                 ):
-                    with mock.patch(
-                        "wms.views_public_order.create_public_order"
-                    ) as create_mock:
+                    with mock.patch("wms.views_public_order.create_public_order") as create_mock:
                         with mock.patch(
                             "wms.views_public_order.get_default_carton_format",
                             return_value=None,
@@ -204,9 +202,7 @@ class PublicOrderViewsTests(TestCase):
                     "wms.views_public_order.build_order_line_items",
                     return_value=([line_item], {1: 2}, {"1": "invalid"}),
                 ):
-                    with mock.patch(
-                        "wms.views_public_order.create_public_order"
-                    ) as create_mock:
+                    with mock.patch("wms.views_public_order.create_public_order") as create_mock:
                         with mock.patch(
                             "wms.views_public_order.get_default_carton_format",
                             return_value=None,

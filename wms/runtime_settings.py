@@ -57,12 +57,8 @@ def _fallback_runtime_config() -> RuntimeConfig:
             default=900,
             minimum=1,
         ),
-        enable_shipment_track_legacy=bool(
-            getattr(settings, "ENABLE_SHIPMENT_TRACK_LEGACY", True)
-        ),
-        org_roles_engine_enabled=bool(
-            getattr(settings, "ORG_ROLES_ENGINE_ENABLED", False)
-        ),
+        enable_shipment_track_legacy=bool(getattr(settings, "ENABLE_SHIPMENT_TRACK_LEGACY", True)),
+        org_roles_engine_enabled=bool(getattr(settings, "ORG_ROLES_ENGINE_ENABLED", False)),
         org_roles_review_max_open_percent=min(
             100,
             _safe_int(

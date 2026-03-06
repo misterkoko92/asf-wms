@@ -37,16 +37,16 @@ class ContactAdminForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["use_organization_address"].help_text = (
-            "Utilise l'adresse par défaut de la société et se met à jour automatiquement."
-        )
-        self.fields["destinations"].help_text = (
-            "Sélection multiple. Vide = toutes les destinations."
-        )
+        self.fields[
+            "use_organization_address"
+        ].help_text = "Utilise l'adresse par défaut de la société et se met à jour automatiquement."
+        self.fields[
+            "destinations"
+        ].help_text = "Sélection multiple. Vide = toutes les destinations."
         self.fields["linked_shippers"].queryset = contacts_with_tags(TAG_SHIPPER)
-        self.fields["linked_shippers"].help_text = (
-            "Sélection multiple pour les destinataires. Obligatoire à la création."
-        )
+        self.fields[
+            "linked_shippers"
+        ].help_text = "Sélection multiple pour les destinataires. Obligatoire à la création."
         if not self.instance.pk and not self.is_bound:
             default_shipper = get_default_recipient_shipper()
             if default_shipper:
@@ -63,9 +63,7 @@ class ContactAdminForm(forms.ModelForm):
         if contact_type == ContactType.ORGANIZATION and not tags:
             self.add_error("tags", "Au moins un tag est requis pour une société.")
         if contact_type == ContactType.PERSON and use_org_address and not organization:
-            self.add_error(
-                "organization", "Sélectionnez une société pour utiliser son adresse."
-            )
+            self.add_error("organization", "Sélectionnez une société pour utiliser son adresse.")
         recipient_links_error = validate_recipient_links_for_creation(
             is_creation=not self.instance.pk,
             tags=tags,
@@ -105,9 +103,7 @@ class ContactTagAdminForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["asf_prefix"].help_text = (
-            "Prefix ASF (EXP, DEST, CORR, DON, TRA, PART)."
-        )
+        self.fields["asf_prefix"].help_text = "Prefix ASF (EXP, DEST, CORR, DON, TRA, PART)."
 
     def clean_asf_prefix(self):
         prefix = (self.cleaned_data.get("asf_prefix") or "").strip()
@@ -243,5 +239,6 @@ class ContactTagAdmin(admin.ModelAdmin):
             },
         ),
     )
+
 
 # Register your models here.

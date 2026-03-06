@@ -16,11 +16,11 @@ from wms.models import (
     Destination,
     GeneratedPrintArtifactStatus,
     Location,
+    PrintPack,
+    PrintPackDocument,
     Product,
     ProductCategory,
     ProductLot,
-    PrintPack,
-    PrintPackDocument,
     Shipment,
     Warehouse,
 )
@@ -50,15 +50,17 @@ class PrintPackEngineTests(TestCase):
             enabled=True,
         )
 
-        with mock.patch(
-            "wms.print_pack_engine._render_document_xlsx_bytes",
-            return_value=b"xlsx-data",
-        ) as render_mock, mock.patch(
-            "wms.print_pack_engine.convert_excel_to_pdf_via_graph",
-            return_value=b"%PDF-single",
-        ) as convert_mock, mock.patch(
-            "wms.print_pack_engine.merge_pdf_documents"
-        ) as merge_mock:
+        with (
+            mock.patch(
+                "wms.print_pack_engine._render_document_xlsx_bytes",
+                return_value=b"xlsx-data",
+            ) as render_mock,
+            mock.patch(
+                "wms.print_pack_engine.convert_excel_to_pdf_via_graph",
+                return_value=b"%PDF-single",
+            ) as convert_mock,
+            mock.patch("wms.print_pack_engine.merge_pdf_documents") as merge_mock,
+        ):
             artifact = generate_pack(pack_code="PA", user=self.user)
 
         self.assertEqual(artifact.pack_code, "PA")
@@ -85,16 +87,20 @@ class PrintPackEngineTests(TestCase):
             enabled=True,
         )
 
-        with mock.patch(
-            "wms.print_pack_engine._render_document_xlsx_bytes",
-            side_effect=[b"xlsx-1", b"xlsx-2"],
-        ), mock.patch(
-            "wms.print_pack_engine.convert_excel_to_pdf_via_graph",
-            side_effect=[b"%PDF-1", b"%PDF-2"],
-        ), mock.patch(
-            "wms.print_pack_engine.merge_pdf_documents",
-            return_value=b"%PDF-merged",
-        ) as merge_mock:
+        with (
+            mock.patch(
+                "wms.print_pack_engine._render_document_xlsx_bytes",
+                side_effect=[b"xlsx-1", b"xlsx-2"],
+            ),
+            mock.patch(
+                "wms.print_pack_engine.convert_excel_to_pdf_via_graph",
+                side_effect=[b"%PDF-1", b"%PDF-2"],
+            ),
+            mock.patch(
+                "wms.print_pack_engine.merge_pdf_documents",
+                return_value=b"%PDF-merged",
+            ) as merge_mock,
+        ):
             artifact = generate_pack(pack_code="PB", user=self.user)
 
         self.assertEqual(artifact.items.count(), 2)
@@ -120,16 +126,20 @@ class PrintPackEngineTests(TestCase):
         carton_one = Carton.objects.create(code="C-001", shipment=shipment)
         carton_two = Carton.objects.create(code="C-002", shipment=shipment)
 
-        with mock.patch(
-            "wms.print_pack_engine._render_document_xlsx_bytes",
-            side_effect=[b"xlsx-1", b"xlsx-2"],
-        ) as render_mock, mock.patch(
-            "wms.print_pack_engine.convert_excel_to_pdf_via_graph",
-            side_effect=[b"%PDF-1", b"%PDF-2"],
-        ), mock.patch(
-            "wms.print_pack_engine.merge_pdf_documents",
-            return_value=b"%PDF-merged",
-        ) as merge_mock:
+        with (
+            mock.patch(
+                "wms.print_pack_engine._render_document_xlsx_bytes",
+                side_effect=[b"xlsx-1", b"xlsx-2"],
+            ) as render_mock,
+            mock.patch(
+                "wms.print_pack_engine.convert_excel_to_pdf_via_graph",
+                side_effect=[b"%PDF-1", b"%PDF-2"],
+            ),
+            mock.patch(
+                "wms.print_pack_engine.merge_pdf_documents",
+                return_value=b"%PDF-merged",
+            ) as merge_mock,
+        ):
             artifact = generate_pack(pack_code="PD", shipment=shipment, user=self.user)
 
         self.assertEqual(render_mock.call_count, 2)

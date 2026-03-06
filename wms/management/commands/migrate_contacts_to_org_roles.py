@@ -4,9 +4,7 @@ from wms.organization_roles_backfill import backfill_contacts_to_org_roles
 
 
 class Command(BaseCommand):
-    help = (
-        "Backfill non bloquant des contacts legacy vers le modele organization roles."
-    )
+    help = "Backfill non bloquant des contacts legacy vers le modele organization roles."
 
     def add_arguments(self, parser):
         parser.add_argument(

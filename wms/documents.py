@@ -64,9 +64,7 @@ def build_shipment_aggregate_rows(shipment):
 def build_carton_rows(cartons, *, default_format=None):
     rows = []
     for carton in cartons:
-        items = carton.cartonitem_set.select_related(
-            "product_lot", "product_lot__product"
-        )
+        items = carton.cartonitem_set.select_related("product_lot", "product_lot__product")
         weight_total = 0
         volume_total = None
         for item in items:
@@ -143,10 +141,7 @@ def build_contact_info(tag_names, fallback_name):
         if hasattr(contact, "get_effective_address"):
             address = contact.get_effective_address()
         else:
-            address = (
-                contact.addresses.filter(is_default=True).first()
-                or contact.addresses.first()
-            )
+            address = contact.addresses.filter(is_default=True).first() or contact.addresses.first()
         phone = contact.phone or (address.phone if address else "")
         email = contact.email or (address.email if address else "")
         if contact.contact_type == ContactType.PERSON:

@@ -7,10 +7,10 @@ from django.urls import reverse
 from django.utils import timezone
 
 from .models import (
+    TEMP_SHIPMENT_REFERENCE_PREFIX,
     Shipment,
     ShipmentStatus,
     ShipmentTrackingStatus,
-    TEMP_SHIPMENT_REFERENCE_PREFIX,
 )
 from .runtime_settings import get_runtime_config
 from .shipment_view_helpers import build_shipments_tracking_rows
@@ -121,9 +121,7 @@ def _build_shipments_tracking_queryset():
             ),
             received_correspondent_at=Max(
                 "tracking_events__created_at",
-                filter=Q(
-                    tracking_events__status=ShipmentTrackingStatus.RECEIVED_CORRESPONDENT
-                ),
+                filter=Q(tracking_events__status=ShipmentTrackingStatus.RECEIVED_CORRESPONDENT),
             ),
             delivered_at=Max(
                 "tracking_events__created_at",
