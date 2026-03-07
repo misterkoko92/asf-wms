@@ -126,7 +126,7 @@ def approve_account_request(
             },
         )
         enqueue_email(
-            subject="ASF WMS - Compte utilisateur valide",
+            subject=_("ASF WMS - Compte utilisateur valide"),
             message=message,
             recipient=[account_request.email],
         )
@@ -143,7 +143,7 @@ def approve_account_request(
                 is_active=True,
             )
             account_request.contact = contact
-        tag, _ = ContactTag.objects.get_or_create(name=TAG_SHIPPER[0])
+        tag, _created = ContactTag.objects.get_or_create(name=TAG_SHIPPER[0])
         contact.tags.add(tag)
 
         contact_updates = []
@@ -218,7 +218,7 @@ def approve_account_request(
         },
     )
     enqueue_email(
-        subject="ASF WMS - Compte valide",
+        subject=_("ASF WMS - Compte valide"),
         message=message,
         recipient=[account_request.email],
     )

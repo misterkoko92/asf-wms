@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-07 19:49+0100\n"
+"POT-Creation-Date: 2026-03-07 20:09+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -62,6 +62,9 @@ msgstr[1] ""
 "    "
 
 #: templates/admin/wms/organization_roles_review.html:28
+#: templates/print/attestation_aide_humanitaire.html:12
+#: templates/print/attestation_donation.html:12
+#: templates/print/attestation_douane.html:12
 msgid "Organisation"
 msgstr "Organization"
 
@@ -153,6 +156,330 @@ msgstr "Save"
 msgid "Retour"
 msgstr "Back"
 
+#: templates/emails/account_request_admin_notification.txt:1
+msgid "Nouvelle demande de compte"
+msgstr "New account request"
+
+#: templates/emails/account_request_admin_notification.txt:3
+msgid "Type de profil"
+msgstr "Profile type"
+
+#: templates/emails/account_request_admin_notification.txt:3
+#: templates/scan/public_account_request.html:71
+msgid "Utilisateur WMS"
+msgstr "WMS user"
+
+#: templates/emails/account_request_admin_notification.txt:3
+#: templates/emails/order_admin_notification_portal.txt:3
+#: templates/emails/order_admin_notification_public.txt:3
+#: templates/portal/account.html:30 templates/print/order_summary.html:41
+#: templates/scan/orders_view.html:19
+#: templates/scan/public_account_request.html:70
+#: templates/scan/public_order.html:65 wms/forms.py:284
+msgid "Association"
+msgstr "Association"
+
+#: templates/emails/account_request_admin_notification.txt:4
+msgid "Association / entité"
+msgstr "Association / entity"
+
+#: templates/emails/account_request_admin_notification.txt:6
+msgid "Nom d'utilisateur demandé"
+msgstr "Requested username"
+
+#: templates/emails/account_request_admin_notification.txt:8
+#: templates/emails/account_request_approved_user.txt:6
+#: templates/emails/order_admin_notification_portal.txt:4
+#: templates/emails/order_admin_notification_public.txt:4
+msgid "Email"
+msgstr "Email"
+
+#: templates/emails/account_request_admin_notification.txt:9
+#: templates/emails/order_admin_notification_portal.txt:5
+#: templates/emails/order_admin_notification_public.txt:5
+#: templates/portal/account.html:51 templates/portal/account.html:127
+#: templates/portal/account.html:149 templates/portal/account.html:282
+#: templates/scan/public_account_request.html:95
+#: templates/scan/public_order.html:84
+msgid "Téléphone"
+msgstr "Phone"
+
+#: templates/emails/account_request_admin_notification.txt:11
+msgid "Voir dans l'admin"
+msgstr "View in admin"
+
+#: templates/emails/account_request_approved.txt:1
+#: templates/emails/order_confirmation.txt:1
+msgid "Bonjour %(association_name)s,"
+msgstr "Hello %(association_name)s,"
+
+#: templates/emails/account_request_approved.txt:3
+msgid "Votre compte association a été validé par ASF."
+msgstr "Your association account has been approved by ASF."
+
+#: templates/emails/account_request_approved.txt:5
+#: templates/emails/account_request_approved_user.txt:5
+msgid "Identifiant"
+msgstr "Login"
+
+#: templates/emails/account_request_approved.txt:6
+msgid "Pour définir votre mot de passe, utilisez ce lien sécurisé:"
+msgstr "Use this secure link to set your password:"
+
+#: templates/emails/account_request_approved.txt:9
+#: templates/portal/login.html:7 templates/portal/login.html:30
+msgid "Connexion association"
+msgstr "Association login"
+
+#: templates/emails/account_request_approved.txt:12
+#: templates/emails/account_request_approved_user.txt:11
+msgid ""
+"Si vous n'êtes pas à l'origine de cette demande, merci de contacter ASF."
+msgstr "If you did not request this, please contact ASF."
+
+#: templates/emails/account_request_approved_user.txt:1
+#, python-format
+msgid "Bonjour %(requested_username)s,"
+msgstr "Hello %(requested_username)s,"
+
+#: templates/emails/account_request_approved_user.txt:3
+msgid "Votre compte utilisateur WMS a été validé par ASF."
+msgstr "Your WMS user account has been approved by ASF."
+
+#: templates/emails/account_request_approved_user.txt:8
+msgid "Connexion admin"
+msgstr "Admin login"
+
+#: templates/emails/account_request_received.txt:1
+#, python-format
+msgid "Bonjour %(display_name)s,"
+msgstr "Hello %(display_name)s,"
+
+#: templates/emails/account_request_received.txt:3
+msgid "Votre demande de création de compte a bien été reçue."
+msgstr "Your account creation request has been received."
+
+#: templates/emails/account_request_received.txt:4
+msgid "Un superuser ASF va la vérifier et vous recontacter."
+msgstr "An ASF superuser will review it and get back to you."
+
+#: templates/emails/account_request_received.txt:6
+#: templates/emails/order_confirmation.txt:12
+msgid "Merci,"
+msgstr "Thank you,"
+
+#: templates/emails/order_admin_notification_portal.txt:1
+msgid "Nouvelle commande portail"
+msgstr "New portal order"
+
+#: templates/emails/order_admin_notification_portal.txt:6
+#: templates/emails/order_admin_notification_public.txt:6
+#: templates/emails/order_confirmation.txt:5
+#: templates/emails/order_status_association_notification.txt:3
+#: templates/portal/dashboard.html:18 templates/print/order_summary.html:37
+#: templates/scan/order.html:100 templates/scan/receive.html:106
+#: templates/scan/stock.html:40 templates/scan/stock.html:86
+msgid "Référence"
+msgstr "Reference"
+
+#: templates/emails/order_admin_notification_portal.txt:8
+#: templates/emails/order_admin_notification_public.txt:8
+msgid "Récapitulatif"
+msgstr "Summary"
+
+#: templates/emails/order_admin_notification_portal.txt:11
+#: templates/emails/order_admin_notification_public.txt:11
+#: templates/emails/shipment_status_admin_notification.txt:12
+#: templates/emails/shipment_tracking_admin_notification.txt:13
+#: templates/scan/base.html:97
+msgid "Admin"
+msgstr "Admin"
+
+#: templates/emails/order_admin_notification_public.txt:1
+msgid "Nouvelle commande publique"
+msgstr "New public order"
+
+#: templates/emails/order_confirmation.txt:3
+msgid "Votre commande a bien été reçue par ASF WMS."
+msgstr "Your order has been received by ASF WMS."
+
+#: templates/emails/order_confirmation.txt:7
+msgid "Récapitulatif PDF"
+msgstr "PDF summary"
+
+#: templates/emails/order_confirmation.txt:10
+msgid "Nous reviendrons vers vous dès que la préparation sera planifiée."
+msgstr "We will get back to you once preparation has been scheduled."
+
+#: templates/emails/order_status_association_notification.txt:1
+msgid "Mise à jour commande"
+msgstr "Order update"
+
+#: templates/emails/order_status_association_notification.txt:4
+msgid "Statut commande (ancien -> nouveau)"
+msgstr "Order status (old -> new)"
+
+#: templates/emails/order_status_association_notification.txt:5
+msgid "Statut validation (ancien -> nouveau)"
+msgstr "Validation status (old -> new)"
+
+#: templates/emails/order_status_association_notification.txt:7
+msgid "Administration"
+msgstr "Administration"
+
+#: templates/emails/portal_forgot_password.txt:1
+msgid "Bonjour,"
+msgstr "Hello,"
+
+#: templates/emails/portal_forgot_password.txt:3
+msgid ""
+"Une demande de mot de passe oublié / première connexion portail a été "
+"enregistrée pour cet email."
+msgstr ""
+"A forgot password / first portal login request has been recorded for this "
+"email address."
+
+#: templates/emails/portal_forgot_password.txt:5
+msgid "Pour définir un nouveau mot de passe, utilisez ce lien sécurisé:"
+msgstr "Use this secure link to set a new password:"
+
+#: templates/emails/portal_forgot_password.txt:8
+msgid "Association login"
+msgstr "Association login"
+
+#: templates/emails/portal_forgot_password.txt:11
+msgid ""
+"Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet "
+"email."
+msgstr "If you did not request this, you can ignore this email."
+
+#: templates/emails/shipment_delivery_notification.txt:1
+msgid "Livraison confirmée"
+msgstr "Delivery confirmed"
+
+#: templates/emails/shipment_delivery_notification.txt:3
+msgid "Votre expédition est marquée comme livrée."
+msgstr "Your shipment has been marked as delivered."
+
+#: templates/emails/shipment_delivery_notification.txt:5
+#: templates/emails/shipment_status_admin_notification.txt:3
+#: templates/emails/shipment_status_correspondant_notification.txt:3
+#: templates/emails/shipment_status_party_notification.txt:3
+#: templates/emails/shipment_tracking_admin_notification.txt:3
+#: templates/portal/account.html:161 templates/portal/account.html:294
+#: templates/scan/order.html:110 templates/scan/orders_view.html:22
+#: wms/admin.py:746
+msgid "Expédition"
+msgstr "Shipping"
+
+#: templates/emails/shipment_delivery_notification.txt:6
+#: templates/emails/shipment_status_admin_notification.txt:6
+#: templates/emails/shipment_status_correspondant_notification.txt:6
+#: templates/emails/shipment_status_party_notification.txt:5
+#: templates/portal/order_create.html:24
+#: templates/print/attestation_aide_humanitaire.html:17
+#: templates/print/attestation_donation.html:17
+#: templates/print/attestation_douane.html:17 templates/scan/dashboard.html:19
+#: templates/scan/order.html:114 templates/scan/shipment_create.html:24
+#: wms/forms.py:414
+msgid "Destination"
+msgstr "Destination"
+
+#: templates/emails/shipment_delivery_notification.txt:7
+#: templates/emails/shipment_status_admin_notification.txt:7
+#: templates/emails/shipment_tracking_admin_notification.txt:5
+#: templates/print/attestation_aide_humanitaire.html:10
+#: templates/print/attestation_donation.html:10
+#: templates/print/attestation_douane.html:10
+#: templates/scan/orders_view.html:18 templates/scan/settings.html:176
+msgid "Date"
+msgstr "Date"
+
+#: templates/emails/shipment_delivery_notification.txt:9
+#: templates/emails/shipment_status_admin_notification.txt:9
+#: templates/emails/shipment_status_correspondant_notification.txt:8
+#: templates/emails/shipment_status_party_notification.txt:8
+#: templates/scan/shipments_ready.html:74
+msgid "Suivi"
+msgstr "Tracking"
+
+#: templates/emails/shipment_status_admin_notification.txt:1
+msgid "Changement de statut expédition"
+msgstr "Shipment status change"
+
+#: templates/emails/shipment_status_admin_notification.txt:4
+msgid "Ancien statut"
+msgstr "Previous status"
+
+#: templates/emails/shipment_status_admin_notification.txt:5
+msgid "Nouveau statut"
+msgstr "New status"
+
+#: templates/emails/shipment_status_correspondant_notification.txt:1
+msgid "Mise à jour correspondant expédition"
+msgstr "Shipment correspondent update"
+
+#: templates/emails/shipment_status_correspondant_notification.txt:4
+msgid "Statut expédition"
+msgstr "Shipment status"
+
+#: templates/emails/shipment_status_correspondant_notification.txt:5
+msgid "Statut suivi"
+msgstr "Tracking status"
+
+#: templates/emails/shipment_status_party_notification.txt:1
+msgid "Mise à jour de l'expédition"
+msgstr "Shipment update"
+
+#: templates/emails/shipment_status_party_notification.txt:4
+msgid "Statut (ancien -> nouveau)"
+msgstr "Status (old -> new)"
+
+#: templates/emails/shipment_status_party_notification.txt:6
+msgid "Date de mise à jour"
+msgstr "Updated on"
+
+#: templates/emails/shipment_tracking_admin_notification.txt:1
+msgid "Nouveau scan de suivi expédition"
+msgstr "New shipment tracking scan"
+
+#: templates/emails/shipment_tracking_admin_notification.txt:4
+#: templates/portal/account.html:189 templates/portal/dashboard.html:19
+#: templates/portal/order_detail.html:18 templates/portal/order_detail.html:63
+#: templates/print/order_summary.html:49 templates/scan/cartons_ready.html:19
+#: templates/scan/order.html:104 templates/scan/receive.html:114
+#: templates/scan/receive.html:234 templates/scan/shipments_ready.html:34
+msgid "Statut"
+msgstr "Status"
+
+#: templates/emails/shipment_tracking_admin_notification.txt:6
+#: templates/portal/account.html:125 templates/portal/account.html:143
+#: templates/portal/account.html:276 templates/print/bon_expedition.html:82
+#: templates/print/bon_expedition.html:97
+#: templates/print/bon_expedition.html:112
+#: templates/scan/shipment_tracking.html:157
+#: templates/scan/shipment_tracking.html:199 templates/scan/stock.html:39
+#: wms/forms.py:824
+msgid "Nom"
+msgstr "Last name"
+
+#: templates/emails/shipment_tracking_admin_notification.txt:7
+#: templates/portal/recipients.html:22
+#: templates/scan/shipment_tracking.html:165
+#: templates/scan/shipment_tracking.html:200 wms/forms.py:825
+msgid "Structure"
+msgstr "Organization"
+
+#: templates/emails/shipment_tracking_admin_notification.txt:8
+#: templates/scan/shipment_tracking.html:173
+#: templates/scan/shipment_tracking.html:201 wms/forms.py:827
+msgid "Commentaires"
+msgstr "Comments"
+
+#: templates/emails/shipment_tracking_admin_notification.txt:10
+msgid "Suivi public"
+msgstr "Public tracking"
+
 #: templates/portal/access_recovery.html:32
 msgid "Retour a la connexion"
 msgstr "Back to sign in"
@@ -174,21 +501,15 @@ msgstr "You can edit all information for this account."
 msgid "Informations principales"
 msgstr "Main information"
 
-#: templates/portal/account.html:30 templates/scan/orders_view.html:19
-#: templates/scan/public_account_request.html:70
-#: templates/scan/public_order.html:65 wms/forms.py:284
-msgid "Association"
-msgstr "Association"
-
-#: templates/portal/account.html:51 templates/portal/account.html:127
-#: templates/portal/account.html:149 templates/portal/account.html:282
-#: templates/scan/public_account_request.html:95
-#: templates/scan/public_order.html:84
-msgid "Téléphone"
-msgstr "Phone"
-
 #: templates/portal/account.html:62 templates/portal/account.html:65
 #: templates/portal/recipients.html:24 templates/portal/recipients.html:124
+#: templates/print/attestation_aide_humanitaire.html:13
+#: templates/print/attestation_donation.html:13
+#: templates/print/attestation_douane.html:13
+#: templates/print/bon_expedition.html:84
+#: templates/print/bon_expedition.html:99
+#: templates/print/bon_expedition.html:114
+#: templates/print/order_summary.html:45
 #: templates/scan/public_account_request.html:99
 #: templates/scan/public_order.html:88 wms/admin.py:376
 msgid "Adresse"
@@ -233,19 +554,15 @@ msgstr ""
 msgid "Titre"
 msgstr "Title"
 
-#: templates/portal/account.html:125 templates/portal/account.html:143
-#: templates/portal/account.html:276 templates/scan/shipment_tracking.html:157
-#: templates/scan/shipment_tracking.html:199 templates/scan/stock.html:39
-#: wms/forms.py:824
-msgid "Nom"
-msgstr "Last name"
-
 #: templates/portal/account.html:126 templates/portal/account.html:146
 #: templates/portal/account.html:279
 msgid "Prénom"
 msgstr "First name"
 
 #: templates/portal/account.html:128 templates/portal/recipients.html:44
+#: templates/print/bon_expedition.html:88
+#: templates/print/bon_expedition.html:103
+#: templates/print/bon_expedition.html:118
 msgid "Mail"
 msgstr "Email"
 
@@ -257,12 +574,6 @@ msgstr ""
 #: templates/portal/account.html:157 templates/portal/account.html:290
 msgid "Administratif"
 msgstr "Administrative"
-
-#: templates/portal/account.html:161 templates/portal/account.html:294
-#: templates/scan/order.html:110 templates/scan/orders_view.html:22
-#: wms/admin.py:746
-msgid "Expédition"
-msgstr "Shipping"
 
 #: templates/portal/account.html:165 templates/portal/account.html:298
 msgid "Facturation"
@@ -280,14 +591,6 @@ msgstr "Save changes"
 #: templates/scan/public_account_request.html:164
 msgid "Documents de vérification"
 msgstr "Verification documents"
-
-#: templates/portal/account.html:189 templates/portal/dashboard.html:19
-#: templates/portal/order_detail.html:18 templates/portal/order_detail.html:63
-#: templates/scan/cartons_ready.html:19 templates/scan/order.html:104
-#: templates/scan/receive.html:114 templates/scan/receive.html:234
-#: templates/scan/shipments_ready.html:34
-msgid "Statut"
-msgstr "Status"
 
 #: templates/portal/account.html:190 templates/portal/order_detail.html:64
 msgid "Ajouté le"
@@ -368,14 +671,11 @@ msgstr "My orders"
 msgid "Historique des commandes associées à votre compte."
 msgstr "History of orders linked to your account."
 
-#: templates/portal/dashboard.html:18 templates/scan/order.html:100
-#: templates/scan/receive.html:106 templates/scan/stock.html:40
-#: templates/scan/stock.html:86
-msgid "Référence"
-msgstr "Reference"
-
 #: templates/portal/dashboard.html:21 templates/portal/order_create.html:36
-#: templates/scan/order.html:37 templates/scan/shipment_create.html:67
+#: templates/print/attestation_aide_humanitaire.html:16
+#: templates/print/attestation_donation.html:16
+#: templates/print/attestation_douane.html:16 templates/scan/order.html:37
+#: templates/scan/shipment_create.html:67
 #: templates/scan/shipments_ready.html:31
 #: templates/scan/shipments_tracking.html:46 wms/admin_misc.py:59
 #: wms/forms.py:422
@@ -421,10 +721,6 @@ msgstr "View"
 msgid "Aucune commande pour le moment."
 msgstr "No orders yet."
 
-#: templates/portal/login.html:7 templates/portal/login.html:30
-msgid "Connexion association"
-msgstr "Association login"
-
 #: templates/portal/login.html:31
 msgid "Utilisez votre email et votre mot de passe."
 msgstr "Use your email and password."
@@ -454,12 +750,6 @@ msgid ""
 "Sélectionnez une destination, puis un destinataire, puis indiquez les "
 "quantités."
 msgstr "Select a destination, then a recipient, then enter quantities."
-
-#: templates/portal/order_create.html:24 templates/scan/dashboard.html:19
-#: templates/scan/order.html:114 templates/scan/shipment_create.html:24
-#: wms/forms.py:414
-msgid "Destination"
-msgstr "Destination"
 
 #: templates/portal/order_create.html:46
 msgid "Le destinataire est filtré selon la destination choisie."
@@ -505,10 +795,15 @@ msgstr "Available parcels"
 
 #: templates/portal/order_create.html:84 templates/portal/order_create.html:136
 #: templates/portal/order_create.html:192 templates/portal/order_detail.html:34
-#: templates/scan/base.html:104 templates/scan/dashboard.html:109
-#: templates/scan/order.html:161 templates/scan/pack.html:27
-#: templates/scan/pack.html:48 templates/scan/public_order.html:126
-#: templates/scan/receive.html:229 templates/scan/stock.html:87
+#: templates/print/liste_colisage_carton.html:26
+#: templates/print/liste_colisage_lot.html:39
+#: templates/print/order_summary.html:66
+#: templates/print/picking_list_carton.html:68
+#: templates/print/picking_list_kits.html:68 templates/scan/base.html:104
+#: templates/scan/dashboard.html:109 templates/scan/order.html:161
+#: templates/scan/pack.html:27 templates/scan/pack.html:48
+#: templates/scan/public_order.html:126 templates/scan/receive.html:229
+#: templates/scan/stock.html:87
 msgid "Produit"
 msgstr "Product"
 
@@ -520,14 +815,20 @@ msgstr "Stock"
 
 #: templates/portal/order_create.html:86 templates/portal/order_create.html:138
 #: templates/portal/order_create.html:194 templates/portal/order_detail.html:35
-#: templates/scan/order.html:141 templates/scan/order.html:162
-#: templates/scan/pack.html:28 templates/scan/pack.html:49
-#: templates/scan/receive.html:230 templates/scan/receive_pallet.html:456
-#: wms/forms.py:310 wms/forms.py:348
+#: templates/print/liste_colisage_carton.html:27
+#: templates/print/liste_colisage_lot.html:40
+#: templates/print/order_summary.html:67
+#: templates/print/picking_list_carton.html:69
+#: templates/print/picking_list_kits.html:69 templates/scan/order.html:141
+#: templates/scan/order.html:162 templates/scan/pack.html:28
+#: templates/scan/pack.html:49 templates/scan/receive.html:230
+#: templates/scan/receive_pallet.html:456 wms/forms.py:310 wms/forms.py:348
 msgid "Quantité"
 msgstr "Quantity"
 
 #: templates/portal/order_create.html:87 templates/portal/order_create.html:139
+#: templates/print/liste_colisage_carton.html:28
+#: templates/print/liste_colisage_lot.html:41
 msgid "Date de péremption"
 msgstr "Expiry date"
 
@@ -560,7 +861,7 @@ msgstr ""
 "The stock shown in this table is illustrative. This feature will be enabled "
 "soon to display actual stock."
 
-#: templates/portal/order_create.html:195
+#: templates/portal/order_create.html:195 templates/print/order_summary.html:68
 msgid "Cartons estimés"
 msgstr "Estimated parcels"
 
@@ -580,7 +881,7 @@ msgstr "parcel(s) to prepare."
 msgid "Envoyer la commande"
 msgstr "Submit order"
 
-#: templates/portal/order_detail.html:4
+#: templates/portal/order_detail.html:4 templates/print/order_summary.html:27
 msgid "Commande"
 msgstr ""
 
@@ -633,13 +934,11 @@ msgstr "Documents are available after ASF approval."
 msgid "Liste privée des contacts de réception par escale."
 msgstr "Private list of receiving contacts by stopover."
 
-#: templates/portal/recipients.html:22
-#: templates/scan/shipment_tracking.html:165
-#: templates/scan/shipment_tracking.html:200 wms/forms.py:825
-msgid "Structure"
-msgstr "Organization"
-
-#: templates/portal/recipients.html:23 templates/scan/orders_view.html:20
+#: templates/portal/recipients.html:23
+#: templates/print/attestation_aide_humanitaire.html:14
+#: templates/print/attestation_donation.html:14
+#: templates/print/attestation_douane.html:14
+#: templates/scan/orders_view.html:20
 msgid "Contact"
 msgstr "Contact"
 
@@ -651,7 +950,7 @@ msgstr "Contact details"
 msgid "Options"
 msgstr "Options"
 
-#: templates/portal/recipients.html:43
+#: templates/portal/recipients.html:43 templates/print/base_a5.html:81
 msgid "Tél"
 msgstr "Phone"
 
@@ -744,6 +1043,313 @@ msgstr "Choose a password to access the portal."
 #: templates/portal/set_password.html:37
 msgid "Lien invalide ou expire. Contactez ASF."
 msgstr "Invalid or expired link. Contact ASF."
+
+#: templates/print/attestation_aide_humanitaire.html:4
+#: wms/shipment_view_helpers.py:38
+msgid "Attestation aide humanitaire"
+msgstr "Humanitarian aid certificate"
+
+#: templates/print/attestation_aide_humanitaire.html:7
+msgid "Attestation d'aide humanitaire"
+msgstr "Humanitarian aid certificate"
+
+#: templates/print/attestation_aide_humanitaire.html:9
+#: templates/print/attestation_donation.html:9
+#: templates/print/attestation_douane.html:9
+msgid "Document ref"
+msgstr "Document ref"
+
+#: templates/print/attestation_aide_humanitaire.html:15
+#: templates/print/attestation_douane.html:15 templates/scan/order.html:33
+#: templates/scan/shipment_create.html:48
+#: templates/scan/shipments_ready.html:30
+#: templates/scan/shipments_tracking.html:45 wms/forms.py:418
+msgid "Expéditeur"
+msgstr "Shipper"
+
+#: templates/print/attestation_aide_humanitaire.html:18
+msgid "Objet"
+msgstr "Purpose"
+
+#: templates/print/attestation_aide_humanitaire.html:20
+#: templates/print/attestation_donation.html:20
+#: templates/print/attestation_douane.html:20
+msgid "Signataire"
+msgstr "Signatory"
+
+#: templates/print/attestation_aide_humanitaire.html:21
+#: templates/print/attestation_donation.html:21
+#: templates/print/attestation_douane.html:21
+msgid "Signature"
+msgstr "Signature"
+
+#: templates/print/attestation_donation.html:4
+#: templates/print/attestation_donation.html:7
+msgid "Attestation de donation"
+msgstr "Donation certificate"
+
+#: templates/print/attestation_donation.html:15
+#: templates/scan/receive_pallet.html:292
+#: templates/scan/receive_pallet.html:395 wms/forms.py:240 wms/forms.py:318
+msgid "Donateur"
+msgstr "Donor"
+
+#: templates/print/attestation_donation.html:18
+msgid "Description du don"
+msgstr "Donation description"
+
+#: templates/print/attestation_douane.html:4 wms/shipment_view_helpers.py:39
+msgid "Attestation douane"
+msgstr "Customs certificate"
+
+#: templates/print/attestation_douane.html:7
+msgid "Attestation de douane"
+msgstr "Customs certificate"
+
+#: templates/print/attestation_douane.html:18
+msgid "Description du lot"
+msgstr "Shipment description"
+
+#: templates/print/base_a5.html:7 templates/scan/shipment_create.html:233
+#: templates/scan/shipment_tracking.html:22
+msgid "Document"
+msgstr "Document"
+
+#: templates/print/base_a5.html:72
+msgid "Logo"
+msgstr "Logo"
+
+#: templates/print/base_a5.html:80
+msgid "Siège"
+msgstr "Head office"
+
+#: templates/print/base_a5.html:80 templates/print/bon_expedition.html:86
+#: templates/print/bon_expedition.html:101
+#: templates/print/bon_expedition.html:116
+msgid "Tel"
+msgstr "Phone"
+
+#: templates/print/base_a5.html:81
+msgid "Magasin"
+msgstr "Warehouse"
+
+#: templates/print/base_a5.html:82
+msgid "Association reconnue d'utilité publique par décret du 12 novembre 1993"
+msgstr "Public-interest association recognized by decree of November 12, 1993"
+
+#: templates/print/bon_expedition.html:4
+msgid "Bon expédition"
+msgstr "Shipment note"
+
+#: templates/print/bon_expedition.html:34
+msgid "BON D'EXPÉDITION"
+msgstr "SHIPMENT NOTE"
+
+#: templates/print/bon_expedition.html:36
+msgid "N°"
+msgstr "No."
+
+#: templates/print/bon_expedition.html:38
+msgid "N° DÉCLARATION DOUANE"
+msgstr "CUSTOMS DECLARATION No."
+
+#: templates/print/bon_expedition.html:43
+msgid "DESTINATION :"
+msgstr "DESTINATION:"
+
+#: templates/print/bon_expedition.html:48
+msgid "Date de vol"
+msgstr "Flight date"
+
+#: templates/print/bon_expedition.html:51
+msgid "N° Vol"
+msgstr "Flight No."
+
+#: templates/print/bon_expedition.html:57
+msgid "NOMBRE DE COLIS"
+msgstr "NUMBER OF PARCELS"
+
+#: templates/print/bon_expedition.html:61
+msgid "POIDS TOTAL (KG)"
+msgstr "TOTAL WEIGHT (KG)"
+
+#: templates/print/bon_expedition.html:71
+msgid "TYPE DE COLIS"
+msgstr "PARCEL TYPE"
+
+#: templates/print/bon_expedition.html:78
+msgid "EXPÉDITEUR"
+msgstr "SHIPPER"
+
+#: templates/print/bon_expedition.html:80
+#: templates/print/bon_expedition.html:95
+#: templates/print/bon_expedition.html:110
+msgid "Société"
+msgstr "Company"
+
+#: templates/print/bon_expedition.html:93
+msgid "DESTINATAIRE"
+msgstr "RECIPIENT"
+
+#: templates/print/bon_expedition.html:108
+msgid "CORRESPONDANT"
+msgstr "CORRESPONDENT"
+
+#: templates/print/bon_expedition.html:126
+msgid "Signature ASF"
+msgstr "ASF signature"
+
+#: templates/print/bon_expedition.html:130
+msgid "Signature CDB"
+msgstr "CDB signature"
+
+#: templates/print/bon_expedition.html:137
+msgid "ATTESTATION DE DONATION"
+msgstr "DONATION CERTIFICATE"
+
+#: templates/print/bon_expedition.html:139
+msgid ""
+"Je soussigné, M. Edouard Gonnu, Responsable de la Messagerie Médicale, de "
+"l'association Aviation Sans Frontières Atteste que le(s) colis faisant "
+"l'objet de la présente expédition par l'intermédiaire d'Aviation Sans "
+"Frontières est (sont) un (des) don(s) de l'Expéditeur au Destinataire "
+"mentionnés ci-dessous. Le correspondant est le seul autorisé à récupérer ces "
+"colis pour le compte du Destinataire. Ces colis ne contiennent que du "
+"matériel médical et chirurgical envoyés à titre humanitaire. Ces articles "
+"médicaux sont pour la santé humaine et ne sont pas destinés à être revendus. "
+"Ils ne sont pas soumis aux biens à double usage - sans valeur commerciale. "
+"Valeur uniquement pour la douane : 1.00 euro -"
+msgstr ""
+"I, the undersigned, Mr. Edouard Gonnu, Head of the Medical Freight service "
+"of Aviation Sans Frontières, certify that the parcel(s) covered by this "
+"shipment through Aviation Sans Frontières are donation(s) from the Shipper "
+"to the Recipient named below. The correspondent is the only person "
+"authorized to collect these parcels on behalf of the Recipient. These "
+"parcels contain only medical and surgical supplies sent for humanitarian "
+"purposes. These medical items are intended for human health and are not "
+"meant to be resold. They are not subject to dual-use goods rules and have "
+"no commercial value. Customs value only: 1.00 euro."
+
+#: templates/print/bon_expedition.html:142
+#, python-format
+msgid "Fait à Roissy, France, le %(document_date)s"
+msgstr "Signed in Roissy, France, on %(document_date)s"
+
+#: templates/print/bon_expedition.html:143
+msgid "Cachet"
+msgstr "Stamp"
+
+#: templates/print/dynamic_labels.html:7
+msgid "Étiquettes expédition"
+msgstr "Shipment labels"
+
+#: templates/print/etiquette_expedition.html:7
+msgid "Étiquette expédition"
+msgstr "Shipment label"
+
+#: templates/print/etiquette_expedition.html:83
+msgid "QR expédition %(shipment_ref)s"
+msgstr "Shipment QR %(shipment_ref)s"
+
+#: templates/print/liste_colisage_carton.html:4
+msgid "Liste colisage carton"
+msgstr "Carton packing list"
+
+#: templates/print/liste_colisage_carton.html:11
+msgid "Liste de colisage - carton"
+msgstr "Packing list - carton"
+
+#: templates/print/liste_colisage_carton.html:13
+#: templates/print/picking_list_carton.html:62
+msgid "Carton code"
+msgstr "Carton code"
+
+#: templates/print/liste_colisage_carton.html:15
+#: templates/scan/cartons_ready.html:72
+msgid "Poids"
+msgstr "Weight"
+
+#: templates/print/liste_colisage_lot.html:4
+msgid "Liste colisage lot"
+msgstr "Shipment packing list"
+
+#: templates/print/liste_colisage_lot.html:12
+msgid "LISTE DE COLISAGE - EXPÉDITION N°"
+msgstr "PACKING LIST - SHIPMENT No."
+
+#: templates/print/liste_colisage_lot.html:12
+msgid "DESTINATION"
+msgstr "DESTINATION"
+
+#: templates/print/liste_colisage_lot.html:20
+#: templates/print/picking_list_kits.html:62
+msgid "Cartons"
+msgstr "Cartons"
+
+#: templates/print/liste_colisage_lot.html:22
+msgid "Poids total"
+msgstr "Total weight"
+
+#: templates/print/liste_colisage_lot.html:28
+msgid "Volume total"
+msgstr "Total volume"
+
+#: templates/print/liste_colisage_lot.html:42
+msgid "Numéro de carton"
+msgstr "Carton number"
+
+#: templates/print/order_summary.html:7 templates/print/order_summary.html:32
+msgid "Récapitulatif commande"
+msgstr "Order summary"
+
+#: templates/print/order_summary.html:33
+msgid "Imprimer / PDF"
+msgstr "Print / PDF"
+
+#: templates/print/order_summary.html:55
+#, python-format
+msgid ""
+"Estimation basee sur le format: %(name)s (%(length)sx%(width)sx%(height)s "
+"cm)."
+msgstr ""
+"Estimate based on format: %(name)s (%(length)sx%(width)sx%(height)s cm)."
+
+#: templates/print/order_summary.html:61
+msgid "Produits demandés"
+msgstr "Requested products"
+
+#: templates/print/order_summary.html:83
+msgid "Total cartons estimés"
+msgstr "Estimated total parcels"
+
+#: templates/print/picking_list_carton.html:4
+msgid "Picking carton"
+msgstr "Carton picking"
+
+#: templates/print/picking_list_carton.html:61
+msgid "Liste picking - carton"
+msgstr "Picking list - carton"
+
+#: templates/print/picking_list_carton.html:70
+#: templates/print/picking_list_kits.html:70
+msgid "Emplacement (Rack - Étagère - Bac)"
+msgstr "Location (Rack - Shelf - Bin)"
+
+#: templates/print/picking_list_kits.html:4
+msgid "Picking kits"
+msgstr "Kit picking"
+
+#: templates/print/picking_list_kits.html:61
+msgid "Liste picking - kits"
+msgstr "Picking list - kits"
+
+#: templates/print/product_labels.html:7
+msgid "Étiquettes produit"
+msgstr "Product labels"
+
+#: templates/print/product_qr_labels.html:7
+msgid "QR codes produits"
+msgstr "Product QR codes"
 
 #: templates/scan/base.html:34
 msgid "Navigation Scan"
@@ -854,10 +1460,6 @@ msgstr "Product label"
 msgid "Suivi expéditions"
 msgstr "Shipment tracking"
 
-#: templates/scan/base.html:97
-msgid "Admin"
-msgstr "Admin"
-
 #: templates/scan/base.html:100 templates/scan/settings.html:8
 msgid "Paramètres"
 msgstr "Settings"
@@ -949,10 +1551,6 @@ msgstr "Mark labeled"
 #: templates/scan/cartons_ready.html:64
 msgid "Retirer étiquette"
 msgstr "Remove label"
-
-#: templates/scan/cartons_ready.html:72
-msgid "Poids"
-msgstr "Weight"
 
 #: templates/scan/cartons_ready.html:79
 msgid "Volume"
@@ -2106,12 +2704,6 @@ msgstr "Add order"
 msgid "Ouvrir commande"
 msgstr "Open order"
 
-#: templates/scan/order.html:33 templates/scan/shipment_create.html:48
-#: templates/scan/shipments_ready.html:30
-#: templates/scan/shipments_tracking.html:45 wms/forms.py:418
-msgid "Expéditeur"
-msgstr "Shipper"
-
 #: templates/scan/order.html:41 templates/scan/shipment_create.html:85
 #: wms/forms.py:426
 msgid "Correspondant"
@@ -2214,10 +2806,6 @@ msgstr "Create an order or select one to add lines."
 #: templates/scan/orders_view.html:9
 msgid "Suivi des commandes des associations."
 msgstr "Track association orders."
-
-#: templates/scan/orders_view.html:18 templates/scan/settings.html:176
-msgid "Date"
-msgstr "Date"
 
 #: templates/scan/orders_view.html:21
 msgid "Statut commande"
@@ -2447,10 +3035,6 @@ msgstr "Back to the portal"
 #: templates/scan/public_account_request.html:68
 msgid "Profil"
 msgstr "Profile"
-
-#: templates/scan/public_account_request.html:71
-msgid "Utilisateur WMS"
-msgstr "WMS user"
 
 #: templates/scan/public_account_request.html:82
 #: templates/scan/public_order.html:67
@@ -2757,11 +3341,6 @@ msgstr "Assign file columns to WMS fields. Required fields: name + quantity."
 #: templates/scan/receive_pallet.html:391
 msgid "Palettes"
 msgstr "Pallets"
-
-#: templates/scan/receive_pallet.html:292
-#: templates/scan/receive_pallet.html:395 wms/forms.py:240 wms/forms.py:318
-msgid "Donateur"
-msgstr "Donor"
 
 #: templates/scan/receive_pallet.html:300
 #: templates/scan/receive_pallet.html:403
@@ -3189,11 +3768,6 @@ msgstr "Upload"
 msgid "Formats autorises: PDF, JPG, PNG, XLSX, DOCX."
 msgstr "Allowed formats: PDF, JPG, PNG, XLSX, DOCX."
 
-#: templates/scan/shipment_create.html:233
-#: templates/scan/shipment_tracking.html:22
-msgid "Document"
-msgstr "Document"
-
 #: templates/scan/shipment_create.html:235
 #: templates/scan/shipment_tracking.html:109
 msgid "Documents additionnels"
@@ -3272,11 +3846,6 @@ msgstr "Update tracking"
 msgid "Étape"
 msgstr "Step"
 
-#: templates/scan/shipment_tracking.html:173
-#: templates/scan/shipment_tracking.html:201 wms/forms.py:827
-msgid "Commentaires"
-msgstr "Comments"
-
 #: templates/scan/shipment_tracking.html:185
 msgid ""
 "Mise à jour du suivi indisponible sur ce lien legacy. Utilisez le QR code le "
@@ -3338,10 +3907,6 @@ msgstr "Destination (IATA)"
 #: templates/scan/shipments_ready.html:33
 msgid "Date mise en disponible"
 msgstr "Ready date"
-
-#: templates/scan/shipments_ready.html:74
-msgid "Suivi"
-msgstr "Tracking"
 
 #: templates/scan/shipments_ready.html:87
 msgid "Aucune expédition."
@@ -3495,6 +4060,14 @@ msgstr "Add contact"
 #: templates/scan/stock_update.html:73
 msgid "Marque"
 msgstr "Brand"
+
+#: wms/account_request_handlers.py:379
+msgid "ASF WMS - Nouvelle demande de compte"
+msgstr "ASF WMS - New account request"
+
+#: wms/account_request_handlers.py:384
+msgid "ASF WMS - Demande de compte reçue"
+msgstr "ASF WMS - Account request received"
 
 #: wms/admin.py:191 wms/admin.py:953
 msgid "QR code"
@@ -3705,6 +4278,14 @@ msgstr "missing username"
 #: wms/admin_account_request_approval.py:29
 msgid "username reserve"
 msgstr "reserved username"
+
+#: wms/admin_account_request_approval.py:129
+msgid "ASF WMS - Compte utilisateur valide"
+msgstr "ASF WMS - User account approved"
+
+#: wms/admin_account_request_approval.py:221
+msgid "ASF WMS - Compte valide"
+msgstr "ASF WMS - Account approved"
 
 #: wms/admin_account_request_approval.py:242
 msgid "Profil: Utilisateur WMS"
@@ -4183,6 +4764,20 @@ msgstr "Received by correspondent"
 msgid "Reçu destinataire"
 msgstr "Received by recipient"
 
+#: wms/order_notifications.py:15
+msgid "ASF WMS - Nouvelle commande"
+msgstr "ASF WMS - New order"
+
+#: wms/order_notifications.py:16
+msgid "ASF WMS - Commande reçue"
+msgstr "ASF WMS - Order received"
+
+#: wms/order_notifications.py:23 wms/public_order_handlers.py:38
+#: wms/signals.py:677
+#, python-format
+msgid "Commande %(id)s"
+msgstr "Order %(id)s"
+
 #: wms/order_scan_handlers.py:54
 msgid "Expediteur requis."
 msgstr "Shipper required."
@@ -4261,6 +4856,18 @@ msgstr "%(count)s parcel(s) prepared."
 #: wms/portal_order_handlers.py:31
 msgid "Colis prêt indisponible."
 msgstr "Ready parcel unavailable."
+
+#: wms/public_order_handlers.py:23
+msgid "ASF WMS - Nouvelle commande publique"
+msgstr "ASF WMS - New public order"
+
+#: wms/public_order_handlers.py:24
+msgid "ASF WMS - Confirmation de commande"
+msgstr "ASF WMS - Order confirmation"
+
+#: wms/public_order_handlers.py:26
+msgid "Commande envoyée, mais la confirmation email n'a pas pu être planifiée."
+msgstr "Order submitted, but the confirmation email could not be scheduled."
 
 #: wms/receipt_handlers.py:40
 msgid "Description requise."
@@ -4421,14 +5028,6 @@ msgstr "Shipment is disputed: resolve the dispute before continuing tracking."
 msgid "Suivi mis à jour."
 msgstr "Tracking updated."
 
-#: wms/shipment_view_helpers.py:38
-msgid "Attestation aide humanitaire"
-msgstr "Humanitarian aid certificate"
-
-#: wms/shipment_view_helpers.py:39
-msgid "Attestation douane"
-msgstr "Customs certificate"
-
 #: wms/shipment_view_helpers.py:128
 #, python-format
 msgid "En cours (%(ready)s/%(total)s)"
@@ -4442,6 +5041,66 @@ msgstr "Draft"
 #, python-format
 msgid "Litige - %(label)s"
 msgstr "Dispute - %(label)s"
+
+#: wms/signals.py:167 wms/signals.py:367
+#, python-format
+msgid "ASF WMS - Expedition %(reference)s : livraison confirmee"
+msgstr "ASF WMS - Shipment %(reference)s: delivery confirmed"
+
+#: wms/signals.py:340 wms/signals.py:429
+#, python-format
+msgid "ASF WMS - Expédition %(reference)s : statut %(status)s"
+msgstr "ASF WMS - Shipment %(reference)s: status %(status)s"
+
+#: wms/signals.py:389
+#, python-format
+msgid "Expedition: %(reference)s"
+msgstr "Shipment: %(reference)s"
+
+#: wms/signals.py:390
+#, python-format
+msgid "Statut suivi: %(status)s"
+msgstr "Tracking status: %(status)s"
+
+#: wms/signals.py:391
+#, python-format
+msgid "Acteur: %(actor)s"
+msgstr "Actor: %(actor)s"
+
+#: wms/signals.py:392
+#, python-format
+msgid "Structure: %(structure)s"
+msgstr "Organization: %(structure)s"
+
+#: wms/signals.py:394
+#, python-format
+msgid "Commentaires: %(comments)s"
+msgstr "Comments: %(comments)s"
+
+#: wms/signals.py:395
+#, python-format
+msgid "Tracking: %(url)s"
+msgstr "Tracking: %(url)s"
+
+#: wms/signals.py:401 wms/signals.py:581
+#, python-format
+msgid "ASF WMS - Suivi expédition %(reference)s"
+msgstr "ASF WMS - Shipment tracking %(reference)s"
+
+#: wms/signals.py:465
+#, python-format
+msgid "ASF WMS - Suivi correspondant %(reference)s : %(status)s"
+msgstr "ASF WMS - Correspondent tracking %(reference)s: %(status)s"
+
+#: wms/signals.py:515
+#, python-format
+msgid "ASF WMS - Expédition %(reference)s : statut mis à jour"
+msgstr "ASF WMS - Shipment %(reference)s: status updated"
+
+#: wms/signals.py:688
+#, python-format
+msgid "ASF WMS - Commande %(reference)s : validation/statut mis à jour"
+msgstr "ASF WMS - Order %(reference)s: validation/status updated"
 
 #: wms/stock_update_handlers.py:16
 msgid "Emplacement requis pour ce produit."
@@ -4606,6 +5265,11 @@ msgstr "Order sent."
 #, fuzzy, python-format
 msgid "%(name)s (association)"
 msgstr "%(name)s (association)"
+
+#: wms/views_print_docs.py:46 wms/views_print_labels.py:153
+#: wms/views_print_labels.py:175 wms/views_print_labels.py:189
+msgid "Carton introuvable pour cette expédition."
+msgstr "Carton not found for this shipment."
 
 #: wms/views_scan_dashboard.py:252
 msgid "Planifié -> OK mise à bord"

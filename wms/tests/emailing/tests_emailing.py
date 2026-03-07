@@ -3,8 +3,9 @@ from io import StringIO
 from unittest import mock
 
 from django.core.management import call_command
-from django.test import TestCase
-from django.utils import timezone
+from django.template.loader import render_to_string
+from django.test import TestCase, override_settings
+from django.utils import timezone, translation
 from django.utils.dateparse import parse_datetime
 
 from wms.emailing import enqueue_email_safe, process_email_queue
@@ -304,3 +305,18 @@ class ProcessEmailQueueCommandTests(TestCase):
             "selected=1, processed=1, failed=0, retried=0, deferred=0",
             out.getvalue(),
         )
+
+
+class EmailTemplateI18nTests(TestCase):
+    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
+    def test_portal_forgot_password_email_uses_native_english(self):
+        context = {
+            "set_password_url": "https://example.com/reset-link/",  # pragma: allowlist secret
+            "login_url": "https://example.com/portal/login/",
+        }
+
+        with translation.override("en"):
+            body = render_to_string("emails/portal_forgot_password.txt", context)
+
+        self.assertIn("Association login", body)
+        self.assertNotIn("Connexion association", body)

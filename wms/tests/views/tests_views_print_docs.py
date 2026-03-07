@@ -2,8 +2,10 @@ from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.http import Http404, HttpResponse
+from django.template.loader import render_to_string
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
+from django.utils import translation
 
 from wms.models import (
     Carton,
@@ -369,3 +371,25 @@ class PrintDocsViewsTests(TestCase):
             )
         self.assertEqual(response.status_code, 200)
         delete_mock.assert_called_once_with(mock.ANY, shipment_id=shipment.id, document_id=42)
+
+    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
+    def test_carton_packing_list_template_uses_native_english(self):
+        context = {
+            "carton_code": "C-PRINT-EN",
+            "carton_weight_kg": 1.25,
+            "item_rows": [
+                {
+                    "product": "Printed product",
+                    "quantity": 2,
+                    "expires_on": None,
+                }
+            ],
+        }
+
+        with translation.override("en"):
+            body = render_to_string("print/liste_colisage_carton.html", context)
+
+        self.assertIn("Packing list - carton", body)
+        self.assertIn("Head office", body)
+        self.assertNotIn("Liste de colisage - carton", body)
+        self.assertNotIn("Siege :", body)

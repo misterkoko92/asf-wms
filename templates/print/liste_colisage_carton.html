@@ -1,17 +1,18 @@
 {% extends "print/base_a5.html" %}
+{% load i18n %}
 
-{% block title %}Liste colisage carton{% endblock %}
+{% block title %}{% trans "Liste colisage carton" %}{% endblock %}
 
 {% block extra_style %}
   .print-body { padding-bottom: 0; }
 {% endblock %}
 
 {% block body %}
-  <h1>Liste de colisage - carton</h1>
+  <h1>{% trans "Liste de colisage - carton" %}</h1>
 
-  <div class="meta">Carton code: {{ carton_code }}</div>
+  <div class="meta">{% trans "Carton code" %}: {{ carton_code }}</div>
   <div class="meta">
-    Poids:
+    {% trans "Poids" %}:
     {% if carton_weight_kg is not None %}
       {{ carton_weight_kg|floatformat:2 }} kg
     {% else %}
@@ -22,9 +23,9 @@
   <table>
     <thead>
       <tr>
-        <th>Produit</th>
-        <th>Quantit&eacute;</th>
-        <th>Date de p&eacute;remption</th>
+        <th>{% trans "Produit" %}</th>
+        <th>{% trans "Quantité" %}</th>
+        <th>{% trans "Date de péremption" %}</th>
       </tr>
     </thead>
     <tbody>

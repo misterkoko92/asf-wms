@@ -1,8 +1,10 @@
+{% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
 <!doctype html>
-<html lang="fr">
+<html lang="{{ LANGUAGE_CODE }}">
 <head>
   <meta charset="utf-8">
-  <title>&Eacute;tiquettes exp&eacute;dition</title>
+  <title>{% trans "Étiquettes expédition" %}</title>
   <style>
     @page { size: A5 landscape; margin: 10mm; }
     body {

@@ -1,7 +1,7 @@
-Bonjour {% if account_type == "user" %}{{ requested_username|default:association_name }}{% else %}{{ association_name }}{% endif %},
+{% load i18n %}{% if account_type == "user" %}{% blocktrans with display_name=requested_username|default:association_name %}Bonjour {{ display_name }},{% endblocktrans %}{% else %}{% blocktrans with display_name=association_name %}Bonjour {{ display_name }},{% endblocktrans %}{% endif %}
 
-Votre demande de creation de compte a bien ete recue.
-Un superuser ASF va la verifier et vous recontacter.
+{% trans "Votre demande de création de compte a bien été reçue." %}
+{% trans "Un superuser ASF va la vérifier et vous recontacter." %}
 
-Merci,
+{% trans "Merci," %}
 ASF WMS

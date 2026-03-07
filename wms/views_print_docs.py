@@ -2,6 +2,7 @@ from django.conf import settings
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods
 
 from .models import Carton, Shipment
@@ -42,7 +43,7 @@ def _get_shipment_by_reference(shipment_ref):
 def _get_shipment_carton_or_404(shipment, carton_id):
     carton = shipment.carton_set.filter(pk=carton_id).first()
     if carton is None:
-        raise Http404("Carton not found for shipment")
+        raise Http404(_("Carton introuvable pour cette expédition."))
     return carton
 
 

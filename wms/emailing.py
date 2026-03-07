@@ -405,22 +405,28 @@ def send_email_safe(*, subject, message, recipient, html_message=None, tags=None
     recipients = _normalize_recipients(recipient)
     if not recipients:
         return False
+    subject_text = _coerce_queue_text(subject)
+    message_text = _coerce_queue_text(message)
+    html_message_text = None
+    if html_message is not None:
+        html_message_text = _coerce_queue_text(html_message)
+    normalized_tags = _coerce_queue_tags(tags)
     if _send_with_brevo(
-        subject=subject,
-        message=message,
+        subject=subject_text,
+        message=message_text,
         recipients=recipients,
-        html_message=html_message,
-        tags=tags,
+        html_message=html_message_text,
+        tags=normalized_tags or None,
     ):
         return True
     try:
         send_mail(
-            subject,
-            message,
+            subject_text,
+            message_text,
             settings.DEFAULT_FROM_EMAIL,
             recipients,
             fail_silently=False,
-            html_message=html_message,
+            html_message=html_message_text,
         )
     except Exception as exc:  # pragma: no cover - defensive logging
         LOGGER.warning("Django send_mail failed: %s", exc)

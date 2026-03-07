@@ -2,6 +2,7 @@ import logging
 
 from django.template.loader import render_to_string
 from django.urls import reverse
+from django.utils.translation import gettext_lazy as _
 
 from .emailing import enqueue_email_safe, get_order_admin_emails, send_email_safe
 from .portal_helpers import build_public_base_url
@@ -11,15 +12,15 @@ LOGGER = logging.getLogger(__name__)
 TEMPLATE_ORDER_ADMIN_NOTIFICATION = "emails/order_admin_notification_portal.txt"
 TEMPLATE_ORDER_CONFIRMATION = "emails/order_confirmation.txt"
 
-SUBJECT_NEW_ORDER = "ASF WMS - Nouvelle commande"
-SUBJECT_ORDER_CONFIRMATION = "ASF WMS - Commande reçue"
+SUBJECT_NEW_ORDER = _("ASF WMS - Nouvelle commande")
+SUBJECT_ORDER_CONFIRMATION = _("ASF WMS - Commande reçue")
 
 ROUTE_PORTAL_ORDER_DETAIL = "portal:portal_order_detail"
 ROUTE_ADMIN_ORDER_CHANGELIST = "admin:wms_order_changelist"
 
 
 def _order_reference(order):
-    return order.reference or f"Commande {order.id}"
+    return order.reference or (_("Commande %(id)s") % {"id": order.id})
 
 
 def _build_portal_order_urls(request, order):

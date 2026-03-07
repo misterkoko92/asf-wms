@@ -2,8 +2,10 @@ from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
+from django.template.loader import render_to_string
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
+from django.utils import translation
 
 from wms.models import Carton, Shipment
 from wms.print_pack_engine import PrintPackEngineError
@@ -413,3 +415,27 @@ class PrintLabelsViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "legacy-single")
         render_label_mock.assert_called_once()
+
+    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
+    def test_shipment_label_template_uses_native_english(self):
+        with translation.override("en"):
+            body = render_to_string(
+                "print/etiquette_expedition.html",
+                {
+                    "labels": [
+                        {
+                            "city": "Paris",
+                            "iata": "CDG",
+                            "shipment_ref": "S-01",
+                            "position": 1,
+                            "total": 1,
+                            "qr_url": "https://example.com/qr.png",
+                        }
+                    ]
+                },
+            )
+
+        self.assertIn("<title>Shipment label</title>", body)
+        self.assertIn('alt="Shipment QR S-01"', body)
+        self.assertNotIn("&Eacute;tiquette exp&eacute;dition", body)
+        self.assertNotIn("QR exp&eacute;dition", body)

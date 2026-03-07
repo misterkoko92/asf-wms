@@ -1,8 +1,10 @@
+{% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
 <!doctype html>
-<html lang="fr">
+<html lang="{{ LANGUAGE_CODE }}">
 <head>
   <meta charset="utf-8">
-  <title>&Eacute;tiquette exp&eacute;dition</title>
+  <title>{% trans "Étiquette expédition" %}</title>
   <style>
     @page { size: A5 landscape; margin: 10mm; }
     body {
@@ -78,7 +80,7 @@
       <div class="label-iata-row">
         <div class="label-iata">{{ label.iata|default:"" }}</div>
         {% if label.qr_url %}
-          <img class="label-qr" src="{{ label.qr_url }}" alt="QR exp&eacute;dition {{ label.shipment_ref|default:"" }}">
+          <img class="label-qr" src="{{ label.qr_url }}" alt="{% blocktrans with shipment_ref=label.shipment_ref|default:'' %}QR expédition {{ shipment_ref }}{% endblocktrans %}">
         {% endif %}
       </div>
       <div class="label-footer">
