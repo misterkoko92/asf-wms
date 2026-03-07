@@ -4,7 +4,7 @@
 <html lang="{{ LANGUAGE_CODE|default:'fr' }}">
 <head>
   <meta charset="utf-8">
-  <title>Cr&eacute;ation de compte</title>
+  <title>{% trans "Création de compte" %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -35,17 +35,19 @@
       {% endif %}
 
       <div class="scan-card card border-0 ui-comp-card">
-        <h2 class="ui-comp-title">Cr&eacute;ation de compte</h2>
+        <h2 class="ui-comp-title">{% trans "Création de compte" %}</h2>
         <p class="scan-help">
+          {% blocktrans trimmed %}
           Choisissez votre profil puis envoyez votre demande. Un administrateur ASF doit valider le compte.
+          {% endblocktrans %}
         </p>
         {% if link %}
           <a class="scan-scan-btn scan-doc-btn btn btn-tertiary" href="{% url 'scan:scan_public_order' link.token %}">
-            Retour &agrave; la commande
+            {% trans "Retour à la commande" %}
           </a>
         {% else %}
           <a class="scan-scan-btn scan-doc-btn btn btn-tertiary" href="{% url 'portal:portal_login' %}">
-            Retour au portail
+            {% trans "Retour au portail" %}
           </a>
         {% endif %}
       </div>
@@ -63,10 +65,10 @@
           {% csrf_token %}
 
           <div class="scan-field">
-            <label class="form-label" for="account_type">Profil</label>
+            <label class="form-label" for="account_type">{% trans "Profil" %}</label>
             <select class="form-select" id="account_type" name="account_type">
-              <option value="{{ ACCOUNT_TYPE_ASSOCIATION }}" {% if form_data.account_type == ACCOUNT_TYPE_ASSOCIATION %}selected{% endif %}>Association</option>
-              <option value="{{ ACCOUNT_TYPE_USER }}" {% if form_data.account_type == ACCOUNT_TYPE_USER %}selected{% endif %}>Utilisateur WMS</option>
+              <option value="{{ ACCOUNT_TYPE_ASSOCIATION }}" {% if form_data.account_type == ACCOUNT_TYPE_ASSOCIATION %}selected{% endif %}>{% trans "Association" %}</option>
+              <option value="{{ ACCOUNT_TYPE_USER }}" {% if form_data.account_type == ACCOUNT_TYPE_USER %}selected{% endif %}>{% trans "Utilisateur WMS" %}</option>
             </select>
           </div>
 
@@ -77,7 +79,7 @@
 
           <section id="association-fields" data-account-section="{{ ACCOUNT_TYPE_ASSOCIATION }}">
             <div class="scan-field">
-              <label class="form-label" for="association_name">Nom de l'association</label>
+              <label class="form-label" for="association_name">{% trans "Nom de l'association" %}</label>
               <input
                 class="form-control"
                 type="text"
@@ -90,11 +92,11 @@
               <input type="hidden" id="contact_id" name="contact_id" value="{{ form_data.contact_id }}">
             </div>
             <div class="scan-field">
-              <label class="form-label" for="phone">T&eacute;l&eacute;phone</label>
+              <label class="form-label" for="phone">{% trans "Téléphone" %}</label>
               <input class="form-control" type="text" id="phone" name="phone" value="{{ form_data.phone }}">
             </div>
             <div class="scan-field">
-              <label class="form-label" for="line1">Adresse</label>
+              <label class="form-label" for="line1">{% trans "Adresse" %}</label>
               <input
                 class="form-control"
                 type="text"
@@ -107,7 +109,7 @@
               >
             </div>
             <div class="scan-field">
-              <label class="form-label" for="line2">Compl&eacute;ment adresse</label>
+              <label class="form-label" for="line2">{% trans "Complément adresse" %}</label>
               <input
                 class="form-control"
                 type="text"
@@ -119,7 +121,7 @@
               >
             </div>
             <div class="scan-field">
-              <label class="form-label" for="postal_code">Code postal</label>
+              <label class="form-label" for="postal_code">{% trans "Code postal" %}</label>
               <input
                 class="form-control"
                 type="text"
@@ -131,7 +133,7 @@
               >
             </div>
             <div class="scan-field">
-              <label class="form-label" for="city">Ville</label>
+              <label class="form-label" for="city">{% trans "Ville" %}</label>
               <input
                 class="form-control"
                 type="text"
@@ -143,7 +145,7 @@
               >
             </div>
             <div class="scan-field">
-              <label class="form-label" for="country">Pays</label>
+              <label class="form-label" for="country">{% trans "Pays" %}</label>
               <input
                 class="form-control"
                 type="text"
@@ -155,32 +157,32 @@
               >
             </div>
             <div class="scan-field">
-              <label class="form-label" for="notes">Notes</label>
+              <label class="form-label" for="notes">{% trans "Notes" %}</label>
               <textarea class="form-control" id="notes" name="notes" rows="3">{{ form_data.notes }}</textarea>
             </div>
 
-            <h3 class="ui-comp-title">Documents de v&eacute;rification</h3>
+            <h3 class="ui-comp-title">{% trans "Documents de vérification" %}</h3>
             <div class="scan-field">
-              <label class="form-label" for="doc_statutes">Statuts de l'association</label>
+              <label class="form-label" for="doc_statutes">{% trans "Statuts de l'association" %}</label>
               <input class="form-control" type="file" id="doc_statutes" name="doc_statutes" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.doc,.docx">
             </div>
             <div class="scan-field">
-              <label class="form-label" for="doc_registration">Preuve d'enregistrement</label>
+              <label class="form-label" for="doc_registration">{% trans "Preuve d'enregistrement" %}</label>
               <input class="form-control" type="file" id="doc_registration" name="doc_registration" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.doc,.docx">
             </div>
             <div class="scan-field">
-              <label class="form-label" for="doc_report">Dernier rapport d'activit&eacute;</label>
+              <label class="form-label" for="doc_report">{% trans "Dernier rapport d'activité" %}</label>
               <input class="form-control" type="file" id="doc_report" name="doc_report" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.doc,.docx">
             </div>
             <div class="scan-field">
-              <label class="form-label" for="doc_other">Autres documents</label>
+              <label class="form-label" for="doc_other">{% trans "Autres documents" %}</label>
               <input class="form-control" type="file" id="doc_other" name="doc_other" multiple accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.doc,.docx">
             </div>
           </section>
 
           <section id="user-fields" data-account-section="{{ ACCOUNT_TYPE_USER }}">
             <div class="scan-field">
-              <label class="form-label" for="requested_username">Nom d'utilisateur</label>
+              <label class="form-label" for="requested_username">{% trans "Nom d'utilisateur" %}</label>
               <input
                 class="form-control"
                 type="text"
@@ -191,16 +193,16 @@
               >
             </div>
             <div class="scan-field">
-              <label class="form-label" for="password1">Mot de passe</label>
+              <label class="form-label" for="password1">{% trans "Mot de passe" %}</label>
               <input class="form-control" type="password" id="password1" name="password1" autocomplete="new-password">
             </div>
             <div class="scan-field">
-              <label class="form-label" for="password2">Confirmer le mot de passe</label>
+              <label class="form-label" for="password2">{% trans "Confirmer le mot de passe" %}</label>
               <input class="form-control" type="password" id="password2" name="password2" autocomplete="new-password">
             </div>
           </section>
 
-          <button type="submit" class="scan-submit btn btn-primary">Envoyer la demande</button>
+          <button type="submit" class="scan-submit btn btn-primary">{% trans "Envoyer la demande" %}</button>
         </form>
       </div>
     </main>

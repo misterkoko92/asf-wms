@@ -161,11 +161,50 @@ class LanguageSwitchI18nTests(TestCase):
 
     @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
     def test_runtime_translation_can_be_disabled(self):
+        self.client.force_login(self.staff_user)
         self._activate_english()
-        response = self.client.get(reverse("portal:portal_login"))
+        response = self.client.get(reverse("scan:scan_receive_pallet"))
 
-        self.assertContains(response, "Connexion association")
-        self.assertNotContains(response, "Association login")
+        self.assertContains(response, "R&eacute;ception palette")
+        self.assertNotContains(response, "Pallet receiving")
+
+    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
+    def test_public_auth_pages_render_native_english(self):
+        self._activate_english()
+
+        login_response = self.client.get(reverse("portal:portal_login"))
+        self.assertContains(login_response, "Association login")
+        self.assertContains(login_response, "Use your email and password.")
+        self.assertNotContains(login_response, "Connexion association")
+
+        recovery_response = self.client.get(reverse("portal:portal_forgot_password"))
+        self.assertContains(recovery_response, "Forgot password / First login")
+        self.assertContains(
+            recovery_response,
+            "Enter your email to receive a link to set or reset your password.",
+        )
+        self.assertContains(recovery_response, "Back to sign in")
+
+        set_password_response = self.client.get(
+            reverse("portal:portal_set_password", args=["a", "invalid-token"])
+        )
+        self.assertContains(set_password_response, "Set a password")
+        self.assertContains(set_password_response, "Invalid or expired link. Contact ASF.")
+
+        account_request_response = self.client.get(reverse("portal:portal_account_request"))
+        self.assertContains(account_request_response, "Account creation")
+        self.assertContains(
+            account_request_response,
+            "Choose your profile, then submit your request. An ASF administrator must validate the account.",
+        )
+        self.assertContains(account_request_response, "Back to the portal")
+
+        public_order_response = self.client.get(
+            reverse("scan:scan_public_order", kwargs={"token": self.public_link.token})
+        )
+        self.assertContains(public_order_response, "Order request")
+        self.assertContains(public_order_response, "Create an account")
+        self.assertContains(public_order_response, "Submit order")
 
     def test_language_switch_is_present_on_standalone_pages(self):
         login_response = self.client.get(reverse("portal:portal_login"))

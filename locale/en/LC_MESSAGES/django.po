@@ -3,24 +3,253 @@
 # This file is distributed under the same license as the PACKAGE package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
-#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-07 13:28+0100\n"
+"POT-Creation-Date: 2026-03-07 13:34+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
-"Language: \n"
+"Language: en\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
-#: asf_wms/settings.py:183
-msgid "Français"
-msgstr ""
 
-#: asf_wms/settings.py:184
+#: asf_wms/settings.py:183 templates/includes/language_switch.html:12
+#: templates/includes/language_switch.html:15
+msgid "Français"
+msgstr "French"
+
+#: asf_wms/settings.py:184 templates/includes/language_switch.html:22
+#: templates/includes/language_switch.html:25
 msgid "English"
-msgstr ""
+msgstr "English"
+
+#: templates/portal/access_recovery.html:32
+msgid "Retour a la connexion"
+msgstr "Back to sign in"
+
+#: templates/portal/login.html:7 templates/portal/login.html:30
+msgid "Connexion association"
+msgstr "Association login"
+
+#: templates/portal/login.html:31
+msgid "Utilisez votre email et votre mot de passe."
+msgstr "Use your email and password."
+
+#: templates/portal/login.html:33
+msgid ""
+"Pas de compte ? Envoyez une demande, elle sera validée par un administrateur "
+"ASF."
+msgstr "No account? Submit a request, it will be validated by an ASF administrator."
+
+#: templates/portal/login.html:38
+msgid "Demander un compte"
+msgstr "Request an account"
+
+#: templates/portal/login.html:61 templates/portal/set_password.html:43
+#: templates/scan/public_account_request.html:196
+msgid "Mot de passe"
+msgstr "Password"
+
+#: templates/portal/login.html:65
+msgid "Mot de passe oublié / Première connexion"
+msgstr "Forgot password / First login"
+
+msgid ""
+"Saisissez votre email pour recevoir un lien de definition ou de "
+"reinitialisation du mot de passe."
+msgstr "Enter your email to receive a link to set or reset your password."
+
+msgid "Recevoir le lien"
+msgstr "Receive the link"
+
+#: templates/portal/login.html:67
+msgid "Se connecter"
+msgstr "Sign in"
+
+#: templates/portal/set_password.html:7 templates/portal/set_password.html:30
+msgid "Définir un mot de passe"
+msgstr "Set a password"
+
+#: templates/portal/set_password.html:31
+msgid "Choisissez un mot de passe pour acceder au portail."
+msgstr "Choose a password to access the portal."
+
+#: templates/portal/set_password.html:37
+msgid "Lien invalide ou expire. Contactez ASF."
+msgstr "Invalid or expired link. Contact ASF."
+
+#: templates/portal/set_password.html:50
+msgid "Confirmer"
+msgstr "Confirm"
+
+#: templates/portal/set_password.html:56
+msgid "Enregistrer"
+msgstr "Save"
+
+#: templates/scan/public_account_request.html:7
+#: templates/scan/public_account_request.html:38
+msgid "Création de compte"
+msgstr "Account creation"
+
+#: templates/scan/public_account_request.html:40
+msgid ""
+"Choisissez votre profil puis envoyez votre demande. Un administrateur ASF "
+"doit valider le compte."
+msgstr "Choose your profile, then submit your request. An ASF administrator must validate the account."
+
+#: templates/scan/public_account_request.html:46
+msgid "Retour à la commande"
+msgstr "Back to the order"
+
+#: templates/scan/public_account_request.html:50
+msgid "Retour au portail"
+msgstr "Back to the portal"
+
+#: templates/scan/public_account_request.html:68
+msgid "Profil"
+msgstr "Profile"
+
+#: templates/scan/public_account_request.html:70
+#: templates/scan/public_order.html:65
+msgid "Association"
+msgstr "Association"
+
+#: templates/scan/public_account_request.html:71
+msgid "Utilisateur WMS"
+msgstr "WMS user"
+
+#: templates/scan/public_account_request.html:82
+#: templates/scan/public_order.html:67
+msgid "Nom de l'association"
+msgstr "Association name"
+
+#: templates/scan/public_account_request.html:95
+#: templates/scan/public_order.html:84
+msgid "Téléphone"
+msgstr "Phone"
+
+#: templates/scan/public_account_request.html:99
+#: templates/scan/public_order.html:88
+msgid "Adresse"
+msgstr "Address"
+
+#: templates/scan/public_account_request.html:112
+#: templates/scan/public_order.html:92
+msgid "Complément adresse"
+msgstr "Address line 2"
+
+#: templates/scan/public_account_request.html:124
+#: templates/scan/public_order.html:96
+msgid "Code postal"
+msgstr "Postal code"
+
+#: templates/scan/public_account_request.html:136
+#: templates/scan/public_order.html:100
+msgid "Ville"
+msgstr "City"
+
+#: templates/scan/public_account_request.html:148
+#: templates/scan/public_order.html:104
+msgid "Pays"
+msgstr "Country"
+
+#: templates/scan/public_account_request.html:160
+#: templates/scan/public_order.html:108
+msgid "Notes"
+msgstr "Notes"
+
+#: templates/scan/public_account_request.html:164
+msgid "Documents de vérification"
+msgstr "Verification documents"
+
+#: templates/scan/public_account_request.html:166
+msgid "Statuts de l'association"
+msgstr "Association statutes"
+
+#: templates/scan/public_account_request.html:170
+msgid "Preuve d'enregistrement"
+msgstr "Registration proof"
+
+#: templates/scan/public_account_request.html:174
+msgid "Dernier rapport d'activité"
+msgstr "Latest activity report"
+
+#: templates/scan/public_account_request.html:178
+msgid "Autres documents"
+msgstr "Other documents"
+
+#: templates/scan/public_account_request.html:185
+msgid "Nom d'utilisateur"
+msgstr "Username"
+
+#: templates/scan/public_account_request.html:200
+msgid "Confirmer le mot de passe"
+msgstr "Confirm password"
+
+#: templates/scan/public_account_request.html:205
+msgid "Envoyer la demande"
+msgstr "Submit request"
+
+#: templates/scan/public_order.html:7
+msgid "Commande association"
+msgstr "Association order"
+
+#: templates/scan/public_order.html:35
+msgid "Demande de commande"
+msgstr "Order request"
+
+#: templates/scan/public_order.html:37
+msgid ""
+"Lien privé réservé aux associations. Un espace avec compte et validation "
+"sera ajoute ensuite."
+msgstr "Private link reserved for associations. An account-based space with validation will be added later."
+
+#: templates/scan/public_order.html:43
+msgid "Créer un compte"
+msgstr "Create an account"
+
+#: templates/scan/public_order.html:47
+msgid "Télécharger recapitulatif PDF"
+msgstr "Download PDF summary"
+
+#: templates/scan/public_order.html:112
+msgid "Produits disponibles"
+msgstr "Available products"
+
+#: templates/scan/public_order.html:115
+#, python-format
+msgid ""
+"Estimation des cartons basee sur le format par défaut : %(carton_name)s."
+msgstr "Estimated parcels based on the default format: %(carton_name)s."
+
+#: templates/scan/public_order.html:119
+msgid "Estimation des cartons basee sur le format par défaut."
+msgstr "Estimated parcels based on the default format."
+
+#: templates/scan/public_order.html:126
+msgid "Produit"
+msgstr "Product"
+
+#: templates/scan/public_order.html:127
+msgid "Stock disponible"
+msgstr "Available stock"
+
+#: templates/scan/public_order.html:128
+msgid "Quantité demandee"
+msgstr "Requested quantity"
+
+#: templates/scan/public_order.html:129
+msgid "Cartons estimes"
+msgstr "Estimated parcels"
+
+#: templates/scan/public_order.html:165
+msgid "Total cartons estimes"
+msgstr "Estimated total parcels"
+
+#: templates/scan/public_order.html:169
+msgid "Envoyer la commande"
+msgstr "Submit order"
