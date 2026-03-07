@@ -1,12 +1,12 @@
 {% extends "scan/base.html" %}
-{% load wms_status %}
+{% load i18n wms_status %}
 
-{% block title %}WMS Scan - Vue Commande{% endblock %}
+{% block title %}WMS Scan - {% trans "Vue Commande" %}{% endblock %}
 
 {% block content %}
   <div class="scan-card card border-0 ui-comp-card">
-    <h2 class="h4 mb-2 ui-comp-title">Vue Commande</h2>
-    <p class="scan-help ui-comp-note">Suivi des commandes des associations.</p>
+    <h2 class="h4 mb-2 ui-comp-title">{% trans "Vue Commande" %}</h2>
+    <p class="scan-help ui-comp-note">{% trans "Suivi des commandes des associations." %}</p>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
@@ -15,12 +15,12 @@
         <table class="scan-table table table-sm table-hover" data-table-tools="1">
           <thead>
             <tr>
-              <th>Date</th>
-              <th>Association</th>
-              <th>Contact</th>
-              <th>Statut commande</th>
-              <th>Exp&eacute;dition</th>
-              <th>Documents</th>
+              <th>{% trans "Date" %}</th>
+              <th>{% trans "Association" %}</th>
+              <th>{% trans "Contact" %}</th>
+              <th>{% trans "Statut commande" %}</th>
+              <th>{% trans "Expédition" %}</th>
+              <th>{% trans "Documents" %}</th>
             </tr>
           </thead>
           <tbody>
@@ -54,7 +54,7 @@
                         </option>
                       {% endfor %}
                     </select>
-                    <button type="submit" class="scan-scan-btn btn btn-secondary">Mettre &agrave; jour</button>
+                    <button type="submit" class="scan-scan-btn btn btn-secondary">{% trans "Mettre à jour" %}</button>
                   </form>
                 </td>
                 <td>
@@ -63,7 +63,7 @@
                       {% csrf_token %}
                       <input type="hidden" name="action" value="create_shipment">
                       <input type="hidden" name="order_id" value="{{ row.order.id }}">
-                      <button type="submit" class="scan-scan-btn btn btn-success">Cr&eacute;er l'exp&eacute;dition</button>
+                      <button type="submit" class="scan-scan-btn btn btn-success">{% trans "Créer l'expédition" %}</button>
                     </form>
                   {% else %}
                     -
@@ -80,7 +80,7 @@
                         {% endfor %}
                       </div>
                     {% else %}
-                      <span class="scan-help">Aucun document</span>
+                      <span class="scan-help">{% trans "Aucun document" %}</span>
                     {% endif %}
                   {% else %}
                     -
@@ -90,13 +90,13 @@
               {% if row.order.review_status == rejected_status %}
                 <tr>
                   <td colspan="6" class="scan-help">
-                    Refus: contactez {{ row.creator.name }}{% if row.creator.email %} ({{ row.creator.email }}){% endif %}{% if row.creator.phone %} / {{ row.creator.phone }}{% endif %} pour expliquer le motif.
+                    {% trans "Refus:" %} {% trans "contactez" %} {{ row.creator.name }}{% if row.creator.email %} ({{ row.creator.email }}){% endif %}{% if row.creator.phone %} / {{ row.creator.phone }}{% endif %} {% trans "pour expliquer le motif." %}
                   </td>
                 </tr>
               {% elif row.order.review_status == changes_status %}
                 <tr>
                   <td colspan="6" class="scan-help">
-                    Modifier: contactez {{ row.creator.name }}{% if row.creator.email %} ({{ row.creator.email }}){% endif %}{% if row.creator.phone %} / {{ row.creator.phone }}{% endif %} pour confirmer les changements.
+                    {% trans "Modifier:" %} {% trans "contactez" %} {{ row.creator.name }}{% if row.creator.email %} ({{ row.creator.email }}){% endif %}{% if row.creator.phone %} / {{ row.creator.phone }}{% endif %} {% trans "pour confirmer les changements." %}
                   </td>
                 </tr>
               {% endif %}
@@ -105,7 +105,7 @@
         </table>
       </div>
     {% else %}
-      <p class="scan-help ui-comp-note">Aucune commande pour le moment.</p>
+      <p class="scan-help ui-comp-note">{% trans "Aucune commande pour le moment." %}</p>
     {% endif %}
   </div>
 {% endblock %}

@@ -3,6 +3,7 @@ from decimal import Decimal
 from django.contrib import messages
 from django.db import transaction
 from django.shortcuts import redirect
+from django.utils.translation import gettext as _
 
 from .scan_helpers import (
     build_pack_line_values,
@@ -57,7 +58,7 @@ def handle_pack_post(request, *, form, default_format):
     if form.is_valid():
         shipment = resolve_shipment(form.cleaned_data["shipment_reference"])
         if form.cleaned_data["shipment_reference"] and not shipment:
-            form.add_error("shipment_reference", "Expédition introuvable.")
+            form.add_error("shipment_reference", _("Expédition introuvable."))
         if carton_errors:
             for error in carton_errors:
                 form.add_error(None, error)
@@ -70,17 +71,17 @@ def handle_pack_post(request, *, form, default_format):
                 continue
             errors = []
             if not product_code:
-                errors.append("Produit requis.")
+                errors.append(_("Produit requis."))
             quantity = None
             if not quantity_raw:
-                errors.append("Quantité requise.")
+                errors.append(_("Quantité requise."))
             else:
                 quantity = parse_int(quantity_raw)
                 if quantity is None or quantity <= 0:
-                    errors.append("Quantité invalide.")
+                    errors.append(_("Quantité invalide."))
             product = resolve_product(product_code, include_kits=True) if product_code else None
             if product_code and not product:
-                errors.append("Produit introuvable.")
+                errors.append(_("Produit introuvable."))
             if errors:
                 line_errors[str(index)] = errors
             else:
@@ -88,7 +89,7 @@ def handle_pack_post(request, *, form, default_format):
 
         if form.is_valid() and not line_errors and not carton_errors:
             if not line_items:
-                form.add_error(None, "Ajoutez au moins un produit.")
+                form.add_error(None, _("Ajoutez au moins un produit."))
             else:
                 missing_defaults = sorted(
                     {
@@ -102,10 +103,13 @@ def handle_pack_post(request, *, form, default_format):
                     product_list = ", ".join(missing_defaults)
                     form.add_error(
                         None,
-                        "Attention : les produits suivants n'ont pas de dimensions "
-                        "ni de poids enregistrés : "
-                        f"{product_list}. Si vous validez ces ajouts, des valeurs "
-                        "par défaut seront appliquées (1cm x 1cm x 1cm et 5g).",
+                        _(
+                            "Attention : les produits suivants n'ont pas de dimensions "
+                            "ni de poids enregistrés : %(products)s. Si vous validez "
+                            "ces ajouts, des valeurs par défaut seront appliquées "
+                            "(1cm x 1cm x 1cm et 5g)."
+                        )
+                        % {"products": product_list},
                     )
                     return (
                         None,
@@ -147,7 +151,10 @@ def handle_pack_post(request, *, form, default_format):
                         for warning in pack_warnings:
                             messages.warning(request, warning)
                         request.session["pack_results"] = [carton.id for carton in created_cartons]
-                        messages.success(request, f"{len(created_cartons)} carton(s) préparé(s).")
+                        messages.success(
+                            request,
+                            _("%(count)s carton(s) préparé(s).") % {"count": len(created_cartons)},
+                        )
                         return (
                             redirect("scan:scan_pack"),
                             {

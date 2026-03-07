@@ -46,12 +46,12 @@
                     Voir les états
                   </button>
                   <ul class="dropdown-menu">
-                    <li><a href="{% url 'scan:scan_stock' %}" class="dropdown-item{% if active == 'stock' %} active{% endif %}">Vue Stock</a></li>
+                    <li><a href="{% url 'scan:scan_stock' %}" class="dropdown-item{% if active == 'stock' %} active{% endif %}">{% trans "Vue stock" %}</a></li>
                     <li><a href="{% url 'scan:scan_kits_view' %}" class="dropdown-item{% if active == 'kits_view' %} active{% endif %}">Vue Kits</a></li>
-                    <li><a href="{% url 'scan:scan_cartons_ready' %}" class="dropdown-item{% if active == 'cartons_ready' %} active{% endif %}">Vue Colis</a></li>
-                    <li><a href="{% url 'scan:scan_shipments_ready' %}" class="dropdown-item{% if active == 'shipments_ready' %} active{% endif %}">Vue Exp&eacute;ditions</a></li>
-                    <li><a href="{% url 'scan:scan_orders_view' %}" class="dropdown-item{% if active == 'orders_view' %} active{% endif %}">Vue Commande</a></li>
-                    <li><a href="{% url 'scan:scan_receipts_view' %}" class="dropdown-item{% if active == 'receipts_view' %} active{% endif %}">Vue R&eacute;ception</a></li>
+                    <li><a href="{% url 'scan:scan_cartons_ready' %}" class="dropdown-item{% if active == 'cartons_ready' %} active{% endif %}">{% trans "Vue Colis" %}</a></li>
+                    <li><a href="{% url 'scan:scan_shipments_ready' %}" class="dropdown-item{% if active == 'shipments_ready' %} active{% endif %}">{% trans "Vue Expéditions" %}</a></li>
+                    <li><a href="{% url 'scan:scan_orders_view' %}" class="dropdown-item{% if active == 'orders_view' %} active{% endif %}">{% trans "Vue Commande" %}</a></li>
+                    <li><a href="{% url 'scan:scan_receipts_view' %}" class="dropdown-item{% if active == 'receipts_view' %} active{% endif %}">{% trans "Vue Réception" %}</a></li>
                   </ul>
                 </li>
                 <li class="nav-item dropdown">
@@ -61,7 +61,7 @@
                   <ul class="dropdown-menu">
                     <li><a href="{% url 'scan:scan_receive_pallet' %}" class="dropdown-item{% if active == 'receive_pallet' %} active{% endif %}">{% trans "Réception palette" %}</a></li>
                     <li><a href="{% url 'scan:scan_receive_association' %}" class="dropdown-item{% if active == 'receive_association' %} active{% endif %}">{% trans "Réception association" %}</a></li>
-                    <li><a href="{% url 'scan:scan_stock_update' %}" class="dropdown-item{% if active == 'stock_update' %} active{% endif %}">MAJ stock</a></li>
+                    <li><a href="{% url 'scan:scan_stock_update' %}" class="dropdown-item{% if active == 'stock_update' %} active{% endif %}">{% trans "MAJ stock" %}</a></li>
                   </ul>
                 </li>
                 <li class="nav-item dropdown">
@@ -69,9 +69,9 @@
                     Pr&eacute;paration
                   </button>
                   <ul class="dropdown-menu">
-                    <li><a href="{% url 'scan:scan_prepare_kits' %}" class="dropdown-item{% if active == 'prepare_kits' %} active{% endif %}">Pr&eacute;parer des kits</a></li>
-                    <li><a href="{% url 'scan:scan_pack' %}" class="dropdown-item{% if active == 'pack' %} active{% endif %}">Pr&eacute;parer des colis</a></li>
-                    <li><a href="{% url 'scan:scan_shipment_create' %}" class="dropdown-item{% if active == 'shipment' %} active{% endif %}">Pr&eacute;paration exp&eacute;dition</a></li>
+                    <li><a href="{% url 'scan:scan_prepare_kits' %}" class="dropdown-item{% if active == 'prepare_kits' %} active{% endif %}">{% trans "Préparer des kits" %}</a></li>
+                    <li><a href="{% url 'scan:scan_pack' %}" class="dropdown-item{% if active == 'pack' %} active{% endif %}">{% trans "Préparer des colis" %}</a></li>
+                    <li><a href="{% url 'scan:scan_shipment_create' %}" class="dropdown-item{% if active == 'shipment' %} active{% endif %}">{% trans "Préparation expédition" %}</a></li>
                   </ul>
                 </li>
                 <li class="nav-item dropdown">

@@ -163,10 +163,10 @@ class LanguageSwitchI18nTests(TestCase):
     def test_runtime_translation_can_be_disabled(self):
         self.client.force_login(self.staff_user)
         self._activate_english()
-        response = self.client.get(reverse("scan:scan_stock"))
+        response = self.client.get(reverse("scan:scan_dashboard"))
 
-        self.assertContains(response, "Vue stock")
-        self.assertNotContains(response, "Stock view")
+        self.assertContains(response, "Tableau de bord")
+        self.assertNotContains(response, "Dashboard")
 
     @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
     def test_public_auth_pages_render_native_english(self):
@@ -237,6 +237,45 @@ class LanguageSwitchI18nTests(TestCase):
         self.assertContains(association_response, "Number of parcels")
         self.assertContains(association_response, "Out-of-format")
         self.assertNotContains(association_response, "R&eacute;ception association")
+
+    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
+    def test_scan_stock_and_orders_render_native_english(self):
+        self.client.force_login(self.staff_user)
+        self._activate_english()
+
+        stock_response = self.client.get(reverse("scan:scan_stock"))
+        self.assertContains(stock_response, "Stock view")
+        self.assertContains(stock_response, "Search")
+        self.assertNotContains(stock_response, "Vue stock")
+
+        stock_update_response = self.client.get(reverse("scan:scan_stock_update"))
+        self.assertContains(stock_update_response, "Stock update")
+        self.assertContains(stock_update_response, "Product name")
+        self.assertNotContains(stock_update_response, "MAJ stock")
+
+        orders_view_response = self.client.get(reverse("scan:scan_orders_view"))
+        self.assertContains(orders_view_response, "Order view")
+        self.assertContains(orders_view_response, "Track association orders.")
+        self.assertNotContains(orders_view_response, "Vue Commande")
+
+        order_response = self.client.get(reverse("scan:scan_order"))
+        self.assertContains(order_response, "Orders")
+        self.assertContains(order_response, "Existing order")
+        self.assertNotContains(order_response, "Commande existante")
+
+        cartons_response = self.client.get(reverse("scan:scan_cartons_ready"))
+        self.assertContains(cartons_response, "Parcel view")
+        self.assertNotContains(cartons_response, "Vue Colis")
+
+        pack_response = self.client.get(reverse("scan:scan_pack"))
+        self.assertContains(pack_response, "Prepare parcels")
+        self.assertContains(pack_response, "Parcel format")
+        self.assertNotContains(pack_response, "Pr&eacute;paration cartons")
+
+        kits_response = self.client.get(reverse("scan:scan_prepare_kits"))
+        self.assertContains(kits_response, "Prepare kits")
+        self.assertContains(kits_response, "Kit name")
+        self.assertNotContains(kits_response, "Pr&eacute;parer des kits")
 
     @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
     def test_forced_password_change_page_renders_native_english(self):

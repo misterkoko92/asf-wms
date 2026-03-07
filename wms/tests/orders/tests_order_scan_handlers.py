@@ -4,6 +4,7 @@ from unittest import mock
 from django.contrib.auth import get_user_model
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
+from django.utils import translation
 
 from contacts.models import Contact, ContactType
 from wms.models import (
@@ -170,6 +171,38 @@ class OrderScanHandlersTests(TestCase):
         self.assertEqual(Order.objects.count(), 0)
 
     @mock.patch("wms.order_scan_handlers.is_org_roles_engine_enabled", return_value=True)
+    def test_handle_order_action_create_order_with_org_roles_translates_errors_in_english(
+        self, _engine_mock
+    ):
+        create_form = self._create_order_form(
+            shipper_contact=None,
+            recipient_contact=None,
+            destination_city="",
+            destination_country="",
+        )
+
+        with translation.override("en"):
+            response, order_lines, remaining_total = handle_order_action(
+                self._request(),
+                action="create_order",
+                select_form=_DummyForm(is_valid=False),
+                create_form=create_form,
+                line_form=_DummyForm(is_valid=False),
+                selected_order=None,
+            )
+
+        self.assertIsNone(response)
+        self.assertIsNone(order_lines)
+        self.assertIsNone(remaining_total)
+        self.assertIn(("shipper_contact", "Shipper required."), create_form.errors)
+        self.assertIn(("recipient_contact", "Recipient required."), create_form.errors)
+        self.assertIn(
+            ("destination_city", "Invalid stopover for organization roles mode."),
+            create_form.errors,
+        )
+        self.assertEqual(Order.objects.count(), 0)
+
+    @mock.patch("wms.order_scan_handlers.is_org_roles_engine_enabled", return_value=True)
     @mock.patch("wms.order_scan_handlers.resolve_recipient_binding_for_operation")
     @mock.patch("wms.order_scan_handlers.resolve_shipper_for_operation")
     def test_handle_order_action_create_order_with_org_roles_resolution_error(
@@ -306,6 +339,56 @@ class OrderScanHandlersTests(TestCase):
         self.assertIsNone(order_lines)
         self.assertIsNone(remaining_total)
         self.assertIn((None, "Sélectionnez une commande."), line_form.errors)
+
+    def test_handle_order_action_add_line_requires_selected_order_in_english(self):
+        line_form = _DummyForm(
+            is_valid=True,
+            cleaned_data={"product_code": self.product.sku, "quantity": 1},
+        )
+
+        with translation.override("en"):
+            response, order_lines, remaining_total = handle_order_action(
+                self._request(),
+                action="add_line",
+                select_form=_DummyForm(is_valid=False),
+                create_form=_DummyForm(is_valid=False),
+                line_form=line_form,
+                selected_order=None,
+            )
+
+        self.assertIsNone(response)
+        self.assertIsNone(order_lines)
+        self.assertIsNone(remaining_total)
+        self.assertIn((None, "Select an order."), line_form.errors)
+
+    @mock.patch("wms.order_scan_handlers.messages.success")
+    @mock.patch("wms.order_scan_handlers.create_shipment_for_order")
+    def test_handle_order_action_create_order_translates_success_message_in_english(
+        self,
+        create_shipment_mock,
+        success_mock,
+    ):
+        create_form = self._create_order_form()
+
+        with translation.override("en"):
+            response, order_lines, remaining_total = handle_order_action(
+                self._request(),
+                action="create_order",
+                select_form=_DummyForm(is_valid=False),
+                create_form=create_form,
+                line_form=_DummyForm(is_valid=False),
+                selected_order=None,
+            )
+
+        self.assertEqual(response.status_code, 302)
+        created_order = Order.objects.get()
+        create_shipment_mock.assert_called_once_with(order=created_order)
+        success_mock.assert_called_once_with(
+            mock.ANY,
+            f"Order created: {created_order.reference or f'Order {created_order.id}'}",
+        )
+        self.assertIsNone(order_lines)
+        self.assertIsNone(remaining_total)
 
     def test_handle_order_action_add_line_rejects_cancelled_or_ready_order(self):
         for status in (OrderStatus.CANCELLED, OrderStatus.READY):

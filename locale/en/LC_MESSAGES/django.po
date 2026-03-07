@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-07 14:31+0100\n"
+"POT-Creation-Date: 2026-03-07 14:57+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -47,7 +47,7 @@ msgstr "You can edit all information for this account."
 msgid "Informations principales"
 msgstr "Main information"
 
-#: templates/portal/account.html:30
+#: templates/portal/account.html:30 templates/scan/orders_view.html:19
 #: templates/scan/public_account_request.html:70
 #: templates/scan/public_order.html:65 wms/forms.py:284
 msgid "Association"
@@ -107,7 +107,7 @@ msgid "Titre"
 msgstr "Title"
 
 #: templates/portal/account.html:125 templates/portal/account.html:143
-#: templates/portal/account.html:276
+#: templates/portal/account.html:276 templates/scan/stock.html:39
 msgid "Nom"
 msgstr "Last name"
 
@@ -130,6 +130,7 @@ msgid "Administratif"
 msgstr "Administrative"
 
 #: templates/portal/account.html:161 templates/portal/account.html:294
+#: templates/scan/order.html:110 templates/scan/orders_view.html:22
 msgid "Expédition"
 msgstr "Shipping"
 
@@ -152,6 +153,7 @@ msgstr "Verification documents"
 
 #: templates/portal/account.html:189 templates/portal/dashboard.html:19
 #: templates/portal/order_detail.html:18 templates/portal/order_detail.html:63
+#: templates/scan/cartons_ready.html:19 templates/scan/order.html:104
 #: templates/scan/receive.html:114 templates/scan/receive.html:234
 msgid "Statut"
 msgstr "Status"
@@ -188,7 +190,8 @@ msgstr "Other documents"
 msgid "Portail association"
 msgstr "Association portal"
 
-#: templates/portal/base.html:29
+#: templates/portal/base.html:29 templates/scan/order.html:4
+#: templates/scan/order.html:8
 msgid "Commandes"
 msgstr "Orders"
 
@@ -228,6 +231,7 @@ msgstr "Confirm"
 
 #: templates/portal/change_password.html:29
 #: templates/portal/recipients.html:162 templates/portal/set_password.html:56
+#: templates/scan/stock_update.html:64
 msgid "Enregistrer"
 msgstr "Save"
 
@@ -239,7 +243,9 @@ msgstr "My orders"
 msgid "Historique des commandes associées à votre compte."
 msgstr "History of orders linked to your account."
 
-#: templates/portal/dashboard.html:18 templates/scan/receive.html:106
+#: templates/portal/dashboard.html:18 templates/scan/order.html:100
+#: templates/scan/receive.html:106 templates/scan/stock.html:40
+#: templates/scan/stock.html:86
 msgid "Référence"
 msgstr "Reference"
 
@@ -248,6 +254,7 @@ msgid "Escale"
 msgstr "Stopover"
 
 #: templates/portal/dashboard.html:21 templates/portal/order_create.html:36
+#: templates/scan/order.html:37
 msgid "Destinataire"
 msgstr ""
 
@@ -275,7 +282,7 @@ msgstr "Recipient receipt date"
 msgid "Actions"
 msgstr "Actions"
 
-#: templates/portal/dashboard.html:37
+#: templates/portal/dashboard.html:37 wms/order_scan_handlers.py:119
 #, python-format
 msgid "Commande %(order_id)s"
 msgstr "Order %(order_id)s"
@@ -284,7 +291,7 @@ msgstr "Order %(order_id)s"
 msgid "Voir"
 msgstr "View"
 
-#: templates/portal/dashboard.html:63
+#: templates/portal/dashboard.html:63 templates/scan/orders_view.html:108
 msgid "Aucune commande pour le moment."
 msgstr "No orders yet."
 
@@ -322,7 +329,7 @@ msgid ""
 "quantités."
 msgstr "Select a destination, then a recipient, then enter quantities."
 
-#: templates/portal/order_create.html:24
+#: templates/portal/order_create.html:24 templates/scan/order.html:114
 msgid "Destination"
 msgstr "Destination"
 
@@ -338,7 +345,7 @@ msgstr "Need a new recipient?"
 msgid "Ajouter"
 msgstr ""
 
-#: templates/portal/order_create.html:55
+#: templates/portal/order_create.html:55 templates/scan/order.html:88
 #: templates/scan/public_account_request.html:160
 #: templates/scan/public_order.html:108 wms/forms.py:200
 msgid "Notes"
@@ -348,7 +355,7 @@ msgstr "Notes"
 msgid "Filtrer produits"
 msgstr "Filter products"
 
-#: templates/portal/order_create.html:63
+#: templates/portal/order_create.html:63 templates/scan/stock.html:18
 msgid "Toutes catégories"
 msgstr "All categories"
 
@@ -370,17 +377,21 @@ msgstr "Available parcels"
 
 #: templates/portal/order_create.html:84 templates/portal/order_create.html:136
 #: templates/portal/order_create.html:192 templates/portal/order_detail.html:34
-#: templates/scan/public_order.html:126 templates/scan/receive.html:229
+#: templates/scan/order.html:161 templates/scan/pack.html:27
+#: templates/scan/pack.html:48 templates/scan/public_order.html:126
+#: templates/scan/receive.html:229 templates/scan/stock.html:87
 msgid "Produit"
 msgstr "Product"
 
 #: templates/portal/order_create.html:85 templates/portal/order_create.html:137
-#: templates/portal/order_create.html:193
+#: templates/portal/order_create.html:193 templates/scan/stock.html:89
 msgid "Stock"
 msgstr "Stock"
 
 #: templates/portal/order_create.html:86 templates/portal/order_create.html:138
 #: templates/portal/order_create.html:194 templates/portal/order_detail.html:35
+#: templates/scan/order.html:141 templates/scan/order.html:162
+#: templates/scan/pack.html:28 templates/scan/pack.html:49
 #: templates/scan/receive.html:230 templates/scan/receive_pallet.html:456
 #: wms/forms.py:310 wms/forms.py:348
 msgid "Quantité"
@@ -467,7 +478,7 @@ msgstr "Review"
 msgid "Date: %(created_date)s"
 msgstr "Date: %(created_date)s"
 
-#: templates/portal/order_detail.html:29
+#: templates/portal/order_detail.html:29 templates/scan/order.html:155
 msgid "Lignes de commande"
 msgstr "Order lines"
 
@@ -496,7 +507,7 @@ msgstr "Private list of receiving contacts by stopover."
 msgid "Structure"
 msgstr "Organization"
 
-#: templates/portal/recipients.html:23
+#: templates/portal/recipients.html:23 templates/scan/orders_view.html:20
 msgid "Contact"
 msgstr "Contact"
 
@@ -601,6 +612,436 @@ msgstr "Choose a password to access the portal."
 #: templates/portal/set_password.html:37
 msgid "Lien invalide ou expire. Contactez ASF."
 msgstr "Invalid or expired link. Contact ASF."
+
+#: templates/scan/base.html:49 templates/scan/stock.html:4
+#: templates/scan/stock.html:8
+msgid "Vue stock"
+msgstr "Stock view"
+
+#: templates/scan/base.html:51 templates/scan/cartons_ready.html:4
+#: templates/scan/cartons_ready.html:9
+msgid "Vue Colis"
+msgstr "Parcel view"
+
+#: templates/scan/base.html:52
+msgid "Vue Expéditions"
+msgstr "Shipments view"
+
+#: templates/scan/base.html:53 templates/scan/orders_view.html:4
+#: templates/scan/orders_view.html:8
+msgid "Vue Commande"
+msgstr "Order view"
+
+#: templates/scan/base.html:54
+msgid "Vue Réception"
+msgstr "Receiving view"
+
+#: templates/scan/base.html:59 templates/scan/receive.html:4
+msgid "Réception"
+msgstr "Receiving"
+
+#: templates/scan/base.html:62 templates/scan/receive_pallet.html:4
+#: templates/scan/receive_pallet.html:8
+msgid "Réception palette"
+msgstr "Pallet receiving"
+
+#: templates/scan/base.html:63 templates/scan/receive_association.html:4
+#: templates/scan/receive_association.html:10
+msgid "Réception association"
+msgstr "Association receiving"
+
+#: templates/scan/base.html:64 templates/scan/stock_update.html:4
+#: templates/scan/stock_update.html:8
+msgid "MAJ stock"
+msgstr "Stock update"
+
+#: templates/scan/base.html:72 templates/scan/prepare_kits.html:4
+#: templates/scan/prepare_kits.html:8
+msgid "Préparer des kits"
+msgstr "Prepare kits"
+
+#: templates/scan/base.html:73 templates/scan/pack.html:4
+msgid "Préparer des colis"
+msgstr "Prepare parcels"
+
+#: templates/scan/base.html:74
+msgid "Préparation expédition"
+msgstr "Shipment preparation"
+
+#: templates/scan/cartons_ready.html:17
+msgid "Numero colis"
+msgstr "Parcel number"
+
+#: templates/scan/cartons_ready.html:18
+msgid "Date création"
+msgstr "Creation date"
+
+#: templates/scan/cartons_ready.html:20
+msgid "N° expédition"
+msgstr "Shipment no."
+
+#: templates/scan/cartons_ready.html:21 templates/scan/prepare_kits.html:47
+#: templates/scan/receive.html:233 templates/scan/stock_update.html:78
+#: wms/forms.py:361
+msgid "Emplacement"
+msgstr "Location"
+
+#: templates/scan/cartons_ready.html:22
+msgid "Remplissage"
+msgstr "Fill rate"
+
+#: templates/scan/cartons_ready.html:23 templates/scan/pack.html:9
+msgid "Liste de colisage"
+msgstr "Packing list"
+
+#: templates/scan/cartons_ready.html:56
+msgid "Marquer étiqueté"
+msgstr "Mark labeled"
+
+#: templates/scan/cartons_ready.html:64
+msgid "Retirer étiquette"
+msgstr "Remove label"
+
+#: templates/scan/cartons_ready.html:72
+msgid "Poids"
+msgstr "Weight"
+
+#: templates/scan/cartons_ready.html:79
+msgid "Volume"
+msgstr "Volume"
+
+#: templates/scan/cartons_ready.html:96 templates/scan/pack.html:17
+msgid "Imprimer / télécharger"
+msgstr "Print / download"
+
+#: templates/scan/cartons_ready.html:112
+msgid "Aucun colis conditionné."
+msgstr "No prepared parcel."
+
+#: templates/scan/order.html:13
+msgid "Commande existante"
+msgstr "Existing order"
+
+#: templates/scan/order.html:17
+msgid "Ajouter commande"
+msgstr "Add order"
+
+#: templates/scan/order.html:24
+msgid "Ouvrir commande"
+msgstr "Open order"
+
+#: templates/scan/order.html:33
+msgid "Expéditeur"
+msgstr "Shipper"
+
+#: templates/scan/order.html:41
+msgid "Correspondant"
+msgstr "Correspondent"
+
+#: templates/scan/order.html:45
+msgid "Expéditeur (contact)"
+msgstr "Shipper (contact)"
+
+#: templates/scan/order.html:49
+msgid "Ajouter expéditeur"
+msgstr "Add shipper"
+
+#: templates/scan/order.html:54
+msgid "Destinataire (contact)"
+msgstr "Recipient (contact)"
+
+#: templates/scan/order.html:58
+msgid "Ajouter destinataire"
+msgstr "Add recipient"
+
+#: templates/scan/order.html:63
+msgid "Correspondant (contact)"
+msgstr "Correspondent (contact)"
+
+#: templates/scan/order.html:67
+msgid "Ajouter correspondant"
+msgstr "Add correspondent"
+
+#: templates/scan/order.html:72
+msgid "Adresse destination"
+msgstr "Destination address"
+
+#: templates/scan/order.html:76
+msgid "Ville destination"
+msgstr "Destination city"
+
+#: templates/scan/order.html:80
+msgid "Pays destination"
+msgstr "Destination country"
+
+#: templates/scan/order.html:84
+msgid "Date souhaitée"
+msgstr "Requested date"
+
+#: templates/scan/order.html:91
+msgid "Créer commande"
+msgstr "Create order"
+
+#: templates/scan/order.html:97
+msgid "Commande active"
+msgstr "Active order"
+
+#: templates/scan/order.html:122 templates/scan/receive.html:139
+msgid "Ajouter une ligne"
+msgstr "Add line"
+
+#: templates/scan/order.html:131 wms/forms.py:345
+msgid "Code produit"
+msgstr "Product code"
+
+#: templates/scan/order.html:134 templates/scan/pack.html:150
+#: templates/scan/receive.html:152 templates/scan/stock_update.html:19
+msgid "Scan"
+msgstr "Scan"
+
+#: templates/scan/order.html:144
+msgid "Ajouter ligne et reserver"
+msgstr "Add line and reserve"
+
+#: templates/scan/order.html:163
+msgid "Reserve"
+msgstr "Reserved"
+
+#: templates/scan/order.html:164
+msgid "Prepare"
+msgstr "Prepared"
+
+#: templates/scan/order.html:165
+msgid "Restant"
+msgstr "Remaining"
+
+#: templates/scan/order.html:186
+#, python-format
+msgid "Préparer commande (reste %(remaining_total)s)"
+msgstr "Prepare order (remaining %(remaining_total)s)"
+
+#: templates/scan/order.html:190
+msgid "Aucune ligne pour cette commande."
+msgstr "No lines for this order."
+
+#: templates/scan/order.html:195
+msgid "Aucune commande sélectionnée"
+msgstr "No order selected"
+
+#: templates/scan/order.html:196
+msgid "Créez une commande ou sélectionnez-en une pour ajouter des lignes."
+msgstr "Create an order or select one to add lines."
+
+#: templates/scan/orders_view.html:9
+msgid "Suivi des commandes des associations."
+msgstr "Track association orders."
+
+#: templates/scan/orders_view.html:18
+msgid "Date"
+msgstr "Date"
+
+#: templates/scan/orders_view.html:21
+msgid "Statut commande"
+msgstr "Order status"
+
+#: templates/scan/orders_view.html:23
+msgid "Documents"
+msgstr "Documents"
+
+#: templates/scan/orders_view.html:57
+msgid "Mettre à jour"
+msgstr "Update"
+
+#: templates/scan/orders_view.html:66
+msgid "Créer l'expédition"
+msgstr "Create shipment"
+
+#: templates/scan/orders_view.html:83
+msgid "Aucun document"
+msgstr "No document"
+
+#: templates/scan/orders_view.html:93
+msgid "Refus:"
+msgstr "Rejected:"
+
+#: templates/scan/orders_view.html:93 templates/scan/orders_view.html:99
+msgid "contactez"
+msgstr "contact"
+
+#: templates/scan/orders_view.html:93
+msgid "pour expliquer le motif."
+msgstr "to explain the reason."
+
+#: templates/scan/orders_view.html:99
+msgid "Modifier:"
+msgstr "Changes requested:"
+
+#: templates/scan/orders_view.html:99
+msgid "pour confirmer les changements."
+msgstr "to confirm the changes."
+
+#: templates/scan/pack.html:10
+msgid "Par carton"
+msgstr "By parcel"
+
+#: templates/scan/pack.html:14
+#, python-format
+msgid "Carton %(carton_code)s"
+msgstr "Parcel %(carton_code)s"
+
+#: templates/scan/pack.html:43
+msgid "Liste generale"
+msgstr "Overall list"
+
+#: templates/scan/pack.html:65
+msgid "Préparation cartons"
+msgstr "Prepare parcels"
+
+#: templates/scan/pack.html:73
+msgid "Format carton"
+msgstr "Parcel format"
+
+#: templates/scan/pack.html:83 templates/scan/receive_pallet.html:211
+msgid "Personnalisé"
+msgstr "Custom"
+
+#: templates/scan/pack.html:86
+msgid "Ajouter format"
+msgstr "Add format"
+
+#: templates/scan/pack.html:92
+msgid "Dimensions carton (cm) et poids max (g)"
+msgstr "Parcel dimensions (cm) and max weight (g)"
+
+#: templates/scan/pack.html:94
+msgid "Longueur"
+msgstr "Length"
+
+#: templates/scan/pack.html:95
+msgid "Largeur"
+msgstr "Width"
+
+#: templates/scan/pack.html:98
+msgid "Hauteur"
+msgstr "Height"
+
+#: templates/scan/pack.html:99
+msgid "Poids max"
+msgstr "Max weight"
+
+#: templates/scan/pack.html:104
+msgid "Ajouter un produit"
+msgstr "Add a product"
+
+#: templates/scan/pack.html:109
+msgid "Référence expédition (optionnel)"
+msgstr "Shipment reference (optional)"
+
+#: templates/scan/pack.html:117
+msgid "Choisir un emplacement de rangement du colis prêt (optionnel)"
+msgstr "Choose a storage location for the ready parcel (optional)"
+
+#: templates/scan/pack.html:133
+msgid ""
+"Autoriser l'ajout avec valeurs standard (1 x 1 x 1 cm et 5 g) pour les "
+"produits sans dimensions/poids."
+msgstr ""
+"Allow adding with standard values (1 x 1 x 1 cm and 5 g) for products "
+"without dimensions/weight."
+
+#: templates/scan/pack.html:142
+#, python-format
+msgid ""
+"\n"
+"            Attention : les produits suivants n'ont pas de dimensions ni de "
+"poids enregistrés :\n"
+"            %(products)s.\n"
+"            Si vous validez ces ajouts, des valeurs par défaut seront "
+"appliquées (1cm x 1cm x 1cm et 5g).\n"
+"          "
+msgstr ""
+"\n"
+"            Warning: the following products do not have recorded dimensions "
+"or weight:\n"
+"            %(products)s.\n"
+"            If you confirm these additions, default values will be applied "
+"(1cm x 1cm x 1cm and 5g).\n"
+"          "
+
+#: templates/scan/pack.html:152 templates/scan/receive.html:190
+msgid "Ajouter emplacement"
+msgstr "Add location"
+
+#: templates/scan/pack.html:154 templates/scan/prepare_kits.html:70
+msgid "Préparer"
+msgstr "Prepare"
+
+#: templates/scan/pack.html:156
+msgid ""
+"Si la référence d'expédition est vide, les cartons sont pré-conditionnés."
+msgstr "If the shipment reference is empty, the parcels are pre-packed."
+
+#: templates/scan/prepare_kits.html:16
+msgid "Nom du kit"
+msgstr "Kit name"
+
+#: templates/scan/prepare_kits.html:26
+msgid "Nombre de kits à créer"
+msgstr "Number of kits to create"
+
+#: templates/scan/prepare_kits.html:33
+msgid "Stock théorique disponible:"
+msgstr "Theoretical available stock:"
+
+#: templates/scan/prepare_kits.html:33 templates/scan/prepare_kits.html:34
+#, python-format
+msgid "%(total)s kit(s)"
+msgstr ""
+
+#: templates/scan/prepare_kits.html:34
+msgid "Max colis mono-kit:"
+msgstr "Max single-kit parcel:"
+
+#: templates/scan/prepare_kits.html:40
+msgid "Composition"
+msgstr "Composition"
+
+#: templates/scan/prepare_kits.html:45
+msgid "Nom des produits"
+msgstr "Product name"
+
+#: templates/scan/prepare_kits.html:46
+msgid "Quantité par produit"
+msgstr "Quantity per product"
+
+#: templates/scan/prepare_kits.html:61 templates/scan/prepare_kits.html:91
+msgid "Sélectionnez un kit."
+msgstr "Select a kit."
+
+#: templates/scan/prepare_kits.html:72
+msgid "Créer un nouveau kit"
+msgstr "Create a new kit"
+
+#: templates/scan/prepare_kits.html:79
+#, python-format
+msgid "%(total)s colis généré(s)."
+msgstr "%(total)s parcel(s) generated."
+
+#: templates/scan/prepare_kits.html:81
+msgid "Télécharger le picking"
+msgstr "Download picking"
+
+#: templates/scan/prepare_kits.html:84
+msgid "Sélectionnez un kit puis cliquez sur Préparer pour générer le picking."
+msgstr "Select a kit then click Prepare to generate the picking."
+
+#: templates/scan/prepare_kits.html:92
+msgid "N/A"
+msgstr "N/A"
+
+#: templates/scan/prepare_kits.html:93
+msgid "kit(s)"
+msgstr "kit(s)"
 
 #: templates/scan/public_account_request.html:7
 #: templates/scan/public_account_request.html:38
@@ -715,10 +1156,6 @@ msgstr "Requested quantity"
 msgid "Total cartons estimes"
 msgstr "Estimated total parcels"
 
-#: templates/scan/receive.html:4
-msgid "Réception"
-msgstr "Receiving"
-
 #: templates/scan/receive.html:8
 msgid "Réception don/palette"
 msgstr "Donation/pallet receiving"
@@ -740,7 +1177,7 @@ msgstr "Add source"
 msgid "Ajouter transporteur"
 msgstr "Add carrier"
 
-#: templates/scan/receive.html:83
+#: templates/scan/receive.html:83 templates/scan/stock.html:70
 msgid "Ajouter entrepôt"
 msgstr "Add warehouse"
 
@@ -762,7 +1199,8 @@ msgstr "Active receipt"
 msgid "Date réception"
 msgstr "Reception date"
 
-#: templates/scan/receive.html:124 wms/forms.py:195
+#: templates/scan/receive.html:124 templates/scan/stock.html:26
+#: templates/scan/stock_update.html:83 wms/forms.py:195
 msgid "Entrepôt"
 msgstr "Warehouse"
 
@@ -776,21 +1214,9 @@ msgstr "Source"
 msgid "Transporteur"
 msgstr "Carrier"
 
-#: templates/scan/receive.html:139
-msgid "Ajouter une ligne"
-msgstr "Add line"
-
-#: templates/scan/receive.html:152
-msgid "Scan"
-msgstr "Scan"
-
 #: templates/scan/receive.html:158
 msgid "Ajouter un nouveau produit"
 msgstr "Add a new product"
-
-#: templates/scan/receive.html:190
-msgid "Ajouter emplacement"
-msgstr "Add location"
 
 #: templates/scan/receive.html:211
 msgid "Ajouter la ligne"
@@ -811,10 +1237,6 @@ msgstr "Lot"
 #: templates/scan/receive.html:232
 msgid "Péremption"
 msgstr "Expiry"
-
-#: templates/scan/receive.html:233 wms/forms.py:361
-msgid "Emplacement"
-msgstr "Location"
 
 #: templates/scan/receive.html:247
 msgid "Réceptionné"
@@ -841,11 +1263,6 @@ msgstr "No receipt selected"
 msgid "Créez une réception ou sélectionnez-en une pour ajouter des lignes."
 msgstr "Create a receipt or select one to add lines."
 
-#: templates/scan/receive_association.html:4
-#: templates/scan/receive_association.html:10
-msgid "Réception association"
-msgstr "Association receiving"
-
 #: templates/scan/receive_association.html:7
 msgid "Hors format n°"
 msgstr "Out-of-format no."
@@ -870,10 +1287,6 @@ msgstr "Out-of-format"
 #: templates/scan/receive_pallet.html:66
 msgid "La référence est générée automatiquement (format YY-XX-WWW-ZZ)."
 msgstr "The reference is generated automatically (format YY-XX-WWW-ZZ)."
-
-#: templates/scan/receive_pallet.html:4 templates/scan/receive_pallet.html:8
-msgid "Réception palette"
-msgstr "Pallet receiving"
 
 #: templates/scan/receive_pallet.html:57
 msgid "Enregistrer la réception palette"
@@ -920,10 +1333,6 @@ msgstr "Total pages: %(listing_pdf_total_pages)s"
 #: templates/scan/receive_pallet.html:200
 msgid "Toutes les pages"
 msgstr "All pages"
-
-#: templates/scan/receive_pallet.html:211
-msgid "Personnalisé"
-msgstr "Custom"
 
 #: templates/scan/receive_pallet.html:216
 msgid "Debut"
@@ -1079,6 +1488,83 @@ msgstr "DB: %(location.existing)s"
 msgid "Valider tous les imports coches"
 msgstr "Confirm all selected imports"
 
+#: templates/scan/stock.html:11
+msgid "Recherche"
+msgstr "Search"
+
+#: templates/scan/stock.html:12
+msgid "Nom, référence, code-barres"
+msgstr "Name, reference, barcode"
+
+#: templates/scan/stock.html:16 templates/scan/stock.html:38
+#: templates/scan/stock.html:88
+msgid "Catégorie"
+msgstr "Category"
+
+#: templates/scan/stock.html:28
+msgid "Tous entrepôts"
+msgstr "All warehouses"
+
+#: templates/scan/stock.html:36
+msgid "Tri"
+msgstr "Sort"
+
+#: templates/scan/stock.html:41
+msgid "Stock croissant"
+msgstr "Stock low to high"
+
+#: templates/scan/stock.html:42
+msgid "Stock décroissant"
+msgstr "Stock high to low"
+
+#: templates/scan/stock.html:57
+msgid "Inclure les produits avec stock à 0"
+msgstr "Include products with zero stock"
+
+#: templates/scan/stock.html:64
+msgid "Filtrer"
+msgstr "Filter"
+
+#: templates/scan/stock.html:65
+msgid "Réinitialiser"
+msgstr "Reset"
+
+#: templates/scan/stock.html:67
+msgid "Ajouter catégorie"
+msgstr "Add category"
+
+#: templates/scan/stock.html:78
+msgid "Produits"
+msgstr "Products"
+
+#: templates/scan/stock.html:78
+msgid "Produits en stock"
+msgstr "Products in stock"
+
+#: templates/scan/stock.html:90
+msgid "Dernière modification"
+msgstr "Last update"
+
+#: templates/scan/stock.html:119
+msgid "Aucun produit pour ces filtres."
+msgstr "No products for these filters."
+
+#: templates/scan/stock.html:121
+msgid "Aucun produit en stock pour ces filtres."
+msgstr "No products in stock for these filters."
+
+#: templates/scan/stock_update.html:27
+msgid "Créer le produit dans la base"
+msgstr "Create the product in the database"
+
+#: templates/scan/stock_update.html:66
+msgid "Ajouter contact"
+msgstr "Add contact"
+
+#: templates/scan/stock_update.html:73
+msgid "Marque"
+msgstr "Brand"
+
 #: wms/forms.py:63
 msgid "Laissez vide pour utiliser l'emplacement par défaut."
 msgstr "Leave blank to use the product's default location."
@@ -1155,13 +1641,10 @@ msgstr "Expiry date"
 msgid "Numéro de lot"
 msgstr "Lot number"
 
-#: wms/forms.py:337 wms/receipt_handlers.py:118
+#: wms/forms.py:337 wms/order_scan_handlers.py:134 wms/pack_handlers.py:84
+#: wms/receipt_handlers.py:118
 msgid "Produit introuvable."
 msgstr "Product not found."
-
-#: wms/forms.py:345
-msgid "Code produit"
-msgstr "Product code"
 
 #: wms/forms.py:356
 msgid "Statut lot"
@@ -1174,6 +1657,80 @@ msgstr "Storage conditions"
 #: wms/forms.py:366
 msgid "Réceptionner maintenant"
 msgstr "Receive now"
+
+#: wms/order_scan_handlers.py:54
+msgid "Expediteur requis."
+msgstr "Shipper required."
+
+#: wms/order_scan_handlers.py:56 wms/views_portal_orders.py:62
+msgid "Destinataire requis."
+msgstr "Recipient required."
+
+#: wms/order_scan_handlers.py:74
+msgid "Escale invalide pour le mode organization roles."
+msgstr "Invalid stopover for organization roles mode."
+
+#: wms/order_scan_handlers.py:116
+#, python-format
+msgid "Commande créée: %(reference)s"
+msgstr "Order created: %(reference)s"
+
+#: wms/order_scan_handlers.py:126
+msgid "Sélectionnez une commande."
+msgstr "Select an order."
+
+#: wms/order_scan_handlers.py:128
+msgid "Commande annulée."
+msgstr "Order cancelled."
+
+#: wms/order_scan_handlers.py:130
+msgid "Commande en préparation."
+msgstr "Order in preparation."
+
+#: wms/order_scan_handlers.py:146
+#, python-format
+msgid "Ligne réservée: %(product)s (%(quantity)s)."
+msgstr "Line reserved: %(product)s (%(quantity)s)."
+
+#: wms/order_scan_handlers.py:170
+msgid "Commande préparée."
+msgstr "Order prepared."
+
+#: wms/pack_handlers.py:61
+msgid "Expédition introuvable."
+msgstr "Shipment not found."
+
+#: wms/pack_handlers.py:74
+msgid "Produit requis."
+msgstr "Product required."
+
+#: wms/pack_handlers.py:77
+msgid "Quantité requise."
+msgstr "Quantity required."
+
+#: wms/pack_handlers.py:81
+msgid "Quantité invalide."
+msgstr "Invalid quantity."
+
+#: wms/pack_handlers.py:92 wms/views_portal_orders.py:68
+msgid "Ajoutez au moins un produit."
+msgstr "Add at least one product."
+
+#: wms/pack_handlers.py:107
+#, python-format
+msgid ""
+"Attention : les produits suivants n'ont pas de dimensions ni de poids "
+"enregistrés : %(products)s. Si vous validez ces ajouts, des valeurs par "
+"défaut seront appliquées (1cm x 1cm x 1cm et 5g)."
+msgstr ""
+"Warning: the following products do not have recorded dimensions or weight: "
+"%(products)s. If you confirm these additions, default values will be "
+"applied (1cm x 1cm x 1cm and 5g)."
+
+#: wms/pack_handlers.py:156
+#, python-format
+msgid "%(count)s carton(s) préparé(s)."
+msgstr "%(count)s parcel(s) prepared."
 
 #: wms/portal_order_handlers.py:17 wms/portal_order_handlers.py:29
 #: wms/portal_order_handlers.py:31
@@ -1238,6 +1795,14 @@ msgstr "%(count)s line(s) received."
 #, python-format
 msgid "Réception palette enregistrée (ref %(reference)s)."
 msgstr "Pallet receiving saved (ref %(reference)s)."
+
+#: wms/stock_update_handlers.py:16
+msgid "Emplacement requis pour ce produit."
+msgstr "Location is required for this product."
+
+#: wms/stock_update_handlers.py:41
+msgid "Stock mis à jour."
+msgstr "Stock updated."
 
 #: wms/views_portal_account.py:49
 msgid "Destinataire ajouté."
@@ -1370,10 +1935,6 @@ msgstr "Receive the link"
 msgid "ASF WMS - Mot de passe oublié / Première connexion portail"
 msgstr "ASF WMS - Forgot password / First login portal"
 
-#: wms/views_portal_orders.py:62
-msgid "Destinataire requis."
-msgstr "Recipient required."
-
 #: wms/views_portal_orders.py:63
 msgid "Destination requise."
 msgstr "Destination required."
@@ -1385,10 +1946,6 @@ msgstr "Invalid destination."
 #: wms/views_portal_orders.py:66
 msgid "Destinataire non disponible pour cette destination."
 msgstr "Recipient unavailable for this destination."
-
-#: wms/views_portal_orders.py:68
-msgid "Ajoutez au moins un produit."
-msgstr "Add at least one product."
 
 #: wms/views_portal_orders.py:69
 msgid "Adresse association manquante."

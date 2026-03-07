@@ -1,8 +1,9 @@
 from unittest import mock
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from wms.models import OrderReviewStatus
@@ -21,6 +22,9 @@ class ScanOrdersViewsTests(TestCase):
         response = HttpResponse(template_name)
         response.context_data = context
         return response
+
+    def _activate_english(self):
+        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = "en"
 
     def test_scan_order_get_renders_context(self):
         order_state = {
@@ -167,3 +171,18 @@ class ScanOrdersViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "scan/orders_view.html")
         self.assertEqual(response.context_data["orders"], [{"id": 2, "reference": "ORD-2"}])
+
+    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
+    def test_scan_order_pages_render_native_english_when_runtime_disabled(self):
+        self._activate_english()
+
+        orders_view_response = self.client.get(reverse("scan:scan_orders_view"))
+        self.assertContains(orders_view_response, "Order view")
+        self.assertContains(orders_view_response, "Track association orders.")
+        self.assertNotContains(orders_view_response, "Vue Commande")
+
+        order_response = self.client.get(reverse("scan:scan_order"))
+        self.assertContains(order_response, "Orders")
+        self.assertContains(order_response, "Existing order")
+        self.assertContains(order_response, "Create order")
+        self.assertNotContains(order_response, "Commande existante")
