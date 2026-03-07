@@ -6,6 +6,7 @@ from django.db import transaction
 from django.shortcuts import redirect, render
 from django.urls import path, reverse
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from contacts.models import Contact, ContactType
 from contacts.querysets import contacts_with_tags
@@ -294,7 +295,7 @@ def _handle_resolve_binding(*, request, review_item):
     if review_item.role != models.OrganizationRole.RECIPIENT:
         messages.error(
             request,
-            "Ce type d'item ne supporte pas la creation de RecipientBinding.",
+            _("Ce type d'item ne supporte pas la creation de RecipientBinding."),
         )
         return
 
@@ -302,7 +303,7 @@ def _handle_resolve_binding(*, request, review_item):
     if recipient_org is None:
         messages.error(
             request,
-            "Impossible de determiner le destinataire a partir du contact legacy.",
+            _("Impossible de determiner le destinataire a partir du contact legacy."),
         )
         return
 
@@ -316,7 +317,7 @@ def _handle_resolve_binding(*, request, review_item):
         is_active=True,
     ).first()
     if shipper_org is None:
-        messages.error(request, "Selectionnez un expediteur valide.")
+        messages.error(request, _("Selectionnez un expediteur valide."))
         return
 
     destination = models.Destination.objects.filter(
@@ -324,7 +325,7 @@ def _handle_resolve_binding(*, request, review_item):
         is_active=True,
     ).first()
     if destination is None:
-        messages.error(request, "Selectionnez une escale valide.")
+        messages.error(request, _("Selectionnez une escale valide."))
         return
 
     with transaction.atomic():
@@ -358,7 +359,7 @@ def _handle_resolve_binding(*, request, review_item):
             note=resolution_note,
         )
 
-    messages.success(request, "Mapping destinataire valide et item resolu.")
+    messages.success(request, _("Mapping destinataire valide et item resolu."))
 
 
 def _handle_resolve_without_binding(*, request, review_item):
@@ -367,7 +368,7 @@ def _handle_resolve_without_binding(*, request, review_item):
         user=request.user,
         note=request.POST.get("resolution_note", ""),
     )
-    messages.success(request, "Item de revue cloture sans mapping.")
+    messages.success(request, _("Item de revue cloture sans mapping."))
 
 
 def organization_roles_review_view(*, request, admin_site):
@@ -379,13 +380,13 @@ def organization_roles_review_view(*, request, admin_site):
         action = request.POST.get("action")
         review_item = _open_review_items_queryset().filter(pk=item_id).first()
         if review_item is None:
-            messages.error(request, "Item de revue introuvable ou deja resolu.")
+            messages.error(request, _("Item de revue introuvable ou deja resolu."))
         elif action == ACTION_RESOLVE_BINDING:
             _handle_resolve_binding(request=request, review_item=review_item)
         elif action == ACTION_RESOLVE_WITHOUT_BINDING:
             _handle_resolve_without_binding(request=request, review_item=review_item)
         else:
-            messages.error(request, "Action de revue non supportee.")
+            messages.error(request, _("Action de revue non supportee."))
 
         return redirect(reverse(f"admin:{ADMIN_ORGANIZATION_ROLES_REVIEW_URL_NAME}"))
 
@@ -393,7 +394,7 @@ def organization_roles_review_view(*, request, admin_site):
     context = {
         **admin_site.each_context(request),
         "opts": models.MigrationReviewItem._meta,
-        "title": "Revue migration des roles organisation",
+        "title": _("Revue migration des roles organisation"),
         "open_items_count": len(review_rows),
         "review_items": review_rows,
     }

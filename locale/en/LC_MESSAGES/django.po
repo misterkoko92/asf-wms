@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-07 18:44+0100\n"
+"POT-Creation-Date: 2026-03-07 19:49+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -34,6 +34,7 @@ msgstr "Django admin"
 #: templates/admin/wms/organization_roles_review.html:4
 #: templates/admin/wms/organization_roles_review.html:9
 #: templates/admin/wms/organization_roles_review.html:15
+#: wms/admin_organization_roles_review.py:397
 msgid "Revue migration des roles organisation"
 msgstr "Organization role migration review"
 
@@ -121,22 +122,22 @@ msgid "Aucun item ouvert dans la file de revue migration."
 msgstr "No open items in the migration review queue."
 
 #: templates/admin/wms/stockmovement/change_list.html:24
-#: wms/admin_stockmovement_views.py:32
+#: wms/admin_stockmovement_views.py:35
 msgid "Réception stock"
 msgstr "Receive stock"
 
 #: templates/admin/wms/stockmovement/change_list.html:27
-#: wms/admin_stockmovement_views.py:75
+#: wms/admin_stockmovement_views.py:78
 msgid "Ajuster stock"
 msgstr "Adjust stock"
 
 #: templates/admin/wms/stockmovement/change_list.html:30
-#: wms/admin_stockmovement_views.py:113
+#: wms/admin_stockmovement_views.py:116
 msgid "Transférer stock"
 msgstr "Transfer stock"
 
 #: templates/admin/wms/stockmovement/change_list.html:33
-#: wms/admin_stockmovement_views.py:159
+#: wms/admin_stockmovement_views.py:198
 msgid "Préparer carton"
 msgstr "Prepare carton"
 
@@ -189,7 +190,7 @@ msgstr "Phone"
 #: templates/portal/account.html:62 templates/portal/account.html:65
 #: templates/portal/recipients.html:24 templates/portal/recipients.html:124
 #: templates/scan/public_account_request.html:99
-#: templates/scan/public_order.html:88 wms/admin.py:378
+#: templates/scan/public_order.html:88 wms/admin.py:376
 msgid "Adresse"
 msgstr "Address"
 
@@ -259,7 +260,7 @@ msgstr "Administrative"
 
 #: templates/portal/account.html:161 templates/portal/account.html:294
 #: templates/scan/order.html:110 templates/scan/orders_view.html:22
-#: wms/admin.py:748
+#: wms/admin.py:746
 msgid "Expédition"
 msgstr "Shipping"
 
@@ -598,7 +599,7 @@ msgstr "Order #%(order_id)s"
 msgid "Destinataire: %(recipient_name)s"
 msgstr "Recipient: %(recipient_name)s"
 
-#: templates/portal/order_detail.html:22 wms/admin.py:390
+#: templates/portal/order_detail.html:22 wms/admin.py:388
 msgid "Validation"
 msgstr "Review"
 
@@ -1016,7 +1017,7 @@ msgstr "Parcels"
 msgid "Réf"
 msgstr "Ref"
 
-#: templates/scan/dashboard.html:111 wms/admin.py:674
+#: templates/scan/dashboard.html:111 wms/admin.py:672
 msgid "Disponible"
 msgstr "Available"
 
@@ -1428,7 +1429,7 @@ msgstr ""
 "(default format if not provided)."
 
 #: templates/scan/faq.html:146 templates/scan/shipment_create.html:14
-#: wms/admin.py:773
+#: wms/admin.py:771
 msgid "Créer une expédition"
 msgstr "Create shipment"
 
@@ -3495,7 +3496,7 @@ msgstr "Add contact"
 msgid "Marque"
 msgstr "Brand"
 
-#: wms/admin.py:191 wms/admin.py:956
+#: wms/admin.py:191 wms/admin.py:953
 msgid "QR code"
 msgstr ""
 
@@ -3504,6 +3505,7 @@ msgid "Photo"
 msgstr ""
 
 #: wms/admin.py:205
+#, python-format
 msgid "%(count)s produit(s) archives."
 msgstr "%(count)s product(s) archived."
 
@@ -3512,6 +3514,7 @@ msgid "Archiver les produits"
 msgstr "Archive products"
 
 #: wms/admin.py:211
+#, python-format
 msgid "%(count)s produit(s) réactivés."
 msgstr "%(count)s product(s) reactivated."
 
@@ -3520,6 +3523,7 @@ msgid "Réactiver les produits"
 msgstr "Reactivate products"
 
 #: wms/admin.py:222
+#, python-format
 msgid "%(count)s QR code(s) générés."
 msgstr "%(count)s QR code(s) generated."
 
@@ -3540,130 +3544,141 @@ msgid "Imprimer QR produits"
 msgstr "Print product QR labels"
 
 #: wms/admin.py:297
+#, python-format
 msgid "%(count)s demande(s) approuvée(s)."
 msgstr "%(count)s request(s) approved."
 
-#: wms/admin.py:303
+#: wms/admin.py:302
 #, python-format
 msgid ""
 "%(count)s demande(s) ignorée(s) (déjà approuvées ou identifiant réservé)."
-msgstr "%(count)s request(s) skipped (already approved or reserved identifier)."
+msgstr ""
+"%(count)s request(s) skipped (already approved or reserved identifier)."
 
-#: wms/admin.py:309
+#: wms/admin.py:307
 msgid "Approuver les demandes"
 msgstr "Approve requests"
 
-#: wms/admin.py:327
+#: wms/admin.py:325
 msgid "Compte créé automatiquement après validation."
 msgstr "Account created automatically after approval."
 
-#: wms/admin.py:333
+#: wms/admin.py:331
 #, python-format
 msgid "Validation ignorée (%(reason)s)."
 msgstr "Approval skipped (%(reason)s)."
 
-#: wms/admin.py:347
+#: wms/admin.py:345
 msgid "Accès portail"
 msgstr "Portal access"
 
-#: wms/admin.py:403
+#: wms/admin.py:401
+#, python-format
 msgid "%(count)s demande(s) refusée(s)."
 msgstr "%(count)s request(s) rejected."
 
-#: wms/admin.py:406
+#: wms/admin.py:404
 msgid "Refuser les demandes"
 msgstr "Reject requests"
 
-#: wms/admin.py:420 wms/admin_misc.py:73
+#: wms/admin.py:418 wms/admin_misc.py:73
+#, python-format
 msgid "%(count)s document(s) approuvé(s)."
 msgstr "%(count)s document(s) approved."
 
-#: wms/admin.py:423 wms/admin_misc.py:76
+#: wms/admin.py:421 wms/admin_misc.py:76
 msgid "Marquer comme approuvé"
 msgstr "Mark as approved"
 
-#: wms/admin.py:433 wms/admin_misc.py:86
+#: wms/admin.py:431 wms/admin_misc.py:86
+#, python-format
 msgid "%(count)s document(s) refusé(s)."
 msgstr "%(count)s document(s) rejected."
 
-#: wms/admin.py:436 wms/admin_misc.py:89
+#: wms/admin.py:434 wms/admin_misc.py:89
 msgid "Marquer comme refusé"
 msgstr "Mark as rejected"
 
-#: wms/admin.py:457 wms/admin.py:527
+#: wms/admin.py:455 wms/admin.py:525
 msgid "Rack"
 msgstr "Rack"
 
-#: wms/admin.py:459
+#: wms/admin.py:457
 msgid "Palette"
 msgstr "Swatch"
 
-#: wms/admin.py:470
+#: wms/admin.py:468
 msgid "Format attendu: #RRGGBB (ex: #1C8BC0)."
 msgstr "Expected format: #RRGGBB (example: #1C8BC0)."
 
-#: wms/admin.py:503
+#: wms/admin.py:501
 msgid "Couleur requise."
 msgstr "Color is required."
 
-#: wms/admin.py:512
+#: wms/admin.py:510
 msgid "Rack inexistant pour cet entrepôt."
 msgstr "Rack does not exist for this warehouse."
 
-#: wms/admin.py:608 wms/admin.py:638 wms/receipt_handlers.py:177
+#: wms/admin.py:606 wms/admin.py:636 wms/receipt_handlers.py:177
 #, python-format
 msgid "%(count)s ligne(s) réceptionnée(s)."
 msgstr "%(count)s line(s) received."
 
-#: wms/admin.py:613
+#: wms/admin.py:611
 msgid "Réceptionner les lignes"
 msgstr "Receive lines"
 
-#: wms/admin.py:643
+#: wms/admin.py:641
 msgid "Réceptionner les lignes sélectionnées"
 msgstr "Receive selected lines"
 
-#: wms/admin.py:690
+#: wms/admin.py:688
 msgid "Seuls les admins peuvent libérer la quarantaine."
 msgstr "Only admins can release quarantine."
 
-#: wms/admin.py:702
+#: wms/admin.py:700
+#, python-format
 msgid "%(count)s lot(s) libéré(s) de quarantaine."
 msgstr "%(count)s lot(s) released from quarantine."
 
-#: wms/admin.py:705
+#: wms/admin.py:703
 msgid "Libérer la quarantaine"
 msgstr "Release quarantine"
 
-#: wms/admin.py:770
+#: wms/admin.py:768
+#, python-format
 msgid "%(count)s expédition(s) créée(s)."
 msgstr "%(count)s shipment(s) created."
 
-#: wms/admin.py:787
+#: wms/admin.py:785
+#, python-format
 msgid "%(count)s commande(s) réservée(s)."
 msgstr "%(count)s order(s) reserved."
 
-#: wms/admin.py:792
+#: wms/admin.py:790
 msgid "Réserver le stock"
 msgstr "Reserve stock"
 
-#: wms/admin.py:806
+#: wms/admin.py:804
+#, python-format
 msgid "%(count)s commande(s) préparée(s)."
 msgstr "%(count)s order(s) prepared."
 
-#: wms/admin.py:811
+#: wms/admin.py:809
 msgid "Préparer les commandes"
 msgstr "Prepare orders"
 
-#: wms/admin.py:857
+#: wms/admin.py:855
+#, python-format
 msgid "%(count)s carton(s) déconditionné(s)."
 msgstr "%(count)s carton(s) unpacked."
 
-#: wms/admin.py:862
+#: wms/admin.py:860
+#, python-format
 msgid "%(count)s carton(s) ignorés (déjà expédiés ou vides)."
 msgstr "%(count)s carton(s) skipped (already shipped or empty)."
 
-#: wms/admin.py:867
+#: wms/admin.py:864
 msgid "Déconditionner les cartons"
 msgstr "Unpack cartons"
 
@@ -3696,6 +3711,7 @@ msgid "Profil: Utilisateur WMS"
 msgstr "Profile: WMS user"
 
 #: wms/admin_account_request_approval.py:243
+#, python-format
 msgid "Nom d'utilisateur: %(username)s"
 msgstr "Username: %(username)s"
 
@@ -3724,32 +3740,104 @@ msgstr "Profile: Association"
 msgid "Lien definir mot de passe: %(url)s"
 msgstr "Password setup link: %(url)s"
 
-#: wms/admin_stockmovement_views.py:42 wms/receipt_handlers.py:124
+#: wms/admin_organization_roles_review.py:298
+msgid "Ce type d'item ne supporte pas la creation de RecipientBinding."
+msgstr "This review item type does not support RecipientBinding creation."
+
+#: wms/admin_organization_roles_review.py:306
+msgid "Impossible de determiner le destinataire a partir du contact legacy."
+msgstr "Unable to resolve the recipient from the legacy contact."
+
+#: wms/admin_organization_roles_review.py:320
+msgid "Selectionnez un expediteur valide."
+msgstr "Select a valid shipper."
+
+#: wms/admin_organization_roles_review.py:328
+msgid "Selectionnez une escale valide."
+msgstr "Select a valid stopover."
+
+#: wms/admin_organization_roles_review.py:362
+msgid "Mapping destinataire valide et item resolu."
+msgstr "Recipient mapping saved and review item resolved."
+
+#: wms/admin_organization_roles_review.py:371
+msgid "Item de revue cloture sans mapping."
+msgstr "Review item closed without mapping."
+
+#: wms/admin_organization_roles_review.py:383
+msgid "Item de revue introuvable ou deja resolu."
+msgstr "Review item not found or already resolved."
+
+#: wms/admin_organization_roles_review.py:389
+msgid "Action de revue non supportee."
+msgstr "Unsupported review action."
+
+#: wms/admin_stockmovement_views.py:45 wms/receipt_handlers.py:124
 msgid "Emplacement requis ou définir un emplacement par défaut."
 msgstr "Location is required, or define a default location."
 
-#: wms/admin_stockmovement_views.py:57
+#: wms/admin_stockmovement_views.py:60
 msgid "Stock réceptionné et lot créé avec succès."
 msgstr "Stock received and lot created successfully."
 
-#: wms/admin_stockmovement_views.py:90
+#: wms/admin_stockmovement_views.py:93
 msgid "Ajustement de stock enregistré."
 msgstr "Stock adjustment recorded."
 
-#: wms/admin_stockmovement_views.py:95
+#: wms/admin_stockmovement_views.py:98
 msgid "Stock insuffisant pour appliquer cette correction."
 msgstr "Insufficient stock to apply this correction."
 
-#: wms/admin_stockmovement_views.py:126
+#: wms/admin_stockmovement_views.py:129
 msgid "Transfert de stock enregistré."
 msgstr "Stock transfer recorded."
 
-#: wms/admin_stockmovement_views.py:129
+#: wms/admin_stockmovement_views.py:132
 msgid "Le lot est déjà à cet emplacement."
 msgstr "The lot is already at this location."
 
-#: wms/admin_stockmovement_views.py:185
-#, fuzzy
+#: wms/admin_stockmovement_views.py:159
+msgid "Carton déjà lié à une autre expédition."
+msgstr "Carton already linked to another shipment."
+
+#: wms/admin_stockmovement_views.py:163
+#, python-format
+msgid "Stock insuffisant: %(count)s disponible(s)."
+msgstr "Insufficient stock: %(count)s available."
+
+#: wms/admin_stockmovement_views.py:166
+msgid "Stock insuffisant."
+msgstr "Insufficient stock."
+
+#: wms/admin_stockmovement_views.py:168
+msgid "Impossible de modifier un carton expédié."
+msgstr "Cannot modify a shipped carton."
+
+#: wms/admin_stockmovement_views.py:170
+msgid "Composition de kit invalide: cycle detecte."
+msgstr "Invalid kit composition: cycle detected."
+
+#: wms/admin_stockmovement_views.py:172
+msgid "Le kit ne contient aucun composant valide."
+msgstr "The kit contains no valid components."
+
+#: wms/admin_stockmovement_views.py:174
+msgid "Composant de kit introuvable."
+msgstr "Kit component not found."
+
+#: wms/admin_stockmovement_views.py:176
+msgid "Impossible de modifier une expédition en litige."
+msgstr "Cannot modify a disputed shipment."
+
+#: wms/admin_stockmovement_views.py:181
+msgid "Impossible de modifier une expédition expédiée ou livrée."
+msgstr "Cannot modify a shipped or delivered shipment."
+
+#: wms/admin_stockmovement_views.py:183
+msgid "Carton vide."
+msgstr "Empty carton."
+
+#: wms/admin_stockmovement_views.py:227
 msgid "Carton préparé avec succès."
 msgstr "Carton prepared successfully."
 

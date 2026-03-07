@@ -1357,13 +1357,17 @@ class StockMovementAdminViewsTests(_AdminTestBase):
 
         # pack_view mapped errors
         error_cases = [
-            ("Carton deja lie", "shipment"),
-            ("Stock insuffisant", "quantity"),
-            ("carton expedie", "carton"),
-            ("expedition expediee", "shipment"),
-            ("autre erreur", None),
+            ("Carton deja lie", "shipment", "Carton déjà lié à une autre expédition."),
+            ("Stock insuffisant", "quantity", "Stock insuffisant."),
+            ("carton expedie", "carton", "Impossible de modifier un carton expédié."),
+            (
+                "expedition expediee",
+                "shipment",
+                "Impossible de modifier une expédition expédiée ou livrée.",
+            ),
+            ("autre erreur", None, "autre erreur"),
         ]
-        for message, field in error_cases:
+        for message, field, expected_message in error_cases:
             form_pack_error = self._FakeForm(
                 cleaned_data={
                     "product": self.product,
@@ -1383,7 +1387,7 @@ class StockMovementAdminViewsTests(_AdminTestBase):
                 mock.patch.object(admin_obj, "_render_form", return_value="pack-render"),
             ):
                 self.assertEqual(admin_obj.pack_view(post_request), "pack-render")
-            form_pack_error.add_error.assert_called_once_with(field, message)
+            form_pack_error.add_error.assert_called_once_with(field, expected_message)
 
         with (
             mock.patch("wms.admin.PackCartonForm", return_value=self._FakeForm(valid=False)),
@@ -1439,3 +1443,73 @@ class StockMovementAdminViewsTests(_AdminTestBase):
             response = admin_obj.receive_view(get_request)
         self.assertEqual(response, "receive-get")
         self.assertEqual(str(render_mock.call_args.args[2]), "Receive stock")
+
+    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
+    def test_pack_errors_render_in_english(self):
+        admin_obj = StockMovementAdmin(models.StockMovement, self.site)
+        post_request = self.factory.post("/admin/wms/stockmovement/pack/", data={})
+        post_request.user = self.superuser
+        shipment = self._shipment(reference="260501")
+        carton = models.Carton.objects.create(code="CART-PACK-EN")
+        form_pack_error = self._FakeForm(
+            cleaned_data={
+                "product": self.product,
+                "quantity": 1,
+                "carton": carton,
+                "carton_code": "CART-PACK-EN",
+                "shipment": shipment,
+                "current_location": self.location,
+            }
+        )
+
+        with (
+            translation.override("en"),
+            mock.patch("wms.admin.PackCartonForm", return_value=form_pack_error),
+            mock.patch(
+                "wms.admin.pack_carton",
+                side_effect=StockError("Carton déjà lié à une autre expédition."),
+            ),
+            mock.patch.object(admin_obj, "_render_form", return_value="pack-render"),
+        ):
+            response = admin_obj.pack_view(post_request)
+
+        self.assertEqual(response, "pack-render")
+        form_pack_error.add_error.assert_called_once_with(
+            "shipment",
+            "Carton already linked to another shipment.",
+        )
+
+    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
+    def test_pack_kit_errors_render_in_english(self):
+        admin_obj = StockMovementAdmin(models.StockMovement, self.site)
+        post_request = self.factory.post("/admin/wms/stockmovement/pack/", data={})
+        post_request.user = self.superuser
+        shipment = self._shipment(reference="260502")
+        carton = models.Carton.objects.create(code="CART-PACK-KIT-EN")
+        form_pack_error = self._FakeForm(
+            cleaned_data={
+                "product": self.product,
+                "quantity": 1,
+                "carton": carton,
+                "carton_code": "CART-PACK-KIT-EN",
+                "shipment": shipment,
+                "current_location": self.location,
+            }
+        )
+
+        with (
+            translation.override("en"),
+            mock.patch("wms.admin.PackCartonForm", return_value=form_pack_error),
+            mock.patch(
+                "wms.admin.pack_carton",
+                side_effect=StockError("Composition de kit invalide: cycle detecte."),
+            ),
+            mock.patch.object(admin_obj, "_render_form", return_value="pack-render"),
+        ):
+            response = admin_obj.pack_view(post_request)
+
+        self.assertEqual(response, "pack-render")
+        form_pack_error.add_error.assert_called_once_with(
+            None,
+            "Invalid kit composition: cycle detected.",
+        )
