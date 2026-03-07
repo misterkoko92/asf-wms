@@ -1,11 +1,10 @@
 {% extends "scan/base.html" %}
-{% load i18n %}
 
-{% block title %}WMS Scan - {% trans "Préparer des kits" %}{% endblock %}
+{% block title %}WMS Scan - Pr&eacute;parer des kits{% endblock %}
 
 {% block content %}
   <div class="scan-card card border-0 ui-comp-card">
-    <h2 class="h4 mb-3 ui-comp-title">{% trans "Préparer des kits" %}</h2>
+    <h2 class="h4 mb-3 ui-comp-title">Pr&eacute;parer des kits</h2>
     {% if form.non_field_errors %}
       <div class="scan-message error">{{ form.non_field_errors }}</div>
     {% endif %}
@@ -13,7 +12,7 @@
     <form method="post" novalidate class="scan-filters row g-3 ui-comp-form scan-prepare-kits-main-row">
       {% csrf_token %}
       <div class="scan-field scan-prepare-kits-top-field ui-comp-panel col-12 col-lg-6">
-        <label class="form-label" for="{{ form.kit_id.id_for_label }}">{% trans "Nom du kit" %}</label>
+        <label class="form-label" for="{{ form.kit_id.id_for_label }}">Nom du kit</label>
         {{ form.kit_id }}
         {% for error in form.kit_id.errors %}
           <div class="scan-message error">{{ error }}</div>
@@ -23,28 +22,28 @@
       <div class="scan-field scan-prepare-kits-top-field scan-field-gap ui-comp-panel col-12 col-lg-6">
         <div class="scan-inline scan-inline-equal scan-inline-top scan-inline-gap">
           <div class="scan-field">
-            <label class="form-label" for="{{ form.quantity.id_for_label }}">{% trans "Nombre de kits à créer" %}</label>
+            <label class="form-label" for="{{ form.quantity.id_for_label }}">Nombre de kits &agrave; cr&eacute;er</label>
             {{ form.quantity }}
             {% for error in form.quantity.errors %}
               <div class="scan-message error">{{ error }}</div>
             {% endfor %}
           </div>
           <div class="scan-field">
-            <div><strong>{% trans "Stock théorique disponible:" %}</strong> <span id="prepare-kits-theoretical">{% if selected_kit %}{% blocktrans with total=selected_kit.theoretical_stock %}{{ total }} kit(s){% endblocktrans %}{% else %}-{% endif %}</span></div>
-            <div><strong>{% trans "Max colis mono-kit:" %}</strong> <span id="prepare-kits-max">{% if selected_kit and selected_kit.max_per_carton %}{% blocktrans with total=selected_kit.max_per_carton %}{{ total }} kit(s){% endblocktrans %}{% else %}N/A{% endif %}</span></div>
+            <div><strong>Stock th&eacute;orique disponible:</strong> <span id="prepare-kits-theoretical">{% if selected_kit %}{{ selected_kit.theoretical_stock }} kit(s){% else %}-{% endif %}</span></div>
+            <div><strong>Max colis mono-kit:</strong> <span id="prepare-kits-max">{% if selected_kit and selected_kit.max_per_carton %}{{ selected_kit.max_per_carton }} kit(s){% else %}N/A{% endif %}</span></div>
           </div>
         </div>
       </div>
 
       <div class="scan-field scan-prepare-kits-composition-field scan-field-gap ui-comp-panel col-12">
-        <label class="form-label">{% trans "Composition" %}</label>
+        <label class="form-label">Composition</label>
         <div class="scan-table-wrap table-responsive">
           <table class="scan-table table table-sm table-hover">
             <thead>
               <tr>
-                <th>{% trans "Nom des produits" %}</th>
-                <th>{% trans "Quantité par produit" %}</th>
-                <th>{% trans "Emplacement" %}</th>
+                <th>Nom des produits</th>
+                <th>Quantit&eacute; par produit</th>
+                <th>Emplacement</th>
               </tr>
             </thead>
             <tbody id="prepare-kits-components">
@@ -58,7 +57,7 @@
                 {% endfor %}
               {% else %}
                 <tr data-empty-row="1">
-                  <td colspan="3">{% trans "Sélectionnez un kit." %}</td>
+                  <td colspan="3">S&eacute;lectionnez un kit.</td>
                 </tr>
               {% endif %}
             </tbody>
@@ -67,30 +66,27 @@
       </div>
 
       <div class="ui-comp-actions scan-prepare-kits-actions-inline col-12 d-flex flex-wrap flex-lg-nowrap gap-2 align-items-center">
-        <button type="submit" class="scan-submit btn btn-primary">{% trans "Préparer" %}</button>
+        <button type="submit" class="scan-submit btn btn-primary">Pr&eacute;parer</button>
         <a class="scan-scan-btn btn btn-tertiary" href="{{ kit_create_url }}" target="_blank" rel="noopener">
-          {% trans "Créer un nouveau kit" %}
+          Cr&eacute;er un nouveau kit
         </a>
       </div>
     </form>
 
     <div class="scan-field scan-field-gap ui-comp-panel">
       {% if prepare_result %}
-        <p class="scan-help ui-comp-note">{% blocktrans with total=prepare_result.carton_count %}{{ total }} colis généré(s).{% endblocktrans %}</p>
+        <p class="scan-help ui-comp-note">{{ prepare_result.carton_count }} colis g&eacute;n&eacute;r&eacute;(s).</p>
         <a class="scan-scan-btn btn btn-tertiary" href="{{ prepare_result.picking_url }}" target="_blank" rel="noopener">
-          {% trans "Télécharger le picking" %}
+          T&eacute;l&eacute;charger le picking
         </a>
       {% else %}
-        <p class="scan-help ui-comp-note">{% trans "Sélectionnez un kit puis cliquez sur Préparer pour générer le picking." %}</p>
+        <p class="scan-help ui-comp-note">S&eacute;lectionnez un kit puis cliquez sur Pr&eacute;parer pour g&eacute;n&eacute;rer le picking.</p>
       {% endif %}
     </div>
 
     {{ kit_data|json_script:"prepare-kits-data" }}
   </div>
 
-  {% trans "Sélectionnez un kit." as empty_kit_message %}
-  {% trans "N/A" as not_available_label %}
-  {% trans "kit(s)" as kit_unit %}
   <script>
     (function() {
       const select = document.getElementById('id_kit_id');
@@ -121,11 +117,11 @@
         row.setAttribute('data-empty-row', '1');
         const cell = document.createElement('td');
         cell.colSpan = 3;
-        cell.textContent = '{{ empty_kit_message|escapejs }}';
+        cell.textContent = 'S\u00e9lectionnez un kit.';
         row.appendChild(cell);
         componentsBody.appendChild(row);
         theoreticalEl.textContent = '-';
-        maxEl.textContent = '{{ not_available_label|escapejs }}';
+        maxEl.textContent = 'N/A';
       };
 
       const renderKit = () => {
@@ -135,8 +131,8 @@
           return;
         }
 
-        theoreticalEl.textContent = `${selected.theoretical_stock || 0} {{ kit_unit|escapejs }}`;
-        maxEl.textContent = selected.max_per_carton ? `${selected.max_per_carton} {{ kit_unit|escapejs }}` : '{{ not_available_label|escapejs }}';
+        theoreticalEl.textContent = `${selected.theoretical_stock || 0} kit(s)`;
+        maxEl.textContent = selected.max_per_carton ? `${selected.max_per_carton} kit(s)` : 'N/A';
 
         const rows = selected.component_rows || [];
         componentsBody.innerHTML = '';

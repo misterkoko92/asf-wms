@@ -1,6 +1,5 @@
 from django.db.models import Q
 from django.utils import timezone
-from django.utils.translation import gettext as _
 
 from contacts.destination_scope import (
     contact_destination_ids,
@@ -214,29 +213,29 @@ def parse_shipment_lines(*, carton_count, data, allowed_carton_ids):
         errors = []
 
         if carton_id and (product_code or quantity_raw):
-            errors.append(_("Choisissez un carton OU créez un colis depuis un produit."))
+            errors.append("Choisissez un carton OU créez un colis depuis un produit.")
         elif carton_id:
             if carton_id not in allowed_carton_ids:
-                errors.append(_("Carton indisponible."))
+                errors.append("Carton indisponible.")
             else:
                 line_items.append({"carton_id": int(carton_id)})
         elif product_code or quantity_raw:
             if not product_code:
-                errors.append(_("Produit requis."))
+                errors.append("Produit requis.")
             quantity = None
             if not quantity_raw:
-                errors.append(_("Quantité requise."))
+                errors.append("Quantité requise.")
             else:
                 quantity = parse_int(quantity_raw)
                 if quantity is None or quantity <= 0:
-                    errors.append(_("Quantité invalide."))
+                    errors.append("Quantité invalide.")
             product = resolve_product(product_code) if product_code else None
             if product_code and not product:
-                errors.append(_("Produit introuvable."))
+                errors.append("Produit introuvable.")
             if not errors and product and quantity:
                 line_items.append({"product": product, "quantity": quantity})
         else:
-            errors.append(_("Renseignez un carton ou un produit."))
+            errors.append("Renseignez un carton ou un produit.")
 
         if errors:
             line_errors[str(index)] = errors

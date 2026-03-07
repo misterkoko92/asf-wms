@@ -2,7 +2,6 @@ from datetime import timedelta
 from types import SimpleNamespace
 from unittest import mock
 
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.auth.tokens import default_token_generator
@@ -50,9 +49,6 @@ from wms.services import StockError
 
 
 class PortalBaseTestCase(TestCase):
-    def _activate_english(self):
-        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = "en"
-
     def _create_association_contact(self, name, with_address=True):
         contact = Contact.objects.create(
             name=name,
@@ -212,7 +208,7 @@ class PortalAuthViewsTests(PortalBaseTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, reverse("portal:portal_forgot_password"))
         self.assertContains(response, "Mot de passe oubli")
-        self.assertContains(response, "Première connexion")
+        self.assertContains(response, "Premi&egrave;re connexion")
 
     def test_portal_forgot_password_get_renders_form(self):
         response = self.client.get(reverse("portal:portal_forgot_password"))
@@ -333,28 +329,6 @@ class PortalAuthViewsTests(PortalBaseTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Si votre email est reconnu")
         send_mock.assert_not_called()
-
-    def test_portal_recovery_post_enqueues_email_when_direct_send_fails(self):
-        user = self._create_portal_user("portal-auth-queue", "queue@example.com")
-        self._create_profile(user, must_change_password=False)
-
-        with mock.patch("wms.emailing.send_email_safe", return_value=False):
-            response = self.client.post(
-                reverse("portal:portal_forgot_password"),
-                {"email": user.email},
-                REMOTE_ADDR="10.0.0.8",
-            )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Si votre email est reconnu")
-        event = IntegrationEvent.objects.get()
-        self.assertEqual(event.status, IntegrationStatus.PENDING)
-        self.assertEqual(
-            event.payload["subject"],
-            "ASF WMS - Mot de passe oublié / Première connexion portail",
-        )
-        self.assertIsInstance(event.payload["subject"], str)
-        self.assertEqual(event.payload["recipient"], [user.email])
 
     @override_settings(PORTAL_AUTH_RECOVERY_THROTTLE_SECONDS=300)
     def test_portal_recovery_throttles_repeated_requests(self):
@@ -635,12 +609,12 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertContains(response, "Kits disponibles")
         self.assertContains(response, "Filtrer produits")
         self.assertContains(response, "portal-filter-category-l1")
-        self.assertContains(response, "Produits à l'unité")
+        self.assertContains(response, "Produits &agrave; l'unit&eacute;")
         self.assertContains(
             response,
-            "Les stock indiqués dans ce tableau sont fictifs.",
+            "Les stock indiqu&eacute;s dans ce tableau sont fictifs.",
         )
-        self.assertContains(response, "colis prêts +")
+        self.assertContains(response, "colis pr&ecirc;ts +")
 
     def test_portal_order_create_get_exposes_ready_cartons_rows(self):
         warehouse = Warehouse.objects.create(name="Portal Ready Carton Warehouse")
@@ -928,39 +902,6 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         )
         create_order_mock.assert_called_once()
         notify_mock.assert_called_once()
-
-    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
-    def test_portal_order_create_post_success_uses_native_english_message(self):
-        self._activate_english()
-        line_items = [(self.product, 1)]
-        order = self._order()
-
-        with mock.patch(
-            "wms.views_portal_orders.build_product_selection_data",
-            return_value=(self.product_options, self.product_by_id, self.available_by_id),
-        ):
-            with mock.patch(
-                "wms.views_portal_orders.build_order_line_items",
-                return_value=(line_items, {}, {}),
-            ):
-                with mock.patch(
-                    "wms.views_portal_orders.create_portal_order",
-                    return_value=order,
-                ):
-                    with mock.patch("wms.views_portal_orders.send_portal_order_notifications"):
-                        response = self.client.post(
-                            self.order_create_url,
-                            {
-                                "destination_id": str(self.destination.id),
-                                "recipient_id": "self",
-                                "notes": "OK",
-                            },
-                            follow=True,
-                        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Order sent.")
-        self.assertNotContains(response, "Commande envoyée.")
 
     def test_portal_order_create_post_supports_ready_cartons_and_unit_products(self):
         warehouse = Warehouse.objects.create(name="Portal Mixed Order Warehouse")
@@ -1366,24 +1307,6 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertEqual(document.scan_status, DocumentScanStatus.PENDING)
         self.assertEqual(IntegrationEvent.objects.count(), 1)
 
-    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
-    def test_portal_order_detail_upload_stores_stable_scan_message(self):
-        self._activate_english()
-        order = self._order(review_status=OrderReviewStatus.APPROVED)
-        uploaded = SimpleUploadedFile("invoice.pdf", b"%PDF-1.4 invoice")
-
-        response = self.client.post(
-            reverse("portal:portal_order_detail", kwargs={"order_id": order.id}),
-            {
-                "action": "upload_docs",
-                "doc_file_invoice": uploaded,
-            },
-        )
-
-        self.assertEqual(response.status_code, 302)
-        document = OrderDocument.objects.get(order=order)
-        self.assertEqual(document.scan_message, "Scan antivirus en cours.")
-
     def test_portal_order_detail_hides_download_link_for_quarantined_document(self):
         order = self._order(review_status=OrderReviewStatus.APPROVED)
         document = order.documents.create(
@@ -1502,37 +1425,6 @@ class PortalAccountViewsTests(PortalBaseTestCase):
             synced_contact.id,
             set(form.fields["recipient_contact"].queryset.values_list("id", flat=True)),
         )
-
-    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
-    def test_portal_recipients_post_creates_recipient_with_native_english_message(self):
-        self._activate_english()
-
-        response = self.client.post(
-            self.recipients_url,
-            {
-                "action": "create_recipient",
-                "destination_id": str(self.destination.id),
-                "structure_name": "Structure English",
-                "contact_title": "mrs",
-                "contact_last_name": "Martin",
-                "contact_first_name": "Claire",
-                "emails": "recipient@example.com",
-                "phones": "+33102030405",
-                "address_line1": "2 Rue C",
-                "address_line2": "",
-                "postal_code": "75002",
-                "city": "Paris",
-                "country": "France",
-                "notes": "Notes",
-                "notify_deliveries": "1",
-                "is_delivery_contact": "1",
-            },
-            follow=True,
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Recipient added.")
-        self.assertNotContains(response, "Destinataire ajouté.")
 
     def test_portal_recipients_get_with_edit_prefills_form(self):
         recipient = AssociationRecipient.objects.create(
@@ -1775,22 +1667,6 @@ class PortalAccountViewsTests(PortalBaseTestCase):
             {DocumentScanStatus.PENDING},
         )
         self.assertEqual(IntegrationEvent.objects.count(), 2)
-
-    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
-    def test_portal_account_upload_stores_stable_scan_message(self):
-        self._activate_english()
-
-        response = self.client.post(
-            self.account_url,
-            {
-                "action": "upload_account_docs",
-                "doc_file_other": SimpleUploadedFile("other.pdf", b"%PDF-1.4 other"),
-            },
-        )
-
-        self.assertEqual(response.status_code, 302)
-        document = AccountDocument.objects.get()
-        self.assertEqual(document.scan_message, "Scan antivirus en cours.")
 
     def test_portal_account_hides_download_link_for_quarantined_document(self):
         document = AccountDocument.objects.create(

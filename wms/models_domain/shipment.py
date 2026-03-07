@@ -8,7 +8,6 @@ from django.core.files.base import ContentFile
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.urls import reverse
-from django.utils.translation import gettext_lazy as _
 
 from ..document_scan import DocumentScanStatus
 from .catalog import Product
@@ -16,13 +15,13 @@ from .inventory import Destination, Location, ProductLot
 
 
 class ShipmentStatus(models.TextChoices):
-    DRAFT = "draft", _("Création")
-    PICKING = "picking", _("En cours")
-    PACKED = "packed", _("Prêt")
-    PLANNED = "planned", _("Planifié")
-    SHIPPED = "shipped", _("Expédié")
-    RECEIVED_CORRESPONDENT = "received_correspondent", _("Reçu escale")
-    DELIVERED = "delivered", _("Livré")
+    DRAFT = "draft", "Création"
+    PICKING = "picking", "En cours"
+    PACKED = "packed", "Prêt"
+    PLANNED = "planned", "Planifié"
+    SHIPPED = "shipped", "Expédié"
+    RECEIVED_CORRESPONDENT = "received_correspondent", "Reçu escale"
+    DELIVERED = "delivered", "Livré"
 
 
 TEMP_SHIPMENT_REFERENCE_PREFIX = "EXP-TEMP-"
@@ -173,12 +172,12 @@ class Shipment(models.Model):
 
 
 class ShipmentTrackingStatus(models.TextChoices):
-    PLANNING_OK = "planning_ok", _("OK pour planification")
-    PLANNED = "planned", _("Planifié")
-    MOVED_EXPORT = "moved_export", _("Déplacé au magasin export")
-    BOARDING_OK = "boarding_ok", _("OK mise à bord")
-    RECEIVED_CORRESPONDENT = "received_correspondent", _("Reçu correspondant")
-    RECEIVED_RECIPIENT = "received_recipient", _("Reçu destinataire")
+    PLANNING_OK = "planning_ok", "OK pour planification"
+    PLANNED = "planned", "Planifié"
+    MOVED_EXPORT = "moved_export", "Déplacé au magasin export"
+    BOARDING_OK = "boarding_ok", "OK mise à bord"
+    RECEIVED_CORRESPONDENT = "received_correspondent", "Reçu correspondant"
+    RECEIVED_RECIPIENT = "received_recipient", "Reçu destinataire"
 
 
 class ShipmentTrackingEvent(models.Model):

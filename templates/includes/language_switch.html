@@ -9,20 +9,20 @@
       name="language"
       value="fr"
       class="wms-language-switch__btn{% if LANGUAGE_CODE|slice:':2' == 'fr' %} is-active{% endif %}"
-      aria-label="{% trans "Français" %}"
+      aria-label="Français"
     >
       <span aria-hidden="true">🇫🇷</span>
-      <span>{% trans "Français" %}</span>
+      <span>Français</span>
     </button>
     <button
       type="submit"
       name="language"
       value="en"
       class="wms-language-switch__btn{% if LANGUAGE_CODE|slice:':2' == 'en' %} is-active{% endif %}"
-      aria-label="{% trans "English" %}"
+      aria-label="English"
     >
       <span aria-hidden="true">🇬🇧</span>
-      <span>{% trans "English" %}</span>
+      <span>English</span>
     </button>
   </form>
 </div>

@@ -1,17 +1,18 @@
 {% extends "scan/base.html" %}
-{% load i18n %}
 
-{% block title %}{% trans "WMS Scan - Paramètres" %}{% endblock %}
+{% block title %}WMS Scan - Paramètres{% endblock %}
 
 {% block content %}
   <div class="scan-card card border-0 ui-comp-card">
-    <h2 class="ui-comp-title">{% trans "Paramètres" %}</h2>
+    <h2 class="ui-comp-title">Paramètres</h2>
     <p class="scan-help">
-      {% trans "Cette page est réservée aux superusers. Les valeurs sont appliquées dans les écrans scan (dashboard, workflow expéditions, queue email, route legacy)." %}
+      Cette page est réservée aux superusers. Les valeurs sont appliquées dans les écrans scan
+      (dashboard, workflow expéditions, queue email, route legacy).
     </p>
     {% if legacy_env_disabled %}
       <div class="scan-message warning">
-        {% trans "La route legacy est désactivée par variable d'environnement (`ENABLE_SHIPMENT_TRACK_LEGACY=false`). Le switch ci-dessous ne peut pas la réactiver." %}
+        La route legacy est désactivée par variable d'environnement (`ENABLE_SHIPMENT_TRACK_LEGACY=false`).
+        Le switch ci-dessous ne peut pas la réactiver.
       </div>
     {% endif %}
   </div>
@@ -20,12 +21,12 @@
     <form method="post" class="scan-filters ui-comp-form">
       {% csrf_token %}
 
-      <h3>{% trans "Presets operationnels" %}</h3>
+      <h3>Presets operationnels</h3>
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
-          <label class="form-label" for="settings-preset">{% trans "Preset" %}</label>
+          <label class="form-label" for="settings-preset">Preset</label>
           <select id="settings-preset" name="preset">
-            <option value="">{% trans "-- Selectionner --" %}</option>
+            <option value="">-- Selectionner --</option>
             {% for option in preset_options %}
               <option value="{{ option.key }}" {% if selected_preset == option.key %}selected{% endif %}>
                 {{ option.label }}
@@ -40,14 +41,14 @@
         </div>
         <div class="scan-field">
           <label class="form-label">&nbsp;</label>
-          <button type="submit" name="action" value="apply_preset" class="scan-submit secondary btn btn-secondary">{% trans "Charger preset" %}</button>
-          <div class="scan-help">{% trans "Ne sauvegarde pas automatiquement." %}</div>
+          <button type="submit" name="action" value="apply_preset" class="scan-submit secondary btn btn-secondary">Charger preset</button>
+          <div class="scan-help">Ne sauvegarde pas automatiquement.</div>
         </div>
       </div>
 
       <div class="scan-divider"></div>
 
-      <h3>{% trans "Dashboard et alertes" %}</h3>
+      <h3>Dashboard et alertes</h3>
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
           {{ form.low_stock_threshold.label_tag }}
@@ -80,7 +81,7 @@
 
       <div class="scan-divider"></div>
 
-      <h3>{% trans "Queue email" %}</h3>
+      <h3>Queue email</h3>
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
           {{ form.email_queue_max_attempts.label_tag }}
@@ -113,7 +114,7 @@
 
       <div class="scan-divider"></div>
 
-      <h3>{% trans "Legacy" %}</h3>
+      <h3>Legacy</h3>
       <div class="scan-field">
         <label class="form-label" for="{{ form.enable_shipment_track_legacy.id_for_label }}">
           {{ form.enable_shipment_track_legacy }}
@@ -122,13 +123,13 @@
         {% if form.enable_shipment_track_legacy.errors %}<div class="scan-help">{{ form.enable_shipment_track_legacy.errors|join:", " }}</div>{% endif %}
         <div class="scan-help">{{ form.enable_shipment_track_legacy.help_text }}</div>
         <div class="scan-help">
-          {% trans "État effectif actuel:" %} {% if legacy_effective_enabled %}<strong>{% trans "activé" %}</strong>{% else %}<strong>{% trans "désactivé" %}</strong>{% endif %}.
+          État effectif actuel: {% if legacy_effective_enabled %}<strong>activé</strong>{% else %}<strong>désactivé</strong>{% endif %}.
         </div>
       </div>
 
       <div class="scan-divider"></div>
 
-      <h3>{% trans "Trace operateur" %}</h3>
+      <h3>Trace operateur</h3>
       <div class="scan-field">
         {{ form.change_note.label_tag }}
         {{ form.change_note }}
@@ -141,42 +142,38 @@
       {% endif %}
 
       <div class="scan-filter-actions">
-        <button type="submit" name="action" value="preview" class="scan-submit secondary btn btn-secondary">{% trans "Previsualiser impact" %}</button>
-        <button type="submit" name="action" value="save" class="scan-submit btn btn-primary">{% trans "Enregistrer" %}</button>
+        <button type="submit" name="action" value="preview" class="scan-submit secondary btn btn-secondary">Previsualiser impact</button>
+        <button type="submit" name="action" value="save" class="scan-submit btn btn-primary">Enregistrer</button>
       </div>
     </form>
   </div>
 
   {% if preview %}
     <div class="scan-card card border-0 ui-comp-card">
-      {% if preview.preset_label %}
-        <h3>{% blocktrans with preset_label=preview.preset_label %}Apercu d'impact (preset: {{ preset_label }}){% endblocktrans %}</h3>
-      {% else %}
-        <h3>{% trans "Apercu d'impact" %}</h3>
-      {% endif %}
+      <h3>Apercu d'impact{% if preview.preset_label %} (preset: {{ preview.preset_label }}){% endif %}</h3>
       {% if preview.changed_fields %}
-        <p class="scan-help">{% blocktrans with changed_fields=preview.changed_fields|join:", " %}Champs modifies: {{ changed_fields }}{% endblocktrans %}</p>
+        <p class="scan-help">Champs modifies: {{ preview.changed_fields|join:", " }}</p>
       {% else %}
-        <p class="scan-help">{% trans "Aucun champ modifie." %}</p>
+        <p class="scan-help">Aucun champ modifie.</p>
       {% endif %}
       <ul class="scan-help">
-        <li>{% blocktrans with days=preview.stale_drafts_age_days count=preview.stale_draft_count %}Brouillons temporaires stale (&lt; {{ days }}j): {{ count }}{% endblocktrans %}</li>
-        <li>{% blocktrans with seconds=preview.queue_processing_timeout_seconds count=preview.queue_stale_processing_count %}Queue email bloquee (timeout {{ seconds }}s): {{ count }}{% endblocktrans %}</li>
-        <li>{% trans "Route legacy effective:" %} {% if preview.legacy_effective_enabled %}{% trans "active" %}{% else %}{% trans "inactive" %}{% endif %}</li>
+        <li>Brouillons temporaires stale (&lt; {{ preview.stale_drafts_age_days }}j): {{ preview.stale_draft_count }}</li>
+        <li>Queue email bloquee (timeout {{ preview.queue_processing_timeout_seconds }}s): {{ preview.queue_stale_processing_count }}</li>
+        <li>Route legacy effective: {% if preview.legacy_effective_enabled %}active{% else %}inactive{% endif %}</li>
       </ul>
     </div>
   {% endif %}
 
   <div class="scan-card card border-0 ui-comp-card">
-    <h3>{% trans "Historique recent" %}</h3>
+    <h3>Historique recent</h3>
     {% if recent_audits %}
       <table class="scan-table">
         <thead>
           <tr>
-            <th>{% trans "Date" %}</th>
-            <th>{% trans "Utilisateur" %}</th>
-            <th>{% trans "Champs modifies" %}</th>
-            <th>{% trans "Commentaire" %}</th>
+            <th>Date</th>
+            <th>Utilisateur</th>
+            <th>Champs modifies</th>
+            <th>Commentaire</th>
           </tr>
         </thead>
         <tbody>
@@ -191,7 +188,7 @@
         </tbody>
       </table>
     {% else %}
-      <p class="scan-help">{% trans "Aucun changement trace pour le moment." %}</p>
+      <p class="scan-help">Aucun changement trace pour le moment.</p>
     {% endif %}
   </div>
 {% endblock %}

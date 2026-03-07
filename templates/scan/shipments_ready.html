@@ -1,22 +1,21 @@
 {% extends "scan/base.html" %}
-{% load i18n %}
 
-{% block title %}{% trans "WMS Scan - Vue Expéditions" %}{% endblock %}
+{% block title %}WMS Scan - Vue Exp&eacute;ditions{% endblock %}
 
 {% block content %}
   <div class="scan-card card border-0 ui-comp-card">
     <h2 class="h4 mb-3 ui-comp-title d-flex align-items-center gap-2 flex-wrap">
-      <span>{% trans "Vue Expéditions" %}</span>
+      <span>Vue Exp&eacute;ditions</span>
       <span class="badge text-bg-light ui-comp-count-badge">{{ shipments|length }}</span>
     </h2>
     {% if stale_draft_count %}
       <div class="scan-message error">
-        {% blocktrans with stale_count=stale_draft_count stale_days=stale_draft_days %}{{ stale_count }} brouillon(s) temporaire(s) de plus de {{ stale_days }} jours.{% endblocktrans %}
+        {{ stale_draft_count }} brouillon(s) temporaire(s) de plus de {{ stale_draft_days }} jours.
       </div>
       <form method="post" class="scan-inline scan-inline-gap d-flex flex-wrap gap-2 ui-comp-actions">
         {% csrf_token %}
         <input type="hidden" name="action" value="archive_stale_drafts">
-        <button type="submit" class="scan-scan-btn btn btn-danger">{% trans "Archiver brouillons anciens" %}</button>
+        <button type="submit" class="scan-scan-btn btn btn-danger">Archiver brouillons anciens</button>
       </form>
     {% endif %}
     {% if shipments %}
@@ -24,16 +23,16 @@
         <table class="scan-table table table-sm table-hover" data-table-tools="1">
           <thead>
             <tr>
-              <th>{% trans "N° expédition" %}</th>
-              <th>{% trans "Nb colis" %}</th>
-              <th>{% trans "Destination (IATA)" %}</th>
-              <th>{% trans "Expéditeur" %}</th>
-              <th>{% trans "Destinataire" %}</th>
-              <th>{% trans "Date création" %}</th>
-              <th>{% trans "Date mise en disponible" %}</th>
-              <th>{% trans "Statut" %}</th>
-              <th>{% trans "Documents" %}</th>
-              <th>{% trans "Actions" %}</th>
+              <th>N° expédition</th>
+              <th>Nb colis</th>
+              <th>Destination (IATA)</th>
+              <th>Exp&eacute;diteur</th>
+              <th>Destinataire</th>
+              <th>Date cr&eacute;ation</th>
+              <th>Date mise en disponible</th>
+              <th>Statut</th>
+              <th>Documents</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -51,19 +50,19 @@
                 </td>
                 <td>
                   <details class="scan-doc-menu">
-                    <summary class="scan-scan-btn btn btn-tertiary scan-doc-menu-toggle">{% trans "Documents" %}</summary>
+                    <summary class="scan-scan-btn btn btn-tertiary scan-doc-menu-toggle">Documents</summary>
                     <div class="scan-doc-menu-list">
                       <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'shipment_note' %}" target="_blank" rel="noopener">
-                        {% trans "Bon d'expédition" %}
+                        Bon d'exp&eacute;dition
                       </a>
                       <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'packing_list_shipment' %}" target="_blank" rel="noopener">
-                        {% trans "Liste colisage (lot)" %}
+                        Liste colisage (lot)
                       </a>
                       <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'donation_certificate' %}" target="_blank" rel="noopener">
-                        {% trans "Attestation donation" %}
+                        Attestation donation
                       </a>
                       <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_labels' shipment.id %}" target="_blank" rel="noopener">
-                        {% trans "Étiquettes colis" %}
+                        &Eacute;tiquettes colis
                       </a>
                     </div>
                   </details>
@@ -71,10 +70,10 @@
                 <td>
                   <div class="scan-inline ui-comp-actions">
                     <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_shipment_track' shipment.tracking_token %}?return_to=shipments_ready">
-                      {% trans "Suivi" %}
+                      Suivi
                     </a>
                     {% if shipment.can_edit %}
-                      <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_shipment_edit' shipment.id %}">{% trans "Modifier" %}</a>
+                      <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_shipment_edit' shipment.id %}">Modifier</a>
                     {% endif %}
                   </div>
                 </td>
@@ -84,7 +83,7 @@
         </table>
       </div>
     {% else %}
-      <p class="scan-help ui-comp-note">{% trans "Aucune expédition." %}</p>
+      <p class="scan-help ui-comp-note">Aucune exp&eacute;dition.</p>
     {% endif %}
   </div>
 {% endblock %}

@@ -1,39 +1,33 @@
 {% extends "portal/base.html" %}
-{% load i18n wms_status %}
+{% load wms_status %}
 
-{% block title %}{% trans "Commande" %}{% endblock %}
+{% block title %}Commande{% endblock %}
 
 {% block content %}
   <div class="portal-tight">
     <div class="scan-card portal-card card border-0 ui-comp-card">
-      <h2 class="portal-section-title ui-comp-title">
-        {% if order.reference %}
-          {% blocktrans with reference=order.reference %}Commande {{ reference }}{% endblocktrans %}
-        {% else %}
-          {% blocktrans with order_id=order.id %}Commande #{{ order_id }}{% endblocktrans %}
-        {% endif %}
-      </h2>
-      <p class="scan-help">{% blocktrans with recipient_name=order.recipient_name %}Destinataire: {{ recipient_name }}{% endblocktrans %}</p>
+      <h2 class="portal-section-title ui-comp-title">Commande {{ order.reference|default:"" }}{% if not order.reference %}#{{ order.id }}{% endif %}</h2>
+      <p class="scan-help">Destinataire: {{ order.recipient_name }}</p>
       <p class="scan-help">
-        {% trans "Statut" %}:
+        Statut:
         <span class="{% status_portal_badge_class order.status 'order' %}">{{ order.get_status_display }}</span>
       </p>
       <p class="scan-help">
-        {% trans "Validation" %}:
+        Validation:
         <span class="{% status_portal_badge_class order.review_status 'order_review' %}">{{ order.get_review_status_display }}</span>
       </p>
-      <p class="scan-help">{% blocktrans with created_date=order.created_at|date:"d/m/Y" %}Date: {{ created_date }}{% endblocktrans %}</p>
+      <p class="scan-help">Date: {{ order.created_at|date:"d/m/Y" }}</p>
     </div>
 
     <div class="scan-card portal-card card border-0 ui-comp-card">
-      <h3 class="portal-section-title ui-comp-title">{% trans "Lignes de commande" %}</h3>
+      <h3 class="portal-section-title ui-comp-title">Lignes de commande</h3>
       <div class="scan-table-wrap table-responsive">
         <table class="portal-table scan-table table table-sm table-hover">
           <thead>
             <tr>
-              <th>{% trans "Produit" %}</th>
-              <th>{% trans "Quantité" %}</th>
-              <th>{% trans "Cartons estimes" %}</th>
+              <th>Produit</th>
+              <th>Quantit&eacute;</th>
+              <th>Cartons estimes</th>
             </tr>
           </thead>
           <tbody>
@@ -48,21 +42,21 @@
         </table>
       </div>
       {% if total_estimated_cartons %}
-        <p class="scan-help">{% blocktrans with total_estimated_cartons=total_estimated_cartons %}Total estime: {{ total_estimated_cartons }} carton(s).{% endblocktrans %}</p>
+        <p class="scan-help">Total estime: {{ total_estimated_cartons }} carton(s).</p>
       {% endif %}
     </div>
 
     <div class="scan-card portal-card card border-0 ui-comp-card">
-      <h3 class="portal-section-title ui-comp-title">{% trans "Documents de commande" %}</h3>
+      <h3 class="portal-section-title ui-comp-title">Documents de commande</h3>
       {% if order_documents %}
         <div class="scan-table-wrap table-responsive">
           <table class="portal-table scan-table table table-sm table-hover">
             <thead>
               <tr>
-                <th>{% trans "Type" %}</th>
-                <th>{% trans "Statut" %}</th>
-                <th>{% trans "Ajouté le" %}</th>
-                <th>{% trans "Fichier" %}</th>
+                <th>Type</th>
+                <th>Statut</th>
+                <th>Ajout&eacute; le</th>
+                <th>Fichier</th>
               </tr>
             </thead>
             <tbody>
@@ -77,11 +71,11 @@
                   <td>{{ doc.uploaded_at|date:"d/m/Y" }}</td>
                   <td>
                     {% if doc.file and doc.scan_status == "clean" %}
-                      <a class="btn btn-tertiary btn-sm" href="{{ doc.file.url }}" target="_blank">{% trans "Télécharger" %}</a>
+                      <a class="btn btn-tertiary btn-sm" href="{{ doc.file.url }}" target="_blank">T&eacute;l&eacute;charger</a>
                     {% elif doc.scan_status == "infected" %}
-                      <span class="scan-help">{% trans "Bloqué (fichier suspect)." %}</span>
+                      <span class="scan-help">Bloqu&eacute; (fichier suspect).</span>
                     {% elif doc.file %}
-                      <span class="scan-help">{% trans "Quarantaine (scan antivirus en cours)." %}</span>
+                      <span class="scan-help">Quarantaine (scan antivirus en cours).</span>
                     {% else %}
                       -
                     {% endif %}
@@ -92,7 +86,7 @@
           </table>
         </div>
       {% else %}
-        <p>{% trans "Aucun document pour le moment." %}</p>
+        <p>Aucun document pour le moment.</p>
       {% endif %}
 
       {% if can_upload_docs %}
@@ -105,10 +99,10 @@
               <input class="form-control" type="file" id="id_doc_{{ value }}" name="doc_file_{{ value }}">
             </div>
           {% endfor %}
-          <button type="submit" class="scan-submit btn btn-primary">{% trans "Ajouter les documents" %}</button>
+          <button type="submit" class="scan-submit btn btn-primary">Ajouter les documents</button>
         </form>
       {% else %}
-        <p class="scan-help">{% trans "Les documents sont disponibles après validation ASF." %}</p>
+        <p class="scan-help">Les documents sont disponibles après validation ASF.</p>
       {% endif %}
     </div>
   </div>

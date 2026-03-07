@@ -1,7 +1,6 @@
 from django.http import Http404
 from django.shortcuts import render
 from django.urls import reverse
-from django.utils.translation import gettext_lazy as _
 
 from .contact_filters import TAG_RECIPIENT, TAG_SHIPPER
 from .models import CartonStatus, Document, DocumentType, ShipmentStatus, ShipmentTrackingStatus
@@ -32,11 +31,11 @@ SHIPMENT_DOCUMENT_TEMPLATES = {
 }
 
 SHIPMENT_DOCUMENT_LINKS = (
-    (_("Bon d'expédition"), "shipment_note"),
-    (_("Liste colisage (lot)"), "packing_list_shipment"),
-    (_("Attestation donation"), "donation_certificate"),
-    (_("Attestation aide humanitaire"), "humanitarian_certificate"),
-    (_("Attestation douane"), "customs"),
+    ("Bon d'expédition", "shipment_note"),
+    ("Liste colisage (lot)", "packing_list_shipment"),
+    ("Attestation donation", "donation_certificate"),
+    ("Attestation aide humanitaire", "humanitarian_certificate"),
+    ("Attestation douane", "customs"),
 )
 
 STATUS_READY_CARTON = {CartonStatus.LABELED, CartonStatus.SHIPPED}
@@ -81,7 +80,7 @@ def _build_carton_document_link(shipment, carton):
 def _build_label_link(shipment, *, public=False):
     shipment_identifier = shipment.reference if public else shipment.id
     return {
-        "label": _("Étiquettes colis"),
+        "label": "Étiquettes colis",
         "url": reverse(DOC_ROUTE_LABELS, args=[shipment_identifier]),
     }
 
@@ -123,15 +122,15 @@ def _shipment_carton_totals(shipment):
 
 def _shipment_progress_label(*, total, ready):
     if total == 0:
-        return _("Création")
+        return "CREATION"
     if ready < total:
-        return _("En cours (%(ready)s/%(total)s)") % {"ready": ready, "total": total}
-    return _("Prêt")
+        return f"EN COURS ({ready}/{total})"
+    return "PRET"
 
 
 def _shipment_status_label(shipment, progress_label):
     if shipment.status == ShipmentStatus.DRAFT:
-        base_label = _("Brouillon")
+        base_label = "Brouillon"
     elif shipment.status in STATUS_LOCKED_SHIPMENT:
         try:
             base_label = ShipmentStatus(shipment.status).label
@@ -140,7 +139,7 @@ def _shipment_status_label(shipment, progress_label):
     else:
         base_label = progress_label
     if getattr(shipment, "is_disputed", False):
-        return _("Litige - %(label)s") % {"label": base_label}
+        return f"Litige - {base_label}"
     return base_label
 
 

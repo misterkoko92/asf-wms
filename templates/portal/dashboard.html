@@ -1,12 +1,12 @@
 {% extends "portal/base.html" %}
-{% load i18n wms_status %}
+{% load wms_status %}
 
-{% block title %}{% trans "Mes commandes" %}{% endblock %}
+{% block title %}Mes commandes{% endblock %}
 
 {% block content %}
   <div class="scan-card portal-card card border-0 ui-comp-card">
-    <h2 class="ui-comp-title">{% trans "Mes commandes" %}</h2>
-    <p class="scan-help">{% trans "Historique des commandes associées à votre compte." %}</p>
+    <h2 class="ui-comp-title">Mes commandes</h2>
+    <p class="scan-help">Historique des commandes associées à votre compte.</p>
   </div>
 
   <div class="scan-card portal-card card border-0 ui-comp-card">
@@ -15,28 +15,22 @@
         <table class="portal-table scan-table table table-sm table-hover" data-table-tools="1">
           <thead>
             <tr>
-              <th>{% trans "Référence" %}</th>
-              <th>{% trans "Statut" %}</th>
-              <th>{% trans "Escale" %}</th>
-              <th>{% trans "Destinataire" %}</th>
-              <th>{% trans "Date de création" %}</th>
-              <th>{% trans "Date de validation" %}</th>
-              <th>{% trans "Date d'expédition" %}</th>
-              <th>{% trans "Date de réception à l'escale" %}</th>
-              <th>{% trans "Date de réception destinataire" %}</th>
-              <th>{% trans "Actions" %}</th>
+              <th>Référence</th>
+              <th>Statut</th>
+              <th>Escale</th>
+              <th>Destinataire</th>
+              <th>Date de création</th>
+              <th>Date de validation</th>
+              <th>Date d'expédition</th>
+              <th>Date de réception à l'escale</th>
+              <th>Date de réception destinataire</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {% for order in orders %}
               <tr>
-                <td>
-                  {% if order.reference %}
-                    {{ order.reference }}
-                  {% else %}
-                    {% blocktrans with order_id=order.id %}Commande {{ order_id }}{% endblocktrans %}
-                  {% endif %}
-                </td>
+                <td>{{ order.reference|default:"Commande " }}{% if not order.reference %}{{ order.id }}{% endif %}</td>
                 <td>
                   <span class="{% status_portal_badge_class order.status 'order' %}">
                     {{ order.get_status_display }}
@@ -51,7 +45,7 @@
                 <td>{{ order.received_recipient_at|date:"d/m/Y"|default:"-" }}</td>
                 <td>
                   <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_order_detail' order.id %}">
-                    {% trans "Voir" %}
+                    Voir
                   </a>
                 </td>
               </tr>
@@ -60,7 +54,7 @@
         </table>
       </div>
     {% else %}
-      <p>{% trans "Aucune commande pour le moment." %}</p>
+      <p>Aucune commande pour le moment.</p>
     {% endif %}
   </div>
 {% endblock %}

@@ -4,7 +4,7 @@
 <html lang="{{ LANGUAGE_CODE|default:'fr' }}" data-theme="classic">
 <head>
   <meta charset="utf-8">
-  <title>{% block title %}{% trans "Portail association" %}{% endblock %}</title>
+  <title>{% block title %}Portail association{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,16 +21,16 @@
     <header class="scan-card portal-card portal-header card border-0 ui-comp-panel">
       <div>
         <strong class="ui-comp-title">ASF WMS</strong><br>
-        {% trans "Portail association" %}
+        Portail association
       </div>
       <div class="portal-actions ui-comp-actions">
         {% include "includes/language_switch.html" %}
         <nav class="portal-nav">
-          <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_dashboard' %}">{% trans "Commandes" %}</a>
-          <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_order_create' %}">{% trans "Nouvelle commande" %}</a>
-          <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_recipients' %}">{% trans "Destinataires" %}</a>
-          <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_account' %}">{% trans "Compte" %}</a>
-          <a class="btn btn-danger btn-sm" href="{% url 'portal:portal_logout' %}">{% trans "Déconnexion" %}</a>
+          <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_dashboard' %}">Commandes</a>
+          <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_order_create' %}">Nouvelle commande</a>
+          <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_recipients' %}">Destinataires</a>
+          <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_account' %}">Compte</a>
+          <a class="btn btn-danger btn-sm" href="{% url 'portal:portal_logout' %}">Déconnexion</a>
         </nav>
       </div>
     </header>

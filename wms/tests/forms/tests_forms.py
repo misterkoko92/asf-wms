@@ -4,7 +4,7 @@ from unittest import mock
 from django import forms as django_forms
 from django.db.models.query import QuerySet
 from django.test import TestCase
-from django.utils import timezone, translation
+from django.utils import timezone
 
 from contacts.models import Contact, ContactAddress, ContactTag, ContactType
 from wms.forms import (
@@ -12,7 +12,6 @@ from wms.forms import (
     PackCartonForm,
     ScanOrderSelectForm,
     ScanReceiptCreateForm,
-    ScanReceiptPalletForm,
     ScanReceiptSelectForm,
     ScanShipmentForm,
     ScanStockUpdateForm,
@@ -145,27 +144,6 @@ class FormsTests(TestCase):
 
         self.assertFalse(form.is_valid())
         self.assertEqual(form.errors["receipt_type"], ["Type de réception requis."])
-
-    def test_scan_receipt_forms_translate_labels_and_errors_in_english(self):
-        with translation.override("en"):
-            create_form = ScanReceiptCreateForm(
-                data={
-                    "receipt_type": ReceiptType.PALLET,
-                    "warehouse": "",
-                    "received_on": "",
-                }
-            )
-
-            self.assertEqual(create_form.fields["receipt_type"].label, "Receipt type")
-            self.assertEqual(create_form.fields["source_contact"].label, "Source")
-            self.assertFalse(create_form.is_valid())
-            self.assertEqual(create_form.errors["source_contact"], ["Source is required."])
-            self.assertEqual(create_form.errors["carrier_contact"], ["Carrier is required."])
-            self.assertEqual(create_form.errors["warehouse"], ["Warehouse is required."])
-
-            pallet_form = ScanReceiptPalletForm()
-            self.assertEqual(pallet_form.fields["received_on"].label, "Reception date")
-            self.assertEqual(pallet_form.fields["pallet_count"].label, "Number of pallets")
 
     def test_scan_receipt_create_form_requires_pallet_contacts_and_warehouse_and_sets_default_date(
         self,

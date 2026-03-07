@@ -1,6 +1,5 @@
 from django.contrib import messages
 from django.shortcuts import redirect
-from django.utils.translation import gettext as _
 
 from .models import Receipt, ReceiptStatus, ReceiptType
 from .scan_helpers import resolve_default_warehouse
@@ -11,7 +10,7 @@ def handle_pallet_create_post(request, *, form):
         return None
     warehouse = resolve_default_warehouse()
     if not warehouse:
-        form.add_error(None, _("Aucun entrepôt configuré."))
+        form.add_error(None, "Aucun entrepôt configuré.")
         return None
     receipt = Receipt.objects.create(
         receipt_type=ReceiptType.PALLET,
@@ -26,6 +25,6 @@ def handle_pallet_create_post(request, *, form):
     )
     messages.success(
         request,
-        _("Réception palette enregistrée (ref %(reference)s).") % {"reference": receipt.reference},
+        f"Réception palette enregistrée (ref {receipt.reference}).",
     )
     return redirect("scan:scan_receive_pallet")

@@ -3,7 +3,6 @@ from __future__ import annotations
 import html
 import re
 
-from django.conf import settings
 from django.utils.translation import get_language
 
 # Legacy French UI fallback map for English rendering while templates/forms/messages
@@ -412,9 +411,6 @@ class RuntimeEnglishTranslationMiddleware:
 
     def __call__(self, request):
         response = self.get_response(request)
-
-        if not settings.WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION:
-            return response
 
         language = (get_language() or "").lower()
         if not language.startswith("en"):

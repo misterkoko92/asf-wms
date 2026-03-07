@@ -1,17 +1,14 @@
 {% extends "scan/base.html" %}
-{% load i18n %}
 
-{% block title %}
-  WMS Scan - {% if is_edit %}{% trans "Modifier expédition" %}{% else %}{% trans "Créer expédition" %}{% endif %}
-{% endblock %}
+{% block title %}WMS Scan - {% if is_edit %}Modifier exp&eacute;dition{% else %}Cr&eacute;er exp&eacute;dition{% endif %}{% endblock %}
 
 {% block content %}
   <div class="scan-card card border-0 ui-comp-card">
     <h2 class="ui-comp-title">
       {% if is_edit %}
-        {% blocktrans with reference=shipment.reference %}Modifier l'expédition {{ reference }}{% endblocktrans %}
+        Modifier l'exp&eacute;dition {{ shipment.reference }}
       {% else %}
-        {% trans "Créer une expédition" %}
+        Cr&eacute;er une exp&eacute;dition
       {% endif %}
     </h2>
     {% if form.non_field_errors %}
@@ -21,14 +18,14 @@
       {% csrf_token %}
 
       <div class="scan-field ui-comp-panel">
-        <label class="form-label" for="id_destination">{% trans "Destination" %}</label>
+        <label class="form-label" for="id_destination">Destination</label>
         <div class="scan-inline">
           {{ form.destination }}
           <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:wms_destination_add' %}" target="_blank" rel="noopener">
-            {% trans "Ajouter destination" %}
+            Ajouter destination
           </a>
         </div>
-        <p class="scan-help ui-comp-note">{% trans "Merci de sélectionner une destination pour poursuivre la création de l'expédition" %}</p>
+        <p class="scan-help ui-comp-note">Merci de sélectionner une destination pour poursuivre la création de l'expédition</p>
         {% for error in form.destination.errors %}
           <div class="scan-message error">{{ error }}</div>
         {% endfor %}
@@ -37,24 +34,24 @@
       {% if not is_edit %}
         <div class="scan-inline scan-inline-gap ui-comp-actions">
           <button type="submit" name="action" value="save_draft" class="scan-submit secondary scan-submit-inline btn btn-secondary">
-            {% trans "Enregistrer en brouillon" %}
+            Enregistrer en brouillon
           </button>
         </div>
-        <p class="scan-help ui-comp-note">{% trans "Enregistre une expédition temporaire (EXP-TEMP-XX) pour la modifier ultérieurement." %}</p>
+        <p class="scan-help ui-comp-note">Enregistre une expédition temporaire (EXP-TEMP-XX) pour la modifier ultérieurement.</p>
       {% endif %}
 
       <div id="shipment-shipper-section" class="scan-hidden ui-comp-panel" hidden>
         <div class="scan-field">
-          <label class="form-label" for="id_shipper_contact">{% trans "Expéditeur" %}</label>
+          <label class="form-label" for="id_shipper_contact">Exp&eacute;diteur</label>
           <div class="scan-inline">
             {{ form.shipper_contact }}
             <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
-              {% trans "Ajouter expéditeur" %}
+              Ajouter exp&eacute;diteur
             </a>
           </div>
-          <p class="scan-help ui-comp-note">{% trans "Merci de sélectionner un expéditeur pour poursuivre la création de l'expédition" %}</p>
+          <p class="scan-help ui-comp-note">Merci de sélectionner un expéditeur pour poursuivre la création de l'expédition</p>
           <div id="shipper-empty-message" class="scan-message error scan-hidden" hidden>
-            {% trans "Aucun expéditeur trouvé dans la base, vérifier les destinations des affectés aux expéditeurs dans les contacts et recommencez" %}
+            Aucun expéditeur trouvé dans la base, vérifier les &quot;Destinations&quot; des affectés aux Expéditeurs dans les contacts et recommencez
           </div>
           {% for error in form.shipper_contact.errors %}
             <div class="scan-message error">{{ error }}</div>
@@ -64,15 +61,15 @@
 
       <div id="shipment-recipient-section" class="scan-hidden ui-comp-panel" hidden>
         <div class="scan-field">
-          <label class="form-label" for="id_recipient_contact">{% trans "Destinataire" %}</label>
+          <label class="form-label" for="id_recipient_contact">Destinataire</label>
           <div class="scan-inline">
             {{ form.recipient_contact }}
             <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
-              {% trans "Ajouter destinataire" %}
+              Ajouter destinataire
             </a>
           </div>
           <div id="recipient-empty-message" class="scan-message error scan-hidden" hidden>
-            {% trans "Aucun destinataire trouvé dans la base, vérifier les expéditeurs liés dans les contacts et recommencez" %}
+            Aucun destinataire trouvé dans la base, vérifier les &quot;Expéditeurs Liés&quot; dans les contacts et recommencez
           </div>
           {% for error in form.recipient_contact.errors %}
             <div class="scan-message error">{{ error }}</div>
@@ -82,16 +79,16 @@
 
       <div id="shipment-correspondent-section" class="scan-hidden ui-comp-panel" hidden>
         <div class="scan-field">
-          <label class="form-label" for="id_correspondent_contact">{% trans "Correspondant" %}</label>
+          <label class="form-label" for="id_correspondent_contact">Correspondant</label>
           <div class="scan-inline">
             {{ form.correspondent_contact }}
             <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
-              {% trans "Ajouter correspondant" %}
+              Ajouter correspondant
             </a>
           </div>
-          <p class="scan-help ui-comp-note">{% trans "Merci de sélectionner un destinataire et un correspondant pour poursuivre la création de l'expédition" %}</p>
+          <p class="scan-help ui-comp-note">Merci de sélectionner un destinataire et un correspondant pour poursuivre la création de l'expédition</p>
           <div id="correspondent-empty-message" class="scan-message error scan-hidden" hidden>
-            {% trans "Aucun correspondant trouvé dans la base, vérifier les correspondants dans les contacts et recommencez" %}
+            Aucun correspondant trouvé dans la base, vérifier les &quot;Correspondants&quot; dans les contacts et recommencez
           </div>
           {% for error in form.correspondent_contact.errors %}
             <div class="scan-message error">{{ error }}</div>
@@ -101,48 +98,51 @@
 
       <div id="shipment-details-section" class="scan-hidden ui-comp-panel" hidden>
         <div class="scan-field">
-          <label class="form-label" for="id_carton_count">{% trans "Nombre de colis" %}</label>
+          <label class="form-label" for="id_carton_count">Nombre de colis</label>
           {{ form.carton_count }}
           {% for error in form.carton_count.errors %}
             <div class="scan-message error">{{ error }}</div>
           {% endfor %}
           <p class="scan-help ui-comp-note">
-            {% trans "Sélectionner ci-dessous des colis déjà préparés ou créer des colis mono-produit. Pour des colis multi-produits, passer par l'onglet Préparation avant de créer l'expédition." %}
+            S&eacute;lectionner ci-dessous des colis d&eacute;j&agrave; pr&eacute;par&eacute;s ou cr&eacute;er des colis mono-produit.
+            Pour des colis multi-produits, passer par l'onglet Pr&eacute;paration avant de cr&eacute;er l'exp&eacute;dition.
           </p>
         </div>
 
         <div class="shipment-lines" id="shipment-lines"></div>
 
         <div class="scan-field">
-          <label class="form-label" for="id_total_weight">{% trans "Poids total (g)" %}</label>
+          <label class="form-label" for="id_total_weight">Poids total (g)</label>
           <input type="text" id="id_total_weight" readonly>
         </div>
 
         <div class="scan-field">
-          <label class="form-label">{% trans "Colis multi-produits" %}</label>
+          <label class="form-label">Colis multi-produits</label>
           {% if is_edit %}
             <a class="scan-scan-btn btn btn-secondary" href="{% url 'scan:scan_pack' %}?shipment_reference={{ shipment.reference|urlencode }}">
-              {% trans "Créer des colis multi-produits" %}
+              Cr&eacute;er des colis multi-produits
             </a>
           {% else %}
             <button type="submit" name="action" value="save_draft_pack" class="scan-scan-btn btn btn-secondary">
-              {% trans "Créer des colis multi-produits" %}
+              Cr&eacute;er des colis multi-produits
             </button>
           {% endif %}
           <p class="scan-help ui-comp-note">
-            {% trans "Utilisez l'onglet Préparation pour créer des colis multi-produits, puis revenez ici pour les ajouter à l'expédition." %}
+            Utilisez l'onglet Pr&eacute;paration pour cr&eacute;er des colis multi-produits, puis revenez ici pour
+            les ajouter à l'expédition.
           </p>
         </div>
 
         <button type="submit" class="scan-submit btn btn-primary">
-          {% if is_edit %}{% trans "Enregistrer modifications" %}{% else %}{% trans "Créer expédition" %}{% endif %}
+          {% if is_edit %}Enregistrer modifications{% else %}Cr&eacute;er exp&eacute;dition{% endif %}
         </button>
         {% if is_edit %}
           <p class="scan-help ui-comp-note">
-            {% trans "Chaque ligne: sélectionnez un colis préparé ou créez-en un depuis un produit. Pour retirer un colis, réduisez le nombre de lignes." %}
+            Chaque ligne: sélectionnez un colis préparé ou créez-en un depuis un produit.
+            Pour retirer un colis, r&eacute;duisez le nombre de lignes.
           </p>
         {% else %}
-          <p class="scan-help ui-comp-note">{% trans "Chaque ligne: sélectionnez un colis préparé ou créez-en un depuis un produit." %}</p>
+          <p class="scan-help ui-comp-note">Chaque ligne: sélectionnez un colis préparé ou créez-en un depuis un produit.</p>
         {% endif %}
       </div>
     </form>
@@ -151,45 +151,45 @@
       <hr class="scan-divider">
 
       <div class="scan-field">
-        <label class="form-label">{% trans "Suivi expédition" %}</label>
+        <label class="form-label">Suivi exp&eacute;dition</label>
         <div class="scan-inline">
           {% if shipment.qr_code_image %}
-            <img src="{{ shipment.qr_code_image.url }}" alt="{% blocktrans with reference=shipment.reference %}QR expédition {{ reference }}{% endblocktrans %}" style="height: 120px; border: 1px solid #ccc;">
+            <img src="{{ shipment.qr_code_image.url }}" alt="QR exp&eacute;dition {{ shipment.reference }}" style="height: 120px; border: 1px solid #ccc;">
           {% else %}
-            <span class="scan-help">{% trans "QR code non disponible." %}</span>
+            <span class="scan-help">QR code non disponible.</span>
           {% endif %}
           <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_shipment_track' shipment.tracking_token %}">
-            {% trans "Ouvrir suivi" %}
+            Ouvrir suivi
           </a>
         </div>
         {% if tracking_url %}
           <div class="scan-help">
-            {% trans "Lien suivi:" %}
+            Lien suivi:
             <a href="{{ tracking_url }}" target="_blank" rel="noopener">{{ tracking_url }}</a>
           </div>
         {% endif %}
       </div>
 
       <div class="scan-field">
-        <label class="form-label">{% trans "Documents générés" %}</label>
+        <label class="form-label">Documents g&eacute;n&eacute;r&eacute;s</label>
         <div class="scan-docs">
           <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'shipment_note' %}" target="_blank" rel="noopener">
-            {% trans "Bon d'expédition" %}
+            Bon d'exp&eacute;dition
           </a>
           <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'packing_list_shipment' %}" target="_blank" rel="noopener">
-            {% trans "Liste colisage (lot)" %}
+            Liste colisage (lot)
           </a>
           <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'donation_certificate' %}" target="_blank" rel="noopener">
-            {% trans "Attestation donation" %}
+            Attestation donation
           </a>
           <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_labels' shipment.id %}" target="_blank" rel="noopener">
-            {% trans "Étiquettes colis" %}
+            &Eacute;tiquettes colis
           </a>
         </div>
       </div>
 
       <div class="scan-field">
-        <label class="form-label">{% trans "Liste colisage par carton" %}</label>
+        <label class="form-label">Liste colisage par carton</label>
         {% if carton_docs %}
           <div class="scan-docs">
             {% for carton in carton_docs %}
@@ -199,12 +199,12 @@
             {% endfor %}
           </div>
         {% else %}
-          <div class="scan-help">{% trans "Aucun colis associé." %}</div>
+          <div class="scan-help">Aucun colis associ&eacute;.</div>
         {% endif %}
       </div>
 
       <div class="scan-field">
-        <label class="form-label">{% trans "Étiquettes par carton" %}</label>
+        <label class="form-label">&Eacute;tiquettes par carton</label>
         {% if carton_docs %}
           <div class="scan-docs">
             {% for carton in carton_docs %}
@@ -214,49 +214,48 @@
             {% endfor %}
           </div>
         {% else %}
-          <div class="scan-help">{% trans "Aucun colis associé." %}</div>
+          <div class="scan-help">Aucun colis associ&eacute;.</div>
         {% endif %}
       </div>
 
       <div class="scan-field">
-        <label class="form-label">{% trans "Ajouter un document" %}</label>
+        <label class="form-label">Ajouter un document</label>
         <form method="post" enctype="multipart/form-data" action="{% url 'scan:scan_shipment_document_upload' shipment.id %}">
           {% csrf_token %}
           <div class="scan-inline">
             <input type="file" name="document_file" required>
-            <button type="submit" class="scan-scan-btn btn btn-secondary">{% trans "Uploader" %}</button>
+            <button type="submit" class="scan-scan-btn btn btn-secondary">Uploader</button>
           </div>
-          <div class="scan-help">{% trans "Formats autorises: PDF, JPG, PNG, XLSX, DOCX." %}</div>
+          <div class="scan-help">Formats autorises: PDF, JPG, PNG, XLSX, DOCX.</div>
         </form>
       </div>
 
-      {% trans "Document" as default_document_label %}
       <div class="scan-field">
-        <label class="form-label">{% trans "Documents additionnels" %}</label>
+        <label class="form-label">Documents additionnels</label>
         {% if documents %}
           <div class="scan-docs">
             {% for document in documents %}
               <div class="scan-inline">
                 {% if document.file and document.scan_status == "clean" %}
                   <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{{ document.file.url }}" target="_blank" rel="noopener">
-                    {{ document.file.name|default:default_document_label }}
+                    {{ document.file.name|default:"Document" }}
                   </a>
                 {% elif document.scan_status == "infected" %}
-                  <span class="scan-help">{% trans "Document bloque (fichier suspect)" %}</span>
+                  <span class="scan-help">Document bloque (fichier suspect)</span>
                 {% elif document.file %}
-                  <span class="scan-help">{% trans "Document en quarantaine (scan antivirus en cours)" %}</span>
+                  <span class="scan-help">Document en quarantaine (scan antivirus en cours)</span>
                 {% else %}
-                  <span class="scan-help">{% trans "Document indisponible (fichier manquant)" %}</span>
+                  <span class="scan-help">Document indisponible (fichier manquant)</span>
                 {% endif %}
                 <form method="post" action="{% url 'scan:scan_shipment_document_delete' shipment.id document.id %}">
                   {% csrf_token %}
-                  <button type="submit" class="scan-scan-btn btn btn-danger scan-doc-btn">{% trans "Supprimer" %}</button>
+                  <button type="submit" class="scan-scan-btn btn btn-danger scan-doc-btn">Supprimer</button>
                 </form>
               </div>
             {% endfor %}
           </div>
         {% else %}
-          <div class="scan-help">{% trans "Aucun document additionnel." %}</div>
+          <div class="scan-help">Aucun document additionnel.</div>
         {% endif %}
       </div>
     {% endif %}

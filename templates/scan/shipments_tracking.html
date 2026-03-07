@@ -1,18 +1,17 @@
 {% extends "scan/base.html" %}
-{% load i18n %}
 
-{% block title %}{% trans "WMS Scan - Suivi des expéditions" %}{% endblock %}
+{% block title %}WMS Scan - Suivi des exp&eacute;ditions{% endblock %}
 
 {% block content %}
   <div class="scan-card card border-0 ui-comp-card">
     <h2 class="h4 mb-3 ui-comp-title d-flex align-items-center gap-2 flex-wrap">
-      <span>{% trans "Suivi des expéditions" %}</span>
+      <span>Suivi des exp&eacute;ditions</span>
       <span class="badge text-bg-light ui-comp-count-badge">{{ shipments|length }}</span>
     </h2>
 
     <form method="get" class="scan-filters row g-3 ui-comp-form">
       <div class="scan-field col-12 col-md-6">
-        <label class="form-label" for="id_planned_week">{% trans "Semaine planifiée" %}</label>
+        <label class="form-label" for="id_planned_week">Semaine planifi&eacute;e</label>
         <input
           type="week"
           id="id_planned_week"
@@ -20,18 +19,18 @@
           class="form-control scan-week-input"
           value="{{ planned_week_value }}"
         >
-        <small class="scan-help">{% trans "Filtre par date de statut Planifié." %}</small>
+        <small class="scan-help">Filtre par date de statut "Planifi&eacute;".</small>
       </div>
       <div class="scan-field col-12 col-md-6">
-        <label class="form-label" for="id_closed">{% trans "Dossiers clos" %}</label>
+        <label class="form-label" for="id_closed">Dossiers clos</label>
         <select id="id_closed" name="closed" class="form-select">
-          <option value="exclude" {% if closed_filter == "exclude" %}selected{% endif %}>{% trans "Exclure clos" %}</option>
-          <option value="all" {% if closed_filter == "all" %}selected{% endif %}>{% trans "Inclure clos" %}</option>
+          <option value="exclude" {% if closed_filter == "exclude" %}selected{% endif %}>Exclure clos</option>
+          <option value="all" {% if closed_filter == "all" %}selected{% endif %}>Inclure clos</option>
         </select>
       </div>
       <div class="scan-filter-actions col-12 d-flex flex-wrap gap-2 align-items-center">
-        <button type="submit" class="scan-scan-btn btn btn-primary">{% trans "Filtrer" %}</button>
-        <a class="btn btn-tertiary" href="{% url 'scan:scan_shipments_tracking' %}">{% trans "Réinitialiser" %}</a>
+        <button type="submit" class="scan-scan-btn btn btn-primary">Filtrer</button>
+        <a class="btn btn-tertiary" href="{% url 'scan:scan_shipments_tracking' %}">R&eacute;initialiser</a>
       </div>
     </form>
 
@@ -40,16 +39,16 @@
         <table class="scan-table table table-sm table-hover" data-table-tools="1">
           <thead>
             <tr>
-              <th>{% trans "N° expédition" %}</th>
-              <th>{% trans "Nb colis" %}</th>
-              <th>{% trans "Expéditeur" %}</th>
-              <th>{% trans "Destinataire" %}</th>
-              <th>{% trans "Planifié" %}</th>
-              <th>{% trans "OK mise à bord" %}</th>
-              <th>{% trans "Expédié" %}</th>
-              <th>{% trans "Reçu escale" %}</th>
-              <th>{% trans "Livré" %}</th>
-              <th>{% trans "Actions" %}</th>
+              <th>N° exp&eacute;dition</th>
+              <th>Nb colis</th>
+              <th>Exp&eacute;diteur</th>
+              <th>Destinataire</th>
+              <th>Planifi&eacute;</th>
+              <th>OK mise &agrave; bord</th>
+              <th>Exp&eacute;di&eacute;</th>
+              <th>Re&ccedil;u escale</th>
+              <th>Livr&eacute;</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -67,7 +66,7 @@
                 <td>
                   <div class="scan-inline-actions">
                     <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_shipment_track' shipment.tracking_token %}?return_to=shipments_tracking">
-                      {% trans "Suivi/MAJ" %}
+                      Suivi/MAJ
                     </a>
                     {% if shipment.is_closed %}
                       <button
@@ -75,7 +74,7 @@
                         class="scan-scan-btn btn btn-success scan-shipment-close-btn is-closed"
                         disabled
                       >
-                        {% trans "Dossier clôturé" %}
+                        Dossier cl&ocirc;tur&eacute;
                       </button>
                     {% elif shipment.can_close %}
                       <form method="post" class="scan-inline-actions">
@@ -88,7 +87,7 @@
                           type="submit"
                           class="scan-scan-btn btn btn-success scan-shipment-close-btn is-ready"
                         >
-                          {% trans "Clore le dossier" %}
+                          Clore le dossier
                         </button>
                       </form>
                     {% else %}
@@ -97,20 +96,17 @@
                         class="scan-scan-btn btn btn-danger scan-shipment-close-btn is-blocked"
                         onclick="window.alert('{{ close_inactive_message }}'); return false;"
                       >
-                        {% trans "Clore le dossier" %}
+                        Clore le dossier
                       </button>
                     {% endif %}
                   </div>
                   {% if shipment.closed_at %}
                     <small>
-                      {% if shipment.closed_by %}
-                        {% blocktrans with closed_at=shipment.closed_at|date:"d/m/y H\\hi" closed_by=shipment.closed_by.username %}Clôturé le {{ closed_at }} par {{ closed_by }}{% endblocktrans %}
-                      {% else %}
-                        {% blocktrans with closed_at=shipment.closed_at|date:"d/m/y H\\hi" %}Clôturé le {{ closed_at }}{% endblocktrans %}
-                      {% endif %}
+                      Cl&ocirc;tur&eacute; le {{ shipment.closed_at|date:"d/m/y H\\hi" }}
+                      {% if shipment.closed_by %}par {{ shipment.closed_by.username }}{% endif %}
                     </small>
                   {% elif shipment.is_disputed %}
-                    <small>{% trans "Litige en cours" %}</small>
+                    <small>Litige en cours</small>
                   {% endif %}
                 </td>
               </tr>
@@ -119,7 +115,7 @@
         </table>
       </div>
     {% else %}
-      <p class="scan-help ui-comp-note">{% trans "Aucune expédition correspondante." %}</p>
+      <p class="scan-help ui-comp-note">Aucune exp&eacute;dition correspondante.</p>
     {% endif %}
   </div>
 {% endblock %}

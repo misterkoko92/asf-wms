@@ -1,27 +1,27 @@
 {% extends "scan/base.html" %}
-{% load i18n wms_status %}
+{% load wms_status %}
 
-{% block title %}WMS Scan - {% trans "Réception" %}{% endblock %}
+{% block title %}WMS Scan - R&eacute;ception{% endblock %}
 
 {% block content %}
   <div class="scan-card card border-0 ui-comp-card">
-    <h2 class="ui-comp-title">{% trans "Réception don/palette" %}</h2>
+    <h2 class="ui-comp-title">R&eacute;ception don/palette</h2>
     <form method="post" novalidate class="ui-comp-form">
       {% csrf_token %}
       <input type="hidden" name="action" value="select_receipt">
       <div class="scan-field">
-        <label class="form-label" for="id_receipt">{{ select_form.receipt.label }}</label>
+        <label class="form-label" for="id_receipt">R&eacute;ception existante</label>
         <div class="scan-inline">
           {{ select_form.receipt }}
           <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:wms_receipt_add' %}" target="_blank" rel="noopener">
-            {% trans "Ajouter réception" %}
+            Ajouter r&eacute;ception
           </a>
         </div>
         {% for error in select_form.receipt.errors %}
           <div class="scan-message error">{{ error }}</div>
         {% endfor %}
       </div>
-      <button type="submit" class="scan-submit secondary scan-submit-inline btn btn-secondary">{% trans "Ouvrir réception" %}</button>
+      <button type="submit" class="scan-submit secondary scan-submit-inline btn btn-secondary">Ouvrir r&eacute;ception</button>
     </form>
 
     <div class="scan-divider"></div>
@@ -30,7 +30,7 @@
       {% csrf_token %}
       <input type="hidden" name="action" value="create_receipt">
       <div class="scan-field">
-        <label class="form-label" for="id_receipt_type">{{ create_form.receipt_type.label }}</label>
+        <label class="form-label" for="id_receipt_type">Type r&eacute;ception</label>
         {{ create_form.receipt_type }}
         {% for error in create_form.receipt_type.errors %}
           <div class="scan-message error">{{ error }}</div>
@@ -38,37 +38,37 @@
       </div>
 
       <div class="scan-field">
-        <label class="form-label" for="id_source_contact">{{ create_form.source_contact.label }}</label>
+        <label class="form-label" for="id_source_contact">Provenance</label>
         <div class="scan-inline">
           {{ create_form.source_contact }}
           <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
-            {% trans "Ajouter provenance" %}
+            Ajouter provenance
           </a>
         </div>
       </div>
 
       <div class="scan-field">
-        <label class="form-label" for="id_carrier_contact">{{ create_form.carrier_contact.label }}</label>
+        <label class="form-label" for="id_carrier_contact">Transporteur</label>
         <div class="scan-inline">
           {{ create_form.carrier_contact }}
           <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
-            {% trans "Ajouter transporteur" %}
+            Ajouter transporteur
           </a>
         </div>
       </div>
 
       <div class="scan-field">
-        <label class="form-label" for="id_origin_reference">{{ create_form.origin_reference.label }}</label>
+        <label class="form-label" for="id_origin_reference">R&eacute;f&eacute;rence provenance</label>
         {{ create_form.origin_reference }}
       </div>
 
       <div class="scan-field">
-        <label class="form-label" for="id_carrier_reference">{{ create_form.carrier_reference.label }}</label>
+        <label class="form-label" for="id_carrier_reference">R&eacute;f&eacute;rence transport</label>
         {{ create_form.carrier_reference }}
       </div>
 
       <div class="scan-field">
-        <label class="form-label" for="id_received_on">{{ create_form.received_on.label }}</label>
+        <label class="form-label" for="id_received_on">Date r&eacute;ception</label>
         {{ create_form.received_on }}
         {% for error in create_form.received_on.errors %}
           <div class="scan-message error">{{ error }}</div>
@@ -76,11 +76,11 @@
       </div>
 
       <div class="scan-field">
-        <label class="form-label" for="id_warehouse">{{ create_form.warehouse.label }}</label>
+        <label class="form-label" for="id_warehouse">Entrep&ocirc;t</label>
         <div class="scan-inline">
           {{ create_form.warehouse }}
           <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:wms_warehouse_add' %}" target="_blank" rel="noopener">
-            {% trans "Ajouter entrepôt" %}
+            Ajouter entrep&ocirc;t
           </a>
         </div>
         {% for error in create_form.warehouse.errors %}
@@ -89,54 +89,54 @@
       </div>
 
       <div class="scan-field">
-        <label class="form-label" for="id_notes">{{ create_form.notes.label }}</label>
+        <label class="form-label" for="id_notes">Notes</label>
         {{ create_form.notes }}
       </div>
 
-      <button type="submit" class="scan-submit btn btn-primary">{% trans "Créer réception" %}</button>
-      <p class="scan-help">{% trans "Contacts gérés dans l'admin." %}</p>
+      <button type="submit" class="scan-submit btn btn-primary">Cr&eacute;er r&eacute;ception</button>
+      <p class="scan-help">Contacts g&eacute;r&eacute;s dans l'admin.</p>
     </form>
   </div>
 
   {% if selected_receipt %}
     <div class="scan-card card border-0 ui-comp-card">
-      <h2 class="ui-comp-title">{% trans "Réception active" %}</h2>
+      <h2 class="ui-comp-title">R&eacute;ception active</h2>
       <div class="scan-meta-grid">
         <div class="scan-meta-item">
-          <strong>{% trans "Référence" %}</strong>
+          <strong>R&eacute;f&eacute;rence</strong>
           {{ selected_receipt.reference|default:"-" }}
         </div>
         <div class="scan-meta-item">
-          <strong>{% trans "Type" %}</strong>
+          <strong>Type</strong>
           {{ selected_receipt.get_receipt_type_display }}
         </div>
         <div class="scan-meta-item">
-          <strong>{% trans "Statut" %}</strong>
+          <strong>Statut</strong>
           <span class="{% status_pill_class selected_receipt.status 'receipt' %}">
             {{ selected_receipt.get_status_display }}
           </span>
         </div>
         <div class="scan-meta-item">
-          <strong>{% trans "Date réception" %}</strong>
+          <strong>Date r&eacute;ception</strong>
           {{ selected_receipt.received_on|date:"d/m/Y" }}
         </div>
         <div class="scan-meta-item">
-          <strong>{% trans "Entrepôt" %}</strong>
+          <strong>Entrep&ocirc;t</strong>
           {{ selected_receipt.warehouse }}
         </div>
         <div class="scan-meta-item">
-          <strong>{% trans "Provenance" %}</strong>
+          <strong>Provenance</strong>
           {{ selected_receipt.source_contact|default:"-" }}
         </div>
         <div class="scan-meta-item">
-          <strong>{% trans "Transporteur" %}</strong>
+          <strong>Transporteur</strong>
           {{ selected_receipt.carrier_contact|default:"-" }}
         </div>
       </div>
     </div>
 
     <div class="scan-card card border-0 ui-comp-card">
-      <h2 class="ui-comp-title">{% trans "Ajouter une ligne" %}</h2>
+      <h2 class="ui-comp-title">Ajouter une ligne</h2>
       {% if line_form.non_field_errors %}
         <div class="scan-message error">{{ line_form.non_field_errors }}</div>
       {% endif %}
@@ -146,21 +146,21 @@
         {{ line_form.receipt_id }}
 
         <div class="scan-field">
-          <label class="form-label" for="id_product_code">{{ line_form.product_code.label }}</label>
+          <label class="form-label" for="id_product_code">Code produit</label>
           <div class="scan-inline">
             {{ line_form.product_code }}
-            <button type="button" class="scan-scan-btn btn btn-tertiary" data-scan-target="id_product_code">{% trans "Scan" %}</button>
+            <button type="button" class="scan-scan-btn btn btn-tertiary" data-scan-target="id_product_code">Scan</button>
           </div>
           {% for error in line_form.product_code.errors %}
             <div class="scan-message error">{{ error }}</div>
           {% endfor %}
-          {% if line_form.product_code.errors %}
-            <a class="scan-submit secondary btn btn-secondary" href="{% url 'admin:wms_product_add' %}">{% trans "Ajouter un nouveau produit" %}</a>
+          {% if "Produit introuvable." in line_form.product_code.errors %}
+            <a class="scan-submit secondary btn btn-secondary" href="{% url 'admin:wms_product_add' %}">Ajouter un nouveau produit</a>
           {% endif %}
         </div>
 
         <div class="scan-field">
-          <label class="form-label" for="id_quantity">{{ line_form.quantity.label }}</label>
+          <label class="form-label" for="id_quantity">Quantit&eacute;</label>
           {{ line_form.quantity }}
           {% for error in line_form.quantity.errors %}
             <div class="scan-message error">{{ error }}</div>
@@ -168,48 +168,48 @@
         </div>
 
         <div class="scan-field">
-          <label class="form-label" for="id_lot_code">{{ line_form.lot_code.label }}</label>
+          <label class="form-label" for="id_lot_code">Lot</label>
           {{ line_form.lot_code }}
         </div>
 
         <div class="scan-field">
-          <label class="form-label" for="id_expires_on">{{ line_form.expires_on.label }}</label>
+          <label class="form-label" for="id_expires_on">Date p&eacute;remption</label>
           {{ line_form.expires_on }}
         </div>
 
         <div class="scan-field">
-          <label class="form-label" for="id_lot_status">{{ line_form.lot_status.label }}</label>
+          <label class="form-label" for="id_lot_status">Statut lot</label>
           {{ line_form.lot_status }}
         </div>
 
         <div class="scan-field">
-          <label class="form-label" for="id_location">{{ line_form.location.label }}</label>
+          <label class="form-label" for="id_location">Emplacement</label>
           <div class="scan-inline">
             {{ line_form.location }}
             <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:wms_location_add' %}" target="_blank" rel="noopener">
-              {% trans "Ajouter emplacement" %}
+              Ajouter emplacement
             </a>
           </div>
           {% for error in line_form.location.errors %}
             <div class="scan-message error">{{ error }}</div>
           {% endfor %}
-          <p class="scan-help">{{ line_form.location.help_text }}</p>
+          <p class="scan-help">Laissez vide pour utiliser l'emplacement par d&eacute;faut du produit.</p>
         </div>
 
         <div class="scan-field">
-          <label class="form-label" for="id_storage_conditions">{{ line_form.storage_conditions.label }}</label>
+          <label class="form-label" for="id_storage_conditions">Conditions stockage</label>
           {{ line_form.storage_conditions }}
         </div>
 
         <div class="scan-field">
           <label class="form-label">
             {{ line_form.receive_now }}
-            {{ line_form.receive_now.label }}
+            R&eacute;ceptionner maintenant
           </label>
         </div>
 
-        <button type="submit" class="scan-submit btn btn-primary">{% trans "Ajouter la ligne" %}</button>
-        <p class="scan-help">{% trans "Astuce: le statut auto applique la quarantaine par défaut du produit." %}</p>
+        <button type="submit" class="scan-submit btn btn-primary">Ajouter la ligne</button>
+        <p class="scan-help">Astuce: le statut auto applique la quarantaine par d&eacute;faut du produit.</p>
       </form>
       {{ products_json|json_script:"product-data" }}
       <datalist id="product-options">
@@ -220,18 +220,18 @@
     </div>
 
     <div class="scan-card card border-0 ui-comp-card">
-      <h2 class="ui-comp-title">{% trans "Lignes de réception" %}</h2>
+      <h2 class="ui-comp-title">Lignes de r&eacute;ception</h2>
       {% if receipt_lines %}
         <div class="scan-table-wrap table-responsive">
           <table class="scan-table table table-sm table-hover">
             <thead>
               <tr>
-                <th>{% trans "Produit" %}</th>
-                <th>{% trans "Quantité" %}</th>
-                <th>{% trans "Lot" %}</th>
-                <th>{% trans "Péremption" %}</th>
-                <th>{% trans "Emplacement" %}</th>
-                <th>{% trans "Statut" %}</th>
+                <th>Produit</th>
+                <th>Quantit&eacute;</th>
+                <th>Lot</th>
+                <th>Peremption</th>
+                <th>Emplacement</th>
+                <th>Statut</th>
               </tr>
             </thead>
             <tbody>
@@ -244,9 +244,9 @@
                   <td>{{ line.location|default:"-" }}</td>
                   <td class="status">
                     {% if line.received_lot_id %}
-                      <span class="ui-comp-status-pill is-ready">{% trans "Réceptionné" %}</span>
+                      <span class="ui-comp-status-pill is-ready">R&eacute;ceptionn&eacute;</span>
                     {% else %}
-                      <span class="ui-comp-status-pill is-progress">{% trans "En attente" %}</span>
+                      <span class="ui-comp-status-pill is-progress">En attente</span>
                     {% endif %}
                   </td>
                 </tr>
@@ -260,18 +260,18 @@
             <input type="hidden" name="action" value="receive_lines">
             <input type="hidden" name="receipt_id" value="{{ selected_receipt.id }}">
             <button type="submit" class="scan-submit secondary scan-submit-inline btn btn-secondary">
-              {% blocktrans %}Réceptionner {{ pending_count }} ligne(s){% endblocktrans %}
+              R&eacute;ceptionner {{ pending_count }} ligne(s)
             </button>
           </form>
         {% endif %}
       {% else %}
-        <p class="scan-help">{% trans "Aucune ligne pour cette réception." %}</p>
+        <p class="scan-help">Aucune ligne pour cette r&eacute;ception.</p>
       {% endif %}
     </div>
   {% else %}
     <div class="scan-card card border-0 ui-comp-card">
-      <h2 class="ui-comp-title">{% trans "Aucune réception sélectionnée" %}</h2>
-      <p class="scan-help ui-comp-note">{% trans "Créez une réception ou sélectionnez-en une pour ajouter des lignes." %}</p>
+      <h2 class="ui-comp-title">Aucune r&eacute;ception s&eacute;lectionn&eacute;e</h2>
+      <p class="scan-help ui-comp-note">Cr&eacute;ez une r&eacute;ception ou s&eacute;lectionnez-en une pour ajouter des lignes.</p>
     </div>
   {% endif %}
 {% endblock %}

@@ -1,13 +1,10 @@
 {% extends "scan/base.html" %}
-{% load i18n %}
 
-{% block title %}WMS Scan - {% trans "Réception association" %}{% endblock %}
+{% block title %}WMS Scan - R&eacute;ception association{% endblock %}
 
 {% block content %}
-  {% trans "Hors format n°" as out_of_format_number_label %}
-  {% trans "Description" as description_label %}
   <div class="scan-card card border-0 ui-comp-card">
-    <h2 class="ui-comp-title">{% trans "Réception association" %}</h2>
+    <h2 class="ui-comp-title">R&eacute;ception association</h2>
     {% if create_form.non_field_errors %}
       <div class="scan-message error">{{ create_form.non_field_errors }}</div>
     {% endif %}
@@ -15,7 +12,7 @@
       {% csrf_token %}
 
       <div class="scan-field scan-receive-association-field col-12 col-md-6 col-lg-2">
-        <label class="form-label" for="id_received_on">{{ create_form.received_on.label }}</label>
+        <label class="form-label" for="id_received_on">Date r&eacute;ception</label>
         {{ create_form.received_on }}
         {% for error in create_form.received_on.errors %}
           <div class="scan-message error">{{ error }}</div>
@@ -23,7 +20,7 @@
       </div>
 
       <div class="scan-field scan-receive-association-field col-12 col-md-6 col-lg-2">
-        <label class="form-label" for="id_carton_count">{{ create_form.carton_count.label }}</label>
+        <label class="form-label" for="id_carton_count">Nombre de cartons</label>
         {{ create_form.carton_count }}
         {% for error in create_form.carton_count.errors %}
           <div class="scan-message error">{{ error }}</div>
@@ -31,7 +28,7 @@
       </div>
 
       <div class="scan-field scan-receive-association-field col-12 col-md-6 col-lg-2">
-        <label class="form-label" for="id_hors_format_count">{{ create_form.hors_format_count.label }}</label>
+        <label class="form-label" for="id_hors_format_count">Nombre de hors format</label>
         {{ create_form.hors_format_count }}
         {% for error in create_form.hors_format_count.errors %}
           <div class="scan-message error">{{ error }}</div>
@@ -39,7 +36,7 @@
       </div>
 
       <div class="scan-field scan-receive-association-field col-12 col-md-6 col-lg-3">
-        <label class="form-label" for="id_source_contact">{% trans "Nom de l'association" %}</label>
+        <label class="form-label" for="id_source_contact">Nom de l'association</label>
         {{ create_form.source_contact }}
         {% for error in create_form.source_contact.errors %}
           <div class="scan-message error">{{ error }}</div>
@@ -47,7 +44,7 @@
       </div>
 
       <div class="scan-field scan-receive-association-field col-12 col-md-6 col-lg-3">
-        <label class="form-label" for="id_carrier_contact">{{ create_form.carrier_contact.label }}</label>
+        <label class="form-label" for="id_carrier_contact">Transporteur</label>
         {{ create_form.carrier_contact }}
         {% for error in create_form.carrier_contact.errors %}
           <div class="scan-message error">{{ error }}</div>
@@ -55,22 +52,22 @@
       </div>
 
       <div class="scan-filter-actions scan-receive-association-actions-inline col-12 d-flex flex-wrap flex-lg-nowrap gap-2 align-items-center">
-        <button type="submit" class="scan-submit btn btn-primary">{% trans "Enregistrer la réception association" %}</button>
+        <button type="submit" class="scan-submit btn btn-primary">Enregistrer la r&eacute;ception association</button>
         <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
-          {% trans "Ajouter association" %}
+          Ajouter association
         </a>
         <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
-          {% trans "Ajouter transporteur" %}
+          Ajouter transporteur
         </a>
       </div>
 
       <div class="scan-divider col-12"></div>
 
-      <h3 class="ui-comp-title col-12">{% trans "Hors format" %}</h3>
+      <h3 class="ui-comp-title col-12">Hors format</h3>
       <div class="pack-lines col-12" id="association-lines"></div>
 
     </form>
-    <p class="scan-help ui-comp-note">{% trans "La référence est générée automatiquement (format YY-XX-WWW-ZZ)." %}</p>
+    <p class="scan-help ui-comp-note">La r&eacute;f&eacute;rence est g&eacute;n&eacute;r&eacute;e automatiquement (format YY-XX-WWW-ZZ).</p>
   </div>
 
   {{ line_values|json_script:"association-lines-data" }}
@@ -111,7 +108,7 @@
 
           const title = document.createElement('div');
           title.className = 'pack-line-title';
-          title.textContent = '{{ out_of_format_number_label|escapejs }} ' + index;
+          title.textContent = `Hors Format No ${index}`;
           line.appendChild(title);
 
           const grid = document.createElement('div');
@@ -121,7 +118,7 @@
           field.className = 'pack-line-field';
 
           const label = document.createElement('label');
-          label.textContent = '{{ description_label|escapejs }}';
+          label.textContent = 'Description';
           label.setAttribute('for', `id_line_${index}_description`);
 
           const input = document.createElement('input');

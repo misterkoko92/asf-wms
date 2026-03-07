@@ -2,7 +2,6 @@ from django.contrib import messages
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.translation import gettext_lazy as _
 
 from .carton_status_events import set_carton_status
 from .models import (
@@ -39,7 +38,7 @@ READY_CARTON_STATUSES = {
 }
 DEFAULT_RETURN_LIST_VIEW = "scan:scan_shipments_tracking"
 DEFAULT_RETURN_TO_KEY = "shipments_tracking"
-DISPUTE_STAFF_ONLY_MESSAGE = _("Action litige réservée aux utilisateurs staff.")
+DISPUTE_STAFF_ONLY_MESSAGE = "Action litige réservée aux utilisateurs staff."
 
 
 def _redirect_to_tracking(
@@ -97,18 +96,18 @@ def _validate_ready_for_planning(shipment):
     assigned_or_ready = cartons.filter(status__in=ASSIGNED_OR_READY_CARTON_STATUSES).count()
     ready = cartons.filter(status__in=READY_CARTON_STATUSES).count()
     if total == 0:
-        return _("Aucun colis affecté à cette expédition.")
+        return "Aucun colis affecté à cette expédition."
     if assigned_or_ready < total:
-        return _("Tous les colis doivent être affectés avant de poursuivre la planification.")
+        return "Tous les colis doivent être affectés avant de poursuivre la planification."
     if ready < total:
-        return _("Tous les colis doivent être étiquetés avant de poursuivre la planification.")
+        return "Tous les colis doivent être étiquetés avant de poursuivre la planification."
     return ""
 
 
 def validate_tracking_transition(shipment, status_value):
     allowed_statuses = allowed_tracking_statuses_for_shipment(shipment)
     if status_value not in allowed_statuses:
-        return _("Transition non autorisée pour le statut actuel de l'expédition.")
+        return "Transition non autorisée pour le statut actuel de l'expédition."
     if status_value in {
         ShipmentTrackingStatus.PLANNING_OK,
         ShipmentTrackingStatus.PLANNED,
@@ -151,7 +150,7 @@ def _handle_dispute_action(
             previous_status=previous_status,
             new_status=shipment.status,
         )
-        messages.warning(request, _("Expédition marquée en litige."))
+        messages.warning(request, "Expédition marquée en litige.")
         return _redirect_to_tracking(
             shipment,
             return_to_list=return_to_list,
@@ -195,7 +194,7 @@ def _handle_dispute_action(
             previous_status=previous_status,
             new_status=shipment.status,
         )
-    messages.success(request, _("Litige résolu. Expédition remise à l'état Prêt."))
+    messages.success(request, "Litige résolu. Expédition remise à l'état Prêt.")
     return _redirect_to_tracking(
         shipment,
         return_to_list=return_to_list,
@@ -229,7 +228,7 @@ def handle_shipment_tracking_post(
     if shipment.is_disputed:
         messages.error(
             request,
-            _("Expédition en litige : résolvez le litige avant de continuer le suivi."),
+            "Expédition en litige : résolvez le litige avant de continuer le suivi.",
         )
         return _redirect_to_tracking(
             shipment,
@@ -269,7 +268,7 @@ def handle_shipment_tracking_post(
                     reason="tracking_boarding_ok",
                     user=getattr(request, "user", None),
                 )
-    messages.success(request, _("Suivi mis à jour."))
+    messages.success(request, "Suivi mis à jour.")
     return _redirect_to_tracking(
         shipment,
         return_to_list=return_to_list,

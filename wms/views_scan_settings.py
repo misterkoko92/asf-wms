@@ -5,7 +5,6 @@ from django.contrib import messages
 from django.db.utils import OperationalError, ProgrammingError
 from django.shortcuts import redirect, render
 from django.utils import timezone
-from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_http_methods
 
 from .forms_scan_settings import ScanRuntimeSettingsForm
@@ -31,8 +30,8 @@ DEFAULT_ACTION = ACTION_SAVE
 
 SETTINGS_PRESETS = {
     "standard": {
-        "label": _("Standard"),
-        "description": _("Valeurs operationnelles recommandees."),
+        "label": "Standard",
+        "description": "Valeurs operationnelles recommandees.",
         "values": {
             "low_stock_threshold": 20,
             "tracking_alert_hours": 72,
@@ -48,8 +47,8 @@ SETTINGS_PRESETS = {
         },
     },
     "incident_email_queue": {
-        "label": _("Incident queue email"),
-        "description": _("Accroit l'agressivite de reprise et baisse le timeout."),
+        "label": "Incident queue email",
+        "description": "Accroit l'agressivite de reprise et baisse le timeout.",
         "values": {
             "email_queue_max_attempts": 8,
             "email_queue_retry_base_seconds": 30,
@@ -134,7 +133,7 @@ def scan_settings(request):
             preset = SETTINGS_PRESETS.get(selected_preset)
             if preset is None:
                 form = ScanRuntimeSettingsForm(instance=runtime_settings)
-                messages.error(request, _("Preset introuvable."))
+                messages.error(request, "Preset introuvable.")
             else:
                 preset_values = dict(runtime_values)
                 preset_values.update(preset["values"])
@@ -150,7 +149,7 @@ def scan_settings(request):
                 preview["preset_label"] = preset["label"]
                 messages.info(
                     request,
-                    _("Preset charge. Verifiez l'impact puis enregistrez."),
+                    "Preset charge. Verifiez l'impact puis enregistrez.",
                 )
         else:
             form = ScanRuntimeSettingsForm(request.POST, instance=runtime_settings)
@@ -163,10 +162,10 @@ def scan_settings(request):
                 preview = _build_impact_preview(submitted_values)
                 preview["changed_fields"] = changed_fields
                 if action == ACTION_PREVIEW:
-                    messages.info(request, _("Apercu d'impact calcule."))
+                    messages.info(request, "Apercu d'impact calcule.")
                 else:
                     if not changed_fields:
-                        messages.info(request, _("Aucun changement detecte."))
+                        messages.info(request, "Aucun changement detecte.")
                         return redirect("scan:scan_settings")
                     runtime_settings = form.save(commit=False)
                     runtime_settings.updated_by = (
@@ -185,9 +184,9 @@ def scan_settings(request):
                     except (ProgrammingError, OperationalError):
                         messages.warning(
                             request,
-                            _("Parametres enregistres, mais journal d'audit indisponible."),
+                            "Parametres enregistres, mais journal d'audit indisponible.",
                         )
-                    messages.success(request, _("Parametres mis a jour."))
+                    messages.success(request, "Parametres mis a jour.")
                     return redirect("scan:scan_settings")
     else:
         form = ScanRuntimeSettingsForm(instance=runtime_settings)

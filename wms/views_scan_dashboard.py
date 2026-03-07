@@ -6,8 +6,6 @@ from django.db.models.functions import Coalesce
 from django.shortcuts import render
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.translation import gettext as _
-from django.utils.translation import gettext_lazy as _lazy
 from django.views.decorators.http import require_http_methods
 
 from .models import (
@@ -41,10 +39,10 @@ PERIOD_30D = "30d"
 PERIOD_WEEK = "week"
 DEFAULT_PERIOD = PERIOD_WEEK
 PERIOD_CHOICES = (
-    (PERIOD_TODAY, _lazy("Aujourd'hui")),
-    (PERIOD_7D, _lazy("7 jours")),
-    (PERIOD_30D, _lazy("30 jours")),
-    (PERIOD_WEEK, _lazy("Semaine en cours")),
+    (PERIOD_TODAY, "Aujourd'hui"),
+    (PERIOD_7D, "7 jours"),
+    (PERIOD_30D, "30 jours"),
+    (PERIOD_WEEK, "Semaine en cours"),
 )
 
 SHIPMENT_STATUS_ORDER = (
@@ -249,25 +247,25 @@ def _hours_between(start_at, end_at):
 def _build_sla_rows(shipments_with_tracking, *, tracking_alert_hours):
     stage_definitions = (
         {
-            "label": _("Planifié -> OK mise à bord"),
+            "label": "Planifié -> OK mise à bord",
             "start": "planned_at",
             "end": "boarding_ok_at",
             "target_hours": tracking_alert_hours,
         },
         {
-            "label": _("OK mise à bord -> Reçu escale"),
+            "label": "OK mise à bord -> Reçu escale",
             "start": "boarding_ok_at",
             "end": "received_correspondent_at",
             "target_hours": tracking_alert_hours,
         },
         {
-            "label": _("Reçu escale -> Livré"),
+            "label": "Reçu escale -> Livré",
             "start": "received_correspondent_at",
             "end": "received_recipient_at",
             "target_hours": tracking_alert_hours,
         },
         {
-            "label": _("Planifié -> Livré"),
+            "label": "Planifié -> Livré",
             "start": "planned_at",
             "end": "received_recipient_at",
             "target_hours": tracking_alert_hours * 3,
@@ -373,78 +371,78 @@ def scan_dashboard(request):
     period_shipments_qs = shipments_scope.filter(created_at__gte=period_start)
     activity_cards = [
         _build_card(
-            label=_("Expéditions créées"),
+            label="Expéditions créées",
             value=period_shipments_qs.count(),
-            help_text=_("Création sur la période sélectionnée."),
+            help_text="Création sur la période sélectionnée.",
             url=reverse("scan:scan_shipments_ready"),
         ),
         _build_card(
-            label=_("Colis créés"),
+            label="Colis créés",
             value=Carton.objects.filter(created_at__gte=period_start).count(),
-            help_text=_("Tous colis créés sur la période."),
+            help_text="Tous colis créés sur la période.",
             url=reverse("scan:scan_cartons_ready"),
         ),
         _build_card(
-            label=_("Réceptions créées"),
+            label="Réceptions créées",
             value=Receipt.objects.filter(created_at__gte=period_start).count(),
-            help_text=_("Tous types de réception."),
+            help_text="Tous types de réception.",
             url=reverse("scan:scan_receipts_view"),
         ),
         _build_card(
-            label=_("Commandes créées"),
+            label="Commandes créées",
             value=Order.objects.filter(created_at__gte=period_start).count(),
-            help_text=_("Demandes créées sur la période."),
+            help_text="Demandes créées sur la période.",
             url=reverse("scan:scan_orders_view"),
         ),
     ]
 
     shipment_cards = [
         _build_card(
-            label=_("Brouillons"),
+            label="Brouillons",
             value=shipments_scope.filter(
                 status=ShipmentStatus.DRAFT,
                 reference__startswith=TEMP_SHIPMENT_REFERENCE_PREFIX,
             ).count(),
-            help_text=_("Brouillons temporaires EXP-TEMP-XX."),
+            help_text="Brouillons temporaires EXP-TEMP-XX.",
             url=reverse("scan:scan_shipments_ready"),
             tone="warn",
         ),
         _build_card(
-            label=_("En cours"),
+            label="En cours",
             value=status_map.get(ShipmentStatus.PICKING, 0),
-            help_text=_("Expéditions non totalement étiquetées."),
+            help_text="Expéditions non totalement étiquetées.",
             url=reverse("scan:scan_shipments_ready"),
         ),
         _build_card(
-            label=_("Prêtes"),
+            label="Prêtes",
             value=status_map.get(ShipmentStatus.PACKED, 0),
-            help_text=_("Toutes étiquetées, prêtes au planning."),
+            help_text="Toutes étiquetées, prêtes au planning.",
             url=reverse("scan:scan_shipments_ready"),
             tone="success",
         ),
         _build_card(
-            label=_("Planifiées (semaine)"),
+            label="Planifiées (semaine)",
             value=shipments_with_tracking.filter(
                 status=ShipmentStatus.PLANNED,
                 planned_at__date__gte=week_start,
                 planned_at__date__lt=week_end,
             ).count(),
-            help_text=_("Date du statut Planifié sur semaine courante."),
+            help_text="Date du statut Planifié sur semaine courante.",
             url=reverse("scan:scan_shipments_tracking"),
         ),
         _build_card(
-            label=_("En transit"),
+            label="En transit",
             value=in_transit_count,
-            help_text=_("Planifié + Expédié + Reçu escale."),
+            help_text="Planifié + Expédié + Reçu escale.",
             url=reverse("scan:scan_shipments_tracking"),
         ),
         _build_card(
-            label=_("Litiges ouverts"),
+            label="Litiges ouverts",
             value=shipments_scope.filter(
                 is_disputed=True,
                 closed_at__isnull=True,
             ).count(),
-            help_text=_("Expéditions bloquées à traiter."),
+            help_text="Expéditions bloquées à traiter.",
             url=reverse("scan:scan_shipments_tracking"),
             tone="danger",
         ),
@@ -461,38 +459,38 @@ def scan_dashboard(request):
 
     carton_cards = [
         _build_card(
-            label=_("En préparation"),
+            label="En préparation",
             value=cartons_scope.filter(status=CartonStatus.PICKING).count(),
-            help_text=_("Colis en cours de préparation."),
+            help_text="Colis en cours de préparation.",
             url=reverse("scan:scan_cartons_ready"),
         ),
         _build_card(
-            label=_("Prêts non affectés"),
+            label="Prêts non affectés",
             value=cartons_scope.filter(
                 status=CartonStatus.PACKED,
                 shipment__isnull=True,
             ).count(),
-            help_text=_("Disponibles pour expédition."),
+            help_text="Disponibles pour expédition.",
             url=reverse("scan:scan_cartons_ready"),
             tone="warn",
         ),
         _build_card(
-            label=_("Affectés non étiquetés"),
+            label="Affectés non étiquetés",
             value=assigned_scope.count(),
-            help_text=_("Affectés mais pas encore étiquetés."),
+            help_text="Affectés mais pas encore étiquetés.",
             url=reverse("scan:scan_cartons_ready"),
         ),
         _build_card(
-            label=_("Étiquetés"),
+            label="Étiquetés",
             value=labeled_scope.count(),
-            help_text=_("Colis étiquetés prêts au départ."),
+            help_text="Colis étiquetés prêts au départ.",
             url=reverse("scan:scan_cartons_ready"),
             tone="success",
         ),
         _build_card(
-            label=_("Colis expédiés"),
+            label="Colis expédiés",
             value=shipped_scope.count(),
-            help_text=_("Sortis après l'étape OK mise à bord."),
+            help_text="Sortis après l'étape OK mise à bord.",
             url=reverse("scan:scan_cartons_ready"),
         ),
     ]
@@ -500,27 +498,27 @@ def scan_dashboard(request):
     stock_snapshot = _stock_snapshot(low_stock_threshold=low_stock_threshold)
     stock_cards = [
         _build_card(
-            label=_("Produits actifs"),
+            label="Produits actifs",
             value=stock_snapshot["active_products_count"],
-            help_text=_("Produits actifs catalogués."),
+            help_text="Produits actifs catalogués.",
             url=reverse("scan:scan_stock"),
         ),
         _build_card(
-            label=_("Lots disponibles"),
+            label="Lots disponibles",
             value=stock_snapshot["available_lots_count"],
-            help_text=_("Lots avec stock disponible."),
+            help_text="Lots avec stock disponible.",
             url=reverse("scan:scan_stock"),
         ),
         _build_card(
-            label=_("Quantité disponible"),
+            label="Quantité disponible",
             value=stock_snapshot["total_available_qty"],
-            help_text=_("Somme des quantités disponibles."),
+            help_text="Somme des quantités disponibles.",
             url=reverse("scan:scan_stock"),
         ),
         _build_card(
-            label=_("Stock bas (< %(threshold)s)") % {"threshold": low_stock_threshold},
+            label=f"Stock bas (< {low_stock_threshold})",
             value=stock_snapshot["low_stock_count"],
-            help_text=_("Produits sous le seuil global."),
+            help_text="Produits sous le seuil global.",
             url=reverse("scan:scan_stock"),
             tone="danger",
         ),
@@ -528,65 +526,62 @@ def scan_dashboard(request):
 
     flow_cards = [
         _build_card(
-            label=_("Réceptions en attente"),
+            label="Réceptions en attente",
             value=Receipt.objects.filter(status=ReceiptStatus.DRAFT).count(),
-            help_text=_("Réceptions non finalisées."),
+            help_text="Réceptions non finalisées.",
             url=reverse("scan:scan_receipts_view"),
             tone="warn",
         ),
         _build_card(
-            label=_("Cmd en attente de validation"),
+            label="Cmd en attente de validation",
             value=Order.objects.filter(review_status=OrderReviewStatus.PENDING).count(),
-            help_text=_("Demandes à valider."),
+            help_text="Demandes à valider.",
             url=reverse("scan:scan_orders_view"),
         ),
         _build_card(
-            label=_("Cmd à modifier"),
+            label="Cmd à modifier",
             value=Order.objects.filter(review_status=OrderReviewStatus.CHANGES_REQUESTED).count(),
-            help_text=_("Retours en correction."),
+            help_text="Retours en correction.",
             url=reverse("scan:scan_orders_view"),
             tone="warn",
         ),
         _build_card(
-            label=_("Cmd validées sans expédition"),
+            label="Cmd validées sans expédition",
             value=Order.objects.filter(
                 review_status=OrderReviewStatus.APPROVED,
                 shipment__isnull=True,
             ).count(),
-            help_text=_("Validées, en attente de création d'expédition."),
+            help_text="Validées, en attente de création d'expédition.",
             url=reverse("scan:scan_orders_view"),
         ),
     ]
 
     tracking_cards = [
         _build_card(
-            label=_("Planifiées sans mise à bord >%(hours)sh") % {"hours": tracking_alert_hours},
+            label=f"Planifiées sans mise à bord >{tracking_alert_hours}h",
             value=planned_alert_count,
-            help_text=_("Sans étape OK mise à bord depuis %(hours)sh.")
-            % {"hours": tracking_alert_hours},
+            help_text=f"Sans étape OK mise à bord depuis {tracking_alert_hours}h.",
             url=reverse("scan:scan_shipments_tracking"),
             tone="danger" if planned_alert_count else "success",
         ),
         _build_card(
-            label=_("Expédiées sans reçu escale >%(hours)sh") % {"hours": tracking_alert_hours},
+            label=f"Expédiées sans reçu escale >{tracking_alert_hours}h",
             value=shipped_alert_count,
-            help_text=_("Sans confirmation correspondant depuis %(hours)sh.")
-            % {"hours": tracking_alert_hours},
+            help_text=f"Sans confirmation correspondant depuis {tracking_alert_hours}h.",
             url=reverse("scan:scan_shipments_tracking"),
             tone="danger" if shipped_alert_count else "success",
         ),
         _build_card(
-            label=_("Reçu escale sans livraison >%(hours)sh") % {"hours": tracking_alert_hours},
+            label=f"Reçu escale sans livraison >{tracking_alert_hours}h",
             value=correspondent_alert_count,
-            help_text=_("Sans confirmation destinataire depuis %(hours)sh.")
-            % {"hours": tracking_alert_hours},
+            help_text=f"Sans confirmation destinataire depuis {tracking_alert_hours}h.",
             url=reverse("scan:scan_shipments_tracking"),
             tone="danger" if correspondent_alert_count else "success",
         ),
         _build_card(
-            label=_("Dossiers clôturables"),
+            label="Dossiers clôturables",
             value=closable_count,
-            help_text=_("Toutes étapes complétées, dossier clos possible."),
+            help_text="Toutes étapes complétées, dossier clos possible.",
             url=reverse("scan:scan_shipments_tracking"),
             tone="success" if closable_count else "neutral",
         ),
@@ -597,31 +592,30 @@ def scan_dashboard(request):
     )
     technical_cards = [
         _build_card(
-            label=_("Queue email en attente"),
+            label="Queue email en attente",
             value=email_queue_snapshot["pending_count"],
-            help_text=_("Événements en file d'attente à traiter."),
+            help_text="Événements en file d'attente à traiter.",
             url=reverse("scan:scan_dashboard"),
             tone="warn" if email_queue_snapshot["pending_count"] else "success",
         ),
         _build_card(
-            label=_("Queue email en traitement"),
+            label="Queue email en traitement",
             value=email_queue_snapshot["processing_count"],
-            help_text=_("Événements claimés en cours d'envoi."),
+            help_text="Événements claimés en cours d'envoi.",
             url=reverse("scan:scan_dashboard"),
         ),
         _build_card(
-            label=_("Queue email en échec"),
+            label="Queue email en échec",
             value=email_queue_snapshot["failed_count"],
-            help_text=_("Événements nécessitant investigation/replay."),
+            help_text="Événements nécessitant investigation/replay.",
             url=reverse("scan:scan_dashboard"),
             tone="danger" if email_queue_snapshot["failed_count"] else "success",
         ),
         _build_card(
-            label=_("Queue email bloquée (timeout)"),
+            label="Queue email bloquée (timeout)",
             value=email_queue_snapshot["stale_processing_count"],
             help_text=(
-                _("Événements processing au-delà du timeout (%(seconds)ss).")
-                % {"seconds": queue_processing_timeout_seconds}
+                f"Événements processing au-delà du timeout ({queue_processing_timeout_seconds}s)."
             ),
             url=reverse("scan:scan_dashboard"),
             tone="danger" if email_queue_snapshot["stale_processing_count"] else "success",
@@ -634,10 +628,9 @@ def scan_dashboard(request):
     )
     workflow_blockage_cards = [
         _build_card(
-            label=_("Expéditions Création/En cours >%(hours)sh")
-            % {"hours": workflow_blockage_hours},
+            label=f"Expéditions Création/En cours >{workflow_blockage_hours}h",
             value=workflow_blockage_snapshot["stale_preparing_shipments_count"],
-            help_text=_("Brouillons/En cours anciens à débloquer."),
+            help_text="Brouillons/En cours anciens à débloquer.",
             url=reverse("scan:scan_shipments_ready"),
             tone=(
                 "danger"
@@ -646,10 +639,9 @@ def scan_dashboard(request):
             ),
         ),
         _build_card(
-            label=_("Cmd validées sans expédition >%(hours)sh")
-            % {"hours": workflow_blockage_hours},
+            label=f"Cmd validées sans expédition >{workflow_blockage_hours}h",
             value=workflow_blockage_snapshot["stale_unplanned_orders_count"],
-            help_text=_("Commandes approuvées à convertir en expéditions."),
+            help_text="Commandes approuvées à convertir en expéditions.",
             url=reverse("scan:scan_orders_view"),
             tone=(
                 "danger"
@@ -658,18 +650,18 @@ def scan_dashboard(request):
             ),
         ),
         _build_card(
-            label=_("Dossiers livrés non clos"),
+            label="Dossiers livrés non clos",
             value=workflow_blockage_snapshot["open_delivered_cases_count"],
-            help_text=_("Livrés mais non clôturés."),
+            help_text="Livrés mais non clôturés.",
             url=reverse("scan:scan_shipments_tracking"),
             tone=(
                 "warn" if workflow_blockage_snapshot["open_delivered_cases_count"] else "success"
             ),
         ),
         _build_card(
-            label=_("Dossiers en litige ouverts"),
+            label="Dossiers en litige ouverts",
             value=workflow_blockage_snapshot["open_disputed_cases_count"],
-            help_text=_("Blocages opérationnels à traiter."),
+            help_text="Blocages opérationnels à traiter.",
             url=reverse("scan:scan_shipments_tracking"),
             tone=(
                 "danger" if workflow_blockage_snapshot["open_disputed_cases_count"] else "success"
@@ -683,16 +675,12 @@ def scan_dashboard(request):
     )
     sla_cards = [
         _build_card(
-            label=_("%(label)s >%(hours)sh")
-            % {"label": row["label"], "hours": row["target_hours"]},
+            label=f"{row['label']} >{row['target_hours']}h",
             value=f"{row['breach_count']} / {row['completed_count']}",
             help_text=(
-                _("Aucune expédition complétée sur ce segment.")
+                "Aucune expédition complétée sur ce segment."
                 if row["completed_count"] == 0
-                else (
-                    _("Moyenne %(average)sh, max %(max)sh.")
-                    % {"average": row["average_hours"], "max": row["max_hours"]}
-                )
+                else (f"Moyenne {row['average_hours']}h, max {row['max_hours']}h.")
             ),
             url=reverse("scan:scan_shipments_tracking"),
             tone=(
