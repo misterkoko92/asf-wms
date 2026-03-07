@@ -1444,7 +1444,6 @@ class StockMovementAdminViewsTests(_AdminTestBase):
         self.assertEqual(response, "receive-get")
         self.assertEqual(str(render_mock.call_args.args[2]), "Receive stock")
 
-    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
     def test_pack_errors_render_in_english(self):
         admin_obj = StockMovementAdmin(models.StockMovement, self.site)
         post_request = self.factory.post("/admin/wms/stockmovement/pack/", data={})
@@ -1479,7 +1478,6 @@ class StockMovementAdminViewsTests(_AdminTestBase):
             "Carton already linked to another shipment.",
         )
 
-    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
     def test_pack_kit_errors_render_in_english(self):
         admin_obj = StockMovementAdmin(models.StockMovement, self.site)
         post_request = self.factory.post("/admin/wms/stockmovement/pack/", data={})

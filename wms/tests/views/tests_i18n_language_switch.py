@@ -169,15 +169,14 @@ class LanguageSwitchI18nTests(TestCase):
         self.assertContains(association_response, "Save association receiving")
 
     @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
-    def test_runtime_translation_can_be_disabled(self):
-        self.client.force_login(self.superuser)
+    def test_critical_english_pages_no_longer_depend_on_runtime_translation(self):
+        self.client.force_login(self.staff_user)
         self._activate_english()
-        response = self.client.get(reverse("scan:scan_admin_contacts"))
+        response = self.client.get(reverse("scan:scan_dashboard"))
 
-        self.assertContains(response, "Recherche")
-        self.assertNotContains(response, "Search")
+        self.assertContains(response, "Dashboard")
+        self.assertNotContains(response, "Tableau de bord")
 
-    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
     def test_public_auth_pages_render_native_english(self):
         self._activate_english()
 
@@ -215,7 +214,6 @@ class LanguageSwitchI18nTests(TestCase):
         self.assertContains(public_order_response, "Create an account")
         self.assertContains(public_order_response, "Submit order")
 
-    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
     def test_portal_dashboard_and_order_create_render_native_english(self):
         self.client.force_login(self.portal_user)
         self._activate_english()
@@ -231,7 +229,6 @@ class LanguageSwitchI18nTests(TestCase):
         self.assertContains(order_create, "Submit order")
         self.assertNotContains(order_create, "Nouvelle commande")
 
-    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
     def test_receive_pages_render_native_english(self):
         self.client.force_login(self.staff_user)
         self._activate_english()
@@ -247,7 +244,6 @@ class LanguageSwitchI18nTests(TestCase):
         self.assertContains(association_response, "Out-of-format")
         self.assertNotContains(association_response, "R&eacute;ception association")
 
-    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
     def test_scan_stock_and_orders_render_native_english(self):
         self.client.force_login(self.staff_user)
         self._activate_english()
@@ -286,7 +282,6 @@ class LanguageSwitchI18nTests(TestCase):
         self.assertContains(kits_response, "Kit name")
         self.assertNotContains(kits_response, "Pr&eacute;parer des kits")
 
-    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
     def test_scan_dashboard_faq_and_tracking_render_native_english(self):
         shipment = Shipment.objects.create(
             shipper_name="ASF",
@@ -336,7 +331,6 @@ class LanguageSwitchI18nTests(TestCase):
         self.assertContains(settings_response, "Operational presets")
         self.assertNotContains(settings_response, "Param&egrave;tres")
 
-    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
     def test_forced_password_change_page_renders_native_english(self):
         profile = self.portal_user.association_profile
         profile.must_change_password = True
@@ -362,7 +356,6 @@ class LanguageSwitchI18nTests(TestCase):
         )
         self.assertNotContains(change_password_response, "Changer le mot de passe")
 
-    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
     def test_admin_custom_pages_render_native_english(self):
         self.client.force_login(self.superuser)
         response = self.client.get(reverse("admin:index"))

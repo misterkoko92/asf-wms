@@ -1,6 +1,6 @@
 {% extends "admin/change_form.html" %}
 
-{% load static %}
+{% load i18n static %}
 
 {% block extrastyle %}
   {{ block.super }}
@@ -20,19 +20,19 @@
 
 {% block after_field_sets %}
   {{ block.super }}
-  {% if change and original %}
+      {% if change and original %}
     <fieldset class="module admin-bootstrap-docs card border-0">
-      <h2>Impression A5</h2>
+      <h2>{% trans "Impression A5" %}</h2>
       <div class="block admin-bootstrap-doc-links">
-        <a class="btn btn-outline-primary btn-sm" href="{% url 'admin:wms_shipment_print_doc' original.pk 'shipment_note' %}" target="_blank" rel="noopener">Bon d'exp&eacute;dition</a>
-        <a class="btn btn-outline-primary btn-sm" href="{% url 'admin:wms_shipment_print_doc' original.pk 'donation_certificate' %}" target="_blank" rel="noopener">Attestation donation</a>
-        <a class="btn btn-outline-primary btn-sm" href="{% url 'admin:wms_shipment_print_doc' original.pk 'humanitarian_certificate' %}" target="_blank" rel="noopener">Attestation aide humanitaire</a>
-        <a class="btn btn-outline-primary btn-sm" href="{% url 'admin:wms_shipment_print_doc' original.pk 'customs' %}" target="_blank" rel="noopener">Attestation douane</a>
-        <a class="btn btn-outline-primary btn-sm" href="{% url 'admin:wms_shipment_print_doc' original.pk 'packing_list_shipment' %}" target="_blank" rel="noopener">Liste colisage lot</a>
+        <a class="btn btn-outline-primary btn-sm" href="{% url 'admin:wms_shipment_print_doc' original.pk 'shipment_note' %}" target="_blank" rel="noopener">{% trans "Bon d'expédition" %}</a>
+        <a class="btn btn-outline-primary btn-sm" href="{% url 'admin:wms_shipment_print_doc' original.pk 'donation_certificate' %}" target="_blank" rel="noopener">{% trans "Attestation donation" %}</a>
+        <a class="btn btn-outline-primary btn-sm" href="{% url 'admin:wms_shipment_print_doc' original.pk 'humanitarian_certificate' %}" target="_blank" rel="noopener">{% trans "Attestation aide humanitaire" %}</a>
+        <a class="btn btn-outline-primary btn-sm" href="{% url 'admin:wms_shipment_print_doc' original.pk 'customs' %}" target="_blank" rel="noopener">{% trans "Attestation douane" %}</a>
+        <a class="btn btn-outline-primary btn-sm" href="{% url 'admin:wms_shipment_print_doc' original.pk 'packing_list_shipment' %}" target="_blank" rel="noopener">{% trans "Liste colisage lot" %}</a>
       </div>
       {% if original.carton_set.exists %}
         <div class="block admin-bootstrap-doc-links">
-          <strong>Listes colisage par carton:</strong>
+          <strong>{% trans "Liste colisage par carton" %}:</strong>
           {% for carton in original.carton_set.all %}
             <a class="btn btn-outline-secondary btn-sm" href="{% url 'admin:wms_shipment_print_carton' original.pk carton.pk %}" target="_blank" rel="noopener">{{ carton.code }}</a>
           {% endfor %}

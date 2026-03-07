@@ -4,7 +4,7 @@ from unittest import mock
 
 from django.core.management import call_command
 from django.template.loader import render_to_string
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from django.utils import timezone, translation
 from django.utils.dateparse import parse_datetime
 
@@ -308,7 +308,6 @@ class ProcessEmailQueueCommandTests(TestCase):
 
 
 class EmailTemplateI18nTests(TestCase):
-    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
     def test_portal_forgot_password_email_uses_native_english(self):
         context = {
             "set_password_url": "https://example.com/reset-link/",  # pragma: allowlist secret

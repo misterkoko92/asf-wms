@@ -1,12 +1,13 @@
+{% load i18n %}
 {% with mode=block.mode|default:"carton" %}
 <table>
   <thead>
     <tr>
-      <th>Produit</th>
-      <th>Quantit&eacute;</th>
-      <th>Date de p&eacute;remption</th>
+      <th>{% trans "Produit" %}</th>
+      <th>{% trans "Quantité" %}</th>
+      <th>{% trans "Date de péremption" %}</th>
       {% if show_carton_column %}
-        <th>Numero de carton</th>
+        <th>{% trans "Numero de carton" %}</th>
       {% endif %}
     </tr>
   </thead>

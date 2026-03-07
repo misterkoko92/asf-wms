@@ -4,7 +4,7 @@ from unittest import mock
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from django.urls import reverse
 
 from wms.models import Receipt, ReceiptType, Warehouse
@@ -217,8 +217,7 @@ class ScanReceiptsViewsTests(TestCase):
         self.assertEqual(response.content.decode(), "scan/receive_pallet.html")
         self.assertEqual(response.context_data["context_key"], "pallet")
 
-    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
-    def test_scan_receive_pages_render_native_english_when_runtime_disabled(self):
+    def test_scan_receive_pages_render_native_english(self):
         self._activate_english()
 
         pallet_response = self.client.get(reverse("scan:scan_receive_pallet"))

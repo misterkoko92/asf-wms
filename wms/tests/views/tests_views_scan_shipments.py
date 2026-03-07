@@ -217,8 +217,7 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertIsNone(shipment.closed_at)
         self.assertIsNone(shipment.closed_by)
 
-    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
-    def test_scan_shipment_pages_render_native_english_when_runtime_disabled(self):
+    def test_scan_shipment_pages_render_native_english(self):
         shipment = self._create_shipment()
         self._activate_english()
 

@@ -929,7 +929,6 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         create_order_mock.assert_called_once()
         notify_mock.assert_called_once()
 
-    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
     def test_portal_order_create_post_success_uses_native_english_message(self):
         self._activate_english()
         line_items = [(self.product, 1)]
@@ -1366,7 +1365,6 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertEqual(document.scan_status, DocumentScanStatus.PENDING)
         self.assertEqual(IntegrationEvent.objects.count(), 1)
 
-    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
     def test_portal_order_detail_upload_stores_stable_scan_message(self):
         self._activate_english()
         order = self._order(review_status=OrderReviewStatus.APPROVED)
@@ -1503,7 +1501,6 @@ class PortalAccountViewsTests(PortalBaseTestCase):
             set(form.fields["recipient_contact"].queryset.values_list("id", flat=True)),
         )
 
-    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
     def test_portal_recipients_post_creates_recipient_with_native_english_message(self):
         self._activate_english()
 
@@ -1776,7 +1773,6 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         )
         self.assertEqual(IntegrationEvent.objects.count(), 2)
 
-    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
     def test_portal_account_upload_stores_stable_scan_message(self):
         self._activate_english()
 

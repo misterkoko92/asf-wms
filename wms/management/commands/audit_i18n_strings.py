@@ -8,10 +8,30 @@ from django.core.management.base import BaseCommand, CommandError
 
 DEFAULT_PATHS = (
     "templates/portal",
-    "templates/scan",
-    "templates/admin",
     "templates/emails",
     "templates/print",
+    "templates/admin",
+    # Final gate scope: legacy surfaces migrated in Tasks 2-8.
+    "templates/scan/base.html",
+    "templates/scan/cartons_ready.html",
+    "templates/scan/dashboard.html",
+    "templates/scan/faq.html",
+    "templates/scan/order.html",
+    "templates/scan/orders_view.html",
+    "templates/scan/pack.html",
+    "templates/scan/prepare_kits.html",
+    "templates/scan/public_account_request.html",
+    "templates/scan/public_order.html",
+    "templates/scan/receive.html",
+    "templates/scan/receive_association.html",
+    "templates/scan/receive_pallet.html",
+    "templates/scan/settings.html",
+    "templates/scan/shipment_create.html",
+    "templates/scan/shipment_tracking.html",
+    "templates/scan/shipments_ready.html",
+    "templates/scan/shipments_tracking.html",
+    "templates/scan/stock.html",
+    "templates/scan/stock_update.html",
 )
 SCANNABLE_SUFFIXES = {".html", ".txt"}
 FRENCH_LITERAL_RE = re.compile(

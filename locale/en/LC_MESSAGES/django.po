@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-07 20:24+0100\n"
+"POT-Creation-Date: 2026-03-07 21:00+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,12 +17,12 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: asf_wms/settings.py:183 templates/includes/language_switch.html:12
+#: asf_wms/settings.py:182 templates/includes/language_switch.html:12
 #: templates/includes/language_switch.html:15
 msgid "Français"
 msgstr "French"
 
-#: asf_wms/settings.py:184 templates/includes/language_switch.html:22
+#: asf_wms/settings.py:183 templates/includes/language_switch.html:22
 #: templates/includes/language_switch.html:25
 msgid "English"
 msgstr "English"
@@ -123,6 +123,44 @@ msgstr "Close without mapping"
 #: templates/admin/wms/organization_roles_review.html:117
 msgid "Aucun item ouvert dans la file de revue migration."
 msgstr "No open items in the migration review queue."
+
+#: templates/admin/wms/shipment/change_form.html:25
+msgid "Impression A5"
+msgstr "A5 printing"
+
+#: templates/admin/wms/shipment/change_form.html:27
+#: templates/scan/shipment_create.html:177
+#: templates/scan/shipments_ready.html:57 wms/shipment_view_helpers.py:35
+msgid "Bon d'expédition"
+msgstr "Shipment note"
+
+#: templates/admin/wms/shipment/change_form.html:28
+#: templates/scan/shipment_create.html:183
+#: templates/scan/shipments_ready.html:63 wms/shipment_view_helpers.py:37
+msgid "Attestation donation"
+msgstr "Donation certificate"
+
+#: templates/admin/wms/shipment/change_form.html:29
+#: templates/print/attestation_aide_humanitaire.html:4
+#: wms/shipment_view_helpers.py:38
+msgid "Attestation aide humanitaire"
+msgstr "Humanitarian aid certificate"
+
+#: templates/admin/wms/shipment/change_form.html:30
+#: templates/print/attestation_douane.html:4 wms/shipment_view_helpers.py:39
+msgid "Attestation douane"
+msgstr "Customs certificate"
+
+#: templates/admin/wms/shipment/change_form.html:31
+#: templates/print/liste_colisage_lot.html:4
+msgid "Liste colisage lot"
+msgstr "Shipment packing list"
+
+#: templates/admin/wms/shipment/change_form.html:35
+#: templates/scan/shipment_create.html:192
+#: templates/scan/shipment_tracking.html:94
+msgid "Liste colisage par carton"
+msgstr "Packing list by parcel"
 
 #: templates/admin/wms/stockmovement/change_list.html:24
 #: wms/admin_stockmovement_views.py:35
@@ -793,6 +831,7 @@ msgstr "Available parcels"
 
 #: templates/portal/order_create.html:84 templates/portal/order_create.html:136
 #: templates/portal/order_create.html:192 templates/portal/order_detail.html:34
+#: templates/print/blocks/table_items.html:6
 #: templates/print/liste_colisage_carton.html:26
 #: templates/print/liste_colisage_lot.html:39
 #: templates/print/order_summary.html:66
@@ -813,6 +852,7 @@ msgstr "Stock"
 
 #: templates/portal/order_create.html:86 templates/portal/order_create.html:138
 #: templates/portal/order_create.html:194 templates/portal/order_detail.html:35
+#: templates/print/blocks/table_items.html:7
 #: templates/print/liste_colisage_carton.html:27
 #: templates/print/liste_colisage_lot.html:40
 #: templates/print/order_summary.html:67
@@ -825,6 +865,7 @@ msgid "Quantité"
 msgstr "Quantity"
 
 #: templates/portal/order_create.html:87 templates/portal/order_create.html:139
+#: templates/print/blocks/table_items.html:8
 #: templates/print/liste_colisage_carton.html:28
 #: templates/print/liste_colisage_lot.html:41
 msgid "Date de péremption"
@@ -948,7 +989,7 @@ msgstr "Contact details"
 msgid "Options"
 msgstr "Options"
 
-#: templates/portal/recipients.html:43 templates/print/base_a5.html:81
+#: templates/portal/recipients.html:43
 msgid "Tél"
 msgstr "Phone"
 
@@ -1042,11 +1083,6 @@ msgstr "Choose a password to access the portal."
 msgid "Lien invalide ou expire. Contactez ASF."
 msgstr "Invalid or expired link. Contact ASF."
 
-#: templates/print/attestation_aide_humanitaire.html:4
-#: wms/shipment_view_helpers.py:38
-msgid "Attestation aide humanitaire"
-msgstr "Humanitarian aid certificate"
-
 #: templates/print/attestation_aide_humanitaire.html:7
 msgid "Attestation d'aide humanitaire"
 msgstr "Humanitarian aid certificate"
@@ -1096,10 +1132,6 @@ msgstr "Donor"
 msgid "Description du don"
 msgstr "Donation description"
 
-#: templates/print/attestation_douane.html:4 wms/shipment_view_helpers.py:39
-msgid "Attestation douane"
-msgstr "Customs certificate"
-
 #: templates/print/attestation_douane.html:7
 msgid "Attestation de douane"
 msgstr "Customs certificate"
@@ -1118,22 +1150,59 @@ msgid "Logo"
 msgstr "Logo"
 
 #: templates/print/base_a5.html:80
-msgid "Siège"
-msgstr "Head office"
-
-#: templates/print/base_a5.html:80 templates/print/bon_expedition.html:86
-#: templates/print/bon_expedition.html:101
-#: templates/print/bon_expedition.html:116
-msgid "Tel"
-msgstr "Phone"
+msgid ""
+"Siège: Bat 293, Porte 1150, Orly Fret 768 - 94398 Orly Aérogare Cedex - Tel: "
+"(33) 1 49 75 74 36"
+msgstr ""
+"Head office: Bat 293, Gate 1150, Orly Fret 768 - 94398 Orly Aérogare Cedex - "
+"Tel: (33) 1 49 75 74 36"
 
 #: templates/print/base_a5.html:81
-msgid "Magasin"
-msgstr "Warehouse"
+msgid ""
+"Magasin: Bat. 7200, Porte 2D520, rue de la Remise - 95700 ROISSY en France - "
+"Tél: (33) 1 74 25 03 22"
+msgstr ""
+"Warehouse: Bat. 7200, Gate 2D520, rue de la Remise - 95700 ROISSY, France - "
+"Tel: (33) 1 74 25 03 22"
 
 #: templates/print/base_a5.html:82
 msgid "Association reconnue d'utilité publique par décret du 12 novembre 1993"
 msgstr "Public-interest association recognized by decree of November 12, 1993"
+
+#: templates/print/blocks/summary_triplet.html:4
+#: templates/print/bon_expedition.html:57
+msgid "NOMBRE DE COLIS"
+msgstr "NUMBER OF PARCELS"
+
+#: templates/print/blocks/summary_triplet.html:8
+#: templates/print/bon_expedition.html:61
+msgid "POIDS TOTAL (KG)"
+msgstr "TOTAL WEIGHT (KG)"
+
+#: templates/print/blocks/summary_triplet.html:18
+#: templates/print/bon_expedition.html:71
+msgid "TYPE DE COLIS"
+msgstr "PARCEL TYPE"
+
+#: templates/print/blocks/table_cartons.html:5
+msgid "N° Colis"
+msgstr "Parcel no."
+
+#: templates/print/blocks/table_cartons.html:6
+msgid "Poids Colis en KG"
+msgstr "Parcel weight in kg"
+
+#: templates/print/blocks/table_cartons.html:7
+msgid "Dimensions en CM"
+msgstr "Dimensions in cm"
+
+#: templates/print/blocks/table_cartons.html:8
+msgid "Volume en m3"
+msgstr "Volume in m3"
+
+#: templates/print/blocks/table_items.html:10
+msgid "Numero de carton"
+msgstr "Carton number"
 
 #: templates/print/bon_expedition.html:4
 msgid "Bon expédition"
@@ -1163,18 +1232,6 @@ msgstr "Flight date"
 msgid "N° Vol"
 msgstr "Flight No."
 
-#: templates/print/bon_expedition.html:57
-msgid "NOMBRE DE COLIS"
-msgstr "NUMBER OF PARCELS"
-
-#: templates/print/bon_expedition.html:61
-msgid "POIDS TOTAL (KG)"
-msgstr "TOTAL WEIGHT (KG)"
-
-#: templates/print/bon_expedition.html:71
-msgid "TYPE DE COLIS"
-msgstr "PARCEL TYPE"
-
 #: templates/print/bon_expedition.html:78
 msgid "EXPÉDITEUR"
 msgstr "SHIPPER"
@@ -1184,6 +1241,12 @@ msgstr "SHIPPER"
 #: templates/print/bon_expedition.html:110
 msgid "Société"
 msgstr "Company"
+
+#: templates/print/bon_expedition.html:86
+#: templates/print/bon_expedition.html:101
+#: templates/print/bon_expedition.html:116
+msgid "Tel"
+msgstr "Phone"
 
 #: templates/print/bon_expedition.html:93
 msgid "DESTINATAIRE"
@@ -1267,10 +1330,6 @@ msgstr "Carton code"
 #: templates/scan/cartons_ready.html:72
 msgid "Poids"
 msgstr "Weight"
-
-#: templates/print/liste_colisage_lot.html:4
-msgid "Liste colisage lot"
-msgstr "Shipment packing list"
 
 #: templates/print/liste_colisage_lot.html:12
 msgid "LISTE DE COLISAGE - EXPÉDITION N°"
@@ -3720,30 +3779,15 @@ msgstr "Tracking link:"
 msgid "Documents générés"
 msgstr "Generated documents"
 
-#: templates/scan/shipment_create.html:177
-#: templates/scan/shipments_ready.html:57 wms/shipment_view_helpers.py:35
-msgid "Bon d'expédition"
-msgstr "Shipment note"
-
 #: templates/scan/shipment_create.html:180
 #: templates/scan/shipments_ready.html:60 wms/shipment_view_helpers.py:36
 msgid "Liste colisage (lot)"
 msgstr "Packing list (batch)"
 
-#: templates/scan/shipment_create.html:183
-#: templates/scan/shipments_ready.html:63 wms/shipment_view_helpers.py:37
-msgid "Attestation donation"
-msgstr "Donation certificate"
-
 #: templates/scan/shipment_create.html:186
 #: templates/scan/shipments_ready.html:66 wms/shipment_view_helpers.py:84
 msgid "Étiquettes colis"
 msgstr "Parcel labels"
-
-#: templates/scan/shipment_create.html:192
-#: templates/scan/shipment_tracking.html:94
-msgid "Liste colisage par carton"
-msgstr "Packing list by parcel"
 
 #: templates/scan/shipment_create.html:202
 #: templates/scan/shipment_create.html:217
@@ -5671,6 +5715,12 @@ msgstr "Some steps still need validation, check before closing"
 #: wms/views_scan_shipments.py:547
 msgid "Expédition non modifiable."
 msgstr "Shipment cannot be edited."
+
+#~ msgid "Siège"
+#~ msgstr "Head office"
+
+#~ msgid "Magasin"
+#~ msgstr "Warehouse"
 
 #~ msgid "Association login"
 #~ msgstr "Association login"

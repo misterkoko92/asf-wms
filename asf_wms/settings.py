@@ -111,7 +111,6 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "wms.middleware_runtime_translation.RuntimeEnglishTranslationMiddleware",
 ]
 
 ROOT_URLCONF = "asf_wms.urls"
@@ -193,11 +192,6 @@ DATETIME_FORMAT = "d/m/Y H:i"
 TIME_FORMAT = "H:i"
 SHORT_DATE_FORMAT = "d/m/Y"
 SHORT_DATETIME_FORMAT = "d/m/Y H:i"
-
-WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION = _env_bool(
-    "WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION",
-    True,
-)
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
