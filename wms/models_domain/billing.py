@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
-from django.db import models
+from django.db import models, transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
@@ -324,7 +324,11 @@ class BillingDocument(models.Model):
     def clean(self):
         super().clean()
         errors = {}
-        if self.kind == BillingDocumentKind.INVOICE and not (self.invoice_number or "").strip():
+        if (
+            self.kind == BillingDocumentKind.INVOICE
+            and (self.status == BillingDocumentStatus.ISSUED or self.issued_at is not None)
+            and not (self.invoice_number or "").strip()
+        ):
             errors["invoice_number"] = "Invoice number is required for invoices."
         if errors:
             raise ValidationError(errors)
@@ -332,20 +336,32 @@ class BillingDocument(models.Model):
     def _build_quote_number(self) -> str:
         year = timezone.localdate().year
         prefix = f"DEV-{year}-"
-        next_number = (
-            BillingDocument.objects.filter(kind=BillingDocumentKind.QUOTE)
+        last_quote_number = (
+            BillingDocument.objects.select_for_update()
+            .filter(kind=BillingDocumentKind.QUOTE)
             .filter(quote_number__startswith=prefix)
             .exclude(pk=self.pk)
-            .count()
-            + 1
+            .order_by("-quote_number")
+            .values_list("quote_number", flat=True)
+            .first()
         )
+        next_number = 1
+        if last_quote_number:
+            next_number = int(last_quote_number.removeprefix(prefix)) + 1
         return f"{prefix}{next_number:04d}"
 
+    def _normalize_optional_numbers(self):
+        self.quote_number = (self.quote_number or "").strip() or None
+        self.invoice_number = (self.invoice_number or "").strip() or None
+        self.credit_note_number = (self.credit_note_number or "").strip() or None
+
     def save(self, *args, **kwargs):
-        if self.kind == BillingDocumentKind.QUOTE and not self.quote_number:
-            self.quote_number = self._build_quote_number()
-        self.full_clean()
-        super().save(*args, **kwargs)
+        with transaction.atomic():
+            self._normalize_optional_numbers()
+            if self.kind == BillingDocumentKind.QUOTE and not self.quote_number:
+                self.quote_number = self._build_quote_number()
+            self.full_clean()
+            super().save(*args, **kwargs)
 
 
 class BillingDocumentShipment(models.Model):

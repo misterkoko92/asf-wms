@@ -8,6 +8,27 @@ import django.db.models.deletion
 import django.utils.timezone
 
 
+def backfill_association_billing_profiles(apps, schema_editor):
+    AssociationProfile = apps.get_model("wms", "AssociationProfile")
+    AssociationBillingProfile = apps.get_model("wms", "AssociationBillingProfile")
+
+    existing_ids = set(
+        AssociationBillingProfile.objects.values_list("association_profile_id", flat=True)
+    )
+    missing_ids = [
+        association_profile_id
+        for association_profile_id in AssociationProfile.objects.values_list("id", flat=True)
+        if association_profile_id not in existing_ids
+    ]
+    AssociationBillingProfile.objects.bulk_create(
+        [
+            AssociationBillingProfile(association_profile_id=association_profile_id)
+            for association_profile_id in missing_ids
+        ],
+        ignore_conflicts=True,
+    )
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -205,6 +226,10 @@ class Migration(migrations.Migration):
             model_name='associationbillingprofile',
             name='default_computation_profile',
             field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='association_defaults', to='wms.billingcomputationprofile'),
+        ),
+        migrations.RunPython(
+            backfill_association_billing_profiles,
+            migrations.RunPython.noop,
         ),
         migrations.CreateModel(
             name='AssociationBillingChangeRequest',
