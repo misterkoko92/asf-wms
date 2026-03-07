@@ -56,11 +56,11 @@
                 </li>
                 <li class="nav-item dropdown">
                   <button class="nav-link dropdown-toggle btn-tertiary{% if active == 'receive_pallet' or active == 'receive_association' or active == 'stock_update' %} active{% endif %}" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    R&eacute;ception
+                    {% trans "Réception" %}
                   </button>
                   <ul class="dropdown-menu">
-                    <li><a href="{% url 'scan:scan_receive_pallet' %}" class="dropdown-item{% if active == 'receive_pallet' %} active{% endif %}">R&eacute;ception palette</a></li>
-                    <li><a href="{% url 'scan:scan_receive_association' %}" class="dropdown-item{% if active == 'receive_association' %} active{% endif %}">R&eacute;ception association</a></li>
+                    <li><a href="{% url 'scan:scan_receive_pallet' %}" class="dropdown-item{% if active == 'receive_pallet' %} active{% endif %}">{% trans "Réception palette" %}</a></li>
+                    <li><a href="{% url 'scan:scan_receive_association' %}" class="dropdown-item{% if active == 'receive_association' %} active{% endif %}">{% trans "Réception association" %}</a></li>
                     <li><a href="{% url 'scan:scan_stock_update' %}" class="dropdown-item{% if active == 'stock_update' %} active{% endif %}">MAJ stock</a></li>
                   </ul>
                 </li>

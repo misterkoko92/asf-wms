@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.shortcuts import redirect
 from django.urls import reverse
+from django.utils.translation import gettext as _
 
 from .models import Receipt, ReceiptHorsFormat, ReceiptStatus, ReceiptType
 from .scan_helpers import parse_int, resolve_default_warehouse, resolve_product
@@ -36,14 +37,14 @@ def handle_receipt_association_post(
     if create_form.is_valid():
         for index, line in enumerate(line_values, start=1):
             if not line["description"]:
-                line_errors[str(index)] = ["Description requise."]
+                line_errors[str(index)] = [_("Description requise.")]
 
         if line_errors:
-            create_form.add_error(None, "Renseignez les descriptions hors format.")
+            create_form.add_error(None, _("Renseignez les descriptions hors format."))
         else:
             warehouse = resolve_default_warehouse()
             if not warehouse:
-                create_form.add_error(None, "Aucun entrepôt configuré.")
+                create_form.add_error(None, _("Aucun entrepôt configuré."))
             else:
                 receipt = Receipt.objects.create(
                     receipt_type=ReceiptType.ASSOCIATION,
@@ -65,7 +66,8 @@ def handle_receipt_association_post(
                         )
                 messages.success(
                     request,
-                    f"Réception association enregistrée (ref {receipt.reference}).",
+                    _("Réception association enregistrée (ref %(reference)s).")
+                    % {"reference": receipt.reference},
                 )
                 return redirect("scan:scan_receive_association"), line_errors
     return None, line_errors
@@ -100,25 +102,26 @@ def handle_receipt_action(
         )
         messages.success(
             request,
-            f"Réception créée: {receipt.reference or f'Réception {receipt.id}'}",
+            _("Réception créée: %(reference)s")
+            % {"reference": receipt.reference or _("Réception %(id)s") % {"id": receipt.id}},
         )
         return redirect(f"{reverse('scan:scan_receive')}?receipt={receipt.id}"), None, None
 
     if action == "add_line":
         if not selected_receipt:
-            line_form.add_error(None, "Sélectionnez une réception.")
+            line_form.add_error(None, _("Sélectionnez une réception."))
         elif selected_receipt.status != ReceiptStatus.DRAFT:
-            line_form.add_error(None, "Réception déjà clôturée.")
+            line_form.add_error(None, _("Réception déjà clôturée."))
         elif line_form.is_valid():
             product = resolve_product(line_form.cleaned_data["product_code"])
             if not product:
-                line_form.add_error("product_code", "Produit introuvable.")
+                line_form.add_error("product_code", _("Produit introuvable."))
             else:
                 location = line_form.cleaned_data["location"] or product.default_location
                 if location is None:
                     line_form.add_error(
                         "location",
-                        "Emplacement requis ou définir un emplacement par défaut.",
+                        _("Emplacement requis ou définir un emplacement par défaut."),
                     )
                 else:
                     line = selected_receipt.lines.create(
@@ -138,7 +141,8 @@ def handle_receipt_action(
                             receive_receipt_line(user=request.user, line=line)
                             messages.success(
                                 request,
-                                f"Ligne réceptionnée: {product.name} ({line.quantity}).",
+                                _("Ligne réceptionnée: %(product)s (%(quantity)s).")
+                                % {"product": product.name, "quantity": line.quantity},
                             )
                         except StockError as exc:
                             line_form.add_error(None, str(exc))
@@ -147,7 +151,8 @@ def handle_receipt_action(
                     else:
                         messages.success(
                             request,
-                            f"Ligne ajoutée: {product.name} ({line.quantity}).",
+                            _("Ligne ajoutée: %(product)s (%(quantity)s).")
+                            % {"product": product.name, "quantity": line.quantity},
                         )
                     return (
                         redirect(f"{reverse('scan:scan_receive')}?receipt={selected_receipt.id}"),
@@ -167,7 +172,10 @@ def handle_receipt_action(
             except StockError as exc:
                 errors.append(str(exc))
         if processed:
-            messages.success(request, f"{processed} ligne(s) réceptionnée(s).")
+            messages.success(
+                request,
+                _("%(count)s ligne(s) réceptionnée(s).") % {"count": processed},
+            )
         for error in errors:
             messages.error(request, error)
         return (

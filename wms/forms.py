@@ -1,5 +1,6 @@
 from django import forms
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from contacts.models import Contact, ContactType
 from contacts.tagging import normalize_tag_name
@@ -59,7 +60,7 @@ class ReceiveStockForm(forms.Form):
     location = forms.ModelChoiceField(
         queryset=Location.objects.all().order_by("warehouse__name", "zone", "aisle", "shelf"),
         required=False,
-        help_text="Laissez vide pour utiliser l'emplacement par défaut.",
+        help_text=_("Laissez vide pour utiliser l'emplacement par défaut."),
     )
     received_on = forms.DateField(
         required=False,
@@ -70,7 +71,7 @@ class ReceiveStockForm(forms.Form):
         required=False, widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")
     )
     status = forms.ChoiceField(
-        choices=[("", "Auto")] + _sorted_choices(ProductLotStatus.choices),
+        choices=[("", _("Auto"))] + _sorted_choices(ProductLotStatus.choices),
         required=False,
     )
     storage_conditions = forms.CharField(required=False)
@@ -87,7 +88,7 @@ class AdjustStockForm(forms.Form):
     def clean_quantity_delta(self):
         value = self.cleaned_data["quantity_delta"]
         if value == 0:
-            raise forms.ValidationError("La quantité doit être non nulle.")
+            raise forms.ValidationError(_("La quantité doit être non nulle."))
         return value
 
 
@@ -140,7 +141,7 @@ class PackCartonForm(forms.Form):
         carton_code = cleaned.get("carton_code")
         if carton and carton_code:
             raise forms.ValidationError(
-                "Sélectionnez un carton existant ou indiquez un code, pas les deux."
+                _("Sélectionnez un carton existant ou indiquez un code, pas les deux.")
             )
         return cleaned
 
@@ -148,7 +149,7 @@ class PackCartonForm(forms.Form):
 class ScanReceiptSelectForm(forms.Form):
     receipt = forms.ModelChoiceField(
         queryset=Receipt.objects.none(),
-        label="Réception existante",
+        label=_("Réception existante"),
     )
 
     def __init__(self, *args, receipts_qs=None, **kwargs):
@@ -167,48 +168,52 @@ class ScanReceiptSelectForm(forms.Form):
 
 class ScanReceiptCreateForm(forms.Form):
     receipt_type = forms.ChoiceField(
-        label="Type réception",
+        label=_("Type réception"),
         choices=_sorted_choices(ReceiptType.choices),
         required=False,
         initial=ReceiptType.DONATION,
     )
     source_contact = forms.ModelChoiceField(
-        label="Provenance",
+        label=_("Provenance"),
         queryset=Contact.objects.filter(is_active=True).order_by("name"),
         required=False,
     )
     carrier_contact = forms.ModelChoiceField(
-        label="Transporteur",
+        label=_("Transporteur"),
         queryset=Contact.objects.filter(is_active=True).order_by("name"),
         required=False,
     )
-    origin_reference = forms.CharField(label="Référence provenance", required=False)
-    carrier_reference = forms.CharField(label="Référence transport", required=False)
+    origin_reference = forms.CharField(label=_("Référence provenance"), required=False)
+    carrier_reference = forms.CharField(label=_("Référence transport"), required=False)
     received_on = forms.DateField(
-        label="Date réception",
+        label=_("Date réception"),
         required=False,
         widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
         initial=timezone.localdate,
     )
     warehouse = forms.ModelChoiceField(
-        label="Entrepôt",
+        label=_("Entrepôt"),
         queryset=Warehouse.objects.all().order_by("name"),
         required=False,
     )
-    notes = forms.CharField(label="Notes", required=False, widget=forms.Textarea(attrs={"rows": 3}))
+    notes = forms.CharField(
+        label=_("Notes"),
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 3}),
+    )
 
     def clean(self):
         cleaned = super().clean()
         if not cleaned.get("receipt_type"):
-            self.add_error("receipt_type", "Type de réception requis.")
+            self.add_error("receipt_type", _("Type de réception requis."))
         receipt_type = cleaned.get("receipt_type")
         if receipt_type in {ReceiptType.PALLET, ReceiptType.ASSOCIATION}:
             if not cleaned.get("source_contact"):
-                self.add_error("source_contact", "Provenance requise.")
+                self.add_error("source_contact", _("Provenance requise."))
         if receipt_type == ReceiptType.PALLET and not cleaned.get("carrier_contact"):
-            self.add_error("carrier_contact", "Transporteur requis.")
+            self.add_error("carrier_contact", _("Transporteur requis."))
         if not cleaned.get("warehouse"):
-            self.add_error("warehouse", "Entrepôt requis.")
+            self.add_error("warehouse", _("Entrepôt requis."))
         if not cleaned.get("received_on"):
             cleaned["received_on"] = timezone.localdate()
         return cleaned
@@ -221,28 +226,28 @@ class ScanReceiptCreateForm(forms.Form):
 
 class ScanReceiptPalletForm(forms.Form):
     received_on = forms.DateField(
-        label="Date réception",
+        label=_("Date réception"),
         required=True,
         widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
         initial=timezone.localdate,
     )
     pallet_count = forms.IntegerField(
-        label="Nombre de palettes",
+        label=_("Nombre de palettes"),
         min_value=1,
         widget=forms.NumberInput(attrs={"min": 1}),
     )
     source_contact = forms.ModelChoiceField(
-        label="Donateur",
+        label=_("Donateur"),
         queryset=Contact.objects.filter(is_active=True).order_by("name"),
         required=True,
     )
     carrier_contact = forms.ModelChoiceField(
-        label="Transporteur",
+        label=_("Transporteur"),
         queryset=Contact.objects.filter(is_active=True).order_by("name"),
         required=True,
     )
     transport_request_date = forms.DateField(
-        label="Date demande transport",
+        label=_("Date demande transport"),
         required=False,
         widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
     )
@@ -259,29 +264,29 @@ class ScanReceiptPalletForm(forms.Form):
 
 class ScanReceiptAssociationForm(forms.Form):
     received_on = forms.DateField(
-        label="Date réception",
+        label=_("Date réception"),
         required=True,
         widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
         initial=timezone.localdate,
     )
     carton_count = forms.IntegerField(
-        label="Nombre de cartons",
+        label=_("Nombre de cartons"),
         min_value=1,
         widget=forms.NumberInput(attrs={"min": 1}),
     )
     hors_format_count = forms.IntegerField(
-        label="Nombre de hors format",
+        label=_("Nombre de hors format"),
         min_value=0,
         required=False,
         widget=forms.NumberInput(attrs={"min": 0}),
     )
     source_contact = forms.ModelChoiceField(
-        label="Association",
+        label=_("Association"),
         queryset=Contact.objects.filter(is_active=True).order_by("name"),
         required=True,
     )
     carrier_contact = forms.ModelChoiceField(
-        label="Transporteur",
+        label=_("Transporteur"),
         queryset=Contact.objects.filter(is_active=True).order_by("name"),
         required=False,
     )
@@ -298,19 +303,19 @@ class ScanReceiptAssociationForm(forms.Form):
 
 class ScanStockUpdateForm(forms.Form):
     product_code = forms.CharField(
-        label="Nom du produit",
+        label=_("Nom du produit"),
         required=True,
         widget=forms.TextInput(attrs={"list": "product-options", "autocomplete": "off"}),
     )
-    quantity = forms.IntegerField(label="Quantité", min_value=1)
+    quantity = forms.IntegerField(label=_("Quantité"), min_value=1)
     expires_on = forms.DateField(
-        label="Date péremption",
+        label=_("Date péremption"),
         required=True,
         widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
     )
-    lot_code = forms.CharField(label="Numéro de lot", required=False)
+    lot_code = forms.CharField(label=_("Numéro de lot"), required=False)
     donor_contact = forms.ModelChoiceField(
-        label="Donateur",
+        label=_("Donateur"),
         queryset=Contact.objects.none(),
         required=False,
     )
@@ -329,7 +334,7 @@ class ScanStockUpdateForm(forms.Form):
         code = self.cleaned_data["product_code"]
         product = resolve_product(code)
         if not product:
-            raise forms.ValidationError("Produit introuvable.")
+            raise forms.ValidationError(_("Produit introuvable."))
         self.product = product
         return code
 
@@ -337,28 +342,28 @@ class ScanStockUpdateForm(forms.Form):
 class ScanReceiptLineForm(forms.Form):
     receipt_id = forms.IntegerField(widget=forms.HiddenInput, required=False)
     product_code = forms.CharField(
-        label="Code produit",
+        label=_("Code produit"),
         widget=forms.TextInput(attrs={"list": "product-options", "autocomplete": "off"}),
     )
-    quantity = forms.IntegerField(label="Quantité", min_value=1)
-    lot_code = forms.CharField(label="Lot", required=False)
+    quantity = forms.IntegerField(label=_("Quantité"), min_value=1)
+    lot_code = forms.CharField(label=_("Lot"), required=False)
     expires_on = forms.DateField(
-        label="Date péremption",
+        label=_("Date péremption"),
         required=False,
         widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
     )
     lot_status = forms.ChoiceField(
-        label="Statut lot",
-        choices=[("", "Auto")] + _sorted_choices(ProductLotStatus.choices),
+        label=_("Statut lot"),
+        choices=[("", _("Auto"))] + _sorted_choices(ProductLotStatus.choices),
         required=False,
     )
     location = forms.ModelChoiceField(
-        label="Emplacement",
+        label=_("Emplacement"),
         queryset=Location.objects.all().order_by("warehouse__name", "zone", "aisle", "shelf"),
         required=False,
     )
-    storage_conditions = forms.CharField(label="Conditions stockage", required=False)
-    receive_now = forms.BooleanField(label="Réceptionner maintenant", required=False)
+    storage_conditions = forms.CharField(label=_("Conditions stockage"), required=False)
+    receive_now = forms.BooleanField(label=_("Réceptionner maintenant"), required=False)
 
 
 class ScanPackForm(forms.Form):

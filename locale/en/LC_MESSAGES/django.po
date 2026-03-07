@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-07 13:49+0100\n"
+"POT-Creation-Date: 2026-03-07 14:31+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -49,7 +49,7 @@ msgstr "Main information"
 
 #: templates/portal/account.html:30
 #: templates/scan/public_account_request.html:70
-#: templates/scan/public_order.html:65
+#: templates/scan/public_order.html:65 wms/forms.py:284
 msgid "Association"
 msgstr "Association"
 
@@ -98,7 +98,9 @@ msgstr "Email contacts"
 msgid ""
 "1 ligne = 1 contact. Maximum %(max_portal_contacts)s lignes. Cochez au moins "
 "un type par ligne."
-msgstr "1 line = 1 contact. Maximum %(max_portal_contacts)s lines. Check at least one type per line."
+msgstr ""
+"1 line = 1 contact. Maximum %(max_portal_contacts)s lines. Check at least "
+"one type per line."
 
 #: templates/portal/account.html:124
 msgid "Titre"
@@ -119,7 +121,7 @@ msgid "Mail"
 msgstr "Email"
 
 #: templates/portal/account.html:129 templates/portal/account.html:188
-#: templates/portal/order_detail.html:62
+#: templates/portal/order_detail.html:62 templates/scan/receive.html:110
 msgid "Type"
 msgstr ""
 
@@ -150,6 +152,7 @@ msgstr "Verification documents"
 
 #: templates/portal/account.html:189 templates/portal/dashboard.html:19
 #: templates/portal/order_detail.html:18 templates/portal/order_detail.html:63
+#: templates/scan/receive.html:114 templates/scan/receive.html:234
 msgid "Statut"
 msgstr "Status"
 
@@ -203,6 +206,31 @@ msgstr "Recipients"
 msgid "Déconnexion"
 msgstr "Log out"
 
+#: templates/portal/change_password.html:4
+#: templates/portal/change_password.html:8
+msgid "Changer le mot de passe"
+msgstr "Change password"
+
+#: templates/portal/change_password.html:9
+msgid "Veuillez definir un nouveau mot de passe pour continuer."
+msgstr "Please set a new password to continue."
+
+#: templates/portal/change_password.html:16 templates/portal/login.html:61
+#: templates/portal/set_password.html:43
+#: templates/scan/public_account_request.html:196
+msgid "Mot de passe"
+msgstr "Password"
+
+#: templates/portal/change_password.html:23
+#: templates/portal/set_password.html:50
+msgid "Confirmer"
+msgstr "Confirm"
+
+#: templates/portal/change_password.html:29
+#: templates/portal/recipients.html:162 templates/portal/set_password.html:56
+msgid "Enregistrer"
+msgstr "Save"
+
 #: templates/portal/dashboard.html:4 templates/portal/dashboard.html:8
 msgid "Mes commandes"
 msgstr "My orders"
@@ -211,7 +239,7 @@ msgstr "My orders"
 msgid "Historique des commandes associées à votre compte."
 msgstr "History of orders linked to your account."
 
-#: templates/portal/dashboard.html:18
+#: templates/portal/dashboard.html:18 templates/scan/receive.html:106
 msgid "Référence"
 msgstr "Reference"
 
@@ -279,11 +307,6 @@ msgstr ""
 msgid "Demander un compte"
 msgstr "Request an account"
 
-#: templates/portal/login.html:61 templates/portal/set_password.html:43
-#: templates/scan/public_account_request.html:196
-msgid "Mot de passe"
-msgstr "Password"
-
 #: templates/portal/login.html:65 wms/views_portal_auth.py:41
 #: wms/views_portal_auth.py:42
 msgid "Mot de passe oublié / Première connexion"
@@ -317,7 +340,7 @@ msgstr ""
 
 #: templates/portal/order_create.html:55
 #: templates/scan/public_account_request.html:160
-#: templates/scan/public_order.html:108
+#: templates/scan/public_order.html:108 wms/forms.py:200
 msgid "Notes"
 msgstr "Notes"
 
@@ -347,7 +370,7 @@ msgstr "Available parcels"
 
 #: templates/portal/order_create.html:84 templates/portal/order_create.html:136
 #: templates/portal/order_create.html:192 templates/portal/order_detail.html:34
-#: templates/scan/public_order.html:126
+#: templates/scan/public_order.html:126 templates/scan/receive.html:229
 msgid "Produit"
 msgstr "Product"
 
@@ -358,6 +381,8 @@ msgstr "Stock"
 
 #: templates/portal/order_create.html:86 templates/portal/order_create.html:138
 #: templates/portal/order_create.html:194 templates/portal/order_detail.html:35
+#: templates/scan/receive.html:230 templates/scan/receive_pallet.html:456
+#: wms/forms.py:310 wms/forms.py:348
 msgid "Quantité"
 msgstr "Quantity"
 
@@ -390,7 +415,9 @@ msgstr "Unit products"
 msgid ""
 "Les stock indiqués dans ce tableau sont fictifs. Cette fonctionnalité sera "
 "bientôt activée pour afficher les stocks réels."
-msgstr "The stock shown in this table is illustrative. This feature will be enabled soon to display actual stock."
+msgstr ""
+"The stock shown in this table is illustrative. This feature will be enabled "
+"soon to display actual stock."
 
 #: templates/portal/order_create.html:195
 msgid "Cartons estimés"
@@ -533,7 +560,9 @@ msgstr "Contact first name"
 msgid ""
 "Téléphone(s) (séparer par ; ou , et utiliser l'indicatif international, ex: "
 "+33102030405)"
-msgstr "Phone number(s) (separate with ; or , and use the international format, e.g. +33102030405)"
+msgstr ""
+"Phone number(s) (separate with ; or , and use the international format, e.g. "
+"+33102030405)"
 
 #: templates/portal/recipients.html:120
 msgid "Email(s) (séparer par ; ou ,)"
@@ -557,10 +586,6 @@ msgstr "Notify this contact about deliveries"
 msgid "Contact utilisé pour la réception dans l'escale de livraison"
 msgstr "Contact used for receiving at the delivery stopover"
 
-#: templates/portal/recipients.html:162 templates/portal/set_password.html:56
-msgid "Enregistrer"
-msgstr "Save"
-
 #: templates/portal/recipients.html:164
 msgid "Annuler"
 msgstr "Cancel"
@@ -569,15 +594,6 @@ msgstr "Cancel"
 msgid "Définir un mot de passe"
 msgstr "Set a password"
 
-#: templates/portal/change_password.html:4
-#: templates/portal/change_password.html:8
-msgid "Changer le mot de passe"
-msgstr "Change password"
-
-#: templates/portal/change_password.html:9
-msgid "Veuillez definir un nouveau mot de passe pour continuer."
-msgstr "Please set a new password to continue."
-
 #: templates/portal/set_password.html:31
 msgid "Choisissez un mot de passe pour acceder au portail."
 msgstr "Choose a password to access the portal."
@@ -585,10 +601,6 @@ msgstr "Choose a password to access the portal."
 #: templates/portal/set_password.html:37
 msgid "Lien invalide ou expire. Contactez ASF."
 msgstr "Invalid or expired link. Contact ASF."
-
-#: templates/portal/set_password.html:50
-msgid "Confirmer"
-msgstr "Confirm"
 
 #: templates/scan/public_account_request.html:7
 #: templates/scan/public_account_request.html:38
@@ -621,6 +633,7 @@ msgstr "WMS user"
 
 #: templates/scan/public_account_request.html:82
 #: templates/scan/public_order.html:67
+#: templates/scan/receive_association.html:42
 msgid "Nom de l'association"
 msgstr "Association name"
 
@@ -702,10 +715,529 @@ msgstr "Requested quantity"
 msgid "Total cartons estimes"
 msgstr "Estimated total parcels"
 
+#: templates/scan/receive.html:4
+msgid "Réception"
+msgstr "Receiving"
+
+#: templates/scan/receive.html:8
+msgid "Réception don/palette"
+msgstr "Donation/pallet receiving"
+
+#: templates/scan/receive.html:17
+msgid "Ajouter réception"
+msgstr "Add receipt"
+
+#: templates/scan/receive.html:24
+msgid "Ouvrir réception"
+msgstr "Open receipt"
+
+#: templates/scan/receive.html:45
+msgid "Ajouter provenance"
+msgstr "Add source"
+
+#: templates/scan/receive.html:55 templates/scan/receive_association.html:63
+#: templates/scan/receive_pallet.html:62 templates/scan/receive_pallet.html:132
+msgid "Ajouter transporteur"
+msgstr "Add carrier"
+
+#: templates/scan/receive.html:83
+msgid "Ajouter entrepôt"
+msgstr "Add warehouse"
+
+#: templates/scan/receive.html:96
+msgid "Créer réception"
+msgstr "Create receipt"
+
+#: templates/scan/receive.html:97
+msgid "Contacts gérés dans l'admin."
+msgstr "Contacts are managed in the admin."
+
+#: templates/scan/receive.html:103
+msgid "Réception active"
+msgstr "Active receipt"
+
+#: templates/scan/receive.html:120 templates/scan/receive_pallet.html:284
+#: templates/scan/receive_pallet.html:387 wms/forms.py:189 wms/forms.py:229
+#: wms/forms.py:267
+msgid "Date réception"
+msgstr "Reception date"
+
+#: templates/scan/receive.html:124 wms/forms.py:195
+msgid "Entrepôt"
+msgstr "Warehouse"
+
+#: templates/scan/receive.html:128 wms/forms.py:177
+msgid "Provenance"
+msgstr "Source"
+
+#: templates/scan/receive.html:132 templates/scan/receive_pallet.html:296
+#: templates/scan/receive_pallet.html:399 wms/forms.py:182 wms/forms.py:245
+#: wms/forms.py:289
+msgid "Transporteur"
+msgstr "Carrier"
+
+#: templates/scan/receive.html:139
+msgid "Ajouter une ligne"
+msgstr "Add line"
+
+#: templates/scan/receive.html:152
+msgid "Scan"
+msgstr "Scan"
+
+#: templates/scan/receive.html:158
+msgid "Ajouter un nouveau produit"
+msgstr "Add a new product"
+
+#: templates/scan/receive.html:190
+msgid "Ajouter emplacement"
+msgstr "Add location"
+
+#: templates/scan/receive.html:211
+msgid "Ajouter la ligne"
+msgstr "Add line"
+
+#: templates/scan/receive.html:212
+msgid "Astuce: le statut auto applique la quarantaine par défaut du produit."
+msgstr "Tip: auto status applies the product's default quarantine."
+
+#: templates/scan/receive.html:223
+msgid "Lignes de réception"
+msgstr "Receipt lines"
+
+#: templates/scan/receive.html:231 wms/forms.py:349
+msgid "Lot"
+msgstr "Lot"
+
+#: templates/scan/receive.html:232
+msgid "Péremption"
+msgstr "Expiry"
+
+#: templates/scan/receive.html:233 wms/forms.py:361
+msgid "Emplacement"
+msgstr "Location"
+
+#: templates/scan/receive.html:247
+msgid "Réceptionné"
+msgstr "Received"
+
+#: templates/scan/receive.html:249
+msgid "En attente"
+msgstr "Pending"
+
+#: templates/scan/receive.html:263
+#, python-format
+msgid "Réceptionner %(pending_count)s ligne(s)"
+msgstr "Receive %(pending_count)s line(s)"
+
+#: templates/scan/receive.html:268
+msgid "Aucune ligne pour cette réception."
+msgstr "No lines for this receipt yet."
+
+#: templates/scan/receive.html:273
+msgid "Aucune réception sélectionnée"
+msgstr "No receipt selected"
+
+#: templates/scan/receive.html:274
+msgid "Créez une réception ou sélectionnez-en une pour ajouter des lignes."
+msgstr "Create a receipt or select one to add lines."
+
+#: templates/scan/receive_association.html:4
+#: templates/scan/receive_association.html:10
+msgid "Réception association"
+msgstr "Association receiving"
+
+#: templates/scan/receive_association.html:7
+msgid "Hors format n°"
+msgstr "Out-of-format no."
+
+#: templates/scan/receive_association.html:8
+msgid "Description"
+msgstr "Description"
+
+#: templates/scan/receive_association.html:58
+msgid "Enregistrer la réception association"
+msgstr "Save association receiving"
+
+#: templates/scan/receive_association.html:60
+msgid "Ajouter association"
+msgstr "Add association"
+
+#: templates/scan/receive_association.html:69
+msgid "Hors format"
+msgstr "Out-of-format"
+
+#: templates/scan/receive_association.html:73
+#: templates/scan/receive_pallet.html:66
+msgid "La référence est générée automatiquement (format YY-XX-WWW-ZZ)."
+msgstr "The reference is generated automatically (format YY-XX-WWW-ZZ)."
+
+#: templates/scan/receive_pallet.html:4 templates/scan/receive_pallet.html:8
+msgid "Réception palette"
+msgstr "Pallet receiving"
+
+#: templates/scan/receive_pallet.html:57
+msgid "Enregistrer la réception palette"
+msgstr "Save pallet receiving"
+
+#: templates/scan/receive_pallet.html:59 templates/scan/receive_pallet.html:119
+msgid "Ajouter donateur"
+msgstr "Add donor"
+
+#: templates/scan/receive_pallet.html:70
+msgid "Upload listing"
+msgstr "Listing upload"
+
+#: templates/scan/receive_pallet.html:72
+msgid ""
+"Import CSV/XLS/XLSX ou PDF texte. Le mapping des colonnes est proposé "
+"ensuite.\n"
+"      Conseil: privilégier le format .xlsx (meilleure gestion des accents)."
+msgstr ""
+"Import CSV/XLS/XLSX or text PDF. Column mapping is proposed afterwards.\n"
+"      Tip: prefer the .xlsx format (better accent handling)."
+
+#: templates/scan/receive_pallet.html:75
+msgid "Les PDF scans (image) ne sont pas pris en charge pour le moment."
+msgstr "Scanned PDFs (images) are not supported yet."
+
+#: templates/scan/receive_pallet.html:142
+msgid "Fichier listing (CSV/XLS/XLSX/PDF)"
+msgstr "Listing file (CSV/XLS/XLSX/PDF)"
+
+#: templates/scan/receive_pallet.html:146
+msgid "Type de fichier"
+msgstr "File type"
+
+#: templates/scan/receive_pallet.html:186
+msgid "Sélectionner les pages du listing (PDF)"
+msgstr "Select listing pages (PDF)"
+
+#: templates/scan/receive_pallet.html:188
+#, python-format
+msgid "Pages totales: %(listing_pdf_total_pages)s"
+msgstr "Total pages: %(listing_pdf_total_pages)s"
+
+#: templates/scan/receive_pallet.html:200
+msgid "Toutes les pages"
+msgstr "All pages"
+
+#: templates/scan/receive_pallet.html:211
+msgid "Personnalisé"
+msgstr "Custom"
+
+#: templates/scan/receive_pallet.html:216
+msgid "Debut"
+msgstr "Start"
+
+#: templates/scan/receive_pallet.html:226
+msgid "Fin"
+msgstr "End"
+
+#: templates/scan/receive_pallet.html:237
+msgid "Si debut vide: page 1. Si fin vide: derniere page."
+msgstr "If start is empty: page 1. If end is empty: last page."
+
+#: templates/scan/receive_pallet.html:242
+msgid "Feuille Excel"
+msgstr "Excel sheet"
+
+#: templates/scan/receive_pallet.html:244
+msgid "Premiere feuille"
+msgstr "First sheet"
+
+#: templates/scan/receive_pallet.html:252
+#, python-format
+msgid "Feuilles detectees: %(listing_sheet_names|join:\", \")s"
+msgstr "Detected sheets: %(listing_sheet_names|join:\", \")s"
+
+#: templates/scan/receive_pallet.html:256
+msgid "Ligne des titres (Excel)"
+msgstr "Header row (Excel)"
+
+#: templates/scan/receive_pallet.html:269
+msgid "Analyser listing"
+msgstr "Analyze listing"
+
+#: templates/scan/receive_pallet.html:277
+msgid "Mapping colonnes"
+msgstr "Column mapping"
+
+#: templates/scan/receive_pallet.html:279
+msgid ""
+"Assignez les colonnes du fichier aux champs WMS. Champs requis: nom + "
+"quantité."
+msgstr "Assign file columns to WMS fields. Required fields: name + quantity."
+
+#: templates/scan/receive_pallet.html:288
+#: templates/scan/receive_pallet.html:391
+msgid "Palettes"
+msgstr "Pallets"
+
+#: templates/scan/receive_pallet.html:292
+#: templates/scan/receive_pallet.html:395 wms/forms.py:240 wms/forms.py:318
+msgid "Donateur"
+msgstr "Donor"
+
+#: templates/scan/receive_pallet.html:300
+#: templates/scan/receive_pallet.html:403
+msgid "Demande transport"
+msgstr "Transport request"
+
+#: templates/scan/receive_pallet.html:305
+#: templates/scan/receive_pallet.html:408
+msgid "Feuille"
+msgstr "Sheet"
+
+#: templates/scan/receive_pallet.html:311
+#: templates/scan/receive_pallet.html:414
+msgid "Ligne titres"
+msgstr "Header row"
+
+#: templates/scan/receive_pallet.html:317
+#: templates/scan/receive_pallet.html:420
+msgid "Feuilles detectees"
+msgstr "Detected sheets"
+
+#: templates/scan/receive_pallet.html:323
+#: templates/scan/receive_pallet.html:426
+msgid "Pages PDF"
+msgstr "PDF pages"
+
+#: templates/scan/receive_pallet.html:329
+#: templates/scan/receive_pallet.html:432
+msgid "Pages totales"
+msgstr "Total pages"
+
+#: templates/scan/receive_pallet.html:343
+msgid "Colonne"
+msgstr "Column"
+
+#: templates/scan/receive_pallet.html:344
+msgid "Exemple"
+msgstr "Example"
+
+#: templates/scan/receive_pallet.html:345
+msgid "Champ WMS"
+msgstr "WMS field"
+
+#: templates/scan/receive_pallet.html:355
+msgid "Ignorer"
+msgstr "Ignore"
+
+#: templates/scan/receive_pallet.html:367
+msgid "Valider mapping"
+msgstr "Confirm mapping"
+
+#: templates/scan/receive_pallet.html:373
+#: templates/scan/receive_pallet.html:573
+msgid "Annuler import"
+msgstr "Cancel import"
+
+#: templates/scan/receive_pallet.html:380
+msgid "Récap import listing"
+msgstr "Listing import summary"
+
+#: templates/scan/receive_pallet.html:382
+msgid ""
+"Vérifiez les correspondances. Si un produit existe, seules quantité et "
+"emplacement seront mis à jour."
+msgstr ""
+"Review the matches. If a product already exists, only quantity and location "
+"will be updated."
+
+#: templates/scan/receive_pallet.html:446
+msgid "Valider"
+msgstr "Validate"
+
+#: templates/scan/receive_pallet.html:447
+msgid "Match"
+msgstr "Match"
+
+#: templates/scan/receive_pallet.html:455
+msgid "Couleur rack"
+msgstr "Rack color"
+
+#: templates/scan/receive_pallet.html:468
+msgid "Nouveau produit"
+msgstr "New product"
+
+#: templates/scan/receive_pallet.html:504
+msgid "SKU / barcode / nom"
+msgstr "SKU / barcode / name"
+
+#: templates/scan/receive_pallet.html:525
+#, python-format
+msgid "Import: %(field.value)s"
+msgstr "Import: %(field.value)s"
+
+#: templates/scan/receive_pallet.html:539
+#, python-format
+msgid "BDD: %(location.existing)s"
+msgstr "DB: %(location.existing)s"
+
+#: templates/scan/receive_pallet.html:567
+msgid "Valider tous les imports coches"
+msgstr "Confirm all selected imports"
+
+#: wms/forms.py:63
+msgid "Laissez vide pour utiliser l'emplacement par défaut."
+msgstr "Leave blank to use the product's default location."
+
+#: wms/forms.py:74 wms/forms.py:357
+msgid "Auto"
+msgstr "Auto"
+
+#: wms/forms.py:91
+msgid "La quantité doit être non nulle."
+msgstr "Quantity must be non-zero."
+
+#: wms/forms.py:144
+msgid "Sélectionnez un carton existant ou indiquez un code, pas les deux."
+msgstr "Select an existing carton or provide a code, not both."
+
+#: wms/forms.py:152
+msgid "Réception existante"
+msgstr "Existing receipt"
+
+#: wms/forms.py:171
+msgid "Type réception"
+msgstr "Receipt type"
+
+#: wms/forms.py:186
+msgid "Référence provenance"
+msgstr "Source reference"
+
+#: wms/forms.py:187
+msgid "Référence transport"
+msgstr "Transport reference"
+
+#: wms/forms.py:208
+msgid "Type de réception requis."
+msgstr "Receipt type is required."
+
+#: wms/forms.py:212
+msgid "Provenance requise."
+msgstr "Source is required."
+
+#: wms/forms.py:214
+msgid "Transporteur requis."
+msgstr "Carrier is required."
+
+#: wms/forms.py:216
+msgid "Entrepôt requis."
+msgstr "Warehouse is required."
+
+#: wms/forms.py:235
+msgid "Nombre de palettes"
+msgstr "Number of pallets"
+
+#: wms/forms.py:250
+msgid "Date demande transport"
+msgstr "Transport request date"
+
+#: wms/forms.py:273
+msgid "Nombre de cartons"
+msgstr "Number of parcels"
+
+#: wms/forms.py:278
+msgid "Nombre de hors format"
+msgstr "Number of out-of-format items"
+
+#: wms/forms.py:306
+msgid "Nom du produit"
+msgstr "Product name"
+
+#: wms/forms.py:312 wms/forms.py:351
+msgid "Date péremption"
+msgstr "Expiry date"
+
+#: wms/forms.py:316
+msgid "Numéro de lot"
+msgstr "Lot number"
+
+#: wms/forms.py:337 wms/receipt_handlers.py:118
+msgid "Produit introuvable."
+msgstr "Product not found."
+
+#: wms/forms.py:345
+msgid "Code produit"
+msgstr "Product code"
+
+#: wms/forms.py:356
+msgid "Statut lot"
+msgstr "Lot status"
+
+#: wms/forms.py:365
+msgid "Conditions stockage"
+msgstr "Storage conditions"
+
+#: wms/forms.py:366
+msgid "Réceptionner maintenant"
+msgstr "Receive now"
+
 #: wms/portal_order_handlers.py:17 wms/portal_order_handlers.py:29
 #: wms/portal_order_handlers.py:31
 msgid "Colis prêt indisponible."
 msgstr "Ready parcel unavailable."
+
+#: wms/receipt_handlers.py:40
+msgid "Description requise."
+msgstr "Description is required."
+
+#: wms/receipt_handlers.py:43
+msgid "Renseignez les descriptions hors format."
+msgstr "Fill in the out-of-format descriptions."
+
+#: wms/receipt_handlers.py:47 wms/receipt_pallet_handlers.py:14
+msgid "Aucun entrepôt configuré."
+msgstr "No warehouse configured."
+
+#: wms/receipt_handlers.py:69
+#, python-format
+msgid "Réception association enregistrée (ref %(reference)s)."
+msgstr "Association receiving saved (ref %(reference)s)."
+
+#: wms/receipt_handlers.py:105
+#, python-format
+msgid "Réception créée: %(reference)s"
+msgstr "Receipt created: %(reference)s"
+
+#: wms/receipt_handlers.py:106
+#, python-format
+msgid "Réception %(id)s"
+msgstr "Receipt %(id)s"
+
+#: wms/receipt_handlers.py:112
+msgid "Sélectionnez une réception."
+msgstr "Select a receipt."
+
+#: wms/receipt_handlers.py:114
+msgid "Réception déjà clôturée."
+msgstr "Receipt already closed."
+
+#: wms/receipt_handlers.py:124
+msgid "Emplacement requis ou définir un emplacement par défaut."
+msgstr "Location is required, or define a default location."
+
+#: wms/receipt_handlers.py:144
+#, python-format
+msgid "Ligne réceptionnée: %(product)s (%(quantity)s)."
+msgstr "Line received: %(product)s (%(quantity)s)."
+
+#: wms/receipt_handlers.py:154
+#, python-format
+msgid "Ligne ajoutée: %(product)s (%(quantity)s)."
+msgstr "Line added: %(product)s (%(quantity)s)."
+
+#: wms/receipt_handlers.py:177
+#, python-format
+msgid "%(count)s ligne(s) réceptionnée(s)."
+msgstr "%(count)s line(s) received."
+
+#: wms/receipt_pallet_handlers.py:29
+#, python-format
+msgid "Réception palette enregistrée (ref %(reference)s)."
+msgstr "Pallet receiving saved (ref %(reference)s)."
 
 #: wms/views_portal_account.py:49
 msgid "Destinataire ajouté."
@@ -783,17 +1315,12 @@ msgstr "Maximum %(count)s contacts."
 msgid "Ajoutez au moins un contact email."
 msgstr "Add at least one email contact."
 
-#: wms/views_portal_account.py:284 wms/views_portal_account.py:523
-#: wms/views_portal_orders.py:414 wms/views_portal_orders.py:442
-msgid "Scan antivirus en cours."
-msgstr "Antivirus scan in progress."
-
 #: wms/views_portal_account.py:387
 #, python-format
 msgid "Ligne %(index)s: email requis."
 msgstr "Line %(index)s: email required."
 
-#: wms/views_portal_account.py:390
+#: wms/views_portal_account.py:389
 #, python-format
 msgid "Ligne %(index)s: cochez au moins un type."
 msgstr "Line %(index)s: check at least one type."
@@ -826,7 +1353,8 @@ msgstr "Password updated."
 msgid ""
 "Si votre email est reconnu, vous recevrez un lien pour definir votre mot de "
 "passe."
-msgstr "If your email is recognized, you will receive a link to set your password."
+msgstr ""
+"If your email is recognized, you will receive a link to set your password."
 
 #: wms/views_portal_auth.py:44
 msgid ""
@@ -883,12 +1411,24 @@ msgstr "Order sent."
 msgid "%(name)s (association)"
 msgstr "%(name)s (association)"
 
+#~ msgid "Scan antivirus en cours."
+#~ msgstr "Antivirus scan in progress."
 
-msgid "Compte bloqué: ajoutez au moins un destinataire avec la case \"Contact utilisé pour la réception dans l'escale de livraison\" cochée."
-msgstr "Account blocked: add at least one recipient with the \"Contact used for receiving at the delivery stopover\" option checked."
+#~ msgid ""
+#~ "Compte bloqué: ajoutez au moins un destinataire avec la case \"Contact "
+#~ "utilisé pour la réception dans l'escale de livraison\" cochée."
+#~ msgstr ""
+#~ "Account blocked: add at least one recipient with the \"Contact used for "
+#~ "receiving at the delivery stopover\" option checked."
 
-msgid "Compte expéditeur en cours de revue ASF. Accès commandes bloqué temporairement."
-msgstr "Shipper account under ASF review. Order access is temporarily blocked."
+#~ msgid ""
+#~ "Compte expéditeur en cours de revue ASF. Accès commandes bloqué "
+#~ "temporairement."
+#~ msgstr ""
+#~ "Shipper account under ASF review. Order access is temporarily blocked."
 
-msgid "Compte bloqué: documents expéditeur non conformes ou non validés par ASF."
-msgstr "Account blocked: shipper documents are not compliant or not approved by ASF."
+#~ msgid ""
+#~ "Compte bloqué: documents expéditeur non conformes ou non validés par ASF."
+#~ msgstr ""
+#~ "Account blocked: shipper documents are not compliant or not approved by "
+#~ "ASF."
