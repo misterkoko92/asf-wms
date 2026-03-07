@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from django.db import transaction
+from django.utils import timezone
 
 from .billing_calculations import build_billing_breakdown
 from .models import (
@@ -190,6 +191,99 @@ def create_billing_draft(
     return (
         BillingDocument.objects.select_related(
             "association_profile__contact", "computation_profile"
+        )
+        .prefetch_related("shipment_links__shipment", "receipt_links__receipt", "lines")
+        .get(pk=document.pk)
+    )
+
+
+def _formatted_decimal(value):
+    if value is None:
+        return None
+    return format(value, "f")
+
+
+def _resolved_billing_name(document):
+    billing_profile = document.association_profile.billing_profile
+    return (
+        billing_profile.billing_name_override or ""
+    ).strip() or document.association_profile.contact.name
+
+
+def _resolved_billing_address(document):
+    billing_profile = document.association_profile.billing_profile
+    override = (billing_profile.billing_address_override or "").strip()
+    if override:
+        return override
+    address = document.association_profile.contact.get_effective_address()
+    if address is None:
+        return ""
+    city_line = " ".join(part for part in [address.postal_code, address.city] if part).strip()
+    return "\n".join(
+        part
+        for part in [
+            address.address_line1,
+            address.address_line2,
+            city_line,
+            address.region,
+            address.country,
+        ]
+        if part
+    )
+
+
+def build_issued_document_snapshot(*, document):
+    lines = list(document.lines.order_by("line_number"))
+    total_amount = sum((line.total_amount for line in lines), Decimal("0.00"))
+    return {
+        "billing_name": _resolved_billing_name(document),
+        "billing_address": _resolved_billing_address(document),
+        "currency": document.currency,
+        "exchange_rate": _formatted_decimal(document.exchange_rate),
+        "total_amount": _formatted_decimal(total_amount),
+        "lines": [
+            {
+                "line_number": line.line_number,
+                "label": line.label,
+                "description": line.description,
+                "quantity": _formatted_decimal(line.quantity),
+                "unit_price": _formatted_decimal(line.unit_price),
+                "total_amount": _formatted_decimal(line.total_amount),
+            }
+            for line in lines
+        ],
+    }
+
+
+def issue_billing_document(*, document, invoice_number=None):
+    document = (
+        BillingDocument.objects.select_related(
+            "association_profile__contact",
+            "association_profile__billing_profile",
+            "computation_profile",
+        )
+        .prefetch_related("lines")
+        .get(pk=document.pk)
+    )
+    if document.kind == BillingDocumentKind.INVOICE:
+        resolved_invoice_number = (
+            invoice_number if invoice_number is not None else document.invoice_number
+        )
+        resolved_invoice_number = (resolved_invoice_number or "").strip()
+        if not resolved_invoice_number:
+            raise ValueError("Invoice number is required before issue.")
+        document.invoice_number = resolved_invoice_number
+
+    document.issued_snapshot = build_issued_document_snapshot(document=document)
+    document.status = BillingDocumentStatus.ISSUED
+    if document.issued_at is None:
+        document.issued_at = timezone.now()
+    document.save()
+    return (
+        BillingDocument.objects.select_related(
+            "association_profile__contact",
+            "association_profile__billing_profile",
+            "computation_profile",
         )
         .prefetch_related("shipment_links__shipment", "receipt_links__receipt", "lines")
         .get(pk=document.pk)

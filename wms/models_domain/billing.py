@@ -354,6 +354,7 @@ class BillingDocument(models.Model):
         blank=True,
         related_name="derived_documents",
     )
+    issued_snapshot = models.JSONField(default=dict, blank=True)
     issued_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

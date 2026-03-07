@@ -6,6 +6,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from contacts.models import Contact, ContactType
+from wms.billing_document_handlers import create_billing_draft
 from wms.billing_permissions import BILLING_STAFF_GROUP_NAME
 from wms.models import (
     AssociationProfile,
@@ -148,6 +149,42 @@ class ScanBillingViewTests(TestCase):
             ).exists()
         )
         self.assertContains(response, "EXP-SCAN-BILL-DRAFT")
+
+    def test_scan_billing_editor_post_issues_invoice_draft(self):
+        association_profile = self._create_association_profile(username="scan-billing-issue")
+        BillingComputationProfile.objects.create(
+            code="scan-billing-issue-default",
+            label="Scan Billing Issue Default",
+            is_default_for_shipment_only=True,
+        )
+        shipment = self._create_shipped_shipment(
+            association_profile=association_profile,
+            reference="EXP-SCAN-BILL-ISSUE",
+        )
+        draft_document = create_billing_draft(
+            association_profile=association_profile,
+            kind=BillingDocumentKind.INVOICE,
+            shipment_ids=[shipment.id],
+            created_by=self.billing_user,
+        )
+        self.client.force_login(self.billing_user)
+
+        response = self.client.post(
+            reverse("scan:scan_billing_editor"),
+            {
+                "action": "issue_document",
+                "association_profile": association_profile.id,
+                "kind": BillingDocumentKind.INVOICE,
+                "document_id": draft_document.id,
+                "invoice_number": "FAC-2026-123",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        draft_document.refresh_from_db()
+        self.assertEqual(draft_document.status, "issued")
+        self.assertEqual(draft_document.invoice_number, "FAC-2026-123")
+        self.assertContains(response, "FAC-2026-123")
 
     def test_scan_billing_routes_render_for_superuser(self):
         self.client.force_login(self.superuser)

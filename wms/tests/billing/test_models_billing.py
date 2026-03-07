@@ -34,16 +34,24 @@ class BillingModelTests(TestCase):
         )
         return AssociationProfile.objects.create(user=user, contact=contact)
 
-    def _create_receipt(self) -> Receipt:
+    def _create_receipt(self, *, association_profile: AssociationProfile | None = None) -> Receipt:
+        if association_profile is None:
+            association_profile = self._create_association_profile(username="billing-receipt")
         warehouse = Warehouse.objects.create(name="Warehouse Billing", code="WB")
         return Receipt.objects.create(
             receipt_type=ReceiptType.ASSOCIATION,
+            source_contact=association_profile.contact,
             warehouse=warehouse,
         )
 
-    def _create_shipment(self) -> Shipment:
+    def _create_shipment(
+        self, *, association_profile: AssociationProfile | None = None
+    ) -> Shipment:
+        if association_profile is None:
+            association_profile = self._create_association_profile(username="billing-shipment")
         return Shipment.objects.create(
-            shipper_name="Association Billing",
+            shipper_name=association_profile.contact.name,
+            shipper_contact_ref=association_profile.contact,
             recipient_name="Recipient Billing",
             destination_address="1 rue de la facturation",
         )
@@ -120,8 +128,9 @@ class BillingModelTests(TestCase):
         self.assertEqual(document.quote_number, f"{prefix}0006")
 
     def test_receipt_shipment_allocation_is_unique_per_pair(self):
-        receipt = self._create_receipt()
-        shipment = self._create_shipment()
+        association_profile = self._create_association_profile(username="billing-allocation")
+        receipt = self._create_receipt(association_profile=association_profile)
+        shipment = self._create_shipment(association_profile=association_profile)
         ReceiptShipmentAllocation.objects.create(
             receipt=receipt,
             shipment=shipment,

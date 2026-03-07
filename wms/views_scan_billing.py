@@ -3,7 +3,11 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_http_methods
 
-from .billing_document_handlers import build_editor_candidates, create_billing_draft
+from .billing_document_handlers import (
+    build_editor_candidates,
+    create_billing_draft,
+    issue_billing_document,
+)
 from .billing_permissions import require_billing_staff_or_superuser
 from .forms_billing import (
     BillingAssociationPriceOverrideForm,
@@ -15,6 +19,7 @@ from .models import (
     AssociationProfile,
     BillingAssociationPriceOverride,
     BillingComputationProfile,
+    BillingDocument,
     BillingDocumentKind,
     BillingServiceCatalogItem,
     ShipmentUnitEquivalenceRule,
@@ -30,6 +35,7 @@ ACTION_SAVE_SERVICE = "save_service"
 ACTION_SAVE_OVERRIDE = "save_override"
 ACTION_SAVE_EQUIVALENCE_RULE = "save_equivalence_rule"
 ACTION_BUILD_DRAFT = "build_draft"
+ACTION_ISSUE_DOCUMENT = "issue_document"
 
 
 def _selected_instance_from_query(request, *, query_key, model):
@@ -323,6 +329,31 @@ def scan_billing_editor(request):
                     manual_lines=manual_lines,
                 )
                 messages.success(request, "Brouillon de facturation genere.")
+        elif action == ACTION_ISSUE_DOCUMENT:
+            document_id = (request.POST.get("document_id") or "").strip()
+            if not document_id:
+                messages.error(request, "Document a emettre introuvable.")
+            else:
+                draft_document = get_object_or_404(
+                    BillingDocument.objects.select_related("association_profile__contact"),
+                    pk=document_id,
+                )
+                association_profile = draft_document.association_profile
+                kind = draft_document.kind
+                try:
+                    draft_document = issue_billing_document(
+                        document=draft_document,
+                        invoice_number=request.POST.get("invoice_number"),
+                    )
+                except ValueError as exc:
+                    messages.error(request, str(exc))
+                else:
+                    messages.success(request, "Document de facturation emis.")
+                    candidate_rows = build_editor_candidates(
+                        association_profile=association_profile,
+                        kind=kind,
+                        period=period,
+                    )
 
     return render(
         request,

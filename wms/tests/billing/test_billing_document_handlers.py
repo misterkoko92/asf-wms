@@ -6,7 +6,11 @@ from django.test import TestCase
 from django.utils import timezone
 
 from contacts.models import Contact, ContactType
-from wms.billing_document_handlers import build_editor_candidates, create_billing_draft
+from wms.billing_document_handlers import (
+    build_editor_candidates,
+    create_billing_draft,
+    issue_billing_document,
+)
 from wms.models import (
     AssociationProfile,
     BillingComputationProfile,
@@ -200,3 +204,74 @@ class BillingDocumentHandlersTests(TestCase):
         self.assertEqual(document.kind, BillingDocumentKind.INVOICE)
         self.assertFalse(document.invoice_number)
         self.assertEqual(document.status, BillingDocumentStatus.DRAFT)
+
+    def test_issue_billing_document_requires_manual_invoice_number(self):
+        shipment = self._create_shipment(
+            association_profile=self.association_profile,
+            reference="EXP-BILL-05",
+            when=date(2026, 2, 6),
+        )
+        document = create_billing_draft(
+            association_profile=self.association_profile,
+            kind=BillingDocumentKind.INVOICE,
+            shipment_ids=[shipment.id],
+            created_by=self.user,
+        )
+
+        with self.assertRaisesMessage(ValueError, "Invoice number is required before issue."):
+            issue_billing_document(document=document)
+
+    def test_issue_billing_document_freezes_snapshot_for_issued_invoice(self):
+        shipment = self._create_shipment(
+            association_profile=self.association_profile,
+            reference="EXP-BILL-06",
+            when=date(2026, 2, 7),
+        )
+        billing_profile = self.association_profile.billing_profile
+        billing_profile.billing_name_override = "Association Billing Snapshot"
+        billing_profile.billing_address_override = "10 rue du Snapshot\n75001 Paris"
+        billing_profile.save(
+            update_fields=[
+                "billing_name_override",
+                "billing_address_override",
+                "updated_at",
+            ]
+        )
+        document = create_billing_draft(
+            association_profile=self.association_profile,
+            kind=BillingDocumentKind.INVOICE,
+            shipment_ids=[shipment.id],
+            created_by=self.user,
+        )
+        document.exchange_rate = Decimal("1.234500")
+        document.save(update_fields=["exchange_rate", "updated_at"])
+
+        issued_document = issue_billing_document(
+            document=document,
+            invoice_number="FAC-2026-001",
+        )
+
+        self.assertEqual(issued_document.status, BillingDocumentStatus.ISSUED)
+        self.assertEqual(issued_document.invoice_number, "FAC-2026-001")
+        self.assertIsNotNone(issued_document.issued_at)
+        self.assertEqual(
+            issued_document.issued_snapshot["billing_name"],
+            "Association Billing Snapshot",
+        )
+        self.assertEqual(
+            issued_document.issued_snapshot["billing_address"],
+            "10 rue du Snapshot\n75001 Paris",
+        )
+        self.assertEqual(issued_document.issued_snapshot["currency"], issued_document.currency)
+        self.assertEqual(
+            issued_document.issued_snapshot["exchange_rate"],
+            "1.234500",
+        )
+        self.assertEqual(
+            issued_document.issued_snapshot["total_amount"],
+            str(issued_document.lines.get().total_amount),
+        )
+        self.assertEqual(
+            issued_document.issued_snapshot["lines"][0]["label"],
+            issued_document.lines.get().label,
+        )

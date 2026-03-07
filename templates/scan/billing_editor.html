@@ -120,7 +120,15 @@
       <h3 class="ui-comp-title">Brouillon g&eacute;n&eacute;r&eacute;</h3>
       <p class="scan-help">
         Type: {{ draft_document.get_kind_display }} |
-        Num&eacute;ro: {% if draft_document.quote_number %}{{ draft_document.quote_number }}{% else %}-{% endif %} |
+        Statut: {{ draft_document.get_status_display }} |
+        Num&eacute;ro:
+        {% if draft_document.invoice_number %}
+          {{ draft_document.invoice_number }}
+        {% elif draft_document.quote_number %}
+          {{ draft_document.quote_number }}
+        {% else %}
+          -
+        {% endif %} |
         Devise: {{ draft_document.currency }}
       </p>
       {% if draft_document.lines.all %}
@@ -142,6 +150,36 @@
             {% endfor %}
           </tbody>
         </table>
+      {% endif %}
+
+      {% if draft_document.status == "draft" %}
+        <div class="scan-divider"></div>
+        <form method="post" class="scan-filters ui-comp-form">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="issue_document">
+          <input type="hidden" name="document_id" value="{{ draft_document.id }}">
+          <input type="hidden" name="association_profile" value="{% if selected_association_profile %}{{ selected_association_profile.id }}{% endif %}">
+          <input type="hidden" name="kind" value="{{ selected_kind }}">
+          <input type="hidden" name="period_start" value="{% if selected_period_start %}{{ selected_period_start|date:'Y-m-d' }}{% endif %}">
+          <input type="hidden" name="period_end" value="{% if selected_period_end %}{{ selected_period_end|date:'Y-m-d' }}{% endif %}">
+
+          {% if draft_document.kind == "invoice" %}
+            <div class="scan-field">
+              <label class="form-label" for="id_invoice_number">Num&eacute;ro de facture</label>
+              <input
+                id="id_invoice_number"
+                type="text"
+                name="invoice_number"
+                value="{% if draft_document.invoice_number %}{{ draft_document.invoice_number }}{% endif %}"
+                required
+              >
+            </div>
+          {% endif %}
+
+          <div class="scan-filter-actions">
+            <button type="submit" class="scan-submit btn btn-primary">Emettre le document</button>
+          </div>
+        </form>
       {% endif %}
     </div>
   {% endif %}
