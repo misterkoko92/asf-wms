@@ -1,5 +1,6 @@
 from django import forms
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from contacts.models import Contact, ContactType
 from contacts.tagging import normalize_tag_name
@@ -59,7 +60,7 @@ class ReceiveStockForm(forms.Form):
     location = forms.ModelChoiceField(
         queryset=Location.objects.all().order_by("warehouse__name", "zone", "aisle", "shelf"),
         required=False,
-        help_text="Laissez vide pour utiliser l'emplacement par défaut.",
+        help_text=_("Laissez vide pour utiliser l'emplacement par défaut."),
     )
     received_on = forms.DateField(
         required=False,
@@ -70,7 +71,7 @@ class ReceiveStockForm(forms.Form):
         required=False, widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")
     )
     status = forms.ChoiceField(
-        choices=[("", "Auto")] + _sorted_choices(ProductLotStatus.choices),
+        choices=[("", _("Auto"))] + _sorted_choices(ProductLotStatus.choices),
         required=False,
     )
     storage_conditions = forms.CharField(required=False)
@@ -87,7 +88,7 @@ class AdjustStockForm(forms.Form):
     def clean_quantity_delta(self):
         value = self.cleaned_data["quantity_delta"]
         if value == 0:
-            raise forms.ValidationError("La quantité doit être non nulle.")
+            raise forms.ValidationError(_("La quantité doit être non nulle."))
         return value
 
 
@@ -140,7 +141,7 @@ class PackCartonForm(forms.Form):
         carton_code = cleaned.get("carton_code")
         if carton and carton_code:
             raise forms.ValidationError(
-                "Sélectionnez un carton existant ou indiquez un code, pas les deux."
+                _("Sélectionnez un carton existant ou indiquez un code, pas les deux.")
             )
         return cleaned
 
@@ -148,7 +149,7 @@ class PackCartonForm(forms.Form):
 class ScanReceiptSelectForm(forms.Form):
     receipt = forms.ModelChoiceField(
         queryset=Receipt.objects.none(),
-        label="Réception existante",
+        label=_("Réception existante"),
     )
 
     def __init__(self, *args, receipts_qs=None, **kwargs):
@@ -167,48 +168,52 @@ class ScanReceiptSelectForm(forms.Form):
 
 class ScanReceiptCreateForm(forms.Form):
     receipt_type = forms.ChoiceField(
-        label="Type réception",
+        label=_("Type réception"),
         choices=_sorted_choices(ReceiptType.choices),
         required=False,
         initial=ReceiptType.DONATION,
     )
     source_contact = forms.ModelChoiceField(
-        label="Provenance",
+        label=_("Provenance"),
         queryset=Contact.objects.filter(is_active=True).order_by("name"),
         required=False,
     )
     carrier_contact = forms.ModelChoiceField(
-        label="Transporteur",
+        label=_("Transporteur"),
         queryset=Contact.objects.filter(is_active=True).order_by("name"),
         required=False,
     )
-    origin_reference = forms.CharField(label="Référence provenance", required=False)
-    carrier_reference = forms.CharField(label="Référence transport", required=False)
+    origin_reference = forms.CharField(label=_("Référence provenance"), required=False)
+    carrier_reference = forms.CharField(label=_("Référence transport"), required=False)
     received_on = forms.DateField(
-        label="Date réception",
+        label=_("Date réception"),
         required=False,
         widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
         initial=timezone.localdate,
     )
     warehouse = forms.ModelChoiceField(
-        label="Entrepôt",
+        label=_("Entrepôt"),
         queryset=Warehouse.objects.all().order_by("name"),
         required=False,
     )
-    notes = forms.CharField(label="Notes", required=False, widget=forms.Textarea(attrs={"rows": 3}))
+    notes = forms.CharField(
+        label=_("Notes"),
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 3}),
+    )
 
     def clean(self):
         cleaned = super().clean()
         if not cleaned.get("receipt_type"):
-            self.add_error("receipt_type", "Type de réception requis.")
+            self.add_error("receipt_type", _("Type de réception requis."))
         receipt_type = cleaned.get("receipt_type")
         if receipt_type in {ReceiptType.PALLET, ReceiptType.ASSOCIATION}:
             if not cleaned.get("source_contact"):
-                self.add_error("source_contact", "Provenance requise.")
+                self.add_error("source_contact", _("Provenance requise."))
         if receipt_type == ReceiptType.PALLET and not cleaned.get("carrier_contact"):
-            self.add_error("carrier_contact", "Transporteur requis.")
+            self.add_error("carrier_contact", _("Transporteur requis."))
         if not cleaned.get("warehouse"):
-            self.add_error("warehouse", "Entrepôt requis.")
+            self.add_error("warehouse", _("Entrepôt requis."))
         if not cleaned.get("received_on"):
             cleaned["received_on"] = timezone.localdate()
         return cleaned
@@ -221,28 +226,28 @@ class ScanReceiptCreateForm(forms.Form):
 
 class ScanReceiptPalletForm(forms.Form):
     received_on = forms.DateField(
-        label="Date réception",
+        label=_("Date réception"),
         required=True,
         widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
         initial=timezone.localdate,
     )
     pallet_count = forms.IntegerField(
-        label="Nombre de palettes",
+        label=_("Nombre de palettes"),
         min_value=1,
         widget=forms.NumberInput(attrs={"min": 1}),
     )
     source_contact = forms.ModelChoiceField(
-        label="Donateur",
+        label=_("Donateur"),
         queryset=Contact.objects.filter(is_active=True).order_by("name"),
         required=True,
     )
     carrier_contact = forms.ModelChoiceField(
-        label="Transporteur",
+        label=_("Transporteur"),
         queryset=Contact.objects.filter(is_active=True).order_by("name"),
         required=True,
     )
     transport_request_date = forms.DateField(
-        label="Date demande transport",
+        label=_("Date demande transport"),
         required=False,
         widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
     )
@@ -259,29 +264,29 @@ class ScanReceiptPalletForm(forms.Form):
 
 class ScanReceiptAssociationForm(forms.Form):
     received_on = forms.DateField(
-        label="Date réception",
+        label=_("Date réception"),
         required=True,
         widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
         initial=timezone.localdate,
     )
     carton_count = forms.IntegerField(
-        label="Nombre de cartons",
+        label=_("Nombre de cartons"),
         min_value=1,
         widget=forms.NumberInput(attrs={"min": 1}),
     )
     hors_format_count = forms.IntegerField(
-        label="Nombre de hors format",
+        label=_("Nombre de hors format"),
         min_value=0,
         required=False,
         widget=forms.NumberInput(attrs={"min": 0}),
     )
     source_contact = forms.ModelChoiceField(
-        label="Association",
+        label=_("Association"),
         queryset=Contact.objects.filter(is_active=True).order_by("name"),
         required=True,
     )
     carrier_contact = forms.ModelChoiceField(
-        label="Transporteur",
+        label=_("Transporteur"),
         queryset=Contact.objects.filter(is_active=True).order_by("name"),
         required=False,
     )
@@ -298,19 +303,19 @@ class ScanReceiptAssociationForm(forms.Form):
 
 class ScanStockUpdateForm(forms.Form):
     product_code = forms.CharField(
-        label="Nom du produit",
+        label=_("Nom du produit"),
         required=True,
         widget=forms.TextInput(attrs={"list": "product-options", "autocomplete": "off"}),
     )
-    quantity = forms.IntegerField(label="Quantité", min_value=1)
+    quantity = forms.IntegerField(label=_("Quantité"), min_value=1)
     expires_on = forms.DateField(
-        label="Date péremption",
+        label=_("Date péremption"),
         required=True,
         widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
     )
-    lot_code = forms.CharField(label="Numéro de lot", required=False)
+    lot_code = forms.CharField(label=_("Numéro de lot"), required=False)
     donor_contact = forms.ModelChoiceField(
-        label="Donateur",
+        label=_("Donateur"),
         queryset=Contact.objects.none(),
         required=False,
     )
@@ -329,7 +334,7 @@ class ScanStockUpdateForm(forms.Form):
         code = self.cleaned_data["product_code"]
         product = resolve_product(code)
         if not product:
-            raise forms.ValidationError("Produit introuvable.")
+            raise forms.ValidationError(_("Produit introuvable."))
         self.product = product
         return code
 
@@ -337,28 +342,28 @@ class ScanStockUpdateForm(forms.Form):
 class ScanReceiptLineForm(forms.Form):
     receipt_id = forms.IntegerField(widget=forms.HiddenInput, required=False)
     product_code = forms.CharField(
-        label="Code produit",
+        label=_("Code produit"),
         widget=forms.TextInput(attrs={"list": "product-options", "autocomplete": "off"}),
     )
-    quantity = forms.IntegerField(label="Quantité", min_value=1)
-    lot_code = forms.CharField(label="Lot", required=False)
+    quantity = forms.IntegerField(label=_("Quantité"), min_value=1)
+    lot_code = forms.CharField(label=_("Lot"), required=False)
     expires_on = forms.DateField(
-        label="Date péremption",
+        label=_("Date péremption"),
         required=False,
         widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
     )
     lot_status = forms.ChoiceField(
-        label="Statut lot",
-        choices=[("", "Auto")] + _sorted_choices(ProductLotStatus.choices),
+        label=_("Statut lot"),
+        choices=[("", _("Auto"))] + _sorted_choices(ProductLotStatus.choices),
         required=False,
     )
     location = forms.ModelChoiceField(
-        label="Emplacement",
+        label=_("Emplacement"),
         queryset=Location.objects.all().order_by("warehouse__name", "zone", "aisle", "shelf"),
         required=False,
     )
-    storage_conditions = forms.CharField(label="Conditions stockage", required=False)
-    receive_now = forms.BooleanField(label="Réceptionner maintenant", required=False)
+    storage_conditions = forms.CharField(label=_("Conditions stockage"), required=False)
+    receive_now = forms.BooleanField(label=_("Réceptionner maintenant"), required=False)
 
 
 class ScanPackForm(forms.Form):
@@ -406,23 +411,23 @@ class ScanOutForm(forms.Form):
 
 class ScanShipmentForm(forms.Form):
     destination = forms.ModelChoiceField(
-        label="Destination",
+        label=_("Destination"),
         queryset=Destination.objects.none(),
     )
     shipper_contact = forms.ModelChoiceField(
-        label="Expéditeur",
+        label=_("Expéditeur"),
         queryset=Contact.objects.none(),
     )
     recipient_contact = forms.ModelChoiceField(
-        label="Destinataire",
+        label=_("Destinataire"),
         queryset=Contact.objects.none(),
     )
     correspondent_contact = forms.ModelChoiceField(
-        label="Correspondant",
+        label=_("Correspondant"),
         queryset=Contact.objects.none(),
     )
     carton_count = forms.IntegerField(
-        label="Nombre de colis",
+        label=_("Nombre de colis"),
         min_value=1,
         initial=1,
         widget=forms.NumberInput(attrs={"min": 1}),
@@ -594,13 +599,13 @@ class ScanShipmentForm(forms.Form):
     def _invalid_destination_message(self, raw_value):
         destination_id = self._parse_pk(raw_value)
         if destination_id is None:
-            return "Destination invalide: valeur incorrecte."
+            return _("Destination invalide: valeur incorrecte.")
         destination = Destination.objects.filter(pk=destination_id).first()
         if destination is None:
-            return "Destination invalide: la destination n'existe plus."
+            return _("Destination invalide: la destination n'existe plus.")
         if not destination.is_active:
-            return "Destination invalide: la destination est inactive."
-        return "Destination invalide: ce choix n'est plus disponible."
+            return _("Destination invalide: la destination est inactive.")
+        return _("Destination invalide: ce choix n'est plus disponible.")
 
     def _invalid_contact_message(
         self,
@@ -612,25 +617,27 @@ class ScanShipmentForm(forms.Form):
         shipper_has_errors=False,
     ):
         prefix = {
-            "shipper_contact": "Expéditeur invalide",
-            "recipient_contact": "Destinataire invalide",
-            "correspondent_contact": "Correspondant invalide",
-        }.get(field_name, "Contact invalide")
+            "shipper_contact": _("Expéditeur invalide"),
+            "recipient_contact": _("Destinataire invalide"),
+            "correspondent_contact": _("Correspondant invalide"),
+        }.get(field_name, _("Contact invalide"))
 
         contact_id = self._parse_pk(raw_value)
         if contact_id is None:
-            return f"{prefix}: valeur incorrecte."
+            return _("%(prefix)s: valeur incorrecte.") % {"prefix": prefix}
 
         contact = self._resolve_contact_from_raw(raw_value)
         if contact is None:
-            return f"{prefix}: ce contact n'existe plus."
+            return _("%(prefix)s: ce contact n'existe plus.") % {"prefix": prefix}
         if not contact.is_active:
-            return f"{prefix}: ce contact est inactif."
+            return _("%(prefix)s: ce contact est inactif.") % {"prefix": prefix}
 
         if field_name in {"shipper_contact", "recipient_contact"} and (
             contact.contact_type == ContactType.PERSON and contact.organization_id is None
         ):
-            return f"{prefix}: ce contact est un particulier sans organisation."
+            return _("%(prefix)s: ce contact est un particulier sans organisation.") % {
+                "prefix": prefix
+            }
 
         expected_tags = {
             "shipper_contact": TAG_SHIPPER,
@@ -638,7 +645,7 @@ class ScanShipmentForm(forms.Form):
             "correspondent_contact": TAG_CORRESPONDENT,
         }.get(field_name)
         if expected_tags and not self._contact_matches_tag(contact, expected_tags):
-            return f"{prefix}: ce contact n'a pas le tag requis."
+            return _("%(prefix)s: ce contact n'a pas le tag requis.") % {"prefix": prefix}
 
         if (
             destination
@@ -646,18 +653,26 @@ class ScanShipmentForm(forms.Form):
                 Contact.objects.filter(pk=contact.pk), destination
             ).exists()
         ):
-            return f"{prefix}: ce contact n'est pas disponible pour la destination sélectionnée."
+            return _(
+                "%(prefix)s: ce contact n'est pas disponible pour la destination sélectionnée."
+            ) % {"prefix": prefix}
 
         if field_name == "recipient_contact":
             if shipper_has_errors:
-                return f"{prefix}: l'expéditeur sélectionné n'est pas valide."
+                return _("%(prefix)s: l'expéditeur sélectionné n'est pas valide.") % {
+                    "prefix": prefix
+                }
             if shipper is None:
-                return f"{prefix}: sélectionnez d'abord un expéditeur valide."
+                return _("%(prefix)s: sélectionnez d'abord un expéditeur valide.") % {
+                    "prefix": prefix
+                }
             if not filter_recipients_for_shipper(
                 Contact.objects.filter(pk=contact.pk),
                 shipper,
             ).exists():
-                return f"{prefix}: ce destinataire n'est pas lié à l'expéditeur sélectionné."
+                return _(
+                    "%(prefix)s: ce destinataire n'est pas lié à l'expéditeur sélectionné."
+                ) % {"prefix": prefix}
 
         if (
             field_name == "correspondent_contact"
@@ -665,9 +680,11 @@ class ScanShipmentForm(forms.Form):
             and destination.correspondent_contact_id
             and contact.id != destination.correspondent_contact_id
         ):
-            return f"{prefix}: ce correspondant n'est pas lié à la destination sélectionnée."
+            return _(
+                "%(prefix)s: ce correspondant n'est pas lié à la destination sélectionnée."
+            ) % {"prefix": prefix}
 
-        return f"{prefix}: ce choix n'est plus disponible."
+        return _("%(prefix)s: ce choix n'est plus disponible.") % {"prefix": prefix}
 
     def _apply_invalid_choice_messages(self, *, destination, shipper):
         if self._has_invalid_choice_error("destination"):
@@ -733,7 +750,7 @@ class ScanShipmentForm(forms.Form):
         ):
             self.add_error(
                 "shipper_contact",
-                "Contact non disponible pour cette destination.",
+                _("Contact non disponible pour cette destination."),
             )
         if (
             shipper
@@ -745,7 +762,7 @@ class ScanShipmentForm(forms.Form):
         ):
             self.add_error(
                 "recipient_contact",
-                "Destinataire non disponible pour cet expéditeur.",
+                _("Destinataire non disponible pour cet expéditeur."),
             )
         if (
             destination
@@ -757,7 +774,7 @@ class ScanShipmentForm(forms.Form):
         ):
             self.add_error(
                 "recipient_contact",
-                "Destinataire non disponible pour cette destination.",
+                _("Destinataire non disponible pour cette destination."),
             )
         if (
             destination
@@ -769,13 +786,13 @@ class ScanShipmentForm(forms.Form):
         ):
             self.add_error(
                 "correspondent_contact",
-                "Contact non disponible pour cette destination.",
+                _("Contact non disponible pour cette destination."),
             )
         if destination and destination.correspondent_contact_id:
             if correspondent and correspondent.id != destination.correspondent_contact_id:
                 self.add_error(
                     "correspondent_contact",
-                    "Correspondant non lie a la destination.",
+                    _("Correspondant non lie a la destination."),
                 )
 
         if is_org_roles_engine_enabled():
@@ -801,13 +818,13 @@ class ScanShipmentForm(forms.Form):
 
 class ShipmentTrackingForm(forms.Form):
     status = forms.ChoiceField(
-        label="Etape",
+        label=_("Etape"),
         choices=[],
     )
-    actor_name = forms.CharField(label="Nom", max_length=120)
-    actor_structure = forms.CharField(label="Structure", max_length=120)
+    actor_name = forms.CharField(label=_("Nom"), max_length=120)
+    actor_structure = forms.CharField(label=_("Structure"), max_length=120)
     comments = forms.CharField(
-        label="Commentaires",
+        label=_("Commentaires"),
         required=False,
         widget=forms.Textarea(attrs={"rows": 3}),
     )

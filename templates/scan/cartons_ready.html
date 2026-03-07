@@ -1,11 +1,12 @@
 {% extends "scan/base.html" %}
+{% load i18n %}
 
-{% block title %}WMS Scan - Vue Colis{% endblock %}
+{% block title %}WMS Scan - {% trans "Vue Colis" %}{% endblock %}
 
 {% block content %}
   <div class="scan-card card border-0 ui-comp-card">
     <h2 class="h4 mb-3 ui-comp-title d-flex align-items-center gap-2 flex-wrap">
-      <span>Vue Colis</span>
+      <span>{% trans "Vue Colis" %}</span>
       <span class="badge text-bg-light ui-comp-count-badge">{{ cartons|length }}</span>
     </h2>
     {% if cartons %}
@@ -13,13 +14,13 @@
         <table class="scan-table table table-sm table-hover" data-table-tools="1">
           <thead>
             <tr>
-              <th>Numero colis</th>
-              <th>Date cr&eacute;ation</th>
-              <th>Statut</th>
-              <th>N° expédition</th>
-              <th>Emplacement</th>
-              <th>Remplissage</th>
-              <th>Liste de colisage</th>
+              <th>{% trans "Numero colis" %}</th>
+              <th>{% trans "Date création" %}</th>
+              <th>{% trans "Statut" %}</th>
+              <th>{% trans "N° expédition" %}</th>
+              <th>{% trans "Emplacement" %}</th>
+              <th>{% trans "Remplissage" %}</th>
+              <th>{% trans "Liste de colisage" %}</th>
             </tr>
           </thead>
           <tbody>
@@ -52,7 +53,7 @@
                         {% csrf_token %}
                         <input type="hidden" name="action" value="mark_carton_labeled">
                         <input type="hidden" name="carton_id" value="{{ carton.id }}">
-                        <button type="submit" class="scan-scan-btn btn btn-success">Marquer étiqueté</button>
+                        <button type="submit" class="scan-scan-btn btn btn-success">{% trans "Marquer étiqueté" %}</button>
                       </form>
                     {% endif %}
                     {% if carton.can_mark_assigned %}
@@ -60,7 +61,7 @@
                         {% csrf_token %}
                         <input type="hidden" name="action" value="mark_carton_assigned">
                         <input type="hidden" name="carton_id" value="{{ carton.id }}">
-                        <button type="submit" class="scan-scan-btn btn btn-warning">Retirer étiquette</button>
+                        <button type="submit" class="scan-scan-btn btn btn-warning">{% trans "Retirer étiquette" %}</button>
                       </form>
                     {% endif %}
                   {% endif %}
@@ -68,14 +69,14 @@
                 <td>{{ carton.shipment_reference|default:"-" }}</td>
                 <td>{{ carton.location|default:"-" }}</td>
                 <td>
-                  <div><strong>Poids</strong> :
+                  <div><strong>{% trans "Poids" %}</strong> :
                     {% if carton.weight_kg is not None %}
                       {{ carton.weight_kg|floatformat:2 }} kg
                     {% else %}
                       -
                     {% endif %}
                   </div>
-                  <div><strong>Volume</strong> :
+                  <div><strong>{% trans "Volume" %}</strong> :
                     {% if carton.volume_percent is not None %}
                       {{ carton.volume_percent }}%
                     {% else %}
@@ -92,7 +93,7 @@
                     </div>
                     <div class="scan-field scan-field-gap scan-inline-actions ui-comp-actions">
                       <a class="scan-scan-btn btn btn-tertiary" href="{{ carton.packing_list_url }}" target="_blank" rel="noopener">
-                        Imprimer / télécharger
+                        {% trans "Imprimer / télécharger" %}
                       </a>
                       <a class="scan-scan-btn btn btn-tertiary" href="{{ carton.picking_url }}" target="_blank" rel="noopener">
                         Picking
@@ -108,7 +109,7 @@
         </table>
       </div>
     {% else %}
-      <p class="scan-help ui-comp-note">Aucun colis conditionné.</p>
+      <p class="scan-help ui-comp-note">{% trans "Aucun colis conditionné." %}</p>
     {% endif %}
   </div>
 {% endblock %}

@@ -1,12 +1,16 @@
 from types import SimpleNamespace
 from unittest import mock
 
+from django import forms
 from django.db import IntegrityError
 from django.test import RequestFactory, TestCase
+from django.utils.translation import override as override_language
 
-from wms.models import CartonStatus, ShipmentStatus
+from contacts.models import Contact, ContactType
+from wms.models import CartonStatus, Destination, ShipmentStatus
 from wms.scan_shipment_handlers import (
     _get_carton_count,
+    _handle_shipment_save_draft_post,
     handle_shipment_create_post,
     handle_shipment_edit_post,
 )
@@ -14,9 +18,11 @@ from wms.services import StockError
 
 
 class _FakeForm:
-    def __init__(self, *, valid, cleaned_data=None):
+    def __init__(self, *, valid, cleaned_data=None, data=None, fields=None):
         self._valid = valid
         self.cleaned_data = cleaned_data or {}
+        self.data = data or {}
+        self.fields = fields or {}
         self.errors = []
 
     def is_valid(self):
@@ -48,6 +54,53 @@ class ScanShipmentHandlersTests(TestCase):
             "recipient_contact": recipient,
             "correspondent_contact": correspondent,
         }
+
+    def test_handle_shipment_save_draft_translates_unavailable_correspondent_error(self):
+        linked_correspondent = Contact.objects.create(
+            name="Correspondent linked",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        destination = Destination.objects.create(
+            city="Paris",
+            iata_code="PAR",
+            country="France",
+            correspondent_contact=linked_correspondent,
+            is_active=True,
+        )
+        unavailable_correspondent = Contact.objects.create(
+            name="Correspondent unavailable",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        request = self._request(
+            {
+                "destination": str(destination.id),
+                "correspondent_contact": str(unavailable_correspondent.id),
+            }
+        )
+        form = _FakeForm(
+            valid=False,
+            data=request.POST,
+            fields={
+                "destination": forms.ModelChoiceField(
+                    queryset=Destination.objects.filter(pk=destination.pk)
+                ),
+                "correspondent_contact": forms.ModelChoiceField(
+                    queryset=Contact.objects.none(),
+                    required=False,
+                ),
+            },
+        )
+
+        with override_language("en"):
+            response = _handle_shipment_save_draft_post(request, form=form)
+
+        self.assertIsNone(response)
+        self.assertEqual(
+            form.errors,
+            [("correspondent_contact", "Contact unavailable for this destination.")],
+        )
 
     def test_get_carton_count_uses_form_when_valid(self):
         request = self._request({"carton_count": "10"})

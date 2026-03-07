@@ -5,7 +5,7 @@
 <html lang="{{ LANGUAGE_CODE|default:'fr' }}">
 <head>
   <meta charset="utf-8">
-  <title>Suivi exp&eacute;dition</title>
+  <title>{% trans "Suivi expédition" %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,6 +19,7 @@
   {% include "includes/design_vars_style.html" %}
 </head>
 <body{% if scan_bootstrap_enabled %} class="scan-bootstrap-enabled"{% endif %}>
+  {% trans "Document" as default_document_label %}
   <div class="scan-shell">
     <main class="scan-main">
       <div class="wms-language-switch-top">
@@ -33,7 +34,7 @@
       {% endif %}
 
       <div class="scan-card card border-0 ui-comp-card">
-        <h2 class="ui-comp-title">Suivi exp&eacute;dition {{ shipment.reference }}</h2>
+        <h2 class="ui-comp-title">{% blocktrans with reference=shipment.reference %}Suivi expédition {{ reference }}{% endblocktrans %}</h2>
 
         {% if show_back_to_list %}
           <div class="scan-field">
@@ -42,19 +43,19 @@
               class="scan-scan-btn btn btn-tertiary"
               href="{{ back_to_url }}"
             >
-              Revenir &agrave; la liste des exp&eacute;ditions
+              {% trans "Revenir à la liste des expéditions" %}
             </a>
           </div>
         {% endif %}
 
         <div class="scan-field">
-          <label class="form-label">Statut actuel</label>
+          <label class="form-label">{% trans "Statut actuel" %}</label>
           <div class="scan-help">
             <span class="{% status_pill_class shipment.status 'shipment' shipment.is_disputed %}">
               {{ shipment.get_status_display }}
             </span>
             {% if shipment.is_disputed %}
-              <span class="ui-comp-status-pill is-error">Litige en cours</span>
+              <span class="ui-comp-status-pill is-error">{% trans "Litige en cours" %}</span>
             {% endif %}
           </div>
           {% if can_manage_dispute %}
@@ -64,14 +65,14 @@
                   {% csrf_token %}
                   <input type="hidden" name="action" value="resolve_dispute">
                   <input type="hidden" name="return_to" value="{{ return_to }}">
-                  <button type="submit" class="scan-scan-btn btn btn-success">Résoudre litige et remettre Prêt</button>
+                  <button type="submit" class="scan-scan-btn btn btn-success">{% trans "Résoudre litige et remettre Prêt" %}</button>
                 </form>
               {% else %}
                 <form method="post" class="ui-comp-form">
                   {% csrf_token %}
                   <input type="hidden" name="action" value="set_disputed">
                   <input type="hidden" name="return_to" value="{{ return_to }}">
-                  <button type="submit" class="scan-scan-btn btn btn-warning">Déclarer litige</button>
+                  <button type="submit" class="scan-scan-btn btn btn-warning">{% trans "Déclarer litige" %}</button>
                 </form>
               {% endif %}
             </div>
@@ -79,7 +80,7 @@
         </div>
 
         <div class="scan-field">
-          <label class="form-label">Documents liés</label>
+          <label class="form-label">{% trans "Documents liés" %}</label>
           <div class="scan-docs">
             {% for doc in documents %}
               <a class="scan-scan-btn scan-doc-btn btn btn-tertiary" href="{{ doc.url }}" target="_blank" rel="noopener">
@@ -90,7 +91,7 @@
         </div>
 
         <div class="scan-field">
-          <label class="form-label">Liste colisage par carton</label>
+          <label class="form-label">{% trans "Liste colisage par carton" %}</label>
           {% if carton_docs %}
             <div class="scan-docs">
               {% for doc in carton_docs %}
@@ -100,30 +101,30 @@
               {% endfor %}
             </div>
           {% else %}
-            <div class="scan-help">Aucun colis associ&eacute;.</div>
+            <div class="scan-help">{% trans "Aucun colis associé." %}</div>
           {% endif %}
         </div>
 
         <div class="scan-field">
-          <label class="form-label">Documents additionnels</label>
+          <label class="form-label">{% trans "Documents additionnels" %}</label>
           {% if additional_docs %}
             <div class="scan-docs">
               {% for document in additional_docs %}
                 {% if document.file and document.scan_status == "clean" %}
                   <a class="scan-scan-btn scan-doc-btn btn btn-tertiary" href="{{ document.file.url }}" target="_blank" rel="noopener">
-                    {{ document.file.name|default:"Document" }}
+                    {{ document.file.name|default:default_document_label }}
                   </a>
                 {% elif document.scan_status == "infected" %}
-                  <span class="scan-help">Document bloque (fichier suspect).</span>
+                  <span class="scan-help">{% trans "Document bloque (fichier suspect)." %}</span>
                 {% elif document.file %}
-                  <span class="scan-help">Document en quarantaine (scan antivirus en cours).</span>
+                  <span class="scan-help">{% trans "Document en quarantaine (scan antivirus en cours)." %}</span>
                 {% else %}
-                  <span class="scan-help">Document indisponible (fichier manquant)</span>
+                  <span class="scan-help">{% trans "Document indisponible (fichier manquant)" %}</span>
                 {% endif %}
               {% endfor %}
             </div>
           {% else %}
-            <div class="scan-help">Aucun document additionnel.</div>
+            <div class="scan-help">{% trans "Aucun document additionnel." %}</div>
           {% endif %}
         </div>
 
@@ -132,10 +133,10 @@
         {% if can_update_tracking %}
           {% if shipment.is_disputed %}
             <div class="scan-help">
-              Suivi bloqué tant que le litige n'est pas résolu.
+              {% trans "Suivi bloqué tant que le litige n'est pas résolu." %}
             </div>
           {% else %}
-            <h3 class="ui-comp-title">Mettre &agrave; jour le suivi</h3>
+            <h3 class="ui-comp-title">{% trans "Mettre à jour le suivi" %}</h3>
             <form method="post" id="shipment-tracking-update-form" class="ui-comp-form">
               {% csrf_token %}
               <input type="hidden" name="return_to_list" value="0" id="id_return_to_list">
@@ -145,7 +146,7 @@
               {% endif %}
 
               <div class="scan-field">
-                <label class="form-label" for="id_status">Étape</label>
+                <label class="form-label" for="id_status">{% trans "Étape" %}</label>
                 {{ form.status }}
                 {% for error in form.status.errors %}
                   <div class="scan-message error">{{ error }}</div>
@@ -153,7 +154,7 @@
               </div>
 
               <div class="scan-field">
-                <label class="form-label" for="id_actor_name">Nom</label>
+                <label class="form-label" for="id_actor_name">{% trans "Nom" %}</label>
                 {{ form.actor_name }}
                 {% for error in form.actor_name.errors %}
                   <div class="scan-message error">{{ error }}</div>
@@ -161,7 +162,7 @@
               </div>
 
               <div class="scan-field">
-                <label class="form-label" for="id_actor_structure">Structure</label>
+                <label class="form-label" for="id_actor_structure">{% trans "Structure" %}</label>
                 {{ form.actor_structure }}
                 {% for error in form.actor_structure.errors %}
                   <div class="scan-message error">{{ error }}</div>
@@ -169,35 +170,35 @@
               </div>
 
               <div class="scan-field">
-                <label class="form-label" for="id_comments">Commentaires</label>
+                <label class="form-label" for="id_comments">{% trans "Commentaires" %}</label>
                 {{ form.comments }}
                 {% for error in form.comments.errors %}
                   <div class="scan-message error">{{ error }}</div>
                 {% endfor %}
               </div>
 
-              <button type="submit" class="scan-submit btn btn-primary">Enregistrer</button>
+              <button type="submit" class="scan-submit btn btn-primary">{% trans "Enregistrer" %}</button>
             </form>
           {% endif %}
         {% else %}
           <div class="scan-help">
-            Mise &agrave; jour du suivi indisponible sur ce lien legacy. Utilisez le QR code le plus r&eacute;cent.
+            {% trans "Mise à jour du suivi indisponible sur ce lien legacy. Utilisez le QR code le plus récent." %}
           </div>
         {% endif %}
 
         <hr class="scan-divider">
 
-        <h3 class="ui-comp-title">Historique</h3>
+        <h3 class="ui-comp-title">{% trans "Historique" %}</h3>
         {% if events %}
           <div class="scan-table-wrap">
             <table class="scan-table">
               <thead>
                 <tr>
-                  <th>Horodatage</th>
-                  <th>Étape</th>
-                  <th>Nom</th>
-                  <th>Structure</th>
-                  <th>Commentaires</th>
+                  <th>{% trans "Horodatage" %}</th>
+                  <th>{% trans "Étape" %}</th>
+                  <th>{% trans "Nom" %}</th>
+                  <th>{% trans "Structure" %}</th>
+                  <th>{% trans "Commentaires" %}</th>
                 </tr>
               </thead>
               <tbody>
@@ -218,7 +219,7 @@
             </table>
           </div>
         {% else %}
-          <div class="scan-help">Aucun suivi enregistré.</div>
+          <div class="scan-help">{% trans "Aucun suivi enregistré." %}</div>
         {% endif %}
       </div>
     </main>
@@ -232,10 +233,10 @@
     >
       <div class="scan-choice-modal" role="dialog" aria-modal="true" aria-labelledby="tracking-leave-title">
         <div class="scan-choice-header">
-          <strong id="tracking-leave-title">Modifications non sauvegardées</strong>
+          <strong id="tracking-leave-title">{% trans "Modifications non sauvegardées" %}</strong>
         </div>
         <div class="scan-choice-status">
-          Souhaitez-vous enregistrer les modifications en cours ?
+          {% trans "Souhaitez-vous enregistrer les modifications en cours ?" %}
         </div>
         <div class="scan-choice-actions">
           <button
@@ -243,14 +244,14 @@
             id="tracking-leave-save"
             class="scan-submit scan-submit-inline btn btn-primary"
           >
-            OUI
+            {% trans "OUI" %}
           </button>
           <button
             type="button"
             id="tracking-leave-discard"
             class="scan-scan-btn btn btn-tertiary"
           >
-            NON
+            {% trans "NON" %}
           </button>
         </div>
       </div>

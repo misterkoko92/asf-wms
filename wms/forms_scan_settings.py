@@ -1,5 +1,6 @@
 from django import forms
 from django.core.validators import MinValueValidator
+from django.utils.translation import gettext_lazy as _
 
 from .models import WmsRuntimeSettings
 
@@ -31,8 +32,8 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
     change_note = forms.CharField(
         required=False,
         max_length=255,
-        label="Commentaire operateur",
-        help_text="Obligatoire si vous modifiez au moins un parametre.",
+        label=_("Commentaire operateur"),
+        help_text=_("Obligatoire si vous modifiez au moins un parametre."),
         widget=forms.Textarea(attrs={"rows": 2}),
     )
 
@@ -52,30 +53,38 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
             "org_roles_engine_enabled",
         ]
         labels = {
-            "low_stock_threshold": "Seuil stock bas",
-            "tracking_alert_hours": "Alerte suivi (heures)",
-            "workflow_blockage_hours": "Blocage workflow (heures)",
-            "stale_drafts_age_days": "Ancienneté brouillons (jours)",
-            "email_queue_max_attempts": "Queue email: tentatives max",
-            "email_queue_retry_base_seconds": "Queue email: retry base (secondes)",
-            "email_queue_retry_max_seconds": "Queue email: retry max (secondes)",
-            "email_queue_processing_timeout_seconds": "Queue email: timeout processing (secondes)",
-            "org_roles_review_max_open_percent": "Migration roles org: max dossiers ouverts (%)",
-            "enable_shipment_track_legacy": "Activer la route legacy suivi expédition",
-            "org_roles_engine_enabled": "Activer le moteur organization roles",
+            "low_stock_threshold": _("Seuil stock bas"),
+            "tracking_alert_hours": _("Alerte suivi (heures)"),
+            "workflow_blockage_hours": _("Blocage workflow (heures)"),
+            "stale_drafts_age_days": _("Ancienneté brouillons (jours)"),
+            "email_queue_max_attempts": _("Queue email: tentatives max"),
+            "email_queue_retry_base_seconds": _("Queue email: retry base (secondes)"),
+            "email_queue_retry_max_seconds": _("Queue email: retry max (secondes)"),
+            "email_queue_processing_timeout_seconds": _(
+                "Queue email: timeout processing (secondes)"
+            ),
+            "org_roles_review_max_open_percent": _("Migration roles org: max dossiers ouverts (%)"),
+            "enable_shipment_track_legacy": _("Activer la route legacy suivi expédition"),
+            "org_roles_engine_enabled": _("Activer le moteur organization roles"),
         }
         help_texts = {
-            "low_stock_threshold": "Produit considéré en stock bas sous ce seuil.",
-            "tracking_alert_hours": "Déclenche les cartes d'alerte de suivi.",
-            "workflow_blockage_hours": "Ancienneté utilisée pour détecter les blocages.",
-            "stale_drafts_age_days": "Un brouillon temporaire plus ancien est archivable.",
-            "email_queue_max_attempts": "Nombre maximal de retries avant échec définitif.",
-            "email_queue_retry_base_seconds": "Délai de base du backoff exponentiel.",
-            "email_queue_retry_max_seconds": "Délai maximal du backoff exponentiel.",
-            "email_queue_processing_timeout_seconds": "Au-delà, un événement processing est considéré bloqué.",
-            "org_roles_review_max_open_percent": "Seuil max de dossiers destinataires en revue avant alerte/go-live.",
-            "enable_shipment_track_legacy": "Permet la route /scan/shipment/track/<reference>/.",
-            "org_roles_engine_enabled": "Bascule des résolveurs vers le nouveau modèle role-based.",
+            "low_stock_threshold": _("Produit considéré en stock bas sous ce seuil."),
+            "tracking_alert_hours": _("Déclenche les cartes d'alerte de suivi."),
+            "workflow_blockage_hours": _("Ancienneté utilisée pour détecter les blocages."),
+            "stale_drafts_age_days": _("Un brouillon temporaire plus ancien est archivable."),
+            "email_queue_max_attempts": _("Nombre maximal de retries avant échec définitif."),
+            "email_queue_retry_base_seconds": _("Délai de base du backoff exponentiel."),
+            "email_queue_retry_max_seconds": _("Délai maximal du backoff exponentiel."),
+            "email_queue_processing_timeout_seconds": _(
+                "Au-delà, un événement processing est considéré bloqué."
+            ),
+            "org_roles_review_max_open_percent": _(
+                "Seuil max de dossiers destinataires en revue avant alerte/go-live."
+            ),
+            "enable_shipment_track_legacy": _("Permet la route /scan/shipment/track/<reference>/."),
+            "org_roles_engine_enabled": _(
+                "Bascule des résolveurs vers le nouveau modèle role-based."
+            ),
         }
         widgets = {
             "low_stock_threshold": forms.NumberInput(attrs={"min": 1, "step": 1}),
@@ -99,7 +108,7 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
             field = self.fields[field_name]
             field.min_value = 1
             field.widget.attrs["min"] = 1
-            field.error_messages["min_value"] = "La valeur doit être supérieure ou égale à 1."
+            field.error_messages["min_value"] = _("La valeur doit être supérieure ou égale à 1.")
             field.validators = [
                 validator
                 for validator in field.validators
@@ -132,7 +141,7 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
         if retry_base is not None and retry_max is not None and retry_max < retry_base:
             self.add_error(
                 "email_queue_retry_max_seconds",
-                "Le retry max doit être supérieur ou égal au retry base.",
+                _("Le retry max doit être supérieur ou égal au retry base."),
             )
         if getattr(self.instance, "pk", None):
             action = (self.data.get("action") or "").strip().lower()
@@ -149,6 +158,6 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
             ):
                 self.add_error(
                     "change_note",
-                    "Ajoutez un commentaire operateur pour tracer ce changement.",
+                    _("Ajoutez un commentaire operateur pour tracer ce changement."),
                 )
         return cleaned_data

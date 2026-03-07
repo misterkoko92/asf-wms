@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.shortcuts import redirect
 from django.urls import reverse
+from django.utils.translation import gettext as _
 
 from .models import Destination, Order, OrderStatus
 from .organization_role_resolvers import (
@@ -50,9 +51,9 @@ def handle_order_action(
 
         if is_org_roles_engine_enabled():
             if shipper_contact is None:
-                create_form.add_error("shipper_contact", "Expediteur requis.")
+                create_form.add_error("shipper_contact", _("Expediteur requis."))
             if recipient_contact is None:
-                create_form.add_error("recipient_contact", "Destinataire requis.")
+                create_form.add_error("recipient_contact", _("Destinataire requis."))
 
             destination = None
             destination_city = (create_form.cleaned_data.get("destination_city") or "").strip()
@@ -70,7 +71,7 @@ def handle_order_action(
             if destination is None:
                 create_form.add_error(
                     "destination_city",
-                    "Escale invalide pour le mode organization roles.",
+                    _("Escale invalide pour le mode organization roles."),
                 )
 
             if not create_form.errors:
@@ -112,23 +113,27 @@ def handle_order_action(
         order_id = _object_id(order)
         messages.success(
             request,
-            f"Commande créée: {order.reference or f'Commande {order_id}'}",
+            _("Commande créée: %(reference)s")
+            % {
+                "reference": order.reference
+                or (_("Commande %(order_id)s") % {"order_id": order_id})
+            },
         )
         return redirect(f"{reverse('scan:scan_order')}?order={order_id}"), None, None
 
     if action == "add_line":
         if not selected_order:
-            line_form.add_error(None, "Sélectionnez une commande.")
+            line_form.add_error(None, _("Sélectionnez une commande."))
         elif selected_order.status in {OrderStatus.CANCELLED, OrderStatus.READY}:
-            line_form.add_error(None, "Commande annulée.")
+            line_form.add_error(None, _("Commande annulée."))
         elif selected_order.status == OrderStatus.PREPARING:
-            line_form.add_error(None, "Commande en préparation.")
+            line_form.add_error(None, _("Commande en préparation."))
         elif line_form.is_valid():
             product = resolve_product(line_form.cleaned_data["product_code"])
             if not product:
-                line_form.add_error("product_code", "Produit introuvable.")
+                line_form.add_error("product_code", _("Produit introuvable."))
             else:
-                line, _ = selected_order.lines.get_or_create(
+                line, _created = selected_order.lines.get_or_create(
                     product=product, defaults={"quantity": 0}
                 )
                 previous_qty = line.quantity
@@ -138,7 +143,11 @@ def handle_order_action(
                     reserve_stock_for_order(order=selected_order)
                     messages.success(
                         request,
-                        f"Ligne réservée: {product.name} ({line_form.cleaned_data['quantity']}).",
+                        _("Ligne réservée: %(product)s (%(quantity)s).")
+                        % {
+                            "product": product.name,
+                            "quantity": line_form.cleaned_data["quantity"],
+                        },
                     )
                 except StockError as exc:
                     line.quantity = previous_qty
@@ -158,7 +167,7 @@ def handle_order_action(
     if action == "prepare_order" and selected_order:
         try:
             prepare_order(user=request.user, order=selected_order)
-            messages.success(request, "Commande préparée.")
+            messages.success(request, _("Commande préparée."))
         except StockError as exc:
             messages.error(request, str(exc))
         return (

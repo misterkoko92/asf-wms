@@ -4,7 +4,7 @@
 <html lang="{{ LANGUAGE_CODE|default:'fr' }}">
 <head>
   <meta charset="utf-8">
-  <title>{{ page_title }}</title>
+  <title>{% translate page_title %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -27,9 +27,9 @@
         {% include "includes/language_switch.html" %}
       </div>
       <div class="scan-card card border-0 ui-comp-card">
-        <h2 class="ui-comp-title">{{ heading }}</h2>
-        <p class="scan-help">{{ lead }}</p>
-        <p class="scan-help"><a href="{% url 'portal:portal_login' %}">Retour a la connexion</a></p>
+        <h2 class="ui-comp-title">{% translate heading %}</h2>
+        <p class="scan-help">{% translate lead %}</p>
+        <p class="scan-help"><a href="{% url 'portal:portal_login' %}">{% trans "Retour a la connexion" %}</a></p>
       </div>
 
       <div class="scan-card card border-0 ui-comp-card">
@@ -50,7 +50,7 @@
             <label class="form-label" for="email">Email</label>
             <input class="form-control" type="email" id="email" name="email" value="{{ email|default:'' }}" required>
           </div>
-          <button type="submit" class="scan-submit btn btn-primary">{{ submit_label }}</button>
+          <button type="submit" class="scan-submit btn btn-primary">{% translate submit_label %}</button>
         </form>
       </div>
     </main>

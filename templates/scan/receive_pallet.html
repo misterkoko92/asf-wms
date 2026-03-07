@@ -1,10 +1,11 @@
 {% extends "scan/base.html" %}
+{% load i18n %}
 
-{% block title %}WMS Scan - R&eacute;ception palette{% endblock %}
+{% block title %}WMS Scan - {% trans "Réception palette" %}{% endblock %}
 
 {% block content %}
   <div class="scan-card card border-0 ui-comp-card">
-    <h2 class="ui-comp-title">R&eacute;ception palette</h2>
+    <h2 class="ui-comp-title">{% trans "Réception palette" %}</h2>
     {% if create_form.non_field_errors %}
       <div class="scan-message error">{{ create_form.non_field_errors }}</div>
     {% endif %}
@@ -13,7 +14,7 @@
       <input type="hidden" name="action" value="pallet_create">
 
       <div class="scan-field scan-receive-pallet-field col-12 col-md-6 col-lg-2">
-        <label class="form-label" for="{{ create_form.received_on.id_for_label }}">Date r&eacute;ception</label>
+        <label class="form-label" for="{{ create_form.received_on.id_for_label }}">{{ create_form.received_on.label }}</label>
         {{ create_form.received_on }}
         {% for error in create_form.received_on.errors %}
           <div class="scan-message error">{{ error }}</div>
@@ -21,7 +22,7 @@
       </div>
 
       <div class="scan-field scan-receive-pallet-field col-12 col-md-6 col-lg-2">
-        <label class="form-label" for="{{ create_form.pallet_count.id_for_label }}">Nombre de palettes</label>
+        <label class="form-label" for="{{ create_form.pallet_count.id_for_label }}">{{ create_form.pallet_count.label }}</label>
         {{ create_form.pallet_count }}
         {% for error in create_form.pallet_count.errors %}
           <div class="scan-message error">{{ error }}</div>
@@ -29,7 +30,7 @@
       </div>
 
       <div class="scan-field scan-receive-pallet-field col-12 col-md-6 col-lg-3">
-        <label class="form-label" for="{{ create_form.source_contact.id_for_label }}">Donateur</label>
+        <label class="form-label" for="{{ create_form.source_contact.id_for_label }}">{{ create_form.source_contact.label }}</label>
         {{ create_form.source_contact }}
         {% for error in create_form.source_contact.errors %}
           <div class="scan-message error">{{ error }}</div>
@@ -37,7 +38,7 @@
       </div>
 
       <div class="scan-field scan-receive-pallet-field col-12 col-md-6 col-lg-3">
-        <label class="form-label" for="{{ create_form.carrier_contact.id_for_label }}">Transporteur</label>
+        <label class="form-label" for="{{ create_form.carrier_contact.id_for_label }}">{{ create_form.carrier_contact.label }}</label>
         {{ create_form.carrier_contact }}
         {% for error in create_form.carrier_contact.errors %}
           <div class="scan-message error">{{ error }}</div>
@@ -45,7 +46,7 @@
       </div>
 
       <div class="scan-field scan-receive-pallet-field col-12 col-md-6 col-lg-2">
-        <label class="form-label" for="{{ create_form.transport_request_date.id_for_label }}">Date demande transport</label>
+        <label class="form-label" for="{{ create_form.transport_request_date.id_for_label }}">{{ create_form.transport_request_date.label }}</label>
         {{ create_form.transport_request_date }}
         {% for error in create_form.transport_request_date.errors %}
           <div class="scan-message error">{{ error }}</div>
@@ -53,25 +54,25 @@
       </div>
 
       <div class="scan-filter-actions scan-receive-pallet-actions-inline col-12 d-flex flex-wrap flex-lg-nowrap gap-2 align-items-center">
-        <button type="submit" class="scan-submit btn btn-primary">Enregistrer la r&eacute;ception palette</button>
+        <button type="submit" class="scan-submit btn btn-primary">{% trans "Enregistrer la réception palette" %}</button>
         <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
-          Ajouter donateur
+          {% trans "Ajouter donateur" %}
         </a>
         <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
-          Ajouter transporteur
+          {% trans "Ajouter transporteur" %}
         </a>
       </div>
     </form>
-    <p class="scan-help">La r&eacute;f&eacute;rence est g&eacute;n&eacute;r&eacute;e automatiquement (format YY-XX-WWW-ZZ).</p>
+    <p class="scan-help">{% trans "La référence est générée automatiquement (format YY-XX-WWW-ZZ)." %}</p>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
-    <h2 class="ui-comp-title">Upload listing</h2>
+    <h2 class="ui-comp-title">{% trans "Upload listing" %}</h2>
     <p class="scan-help">
-      Import CSV/XLS/XLSX ou PDF texte. Le mapping des colonnes est propos&eacute; ensuite.
-      Conseil: privil&eacute;gier le format .xlsx (meilleure gestion des accents).
+      {% blocktrans %}Import CSV/XLS/XLSX ou PDF texte. Le mapping des colonnes est proposé ensuite.
+      Conseil: privilégier le format .xlsx (meilleure gestion des accents).{% endblocktrans %}
     </p>
-    <p class="scan-help">Les PDF scans (image) ne sont pas pris en charge pour le moment.</p>
+    <p class="scan-help">{% trans "Les PDF scans (image) ne sont pas pris en charge pour le moment." %}</p>
     {% if listing_errors %}
       {% for error in listing_errors %}
         <div class="scan-message error">{{ error }}</div>
@@ -85,7 +86,7 @@
       <input type="hidden" name="action" value="listing_upload">
 
       <div class="scan-field">
-        <label class="form-label" for="{{ listing_form.received_on.id_for_label }}">Date r&eacute;ception</label>
+        <label class="form-label" for="{{ listing_form.received_on.id_for_label }}">{{ listing_form.received_on.label }}</label>
         {{ listing_form.received_on }}
         {% for error in listing_form.received_on.errors %}
           <div class="scan-message error">{{ error }}</div>
@@ -94,7 +95,7 @@
 
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
-          <label class="form-label" for="{{ listing_form.pallet_count.id_for_label }}">Nombre de palettes</label>
+          <label class="form-label" for="{{ listing_form.pallet_count.id_for_label }}">{{ listing_form.pallet_count.label }}</label>
           {{ listing_form.pallet_count }}
           {% for error in listing_form.pallet_count.errors %}
             <div class="scan-message error">{{ error }}</div>
@@ -102,7 +103,7 @@
         </div>
 
         <div class="scan-field">
-          <label class="form-label" for="{{ listing_form.transport_request_date.id_for_label }}">Date demande transport</label>
+          <label class="form-label" for="{{ listing_form.transport_request_date.id_for_label }}">{{ listing_form.transport_request_date.label }}</label>
           {{ listing_form.transport_request_date }}
           {% for error in listing_form.transport_request_date.errors %}
             <div class="scan-message error">{{ error }}</div>
@@ -111,11 +112,11 @@
       </div>
 
       <div class="scan-field">
-        <label class="form-label" for="{{ listing_form.source_contact.id_for_label }}">Donateur</label>
+        <label class="form-label" for="{{ listing_form.source_contact.id_for_label }}">{{ listing_form.source_contact.label }}</label>
         <div class="scan-inline">
           {{ listing_form.source_contact }}
           <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
-            Ajouter donateur
+            {% trans "Ajouter donateur" %}
           </a>
         </div>
         {% for error in listing_form.source_contact.errors %}
@@ -124,11 +125,11 @@
       </div>
 
       <div class="scan-field">
-        <label class="form-label" for="{{ listing_form.carrier_contact.id_for_label }}">Transporteur</label>
+        <label class="form-label" for="{{ listing_form.carrier_contact.id_for_label }}">{{ listing_form.carrier_contact.label }}</label>
         <div class="scan-inline">
           {{ listing_form.carrier_contact }}
           <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
-            Ajouter transporteur
+            {% trans "Ajouter transporteur" %}
           </a>
         </div>
         {% for error in listing_form.carrier_contact.errors %}
@@ -138,11 +139,11 @@
 
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
-          <label class="form-label" for="listing_file">Fichier listing (CSV/XLS/XLSX/PDF)</label>
+          <label class="form-label" for="listing_file">{% trans "Fichier listing (CSV/XLS/XLSX/PDF)" %}</label>
           <input type="file" id="listing_file" name="listing_file" accept=".csv,.xlsx,.xls,.pdf" required>
         </div>
         <div class="scan-field">
-          <label class="form-label">Type de fichier</label>
+          <label class="form-label">{% trans "Type de fichier" %}</label>
           <div class="scan-radio-inline-group">
             <div class="form-check form-check-inline">
               <input
@@ -182,9 +183,9 @@
       </div>
 
       <div class="scan-field" data-file-options="pdf">
-        <label class="form-label">S&eacute;lectionner les pages du listing (PDF)</label>
+        <label class="form-label">{% trans "Sélectionner les pages du listing (PDF)" %}</label>
         {% if listing_pdf_total_pages %}
-          <div class="scan-help">Pages totales: {{ listing_pdf_total_pages }}</div>
+          <div class="scan-help">{% blocktrans %}Pages totales: {{ listing_pdf_total_pages }}{% endblocktrans %}</div>
         {% endif %}
         <div class="scan-radio-inline-group">
           <div class="form-check form-check-inline">
@@ -196,7 +197,7 @@
               class="form-check-input"
               {% if listing_pdf_pages_mode != "custom" %}checked{% endif %}
             >
-            <label class="form-check-label" for="id_listing_pdf_pages_mode_all">Toutes les pages</label>
+            <label class="form-check-label" for="id_listing_pdf_pages_mode_all">{% trans "Toutes les pages" %}</label>
           </div>
           <div class="form-check form-check-inline">
             <input
@@ -207,12 +208,12 @@
               class="form-check-input"
               {% if listing_pdf_pages_mode == "custom" %}checked{% endif %}
             >
-            <label class="form-check-label" for="id_listing_pdf_pages_mode_custom">Personnalisé</label>
+            <label class="form-check-label" for="id_listing_pdf_pages_mode_custom">{% trans "Personnalisé" %}</label>
           </div>
         </div>
         <div class="scan-inline scan-inline-equal scan-inline-gap">
           <div>
-            <label class="form-label" for="listing_pdf_page_start">Debut</label>
+            <label class="form-label" for="listing_pdf_page_start">{% trans "Debut" %}</label>
             <input
               type="number"
               id="listing_pdf_page_start"
@@ -222,7 +223,7 @@
             >
           </div>
           <div>
-            <label class="form-label" for="listing_pdf_page_end">Fin</label>
+            <label class="form-label" for="listing_pdf_page_end">{% trans "Fin" %}</label>
             <input
               type="number"
               id="listing_pdf_page_end"
@@ -233,14 +234,14 @@
           </div>
         </div>
         <div class="scan-help">
-          Si debut vide: page 1. Si fin vide: derniere page.
+          {% trans "Si debut vide: page 1. Si fin vide: derniere page." %}
         </div>
       </div>
 
       <div class="scan-field" data-file-options="excel">
-        <label class="form-label" for="listing_sheet_name">Feuille Excel</label>
+        <label class="form-label" for="listing_sheet_name">{% trans "Feuille Excel" %}</label>
         <select id="listing_sheet_name" name="listing_sheet_name">
-          <option value="">Premiere feuille</option>
+          <option value="">{% trans "Premiere feuille" %}</option>
           {% for sheet in listing_sheet_names %}
             <option value="{{ sheet }}" {% if sheet == listing_sheet_name %}selected{% endif %}>
               {{ sheet }}
@@ -248,11 +249,11 @@
           {% endfor %}
         </select>
         {% if listing_sheet_names %}
-          <div class="scan-help">Feuilles detectees: {{ listing_sheet_names|join:", " }}</div>
+          <div class="scan-help">{% blocktrans %}Feuilles detectees: {{ listing_sheet_names|join:", " }}{% endblocktrans %}</div>
         {% endif %}
         <div class="scan-inline scan-inline-equal scan-inline-gap">
           <div>
-            <label class="form-label" for="listing_header_row">Ligne des titres (Excel)</label>
+            <label class="form-label" for="listing_header_row">{% trans "Ligne des titres (Excel)" %}</label>
             <input
               type="number"
               id="listing_header_row"
@@ -265,7 +266,7 @@
       </div>
 
       <div class="scan-field scan-field-gap">
-        <button type="submit" class="scan-submit secondary btn btn-secondary">Analyser listing</button>
+        <button type="submit" class="scan-submit secondary btn btn-secondary">{% trans "Analyser listing" %}</button>
       </div>
 
     </form>
@@ -273,59 +274,59 @@
 
   {% if listing_stage == "mapping" %}
     <div class="scan-card card border-0 ui-comp-card">
-      <h2 class="ui-comp-title">Mapping colonnes</h2>
+      <h2 class="ui-comp-title">{% trans "Mapping colonnes" %}</h2>
       <p class="scan-help">
-        Assignez les colonnes du fichier aux champs WMS. Champs requis: nom + quantit&eacute;.
+        {% trans "Assignez les colonnes du fichier aux champs WMS. Champs requis: nom + quantité." %}
       </p>
       {% if listing_meta %}
         <div class="scan-meta-grid">
           <div class="scan-meta-item">
-            <strong>Date r&eacute;ception</strong>
+            <strong>{% trans "Date réception" %}</strong>
             {{ listing_meta.received_on }}
           </div>
           <div class="scan-meta-item">
-            <strong>Palettes</strong>
+            <strong>{% trans "Palettes" %}</strong>
             {{ listing_meta.pallet_count }}
           </div>
           <div class="scan-meta-item">
-            <strong>Donateur</strong>
+            <strong>{% trans "Donateur" %}</strong>
             {{ listing_meta.source_contact }}
           </div>
           <div class="scan-meta-item">
-            <strong>Transporteur</strong>
+            <strong>{% trans "Transporteur" %}</strong>
             {{ listing_meta.carrier_contact }}
           </div>
           <div class="scan-meta-item">
-            <strong>Demande transport</strong>
+            <strong>{% trans "Demande transport" %}</strong>
             {{ listing_meta.transport_request_date }}
           </div>
           {% if listing_meta.sheet_name %}
             <div class="scan-meta-item">
-              <strong>Feuille</strong>
+              <strong>{% trans "Feuille" %}</strong>
               {{ listing_meta.sheet_name }}
             </div>
           {% endif %}
           {% if listing_meta.header_row %}
             <div class="scan-meta-item">
-              <strong>Ligne titres</strong>
+              <strong>{% trans "Ligne titres" %}</strong>
               {{ listing_meta.header_row }}
             </div>
           {% endif %}
           {% if listing_meta.sheet_names %}
             <div class="scan-meta-item">
-              <strong>Feuilles detectees</strong>
+              <strong>{% trans "Feuilles detectees" %}</strong>
               {{ listing_meta.sheet_names }}
             </div>
           {% endif %}
           {% if listing_meta.pdf_pages %}
             <div class="scan-meta-item">
-              <strong>Pages PDF</strong>
+              <strong>{% trans "Pages PDF" %}</strong>
               {{ listing_meta.pdf_pages }}
             </div>
           {% endif %}
           {% if listing_meta.pdf_total_pages %}
             <div class="scan-meta-item">
-              <strong>Pages totales</strong>
+              <strong>{% trans "Pages totales" %}</strong>
               {{ listing_meta.pdf_total_pages }}
             </div>
           {% endif %}
@@ -339,9 +340,9 @@
           <table class="scan-table" style="width: 100%">
             <thead>
               <tr>
-                <th>Colonne</th>
-                <th>Exemple</th>
-                <th>Champ WMS</th>
+                <th>{% trans "Colonne" %}</th>
+                <th>{% trans "Exemple" %}</th>
+                <th>{% trans "Champ WMS" %}</th>
               </tr>
             </thead>
             <tbody>
@@ -351,7 +352,7 @@
                   <td>{{ column.sample }}</td>
                   <td>
                     <select name="map_{{ column.index }}">
-                      <option value="">Ignorer</option>
+                      <option value="">{% trans "Ignorer" %}</option>
                       {% for value, label in mapping_fields %}
                         <option value="{{ value }}" {% if column.mapped == value %}selected{% endif %}>{{ label }}</option>
                       {% endfor %}
@@ -363,72 +364,72 @@
           </table>
         </div>
         <div class="scan-filter-actions">
-          <button type="submit" class="scan-submit btn btn-primary">Valider mapping</button>
+          <button type="submit" class="scan-submit btn btn-primary">{% trans "Valider mapping" %}</button>
         </div>
       </form>
       <form method="post" class="scan-filters ui-comp-form">
         {% csrf_token %}
         <input type="hidden" name="action" value="listing_cancel">
-        <button type="submit" class="scan-submit secondary btn btn-secondary">Annuler import</button>
+        <button type="submit" class="scan-submit secondary btn btn-secondary">{% trans "Annuler import" %}</button>
       </form>
     </div>
   {% endif %}
 
   {% if listing_stage == "review" %}
     <div class="scan-card card border-0 ui-comp-card">
-      <h2 class="ui-comp-title">R&eacute;cap import listing</h2>
+      <h2 class="ui-comp-title">{% trans "Récap import listing" %}</h2>
       <p class="scan-help">
-        V&eacute;rifiez les correspondances. Si un produit existe, seules quantit&eacute; et emplacement seront mis &agrave; jour.
+        {% trans "Vérifiez les correspondances. Si un produit existe, seules quantité et emplacement seront mis à jour." %}
       </p>
       {% if listing_meta %}
         <div class="scan-meta-grid">
           <div class="scan-meta-item">
-            <strong>Date r&eacute;ception</strong>
+            <strong>{% trans "Date réception" %}</strong>
             {{ listing_meta.received_on }}
           </div>
           <div class="scan-meta-item">
-            <strong>Palettes</strong>
+            <strong>{% trans "Palettes" %}</strong>
             {{ listing_meta.pallet_count }}
           </div>
           <div class="scan-meta-item">
-            <strong>Donateur</strong>
+            <strong>{% trans "Donateur" %}</strong>
             {{ listing_meta.source_contact }}
           </div>
           <div class="scan-meta-item">
-            <strong>Transporteur</strong>
+            <strong>{% trans "Transporteur" %}</strong>
             {{ listing_meta.carrier_contact }}
           </div>
           <div class="scan-meta-item">
-            <strong>Demande transport</strong>
+            <strong>{% trans "Demande transport" %}</strong>
             {{ listing_meta.transport_request_date }}
           </div>
           {% if listing_meta.sheet_name %}
             <div class="scan-meta-item">
-              <strong>Feuille</strong>
+              <strong>{% trans "Feuille" %}</strong>
               {{ listing_meta.sheet_name }}
             </div>
           {% endif %}
           {% if listing_meta.header_row %}
             <div class="scan-meta-item">
-              <strong>Ligne titres</strong>
+              <strong>{% trans "Ligne titres" %}</strong>
               {{ listing_meta.header_row }}
             </div>
           {% endif %}
           {% if listing_meta.sheet_names %}
             <div class="scan-meta-item">
-              <strong>Feuilles detectees</strong>
+              <strong>{% trans "Feuilles detectees" %}</strong>
               {{ listing_meta.sheet_names }}
             </div>
           {% endif %}
           {% if listing_meta.pdf_pages %}
             <div class="scan-meta-item">
-              <strong>Pages PDF</strong>
+              <strong>{% trans "Pages PDF" %}</strong>
               {{ listing_meta.pdf_pages }}
             </div>
           {% endif %}
           {% if listing_meta.pdf_total_pages %}
             <div class="scan-meta-item">
-              <strong>Pages totales</strong>
+              <strong>{% trans "Pages totales" %}</strong>
               {{ listing_meta.pdf_total_pages }}
             </div>
           {% endif %}
@@ -442,8 +443,8 @@
           <table class="scan-table table table-sm table-hover">
             <thead>
               <tr>
-                <th>Valider</th>
-                <th>Match</th>
+                <th>{% trans "Valider" %}</th>
+                <th>{% trans "Match" %}</th>
                 <th>SKU</th>
                 {% for field in review_fields %}
                   <th>{{ field.1 }}</th>
@@ -451,8 +452,8 @@
                 {% for location in location_fields %}
                   <th>{{ location.1 }}</th>
                 {% endfor %}
-                <th>Couleur rack</th>
-                <th>Quantit&eacute;</th>
+                <th>{% trans "Couleur rack" %}</th>
+                <th>{% trans "Quantité" %}</th>
               </tr>
             </thead>
             <tbody>
@@ -464,7 +465,7 @@
                   <td>
                     <div><strong>{{ row.match_type }}</strong></div>
                     <select name="row_{{ row.index }}_match" class="listing-match" data-row-index="{{ row.index }}">
-                      <option value="new" {% if row.default_match == "new" %}selected{% endif %}>Nouveau produit</option>
+                      <option value="new" {% if row.default_match == "new" %}selected{% endif %}>{% trans "Nouveau produit" %}</option>
                       {% for option in row.match_options %}
                         <option
                           value="{{ option.value }}"
@@ -500,7 +501,7 @@
                     <input
                       type="text"
                       name="row_{{ row.index }}_match_override"
-                      placeholder="SKU / barcode / nom"
+                      placeholder='{% trans "SKU / barcode / nom" %}'
                       class="scan-inline-gap"
                     >
                   </td>
@@ -521,7 +522,7 @@
                         {% if row.default_match != "new" %}readonly{% endif %}
                       >
                       {% if row.existing %}
-                        <small>Import: {{ field.value }}</small>
+                        <small>{% blocktrans %}Import: {{ field.value }}{% endblocktrans %}</small>
                       {% endif %}
                     </td>
                   {% endfor %}
@@ -535,7 +536,7 @@
                         data-import="{{ location.value }}"
                       >
                       {% if row.existing and location.existing %}
-                        <small>BDD: {{ location.existing }}</small>
+                        <small>{% blocktrans %}BDD: {{ location.existing }}{% endblocktrans %}</small>
                       {% endif %}
                     </td>
                   {% endfor %}
@@ -563,13 +564,13 @@
           </table>
         </div>
         <div class="scan-filter-actions">
-          <button type="submit" class="scan-submit btn btn-primary">Valider tous les imports coches</button>
+          <button type="submit" class="scan-submit btn btn-primary">{% trans "Valider tous les imports coches" %}</button>
         </div>
       </form>
       <form method="post" class="scan-filters ui-comp-form">
         {% csrf_token %}
         <input type="hidden" name="action" value="listing_cancel">
-        <button type="submit" class="scan-submit secondary btn btn-secondary">Annuler import</button>
+        <button type="submit" class="scan-submit secondary btn btn-secondary">{% trans "Annuler import" %}</button>
       </form>
     </div>
 

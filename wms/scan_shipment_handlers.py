@@ -5,6 +5,7 @@ from django.contrib import messages
 from django.db import IntegrityError, connection, transaction
 from django.shortcuts import redirect
 from django.urls import reverse
+from django.utils.translation import gettext as _
 
 from .carton_status_events import set_carton_status
 from .models import (
@@ -125,7 +126,7 @@ def _handle_shipment_save_draft_post(request, *, form, redirect_to_pack=False):
     if not destination_value:
         form.add_error(
             "destination",
-            "Merci de sélectionner une destination avant d'enregistrer un brouillon.",
+            _("Merci de sélectionner une destination avant d'enregistrer un brouillon."),
         )
         return None
 
@@ -136,7 +137,7 @@ def _handle_shipment_save_draft_post(request, *, form, redirect_to_pack=False):
         else None
     )
     if destination is None:
-        form.add_error("destination", "Destination invalide.")
+        form.add_error("destination", _("Destination invalide."))
         return None
 
     shipper_value, shipper_contact = _resolve_optional_contact(form, "shipper_contact")
@@ -146,15 +147,18 @@ def _handle_shipment_save_draft_post(request, *, form, redirect_to_pack=False):
     )
 
     if shipper_value and shipper_contact is None:
-        form.add_error("shipper_contact", "Contact non disponible pour cette destination.")
+        form.add_error("shipper_contact", _("Contact non disponible pour cette destination."))
         return None
     if recipient_value and recipient_contact is None:
-        form.add_error("recipient_contact", "Destinataire non disponible pour cet expéditeur.")
+        form.add_error(
+            "recipient_contact",
+            _("Destinataire non disponible pour cet expéditeur."),
+        )
         return None
     if correspondent_value and correspondent_contact is None:
         form.add_error(
             "correspondent_contact",
-            "Contact non disponible pour cette destination.",
+            _("Contact non disponible pour cette destination."),
         )
         return None
 
@@ -170,7 +174,7 @@ def _handle_shipment_save_draft_post(request, *, form, redirect_to_pack=False):
 
     destination_label = build_destination_label(destination)
     last_error = None
-    for _ in range(TEMP_SHIPMENT_REFERENCE_MAX_RETRIES):
+    for _attempt in range(TEMP_SHIPMENT_REFERENCE_MAX_RETRIES):
         draft_reference = _next_temp_shipment_reference()
         try:
             with transaction.atomic():
@@ -194,13 +198,13 @@ def _handle_shipment_save_draft_post(request, *, form, redirect_to_pack=False):
 
         messages.success(
             request,
-            f"Brouillon enregistré: {shipment.reference}.",
+            _("Brouillon enregistré: %(reference)s.") % {"reference": shipment.reference},
         )
         if redirect_to_pack:
             return redirect(_build_pack_redirect_url(shipment_reference=shipment.reference))
         return redirect("scan:scan_shipment_edit", shipment.id)
 
-    raise StockError("Impossible de générer une référence de brouillon unique.") from last_error
+    raise StockError(_("Impossible de générer une référence de brouillon unique.")) from last_error
 
 
 def handle_shipment_create_post(request, *, form, available_carton_ids):
@@ -263,7 +267,7 @@ def handle_shipment_create_post(request, *, form, available_carton_ids):
                             carton_query = carton_query.select_for_update()
                         carton = carton_query.first()
                         if carton is None:
-                            raise StockError("Carton indisponible.")
+                            raise StockError(_("Carton indisponible."))
                         carton.shipment = shipment
                         set_carton_status(
                             carton=carton,
@@ -290,7 +294,7 @@ def handle_shipment_create_post(request, *, form, available_carton_ids):
             sync_shipment_ready_state(shipment)
             messages.success(
                 request,
-                f"Expédition créée: {shipment.reference}.",
+                _("Expédition créée: %(reference)s.") % {"reference": shipment.reference},
             )
             response = redirect("scan:scan_shipment_create")
         except StockError as exc:
@@ -299,7 +303,7 @@ def handle_shipment_create_post(request, *, form, available_carton_ids):
             logger.exception("Integrity error while creating shipment")
             form.add_error(
                 None,
-                "Erreur technique lors de la création de l'expédition. Merci de réessayer.",
+                _("Erreur technique lors de la création de l'expédition. Merci de réessayer."),
             )
     return response, carton_count, line_values, line_errors
 
@@ -316,9 +320,9 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
         try:
             shipment_status = getattr(shipment, "status", ShipmentStatus.DRAFT)
             if shipment_status in LOCKED_SHIPMENT_STATUSES:
-                raise StockError("Expédition verrouillée: modification des colis impossible.")
+                raise StockError(_("Expédition verrouillée: modification des colis impossible."))
             if getattr(shipment, "is_disputed", False):
-                raise StockError("Expédition en litige: modification des colis impossible.")
+                raise StockError(_("Expédition en litige: modification des colis impossible."))
             with transaction.atomic():
                 destination = form.cleaned_data["destination"]
                 shipper_contact = form.cleaned_data["shipper_contact"]
@@ -367,7 +371,7 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
                 cartons_to_remove = shipment.carton_set.exclude(id__in=selected_carton_ids)
                 for carton in cartons_to_remove:
                     if carton.status == CartonStatus.SHIPPED:
-                        raise StockError("Impossible de retirer un carton expédié.")
+                        raise StockError(_("Impossible de retirer un carton expédié."))
                     carton.shipment = None
                     if carton.status in {CartonStatus.ASSIGNED, CartonStatus.LABELED}:
                         set_carton_status(
@@ -386,11 +390,11 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
                         carton_query = carton_query.select_for_update()
                     carton = carton_query.first()
                     if carton is None:
-                        raise StockError("Carton introuvable.")
+                        raise StockError(_("Carton introuvable."))
                     if carton.shipment_id and carton.shipment_id != shipment.id:
-                        raise StockError("Carton indisponible.")
+                        raise StockError(_("Carton indisponible."))
                     if carton.shipment_id != shipment.id and carton.status != CartonStatus.PACKED:
-                        raise StockError("Carton indisponible.")
+                        raise StockError(_("Carton indisponible."))
                     if carton.shipment_id != shipment.id:
                         carton.shipment = shipment
                         set_carton_status(
@@ -413,10 +417,13 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
                         if related_order is not None:
                             order_line = order_lines_by_product.get(item["product"].id)
                             if order_line is None:
-                                raise StockError("Produit non présent dans la commande liée.")
+                                raise StockError(_("Produit non présent dans la commande liée."))
                             if item["quantity"] > order_line.remaining_quantity:
                                 raise StockError(
-                                    f"{item['product'].name}: quantité demandée supérieure au reliquat de la commande."
+                                    _(
+                                        "%(product)s: quantité demandée supérieure au reliquat de la commande."
+                                    )
+                                    % {"product": item["product"].name}
                                 )
                             carton = pack_carton_from_reserved(
                                 user=request.user,
@@ -443,7 +450,7 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
             sync_shipment_ready_state(shipment)
             messages.success(
                 request,
-                f"Expédition mise à jour: {shipment.reference}.",
+                _("Expédition mise à jour: %(reference)s.") % {"reference": shipment.reference},
             )
             response = redirect("scan:scan_shipments_ready")
         except StockError as exc:

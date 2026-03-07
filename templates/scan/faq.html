@@ -1,12 +1,13 @@
 {% extends "scan/base.html" %}
+{% load i18n %}
 
-{% block title %}WMS Scan - FAQ & Documentation{% endblock %}
+{% block title %}{% trans "WMS Scan - FAQ & Documentation" %}{% endblock %}
 
 {% block content %}
   <div class="scan-card card border-0 ui-comp-card scan-faq-summary-card">
-    <h2 class="ui-comp-title">Sommaire</h2>
+    <h2 class="ui-comp-title">{% trans "Sommaire" %}</h2>
     <p class="scan-help">
-      Cliquez sur un titre pour aller directement à la section.
+      {% trans "Cliquez sur un titre pour aller directement à la section." %}
     </p>
     <ul id="scan-faq-summary-list" class="scan-faq-summary-list scan-faq-summary-grid"></ul>
   </div>
@@ -18,332 +19,344 @@
     data-faq-open-on-summary-click="true"
   >
   <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
-    <h2 class="ui-comp-title">Vue d'ensemble</h2>
+    <h2 class="ui-comp-title">{% trans "Vue d'ensemble" %}</h2>
     <p>
-      Cette page d&eacute;crit le fonctionnement complet du WMS Scan, du stock &agrave;
-      l'exp&eacute;dition. Les flux sont con&ccedil;us pour &ecirc;tre rapides sur mobile et
-      pour rester coh&eacute;rents en base.
+      {% blocktrans trimmed %}
+        Cette page décrit le fonctionnement complet du WMS Scan, du stock à
+        l'expédition. Les flux sont conçus pour être rapides sur mobile et pour
+        rester cohérents en base.
+      {% endblocktrans %}
     </p>
     <ul>
-      <li><strong>Produit</strong> : fiche article (SKU, nom, marque, poids, emplacement).</li>
-      <li><strong>Lot</strong> : stock r&eacute;el par produit (quantit&eacute;, p&eacute;remption, lot, emplacement).</li>
-      <li><strong>Carton</strong> : unit&eacute; de pr&eacute;paration (DRAFT, PICKING, PACKED, ASSIGNED, LABELED, SHIPPED).</li>
-      <li><strong>Exp&eacute;dition</strong> : regroupe des cartons pour une destination.</li>
-      <li><strong>Suivi exp&eacute;dition</strong> : journal des scans (QR) avec horodatage.</li>
+      <li>{% blocktrans trimmed %}<strong>Produit</strong> : fiche article (SKU, nom, marque, poids, emplacement).{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Lot</strong> : stock réel par produit (quantité, péremption, lot, emplacement).{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Carton</strong> : unité de préparation (DRAFT, PICKING, PACKED, ASSIGNED, LABELED, SHIPPED).{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Expédition</strong> : regroupe des cartons pour une destination.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Suivi expédition</strong> : journal des scans (QR) avec horodatage.{% endblocktrans %}</li>
     </ul>
-    <h3 class="ui-comp-title">Statuts cle</h3>
+    <h3 class="ui-comp-title">{% trans "Statuts cle" %}</h3>
     <ul>
-      <li><strong>Carton</strong> : Cr&eacute;&eacute; (draft), En pr&eacute;paration (picking), Pr&ecirc;t (packed), Affect&eacute; (assigned), &Eacute;tiquet&eacute; (labeled), Exp&eacute;di&eacute; (shipped).</li>
-      <li><strong>Exp&eacute;dition</strong> : Cr&eacute;ation (draft), En cours (picking), Pr&ecirc;t (packed), Planifi&eacute; (planned), Exp&eacute;di&eacute; (shipped), Re&ccedil;u escale (received_correspondent), Livr&eacute; (delivered).</li>
-      <li><strong>Litige</strong> : drapeau transverse sur exp&eacute;dition (<code>is_disputed</code>), activable &agrave; tout moment du suivi.</li>
-      <li><strong>R&eacute;ception</strong> : DRAFT tant que les lignes ne sont pas r&eacute;ceptionn&eacute;es.</li>
-    </ul>
-  </div>
-
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
-    <h2 class="ui-comp-title">Acc&egrave;s &amp; r&ocirc;les</h2>
-    <ul>
-      <li>Les pages /scan internes sont prot&eacute;g&eacute;es par login staff.</li>
-      <li>Le menu <strong>Compte</strong> affiche email/username, lien Admin (si staff), changer de compte, d&eacute;connexion.</li>
-      <li><strong>Imports</strong> et <strong>Templates</strong> sont r&eacute;serv&eacute;s aux superusers.</li>
-      <li>Exception: le suivi exp&eacute;dition par token (<code>/scan/shipment/track/&lt;token&gt;/</code>) est public et ne demande pas de login.</li>
-      <li>Le suivi legacy par r&eacute;f&eacute;rence est staff-only et en consultation seule (d&eacute;sactivable via <code>ENABLE_SHIPMENT_TRACK_LEGACY=false</code>).</li>
+      <li>{% blocktrans trimmed %}<strong>Carton</strong> : Créé (draft), En préparation (picking), Prêt (packed), Affecté (assigned), Étiqueté (labeled), Expédié (shipped).{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Expédition</strong> : Création (draft), En cours (picking), Prêt (packed), Planifié (planned), Expédié (shipped), Reçu escale (received_correspondent), Livré (delivered).{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Litige</strong> : drapeau transverse sur expédition (<code>is_disputed</code>), activable à tout moment du suivi.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Réception</strong> : DRAFT tant que les lignes ne sont pas réceptionnées.{% endblocktrans %}</li>
     </ul>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
-    <h2 class="ui-comp-title">Contacts (pilotage org-role)</h2>
+    <h2 class="ui-comp-title">{% trans "Accès & rôles" %}</h2>
     <ul>
-      <li>La page <strong>Admin &gt; Contacts</strong> pilote le mod&egrave;le <strong>organization roles</strong> (sans CRUD legacy dans Scan).</li>
-      <li>Actions disponibles: activer/d&eacute;sactiver un r&ocirc;le, g&eacute;rer les contacts d'organisation, lier un contact &agrave; un r&ocirc;le, d&eacute;finir le principal.</li>
-      <li>P&eacute;rim&egrave;tre exp&eacute;diteur: scopes globaux ou par destination.</li>
-      <li>P&eacute;rim&egrave;tre destinataire: bindings exp&eacute;diteur + destination.</li>
-      <li>Onboarding guid&eacute;: cr&eacute;ation d'une organisation + r&ocirc;le + contact principal depuis le cockpit.</li>
-      <li>Les liens admin Django restent disponibles en secours pour les op&eacute;rations de maintenance.</li>
+      <li>{% trans "Les pages /scan internes sont protégées par login staff." %}</li>
+      <li>{% trans "Le menu Compte affiche email/username, lien Admin (si staff), changer de compte, déconnexion." %}</li>
+      <li>{% trans "Imports et Templates sont réservés aux superusers." %}</li>
+      <li>{% trans "Exception: le suivi expédition par token (/scan/shipment/track/&lt;token&gt;/) est public et ne demande pas de login." %}</li>
+      <li>{% trans "Le suivi legacy par référence est staff-only et en consultation seule (désactivable via ENABLE_SHIPMENT_TRACK_LEGACY=false)." %}</li>
     </ul>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
-    <h2 class="ui-comp-title">Donn&eacute;es de r&eacute;f&eacute;rence</h2>
-    <p>Avant utilisation, v&eacute;rifier ces donn&eacute;es :</p>
+    <h2 class="ui-comp-title">{% trans "Contacts (pilotage org-role)" %}</h2>
     <ul>
-      <li><strong>Organisations</strong> actives (type Organisation).</li>
-      <li><strong>R&ocirc;les actifs</strong> selon le besoin m&eacute;tier (exp&eacute;diteur, destinataire, correspondant, donateur, transporteur).</li>
-      <li>Pour un r&ocirc;le actif: un <strong>contact principal actif avec email</strong> doit &ecirc;tre li&eacute;.</li>
-      <li>Pour les exp&eacute;diteurs: d&eacute;finir les <strong>scopes</strong> (global ou destination).</li>
-      <li>Pour les destinataires: d&eacute;finir les <strong>bindings</strong> avec les exp&eacute;diteurs et destinations autoris&eacute;s.</li>
-      <li><strong>Destinations</strong> : ville, code IATA, pays, correspondant li&eacute;.</li>
-      <li><strong>Formats de carton</strong> : un format par d&eacute;faut pour la pr&eacute;paration.</li>
-      <li><strong>Entrep&ocirc;ts</strong> et <strong>Emplacements</strong> : entrep&ocirc;t / rack / &eacute;tag&egrave;re / bac.</li>
-      <li><strong>Couleurs rack</strong> : associées à un rack (entrepôt + zone).</li>
-      <li><strong>Cat&eacute;gories</strong> : hi&eacute;rarchie L1 -> L4 (cr&eacute;&eacute;es &agrave; l'import si besoin).</li>
+      <li>{% blocktrans trimmed %}La page <strong>Admin &gt; Contacts</strong> pilote le modèle <strong>organization roles</strong> (sans CRUD legacy dans Scan).{% endblocktrans %}</li>
+      <li>{% trans "Actions disponibles: activer/désactiver un rôle, gérer les contacts d'organisation, lier un contact à un rôle, définir le principal." %}</li>
+      <li>{% trans "Périmètre expéditeur: scopes globaux ou par destination." %}</li>
+      <li>{% trans "Périmètre destinataire: bindings expéditeur + destination." %}</li>
+      <li>{% trans "Onboarding guidé: création d'une organisation + rôle + contact principal depuis le cockpit." %}</li>
+      <li>{% trans "Les liens admin Django restent disponibles en secours pour les opérations de maintenance." %}</li>
+    </ul>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+    <h2 class="ui-comp-title">{% trans "Données de référence" %}</h2>
+    <p>{% trans "Avant utilisation, vérifier ces données :" %}</p>
+    <ul>
+      <li>{% blocktrans trimmed %}<strong>Organisations</strong> actives (type Organisation).{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Rôles actifs</strong> selon le besoin métier (expéditeur, destinataire, correspondant, donateur, transporteur).{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}Pour un rôle actif: un <strong>contact principal actif avec email</strong> doit être lié.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}Pour les expéditeurs: définir les <strong>scopes</strong> (global ou destination).{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}Pour les destinataires: définir les <strong>bindings</strong> avec les expéditeurs et destinations autorisés.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Destinations</strong> : ville, code IATA, pays, correspondant lié.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Formats de carton</strong> : un format par défaut pour la préparation.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Entrepôts</strong> et <strong>Emplacements</strong> : entrepôt / rack / étagère / bac.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Couleurs rack</strong> : associées à un rack (entrepôt + zone).{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Catégories</strong> : hiérarchie L1 -> L4 (créées à l'import si besoin).{% endblocktrans %}</li>
     </ul>
     <p>
-      Quand un s&eacute;lecteur n'a qu'un seul choix, il est auto-s&eacute;lectionn&eacute;.
-    </p>
-  </div>
-
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
-    <h2 class="ui-comp-title">Vue stock</h2>
-    <ul>
-      <li>Recherche multi-cl&eacute;s : nom, SKU, barcode, EAN.</li>
-      <li>Filtres : catégorie, entrepôt. Tri : catégorie, nom, référence, stock.</li>
-      <li>Le switch <strong>Inclure les produits avec stock &agrave; 0</strong> permet d'afficher aussi les produits sans stock disponible.</li>
-      <li>Le stock affiche correspond aux lots disponibles.</li>
-      <li>La colonne <strong>Derni&egrave;re modification</strong> suit les mouvements de stock.</li>
-      <li>Dans les pages <strong>Vue...</strong>, chaque en-t&ecirc;te de colonne est triable et filtrable.</li>
-    </ul>
-  </div>
-
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
-    <h2 class="ui-comp-title">MAJ stock</h2>
-    <ul>
-      <li>S&eacute;lection produit par nom, SKU, barcode ou EAN (scan cam&eacute;ra possible).</li>
-      <li>Si inconnu, le bouton propose de cr&eacute;er le produit dans l'admin.</li>
-      <li>Quantit&eacute;, p&eacute;remption et lot sont enregistr&eacute;s dans un nouveau lot.</li>
-      <li>Le lot est plac&eacute; sur l'emplacement par d&eacute;faut du produit.</li>
-      <li>Les champs Marque / Emplacement / Entrep&ocirc;t s'affichent en lecture seule.</li>
-    </ul>
-  </div>
-
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
-    <h2 class="ui-comp-title">Supprimer produit</h2>
-    <ul>
-      <li>Retire du stock pour casse, perte ou correction.</li>
-      <li>Référence expédition optionnelle pour tracer un flux.</li>
-      <li>Motif + notes permettent de justifier la sortie.</li>
-    </ul>
-  </div>
-
-  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
-    <h2 class="ui-comp-title">Pr&eacute;paration (cartons)</h2>
-    <ul>
-      <li>Choisir un format de carton (ou personnaliser les dimensions).</li>
-      <li>Ajouter une ou plusieurs lignes produit + quantit&eacute; (scan possible).</li>
-      <li>Le syst&egrave;me peut cr&eacute;er plusieurs cartons selon la capacit&eacute; (poids/volume).</li>
-      <li>Si un produit n'a pas de dimensions/poids, activez le switch d'autorisation pour appliquer les valeurs standard (1 x 1 x 1 cm et 5 g).</li>
-      <li>Optionnel : r&eacute;f&eacute;rence exp&eacute;dition pour affecter directement les cartons.</li>
-      <li>Optionnel : emplacement courant pour tracer le stockage temporaire.</li>
-    </ul>
-    <p>
-      Un carton assigné à une expédition affiche le statut <strong>Affecté</strong>
-      dans la Vue Colis.
-    </p>
-    <p>
-      Le code carton suit le format <strong>TYPE-AAAAMMJJ-N</strong> (type dominant par poids).
-      Le volume est calcul&eacute; avec les dimensions du carton (format par d&eacute;faut si non renseign&eacute;).
+      {% trans "Quand un sélecteur n'a qu'un seul choix, il est auto-sélectionné." %}
     </p>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
-    <h2 class="ui-comp-title">Cr&eacute;er une exp&eacute;dition</h2>
+    <h2 class="ui-comp-title">{% trans "Vue stock" %}</h2>
     <ul>
-      <li>S&eacute;quencement: destination d'abord, puis exp&eacute;diteur, puis destinataire + correspondant, puis le reste du formulaire.</li>
-      <li>Exp&eacute;diteur: tag <strong>Exp&eacute;diteur</strong> + destination explicite ou globale (destinations vides).</li>
-      <li>Destinataire: tag <strong>Destinataire</strong> + exp&eacute;diteur li&eacute; explicite ou global (exp&eacute;diteurs li&eacute;s vides).</li>
-      <li>Correspondant: tag <strong>Correspondant</strong> + destination; si la destination a un correspondant li&eacute;, ce choix est impos&eacute;.</li>
-      <li>Si aucun correspondant n'est li&eacute; &agrave; la destination, le s&eacute;lecteur correspondant reste vide.</li>
-      <li>Ajouter des cartons <strong>Pr&ecirc;t</strong> non affect&eacute;s, ou cr&eacute;er des cartons depuis des produits.</li>
-      <li>&Agrave; l'affectation &agrave; l'exp&eacute;dition, un carton passe en statut <strong>Affect&eacute;</strong>.</li>
-      <li><strong>Enregistrer en brouillon</strong> cr&eacute;e une exp&eacute;dition temporaire <strong>EXP-TEMP-XX</strong> modifiable plus tard.</li>
-      <li><strong>Cr&eacute;er des colis multi-produits</strong> (depuis la cr&eacute;ation) enregistre d'abord un brouillon puis ouvre l'onglet Pr&eacute;paration.</li>
-      <li>Le poids total est calcul&eacute; automatiquement.</li>
-      <li>En modification: QR, documents, &eacute;tiquettes et uploads additionnels.</li>
+      <li>{% trans "Recherche multi-clés : nom, SKU, barcode, EAN." %}</li>
+      <li>{% trans "Filtres : catégorie, entrepôt. Tri : catégorie, nom, référence, stock." %}</li>
+      <li>{% blocktrans trimmed %}Le switch <strong>Inclure les produits avec stock à 0</strong> permet d'afficher aussi les produits sans stock disponible.{% endblocktrans %}</li>
+      <li>{% trans "Le stock affiché correspond aux lots disponibles." %}</li>
+      <li>{% blocktrans trimmed %}La colonne <strong>Dernière modification</strong> suit les mouvements de stock.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}Dans les pages <strong>Vue...</strong>, chaque en-tête de colonne est triable et filtrable.{% endblocktrans %}</li>
     </ul>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
-    <h2 class="ui-comp-title">Vue Colis</h2>
+    <h2 class="ui-comp-title">{% trans "MAJ stock" %}</h2>
     <ul>
-      <li>Liste tous les cartons pr&eacute;par&eacute;s avec leur statut et contenu.</li>
-      <li>Actions explicites: <strong>Marquer &eacute;tiquet&eacute;</strong> et <strong>Retirer &eacute;tiquette</strong> pour les cartons affect&eacute;s.</li>
-      <li>Un carton affect&eacute;/etiquet&eacute; d&eacute;saffect&eacute; d'une exp&eacute;dition revient en <strong>Pr&ecirc;t</strong>.</li>
-      <li>Un carton <strong>Exp&eacute;di&eacute;</strong> n'est plus modifiable.</li>
-      <li>Poids et remplissage sont affich&eacute;s quand les dimensions sont disponibles.</li>
+      <li>{% trans "Sélection produit par nom, SKU, barcode ou EAN (scan caméra possible)." %}</li>
+      <li>{% trans "Si inconnu, le bouton propose de créer le produit dans l'admin." %}</li>
+      <li>{% trans "Quantité, péremption et lot sont enregistrés dans un nouveau lot." %}</li>
+      <li>{% trans "Le lot est placé sur l'emplacement par défaut du produit." %}</li>
+      <li>{% trans "Les champs Marque / Emplacement / Entrepôt s'affichent en lecture seule." %}</li>
     </ul>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
-    <h2 class="ui-comp-title">Vue Exp&eacute;ditions</h2>
+    <h2 class="ui-comp-title">{% trans "Supprimer produit" %}</h2>
     <ul>
-      <li><strong>Brouillon</strong> : exp&eacute;dition temporaire (r&eacute;f&eacute;rence <strong>EXP-TEMP-XX</strong>) sauvegard&eacute;e pour reprise ult&eacute;rieure.</li>
-      <li><strong>Cr&eacute;ation</strong> : exp&eacute;dition active sans colis &eacute;tiquet&eacute; (r&eacute;f&eacute;rence finale).</li>
-      <li><strong>En cours</strong> : tant que tous les colis ne sont pas &eacute;tiquet&eacute;s.</li>
-      <li><strong>Pr&ecirc;t</strong> : tous les colis sont &eacute;tiquet&eacute;s.</li>
-      <li><strong>Planifi&eacute;</strong> : verrouille la modification des colis de l'exp&eacute;dition.</li>
-      <li><strong>Exp&eacute;di&eacute;</strong>, <strong>Re&ccedil;u escale</strong>, <strong>Livr&eacute;</strong> : progression via le suivi.</li>
-      <li><strong>Litige</strong> : pr&eacute;fixe visuel sur le statut (ex: "Litige - Planifi&eacute;").</li>
+      <li>{% trans "Retire du stock pour casse, perte ou correction." %}</li>
+      <li>{% trans "Référence expédition optionnelle pour tracer un flux." %}</li>
+      <li>{% trans "Motif + notes permettent de justifier la sortie." %}</li>
+    </ul>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+    <h2 class="ui-comp-title">{% trans "Préparation (cartons)" %}</h2>
+    <ul>
+      <li>{% trans "Choisir un format de carton (ou personnaliser les dimensions)." %}</li>
+      <li>{% trans "Ajouter une ou plusieurs lignes produit + quantité (scan possible)." %}</li>
+      <li>{% trans "Le système peut créer plusieurs cartons selon la capacité (poids/volume)." %}</li>
+      <li>{% trans "Si un produit n'a pas de dimensions/poids, activez le switch d'autorisation pour appliquer les valeurs standard (1 x 1 x 1 cm et 5 g)." %}</li>
+      <li>{% trans "Optionnel : référence expédition pour affecter directement les cartons." %}</li>
+      <li>{% trans "Optionnel : emplacement courant pour tracer le stockage temporaire." %}</li>
     </ul>
     <p>
-      La date <strong>mise en disponible</strong> est renseign&eacute;e au passage en <strong>Pr&ecirc;t</strong>,
-      puis effac&eacute;e si l'exp&eacute;dition repasse en <strong>En cours</strong>.
+      {% blocktrans trimmed %}
+        Un carton assigné à une expédition affiche le statut <strong>Affecté</strong>
+        dans la Vue Colis.
+      {% endblocktrans %}
     </p>
     <p>
-      Le bouton <strong>Suivi</strong> ouvre la page publique de suivi via QR.
+      {% blocktrans trimmed %}
+        Le code carton suit le format <strong>TYPE-AAAAMMJJ-N</strong> (type dominant par poids).
+        Le volume est calculé avec les dimensions du carton (format par défaut si non renseigné).
+      {% endblocktrans %}
+    </p>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+    <h2 class="ui-comp-title">{% trans "Créer une expédition" %}</h2>
+    <ul>
+      <li>{% trans "Séquencement: destination d'abord, puis expéditeur, puis destinataire + correspondant, puis le reste du formulaire." %}</li>
+      <li>{% blocktrans trimmed %}Expéditeur: tag <strong>Expéditeur</strong> + destination explicite ou globale (destinations vides).{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}Destinataire: tag <strong>Destinataire</strong> + expéditeur lié explicite ou global (expéditeurs liés vides).{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}Correspondant: tag <strong>Correspondant</strong> + destination; si la destination a un correspondant lié, ce choix est imposé.{% endblocktrans %}</li>
+      <li>{% trans "Si aucun correspondant n'est lié à la destination, le sélecteur correspondant reste vide." %}</li>
+      <li>{% blocktrans trimmed %}Ajouter des cartons <strong>Prêt</strong> non affectés, ou créer des cartons depuis des produits.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}À l'affectation à l'expédition, un carton passe en statut <strong>Affecté</strong>.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Enregistrer en brouillon</strong> crée une expédition temporaire <strong>EXP-TEMP-XX</strong> modifiable plus tard.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Créer des colis multi-produits</strong> (depuis la création) enregistre d'abord un brouillon puis ouvre l'onglet Préparation.{% endblocktrans %}</li>
+      <li>{% trans "Le poids total est calculé automatiquement." %}</li>
+      <li>{% trans "En modification: QR, documents, étiquettes et uploads additionnels." %}</li>
+    </ul>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+    <h2 class="ui-comp-title">{% trans "Vue Colis" %}</h2>
+    <ul>
+      <li>{% trans "Liste tous les cartons préparés avec leur statut et contenu." %}</li>
+      <li>{% blocktrans trimmed %}Actions explicites: <strong>Marquer étiqueté</strong> et <strong>Retirer étiquette</strong> pour les cartons affectés.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}Un carton affecté/étiqueté désaffecté d'une expédition revient en <strong>Prêt</strong>.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}Un carton <strong>Expédié</strong> n'est plus modifiable.{% endblocktrans %}</li>
+      <li>{% trans "Poids et remplissage sont affichés quand les dimensions sont disponibles." %}</li>
+    </ul>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+    <h2 class="ui-comp-title">{% trans "Vue Expéditions" %}</h2>
+    <ul>
+      <li>{% blocktrans trimmed %}<strong>Brouillon</strong> : expédition temporaire (référence <strong>EXP-TEMP-XX</strong>) sauvegardée pour reprise ultérieure.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Création</strong> : expédition active sans colis étiqueté (référence finale).{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>En cours</strong> : tant que tous les colis ne sont pas étiquetés.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Prêt</strong> : tous les colis sont étiquetés.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Planifié</strong> : verrouille la modification des colis de l'expédition.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Expédié</strong>, <strong>Reçu escale</strong>, <strong>Livré</strong> : progression via le suivi.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Litige</strong> : préfixe visuel sur le statut (ex: "Litige - Planifié").{% endblocktrans %}</li>
+    </ul>
+    <p>
+      {% blocktrans trimmed %}
+        La date <strong>mise en disponible</strong> est renseignée au passage en <strong>Prêt</strong>,
+        puis effacée si l'expédition repasse en <strong>En cours</strong>.
+      {% endblocktrans %}
     </p>
     <p>
-      Les brouillons temporaires anciens peuvent &ecirc;tre archiv&eacute;s via l'action <strong>Archiver brouillons anciens</strong>.
+      {% blocktrans trimmed %}Le bouton <strong>Suivi</strong> ouvre la page publique de suivi via QR.{% endblocktrans %}
+    </p>
+    <p>
+      {% blocktrans trimmed %}Les brouillons temporaires anciens peuvent être archivés via l'action <strong>Archiver brouillons anciens</strong>.{% endblocktrans %}
     </p>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
-    <h2 class="ui-comp-title">Suivi des exp&eacute;ditions (Gestion)</h2>
+    <h2 class="ui-comp-title">{% trans "Suivi des expéditions (Gestion)" %}</h2>
     <ul>
-      <li>Cette vue affiche les exp&eacute;ditions en statut <strong>Planifi&eacute;</strong>, <strong>Exp&eacute;di&eacute;</strong>, <strong>Re&ccedil;u escale</strong> et <strong>Livr&eacute;</strong>.</li>
-      <li>Filtres: semaine planifi&eacute;e et dossiers clos (exclure/inclure).</li>
-      <li>Colonnes dates: Planifi&eacute;, OK mise &agrave; bord, Exp&eacute;di&eacute;, Re&ccedil;u escale, Livr&eacute;.</li>
-      <li>Bouton <strong>Suivi/MAJ</strong>: ouvre la page de suivi de l'exp&eacute;dition.</li>
-      <li>Bouton <strong>Clore le dossier</strong>: actif seulement quand toutes les &eacute;tapes requises sont valid&eacute;es et qu'il n'y a pas de litige.</li>
+      <li>{% trans "Cette vue affiche les expéditions en statut Planifié, Expédié, Reçu escale et Livré." %}</li>
+      <li>{% trans "Filtres: semaine planifiée et dossiers clos (exclure/inclure)." %}</li>
+      <li>{% trans "Colonnes dates: Planifié, OK mise à bord, Expédié, Reçu escale, Livré." %}</li>
+      <li>{% trans "Bouton Suivi/MAJ: ouvre la page de suivi de l'expédition." %}</li>
+      <li>{% trans "Bouton Clore le dossier: actif seulement quand toutes les étapes requises sont validées et qu'il n'y a pas de litige." %}</li>
     </ul>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
-    <h2 class="ui-comp-title">Documents & &eacute;tiquettes</h2>
+    <h2 class="ui-comp-title">{% trans "Documents & étiquettes" %}</h2>
     <ul>
-      <li>Bon d'exp&eacute;dition, listes de colisage et attestation sont g&eacute;n&eacute;r&eacute;s par exp&eacute;dition.</li>
-      <li>&Eacute;tiquettes colis g&eacute;n&eacute;r&eacute;es par carton (impression en masse possible).</li>
-      <li>Le QR code exp&eacute;dition apparait sur l'&eacute;tiquette et ouvre le suivi public.</li>
-      <li>Documents additionnels uploadables (PDF, JPG, PNG, XLSX, DOCX).</li>
+      <li>{% trans "Bon d'expédition, listes de colisage et attestation sont générés par expédition." %}</li>
+      <li>{% trans "Étiquettes colis générées par carton (impression en masse possible)." %}</li>
+      <li>{% trans "Le QR code expédition apparait sur l'étiquette et ouvre le suivi public." %}</li>
+      <li>{% trans "Documents additionnels uploadables (PDF, JPG, PNG, XLSX, DOCX)." %}</li>
     </ul>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
-    <h2 class="ui-comp-title">Vue Commande (associations)</h2>
+    <h2 class="ui-comp-title">{% trans "Vue Commande (associations)" %}</h2>
     <ul>
-      <li>Liste des demandes associations avec statut de revue.</li>
-      <li>Changer le statut et informer le contact (refus / à modifier).</li>
-      <li>Si approuv&eacute;, cr&eacute;ation d'exp&eacute;dition en un clic.</li>
-      <li>Les documents sont disponibles une fois approuv&eacute;.</li>
+      <li>{% trans "Liste des demandes associations avec statut de revue." %}</li>
+      <li>{% trans "Changer le statut et informer le contact (refus / à modifier)." %}</li>
+      <li>{% trans "Si approuvé, création d'expédition en un clic." %}</li>
+      <li>{% trans "Les documents sont disponibles une fois approuvés." %}</li>
     </ul>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
-    <h2 class="ui-comp-title">R&eacute;ception palette</h2>
+    <h2 class="ui-comp-title">{% trans "Réception palette" %}</h2>
     <ul>
-      <li>Enregistre une r&eacute;ception avec donateur + transporteur.</li>
-      <li>Le stock n'est pas modifi&eacute; ici : c'est un suivi logistique.</li>
-      <li>La r&eacute;f&eacute;rence est g&eacute;n&eacute;r&eacute;e automatiquement.</li>
-      <li>La date demande transport est optionnelle.</li>
+      <li>{% trans "Enregistre une réception avec donateur + transporteur." %}</li>
+      <li>{% trans "Le stock n'est pas modifié ici : c'est un suivi logistique." %}</li>
+      <li>{% trans "La référence est générée automatiquement." %}</li>
+      <li>{% trans "La date demande transport est optionnelle." %}</li>
     </ul>
-    <h3 class="ui-comp-title">Upload listing</h3>
+    <h3 class="ui-comp-title">{% trans "Upload listing" %}</h3>
     <ul>
-      <li>Formats accept&eacute;s: CSV / XLS / XLSX / PDF texte (pas d'OCR image).</li>
-      <li>Conseil: privil&eacute;gier .xlsx pour la gestion des accents.</li>
-      <li>CSV: encodage UTF-8 (BOM) + s&eacute;parateur ';'.</li>
-      <li>D&eacute;tection auto du type, ou s&eacute;lection manuelle PDF/Excel/CSV.</li>
-      <li>PDF: choix des pages (toutes ou d&eacute;but/fin). D&eacute;but vide = page 1, fin vide = derni&egrave;re page.</li>
-      <li>Excel: choix de la feuille + ligne des titres.</li>
-      <li>Mapping des colonnes avec champs requis: <strong>nom + quantit&eacute;</strong>.</li>
-      <li>R&eacute;cap: choix du match produit, &eacute;dition des champs, validation ligne par ligne.</li>
-      <li>Match auto sur <strong>Nom + Marque</strong> (liste modifiable).</li>
-      <li>Si produit existant: champs produit en lecture seule, seules quantit&eacute; / emplacement changent.</li>
-      <li>Override possible via SKU / barcode / nom.</li>
+      <li>{% trans "Formats acceptés: CSV / XLS / XLSX / PDF texte (pas d'OCR image)." %}</li>
+      <li>{% trans "Conseil: privilégier .xlsx pour la gestion des accents." %}</li>
+      <li>{% trans "CSV: encodage UTF-8 (BOM) + séparateur ';'." %}</li>
+      <li>{% trans "Détection auto du type, ou sélection manuelle PDF/Excel/CSV." %}</li>
+      <li>{% trans "PDF: choix des pages (toutes ou début/fin). Début vide = page 1, fin vide = dernière page." %}</li>
+      <li>{% trans "Excel: choix de la feuille + ligne des titres." %}</li>
+      <li>{% blocktrans trimmed %}Mapping des colonnes avec champs requis: <strong>nom + quantité</strong>.{% endblocktrans %}</li>
+      <li>{% trans "Récap: choix du match produit, édition des champs, validation ligne par ligne." %}</li>
+      <li>{% blocktrans trimmed %}Match auto sur <strong>Nom + Marque</strong> (liste modifiable).{% endblocktrans %}</li>
+      <li>{% trans "Si produit existant: champs produit en lecture seule, seules quantité / emplacement changent." %}</li>
+      <li>{% trans "Override possible via SKU / barcode / nom." %}</li>
     </ul>
     <p class="scan-help">
-      À la validation, une réception palette est créée puis les lignes sont réceptionnées.
-      Emplacement requis (via listing ou emplacement par d&eacute;faut du produit).
+      {% blocktrans trimmed %}
+        À la validation, une réception palette est créée puis les lignes sont réceptionnées.
+        Emplacement requis (via listing ou emplacement par défaut du produit).
+      {% endblocktrans %}
     </p>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
-    <h2 class="ui-comp-title">R&eacute;ception association</h2>
+    <h2 class="ui-comp-title">{% trans "Réception association" %}</h2>
     <ul>
-      <li>Enregistre cartons + hors format pour une association.</li>
-      <li>Les hors format exigent une description pour chaque ligne.</li>
-      <li>La r&eacute;f&eacute;rence est g&eacute;n&eacute;r&eacute;e automatiquement.</li>
+      <li>{% trans "Enregistre cartons + hors format pour une association." %}</li>
+      <li>{% trans "Les hors format exigent une description pour chaque ligne." %}</li>
+      <li>{% trans "La référence est générée automatiquement." %}</li>
     </ul>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
-    <h2 class="ui-comp-title">R&eacute;ception standard (don/palette)</h2>
+    <h2 class="ui-comp-title">{% trans "Réception standard (don/palette)" %}</h2>
     <ul>
-      <li>Cr&eacute;er une r&eacute;ception puis ajouter des lignes produits.</li>
-      <li><strong>R&eacute;ceptionner maintenant</strong> cr&eacute;&eacute; le lot stock imm&eacute;diatement.</li>
-      <li>Si emplacement vide, on utilise l'emplacement par d&eacute;faut du produit.</li>
-      <li>Un bouton permet de r&eacute;ceptionner toutes les lignes en attente.</li>
+      <li>{% trans "Créer une réception puis ajouter des lignes produits." %}</li>
+      <li>{% blocktrans trimmed %}<strong>Réceptionner maintenant</strong> crée le lot stock immédiatement.{% endblocktrans %}</li>
+      <li>{% trans "Si emplacement vide, on utilise l'emplacement par défaut du produit." %}</li>
+      <li>{% trans "Un bouton permet de réceptionner toutes les lignes en attente." %}</li>
     </ul>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
-    <h2 class="ui-comp-title">Vue r&eacute;ception</h2>
+    <h2 class="ui-comp-title">{% trans "Vue réception" %}</h2>
     <ul>
-      <li>Filtre rapide : Palette, Association ou Tout.</li>
-      <li>Colonnes : date, nom, quantit&eacute; palettes/colis, hors format, transporteur.</li>
+      <li>{% trans "Filtre rapide : Palette, Association ou Tout." %}</li>
+      <li>{% trans "Colonnes : date, nom, quantité palettes/colis, hors format, transporteur." %}</li>
     </ul>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
-    <h2 class="ui-comp-title">Imports (admin)</h2>
+    <h2 class="ui-comp-title">{% trans "Imports (admin)" %}</h2>
     <ul>
-      <li>Ajout unitaire ou import CSV/XLS/XLSX par bloc.</li>
-      <li>CSV: encodage UTF-8 (BOM) + s&eacute;parateur ';'.</li>
-      <li>Templates disponibles + export complet de chaque table.</li>
-      <li>Produit: match par SKU sinon Nom+Marque, confirmation avant update.</li>
-      <li>Si SKU d&eacute;j&agrave; utilise et cr&eacute;ation forc&eacute;e: SKU auto-g&eacute;n&eacute;r&eacute;.</li>
-      <li>Quantit&eacute; initiale applique un mouvement de stock (emplacement requis).</li>
-      <li>Emplacements: entrep&ocirc;t/rack/&eacute;tag&egrave;re/bac requis, rack color optionnel.</li>
-      <li>Cat&eacute;gories: chemin possible (L1 > L2 > L3).</li>
-      <li>Contacts: tags fusionn&eacute;s (ajout), destination cr&eacute;&eacute;e si absente.</li>
-      <li>Utilisateurs: mot de passe obligatoire si IMPORT_DEFAULT_PASSWORD est vide.</li>
+      <li>{% trans "Ajout unitaire ou import CSV/XLS/XLSX par bloc." %}</li>
+      <li>{% trans "CSV: encodage UTF-8 (BOM) + séparateur ';'." %}</li>
+      <li>{% trans "Templates disponibles + export complet de chaque table." %}</li>
+      <li>{% trans "Produit: match par SKU sinon Nom+Marque, confirmation avant update." %}</li>
+      <li>{% trans "Si SKU déjà utilisé et création forcée: SKU auto-généré." %}</li>
+      <li>{% trans "Quantité initiale applique un mouvement de stock (emplacement requis)." %}</li>
+      <li>{% trans "Emplacements: entrepôt/rack/étagère/bac requis, rack color optionnel." %}</li>
+      <li>{% trans "Catégories: chemin possible (L1 > L2 > L3)." %}</li>
+      <li>{% trans "Contacts: tags fusionnés (ajout), destination créée si absente." %}</li>
+      <li>{% trans "Utilisateurs: mot de passe obligatoire si IMPORT_DEFAULT_PASSWORD est vide." %}</li>
     </ul>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
-    <h2 class="ui-comp-title">Templates (admin)</h2>
+    <h2 class="ui-comp-title">{% trans "Templates (admin)" %}</h2>
     <ul>
-      <li>La page <strong>Gestion &gt; Templates</strong> pilote les templates XLSX Print Pack (superuser uniquement).</li>
-      <li>Chaque ligne correspond &agrave; un document: <strong>pack + doc_type + variant</strong>.</li>
-      <li>Vous pouvez uploader/remplacer le fichier <strong>.xlsx</strong> actif du document.</li>
-      <li>Le mapping se fait par ligne, avec listes d&eacute;roulantes: <strong>worksheet</strong>, <strong>colonne</strong>, <strong>ligne</strong>, <strong>champ source</strong>.</li>
-      <li>Les champs source sont limit&eacute;s &agrave; un catalogue backend (pas de saisie manuelle libre).</li>
-      <li>Plusieurs changements peuvent &ecirc;tre enregistr&eacute;s en une seule sauvegarde.</li>
-      <li>Si une cellule est fusionn&eacute;e, le mapping est normalis&eacute; automatiquement sur la cellule d'ancrage.</li>
-      <li>Chaque sauvegarde cr&eacute;e une version (snapshot fichier + mappings) avec restauration possible depuis l'historique.</li>
-      <li>En cas de rollback, restaurer une version applique le fichier XLSX et les mappings associ&eacute;s.</li>
+      <li>{% blocktrans trimmed %}La page <strong>Gestion &gt; Templates</strong> pilote les templates XLSX Print Pack (superuser uniquement).{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}Chaque ligne correspond à un document: <strong>pack + doc_type + variant</strong>.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}Vous pouvez uploader/remplacer le fichier <strong>.xlsx</strong> actif du document.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}Le mapping se fait par ligne, avec listes déroulantes: <strong>worksheet</strong>, <strong>colonne</strong>, <strong>ligne</strong>, <strong>champ source</strong>.{% endblocktrans %}</li>
+      <li>{% trans "Les champs source sont limités à un catalogue backend (pas de saisie manuelle libre)." %}</li>
+      <li>{% trans "Plusieurs changements peuvent être enregistrés en une seule sauvegarde." %}</li>
+      <li>{% trans "Si une cellule est fusionnée, le mapping est normalisé automatiquement sur la cellule d'ancrage." %}</li>
+      <li>{% trans "Chaque sauvegarde crée une version (snapshot fichier + mappings) avec restauration possible depuis l'historique." %}</li>
+      <li>{% trans "En cas de rollback, restaurer une version applique le fichier XLSX et les mappings associés." %}</li>
     </ul>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
-    <h2 class="ui-comp-title">Suivi exp&eacute;dition (QR)</h2>
+    <h2 class="ui-comp-title">{% trans "Suivi expédition (QR)" %}</h2>
     <ul>
-      <li>Un QR code est généré à la création de l'expédition.</li>
-      <li>Le scan ouvre une page publique avec documents + historique.</li>
-      <li>Champs obligatoires : <strong>Nom</strong> et <strong>Structure</strong>.</li>
-      <li>Commentaires optionnels et horodatage automatique (AAAA/MM/JJ HHhMM).</li>
-      <li>Le s&eacute;lecteur propose automatiquement l'&eacute;tape suivante.</li>
-      <li>&Eacute;tapes : OK pour planification, Planifi&eacute;, D&eacute;plac&eacute; au magasin export, OK mise &agrave; bord, Re&ccedil;u correspondant, Re&ccedil;u destinataire.</li>
-      <li>Passage de statut exp&eacute;dition : Planifi&eacute;/D&eacute;plac&eacute; =&gt; Planifi&eacute;, Mise &agrave; bord =&gt; Exp&eacute;di&eacute;, Re&ccedil;u correspondant =&gt; Re&ccedil;u escale, Re&ccedil;u destinataire =&gt; Livr&eacute;.</li>
-      <li>Depuis la page de suivi staff, le bouton <strong>Revenir &agrave; la liste</strong> revient vers la derni&egrave;re vue (Vue Exp&eacute;ditions ou Suivi des exp&eacute;ditions).</li>
-      <li>Si des champs de suivi sont modifi&eacute;s non enregistr&eacute;s, une confirmation propose <strong>OUI</strong> (enregistrer) ou <strong>NON</strong> (quitter sans enregistrer).</li>
-      <li>Depuis le suivi, vous pouvez <strong>D&eacute;clarer litige</strong> puis <strong>R&eacute;soudre litige et remettre Pr&ecirc;t</strong>.</li>
+      <li>{% trans "Un QR code est généré à la création de l'expédition." %}</li>
+      <li>{% trans "Le scan ouvre une page publique avec documents + historique." %}</li>
+      <li>{% blocktrans trimmed %}Champs obligatoires : <strong>Nom</strong> et <strong>Structure</strong>.{% endblocktrans %}</li>
+      <li>{% trans "Commentaires optionnels et horodatage automatique (AAAA/MM/JJ HHhMM)." %}</li>
+      <li>{% trans "Le sélecteur propose automatiquement l'étape suivante." %}</li>
+      <li>{% trans "Étapes : OK pour planification, Planifié, Déplacé au magasin export, OK mise à bord, Reçu correspondant, Reçu destinataire." %}</li>
+      <li>{% trans "Passage de statut expédition : Planifié/Déplacé => Planifié, Mise à bord => Expédié, Reçu correspondant => Reçu escale, Reçu destinataire => Livré." %}</li>
+      <li>{% blocktrans trimmed %}Depuis la page de suivi staff, le bouton <strong>Revenir à la liste</strong> revient vers la dernière vue (Vue Expéditions ou Suivi des expéditions).{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}Si des champs de suivi sont modifiés non enregistrés, une confirmation propose <strong>OUI</strong> (enregistrer) ou <strong>NON</strong> (quitter sans enregistrer).{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}Depuis le suivi, vous pouvez <strong>Déclarer litige</strong> puis <strong>Résoudre litige et remettre Prêt</strong>.{% endblocktrans %}</li>
     </ul>
     <p>
-      Pour que le QR fonctionne depuis un téléphone, définir <strong>SITE_BASE_URL</strong>
-      sur l'environnement de déploiement.
+      {% blocktrans trimmed %}
+        Pour que le QR fonctionne depuis un téléphone, définir <strong>SITE_BASE_URL</strong>
+        sur l'environnement de déploiement.
+      {% endblocktrans %}
     </p>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
-    <h2 class="ui-comp-title">Scanner & synchronisation</h2>
+    <h2 class="ui-comp-title">{% trans "Scanner & synchronisation" %}</h2>
     <ul>
-      <li>Le bouton <strong>Scan</strong> ouvre la cam&eacute;ra et remplit le champ cible.</li>
-      <li>Si la cam&eacute;ra est bloqu&eacute;e, autoriser l'acc&egrave;s dans le navigateur.</li>
-      <li>Si le scan n'est pas support&eacute;, saisir le code manuellement.</li>
-      <li>Le QR exp&eacute;dition ouvre uniquement la page de suivi + documents (sans login).</li>
-      <li>La bannière de synchro indique qu'une mise à jour est disponible.</li>
+      <li>{% blocktrans trimmed %}Le bouton <strong>Scan</strong> ouvre la caméra et remplit le champ cible.{% endblocktrans %}</li>
+      <li>{% trans "Si la caméra est bloquée, autoriser l'accès dans le navigateur." %}</li>
+      <li>{% trans "Si le scan n'est pas supporté, saisir le code manuellement." %}</li>
+      <li>{% trans "Le QR expédition ouvre uniquement la page de suivi + documents (sans login)." %}</li>
+      <li>{% trans "La bannière de synchro indique qu'une mise à jour est disponible." %}</li>
     </ul>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
-    <h2 class="ui-comp-title">FAQ rapide</h2>
+    <h2 class="ui-comp-title">{% trans "FAQ rapide" %}</h2>
     <ul>
-      <li><strong>Mes listes sont vides</strong> : v&eacute;rifier les r&ocirc;les actifs, scopes exp&eacute;diteurs et bindings destinataires.</li>
-      <li><strong>Je ne vois plus &quot;cr&eacute;er / modifier / supprimer contact&quot; dans Scan</strong> : c'est normal, le CRUD legacy a &eacute;t&eacute; retir&eacute; au profit du cockpit org-role.</li>
-      <li><strong>Stock à zéro</strong> : vérifier les lots disponibles et leur emplacement.</li>
-      <li><strong>Cam&eacute;ra ne s'ouvre pas</strong> : autoriser la cam&eacute;ra, tester un autre navigateur.</li>
-      <li><strong>Un carton est bloqu&eacute;</strong> : un carton exp&eacute;di&eacute; est non modifiable, et une exp&eacute;dition planifi&eacute;e/verrouill&eacute;e bloque les changements colis.</li>
-      <li><strong>Correspondant introuvable</strong> : v&eacute;rifier le correspondant li&eacute; sur la destination s&eacute;lectionn&eacute;e.</li>
-      <li><strong>Le QR n'ouvre rien</strong> : v&eacute;rifier SITE_BASE_URL et relancer l'app.</li>
+      <li>{% blocktrans trimmed %}<strong>Mes listes sont vides</strong> : vérifier les rôles actifs, scopes expéditeurs et bindings destinataires.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Je ne vois plus "créer / modifier / supprimer contact" dans Scan</strong> : c'est normal, le CRUD legacy a été retiré au profit du cockpit org-role.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Stock à zéro</strong> : vérifier les lots disponibles et leur emplacement.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Caméra ne s'ouvre pas</strong> : autoriser la caméra, tester un autre navigateur.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Un carton est bloqué</strong> : un carton expédié est non modifiable, et une expédition planifiée/verrouillée bloque les changements colis.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Correspondant introuvable</strong> : vérifier le correspondant lié sur la destination sélectionnée.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Le QR n'ouvre rien</strong> : vérifier SITE_BASE_URL et relancer l'app.{% endblocktrans %}</li>
     </ul>
   </div>
   </div>

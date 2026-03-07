@@ -1,11 +1,12 @@
 {% extends "portal/base.html" %}
+{% load i18n %}
 
-{% block title %}Nouvelle commande{% endblock %}
+{% block title %}{% trans "Nouvelle commande" %}{% endblock %}
 
 {% block content %}
   <div class="scan-card portal-card card border-0 ui-comp-card">
-    <h2 class="ui-comp-title">Nouvelle commande</h2>
-    <p class="scan-help">S&eacute;lectionnez une destination, puis un destinataire, puis indiquez les quantit&eacute;s.</p>
+    <h2 class="ui-comp-title">{% trans "Nouvelle commande" %}</h2>
+    <p class="scan-help">{% trans "Sélectionnez une destination, puis un destinataire, puis indiquez les quantités." %}</p>
   </div>
 
   <div class="scan-card portal-card card border-0 ui-comp-card">
@@ -20,7 +21,7 @@
     <form method="post" novalidate class="ui-comp-form">
       {% csrf_token %}
       <div class="scan-field">
-        <label class="form-label" for="destination_id">Destination</label>
+        <label class="form-label" for="destination_id">{% trans "Destination" %}</label>
         <select class="form-select" id="destination_id" name="destination_id" required>
           <option value="">---------</option>
           {% for option in destination_options %}
@@ -32,7 +33,7 @@
       </div>
 
       <div class="scan-field">
-        <label class="form-label" for="recipient_id">Destinataire</label>
+        <label class="form-label" for="recipient_id">{% trans "Destinataire" %}</label>
         <select class="form-select" id="recipient_id" name="recipient_id" required>
           <option value="">---------</option>
           {% for option in recipient_options %}
@@ -42,48 +43,48 @@
           {% endfor %}
         </select>
         <p class="scan-help">
-          Le destinataire est filtr&eacute; selon la destination choisie.
+          {% trans "Le destinataire est filtré selon la destination choisie." %}
         </p>
         <p class="scan-help">
-          Besoin d'un nouveau destinataire ?
-          <a href="{% url 'portal:portal_recipients' %}">Ajouter</a>
+          {% trans "Besoin d'un nouveau destinataire ?" %}
+          <a href="{% url 'portal:portal_recipients' %}">{% trans "Ajouter" %}</a>
         </p>
       </div>
 
       <div class="scan-field">
-        <label class="form-label" for="notes">Notes</label>
+        <label class="form-label" for="notes">{% trans "Notes" %}</label>
         <textarea class="form-control" id="notes" name="notes" rows="3">{{ form_data.notes }}</textarea>
       </div>
 
       <div class="scan-field">
-        <label class="form-label">Filtrer produits</label>
+        <label class="form-label">{% trans "Filtrer produits" %}</label>
         <div id="portal-category-filters" class="scan-filter-actions ui-comp-actions">
           <select class="form-select form-select-sm" id="portal-filter-category-l1" data-filter-level="0">
-            <option value="">Toutes cat&eacute;gories</option>
+            <option value="">{% trans "Toutes catégories" %}</option>
           </select>
           <select class="form-select form-select-sm" id="portal-filter-category-l2" data-filter-level="1" hidden>
-            <option value="">Toutes sous-cat&eacute;gories (L2)</option>
+            <option value="">{% trans "Toutes sous-catégories (L2)" %}</option>
           </select>
           <select class="form-select form-select-sm" id="portal-filter-category-l3" data-filter-level="2" hidden>
-            <option value="">Toutes sous-cat&eacute;gories (L3)</option>
+            <option value="">{% trans "Toutes sous-catégories (L3)" %}</option>
           </select>
           <select class="form-select form-select-sm" id="portal-filter-category-l4" data-filter-level="3" hidden>
-            <option value="">Toutes sous-cat&eacute;gories (L4)</option>
+            <option value="">{% trans "Toutes sous-catégories (L4)" %}</option>
           </select>
         </div>
       </div>
 
       <div class="scan-field">
-        <label class="form-label">Colis disponibles</label>
+        <label class="form-label">{% trans "Colis disponibles" %}</label>
         <div class="portal-products-panel">
           <div class="scan-table-wrap portal-products-table-wrap">
             <table class="scan-table portal-table table table-sm table-hover" data-table-tools="1">
               <thead>
                 <tr>
-                  <th>Produit</th>
-                  <th>Stock</th>
-                  <th>Quantit&eacute;</th>
-                  <th>Date de p&eacute;remption</th>
+                  <th>{% trans "Produit" %}</th>
+                  <th>{% trans "Stock" %}</th>
+                  <th>{% trans "Quantité" %}</th>
+                  <th>{% trans "Date de péremption" %}</th>
                 </tr>
               </thead>
               <tbody>
@@ -95,7 +96,7 @@
                   >
                     <td>
                       {% for line in row.product_lines %}
-                        <div>{{ line.product_name }} - {{ line.quantity }} unit&eacute;s</div>
+                        <div>{% blocktrans with product_name=line.product_name quantity=line.quantity %}{{ product_name }} - {{ quantity }} unités{% endblocktrans %}</div>
                       {% endfor %}
                     </td>
                     <td>{{ row.available_stock }}</td>
@@ -116,7 +117,7 @@
                   </tr>
                 {% empty %}
                   <tr>
-                    <td colspan="4">Aucun colis pr&ecirc;t disponible.</td>
+                    <td colspan="4">{% trans "Aucun colis prêt disponible." %}</td>
                   </tr>
                 {% endfor %}
               </tbody>
@@ -126,16 +127,16 @@
       </div>
 
       <div class="scan-field">
-        <label class="form-label">Kits disponibles</label>
+        <label class="form-label">{% trans "Kits disponibles" %}</label>
         <div class="portal-products-panel">
           <div class="scan-table-wrap portal-products-table-wrap">
             <table class="scan-table portal-table table table-sm table-hover" data-table-tools="1">
               <thead>
                 <tr>
-                  <th>Produit</th>
-                  <th>Stock</th>
-                  <th>Quantit&eacute;</th>
-                  <th>Date de p&eacute;remption</th>
+                  <th>{% trans "Produit" %}</th>
+                  <th>{% trans "Stock" %}</th>
+                  <th>{% trans "Quantité" %}</th>
+                  <th>{% trans "Date de péremption" %}</th>
                 </tr>
               </thead>
               <tbody>
@@ -148,7 +149,7 @@
                     <td>
                       <div><strong>{{ row.kit_name }}</strong></div>
                       {% for line in row.product_lines %}
-                        <div>{{ line.product_name }} - {{ line.quantity }} unit&eacute;s</div>
+                        <div>{% blocktrans with product_name=line.product_name quantity=line.quantity %}{{ product_name }} - {{ quantity }} unités{% endblocktrans %}</div>
                       {% endfor %}
                     </td>
                     <td>{{ row.available_stock }}</td>
@@ -169,7 +170,7 @@
                   </tr>
                 {% empty %}
                   <tr>
-                    <td colspan="4">Aucun kit pr&ecirc;t disponible.</td>
+                    <td colspan="4">{% trans "Aucun kit prêt disponible." %}</td>
                   </tr>
                 {% endfor %}
               </tbody>
@@ -179,19 +180,19 @@
       </div>
 
       <div class="scan-field">
-        <label class="form-label">Produits &agrave; l'unit&eacute;</label>
+        <label class="form-label">{% trans "Produits à l'unité" %}</label>
         <p class="scan-help">
-          Les stock indiqu&eacute;s dans ce tableau sont fictifs. Cette fonctionnalit&eacute; sera bient&ocirc;t activ&eacute;e pour afficher les stocks r&eacute;els.
+          {% trans "Les stock indiqués dans ce tableau sont fictifs. Cette fonctionnalité sera bientôt activée pour afficher les stocks réels." %}
         </p>
         <div class="portal-products-panel">
           <div class="scan-table-wrap portal-products-table-wrap">
             <table class="scan-table portal-table table table-sm table-hover" data-table-tools="1">
               <thead>
                 <tr>
-                  <th>Produit</th>
-                  <th>Stock</th>
-                  <th>Quantit&eacute;</th>
-                  <th>Cartons estim&eacute;s</th>
+                  <th>{% trans "Produit" %}</th>
+                  <th>{% trans "Stock" %}</th>
+                  <th>{% trans "Quantité" %}</th>
+                  <th>{% trans "Cartons estimés" %}</th>
                 </tr>
               </thead>
               <tbody>
@@ -233,12 +234,12 @@
           </div>
           <div class="portal-products-actions ui-comp-actions">
             <p class="scan-help">
-              Total estim&eacute;:
+              {% trans "Total estimé" %}:
               <span id="ready-carton-estimate-total">{{ total_selected_ready_cartons|default:0 }}</span>
-              colis pr&ecirc;ts + <span id="carton-estimate-total">{% if total_estimated_cartons_to_prepare %}{{ total_estimated_cartons_to_prepare }}{% else %}0{% endif %}</span>
-              carton(s) &agrave; pr&eacute;parer.
+              {% trans "colis prêts +" %} <span id="carton-estimate-total">{% if total_estimated_cartons_to_prepare %}{{ total_estimated_cartons_to_prepare }}{% else %}0{% endif %}</span>
+              {% trans "carton(s) à préparer." %}
             </p>
-            <button type="submit" class="scan-submit btn btn-primary">Envoyer la commande</button>
+            <button type="submit" class="scan-submit btn btn-primary">{% trans "Envoyer la commande" %}</button>
           </div>
         </div>
       </div>
