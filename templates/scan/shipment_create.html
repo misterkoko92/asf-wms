@@ -258,6 +258,34 @@
           <div class="scan-help">Aucun document additionnel.</div>
         {% endif %}
       </div>
+
+      <div class="scan-field">
+        <label class="form-label">R&eacute;ceptions association li&eacute;es</label>
+        {% if receipt_allocations %}
+          <table class="scan-table">
+            <thead>
+              <tr>
+                <th>R&eacute;ception</th>
+                <th>Association</th>
+                <th>Unit&eacute;s allou&eacute;es</th>
+                <th>Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for allocation in receipt_allocations %}
+                <tr>
+                  <td>{{ allocation.receipt.reference }}</td>
+                  <td>{% if allocation.receipt.source_contact %}{{ allocation.receipt.source_contact.name }}{% else %}-{% endif %}</td>
+                  <td>{{ allocation.allocated_received_units }}</td>
+                  <td>{% if allocation.note %}{{ allocation.note }}{% else %}-{% endif %}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <div class="scan-help">Aucune r&eacute;ception association allou&eacute;e pour le moment.</div>
+        {% endif %}
+      </div>
     {% endif %}
     {{ products_json|json_script:"product-data" }}
     {{ cartons_json|json_script:"carton-data" }}

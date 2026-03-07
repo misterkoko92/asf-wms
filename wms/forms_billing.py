@@ -7,6 +7,9 @@ from .models import (
     BillingComputationProfile,
     BillingServiceCatalogItem,
     ProductCategory,
+    ReceiptShipmentAllocation,
+    Shipment,
+    ShipmentStatus,
     ShipmentUnitEquivalenceRule,
 )
 
@@ -252,3 +255,40 @@ class ShipmentUnitEquivalenceRuleForm(forms.ModelForm):
             "id",
         )
         self.fields["category"].label_from_instance = lambda category: str(category)
+
+
+NON_ALLOCATABLE_SHIPMENT_STATUSES = {
+    ShipmentStatus.PLANNED,
+    ShipmentStatus.SHIPPED,
+    ShipmentStatus.RECEIVED_CORRESPONDENT,
+    ShipmentStatus.DELIVERED,
+}
+
+
+class ReceiptShipmentAllocationForm(forms.ModelForm):
+    class Meta:
+        model = ReceiptShipmentAllocation
+        fields = ("shipment", "allocated_received_units", "note")
+        labels = {
+            "shipment": "Expedition",
+            "allocated_received_units": "Unites allouees",
+            "note": "Note",
+        }
+        widgets = {
+            "allocated_received_units": forms.NumberInput(attrs={"min": 1, "step": 1}),
+            "note": forms.Textarea(attrs={"rows": 2}),
+        }
+
+    def __init__(self, *args, receipt=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        shipment_queryset = Shipment.objects.filter(archived_at__isnull=True).exclude(
+            status__in=NON_ALLOCATABLE_SHIPMENT_STATUSES
+        )
+        if receipt is not None and receipt.source_contact_id:
+            shipment_queryset = shipment_queryset.filter(shipper_contact_ref=receipt.source_contact)
+        else:
+            shipment_queryset = shipment_queryset.none()
+        self.fields["shipment"].queryset = shipment_queryset.order_by("-created_at", "reference")
+        self.fields["shipment"].label_from_instance = lambda shipment: (
+            shipment.reference or f"Expedition {shipment.id}"
+        )

@@ -75,7 +75,10 @@ def handle_receipt_association_post(
                     request,
                     f"Réception association enregistrée (ref {receipt.reference}).",
                 )
-                return redirect("scan:scan_receive_association"), line_errors
+                return (
+                    redirect(f"{reverse('scan:scan_receive_association')}?receipt_id={receipt.id}"),
+                    line_errors,
+                )
     return None, line_errors
 
 

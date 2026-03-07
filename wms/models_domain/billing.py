@@ -291,6 +291,28 @@ class ReceiptShipmentAllocation(models.Model):
     def __str__(self) -> str:
         return f"{self.receipt_id} -> {self.shipment_id}"
 
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.receipt_id and not self.receipt.source_contact_id:
+            errors["receipt"] = "Receipt source association is required."
+        if self.shipment_id and not self.shipment.shipper_contact_ref_id:
+            errors["shipment"] = "Shipment shipper association is required."
+        if (
+            self.receipt_id
+            and self.shipment_id
+            and self.receipt.source_contact_id
+            and self.shipment.shipper_contact_ref_id
+            and self.receipt.source_contact_id != self.shipment.shipper_contact_ref_id
+        ):
+            errors["receipt"] = "All linked receipts must belong to the shipment association."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
 
 class BillingDocument(models.Model):
     kind = models.CharField(

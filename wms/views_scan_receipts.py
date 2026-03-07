@@ -1,8 +1,11 @@
-from django.shortcuts import render
+from django.contrib import messages
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
 from .forms import ScanReceiptAssociationForm
-from .models import Receipt, ReceiptType
+from .forms_billing import ReceiptShipmentAllocationForm
+from .models import Receipt, ReceiptShipmentAllocation, ReceiptType
 from .receipt_handlers import (
     build_hors_format_lines,
     handle_receipt_action,
@@ -75,6 +78,9 @@ def _render_receive_association(
     line_count,
     line_values,
     line_errors,
+    selected_receipt,
+    allocation_form,
+    receipt_allocations,
 ):
     return render(
         request,
@@ -85,7 +91,31 @@ def _render_receive_association(
             "line_count": line_count,
             "line_values": line_values,
             "line_errors": line_errors,
+            "selected_receipt": selected_receipt,
+            "allocation_form": allocation_form,
+            "receipt_allocations": receipt_allocations,
         },
+    )
+
+
+def _selected_association_receipt(request):
+    receipt_id = (request.POST.get("receipt_id") or request.GET.get("receipt_id") or "").strip()
+    if not receipt_id:
+        return None
+    return get_object_or_404(
+        Receipt.objects.select_related("source_contact", "carrier_contact"),
+        pk=receipt_id,
+        receipt_type=ReceiptType.ASSOCIATION,
+    )
+
+
+def _build_receipt_allocation_rows(receipt):
+    if receipt is None:
+        return []
+    return list(
+        ReceiptShipmentAllocation.objects.select_related("shipment", "created_by")
+        .filter(receipt=receipt)
+        .order_by("shipment__reference", "id")
     )
 
 
@@ -153,18 +183,46 @@ def scan_receive_pallet(request):
 @scan_staff_required
 @require_http_methods(["GET", "POST"])
 def scan_receive_association(request):
-    line_count, line_values = build_hors_format_lines(request)
+    action = (request.POST.get("action") or "").strip()
+    selected_receipt = _selected_association_receipt(request)
+    line_count, line_values = (
+        build_hors_format_lines(request) if action != "add_allocation" else (0, [])
+    )
     line_errors = {}
-    create_form = ScanReceiptAssociationForm(request.POST or None, request.FILES or None)
+    create_form = (
+        ScanReceiptAssociationForm(request.POST or None, request.FILES or None)
+        if request.method != "POST" or action != "add_allocation"
+        else ScanReceiptAssociationForm()
+    )
+    allocation_form = (
+        ReceiptShipmentAllocationForm(request.POST or None, receipt=selected_receipt)
+        if selected_receipt is not None
+        else None
+    )
     if request.method == "POST":
-        response, line_errors = handle_receipt_association_post(
-            request,
-            create_form=create_form,
-            line_values=line_values,
-            line_count=line_count,
-        )
-        if response:
-            return response
+        if action == "add_allocation" and selected_receipt is not None:
+            allocation_form = ReceiptShipmentAllocationForm(request.POST, receipt=selected_receipt)
+            if allocation_form.is_valid():
+                allocation = allocation_form.save(commit=False)
+                allocation.receipt = selected_receipt
+                allocation.created_by = request.user
+                allocation.save()
+                messages.success(
+                    request,
+                    f"Allocation ajoutée vers expédition {allocation.shipment.reference}.",
+                )
+                return redirect(
+                    f"{reverse('scan:scan_receive_association')}?receipt_id={selected_receipt.id}"
+                )
+        else:
+            response, line_errors = handle_receipt_association_post(
+                request,
+                create_form=create_form,
+                line_values=line_values,
+                line_count=line_count,
+            )
+            if response:
+                return response
 
     return _render_receive_association(
         request,
@@ -172,4 +230,7 @@ def scan_receive_association(request):
         line_count=line_count,
         line_values=line_values,
         line_errors=line_errors,
+        selected_receipt=selected_receipt,
+        allocation_form=allocation_form,
+        receipt_allocations=_build_receipt_allocation_rows(selected_receipt),
     )
