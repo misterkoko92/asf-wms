@@ -1,27 +1,36 @@
 {% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Revue migration des roles organisation" %}{% endblock %}
 
 {% block breadcrumbs %}
 <div class="breadcrumbs">
-  <a href="{% url 'admin:index' %}">Accueil</a>
-  &rsaquo; Revue migration roles organisation
+  <a href="{% url 'admin:index' %}">{% trans "Accueil" %}</a>
+  &rsaquo; {% trans "Revue migration des roles organisation" %}
 </div>
 {% endblock %}
 
 {% block content %}
 <div id="content-main">
-  <h1>{{ title }}</h1>
-  <p>{{ open_items_count }} item(s) ouvert(s) a traiter.</p>
+  <h1>{% trans "Revue migration des roles organisation" %}</h1>
+  <p>
+    {% blocktrans count counter=open_items_count %}
+      {{ counter }} item ouvert a traiter.
+    {% plural %}
+      {{ counter }} items ouverts a traiter.
+    {% endblocktrans %}
+  </p>
 
   {% if review_items %}
   <table id="result_list" style="width: 100%; border-collapse: collapse;">
     <thead>
       <tr>
-        <th style="text-align: left;">Organisation</th>
-        <th style="text-align: left;">Role</th>
-        <th style="text-align: left;">Raison</th>
-        <th style="text-align: left;">Suggestion expediteur</th>
-        <th style="text-align: left;">Suggestion escale</th>
-        <th style="text-align: left;">Action</th>
+        <th style="text-align: left;">{% trans "Organisation" %}</th>
+        <th style="text-align: left;">{% trans "Role" %}</th>
+        <th style="text-align: left;">{% trans "Raison" %}</th>
+        <th style="text-align: left;">{% trans "Suggestion expediteur" %}</th>
+        <th style="text-align: left;">{% trans "Suggestion escale" %}</th>
+        <th style="text-align: left;">{% trans "Action" %}</th>
       </tr>
     </thead>
     <tbody>
@@ -35,7 +44,7 @@
           {% elif row.item.legacy_contact %}
             {{ row.item.legacy_contact.name }}
           {% else %}
-            Item #{{ row.item.id }}
+            {% blocktrans with item_id=row.item.id %}Item #{{ item_id }}{% endblocktrans %}
           {% endif %}
         </td>
         <td>{{ row.item.get_role_display }}</td>
@@ -70,9 +79,9 @@
             <input type="hidden" name="item_id" value="{{ row.item.id }}">
 
             <label>
-              Expediteur
+              {% trans "Expediteur" %}
               <select name="shipper_org_id" style="min-width: 260px;">
-                <option value="">-- selectionner --</option>
+                <option value="">{% trans "-- selectionner --" %}</option>
                 {% for option in row.shipper_options %}
                   <option value="{{ option.id }}" {% if option.id == row.suggested_shipper_id %}selected{% endif %}>{{ option.name }}</option>
                 {% endfor %}
@@ -80,9 +89,9 @@
             </label>
 
             <label>
-              Escale
+              {% trans "Escale" %}
               <select name="destination_id" style="min-width: 260px;">
-                <option value="">-- selectionner --</option>
+                <option value="">{% trans "-- selectionner --" %}</option>
                 {% for option in row.destination_options %}
                   <option value="{{ option.id }}" {% if option.id == row.suggested_destination_id %}selected{% endif %}>{{ option.city }} ({{ option.iata_code }})</option>
                 {% endfor %}
@@ -90,13 +99,13 @@
             </label>
 
             <label>
-              Note de resolution
+              {% trans "Note de resolution" %}
               <input type="text" name="resolution_note" value="{{ row.item.resolution_note|default:'' }}" maxlength="500">
             </label>
 
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-              <button type="submit" name="action" value="resolve_binding" class="default">Valider mapping</button>
-              <button type="submit" name="action" value="resolve_without_binding">Cloturer sans mapping</button>
+              <button type="submit" name="action" value="resolve_binding" class="default">{% trans "Valider mapping" %}</button>
+              <button type="submit" name="action" value="resolve_without_binding">{% trans "Cloturer sans mapping" %}</button>
             </div>
           </form>
         </td>
@@ -105,7 +114,7 @@
     </tbody>
   </table>
   {% else %}
-    <p>Aucun item ouvert dans la file de revue migration.</p>
+    <p>{% trans "Aucun item ouvert dans la file de revue migration." %}</p>
   {% endif %}
 </div>
 {% endblock %}

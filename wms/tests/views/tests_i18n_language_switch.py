@@ -362,6 +362,13 @@ class LanguageSwitchI18nTests(TestCase):
         )
         self.assertNotContains(change_password_response, "Changer le mot de passe")
 
+    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
+    def test_admin_custom_pages_render_native_english(self):
+        self.client.force_login(self.superuser)
+        response = self.client.get(reverse("admin:index"))
+        self.assertContains(response, "Django admin")
+        self.assertNotContains(response, "Admin Django")
+
     def test_language_switch_is_present_on_standalone_pages(self):
         login_response = self.client.get(reverse("portal:portal_login"))
         self.assertContains(login_response, 'name="language"')

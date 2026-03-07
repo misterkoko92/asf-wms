@@ -1,6 +1,6 @@
 {% extends "admin/base_site.html" %}
 
-{% load static %}
+{% load i18n static %}
 
 {% block extrastyle %}
   {{ block.super }}
@@ -26,8 +26,8 @@
         {{ form.as_p }}
       </fieldset>
       <div class="submit-row">
-        <input type="submit" value="Enregistrer" class="default btn btn-primary">
-        <a href="{% url 'admin:wms_stockmovement_changelist' %}" class="button btn btn-outline-secondary">Retour</a>
+        <input type="submit" value="{% trans "Enregistrer" %}" class="default btn btn-primary">
+        <a href="{% url 'admin:wms_stockmovement_changelist' %}" class="button btn btn-outline-secondary">{% trans "Retour" %}</a>
       </div>
     </form>
   </div>

@@ -6,6 +6,8 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy
 
 from contacts.models import Contact, ContactAddress, ContactTag
 
@@ -13,9 +15,20 @@ from . import models
 from .contact_filters import TAG_SHIPPER
 from .portal_permissions import assign_association_portal_group
 
-ACCOUNT_ACCESS_PENDING = "Disponible après validation."
-ACCOUNT_ACCESS_USER_NOT_FOUND = "Utilisateur introuvable."
-ACCOUNT_ACCESS_MISSING_BASE_URL = "SITE_BASE_URL non configurée, utiliser l'URL du site."
+ACCOUNT_ACCESS_PENDING = gettext_lazy("Disponible après validation.")
+ACCOUNT_ACCESS_USER_NOT_FOUND = gettext_lazy("Utilisateur introuvable.")
+ACCOUNT_ACCESS_MISSING_BASE_URL = gettext_lazy(
+    "SITE_BASE_URL non configurée, utiliser l'URL du site."
+)
+
+
+def describe_account_request_skip_reason(reason):
+    reason_labels = {
+        "email reserve": _("email reserve"),
+        "username manquant": _("username manquant"),
+        "username reserve": _("username reserve"),
+    }
+    return reason_labels.get(reason, reason)
 
 
 def _portal_paths(*, user):
@@ -226,11 +239,11 @@ def build_account_access_lines(*, account_request, site_base_url):
         has_base_url = bool(base_url)
         login_url = f"{base_url}{login_path}" if has_base_url else login_path
         lines = [
-            f"Profil: Utilisateur WMS",
-            f"Nom d'utilisateur: {user.username or '-'}",
-            f"Email: {account_request.email or '-'}",
-            f"Login: {login_url}",
-            "Mot de passe: defini par l'utilisateur lors de la demande.",
+            _("Profil: Utilisateur WMS"),
+            _("Nom d'utilisateur: %(username)s") % {"username": user.username or "-"},
+            _("Email: %(email)s") % {"email": account_request.email or "-"},
+            _("Login: %(url)s") % {"url": login_url},
+            _("Mot de passe: defini par l'utilisateur lors de la demande."),
         ]
     else:
         login_url, set_password_url, has_base_url = build_portal_urls_from_base_url(
@@ -238,10 +251,10 @@ def build_account_access_lines(*, account_request, site_base_url):
             user=user,
         )
         lines = [
-            f"Profil: Association",
-            f"Email: {account_request.email or '-'}",
-            f"Login: {login_url}",
-            f"Lien definir mot de passe: {set_password_url}",
+            _("Profil: Association"),
+            _("Email: %(email)s") % {"email": account_request.email or "-"},
+            _("Login: %(url)s") % {"url": login_url},
+            _("Lien definir mot de passe: %(url)s") % {"url": set_password_url},
         ]
     if not has_base_url:
         lines.append(ACCOUNT_ACCESS_MISSING_BASE_URL)

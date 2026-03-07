@@ -57,6 +57,25 @@ class AdminBootstrapUiTests(TestCase):
         self.assertContains(response, "btn btn-primary")
         self.assertContains(response, "btn btn-outline-secondary")
 
+    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
+    def test_admin_stockmovement_views_render_native_english(self):
+        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = "en"
+
+        changelist_response = self.client.get(reverse("admin:wms_stockmovement_changelist"))
+        self.assertEqual(changelist_response.status_code, 200)
+        self.assertContains(changelist_response, "Receive stock")
+        self.assertContains(changelist_response, "Adjust stock")
+        self.assertContains(changelist_response, "Transfer stock")
+        self.assertContains(changelist_response, "Prepare carton")
+        self.assertNotContains(changelist_response, "R&eacute;ception stock")
+
+        form_response = self.client.get(reverse("admin:wms_stockmovement_receive"))
+        self.assertEqual(form_response.status_code, 200)
+        self.assertContains(form_response, "Receive stock")
+        self.assertContains(form_response, 'value="Save"')
+        self.assertContains(form_response, ">Back<")
+        self.assertNotContains(form_response, 'value="Enregistrer"')
+
     def test_admin_shipment_change_form_includes_bootstrap_doc_actions(self):
         response = self.client.get(reverse("admin:wms_shipment_change", args=[self.shipment.id]))
         self.assertEqual(response.status_code, 200)

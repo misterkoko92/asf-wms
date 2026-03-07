@@ -1,3 +1,6 @@
+from django.utils.translation import gettext as _
+
+
 def build_stockmovement_form_response(
     *,
     request,
@@ -26,7 +29,7 @@ def handle_receive_view(
     transaction_module,
     message_user,
 ):
-    title = "Réception stock"
+    title = _("Réception stock")
     if request.method == "POST":
         form = form_class(request.POST)
         if form.is_valid():
@@ -36,7 +39,7 @@ def handle_receive_view(
             if location is None:
                 form.add_error(
                     "location",
-                    "Emplacement requis ou définir un emplacement par défaut.",
+                    _("Emplacement requis ou définir un emplacement par défaut."),
                 )
                 return render_form(request, form, title)
             with transaction_module.atomic():
@@ -51,7 +54,7 @@ def handle_receive_view(
                     status=status,
                     storage_conditions=form.cleaned_data["storage_conditions"],
                 )
-            message_user(request, "Stock réceptionné et lot créé avec succès.")
+            message_user(request, _("Stock réceptionné et lot créé avec succès."))
             return redirect_fn("admin:wms_productlot_change", lot.id)
     else:
         form = form_class()
@@ -69,7 +72,7 @@ def handle_adjust_view(
     transaction_module,
     message_user,
 ):
-    title = "Ajuster stock"
+    title = _("Ajuster stock")
     if request.method == "POST":
         form = form_class(request.POST)
         if form.is_valid():
@@ -84,12 +87,12 @@ def handle_adjust_view(
                         reason_code=form.cleaned_data["reason_code"] or "",
                         reason_notes=form.cleaned_data["reason_notes"] or "",
                     )
-                message_user(request, "Ajustement de stock enregistré.")
+                message_user(request, _("Ajustement de stock enregistré."))
                 return redirect_fn("admin:wms_productlot_change", lot.id)
             except stock_error_cls:
                 form.add_error(
                     "quantity_delta",
-                    "Stock insuffisant pour appliquer cette correction.",
+                    _("Stock insuffisant pour appliquer cette correction."),
                 )
     else:
         form = form_class()
@@ -107,7 +110,7 @@ def handle_transfer_view(
     transaction_module,
     message_user,
 ):
-    title = "Transférer stock"
+    title = _("Transférer stock")
     if request.method == "POST":
         form = form_class(request.POST)
         if form.is_valid():
@@ -120,10 +123,10 @@ def handle_transfer_view(
                         lot=lot,
                         to_location=to_location,
                     )
-                message_user(request, "Transfert de stock enregistré.")
+                message_user(request, _("Transfert de stock enregistré."))
                 return redirect_fn("admin:wms_productlot_change", lot.id)
             except stock_error_cls:
-                form.add_error("to_location", "Le lot est déjà à cet emplacement.")
+                form.add_error("to_location", _("Le lot est déjà à cet emplacement."))
     else:
         form = form_class()
     return render_form(request, form, title)
@@ -153,7 +156,7 @@ def handle_pack_view(
     transaction_module,
     message_user,
 ):
-    title = "Préparer carton"
+    title = _("Préparer carton")
     if request.method == "POST":
         form = form_class(request.POST)
         if form.is_valid():
@@ -179,7 +182,7 @@ def handle_pack_view(
                     form.add_error(_map_pack_error_to_field(message), message)
                     return render_form(request, form, title)
 
-            message_user(request, "Carton préparé avec succès.")
+            message_user(request, _("Carton préparé avec succès."))
             return redirect_fn("admin:wms_carton_change", carton.id)
     else:
         form = form_class()

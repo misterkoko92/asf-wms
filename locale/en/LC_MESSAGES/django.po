@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-07 16:41+0100\n"
+"POT-Creation-Date: 2026-03-07 18:44+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -26,6 +26,131 @@ msgstr "French"
 #: templates/includes/language_switch.html:25
 msgid "English"
 msgstr "English"
+
+#: templates/admin/base_site.html:11
+msgid "Django admin"
+msgstr "Django admin"
+
+#: templates/admin/wms/organization_roles_review.html:4
+#: templates/admin/wms/organization_roles_review.html:9
+#: templates/admin/wms/organization_roles_review.html:15
+msgid "Revue migration des roles organisation"
+msgstr "Organization role migration review"
+
+#: templates/admin/wms/organization_roles_review.html:8
+msgid "Accueil"
+msgstr "Home"
+
+#: templates/admin/wms/organization_roles_review.html:17
+#, python-format
+msgid ""
+"\n"
+"      %(counter)s item ouvert a traiter.\n"
+"    "
+msgid_plural ""
+"\n"
+"      %(counter)s items ouverts a traiter.\n"
+"    "
+msgstr[0] ""
+"\n"
+"      %(counter)s open item to review.\n"
+"    "
+msgstr[1] ""
+"\n"
+"      %(counter)s open items to review.\n"
+"    "
+
+#: templates/admin/wms/organization_roles_review.html:28
+msgid "Organisation"
+msgstr "Organization"
+
+#: templates/admin/wms/organization_roles_review.html:29
+msgid "Role"
+msgstr "Role"
+
+#: templates/admin/wms/organization_roles_review.html:30
+msgid "Raison"
+msgstr "Reason"
+
+#: templates/admin/wms/organization_roles_review.html:31
+msgid "Suggestion expediteur"
+msgstr "Suggested shipper"
+
+#: templates/admin/wms/organization_roles_review.html:32
+msgid "Suggestion escale"
+msgstr "Suggested stopover"
+
+#: templates/admin/wms/organization_roles_review.html:33
+msgid "Action"
+msgstr "Action"
+
+#: templates/admin/wms/organization_roles_review.html:47
+#, python-format
+msgid "Item #%(item_id)s"
+msgstr "Item #%(item_id)s"
+
+#: templates/admin/wms/organization_roles_review.html:82
+msgid "Expediteur"
+msgstr "Shipper"
+
+#: templates/admin/wms/organization_roles_review.html:84
+#: templates/admin/wms/organization_roles_review.html:94
+msgid "-- selectionner --"
+msgstr "-- select --"
+
+#: templates/admin/wms/organization_roles_review.html:92
+#: templates/portal/dashboard.html:20 templates/portal/recipients.html:21
+msgid "Escale"
+msgstr "Stopover"
+
+#: templates/admin/wms/organization_roles_review.html:102
+msgid "Note de resolution"
+msgstr "Resolution note"
+
+#: templates/admin/wms/organization_roles_review.html:107
+#: templates/scan/receive_pallet.html:367
+msgid "Valider mapping"
+msgstr "Confirm mapping"
+
+#: templates/admin/wms/organization_roles_review.html:108
+msgid "Cloturer sans mapping"
+msgstr "Close without mapping"
+
+#: templates/admin/wms/organization_roles_review.html:117
+msgid "Aucun item ouvert dans la file de revue migration."
+msgstr "No open items in the migration review queue."
+
+#: templates/admin/wms/stockmovement/change_list.html:24
+#: wms/admin_stockmovement_views.py:32
+msgid "Réception stock"
+msgstr "Receive stock"
+
+#: templates/admin/wms/stockmovement/change_list.html:27
+#: wms/admin_stockmovement_views.py:75
+msgid "Ajuster stock"
+msgstr "Adjust stock"
+
+#: templates/admin/wms/stockmovement/change_list.html:30
+#: wms/admin_stockmovement_views.py:113
+msgid "Transférer stock"
+msgstr "Transfer stock"
+
+#: templates/admin/wms/stockmovement/change_list.html:33
+#: wms/admin_stockmovement_views.py:159
+msgid "Préparer carton"
+msgstr "Prepare carton"
+
+#: templates/admin/wms/stockmovement/form.html:29
+#: templates/portal/change_password.html:29
+#: templates/portal/recipients.html:162 templates/portal/set_password.html:56
+#: templates/scan/settings.html:145 templates/scan/shipment_tracking.html:180
+#: templates/scan/stock_update.html:64
+msgid "Enregistrer"
+msgstr "Save"
+
+#: templates/admin/wms/stockmovement/form.html:30
+msgid "Retour"
+msgstr "Back"
 
 #: templates/portal/access_recovery.html:32
 msgid "Retour a la connexion"
@@ -64,7 +189,7 @@ msgstr "Phone"
 #: templates/portal/account.html:62 templates/portal/account.html:65
 #: templates/portal/recipients.html:24 templates/portal/recipients.html:124
 #: templates/scan/public_account_request.html:99
-#: templates/scan/public_order.html:88
+#: templates/scan/public_order.html:88 wms/admin.py:378
 msgid "Adresse"
 msgstr "Address"
 
@@ -134,6 +259,7 @@ msgstr "Administrative"
 
 #: templates/portal/account.html:161 templates/portal/account.html:294
 #: templates/scan/order.html:110 templates/scan/orders_view.html:22
+#: wms/admin.py:748
 msgid "Expédition"
 msgstr "Shipping"
 
@@ -233,13 +359,6 @@ msgstr "Password"
 msgid "Confirmer"
 msgstr "Confirm"
 
-#: templates/portal/change_password.html:29
-#: templates/portal/recipients.html:162 templates/portal/set_password.html:56
-#: templates/scan/settings.html:145 templates/scan/shipment_tracking.html:180
-#: templates/scan/stock_update.html:64
-msgid "Enregistrer"
-msgstr "Save"
-
 #: templates/portal/dashboard.html:4 templates/portal/dashboard.html:8
 msgid "Mes commandes"
 msgstr "My orders"
@@ -254,14 +373,11 @@ msgstr "History of orders linked to your account."
 msgid "Référence"
 msgstr "Reference"
 
-#: templates/portal/dashboard.html:20 templates/portal/recipients.html:21
-msgid "Escale"
-msgstr "Stopover"
-
 #: templates/portal/dashboard.html:21 templates/portal/order_create.html:36
 #: templates/scan/order.html:37 templates/scan/shipment_create.html:67
 #: templates/scan/shipments_ready.html:31
-#: templates/scan/shipments_tracking.html:46 wms/forms.py:422
+#: templates/scan/shipments_tracking.html:46 wms/admin_misc.py:59
+#: wms/forms.py:422
 msgid "Destinataire"
 msgstr ""
 
@@ -482,7 +598,7 @@ msgstr "Order #%(order_id)s"
 msgid "Destinataire: %(recipient_name)s"
 msgstr "Recipient: %(recipient_name)s"
 
-#: templates/portal/order_detail.html:22
+#: templates/portal/order_detail.html:22 wms/admin.py:390
 msgid "Validation"
 msgstr "Review"
 
@@ -900,7 +1016,7 @@ msgstr "Parcels"
 msgid "Réf"
 msgstr "Ref"
 
-#: templates/scan/dashboard.html:111
+#: templates/scan/dashboard.html:111 wms/admin.py:674
 msgid "Disponible"
 msgstr "Available"
 
@@ -966,13 +1082,16 @@ msgstr ""
 msgid ""
 "<strong>Produit</strong> : fiche article (SKU, nom, marque, poids, "
 "emplacement)."
-msgstr "<strong>Product</strong>: item sheet (SKU, name, brand, weight, location)."
+msgstr ""
+"<strong>Product</strong>: item sheet (SKU, name, brand, weight, location)."
 
 #: templates/scan/faq.html:32
 msgid ""
 "<strong>Lot</strong> : stock réel par produit (quantité, péremption, lot, "
 "emplacement)."
-msgstr "<strong>Lot</strong>: actual stock by product (quantity, expiry, lot, location)."
+msgstr ""
+"<strong>Lot</strong>: actual stock by product (quantity, expiry, lot, "
+"location)."
 
 #: templates/scan/faq.html:33
 msgid ""
@@ -1019,8 +1138,8 @@ msgid ""
 "<strong>Litige</strong> : drapeau transverse sur expédition "
 "(<code>is_disputed</code>), activable à tout moment du suivi."
 msgstr ""
-"<strong>Dispute</strong>: cross-cutting shipment flag "
-"(<code>is_disputed</code>), which can be enabled at any point in tracking."
+"<strong>Dispute</strong>: cross-cutting shipment flag (<code>is_disputed</"
+"code>), which can be enabled at any point in tracking."
 
 #: templates/scan/faq.html:42
 msgid ""
@@ -1081,8 +1200,8 @@ msgid ""
 "Actions disponibles: activer/désactiver un rôle, gérer les contacts "
 "d'organisation, lier un contact à un rôle, définir le principal."
 msgstr ""
-"Available actions: enable/disable a role, manage organization contacts, "
-"link a contact to a role, set the primary contact."
+"Available actions: enable/disable a role, manage organization contacts, link "
+"a contact to a role, set the primary contact."
 
 #: templates/scan/faq.html:62
 msgid "Périmètre expéditeur: scopes globaux ou par destination."
@@ -1105,8 +1224,7 @@ msgid ""
 "Les liens admin Django restent disponibles en secours pour les opérations de "
 "maintenance."
 msgstr ""
-"Django admin links remain available as a fallback for maintenance "
-"operations."
+"Django admin links remain available as a fallback for maintenance operations."
 
 #: templates/scan/faq.html:70
 msgid "Données de référence"
@@ -1155,7 +1273,9 @@ msgstr ""
 #: templates/scan/faq.html:78
 msgid ""
 "<strong>Destinations</strong> : ville, code IATA, pays, correspondant lié."
-msgstr "<strong>Destinations</strong>: city, IATA code, country, linked correspondent."
+msgstr ""
+"<strong>Destinations</strong>: city, IATA code, country, linked "
+"correspondent."
 
 #: templates/scan/faq.html:79
 msgid ""
@@ -1211,8 +1331,7 @@ msgstr "Displayed stock matches the available lots."
 msgid ""
 "La colonne <strong>Dernière modification</strong> suit les mouvements de "
 "stock."
-msgstr ""
-"The <strong>Last modified</strong> column follows stock movements."
+msgstr "The <strong>Last modified</strong> column follows stock movements."
 
 #: templates/scan/faq.html:97
 msgid ""
@@ -1224,7 +1343,8 @@ msgstr ""
 
 #: templates/scan/faq.html:104
 msgid "Sélection produit par nom, SKU, barcode ou EAN (scan caméra possible)."
-msgstr "Select a product by name, SKU, barcode, or EAN (camera scan supported)."
+msgstr ""
+"Select a product by name, SKU, barcode, or EAN (camera scan supported)."
 
 #: templates/scan/faq.html:105
 msgid "Si inconnu, le bouton propose de créer le produit dans l'admin."
@@ -1270,7 +1390,8 @@ msgstr "Add one or more product + quantity lines (scanning supported)."
 #: templates/scan/faq.html:126
 msgid ""
 "Le système peut créer plusieurs cartons selon la capacité (poids/volume)."
-msgstr "The system can create several parcels based on capacity (weight/volume)."
+msgstr ""
+"The system can create several parcels based on capacity (weight/volume)."
 
 #: templates/scan/faq.html:127
 msgid ""
@@ -1307,6 +1428,7 @@ msgstr ""
 "(default format if not provided)."
 
 #: templates/scan/faq.html:146 templates/scan/shipment_create.html:14
+#: wms/admin.py:773
 msgid "Créer une expédition"
 msgstr "Create shipment"
 
@@ -1347,8 +1469,8 @@ msgid ""
 "Si aucun correspondant n'est lié à la destination, le sélecteur "
 "correspondant reste vide."
 msgstr ""
-"If no correspondent is linked to the destination, the correspondent "
-"selector stays empty."
+"If no correspondent is linked to the destination, the correspondent selector "
+"stays empty."
 
 #: templates/scan/faq.html:153
 msgid ""
@@ -1371,8 +1493,8 @@ msgid ""
 "<strong>Enregistrer en brouillon</strong> crée une expédition temporaire "
 "<strong>EXP-TEMP-XX</strong> modifiable plus tard."
 msgstr ""
-"<strong>Save draft</strong> creates a temporary shipment "
-"<strong>EXP-TEMP-XX</strong> that can be edited later."
+"<strong>Save draft</strong> creates a temporary shipment <strong>EXP-TEMP-"
+"XX</strong> that can be edited later."
 
 #: templates/scan/faq.html:156
 msgid ""
@@ -1473,8 +1595,8 @@ msgid ""
 "cours</strong>."
 msgstr ""
 "The <strong>ready date</strong> is set when the shipment becomes "
-"<strong>Ready</strong>, then cleared if the shipment goes back to "
-"<strong>In progress</strong>."
+"<strong>Ready</strong>, then cleared if the shipment goes back to <strong>In "
+"progress</strong>."
 
 #: templates/scan/faq.html:191
 msgid ""
@@ -1608,8 +1730,8 @@ msgid ""
 "PDF: choix des pages (toutes ou début/fin). Début vide = page 1, fin vide = "
 "dernière page."
 msgstr ""
-"PDF: choose pages (all or start/end). Empty start = page 1, empty end = "
-"last page."
+"PDF: choose pages (all or start/end). Empty start = page 1, empty end = last "
+"page."
 
 #: templates/scan/faq.html:244
 msgid "Excel: choix de la feuille + ligne des titres."
@@ -1618,15 +1740,13 @@ msgstr "Excel: choose the sheet + header row."
 #: templates/scan/faq.html:245
 msgid ""
 "Mapping des colonnes avec champs requis: <strong>nom + quantité</strong>."
-msgstr ""
-"Map columns with required fields: <strong>name + quantity</strong>."
+msgstr "Map columns with required fields: <strong>name + quantity</strong>."
 
 #: templates/scan/faq.html:246
 msgid ""
 "Récap: choix du match produit, édition des champs, validation ligne par "
 "ligne."
-msgstr ""
-"Recap: choose the product match, edit fields, validate line by line."
+msgstr "Recap: choose the product match, edit fields, validate line by line."
 
 #: templates/scan/faq.html:247
 msgid "Match auto sur <strong>Nom + Marque</strong> (liste modifiable)."
@@ -1673,8 +1793,7 @@ msgstr "Create a receiving, then add product lines."
 #: templates/scan/faq.html:272
 msgid ""
 "<strong>Réceptionner maintenant</strong> crée le lot stock immédiatement."
-msgstr ""
-"<strong>Receive now</strong> creates the stock lot immediately."
+msgstr "<strong>Receive now</strong> creates the stock lot immediately."
 
 #: templates/scan/faq.html:273
 msgid "Si emplacement vide, on utilise l'emplacement par défaut du produit."
@@ -1711,7 +1830,8 @@ msgstr "Templates available + full export for each table."
 
 #: templates/scan/faq.html:292
 msgid "Produit: match par SKU sinon Nom+Marque, confirmation avant update."
-msgstr "Product: match on SKU, otherwise Name+Brand, with confirmation before update."
+msgstr ""
+"Product: match on SKU, otherwise Name+Brand, with confirmation before update."
 
 #: templates/scan/faq.html:293
 msgid "Si SKU déjà utilisé et création forcée: SKU auto-généré."
@@ -1772,15 +1892,14 @@ msgid ""
 "source</strong>."
 msgstr ""
 "Mapping is defined row by row, with dropdowns for <strong>worksheet</"
-"strong>, <strong>column</strong>, <strong>row</strong>, and "
-"<strong>source field</strong>."
+"strong>, <strong>column</strong>, <strong>row</strong>, and <strong>source "
+"field</strong>."
 
 #: templates/scan/faq.html:309
 msgid ""
 "Les champs source sont limités à un catalogue backend (pas de saisie "
 "manuelle libre)."
-msgstr ""
-"Source fields are limited to a backend catalog (no free manual entry)."
+msgstr "Source fields are limited to a backend catalog (no free manual entry)."
 
 #: templates/scan/faq.html:310
 msgid "Plusieurs changements peuvent être enregistrés en une seule sauvegarde."
@@ -1874,8 +1993,8 @@ msgid ""
 "Depuis le suivi, vous pouvez <strong>Déclarer litige</strong> puis "
 "<strong>Résoudre litige et remettre Prêt</strong>."
 msgstr ""
-"From tracking, you can <strong>Declare dispute</strong> then "
-"<strong>Resolve dispute and reset to Ready</strong>."
+"From tracking, you can <strong>Declare dispute</strong> then <strong>Resolve "
+"dispute and reset to Ready</strong>."
 
 #: templates/scan/faq.html:332
 msgid ""
@@ -1893,8 +2012,7 @@ msgstr "Scanner & sync"
 msgid ""
 "Le bouton <strong>Scan</strong> ouvre la caméra et remplit le champ cible."
 msgstr ""
-"The <strong>Scan</strong> button opens the camera and fills the target "
-"field."
+"The <strong>Scan</strong> button opens the camera and fills the target field."
 
 #: templates/scan/faq.html:343
 msgid "Si la caméra est bloquée, autoriser l'accès dans le navigateur."
@@ -1922,8 +2040,8 @@ msgid ""
 "<strong>Mes listes sont vides</strong> : vérifier les rôles actifs, scopes "
 "expéditeurs et bindings destinataires."
 msgstr ""
-"<strong>My lists are empty</strong>: check active roles, shipper scopes, "
-"and recipient bindings."
+"<strong>My lists are empty</strong>: check active roles, shipper scopes, and "
+"recipient bindings."
 
 #: templates/scan/faq.html:354
 msgid ""
@@ -1931,9 +2049,9 @@ msgid ""
 "strong> : c'est normal, le CRUD legacy a été retiré au profit du cockpit org-"
 "role."
 msgstr ""
-"<strong>I no longer see \"create / edit / delete contact\" in Scan</"
-"strong>: this is expected, the legacy CRUD was removed in favor of the org-"
-"role cockpit."
+"<strong>I no longer see \"create / edit / delete contact\" in Scan</strong>: "
+"this is expected, the legacy CRUD was removed in favor of the org-role "
+"cockpit."
 
 #: templates/scan/faq.html:355
 msgid ""
@@ -1956,8 +2074,8 @@ msgid ""
 "modifiable, et une expédition planifiée/verrouillée bloque les changements "
 "colis."
 msgstr ""
-"<strong>A parcel is blocked</strong>: a shipped parcel cannot be edited, "
-"and a planned/locked shipment blocks parcel changes."
+"<strong>A parcel is blocked</strong>: a shipped parcel cannot be edited, and "
+"a planned/locked shipment blocks parcel changes."
 
 #: templates/scan/faq.html:358
 msgid ""
@@ -2690,10 +2808,6 @@ msgstr "WMS field"
 msgid "Ignorer"
 msgstr "Ignore"
 
-#: templates/scan/receive_pallet.html:367
-msgid "Valider mapping"
-msgstr "Confirm mapping"
-
 #: templates/scan/receive_pallet.html:373
 #: templates/scan/receive_pallet.html:573
 msgid "Annuler import"
@@ -3381,6 +3495,264 @@ msgstr "Add contact"
 msgid "Marque"
 msgstr "Brand"
 
+#: wms/admin.py:191 wms/admin.py:956
+msgid "QR code"
+msgstr ""
+
+#: wms/admin.py:201
+msgid "Photo"
+msgstr ""
+
+#: wms/admin.py:205
+msgid "%(count)s produit(s) archives."
+msgstr "%(count)s product(s) archived."
+
+#: wms/admin.py:207
+msgid "Archiver les produits"
+msgstr "Archive products"
+
+#: wms/admin.py:211
+msgid "%(count)s produit(s) réactivés."
+msgstr "%(count)s product(s) reactivated."
+
+#: wms/admin.py:213
+msgid "Réactiver les produits"
+msgstr "Reactivate products"
+
+#: wms/admin.py:222
+msgid "%(count)s QR code(s) générés."
+msgstr "%(count)s QR code(s) generated."
+
+#: wms/admin.py:224
+msgid "Générer les QR codes"
+msgstr "Generate QR codes"
+
+#: wms/admin.py:228 wms/admin.py:236
+msgid "Aucun produit sélectionné."
+msgstr "No product selected."
+
+#: wms/admin.py:232
+msgid "Imprimer étiquettes produit"
+msgstr "Print product labels"
+
+#: wms/admin.py:240
+msgid "Imprimer QR produits"
+msgstr "Print product QR labels"
+
+#: wms/admin.py:297
+msgid "%(count)s demande(s) approuvée(s)."
+msgstr "%(count)s request(s) approved."
+
+#: wms/admin.py:303
+#, python-format
+msgid ""
+"%(count)s demande(s) ignorée(s) (déjà approuvées ou identifiant réservé)."
+msgstr "%(count)s request(s) skipped (already approved or reserved identifier)."
+
+#: wms/admin.py:309
+msgid "Approuver les demandes"
+msgstr "Approve requests"
+
+#: wms/admin.py:327
+msgid "Compte créé automatiquement après validation."
+msgstr "Account created automatically after approval."
+
+#: wms/admin.py:333
+#, python-format
+msgid "Validation ignorée (%(reason)s)."
+msgstr "Approval skipped (%(reason)s)."
+
+#: wms/admin.py:347
+msgid "Accès portail"
+msgstr "Portal access"
+
+#: wms/admin.py:403
+msgid "%(count)s demande(s) refusée(s)."
+msgstr "%(count)s request(s) rejected."
+
+#: wms/admin.py:406
+msgid "Refuser les demandes"
+msgstr "Reject requests"
+
+#: wms/admin.py:420 wms/admin_misc.py:73
+msgid "%(count)s document(s) approuvé(s)."
+msgstr "%(count)s document(s) approved."
+
+#: wms/admin.py:423 wms/admin_misc.py:76
+msgid "Marquer comme approuvé"
+msgstr "Mark as approved"
+
+#: wms/admin.py:433 wms/admin_misc.py:86
+msgid "%(count)s document(s) refusé(s)."
+msgstr "%(count)s document(s) rejected."
+
+#: wms/admin.py:436 wms/admin_misc.py:89
+msgid "Marquer comme refusé"
+msgstr "Mark as rejected"
+
+#: wms/admin.py:457 wms/admin.py:527
+msgid "Rack"
+msgstr "Rack"
+
+#: wms/admin.py:459
+msgid "Palette"
+msgstr "Swatch"
+
+#: wms/admin.py:470
+msgid "Format attendu: #RRGGBB (ex: #1C8BC0)."
+msgstr "Expected format: #RRGGBB (example: #1C8BC0)."
+
+#: wms/admin.py:503
+msgid "Couleur requise."
+msgstr "Color is required."
+
+#: wms/admin.py:512
+msgid "Rack inexistant pour cet entrepôt."
+msgstr "Rack does not exist for this warehouse."
+
+#: wms/admin.py:608 wms/admin.py:638 wms/receipt_handlers.py:177
+#, python-format
+msgid "%(count)s ligne(s) réceptionnée(s)."
+msgstr "%(count)s line(s) received."
+
+#: wms/admin.py:613
+msgid "Réceptionner les lignes"
+msgstr "Receive lines"
+
+#: wms/admin.py:643
+msgid "Réceptionner les lignes sélectionnées"
+msgstr "Receive selected lines"
+
+#: wms/admin.py:690
+msgid "Seuls les admins peuvent libérer la quarantaine."
+msgstr "Only admins can release quarantine."
+
+#: wms/admin.py:702
+msgid "%(count)s lot(s) libéré(s) de quarantaine."
+msgstr "%(count)s lot(s) released from quarantine."
+
+#: wms/admin.py:705
+msgid "Libérer la quarantaine"
+msgstr "Release quarantine"
+
+#: wms/admin.py:770
+msgid "%(count)s expédition(s) créée(s)."
+msgstr "%(count)s shipment(s) created."
+
+#: wms/admin.py:787
+msgid "%(count)s commande(s) réservée(s)."
+msgstr "%(count)s order(s) reserved."
+
+#: wms/admin.py:792
+msgid "Réserver le stock"
+msgstr "Reserve stock"
+
+#: wms/admin.py:806
+msgid "%(count)s commande(s) préparée(s)."
+msgstr "%(count)s order(s) prepared."
+
+#: wms/admin.py:811
+msgid "Préparer les commandes"
+msgstr "Prepare orders"
+
+#: wms/admin.py:857
+msgid "%(count)s carton(s) déconditionné(s)."
+msgstr "%(count)s carton(s) unpacked."
+
+#: wms/admin.py:862
+msgid "%(count)s carton(s) ignorés (déjà expédiés ou vides)."
+msgstr "%(count)s carton(s) skipped (already shipped or empty)."
+
+#: wms/admin.py:867
+msgid "Déconditionner les cartons"
+msgstr "Unpack cartons"
+
+#: wms/admin_account_request_approval.py:18
+msgid "Disponible après validation."
+msgstr "Available after approval."
+
+#: wms/admin_account_request_approval.py:19
+msgid "Utilisateur introuvable."
+msgstr "User not found."
+
+#: wms/admin_account_request_approval.py:21
+msgid "SITE_BASE_URL non configurée, utiliser l'URL du site."
+msgstr "SITE_BASE_URL is not configured, use the site URL."
+
+#: wms/admin_account_request_approval.py:27
+msgid "email reserve"
+msgstr "reserved email"
+
+#: wms/admin_account_request_approval.py:28
+msgid "username manquant"
+msgstr "missing username"
+
+#: wms/admin_account_request_approval.py:29
+msgid "username reserve"
+msgstr "reserved username"
+
+#: wms/admin_account_request_approval.py:242
+msgid "Profil: Utilisateur WMS"
+msgstr "Profile: WMS user"
+
+#: wms/admin_account_request_approval.py:243
+msgid "Nom d'utilisateur: %(username)s"
+msgstr "Username: %(username)s"
+
+#: wms/admin_account_request_approval.py:244
+#: wms/admin_account_request_approval.py:255
+#, python-format
+msgid "Email: %(email)s"
+msgstr "Email: %(email)s"
+
+#: wms/admin_account_request_approval.py:245
+#: wms/admin_account_request_approval.py:256
+#, python-format
+msgid "Login: %(url)s"
+msgstr "Login: %(url)s"
+
+#: wms/admin_account_request_approval.py:246
+msgid "Mot de passe: defini par l'utilisateur lors de la demande."
+msgstr "Password: defined by the user during the request."
+
+#: wms/admin_account_request_approval.py:254
+msgid "Profil: Association"
+msgstr "Profile: Association"
+
+#: wms/admin_account_request_approval.py:257
+#, python-format
+msgid "Lien definir mot de passe: %(url)s"
+msgstr "Password setup link: %(url)s"
+
+#: wms/admin_stockmovement_views.py:42 wms/receipt_handlers.py:124
+msgid "Emplacement requis ou définir un emplacement par défaut."
+msgstr "Location is required, or define a default location."
+
+#: wms/admin_stockmovement_views.py:57
+msgid "Stock réceptionné et lot créé avec succès."
+msgstr "Stock received and lot created successfully."
+
+#: wms/admin_stockmovement_views.py:90
+msgid "Ajustement de stock enregistré."
+msgstr "Stock adjustment recorded."
+
+#: wms/admin_stockmovement_views.py:95
+msgid "Stock insuffisant pour appliquer cette correction."
+msgstr "Insufficient stock to apply this correction."
+
+#: wms/admin_stockmovement_views.py:126
+msgid "Transfert de stock enregistré."
+msgstr "Stock transfer recorded."
+
+#: wms/admin_stockmovement_views.py:129
+msgid "Le lot est déjà à cet emplacement."
+msgstr "The lot is already at this location."
+
+#: wms/admin_stockmovement_views.py:185
+#, fuzzy
+msgid "Carton préparé avec succès."
+msgstr "Carton prepared successfully."
+
 #: wms/forms.py:63
 msgid "Laissez vide pour utiliser l'emplacement par défaut."
 msgstr "Leave blank to use the product's default location."
@@ -3837,10 +4209,6 @@ msgstr "Select a receipt."
 msgid "Réception déjà clôturée."
 msgstr "Receipt already closed."
 
-#: wms/receipt_handlers.py:124
-msgid "Emplacement requis ou définir un emplacement par défaut."
-msgstr "Location is required, or define a default location."
-
 #: wms/receipt_handlers.py:144
 #, python-format
 msgid "Ligne réceptionnée: %(product)s (%(quantity)s)."
@@ -3850,11 +4218,6 @@ msgstr "Line received: %(product)s (%(quantity)s)."
 #, python-format
 msgid "Ligne ajoutée: %(product)s (%(quantity)s)."
 msgstr "Line added: %(product)s (%(quantity)s)."
-
-#: wms/receipt_handlers.py:177
-#, python-format
-msgid "%(count)s ligne(s) réceptionnée(s)."
-msgstr "%(count)s line(s) received."
 
 #: wms/receipt_pallet_handlers.py:29
 #, python-format
