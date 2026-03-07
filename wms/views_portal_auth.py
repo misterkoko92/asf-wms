@@ -14,6 +14,7 @@ from django.utils.http import (
     urlsafe_base64_decode,
     urlsafe_base64_encode,
 )
+from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_http_methods
 
 from .client_ip import get_client_ip
@@ -26,26 +27,26 @@ TEMPLATE_SET_PASSWORD = "portal/set_password.html"  # nosec B105
 TEMPLATE_CHANGE_PASSWORD = "portal/change_password.html"  # nosec B105
 TEMPLATE_ACCESS_RECOVERY = "portal/access_recovery.html"
 
-ERROR_LOGIN_REQUIRED = "Email et mot de passe requis."
-ERROR_LOGIN_INVALID = "Identifiants invalides."
-ERROR_ACCOUNT_INACTIVE = "Compte inactif."
-ERROR_ACCOUNT_NOT_ACTIVE = "Compte non activé par ASF."
-ERROR_RECOVERY_EMAIL_REQUIRED = "Email requis."
+ERROR_LOGIN_REQUIRED = _("Email et mot de passe requis.")
+ERROR_LOGIN_INVALID = _("Identifiants invalides.")
+ERROR_ACCOUNT_INACTIVE = _("Compte inactif.")
+ERROR_ACCOUNT_NOT_ACTIVE = _("Compte non activé par ASF.")
+ERROR_RECOVERY_EMAIL_REQUIRED = _("Email requis.")
 
-MESSAGE_PASSWORD_UPDATED = "Mot de passe mis à jour."  # nosec B105
-MESSAGE_RECOVERY_SUBMITTED = (
+MESSAGE_PASSWORD_UPDATED = _("Mot de passe mis à jour.")  # nosec B105
+MESSAGE_RECOVERY_SUBMITTED = _(
     "Si votre email est reconnu, vous recevrez un lien pour definir votre mot de passe."
 )
 
-RECOVERY_PAGE_TITLE = "Mot de passe oublié / Première connexion"
-RECOVERY_HEADING = "Mot de passe oublié / Première connexion"
-RECOVERY_LEAD = (
+RECOVERY_PAGE_TITLE = _("Mot de passe oublié / Première connexion")
+RECOVERY_HEADING = _("Mot de passe oublié / Première connexion")
+RECOVERY_LEAD = _(
     "Saisissez votre email pour recevoir un lien de definition ou de "
     "reinitialisation du mot de passe."
 )
-RECOVERY_SUBMIT_LABEL = "Recevoir le lien"
+RECOVERY_SUBMIT_LABEL = _("Recevoir le lien")
 RECOVERY_EMAIL_TEMPLATE = "emails/portal_forgot_password.txt"
-RECOVERY_EMAIL_SUBJECT = "ASF WMS - Mot de passe oublié / Première connexion portail"
+RECOVERY_EMAIL_SUBJECT = _("ASF WMS - Mot de passe oublié / Première connexion portail")
 
 RECOVERY_THROTTLE_SECONDS_DEFAULT = 300
 

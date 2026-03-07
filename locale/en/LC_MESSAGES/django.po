@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-07 13:34+0100\n"
+"POT-Creation-Date: 2026-03-07 13:49+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -31,6 +31,235 @@ msgstr "English"
 msgid "Retour a la connexion"
 msgstr "Back to sign in"
 
+#: templates/portal/account.html:4 templates/portal/base.html:32
+msgid "Compte"
+msgstr "Account"
+
+#: templates/portal/account.html:9
+msgid "Compte association"
+msgstr "Association account"
+
+#: templates/portal/account.html:10
+msgid "Vous pouvez modifier toutes les informations de ce compte."
+msgstr "You can edit all information for this account."
+
+#: templates/portal/account.html:27
+msgid "Informations principales"
+msgstr "Main information"
+
+#: templates/portal/account.html:30
+#: templates/scan/public_account_request.html:70
+#: templates/scan/public_order.html:65
+msgid "Association"
+msgstr "Association"
+
+#: templates/portal/account.html:51 templates/portal/account.html:127
+#: templates/portal/account.html:149 templates/portal/account.html:282
+#: templates/scan/public_account_request.html:95
+#: templates/scan/public_order.html:84
+msgid "Téléphone"
+msgstr "Phone"
+
+#: templates/portal/account.html:62 templates/portal/account.html:65
+#: templates/portal/recipients.html:24 templates/portal/recipients.html:124
+#: templates/scan/public_account_request.html:99
+#: templates/scan/public_order.html:88
+msgid "Adresse"
+msgstr "Address"
+
+#: templates/portal/account.html:76
+msgid "Complément"
+msgstr "Address line 2"
+
+#: templates/portal/account.html:88 templates/portal/recipients.html:133
+#: templates/scan/public_account_request.html:124
+#: templates/scan/public_order.html:96
+msgid "Code postal"
+msgstr "Postal code"
+
+#: templates/portal/account.html:98 templates/portal/recipients.html:137
+#: templates/scan/public_account_request.html:136
+#: templates/scan/public_order.html:100
+msgid "Ville"
+msgstr "City"
+
+#: templates/portal/account.html:108 templates/portal/recipients.html:141
+#: templates/scan/public_account_request.html:148
+#: templates/scan/public_order.html:104
+msgid "Pays"
+msgstr "Country"
+
+#: templates/portal/account.html:119
+msgid "Contacts emails"
+msgstr "Email contacts"
+
+#: templates/portal/account.html:121
+#, python-format
+msgid ""
+"1 ligne = 1 contact. Maximum %(max_portal_contacts)s lignes. Cochez au moins "
+"un type par ligne."
+msgstr "1 line = 1 contact. Maximum %(max_portal_contacts)s lines. Check at least one type per line."
+
+#: templates/portal/account.html:124
+msgid "Titre"
+msgstr "Title"
+
+#: templates/portal/account.html:125 templates/portal/account.html:143
+#: templates/portal/account.html:276
+msgid "Nom"
+msgstr "Last name"
+
+#: templates/portal/account.html:126 templates/portal/account.html:146
+#: templates/portal/account.html:279
+msgid "Prénom"
+msgstr "First name"
+
+#: templates/portal/account.html:128 templates/portal/recipients.html:44
+msgid "Mail"
+msgstr "Email"
+
+#: templates/portal/account.html:129 templates/portal/account.html:188
+#: templates/portal/order_detail.html:62
+msgid "Type"
+msgstr ""
+
+#: templates/portal/account.html:157 templates/portal/account.html:290
+msgid "Administratif"
+msgstr "Administrative"
+
+#: templates/portal/account.html:161 templates/portal/account.html:294
+msgid "Expédition"
+msgstr "Shipping"
+
+#: templates/portal/account.html:165 templates/portal/account.html:298
+msgid "Facturation"
+msgstr "Billing"
+
+#: templates/portal/account.html:173
+msgid "Ajouter un autre contact"
+msgstr "Add another contact"
+
+#: templates/portal/account.html:176
+msgid "Enregistrer les modifications"
+msgstr "Save changes"
+
+#: templates/portal/account.html:182
+#: templates/scan/public_account_request.html:164
+msgid "Documents de vérification"
+msgstr "Verification documents"
+
+#: templates/portal/account.html:189 templates/portal/dashboard.html:19
+#: templates/portal/order_detail.html:18 templates/portal/order_detail.html:63
+msgid "Statut"
+msgstr "Status"
+
+#: templates/portal/account.html:190 templates/portal/order_detail.html:64
+msgid "Ajouté le"
+msgstr "Added on"
+
+#: templates/portal/account.html:191 templates/portal/order_detail.html:65
+msgid "Fichier"
+msgstr "File"
+
+#: templates/portal/account.html:206 templates/portal/order_detail.html:80
+msgid "Télécharger"
+msgstr "Phone"
+
+#: templates/portal/account.html:208 templates/portal/order_detail.html:82
+msgid "Bloqué (fichier suspect)."
+msgstr ""
+
+#: templates/portal/account.html:210 templates/portal/order_detail.html:84
+msgid "Quarantaine (scan antivirus en cours)."
+msgstr ""
+
+#: templates/portal/account.html:221 templates/portal/order_detail.html:95
+msgid "Aucun document pour le moment."
+msgstr ""
+
+#: templates/portal/account.html:233 templates/portal/order_detail.html:108
+msgid "Ajouter les documents"
+msgstr "Other documents"
+
+#: templates/portal/base.html:7 templates/portal/base.html:24
+msgid "Portail association"
+msgstr "Association portal"
+
+#: templates/portal/base.html:29
+msgid "Commandes"
+msgstr "Orders"
+
+#: templates/portal/base.html:30 templates/portal/order_create.html:4
+#: templates/portal/order_create.html:8
+msgid "Nouvelle commande"
+msgstr "New order"
+
+#: templates/portal/base.html:31 templates/portal/recipients.html:4
+#: templates/portal/recipients.html:8
+msgid "Destinataires"
+msgstr "Recipients"
+
+#: templates/portal/base.html:33
+msgid "Déconnexion"
+msgstr "Log out"
+
+#: templates/portal/dashboard.html:4 templates/portal/dashboard.html:8
+msgid "Mes commandes"
+msgstr "My orders"
+
+#: templates/portal/dashboard.html:9
+msgid "Historique des commandes associées à votre compte."
+msgstr "History of orders linked to your account."
+
+#: templates/portal/dashboard.html:18
+msgid "Référence"
+msgstr "Reference"
+
+#: templates/portal/dashboard.html:20 templates/portal/recipients.html:21
+msgid "Escale"
+msgstr "Stopover"
+
+#: templates/portal/dashboard.html:21 templates/portal/order_create.html:36
+msgid "Destinataire"
+msgstr ""
+
+#: templates/portal/dashboard.html:22
+msgid "Date de création"
+msgstr "Creation date"
+
+#: templates/portal/dashboard.html:23
+msgid "Date de validation"
+msgstr "Validation date"
+
+#: templates/portal/dashboard.html:24
+msgid "Date d'expédition"
+msgstr "Shipment date"
+
+#: templates/portal/dashboard.html:25
+msgid "Date de réception à l'escale"
+msgstr "Stopover receipt date"
+
+#: templates/portal/dashboard.html:26
+msgid "Date de réception destinataire"
+msgstr "Recipient receipt date"
+
+#: templates/portal/dashboard.html:27 templates/portal/recipients.html:27
+msgid "Actions"
+msgstr "Actions"
+
+#: templates/portal/dashboard.html:37
+#, python-format
+msgid "Commande %(order_id)s"
+msgstr "Order %(order_id)s"
+
+#: templates/portal/dashboard.html:54
+msgid "Voir"
+msgstr "View"
+
+#: templates/portal/dashboard.html:63
+msgid "Aucune commande pour le moment."
+msgstr "No orders yet."
+
 #: templates/portal/login.html:7 templates/portal/login.html:30
 msgid "Connexion association"
 msgstr "Association login"
@@ -43,7 +272,8 @@ msgstr "Use your email and password."
 msgid ""
 "Pas de compte ? Envoyez une demande, elle sera validée par un administrateur "
 "ASF."
-msgstr "No account? Submit a request, it will be validated by an ASF administrator."
+msgstr ""
+"No account? Submit a request, it will be validated by an ASF administrator."
 
 #: templates/portal/login.html:38
 msgid "Demander un compte"
@@ -54,21 +284,286 @@ msgstr "Request an account"
 msgid "Mot de passe"
 msgstr "Password"
 
-#: templates/portal/login.html:65
+#: templates/portal/login.html:65 wms/views_portal_auth.py:41
+#: wms/views_portal_auth.py:42
 msgid "Mot de passe oublié / Première connexion"
 msgstr "Forgot password / First login"
-
-msgid ""
-"Saisissez votre email pour recevoir un lien de definition ou de "
-"reinitialisation du mot de passe."
-msgstr "Enter your email to receive a link to set or reset your password."
-
-msgid "Recevoir le lien"
-msgstr "Receive the link"
 
 #: templates/portal/login.html:67
 msgid "Se connecter"
 msgstr "Sign in"
+
+#: templates/portal/order_create.html:9
+msgid ""
+"Sélectionnez une destination, puis un destinataire, puis indiquez les "
+"quantités."
+msgstr "Select a destination, then a recipient, then enter quantities."
+
+#: templates/portal/order_create.html:24
+msgid "Destination"
+msgstr "Destination"
+
+#: templates/portal/order_create.html:46
+msgid "Le destinataire est filtré selon la destination choisie."
+msgstr "The recipient list is filtered by the selected destination."
+
+#: templates/portal/order_create.html:49
+msgid "Besoin d'un nouveau destinataire ?"
+msgstr "Need a new recipient?"
+
+#: templates/portal/order_create.html:50 templates/portal/recipients.html:162
+msgid "Ajouter"
+msgstr ""
+
+#: templates/portal/order_create.html:55
+#: templates/scan/public_account_request.html:160
+#: templates/scan/public_order.html:108
+msgid "Notes"
+msgstr "Notes"
+
+#: templates/portal/order_create.html:60
+msgid "Filtrer produits"
+msgstr "Filter products"
+
+#: templates/portal/order_create.html:63
+msgid "Toutes catégories"
+msgstr "All categories"
+
+#: templates/portal/order_create.html:66
+msgid "Toutes sous-catégories (L2)"
+msgstr "All subcategories (L2)"
+
+#: templates/portal/order_create.html:69
+msgid "Toutes sous-catégories (L3)"
+msgstr "All subcategories (L3)"
+
+#: templates/portal/order_create.html:72
+msgid "Toutes sous-catégories (L4)"
+msgstr "All subcategories (L4)"
+
+#: templates/portal/order_create.html:78
+msgid "Colis disponibles"
+msgstr "Available parcels"
+
+#: templates/portal/order_create.html:84 templates/portal/order_create.html:136
+#: templates/portal/order_create.html:192 templates/portal/order_detail.html:34
+#: templates/scan/public_order.html:126
+msgid "Produit"
+msgstr "Product"
+
+#: templates/portal/order_create.html:85 templates/portal/order_create.html:137
+#: templates/portal/order_create.html:193
+msgid "Stock"
+msgstr "Stock"
+
+#: templates/portal/order_create.html:86 templates/portal/order_create.html:138
+#: templates/portal/order_create.html:194 templates/portal/order_detail.html:35
+msgid "Quantité"
+msgstr "Quantity"
+
+#: templates/portal/order_create.html:87 templates/portal/order_create.html:139
+msgid "Date de péremption"
+msgstr "Expiry date"
+
+#: templates/portal/order_create.html:99 templates/portal/order_create.html:152
+#, python-format
+msgid "%(product_name)s - %(quantity)s unités"
+msgstr "%(product_name)s - %(quantity)s units"
+
+#: templates/portal/order_create.html:120
+msgid "Aucun colis prêt disponible."
+msgstr "No ready parcel available."
+
+#: templates/portal/order_create.html:130
+msgid "Kits disponibles"
+msgstr "Available kits"
+
+#: templates/portal/order_create.html:173
+msgid "Aucun kit prêt disponible."
+msgstr "No ready kit available."
+
+#: templates/portal/order_create.html:183
+msgid "Produits à l'unité"
+msgstr "Unit products"
+
+#: templates/portal/order_create.html:185
+msgid ""
+"Les stock indiqués dans ce tableau sont fictifs. Cette fonctionnalité sera "
+"bientôt activée pour afficher les stocks réels."
+msgstr "The stock shown in this table is illustrative. This feature will be enabled soon to display actual stock."
+
+#: templates/portal/order_create.html:195
+msgid "Cartons estimés"
+msgstr "Estimated parcels"
+
+#: templates/portal/order_create.html:237
+msgid "Total estimé"
+msgstr "Estimated total"
+
+#: templates/portal/order_create.html:239
+msgid "colis prêts +"
+msgstr "ready parcels +"
+
+#: templates/portal/order_create.html:240
+msgid "carton(s) à préparer."
+msgstr "parcel(s) to prepare."
+
+#: templates/portal/order_create.html:242 templates/scan/public_order.html:169
+msgid "Envoyer la commande"
+msgstr "Submit order"
+
+#: templates/portal/order_detail.html:4
+msgid "Commande"
+msgstr ""
+
+#: templates/portal/order_detail.html:11
+#, python-format
+msgid "Commande %(reference)s"
+msgstr "Order %(reference)s"
+
+#: templates/portal/order_detail.html:13
+#, python-format
+msgid "Commande #%(order_id)s"
+msgstr "Order #%(order_id)s"
+
+#: templates/portal/order_detail.html:16
+#, python-format
+msgid "Destinataire: %(recipient_name)s"
+msgstr "Recipient: %(recipient_name)s"
+
+#: templates/portal/order_detail.html:22
+msgid "Validation"
+msgstr "Review"
+
+#: templates/portal/order_detail.html:25
+#, python-format
+msgid "Date: %(created_date)s"
+msgstr "Date: %(created_date)s"
+
+#: templates/portal/order_detail.html:29
+msgid "Lignes de commande"
+msgstr "Order lines"
+
+#: templates/portal/order_detail.html:36 templates/scan/public_order.html:129
+msgid "Cartons estimes"
+msgstr "Estimated parcels"
+
+#: templates/portal/order_detail.html:51
+#, python-format
+msgid "Total estime: %(total_estimated_cartons)s carton(s)."
+msgstr "Estimated total: %(total_estimated_cartons)s carton(s)."
+
+#: templates/portal/order_detail.html:56
+msgid "Documents de commande"
+msgstr "Order documents"
+
+#: templates/portal/order_detail.html:111
+msgid "Les documents sont disponibles après validation ASF."
+msgstr "Documents are available after ASF approval."
+
+#: templates/portal/recipients.html:9
+msgid "Liste privée des contacts de réception par escale."
+msgstr "Private list of receiving contacts by stopover."
+
+#: templates/portal/recipients.html:22
+msgid "Structure"
+msgstr "Organization"
+
+#: templates/portal/recipients.html:23
+msgid "Contact"
+msgstr "Contact"
+
+#: templates/portal/recipients.html:25
+msgid "Coordonnées"
+msgstr "Contact details"
+
+#: templates/portal/recipients.html:26 templates/portal/recipients.html:150
+msgid "Options"
+msgstr "Options"
+
+#: templates/portal/recipients.html:43
+msgid "Tél"
+msgstr "Phone"
+
+#: templates/portal/recipients.html:47
+msgid "Alerte livraison"
+msgstr "Delivery alert"
+
+#: templates/portal/recipients.html:49
+msgid "Contact réception escale"
+msgstr "Stopover receiving contact"
+
+#: templates/portal/recipients.html:53
+msgid "Modifier"
+msgstr "Edit"
+
+#: templates/portal/recipients.html:61
+msgid "Aucun destinataire enregistré."
+msgstr "No recipient registered."
+
+#: templates/portal/recipients.html:66
+msgid "Modifier un destinataire"
+msgstr "Edit recipient"
+
+#: templates/portal/recipients.html:66
+msgid "Ajouter un destinataire"
+msgstr "Add recipient"
+
+#: templates/portal/recipients.html:82
+msgid "Escale de livraison"
+msgstr "Delivery stopover"
+
+#: templates/portal/recipients.html:93
+msgid "Nom de la structure"
+msgstr "Organization name"
+
+#: templates/portal/recipients.html:98
+msgid "Titre du contact"
+msgstr "Contact title"
+
+#: templates/portal/recipients.html:107
+msgid "Nom du contact"
+msgstr "Contact last name"
+
+#: templates/portal/recipients.html:111
+msgid "Prénom du contact"
+msgstr "Contact first name"
+
+#: templates/portal/recipients.html:116
+msgid ""
+"Téléphone(s) (séparer par ; ou , et utiliser l'indicatif international, ex: "
+"+33102030405)"
+msgstr "Phone number(s) (separate with ; or , and use the international format, e.g. +33102030405)"
+
+#: templates/portal/recipients.html:120
+msgid "Email(s) (séparer par ; ou ,)"
+msgstr "Email address(es) (separate with ; or ,)"
+
+#: templates/portal/recipients.html:128
+#: templates/scan/public_account_request.html:112
+#: templates/scan/public_order.html:92
+msgid "Complément adresse"
+msgstr "Address line 2"
+
+#: templates/portal/recipients.html:146
+msgid "Notes / Autres informations"
+msgstr "Notes / Other information"
+
+#: templates/portal/recipients.html:154
+msgid "Avertir ce contact des livraisons"
+msgstr "Notify this contact about deliveries"
+
+#: templates/portal/recipients.html:158
+msgid "Contact utilisé pour la réception dans l'escale de livraison"
+msgstr "Contact used for receiving at the delivery stopover"
+
+#: templates/portal/recipients.html:162 templates/portal/set_password.html:56
+msgid "Enregistrer"
+msgstr "Save"
+
+#: templates/portal/recipients.html:164
+msgid "Annuler"
+msgstr "Cancel"
 
 #: templates/portal/set_password.html:7 templates/portal/set_password.html:30
 msgid "Définir un mot de passe"
@@ -86,10 +581,6 @@ msgstr "Invalid or expired link. Contact ASF."
 msgid "Confirmer"
 msgstr "Confirm"
 
-#: templates/portal/set_password.html:56
-msgid "Enregistrer"
-msgstr "Save"
-
 #: templates/scan/public_account_request.html:7
 #: templates/scan/public_account_request.html:38
 msgid "Création de compte"
@@ -99,7 +590,9 @@ msgstr "Account creation"
 msgid ""
 "Choisissez votre profil puis envoyez votre demande. Un administrateur ASF "
 "doit valider le compte."
-msgstr "Choose your profile, then submit your request. An ASF administrator must validate the account."
+msgstr ""
+"Choose your profile, then submit your request. An ASF administrator must "
+"validate the account."
 
 #: templates/scan/public_account_request.html:46
 msgid "Retour à la commande"
@@ -113,11 +606,6 @@ msgstr "Back to the portal"
 msgid "Profil"
 msgstr "Profile"
 
-#: templates/scan/public_account_request.html:70
-#: templates/scan/public_order.html:65
-msgid "Association"
-msgstr "Association"
-
 #: templates/scan/public_account_request.html:71
 msgid "Utilisateur WMS"
 msgstr "WMS user"
@@ -126,45 +614,6 @@ msgstr "WMS user"
 #: templates/scan/public_order.html:67
 msgid "Nom de l'association"
 msgstr "Association name"
-
-#: templates/scan/public_account_request.html:95
-#: templates/scan/public_order.html:84
-msgid "Téléphone"
-msgstr "Phone"
-
-#: templates/scan/public_account_request.html:99
-#: templates/scan/public_order.html:88
-msgid "Adresse"
-msgstr "Address"
-
-#: templates/scan/public_account_request.html:112
-#: templates/scan/public_order.html:92
-msgid "Complément adresse"
-msgstr "Address line 2"
-
-#: templates/scan/public_account_request.html:124
-#: templates/scan/public_order.html:96
-msgid "Code postal"
-msgstr "Postal code"
-
-#: templates/scan/public_account_request.html:136
-#: templates/scan/public_order.html:100
-msgid "Ville"
-msgstr "City"
-
-#: templates/scan/public_account_request.html:148
-#: templates/scan/public_order.html:104
-msgid "Pays"
-msgstr "Country"
-
-#: templates/scan/public_account_request.html:160
-#: templates/scan/public_order.html:108
-msgid "Notes"
-msgstr "Notes"
-
-#: templates/scan/public_account_request.html:164
-msgid "Documents de vérification"
-msgstr "Verification documents"
 
 #: templates/scan/public_account_request.html:166
 msgid "Statuts de l'association"
@@ -206,7 +655,9 @@ msgstr "Order request"
 msgid ""
 "Lien privé réservé aux associations. Un espace avec compte et validation "
 "sera ajoute ensuite."
-msgstr "Private link reserved for associations. An account-based space with validation will be added later."
+msgstr ""
+"Private link reserved for associations. An account-based space with "
+"validation will be added later."
 
 #: templates/scan/public_order.html:43
 msgid "Créer un compte"
@@ -230,10 +681,6 @@ msgstr "Estimated parcels based on the default format: %(carton_name)s."
 msgid "Estimation des cartons basee sur le format par défaut."
 msgstr "Estimated parcels based on the default format."
 
-#: templates/scan/public_order.html:126
-msgid "Produit"
-msgstr "Product"
-
 #: templates/scan/public_order.html:127
 msgid "Stock disponible"
 msgstr "Available stock"
@@ -242,14 +689,197 @@ msgstr "Available stock"
 msgid "Quantité demandee"
 msgstr "Requested quantity"
 
-#: templates/scan/public_order.html:129
-msgid "Cartons estimes"
-msgstr "Estimated parcels"
-
 #: templates/scan/public_order.html:165
 msgid "Total cartons estimes"
 msgstr "Estimated total parcels"
 
-#: templates/scan/public_order.html:169
-msgid "Envoyer la commande"
-msgstr "Submit order"
+#: wms/portal_order_handlers.py:17 wms/portal_order_handlers.py:29
+#: wms/portal_order_handlers.py:31
+msgid "Colis prêt indisponible."
+msgstr "Ready parcel unavailable."
+
+#: wms/views_portal_account.py:49
+msgid "Destinataire ajouté."
+msgstr "Recipient added."
+
+#: wms/views_portal_account.py:50
+msgid "Destinataire modifié."
+msgstr "Recipient updated."
+
+#: wms/views_portal_account.py:51
+msgid "Compte mis à jour."
+msgstr "Account updated."
+
+#: wms/views_portal_account.py:52
+msgid "Contacts emails mis à jour."
+msgstr "Email contacts updated."
+
+#: wms/views_portal_account.py:54
+msgid ""
+"Action obsolète: mettez à jour les contacts emails depuis le formulaire "
+"principal."
+msgstr "Deprecated action: update email contacts from the main form."
+
+#: wms/views_portal_account.py:56 wms/views_portal_orders.py:75
+msgid "Document ajouté."
+msgstr "Document added."
+
+#: wms/views_portal_account.py:57 wms/views_portal_orders.py:76
+msgid "Documents ajoutés."
+msgstr "Documents added."
+
+#: wms/views_portal_account.py:58 wms/views_portal_orders.py:72
+msgid "Aucun fichier sélectionné."
+msgstr "No file selected."
+
+#: wms/views_portal_account.py:59
+msgid "Escale de livraison requise."
+msgstr "Delivery stopover required."
+
+#: wms/views_portal_account.py:60
+msgid "Nom de la structure requis."
+msgstr "Organization name required."
+
+#: wms/views_portal_account.py:61 wms/views_portal_account.py:69
+msgid "Adresse requise."
+msgstr "Address required."
+
+#: wms/views_portal_account.py:62
+msgid "Titre de contact invalide."
+msgstr "Invalid contact title."
+
+#: wms/views_portal_account.py:63
+#, python-format
+msgid "Emails invalides: %(values)s."
+msgstr "Invalid emails: %(values)s."
+
+#: wms/views_portal_account.py:65
+msgid "Ajoutez au moins un email pour activer l'alerte de livraison."
+msgstr "Add at least one email to enable delivery alerts."
+
+#: wms/views_portal_account.py:67
+msgid "Destinataire introuvable."
+msgstr "Recipient not found."
+
+#: wms/views_portal_account.py:68
+msgid "Nom de l'association requis."
+msgstr "Association name required."
+
+#: wms/views_portal_account.py:70
+#, python-format
+msgid "Maximum %(count)s contacts."
+msgstr "Maximum %(count)s contacts."
+
+#: wms/views_portal_account.py:71
+msgid "Ajoutez au moins un contact email."
+msgstr "Add at least one email contact."
+
+#: wms/views_portal_account.py:284 wms/views_portal_account.py:523
+#: wms/views_portal_orders.py:414 wms/views_portal_orders.py:442
+msgid "Scan antivirus en cours."
+msgstr "Antivirus scan in progress."
+
+#: wms/views_portal_account.py:387
+#, python-format
+msgid "Ligne %(index)s: email requis."
+msgstr "Line %(index)s: email required."
+
+#: wms/views_portal_account.py:390
+#, python-format
+msgid "Ligne %(index)s: cochez au moins un type."
+msgstr "Line %(index)s: check at least one type."
+
+#: wms/views_portal_auth.py:30
+msgid "Email et mot de passe requis."
+msgstr "Email and password required."
+
+#: wms/views_portal_auth.py:31
+msgid "Identifiants invalides."
+msgstr "Invalid credentials."
+
+#: wms/views_portal_auth.py:32
+msgid "Compte inactif."
+msgstr "Inactive account."
+
+#: wms/views_portal_auth.py:33
+msgid "Compte non activé par ASF."
+msgstr "Account not activated by ASF."
+
+#: wms/views_portal_auth.py:34
+msgid "Email requis."
+msgstr "Email required."
+
+#: wms/views_portal_auth.py:36
+msgid "Mot de passe mis à jour."
+msgstr "Password updated."
+
+#: wms/views_portal_auth.py:38
+msgid ""
+"Si votre email est reconnu, vous recevrez un lien pour definir votre mot de "
+"passe."
+msgstr "If your email is recognized, you will receive a link to set your password."
+
+#: wms/views_portal_auth.py:44
+msgid ""
+"Saisissez votre email pour recevoir un lien de definition ou de "
+"reinitialisation du mot de passe."
+msgstr "Enter your email to receive a link to set or reset your password."
+
+#: wms/views_portal_auth.py:47
+msgid "Recevoir le lien"
+msgstr "Receive the link"
+
+#: wms/views_portal_auth.py:49
+msgid "ASF WMS - Mot de passe oublié / Première connexion portail"
+msgstr "ASF WMS - Forgot password / First login portal"
+
+#: wms/views_portal_orders.py:62
+msgid "Destinataire requis."
+msgstr "Recipient required."
+
+#: wms/views_portal_orders.py:63
+msgid "Destination requise."
+msgstr "Destination required."
+
+#: wms/views_portal_orders.py:64
+msgid "Destination invalide."
+msgstr "Invalid destination."
+
+#: wms/views_portal_orders.py:66
+msgid "Destinataire non disponible pour cette destination."
+msgstr "Recipient unavailable for this destination."
+
+#: wms/views_portal_orders.py:68
+msgid "Ajoutez au moins un produit."
+msgstr "Add at least one product."
+
+#: wms/views_portal_orders.py:69
+msgid "Adresse association manquante."
+msgstr "Missing association address."
+
+#: wms/views_portal_orders.py:70
+msgid "Destinataire invalide."
+msgstr "Invalid recipient."
+
+#: wms/views_portal_orders.py:71
+msgid "Documents disponibles après validation de la commande."
+msgstr "Documents available after order approval."
+
+#: wms/views_portal_orders.py:74
+msgid "Commande envoyée."
+msgstr "Order sent."
+
+#: wms/views_portal_orders.py:148
+#, fuzzy, python-format
+msgid "%(name)s (association)"
+msgstr "%(name)s (association)"
+
+
+msgid "Compte bloqué: ajoutez au moins un destinataire avec la case \"Contact utilisé pour la réception dans l'escale de livraison\" cochée."
+msgstr "Account blocked: add at least one recipient with the \"Contact used for receiving at the delivery stopover\" option checked."
+
+msgid "Compte expéditeur en cours de revue ASF. Accès commandes bloqué temporairement."
+msgstr "Shipper account under ASF review. Order access is temporarily blocked."
+
+msgid "Compte bloqué: documents expéditeur non conformes ou non validés par ASF."
+msgstr "Account blocked: shipper documents are not compliant or not approved by ASF."

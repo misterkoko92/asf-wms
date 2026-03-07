@@ -2,6 +2,7 @@ from datetime import timedelta
 from types import SimpleNamespace
 from unittest import mock
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.auth.tokens import default_token_generator
@@ -49,6 +50,9 @@ from wms.services import StockError
 
 
 class PortalBaseTestCase(TestCase):
+    def _activate_english(self):
+        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = "en"
+
     def _create_association_contact(self, name, with_address=True):
         contact = Contact.objects.create(
             name=name,
@@ -208,7 +212,7 @@ class PortalAuthViewsTests(PortalBaseTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, reverse("portal:portal_forgot_password"))
         self.assertContains(response, "Mot de passe oubli")
-        self.assertContains(response, "Premi&egrave;re connexion")
+        self.assertContains(response, "Première connexion")
 
     def test_portal_forgot_password_get_renders_form(self):
         response = self.client.get(reverse("portal:portal_forgot_password"))
@@ -609,12 +613,12 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertContains(response, "Kits disponibles")
         self.assertContains(response, "Filtrer produits")
         self.assertContains(response, "portal-filter-category-l1")
-        self.assertContains(response, "Produits &agrave; l'unit&eacute;")
+        self.assertContains(response, "Produits à l'unité")
         self.assertContains(
             response,
-            "Les stock indiqu&eacute;s dans ce tableau sont fictifs.",
+            "Les stock indiqués dans ce tableau sont fictifs.",
         )
-        self.assertContains(response, "colis pr&ecirc;ts +")
+        self.assertContains(response, "colis prêts +")
 
     def test_portal_order_create_get_exposes_ready_cartons_rows(self):
         warehouse = Warehouse.objects.create(name="Portal Ready Carton Warehouse")
@@ -902,6 +906,39 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         )
         create_order_mock.assert_called_once()
         notify_mock.assert_called_once()
+
+    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
+    def test_portal_order_create_post_success_uses_native_english_message(self):
+        self._activate_english()
+        line_items = [(self.product, 1)]
+        order = self._order()
+
+        with mock.patch(
+            "wms.views_portal_orders.build_product_selection_data",
+            return_value=(self.product_options, self.product_by_id, self.available_by_id),
+        ):
+            with mock.patch(
+                "wms.views_portal_orders.build_order_line_items",
+                return_value=(line_items, {}, {}),
+            ):
+                with mock.patch(
+                    "wms.views_portal_orders.create_portal_order",
+                    return_value=order,
+                ):
+                    with mock.patch("wms.views_portal_orders.send_portal_order_notifications"):
+                        response = self.client.post(
+                            self.order_create_url,
+                            {
+                                "destination_id": str(self.destination.id),
+                                "recipient_id": "self",
+                                "notes": "OK",
+                            },
+                            follow=True,
+                        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Order sent.")
+        self.assertNotContains(response, "Commande envoyée.")
 
     def test_portal_order_create_post_supports_ready_cartons_and_unit_products(self):
         warehouse = Warehouse.objects.create(name="Portal Mixed Order Warehouse")
@@ -1425,6 +1462,37 @@ class PortalAccountViewsTests(PortalBaseTestCase):
             synced_contact.id,
             set(form.fields["recipient_contact"].queryset.values_list("id", flat=True)),
         )
+
+    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
+    def test_portal_recipients_post_creates_recipient_with_native_english_message(self):
+        self._activate_english()
+
+        response = self.client.post(
+            self.recipients_url,
+            {
+                "action": "create_recipient",
+                "destination_id": str(self.destination.id),
+                "structure_name": "Structure English",
+                "contact_title": "mrs",
+                "contact_last_name": "Martin",
+                "contact_first_name": "Claire",
+                "emails": "recipient@example.com",
+                "phones": "+33102030405",
+                "address_line1": "2 Rue C",
+                "address_line2": "",
+                "postal_code": "75002",
+                "city": "Paris",
+                "country": "France",
+                "notes": "Notes",
+                "notify_deliveries": "1",
+                "is_delivery_contact": "1",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Recipient added.")
+        self.assertNotContains(response, "Destinataire ajouté.")
 
     def test_portal_recipients_get_with_edit_prefills_form(self):
         recipient = AssociationRecipient.objects.create(

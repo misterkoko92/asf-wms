@@ -206,6 +206,22 @@ class LanguageSwitchI18nTests(TestCase):
         self.assertContains(public_order_response, "Create an account")
         self.assertContains(public_order_response, "Submit order")
 
+    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
+    def test_portal_dashboard_and_order_create_render_native_english(self):
+        self.client.force_login(self.portal_user)
+        self._activate_english()
+
+        dashboard = self.client.get(reverse("portal:portal_dashboard"))
+        self.assertContains(dashboard, "Association portal")
+        self.assertContains(dashboard, "New order")
+        self.assertNotContains(dashboard, "Portail association")
+
+        order_create = self.client.get(reverse("portal:portal_order_create"))
+        self.assertContains(order_create, "Destination")
+        self.assertContains(order_create, "Available parcels")
+        self.assertContains(order_create, "Submit order")
+        self.assertNotContains(order_create, "Nouvelle commande")
+
     def test_language_switch_is_present_on_standalone_pages(self):
         login_response = self.client.get(reverse("portal:portal_login"))
         self.assertContains(login_response, 'name="language"')
