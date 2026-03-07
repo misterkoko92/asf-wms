@@ -5,6 +5,144 @@
 {% block content %}
   <div class="scan-card card border-0 ui-comp-card">
     <h2 class="ui-comp-title">Facturation - Edition Devis/Facture</h2>
-    <p class="scan-help ui-comp-note">Page placeholder V1 pour la composition des devis et factures.</p>
+    <p class="scan-help ui-comp-note">
+      G&eacute;n&eacute;ration de brouillons &agrave; partir des exp&eacute;ditions &eacute;ligibles d&apos;une association.
+    </p>
   </div>
+
+  <div class="scan-card card border-0 ui-comp-card">
+    <form method="get" class="scan-filters ui-comp-form">
+      <h3 class="ui-comp-title">S&eacute;lection</h3>
+      <div class="scan-inline scan-inline-equal">
+        <div class="scan-field">
+          <label class="form-label" for="id_association_profile">Association</label>
+          <select id="id_association_profile" name="association_profile">
+            <option value="">-- Selectionner --</option>
+            {% for profile in association_profiles %}
+              <option value="{{ profile.id }}" {% if selected_association_profile and selected_association_profile.id == profile.id %}selected{% endif %}>
+                {{ profile.contact.name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="scan-field">
+          <label class="form-label" for="id_kind">Type document</label>
+          <select id="id_kind" name="kind">
+            {% for kind_value, kind_label in billing_document_kind_choices %}
+              {% if kind_value != "credit_note" %}
+                <option value="{{ kind_value }}" {% if selected_kind == kind_value %}selected{% endif %}>{{ kind_label }}</option>
+              {% endif %}
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="scan-inline scan-inline-equal">
+        <div class="scan-field">
+          <label class="form-label" for="id_period_start">P&eacute;riode d&eacute;but</label>
+          <input id="id_period_start" type="date" name="period_start" value="{% if selected_period_start %}{{ selected_period_start|date:'Y-m-d' }}{% endif %}">
+        </div>
+        <div class="scan-field">
+          <label class="form-label" for="id_period_end">P&eacute;riode fin</label>
+          <input id="id_period_end" type="date" name="period_end" value="{% if selected_period_end %}{{ selected_period_end|date:'Y-m-d' }}{% endif %}">
+        </div>
+      </div>
+      <div class="scan-filter-actions">
+        <button type="submit" class="scan-submit btn btn-secondary">Charger les exp&eacute;ditions &eacute;ligibles</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card">
+    <form method="post" class="scan-filters ui-comp-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="build_draft">
+      <input type="hidden" name="association_profile" value="{% if selected_association_profile %}{{ selected_association_profile.id }}{% endif %}">
+      <input type="hidden" name="kind" value="{{ selected_kind }}">
+      <input type="hidden" name="period_start" value="{% if selected_period_start %}{{ selected_period_start|date:'Y-m-d' }}{% endif %}">
+      <input type="hidden" name="period_end" value="{% if selected_period_end %}{{ selected_period_end|date:'Y-m-d' }}{% endif %}">
+
+      <h3 class="ui-comp-title">Exp&eacute;ditions &eacute;ligibles</h3>
+      {% if candidate_rows %}
+        <table class="scan-table">
+          <thead>
+            <tr>
+              <th>S&eacute;lection</th>
+              <th>R&eacute;f&eacute;rence</th>
+              <th>Date facturation</th>
+              <th>Colis</th>
+              <th>Unit&eacute;s re&ccedil;ues allou&eacute;es</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in candidate_rows %}
+              <tr>
+                <td><input type="checkbox" name="shipment_ids" value="{{ row.shipment_id }}"></td>
+                <td>{{ row.reference }}</td>
+                <td>{{ row.billing_date|date:"Y-m-d" }}</td>
+                <td>{{ row.carton_count }}</td>
+                <td>{{ row.allocated_received_units }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% elif selected_association_profile %}
+        <p class="scan-help">Aucune exp&eacute;dition &eacute;ligible trouv&eacute;e pour les filtres choisis.</p>
+      {% else %}
+        <p class="scan-help">S&eacute;lectionnez d&apos;abord une association pour afficher les exp&eacute;ditions &eacute;ligibles.</p>
+      {% endif %}
+
+      <div class="scan-divider"></div>
+
+      <h3>Ligne manuelle optionnelle</h3>
+      <div class="scan-inline scan-inline-equal">
+        <div class="scan-field">
+          <label class="form-label" for="id_manual_label">Libell&eacute;</label>
+          <input id="id_manual_label" type="text" name="manual_label">
+        </div>
+        <div class="scan-field">
+          <label class="form-label" for="id_manual_amount">Montant</label>
+          <input id="id_manual_amount" type="number" step="0.01" name="manual_amount">
+        </div>
+      </div>
+      <div class="scan-field">
+        <label class="form-label" for="id_manual_description">Description</label>
+        <textarea id="id_manual_description" name="manual_description" rows="2"></textarea>
+      </div>
+
+      <div class="scan-filter-actions">
+        <button type="submit" class="scan-submit btn btn-primary">G&eacute;n&eacute;rer brouillon</button>
+      </div>
+    </form>
+  </div>
+
+  {% if draft_document %}
+    <div class="scan-card card border-0 ui-comp-card">
+      <h3 class="ui-comp-title">Brouillon g&eacute;n&eacute;r&eacute;</h3>
+      <p class="scan-help">
+        Type: {{ draft_document.get_kind_display }} |
+        Num&eacute;ro: {% if draft_document.quote_number %}{{ draft_document.quote_number }}{% else %}-{% endif %} |
+        Devise: {{ draft_document.currency }}
+      </p>
+      {% if draft_document.lines.all %}
+        <table class="scan-table">
+          <thead>
+            <tr>
+              <th>Ligne</th>
+              <th>Libell&eacute;</th>
+              <th>Montant</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for line in draft_document.lines.all %}
+              <tr>
+                <td>{{ line.line_number }}</td>
+                <td>{{ line.label }}</td>
+                <td>{{ line.total_amount }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% endif %}
+    </div>
+  {% endif %}
 {% endblock %}

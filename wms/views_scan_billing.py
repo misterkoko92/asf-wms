@@ -1,7 +1,9 @@
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_http_methods
 
+from .billing_document_handlers import build_editor_candidates, create_billing_draft
 from .billing_permissions import require_billing_staff_or_superuser
 from .forms_billing import (
     BillingAssociationPriceOverrideForm,
@@ -10,8 +12,10 @@ from .forms_billing import (
     ShipmentUnitEquivalenceRuleForm,
 )
 from .models import (
+    AssociationProfile,
     BillingAssociationPriceOverride,
     BillingComputationProfile,
+    BillingDocumentKind,
     BillingServiceCatalogItem,
     ShipmentUnitEquivalenceRule,
 )
@@ -25,6 +29,7 @@ ACTION_SAVE_PROFILE = "save_profile"
 ACTION_SAVE_SERVICE = "save_service"
 ACTION_SAVE_OVERRIDE = "save_override"
 ACTION_SAVE_EQUIVALENCE_RULE = "save_equivalence_rule"
+ACTION_BUILD_DRAFT = "build_draft"
 
 
 def _selected_instance_from_query(request, *, query_key, model):
@@ -91,6 +96,54 @@ def _build_billing_equivalence_context(*, active, rule_form):
         "active": active,
         "rule_form": rule_form,
         "equivalence_rules": equivalence_rules,
+    }
+
+
+def _selected_association_profile(raw_value):
+    association_profile_id = (raw_value or "").strip()
+    if not association_profile_id:
+        return None
+    return (
+        AssociationProfile.objects.select_related("contact", "billing_profile")
+        .filter(pk=association_profile_id)
+        .first()
+    )
+
+
+def _resolved_period(request):
+    period_start = parse_date(
+        (request.POST.get("period_start") or request.GET.get("period_start") or "").strip()
+    )
+    period_end = parse_date(
+        (request.POST.get("period_end") or request.GET.get("period_end") or "").strip()
+    )
+    if period_start or period_end:
+        return (period_start, period_end)
+    return None
+
+
+def _build_billing_editor_context(
+    *,
+    active,
+    association_profile,
+    kind,
+    period,
+    candidate_rows,
+    draft_document,
+):
+    return {
+        "active": active,
+        "association_profiles": AssociationProfile.objects.select_related("contact").order_by(
+            "contact__name",
+            "id",
+        ),
+        "selected_association_profile": association_profile,
+        "selected_kind": kind,
+        "selected_period_start": period[0] if period else None,
+        "selected_period_end": period[1] if period else None,
+        "candidate_rows": candidate_rows,
+        "draft_document": draft_document,
+        "billing_document_kind_choices": BillingDocumentKind.choices,
     }
 
 
@@ -212,13 +265,74 @@ def scan_billing_equivalence(request):
 
 
 @scan_staff_required
-@require_http_methods(["GET"])
+@require_http_methods(["GET", "POST"])
 def scan_billing_editor(request):
     require_billing_staff_or_superuser(request)
+    association_profile = _selected_association_profile(
+        request.POST.get("association_profile")
+        if request.method == "POST"
+        else request.GET.get("association_profile")
+    )
+    kind = (
+        request.POST.get("kind") if request.method == "POST" else request.GET.get("kind")
+    ) or BillingDocumentKind.QUOTE
+    if kind not in BillingDocumentKind.values:
+        kind = BillingDocumentKind.QUOTE
+    period = _resolved_period(request)
+    candidate_rows = []
+    draft_document = None
+
+    if association_profile is not None:
+        candidate_rows = build_editor_candidates(
+            association_profile=association_profile,
+            kind=kind,
+            period=period,
+        )
+
+    if request.method == "POST":
+        action = (request.POST.get("action") or "").strip().lower()
+        if action == ACTION_BUILD_DRAFT:
+            selected_shipment_ids = [
+                int(value) for value in request.POST.getlist("shipment_ids") if value
+            ]
+            eligible_ids = {row.shipment_id for row in candidate_rows}
+            selected_shipment_ids = [
+                shipment_id for shipment_id in selected_shipment_ids if shipment_id in eligible_ids
+            ]
+            if association_profile is None:
+                messages.error(request, "Association de facturation introuvable.")
+            elif not selected_shipment_ids:
+                messages.error(request, "Selectionnez au moins une expedition eligible.")
+            else:
+                manual_lines = []
+                manual_label = (request.POST.get("manual_label") or "").strip()
+                manual_amount = (request.POST.get("manual_amount") or "").strip()
+                if manual_label and manual_amount:
+                    manual_lines.append(
+                        {
+                            "label": manual_label,
+                            "description": (request.POST.get("manual_description") or "").strip(),
+                            "amount": manual_amount,
+                        }
+                    )
+                draft_document = create_billing_draft(
+                    association_profile=association_profile,
+                    kind=kind,
+                    shipment_ids=selected_shipment_ids,
+                    created_by=request.user,
+                    manual_lines=manual_lines,
+                )
+                messages.success(request, "Brouillon de facturation genere.")
+
     return render(
         request,
         TEMPLATE_SCAN_BILLING_EDITOR,
-        {
-            "active": "billing_editor",
-        },
+        _build_billing_editor_context(
+            active="billing_editor",
+            association_profile=association_profile,
+            kind=kind,
+            period=period,
+            candidate_rows=candidate_rows,
+            draft_document=draft_document,
+        ),
     )

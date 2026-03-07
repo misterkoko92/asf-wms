@@ -12,9 +12,13 @@ from wms.models import (
     BillingAssociationPriceOverride,
     BillingBaseUnitSource,
     BillingComputationProfile,
+    BillingDocument,
+    BillingDocumentKind,
     BillingExtraUnitMode,
     BillingServiceCatalogItem,
     ProductCategory,
+    Shipment,
+    ShipmentStatus,
     ShipmentUnitEquivalenceRule,
 )
 
@@ -50,6 +54,21 @@ class ScanBillingViewTests(TestCase):
         )
         return AssociationProfile.objects.create(user=user, contact=contact)
 
+    def _create_shipped_shipment(
+        self,
+        *,
+        association_profile,
+        reference="EXP-SCAN-BILL-01",
+    ):
+        return Shipment.objects.create(
+            reference=reference,
+            status=ShipmentStatus.SHIPPED,
+            shipper_name=association_profile.contact.name,
+            shipper_contact_ref=association_profile.contact,
+            recipient_name="Recipient",
+            destination_address="1 rue de la facturation",
+        )
+
     def test_scan_billing_settings_requires_superuser(self):
         self.client.force_login(self.staff_user)
         response = self.client.get(reverse("scan:scan_billing_settings"))
@@ -73,6 +92,62 @@ class ScanBillingViewTests(TestCase):
         response = self.client.get(reverse("scan:scan_billing_editor"))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["active"], "billing_editor")
+
+    def test_scan_billing_editor_get_lists_candidate_shipments(self):
+        association_profile = self._create_association_profile(username="scan-billing-editor")
+        self._create_shipped_shipment(
+            association_profile=association_profile,
+            reference="EXP-SCAN-BILL-EDITOR",
+        )
+        self.client.force_login(self.billing_user)
+
+        response = self.client.get(
+            reverse("scan:scan_billing_editor"),
+            {
+                "association_profile": association_profile.id,
+                "kind": BillingDocumentKind.QUOTE,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "EXP-SCAN-BILL-EDITOR")
+        self.assertEqual(
+            [row.reference for row in response.context["candidate_rows"]],
+            ["EXP-SCAN-BILL-EDITOR"],
+        )
+
+    def test_scan_billing_editor_post_builds_quote_draft(self):
+        association_profile = self._create_association_profile(username="scan-billing-draft")
+        BillingComputationProfile.objects.create(
+            code="scan-billing-default",
+            label="Scan Billing Default",
+            is_default_for_shipment_only=True,
+        )
+        shipment = self._create_shipped_shipment(
+            association_profile=association_profile,
+            reference="EXP-SCAN-BILL-DRAFT",
+        )
+        self.client.force_login(self.billing_user)
+
+        response = self.client.post(
+            reverse("scan:scan_billing_editor"),
+            {
+                "action": "build_draft",
+                "association_profile": association_profile.id,
+                "kind": BillingDocumentKind.QUOTE,
+                "shipment_ids": [shipment.id],
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        draft_document = response.context["draft_document"]
+        self.assertEqual(draft_document.kind, BillingDocumentKind.QUOTE)
+        self.assertTrue(
+            BillingDocument.objects.filter(
+                id=draft_document.id, shipment_links__shipment=shipment
+            ).exists()
+        )
+        self.assertContains(response, "EXP-SCAN-BILL-DRAFT")
 
     def test_scan_billing_routes_render_for_superuser(self):
         self.client.force_login(self.superuser)
