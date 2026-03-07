@@ -186,6 +186,36 @@ class ScanBillingViewTests(TestCase):
         self.assertEqual(draft_document.invoice_number, "FAC-2026-123")
         self.assertContains(response, "FAC-2026-123")
 
+    def test_scan_billing_editor_post_builds_quote_draft_with_manual_exchange_rate(self):
+        association_profile = self._create_association_profile(username="scan-billing-currency")
+        BillingComputationProfile.objects.create(
+            code="scan-billing-currency-default",
+            label="Scan Billing Currency Default",
+            is_default_for_shipment_only=True,
+        )
+        shipment = self._create_shipped_shipment(
+            association_profile=association_profile,
+            reference="EXP-SCAN-BILL-CURRENCY",
+        )
+        self.client.force_login(self.billing_user)
+
+        response = self.client.post(
+            reverse("scan:scan_billing_editor"),
+            {
+                "action": "build_draft",
+                "association_profile": association_profile.id,
+                "kind": BillingDocumentKind.QUOTE,
+                "shipment_ids": [shipment.id],
+                "currency": "XOF",
+                "exchange_rate": "655.957000",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        draft_document = response.context["draft_document"]
+        self.assertEqual(draft_document.currency, "XOF")
+        self.assertEqual(draft_document.exchange_rate, Decimal("655.957000"))
+
     def test_scan_billing_routes_render_for_superuser(self):
         self.client.force_login(self.superuser)
         expectations = {

@@ -93,6 +93,34 @@
 
       <div class="scan-divider"></div>
 
+      <h3>Devise</h3>
+      <div class="scan-inline scan-inline-equal">
+        <div class="scan-field">
+          <label class="form-label" for="{{ draft_options_form.currency.id_for_label }}">{{ draft_options_form.currency.label }}</label>
+          {{ draft_options_form.currency }}
+          {% for error in draft_options_form.currency.errors %}
+            <div class="invalid-feedback d-block">{{ error }}</div>
+          {% endfor %}
+        </div>
+        <div class="scan-field">
+          <label class="form-label" for="{{ draft_options_form.exchange_rate.id_for_label }}">{{ draft_options_form.exchange_rate.label }}</label>
+          {{ draft_options_form.exchange_rate }}
+          {% for error in draft_options_form.exchange_rate.errors %}
+            <div class="invalid-feedback d-block">{{ error }}</div>
+          {% endfor %}
+        </div>
+      </div>
+      {% if exchange_rate_resolution.provider_name %}
+        <p class="scan-help">
+          Taux pr&eacute;rempli via {{ exchange_rate_resolution.provider_name }}
+          {% if exchange_rate_resolution.as_of_date %}({{ exchange_rate_resolution.as_of_date|date:"Y-m-d" }}){% endif %}.
+        </p>
+      {% elif exchange_rate_resolution.requires_manual_entry %}
+        <p class="scan-help">Taux manuel requis pour cette devise.</p>
+      {% endif %}
+
+      <div class="scan-divider"></div>
+
       <h3>Ligne manuelle optionnelle</h3>
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
@@ -129,7 +157,8 @@
         {% else %}
           -
         {% endif %} |
-        Devise: {{ draft_document.currency }}
+        Devise: {{ draft_document.currency }} |
+        Taux: {% if draft_document.exchange_rate %}{{ draft_document.exchange_rate }}{% else %}-{% endif %}
       </p>
       {% if draft_document.lines.all %}
         <table class="scan-table">

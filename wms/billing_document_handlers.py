@@ -130,6 +130,8 @@ def create_billing_draft(
     shipment_ids,
     created_by=None,
     manual_lines=None,
+    currency=None,
+    exchange_rate=None,
 ):
     selected_shipments = list(
         Shipment.objects.filter(
@@ -152,7 +154,8 @@ def create_billing_draft(
             kind=kind,
             status=BillingDocumentStatus.DRAFT,
             computation_profile=computation_profile,
-            currency=billing_profile.default_currency,
+            currency=(currency or billing_profile.default_currency or "EUR").upper(),
+            exchange_rate=exchange_rate,
         )
         line_number = 1
         receipt_ids = set()

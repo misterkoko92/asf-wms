@@ -1,6 +1,9 @@
+from decimal import Decimal
+
 from django import forms
 from django.utils.text import slugify
 
+from .billing_exchange_rates import SUPPORTED_BILLING_CURRENCIES
 from .models import (
     AssociationProfile,
     BillingAssociationPriceOverride,
@@ -255,6 +258,23 @@ class ShipmentUnitEquivalenceRuleForm(forms.ModelForm):
             "id",
         )
         self.fields["category"].label_from_instance = lambda category: str(category)
+
+
+class BillingDocumentDraftOptionsForm(forms.Form):
+    currency = forms.ChoiceField(
+        choices=[(currency, currency) for currency in SUPPORTED_BILLING_CURRENCIES],
+        label="Devise document",
+    )
+    exchange_rate = forms.DecimalField(
+        required=False,
+        max_digits=12,
+        decimal_places=6,
+        min_value=Decimal("0.000001"),
+        label="Taux de change",
+    )
+
+    def clean_currency(self):
+        return (self.cleaned_data.get("currency") or "EUR").upper()
 
 
 NON_ALLOCATABLE_SHIPMENT_STATUSES = {

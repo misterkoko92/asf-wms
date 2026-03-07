@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.dateparse import parse_date
@@ -8,10 +10,12 @@ from .billing_document_handlers import (
     create_billing_draft,
     issue_billing_document,
 )
+from .billing_exchange_rates import resolve_exchange_rate
 from .billing_permissions import require_billing_staff_or_superuser
 from .forms_billing import (
     BillingAssociationPriceOverrideForm,
     BillingComputationProfileForm,
+    BillingDocumentDraftOptionsForm,
     BillingServiceCatalogItemForm,
     ShipmentUnitEquivalenceRuleForm,
 )
@@ -136,6 +140,8 @@ def _build_billing_editor_context(
     period,
     candidate_rows,
     draft_document,
+    draft_options_form,
+    exchange_rate_resolution,
 ):
     return {
         "active": active,
@@ -149,8 +155,53 @@ def _build_billing_editor_context(
         "selected_period_end": period[1] if period else None,
         "candidate_rows": candidate_rows,
         "draft_document": draft_document,
+        "draft_options_form": draft_options_form,
         "billing_document_kind_choices": BillingDocumentKind.choices,
+        "exchange_rate_resolution": exchange_rate_resolution,
     }
+
+
+def _selected_document_currency(request, association_profile):
+    raw_currency = (
+        request.POST.get("currency") if request.method == "POST" else request.GET.get("currency")
+    )
+    normalized_currency = (raw_currency or "").strip().upper()
+    if normalized_currency:
+        return normalized_currency
+    if association_profile is not None:
+        default_currency = (association_profile.billing_profile.default_currency or "").strip()
+        if default_currency:
+            return default_currency.upper()
+    return "EUR"
+
+
+def _initial_exchange_rate_value(request, exchange_rate_resolution):
+    raw_exchange_rate = (
+        request.POST.get("exchange_rate")
+        if request.method == "POST"
+        else request.GET.get("exchange_rate")
+    )
+    normalized_exchange_rate = (raw_exchange_rate or "").strip()
+    if normalized_exchange_rate:
+        return normalized_exchange_rate
+    if exchange_rate_resolution.rate is not None:
+        return format(exchange_rate_resolution.rate, "f")
+    return ""
+
+
+def _build_draft_options_form(*, request, action, selected_currency, exchange_rate_resolution):
+    initial_values = {
+        "currency": selected_currency,
+        "exchange_rate": _initial_exchange_rate_value(request, exchange_rate_resolution),
+    }
+    if request.method == "POST" and action == ACTION_BUILD_DRAFT:
+        form_data = request.POST.copy()
+        if not (form_data.get("currency") or "").strip():
+            form_data["currency"] = initial_values["currency"]
+        if not (form_data.get("exchange_rate") or "").strip() and initial_values["exchange_rate"]:
+            form_data["exchange_rate"] = initial_values["exchange_rate"]
+        return BillingDocumentDraftOptionsForm(form_data, initial=initial_values)
+    return BillingDocumentDraftOptionsForm(initial=initial_values)
 
 
 @scan_staff_required
@@ -284,9 +335,21 @@ def scan_billing_editor(request):
     ) or BillingDocumentKind.QUOTE
     if kind not in BillingDocumentKind.values:
         kind = BillingDocumentKind.QUOTE
+    action = (request.POST.get("action") or "").strip().lower() if request.method == "POST" else ""
     period = _resolved_period(request)
     candidate_rows = []
     draft_document = None
+    selected_currency = _selected_document_currency(request, association_profile)
+    exchange_rate_resolution = resolve_exchange_rate(
+        document_currency=selected_currency,
+        base_currency="EUR",
+    )
+    draft_options_form = _build_draft_options_form(
+        request=request,
+        action=action,
+        selected_currency=selected_currency,
+        exchange_rate_resolution=exchange_rate_resolution,
+    )
 
     if association_profile is not None:
         candidate_rows = build_editor_candidates(
@@ -296,7 +359,6 @@ def scan_billing_editor(request):
         )
 
     if request.method == "POST":
-        action = (request.POST.get("action") or "").strip().lower()
         if action == ACTION_BUILD_DRAFT:
             selected_shipment_ids = [
                 int(value) for value in request.POST.getlist("shipment_ids") if value
@@ -309,6 +371,8 @@ def scan_billing_editor(request):
                 messages.error(request, "Association de facturation introuvable.")
             elif not selected_shipment_ids:
                 messages.error(request, "Selectionnez au moins une expedition eligible.")
+            elif not draft_options_form.is_valid():
+                messages.error(request, "Corrigez les champs devise et taux de change.")
             else:
                 manual_lines = []
                 manual_label = (request.POST.get("manual_label") or "").strip()
@@ -321,14 +385,29 @@ def scan_billing_editor(request):
                             "amount": manual_amount,
                         }
                     )
-                draft_document = create_billing_draft(
-                    association_profile=association_profile,
-                    kind=kind,
-                    shipment_ids=selected_shipment_ids,
-                    created_by=request.user,
-                    manual_lines=manual_lines,
-                )
-                messages.success(request, "Brouillon de facturation genere.")
+                selected_currency = draft_options_form.cleaned_data["currency"]
+                exchange_rate = draft_options_form.cleaned_data["exchange_rate"]
+                if exchange_rate is None:
+                    exchange_rate = exchange_rate_resolution.rate
+                if exchange_rate is None:
+                    draft_options_form.add_error(
+                        "exchange_rate",
+                        "Saisissez manuellement un taux de change pour cette devise.",
+                    )
+                    messages.error(request, "Le taux de change doit etre renseigne.")
+                else:
+                    if not isinstance(exchange_rate, Decimal):
+                        exchange_rate = Decimal(str(exchange_rate))
+                    draft_document = create_billing_draft(
+                        association_profile=association_profile,
+                        kind=kind,
+                        shipment_ids=selected_shipment_ids,
+                        created_by=request.user,
+                        manual_lines=manual_lines,
+                        currency=selected_currency,
+                        exchange_rate=exchange_rate,
+                    )
+                    messages.success(request, "Brouillon de facturation genere.")
         elif action == ACTION_ISSUE_DOCUMENT:
             document_id = (request.POST.get("document_id") or "").strip()
             if not document_id:
@@ -365,5 +444,7 @@ def scan_billing_editor(request):
             period=period,
             candidate_rows=candidate_rows,
             draft_document=draft_document,
+            draft_options_form=draft_options_form,
+            exchange_rate_resolution=exchange_rate_resolution,
         ),
     )
