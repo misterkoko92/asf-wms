@@ -320,3 +320,15 @@ class EmailTemplateI18nTests(TestCase):
 
         self.assertIn("Association login", body)
         self.assertNotIn("Connexion association", body)
+
+    def test_portal_forgot_password_email_keeps_french_source_copy(self):
+        context = {
+            "set_password_url": "https://example.com/reset-link/",  # pragma: allowlist secret
+            "login_url": "https://example.com/portal/login/",
+        }
+
+        with translation.override("fr"):
+            body = render_to_string("emails/portal_forgot_password.txt", context)
+
+        self.assertIn("Connexion association", body)
+        self.assertNotIn("Association login", body)

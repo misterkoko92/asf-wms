@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-07 20:09+0100\n"
+"POT-Creation-Date: 2026-03-07 20:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -210,6 +210,7 @@ msgstr "View in admin"
 
 #: templates/emails/account_request_approved.txt:1
 #: templates/emails/order_confirmation.txt:1
+#, python-format
 msgid "Bonjour %(association_name)s,"
 msgstr "Hello %(association_name)s,"
 
@@ -227,7 +228,8 @@ msgid "Pour définir votre mot de passe, utilisez ce lien sécurisé:"
 msgstr "Use this secure link to set your password:"
 
 #: templates/emails/account_request_approved.txt:9
-#: templates/portal/login.html:7 templates/portal/login.html:30
+#: templates/emails/portal_forgot_password.txt:8 templates/portal/login.html:7
+#: templates/portal/login.html:30
 msgid "Connexion association"
 msgstr "Association login"
 
@@ -342,10 +344,6 @@ msgstr ""
 #: templates/emails/portal_forgot_password.txt:5
 msgid "Pour définir un nouveau mot de passe, utilisez ce lien sécurisé:"
 msgstr "Use this secure link to set a new password:"
-
-#: templates/emails/portal_forgot_password.txt:8
-msgid "Association login"
-msgstr "Association login"
 
 #: templates/emails/portal_forgot_password.txt:11
 msgid ""
@@ -1056,7 +1054,7 @@ msgstr "Humanitarian aid certificate"
 #: templates/print/attestation_aide_humanitaire.html:9
 #: templates/print/attestation_donation.html:9
 #: templates/print/attestation_douane.html:9
-msgid "Document ref"
+msgid "Réf document"
 msgstr "Document ref"
 
 #: templates/print/attestation_aide_humanitaire.html:15
@@ -1227,8 +1225,8 @@ msgstr ""
 "authorized to collect these parcels on behalf of the Recipient. These "
 "parcels contain only medical and surgical supplies sent for humanitarian "
 "purposes. These medical items are intended for human health and are not "
-"meant to be resold. They are not subject to dual-use goods rules and have "
-"no commercial value. Customs value only: 1.00 euro."
+"meant to be resold. They are not subject to dual-use goods rules and have no "
+"commercial value. Customs value only: 1.00 euro."
 
 #: templates/print/bon_expedition.html:142
 #, python-format
@@ -1248,6 +1246,7 @@ msgid "Étiquette expédition"
 msgstr "Shipment label"
 
 #: templates/print/etiquette_expedition.html:83
+#, python-format
 msgid "QR expédition %(shipment_ref)s"
 msgstr "Shipment QR %(shipment_ref)s"
 
@@ -1261,7 +1260,7 @@ msgstr "Packing list - carton"
 
 #: templates/print/liste_colisage_carton.html:13
 #: templates/print/picking_list_carton.html:62
-msgid "Carton code"
+msgid "Code carton"
 msgstr "Carton code"
 
 #: templates/print/liste_colisage_carton.html:15
@@ -4773,7 +4772,7 @@ msgid "ASF WMS - Commande reçue"
 msgstr "ASF WMS - Order received"
 
 #: wms/order_notifications.py:23 wms/public_order_handlers.py:38
-#: wms/signals.py:677
+#: wms/signals.py:675
 #, python-format
 msgid "Commande %(id)s"
 msgstr "Order %(id)s"
@@ -5047,7 +5046,7 @@ msgstr "Dispute - %(label)s"
 msgid "ASF WMS - Expedition %(reference)s : livraison confirmee"
 msgstr "ASF WMS - Shipment %(reference)s: delivery confirmed"
 
-#: wms/signals.py:340 wms/signals.py:429
+#: wms/signals.py:340 wms/signals.py:428
 #, python-format
 msgid "ASF WMS - Expédition %(reference)s : statut %(status)s"
 msgstr "ASF WMS - Shipment %(reference)s: status %(status)s"
@@ -5072,32 +5071,32 @@ msgstr "Actor: %(actor)s"
 msgid "Structure: %(structure)s"
 msgstr "Organization: %(structure)s"
 
-#: wms/signals.py:394
+#: wms/signals.py:393
 #, python-format
 msgid "Commentaires: %(comments)s"
 msgstr "Comments: %(comments)s"
 
-#: wms/signals.py:395
+#: wms/signals.py:394
 #, python-format
 msgid "Tracking: %(url)s"
 msgstr "Tracking: %(url)s"
 
-#: wms/signals.py:401 wms/signals.py:581
+#: wms/signals.py:400 wms/signals.py:580
 #, python-format
 msgid "ASF WMS - Suivi expédition %(reference)s"
 msgstr "ASF WMS - Shipment tracking %(reference)s"
 
-#: wms/signals.py:465
+#: wms/signals.py:464
 #, python-format
 msgid "ASF WMS - Suivi correspondant %(reference)s : %(status)s"
 msgstr "ASF WMS - Correspondent tracking %(reference)s: %(status)s"
 
-#: wms/signals.py:515
+#: wms/signals.py:514
 #, python-format
 msgid "ASF WMS - Expédition %(reference)s : statut mis à jour"
 msgstr "ASF WMS - Shipment %(reference)s: status updated"
 
-#: wms/signals.py:688
+#: wms/signals.py:685
 #, python-format
 msgid "ASF WMS - Commande %(reference)s : validation/statut mis à jour"
 msgstr "ASF WMS - Order %(reference)s: validation/status updated"
@@ -5672,6 +5671,15 @@ msgstr "Some steps still need validation, check before closing"
 #: wms/views_scan_shipments.py:547
 msgid "Expédition non modifiable."
 msgstr "Shipment cannot be edited."
+
+#~ msgid "Association login"
+#~ msgstr "Association login"
+
+#~ msgid "Document ref"
+#~ msgstr "Document ref"
+
+#~ msgid "Carton code"
+#~ msgstr "Carton code"
 
 #~ msgid ""
 #~ "Compte bloqué: ajoutez au moins un destinataire avec la case \"Contact "
