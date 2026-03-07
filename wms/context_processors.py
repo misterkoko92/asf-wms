@@ -1,5 +1,6 @@
 from django.db.utils import OperationalError, ProgrammingError
 
+from .billing_permissions import user_can_access_billing_scan, user_can_manage_billing_admin
 from .design_tokens import (
     PRIORITY_ONE_TOKEN_DEFAULTS,
     density_factor_for_mode,
@@ -94,10 +95,13 @@ def admin_notifications(request):
 
 
 def ui_mode_context(request):
+    user = getattr(request, "user", None)
     mode = get_ui_mode_for_user(getattr(request, "user", None))
     return {
         "wms_ui_mode": mode,
         "wms_ui_mode_is_next": mode == UiMode.NEXT,
         "scan_bootstrap_enabled": _resolve_scan_bootstrap_enabled(),
         "wms_design_tokens": _resolve_design_tokens(),
+        "scan_billing_visible": user_can_access_billing_scan(user),
+        "scan_billing_admin_visible": user_can_manage_billing_admin(user),
     }
