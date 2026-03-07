@@ -17,16 +17,36 @@ SCANNABLE_SUFFIXES = {".html", ".txt"}
 FRENCH_LITERAL_RE = re.compile(
     r"\b("
     r"connexion|association|mot de passe|oublie|premiere|demande|compte|"
-    r"expedition|reception|correspondant|destinataire|colis|carton|document|"
-    r"valide|introuvable|erreur|pret|cloture|bonjour|envoyez|aucun"
+    r"expedition|expediteur|reception|correspondant|destinataire|colis|carton|"
+    r"document|valide|introuvable|erreur|pret|cloture|bonjour|envoyez|aucun|"
+    r"recherche|filtre|filtrer|reinitialiser|pilotage|choisir|organisation|"
+    r"role|contact|nouveau|civilite|prenom|nom|telephone|creer|lier|delier|"
+    r"perimetre|destination|validite|debut|fin|siege|magasin|rue|porte|cedex|"
+    r"france|tous|toutes|aucune|actif"
     r")\b",
     re.IGNORECASE,
 )
 ACCENT_RE = re.compile(r"[àâçéèêëîïôûùüÿœÀÂÇÉÈÊËÎÏÔÛÙÜŸŒ]")
 TEXT_NODE_RE = re.compile(r">([^<]+)<")
+INLINE_TRANS_RE = re.compile(r"{%\s*trans\b.*?%}")
+INLINE_BLOCKTRANS_RE = re.compile(r"{%\s*blocktrans\b.*?%}.*?{%\s*endblocktrans\s*%}")
 VISIBLE_ATTRIBUTE_RE = re.compile(
     r"""\b(?:title|aria-label|placeholder|alt)\s*=\s*['"]([^'"]+)['"]"""
 )
+EMAIL_RE = re.compile(r"(?i)^[^@\s]+@[^@\s]+\.[^@\s]+$")
+URL_RE = re.compile(r"(?i)^https?://\S+$")
+PHONE_RE = re.compile(r"^[+()0-9.\s-]+$")
+ALLOWED_EXACT_LITERALS = {
+    "ASF",
+    "ASF WMS",
+    "CSV",
+    "Email",
+    "Excel",
+    "Logo",
+    "PDF",
+    "QR",
+    "SKU",
+}
 
 
 def _project_root() -> Path:
@@ -51,21 +71,49 @@ def _looks_like_french(text: str) -> bool:
     return bool(ACCENT_RE.search(text) or FRENCH_LITERAL_RE.search(text))
 
 
-def _contains_visible_text_node(line: str) -> bool:
-    for candidate in _iter_visible_candidates(line):
-        if re.search(r"[A-Za-zÀ-ÿ]", candidate):
+def _normalize_candidate(text: str) -> str:
+    return " ".join(text.split()).strip()
+
+
+def _is_allowed_literal(text: str) -> bool:
+    normalized = _normalize_candidate(text)
+    if not normalized:
+        return True
+    if " // " in normalized:
+        parts = [part.strip() for part in normalized.split(" // ")]
+        if parts and all(_is_allowed_literal(part) for part in parts):
             return True
+    if normalized in ALLOWED_EXACT_LITERALS:
+        return True
+    if EMAIL_RE.fullmatch(normalized):
+        return True
+    if URL_RE.fullmatch(normalized):
+        return True
+    if PHONE_RE.fullmatch(normalized):
+        return True
     return False
+
+
+def _strip_inline_i18n_fragments(line: str) -> str:
+    line = INLINE_BLOCKTRANS_RE.sub("", line)
+    return INLINE_TRANS_RE.sub("", line)
+
+
+def _is_actionable_candidate(text: str) -> bool:
+    normalized = _normalize_candidate(text)
+    if _is_allowed_literal(normalized):
+        return False
+    return _looks_like_french(normalized)
 
 
 def _iter_visible_candidates(line: str):
     for match in TEXT_NODE_RE.findall(line):
-        candidate = html.unescape(match).strip()
+        candidate = _normalize_candidate(html.unescape(match))
         if candidate and "{{" not in candidate and "{%" not in candidate:
             yield candidate
 
     for match in VISIBLE_ATTRIBUTE_RE.findall(line):
-        candidate = html.unescape(match).strip()
+        candidate = _normalize_candidate(html.unescape(match))
         if candidate and "{{" not in candidate and "{%" not in candidate:
             yield candidate
 
@@ -135,15 +183,9 @@ def _scan_template_file(path: Path):
             if "{% blocktrans" in line:
                 if "{% endblocktrans" not in line:
                     inside_blocktrans = True
-                continue
-
-            if "{% trans" in line:
-                continue
-
-            candidates = list(_iter_visible_candidates(line))
-            if _contains_visible_text_node(line) or any(
-                _looks_like_french(candidate) for candidate in candidates
-            ):
+            auditable_line = _strip_inline_i18n_fragments(line)
+            candidates = list(_iter_visible_candidates(auditable_line))
+            if any(_is_actionable_candidate(candidate) for candidate in candidates):
                 findings.append((_relative_to_project_root(path), lineno, stripped))
 
     return findings
