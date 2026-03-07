@@ -126,11 +126,15 @@ Notes:
 git pull origin main
 python -m pip install -r requirements.txt
 python manage.py migrate --noinput
+python manage.py compilemessages -v 1
 python manage.py collectstatic --noinput
 python manage.py check --deploy --fail-level WARNING
 ```
 
 Then restart the app process (systemd, supervisor, platform-specific service).
+
+`compilemessages` is required whenever translation catalogs changed under `locale/`.
+Django serves compiled `.mo` files at runtime, so deploying updated `.po` files without recompiling leaves the UI on old translations.
 
 Run the document scan worker regularly (cron/systemd timer):
 

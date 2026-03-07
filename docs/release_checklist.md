@@ -35,10 +35,15 @@ Fallback if `uv` is blocked locally:
 - [ ] `git pull origin main`
 - [ ] `python -m pip install -r requirements.txt`
 - [ ] `python manage.py migrate --noinput`
+- [ ] `python manage.py compilemessages -v 1`
 - [ ] `python manage.py collectstatic --noinput`
 - [ ] If `/app/*` changed, push updated `frontend-next/out` (see `deploy/pythonanywhere/push_next_export.sh`).
 - [ ] `python manage.py check --deploy --fail-level WARNING`
 - [ ] Restart app service/process
+
+Notes:
+
+- [ ] If `locale/en/LC_MESSAGES/django.po` or `locale/fr/LC_MESSAGES/django.po` changed, `compilemessages` is mandatory on the deploy host before app reload. Django uses compiled `.mo` catalogs at runtime, not raw `.po` files.
 
 ## D) After deploy
 
