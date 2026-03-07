@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from contacts.models import Contact, ContactAddress, ContactType
@@ -158,6 +158,14 @@ class LanguageSwitchI18nTests(TestCase):
         self.assertContains(association_response, "Number of parcels")
         self.assertContains(association_response, "Out-of-format")
         self.assertContains(association_response, "Save association receiving")
+
+    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
+    def test_runtime_translation_can_be_disabled(self):
+        self._activate_english()
+        response = self.client.get(reverse("portal:portal_login"))
+
+        self.assertContains(response, "Connexion association")
+        self.assertNotContains(response, "Association login")
 
     def test_language_switch_is_present_on_standalone_pages(self):
         login_response = self.client.get(reverse("portal:portal_login"))
