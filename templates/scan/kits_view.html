@@ -1,11 +1,12 @@
 {% extends "scan/base.html" %}
+{% load i18n %}
 
-{% block title %}WMS Scan - Vue Kits{% endblock %}
+{% block title %}{% trans "WMS Scan - Vue Kits" %}{% endblock %}
 
 {% block content %}
   <div class="scan-card card border-0 ui-comp-card">
     <h2 class="h4 mb-3 ui-comp-title d-flex align-items-center gap-2 flex-wrap">
-      <span>Vue Kits</span>
+      <span>{% trans "Vue Kits" %}</span>
       <span class="badge text-bg-light ui-comp-count-badge">{{ kits|length }}</span>
     </h2>
     {% if kits %}
@@ -13,13 +14,13 @@
         <table class="scan-table table table-sm table-hover" data-table-tools="1">
           <thead>
             <tr>
-              <th>Nom du Kit</th>
-              <th>Composition</th>
-              <th>Stock Th&eacute;orique</th>
-              <th>Stock R&eacute;el</th>
-              <th>&Eacute;tat</th>
-              <th>Cat&eacute;gorie</th>
-              <th>Derni&egrave;re modification</th>
+              <th>{% trans "Nom du Kit" %}</th>
+              <th>{% trans "Composition" %}</th>
+              <th>{% trans "Stock Théorique" %}</th>
+              <th>{% trans "Stock Réel" %}</th>
+              <th>{% trans "État" %}</th>
+              <th>{% trans "Catégorie" %}</th>
+              <th>{% trans "Dernière modification" %}</th>
             </tr>
           </thead>
           <tbody>
@@ -36,8 +37,8 @@
                 <td class="qty">{{ kit.theoretical_stock }}</td>
                 <td class="qty">{{ kit.real_stock }}</td>
                 <td>
-                  En pr&eacute;paration: {{ kit.in_preparation_stock }}<br>
-                  Pr&ecirc;t: {{ kit.real_stock }}
+                  {% blocktrans trimmed with quantity=kit.in_preparation_stock %}En préparation: {{ quantity }}{% endblocktrans %}<br>
+                  {% blocktrans trimmed with quantity=kit.real_stock %}Prêt: {{ quantity }}{% endblocktrans %}
                 </td>
                 <td>{{ kit.category|default:"-" }}</td>
                 <td>{{ kit.last_modified_at|date:"d/m/y H\\hi"|default:"-" }}</td>
@@ -47,7 +48,7 @@
         </table>
       </div>
     {% else %}
-      <p class="scan-help ui-comp-note">Aucun kit trouv&eacute;.</p>
+      <p class="scan-help ui-comp-note">{% trans "Aucun kit trouvé." %}</p>
     {% endif %}
   </div>
 {% endblock %}

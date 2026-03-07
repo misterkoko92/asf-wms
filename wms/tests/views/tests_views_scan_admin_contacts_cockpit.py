@@ -1,5 +1,6 @@
 import re
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
@@ -90,6 +91,9 @@ class ScanAdminContactsCockpitViewTests(TestCase):
         self.assertIsNotNone(match)
         return match.group(1)
 
+    def _activate_english(self):
+        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = "en"
+
     def test_scan_admin_contacts_renders_org_role_cockpit(self):
         self.client.force_login(self.superuser)
 
@@ -100,6 +104,24 @@ class ScanAdminContactsCockpitViewTests(TestCase):
         self.assertContains(response, "Recherche et filtres")
         self.assertContains(response, "Actions métier")
         self.assertEqual(response.context["active"], "admin_contacts")
+
+    def test_scan_admin_contacts_renders_native_english(self):
+        self.client.force_login(self.superuser)
+        self._activate_english()
+
+        response = self.client.get(reverse("scan:scan_admin_contacts"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Org-role contact cockpit")
+        self.assertContains(response, "Search and filters")
+        self.assertContains(response, "Business actions")
+        self.assertContains(response, "Filter")
+        self.assertContains(response, "Reset")
+        self.assertContains(response, "Shipper")
+        self.assertContains(response, 'optgroup label="Classic"')
+        self.assertNotContains(response, "Pilotage contacts org-role")
+        self.assertNotContains(response, "Recherche et filtres")
+        self.assertNotContains(response, 'optgroup label="Classiques"')
 
     def test_filter_by_role_returns_only_matching_orgs(self):
         self.client.force_login(self.superuser)
@@ -146,6 +168,24 @@ class ScanAdminContactsCockpitViewTests(TestCase):
         )
         self.assertFalse(assignment.is_active)
 
+    def test_assign_role_requires_primary_email_contact_in_native_english(self):
+        self.client.force_login(self.superuser)
+        self._activate_english()
+
+        response = self.client.post(
+            reverse("scan:scan_admin_contacts"),
+            {
+                "action": "assign_role",
+                "organization_id": str(self.other_org.id),
+                "role": OrganizationRole.SHIPPER,
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "An active primary contact is required")
+        self.assertNotContains(response, "contact principal actif")
+
     def test_assign_role_activates_when_primary_email_contact_exists(self):
         self.client.force_login(self.superuser)
         assignment = OrganizationRoleAssignment.objects.create(
@@ -166,6 +206,32 @@ class ScanAdminContactsCockpitViewTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
+        assignment.refresh_from_db()
+        self.assertTrue(assignment.is_active)
+
+    def test_assign_role_activates_when_primary_email_contact_exists_in_native_english(self):
+        self.client.force_login(self.superuser)
+        self._activate_english()
+        assignment = OrganizationRoleAssignment.objects.create(
+            organization=self.other_org,
+            role=OrganizationRole.SHIPPER,
+            is_active=False,
+        )
+        self._create_primary_role_contact(assignment=assignment)
+
+        response = self.client.post(
+            reverse("scan:scan_admin_contacts"),
+            {
+                "action": "assign_role",
+                "organization_id": str(self.other_org.id),
+                "role": OrganizationRole.SHIPPER,
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Role Shipper activated.")
+        self.assertNotContains(response, "Role Shipper active.")
         assignment.refresh_from_db()
         self.assertTrue(assignment.is_active)
 
@@ -932,6 +998,24 @@ class ScanAdminContactsCockpitViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Action de contact non reconnue.")
+
+    def test_legacy_create_contact_action_is_rejected_in_native_english(self):
+        self.client.force_login(self.superuser)
+        self._activate_english()
+
+        response = self.client.post(
+            reverse("scan:scan_admin_contacts"),
+            {
+                "action": "create_contact",
+                "q": "",
+                "contact_type": "all",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Unknown contact action.")
+        self.assertNotContains(response, "Action de contact non reconnue.")
 
     def test_cockpit_forms_render_without_legacy_contact_crud_actions(self):
         self.client.force_login(self.superuser)

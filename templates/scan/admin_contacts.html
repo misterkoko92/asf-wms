@@ -1,31 +1,32 @@
 {% extends "scan/base.html" %}
+{% load i18n %}
 
 {% block title %}WMS Scan - Admin Contacts{% endblock %}
 
 {% block content %}
   <div class="scan-card card border-0 ui-comp-card">
-    <h2 class="ui-comp-title">Pilotage contacts org-role</h2>
+    <h2 class="ui-comp-title">{% trans "Pilotage contacts org-role" %}</h2>
     <p class="scan-help ui-comp-note">
-      Gestion centralisée des organisations, rôles, contacts et mappings métier depuis l'interface Scan.
+      {% trans "Gestion centralisée des organisations, rôles, contacts et mappings métier depuis l'interface Scan." %}
     </p>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
-    <h3 class="ui-comp-title h5 mb-3">Recherche et filtres</h3>
+    <h3 class="ui-comp-title h5 mb-3">{% trans "Recherche et filtres" %}</h3>
     <form method="get" class="scan-filters row g-3 ui-comp-form">
       <div class="scan-field col-12 col-md-4">
-        <label class="form-label" for="scan-admin-contacts-q">Recherche</label>
+        <label class="form-label" for="scan-admin-contacts-q">{% trans "Recherche" %}</label>
         <input
           id="scan-admin-contacts-q"
           type="text"
           name="q"
           value="{{ query }}"
           class="form-control"
-          placeholder="Nom, email, téléphone, ASF ID"
+          placeholder="{% trans "Nom, email, téléphone, ASF ID" %}"
         >
       </div>
       <div class="scan-field col-12 col-md-3">
-        <label class="form-label" for="scan-admin-contacts-type">Filtre principal: type de contact</label>
+        <label class="form-label" for="scan-admin-contacts-type">{% trans "Filtre principal: type de contact" %}</label>
         <select id="scan-admin-contacts-type" name="contact_type" class="form-select">
           {% for value, label in contact_filter_choices %}
             <option value="{{ value }}" {% if contact_filter == value %}selected{% endif %}>{{ label }}</option>
@@ -33,18 +34,18 @@
         </select>
       </div>
       <div class="scan-field col-12 col-md-2">
-        <label class="form-label" for="scan-admin-contacts-role">Rôle org</label>
+        <label class="form-label" for="scan-admin-contacts-role">{% trans "Rôle org" %}</label>
         <select id="scan-admin-contacts-role" name="role" class="form-select">
-          <option value="">Tous</option>
+          <option value="">{% trans "Tous" %}</option>
           {% for value, label in cockpit_role_choices %}
             <option value="{{ value }}" {% if cockpit_filters.role == value %}selected{% endif %}>{{ label }}</option>
           {% endfor %}
         </select>
       </div>
       <div class="scan-field col-12 col-md-3">
-        <label class="form-label" for="scan-admin-contacts-shipper-filter">Destinataires d'un expéditeur</label>
+        <label class="form-label" for="scan-admin-contacts-shipper-filter">{% trans "Destinataires d'un expéditeur" %}</label>
         <select id="scan-admin-contacts-shipper-filter" name="shipper_org_id" class="form-select">
-          <option value="">Tous</option>
+          <option value="">{% trans "Tous" %}</option>
           {% for organization in cockpit_organizations %}
             <option value="{{ organization.id }}" {% if cockpit_filters.shipper_org_id == organization.id|stringformat:"s" %}selected{% endif %}>
               {{ organization.name }}
@@ -53,30 +54,30 @@
         </select>
       </div>
       <div class="scan-filter-actions col-12 d-flex flex-wrap gap-2 align-items-end">
-        <button type="submit" class="scan-submit scan-submit-inline btn btn-primary">Filtrer</button>
-        <a class="btn btn-tertiary" href="{% url 'scan:scan_admin_contacts' %}">Réinitialiser</a>
+        <button type="submit" class="scan-submit scan-submit-inline btn btn-primary">{% trans "Filtrer" %}</button>
+        <a class="btn btn-tertiary" href="{% url 'scan:scan_admin_contacts' %}">{% trans "Réinitialiser" %}</a>
       </div>
     </form>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
-    <h3 class="ui-comp-title h5 mb-3">Actions métier</h3>
+    <h3 class="ui-comp-title h5 mb-3">{% trans "Actions métier" %}</h3>
     <p class="scan-help ui-comp-note">
-      Actions de création et de mise à jour directement dans le cockpit.
+      {% trans "Actions de création et de mise à jour directement dans le cockpit." %}
     </p>
 
     <div class="row g-3 ui-comp-form">
       <div class="col-12 col-xl-6" style="order: 3;">
         <div class="ui-comp-panel p-3 border rounded-3">
           <h4 class="h6 mb-2 d-flex align-items-center gap-2">
-            Activer / désactiver un rôle sur une organisation
+            {% trans "Activer / désactiver un rôle sur une organisation" %}
             <button
               type="button"
               class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
               data-bs-toggle="tooltip"
               data-bs-trigger="hover focus click"
-              title="Sélectionnez une organisation et un rôle métier, puis activez ou désactivez ce rôle."
-              aria-label="Aide sur les rôles d'organisation"
+              title="{% trans "Sélectionnez une organisation et un rôle métier, puis activez ou désactivez ce rôle." %}"
+              aria-label="{% trans "Aide sur les rôles d'organisation" %}"
             >?</button>
           </h4>
           <form method="post" class="row g-2">
@@ -84,26 +85,26 @@
             <input type="hidden" name="q" value="{{ query }}">
             <input type="hidden" name="contact_type" value="{{ contact_filter }}">
             <div class="col-12 col-md-6">
-              <label class="form-label">Organisation</label>
+              <label class="form-label">{% trans "Organisation" %}</label>
               <select name="organization_id" class="form-select" required>
-                <option value="">Choisir...</option>
+                <option value="">{% trans "Choisir..." %}</option>
                 {% for organization in cockpit_organizations %}
                   <option value="{{ organization.id }}">{{ organization.name }}</option>
                 {% endfor %}
               </select>
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label">Rôle</label>
+              <label class="form-label">{% trans "Rôle" %}</label>
               <select name="role" class="form-select" required>
-                <option value="">Choisir...</option>
+                <option value="">{% trans "Choisir..." %}</option>
                 {% for value, label in cockpit_role_choices %}
                   <option value="{{ value }}">{{ label }}</option>
                 {% endfor %}
               </select>
             </div>
             <div class="col-12 d-flex flex-wrap gap-2">
-              <button type="submit" name="action" value="assign_role" class="btn btn-primary">Activer rôle</button>
-              <button type="submit" name="action" value="unassign_role" class="btn btn-warning">Désactiver rôle</button>
+              <button type="submit" name="action" value="assign_role" class="btn btn-primary">{% trans "Activer rôle" %}</button>
+              <button type="submit" name="action" value="unassign_role" class="btn btn-warning">{% trans "Désactiver rôle" %}</button>
             </div>
           </form>
         </div>
@@ -112,14 +113,14 @@
       <div class="col-12 col-xl-6" style="order: 2;">
         <div class="ui-comp-panel p-3 border rounded-3">
           <h4 class="h6 mb-2 d-flex align-items-center gap-2">
-            Créer ou mettre à jour une personne rattachée à une organisation
+            {% trans "Créer ou mettre à jour une personne rattachée à une organisation" %}
             <button
               type="button"
               class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
               data-bs-toggle="tooltip"
               data-bs-trigger="hover focus click"
-              title="Créez un nouveau contact d'organisation ou mettez à jour un contact existant de la même organisation."
-              aria-label="Aide sur les contacts organisation"
+              title="{% trans "Créez un nouveau contact d'organisation ou mettez à jour un contact existant de la même organisation." %}"
+              aria-label="{% trans "Aide sur les contacts organisation" %}"
             >?</button>
           </h4>
           <form id="scan-org-contact-upsert-form" method="post" class="row g-2">
@@ -128,20 +129,20 @@
             <input type="hidden" name="q" value="{{ query }}">
             <input type="hidden" name="contact_type" value="{{ contact_filter }}">
             <div class="col-12 col-md-6">
-              <label class="form-label" for="scan-org-contact-organization">Organisation</label>
+              <label class="form-label" for="scan-org-contact-organization">{% trans "Organisation" %}</label>
               <select id="scan-org-contact-organization" name="organization_id" class="form-select" required>
-                <option value="">Choisir...</option>
+                <option value="">{% trans "Choisir..." %}</option>
                 {% for organization in cockpit_organizations %}
                   <option value="{{ organization.id }}">{{ organization.name }}</option>
                 {% endfor %}
               </select>
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label" for="scan-org-contact-existing">Contact existant (optionnel)</label>
+              <label class="form-label" for="scan-org-contact-existing">{% trans "Contact existant (optionnel)" %}</label>
               <select id="scan-org-contact-existing" name="organization_contact_id" class="form-select">
-                <option value="">Nouveau contact</option>
+                <option value="">{% trans "Nouveau contact" %}</option>
                 <option value="" disabled>---</option>
-                <option value="" disabled>Contacts déjà liés</option>
+                <option value="" disabled>{% trans "Contacts déjà liés" %}</option>
                 {% for org_contact in cockpit_linked_organization_contacts %}
                   <option
                     value="{{ org_contact.id }}"
@@ -157,7 +158,7 @@
                   </option>
                 {% endfor %}
                 <option value="" disabled>---</option>
-                <option value="" disabled>Tous les contacts</option>
+                <option value="" disabled>{% trans "Tous les contacts" %}</option>
                 {% for org_contact in cockpit_all_organization_contacts %}
                   <option
                     value="{{ org_contact.id }}"
@@ -175,9 +176,9 @@
               </select>
             </div>
             <div class="col-12 col-md-4">
-              <label class="form-label" for="scan-org-contact-title">Civilité</label>
+              <label class="form-label" for="scan-org-contact-title">{% trans "Civilité" %}</label>
               <select id="scan-org-contact-title" name="title" class="form-select">
-                <option value="">Aucune</option>
+                <option value="">{% trans "Aucune" %}</option>
                 {% for group in cockpit_contact_title_groups %}
                   <optgroup label="{{ group.label }}">
                     {% for value, label in group.choices %}
@@ -188,11 +189,11 @@
               </select>
             </div>
             <div class="col-12 col-md-4">
-              <label class="form-label" for="scan-org-contact-first-name">Prénom</label>
+              <label class="form-label" for="scan-org-contact-first-name">{% trans "Prénom" %}</label>
               <input id="scan-org-contact-first-name" type="text" name="first_name" class="form-control" maxlength="120">
             </div>
             <div class="col-12 col-md-4">
-              <label class="form-label" for="scan-org-contact-last-name">Nom</label>
+              <label class="form-label" for="scan-org-contact-last-name">{% trans "Nom" %}</label>
               <input id="scan-org-contact-last-name" type="text" name="last_name" class="form-control" maxlength="120">
             </div>
             <div class="col-12 col-md-6">
@@ -200,20 +201,20 @@
               <input id="scan-org-contact-email" type="email" name="email" class="form-control">
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label" for="scan-org-contact-phone">Téléphone</label>
+              <label class="form-label" for="scan-org-contact-phone">{% trans "Téléphone" %}</label>
               <input id="scan-org-contact-phone" type="text" name="phone" class="form-control" maxlength="40">
               <div class="form-text">
-                Optionnel. Format international attendu: <code>+33000000000</code> ou <code>+33 6 20 20 20 20</code>.
+                {% blocktrans trimmed %}Optionnel. Format international attendu: <code>+33000000000</code> ou <code>+33 6 20 20 20 20</code>.{% endblocktrans %}
               </div>
             </div>
             <div class="col-12">
               <div class="form-check form-switch">
                 <input id="scan-org-contact-active" type="checkbox" name="is_active" class="form-check-input" checked>
-                <label for="scan-org-contact-active" class="form-check-label">Contact actif</label>
+                <label for="scan-org-contact-active" class="form-check-label">{% trans "Contact actif" %}</label>
               </div>
             </div>
             <div class="col-12">
-              <button type="submit" class="btn btn-primary">Créer / mettre à jour</button>
+              <button type="submit" class="btn btn-primary">{% trans "Créer / mettre à jour" %}</button>
             </div>
           </form>
         </div>
@@ -222,14 +223,14 @@
       <div class="col-12 col-xl-6" style="order: 4;">
         <div class="ui-comp-panel p-3 border rounded-3">
           <h4 class="h6 mb-2 d-flex align-items-center gap-2">
-            Associer une personne à un rôle (et définir le principal)
+            {% trans "Associer une personne à un rôle (et définir le principal)" %}
             <button
               type="button"
               class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
               data-bs-toggle="tooltip"
               data-bs-trigger="hover focus click"
-              title="Utilisez cette carte pour lier ou délier un contact à un rôle existant, ou définir le contact principal pour ce rôle."
-              aria-label="Aide sur les liaisons rôle-contact"
+              title="{% trans "Utilisez cette carte pour lier ou délier un contact à un rôle existant, ou définir le contact principal pour ce rôle." %}"
+              aria-label="{% trans "Aide sur les liaisons rôle-contact" %}"
             >?</button>
           </h4>
           <form method="post" class="row g-2">
@@ -237,29 +238,29 @@
             <input type="hidden" name="q" value="{{ query }}">
             <input type="hidden" name="contact_type" value="{{ contact_filter }}">
             <div class="col-12 col-md-6">
-              <label class="form-label">Affectation de rôle</label>
+              <label class="form-label">{% trans "Affectation de rôle" %}</label>
               <select name="role_assignment_id" class="form-select" required>
-                <option value="">Choisir...</option>
+                <option value="">{% trans "Choisir..." %}</option>
                 {% for assignment in cockpit_role_assignments %}
                   <option value="{{ assignment.id }}">
-                    {{ assignment.organization.name }} - {{ assignment.get_role_display }}{% if not assignment.is_active %} (inactif){% endif %}
+                    {{ assignment.organization.name }} - {{ assignment.get_role_display }}{% if not assignment.is_active %} ({% trans "inactif" %}){% endif %}
                   </option>
                 {% endfor %}
               </select>
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label">Contact organisation</label>
+              <label class="form-label">{% trans "Contact organisation" %}</label>
               <select name="organization_contact_id" class="form-select" required>
-                <option value="">Choisir...</option>
+                <option value="">{% trans "Choisir..." %}</option>
                 <option value="" disabled>---</option>
-                <option value="" disabled>Contacts déjà liés</option>
+                <option value="" disabled>{% trans "Contacts déjà liés" %}</option>
                 {% for org_contact in cockpit_linked_organization_contacts %}
                   <option value="{{ org_contact.id }}">
                     {{ org_contact.last_name }} {{ org_contact.first_name }} - {{ org_contact.organization.name }}{% if org_contact.email %} - {{ org_contact.email }}{% endif %}
                   </option>
                 {% endfor %}
                 <option value="" disabled>---</option>
-                <option value="" disabled>Tous les contacts</option>
+                <option value="" disabled>{% trans "Tous les contacts" %}</option>
                 {% for org_contact in cockpit_all_organization_contacts %}
                   <option value="{{ org_contact.id }}">
                     {{ org_contact.last_name }} {{ org_contact.first_name }} - {{ org_contact.organization.name }}{% if org_contact.email %} - {{ org_contact.email }}{% endif %}
@@ -268,9 +269,9 @@
               </select>
             </div>
             <div class="col-12 d-flex flex-wrap gap-2">
-              <button type="submit" name="action" value="link_role_contact" class="btn btn-primary">Lier</button>
-              <button type="submit" name="action" value="set_primary_role_contact" class="btn btn-secondary">Définir principal</button>
-              <button type="submit" name="action" value="unlink_role_contact" class="btn btn-warning">Délier</button>
+              <button type="submit" name="action" value="link_role_contact" class="btn btn-primary">{% trans "Lier" %}</button>
+              <button type="submit" name="action" value="set_primary_role_contact" class="btn btn-secondary">{% trans "Définir principal" %}</button>
+              <button type="submit" name="action" value="unlink_role_contact" class="btn btn-warning">{% trans "Délier" %}</button>
             </div>
           </form>
         </div>
@@ -279,14 +280,14 @@
       <div class="col-12 col-xl-6" style="order: 5;">
         <div class="ui-comp-panel p-3 border rounded-3">
           <h4 class="h6 mb-2 d-flex align-items-center gap-2">
-            Définir le périmètre d'un expéditeur (escales autorisées)
+            {% trans "Définir le périmètre d'un expéditeur (escales autorisées)" %}
             <button
               type="button"
               class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
               data-bs-toggle="tooltip"
               data-bs-trigger="hover focus click"
-              title="Configurez si un expéditeur est autorisé sur toutes les escales ou uniquement sur une escale donnée, avec des dates de validité."
-              aria-label="Aide sur les périmètres expéditeur"
+              title="{% trans "Configurez si un expéditeur est autorisé sur toutes les escales ou uniquement sur une escale donnée, avec des dates de validité." %}"
+              aria-label="{% trans "Aide sur les périmètres expéditeur" %}"
             >?</button>
           </h4>
           <form id="scan-shipper-scope-upsert-form" method="post" class="row g-2">
@@ -295,9 +296,9 @@
             <input type="hidden" name="q" value="{{ query }}">
             <input type="hidden" name="contact_type" value="{{ contact_filter }}">
             <div class="col-12 col-md-6">
-              <label class="form-label" for="scan-shipper-scope-role-assignment">Choisir un expéditeur</label>
+              <label class="form-label" for="scan-shipper-scope-role-assignment">{% trans "Choisir un expéditeur" %}</label>
               <select id="scan-shipper-scope-role-assignment" name="role_assignment_id" class="form-select" required>
-                <option value="">Choisir...</option>
+                <option value="">{% trans "Choisir..." %}</option>
                 {% for assignment in cockpit_shipper_role_assignments %}
                   <option value="{{ assignment.id }}">{{ assignment.organization.name }} - {{ assignment.get_role_display }}</option>
                 {% endfor %}
@@ -305,29 +306,29 @@
             </div>
             <div class="col-12 col-md-6">
               <label class="form-label d-flex align-items-center gap-2" for="scan-shipper-scope-id">
-                Règle de périmètre existante (optionnel)
+                {% trans "Règle de périmètre existante (optionnel)" %}
                 <button
                   type="button"
                   class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
                   data-bs-toggle="tooltip"
                   data-bs-trigger="hover focus click"
-                  title="Sélectionnez une règle existante pour la modifier au lieu d'en créer une nouvelle."
-                  aria-label="Aide sur les règles de périmètre existantes"
+                  title="{% trans "Sélectionnez une règle existante pour la modifier au lieu d'en créer une nouvelle." %}"
+                  aria-label="{% trans "Aide sur les règles de périmètre existantes" %}"
                 >?</button>
               </label>
               <select id="scan-shipper-scope-id" name="scope_id" class="form-select">
-                <option value="">Nouveau périmètre</option>
+                <option value="">{% trans "Nouveau périmètre" %}</option>
                 {% for scope in cockpit_shipper_scopes %}
                   <option value="{{ scope.id }}">
-                    {{ scope.role_assignment.organization.name }} - {% if scope.all_destinations %}Toutes escales{% else %}{{ scope.destination.iata_code }}{% endif %}
+                    {{ scope.role_assignment.organization.name }} - {% if scope.all_destinations %}{% trans "Toutes escales" %}{% else %}{{ scope.destination.iata_code }}{% endif %}
                   </option>
                 {% endfor %}
               </select>
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label" for="scan-shipper-scope-destination">Destination</label>
+              <label class="form-label" for="scan-shipper-scope-destination">{% trans "Destination" %}</label>
               <select id="scan-shipper-scope-destination" name="destination_id" class="form-select">
-                <option value="">Aucune (mode global)</option>
+                <option value="">{% trans "Aucune (mode global)" %}</option>
                 {% for destination in cockpit_destinations %}
                   <option value="{{ destination.id }}">{{ destination.iata_code }} - {{ destination.city }}</option>
                 {% endfor %}
@@ -336,19 +337,19 @@
             <div class="col-12 col-md-6 d-flex align-items-end">
               <div class="form-check form-switch">
                 <input id="scan-scope-all-destinations" type="checkbox" name="all_destinations" class="form-check-input">
-                <label for="scan-scope-all-destinations" class="form-check-label">Toutes les escales</label>
+                <label for="scan-scope-all-destinations" class="form-check-label">{% trans "Toutes les escales" %}</label>
               </div>
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label">Validité début</label>
+              <label class="form-label">{% trans "Validité début" %}</label>
               <input type="datetime-local" name="valid_from" class="form-control">
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label">Validité fin</label>
+              <label class="form-label">{% trans "Validité fin" %}</label>
               <input type="datetime-local" name="valid_to" class="form-control">
             </div>
             <div class="col-12">
-              <button type="submit" class="btn btn-primary">Créer / mettre à jour le périmètre</button>
+              <button type="submit" class="btn btn-primary">{% trans "Créer / mettre à jour le périmètre" %}</button>
             </div>
           </form>
           <hr>
@@ -359,29 +360,29 @@
             <input type="hidden" name="contact_type" value="{{ contact_filter }}">
             <div class="col-12 col-md-8">
               <label class="form-label d-flex align-items-center gap-2" for="scan-shipper-scope-disable-id">
-                Règle de périmètre à désactiver
+                {% trans "Règle de périmètre à désactiver" %}
                 <button
                   type="button"
                   class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
                   data-bs-toggle="tooltip"
                   data-bs-trigger="hover focus click"
-                  title="Choisissez ici la règle active à fermer pour retirer une autorisation d'escale."
-                  aria-label="Aide sur la désactivation de périmètre"
+                  title="{% trans "Choisissez ici la règle active à fermer pour retirer une autorisation d'escale." %}"
+                  aria-label="{% trans "Aide sur la désactivation de périmètre" %}"
                 >?</button>
               </label>
               <select id="scan-shipper-scope-disable-id" name="scope_id" class="form-select" required>
-                <option value="">Choisir...</option>
+                <option value="">{% trans "Choisir..." %}</option>
                 {% for scope in cockpit_shipper_scopes %}
                   {% if scope.is_active %}
                     <option value="{{ scope.id }}">
-                      {{ scope.role_assignment.organization.name }} - {% if scope.all_destinations %}Toutes escales{% else %}{{ scope.destination.iata_code }}{% endif %}
+                      {{ scope.role_assignment.organization.name }} - {% if scope.all_destinations %}{% trans "Toutes escales" %}{% else %}{{ scope.destination.iata_code }}{% endif %}
                     </option>
                   {% endif %}
                 {% endfor %}
               </select>
             </div>
             <div class="col-12 col-md-4 d-flex align-items-end">
-              <button type="submit" class="btn btn-warning">Désactiver le périmètre</button>
+              <button type="submit" class="btn btn-warning">{% trans "Désactiver le périmètre" %}</button>
             </div>
           </form>
         </div>
@@ -390,14 +391,14 @@
       <div class="col-12 col-xl-6" style="order: 6;">
         <div class="ui-comp-panel p-3 border rounded-3">
           <h4 class="h6 mb-2 d-flex align-items-center gap-2">
-            Lier un destinataire à un expéditeur et à une escale
+            {% trans "Lier un destinataire à un expéditeur et à une escale" %}
             <button
               type="button"
               class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
               data-bs-toggle="tooltip"
               data-bs-trigger="hover focus click"
-              title="Créez ou mettez à jour un lien expéditeur vers destinataire sur une escale précise, puis clôturez-le si besoin."
-              aria-label="Aide sur les liens expéditeur-destinataire"
+              title="{% trans "Créez ou mettez à jour un lien expéditeur vers destinataire sur une escale précise, puis clôturez-le si besoin." %}"
+              aria-label="{% trans "Aide sur les liens expéditeur-destinataire" %}"
             >?</button>
           </h4>
           <form id="scan-recipient-binding-upsert-form" method="post" class="row g-2">
@@ -406,9 +407,9 @@
             <input type="hidden" name="q" value="{{ query }}">
             <input type="hidden" name="contact_type" value="{{ contact_filter }}">
             <div class="col-12 col-md-6">
-              <label class="form-label" for="scan-binding-existing">Lien existant (optionnel)</label>
+              <label class="form-label" for="scan-binding-existing">{% trans "Lien existant (optionnel)" %}</label>
               <select id="scan-binding-existing" name="binding_id" class="form-select">
-                <option value="">Nouveau lien</option>
+                <option value="">{% trans "Nouveau lien" %}</option>
                 {% for binding in cockpit_recipient_bindings %}
                   <option
                     value="{{ binding.id }}"
@@ -425,42 +426,42 @@
               </select>
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label" for="scan-binding-shipper-org-id">Expéditeur</label>
+              <label class="form-label" for="scan-binding-shipper-org-id">{% trans "Expéditeur" %}</label>
               <select id="scan-binding-shipper-org-id" name="shipper_org_id" class="form-select" required>
-                <option value="">Choisir...</option>
+                <option value="">{% trans "Choisir..." %}</option>
                 {% for organization in cockpit_binding_shipper_organizations %}
                   <option value="{{ organization.id }}">{{ organization.name }}</option>
                 {% endfor %}
               </select>
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label" for="scan-binding-recipient-org-id">Destinataire</label>
+              <label class="form-label" for="scan-binding-recipient-org-id">{% trans "Destinataire" %}</label>
               <select id="scan-binding-recipient-org-id" name="recipient_org_id" class="form-select" required>
-                <option value="">Choisir...</option>
+                <option value="">{% trans "Choisir..." %}</option>
                 {% for organization in cockpit_binding_recipient_organizations %}
                   <option value="{{ organization.id }}" data-default-destination-id="{{ organization.default_destination_id }}">{{ organization.name }}</option>
                 {% endfor %}
               </select>
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label" for="scan-binding-destination-id">Destination</label>
+              <label class="form-label" for="scan-binding-destination-id">{% trans "Destination" %}</label>
               <select id="scan-binding-destination-id" name="destination_id" class="form-select" required>
-                <option value="">Choisir...</option>
+                <option value="">{% trans "Choisir..." %}</option>
                 {% for destination in cockpit_destinations %}
                   <option value="{{ destination.id }}">{{ destination.iata_code }} - {{ destination.city }}</option>
                 {% endfor %}
               </select>
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label" for="scan-binding-valid-from">Validité début</label>
+              <label class="form-label" for="scan-binding-valid-from">{% trans "Validité début" %}</label>
               <input id="scan-binding-valid-from" type="datetime-local" name="valid_from" class="form-control">
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label" for="scan-binding-valid-to">Validité fin</label>
+              <label class="form-label" for="scan-binding-valid-to">{% trans "Validité fin" %}</label>
               <input id="scan-binding-valid-to" type="datetime-local" name="valid_to" class="form-control">
             </div>
             <div class="col-12">
-              <button type="submit" class="btn btn-primary">Créer / mettre à jour le lien</button>
+              <button type="submit" class="btn btn-primary">{% trans "Créer / mettre à jour le lien" %}</button>
             </div>
           </form>
           <hr>
@@ -470,9 +471,9 @@
             <input type="hidden" name="q" value="{{ query }}">
             <input type="hidden" name="contact_type" value="{{ contact_filter }}">
             <div class="col-12 col-md-6">
-              <label class="form-label">Lien à clôturer</label>
+              <label class="form-label">{% trans "Lien à clôturer" %}</label>
               <select name="binding_id" class="form-select" required>
-                <option value="">Choisir...</option>
+                <option value="">{% trans "Choisir..." %}</option>
                 {% for binding in cockpit_recipient_bindings %}
                   {% if binding.is_active %}
                     <option value="{{ binding.id }}">
@@ -483,11 +484,11 @@
               </select>
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label">Date de fin</label>
+              <label class="form-label">{% trans "Date de fin" %}</label>
               <input type="datetime-local" name="valid_to" class="form-control" required>
             </div>
             <div class="col-12">
-              <button type="submit" class="btn btn-warning">Clôturer le lien</button>
+              <button type="submit" class="btn btn-warning">{% trans "Clôturer le lien" %}</button>
             </div>
           </form>
         </div>
@@ -496,14 +497,14 @@
       <div class="col-12 col-xl-6" style="order: 1;">
         <div class="ui-comp-panel p-3 border rounded-3">
           <h4 class="h6 mb-2 d-flex align-items-center gap-2">
-            Assistant de création rapide (organisation)
+            {% trans "Assistant de création rapide (organisation)" %}
             <button
               type="button"
               class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
               data-bs-toggle="tooltip"
               data-bs-trigger="hover focus click"
-              title="Assistant simplifié pour créer une organisation seule, ou une organisation avec un contact principal rattaché."
-              aria-label="Aide sur la création guidée"
+              title="{% trans "Assistant simplifié pour créer une organisation seule, ou une organisation avec un contact principal rattaché." %}"
+              aria-label="{% trans "Aide sur la création guidée" %}"
             >?</button>
           </h4>
           <form id="scan-guided-contact-form" method="post" class="row g-2">
@@ -512,35 +513,35 @@
             <input type="hidden" name="q" value="{{ query }}">
             <input type="hidden" name="contact_type" value="{{ contact_filter }}">
             <div class="col-12 col-md-6">
-              <label class="form-label" for="scan-guided-entity-kind">Je crée</label>
+              <label class="form-label" for="scan-guided-entity-kind">{% trans "Je crée" %}</label>
               <select id="scan-guided-entity-kind" name="entity_kind" class="form-select" required>
-                <option value="organization">une organisation</option>
-                <option value="organization_with_contact">une organisation et une personne liée</option>
+                <option value="organization">{% trans "une organisation" %}</option>
+                <option value="organization_with_contact">{% trans "une organisation et une personne liée" %}</option>
               </select>
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label" for="scan-guided-role">Rôle initial</label>
+              <label class="form-label" for="scan-guided-role">{% trans "Rôle initial" %}</label>
               <select id="scan-guided-role" name="role" class="form-select" required>
-                <option value="">Choisir...</option>
+                <option value="">{% trans "Choisir..." %}</option>
                 {% for value, label in cockpit_role_choices %}
                   <option value="{{ value }}">{{ label }}</option>
                 {% endfor %}
               </select>
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label" for="scan-guided-organization-name">Nom de l'organisation</label>
+              <label class="form-label" for="scan-guided-organization-name">{% trans "Nom de l'organisation" %}</label>
               <input id="scan-guided-organization-name" type="text" name="organization_name" class="form-control" maxlength="200" required>
             </div>
             <div class="col-12 col-md-4">
-              <label class="form-label" for="scan-guided-name">Nom complet</label>
+              <label class="form-label" for="scan-guided-name">{% trans "Nom complet" %}</label>
               <input id="scan-guided-name" type="text" name="name" class="form-control" maxlength="200">
             </div>
             <div class="col-12 col-md-4">
-              <label class="form-label" for="scan-guided-first-name">Prénom</label>
+              <label class="form-label" for="scan-guided-first-name">{% trans "Prénom" %}</label>
               <input id="scan-guided-first-name" type="text" name="first_name" class="form-control" maxlength="120">
             </div>
             <div class="col-12 col-md-4">
-              <label class="form-label" for="scan-guided-last-name">Nom</label>
+              <label class="form-label" for="scan-guided-last-name">{% trans "Nom" %}</label>
               <input id="scan-guided-last-name" type="text" name="last_name" class="form-control" maxlength="120">
             </div>
             <div class="col-12 col-md-6">
@@ -548,17 +549,17 @@
               <input id="scan-guided-email" type="email" name="email" class="form-control">
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label" for="scan-guided-phone">Téléphone</label>
+              <label class="form-label" for="scan-guided-phone">{% trans "Téléphone" %}</label>
               <input id="scan-guided-phone" type="text" name="phone" class="form-control" maxlength="40">
             </div>
             <div class="col-12">
               <div class="form-check form-switch">
                 <input id="scan-guided-contact-active" type="checkbox" name="is_active" class="form-check-input" checked>
-                <label for="scan-guided-contact-active" class="form-check-label">Actif</label>
+                <label for="scan-guided-contact-active" class="form-check-label">{% trans "Actif" %}</label>
               </div>
             </div>
             <div class="col-12">
-              <button type="submit" class="btn btn-primary">Créer</button>
+              <button type="submit" class="btn btn-primary">{% trans "Créer" %}</button>
             </div>
           </form>
         </div>
@@ -567,14 +568,14 @@
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
-    <h3 class="ui-comp-title h5 mb-3">Tableau organisations (cockpit)</h3>
+    <h3 class="ui-comp-title h5 mb-3">{% trans "Tableau organisations (cockpit)" %}</h3>
     <div class="scan-table-wrap table-responsive">
       <table class="scan-table table table-sm table-hover" data-table-tools="1">
         <thead>
           <tr>
-            <th>Organisation</th>
-            <th>Rôles actifs</th>
-            <th>Bindings destinataire actifs</th>
+            <th>{% trans "Organisation" %}</th>
+            <th>{% trans "Rôles actifs" %}</th>
+            <th>{% trans "Bindings destinataire actifs" %}</th>
           </tr>
         </thead>
         <tbody>
@@ -592,7 +593,7 @@
             </tr>
           {% empty %}
             <tr>
-              <td colspan="3">Aucune organisation ne correspond aux filtres.</td>
+              <td colspan="3">{% trans "Aucune organisation ne correspond aux filtres." %}</td>
             </tr>
           {% endfor %}
         </tbody>
@@ -601,19 +602,19 @@
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
-    <h3 class="ui-comp-title h5 mb-3">Contacts ({{ contacts|length }})</h3>
+    <h3 class="ui-comp-title h5 mb-3">{% blocktrans trimmed with count=contacts|length %}Contacts ({{ count }}){% endblocktrans %}</h3>
     {% if contacts %}
       <div class="scan-table-wrap table-responsive">
         <table class="scan-table table table-sm table-hover" data-table-tools="1">
           <thead>
             <tr>
-              <th>Nom</th>
-              <th>Type</th>
-              <th>Tags</th>
+              <th>{% trans "Nom" %}</th>
+              <th>{% trans "Type" %}</th>
+              <th>{% trans "Tags" %}</th>
               <th>Email</th>
-              <th>Téléphone</th>
-              <th>Actif</th>
-              <th>Actions</th>
+              <th>{% trans "Téléphone" %}</th>
+              <th>{% trans "Actif" %}</th>
+              <th>{% trans "Actions" %}</th>
             </tr>
           </thead>
           <tbody>
@@ -630,9 +631,9 @@
                 </td>
                 <td>{{ contact.email|default:"-" }}</td>
                 <td>{{ contact.phone|default:"-" }}</td>
-                <td>{% if contact.is_active %}Oui{% else %}Non{% endif %}</td>
+                <td>{% if contact.is_active %}{% trans "Oui" %}{% else %}{% trans "Non" %}{% endif %}</td>
                 <td>
-                  <span class="scan-help">Édition via cockpit org-role ou admin Django.</span>
+                  <span class="scan-help">{% trans "Édition via cockpit org-role ou admin Django." %}</span>
                 </td>
               </tr>
             {% endfor %}
@@ -640,20 +641,20 @@
         </table>
       </div>
     {% else %}
-      <p class="scan-help">Aucun contact trouvé.</p>
+      <p class="scan-help">{% trans "Aucun contact trouvé." %}</p>
     {% endif %}
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
-    <h3 class="ui-comp-title h5 mb-3">Correspondants ({{ correspondents|length }})</h3>
+    <h3 class="ui-comp-title h5 mb-3">{% blocktrans trimmed with count=correspondents|length %}Correspondants ({{ count }}){% endblocktrans %}</h3>
     {% if correspondents %}
       <div class="scan-table-wrap table-responsive">
         <table class="scan-table table table-sm table-hover" data-table-tools="1">
           <thead>
             <tr>
-              <th>Nom</th>
+              <th>{% trans "Nom" %}</th>
               <th>Email</th>
-              <th>Téléphone</th>
+              <th>{% trans "Téléphone" %}</th>
             </tr>
           </thead>
           <tbody>
@@ -668,18 +669,18 @@
         </table>
       </div>
     {% else %}
-      <p class="scan-help">Aucun correspondant trouvé.</p>
+      <p class="scan-help">{% trans "Aucun correspondant trouvé." %}</p>
     {% endif %}
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
-    <h3 class="ui-comp-title h5 mb-3">Secours admin Django</h3>
+    <h3 class="ui-comp-title h5 mb-3">{% trans "Secours admin Django" %}</h3>
     <div class="scan-filter-actions">
-      <a class="scan-scan-btn btn btn-tertiary" href="{{ contacts_admin_url }}">Tous les contacts (admin)</a>
-      <a class="scan-scan-btn btn btn-tertiary" href="{{ contact_add_url }}">Ajouter un contact (admin)</a>
-      <a class="scan-scan-btn btn btn-tertiary" href="{{ contact_tag_add_url }}">Ajouter un tag (admin)</a>
-      <a class="scan-scan-btn btn btn-tertiary" href="{{ destination_admin_url }}">Destinations (admin)</a>
-      <a class="scan-scan-btn btn btn-tertiary" href="{{ destination_add_url }}">Ajouter une destination (admin)</a>
+      <a class="scan-scan-btn btn btn-tertiary" href="{{ contacts_admin_url }}">{% trans "Tous les contacts (admin)" %}</a>
+      <a class="scan-scan-btn btn btn-tertiary" href="{{ contact_add_url }}">{% trans "Ajouter un contact (admin)" %}</a>
+      <a class="scan-scan-btn btn btn-tertiary" href="{{ contact_tag_add_url }}">{% trans "Ajouter un tag (admin)" %}</a>
+      <a class="scan-scan-btn btn btn-tertiary" href="{{ destination_admin_url }}">{% trans "Destinations (admin)" %}</a>
+      <a class="scan-scan-btn btn btn-tertiary" href="{{ destination_add_url }}">{% trans "Ajouter une destination (admin)" %}</a>
     </div>
   </div>
 

@@ -2,6 +2,7 @@ import json
 from io import BytesIO
 from unittest import mock
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.http import HttpResponse
@@ -82,6 +83,9 @@ class PrintTemplateViewsTests(TestCase):
         workbook.close()
         return output.getvalue()
 
+    def _activate_english(self):
+        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = "en"
+
     def test_scan_print_templates_list_displays_print_pack_documents(self):
         response = self.client.get(self._list_url())
         self.assertEqual(response.status_code, 200)
@@ -95,6 +99,22 @@ class PrintTemplateViewsTests(TestCase):
         self.assertEqual(template_entry["mapping_count"], 1)
         self.assertTrue(template_entry["has_template_file"])
         self.assertEqual(template_entry["route_key"], str(self.pack_document.id))
+
+    def test_scan_print_templates_list_renders_native_english(self):
+        self._activate_english()
+
+        response = self.client.get(self._list_url())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "XLSX templates")
+        self.assertContains(
+            response,
+            "Manage Print Pack templates and mappings (superuser only).",
+        )
+        self.assertContains(response, "Document")
+        self.assertContains(response, "Last updated")
+        self.assertContains(response, "Edit")
+        self.assertNotContains(response, "Templates XLSX")
 
     def test_scan_print_template_edit_404_for_unknown_doc_type(self):
         response = self.client.get(self._edit_url("unknown-template"))
@@ -153,6 +173,50 @@ class PrintTemplateViewsTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(self.pack_document.cell_mappings.count(), 1)
         self.assertEqual(self.pack_document.versions.count(), 0)
+
+    def test_scan_print_template_edit_save_rejects_invalid_source_key_in_native_english(self):
+        self._activate_english()
+
+        response = self.client.post(
+            self._edit_url(str(self.pack_document.id)),
+            {
+                "action": "save",
+                "mapping_worksheet": ["Feuil1"],
+                "mapping_column": ["A"],
+                "mapping_row": ["11"],
+                "mapping_source_key": ["shipment.invalid"],
+                "mapping_transform": [""],
+                "mapping_required": ["1"],
+                "mapping_sequence": ["1"],
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Row 1: invalid source field (shipment.invalid).")
+        self.assertNotContains(response, "Ligne 1: champ source invalide")
+
+    def test_scan_print_template_edit_save_shows_native_english_success(self):
+        self._activate_english()
+
+        response = self.client.post(
+            self._edit_url(str(self.pack_document.id)),
+            {
+                "action": "save",
+                "mapping_worksheet": ["Feuil1"],
+                "mapping_column": ["A"],
+                "mapping_row": ["11"],
+                "mapping_source_key": ["carton.code"],
+                "mapping_transform": [""],
+                "mapping_required": ["1"],
+                "mapping_sequence": ["1"],
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "XLSX template and mappings saved.")
+        self.assertNotContains(response, "Template XLSX et mappings enregistrés.")
 
     def test_scan_print_template_edit_restore_requires_version_id(self):
         response = self.client.post(

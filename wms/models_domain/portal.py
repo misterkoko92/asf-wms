@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from ..document_scan import DocumentScanStatus
 from .catalog import Product
@@ -225,35 +226,35 @@ class AssociationProfile(models.Model):
 
 
 class AssociationContactTitle(models.TextChoices):
-    MR = "mr", "M."
-    MRS = "mrs", "Mme"
-    MS = "ms", "Mlle"
-    DR = "dr", "Dr"
-    PR = "pr", "Pr"
-    PERE = "pere", "Père"
-    SOEUR = "soeur", "Sœur"
-    FRERE = "frere", "Frère"
-    ABBE = "abbe", "Abbé"
-    IMAM = "imam", "Imam"
-    RABBIN = "rabbin", "Rabbin"
-    PASTEUR = "pasteur", "Pasteur"
-    EVEQUE = "eveque", "Évêque"
-    MONSEIGNEUR = "mons", "Monseigneur"
-    PRESIDENT = "president", "Président"
-    MINISTRE = "ministre", "Ministre"
-    AMBASSADEUR = "ambassad", "Ambassadeur"
-    MAIRE = "maire", "Maire"
-    PREFET = "prefet", "Préfet"
-    GOUVERNEUR = "gouvern", "Gouverneur"
-    DEPUTE = "depute", "Député"
-    SENATEUR = "senateur", "Sénateur"
-    GENERAL = "gen", "Général"
-    COLONEL = "colonel", "Colonel"
-    COMMANDANT = "cmdt", "Commandant"
-    CAPITAINE = "cpt", "Capitaine"
-    LIEUTENANT = "lt", "Lieutenant"
-    ADJUDANT = "adj", "Adjudant"
-    SERGENT = "sgt", "Sergent"
+    MR = "mr", _("M.")
+    MRS = "mrs", _("Mme")
+    MS = "ms", _("Mlle")
+    DR = "dr", _("Dr")
+    PR = "pr", _("Pr")
+    PERE = "pere", _("Père")
+    SOEUR = "soeur", _("Sœur")
+    FRERE = "frere", _("Frère")
+    ABBE = "abbe", _("Abbé")
+    IMAM = "imam", _("Imam")
+    RABBIN = "rabbin", _("Rabbin")
+    PASTEUR = "pasteur", _("Pasteur")
+    EVEQUE = "eveque", _("Évêque")
+    MONSEIGNEUR = "mons", _("Monseigneur")
+    PRESIDENT = "president", _("Président")
+    MINISTRE = "ministre", _("Ministre")
+    AMBASSADEUR = "ambassad", _("Ambassadeur")
+    MAIRE = "maire", _("Maire")
+    PREFET = "prefet", _("Préfet")
+    GOUVERNEUR = "gouvern", _("Gouverneur")
+    DEPUTE = "depute", _("Député")
+    SENATEUR = "senateur", _("Sénateur")
+    GENERAL = "gen", _("Général")
+    COLONEL = "colonel", _("Colonel")
+    COMMANDANT = "cmdt", _("Commandant")
+    CAPITAINE = "cpt", _("Capitaine")
+    LIEUTENANT = "lt", _("Lieutenant")
+    ADJUDANT = "adj", _("Adjudant")
+    SERGENT = "sgt", _("Sergent")
 
 
 class AssociationPortalContact(models.Model):
@@ -555,11 +556,11 @@ class OrderDocument(models.Model):
 
 
 class OrganizationRole(models.TextChoices):
-    SHIPPER = "shipper", "Expéditeur"
-    RECIPIENT = "recipient", "Destinataire"
-    CORRESPONDENT = "correspondent", "Correspondant"
-    DONOR = "donor", "Donateur"
-    TRANSPORTER = "transporter", "Transporteur"
+    SHIPPER = "shipper", _("Expéditeur")
+    RECIPIENT = "recipient", _("Destinataire")
+    CORRESPONDENT = "correspondent", _("Correspondant")
+    DONOR = "donor", _("Donateur")
+    TRANSPORTER = "transporter", _("Transporteur")
 
 
 class OrganizationRoleAssignment(models.Model):
@@ -605,12 +606,12 @@ class OrganizationRoleAssignment(models.Model):
             from contacts.models import ContactType
 
             if self.organization.contact_type != ContactType.ORGANIZATION:
-                errors["organization"] = "L'organisation doit être un contact de type structure."
+                errors["organization"] = _("L'organisation doit être un contact de type structure.")
             elif not self.organization.is_active:
-                errors["organization"] = "L'organisation doit être active."
+                errors["organization"] = _("L'organisation doit être active.")
 
         if self.is_active and self.pk and not self._has_primary_email_contact():
-            errors["is_active"] = (
+            errors["is_active"] = _(
                 "Un role actif requiert un contact principal actif avec une adresse email."
             )
 

@@ -362,6 +362,18 @@ class LanguageSwitchI18nTests(TestCase):
         self.assertContains(response, "Django admin")
         self.assertNotContains(response, "Admin Django")
 
+    def test_active_admin_contacts_and_print_template_pages_render_native_english(self):
+        self.client.force_login(self.superuser)
+        self._activate_english()
+
+        admin_contacts_response = self.client.get(reverse("scan:scan_admin_contacts"))
+        self.assertContains(admin_contacts_response, "Org-role contact cockpit")
+        self.assertNotContains(admin_contacts_response, "Pilotage contacts org-role")
+
+        print_templates_response = self.client.get(reverse("scan:scan_print_templates"))
+        self.assertContains(print_templates_response, "XLSX templates")
+        self.assertNotContains(print_templates_response, "Templates XLSX")
+
     def test_language_switch_is_present_on_standalone_pages(self):
         login_response = self.client.get(reverse("portal:portal_login"))
         self.assertContains(login_response, 'name="language"')

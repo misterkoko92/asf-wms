@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-07 21:00+0100\n"
+"POT-Creation-Date: 2026-03-07 22:38+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -65,6 +65,8 @@ msgstr[1] ""
 #: templates/print/attestation_aide_humanitaire.html:12
 #: templates/print/attestation_donation.html:12
 #: templates/print/attestation_douane.html:12
+#: templates/scan/admin_contacts.html:88 templates/scan/admin_contacts.html:132
+#: templates/scan/admin_contacts.html:576 templates/scan/imports.html:426
 msgid "Organisation"
 msgstr "Organization"
 
@@ -85,6 +87,7 @@ msgid "Suggestion escale"
 msgstr "Suggested stopover"
 
 #: templates/admin/wms/organization_roles_review.html:33
+#: templates/scan/imports.html:80
 msgid "Action"
 msgstr "Action"
 
@@ -185,12 +188,14 @@ msgstr "Prepare carton"
 #: templates/admin/wms/stockmovement/form.html:29
 #: templates/portal/change_password.html:29
 #: templates/portal/recipients.html:162 templates/portal/set_password.html:56
-#: templates/scan/settings.html:145 templates/scan/shipment_tracking.html:180
+#: templates/scan/admin_design.html:576 templates/scan/settings.html:145
+#: templates/scan/shipment_tracking.html:180
 #: templates/scan/stock_update.html:64
 msgid "Enregistrer"
 msgstr "Save"
 
 #: templates/admin/wms/stockmovement/form.html:30
+#: templates/scan/print_template_edit.html:36
 msgid "Retour"
 msgstr "Back"
 
@@ -213,7 +218,8 @@ msgstr "WMS user"
 #: templates/portal/account.html:30 templates/print/order_summary.html:41
 #: templates/scan/orders_view.html:19
 #: templates/scan/public_account_request.html:70
-#: templates/scan/public_order.html:65 wms/forms.py:284
+#: templates/scan/public_order.html:65 templates/scan/receipts_view.html:18
+#: wms/forms.py:284
 msgid "Association"
 msgstr "Association"
 
@@ -237,6 +243,10 @@ msgstr "Email"
 #: templates/emails/order_admin_notification_public.txt:5
 #: templates/portal/account.html:51 templates/portal/account.html:127
 #: templates/portal/account.html:149 templates/portal/account.html:282
+#: templates/scan/admin_contacts.html:204
+#: templates/scan/admin_contacts.html:552
+#: templates/scan/admin_contacts.html:615
+#: templates/scan/admin_contacts.html:657 templates/scan/imports.html:442
 #: templates/scan/public_account_request.html:95
 #: templates/scan/public_order.html:84
 msgid "Téléphone"
@@ -415,7 +425,9 @@ msgstr "Shipping"
 #: templates/portal/order_create.html:24
 #: templates/print/attestation_aide_humanitaire.html:17
 #: templates/print/attestation_donation.html:17
-#: templates/print/attestation_douane.html:17 templates/scan/dashboard.html:19
+#: templates/print/attestation_douane.html:17
+#: templates/scan/admin_contacts.html:329
+#: templates/scan/admin_contacts.html:447 templates/scan/dashboard.html:19
 #: templates/scan/order.html:114 templates/scan/shipment_create.html:24
 #: wms/forms.py:414
 msgid "Destination"
@@ -427,7 +439,8 @@ msgstr "Destination"
 #: templates/print/attestation_aide_humanitaire.html:10
 #: templates/print/attestation_donation.html:10
 #: templates/print/attestation_douane.html:10
-#: templates/scan/orders_view.html:18 templates/scan/settings.html:176
+#: templates/scan/orders_view.html:18
+#: templates/scan/print_template_edit.html:157 templates/scan/settings.html:176
 msgid "Date"
 msgstr "Date"
 
@@ -482,7 +495,8 @@ msgstr "New shipment tracking scan"
 #: templates/emails/shipment_tracking_admin_notification.txt:4
 #: templates/portal/account.html:189 templates/portal/dashboard.html:19
 #: templates/portal/order_detail.html:18 templates/portal/order_detail.html:63
-#: templates/print/order_summary.html:49 templates/scan/cartons_ready.html:19
+#: templates/print/order_summary.html:49 templates/scan/admin_design.html:686
+#: templates/scan/cartons_ready.html:19 templates/scan/imports.html:525
 #: templates/scan/order.html:104 templates/scan/receive.html:114
 #: templates/scan/receive.html:234 templates/scan/shipments_ready.html:34
 msgid "Statut"
@@ -493,6 +507,13 @@ msgstr "Status"
 #: templates/portal/account.html:276 templates/print/bon_expedition.html:82
 #: templates/print/bon_expedition.html:97
 #: templates/print/bon_expedition.html:112
+#: templates/scan/admin_contacts.html:196
+#: templates/scan/admin_contacts.html:544
+#: templates/scan/admin_contacts.html:611
+#: templates/scan/admin_contacts.html:655
+#: templates/scan/admin_product_labels.html:87 templates/scan/imports.html:50
+#: templates/scan/imports.html:432 templates/scan/imports.html:515
+#: templates/scan/receipts_view.html:30
 #: templates/scan/shipment_tracking.html:157
 #: templates/scan/shipment_tracking.html:199 templates/scan/stock.html:39
 #: wms/forms.py:824
@@ -545,7 +566,7 @@ msgstr "Main information"
 #: templates/print/bon_expedition.html:84
 #: templates/print/bon_expedition.html:99
 #: templates/print/bon_expedition.html:114
-#: templates/print/order_summary.html:45
+#: templates/print/order_summary.html:45 templates/scan/imports.html:461
 #: templates/scan/public_account_request.html:99
 #: templates/scan/public_order.html:88 wms/admin.py:376
 msgid "Adresse"
@@ -562,6 +583,7 @@ msgid "Code postal"
 msgstr "Postal code"
 
 #: templates/portal/account.html:98 templates/portal/recipients.html:137
+#: templates/scan/imports.html:465
 #: templates/scan/public_account_request.html:136
 #: templates/scan/public_order.html:100
 msgid "Ville"
@@ -591,7 +613,8 @@ msgid "Titre"
 msgstr "Title"
 
 #: templates/portal/account.html:126 templates/portal/account.html:146
-#: templates/portal/account.html:279
+#: templates/portal/account.html:279 templates/scan/admin_contacts.html:192
+#: templates/scan/admin_contacts.html:540
 msgid "Prénom"
 msgstr "First name"
 
@@ -603,7 +626,9 @@ msgid "Mail"
 msgstr "Email"
 
 #: templates/portal/account.html:129 templates/portal/account.html:188
-#: templates/portal/order_detail.html:62 templates/scan/receive.html:110
+#: templates/portal/order_detail.html:62 templates/scan/admin_contacts.html:612
+#: templates/scan/imports.html:424 templates/scan/print_template_edit.html:155
+#: templates/scan/receive.html:110 templates/scan/ui_lab.html:118
 msgid "Type"
 msgstr ""
 
@@ -689,13 +714,13 @@ msgid "Veuillez definir un nouveau mot de passe pour continuer."
 msgstr "Please set a new password to continue."
 
 #: templates/portal/change_password.html:16 templates/portal/login.html:61
-#: templates/portal/set_password.html:43
+#: templates/portal/set_password.html:43 templates/scan/imports.html:521
 #: templates/scan/public_account_request.html:196
 msgid "Mot de passe"
 msgstr "Password"
 
 #: templates/portal/change_password.html:23
-#: templates/portal/set_password.html:50
+#: templates/portal/set_password.html:50 templates/scan/imports.html:118
 msgid "Confirmer"
 msgstr "Confirm"
 
@@ -710,11 +735,12 @@ msgstr "History of orders linked to your account."
 #: templates/portal/dashboard.html:21 templates/portal/order_create.html:36
 #: templates/print/attestation_aide_humanitaire.html:16
 #: templates/print/attestation_donation.html:16
-#: templates/print/attestation_douane.html:16 templates/scan/order.html:37
+#: templates/print/attestation_douane.html:16
+#: templates/scan/admin_contacts.html:438 templates/scan/order.html:37
 #: templates/scan/shipment_create.html:67
 #: templates/scan/shipments_ready.html:31
 #: templates/scan/shipments_tracking.html:46 wms/admin_misc.py:59
-#: wms/forms.py:422
+#: wms/forms.py:422 wms/models_domain/portal.py:560
 msgid "Destinataire"
 msgstr ""
 
@@ -739,6 +765,7 @@ msgid "Date de réception destinataire"
 msgstr "Recipient receipt date"
 
 #: templates/portal/dashboard.html:27 templates/portal/recipients.html:27
+#: templates/scan/admin_contacts.html:617 templates/scan/admin_products.html:48
 #: templates/scan/shipments_ready.html:36
 #: templates/scan/shipments_tracking.html:52
 msgid "Actions"
@@ -799,9 +826,11 @@ msgstr "Need a new recipient?"
 msgid "Ajouter"
 msgstr ""
 
-#: templates/portal/order_create.html:55 templates/scan/order.html:88
-#: templates/scan/public_account_request.html:160
-#: templates/scan/public_order.html:108 wms/forms.py:200
+#: templates/portal/order_create.html:55 templates/scan/imports.html:219
+#: templates/scan/imports.html:312 templates/scan/order.html:88
+#: templates/scan/out.html:51 templates/scan/public_account_request.html:160
+#: templates/scan/public_order.html:108 templates/scan/ui_lab.html:126
+#: wms/forms.py:200
 msgid "Notes"
 msgstr "Notes"
 
@@ -857,10 +886,13 @@ msgstr "Stock"
 #: templates/print/liste_colisage_lot.html:40
 #: templates/print/order_summary.html:67
 #: templates/print/picking_list_carton.html:69
-#: templates/print/picking_list_kits.html:69 templates/scan/order.html:141
-#: templates/scan/order.html:162 templates/scan/pack.html:28
-#: templates/scan/pack.html:49 templates/scan/receive.html:230
-#: templates/scan/receive_pallet.html:456 wms/forms.py:310 wms/forms.py:348
+#: templates/print/picking_list_kits.html:69
+#: templates/scan/admin_design.html:687 templates/scan/imports.html:52
+#: templates/scan/order.html:141 templates/scan/order.html:162
+#: templates/scan/out.html:27 templates/scan/pack.html:28
+#: templates/scan/pack.html:49 templates/scan/receipts_view.html:31
+#: templates/scan/receive.html:230 templates/scan/receive_pallet.html:456
+#: wms/forms.py:310 wms/forms.py:348
 msgid "Quantité"
 msgstr "Quantity"
 
@@ -921,6 +953,7 @@ msgid "Envoyer la commande"
 msgstr "Submit order"
 
 #: templates/portal/order_detail.html:4 templates/print/order_summary.html:27
+#: templates/scan/admin_design.html:685
 msgid "Commande"
 msgstr ""
 
@@ -1001,7 +1034,9 @@ msgstr "Delivery alert"
 msgid "Contact réception escale"
 msgstr "Stopover receiving contact"
 
-#: templates/portal/recipients.html:53 templates/scan/shipments_ready.html:77
+#: templates/portal/recipients.html:53 templates/scan/admin_products.html:77
+#: templates/scan/print_template_list.html:73
+#: templates/scan/shipments_ready.html:77
 msgid "Modifier"
 msgstr "Edit"
 
@@ -1067,7 +1102,7 @@ msgstr "Notify this contact about deliveries"
 msgid "Contact utilisé pour la réception dans l'escale de livraison"
 msgstr "Contact used for receiving at the delivery stopover"
 
-#: templates/portal/recipients.html:164
+#: templates/portal/recipients.html:164 templates/scan/imports.html:119
 msgid "Annuler"
 msgstr "Cancel"
 
@@ -1094,10 +1129,12 @@ msgid "Réf document"
 msgstr "Document ref"
 
 #: templates/print/attestation_aide_humanitaire.html:15
-#: templates/print/attestation_douane.html:15 templates/scan/order.html:33
+#: templates/print/attestation_douane.html:15
+#: templates/scan/admin_contacts.html:429 templates/scan/order.html:33
 #: templates/scan/shipment_create.html:48
 #: templates/scan/shipments_ready.html:30
 #: templates/scan/shipments_tracking.html:45 wms/forms.py:418
+#: wms/models_domain/portal.py:559
 msgid "Expéditeur"
 msgstr "Shipper"
 
@@ -1125,6 +1162,7 @@ msgstr "Donation certificate"
 #: templates/print/attestation_donation.html:15
 #: templates/scan/receive_pallet.html:292
 #: templates/scan/receive_pallet.html:395 wms/forms.py:240 wms/forms.py:318
+#: wms/models_domain/portal.py:562
 msgid "Donateur"
 msgstr "Donor"
 
@@ -1140,7 +1178,8 @@ msgstr "Customs certificate"
 msgid "Description du lot"
 msgstr "Shipment description"
 
-#: templates/print/base_a5.html:7 templates/scan/shipment_create.html:233
+#: templates/print/base_a5.html:7 templates/scan/print_template_list.html:16
+#: templates/scan/shipment_create.html:233
 #: templates/scan/shipment_tracking.html:22
 msgid "Document"
 msgstr "Document"
@@ -1409,6 +1448,775 @@ msgstr "Product labels"
 msgid "QR codes produits"
 msgstr "Product QR codes"
 
+#: templates/scan/admin_contacts.html:8
+msgid "Pilotage contacts org-role"
+msgstr "Org-role contact cockpit"
+
+#: templates/scan/admin_contacts.html:10
+msgid ""
+"Gestion centralisée des organisations, rôles, contacts et mappings métier "
+"depuis l'interface Scan."
+msgstr ""
+"Centralized management of organizations, roles, contacts, and business "
+"mappings from the Scan interface."
+
+#: templates/scan/admin_contacts.html:15
+msgid "Recherche et filtres"
+msgstr "Search and filters"
+
+#: templates/scan/admin_contacts.html:18 templates/scan/stock.html:11
+#: templates/scan/ui_lab.html:136
+msgid "Recherche"
+msgstr "Search"
+
+#: templates/scan/admin_contacts.html:25
+msgid "Nom, email, téléphone, ASF ID"
+msgstr "Name, email, phone, ASF ID"
+
+#: templates/scan/admin_contacts.html:29
+msgid "Filtre principal: type de contact"
+msgstr "Main filter: contact type"
+
+#: templates/scan/admin_contacts.html:37
+msgid "Rôle org"
+msgstr "Org role"
+
+#: templates/scan/admin_contacts.html:39 templates/scan/admin_contacts.html:48
+#: templates/scan/ui_lab.html:151
+msgid "Tous"
+msgstr "All"
+
+#: templates/scan/admin_contacts.html:46
+msgid "Destinataires d'un expéditeur"
+msgstr "Recipients for a shipper"
+
+#: templates/scan/admin_contacts.html:57
+#: templates/scan/admin_product_labels.html:52
+#: templates/scan/admin_products.html:26
+#: templates/scan/shipments_tracking.html:33 templates/scan/stock.html:64
+msgid "Filtrer"
+msgstr "Filter"
+
+#: templates/scan/admin_contacts.html:58 templates/scan/admin_products.html:27
+#: templates/scan/dashboard.html:31 templates/scan/shipments_tracking.html:34
+#: templates/scan/stock.html:65
+msgid "Réinitialiser"
+msgstr "Reset"
+
+#: templates/scan/admin_contacts.html:64
+msgid "Actions métier"
+msgstr "Business actions"
+
+#: templates/scan/admin_contacts.html:66
+msgid "Actions de création et de mise à jour directement dans le cockpit."
+msgstr "Create and update actions directly from the cockpit."
+
+#: templates/scan/admin_contacts.html:73
+msgid "Activer / désactiver un rôle sur une organisation"
+msgstr "Enable / disable a role on an organization"
+
+#: templates/scan/admin_contacts.html:79
+msgid ""
+"Sélectionnez une organisation et un rôle métier, puis activez ou désactivez "
+"ce rôle."
+msgstr ""
+"Select an organization and a business role, then enable or disable that role."
+
+#: templates/scan/admin_contacts.html:80
+msgid "Aide sur les rôles d'organisation"
+msgstr "Help about organization roles"
+
+#: templates/scan/admin_contacts.html:90 templates/scan/admin_contacts.html:99
+#: templates/scan/admin_contacts.html:134
+#: templates/scan/admin_contacts.html:243
+#: templates/scan/admin_contacts.html:254
+#: templates/scan/admin_contacts.html:301
+#: templates/scan/admin_contacts.html:374
+#: templates/scan/admin_contacts.html:431
+#: templates/scan/admin_contacts.html:440
+#: templates/scan/admin_contacts.html:449
+#: templates/scan/admin_contacts.html:476
+#: templates/scan/admin_contacts.html:525
+msgid "Choisir..."
+msgstr "Choose..."
+
+#: templates/scan/admin_contacts.html:97
+msgid "Rôle"
+msgstr "Role"
+
+#: templates/scan/admin_contacts.html:106
+msgid "Activer rôle"
+msgstr "Enable role"
+
+#: templates/scan/admin_contacts.html:107
+msgid "Désactiver rôle"
+msgstr "Disable role"
+
+#: templates/scan/admin_contacts.html:116
+msgid "Créer ou mettre à jour une personne rattachée à une organisation"
+msgstr "Create or update a person attached to an organization"
+
+#: templates/scan/admin_contacts.html:122
+msgid ""
+"Créez un nouveau contact d'organisation ou mettez à jour un contact existant "
+"de la même organisation."
+msgstr ""
+"Create a new organization contact or update an existing contact in the same "
+"organization."
+
+#: templates/scan/admin_contacts.html:123
+msgid "Aide sur les contacts organisation"
+msgstr "Help about organization contacts"
+
+#: templates/scan/admin_contacts.html:141
+msgid "Contact existant (optionnel)"
+msgstr "Existing contact (optional)"
+
+#: templates/scan/admin_contacts.html:143
+msgid "Nouveau contact"
+msgstr "New contact"
+
+#: templates/scan/admin_contacts.html:145
+#: templates/scan/admin_contacts.html:256
+msgid "Contacts déjà liés"
+msgstr "Already linked contacts"
+
+#: templates/scan/admin_contacts.html:161
+#: templates/scan/admin_contacts.html:263
+msgid "Tous les contacts"
+msgstr "All contacts"
+
+#: templates/scan/admin_contacts.html:179
+msgid "Civilité"
+msgstr "Title"
+
+#: templates/scan/admin_contacts.html:181
+msgid "Aucune"
+msgstr "None"
+
+#: templates/scan/admin_contacts.html:207
+msgid ""
+"Optionnel. Format international attendu: <code>+33000000000</code> ou "
+"<code>+33 6 20 20 20 20</code>."
+msgstr ""
+"Optional. Expected international format: <code>+33000000000</code> or "
+"<code>+33 6 20 20 20 20</code>."
+
+#: templates/scan/admin_contacts.html:213
+msgid "Contact actif"
+msgstr "Active contact"
+
+#: templates/scan/admin_contacts.html:217
+msgid "Créer / mettre à jour"
+msgstr "Create / update"
+
+#: templates/scan/admin_contacts.html:226
+msgid "Associer une personne à un rôle (et définir le principal)"
+msgstr "Link a person to a role (and set primary)"
+
+#: templates/scan/admin_contacts.html:232
+msgid ""
+"Utilisez cette carte pour lier ou délier un contact à un rôle existant, ou "
+"définir le contact principal pour ce rôle."
+msgstr ""
+"Use this card to link or unlink a contact to an existing role, or set the "
+"primary contact for this role."
+
+#: templates/scan/admin_contacts.html:233
+msgid "Aide sur les liaisons rôle-contact"
+msgstr "Help about role-contact links"
+
+#: templates/scan/admin_contacts.html:241
+msgid "Affectation de rôle"
+msgstr "Role assignment"
+
+#: templates/scan/admin_contacts.html:246
+msgid "inactif"
+msgstr "inactive"
+
+#: templates/scan/admin_contacts.html:252
+msgid "Contact organisation"
+msgstr "Organization contact"
+
+#: templates/scan/admin_contacts.html:272
+msgid "Lier"
+msgstr "Link"
+
+#: templates/scan/admin_contacts.html:273
+msgid "Définir principal"
+msgstr "Set as primary"
+
+#: templates/scan/admin_contacts.html:274
+msgid "Délier"
+msgstr "Unlink"
+
+#: templates/scan/admin_contacts.html:283
+msgid "Définir le périmètre d'un expéditeur (escales autorisées)"
+msgstr "Define a shipper scope (authorized stopovers)"
+
+#: templates/scan/admin_contacts.html:289
+msgid ""
+"Configurez si un expéditeur est autorisé sur toutes les escales ou "
+"uniquement sur une escale donnée, avec des dates de validité."
+msgstr ""
+"Configure whether a shipper is authorized on all stopovers or only on a "
+"specific stopover, with validity dates."
+
+#: templates/scan/admin_contacts.html:290
+msgid "Aide sur les périmètres expéditeur"
+msgstr "Help about shipper scopes"
+
+#: templates/scan/admin_contacts.html:299
+msgid "Choisir un expéditeur"
+msgstr "Choose a shipper"
+
+#: templates/scan/admin_contacts.html:309
+msgid "Règle de périmètre existante (optionnel)"
+msgstr "Existing scope rule (optional)"
+
+#: templates/scan/admin_contacts.html:315
+msgid ""
+"Sélectionnez une règle existante pour la modifier au lieu d'en créer une "
+"nouvelle."
+msgstr "Select an existing rule to modify it instead of creating a new one."
+
+#: templates/scan/admin_contacts.html:316
+msgid "Aide sur les règles de périmètre existantes"
+msgstr "Help about existing scope rules"
+
+#: templates/scan/admin_contacts.html:320
+msgid "Nouveau périmètre"
+msgstr "New scope"
+
+#: templates/scan/admin_contacts.html:323
+#: templates/scan/admin_contacts.html:378
+msgid "Toutes escales"
+msgstr "All stopovers"
+
+#: templates/scan/admin_contacts.html:331
+msgid "Aucune (mode global)"
+msgstr "None (global mode)"
+
+#: templates/scan/admin_contacts.html:340
+msgid "Toutes les escales"
+msgstr "All stopovers"
+
+#: templates/scan/admin_contacts.html:344
+#: templates/scan/admin_contacts.html:456
+msgid "Validité début"
+msgstr "Valid from"
+
+#: templates/scan/admin_contacts.html:348
+#: templates/scan/admin_contacts.html:460
+msgid "Validité fin"
+msgstr "Valid until"
+
+#: templates/scan/admin_contacts.html:352
+msgid "Créer / mettre à jour le périmètre"
+msgstr "Create / update scope"
+
+#: templates/scan/admin_contacts.html:363
+msgid "Règle de périmètre à désactiver"
+msgstr "Scope rule to disable"
+
+#: templates/scan/admin_contacts.html:369
+msgid ""
+"Choisissez ici la règle active à fermer pour retirer une autorisation "
+"d'escale."
+msgstr ""
+"Choose the active rule to close here in order to remove a stopover "
+"authorization."
+
+#: templates/scan/admin_contacts.html:370
+msgid "Aide sur la désactivation de périmètre"
+msgstr "Help about scope deactivation"
+
+#: templates/scan/admin_contacts.html:385
+msgid "Désactiver le périmètre"
+msgstr "Disable scope"
+
+#: templates/scan/admin_contacts.html:394
+msgid "Lier un destinataire à un expéditeur et à une escale"
+msgstr "Link a recipient to a shipper and a stopover"
+
+#: templates/scan/admin_contacts.html:400
+msgid ""
+"Créez ou mettez à jour un lien expéditeur vers destinataire sur une escale "
+"précise, puis clôturez-le si besoin."
+msgstr ""
+"Create or update a shipper-to-recipient link for a specific stopover, then "
+"close it if needed."
+
+#: templates/scan/admin_contacts.html:401
+msgid "Aide sur les liens expéditeur-destinataire"
+msgstr "Help about shipper-recipient links"
+
+#: templates/scan/admin_contacts.html:410
+msgid "Lien existant (optionnel)"
+msgstr "Existing link (optional)"
+
+#: templates/scan/admin_contacts.html:412
+msgid "Nouveau lien"
+msgstr "New link"
+
+#: templates/scan/admin_contacts.html:464
+msgid "Créer / mettre à jour le lien"
+msgstr "Create / update link"
+
+#: templates/scan/admin_contacts.html:474
+msgid "Lien à clôturer"
+msgstr "Link to close"
+
+#: templates/scan/admin_contacts.html:487
+msgid "Date de fin"
+msgstr "End date"
+
+#: templates/scan/admin_contacts.html:491
+msgid "Clôturer le lien"
+msgstr "Close link"
+
+#: templates/scan/admin_contacts.html:500
+msgid "Assistant de création rapide (organisation)"
+msgstr "Quick creation assistant (organization)"
+
+#: templates/scan/admin_contacts.html:506
+msgid ""
+"Assistant simplifié pour créer une organisation seule, ou une organisation "
+"avec un contact principal rattaché."
+msgstr ""
+"Simplified assistant to create a standalone organization, or an organization "
+"with a linked primary contact."
+
+#: templates/scan/admin_contacts.html:507
+msgid "Aide sur la création guidée"
+msgstr "Help about guided creation"
+
+#: templates/scan/admin_contacts.html:516
+msgid "Je crée"
+msgstr "I create"
+
+#: templates/scan/admin_contacts.html:518
+msgid "une organisation"
+msgstr "an organization"
+
+#: templates/scan/admin_contacts.html:519
+msgid "une organisation et une personne liée"
+msgstr "an organization and a linked person"
+
+#: templates/scan/admin_contacts.html:523
+msgid "Rôle initial"
+msgstr "Initial role"
+
+#: templates/scan/admin_contacts.html:532
+msgid "Nom de l'organisation"
+msgstr "Organization name"
+
+#: templates/scan/admin_contacts.html:536
+msgid "Nom complet"
+msgstr "Full name"
+
+#: templates/scan/admin_contacts.html:558
+#: templates/scan/admin_contacts.html:616 templates/scan/imports.html:543
+msgid "Actif"
+msgstr "Active"
+
+#: templates/scan/admin_contacts.html:562
+msgid "Créer"
+msgstr "Create"
+
+#: templates/scan/admin_contacts.html:571
+msgid "Tableau organisations (cockpit)"
+msgstr "Organizations table (cockpit)"
+
+#: templates/scan/admin_contacts.html:577
+msgid "Rôles actifs"
+msgstr "Active roles"
+
+#: templates/scan/admin_contacts.html:578
+msgid "Bindings destinataire actifs"
+msgstr "Active recipient bindings"
+
+#: templates/scan/admin_contacts.html:596
+msgid "Aucune organisation ne correspond aux filtres."
+msgstr "No organization matches the filters."
+
+#: templates/scan/admin_contacts.html:605
+#, python-format
+msgid "Contacts (%(count)s)"
+msgstr "Contacts (%(count)s)"
+
+#: templates/scan/admin_contacts.html:613
+msgid "Tags"
+msgstr "Tags"
+
+#: templates/scan/admin_contacts.html:634 templates/scan/imports.html:539
+#: templates/scan/imports.html:547
+msgid "Oui"
+msgstr "Yes"
+
+#: templates/scan/admin_contacts.html:634 templates/scan/imports.html:538
+#: templates/scan/imports.html:546
+msgid "Non"
+msgstr "No"
+
+#: templates/scan/admin_contacts.html:636
+msgid "Édition via cockpit org-role ou admin Django."
+msgstr "Edited through the org-role cockpit or Django admin."
+
+#: templates/scan/admin_contacts.html:644
+msgid "Aucun contact trouvé."
+msgstr "No contact found."
+
+#: templates/scan/admin_contacts.html:649
+#, python-format
+msgid "Correspondants (%(count)s)"
+msgstr "Correspondents (%(count)s)"
+
+#: templates/scan/admin_contacts.html:672
+msgid "Aucun correspondant trouvé."
+msgstr "No correspondent found."
+
+#: templates/scan/admin_contacts.html:677
+msgid "Secours admin Django"
+msgstr "Django admin fallback"
+
+#: templates/scan/admin_contacts.html:679
+msgid "Tous les contacts (admin)"
+msgstr "All contacts (admin)"
+
+#: templates/scan/admin_contacts.html:680
+msgid "Ajouter un contact (admin)"
+msgstr "Add a contact (admin)"
+
+#: templates/scan/admin_contacts.html:681
+msgid "Ajouter un tag (admin)"
+msgstr "Add a tag (admin)"
+
+#: templates/scan/admin_contacts.html:682
+msgid "Destinations (admin)"
+msgstr "Destinations (admin)"
+
+#: templates/scan/admin_contacts.html:683
+msgid "Ajouter une destination (admin)"
+msgstr "Add a destination (admin)"
+
+#: templates/scan/admin_design.html:4
+#, fuzzy
+#| msgid "WMS Scan - FAQ & Documentation"
+msgid "WMS Scan - Admin Design"
+msgstr "WMS Scan - FAQ & Documentation"
+
+#: templates/scan/admin_design.html:482
+#, fuzzy
+#| msgid "Admin Django"
+msgid "Admin - Design"
+msgstr "Django admin"
+
+#: templates/scan/admin_design.html:484
+msgid ""
+"Cette page est réservée aux superusers. Les variables sont regroupées par "
+"famille pour éviter les erreurs. Survolez les pastilles <strong>i</strong> "
+"pour comprendre l'impact de chaque réglage."
+msgstr ""
+
+#: templates/scan/admin_design.html:511
+#, fuzzy
+#| msgid "Appliquer"
+msgid "Appliquer le style"
+msgstr "Apply"
+
+#: templates/scan/admin_design.html:512
+msgid "Sauvegarder ce style"
+msgstr ""
+
+#: templates/scan/admin_design.html:577
+#, fuzzy
+#| msgid "Préparer les commandes"
+msgid "Réinitialiser (valeurs recommandées)"
+msgstr "Prepare orders"
+
+#: templates/scan/admin_design.html:583
+msgid "Aperçu rapide (live)"
+msgstr ""
+
+#: templates/scan/admin_design.html:664
+msgid "Nav actif"
+msgstr ""
+
+#: templates/scan/admin_design.html:665
+#, fuzzy
+#| msgid "Standard"
+msgid "Nav standard"
+msgstr "Standard"
+
+#: templates/scan/admin_design.html:669
+msgid "Exemple de rendu live des cartes, textes, tableaux et actions."
+msgstr ""
+
+#: templates/scan/admin_design.html:671
+#, fuzzy
+#| msgid "colis prêts +"
+msgid "Colis prêts: 128"
+msgstr "ready parcels +"
+
+#: templates/scan/admin_design.html:672
+#, fuzzy
+#| msgid "colis prêts +"
+msgid "Kits prêts: 42"
+msgstr "ready parcels +"
+
+#: templates/scan/admin_design.html:673
+#, fuzzy
+#| msgid "Expéditions"
+msgid "Expéditions: 7"
+msgstr "Shipments"
+
+#: templates/scan/admin_design.html:675 templates/scan/ui_lab.html:97
+#, fuzzy
+#| msgid "Informations principales"
+msgid "Action principale"
+msgstr "Main information"
+
+#: templates/scan/admin_design.html:676 templates/scan/ui_lab.html:98
+msgid "Action secondaire"
+msgstr ""
+
+#: templates/scan/admin_design.html:677 templates/scan/ui_lab.html:99
+#, fuzzy
+#| msgid "Ajouter destinataire"
+msgid "Action tertiaire"
+msgstr "Add recipient"
+
+#: templates/scan/admin_design.html:678 templates/scan/ui_lab.html:103
+msgid "Succès"
+msgstr ""
+
+#: templates/scan/admin_design.html:679 templates/scan/admin_design.html:706
+msgid "Alerte"
+msgstr ""
+
+#: templates/scan/admin_design.html:680
+msgid "Danger"
+msgstr ""
+
+#: templates/scan/admin_design.html:693 templates/scan/ui_lab.html:153
+#: wms/views_scan_dashboard.py:464
+msgid "En préparation"
+msgstr "In preparation"
+
+#: templates/scan/admin_design.html:698
+#, fuzzy
+#| msgid "Prêtes"
+msgid "Prête"
+msgstr "Ready"
+
+#: templates/scan/admin_design.html:704 templates/scan/ui_lab.html:152
+#: wms/models_domain/shipment.py:21 wms/shipment_view_helpers.py:129
+msgid "Prêt"
+msgstr "Ready"
+
+#: templates/scan/admin_design.html:705 wms/models_domain/shipment.py:20
+#: wms/views_scan_dashboard.py:413
+msgid "En cours"
+msgstr "In progress"
+
+#: templates/scan/admin_design.html:707 templates/scan/ui_lab.html:105
+msgid "Erreur"
+msgstr "Error"
+
+#: templates/scan/admin_product_labels.html:4
+#, fuzzy
+#| msgid "Etiquette Produit"
+msgid "WMS Scan - Etiquette Produit"
+msgstr "Product label"
+
+#: templates/scan/admin_product_labels.html:8
+#, fuzzy
+#| msgid "Etiquette Produit"
+msgid "Gestion - Etiquette Produit"
+msgstr "Product label"
+
+#: templates/scan/admin_product_labels.html:10
+msgid ""
+"Impression des etiquettes produit et QR code depuis le site (superuser "
+"uniquement). Le rendu conserve les regles actuelles (rack color et templates "
+"d'impression)."
+msgstr ""
+
+#: templates/scan/admin_product_labels.html:19
+#, fuzzy
+#| msgid "Imports (admin)"
+msgid "Produits (admin)"
+msgstr "Imports (admin)"
+
+#: templates/scan/admin_product_labels.html:20 templates/scan/base.html:86
+msgid "Templates"
+msgstr "Templates"
+
+#: templates/scan/admin_product_labels.html:21
+msgid "Template product_label"
+msgstr ""
+
+#: templates/scan/admin_product_labels.html:22
+msgid "Template product_qr"
+msgstr ""
+
+#: templates/scan/admin_product_labels.html:30
+#, fuzzy
+#| msgid "Recherche"
+msgid "Recherche produit"
+msgstr "Search"
+
+#: templates/scan/admin_product_labels.html:36
+msgid "Nom, SKU, code barre, EAN"
+msgstr ""
+
+#: templates/scan/admin_product_labels.html:40
+msgid "Mode"
+msgstr ""
+
+#: templates/scan/admin_product_labels.html:46
+#, fuzzy
+#| msgid "Selectionnez une escale valide."
+msgid "Selection manuelle"
+msgstr "Select a valid stopover."
+
+#: templates/scan/admin_product_labels.html:47
+#, fuzzy
+#| msgid "Aucun produit pour ces filtres."
+msgid "Tous les produits filtres"
+msgstr "No products for these filters."
+
+#: templates/scan/admin_product_labels.html:53
+#, fuzzy
+#| msgid "Réinitialiser"
+msgid "Reinitialiser"
+msgstr "Reset"
+
+#: templates/scan/admin_product_labels.html:65
+#, fuzzy
+#| msgid "Imprimer étiquettes produit"
+msgid "Imprimer etiquettes"
+msgstr "Print product labels"
+
+#: templates/scan/admin_product_labels.html:66
+#, fuzzy
+#| msgid "Imprimer / PDF"
+msgid "Imprimer QR"
+msgstr "Print / PDF"
+
+#: templates/scan/admin_product_labels.html:67
+#, fuzzy
+#| msgid "Imprimer QR produits"
+msgid "Imprimer les deux"
+msgstr "Print product QR labels"
+
+#: templates/scan/admin_product_labels.html:70
+#, fuzzy
+#| msgid "Commande active"
+msgid "Mode actif:"
+msgstr "Active order"
+
+#: templates/scan/admin_product_labels.html:73
+#, fuzzy
+#| msgid "Aucun produit pour ces filtres."
+msgid "tous les produits filtres"
+msgstr "No products for these filters."
+
+#: templates/scan/admin_product_labels.html:75
+#, fuzzy
+#| msgid "-- selectionner --"
+msgid "selection manuelle"
+msgstr "-- select --"
+
+#: templates/scan/admin_product_labels.html:89
+#, fuzzy
+#| msgid "Code carton"
+msgid "Code barre"
+msgstr "Carton code"
+
+#: templates/scan/admin_product_labels.html:113
+#, fuzzy
+#| msgid "Aucun produit sélectionné."
+msgid "Aucun produit trouve."
+msgstr "No product selected."
+
+#: templates/scan/admin_products.html:4
+#, fuzzy
+#| msgid "WMS Scan - Paramètres"
+msgid "WMS Scan - Admin Produit"
+msgstr "WMS Scan - Settings"
+
+#: templates/scan/admin_products.html:8
+#, fuzzy
+#| msgid "Produit"
+msgid "Admin - Produit"
+msgstr "Product"
+
+#: templates/scan/admin_products.html:10
+msgid ""
+"Gestion des kits: créer, modifier, supprimer, attribuer des produits et "
+"quantités. Les actions ouvrent les formulaires admin complets."
+msgstr ""
+
+#: templates/scan/admin_products.html:21
+#, fuzzy
+#| msgid "Recherche"
+msgid "Recherche kit"
+msgstr "Search"
+
+#: templates/scan/admin_products.html:22
+#, fuzzy
+#| msgid "Nom, référence, code-barres"
+msgid "Nom, SKU, code barre"
+msgstr "Name, reference, barcode"
+
+#: templates/scan/admin_products.html:34
+#, fuzzy
+#| msgid "Nom des produits"
+msgid "Tous les produits (admin)"
+msgstr "Product name"
+
+#: templates/scan/admin_products.html:35
+#, fuzzy
+#| msgid "Créer un nouveau kit"
+msgid "Créer un kit"
+msgstr "Create a new kit"
+
+#: templates/scan/admin_products.html:40
+#, fuzzy, python-format
+#| msgid "Kits disponibles"
+msgid "Kits disponibles (%(count)s)"
+msgstr "Available kits"
+
+#: templates/scan/admin_products.html:46
+#, fuzzy
+#| msgid "Composition"
+msgid "Composition directe"
+msgstr "Composition"
+
+#: templates/scan/admin_products.html:47
+#, fuzzy
+#| msgid "Composition"
+msgid "Composition déployée"
+msgstr "Composition"
+
+#: templates/scan/admin_products.html:67
+msgid "Cycle détecté dans la composition."
+msgstr ""
+
+#: templates/scan/admin_products.html:78
+#: templates/scan/print_template_edit.html:135
+#: templates/scan/shipment_create.html:253
+msgid "Supprimer"
+msgstr "Delete"
+
+#: templates/scan/admin_products.html:85 templates/scan/kits_view.html:51
+#, fuzzy
+#| msgid "Aucun suivi enregistré."
+msgid "Aucun kit trouvé."
+msgstr "No tracking recorded."
+
 #: templates/scan/base.html:34
 msgid "Navigation Scan"
 msgstr "Scan navigation"
@@ -1430,7 +2238,7 @@ msgstr "View statuses"
 msgid "Vue stock"
 msgstr "Stock view"
 
-#: templates/scan/base.html:50
+#: templates/scan/base.html:50 templates/scan/kits_view.html:9
 msgid "Vue Kits"
 msgstr "Kits view"
 
@@ -1495,6 +2303,7 @@ msgid "Gestion"
 msgstr "Management"
 
 #: templates/scan/base.html:82 templates/scan/faq.html:113
+#: templates/scan/out.html:8
 msgid "Supprimer produit"
 msgstr "Remove product"
 
@@ -1505,10 +2314,6 @@ msgstr "FAQ / Documentation"
 #: templates/scan/base.html:85
 msgid "Imports"
 msgstr "Imports"
-
-#: templates/scan/base.html:86
-msgid "Templates"
-msgstr "Templates"
 
 #: templates/scan/base.html:87 templates/scan/base.html:105
 msgid "Etiquette Produit"
@@ -1588,9 +2393,9 @@ msgstr "Creation date"
 msgid "N° expédition"
 msgstr "Shipment no."
 
-#: templates/scan/cartons_ready.html:21 templates/scan/prepare_kits.html:47
-#: templates/scan/receive.html:233 templates/scan/stock_update.html:78
-#: wms/forms.py:361
+#: templates/scan/cartons_ready.html:21 templates/scan/imports.html:53
+#: templates/scan/prepare_kits.html:47 templates/scan/receive.html:233
+#: templates/scan/stock_update.html:78 wms/forms.py:361
 msgid "Emplacement"
 msgstr "Location"
 
@@ -1637,11 +2442,6 @@ msgstr "All destinations"
 #: templates/scan/dashboard.html:30
 msgid "Appliquer"
 msgstr "Apply"
-
-#: templates/scan/dashboard.html:31 templates/scan/shipments_tracking.html:34
-#: templates/scan/stock.html:65
-msgid "Réinitialiser"
-msgstr "Reset"
 
 #: templates/scan/dashboard.html:34
 msgid ""
@@ -2460,7 +3260,7 @@ msgstr "If the location is empty, the product's default location is used."
 msgid "Un bouton permet de réceptionner toutes les lignes en attente."
 msgstr "A button lets you receive all pending lines."
 
-#: templates/scan/faq.html:279
+#: templates/scan/faq.html:279 templates/scan/receipts_view.html:9
 msgid "Vue réception"
 msgstr "Receiving view"
 
@@ -2750,6 +3550,509 @@ msgstr ""
 "<strong>The QR code opens nothing</strong>: check SITE_BASE_URL and restart "
 "the app."
 
+#: templates/scan/imports.html:10
+msgid ""
+"Page réservée aux superusers. Chaque bloc permet d'ajouter un élément unique "
+"ou d'importer un fichier CSV/XLS/XLSX. Les templates proposent un exemple "
+"complet."
+msgstr ""
+
+#: templates/scan/imports.html:16
+msgid ""
+"Conseil: privilégier le format .xlsx (meilleure gestion des accents). Pour "
+"CSV, exporter en UTF-8 (avec BOM) et séparateur ';'."
+msgstr ""
+
+#: templates/scan/imports.html:25
+msgid "Confirmation import produits"
+msgstr ""
+
+#: templates/scan/imports.html:27
+msgid ""
+"Des produits existent déjà. Confirmez l'action à appliquer pour chaque "
+"correspondance."
+msgstr ""
+
+#: templates/scan/imports.html:30
+msgid "Mode stock importé:"
+msgstr ""
+
+#: templates/scan/imports.html:32
+#, fuzzy
+#| msgid "Réserver le stock"
+msgid "Écraser la valeur du stock"
+msgstr "Reserve stock"
+
+#: templates/scan/imports.html:32
+msgid "(remise à zéro puis application de la quantité importée)."
+msgstr ""
+
+#: templates/scan/imports.html:34
+msgid "Faire des mouvements de stock"
+msgstr ""
+
+#: templates/scan/imports.html:34
+msgid "(ajout de la quantité importée)."
+msgstr ""
+
+#: templates/scan/imports.html:43
+#, python-format
+msgid "Ligne %(row_index)s (match %(match_type)s)"
+msgstr ""
+
+#: templates/scan/imports.html:48 templates/scan/print_template_edit.html:29
+msgid "Source"
+msgstr ""
+
+#: templates/scan/imports.html:51 templates/scan/imports.html:161
+#: templates/scan/stock_update.html:73
+msgid "Marque"
+msgstr "Brand"
+
+#: templates/scan/imports.html:58
+#, fuzzy
+#| msgid "Imports"
+msgid "Import"
+msgstr "Imports"
+
+#: templates/scan/imports.html:67
+#, fuzzy
+#| msgid "Restant"
+msgid "Existant"
+msgstr "Remaining"
+
+#: templates/scan/imports.html:89
+#, fuzzy
+#| msgid "Mettre à jour le suivi"
+msgid "Mettre à jour le produit existant"
+msgstr "Update tracking"
+
+#: templates/scan/imports.html:98
+#, fuzzy
+#| msgid "Créer un nouveau kit"
+msgid "Créer un nouveau produit"
+msgstr "Create a new kit"
+
+#: templates/scan/imports.html:105
+#, fuzzy
+#| msgid "Produit requis."
+msgid "Produit existant"
+msgstr "Product required."
+
+#: templates/scan/imports.html:126 wms/scan_import_handlers.py:326
+#: wms/scan_import_handlers.py:420
+msgid "Import produits"
+msgstr "Product import"
+
+#: templates/scan/imports.html:127
+msgid "Ajout rapide d'un produit ou import massif."
+msgstr ""
+
+#: templates/scan/imports.html:132
+#, fuzzy
+#| msgid "Nom du produit"
+msgid "Nom produit"
+msgstr "Product name"
+
+#: templates/scan/imports.html:151
+msgid "PU HT"
+msgstr ""
+
+#: templates/scan/imports.html:152
+msgid "ex: 2.50"
+msgstr ""
+
+#: templates/scan/imports.html:156
+#, python-format
+msgid "TVA (taux, ex: 0.2 pour 20%%)"
+msgstr ""
+
+#: templates/scan/imports.html:157
+msgid "ex: 0.2"
+msgstr ""
+
+#: templates/scan/imports.html:165
+#, fuzzy
+#| msgid "Couleur rack"
+msgid "Couleur"
+msgstr "Rack color"
+
+#: templates/scan/imports.html:170
+#, fuzzy
+#| msgid "Email(s) (séparer par ; ou ,)"
+msgid "Tags (séparés par |)"
+msgstr "Email address(es) (separate with ; or ,)"
+
+#: templates/scan/imports.html:175
+#, fuzzy
+#| msgid "Catégorie"
+msgid "Catégorie L1"
+msgstr "Category"
+
+#: templates/scan/imports.html:179
+#, fuzzy
+#| msgid "Catégorie"
+msgid "Catégorie L2"
+msgstr "Category"
+
+#: templates/scan/imports.html:185
+#, fuzzy
+#| msgid "Catégorie"
+msgid "Catégorie L3"
+msgstr "Category"
+
+#: templates/scan/imports.html:189
+#, fuzzy
+#| msgid "Catégorie"
+msgid "Catégorie L4"
+msgstr "Category"
+
+#: templates/scan/imports.html:195 templates/scan/imports.html:288
+#: templates/scan/receive.html:124 templates/scan/stock.html:26
+#: templates/scan/stock_update.html:83 wms/forms.py:195
+msgid "Entrepôt"
+msgstr "Warehouse"
+
+#: templates/scan/imports.html:205 templates/scan/imports.html:298
+msgid "Étagère"
+msgstr ""
+
+#: templates/scan/imports.html:215 templates/scan/imports.html:308
+#: templates/scan/receive_pallet.html:455
+msgid "Couleur rack"
+msgstr "Rack color"
+
+#: templates/scan/imports.html:224
+#, fuzzy
+#| msgid ""
+#| "Quantité initiale applique un mouvement de stock (emplacement requis)."
+msgid "Quantité initiale (nécessite un emplacement)"
+msgstr "Initial quantity applies a stock movement (location required)."
+
+#: templates/scan/imports.html:227
+#, fuzzy
+#| msgid "Ajouter un produit"
+msgid "Ajouter produit"
+msgstr "Add a product"
+
+#: templates/scan/imports.html:236
+#, fuzzy
+#| msgid "Fichier listing (CSV/XLS/XLSX/PDF)"
+msgid "Fichier produits (CSV/XLS/XLSX)"
+msgstr "Listing file (CSV/XLS/XLSX/PDF)"
+
+#: templates/scan/imports.html:242
+msgid "Présélectionner \"Mettre à jour\" si un produit existe"
+msgstr ""
+
+#: templates/scan/imports.html:246
+msgid "Gestion du stock importé (champ quantity/stock)"
+msgstr ""
+
+#: templates/scan/imports.html:256
+msgid "Faire des mouvements de stock (ajouter la quantité importée)"
+msgstr ""
+
+#: templates/scan/imports.html:265
+msgid "Écraser la valeur du stock (remise à zéro puis valeur importée)"
+msgstr ""
+
+#: templates/scan/imports.html:270
+#, fuzzy
+#| msgid "Imprimer QR produits"
+msgid "Importer produits"
+msgstr "Print product QR labels"
+
+#: templates/scan/imports.html:272
+#, fuzzy
+#| msgid "Filtrer produits"
+msgid "Template produits"
+msgstr "Filter products"
+
+#: templates/scan/imports.html:275
+#, fuzzy
+#| msgid "Filtrer produits"
+msgid "Exporter produits"
+msgstr "Filter products"
+
+#: templates/scan/imports.html:282
+#, fuzzy
+#| msgid "Ajouter emplacement"
+msgid "Import emplacements"
+msgstr "Add location"
+
+#: templates/scan/imports.html:316 templates/scan/pack.html:152
+#: templates/scan/receive.html:190
+msgid "Ajouter emplacement"
+msgstr "Add location"
+
+#: templates/scan/imports.html:325
+#, fuzzy
+#| msgid "Fichier listing (CSV/XLS/XLSX/PDF)"
+msgid "Fichier emplacements (CSV/XLS/XLSX)"
+msgstr "Listing file (CSV/XLS/XLSX/PDF)"
+
+#: templates/scan/imports.html:329
+#, fuzzy
+#| msgid "Ajouter emplacement"
+msgid "Importer emplacements"
+msgstr "Add location"
+
+#: templates/scan/imports.html:331
+#, fuzzy
+#| msgid "Ajouter emplacement"
+msgid "Template emplacements"
+msgstr "Add location"
+
+#: templates/scan/imports.html:334
+#, fuzzy
+#| msgid "Ajouter emplacement"
+msgid "Exporter emplacements"
+msgstr "Add location"
+
+#: templates/scan/imports.html:341
+#, fuzzy
+#| msgid "Toutes catégories"
+msgid "Import catégories"
+msgstr "All categories"
+
+#: templates/scan/imports.html:347
+#, fuzzy
+#| msgid "Toutes catégories"
+msgid "Nom catégorie"
+msgstr "All categories"
+
+#: templates/scan/imports.html:351
+#, fuzzy
+#| msgid "Presets operationnels"
+msgid "Parent (optionnel)"
+msgstr "Operational presets"
+
+#: templates/scan/imports.html:355 templates/scan/stock.html:67
+msgid "Ajouter catégorie"
+msgstr "Add category"
+
+#: templates/scan/imports.html:364
+#, fuzzy
+#| msgid "Fichier listing (CSV/XLS/XLSX/PDF)"
+msgid "Fichier catégories (CSV/XLS/XLSX)"
+msgstr "Listing file (CSV/XLS/XLSX/PDF)"
+
+#: templates/scan/imports.html:368
+#, fuzzy
+#| msgid "Ajouter catégorie"
+msgid "Importer catégories"
+msgstr "Add category"
+
+#: templates/scan/imports.html:370
+#, fuzzy
+#| msgid "Toutes catégories"
+msgid "Template catégories"
+msgstr "All categories"
+
+#: templates/scan/imports.html:373
+#, fuzzy
+#| msgid "Ajouter catégorie"
+msgid "Exporter catégories"
+msgstr "Add category"
+
+#: templates/scan/imports.html:380
+#, fuzzy
+#| msgid "Tous entrepôts"
+msgid "Import entrepôts"
+msgstr "All warehouses"
+
+#: templates/scan/imports.html:386
+#, fuzzy
+#| msgid "Tous entrepôts"
+msgid "Nom entrepôt"
+msgstr "All warehouses"
+
+#: templates/scan/imports.html:394 templates/scan/receive.html:83
+#: templates/scan/stock.html:70
+msgid "Ajouter entrepôt"
+msgstr "Add warehouse"
+
+#: templates/scan/imports.html:403
+#, fuzzy
+#| msgid "Fichier listing (CSV/XLS/XLSX/PDF)"
+msgid "Fichier entrepôts (CSV/XLS/XLSX)"
+msgstr "Listing file (CSV/XLS/XLSX/PDF)"
+
+#: templates/scan/imports.html:407
+#, fuzzy
+#| msgid "Ajouter entrepôt"
+msgid "Importer entrepôts"
+msgstr "Add warehouse"
+
+#: templates/scan/imports.html:409
+#, fuzzy
+#| msgid "Tous entrepôts"
+msgid "Template entrepôts"
+msgstr "All warehouses"
+
+#: templates/scan/imports.html:412
+#, fuzzy
+#| msgid "Ajouter entrepôt"
+msgid "Exporter entrepôts"
+msgstr "Add warehouse"
+
+#: templates/scan/imports.html:419
+#, fuzzy
+#| msgid "Ajouter contact"
+msgid "Import contacts"
+msgstr "Add contact"
+
+#: templates/scan/imports.html:427
+#, fuzzy
+#| msgid "Personnalisé"
+msgid "Personne"
+msgstr "Custom"
+
+#: templates/scan/imports.html:451
+#, fuzzy
+#| msgid "Destination (IATA)"
+msgid "Destination (optionnel)"
+msgstr "Destination (IATA)"
+
+#: templates/scan/imports.html:456
+msgid "Paris (CDG) - France"
+msgstr ""
+
+#: templates/scan/imports.html:469 templates/scan/stock_update.html:66
+msgid "Ajouter contact"
+msgstr "Add contact"
+
+#: templates/scan/imports.html:478
+#, fuzzy
+#| msgid "Fichier listing (CSV/XLS/XLSX/PDF)"
+msgid "Fichier contacts (CSV/XLS/XLSX)"
+msgstr "Listing file (CSV/XLS/XLSX/PDF)"
+
+#: templates/scan/imports.html:482
+#, fuzzy
+#| msgid "Ajouter contact"
+msgid "Importer contacts"
+msgstr "Add contact"
+
+#: templates/scan/imports.html:484
+#, fuzzy
+#| msgid "Templates"
+msgid "Template contacts"
+msgstr "Templates"
+
+#: templates/scan/imports.html:487
+#, fuzzy
+#| msgid "Ajouter contact"
+msgid "Exporter contacts"
+msgstr "Add contact"
+
+#: templates/scan/imports.html:494
+#, fuzzy
+#| msgid "Nom d'utilisateur"
+msgid "Import utilisateurs"
+msgstr "Username"
+
+#: templates/scan/imports.html:495
+#, fuzzy
+#| msgid ""
+#| "Utilisateurs: mot de passe obligatoire si IMPORT_DEFAULT_PASSWORD est "
+#| "vide."
+msgid "Mot de passe obligatoire si IMPORT_DEFAULT_PASSWORD est vide."
+msgstr "Users: password required if IMPORT_DEFAULT_PASSWORD is empty."
+
+#: templates/scan/imports.html:511
+msgid "Prenom"
+msgstr ""
+
+#: templates/scan/imports.html:528
+msgid "Non staff"
+msgstr ""
+
+#: templates/scan/imports.html:551
+#, fuzzy
+#| msgid "Ajouter donateur"
+msgid "Ajouter utilisateur"
+msgstr "Add donor"
+
+#: templates/scan/imports.html:560
+#, fuzzy
+#| msgid "Fichier listing (CSV/XLS/XLSX/PDF)"
+msgid "Fichier utilisateurs (CSV/XLS/XLSX)"
+msgstr "Listing file (CSV/XLS/XLSX/PDF)"
+
+#: templates/scan/imports.html:564
+#, fuzzy
+#| msgid "Nom d'utilisateur"
+msgid "Importer utilisateurs"
+msgstr "Username"
+
+#: templates/scan/imports.html:566
+#, fuzzy
+#| msgid "Nom d'utilisateur"
+msgid "Template utilisateurs"
+msgstr "Username"
+
+#: templates/scan/imports.html:569
+#, fuzzy
+#| msgid "Nom d'utilisateur"
+msgid "Exporter utilisateurs"
+msgstr "Username"
+
+#: templates/scan/kits_view.html:4
+#, fuzzy
+#| msgid "WMS Scan - Vue Expéditions"
+msgid "WMS Scan - Vue Kits"
+msgstr "WMS Scan - Shipments view"
+
+#: templates/scan/kits_view.html:17
+#, fuzzy
+#| msgid "Nom du kit"
+msgid "Nom du Kit"
+msgstr "Kit name"
+
+#: templates/scan/kits_view.html:18 templates/scan/prepare_kits.html:40
+msgid "Composition"
+msgstr "Composition"
+
+#: templates/scan/kits_view.html:19
+#, fuzzy
+#| msgid "Stock théorique disponible:"
+msgid "Stock Théorique"
+msgstr "Theoretical available stock:"
+
+#: templates/scan/kits_view.html:20
+#, fuzzy
+#| msgid "Stock"
+msgid "Stock Réel"
+msgstr "Stock"
+
+#: templates/scan/kits_view.html:21 templates/scan/ui_lab.html:149
+#: templates/scan/ui_lab.html:178
+msgid "État"
+msgstr ""
+
+#: templates/scan/kits_view.html:22 templates/scan/stock.html:16
+#: templates/scan/stock.html:38 templates/scan/stock.html:88
+#: templates/scan/ui_lab.html:140
+msgid "Catégorie"
+msgstr "Category"
+
+#: templates/scan/kits_view.html:23 templates/scan/stock.html:90
+msgid "Dernière modification"
+msgstr "Last update"
+
+#: templates/scan/kits_view.html:40
+#, fuzzy, python-format
+#| msgid "En préparation"
+msgid "En préparation: %(quantity)s"
+msgstr "In preparation"
+
+#: templates/scan/kits_view.html:41
+#, python-format
+msgid "Prêt: %(quantity)s"
+msgstr ""
+
 #: templates/scan/order.html:13
 msgid "Commande existante"
 msgstr "Existing order"
@@ -2763,7 +4066,7 @@ msgid "Ouvrir commande"
 msgstr "Open order"
 
 #: templates/scan/order.html:41 templates/scan/shipment_create.html:85
-#: wms/forms.py:426
+#: wms/forms.py:426 wms/models_domain/portal.py:561
 msgid "Correspondant"
 msgstr "Correspondent"
 
@@ -2815,15 +4118,17 @@ msgstr "Create order"
 msgid "Commande active"
 msgstr "Active order"
 
-#: templates/scan/order.html:122 templates/scan/receive.html:139
+#: templates/scan/order.html:122 templates/scan/print_template_edit.html:65
+#: templates/scan/receive.html:139
 msgid "Ajouter une ligne"
 msgstr "Add line"
 
-#: templates/scan/order.html:131 wms/forms.py:345
+#: templates/scan/order.html:131 templates/scan/out.html:16 wms/forms.py:345
 msgid "Code produit"
 msgstr "Product code"
 
-#: templates/scan/order.html:134 templates/scan/pack.html:150
+#: templates/scan/order.html:134 templates/scan/out.html:19
+#: templates/scan/out.html:38 templates/scan/pack.html:150
 #: templates/scan/receive.html:152 templates/scan/stock_update.html:19
 msgid "Scan"
 msgstr "Scan"
@@ -2906,6 +4211,30 @@ msgstr "Changes requested:"
 msgid "pour confirmer les changements."
 msgstr "to confirm the changes."
 
+#: templates/scan/out.html:4
+#, fuzzy
+#| msgid "Supprimer produit"
+msgid "WMS Scan - Supprimer produit"
+msgstr "Remove product"
+
+#: templates/scan/out.html:35 templates/scan/pack.html:109
+msgid "Référence expédition (optionnel)"
+msgstr "Shipment reference (optional)"
+
+#: templates/scan/out.html:46
+msgid "Motif"
+msgstr ""
+
+#: templates/scan/out.html:55
+#, fuzzy
+#| msgid "Enregistrer en brouillon"
+msgid "Enregistrer suppression"
+msgstr "Save draft"
+
+#: templates/scan/out.html:56
+msgid "Utilisez la suppression rapide pour des flux sans carton."
+msgstr ""
+
 #: templates/scan/pack.html:10
 msgid "Par carton"
 msgstr "By parcel"
@@ -2959,10 +4288,6 @@ msgstr "Max weight"
 msgid "Ajouter un produit"
 msgstr "Add a product"
 
-#: templates/scan/pack.html:109
-msgid "Référence expédition (optionnel)"
-msgstr "Shipment reference (optional)"
-
 #: templates/scan/pack.html:117
 msgid "Choisir un emplacement de rangement du colis prêt (optionnel)"
 msgstr "Choose a storage location for the ready parcel (optional)"
@@ -2994,10 +4319,6 @@ msgstr ""
 "(1cm x 1cm x 1cm and 5g).\n"
 "          "
 
-#: templates/scan/pack.html:152 templates/scan/receive.html:190
-msgid "Ajouter emplacement"
-msgstr "Add location"
-
 #: templates/scan/pack.html:154 templates/scan/prepare_kits.html:70
 msgid "Préparer"
 msgstr "Prepare"
@@ -3027,10 +4348,6 @@ msgstr ""
 #: templates/scan/prepare_kits.html:34
 msgid "Max colis mono-kit:"
 msgstr "Max single-kit parcel:"
-
-#: templates/scan/prepare_kits.html:40
-msgid "Composition"
-msgstr "Composition"
 
 #: templates/scan/prepare_kits.html:45
 msgid "Nom des produits"
@@ -3068,6 +4385,154 @@ msgstr "N/A"
 #: templates/scan/prepare_kits.html:93
 msgid "kit(s)"
 msgstr "kit(s)"
+
+#: templates/scan/print_template_edit.html:4
+#, python-format
+msgid "Template XLSX %(pack_code)s"
+msgstr "XLSX template %(pack_code)s"
+
+#: templates/scan/print_template_edit.html:14
+#: templates/scan/print_template_list.html:18
+msgid "Template XLSX"
+msgstr "XLSX template"
+
+#: templates/scan/print_template_edit.html:16
+msgid "Pack:"
+msgstr "Pack:"
+
+#: templates/scan/print_template_edit.html:19
+msgid "Document:"
+msgstr "Document:"
+
+#: templates/scan/print_template_edit.html:20
+msgid "Variant:"
+msgstr "Variant:"
+
+#: templates/scan/print_template_edit.html:23
+msgid "Template actif:"
+msgstr "Active template:"
+
+#: templates/scan/print_template_edit.html:27
+#: templates/scan/print_template_list.html:41
+msgid "Uploadé"
+msgstr "Uploaded"
+
+#: templates/scan/print_template_edit.html:32
+msgid "Aucun template"
+msgstr "No template"
+
+#: templates/scan/print_template_edit.html:46
+msgid "Remplacer le template XLSX"
+msgstr "Replace the XLSX template"
+
+#: templates/scan/print_template_edit.html:50
+msgid "Note de version (optionnel)"
+msgstr "Version note (optional)"
+
+#: templates/scan/print_template_edit.html:51
+msgid "Ex: mise à jour mapping expéditeur"
+msgstr "Ex: shipper mapping update"
+
+#: templates/scan/print_template_edit.html:55
+msgid ""
+"Les cellules fusionnées sont normalisées automatiquement vers leur cellule "
+"d'ancrage lors de l'enregistrement."
+msgstr ""
+"Merged cells are automatically normalized to their anchor cell when saving."
+
+#: templates/scan/print_template_edit.html:64
+msgid "Mappings"
+msgstr "Mappings"
+
+#: templates/scan/print_template_edit.html:74
+#: templates/scan/receive_pallet.html:343
+msgid "Colonne"
+msgstr "Column"
+
+#: templates/scan/print_template_edit.html:75
+msgid "Ligne"
+msgstr "Row"
+
+#: templates/scan/print_template_edit.html:76
+msgid "Cellule"
+msgstr "Cell"
+
+#: templates/scan/print_template_edit.html:77
+msgid "Champ source"
+msgstr "Source field"
+
+#: templates/scan/print_template_edit.html:81
+msgid "Fusion"
+msgstr "Merge"
+
+#: templates/scan/print_template_edit.html:103
+msgid "-- Choisir --"
+msgstr "-- Choose --"
+
+#: templates/scan/print_template_edit.html:114
+msgid "none"
+msgstr "none"
+
+#: templates/scan/print_template_edit.html:124
+msgid "non"
+msgstr "no"
+
+#: templates/scan/print_template_edit.html:125
+msgid "oui"
+msgstr "yes"
+
+#: templates/scan/print_template_edit.html:144
+msgid "Enregistrer toutes les modifications"
+msgstr "Save all changes"
+
+#: templates/scan/print_template_edit.html:149
+msgid "Historique des versions"
+msgstr "Version history"
+
+#: templates/scan/print_template_edit.html:154 templates/scan/ui_lab.html:177
+msgid "Version"
+msgstr ""
+
+#: templates/scan/print_template_edit.html:156
+msgid "Note"
+msgstr "Note"
+
+#: templates/scan/print_template_edit.html:158
+msgid "Auteur"
+msgstr "Author"
+
+#: templates/scan/print_template_edit.html:181
+msgid "Restaurer"
+msgstr "Restore"
+
+#: templates/scan/print_template_edit.html:187
+msgid "Aucune version disponible."
+msgstr "No versions available."
+
+#: templates/scan/print_template_list.html:4
+#: templates/scan/print_template_list.html:8
+msgid "Templates XLSX"
+msgstr "XLSX templates"
+
+#: templates/scan/print_template_list.html:9
+msgid "Gestion des templates et mappings Print Pack (superuser uniquement)."
+msgstr "Manage Print Pack templates and mappings (superuser only)."
+
+#: templates/scan/print_template_list.html:21
+msgid "Dernière maj"
+msgstr "Last updated"
+
+#: templates/scan/print_template_list.html:22
+msgid "Par"
+msgstr "By"
+
+#: templates/scan/print_template_list.html:43
+msgid "Fichier source"
+msgstr "Source file"
+
+#: templates/scan/print_template_list.html:79
+msgid "Aucun template disponible."
+msgstr "No template available."
 
 #: templates/scan/public_account_request.html:7
 #: templates/scan/public_account_request.html:38
@@ -3178,6 +4643,52 @@ msgstr "Requested quantity"
 msgid "Total cartons estimes"
 msgstr "Estimated total parcels"
 
+#: templates/scan/receipts_view.html:4
+#, fuzzy
+#| msgid "WMS Scan - Vue Expéditions"
+msgid "WMS Scan - Vue réception"
+msgstr "WMS Scan - Shipments view"
+
+#: templates/scan/receipts_view.html:14
+#, fuzzy
+#| msgid "Filtrer"
+msgid "Filtre"
+msgstr "Filter"
+
+#: templates/scan/receipts_view.html:17
+msgid "Tout"
+msgstr ""
+
+#: templates/scan/receipts_view.html:19 templates/scan/ui_lab.html:26
+#: templates/scan/ui_lab.html:83 wms/admin.py:457
+msgid "Palette"
+msgstr "Swatch"
+
+#: templates/scan/receipts_view.html:29
+#, fuzzy
+#| msgid "Date réception"
+msgid "Date de réception"
+msgstr "Reception date"
+
+#: templates/scan/receipts_view.html:32
+#, fuzzy
+#| msgid "Quantité par produit"
+msgid "Quantité Hors Format"
+msgstr "Quantity per product"
+
+#: templates/scan/receipts_view.html:33 templates/scan/receive.html:132
+#: templates/scan/receive_pallet.html:296
+#: templates/scan/receive_pallet.html:399 wms/forms.py:182 wms/forms.py:245
+#: wms/forms.py:289 wms/models_domain/portal.py:563
+msgid "Transporteur"
+msgstr "Carrier"
+
+#: templates/scan/receipts_view.html:50
+#, fuzzy
+#| msgid "Vue réception"
+msgid "Aucune réception."
+msgstr "Receiving view"
+
 #: templates/scan/receive.html:8
 msgid "Réception don/palette"
 msgstr "Donation/pallet receiving"
@@ -3199,10 +4710,6 @@ msgstr "Add source"
 msgid "Ajouter transporteur"
 msgstr "Add carrier"
 
-#: templates/scan/receive.html:83 templates/scan/stock.html:70
-msgid "Ajouter entrepôt"
-msgstr "Add warehouse"
-
 #: templates/scan/receive.html:96
 msgid "Créer réception"
 msgstr "Create receipt"
@@ -3221,20 +4728,9 @@ msgstr "Active receipt"
 msgid "Date réception"
 msgstr "Reception date"
 
-#: templates/scan/receive.html:124 templates/scan/stock.html:26
-#: templates/scan/stock_update.html:83 wms/forms.py:195
-msgid "Entrepôt"
-msgstr "Warehouse"
-
 #: templates/scan/receive.html:128 wms/forms.py:177
 msgid "Provenance"
 msgstr "Source"
-
-#: templates/scan/receive.html:132 templates/scan/receive_pallet.html:296
-#: templates/scan/receive_pallet.html:399 wms/forms.py:182 wms/forms.py:245
-#: wms/forms.py:289
-msgid "Transporteur"
-msgstr "Carrier"
 
 #: templates/scan/receive.html:158
 msgid "Ajouter un nouveau produit"
@@ -3430,10 +4926,6 @@ msgstr "PDF pages"
 msgid "Pages totales"
 msgstr "Total pages"
 
-#: templates/scan/receive_pallet.html:343
-msgid "Colonne"
-msgstr "Column"
-
 #: templates/scan/receive_pallet.html:344
 msgid "Exemple"
 msgstr "Example"
@@ -3470,10 +4962,6 @@ msgstr "Validate"
 #: templates/scan/receive_pallet.html:447
 msgid "Match"
 msgstr "Match"
-
-#: templates/scan/receive_pallet.html:455
-msgid "Couleur rack"
-msgstr "Rack color"
 
 #: templates/scan/receive_pallet.html:468
 msgid "Nouveau produit"
@@ -3829,10 +5317,6 @@ msgstr "Document quarantined (antivirus scan in progress)"
 msgid "Document indisponible (fichier manquant)"
 msgstr "Document unavailable (missing file)"
 
-#: templates/scan/shipment_create.html:253
-msgid "Supprimer"
-msgstr "Delete"
-
 #: templates/scan/shipment_create.html:259
 #: templates/scan/shipment_tracking.html:127
 msgid "Aucun document additionnel."
@@ -3983,10 +5467,6 @@ msgstr "Exclude closed"
 msgid "Inclure clos"
 msgstr "Include closed"
 
-#: templates/scan/shipments_tracking.html:33 templates/scan/stock.html:64
-msgid "Filtrer"
-msgstr "Filter"
-
 #: templates/scan/shipments_tracking.html:47 wms/models_domain/shipment.py:22
 #: wms/models_domain/shipment.py:177
 msgid "Planifié"
@@ -4035,18 +5515,9 @@ msgstr "Closed on %(closed_at)s"
 msgid "Aucune expédition correspondante."
 msgstr "No matching shipment."
 
-#: templates/scan/stock.html:11
-msgid "Recherche"
-msgstr "Search"
-
 #: templates/scan/stock.html:12
 msgid "Nom, référence, code-barres"
 msgstr "Name, reference, barcode"
-
-#: templates/scan/stock.html:16 templates/scan/stock.html:38
-#: templates/scan/stock.html:88
-msgid "Catégorie"
-msgstr "Category"
 
 #: templates/scan/stock.html:28
 msgid "Tous entrepôts"
@@ -4068,10 +5539,6 @@ msgstr "Stock high to low"
 msgid "Inclure les produits avec stock à 0"
 msgstr "Include products with zero stock"
 
-#: templates/scan/stock.html:67
-msgid "Ajouter catégorie"
-msgstr "Add category"
-
 #: templates/scan/stock.html:78
 msgid "Produits"
 msgstr "Products"
@@ -4079,10 +5546,6 @@ msgstr "Products"
 #: templates/scan/stock.html:78
 msgid "Produits en stock"
 msgstr "Products in stock"
-
-#: templates/scan/stock.html:90
-msgid "Dernière modification"
-msgstr "Last update"
 
 #: templates/scan/stock.html:119
 msgid "Aucun produit pour ces filtres."
@@ -4096,13 +5559,293 @@ msgstr "No products in stock for these filters."
 msgid "Créer le produit dans la base"
 msgstr "Create the product in the database"
 
-#: templates/scan/stock_update.html:66
-msgid "Ajouter contact"
-msgstr "Add contact"
+#: templates/scan/ui_lab.html:16
+msgid ""
+"Bac à sable visuel pour tester les composants, couleurs, typographies et "
+"densité."
+msgstr ""
 
-#: templates/scan/stock_update.html:73
-msgid "Marque"
-msgstr "Brand"
+#: templates/scan/ui_lab.html:18
+msgid "Sandbox uniquement"
+msgstr ""
+
+#: templates/scan/ui_lab.html:23
+msgid "Réglages live"
+msgstr ""
+
+#: templates/scan/ui_lab.html:28
+msgid "Sauge douce"
+msgstr ""
+
+#: templates/scan/ui_lab.html:29
+msgid "Bleu brume"
+msgstr ""
+
+#: templates/scan/ui_lab.html:30
+msgid "Thé vert sable"
+msgstr ""
+
+#: templates/scan/ui_lab.html:34 templates/scan/ui_lab.html:61
+msgid "Typographie"
+msgstr ""
+
+#: templates/scan/ui_lab.html:42
+msgid "Densité"
+msgstr ""
+
+#: templates/scan/ui_lab.html:44
+#, fuzzy
+#| msgid "Compte"
+msgid "Compact"
+msgstr "Account"
+
+#: templates/scan/ui_lab.html:45 wms/views_scan_settings.py:34
+msgid "Standard"
+msgstr "Standard"
+
+#: templates/scan/ui_lab.html:46
+msgid "Aéré"
+msgstr ""
+
+#: templates/scan/ui_lab.html:50
+msgid "Ces réglages s'appliquent uniquement à cette page (sandbox)."
+msgstr ""
+
+#: templates/scan/ui_lab.html:64
+#, fuzzy
+#| msgid "Titre"
+msgid "Titres"
+msgstr "Title"
+
+#: templates/scan/ui_lab.html:65
+#, fuzzy
+#| msgid "Préparation expédition"
+msgid "H1 - Opérations & expéditions"
+msgstr "Shipment preparation"
+
+#: templates/scan/ui_lab.html:66
+#, fuzzy
+#| msgid "Préparer les commandes"
+msgid "H2 - Préparation des commandes"
+msgstr "Prepare orders"
+
+#: templates/scan/ui_lab.html:67
+msgid "H3 - Détail des stocks"
+msgstr ""
+
+#: templates/scan/ui_lab.html:70
+msgid "Texte courant"
+msgstr ""
+
+#: templates/scan/ui_lab.html:72
+msgid ""
+"Interface professionnelle et apaisée, pensée pour un usage quotidien en "
+"entrepôt avec une lecture confortable sur desktop et mobile."
+msgstr ""
+
+#: templates/scan/ui_lab.html:77
+msgid "Ce bloc permet de valider le contraste et la densité des paragraphes."
+msgstr ""
+
+#: templates/scan/ui_lab.html:95
+#, fuzzy
+#| msgid "Voir les états"
+msgid "Boutons et états"
+msgstr "View statuses"
+
+#: templates/scan/ui_lab.html:100
+#, fuzzy
+#| msgid "désactivé"
+msgid "Désactivé"
+msgstr "disabled"
+
+#: templates/scan/ui_lab.html:104
+#, fuzzy
+#| msgid "Action"
+msgid "Attention"
+msgstr "Action"
+
+#: templates/scan/ui_lab.html:106
+#, fuzzy
+#| msgid "Informations principales"
+msgid "Information"
+msgstr "Main information"
+
+#: templates/scan/ui_lab.html:111
+#, fuzzy
+#| msgid "Sommaire"
+msgid "Formulaires"
+msgstr "Contents"
+
+#: templates/scan/ui_lab.html:114
+#, fuzzy
+#| msgid "Nom du contact"
+msgid "Nom du composant"
+msgstr "Contact last name"
+
+#: templates/scan/ui_lab.html:115
+#, fuzzy
+#| msgid "Mes commandes"
+msgid "Ex: Table commandes"
+msgstr "My orders"
+
+#: templates/scan/ui_lab.html:120 templates/scan/ui_lab.html:170
+#, fuzzy
+#| msgid "Tableau de bord"
+msgid "Tableau"
+msgstr "Dashboard"
+
+#: templates/scan/ui_lab.html:121
+#, fuzzy
+#| msgid "Sommaire"
+msgid "Formulaire"
+msgstr "Contents"
+
+#: templates/scan/ui_lab.html:122
+msgid "Carte KPI"
+msgstr ""
+
+#: templates/scan/ui_lab.html:127
+#, fuzzy
+#| msgid "Commentaires"
+msgid "Commentaires design"
+msgstr "Comments"
+
+#: templates/scan/ui_lab.html:133
+#, fuzzy
+#| msgid "Filtrer"
+msgid "Filtres et tri"
+msgstr "Filter"
+
+#: templates/scan/ui_lab.html:137
+#, fuzzy
+#| msgid "Ajouter emplacement"
+msgid "Nom produit, lot, emplacement"
+msgstr "Add location"
+
+#: templates/scan/ui_lab.html:142
+msgid "Toutes"
+msgstr ""
+
+#: templates/scan/ui_lab.html:143
+msgid "Hygiène"
+msgstr ""
+
+#: templates/scan/ui_lab.html:144
+msgid "Médical"
+msgstr ""
+
+#: templates/scan/ui_lab.html:145
+#, fuzzy
+#| msgid "Historique"
+msgid "Logistique"
+msgstr "History"
+
+#: templates/scan/ui_lab.html:154
+msgid "Bloqué"
+msgstr ""
+
+#: templates/scan/ui_lab.html:158
+msgid "Tri stock ↑"
+msgstr ""
+
+#: templates/scan/ui_lab.html:159
+#, fuzzy
+#| msgid "Date péremption"
+msgid "Tri péremption ↓"
+msgstr "Expiry date"
+
+#: templates/scan/ui_lab.html:163
+#, fuzzy
+#| msgid "Catégorie"
+msgid "Catégorie: Hygiène"
+msgstr "Category"
+
+#: templates/scan/ui_lab.html:164
+msgid "État: Prêt"
+msgstr ""
+
+#: templates/scan/ui_lab.html:175
+#, fuzzy
+#| msgid "Composition"
+msgid "Composant"
+msgstr "Composition"
+
+#: templates/scan/ui_lab.html:176
+msgid "Usage"
+msgstr ""
+
+#: templates/scan/ui_lab.html:184
+msgid "CTA principal"
+msgstr ""
+
+#: templates/scan/ui_lab.html:186
+#, fuzzy
+#| msgid "Valider"
+msgid "Validé"
+msgstr "Validate"
+
+#: templates/scan/ui_lab.html:190
+#, fuzzy
+#| msgid "Nom d'utilisateur"
+msgid "Entrée utilisateur"
+msgstr "Username"
+
+#: templates/scan/ui_lab.html:192
+#, fuzzy
+#| msgid "voir"
+msgid "À revoir"
+msgstr "view"
+
+#: templates/scan/ui_lab.html:196
+#, fuzzy
+#| msgid "Mes commandes"
+msgid "Vues stock/commandes"
+msgstr "My orders"
+
+#: templates/scan/ui_lab.html:198
+#, fuzzy
+#| msgid "En transit"
+msgid "En test"
+msgstr "In transit"
+
+#: templates/scan/ui_lab.html:212
+#, fuzzy
+#| msgid "colis prêts +"
+msgid "Colis prêts"
+msgstr "ready parcels +"
+
+#: templates/scan/ui_lab.html:219
+#, fuzzy
+#| msgid "Commandes créées"
+msgid "Commandes validées"
+msgstr "Orders created"
+
+#: templates/scan/ui_lab.html:226
+#, fuzzy
+#| msgid "Expéditions créées"
+msgid "Expéditions en cours"
+msgstr "Shipments created"
+
+#: templates/scan/ui_lab.html:235
+#, fuzzy
+#| msgid "Documents générés"
+msgid "Picking généré"
+msgstr "Generated documents"
+
+#: templates/scan/ui_lab.html:236
+msgid "Carton C-20260227-14 · il y a 4 min"
+msgstr ""
+
+#: templates/scan/ui_lab.html:242
+#, fuzzy
+#| msgid "Compte association"
+msgid "Compte association validé"
+msgstr "Association account"
+
+#: templates/scan/ui_lab.html:243
+msgid "Secours Med Local · il y a 12 min"
+msgstr ""
 
 #: wms/account_request_handlers.py:379
 msgid "ASF WMS - Nouvelle demande de compte"
@@ -4218,10 +5961,6 @@ msgstr "Mark as rejected"
 #: wms/admin.py:455 wms/admin.py:525
 msgid "Rack"
 msgstr "Rack"
-
-#: wms/admin.py:457
-msgid "Palette"
-msgstr "Swatch"
 
 #: wms/admin.py:468
 msgid "Format attendu: #RRGGBB (ex: #1C8BC0)."
@@ -4779,17 +6518,152 @@ msgstr "Max retry must be greater than or equal to base retry."
 msgid "Ajoutez un commentaire operateur pour tracer ce changement."
 msgstr "Add an operator note to trace this change."
 
+#: wms/models_domain/portal.py:229
+msgid "M."
+msgstr ""
+
+#: wms/models_domain/portal.py:230
+msgid "Mme"
+msgstr ""
+
+#: wms/models_domain/portal.py:231
+msgid "Mlle"
+msgstr ""
+
+#: wms/models_domain/portal.py:232
+msgid "Dr"
+msgstr ""
+
+#: wms/models_domain/portal.py:233
+msgid "Pr"
+msgstr ""
+
+#: wms/models_domain/portal.py:234
+msgid "Père"
+msgstr ""
+
+#: wms/models_domain/portal.py:235
+msgid "Sœur"
+msgstr ""
+
+#: wms/models_domain/portal.py:236
+msgid "Frère"
+msgstr ""
+
+#: wms/models_domain/portal.py:237
+msgid "Abbé"
+msgstr ""
+
+#: wms/models_domain/portal.py:238
+msgid "Imam"
+msgstr ""
+
+#: wms/models_domain/portal.py:239
+msgid "Rabbin"
+msgstr ""
+
+#: wms/models_domain/portal.py:240
+#, fuzzy
+#| msgid "Hauteur"
+msgid "Pasteur"
+msgstr "Height"
+
+#: wms/models_domain/portal.py:241
+msgid "Évêque"
+msgstr ""
+
+#: wms/models_domain/portal.py:242
+msgid "Monseigneur"
+msgstr ""
+
+#: wms/models_domain/portal.py:243
+msgid "Président"
+msgstr ""
+
+#: wms/models_domain/portal.py:244
+#, fuzzy
+#| msgid "Enregistrer"
+msgid "Ministre"
+msgstr "Save"
+
+#: wms/models_domain/portal.py:245
+msgid "Ambassadeur"
+msgstr ""
+
+#: wms/models_domain/portal.py:246
+#, fuzzy
+#| msgid "Sommaire"
+msgid "Maire"
+msgstr "Contents"
+
+#: wms/models_domain/portal.py:247
+msgid "Préfet"
+msgstr ""
+
+#: wms/models_domain/portal.py:248
+msgid "Gouverneur"
+msgstr ""
+
+#: wms/models_domain/portal.py:249
+msgid "Député"
+msgstr ""
+
+#: wms/models_domain/portal.py:250
+#, fuzzy
+#| msgid "Donateur"
+msgid "Sénateur"
+msgstr "Donor"
+
+#: wms/models_domain/portal.py:251
+msgid "Général"
+msgstr ""
+
+#: wms/models_domain/portal.py:252
+#, fuzzy
+#| msgid "Colonne"
+msgid "Colonel"
+msgstr "Column"
+
+#: wms/models_domain/portal.py:253
+#, fuzzy
+#| msgid "Commandes"
+msgid "Commandant"
+msgstr "Orders"
+
+#: wms/models_domain/portal.py:254
+msgid "Capitaine"
+msgstr ""
+
+#: wms/models_domain/portal.py:255
+msgid "Lieutenant"
+msgstr ""
+
+#: wms/models_domain/portal.py:256
+msgid "Adjudant"
+msgstr ""
+
+#: wms/models_domain/portal.py:257
+msgid "Sergent"
+msgstr ""
+
+#: wms/models_domain/portal.py:610
+msgid "L'organisation doit être un contact de type structure."
+msgstr "The organization must be an organization contact."
+
+#: wms/models_domain/portal.py:613
+msgid "L'organisation doit être active."
+msgstr "The organization must be active."
+
+#: wms/models_domain/portal.py:617
+msgid ""
+"Un role actif requiert un contact principal actif avec une adresse email."
+msgstr ""
+"An active primary contact is required for an active role and must have an "
+"email address."
+
 #: wms/models_domain/shipment.py:19 wms/shipment_view_helpers.py:126
 msgid "Création"
 msgstr "Creation"
-
-#: wms/models_domain/shipment.py:20 wms/views_scan_dashboard.py:413
-msgid "En cours"
-msgstr "In progress"
-
-#: wms/models_domain/shipment.py:21 wms/shipment_view_helpers.py:129
-msgid "Prêt"
-msgstr "Ready"
 
 #: wms/models_domain/shipment.py:176
 msgid "OK pour planification"
@@ -4961,6 +6835,322 @@ msgstr "Line added: %(product)s (%(quantity)s)."
 #, python-format
 msgid "Réception palette enregistrée (ref %(reference)s)."
 msgstr "Pallet receiving saved (ref %(reference)s)."
+
+#: wms/scan_admin_contacts_cockpit.py:135
+msgid "Validation impossible."
+msgstr "Validation failed."
+
+#: wms/scan_admin_contacts_cockpit.py:199
+#: wms/scan_admin_contacts_cockpit.py:223
+#: wms/scan_admin_contacts_cockpit.py:284
+msgid "Organisation invalide."
+msgstr "Invalid organization."
+
+#: wms/scan_admin_contacts_cockpit.py:202
+#: wms/scan_admin_contacts_cockpit.py:226
+msgid "Role invalide."
+msgstr "Invalid role."
+
+#: wms/scan_admin_contacts_cockpit.py:217
+#, python-format
+msgid "Role %(role)s active."
+msgstr "Role %(role)s activated."
+
+#: wms/scan_admin_contacts_cockpit.py:233
+msgid "Role introuvable."
+msgstr "Role not found."
+
+#: wms/scan_admin_contacts_cockpit.py:235
+#, python-format
+msgid "Role %(role)s deja inactif."
+msgstr "Role %(role)s already inactive."
+
+#: wms/scan_admin_contacts_cockpit.py:239
+#, python-format
+msgid "Role %(role)s desactive."
+msgstr "Role %(role)s disabled."
+
+#: wms/scan_admin_contacts_cockpit.py:265
+msgid "Donnees de liaison invalides."
+msgstr "Invalid link data."
+
+#: wms/scan_admin_contacts_cockpit.py:268
+#: wms/scan_admin_contacts_cockpit.py:377
+msgid "Affectation de role introuvable."
+msgstr "Role assignment not found."
+
+#: wms/scan_admin_contacts_cockpit.py:271
+#: wms/scan_admin_contacts_cockpit.py:291
+msgid "Contact organisation introuvable."
+msgstr "Organization contact not found."
+
+#: wms/scan_admin_contacts_cockpit.py:273
+#: wms/scan_admin_contacts_cockpit.py:293
+msgid "Le contact doit appartenir a la meme organisation."
+msgstr "The contact must belong to the same organization."
+
+#: wms/scan_admin_contacts_cockpit.py:280
+msgid "Donnees de contact invalides."
+msgstr "Invalid contact data."
+
+#: wms/scan_admin_contacts_cockpit.py:310
+msgid "Contact organisation mis a jour."
+msgstr "Organization contact updated."
+
+#: wms/scan_admin_contacts_cockpit.py:311
+msgid "Contact organisation cree."
+msgstr "Organization contact created."
+
+#: wms/scan_admin_contacts_cockpit.py:327
+msgid "Contact lie au role."
+msgstr "Contact linked to the role."
+
+#: wms/scan_admin_contacts_cockpit.py:340
+msgid "Liaison role-contact introuvable."
+msgstr "Role-contact link not found."
+
+#: wms/scan_admin_contacts_cockpit.py:345
+msgid "Contact delie du role."
+msgstr "Contact unlinked from the role."
+
+#: wms/scan_admin_contacts_cockpit.py:367
+msgid "Contact principal mis a jour."
+msgstr "Primary contact updated."
+
+#: wms/scan_admin_contacts_cockpit.py:373
+msgid "Donnees de scope expediteur invalides."
+msgstr "Invalid shipper scope data."
+
+#: wms/scan_admin_contacts_cockpit.py:379
+msgid "Le scope d'escales est reserve au role expediteur."
+msgstr "Stopover scope is restricted to the shipper role."
+
+#: wms/scan_admin_contacts_cockpit.py:386
+#: wms/scan_admin_contacts_cockpit.py:423
+msgid "Scope expediteur introuvable."
+msgstr "Shipper scope not found."
+
+#: wms/scan_admin_contacts_cockpit.py:388
+msgid "Scope expediteur incompatible avec l'affectation."
+msgstr "Shipper scope does not match the assignment."
+
+#: wms/scan_admin_contacts_cockpit.py:397
+#: wms/scan_admin_contacts_cockpit.py:481
+msgid "Escale invalide."
+msgstr "Invalid stopover."
+
+#: wms/scan_admin_contacts_cockpit.py:413
+msgid "Scope expediteur enregistre."
+msgstr "Shipper scope saved."
+
+#: wms/scan_admin_contacts_cockpit.py:419
+msgid "Scope expediteur invalide."
+msgstr "Invalid shipper scope."
+
+#: wms/scan_admin_contacts_cockpit.py:425
+msgid "Scope expediteur deja inactif."
+msgstr "Shipper scope already inactive."
+
+#: wms/scan_admin_contacts_cockpit.py:429
+msgid "Scope expediteur desactive."
+msgstr "Shipper scope disabled."
+
+#: wms/scan_admin_contacts_cockpit.py:458
+msgid "Donnees de binding destinataire invalides."
+msgstr "Invalid recipient binding data."
+
+#: wms/scan_admin_contacts_cockpit.py:462
+msgid "Expediteur invalide."
+msgstr "Invalid shipper."
+
+#: wms/scan_admin_contacts_cockpit.py:467
+msgid "Expediteur sans role actif."
+msgstr "Shipper without an active role."
+
+#: wms/scan_admin_contacts_cockpit.py:470 wms/views_portal_orders.py:70
+msgid "Destinataire invalide."
+msgstr "Invalid recipient."
+
+#: wms/scan_admin_contacts_cockpit.py:475
+msgid "Destinataire sans role actif."
+msgstr "Recipient without an active role."
+
+#: wms/scan_admin_contacts_cockpit.py:488
+#: wms/scan_admin_contacts_cockpit.py:529
+msgid "Binding destinataire introuvable."
+msgstr "Recipient binding not found."
+
+#: wms/scan_admin_contacts_cockpit.py:501
+msgid ""
+"Un binding actif existe deja pour cet expediteur, ce destinataire et cette "
+"escale."
+msgstr "An active binding already exists for this shipper, recipient, and stopover."
+
+#: wms/scan_admin_contacts_cockpit.py:519
+msgid "Binding destinataire enregistre."
+msgstr "Recipient binding saved."
+
+#: wms/scan_admin_contacts_cockpit.py:525
+msgid "Donnees de cloture binding invalides."
+msgstr "Invalid recipient binding closure data."
+
+#: wms/scan_admin_contacts_cockpit.py:537
+msgid "Binding destinataire cloture."
+msgstr "Recipient binding closed."
+
+#: wms/scan_admin_contacts_cockpit.py:543
+msgid "Donnees de creation guidee invalides."
+msgstr "Invalid guided creation data."
+
+#: wms/scan_admin_contacts_cockpit.py:557
+msgid "Organisation similaire deja presente"
+msgstr "Similar organization already exists"
+
+#: wms/scan_admin_contacts_cockpit.py:603
+msgid "Organisation et contact rattache crees."
+msgstr "Organization and linked contact created."
+
+#: wms/scan_admin_contacts_cockpit.py:605
+msgid "Organisation creee."
+msgstr "Organization created."
+
+#: wms/scan_admin_contacts_cockpit.py:44
+msgid "Classiques"
+msgstr "Classic"
+
+#: wms/scan_admin_contacts_cockpit.py:52
+msgid "Religieux"
+msgstr "Religious"
+
+#: wms/scan_admin_contacts_cockpit.py:66
+msgid "Médicaux"
+msgstr "Medical"
+
+#: wms/scan_admin_contacts_cockpit.py:74
+msgid "Officiels"
+msgstr "Official"
+
+#: wms/scan_import_handlers.py:85
+#, python-format
+msgid "%(title)s: %(count)s %(label)s(s)."
+msgstr "%(title)s: %(count)s %(label)s(s)."
+
+#: wms/scan_import_handlers.py:97 wms/scan_import_handlers.py:132
+msgid "erreur"
+msgstr "error"
+
+#: wms/scan_import_handlers.py:98 wms/scan_import_handlers.py:133
+msgid "alerte"
+msgstr "warning"
+
+#: wms/scan_import_handlers.py:101
+#, python-format
+msgid "%(title)s: %(created)s créé(s), %(updated)s maj."
+msgstr "%(title)s: %(created)s created, %(updated)s updated."
+
+#: wms/scan_import_handlers.py:139
+#, python-format
+msgid ""
+"%(title)s: %(created)s créé(s), %(updated)s ligne(s) maj., "
+"%(distinct_products)s produit(s) distinct(s) impacté(s), "
+"%(temp_location_rows)s ligne(s) envoyée(s) vers TEMP."
+msgstr ""
+"%(title)s: %(created)s created, %(updated)s row(s) updated, "
+"%(distinct_products)s distinct product(s) impacted, "
+"%(temp_location_rows)s row(s) sent to TEMP."
+
+#: wms/scan_import_handlers.py:187
+msgid "Import produit: sélection requise pour la mise à jour."
+msgstr "Product import: a target selection is required for update."
+
+#: wms/scan_import_handlers.py:193
+msgid "Import produit: produit cible invalide."
+msgstr "Product import: invalid target product."
+
+#: wms/scan_import_handlers.py:294
+msgid "Import produit: confirmation invalide."
+msgstr "Product import: invalid confirmation."
+
+#: wms/scan_import_handlers.py:298
+msgid "Import produit annule."
+msgstr "Product import canceled."
+
+#: wms/scan_import_handlers.py:310
+msgid "Import produit: fichier temporaire introuvable."
+msgstr "Product import: temporary file not found."
+
+#: wms/scan_import_handlers.py:372
+msgid "Produit créé."
+msgstr "Product created."
+
+#: wms/scan_import_handlers.py:381
+msgid "Fichier requis pour importer les produits."
+msgstr "A file is required to import products."
+
+#: wms/scan_import_handlers.py:386
+msgid "Format non supporte. Utilisez CSV/XLS/XLSX."
+msgstr "Unsupported format. Use CSV/XLS/XLSX."
+
+#: wms/scan_import_handlers.py:436
+#, python-format
+msgid "Fichier requis pour importer les %(label)s."
+msgstr "A file is required to import %(label)s."
+
+#: wms/scan_import_handlers.py:454
+msgid "Import %(label)s: %(message)s"
+msgstr "%(label)s import: %(message)s"
+
+#: wms/scan_import_handlers.py:465
+msgid "Import %(label)s"
+msgstr "Import %(label)s"
+
+#: wms/scan_import_handlers.py:28
+msgid "emplacements"
+msgstr "locations"
+
+#: wms/scan_import_handlers.py:29
+msgid "categories"
+msgstr "categories"
+
+#: wms/scan_import_handlers.py:30
+msgid "entrepôts"
+msgstr "warehouses"
+
+#: wms/scan_import_handlers.py:31
+msgid "contacts"
+msgstr "contacts"
+
+#: wms/scan_import_handlers.py:32
+msgid "utilisateurs"
+msgstr "users"
+
+#: wms/scan_import_handlers.py:36
+msgid "emplacement"
+msgstr "location"
+
+#: wms/scan_import_handlers.py:37
+msgid "categorie"
+msgstr "category"
+
+#: wms/scan_import_handlers.py:38
+msgid "entrepôt"
+msgstr "warehouse"
+
+#: wms/scan_import_handlers.py:39
+msgid "contact"
+msgstr "contact"
+
+#: wms/scan_import_handlers.py:40
+msgid "utilisateur"
+msgstr "user"
+
+#: wms/scan_import_handlers.py:487
+msgid "Ajout %(label)s: %(message)s"
+msgstr "Add %(label)s: %(message)s"
+
+#: wms/scan_import_handlers.py:504
+msgid "%(label)s ajouté."
+msgstr "%(label)s added."
 
 #: wms/scan_shipment_handlers.py:129
 msgid "Merci de sélectionner une destination avant d'enregistrer un brouillon."
@@ -5292,10 +7482,6 @@ msgstr "Destination required."
 msgid "Adresse association manquante."
 msgstr "Missing association address."
 
-#: wms/views_portal_orders.py:70
-msgid "Destinataire invalide."
-msgstr "Invalid recipient."
-
 #: wms/views_portal_orders.py:71
 msgid "Documents disponibles après validation de la commande."
 msgstr "Documents available after order approval."
@@ -5313,6 +7499,87 @@ msgstr "%(name)s (association)"
 #: wms/views_print_labels.py:175 wms/views_print_labels.py:189
 msgid "Carton introuvable pour cette expédition."
 msgstr "Carton not found for this shipment."
+
+#: wms/views_print_templates.py:424
+#, python-format
+msgid ""
+"Ligne %(line_number)s: worksheet, colonne, ligne et champ source sont requis."
+msgstr "Row %(line_number)s: worksheet, column, row, and source field are required."
+
+#: wms/views_print_templates.py:451
+msgid "Template XLSX introuvable ou invalide."
+msgstr "XLSX template not found or invalid."
+
+#: wms/views_print_templates.py:460
+#, python-format
+msgid "Ligne %(line_number)s: worksheet inconnu (%(worksheet_name)s)."
+msgstr "Row %(line_number)s: unknown worksheet (%(worksheet_name)s)."
+
+#: wms/views_print_templates.py:469
+#, python-format
+msgid "Ligne %(line_number)s: numéro de ligne invalide (%(row_value)s)."
+msgstr "Row %(line_number)s: invalid row number (%(row_value)s)."
+
+#: wms/views_print_templates.py:475
+#, python-format
+msgid ""
+"Ligne %(line_number)s: numéro de ligne hors limites pour la feuille "
+"%(worksheet_name)s."
+msgstr "Row %(line_number)s: row number is out of bounds for worksheet %(worksheet_name)s."
+
+#: wms/views_print_templates.py:484
+#, python-format
+msgid "Ligne %(line_number)s: colonne invalide (%(column)s)."
+msgstr "Row %(line_number)s: invalid column (%(column)s)."
+
+#: wms/views_print_templates.py:491
+#, python-format
+msgid "Ligne %(line_number)s: champ source invalide (%(source_key)s)."
+msgstr "Row %(line_number)s: invalid source field (%(source_key)s)."
+
+#: wms/views_print_templates.py:498
+#, python-format
+msgid "Ligne %(line_number)s: transformation invalide (%(transform)s)."
+msgstr "Row %(line_number)s: invalid transform (%(transform)s)."
+
+#: wms/views_print_templates.py:509
+#, python-format
+msgid ""
+"Ligne %(line_number)s: cellule dupliquée (%(worksheet_name)s!%(cell_ref)s)."
+msgstr "Row %(line_number)s: duplicated cell (%(worksheet_name)s!%(cell_ref)s)."
+
+#: wms/views_print_templates.py:597
+msgid "Le fichier doit être au format .xlsx."
+msgstr "File must be in .xlsx format."
+
+#: wms/views_print_templates.py:602
+msgid "Le fichier XLSX uploadé est invalide."
+msgstr "Uploaded XLSX file is invalid."
+
+#: wms/views_print_templates.py:610
+msgid "Aucun template XLSX disponible. Uploadez un fichier avant de mapper."
+msgstr "No XLSX template available. Upload a file before mapping."
+
+#: wms/views_print_templates.py:635
+msgid "Template XLSX et mappings enregistrés."
+msgstr "XLSX template and mappings saved."
+
+#: wms/views_print_templates.py:641
+msgid "Version requise."
+msgstr "Version required."
+
+#: wms/views_print_templates.py:653
+#, python-format
+msgid "Version v%(version_number)s restaurée."
+msgstr "Version v%(version_number)s restored."
+
+#: wms/views_print_templates.py:685
+msgid "Action inconnue: %(action)s"
+msgstr "Unknown action: %(action)s"
+
+#: wms/views_scan_admin.py:279
+msgid "Action de contact non reconnue."
+msgstr "Unknown contact action."
 
 #: wms/views_scan_dashboard.py:252
 msgid "Planifié -> OK mise à bord"
@@ -5405,10 +7672,6 @@ msgstr "Open disputes"
 #: wms/views_scan_dashboard.py:447
 msgid "Expéditions bloquées à traiter."
 msgstr "Blocked shipments to address."
-
-#: wms/views_scan_dashboard.py:464
-msgid "En préparation"
-msgstr "In preparation"
 
 #: wms/views_scan_dashboard.py:466
 msgid "Colis en cours de préparation."
@@ -5630,10 +7893,6 @@ msgstr "No completed shipment on this segment."
 msgid "Moyenne %(average)sh, max %(max)sh."
 msgstr "Average %(average)sh, max %(max)sh."
 
-#: wms/views_scan_settings.py:34
-msgid "Standard"
-msgstr "Standard"
-
 #: wms/views_scan_settings.py:35
 msgid "Valeurs operationnelles recommandees."
 msgstr "Recommended operational values."
@@ -5715,6 +7974,11 @@ msgstr "Some steps still need validation, check before closing"
 #: wms/views_scan_shipments.py:547
 msgid "Expédition non modifiable."
 msgstr "Shipment cannot be edited."
+
+#, fuzzy
+#~| msgid "Créer un nouveau kit"
+#~ msgid "Créez un nouveau contact d"
+#~ msgstr "Create a new kit"
 
 #~ msgid "Siège"
 #~ msgstr "Head office"

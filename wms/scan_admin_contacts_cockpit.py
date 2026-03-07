@@ -8,6 +8,8 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _lazy
 
 from contacts.models import Contact, ContactType
 
@@ -45,7 +47,7 @@ ACTION_CLOSE_RECIPIENT_BINDING = "close_recipient_binding"
 ACTION_CREATE_GUIDED_CONTACT = "create_guided_contact"
 CONTACT_TITLE_GROUP_KEYS = (
     (
-        "Classiques",
+        _lazy("Classiques"),
         (
             AssociationContactTitle.MR,
             AssociationContactTitle.MRS,
@@ -53,7 +55,7 @@ CONTACT_TITLE_GROUP_KEYS = (
         ),
     ),
     (
-        "Religieux",
+        _lazy("Religieux"),
         (
             AssociationContactTitle.PERE,
             AssociationContactTitle.SOEUR,
@@ -67,14 +69,14 @@ CONTACT_TITLE_GROUP_KEYS = (
         ),
     ),
     (
-        "Médicaux",
+        _lazy("Médicaux"),
         (
             AssociationContactTitle.DR,
             AssociationContactTitle.PR,
         ),
     ),
     (
-        "Officiels",
+        _lazy("Officiels"),
         (
             AssociationContactTitle.PRESIDENT,
             AssociationContactTitle.MINISTRE,
@@ -130,7 +132,7 @@ def _validation_message(exc: ValidationError) -> str:
                 return str(messages[0])
     if getattr(exc, "messages", None):
         return str(exc.messages[0])
-    return "Validation impossible."
+    return _("Validation impossible.")
 
 
 def _normalize_match_value(value: str) -> str:
@@ -194,10 +196,10 @@ def _resolve_active_organization(organization_id: str):
 def assign_role(*, organization_id: str, role: str) -> tuple[bool, str]:
     organization = _resolve_active_organization(organization_id)
     if organization is None:
-        return False, "Organisation invalide."
+        return False, _("Organisation invalide.")
     normalized_role = _normalize_role(role)
     if not normalized_role:
-        return False, "Role invalide."
+        return False, _("Role invalide.")
 
     assignment, _created = OrganizationRoleAssignment.objects.get_or_create(
         organization=organization,
@@ -212,29 +214,29 @@ def assign_role(*, organization_id: str, role: str) -> tuple[bool, str]:
         assignment.save(update_fields=["is_active"])
         return False, _validation_message(exc)
 
-    return True, f"Role {assignment.get_role_display()} active."
+    return True, _("Role %(role)s active.") % {"role": assignment.get_role_display()}
 
 
 def unassign_role(*, organization_id: str, role: str) -> tuple[bool, str]:
     organization = _resolve_active_organization(organization_id)
     if organization is None:
-        return False, "Organisation invalide."
+        return False, _("Organisation invalide.")
     normalized_role = _normalize_role(role)
     if not normalized_role:
-        return False, "Role invalide."
+        return False, _("Role invalide.")
 
     assignment = OrganizationRoleAssignment.objects.filter(
         organization=organization,
         role=normalized_role,
     ).first()
     if assignment is None:
-        return False, "Role introuvable."
+        return False, _("Role introuvable.")
     if not assignment.is_active:
-        return True, f"Role {assignment.get_role_display()} deja inactif."
+        return True, _("Role %(role)s deja inactif.") % {"role": assignment.get_role_display()}
 
     assignment.is_active = False
     assignment.save(update_fields=["is_active"])
-    return True, f"Role {assignment.get_role_display()} desactive."
+    return True, _("Role %(role)s desactive.") % {"role": assignment.get_role_display()}
 
 
 def _resolve_role_assignment(role_assignment_id: int | None):
@@ -260,35 +262,35 @@ def _resolve_org_contact(organization_contact_id: int | None):
 def _resolve_role_contact_action_targets(data) -> tuple[bool, str, object, object]:
     form = RoleContactActionForm(data)
     if not form.is_valid():
-        return False, "Donnees de liaison invalides.", None, None
+        return False, _("Donnees de liaison invalides."), None, None
     assignment = _resolve_role_assignment(form.cleaned_data["role_assignment_id"])
     if assignment is None:
-        return False, "Affectation de role introuvable.", None, None
+        return False, _("Affectation de role introuvable."), None, None
     org_contact = _resolve_org_contact(form.cleaned_data["organization_contact_id"])
     if org_contact is None:
-        return False, "Contact organisation introuvable.", None, None
+        return False, _("Contact organisation introuvable."), None, None
     if org_contact.organization_id != assignment.organization_id:
-        return False, "Le contact doit appartenir a la meme organisation.", None, None
+        return False, _("Le contact doit appartenir a la meme organisation."), None, None
     return True, "", assignment, org_contact
 
 
 def upsert_org_contact(*, data) -> tuple[bool, str]:
     form = OrganizationContactUpsertForm(data)
     if not form.is_valid():
-        return False, "Donnees de contact invalides."
+        return False, _("Donnees de contact invalides.")
 
     organization = _resolve_active_organization(form.cleaned_data["organization_id"])
     if organization is None:
-        return False, "Organisation invalide."
+        return False, _("Organisation invalide.")
 
     organization_contact_id = form.cleaned_data.get("organization_contact_id")
     org_contact = None
     if organization_contact_id:
         org_contact = _resolve_org_contact(organization_contact_id)
         if org_contact is None:
-            return False, "Contact organisation introuvable."
+            return False, _("Contact organisation introuvable.")
         if org_contact.organization_id != organization.id:
-            return False, "Le contact doit appartenir a la meme organisation."
+            return False, _("Le contact doit appartenir a la meme organisation.")
     if org_contact is None:
         org_contact = OrganizationContact(organization=organization)
 
@@ -305,8 +307,8 @@ def upsert_org_contact(*, data) -> tuple[bool, str]:
         return False, _validation_message(exc)
 
     if organization_contact_id:
-        return True, "Contact organisation mis a jour."
-    return True, "Contact organisation cree."
+        return True, _("Contact organisation mis a jour.")
+    return True, _("Contact organisation cree.")
 
 
 def link_role_contact(*, data) -> tuple[bool, str]:
@@ -322,7 +324,7 @@ def link_role_contact(*, data) -> tuple[bool, str]:
     if not role_contact.is_active:
         role_contact.is_active = True
         role_contact.save(update_fields=["is_active"])
-    return True, "Contact lie au role."
+    return True, _("Contact lie au role.")
 
 
 def unlink_role_contact(*, data) -> tuple[bool, str]:
@@ -335,12 +337,12 @@ def unlink_role_contact(*, data) -> tuple[bool, str]:
         contact=org_contact,
     ).first()
     if role_contact is None:
-        return False, "Liaison role-contact introuvable."
+        return False, _("Liaison role-contact introuvable.")
 
     role_contact.is_active = False
     role_contact.is_primary = False
     role_contact.save(update_fields=["is_active", "is_primary"])
-    return True, "Contact delie du role."
+    return True, _("Contact delie du role.")
 
 
 def set_primary_role_contact(*, data) -> tuple[bool, str]:
@@ -362,28 +364,28 @@ def set_primary_role_contact(*, data) -> tuple[bool, str]:
         role_contact.is_primary = True
         role_contact.save(update_fields=["is_active", "is_primary"])
 
-    return True, "Contact principal mis a jour."
+    return True, _("Contact principal mis a jour.")
 
 
 def upsert_shipper_scope(*, data) -> tuple[bool, str]:
     form = ShipperScopeUpsertForm(data)
     if not form.is_valid():
-        return False, "Donnees de scope expediteur invalides."
+        return False, _("Donnees de scope expediteur invalides.")
 
     assignment = _resolve_role_assignment(form.cleaned_data["role_assignment_id"])
     if assignment is None:
-        return False, "Affectation de role introuvable."
+        return False, _("Affectation de role introuvable.")
     if assignment.role != OrganizationRole.SHIPPER:
-        return False, "Le scope d'escales est reserve au role expediteur."
+        return False, _("Le scope d'escales est reserve au role expediteur.")
 
     scope = None
     scope_id = form.cleaned_data.get("scope_id")
     if scope_id:
         scope = ShipperScope.objects.filter(pk=scope_id).first()
         if scope is None:
-            return False, "Scope expediteur introuvable."
+            return False, _("Scope expediteur introuvable.")
         if scope.role_assignment_id != assignment.id:
-            return False, "Scope expediteur incompatible avec l'affectation."
+            return False, _("Scope expediteur incompatible avec l'affectation.")
     if scope is None:
         scope = ShipperScope(role_assignment=assignment)
 
@@ -392,7 +394,7 @@ def upsert_shipper_scope(*, data) -> tuple[bool, str]:
     if destination_id:
         destination = Destination.objects.filter(pk=destination_id, is_active=True).first()
         if destination is None:
-            return False, "Escale invalide."
+            return False, _("Escale invalide.")
 
     all_destinations = bool(form.cleaned_data["all_destinations"])
     if destination is None and not all_destinations:
@@ -408,23 +410,23 @@ def upsert_shipper_scope(*, data) -> tuple[bool, str]:
     except ValidationError as exc:
         return False, _validation_message(exc)
 
-    return True, "Scope expediteur enregistre."
+    return True, _("Scope expediteur enregistre.")
 
 
 def disable_shipper_scope(*, data) -> tuple[bool, str]:
     form = ShipperScopeDisableForm(data)
     if not form.is_valid():
-        return False, "Scope expediteur invalide."
+        return False, _("Scope expediteur invalide.")
 
     scope = ShipperScope.objects.filter(pk=form.cleaned_data["scope_id"]).first()
     if scope is None:
-        return False, "Scope expediteur introuvable."
+        return False, _("Scope expediteur introuvable.")
     if not scope.is_active:
-        return True, "Scope expediteur deja inactif."
+        return True, _("Scope expediteur deja inactif.")
 
     scope.is_active = False
     scope.save(update_fields=["is_active"])
-    return True, "Scope expediteur desactive."
+    return True, _("Scope expediteur desactive.")
 
 
 def _resolve_active_org_by_id(org_id: int | None):
@@ -453,37 +455,37 @@ def _organization_has_active_role(*, organization, role: str) -> bool:
 def upsert_recipient_binding(*, data) -> tuple[bool, str]:
     form = RecipientBindingUpsertForm(data)
     if not form.is_valid():
-        return False, "Donnees de binding destinataire invalides."
+        return False, _("Donnees de binding destinataire invalides.")
 
     shipper_org = _resolve_active_org_by_id(form.cleaned_data["shipper_org_id"])
     if shipper_org is None:
-        return False, "Expediteur invalide."
+        return False, _("Expediteur invalide.")
     if not _organization_has_active_role(
         organization=shipper_org,
         role=OrganizationRole.SHIPPER,
     ):
-        return False, "Expediteur sans role actif."
+        return False, _("Expediteur sans role actif.")
     recipient_org = _resolve_active_org_by_id(form.cleaned_data["recipient_org_id"])
     if recipient_org is None:
-        return False, "Destinataire invalide."
+        return False, _("Destinataire invalide.")
     if not _organization_has_active_role(
         organization=recipient_org,
         role=OrganizationRole.RECIPIENT,
     ):
-        return False, "Destinataire sans role actif."
+        return False, _("Destinataire sans role actif.")
     destination = Destination.objects.filter(
         pk=form.cleaned_data["destination_id"],
         is_active=True,
     ).first()
     if destination is None:
-        return False, "Escale invalide."
+        return False, _("Escale invalide.")
 
     binding = None
     binding_id = form.cleaned_data.get("binding_id")
     if binding_id:
         binding = RecipientBinding.objects.filter(pk=binding_id).first()
         if binding is None:
-            return False, "Binding destinataire introuvable."
+            return False, _("Binding destinataire introuvable.")
     existing_active_binding = RecipientBinding.objects.filter(
         shipper_org=shipper_org,
         recipient_org=recipient_org,
@@ -495,7 +497,7 @@ def upsert_recipient_binding(*, data) -> tuple[bool, str]:
     elif existing_active_binding and existing_active_binding.id != binding.id:
         return (
             False,
-            "Un binding actif existe deja pour cet expediteur, ce destinataire et cette escale.",
+            _("Un binding actif existe deja pour cet expediteur, ce destinataire et cette escale."),
         )
 
     binding.shipper_org = shipper_org
@@ -512,17 +514,17 @@ def upsert_recipient_binding(*, data) -> tuple[bool, str]:
     except ValidationError as exc:
         return False, _validation_message(exc)
 
-    return True, "Binding destinataire enregistre."
+    return True, _("Binding destinataire enregistre.")
 
 
 def close_recipient_binding(*, data) -> tuple[bool, str]:
     form = RecipientBindingCloseForm(data)
     if not form.is_valid():
-        return False, "Donnees de cloture binding invalides."
+        return False, _("Donnees de cloture binding invalides.")
 
     binding = RecipientBinding.objects.filter(pk=form.cleaned_data["binding_id"]).first()
     if binding is None:
-        return False, "Binding destinataire introuvable."
+        return False, _("Binding destinataire introuvable.")
 
     binding.valid_to = form.cleaned_data["valid_to"]
     binding.is_active = False
@@ -530,13 +532,13 @@ def close_recipient_binding(*, data) -> tuple[bool, str]:
         binding.save(update_fields=["valid_to", "is_active"])
     except ValidationError as exc:
         return False, _validation_message(exc)
-    return True, "Binding destinataire cloture."
+    return True, _("Binding destinataire cloture.")
 
 
 def create_guided_contact(*, data) -> tuple[bool, str]:
     form = GuidedContactCreateForm(data)
     if not form.is_valid():
-        return False, "Donnees de creation guidee invalides."
+        return False, _("Donnees de creation guidee invalides.")
 
     entity_kind = form.cleaned_data["entity_kind"]
     role = _normalize_role(form.cleaned_data.get("role") or "")
@@ -550,7 +552,7 @@ def create_guided_contact(*, data) -> tuple[bool, str]:
         return (
             False,
             _format_duplicate_message(
-                prefix="Organisation similaire deja presente",
+                prefix=_("Organisation similaire deja presente"),
                 items=similar_organizations,
             ),
         )
@@ -596,9 +598,9 @@ def create_guided_contact(*, data) -> tuple[bool, str]:
         except ValidationError:
             assignment.is_active = False
             assignment.save(update_fields=["is_active"])
-        return True, "Organisation et contact rattache crees."
+        return True, _("Organisation et contact rattache crees.")
 
-    return True, "Organisation creee."
+    return True, _("Organisation creee.")
 
 
 def _build_organizations_queryset(*, query: str, filters: dict):

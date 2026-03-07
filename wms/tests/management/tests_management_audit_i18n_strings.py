@@ -6,6 +6,11 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import TestCase
 
+from wms.management.commands.audit_i18n_strings import (
+    _iter_candidate_files,
+    _relative_to_project_root,
+)
+
 
 class AuditI18nStringsCommandTests(TestCase):
     def _write_template(self, tmp_dir: str, filename: str, content: str) -> Path:
@@ -73,3 +78,9 @@ class AuditI18nStringsCommandTests(TestCase):
             output = out.getvalue()
             self.assertIn(str(template_path), output)
             self.assertIn("rue de la Remise", output)
+
+    def test_default_audit_scope_includes_active_scan_templates(self):
+        candidates = {_relative_to_project_root(path) for path in _iter_candidate_files(None)}
+
+        self.assertIn("templates/scan/admin_contacts.html", candidates)
+        self.assertIn("templates/scan/print_template_list.html", candidates)
