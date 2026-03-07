@@ -206,6 +206,15 @@ def _formatted_decimal(value):
     return format(value, "f")
 
 
+def _resolved_document_number(document):
+    return (
+        document.invoice_number
+        or document.quote_number
+        or document.credit_note_number
+        or f"BILL-{document.pk}"
+    )
+
+
 def _resolved_billing_name(document):
     billing_profile = document.association_profile.billing_profile
     return (
@@ -235,10 +244,34 @@ def _resolved_billing_address(document):
     )
 
 
+def build_billing_document_shipment_rows(*, document):
+    shipment_rows = []
+    shipment_links = document.shipment_links.select_related("shipment").order_by("shipment__id")
+    for shipment_link in shipment_links:
+        shipment = shipment_link.shipment
+        shipment_date = resolve_shipment_billing_date(shipment)
+        carton_count = _carton_count_for_shipment(shipment)
+        shipment_rows.append(
+            {
+                "reference": shipment.reference,
+                "shipment_date": shipment_date.isoformat(),
+                "carton_count": carton_count,
+                "comment": (
+                    f"Expedition {shipment.reference} | "
+                    f"Date expedition: {shipment_date.isoformat()} | "
+                    f"Colis: {carton_count}"
+                ),
+            }
+        )
+    return shipment_rows
+
+
 def build_issued_document_snapshot(*, document):
     lines = list(document.lines.order_by("line_number"))
     total_amount = sum((line.total_amount for line in lines), Decimal("0.00"))
     return {
+        "kind": document.kind,
+        "number": _resolved_document_number(document),
         "billing_name": _resolved_billing_name(document),
         "billing_address": _resolved_billing_address(document),
         "currency": document.currency,
@@ -255,6 +288,7 @@ def build_issued_document_snapshot(*, document):
             }
             for line in lines
         ],
+        "shipments": build_billing_document_shipment_rows(document=document),
     }
 
 
@@ -291,3 +325,39 @@ def issue_billing_document(*, document, invoice_number=None):
         .prefetch_related("shipment_links__shipment", "receipt_links__receipt", "lines")
         .get(pk=document.pk)
     )
+
+
+def build_billing_document_render_payload(*, document):
+    snapshot = document.issued_snapshot or {}
+    lines = snapshot.get("lines")
+    if not lines:
+        lines = [
+            {
+                "line_number": line.line_number,
+                "label": line.label,
+                "description": line.description,
+                "quantity": _formatted_decimal(line.quantity),
+                "unit_price": _formatted_decimal(line.unit_price),
+                "total_amount": _formatted_decimal(line.total_amount),
+            }
+            for line in document.lines.order_by("line_number")
+        ]
+    total_amount = snapshot.get("total_amount")
+    if total_amount is None:
+        total_amount = _formatted_decimal(
+            sum((line.total_amount for line in document.lines.all()), Decimal("0.00"))
+        )
+    return {
+        "kind": document.kind,
+        "status": document.status,
+        "number": snapshot.get("number") or _resolved_document_number(document),
+        "billing_name": snapshot.get("billing_name") or _resolved_billing_name(document),
+        "billing_address": snapshot.get("billing_address") or _resolved_billing_address(document),
+        "currency": snapshot.get("currency") or document.currency,
+        "exchange_rate": snapshot.get("exchange_rate")
+        or _formatted_decimal(document.exchange_rate),
+        "total_amount": total_amount,
+        "lines": lines,
+        "shipments": snapshot.get("shipments")
+        or build_billing_document_shipment_rows(document=document),
+    }

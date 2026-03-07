@@ -15,6 +15,7 @@ from openpyxl import load_workbook
 from openpyxl.utils.cell import column_index_from_string, coordinate_from_string
 
 from .models import (
+    BillingDocument,
     PrintCellMapping,
     PrintPackDocument,
     PrintPackDocumentVersion,
@@ -296,6 +297,20 @@ def _load_preview_product(raw_product_id):
     return (
         Product.objects.select_related("default_location", "default_location__warehouse")
         .filter(pk=int(raw_product_id))
+        .first()
+    )
+
+
+def _load_preview_billing_document(raw_billing_document_id):
+    if not raw_billing_document_id.isdigit():
+        return None
+    return (
+        BillingDocument.objects.select_related(
+            "association_profile__contact",
+            "association_profile__billing_profile",
+        )
+        .prefetch_related("lines", "shipment_links__shipment")
+        .filter(pk=int(raw_billing_document_id))
         .first()
     )
 
@@ -701,6 +716,11 @@ def scan_print_template_preview(request):
             product=product,
         )
 
-    context = build_preview_context(doc_type, shipment=shipment)
+    billing_document = _load_preview_billing_document(request.POST.get("billing_document_id") or "")
+    context = build_preview_context(
+        doc_type,
+        shipment=shipment,
+        billing_document=billing_document,
+    )
     blocks = render_layout_from_layout(layout_data, context)
     return render(request, TEMPLATE_DYNAMIC_DOCUMENT, {"blocks": blocks})

@@ -1,5 +1,6 @@
 from django.utils import timezone
 
+from .billing_document_handlers import build_billing_document_render_payload
 from .contact_filters import TAG_CORRESPONDENT, TAG_RECIPIENT, TAG_SHIPPER
 from .documents import (
     build_carton_rows,
@@ -389,7 +390,97 @@ def build_sample_product_qr_label_context():
     }
 
 
-def build_preview_context(doc_type, shipment=None, carton=None, product=None):
+def build_billing_document_context(billing_document, doc_type):
+    billing_payload = build_billing_document_render_payload(document=billing_document)
+    if billing_document.issued_at is not None:
+        document_date = timezone.localtime(billing_document.issued_at).date()
+    elif billing_document.created_at is not None:
+        document_date = billing_document.created_at.date()
+    else:
+        document_date = timezone.localdate()
+    return {
+        **build_org_context(),
+        "document_ref": billing_payload["number"],
+        "document_date": document_date,
+        "billing": billing_payload,
+        "billing_kind": billing_payload["kind"],
+        "billing_number": billing_payload["number"],
+        "billing_name": billing_payload["billing_name"],
+        "billing_address": billing_payload["billing_address"],
+        "billing_currency": billing_payload["currency"],
+        "billing_exchange_rate": billing_payload["exchange_rate"],
+        "billing_total_amount": billing_payload["total_amount"],
+        "billing_lines": billing_payload["lines"],
+        "billing_shipments": billing_payload["shipments"],
+        "doc_type": doc_type,
+        "hide_footer": False,
+    }
+
+
+def build_sample_billing_document_context(doc_type):
+    today = timezone.localdate()
+    billing_payload = {
+        "kind": {
+            "billing_quote": "quote",
+            "billing_invoice": "invoice",
+            "billing_credit_note": "credit_note",
+        }.get(doc_type, "invoice"),
+        "status": "issued",
+        "number": "BILL-TEST",
+        "billing_name": "Association Exemple",
+        "billing_address": "10 rue Exemple\n75000 Paris",
+        "currency": "EUR",
+        "exchange_rate": "1.000000",
+        "total_amount": "95.00",
+        "lines": [
+            {
+                "line_number": 1,
+                "label": "Expedition EXP-TEST",
+                "description": "Date expedition: 2026-03-07 | Colis: 12 | Reference: EXP-TEST",
+                "quantity": "1.00",
+                "unit_price": "75.00",
+                "total_amount": "75.00",
+            },
+            {
+                "line_number": 2,
+                "label": "Service annexe",
+                "description": "Declaration export",
+                "quantity": "1.00",
+                "unit_price": "20.00",
+                "total_amount": "20.00",
+            },
+        ],
+        "shipments": [
+            {
+                "reference": "EXP-TEST",
+                "shipment_date": "2026-03-07",
+                "carton_count": 12,
+                "comment": "Expedition EXP-TEST | Date expedition: 2026-03-07 | Colis: 12",
+            }
+        ],
+    }
+    return {
+        **build_org_context(),
+        "document_ref": billing_payload["number"],
+        "document_date": today,
+        "billing": billing_payload,
+        "billing_kind": billing_payload["kind"],
+        "billing_number": billing_payload["number"],
+        "billing_name": billing_payload["billing_name"],
+        "billing_address": billing_payload["billing_address"],
+        "billing_currency": billing_payload["currency"],
+        "billing_exchange_rate": billing_payload["exchange_rate"],
+        "billing_total_amount": billing_payload["total_amount"],
+        "billing_lines": billing_payload["lines"],
+        "billing_shipments": billing_payload["shipments"],
+        "doc_type": doc_type,
+        "hide_footer": False,
+    }
+
+
+def build_preview_context(
+    doc_type, shipment=None, carton=None, product=None, billing_document=None
+):
     if doc_type == "shipment_label":
         if shipment:
             return build_label_context(shipment, position=1, total=10)
@@ -403,6 +494,11 @@ def build_preview_context(doc_type, shipment=None, carton=None, product=None):
         if product:
             return build_product_qr_label_context(product)
         return build_sample_product_qr_label_context()
+
+    if doc_type in {"billing_quote", "billing_invoice", "billing_credit_note"}:
+        if billing_document:
+            return build_billing_document_context(billing_document, doc_type)
+        return build_sample_billing_document_context(doc_type)
 
     if shipment:
         if doc_type == "packing_list_carton":
