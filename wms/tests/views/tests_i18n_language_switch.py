@@ -1,10 +1,19 @@
+from unittest import mock
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from contacts.models import Contact, ContactAddress, ContactType
-from wms.models import AssociationProfile, AssociationRecipient, Destination, Order, PublicOrderLink
+from wms.models import (
+    AssociationProfile,
+    AssociationRecipient,
+    Destination,
+    Order,
+    PublicOrderLink,
+    Shipment,
+)
 
 
 class LanguageSwitchI18nTests(TestCase):
@@ -161,12 +170,12 @@ class LanguageSwitchI18nTests(TestCase):
 
     @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
     def test_runtime_translation_can_be_disabled(self):
-        self.client.force_login(self.staff_user)
+        self.client.force_login(self.superuser)
         self._activate_english()
-        response = self.client.get(reverse("scan:scan_dashboard"))
+        response = self.client.get(reverse("scan:scan_admin_contacts"))
 
-        self.assertContains(response, "Tableau de bord")
-        self.assertNotContains(response, "Dashboard")
+        self.assertContains(response, "Recherche")
+        self.assertNotContains(response, "Search")
 
     @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
     def test_public_auth_pages_render_native_english(self):
@@ -278,6 +287,56 @@ class LanguageSwitchI18nTests(TestCase):
         self.assertNotContains(kits_response, "Pr&eacute;parer des kits")
 
     @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
+    def test_scan_dashboard_faq_and_tracking_render_native_english(self):
+        shipment = Shipment.objects.create(
+            shipper_name="ASF",
+            recipient_name="Association I18N",
+            destination_address="1 Rue Test",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+
+        self.client.force_login(self.staff_user)
+        self._activate_english()
+
+        dashboard_response = self.client.get(reverse("scan:scan_dashboard"))
+        self.assertContains(dashboard_response, "Dashboard")
+        self.assertNotContains(dashboard_response, "Tableau de bord")
+
+        shipments_ready_response = self.client.get(reverse("scan:scan_shipments_ready"))
+        self.assertContains(shipments_ready_response, "Shipments view")
+        self.assertNotContains(shipments_ready_response, "Vue Exp&eacute;ditions")
+
+        shipments_tracking_response = self.client.get(reverse("scan:scan_shipments_tracking"))
+        self.assertContains(shipments_tracking_response, "Shipment tracking")
+        self.assertContains(shipments_tracking_response, "Planned week")
+        self.assertNotContains(shipments_tracking_response, "Suivi des exp&eacute;ditions")
+
+        shipment_create_response = self.client.get(reverse("scan:scan_shipment_create"))
+        self.assertContains(shipment_create_response, "Create shipment")
+        self.assertContains(shipment_create_response, "Save draft")
+        self.assertNotContains(shipment_create_response, "Cr&eacute;er une exp&eacute;dition")
+
+        faq_response = self.client.get(reverse("scan:scan_faq"))
+        self.assertContains(faq_response, "Access & roles")
+        self.assertNotContains(faq_response, "Accès & rôles")
+
+        with mock.patch("wms.views_scan_shipments.Shipment.ensure_qr_code"):
+            tracking_response = self.client.get(
+                reverse("scan:scan_shipment_track", args=[shipment.tracking_token])
+            )
+        self.assertContains(tracking_response, "Shipment tracking")
+        self.assertContains(tracking_response, "Current status")
+        self.assertNotContains(tracking_response, "Suivi exp&eacute;dition")
+
+        self.client.force_login(self.superuser)
+        self._activate_english()
+        settings_response = self.client.get(reverse("scan:scan_settings"))
+        self.assertContains(settings_response, "Settings")
+        self.assertContains(settings_response, "Operational presets")
+        self.assertNotContains(settings_response, "Param&egrave;tres")
+
+    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
     def test_forced_password_change_page_renders_native_english(self):
         profile = self.portal_user.association_profile
         profile.must_change_password = True
@@ -321,10 +380,8 @@ class LanguageSwitchI18nTests(TestCase):
         self._activate_english()
         response = self.client.get(reverse("scan:scan_faq"))
 
-        self.assertContains(response, "Access &amp; roles")
+        self.assertContains(response, "Overview")
         self.assertContains(response, "Reference data")
         self.assertContains(response, "Shipment tracking (Management)")
-        self.assertContains(response, "Documents &amp; labels")
         self.assertContains(response, "Pallet receiving")
-        self.assertNotContains(response, "Acc&egrave;s &amp; r&ocirc;les")
-        self.assertNotContains(response, "Donn&eacute;es de r&eacute;f&eacute;rence")
+        self.assertNotContains(response, "Données de référence")

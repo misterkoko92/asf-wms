@@ -411,23 +411,23 @@ class ScanOutForm(forms.Form):
 
 class ScanShipmentForm(forms.Form):
     destination = forms.ModelChoiceField(
-        label="Destination",
+        label=_("Destination"),
         queryset=Destination.objects.none(),
     )
     shipper_contact = forms.ModelChoiceField(
-        label="Expéditeur",
+        label=_("Expéditeur"),
         queryset=Contact.objects.none(),
     )
     recipient_contact = forms.ModelChoiceField(
-        label="Destinataire",
+        label=_("Destinataire"),
         queryset=Contact.objects.none(),
     )
     correspondent_contact = forms.ModelChoiceField(
-        label="Correspondant",
+        label=_("Correspondant"),
         queryset=Contact.objects.none(),
     )
     carton_count = forms.IntegerField(
-        label="Nombre de colis",
+        label=_("Nombre de colis"),
         min_value=1,
         initial=1,
         widget=forms.NumberInput(attrs={"min": 1}),
@@ -599,13 +599,13 @@ class ScanShipmentForm(forms.Form):
     def _invalid_destination_message(self, raw_value):
         destination_id = self._parse_pk(raw_value)
         if destination_id is None:
-            return "Destination invalide: valeur incorrecte."
+            return _("Destination invalide: valeur incorrecte.")
         destination = Destination.objects.filter(pk=destination_id).first()
         if destination is None:
-            return "Destination invalide: la destination n'existe plus."
+            return _("Destination invalide: la destination n'existe plus.")
         if not destination.is_active:
-            return "Destination invalide: la destination est inactive."
-        return "Destination invalide: ce choix n'est plus disponible."
+            return _("Destination invalide: la destination est inactive.")
+        return _("Destination invalide: ce choix n'est plus disponible.")
 
     def _invalid_contact_message(
         self,
@@ -617,25 +617,27 @@ class ScanShipmentForm(forms.Form):
         shipper_has_errors=False,
     ):
         prefix = {
-            "shipper_contact": "Expéditeur invalide",
-            "recipient_contact": "Destinataire invalide",
-            "correspondent_contact": "Correspondant invalide",
-        }.get(field_name, "Contact invalide")
+            "shipper_contact": _("Expéditeur invalide"),
+            "recipient_contact": _("Destinataire invalide"),
+            "correspondent_contact": _("Correspondant invalide"),
+        }.get(field_name, _("Contact invalide"))
 
         contact_id = self._parse_pk(raw_value)
         if contact_id is None:
-            return f"{prefix}: valeur incorrecte."
+            return _("%(prefix)s: valeur incorrecte.") % {"prefix": prefix}
 
         contact = self._resolve_contact_from_raw(raw_value)
         if contact is None:
-            return f"{prefix}: ce contact n'existe plus."
+            return _("%(prefix)s: ce contact n'existe plus.") % {"prefix": prefix}
         if not contact.is_active:
-            return f"{prefix}: ce contact est inactif."
+            return _("%(prefix)s: ce contact est inactif.") % {"prefix": prefix}
 
         if field_name in {"shipper_contact", "recipient_contact"} and (
             contact.contact_type == ContactType.PERSON and contact.organization_id is None
         ):
-            return f"{prefix}: ce contact est un particulier sans organisation."
+            return _("%(prefix)s: ce contact est un particulier sans organisation.") % {
+                "prefix": prefix
+            }
 
         expected_tags = {
             "shipper_contact": TAG_SHIPPER,
@@ -643,7 +645,7 @@ class ScanShipmentForm(forms.Form):
             "correspondent_contact": TAG_CORRESPONDENT,
         }.get(field_name)
         if expected_tags and not self._contact_matches_tag(contact, expected_tags):
-            return f"{prefix}: ce contact n'a pas le tag requis."
+            return _("%(prefix)s: ce contact n'a pas le tag requis.") % {"prefix": prefix}
 
         if (
             destination
@@ -651,18 +653,26 @@ class ScanShipmentForm(forms.Form):
                 Contact.objects.filter(pk=contact.pk), destination
             ).exists()
         ):
-            return f"{prefix}: ce contact n'est pas disponible pour la destination sélectionnée."
+            return _(
+                "%(prefix)s: ce contact n'est pas disponible pour la destination sélectionnée."
+            ) % {"prefix": prefix}
 
         if field_name == "recipient_contact":
             if shipper_has_errors:
-                return f"{prefix}: l'expéditeur sélectionné n'est pas valide."
+                return _("%(prefix)s: l'expéditeur sélectionné n'est pas valide.") % {
+                    "prefix": prefix
+                }
             if shipper is None:
-                return f"{prefix}: sélectionnez d'abord un expéditeur valide."
+                return _("%(prefix)s: sélectionnez d'abord un expéditeur valide.") % {
+                    "prefix": prefix
+                }
             if not filter_recipients_for_shipper(
                 Contact.objects.filter(pk=contact.pk),
                 shipper,
             ).exists():
-                return f"{prefix}: ce destinataire n'est pas lié à l'expéditeur sélectionné."
+                return _(
+                    "%(prefix)s: ce destinataire n'est pas lié à l'expéditeur sélectionné."
+                ) % {"prefix": prefix}
 
         if (
             field_name == "correspondent_contact"
@@ -670,9 +680,11 @@ class ScanShipmentForm(forms.Form):
             and destination.correspondent_contact_id
             and contact.id != destination.correspondent_contact_id
         ):
-            return f"{prefix}: ce correspondant n'est pas lié à la destination sélectionnée."
+            return _(
+                "%(prefix)s: ce correspondant n'est pas lié à la destination sélectionnée."
+            ) % {"prefix": prefix}
 
-        return f"{prefix}: ce choix n'est plus disponible."
+        return _("%(prefix)s: ce choix n'est plus disponible.") % {"prefix": prefix}
 
     def _apply_invalid_choice_messages(self, *, destination, shipper):
         if self._has_invalid_choice_error("destination"):
@@ -738,7 +750,7 @@ class ScanShipmentForm(forms.Form):
         ):
             self.add_error(
                 "shipper_contact",
-                "Contact non disponible pour cette destination.",
+                _("Contact non disponible pour cette destination."),
             )
         if (
             shipper
@@ -750,7 +762,7 @@ class ScanShipmentForm(forms.Form):
         ):
             self.add_error(
                 "recipient_contact",
-                "Destinataire non disponible pour cet expéditeur.",
+                _("Destinataire non disponible pour cet expéditeur."),
             )
         if (
             destination
@@ -762,7 +774,7 @@ class ScanShipmentForm(forms.Form):
         ):
             self.add_error(
                 "recipient_contact",
-                "Destinataire non disponible pour cette destination.",
+                _("Destinataire non disponible pour cette destination."),
             )
         if (
             destination
@@ -774,13 +786,13 @@ class ScanShipmentForm(forms.Form):
         ):
             self.add_error(
                 "correspondent_contact",
-                "Contact non disponible pour cette destination.",
+                _("Contact non disponible pour cette destination."),
             )
         if destination and destination.correspondent_contact_id:
             if correspondent and correspondent.id != destination.correspondent_contact_id:
                 self.add_error(
                     "correspondent_contact",
-                    "Correspondant non lie a la destination.",
+                    _("Correspondant non lie a la destination."),
                 )
 
         if is_org_roles_engine_enabled():
@@ -806,13 +818,13 @@ class ScanShipmentForm(forms.Form):
 
 class ShipmentTrackingForm(forms.Form):
     status = forms.ChoiceField(
-        label="Etape",
+        label=_("Etape"),
         choices=[],
     )
-    actor_name = forms.CharField(label="Nom", max_length=120)
-    actor_structure = forms.CharField(label="Structure", max_length=120)
+    actor_name = forms.CharField(label=_("Nom"), max_length=120)
+    actor_structure = forms.CharField(label=_("Structure"), max_length=120)
     comments = forms.CharField(
-        label="Commentaires",
+        label=_("Commentaires"),
         required=False,
         widget=forms.Textarea(attrs={"rows": 3}),
     )

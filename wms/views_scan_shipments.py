@@ -6,6 +6,8 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.translation import gettext as _
+from django.utils.translation import ngettext
 from django.views.decorators.http import require_http_methods
 
 from .carton_handlers import handle_carton_status_update
@@ -276,7 +278,12 @@ def scan_prepare_kits(request):
             request.session["prepare_kits_results"] = prepared_carton_ids
             messages.success(
                 request,
-                f"{quantity} kit(s) ajouté(s) en préparation.",
+                ngettext(
+                    "%(quantity)s kit ajouté en préparation.",
+                    "%(quantity)s kits ajoutés en préparation.",
+                    quantity,
+                )
+                % {"quantity": quantity},
             )
             return redirect(f"{reverse('scan:scan_prepare_kits')}?kit_id={kit.id}")
 
@@ -301,7 +308,7 @@ def scan_prepare_kits_picking(request):
     carton_ids = _parse_carton_ids(request.GET.get("carton_ids"))
     context = build_prepare_kits_picking_context(carton_ids)
     if context is None:
-        raise Http404("Aucun picking disponible.")
+        raise Http404(_("Aucun picking disponible."))
     return render(
         request,
         TEMPLATE_PICKING_LIST_KITS,
@@ -318,10 +325,15 @@ def scan_shipments_ready(request):
             if archived_count:
                 messages.success(
                     request,
-                    f"{archived_count} brouillon(s) temporaire(s) archivé(s).",
+                    ngettext(
+                        "%(count)s brouillon temporaire archivé.",
+                        "%(count)s brouillons temporaires archivés.",
+                        archived_count,
+                    )
+                    % {"count": archived_count},
                 )
             else:
-                messages.info(request, "Aucun brouillon temporaire ancien à archiver.")
+                messages.info(request, _("Aucun brouillon temporaire ancien à archiver."))
         return redirect("scan:scan_shipments_ready")
 
     shipments_qs = (
@@ -371,13 +383,13 @@ def scan_shipments_tracking(request):
                 .first()
             )
             if shipment is None:
-                messages.error(request, "Expédition introuvable.")
+                messages.error(request, _("Expédition introuvable."))
             elif shipment.closed_at:
-                messages.info(request, "Dossier déjà clôturé.")
+                messages.info(request, _("Dossier déjà clôturé."))
             elif not _shipment_can_be_closed(shipment):
                 messages.warning(
                     request,
-                    "Il reste des étapes à valider, vérifier avant de clore.",
+                    _("Il reste des étapes à valider, vérifier avant de clore."),
                 )
             else:
                 shipment.closed_at = timezone.now()
@@ -387,7 +399,7 @@ def scan_shipments_tracking(request):
                     shipment=shipment,
                     user=request.user if request.user.is_authenticated else None,
                 )
-                messages.success(request, "Dossier clôturé.")
+                messages.success(request, _("Dossier clôturé."))
         return redirect(
             _build_shipments_tracking_redirect_url(
                 planned_week_value=planned_week_value,
@@ -406,7 +418,7 @@ def scan_shipments_tracking(request):
     elif planned_week_value and week_start is None:
         messages.warning(
             request,
-            "Format semaine invalide. Utilisez AAAA-Wss ou AAAA-ss.",
+            _("Format semaine invalide. Utilisez AAAA-Wss ou AAAA-ss."),
         )
 
     shipments = build_shipments_tracking_rows(shipments_qs)
@@ -418,7 +430,7 @@ def scan_shipments_tracking(request):
             "shipments": shipments,
             "planned_week_value": planned_week_value,
             "closed_filter": closed_filter,
-            "close_inactive_message": "Il reste des étapes à valider, vérifier avant de clore",
+            "close_inactive_message": _("Il reste des étapes à valider, vérifier avant de clore"),
         },
     )
 
@@ -532,7 +544,7 @@ def scan_shipment_edit(request, shipment_id):
         ShipmentStatus.RECEIVED_CORRESPONDENT,
         ShipmentStatus.DELIVERED,
     }:
-        messages.error(request, "Expédition non modifiable.")
+        messages.error(request, _("Expédition non modifiable."))
         return redirect("scan:scan_shipments_ready")
 
     shipment.ensure_qr_code(request=request)

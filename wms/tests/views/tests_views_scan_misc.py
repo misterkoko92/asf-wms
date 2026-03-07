@@ -1,6 +1,7 @@
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 
@@ -12,6 +13,9 @@ class ScanMiscViewsTests(TestCase):
             is_staff=True,
         )
         self.client.force_login(self.staff_user)
+
+    def _activate_english(self):
+        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = "en"
 
     def test_scan_faq_renders_template(self):
         response = self.client.get(reverse("scan:scan_faq"))
@@ -53,6 +57,17 @@ class ScanMiscViewsTests(TestCase):
         self.assertEqual(response["Service-Worker-Allowed"], "/scan/")
         self.assertIn("CACHE_NAME", response.content.decode())
         self.assertEqual(response["Content-Type"], "application/javascript")
+
+    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
+    def test_scan_faq_renders_native_english_when_runtime_disabled(self):
+        self._activate_english()
+
+        response = self.client.get(reverse("scan:scan_faq"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Access & roles")
+        self.assertContains(response, "Shipment tracking (Management)")
+        self.assertNotContains(response, "Accès & rôles")
 
     def test_scan_faq_requires_staff(self):
         non_staff = get_user_model().objects.create_user(
