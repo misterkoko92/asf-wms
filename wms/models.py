@@ -32,6 +32,7 @@ from .models_domain.billing import (
     BillingPaymentMethod,
     BillingServiceCatalogItem,
     ReceiptShipmentAllocation,
+    ShipmentUnitEquivalenceRule,
 )
 from .models_domain.catalog import Product, ProductCategory, ProductKitItem, ProductTag
 from .models_domain.integration import (
@@ -170,6 +171,7 @@ __all__ = [
     "AssociationBillingChangeRequest",
     "BillingComputationProfile",
     "BillingServiceCatalogItem",
+    "ShipmentUnitEquivalenceRule",
     "BillingAssociationPriceOverride",
     "ReceiptShipmentAllocation",
     "BillingDocument",
