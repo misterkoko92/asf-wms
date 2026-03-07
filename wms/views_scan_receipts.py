@@ -155,7 +155,7 @@ def scan_receive_pallet(request):
 def scan_receive_association(request):
     line_count, line_values = build_hors_format_lines(request)
     line_errors = {}
-    create_form = ScanReceiptAssociationForm(request.POST or None)
+    create_form = ScanReceiptAssociationForm(request.POST or None, request.FILES or None)
     if request.method == "POST":
         response, line_errors = handle_receipt_association_post(
             request,

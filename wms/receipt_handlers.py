@@ -53,6 +53,14 @@ def handle_receipt_association_post(
                     received_on=create_form.cleaned_data["received_on"],
                     carton_count=create_form.cleaned_data["carton_count"],
                     hors_format_count=line_count or None,
+                    pickup_charge_amount=create_form.cleaned_data.get("pickup_charge_amount"),
+                    pickup_charge_currency=(
+                        create_form.cleaned_data.get("pickup_charge_currency") or "EUR"
+                    ),
+                    pickup_charge_comment=(
+                        create_form.cleaned_data.get("pickup_charge_comment") or ""
+                    ),
+                    pickup_charge_proof=create_form.cleaned_data.get("pickup_charge_proof"),
                     warehouse=warehouse,
                     created_by=request.user,
                 )

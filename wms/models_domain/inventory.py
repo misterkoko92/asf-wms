@@ -171,6 +171,19 @@ class Receipt(models.Model):
         null=True, blank=True, validators=[MinValueValidator(1)]
     )
     transport_request_date = models.DateField(null=True, blank=True)
+    pickup_charge_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        default=None,
+    )
+    pickup_charge_currency = models.CharField(max_length=3, blank=True, default="EUR")
+    pickup_charge_comment = models.TextField(blank=True)
+    pickup_charge_proof = models.FileField(
+        upload_to="receipt_pickup_billing/",
+        blank=True,
+    )
     received_on = models.DateField(default=timezone.localdate)
     warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT)
     created_at = models.DateTimeField(auto_now_add=True)

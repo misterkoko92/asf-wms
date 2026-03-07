@@ -285,6 +285,28 @@ class ScanReceiptAssociationForm(forms.Form):
         queryset=Contact.objects.filter(is_active=True).order_by("name"),
         required=False,
     )
+    pickup_charge_amount = forms.DecimalField(
+        label="Coût enlèvement",
+        min_value=0,
+        decimal_places=2,
+        required=False,
+        widget=forms.NumberInput(attrs={"min": 0, "step": "0.01"}),
+    )
+    pickup_charge_currency = forms.CharField(
+        label="Devise enlèvement",
+        required=False,
+        initial="EUR",
+        max_length=3,
+    )
+    pickup_charge_comment = forms.CharField(
+        label="Commentaire enlèvement",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 2}),
+    )
+    pickup_charge_proof = forms.FileField(
+        label="Justificatif enlèvement",
+        required=False,
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -294,6 +316,10 @@ class ScanReceiptAssociationForm(forms.Form):
         self.fields["carrier_contact"].label_from_instance = _contact_label
         _select_single_choice(self.fields["source_contact"])
         _select_single_choice(self.fields["carrier_contact"])
+
+    def clean_pickup_charge_currency(self):
+        value = (self.cleaned_data.get("pickup_charge_currency") or "").strip().upper()
+        return value or "EUR"
 
 
 class ScanStockUpdateForm(forms.Form):

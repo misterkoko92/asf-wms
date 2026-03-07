@@ -8,7 +8,7 @@
     {% if create_form.non_field_errors %}
       <div class="scan-message error">{{ create_form.non_field_errors }}</div>
     {% endif %}
-    <form method="post" novalidate class="scan-filters row g-3 ui-comp-form scan-receive-association-primary-row">
+    <form method="post" enctype="multipart/form-data" novalidate class="scan-filters row g-3 ui-comp-form scan-receive-association-primary-row">
       {% csrf_token %}
 
       <div class="scan-field scan-receive-association-field col-12 col-md-6 col-lg-2">
@@ -47,6 +47,38 @@
         <label class="form-label" for="id_carrier_contact">Transporteur</label>
         {{ create_form.carrier_contact }}
         {% for error in create_form.carrier_contact.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="scan-field scan-receive-association-field col-12 col-md-6 col-lg-2">
+        <label class="form-label" for="id_pickup_charge_amount">Co&ucirc;t enl&egrave;vement</label>
+        {{ create_form.pickup_charge_amount }}
+        {% for error in create_form.pickup_charge_amount.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="scan-field scan-receive-association-field col-12 col-md-6 col-lg-2">
+        <label class="form-label" for="id_pickup_charge_currency">Devise enl&egrave;vement</label>
+        {{ create_form.pickup_charge_currency }}
+        {% for error in create_form.pickup_charge_currency.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="scan-field scan-receive-association-field col-12 col-lg-4">
+        <label class="form-label" for="id_pickup_charge_comment">Commentaire enl&egrave;vement</label>
+        {{ create_form.pickup_charge_comment }}
+        {% for error in create_form.pickup_charge_comment.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="scan-field scan-receive-association-field col-12 col-lg-4">
+        <label class="form-label" for="id_pickup_charge_proof">Justificatif enl&egrave;vement</label>
+        {{ create_form.pickup_charge_proof }}
+        {% for error in create_form.pickup_charge_proof.errors %}
           <div class="scan-message error">{{ error }}</div>
         {% endfor %}
       </div>
