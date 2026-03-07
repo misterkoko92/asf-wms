@@ -14,6 +14,8 @@ from wms.models import (
     BillingComputationProfile,
     BillingExtraUnitMode,
     BillingServiceCatalogItem,
+    ProductCategory,
+    ShipmentUnitEquivalenceRule,
 )
 
 
@@ -266,3 +268,90 @@ class ScanBillingViewTests(TestCase):
         self.assertContains(response, "save_profile")
         self.assertContains(response, "save_service")
         self.assertContains(response, "save_override")
+
+    def test_scan_billing_equivalence_creates_category_rule(self):
+        root_category = ProductCategory.objects.create(name="MM")
+        child_category = ProductCategory.objects.create(name="Wheelchair", parent=root_category)
+        self.client.force_login(self.superuser)
+
+        response = self.client.post(
+            reverse("scan:scan_billing_equivalence"),
+            {
+                "action": "save_equivalence_rule",
+                "label": "Wheelchair x10",
+                "category": child_category.id,
+                "applies_to_hors_format": "",
+                "units_per_item": 10,
+                "priority": 1,
+                "is_active": "on",
+                "notes": "Specific rule",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        rule = ShipmentUnitEquivalenceRule.objects.get(label="Wheelchair x10")
+        self.assertEqual(rule.category_id, child_category.id)
+        self.assertEqual(rule.units_per_item, 10)
+
+    def test_scan_billing_equivalence_updates_hors_format_rule(self):
+        rule = ShipmentUnitEquivalenceRule.objects.create(
+            label="Hors format",
+            applies_to_hors_format=True,
+            units_per_item=5,
+            priority=9,
+        )
+        self.client.force_login(self.superuser)
+
+        response = self.client.post(
+            reverse("scan:scan_billing_equivalence"),
+            {
+                "action": "save_equivalence_rule",
+                "rule_id": rule.id,
+                "label": "Hors format x8",
+                "category": "",
+                "applies_to_hors_format": "on",
+                "units_per_item": 8,
+                "priority": 2,
+                "is_active": "on",
+                "notes": "Updated hors format",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        rule.refresh_from_db()
+        self.assertEqual(rule.label, "Hors format x8")
+        self.assertEqual(rule.units_per_item, 8)
+        self.assertEqual(rule.priority, 2)
+
+    def test_billing_equivalence_page_orders_rules_by_specificity_and_priority(self):
+        root_category = ProductCategory.objects.create(name="CN")
+        parent_category = ProductCategory.objects.create(name="Devices", parent=root_category)
+        child_category = ProductCategory.objects.create(name="Wheelchair", parent=parent_category)
+        ShipmentUnitEquivalenceRule.objects.create(
+            label="Generic CN",
+            category=root_category,
+            units_per_item=1,
+            priority=5,
+        )
+        ShipmentUnitEquivalenceRule.objects.create(
+            label="Wheelchair",
+            category=child_category,
+            units_per_item=10,
+            priority=3,
+        )
+        ShipmentUnitEquivalenceRule.objects.create(
+            label="Hors format",
+            applies_to_hors_format=True,
+            units_per_item=4,
+            priority=10,
+        )
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_billing_equivalence"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Hors format")
+        self.assertEqual(
+            [rule.label for rule in response.context["equivalence_rules"][:3]],
+            ["Hors format", "Wheelchair", "Generic CN"],
+        )

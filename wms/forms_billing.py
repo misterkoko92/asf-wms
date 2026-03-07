@@ -6,6 +6,8 @@ from .models import (
     BillingAssociationPriceOverride,
     BillingComputationProfile,
     BillingServiceCatalogItem,
+    ProductCategory,
+    ShipmentUnitEquivalenceRule,
 )
 
 
@@ -212,3 +214,41 @@ class BillingAssociationPriceOverrideForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
+
+
+class ShipmentUnitEquivalenceRuleForm(forms.ModelForm):
+    class Meta:
+        model = ShipmentUnitEquivalenceRule
+        fields = (
+            "label",
+            "category",
+            "applies_to_hors_format",
+            "units_per_item",
+            "priority",
+            "is_active",
+            "notes",
+        )
+        labels = {
+            "label": "Libelle",
+            "category": "Categorie",
+            "applies_to_hors_format": "Appliquer aux hors format",
+            "units_per_item": "Unites par article",
+            "priority": "Priorite",
+            "is_active": "Actif",
+            "notes": "Notes",
+        }
+        widgets = {
+            "units_per_item": forms.NumberInput(attrs={"min": 1, "step": 1}),
+            "priority": forms.NumberInput(attrs={"min": 0, "step": 1}),
+            "notes": forms.Textarea(attrs={"rows": 2}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["category"].queryset = ProductCategory.objects.select_related(
+            "parent"
+        ).order_by(
+            "name",
+            "id",
+        )
+        self.fields["category"].label_from_instance = lambda category: str(category)

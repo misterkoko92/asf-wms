@@ -5,6 +5,107 @@
 {% block content %}
   <div class="scan-card card border-0 ui-comp-card">
     <h2 class="ui-comp-title">Facturation - Equivalence</h2>
-    <p class="scan-help ui-comp-note">Page placeholder V1 pour les &eacute;quivalences des unit&eacute;s d&apos;exp&eacute;dition.</p>
+    <p class="scan-help ui-comp-note">
+      Param&eacute;trage des correspondances entre produits, hors format et unit&eacute;s
+      d&apos;exp&eacute;dition facturables.
+    </p>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card">
+    <form method="post" class="scan-filters ui-comp-form">
+      {% csrf_token %}
+      <input type="hidden" name="rule_id" value="{% if rule_form.instance.pk %}{{ rule_form.instance.pk }}{% endif %}">
+
+      <h3 class="ui-comp-title">R&egrave;gle d&apos;&eacute;quivalence</h3>
+      <div class="scan-inline scan-inline-equal">
+        <div class="scan-field">
+          {{ rule_form.label.label_tag }}
+          {{ rule_form.label }}
+          {% if rule_form.label.errors %}<div class="scan-help">{{ rule_form.label.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="scan-field">
+          {{ rule_form.category.label_tag }}
+          {{ rule_form.category }}
+          {% if rule_form.category.errors %}<div class="scan-help">{{ rule_form.category.errors|join:", " }}</div>{% endif %}
+        </div>
+      </div>
+      <div class="scan-inline scan-inline-equal">
+        <div class="scan-field">
+          {{ rule_form.units_per_item.label_tag }}
+          {{ rule_form.units_per_item }}
+          {% if rule_form.units_per_item.errors %}<div class="scan-help">{{ rule_form.units_per_item.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="scan-field">
+          {{ rule_form.priority.label_tag }}
+          {{ rule_form.priority }}
+          {% if rule_form.priority.errors %}<div class="scan-help">{{ rule_form.priority.errors|join:", " }}</div>{% endif %}
+        </div>
+      </div>
+      <div class="scan-field">
+        {{ rule_form.notes.label_tag }}
+        {{ rule_form.notes }}
+        {% if rule_form.notes.errors %}<div class="scan-help">{{ rule_form.notes.errors|join:", " }}</div>{% endif %}
+      </div>
+      <div class="scan-inline scan-inline-equal">
+        <div class="scan-field">
+          <label class="form-label" for="{{ rule_form.applies_to_hors_format.id_for_label }}">
+            {{ rule_form.applies_to_hors_format }}
+            {{ rule_form.applies_to_hors_format.label }}
+          </label>
+        </div>
+        <div class="scan-field">
+          <label class="form-label" for="{{ rule_form.is_active.id_for_label }}">
+            {{ rule_form.is_active }}
+            {{ rule_form.is_active.label }}
+          </label>
+        </div>
+      </div>
+      {% if rule_form.non_field_errors %}
+        <div class="scan-message error">{{ rule_form.non_field_errors|join:", " }}</div>
+      {% endif %}
+      <div class="scan-filter-actions">
+        <button type="submit" name="action" value="save_equivalence_rule" class="scan-submit btn btn-primary">Enregistrer r&egrave;gle</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card">
+    <h3>R&egrave;gles actives et historiques</h3>
+    {% if equivalence_rules %}
+      <table class="scan-table">
+        <thead>
+          <tr>
+            <th>Libell&eacute;</th>
+            <th>Port&eacute;e</th>
+            <th>Niveau cat&eacute;gorie</th>
+            <th>Unit&eacute;s</th>
+            <th>Priorit&eacute;</th>
+            <th>Statut</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for rule in equivalence_rules %}
+            <tr>
+              <td><a href="?edit_rule={{ rule.id }}">{{ rule.label }}</a></td>
+              <td>
+                {% if rule.applies_to_hors_format %}
+                  Hors format
+                {% elif rule.category %}
+                  {{ rule.category }}
+                {% else %}
+                  R&egrave;gle globale
+                {% endif %}
+              </td>
+              <td>{% if rule.category_depth %}{{ rule.category_depth }}{% else %}-{% endif %}</td>
+              <td>{{ rule.units_per_item }}</td>
+              <td>{{ rule.priority }}</td>
+              <td>{% if rule.is_active %}Actif{% else %}Inactif{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="scan-help">Aucune r&egrave;gle d&apos;&eacute;quivalence configur&eacute;e.</p>
+    {% endif %}
   </div>
 {% endblock %}

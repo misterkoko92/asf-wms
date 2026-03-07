@@ -7,6 +7,7 @@ from contacts.models import Contact, ContactType
 from wms.forms_billing import (
     BillingAssociationPriceOverrideForm,
     BillingComputationProfileForm,
+    ShipmentUnitEquivalenceRuleForm,
 )
 from wms.models import (
     AssociationProfile,
@@ -15,6 +16,8 @@ from wms.models import (
     BillingComputationProfile,
     BillingExtraUnitMode,
     BillingServiceCatalogItem,
+    ProductCategory,
+    ShipmentUnitEquivalenceRule,
 )
 
 
@@ -131,3 +134,53 @@ class BillingFormsTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn("__all__", form.errors)
         self.assertFalse(BillingAssociationPriceOverride.objects.exists())
+
+    def test_equivalence_rule_form_creates_category_specific_rule(self):
+        root_category = ProductCategory.objects.create(name="MM")
+        leaf_category = ProductCategory.objects.create(
+            name="Wheelchair",
+            parent=root_category,
+        )
+        form = ShipmentUnitEquivalenceRuleForm(
+            data={
+                "label": "Wheelchair x10",
+                "category": leaf_category.id,
+                "applies_to_hors_format": "",
+                "units_per_item": 10,
+                "priority": 1,
+                "is_active": "on",
+                "notes": "Specific for wheelchairs",
+            }
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        rule = form.save()
+
+        self.assertEqual(rule.category_id, leaf_category.id)
+        self.assertEqual(rule.units_per_item, 10)
+
+    def test_equivalence_rule_form_updates_hors_format_rule(self):
+        rule = ShipmentUnitEquivalenceRule.objects.create(
+            label="Hors format",
+            applies_to_hors_format=True,
+            units_per_item=4,
+            priority=5,
+        )
+        form = ShipmentUnitEquivalenceRuleForm(
+            data={
+                "label": "Hors format x6",
+                "category": "",
+                "applies_to_hors_format": "on",
+                "units_per_item": 6,
+                "priority": 2,
+                "is_active": "on",
+                "notes": "Updated rule",
+            },
+            instance=rule,
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        updated_rule = form.save()
+
+        self.assertTrue(updated_rule.applies_to_hors_format)
+        self.assertEqual(updated_rule.units_per_item, 6)
