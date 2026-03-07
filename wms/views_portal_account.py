@@ -281,7 +281,7 @@ def _handle_account_document_upload(request, association):
         file=uploaded,
         uploaded_by=request.user,
         scan_status=DocumentScanStatus.PENDING,
-        scan_message=_("Scan antivirus en cours."),
+        scan_message="Scan antivirus en cours.",
     )
     queue_document_scan(document)
     messages.success(request, MESSAGE_DOCUMENT_ADDED)
@@ -518,7 +518,7 @@ def _handle_account_document_uploads(request, association):
             file=uploaded,
             uploaded_by=request.user,
             scan_status=DocumentScanStatus.PENDING,
-            scan_message=_("Scan antivirus en cours."),
+            scan_message="Scan antivirus en cours.",
         )
         queue_document_scan(document)
         created += 1

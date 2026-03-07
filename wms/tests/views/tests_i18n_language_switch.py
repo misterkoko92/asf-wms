@@ -222,6 +222,32 @@ class LanguageSwitchI18nTests(TestCase):
         self.assertContains(order_create, "Submit order")
         self.assertNotContains(order_create, "Nouvelle commande")
 
+    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
+    def test_forced_password_change_page_renders_native_english(self):
+        profile = self.portal_user.association_profile
+        profile.must_change_password = True
+        profile.save(update_fields=["must_change_password"])
+        self._activate_english()
+
+        login_response = self.client.post(
+            reverse("portal:portal_login"),
+            {
+                "identifier": self.portal_user.email,
+                "password": "pass1234",
+            },
+        )
+
+        self.assertEqual(login_response.status_code, 302)
+        self.assertEqual(login_response.url, reverse("portal:portal_change_password"))
+
+        change_password_response = self.client.get(login_response.url)
+        self.assertContains(change_password_response, "Change password")
+        self.assertContains(
+            change_password_response,
+            "Please set a new password to continue.",
+        )
+        self.assertNotContains(change_password_response, "Changer le mot de passe")
+
     def test_language_switch_is_present_on_standalone_pages(self):
         login_response = self.client.get(reverse("portal:portal_login"))
         self.assertContains(login_response, 'name="language"')

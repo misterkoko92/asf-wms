@@ -569,6 +569,15 @@ msgstr "Cancel"
 msgid "Définir un mot de passe"
 msgstr "Set a password"
 
+#: templates/portal/change_password.html:4
+#: templates/portal/change_password.html:8
+msgid "Changer le mot de passe"
+msgstr "Change password"
+
+#: templates/portal/change_password.html:9
+msgid "Veuillez definir un nouveau mot de passe pour continuer."
+msgstr "Please set a new password to continue."
+
 #: templates/portal/set_password.html:31
 msgid "Choisissez un mot de passe pour acceder au portail."
 msgstr "Choose a password to access the portal."

@@ -334,6 +334,28 @@ class PortalAuthViewsTests(PortalBaseTestCase):
         self.assertContains(response, "Si votre email est reconnu")
         send_mock.assert_not_called()
 
+    def test_portal_recovery_post_enqueues_email_when_direct_send_fails(self):
+        user = self._create_portal_user("portal-auth-queue", "queue@example.com")
+        self._create_profile(user, must_change_password=False)
+
+        with mock.patch("wms.emailing.send_email_safe", return_value=False):
+            response = self.client.post(
+                reverse("portal:portal_forgot_password"),
+                {"email": user.email},
+                REMOTE_ADDR="10.0.0.8",
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Si votre email est reconnu")
+        event = IntegrationEvent.objects.get()
+        self.assertEqual(event.status, IntegrationStatus.PENDING)
+        self.assertEqual(
+            event.payload["subject"],
+            "ASF WMS - Mot de passe oublié / Première connexion portail",
+        )
+        self.assertIsInstance(event.payload["subject"], str)
+        self.assertEqual(event.payload["recipient"], [user.email])
+
     @override_settings(PORTAL_AUTH_RECOVERY_THROTTLE_SECONDS=300)
     def test_portal_recovery_throttles_repeated_requests(self):
         user = self._create_portal_user("portal-auth-throttle", "throttle@example.com")
@@ -1344,6 +1366,24 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertEqual(document.scan_status, DocumentScanStatus.PENDING)
         self.assertEqual(IntegrationEvent.objects.count(), 1)
 
+    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
+    def test_portal_order_detail_upload_stores_stable_scan_message(self):
+        self._activate_english()
+        order = self._order(review_status=OrderReviewStatus.APPROVED)
+        uploaded = SimpleUploadedFile("invoice.pdf", b"%PDF-1.4 invoice")
+
+        response = self.client.post(
+            reverse("portal:portal_order_detail", kwargs={"order_id": order.id}),
+            {
+                "action": "upload_docs",
+                "doc_file_invoice": uploaded,
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        document = OrderDocument.objects.get(order=order)
+        self.assertEqual(document.scan_message, "Scan antivirus en cours.")
+
     def test_portal_order_detail_hides_download_link_for_quarantined_document(self):
         order = self._order(review_status=OrderReviewStatus.APPROVED)
         document = order.documents.create(
@@ -1735,6 +1775,22 @@ class PortalAccountViewsTests(PortalBaseTestCase):
             {DocumentScanStatus.PENDING},
         )
         self.assertEqual(IntegrationEvent.objects.count(), 2)
+
+    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
+    def test_portal_account_upload_stores_stable_scan_message(self):
+        self._activate_english()
+
+        response = self.client.post(
+            self.account_url,
+            {
+                "action": "upload_account_docs",
+                "doc_file_other": SimpleUploadedFile("other.pdf", b"%PDF-1.4 other"),
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        document = AccountDocument.objects.get()
+        self.assertEqual(document.scan_message, "Scan antivirus en cours.")
 
     def test_portal_account_hides_download_link_for_quarantined_document(self):
         document = AccountDocument.objects.create(

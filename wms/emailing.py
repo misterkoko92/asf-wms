@@ -105,6 +105,19 @@ def _normalize_recipients(recipient):
     return normalized_recipients
 
 
+def _coerce_queue_text(value):
+    return str(value or "")
+
+
+def _coerce_queue_tags(tags):
+    coerced_tags = []
+    for tag in tags or []:
+        value = str(tag or "").strip()
+        if value:
+            coerced_tags.append(value)
+    return coerced_tags
+
+
 def _safe_int(value, *, default, minimum):
     try:
         int_value = int(value)
@@ -324,14 +337,14 @@ def _build_enqueue_payload(
     tags=None,
 ):
     payload = {
-        EMAIL_PAYLOAD_SUBJECT_KEY: subject,
-        EMAIL_PAYLOAD_MESSAGE_KEY: message,
+        EMAIL_PAYLOAD_SUBJECT_KEY: _coerce_queue_text(subject),
+        EMAIL_PAYLOAD_MESSAGE_KEY: _coerce_queue_text(message),
         EMAIL_PAYLOAD_RECIPIENT_KEY: recipients,
     }
     if html_message:
-        payload[EMAIL_PAYLOAD_HTML_MESSAGE_KEY] = html_message
+        payload[EMAIL_PAYLOAD_HTML_MESSAGE_KEY] = _coerce_queue_text(html_message)
     if tags:
-        payload[EMAIL_PAYLOAD_TAGS_KEY] = list(tags)
+        payload[EMAIL_PAYLOAD_TAGS_KEY] = _coerce_queue_tags(tags)
     return payload
 
 
