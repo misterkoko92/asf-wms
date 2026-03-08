@@ -76,6 +76,7 @@ Mail and queue values:
 
 - `DEFAULT_FROM_EMAIL`
 - `EMAIL_BACKEND` (console backend is default/fallback)
+- `EMAIL_DELIVERY_MODE` (default `direct_or_queue`; set `direct_only` on PythonAnywhere if no scheduler is available)
 - `BREVO_API_KEY` and related `BREVO_*` vars (optional)
 - `EMAIL_QUEUE_MAX_ATTEMPTS` (default `5`)
 - `EMAIL_QUEUE_RETRY_BASE_SECONDS` (default `60`)
@@ -221,6 +222,8 @@ Validate:
 - Shipment views load for staff users after authentication.
 
 ## 5) Email queue operations
+
+If `EMAIL_DELIVERY_MODE=direct_only`, the email queue is bypassed for application sends and these operations are only useful for historical backlog cleanup or non-production environments.
 
 Queue processor command:
 

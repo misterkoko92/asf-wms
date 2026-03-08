@@ -206,6 +206,9 @@ EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = _env_bool("EMAIL_USE_TLS", True)
 EMAIL_USE_SSL = _env_bool("EMAIL_USE_SSL", False)
+EMAIL_DELIVERY_MODE = (
+    os.environ.get("EMAIL_DELIVERY_MODE", "direct_or_queue").strip().lower() or "direct_or_queue"
+)
 BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "")
 BREVO_SENDER_EMAIL = os.environ.get("BREVO_SENDER_EMAIL", "")
 BREVO_SENDER_NAME = os.environ.get("BREVO_SENDER_NAME", "")
