@@ -1,3 +1,5 @@
+from unittest import mock
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from django.test import TestCase
@@ -5,7 +7,13 @@ from django.urls import reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 
-from wms.models import VolunteerAvailability, VolunteerConstraint, VolunteerProfile
+from wms.models import (
+    IntegrationEvent,
+    IntegrationStatus,
+    VolunteerAvailability,
+    VolunteerConstraint,
+    VolunteerProfile,
+)
 
 
 class VolunteerAuthViewTests(TestCase):
@@ -35,6 +43,14 @@ class VolunteerAuthViewTests(TestCase):
         )
 
         self.assertRedirects(response, reverse("volunteer:dashboard"))
+
+    def test_login_get_shows_recovery_link(self):
+        response = self.client.get(reverse("volunteer:login"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse("volunteer:forgot_password"))
+        self.assertContains(response, "Mot de passe oubli")
+        self.assertContains(response, "Première connexion")
 
     def test_dashboard_requires_login(self):
         response = self.client.get(reverse("volunteer:dashboard"))
@@ -81,6 +97,77 @@ class VolunteerAuthViewTests(TestCase):
         self.profile.refresh_from_db()
         self.assertTrue(self.user.check_password("NewPass1234!"))
         self.assertFalse(self.profile.must_change_password)
+
+    def test_forgot_password_get_renders_form(self):
+        response = self.client.get(reverse("volunteer:forgot_password"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Mot de passe oubli")
+        self.assertContains(response, "Première connexion")
+        self.assertContains(response, 'name="email"')
+
+    def test_forgot_password_post_sends_email_for_eligible_account(self):
+        uidb64 = urlsafe_base64_encode(str(self.user.pk).encode())
+
+        with mock.patch(
+            "wms.views_volunteer_auth.send_or_enqueue_email_safe",
+            return_value=True,
+        ) as send_mock:
+            response = self.client.post(
+                reverse("volunteer:forgot_password"),
+                {"email": "  BENEVOLE@example.com  "},
+                REMOTE_ADDR="10.0.0.9",
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Si votre email est reconnu")
+        send_mock.assert_called_once()
+        self.assertEqual(
+            send_mock.call_args.kwargs["subject"],
+            "ASF WMS - Mot de passe oublié / Première connexion bénévole",
+        )
+        self.assertEqual(
+            send_mock.call_args.kwargs["recipient"],
+            ["benevole@example.com"],
+        )
+        self.assertIn(
+            f"/benevole/set-password/{uidb64}/",
+            send_mock.call_args.kwargs["message"],
+        )
+
+    def test_forgot_password_post_keeps_generic_success_for_unknown_email(self):
+        with mock.patch("wms.views_volunteer_auth.send_or_enqueue_email_safe") as send_mock:
+            response = self.client.post(
+                reverse("volunteer:forgot_password"),
+                {"email": "unknown@example.com"},
+                REMOTE_ADDR="10.0.0.10",
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Si votre email est reconnu")
+        send_mock.assert_not_called()
+
+    @mock.patch("wms.emailing.send_email_safe", return_value=False)
+    def test_forgot_password_post_enqueues_email_when_direct_send_fails(
+        self,
+        send_email_mock,
+    ):
+        response = self.client.post(
+            reverse("volunteer:forgot_password"),
+            {"email": self.user.email},
+            REMOTE_ADDR="10.0.0.11",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Si votre email est reconnu")
+        send_email_mock.assert_called_once()
+        event = IntegrationEvent.objects.get()
+        self.assertEqual(event.status, IntegrationStatus.PENDING)
+        self.assertEqual(
+            event.payload["subject"],
+            "ASF WMS - Mot de passe oublié / Première connexion bénévole",
+        )
+        self.assertEqual(event.payload["recipient"], [self.user.email])
 
 
 class VolunteerProfileViewTests(TestCase):

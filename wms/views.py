@@ -88,6 +88,7 @@ from .views_volunteer_account_request import (
 )
 from .views_volunteer_auth import (
     volunteer_change_password,
+    volunteer_forgot_password,
     volunteer_login,
     volunteer_logout,
     volunteer_set_password,
@@ -111,6 +112,7 @@ PORTAL_EXPORTS = (
 
 VOLUNTEER_EXPORTS = (
     "volunteer_login",
+    "volunteer_forgot_password",
     "volunteer_logout",
     "volunteer_set_password",
     "volunteer_change_password",
