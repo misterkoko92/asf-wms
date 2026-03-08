@@ -29,6 +29,13 @@ class RuntimeConfig:
     org_roles_review_max_open_percent: int
 
 
+@dataclass(frozen=True)
+class PlanningFlightApiConfig:
+    base_url: str
+    api_key: str
+    timeout_seconds: int
+
+
 def _fallback_runtime_config() -> RuntimeConfig:
     retry_base_seconds = _safe_int(
         getattr(settings, "EMAIL_QUEUE_RETRY_BASE_SECONDS", 60),
@@ -140,3 +147,15 @@ def is_shipment_track_legacy_enabled() -> bool:
     runtime_flag = get_runtime_config().enable_shipment_track_legacy
     env_flag = bool(getattr(settings, "ENABLE_SHIPMENT_TRACK_LEGACY", True))
     return env_flag and runtime_flag
+
+
+def get_planning_flight_api_config() -> PlanningFlightApiConfig:
+    return PlanningFlightApiConfig(
+        base_url=(getattr(settings, "PLANNING_FLIGHT_API_BASE_URL", "") or "").strip(),
+        api_key=(getattr(settings, "PLANNING_FLIGHT_API_KEY", "") or "").strip(),
+        timeout_seconds=_safe_int(
+            getattr(settings, "PLANNING_FLIGHT_API_TIMEOUT_SECONDS", 30),
+            default=30,
+            minimum=1,
+        ),
+    )
