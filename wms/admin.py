@@ -1394,6 +1394,7 @@ class VolunteerConstraintAdmin(admin.ModelAdmin):
         "max_days_per_week",
         "max_expeditions_per_week",
         "max_expeditions_per_day",
+        "max_colis_vol",
         "max_wait_hours",
         "updated_at",
     )

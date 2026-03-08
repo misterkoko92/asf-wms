@@ -64,6 +64,7 @@ class VolunteerConstraint(models.Model):
     max_days_per_week = models.PositiveSmallIntegerField(null=True, blank=True)
     max_expeditions_per_week = models.PositiveSmallIntegerField(null=True, blank=True)
     max_expeditions_per_day = models.PositiveSmallIntegerField(null=True, blank=True)
+    max_colis_vol = models.PositiveSmallIntegerField(null=True, blank=True)
     max_wait_hours = models.PositiveSmallIntegerField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
