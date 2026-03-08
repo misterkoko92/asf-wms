@@ -3,6 +3,11 @@
 
 {% block title %}WMS Scan - Imports{% endblock %}
 
+{% block extra_head %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'scan/import_selectors.css' %}">
+{% endblock %}
+
 {% block content %}
   <div class="scan-card card border-0 ui-comp-card">
     <h2 class="ui-comp-title">Imports</h2>
@@ -243,27 +248,33 @@
         </label>
       </div>
       <div class="scan-field">
-        <label class="form-label">{% trans "Gestion du stock importé (champ quantity/stock)" %}</label>
-        <div class="scan-inline">
-          <label class="form-label" for="stock_mode_movement">
+        <span class="form-label d-block">{% trans "Gestion du stock importé (champ quantity/stock)" %}</span>
+        <div class="scan-import-radio-group">
+          <div class="form-check form-check-inline scan-import-radio-option">
             <input
               type="radio"
+              class="form-check-input"
               id="stock_mode_movement"
               name="stock_mode"
               value="movement"
               checked
             >
-            {% trans "Faire des mouvements de stock (ajouter la quantité importée)" %}
-          </label>
-          <label class="form-label" for="stock_mode_overwrite">
+            <label class="form-check-label" for="stock_mode_movement">
+              {% trans "Faire des mouvements de stock (ajouter la quantité importée)" %}
+            </label>
+          </div>
+          <div class="form-check form-check-inline scan-import-radio-option">
             <input
               type="radio"
+              class="form-check-input"
               id="stock_mode_overwrite"
               name="stock_mode"
               value="overwrite"
             >
-            {% trans "Écraser la valeur du stock (remise à zéro puis valeur importée)" %}
-          </label>
+            <label class="form-check-label" for="stock_mode_overwrite">
+              {% trans "Écraser la valeur du stock (remise à zéro puis valeur importée)" %}
+            </label>
+          </div>
         </div>
       </div>
       <div class="scan-filter-actions ui-comp-actions">
@@ -571,4 +582,7 @@
       </div>
     </form>
   </div>
+
+  {{ import_selector_data|json_script:"scan-import-selector-data" }}
+  <script src="{% static 'scan/import_selectors.js' %}"></script>
 {% endblock %}

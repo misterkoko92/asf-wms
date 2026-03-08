@@ -1,4 +1,5 @@
 import tempfile
+from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
@@ -12,7 +13,17 @@ from django.http import HttpResponse
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
+from contacts.models import Contact, ContactAddress, ContactTag, ContactType
 from wms import scan_import_handlers
+from wms.models import (
+    Destination,
+    Location,
+    Product,
+    ProductCategory,
+    ProductTag,
+    RackColor,
+    Warehouse,
+)
 
 
 class ScanImportHandlersTests(TestCase):
@@ -38,6 +49,15 @@ class ScanImportHandlersTests(TestCase):
     def _messages(self, request):
         return [message.message for message in get_messages(request)]
 
+    def _assert_contains_subset(self, records, expected):
+        self.assertTrue(
+            any(
+                all(record.get(key) == value for key, value in expected.items())
+                for record in records
+            ),
+            msg=f"Expected subset {expected!r} in {records!r}",
+        )
+
     def _clear_pending_import_callback(self, request, tracker):
         def clear_pending_import():
             tracker["called"] = True
@@ -55,10 +75,14 @@ class ScanImportHandlersTests(TestCase):
             return_value={"rows": []},
         ) as build_context_mock:
             with mock.patch(
-                "wms.scan_import_handlers.render",
-                return_value=HttpResponse("ok"),
-            ) as render_mock:
-                response = scan_import_handlers.render_scan_import(request, pending)
+                "wms.scan_import_handlers._build_import_selector_data",
+                return_value={"products": []},
+            ) as selector_data_mock:
+                with mock.patch(
+                    "wms.scan_import_handlers.render",
+                    return_value=HttpResponse("ok"),
+                ) as render_mock:
+                    response = scan_import_handlers.render_scan_import(request, pending)
         self.assertEqual(response.status_code, 200)
         build_context_mock.assert_called_once_with(pending)
         render_mock.assert_called_once()
@@ -68,6 +92,164 @@ class ScanImportHandlersTests(TestCase):
             render_mock.call_args.args[2]["product_match_pending"],
             {"rows": []},
         )
+        self.assertEqual(
+            render_mock.call_args.args[2]["import_selector_data"],
+            {"products": []},
+        )
+        selector_data_mock.assert_called_once()
+
+    def test_build_import_selector_data_serializes_linked_import_entities(self):
+        warehouse = Warehouse.objects.create(name="Monde Depot", code="MD")
+        RackColor.objects.create(warehouse=warehouse, zone="ZONE-1", color="#123456")
+        location = Location.objects.create(
+            warehouse=warehouse,
+            zone="ZONE-1",
+            aisle="ALLEE-1",
+            shelf="BAC-1",
+            notes="Zone froide",
+        )
+        root_category = ProductCategory.objects.create(name="Sante")
+        child_category = ProductCategory.objects.create(name="Ondes", parent=root_category)
+        product_tag = ProductTag.objects.create(name="Fragile")
+        product = Product.objects.create(
+            sku="SKU-ONDE",
+            name="Monde Sonde",
+            brand="Onde",
+            barcode="BAR-1",
+            ean="EAN-1",
+            color="Bleu",
+            pu_ht=Decimal("2.50"),
+            tva=Decimal("0.2"),
+            category=child_category,
+            default_location=location,
+            notes="Produit de test",
+            qr_code_image="qr_codes/test.png",
+        )
+        product.tags.add(product_tag)
+
+        correspondent = Contact.objects.create(
+            contact_type=ContactType.ORGANIZATION,
+            name="Correspondant Monaco",
+        )
+        destination = Destination.objects.create(
+            city="Monaco",
+            iata_code="MCM",
+            country="Monaco",
+            correspondent_contact=correspondent,
+        )
+        contact_tag = ContactTag.objects.create(name="Donateur")
+        contact = Contact.objects.create(
+            contact_type=ContactType.ORGANIZATION,
+            name="Monde Contact",
+            email="monde@example.com",
+            phone="+33102030405",
+            destination=destination,
+        )
+        contact.tags.add(contact_tag)
+        ContactAddress.objects.create(
+            contact=contact,
+            address_line1="1 rue du Monde",
+            city="Lyon",
+            country="France",
+            is_default=True,
+        )
+        user = get_user_model().objects.create_user(
+            username="onde-user",
+            email="onde@example.com",
+            first_name="Onde",
+            last_name="Monde",
+        )
+
+        data = scan_import_handlers._build_import_selector_data()
+
+        self.assertIn({"name": "Monde Depot", "code": "MD"}, data["warehouses"])
+        self._assert_contains_subset(
+            data["locations"],
+            {
+                "warehouse": "Monde Depot",
+                "zone": "ZONE-1",
+                "aisle": "ALLEE-1",
+                "shelf": "BAC-1",
+                "rack_color": "#123456",
+                "notes": "Zone froide",
+                "label": "Monde Depot ZONE-1-ALLEE-1-BAC-1",
+            },
+        )
+        self._assert_contains_subset(
+            data["categories"],
+            {
+                "name": "Ondes",
+                "parent": "SANTE",
+                "path": "SANTE > Ondes",
+                "level_1": "SANTE",
+                "level_2": "Ondes",
+                "level_3": "",
+                "level_4": "",
+            },
+        )
+        self._assert_contains_subset(
+            data["products"],
+            {
+                "name": "Monde Sonde",
+                "sku": "SKU-ONDE",
+                "barcode": "BAR-1",
+                "ean": "EAN-1",
+                "brand": "ONDE",
+                "color": "Bleu",
+                "tags": "Fragile",
+                "category_l1": "SANTE",
+                "category_l2": "Ondes",
+                "category_l3": "",
+                "category_l4": "",
+                "warehouse": "Monde Depot",
+                "zone": "ZONE-1",
+                "aisle": "ALLEE-1",
+                "shelf": "BAC-1",
+                "rack_color": "#123456",
+                "notes": "Produit de test",
+                "label": "SKU-ONDE - Monde Sonde",
+            },
+        )
+        self._assert_contains_subset(
+            data["contacts"],
+            {
+                "name": "Monde Contact",
+                "contact_type": ContactType.ORGANIZATION,
+                "email": "monde@example.com",
+                "phone": "+33102030405",
+                "tags": "Donateur",
+                "destination": "Monaco (MCM) - Monaco",
+                "address_line1": "1 rue du Monde",
+                "city": "Lyon",
+                "label": "Monde Contact",
+            },
+        )
+        self._assert_contains_subset(
+            data["destinations"],
+            {
+                "label": "Monaco (MCM) - Monaco",
+                "city": "Monaco",
+                "iata_code": "MCM",
+                "country": "Monaco",
+            },
+        )
+        self._assert_contains_subset(
+            data["users"],
+            {
+                "username": "onde-user",
+                "email": "onde@example.com",
+                "first_name": "Onde",
+                "last_name": "Monde",
+                "is_staff": False,
+                "is_superuser": False,
+                "is_active": True,
+                "label": "onde-user",
+            },
+        )
+        self.assertIn("Fragile", data["product_tags"])
+        self.assertIn("Donateur", data["contact_tags"])
+        self.assertEqual(product.brand, "ONDE")
+        self.assertEqual(user.username, "onde-user")
 
     def test_handle_scan_import_action_without_action_returns_none(self):
         request = self._build_post_request({})

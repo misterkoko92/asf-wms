@@ -3,9 +3,12 @@ import uuid
 from pathlib import Path
 
 from django.contrib import messages
+from django.contrib.auth import get_user_model
 from django.shortcuts import redirect, render
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
+
+from contacts.models import Contact, ContactTag, ContactType
 
 from .import_results import normalize_import_result
 from .import_services import (
@@ -21,6 +24,15 @@ from .import_services import (
     normalize_quantity_mode,
 )
 from .import_utils import decode_text, iter_import_rows
+from .models import (
+    Destination,
+    Location,
+    Product,
+    ProductCategory,
+    ProductTag,
+    RackColor,
+    Warehouse,
+)
 from .product_import_review import build_match_context, row_is_empty, summarize_import_row
 
 IMPORT_TEMPLATE = "scan/imports.html"
@@ -70,11 +82,256 @@ def _translate_runtime_message(message):
 def render_scan_import(request, pending_import):
     context = dict(IMPORT_BASE_CONTEXT)
     context["product_match_pending"] = build_match_context(pending_import)
+    context["import_selector_data"] = _build_import_selector_data()
     return render(request, IMPORT_TEMPLATE, context)
 
 
 def _redirect_scan_import():
     return redirect("scan:scan_import")
+
+
+def _stringify_decimal(value):
+    if value is None:
+        return ""
+    text = format(value, "f")
+    if "." in text:
+        text = text.rstrip("0").rstrip(".")
+    return text
+
+
+def _category_parts(category):
+    parts = []
+    current = category
+    while current is not None:
+        parts.append(current.name or "")
+        current = current.parent
+    parts.reverse()
+    return parts
+
+
+def _category_levels(category):
+    parts = _category_parts(category)
+    levels = parts[:4]
+    while len(levels) < 4:
+        levels.append("")
+    return levels
+
+
+def _pick_default_address(addresses):
+    for address in addresses:
+        if address.is_default:
+            return address
+    return addresses[0] if addresses else None
+
+
+def _effective_contact_address(contact):
+    if (
+        contact.contact_type == ContactType.PERSON
+        and contact.use_organization_address
+        and contact.organization is not None
+    ):
+        return _pick_default_address(list(contact.organization.addresses.all()))
+    return _pick_default_address(list(contact.addresses.all()))
+
+
+def _build_rack_color_lookup():
+    return {
+        (rack_color.warehouse_id, rack_color.zone): rack_color.color
+        for rack_color in RackColor.objects.only("warehouse_id", "zone", "color")
+    }
+
+
+def _build_warehouse_selector_data():
+    return [
+        {"name": warehouse.name, "code": warehouse.code}
+        for warehouse in Warehouse.objects.only("name", "code").order_by("name")
+    ]
+
+
+def _build_location_selector_data():
+    rack_color_lookup = _build_rack_color_lookup()
+    return [
+        {
+            "warehouse": location.warehouse.name,
+            "zone": location.zone,
+            "aisle": location.aisle,
+            "shelf": location.shelf,
+            "rack_color": rack_color_lookup.get((location.warehouse_id, location.zone), ""),
+            "notes": location.notes or "",
+            "label": str(location),
+        }
+        for location in Location.objects.select_related("warehouse")
+        .only("warehouse__name", "zone", "aisle", "shelf", "notes")
+        .order_by("warehouse__name", "zone", "aisle", "shelf")
+    ]
+
+
+def _build_category_selector_data():
+    categories = (
+        ProductCategory.objects.select_related("parent__parent__parent")
+        .only(
+            "name",
+            "parent__name",
+            "parent__parent__name",
+            "parent__parent__parent__name",
+        )
+        .order_by("name")
+    )
+    data = []
+    for category in categories:
+        level_1, level_2, level_3, level_4 = _category_levels(category)
+        data.append(
+            {
+                "name": category.name,
+                "parent": category.parent.name if category.parent else "",
+                "path": " > ".join(part for part in _category_parts(category) if part),
+                "level_1": level_1,
+                "level_2": level_2,
+                "level_3": level_3,
+                "level_4": level_4,
+            }
+        )
+    return sorted(data, key=lambda item: (item["path"], item["name"]))
+
+
+def _build_product_selector_data():
+    rack_color_lookup = _build_rack_color_lookup()
+    products = (
+        Product.objects.select_related(
+            "category__parent__parent__parent",
+            "default_location__warehouse",
+        )
+        .prefetch_related("tags")
+        .only(
+            "sku",
+            "name",
+            "brand",
+            "barcode",
+            "ean",
+            "color",
+            "pu_ht",
+            "tva",
+            "default_location__warehouse__name",
+            "default_location__zone",
+            "default_location__aisle",
+            "default_location__shelf",
+            "notes",
+            "category__name",
+            "category__parent__name",
+            "category__parent__parent__name",
+            "category__parent__parent__parent__name",
+        )
+        .order_by("name", "sku")
+    )
+    data = []
+    for product in products:
+        level_1, level_2, level_3, level_4 = _category_levels(product.category)
+        location = product.default_location
+        data.append(
+            {
+                "name": product.name,
+                "sku": product.sku or "",
+                "barcode": product.barcode or "",
+                "ean": product.ean or "",
+                "pu_ht": _stringify_decimal(product.pu_ht),
+                "tva": _stringify_decimal(product.tva),
+                "brand": product.brand or "",
+                "color": product.color or "",
+                "tags": "|".join(sorted(tag.name for tag in product.tags.all())),
+                "category_l1": level_1,
+                "category_l2": level_2,
+                "category_l3": level_3,
+                "category_l4": level_4,
+                "warehouse": location.warehouse.name if location else "",
+                "zone": location.zone if location else "",
+                "aisle": location.aisle if location else "",
+                "shelf": location.shelf if location else "",
+                "rack_color": (
+                    rack_color_lookup.get((location.warehouse_id, location.zone), "")
+                    if location
+                    else ""
+                ),
+                "notes": product.notes or "",
+                "label": f"{product.sku} - {product.name}" if product.sku else product.name,
+            }
+        )
+    return data
+
+
+def _build_contact_selector_data():
+    contacts = (
+        Contact.objects.select_related("destination", "organization")
+        .prefetch_related("tags", "addresses", "organization__addresses")
+        .order_by("name")
+    )
+    data = []
+    for contact in contacts:
+        address = _effective_contact_address(contact)
+        data.append(
+            {
+                "name": contact.name,
+                "contact_type": contact.contact_type,
+                "email": contact.email or "",
+                "phone": contact.phone or "",
+                "tags": "|".join(sorted(tag.name for tag in contact.tags.all())),
+                "destination": str(contact.destination) if contact.destination else "",
+                "address_line1": address.address_line1 if address else "",
+                "city": address.city if address else "",
+                "label": contact.name,
+            }
+        )
+    return data
+
+
+def _build_destination_selector_data():
+    return [
+        {
+            "label": str(destination),
+            "city": destination.city,
+            "iata_code": destination.iata_code,
+            "country": destination.country,
+        }
+        for destination in Destination.objects.only("city", "iata_code", "country").order_by("city")
+    ]
+
+
+def _build_user_selector_data():
+    User = get_user_model()
+    return [
+        {
+            "username": user.username,
+            "email": user.email or "",
+            "first_name": user.first_name or "",
+            "last_name": user.last_name or "",
+            "is_staff": bool(user.is_staff),
+            "is_superuser": bool(user.is_superuser),
+            "is_active": bool(user.is_active),
+            "label": user.username,
+        }
+        for user in User.objects.only(
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "is_staff",
+            "is_superuser",
+            "is_active",
+        ).order_by("username")
+    ]
+
+
+def _build_import_selector_data():
+    return {
+        "products": _build_product_selector_data(),
+        "locations": _build_location_selector_data(),
+        "warehouses": _build_warehouse_selector_data(),
+        "categories": _build_category_selector_data(),
+        "contacts": _build_contact_selector_data(),
+        "destinations": _build_destination_selector_data(),
+        "users": _build_user_selector_data(),
+        "product_tags": list(ProductTag.objects.order_by("name").values_list("name", flat=True)),
+        "contact_tags": list(ContactTag.objects.order_by("name").values_list("name", flat=True)),
+    }
 
 
 def _add_limited_message_list(request, *, title, entries, label):

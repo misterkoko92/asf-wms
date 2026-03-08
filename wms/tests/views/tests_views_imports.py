@@ -67,6 +67,20 @@ class ScanImportViewTests(TestCase):
         response = self.client.get(f"{self.url}?export=missing")
         self.assertEqual(response.status_code, 404)
 
+    def test_scan_import_get_includes_selector_assets_and_stock_radio_markup(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "scan/import_selectors.css")
+        self.assertContains(response, "scan/import_selectors.js")
+        self.assertContains(response, 'id="scan-import-selector-data"')
+        self.assertContains(
+            response,
+            'class="form-check form-check-inline scan-import-radio-option"',
+        )
+
     @override_settings(IMPORT_DEFAULT_PASSWORD="TempPwd!")
     def test_scan_import_post_uses_handler_response(self):
         self.client.force_login(self.superuser)
