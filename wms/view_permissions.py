@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect
-from django.urls import reverse
+from django.urls import NoReverseMatch, reverse
 
 from .compliance import is_role_operation_allowed
 from .models import AssociationRecipient, OrganizationRole, OrganizationRoleAssignment
@@ -42,6 +42,26 @@ def scan_staff_required(view):
     def wrapped(request, *args, **kwargs):
         if not request.user.is_staff:
             raise PermissionDenied
+        return view(request, *args, **kwargs)
+
+    return wrapped
+
+
+def volunteer_required(view):
+    @login_required(login_url="volunteer:login")
+    @wraps(view)
+    def wrapped(request, *args, **kwargs):
+        profile = getattr(request.user, "volunteer_profile", None)
+        if not profile or not profile.is_active:
+            raise PermissionDenied
+        if profile.must_change_password:
+            try:
+                change_url = reverse("volunteer:change_password")
+            except NoReverseMatch:
+                change_url = ""
+            if change_url and request.path != change_url:
+                return redirect(change_url)
+        request.volunteer_profile = profile
         return view(request, *args, **kwargs)
 
     return wrapped

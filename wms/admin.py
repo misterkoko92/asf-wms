@@ -1232,6 +1232,64 @@ class StockMovementAdmin(admin.ModelAdmin):
         )
 
 
+@admin.register(models.VolunteerProfile)
+class VolunteerProfileAdmin(admin.ModelAdmin):
+    list_display = (
+        "volunteer_id",
+        "user",
+        "phone",
+        "city",
+        "is_active",
+        "must_change_password",
+    )
+    list_filter = ("is_active", "must_change_password", "country")
+    search_fields = ("user__username", "user__email", "phone", "city", "volunteer_id")
+    list_select_related = ("user", "contact")
+    actions = ("mark_password_change_required",)
+
+    def mark_password_change_required(self, request, queryset):
+        updated = queryset.update(must_change_password=True)
+        self.message_user(
+            request,
+            _("%(count)s acces benevole(s) marque(s) pour changement de mot de passe.")
+            % {"count": updated},
+        )
+
+    mark_password_change_required.short_description = gettext_lazy(
+        "Forcer le changement de mot de passe"
+    )
+
+
+@admin.register(models.VolunteerConstraint)
+class VolunteerConstraintAdmin(admin.ModelAdmin):
+    list_display = (
+        "volunteer",
+        "max_days_per_week",
+        "max_expeditions_per_week",
+        "max_expeditions_per_day",
+        "max_wait_hours",
+        "updated_at",
+    )
+    list_select_related = ("volunteer", "volunteer__user")
+    search_fields = ("volunteer__user__username", "volunteer__user__email", "volunteer__phone")
+
+
+@admin.register(models.VolunteerAvailability)
+class VolunteerAvailabilityAdmin(admin.ModelAdmin):
+    list_display = ("volunteer", "date", "start_time", "end_time", "updated_at")
+    list_filter = ("date",)
+    list_select_related = ("volunteer", "volunteer__user")
+    search_fields = ("volunteer__user__username", "volunteer__user__email")
+
+
+@admin.register(models.VolunteerUnavailability)
+class VolunteerUnavailabilityAdmin(admin.ModelAdmin):
+    list_display = ("volunteer", "date", "updated_at")
+    list_filter = ("date",)
+    list_select_related = ("volunteer", "volunteer__user")
+    search_fields = ("volunteer__user__username", "volunteer__user__email")
+
+
 def _install_organization_roles_review_admin_url():
     if getattr(admin.site, "_wms_org_roles_review_url_installed", False):
         return
