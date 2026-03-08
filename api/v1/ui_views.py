@@ -513,7 +513,7 @@ def _portal_recipient_payload(validated_data, destination):
     contact_display = " ".join(
         part
         for part in [
-            title_label,
+            str(title_label) if title_label else "",
             (validated_data.get("contact_first_name") or "").strip(),
             (validated_data.get("contact_last_name") or "").strip().upper(),
         ]

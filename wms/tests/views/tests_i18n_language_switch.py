@@ -329,6 +329,9 @@ class LanguageSwitchI18nTests(TestCase):
         settings_response = self.client.get(reverse("scan:scan_settings"))
         self.assertContains(settings_response, "Settings")
         self.assertContains(settings_response, "Operational presets")
+        self.assertContains(settings_response, "Billing")
+        self.assertContains(settings_response, "Quote/Invoice editor")
+        self.assertNotContains(settings_response, "Facturation")
         self.assertNotContains(settings_response, "Param&egrave;tres")
 
     def test_forced_password_change_page_renders_native_english(self):

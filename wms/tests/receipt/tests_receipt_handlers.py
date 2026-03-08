@@ -116,7 +116,7 @@ class ReceiptHandlersTests(TestCase):
             },
         )
         request = self._request()
-        receipt = SimpleNamespace(reference="RCP-001")
+        receipt = SimpleNamespace(id=17, reference="RCP-001")
         with mock.patch(
             "wms.receipt_handlers.resolve_default_warehouse",
             return_value=SimpleNamespace(id=1),
@@ -140,6 +140,7 @@ class ReceiptHandlersTests(TestCase):
         receipt_create_mock.assert_called_once()
         self.assertEqual(hors_mock.call_count, 2)
         success_mock.assert_called_once()
+        self.assertTrue(response.url.endswith("?receipt_id=17"))
 
     def test_handle_receipt_action_select_receipt_redirects(self):
         receipt = SimpleNamespace(id=10)

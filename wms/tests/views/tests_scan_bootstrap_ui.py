@@ -109,7 +109,7 @@ class ScanBootstrapUiTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Facturation")
-        self.assertContains(response, "Param&egrave;tres")
+        self.assertContains(response, "Paramètres")
         self.assertContains(response, "Equivalence")
         self.assertContains(response, "Edition Devis/Facture")
 
@@ -123,7 +123,7 @@ class ScanBootstrapUiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Facturation")
         self.assertContains(response, "Edition Devis/Facture")
-        self.assertNotContains(response, "Param&egrave;tres")
+        self.assertNotContains(response, "Paramètres")
         self.assertNotContains(response, "Equivalence")
 
     def test_scan_shipment_create_uses_bootstrap_and_preserves_js_hooks(self):

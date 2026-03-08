@@ -20,7 +20,7 @@ FORMAT_EXCLUDES ?= --exclude frontend-next --exclude wms/views_next_frontend.py 
 
 BANDIT_EXCLUDES := wms/migrations,contacts/migrations,wms/tests,api/tests,contacts/tests
 
-.PHONY: install install-dev sync sync-no-dev lock export-requirements install-uv install-dev-uv check deploy-check deploy-check-prod-like migrate-check fmt fmt-check lint typecheck typecheck-pyright bandit audit audit-soft security test test-next-ui scan-queue scan-queue-retry scan-queue-health scan-queue-stale scan-queue-runtime-check coverage pre-commit ci
+.PHONY: install install-dev sync sync-no-dev lock export-requirements install-uv install-dev-uv check deploy-check deploy-check-prod-like migrate-check compilemessages fmt fmt-check lint typecheck typecheck-pyright bandit audit audit-soft security test test-next-ui scan-queue scan-queue-retry scan-queue-health scan-queue-stale scan-queue-runtime-check coverage pre-commit ci
 
 install:
 	$(PIP) install -r requirements.txt
@@ -64,6 +64,9 @@ deploy-check-prod-like:
 
 migrate-check:
 	$(PYTHON) manage.py makemigrations --check --dry-run
+
+compilemessages:
+	$(PYTHON) manage.py compilemessages -v 1
 
 fmt:
 	$(RUFF) format $(FORMAT_EXCLUDES) $(FORMAT_SCOPE)
@@ -121,7 +124,7 @@ scan-queue-stale:
 scan-queue-runtime-check:
 	$(PYTHON) manage.py check_document_scan_runtime --max-failed=0 --max-stale-processing=0
 
-coverage:
+coverage: compilemessages
 	$(COVERAGE) run --rcfile=.coveragerc manage.py test $(COVERAGE_TEST_ARGS)
 	$(COVERAGE) report -m --fail-under=$(COVERAGE_FAIL_UNDER)
 	$(COVERAGE) xml
