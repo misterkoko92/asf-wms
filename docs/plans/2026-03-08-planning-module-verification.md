@@ -53,6 +53,30 @@ Couverture validee:
 - `57` tests `OK`
 - aucun drift de schema ni erreur de system check observe pendant cette verification finale
 
+## Demo Dataset Verification
+Commande ajoutee pour charger un jeu de donnees planning fictif et coherent:
+
+```bash
+./.venv/bin/python manage.py seed_planning_demo_data --scenario verification-20260308 --solve
+```
+
+Resultat constate dans le worktree local:
+- `run=1`
+- `status=solved`
+- `shipments=3`
+- `volunteers=2`
+- `flights=2`
+- `assignments=2`
+
+Scenario cree pour la recette locale:
+- expeditions `DEMO-VERIFICATION-20260308-001` a `003`
+- 2 benevoles de demonstration
+- 2 vols de demonstration
+- 1 `PlanningRun` resolu et sa `PlanningVersion v1`
+
+Limite importante:
+- `--solve` est fiable sur une base locale ou dediee, car la selection des expeditions et des benevoles dans le module planning reste globale au systeme et n'est pas encore scoping par scenario de demo
+
 ## Operator Checklist
 Check-list de recette manuelle recommandee avant diffusion terrain:
 
