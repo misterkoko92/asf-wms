@@ -149,6 +149,7 @@
       <p class="scan-help">
         Type: {{ draft_document.get_kind_display }} |
         Statut: {{ draft_document.get_status_display }} |
+        Correction: {{ draft_document.get_correction_state_display }} |
         Num&eacute;ro:
         {% if draft_document.invoice_number %}
           {{ draft_document.invoice_number }}
@@ -160,6 +161,14 @@
         Devise: {{ draft_document.currency }} |
         Taux: {% if draft_document.exchange_rate %}{{ draft_document.exchange_rate }}{% else %}-{% endif %}
       </p>
+      {% if draft_document.parent_document %}
+        <p class="scan-help">
+          Document parent:
+          <a href="?document_id={{ draft_document.parent_document.id }}&association_profile={{ draft_document.parent_document.association_profile_id }}&kind={{ draft_document.parent_document.kind }}">
+            {{ draft_document.parent_document }}
+          </a>
+        </p>
+      {% endif %}
       {% if draft_document.lines.all %}
         <table class="scan-table">
           <thead>
@@ -175,6 +184,60 @@
                 <td>{{ line.line_number }}</td>
                 <td>{{ line.label }}</td>
                 <td>{{ line.total_amount }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% endif %}
+
+      {% if draft_document.payments.all %}
+        <div class="scan-divider"></div>
+        <h3>Paiements enregistr&eacute;s</h3>
+        <table class="scan-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Montant</th>
+              <th>Mode</th>
+              <th>R&eacute;f&eacute;rence</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for payment in draft_document.payments.all %}
+              <tr>
+                <td>{{ payment.paid_on|date:"Y-m-d" }}</td>
+                <td>{{ payment.amount }} {{ payment.currency }}</td>
+                <td>{{ payment.get_payment_method_display }}</td>
+                <td>{% if payment.reference %}{{ payment.reference }}{% else %}-{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% endif %}
+
+      {% if draft_document.child_documents.all %}
+        <div class="scan-divider"></div>
+        <h3>Documents li&eacute;s</h3>
+        <table class="scan-table">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Statut</th>
+              <th>Num&eacute;ro</th>
+              <th>Ouvrir</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for child_document in draft_document.child_documents.all %}
+              <tr>
+                <td>{{ child_document.get_kind_display }}</td>
+                <td>{{ child_document.get_status_display }}</td>
+                <td>{{ child_document }}</td>
+                <td>
+                  <a href="?document_id={{ child_document.id }}&association_profile={{ child_document.association_profile_id }}&kind={{ child_document.kind }}">
+                    Voir
+                  </a>
+                </td>
               </tr>
             {% endfor %}
           </tbody>
@@ -207,6 +270,80 @@
 
           <div class="scan-filter-actions">
             <button type="submit" class="scan-submit btn btn-primary">Emettre le document</button>
+          </div>
+        </form>
+      {% endif %}
+
+      {% if draft_document.kind == "invoice" and draft_document.status != "draft" and draft_document.status != "cancelled_or_corrected" %}
+        <div class="scan-divider"></div>
+        <form method="post" class="scan-filters ui-comp-form">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_payment">
+          <input type="hidden" name="document_id" value="{{ draft_document.id }}">
+          <input type="hidden" name="association_profile" value="{% if selected_association_profile %}{{ selected_association_profile.id }}{% endif %}">
+          <input type="hidden" name="kind" value="{{ selected_kind }}">
+          <input type="hidden" name="period_start" value="{% if selected_period_start %}{{ selected_period_start|date:'Y-m-d' }}{% endif %}">
+          <input type="hidden" name="period_end" value="{% if selected_period_end %}{{ selected_period_end|date:'Y-m-d' }}{% endif %}">
+
+          <h3>Ajouter un paiement</h3>
+          <div class="scan-inline scan-inline-equal">
+            <div class="scan-field">
+              <label class="form-label" for="id_payment_amount">Montant</label>
+              <input id="id_payment_amount" type="number" step="0.01" name="payment_amount" required>
+            </div>
+            <div class="scan-field">
+              <label class="form-label" for="id_payment_method">Mode de paiement</label>
+              <select id="id_payment_method" name="payment_method">
+                {% for value, label in billing_payment_method_choices %}
+                  <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="scan-inline scan-inline-equal">
+            <div class="scan-field">
+              <label class="form-label" for="id_payment_date">Date</label>
+              <input id="id_payment_date" type="date" name="payment_date">
+            </div>
+            <div class="scan-field">
+              <label class="form-label" for="id_payment_reference">R&eacute;f&eacute;rence</label>
+              <input id="id_payment_reference" type="text" name="payment_reference">
+            </div>
+          </div>
+          <div class="scan-field">
+            <label class="form-label" for="id_payment_comment">Commentaire</label>
+            <textarea id="id_payment_comment" name="payment_comment" rows="2"></textarea>
+          </div>
+
+          <div class="scan-filter-actions">
+            <button type="submit" class="scan-submit btn btn-primary">Enregistrer le paiement</button>
+          </div>
+        </form>
+
+        <div class="scan-divider"></div>
+        <form method="post" class="scan-filters ui-comp-form">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="create_correction_chain">
+          <input type="hidden" name="document_id" value="{{ draft_document.id }}">
+          <input type="hidden" name="association_profile" value="{% if selected_association_profile %}{{ selected_association_profile.id }}{% endif %}">
+          <input type="hidden" name="kind" value="{{ selected_kind }}">
+          <input type="hidden" name="period_start" value="{% if selected_period_start %}{{ selected_period_start|date:'Y-m-d' }}{% endif %}">
+          <input type="hidden" name="period_end" value="{% if selected_period_end %}{{ selected_period_end|date:'Y-m-d' }}{% endif %}">
+
+          <h3>Cha&icirc;ne de correction</h3>
+          <div class="scan-field">
+            <label class="form-label" for="id_credit_note_number">Num&eacute;ro d&apos;avoir</label>
+            <input id="id_credit_note_number" type="text" name="credit_note_number">
+          </div>
+          <div class="scan-field">
+            <label>
+              <input type="checkbox" name="create_replacement_invoice" value="1">
+              Cr&eacute;er une facture de remplacement en brouillon
+            </label>
+          </div>
+
+          <div class="scan-filter-actions">
+            <button type="submit" class="scan-submit btn btn-secondary">Cr&eacute;er la correction</button>
           </div>
         </form>
       {% endif %}

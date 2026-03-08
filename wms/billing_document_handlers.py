@@ -13,6 +13,8 @@ from .models import (
     BillingDocumentReceipt,
     BillingDocumentShipment,
     BillingDocumentStatus,
+    BillingPayment,
+    BillingPaymentMethod,
     Shipment,
     ShipmentStatus,
 )
@@ -195,9 +197,174 @@ def create_billing_draft(
         BillingDocument.objects.select_related(
             "association_profile__contact", "computation_profile"
         )
-        .prefetch_related("shipment_links__shipment", "receipt_links__receipt", "lines")
+        .prefetch_related("shipment_links__shipment", "receipt_links__receipt", "lines", "payments")
         .get(pk=document.pk)
     )
+
+
+def _managed_document_queryset():
+    return BillingDocument.objects.select_related(
+        "association_profile__contact",
+        "association_profile__billing_profile",
+        "computation_profile",
+        "parent_document",
+    ).prefetch_related(
+        "shipment_links__shipment",
+        "receipt_links__receipt",
+        "lines",
+        "payments",
+        "child_documents",
+    )
+
+
+def recompute_invoice_status(*, document):
+    document = _managed_document_queryset().get(pk=document.pk)
+    if document.kind != BillingDocumentKind.INVOICE:
+        return document
+    if document.status in {
+        BillingDocumentStatus.DRAFT,
+        BillingDocumentStatus.CANCELLED,
+        BillingDocumentStatus.CANCELLED_OR_CORRECTED,
+    }:
+        return document
+
+    paid_amount = sum((payment.amount for payment in document.payments.all()), Decimal("0.00"))
+    total_amount = document.lines_total_amount()
+    if paid_amount <= 0 or total_amount <= 0:
+        new_status = BillingDocumentStatus.ISSUED
+    elif paid_amount < total_amount:
+        new_status = BillingDocumentStatus.PARTIALLY_PAID
+    else:
+        new_status = BillingDocumentStatus.PAID
+
+    if document.status != new_status:
+        BillingDocument.objects.filter(pk=document.pk).update(
+            status=new_status,
+            updated_at=timezone.now(),
+        )
+        document.status = new_status
+    return document
+
+
+def record_billing_payment(
+    *,
+    document,
+    amount,
+    payment_method=BillingPaymentMethod.BANK_TRANSFER,
+    paid_on=None,
+    reference="",
+    comment="",
+    created_by=None,
+    currency=None,
+    proof_attachment=None,
+):
+    document = _managed_document_queryset().get(pk=document.pk)
+    if document.kind != BillingDocumentKind.INVOICE:
+        raise ValueError("Payments can only be recorded on invoices.")
+    if document.status == BillingDocumentStatus.DRAFT:
+        raise ValueError("Issued invoices are required before recording payments.")
+
+    BillingPayment.objects.create(
+        document=document,
+        amount=Decimal(str(amount)),
+        currency=(currency or document.currency or "EUR").upper(),
+        paid_on=paid_on or timezone.localdate(),
+        payment_method=payment_method,
+        reference=(reference or "").strip(),
+        comment=(comment or "").strip(),
+        proof_attachment=proof_attachment,
+        created_by=created_by,
+    )
+    return recompute_invoice_status(document=document)
+
+
+def _clone_document_links(*, source_document, target_document):
+    for shipment_link in source_document.shipment_links.all():
+        BillingDocumentShipment.objects.create(
+            document=target_document,
+            shipment=shipment_link.shipment,
+        )
+    for receipt_link in source_document.receipt_links.all():
+        BillingDocumentReceipt.objects.create(
+            document=target_document,
+            receipt=receipt_link.receipt,
+        )
+
+
+def _clone_document_lines(*, source_document, target_document, negate_amounts):
+    for line in source_document.lines.order_by("line_number"):
+        multiplier = Decimal("-1.00") if negate_amounts else Decimal("1.00")
+        BillingDocumentLine.objects.create(
+            document=target_document,
+            line_number=line.line_number,
+            label=line.label,
+            description=line.description,
+            quantity=line.quantity,
+            unit_price=line.unit_price * multiplier,
+            total_amount=line.total_amount * multiplier,
+            service_catalog_item=line.service_catalog_item,
+            is_manual=line.is_manual,
+        )
+
+
+def create_credit_note_for_invoice(*, document, credit_note_number=None, created_by=None):
+    del created_by
+    document = _managed_document_queryset().get(pk=document.pk)
+    if document.kind != BillingDocumentKind.INVOICE:
+        raise ValueError("Credit notes can only be created from invoices.")
+
+    with transaction.atomic():
+        credit_note = BillingDocument.objects.create(
+            association_profile=document.association_profile,
+            kind=BillingDocumentKind.CREDIT_NOTE,
+            status=BillingDocumentStatus.ISSUED,
+            parent_document=document,
+            computation_profile=document.computation_profile,
+            currency=document.currency,
+            exchange_rate=document.exchange_rate,
+            credit_note_number=(credit_note_number or "").strip() or None,
+            issued_at=timezone.now(),
+        )
+        _clone_document_links(source_document=document, target_document=credit_note)
+        _clone_document_lines(
+            source_document=document,
+            target_document=credit_note,
+            negate_amounts=True,
+        )
+        credit_note.issued_snapshot = build_issued_document_snapshot(document=credit_note)
+        credit_note.save(update_fields=["issued_snapshot", "updated_at"])
+        BillingDocument.objects.filter(pk=document.pk).update(
+            status=BillingDocumentStatus.CANCELLED_OR_CORRECTED,
+            updated_at=timezone.now(),
+        )
+
+    return _managed_document_queryset().get(pk=credit_note.pk)
+
+
+def create_replacement_invoice_from_invoice(*, document, created_by=None):
+    del created_by
+    document = _managed_document_queryset().get(pk=document.pk)
+    if document.kind != BillingDocumentKind.INVOICE:
+        raise ValueError("Replacement invoices can only be created from invoices.")
+
+    with transaction.atomic():
+        replacement_invoice = BillingDocument.objects.create(
+            association_profile=document.association_profile,
+            kind=BillingDocumentKind.INVOICE,
+            status=BillingDocumentStatus.DRAFT,
+            parent_document=document,
+            computation_profile=document.computation_profile,
+            currency=document.currency,
+            exchange_rate=document.exchange_rate,
+        )
+        _clone_document_links(source_document=document, target_document=replacement_invoice)
+        _clone_document_lines(
+            source_document=document,
+            target_document=replacement_invoice,
+            negate_amounts=False,
+        )
+
+    return _managed_document_queryset().get(pk=replacement_invoice.pk)
 
 
 def _formatted_decimal(value):

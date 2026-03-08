@@ -8,7 +8,10 @@ from django.views.decorators.http import require_http_methods
 from .billing_document_handlers import (
     build_editor_candidates,
     create_billing_draft,
+    create_credit_note_for_invoice,
+    create_replacement_invoice_from_invoice,
     issue_billing_document,
+    record_billing_payment,
 )
 from .billing_exchange_rates import resolve_exchange_rate
 from .billing_permissions import require_billing_staff_or_superuser
@@ -25,11 +28,16 @@ from .models import (
     BillingComputationProfile,
     BillingDocument,
     BillingDocumentKind,
+    BillingPaymentMethod,
     BillingServiceCatalogItem,
     ShipmentUnitEquivalenceRule,
 )
-from .view_permissions import require_superuser as _require_superuser
-from .view_permissions import scan_staff_required
+from .view_permissions import (
+    require_superuser as _require_superuser,
+)
+from .view_permissions import (
+    scan_staff_required,
+)
 
 TEMPLATE_SCAN_BILLING_SETTINGS = "scan/billing_settings.html"
 TEMPLATE_SCAN_BILLING_EQUIVALENCE = "scan/billing_equivalence.html"
@@ -40,6 +48,8 @@ ACTION_SAVE_OVERRIDE = "save_override"
 ACTION_SAVE_EQUIVALENCE_RULE = "save_equivalence_rule"
 ACTION_BUILD_DRAFT = "build_draft"
 ACTION_ISSUE_DOCUMENT = "issue_document"
+ACTION_ADD_PAYMENT = "add_payment"
+ACTION_CREATE_CORRECTION_CHAIN = "create_correction_chain"
 
 
 def _selected_instance_from_query(request, *, query_key, model):
@@ -157,6 +167,7 @@ def _build_billing_editor_context(
         "draft_document": draft_document,
         "draft_options_form": draft_options_form,
         "billing_document_kind_choices": BillingDocumentKind.choices,
+        "billing_payment_method_choices": BillingPaymentMethod.choices,
         "exchange_rate_resolution": exchange_rate_resolution,
     }
 
@@ -202,6 +213,21 @@ def _build_draft_options_form(*, request, action, selected_currency, exchange_ra
             form_data["exchange_rate"] = initial_values["exchange_rate"]
         return BillingDocumentDraftOptionsForm(form_data, initial=initial_values)
     return BillingDocumentDraftOptionsForm(initial=initial_values)
+
+
+def _billing_editor_document_queryset():
+    return BillingDocument.objects.select_related(
+        "association_profile__contact",
+        "association_profile__billing_profile",
+        "computation_profile",
+        "parent_document",
+    ).prefetch_related(
+        "shipment_links__shipment",
+        "receipt_links__receipt",
+        "lines",
+        "payments",
+        "child_documents",
+    )
 
 
 @scan_staff_required
@@ -325,6 +351,15 @@ def scan_billing_equivalence(request):
 @require_http_methods(["GET", "POST"])
 def scan_billing_editor(request):
     require_billing_staff_or_superuser(request)
+    selected_document_id = (
+        request.POST.get("document_id")
+        if request.method == "POST"
+        else request.GET.get("document_id")
+    )
+    selected_document_id = (selected_document_id or "").strip()
+    draft_document = None
+    if selected_document_id:
+        draft_document = _billing_editor_document_queryset().filter(pk=selected_document_id).first()
     association_profile = _selected_association_profile(
         request.POST.get("association_profile")
         if request.method == "POST"
@@ -333,12 +368,14 @@ def scan_billing_editor(request):
     kind = (
         request.POST.get("kind") if request.method == "POST" else request.GET.get("kind")
     ) or BillingDocumentKind.QUOTE
+    if draft_document is not None:
+        association_profile = draft_document.association_profile
+        kind = draft_document.kind
     if kind not in BillingDocumentKind.values:
         kind = BillingDocumentKind.QUOTE
     action = (request.POST.get("action") or "").strip().lower() if request.method == "POST" else ""
     period = _resolved_period(request)
     candidate_rows = []
-    draft_document = None
     selected_currency = _selected_document_currency(request, association_profile)
     exchange_rate_resolution = resolve_exchange_rate(
         document_currency=selected_currency,
@@ -414,8 +451,7 @@ def scan_billing_editor(request):
                 messages.error(request, "Document a emettre introuvable.")
             else:
                 draft_document = get_object_or_404(
-                    BillingDocument.objects.select_related("association_profile__contact"),
-                    pk=document_id,
+                    _billing_editor_document_queryset(), pk=document_id
                 )
                 association_profile = draft_document.association_profile
                 kind = draft_document.kind
@@ -432,6 +468,66 @@ def scan_billing_editor(request):
                         association_profile=association_profile,
                         kind=kind,
                         period=period,
+                    )
+        elif action == ACTION_ADD_PAYMENT:
+            document_id = (request.POST.get("document_id") or "").strip()
+            if not document_id:
+                messages.error(request, "Document de paiement introuvable.")
+            else:
+                draft_document = get_object_or_404(
+                    _billing_editor_document_queryset(), pk=document_id
+                )
+                association_profile = draft_document.association_profile
+                kind = draft_document.kind
+                payment_amount = (request.POST.get("payment_amount") or "").strip()
+                if not payment_amount:
+                    messages.error(request, "Saisissez un montant de paiement.")
+                else:
+                    payment_date = parse_date((request.POST.get("payment_date") or "").strip())
+                    draft_document = record_billing_payment(
+                        document=draft_document,
+                        amount=payment_amount,
+                        payment_method=(request.POST.get("payment_method") or "").strip()
+                        or BillingPaymentMethod.BANK_TRANSFER,
+                        paid_on=payment_date,
+                        reference=request.POST.get("payment_reference"),
+                        comment=request.POST.get("payment_comment"),
+                        created_by=request.user,
+                    )
+                    messages.success(
+                        request,
+                        f"Paiement de {payment_amount} {draft_document.currency} enregistre.",
+                    )
+        elif action == ACTION_CREATE_CORRECTION_CHAIN:
+            document_id = (request.POST.get("document_id") or "").strip()
+            if not document_id:
+                messages.error(request, "Document a corriger introuvable.")
+            else:
+                draft_document = get_object_or_404(
+                    _billing_editor_document_queryset(), pk=document_id
+                )
+                association_profile = draft_document.association_profile
+                kind = draft_document.kind
+                credit_note = create_credit_note_for_invoice(
+                    document=draft_document,
+                    credit_note_number=request.POST.get("credit_note_number"),
+                    created_by=request.user,
+                )
+                if request.POST.get("create_replacement_invoice"):
+                    draft_document = create_replacement_invoice_from_invoice(
+                        document=draft_document,
+                        created_by=request.user,
+                    )
+                    messages.success(
+                        request,
+                        "Avoir "
+                        f"{credit_note.credit_note_number or credit_note.id} cree et facture de remplacement preparee.",
+                    )
+                else:
+                    draft_document = credit_note
+                    messages.success(
+                        request,
+                        f"Avoir {credit_note.credit_note_number or credit_note.id} cree.",
                     )
 
     return render(

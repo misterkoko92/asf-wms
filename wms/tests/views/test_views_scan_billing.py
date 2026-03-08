@@ -6,7 +6,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from contacts.models import Contact, ContactType
-from wms.billing_document_handlers import create_billing_draft
+from wms.billing_document_handlers import create_billing_draft, issue_billing_document
 from wms.billing_permissions import BILLING_STAFF_GROUP_NAME
 from wms.models import (
     AssociationProfile,
@@ -15,6 +15,7 @@ from wms.models import (
     BillingComputationProfile,
     BillingDocument,
     BillingDocumentKind,
+    BillingDocumentStatus,
     BillingExtraUnitMode,
     BillingServiceCatalogItem,
     ProductCategory,
@@ -215,6 +216,105 @@ class ScanBillingViewTests(TestCase):
         draft_document = response.context["draft_document"]
         self.assertEqual(draft_document.currency, "XOF")
         self.assertEqual(draft_document.exchange_rate, Decimal("655.957000"))
+
+    def test_scan_billing_editor_post_records_payment_for_issued_invoice(self):
+        association_profile = self._create_association_profile(username="scan-billing-payment")
+        BillingComputationProfile.objects.create(
+            code="scan-billing-payment-default",
+            label="Scan Billing Payment Default",
+            is_default_for_shipment_only=True,
+        )
+        shipment = self._create_shipped_shipment(
+            association_profile=association_profile,
+            reference="EXP-SCAN-BILL-PAYMENT",
+        )
+        draft_document = create_billing_draft(
+            association_profile=association_profile,
+            kind=BillingDocumentKind.INVOICE,
+            shipment_ids=[shipment.id],
+            created_by=self.billing_user,
+            manual_lines=[{"label": "Service", "amount": "75.00", "description": "Paiement"}],
+        )
+        issued_document = issue_billing_document(
+            document=draft_document,
+            invoice_number="FAC-2026-450",
+        )
+        self.client.force_login(self.billing_user)
+
+        response = self.client.post(
+            reverse("scan:scan_billing_editor"),
+            {
+                "action": "add_payment",
+                "association_profile": association_profile.id,
+                "kind": BillingDocumentKind.INVOICE,
+                "document_id": issued_document.id,
+                "payment_amount": "20.00",
+                "payment_method": "bank_transfer",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        issued_document.refresh_from_db()
+        self.assertEqual(issued_document.status, BillingDocumentStatus.PARTIALLY_PAID)
+        self.assertContains(response, "20.00")
+
+    def test_scan_billing_editor_post_creates_correction_chain(self):
+        association_profile = self._create_association_profile(username="scan-billing-correction")
+        BillingComputationProfile.objects.create(
+            code="scan-billing-correction-default",
+            label="Scan Billing Correction Default",
+            is_default_for_shipment_only=True,
+        )
+        shipment = self._create_shipped_shipment(
+            association_profile=association_profile,
+            reference="EXP-SCAN-BILL-CORRECTION",
+        )
+        draft_document = create_billing_draft(
+            association_profile=association_profile,
+            kind=BillingDocumentKind.INVOICE,
+            shipment_ids=[shipment.id],
+            created_by=self.billing_user,
+            manual_lines=[{"label": "Service", "amount": "75.00", "description": "Correction"}],
+        )
+        issued_document = issue_billing_document(
+            document=draft_document,
+            invoice_number="FAC-2026-451",
+        )
+        self.client.force_login(self.billing_user)
+
+        response = self.client.post(
+            reverse("scan:scan_billing_editor"),
+            {
+                "action": "create_correction_chain",
+                "association_profile": association_profile.id,
+                "kind": BillingDocumentKind.INVOICE,
+                "document_id": issued_document.id,
+                "credit_note_number": "AV-2026-451",
+                "create_replacement_invoice": "1",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        issued_document.refresh_from_db()
+        self.assertEqual(
+            issued_document.status,
+            BillingDocumentStatus.CANCELLED_OR_CORRECTED,
+        )
+        self.assertTrue(
+            BillingDocument.objects.filter(
+                parent_document=issued_document,
+                kind=BillingDocumentKind.CREDIT_NOTE,
+                credit_note_number="AV-2026-451",
+            ).exists()
+        )
+        self.assertTrue(
+            BillingDocument.objects.filter(
+                parent_document=issued_document,
+                kind=BillingDocumentKind.INVOICE,
+                status=BillingDocumentStatus.DRAFT,
+            ).exists()
+        )
+        self.assertContains(response, "AV-2026-451")
 
     def test_scan_billing_routes_render_for_superuser(self):
         self.client.force_login(self.superuser)

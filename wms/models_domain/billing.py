@@ -52,7 +52,16 @@ class BillingDocumentKind(models.TextChoices):
 class BillingDocumentStatus(models.TextChoices):
     DRAFT = "draft", "Draft"
     ISSUED = "issued", "Issued"
+    PARTIALLY_PAID = "partially_paid", "Partially paid"
+    PAID = "paid", "Paid"
     CANCELLED = "cancelled", "Cancelled"
+    CANCELLED_OR_CORRECTED = "cancelled_or_corrected", "Cancelled / corrected"
+
+
+class BillingDocumentCorrectionState(models.TextChoices):
+    NONE = "none", "None"
+    IN_REVIEW = "in_review", "In review"
+    RESOLVED = "resolved", "Resolved"
 
 
 class BillingPaymentMethod(models.TextChoices):
@@ -65,6 +74,7 @@ class BillingPaymentMethod(models.TextChoices):
 
 class BillingIssueStatus(models.TextChoices):
     OPEN = "open", "Open"
+    IN_REVIEW = "in_review", "In review"
     RESOLVED = "resolved", "Resolved"
 
 
@@ -321,9 +331,14 @@ class BillingDocument(models.Model):
         default=BillingDocumentKind.QUOTE,
     )
     status = models.CharField(
-        max_length=20,
+        max_length=30,
         choices=BillingDocumentStatus.choices,
         default=BillingDocumentStatus.DRAFT,
+    )
+    correction_state = models.CharField(
+        max_length=20,
+        choices=BillingDocumentCorrectionState.choices,
+        default=BillingDocumentCorrectionState.NONE,
     )
     association_profile = models.ForeignKey(
         "wms.AssociationProfile",
@@ -354,6 +369,13 @@ class BillingDocument(models.Model):
         blank=True,
         related_name="derived_documents",
     )
+    parent_document = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="child_documents",
+    )
     issued_snapshot = models.JSONField(default=dict, blank=True)
     issued_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -365,6 +387,9 @@ class BillingDocument(models.Model):
     def __str__(self) -> str:
         number = self.invoice_number or self.quote_number or self.credit_note_number
         return number or f"Billing document {self.id}"
+
+    def lines_total_amount(self):
+        return sum((line.total_amount for line in self.lines.all()), Decimal("0.00"))
 
     def clean(self):
         super().clean()
@@ -561,6 +586,19 @@ class BillingIssue(models.Model):
 
     def __str__(self) -> str:
         return f"Billing issue {self.id}"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if not self.document_id:
+            return
+        if self.status in {BillingIssueStatus.OPEN, BillingIssueStatus.IN_REVIEW}:
+            desired_state = BillingDocumentCorrectionState.IN_REVIEW
+        else:
+            desired_state = BillingDocumentCorrectionState.RESOLVED
+        BillingDocument.objects.filter(pk=self.document_id).update(
+            correction_state=desired_state,
+            updated_at=timezone.now(),
+        )
 
 
 @receiver(post_save, sender="wms.AssociationProfile")
