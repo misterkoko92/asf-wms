@@ -26,6 +26,22 @@ Couverture validee en plus de la fondation initiale:
 - persistance des metadonnees vol `routing` et `route_pos`
 - absence de drift de migration apres ajout des champs vol
 
+### Follow-up Flight API Client
+```bash
+ASF_TMP_DIR=/tmp/asf_wms_planning ./.venv/bin/python manage.py test wms.tests.planning wms.tests.views.tests_views_planning wms.tests.management.tests_management_makemigrations_check wms.tests.management.tests_management_runtime_dependencies -v 1
+```
+
+Result:
+- `37` tests executes
+- `OK`
+
+Couverture validee en plus:
+- client concret `PlanningFlightApiClient` pour l'endpoint Air France-KLM `flightstatus`
+- construction du client depuis les settings runtime planning
+- parsing JSON, gestion du `404`, priorite `latestPublished`, fallback sur le plus tot disponible
+- expansion d'un routing multi-escales en plusieurs lignes vol avec `route_pos`
+- integration du client concret dans les imports API planning
+
 ### Command 1
 ```bash
 ASF_TMP_DIR=/tmp/asf_wms_planning ./.venv/bin/python manage.py test wms.tests.planning -v 2
@@ -113,7 +129,7 @@ Check-list de recette manuelle recommandee avant diffusion terrain:
 
 ## Known Limits
 - le solveur implemente dans cette branche est `ortools_cp_sat_v1`; il couvre deja la capacite par vol, la capacite benevole par vol, les horaires et l'exclusivite multi-stop, mais pas encore toute la parite metier du solveur historique
-- le connecteur vols API est abstrait derriere `PlanningFlightApiClient`; la branche prepare l'integration, mais pas encore un client de production complet
+- le connecteur vols API est maintenant branche derriere `PlanningFlightApiClient`, mais il reste a valider le mapping exact sur des reponses reelles et des semaines d'exploitation completes
 - l'export `Planning.xlsx` est volontairement minimal et transitoire; il ne reproduit pas encore la structure historique complete du workbook legacy
 - les communications sont generees comme brouillons editables dans `asf-wms`, mais l'envoi email ou WhatsApp reste manuel par choix produit
 - l'application des mises a jour expeditions est volontairement conservative: seules les expeditions encore `packed` ou deja `planned` sont touchees

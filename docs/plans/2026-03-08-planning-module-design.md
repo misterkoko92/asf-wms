@@ -35,7 +35,7 @@ La branche `codex/planning-foundation` met bien en place le socle planning legac
 
 Ecarts volontaires constates apres implementation:
 - le solveur actuellement livre est `ortools_cp_sat_v1`, avec capacite par vol, contrainte benevole par vol, compatibilite horaire et exclusivite par vol physique, mais pas encore la parite complete avec tout le solveur historique
-- la source vols API est branchee via un client injectable et des runtime settings, mais le connecteur concret reste a finaliser selon l'API retenue
+- la source vols API est maintenant branchee via un client concret Air France-KLM, avec expansion des routings multi-escales en destinations candidates, mais il reste a valider la couverture metier sur des jeux reels
 - l'export `Planning.xlsx` reste un classeur de transition minimal, pas une reproduction 1:1 du workbook historique
 - les communications sont generees et editables dans `asf-wms`, mais l'envoi reste volontairement manuel
 

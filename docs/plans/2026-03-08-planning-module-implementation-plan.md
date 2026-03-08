@@ -18,7 +18,7 @@ Etat au 2026-03-08:
 
 Limites restantes a garder visibles pendant la suite:
 - solveur livre en `ortools_cp_sat_v1`, mais pas encore en parite complete avec le solveur historique
-- connecteur vols API prepare, mais client concret encore a brancher
+- connecteur vols API Air France-KLM branche, mais sa couverture metier doit encore etre validee sur des jeux reels
 - export `Planning.xlsx` volontairement minimal pour la phase transitoire
 - details et check-list operateur documentes dans `docs/plans/2026-03-08-planning-module-verification.md`
 
