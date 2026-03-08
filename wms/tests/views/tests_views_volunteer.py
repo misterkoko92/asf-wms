@@ -121,3 +121,119 @@ class VolunteerProfileViewTests(TestCase):
         self.assertEqual(constraints.max_expeditions_per_week, 3)
         self.assertEqual(constraints.max_expeditions_per_day, 1)
         self.assertEqual(constraints.max_wait_hours, 4)
+
+
+class VolunteerAvailabilityViewTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="availability@example.com",
+            email="availability@example.com",
+            password="pass1234",  # pragma: allowlist secret
+        )
+        self.profile = VolunteerProfile.objects.create(user=self.user)
+        self.client.force_login(self.user)
+
+    def _week_payload(self):
+        payload = {
+            "week_start": "2026-03-09",
+            "form-TOTAL_FORMS": "7",
+            "form-INITIAL_FORMS": "0",
+            "form-MIN_NUM_FORMS": "0",
+            "form-MAX_NUM_FORMS": "1000",
+        }
+        dates = [
+            "2026-03-09",
+            "2026-03-10",
+            "2026-03-11",
+            "2026-03-12",
+            "2026-03-13",
+            "2026-03-14",
+            "2026-03-15",
+        ]
+        for index, date_value in enumerate(dates):
+            payload[f"form-{index}-date"] = date_value
+            payload[f"form-{index}-availability"] = "unavailable"
+            payload[f"form-{index}-start_time"] = ""
+            payload[f"form-{index}-end_time"] = ""
+        payload["form-0-availability"] = "available"
+        payload["form-0-start_time"] = "09:00"
+        payload["form-0-end_time"] = "12:00"
+        return payload
+
+    def test_availability_list_renders_existing_entries(self):
+        VolunteerAvailability.objects.create(
+            volunteer=self.profile,
+            date="2026-03-09",
+            start_time="09:00",
+            end_time="12:00",
+        )
+
+        response = self.client.get(reverse("volunteer:availability_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "09:00")
+
+    def test_create_weekly_availability_redirects_to_list(self):
+        response = self.client.post(
+            reverse("volunteer:availability_create"),
+            self._week_payload(),
+        )
+
+        self.assertRedirects(response, reverse("volunteer:availability_list"))
+        availability = VolunteerAvailability.objects.get(volunteer=self.profile)
+        self.assertEqual(str(availability.start_time), "09:00:00")
+        self.assertEqual(str(availability.end_time), "12:00:00")
+
+    def test_update_availability_persists_changes(self):
+        availability = VolunteerAvailability.objects.create(
+            volunteer=self.profile,
+            date="2026-03-09",
+            start_time="09:00",
+            end_time="12:00",
+        )
+
+        response = self.client.post(
+            reverse("volunteer:availability_edit", args=[availability.pk]),
+            {
+                "date": "2026-03-09",
+                "start_time": "10:00",
+                "end_time": "13:00",
+            },
+        )
+
+        self.assertRedirects(response, reverse("volunteer:availability_list"))
+        availability.refresh_from_db()
+        self.assertEqual(str(availability.start_time), "10:00:00")
+        self.assertEqual(str(availability.end_time), "13:00:00")
+
+    def test_delete_availability_removes_entry(self):
+        availability = VolunteerAvailability.objects.create(
+            volunteer=self.profile,
+            date="2026-03-09",
+            start_time="09:00",
+            end_time="12:00",
+        )
+
+        response = self.client.post(
+            reverse("volunteer:availability_delete", args=[availability.pk])
+        )
+
+        self.assertRedirects(response, reverse("volunteer:availability_list"))
+        self.assertFalse(VolunteerAvailability.objects.filter(pk=availability.pk).exists())
+
+    def test_recap_renders_week_rows(self):
+        VolunteerAvailability.objects.create(
+            volunteer=self.profile,
+            date="2026-03-09",
+            start_time="09:00",
+            end_time="12:00",
+        )
+
+        response = self.client.get(
+            reverse("volunteer:availability_recap"),
+            {"week": "11", "year": "2026"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Semaine")
+        self.assertContains(response, self.user.email)

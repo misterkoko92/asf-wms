@@ -73,6 +73,11 @@ from .views_scan import (
     scan_ui_lab,
 )
 from .views_volunteer import (
+    volunteer_availability_create,
+    volunteer_availability_delete,
+    volunteer_availability_edit,
+    volunteer_availability_list,
+    volunteer_availability_recap,
     volunteer_constraints,
     volunteer_dashboard,
     volunteer_profile,
@@ -106,6 +111,11 @@ VOLUNTEER_EXPORTS = (
     "volunteer_dashboard",
     "volunteer_profile",
     "volunteer_constraints",
+    "volunteer_availability_list",
+    "volunteer_availability_create",
+    "volunteer_availability_edit",
+    "volunteer_availability_delete",
+    "volunteer_availability_recap",
 )
 
 PUBLIC_EXPORTS = (

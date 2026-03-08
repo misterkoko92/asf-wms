@@ -1,0 +1,77 @@
+{% extends "benevole/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Ajouter des disponibilites" %}{% endblock %}
+
+{% block content %}
+  <div class="scan-card portal-card card border-0 ui-comp-card">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+      <div>
+        <h2 class="ui-comp-title mb-1">{% trans "Ajouter des disponibilites" %}</h2>
+        <p class="scan-help mb-0">
+          {% blocktrans with week=week_number start=week_start|date:"d/m/Y" end=week_end|date:"d/m/Y" %}
+          Semaine {{ week }} du {{ start }} au {{ end }}.
+          {% endblocktrans %}
+        </p>
+      </div>
+      <form method="get" class="d-flex flex-wrap gap-2 align-items-end">
+        <div>
+          <label class="form-label" for="id_week">{% trans "Semaine" %}</label>
+          <select id="id_week" name="week" class="form-select form-select-sm">
+            {% for option in week_options %}
+              <option value="{{ option.week }}" {% if option.week == week_number %}selected{% endif %}>{{ option.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <input type="hidden" name="year" value="{{ week_year }}">
+        <button type="submit" class="btn btn-outline-secondary btn-sm">{% trans "Aller" %}</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="scan-card portal-card card border-0 ui-comp-card">
+    <form method="post" novalidate class="ui-comp-form">
+      {% csrf_token %}
+      {{ formset.management_form }}
+      <input type="hidden" name="week_start" value="{{ week_start|date:'Y-m-d' }}">
+
+      {% for form in formset %}
+        <div class="border rounded p-3 mb-3">
+          <div class="fw-semibold mb-2">{{ form.day_label }}</div>
+          {% if form.non_field_errors %}
+            {% for error in form.non_field_errors %}
+              <div class="scan-message error">{{ error }}</div>
+            {% endfor %}
+          {% endif %}
+          <div class="mb-2">
+            {{ form.date }}
+            {% for radio in form.availability %}
+              <label class="me-3">{{ radio.tag }} {{ radio.choice_label }}</label>
+            {% endfor %}
+          </div>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label" for="{{ form.start_time.id_for_label }}">{% trans "Heure debut" %}</label>
+              {{ form.start_time }}
+              {% for error in form.start_time.errors %}
+                <div class="scan-message error">{{ error }}</div>
+              {% endfor %}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="{{ form.end_time.id_for_label }}">{% trans "Heure fin" %}</label>
+              {{ form.end_time }}
+              {% for error in form.end_time.errors %}
+                <div class="scan-message error">{{ error }}</div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="scan-submit btn btn-primary">{% trans "Enregistrer" %}</button>
+        <a class="btn btn-outline-secondary" href="{% url 'volunteer:availability_list' %}">{% trans "Annuler" %}</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}
