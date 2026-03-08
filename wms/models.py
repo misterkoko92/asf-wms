@@ -33,9 +33,9 @@ from .models_domain.billing import (
     BillingPaymentMethod,
     BillingServiceCatalogItem,
     ReceiptShipmentAllocation,
-    ShipmentUnitEquivalenceRule,
 )
 from .models_domain.catalog import Product, ProductCategory, ProductKitItem, ProductTag
+from .models_domain.equivalence import ShipmentUnitEquivalenceRule
 from .models_domain.integration import (
     IntegrationDirection,
     IntegrationEvent,

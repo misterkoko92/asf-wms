@@ -8,6 +8,8 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
 
+from .equivalence import ShipmentUnitEquivalenceRule
+
 
 class AssociationBillingFrequency(models.TextChoices):
     PER_SHIPMENT = "per_shipment", "Per shipment"
@@ -207,28 +209,6 @@ class BillingServiceCatalogItem(models.Model):
 
     class Meta:
         ordering = ["display_order", "label"]
-
-    def __str__(self) -> str:
-        return self.label
-
-
-class ShipmentUnitEquivalenceRule(models.Model):
-    label = models.CharField(max_length=120)
-    category = models.ForeignKey(
-        "wms.ProductCategory",
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="shipment_unit_equivalence_rules",
-    )
-    applies_to_hors_format = models.BooleanField(default=False)
-    units_per_item = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
-    priority = models.PositiveIntegerField(default=0)
-    is_active = models.BooleanField(default=True)
-    notes = models.TextField(blank=True)
-
-    class Meta:
-        ordering = ["priority", "id"]
 
     def __str__(self) -> str:
         return self.label
