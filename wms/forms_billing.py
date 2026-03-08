@@ -243,6 +243,16 @@ class ShipmentUnitEquivalenceRuleForm(forms.ModelForm):
             "is_active": "Actif",
             "notes": "Notes",
         }
+        help_texts = {
+            "units_per_item": (
+                "Chaque article ou colis correspondant a cette regle compte pour ce "
+                "nombre d'unites d'expedition."
+            ),
+            "priority": (
+                "Departage les regles a specificite egale. Plus la valeur est petite, "
+                "plus la regle est prioritaire."
+            ),
+        }
         widgets = {
             "units_per_item": forms.NumberInput(attrs={"min": 1, "step": 1}),
             "priority": forms.NumberInput(attrs={"min": 0, "step": 1}),

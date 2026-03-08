@@ -597,3 +597,18 @@ class ScanBillingViewTests(TestCase):
             [rule.label for rule in response.context["equivalence_rules"][:3]],
             ["Hors format", "Wheelchair", "Generic CN"],
         )
+
+    def test_billing_equivalence_page_shows_hover_help_for_units_and_priority(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_billing_equivalence"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'title="Chaque article ou colis correspondant a cette regle compte pour ce nombre d&#x27;unites d&#x27;expedition."',
+        )
+        self.assertContains(
+            response,
+            'title="Departage les regles a specificite egale. Plus la valeur est petite, plus la regle est prioritaire."',
+        )
