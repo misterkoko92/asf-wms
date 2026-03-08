@@ -4,7 +4,7 @@
 
 **Goal:** Integrer dans `asf-wms` un module `planning` legacy Django capable de charger expeditions, benevoles et vols, d'appliquer les regles metier, d'executer le solveur, de permettre des ajustements manuels, de versionner les diffusions et de regenerer exports et brouillons de communication par version.
 
-**Architecture:** Ajouter un vrai domaine `planning` dans `asf-wms` plutot qu'un portage de l'application Streamlit. Le coeur technique repose sur des modeles de domaine explicites, des services internes `wms/planning/*` pour snapshots, validation, regles, solveur, exports et communications, puis des vues Django legacy sous `/planning/` pour piloter runs, versions et ajustements manuels. Les donnees `Shipment`, `Destination`, `VolunteerProfile` et `VolunteerAvailability` restent maitres dans leurs domaines existants; le planning les gele par snapshot pour garantir reproductibilite et versioning.
+**Architecture:** Ajouter un vrai domaine `planning` dans `asf-wms` plutot qu'un portage de l'application Streamlit. Le coeur technique repose sur des modeles de domaine explicites, des services internes `wms/planning/*` pour snapshots, validation, regles, solveur, exports et communications, puis des vues Django legacy sous `/planning/` pour piloter runs, versions et ajustements manuels. Les donnees `Shipment`, `Destination`, `VolunteerProfile` et `VolunteerAvailability` restent maitres dans leurs domaines existants; le planning les gele par snapshot pour garantir reproductibilite et versioning. L'equivalent de `ParamBE` n'est pas recreate dans `planning`: il doit reutiliser `ShipmentUnitEquivalenceRule` et `wms/billing_calculations.py`.
 
 **Tech Stack:** Django 4.2, ORM Django, formulaires Django, templates Django legacy, OR-Tools deja utilise par `../asf_scheduler/new_repo`, import Excel Python existant, `manage.py test`.
 
@@ -63,7 +63,6 @@ Expected: FAIL because the planning models do not exist yet.
 
 - Ajouter dans `wms/models_domain/planning.py`:
   - `PlanningParameterSet`
-  - `PlanningBERule`
   - `PlanningDestinationRule`
   - `PlanningShipperRule`
   - `PlanningVolunteerRule`
@@ -164,7 +163,7 @@ git add wms/models_domain/volunteer.py wms/forms_volunteer.py wms/views_voluntee
 git commit -m "feat(planning): extend volunteer constraints for solver inputs"
 ```
 
-### Task 3: Migrer les parametres Excel critiques vers des regles administrees
+### Task 3: Migrer les parametres Excel critiques restants et raccorder l'equivalence facturation
 
 **Files:**
 - Create: `wms/planning/parameter_import.py`
@@ -172,16 +171,18 @@ git commit -m "feat(planning): extend volunteer constraints for solver inputs"
 - Create: `wms/tests/planning/tests_parameter_import.py`
 - Modify: `wms/models_domain/planning.py`
 - Modify: `wms/admin.py`
+- Modify: `wms/billing_calculations.py`
 
 **Step 1: Write the failing test**
 
-Ajouter un test d'import qui lit un fichier fixture minimal et cree un `PlanningParameterSet` avec des lignes `PlanningBERule` et `PlanningDestinationRule`.
+Ajouter un test d'import qui lit un fichier fixture minimal et cree un `PlanningParameterSet` avec des lignes `PlanningDestinationRule`, puis un test qui verifie que les regles d'equivalence existantes sont bien reutilisees pour calculer une quantite equivalente.
 
 ```python
 from django.core.management import call_command
 from django.test import TestCase
 
-from wms.models import PlanningBERule, PlanningDestinationRule, PlanningParameterSet
+from wms.billing_calculations import ShipmentUnitInput, resolve_shipment_unit_count
+from wms.models import PlanningDestinationRule, PlanningParameterSet, ShipmentUnitEquivalenceRule
 
 
 class PlanningParameterImportTests(TestCase):
@@ -193,10 +194,17 @@ class PlanningParameterImportTests(TestCase):
             "Bootstrap mars 2026",
         )
         param_set = PlanningParameterSet.objects.get(name="Bootstrap mars 2026")
-        self.assertTrue(PlanningBERule.objects.filter(parameter_set=param_set).exists())
         self.assertTrue(
             PlanningDestinationRule.objects.filter(parameter_set=param_set).exists()
         )
+
+    def test_billing_equivalence_rules_are_reused_for_planning_units(self):
+        ShipmentUnitEquivalenceRule.objects.create(label="Defaut", units_per_item=2)
+        total_units = resolve_shipment_unit_count(
+            items=[ShipmentUnitInput(product=None, quantity=3)],
+            rules=ShipmentUnitEquivalenceRule.objects.all(),
+        )
+        self.assertEqual(total_units, 6)
 ```
 
 **Step 2: Run test to verify it fails**
@@ -206,10 +214,12 @@ Expected: FAIL because the command and importer do not exist yet.
 
 **Step 3: Write minimal implementation**
 
-- Creer `wms/planning/parameter_import.py` pour lire les feuilles analogues a `ParamBE`, `ParamDest`, `ParamExpediteur`, `ParamBenev`
+- Creer `wms/planning/parameter_import.py` pour lire `ParamDest`, `ParamExpediteur` et `ParamBenev`
+- Pour `ParamBE`, ne pas creer un nouveau referentiel planning: brancher l'import ou la verification sur `ShipmentUnitEquivalenceRule`
 - Creer `wms/management/commands/import_planning_parameters.py`
 - Ajouter une fixture Excel minimale dans `wms/tests/fixtures/`
 - Rendre les modeles de regles modifiables dans l'admin
+- Si necessaire, extraire dans `wms/billing_calculations.py` un point d'entree explicite reutilisable par le planning
 
 **Step 4: Run tests to verify it passes**
 
@@ -222,7 +232,7 @@ Expected: PASS and no unexpected runtime dependency regression.
 **Step 5: Commit**
 
 ```bash
-git add wms/planning/parameter_import.py wms/management/commands/import_planning_parameters.py wms/tests/planning/tests_parameter_import.py wms/tests/fixtures/planning_parameters_minimal.xlsx wms/models_domain/planning.py wms/admin.py
+git add wms/planning/parameter_import.py wms/management/commands/import_planning_parameters.py wms/tests/planning/tests_parameter_import.py wms/tests/fixtures/planning_parameters_minimal.xlsx wms/models_domain/planning.py wms/admin.py wms/billing_calculations.py
 git commit -m "feat(planning): import planning parameter sets from Excel"
 ```
 
@@ -235,6 +245,7 @@ git commit -m "feat(planning): import planning parameter sets from Excel"
 - Create: `wms/planning/validation.py`
 - Create: `wms/tests/planning/tests_run_preparation.py`
 - Modify: `wms/models_domain/planning.py`
+- Modify: `wms/billing_calculations.py`
 
 **Step 1: Write the failing test**
 
@@ -242,6 +253,7 @@ Ajouter un test de preparation de run qui:
 - recupere des expeditions eligibles
 - recupere des benevoles et disponibilites
 - fige les snapshots
+- calcule la quantite equivalente de chaque expedition a partir de la logique de facturation
 - produit une erreur bloquante si une destination n'a pas de regle planning
 
 ```python
@@ -278,8 +290,9 @@ Expected: FAIL because the services do not exist yet.
 **Step 3: Write minimal implementation**
 
 - Implementer `wms/planning/sources.py` pour lire expeditions, destinations, benevoles et disponibilites depuis l'ORM
-- Implementer `wms/planning/snapshots.py` pour creer les snapshots de run
+- Implementer `wms/planning/snapshots.py` pour creer les snapshots de run et y figer les quantites equivalentes resolues
 - Implementer `wms/planning/validation.py` pour produire les `PlanningIssue`
+- Reutiliser `resolve_shipment_unit_count` pour la capacite vol plutot qu'une logique planning dupliquee
 - Mettre a jour le statut du run selon le resultat de validation
 
 **Step 4: Run tests to verify it passes**
@@ -293,7 +306,7 @@ Expected: PASS and no regression on planning-related shipment status flows.
 **Step 5: Commit**
 
 ```bash
-git add wms/planning/__init__.py wms/planning/sources.py wms/planning/snapshots.py wms/planning/validation.py wms/tests/planning/tests_run_preparation.py wms/models_domain/planning.py
+git add wms/planning/__init__.py wms/planning/sources.py wms/planning/snapshots.py wms/planning/validation.py wms/tests/planning/tests_run_preparation.py wms/models_domain/planning.py wms/billing_calculations.py
 git commit -m "feat(planning): add run snapshots and validation services"
 ```
 
@@ -360,6 +373,7 @@ git commit -m "feat(planning): add hybrid flight sources"
 - Create: `wms/tests/planning/tests_solver_contracts.py`
 - Modify: `wms/planning/snapshots.py`
 - Modify: `wms/models_domain/planning.py`
+- Modify: `wms/billing_calculations.py`
 
 **Step 1: Write the failing test**
 
@@ -395,6 +409,7 @@ Expected: FAIL because the rule compiler and solver adapter do not exist yet.
 - Creer `wms/planning/rules.py` pour compiler les snapshots et regles en payload solveur
 - Creer `wms/planning/solver.py` comme facade vers le solveur OR-Tools existant
 - Copier ou adapter seulement les modules metier necessaires depuis `../asf_scheduler/new_repo/scheduler/`
+- Reutiliser les quantites equivalentes calculees depuis les regles de facturation pour les contraintes de capacite vol
 - Enregistrer dans le run le payload et le resultat solveur
 - Creer la `PlanningVersion` brouillon initiale et les `PlanningAssignment`
 
@@ -409,7 +424,7 @@ Expected: PASS with deterministic contract coverage around the solver adapter.
 **Step 5: Commit**
 
 ```bash
-git add wms/planning/rules.py wms/planning/solver.py wms/tests/planning/tests_solver_contracts.py wms/planning/snapshots.py wms/models_domain/planning.py
+git add wms/planning/rules.py wms/planning/solver.py wms/tests/planning/tests_solver_contracts.py wms/planning/snapshots.py wms/models_domain/planning.py wms/billing_calculations.py
 git commit -m "feat(planning): port planning rules and solver"
 ```
 
