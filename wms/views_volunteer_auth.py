@@ -2,7 +2,6 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import SetPasswordForm
-from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext_lazy as _
@@ -108,8 +107,3 @@ def volunteer_change_password(request):
         messages.success(request, MESSAGE_PASSWORD_UPDATED)
         return redirect("volunteer:dashboard")
     return render(request, TEMPLATE_CHANGE_PASSWORD, {"form": form})
-
-
-@volunteer_required
-def volunteer_dashboard(request):
-    return HttpResponse("Volunteer dashboard")

@@ -1,0 +1,27 @@
+{% extends "benevole/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Contraintes benevole" %}{% endblock %}
+
+{% block content %}
+  <div class="scan-card portal-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">{% trans "Contraintes" %}</h2>
+    <p class="scan-help">{% trans "Indiquez vos limites de disponibilite." %}</p>
+  </div>
+
+  <div class="scan-card portal-card card border-0 ui-comp-card">
+    <form method="post" novalidate class="ui-comp-form">
+      {% csrf_token %}
+      {% for field in form %}
+        <div class="scan-field">
+          <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% for error in field.errors %}
+            <div class="scan-message error">{{ error }}</div>
+          {% endfor %}
+        </div>
+      {% endfor %}
+      <button type="submit" class="scan-submit btn btn-primary">{% trans "Enregistrer" %}</button>
+    </form>
+  </div>
+{% endblock %}

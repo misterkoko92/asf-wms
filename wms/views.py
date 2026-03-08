@@ -72,9 +72,13 @@ from .views_scan import (
     scan_sync,
     scan_ui_lab,
 )
+from .views_volunteer import (
+    volunteer_constraints,
+    volunteer_dashboard,
+    volunteer_profile,
+)
 from .views_volunteer_auth import (
     volunteer_change_password,
-    volunteer_dashboard,
     volunteer_login,
     volunteer_logout,
 )
@@ -100,6 +104,8 @@ VOLUNTEER_EXPORTS = (
     "volunteer_logout",
     "volunteer_change_password",
     "volunteer_dashboard",
+    "volunteer_profile",
+    "volunteer_constraints",
 )
 
 PUBLIC_EXPORTS = (
