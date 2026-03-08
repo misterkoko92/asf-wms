@@ -8,6 +8,20 @@
 
 **Tech Stack:** Django 4.2, ORM Django, formulaires Django, templates Django legacy, OR-Tools deja utilise par `../asf_scheduler/new_repo`, import Excel Python existant, `manage.py test`.
 
+## Execution Status
+Execution effectuee sur la branche `codex/planning-foundation`.
+
+Etat au 2026-03-08:
+- tasks 1 a 11 executees sur la branche
+- verification finale executee avec succes
+- resultat consolide: `57` tests `OK` sur la suite planning, les vues planning, les vues benevole et les integrations API ciblees
+
+Limites restantes a garder visibles pendant la suite:
+- solveur livre en `greedy_v1`, pas encore en parite OR-Tools
+- connecteur vols API prepare, mais client concret encore a brancher
+- export `Planning.xlsx` volontairement minimal pour la phase transitoire
+- details et check-list operateur documentes dans `docs/plans/2026-03-08-planning-module-verification.md`
+
 ---
 
 Skill refs during execution: `@superpowers:test-driven-development`, `@superpowers:systematic-debugging`, `@superpowers:verification-before-completion`, `@superpowers:requesting-code-review`, `@superpowers:using-git-worktrees`.

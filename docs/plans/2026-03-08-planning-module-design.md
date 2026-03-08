@@ -26,6 +26,19 @@ Decisions produit validees pendant le cadrage:
 - `ParamExpediteur` vient des contacts associations du domaine `/portal`
 - `ParamBE` doit sortir de la facturation comme point d'entree partage reutilisable par plusieurs modules
 
+## Implementation Reality
+La branche `codex/planning-foundation` met bien en place le socle planning legacy Django dans `asf-wms`:
+- domaine `planning` persistant avec runs, snapshots, versions, affectations, artefacts et brouillons de communication
+- import `ParamDest`, consommation des donnees benevoles et portal, et point d'entree partage pour l'equivalence unite ou carton
+- vues legacy sous `/planning/` pour creation de run, validation, solve, edition manuelle, publication, duplication, diff, brouillons et export
+- mise a jour optionnelle des expeditions a partir d'une version publiee avec creation d'evenement de tracking
+
+Ecarts volontaires constates apres implementation:
+- le solveur actuellement livre est `greedy_v1`, ce qui valide le contrat fonctionnel et la persistance, mais pas encore la parite OR-Tools du repo planning source
+- la source vols API est branchee via un client injectable et des runtime settings, mais le connecteur concret reste a finaliser selon l'API retenue
+- l'export `Planning.xlsx` reste un classeur de transition minimal, pas une reproduction 1:1 du workbook historique
+- les communications sont generees et editables dans `asf-wms`, mais l'envoi reste volontairement manuel
+
 ## Decision Summary
 Decision retenue:
 - creer un vrai module metier `planning` dans `asf-wms`
