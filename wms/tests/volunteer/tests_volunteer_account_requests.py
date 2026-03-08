@@ -1,5 +1,7 @@
+from unittest import mock
+
 from django.contrib.auth import get_user_model
-from django.test import RequestFactory, TestCase
+from django.test import RequestFactory, TestCase, override_settings
 
 from wms.models import (
     IntegrationEvent,
@@ -74,3 +76,23 @@ class VolunteerAccountRequestTests(TestCase):
         self.assertFalse(ok)
         self.assertEqual(reason, "email reserve")
         self.assertFalse(VolunteerProfile.objects.filter(user__email="staff@example.com").exists())
+
+    @override_settings(EMAIL_DELIVERY_MODE="direct_only")
+    @mock.patch("wms.emailing.send_email_safe", return_value=True)
+    def test_approving_request_sends_directly_in_direct_only_mode(self, send_email_mock):
+        account_request = VolunteerAccountRequest.objects.create(
+            first_name="Lou",
+            last_name="Durand",
+            email="lou@example.com",
+            status=VolunteerAccountRequestStatus.PENDING,
+        )
+
+        ok, reason = approve_volunteer_account_request(
+            request=self._request(),
+            account_request=account_request,
+        )
+
+        self.assertTrue(ok)
+        self.assertEqual(reason, "")
+        self.assertEqual(IntegrationEvent.objects.count(), 0)
+        send_email_mock.assert_called_once()

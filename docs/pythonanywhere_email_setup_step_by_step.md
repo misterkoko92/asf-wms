@@ -2,8 +2,8 @@
 
 Objectif: configurer un envoi reel (pas console), avec fallback SMTP, sans utiliser un `.env` versionne.
 
-Note: tous les flux emails WMS tentent un envoi direct d'abord.
-Si l'envoi direct echoue, ils sont automatiquement mis en queue (fallback).
+Note: sur PythonAnywhere gratuit, configurer `EMAIL_DELIVERY_MODE='direct_only'`.
+Dans ce mode, tous les flux emails WMS partent en direct et n'utilisent pas la queue applicative.
 
 ## 1) Ouvrir une console Bash sur PythonAnywhere
 
@@ -20,6 +20,7 @@ nano /home/messmed/.asf-wms.env
 Tu remplis au minimum:
 - `DJANGO_SECRET_KEY`
 - `EMAIL_HOST_PASSWORD`
+- `EMAIL_DELIVERY_MODE` avec `direct_only`
 - `BREVO_API_KEY` (ou vide pour SMTP only)
 - `ORDER_NOTIFICATION_GROUP_NAME` (laisser `Mail_Order_Staff`, ou `''` pour superusers uniquement)
 - `ACCOUNT_REQUEST_VALIDATION_GROUP_NAME` (defaut `Account_User_Validation`)
@@ -50,8 +51,9 @@ echo "BREVO_API_KEY_SET=$([ -n "$BREVO_API_KEY" ] && echo yes || echo no)"
 Attendu:
 - `EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend`
 - `EMAIL_HOST` et `EMAIL_HOST_USER` non vides
+- `EMAIL_DELIVERY_MODE=direct_only`
 
-## 5) Tester un envoi direct + un flux queue
+## 5) Tester un envoi direct
 
 ```bash
 cd /home/messmed/asf-wms
@@ -60,21 +62,17 @@ cd /home/messmed/asf-wms
 
 Attendu:
 - test direct: `True`
-- queue: `enqueue=True` puis `processed` > 0
+- le test additionnel `enqueue=` reste acceptable, mais en `direct_only` il ne depend plus d'un Scheduler
 
 ## 6) Recharger l'app web
 
 PythonAnywhere -> onglet **Web** -> bouton **Reload**.
 
-## 7) Planifier le worker queue mail (Scheduler)
+## 7) Scheduler email
 
-Le worker traite les emails en fallback (ceux qui n'ont pas pu partir en direct).
+Avec `EMAIL_DELIVERY_MODE='direct_only'`, aucun Scheduler email n'est requis.
 
-```bash
-mkdir -p /home/messmed/asf-wms/logs
-```
-
-Dans Scheduler (toutes les minutes):
+Si tu repasses un jour en `direct_or_queue`, il faudra alors planifier:
 
 ```bash
 cd /home/messmed/asf-wms && source /home/messmed/.asf-wms.env && python manage.py process_email_queue --limit=100 >> /home/messmed/asf-wms/logs/email_queue.log 2>&1
@@ -103,3 +101,5 @@ Ca veut dire que `BREVO_API_KEY` est invalide pour l'API Brevo.
 Tu as 2 options:
 1. Mettre une vraie cle API Brevo v3 dans `BREVO_API_KEY`.
 2. Laisser `BREVO_API_KEY=''` pour bypass API et envoyer via SMTP uniquement.
+
+En `direct_only`, un echec direct signifie que l'email n'est pas retenu en queue. Il faut donc corriger la config SMTP/Brevo avant de relancer le flux.

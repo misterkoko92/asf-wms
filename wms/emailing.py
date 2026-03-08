@@ -32,6 +32,8 @@ EMAIL_QUEUE_DEFAULT_MAX_ATTEMPTS = 5
 EMAIL_QUEUE_DEFAULT_RETRY_BASE_SECONDS = 60
 EMAIL_QUEUE_DEFAULT_RETRY_MAX_SECONDS = 3600
 EMAIL_QUEUE_DEFAULT_PROCESSING_TIMEOUT_SECONDS = 900
+EMAIL_DELIVERY_MODE_DIRECT_OR_QUEUE = "direct_or_queue"
+EMAIL_DELIVERY_MODE_DIRECT_ONLY = "direct_only"
 ORDER_NOTIFICATION_GROUP_DEFAULT = "Mail_Order_Staff"
 
 EMAIL_PAYLOAD_SUBJECT_KEY = "subject"
@@ -45,6 +47,18 @@ PROCESS_RESULT_PROCESSED = "processed"
 PROCESS_RESULT_FAILED = "failed"
 PROCESS_RESULT_RETRIED = "retried"
 PROCESS_RESULT_DEFERRED = "deferred"
+
+
+def _email_delivery_mode():
+    configured_value = getattr(
+        settings,
+        "EMAIL_DELIVERY_MODE",
+        EMAIL_DELIVERY_MODE_DIRECT_OR_QUEUE,
+    )
+    normalized_value = str(configured_value or "").strip().lower()
+    if normalized_value == EMAIL_DELIVERY_MODE_DIRECT_ONLY:
+        return EMAIL_DELIVERY_MODE_DIRECT_ONLY
+    return EMAIL_DELIVERY_MODE_DIRECT_OR_QUEUE
 
 
 def get_admin_emails():
@@ -450,6 +464,8 @@ def send_or_enqueue_email_safe(
         tags=tags,
     ):
         return True
+    if _email_delivery_mode() == EMAIL_DELIVERY_MODE_DIRECT_ONLY:
+        return False
     return enqueue_email_safe(
         subject=subject,
         message=message,
@@ -463,6 +479,14 @@ def enqueue_email_safe(*, subject, message, recipient, html_message=None, tags=N
     recipients = _normalize_recipients(recipient)
     if not recipients:
         return False
+    if _email_delivery_mode() == EMAIL_DELIVERY_MODE_DIRECT_ONLY:
+        return send_email_safe(
+            subject=subject,
+            message=message,
+            recipient=recipients,
+            html_message=html_message,
+            tags=tags,
+        )
     payload = _build_enqueue_payload(
         subject=subject,
         message=message,

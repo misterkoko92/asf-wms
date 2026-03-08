@@ -4,11 +4,11 @@ from unittest import mock
 
 from django.core.management import call_command
 from django.template.loader import render_to_string
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone, translation
 from django.utils.dateparse import parse_datetime
 
-from wms.emailing import enqueue_email_safe, process_email_queue
+from wms.emailing import enqueue_email_safe, process_email_queue, send_or_enqueue_email_safe
 from wms.models import (
     IntegrationDirection,
     IntegrationEvent,
@@ -33,6 +33,77 @@ class EmailQueueTests(TestCase):
         self.assertEqual(event.payload["recipient"], ["dest@example.com"])
         self.assertEqual(event.payload["_queue"]["attempts"], 0)
         self.assertIsNone(event.payload["_queue"]["next_attempt_at"])
+
+    @override_settings(EMAIL_DELIVERY_MODE="direct_only")
+    @mock.patch("wms.emailing.send_email_safe")
+    def test_enqueue_email_safe_sends_directly_in_direct_only_mode(self, send_email_mock):
+        send_email_mock.return_value = True
+
+        queued = enqueue_email_safe(
+            subject="Sujet direct",
+            message="Message direct",
+            recipient="dest@example.com",
+        )
+
+        self.assertTrue(queued)
+        self.assertEqual(IntegrationEvent.objects.count(), 0)
+        send_email_mock.assert_called_once_with(
+            subject="Sujet direct",
+            message="Message direct",
+            recipient=["dest@example.com"],
+            html_message=None,
+            tags=None,
+        )
+
+    @override_settings(EMAIL_DELIVERY_MODE="direct_only")
+    @mock.patch("wms.emailing.send_email_safe")
+    def test_enqueue_email_safe_returns_false_when_direct_only_send_fails(self, send_email_mock):
+        send_email_mock.return_value = False
+
+        queued = enqueue_email_safe(
+            subject="Sujet direct",
+            message="Message direct",
+            recipient="dest@example.com",
+        )
+
+        self.assertFalse(queued)
+        self.assertEqual(IntegrationEvent.objects.count(), 0)
+        send_email_mock.assert_called_once()
+
+    @override_settings(EMAIL_DELIVERY_MODE="unexpected")
+    def test_enqueue_email_safe_falls_back_to_queue_for_unknown_mode(self):
+        queued = enqueue_email_safe(
+            subject="Sujet fallback",
+            message="Message fallback",
+            recipient="dest@example.com",
+        )
+
+        self.assertTrue(queued)
+        self.assertEqual(IntegrationEvent.objects.count(), 1)
+
+    @override_settings(EMAIL_DELIVERY_MODE="direct_only")
+    @mock.patch("wms.emailing.send_email_safe")
+    def test_send_or_enqueue_email_safe_does_not_queue_in_direct_only_mode(
+        self,
+        send_email_mock,
+    ):
+        send_email_mock.return_value = False
+
+        sent = send_or_enqueue_email_safe(
+            subject="Sujet direct",
+            message="Message direct",
+            recipient="dest@example.com",
+        )
+
+        self.assertFalse(sent)
+        self.assertEqual(IntegrationEvent.objects.count(), 0)
+        send_email_mock.assert_called_once_with(
+            subject="Sujet direct",
+            message="Message direct",
+            recipient="dest@example.com",
+            html_message=None,
+            tags=None,
+        )
 
     @mock.patch("wms.emailing.send_email_safe")
     def test_process_email_queue_marks_event_processed(self, send_email_mock):
