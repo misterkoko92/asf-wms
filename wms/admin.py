@@ -69,6 +69,7 @@ from .services import (
     unpack_carton,
 )
 from .shipment_view_helpers import render_carton_document, render_shipment_document
+from .volunteer_access import send_volunteer_access_email
 
 
 def _artifact_pdf_response(artifact):
@@ -1245,7 +1246,7 @@ class VolunteerProfileAdmin(admin.ModelAdmin):
     list_filter = ("is_active", "must_change_password", "country")
     search_fields = ("user__username", "user__email", "phone", "city", "volunteer_id")
     list_select_related = ("user", "contact")
-    actions = ("mark_password_change_required",)
+    actions = ("mark_password_change_required", "send_access_email")
 
     def mark_password_change_required(self, request, queryset):
         updated = queryset.update(must_change_password=True)
@@ -1258,6 +1259,20 @@ class VolunteerProfileAdmin(admin.ModelAdmin):
     mark_password_change_required.short_description = gettext_lazy(
         "Forcer le changement de mot de passe"
     )
+
+    def send_access_email(self, request, queryset):
+        sent = 0
+        for profile in queryset.select_related("user"):
+            profile.must_change_password = True
+            profile.save(update_fields=["must_change_password"])
+            if send_volunteer_access_email(request=request, user=profile.user):
+                sent += 1
+        self.message_user(
+            request,
+            _("%(count)s email(s) d'acces benevole envoyes.") % {"count": sent},
+        )
+
+    send_access_email.short_description = gettext_lazy("Envoyer ou reinitialiser l'acces benevole")
 
 
 @admin.register(models.VolunteerConstraint)

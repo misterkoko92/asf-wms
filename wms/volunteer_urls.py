@@ -7,6 +7,11 @@ app_name = "volunteer"
 urlpatterns = [
     path("login/", views.volunteer_login, name="login"),
     path("logout/", views.volunteer_logout, name="logout"),
+    path(
+        "set-password/<uidb64>/<token>/",
+        views.volunteer_set_password,
+        name="set_password",
+    ),
     path("change-password/", views.volunteer_change_password, name="change_password"),
     path("profil/", views.volunteer_profile, name="profile"),
     path("contraintes/", views.volunteer_constraints, name="constraints"),

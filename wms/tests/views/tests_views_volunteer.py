@@ -1,6 +1,9 @@
 from django.contrib.auth import get_user_model
+from django.contrib.auth.tokens import default_token_generator
 from django.test import TestCase
 from django.urls import reverse
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 
 from wms.models import VolunteerAvailability, VolunteerConstraint, VolunteerProfile
 
@@ -16,6 +19,11 @@ class VolunteerAuthViewTests(TestCase):
             user=self.user,
             must_change_password=False,
         )
+
+    def _set_password_url(self, user, token=None):
+        token = token or default_token_generator.make_token(user)
+        uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
+        return reverse("volunteer:set_password", args=[uidb64, token])
 
     def test_login_accepts_email_and_redirects_to_dashboard(self):
         response = self.client.post(
@@ -49,6 +57,30 @@ class VolunteerAuthViewTests(TestCase):
         )
 
         self.assertRedirects(response, reverse("volunteer:change_password"))
+
+    def test_set_password_rejects_invalid_token(self):
+        response = self.client.get(self._set_password_url(self.user, token="invalid-token"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["invalid"])
+
+    def test_set_password_updates_password_and_profile(self):
+        self.profile.must_change_password = True
+        self.profile.save(update_fields=["must_change_password"])
+
+        response = self.client.post(
+            self._set_password_url(self.user),
+            {
+                "new_password1": "NewPass1234!",  # pragma: allowlist secret
+                "new_password2": "NewPass1234!",  # pragma: allowlist secret
+            },
+        )
+
+        self.assertRedirects(response, reverse("volunteer:dashboard"))
+        self.user.refresh_from_db()
+        self.profile.refresh_from_db()
+        self.assertTrue(self.user.check_password("NewPass1234!"))
+        self.assertFalse(self.profile.must_change_password)
 
 
 class VolunteerProfileViewTests(TestCase):

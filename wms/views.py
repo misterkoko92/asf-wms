@@ -86,6 +86,7 @@ from .views_volunteer_auth import (
     volunteer_change_password,
     volunteer_login,
     volunteer_logout,
+    volunteer_set_password,
 )
 
 PORTAL_EXPORTS = (
@@ -107,6 +108,7 @@ PORTAL_EXPORTS = (
 VOLUNTEER_EXPORTS = (
     "volunteer_login",
     "volunteer_logout",
+    "volunteer_set_password",
     "volunteer_change_password",
     "volunteer_dashboard",
     "volunteer_profile",
