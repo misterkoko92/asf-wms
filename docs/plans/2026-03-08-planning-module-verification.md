@@ -10,6 +10,22 @@ Objectif de cette note:
 - garder visibles les limites volontaires de cette premiere fondation
 
 ## Automated Verification
+### Follow-up Solver Port
+```bash
+ASF_TMP_DIR=/tmp/asf_wms_planning ./.venv/bin/python manage.py test wms.tests.planning wms.tests.views.tests_views_planning wms.tests.management.tests_management_makemigrations_check -v 1
+```
+
+Result:
+- `31` tests executes
+- `OK`
+
+Couverture validee en plus de la fondation initiale:
+- solveur `ortools_cp_sat_v1`
+- compatibilite horaire benevole/vol
+- exclusivite benevole sur vol physique multi-stop
+- persistance des metadonnees vol `routing` et `route_pos`
+- absence de drift de migration apres ajout des champs vol
+
 ### Command 1
 ```bash
 ASF_TMP_DIR=/tmp/asf_wms_planning ./.venv/bin/python manage.py test wms.tests.planning -v 2
@@ -96,7 +112,7 @@ Check-list de recette manuelle recommandee avant diffusion terrain:
 - verifier la creation de l'evenement de tracking `planned`
 
 ## Known Limits
-- le solveur implemente dans cette branche est `greedy_v1`; il porte le contrat fonctionnel du module, mais pas encore la parite OR-Tools du repo planning source
+- le solveur implemente dans cette branche est `ortools_cp_sat_v1`; il couvre deja la capacite par vol, la capacite benevole par vol, les horaires et l'exclusivite multi-stop, mais pas encore toute la parite metier du solveur historique
 - le connecteur vols API est abstrait derriere `PlanningFlightApiClient`; la branche prepare l'integration, mais pas encore un client de production complet
 - l'export `Planning.xlsx` est volontairement minimal et transitoire; il ne reproduit pas encore la structure historique complete du workbook legacy
 - les communications sont generees comme brouillons editables dans `asf-wms`, mais l'envoi email ou WhatsApp reste manuel par choix produit

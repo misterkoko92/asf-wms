@@ -17,7 +17,7 @@ Etat au 2026-03-08:
 - resultat consolide: `57` tests `OK` sur la suite planning, les vues planning, les vues benevole et les integrations API ciblees
 
 Limites restantes a garder visibles pendant la suite:
-- solveur livre en `greedy_v1`, pas encore en parite OR-Tools
+- solveur livre en `ortools_cp_sat_v1`, mais pas encore en parite complete avec le solveur historique
 - connecteur vols API prepare, mais client concret encore a brancher
 - export `Planning.xlsx` volontairement minimal pour la phase transitoire
 - details et check-list operateur documentes dans `docs/plans/2026-03-08-planning-module-verification.md`

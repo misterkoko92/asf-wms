@@ -32,12 +32,15 @@ class FlightSourceTests(TestCase):
             [
                 "Flight Number",
                 "Departure Date",
+                "Departure Time",
                 "Origin IATA",
                 "Destination IATA",
+                "Routing",
+                "Route Pos",
                 "Capacity Units",
             ]
         )
-        sheet.append(["af702 ", "2026-03-10", " cdg", "abj ", 12])
+        sheet.append(["af702 ", "2026-03-10", "09:45", " cdg", "abj ", "CDG-ABJ", 1, 12])
 
         tmp_dir = tempfile.TemporaryDirectory()
         path = Path(tmp_dir.name) / "flights.xlsx"
@@ -56,6 +59,9 @@ class FlightSourceTests(TestCase):
         self.assertEqual(batch.flights.count(), 1)
         self.assertEqual(flight.flight_number, "AF702")
         self.assertEqual(flight.destination, self.destination)
+        self.assertEqual(flight.departure_time.isoformat(timespec="minutes"), "09:45")
+        self.assertEqual(flight.routing, "CDG-ABJ")
+        self.assertEqual(flight.route_pos, 1)
         self.assertEqual(flight.capacity_units, 12)
 
     def test_collect_hybrid_flight_batches_adds_api_rows(self):
