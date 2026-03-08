@@ -82,6 +82,10 @@ from .views_volunteer import (
     volunteer_dashboard,
     volunteer_profile,
 )
+from .views_volunteer_account_request import (
+    volunteer_account_request,
+    volunteer_account_request_done,
+)
 from .views_volunteer_auth import (
     volunteer_change_password,
     volunteer_login,
@@ -113,6 +117,8 @@ VOLUNTEER_EXPORTS = (
     "volunteer_dashboard",
     "volunteer_profile",
     "volunteer_constraints",
+    "volunteer_account_request",
+    "volunteer_account_request_done",
     "volunteer_availability_list",
     "volunteer_availability_create",
     "volunteer_availability_edit",

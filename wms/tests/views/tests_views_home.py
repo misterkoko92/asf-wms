@@ -21,6 +21,7 @@ class HomePageTests(TestCase):
         self.assertContains(response, 'action="/admin/login/?next=/scan/"')
         self.assertContains(response, reverse("password_help"))
         self.assertContains(response, reverse("portal:portal_account_request"))
+        self.assertContains(response, reverse("volunteer:request_account"))
 
         self.assertNotContains(response, "Acces rapide")
         self.assertNotContains(response, "Flux recommande")
@@ -33,6 +34,7 @@ class HomePageTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Mot de passe oubli")
         self.assertContains(response, reverse("portal:portal_account_request"))
+        self.assertContains(response, reverse("volunteer:request_account"))
         self.assertContains(response, reverse("home"))
 
     @override_settings(SCAN_BOOTSTRAP_ENABLED=True)

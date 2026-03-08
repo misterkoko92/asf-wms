@@ -5,6 +5,12 @@ from . import views
 app_name = "volunteer"
 
 urlpatterns = [
+    path("request-account/", views.volunteer_account_request, name="request_account"),
+    path(
+        "request-account/done/",
+        views.volunteer_account_request_done,
+        name="request_account_done",
+    ),
     path("login/", views.volunteer_login, name="login"),
     path("logout/", views.volunteer_logout, name="logout"),
     path(

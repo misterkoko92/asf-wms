@@ -2,7 +2,13 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.utils.translation import gettext_lazy as _
 
-from .models import VolunteerAvailability, VolunteerConstraint, VolunteerProfile
+from .models import (
+    VolunteerAccountRequest,
+    VolunteerAccountRequestStatus,
+    VolunteerAvailability,
+    VolunteerConstraint,
+    VolunteerProfile,
+)
 
 TIME_INPUT_WIDGET = forms.TimeInput(attrs={"type": "time", "step": "900"})
 
@@ -145,3 +151,53 @@ class VolunteerAvailabilityWeekForm(forms.Form):
         if start >= end:
             self.add_error("end_time", _("L'heure de fin doit etre apres l'heure de debut."))
         return cleaned
+
+
+class VolunteerAccountRequestForm(forms.ModelForm):
+    class Meta:
+        model = VolunteerAccountRequest
+        fields = (
+            "first_name",
+            "last_name",
+            "email",
+            "phone",
+            "address_line1",
+            "postal_code",
+            "city",
+            "country",
+            "notes",
+        )
+        labels = {
+            "first_name": _("Prenom"),
+            "last_name": _("Nom"),
+            "email": _("Mail"),
+            "phone": _("Telephone"),
+            "address_line1": _("Rue"),
+            "postal_code": _("Code postal"),
+            "city": _("Ville"),
+            "country": _("Pays"),
+            "notes": _("Notes"),
+        }
+        widgets = {
+            "email": forms.EmailInput(attrs={"type": "email"}),
+            "notes": forms.Textarea(attrs={"rows": 4}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["first_name"].required = True
+        self.fields["email"].required = True
+        self.fields["address_line1"].required = True
+        self.fields["postal_code"].required = True
+        self.fields["city"].required = True
+        self.fields["country"].required = True
+        self.fields["country"].initial = self.initial.get("country") or "France"
+
+    def clean_email(self):
+        email = (self.cleaned_data.get("email") or "").strip().lower()
+        if VolunteerAccountRequest.objects.filter(
+            email__iexact=email,
+            status=VolunteerAccountRequestStatus.PENDING,
+        ).exists():
+            raise forms.ValidationError(_("Une demande est deja en attente pour cet email."))
+        return email
