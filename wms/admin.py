@@ -1417,6 +1417,149 @@ class VolunteerUnavailabilityAdmin(admin.ModelAdmin):
     search_fields = ("volunteer__user__username", "volunteer__user__email")
 
 
+@admin.register(models.PlanningParameterSet)
+class PlanningParameterSetAdmin(admin.ModelAdmin):
+    list_display = ("name", "status", "is_current", "effective_from", "updated_at")
+    list_filter = ("status", "is_current")
+    search_fields = ("name", "notes")
+    list_select_related = ("created_by",)
+
+
+@admin.register(models.PlanningDestinationRule)
+class PlanningDestinationRuleAdmin(admin.ModelAdmin):
+    list_display = (
+        "parameter_set",
+        "destination",
+        "label",
+        "weekly_frequency",
+        "max_cartons_per_flight",
+        "priority",
+        "is_active",
+    )
+    list_filter = ("is_active", "parameter_set")
+    list_select_related = ("parameter_set", "destination")
+    search_fields = ("label", "destination__city", "destination__iata_code")
+
+
+@admin.register(models.FlightSourceBatch)
+class FlightSourceBatchAdmin(admin.ModelAdmin):
+    list_display = ("source", "status", "period_start", "period_end", "imported_at")
+    list_filter = ("source", "status")
+    search_fields = ("file_name", "checksum", "notes")
+
+
+@admin.register(models.Flight)
+class FlightAdmin(admin.ModelAdmin):
+    list_display = (
+        "flight_number",
+        "departure_date",
+        "origin_iata",
+        "destination_iata",
+        "capacity_units",
+        "batch",
+    )
+    list_filter = ("departure_date", "batch__source")
+    list_select_related = ("batch", "destination")
+    search_fields = ("flight_number", "origin_iata", "destination_iata")
+
+
+@admin.register(models.PlanningRun)
+class PlanningRunAdmin(admin.ModelAdmin):
+    list_display = ("week_start", "week_end", "status", "flight_mode", "created_by", "updated_at")
+    list_filter = ("status", "flight_mode")
+    list_select_related = ("created_by", "flight_batch", "parameter_set")
+    search_fields = ("log_excerpt",)
+
+
+@admin.register(models.PlanningIssue)
+class PlanningIssueAdmin(admin.ModelAdmin):
+    list_display = ("run", "severity", "code", "source_model", "source_pk", "created_at")
+    list_filter = ("severity", "code")
+    list_select_related = ("run",)
+    search_fields = ("message", "code", "source_model")
+
+
+@admin.register(models.PlanningShipmentSnapshot)
+class PlanningShipmentSnapshotAdmin(admin.ModelAdmin):
+    list_display = (
+        "run",
+        "shipment_reference",
+        "shipper_name",
+        "destination_iata",
+        "priority",
+        "equivalent_units",
+    )
+    list_filter = ("run",)
+    list_select_related = ("run", "shipment")
+    search_fields = ("shipment_reference", "shipper_name", "destination_iata")
+
+
+@admin.register(models.PlanningVolunteerSnapshot)
+class PlanningVolunteerSnapshotAdmin(admin.ModelAdmin):
+    list_display = ("run", "volunteer_label", "max_colis_vol", "created_at")
+    list_filter = ("run",)
+    list_select_related = ("run", "volunteer")
+    search_fields = ("volunteer_label",)
+
+
+@admin.register(models.PlanningFlightSnapshot)
+class PlanningFlightSnapshotAdmin(admin.ModelAdmin):
+    list_display = ("run", "flight_number", "departure_date", "destination_iata", "capacity_units")
+    list_filter = ("run", "departure_date")
+    list_select_related = ("run", "flight")
+    search_fields = ("flight_number", "destination_iata")
+
+
+@admin.register(models.PlanningVersion)
+class PlanningVersionAdmin(admin.ModelAdmin):
+    list_display = ("run", "number", "status", "based_on", "created_by", "published_at")
+    list_filter = ("status",)
+    list_select_related = ("run", "based_on", "created_by")
+    search_fields = ("change_reason",)
+
+
+@admin.register(models.PlanningAssignment)
+class PlanningAssignmentAdmin(admin.ModelAdmin):
+    list_display = (
+        "version",
+        "shipment_snapshot",
+        "volunteer_snapshot",
+        "flight_snapshot",
+        "source",
+        "sequence",
+    )
+    list_filter = ("source", "status")
+    list_select_related = (
+        "version",
+        "shipment_snapshot",
+        "volunteer_snapshot",
+        "flight_snapshot",
+    )
+
+
+@admin.register(models.PlanningArtifact)
+class PlanningArtifactAdmin(admin.ModelAdmin):
+    list_display = ("version", "artifact_type", "label", "generated_at")
+    list_filter = ("artifact_type",)
+    list_select_related = ("version",)
+    search_fields = ("label", "file_path")
+
+
+@admin.register(models.CommunicationTemplate)
+class CommunicationTemplateAdmin(admin.ModelAdmin):
+    list_display = ("label", "channel", "scope", "is_active", "updated_at")
+    list_filter = ("channel", "is_active")
+    search_fields = ("label", "scope", "subject", "body")
+
+
+@admin.register(models.CommunicationDraft)
+class CommunicationDraftAdmin(admin.ModelAdmin):
+    list_display = ("version", "channel", "recipient_label", "status", "edited_at")
+    list_filter = ("channel", "status")
+    list_select_related = ("version", "template", "edited_by")
+    search_fields = ("recipient_label", "recipient_contact", "subject", "body")
+
+
 def _install_organization_roles_review_admin_url():
     if getattr(admin.site, "_wms_org_roles_review_url_installed", False):
         return
