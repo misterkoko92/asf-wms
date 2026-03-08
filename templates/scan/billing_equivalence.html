@@ -31,12 +31,22 @@
       </div>
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
-          {{ rule_form.units_per_item.label_tag }}
+          <label class="form-label" for="{{ rule_form.units_per_item.id_for_label }}">
+            {{ rule_form.units_per_item.label }}
+            {% if rule_form.units_per_item.help_text %}
+              <span class="scan-design-help-dot" title="{{ rule_form.units_per_item.help_text }}" aria-label="{{ rule_form.units_per_item.help_text }}">?</span>
+            {% endif %}
+          </label>
           {{ rule_form.units_per_item }}
           {% if rule_form.units_per_item.errors %}<div class="scan-help">{{ rule_form.units_per_item.errors|join:", " }}</div>{% endif %}
         </div>
         <div class="scan-field">
-          {{ rule_form.priority.label_tag }}
+          <label class="form-label" for="{{ rule_form.priority.id_for_label }}">
+            {{ rule_form.priority.label }}
+            {% if rule_form.priority.help_text %}
+              <span class="scan-design-help-dot" title="{{ rule_form.priority.help_text }}" aria-label="{{ rule_form.priority.help_text }}">?</span>
+            {% endif %}
+          </label>
           {{ rule_form.priority }}
           {% if rule_form.priority.errors %}<div class="scan-help">{{ rule_form.priority.errors|join:", " }}</div>{% endif %}
         </div>
