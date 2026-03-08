@@ -1,7 +1,13 @@
 from django import forms
 from django.utils.translation import gettext_lazy as _
 
-from .models import PlanningAssignment, PlanningRun, PlanningVersionStatus
+from .models import (
+    CommunicationDraft,
+    CommunicationDraftStatus,
+    PlanningAssignment,
+    PlanningRun,
+    PlanningVersionStatus,
+)
 
 
 class PlanningRunForm(forms.ModelForm):
@@ -91,4 +97,39 @@ class PlanningVersionCloneForm(forms.Form):
         required=False,
         label=_("Motif du changement"),
         widget=forms.Textarea(attrs={"rows": 2}),
+    )
+
+
+class PlanningCommunicationDraftForm(forms.ModelForm):
+    class Meta:
+        model = CommunicationDraft
+        fields = [
+            "subject",
+            "body",
+        ]
+        labels = {
+            "subject": _("Sujet"),
+            "body": _("Message"),
+        }
+        widgets = {
+            "body": forms.Textarea(attrs={"rows": 3}),
+        }
+
+
+PlanningCommunicationDraftFormSet = forms.modelformset_factory(
+    CommunicationDraft,
+    form=PlanningCommunicationDraftForm,
+    extra=0,
+)
+
+
+def build_communication_draft_formset(version, *, data=None):
+    return PlanningCommunicationDraftFormSet(
+        data=data,
+        queryset=version.communication_drafts.select_related("template").order_by(
+            "channel",
+            "recipient_label",
+            "id",
+        ),
+        prefix="drafts",
     )

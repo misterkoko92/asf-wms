@@ -1,20 +1,26 @@
 from django.contrib import messages
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from .forms_planning import (
     PlanningRunForm,
     PlanningVersionCloneForm,
     build_assignment_formset,
+    build_communication_draft_formset,
 )
 from .models import (
+    CommunicationDraftStatus,
     PlanningAssignmentSource,
     PlanningRun,
     PlanningVersion,
     PlanningVersionStatus,
 )
+from .planning.communications import generate_version_drafts
+from .planning.exports import export_version_workbook
 from .planning.solver import solve_run
+from .planning.stats import build_version_stats
 from .planning.versioning import clone_version, diff_versions, publish_version
 from .view_permissions import scan_staff_required
 
@@ -110,24 +116,47 @@ def planning_version_detail(request, version_id):
             "assignments__shipment_snapshot",
             "assignments__volunteer_snapshot",
             "assignments__flight_snapshot",
+            "communication_drafts__template",
+            "artifacts",
         ),
         pk=version_id,
     )
-    if request.method == "POST":
-        if version.status != PlanningVersionStatus.DRAFT:
-            messages.error(request, "Seules les versions brouillon sont modifiables.")
-            return redirect("planning:version_detail", version.pk)
+    assignment_formset = build_assignment_formset(version)
+    draft_formset = build_communication_draft_formset(version)
 
-        formset = build_assignment_formset(version, data=request.POST)
-        if formset.is_valid():
-            updated_assignments = formset.save(commit=False)
-            for assignment in updated_assignments:
-                assignment.source = PlanningAssignmentSource.MANUAL
-                assignment.save()
-            messages.success(request, "Affectations mises a jour.")
+    if request.method == "POST":
+        if request.POST.get("assignment_action") == "save":
+            if version.status != PlanningVersionStatus.DRAFT:
+                messages.error(request, "Seules les versions brouillon sont modifiables.")
+                return redirect("planning:version_detail", version.pk)
+
+            assignment_formset = build_assignment_formset(version, data=request.POST)
+            if assignment_formset.is_valid():
+                updated_assignments = assignment_formset.save(commit=False)
+                for assignment in updated_assignments:
+                    assignment.source = PlanningAssignmentSource.MANUAL
+                    assignment.save()
+                messages.success(request, "Affectations mises a jour.")
+                return redirect("planning:version_detail", version.pk)
+        elif request.POST.get("draft_action") == "generate":
+            generate_version_drafts(version)
+            messages.success(request, "Brouillons de communication regeneres.")
             return redirect("planning:version_detail", version.pk)
-    else:
-        formset = build_assignment_formset(version)
+        elif request.POST.get("draft_action") == "save":
+            draft_formset = build_communication_draft_formset(version, data=request.POST)
+            if draft_formset.is_valid():
+                updated_drafts = draft_formset.save(commit=False)
+                for draft in updated_drafts:
+                    draft.status = CommunicationDraftStatus.EDITED
+                    draft.edited_by = request.user
+                    draft.edited_at = timezone.now()
+                    draft.save()
+                messages.success(request, "Brouillons mis a jour.")
+                return redirect("planning:version_detail", version.pk)
+        elif request.POST.get("artifact_action") == "export":
+            export_version_workbook(version)
+            messages.success(request, "Export Planning.xlsx regenere.")
+            return redirect("planning:version_detail", version.pk)
 
     return render(
         request,
@@ -136,9 +165,12 @@ def planning_version_detail(request, version_id):
             "active": ACTIVE_PLANNING_RUNS,
             "version": version,
             "assignments": version.assignments.all(),
-            "assignment_formset": formset
+            "assignment_formset": assignment_formset
             if version.status == PlanningVersionStatus.DRAFT
             else None,
+            "draft_formset": draft_formset,
+            "artifacts": version.artifacts.all(),
+            "version_stats": build_version_stats(version),
             "clone_form": PlanningVersionCloneForm(),
         },
     )
