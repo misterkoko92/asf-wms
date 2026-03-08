@@ -100,6 +100,30 @@ class Command(BaseCommand):
             )
         )
 
+    def _resolve_destination(
+        self,
+        *,
+        iata_code: str,
+        city: str,
+        country: str,
+        correspondent_contact: Contact,
+    ) -> Destination:
+        destination = Destination.objects.filter(iata_code=iata_code).first()
+        if destination is not None:
+            return destination
+
+        destination = Destination.objects.filter(city=city, country=country).first()
+        if destination is not None:
+            return destination
+
+        return Destination.objects.create(
+            city=city,
+            country=country,
+            iata_code=iata_code,
+            correspondent_contact=correspondent_contact,
+            is_active=True,
+        )
+
     def _seed_dataset(self, scenario_slug: str) -> dict[str, object]:
         label = f"[DEMO {scenario_slug}]"
         ref_prefix = f"DEMO-{scenario_slug.upper().replace('-', '-')}"
@@ -191,24 +215,18 @@ class Command(BaseCommand):
         )
 
         destinations = {
-            "ABJ": Destination.objects.get_or_create(
+            "ABJ": self._resolve_destination(
                 iata_code="ABJ",
-                defaults={
-                    "city": "Abidjan",
-                    "country": "Cote d'Ivoire",
-                    "correspondent_contact": correspondent_abj,
-                    "is_active": True,
-                },
-            )[0],
-            "DKR": Destination.objects.get_or_create(
+                city="Abidjan",
+                country="Cote d'Ivoire",
+                correspondent_contact=correspondent_abj,
+            ),
+            "DKR": self._resolve_destination(
                 iata_code="DKR",
-                defaults={
-                    "city": "Dakar",
-                    "country": "Senegal",
-                    "correspondent_contact": correspondent_dkr,
-                    "is_active": True,
-                },
-            )[0],
+                city="Dakar",
+                country="Senegal",
+                correspondent_contact=correspondent_dkr,
+            ),
         }
 
         parameter_set, _ = PlanningParameterSet.objects.update_or_create(

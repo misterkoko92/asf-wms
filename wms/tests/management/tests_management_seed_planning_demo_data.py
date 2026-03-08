@@ -6,6 +6,7 @@ from django.test import TestCase
 from contacts.models import Contact
 from wms.models import (
     AssociationPortalContact,
+    Destination,
     Flight,
     FlightSourceBatch,
     PlanningAssignment,
@@ -74,3 +75,41 @@ class SeedPlanningDemoDataCommandTests(TestCase):
         self.assertEqual(version.status, PlanningVersionStatus.DRAFT)
         self.assertGreaterEqual(PlanningAssignment.objects.filter(version=version).count(), 1)
         self.assertIn("solved", output.getvalue().lower())
+
+    def test_command_reuses_existing_destination_with_same_city_country(self):
+        output = StringIO()
+        correspondent = Contact.objects.create(
+            name="Existing Dakar correspondent",
+            contact_type="organization",
+            is_active=True,
+        )
+        existing_destination = Destination.objects.create(
+            city="Dakar",
+            country="Senegal",
+            iata_code="ZZZ",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+
+        call_command(
+            "seed_planning_demo_data",
+            "--scenario=shared-db",
+            stdout=output,
+        )
+
+        self.assertEqual(
+            Destination.objects.filter(city="Dakar", country="Senegal").count(),
+            1,
+        )
+        self.assertEqual(
+            PlanningDestinationRule.objects.get(
+                parameter_set__name="DEMO shared-db",
+                destination__city="Dakar",
+                destination__country="Senegal",
+            ).destination_id,
+            existing_destination.pk,
+        )
+        self.assertEqual(
+            Shipment.objects.get(reference="DEMO-SHARED-DB-003").destination_id,
+            existing_destination.pk,
+        )
