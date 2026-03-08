@@ -19,19 +19,29 @@
 <body class="scan-bootstrap-enabled portal-bootstrap-enabled">
   <div class="scan-shell">
     <header class="scan-card portal-card portal-header card border-0 ui-comp-panel">
-      <div>
-        <strong class="ui-comp-title">ASF WMS</strong><br>
-        {% trans "Portail benevole" %}
+      <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+        <div>
+          <strong class="ui-comp-title">ASF WMS</strong><br>
+          {% trans "Portail benevole" %}
+        </div>
+        <div class="ms-auto">
+          {% include "includes/language_switch_short.html" %}
+        </div>
       </div>
-      <div class="portal-actions ui-comp-actions">
-        {% include "includes/language_switch.html" %}
-        {% if request.user.is_authenticated %}
-          <nav class="portal-nav">
-            <a class="btn btn-tertiary btn-sm" href="{% url 'volunteer:dashboard' %}">{% trans "Accueil" %}</a>
+      {% if request.user.is_authenticated %}
+        {% with current=request.resolver_match.url_name %}
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3">
+            <nav class="portal-nav d-flex flex-wrap gap-2">
+              <a class="btn {% if current == 'dashboard' %}btn-primary{% else %}btn-tertiary{% endif %} btn-sm" href="{% url 'volunteer:dashboard' %}">{% trans "Accueil" %}</a>
+              <a class="btn {% if current == 'profile' %}btn-primary{% else %}btn-tertiary{% endif %} btn-sm" href="{% url 'volunteer:profile' %}">{% trans "Profil" %}</a>
+              <a class="btn {% if current == 'constraints' %}btn-primary{% else %}btn-tertiary{% endif %} btn-sm" href="{% url 'volunteer:constraints' %}">{% trans "Contraintes" %}</a>
+              <a class="btn {% if current == 'availability_list' or current == 'availability_create' or current == 'availability_edit' or current == 'availability_delete' %}btn-primary{% else %}btn-tertiary{% endif %} btn-sm" href="{% url 'volunteer:availability_list' %}">{% trans "Disponibilites" %}</a>
+              <a class="btn {% if current == 'availability_recap' %}btn-primary{% else %}btn-tertiary{% endif %} btn-sm" href="{% url 'volunteer:availability_recap' %}">{% trans "Recap" %}</a>
+            </nav>
             <a class="btn btn-danger btn-sm" href="{% url 'volunteer:logout' %}">{% trans "Déconnexion" %}</a>
-          </nav>
-        {% endif %}
-      </div>
+          </div>
+        {% endwith %}
+      {% endif %}
     </header>
 
     <main class="scan-main">
@@ -47,5 +57,6 @@
     </main>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  {% block extra_scripts %}{% endblock %}
 </body>
 </html>

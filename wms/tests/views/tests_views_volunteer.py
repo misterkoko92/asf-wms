@@ -13,6 +13,7 @@ from wms.models import (
     VolunteerAvailability,
     VolunteerConstraint,
     VolunteerProfile,
+    VolunteerUnavailability,
 )
 
 
@@ -198,6 +199,14 @@ class VolunteerProfileViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Tableau de bord")
         self.assertContains(response, "09:00")
+        self.assertContains(response, "Accueil")
+        self.assertContains(response, "Profil")
+        self.assertContains(response, "Contraintes")
+        self.assertContains(response, "Disponibilites")
+        self.assertContains(response, "Recap")
+        self.assertContains(response, 'value="fr"')
+        self.assertContains(response, 'value="en"')
+        self.assertContains(response, "ENG")
 
     def test_profile_update_persists_changes(self):
         response = self.client.post(
@@ -302,6 +311,62 @@ class VolunteerAvailabilityViewTests(TestCase):
         availability = VolunteerAvailability.objects.get(volunteer=self.profile)
         self.assertEqual(str(availability.start_time), "09:00:00")
         self.assertEqual(str(availability.end_time), "12:00:00")
+
+    def test_availability_create_get_prefills_last_availability_for_day(self):
+        VolunteerAvailability.objects.create(
+            volunteer=self.profile,
+            date="2026-03-09",
+            start_time="08:00",
+            end_time="10:00",
+        )
+        VolunteerAvailability.objects.create(
+            volunteer=self.profile,
+            date="2026-03-09",
+            start_time="14:15",
+            end_time="18:45",
+        )
+
+        response = self.client.get(
+            reverse("volunteer:availability_create"),
+            {"week": "11", "year": "2026"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        form = response.context["formset"].forms[0]
+        self.assertEqual(form["availability"].value(), "available")
+        self.assertEqual(form["start_time"].value(), "14:15")
+        self.assertEqual(form["end_time"].value(), "18:45")
+
+    def test_availability_create_get_prefills_unavailable_day(self):
+        VolunteerUnavailability.objects.create(
+            volunteer=self.profile,
+            date="2026-03-10",
+        )
+
+        response = self.client.get(
+            reverse("volunteer:availability_create"),
+            {"week": "11", "year": "2026"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        form = response.context["formset"].forms[1]
+        self.assertEqual(form["availability"].value(), "unavailable")
+        self.assertEqual(form["start_time"].value(), "")
+        self.assertEqual(form["end_time"].value(), "")
+
+    def test_availability_create_renders_quarter_hour_choices_and_ui_hooks(self):
+        response = self.client.get(
+            reverse("volunteer:availability_create"),
+            {"week": "11", "year": "2026"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-availability-fields="true"')
+        self.assertContains(response, 'value="09:15"')
+        self.assertContains(response, 'value="09:30"')
+        self.assertContains(response, 'value="09:45"')
+        self.assertNotContains(response, 'value="09:10"')
+        self.assertContains(response, "volunteer-week-picker")
 
     def test_update_availability_persists_changes(self):
         availability = VolunteerAvailability.objects.create(
