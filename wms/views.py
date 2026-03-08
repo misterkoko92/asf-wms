@@ -72,6 +72,12 @@ from .views_scan import (
     scan_sync,
     scan_ui_lab,
 )
+from .views_volunteer_auth import (
+    volunteer_change_password,
+    volunteer_dashboard,
+    volunteer_login,
+    volunteer_logout,
+)
 
 PORTAL_EXPORTS = (
     "portal_login",
@@ -87,6 +93,13 @@ PORTAL_EXPORTS = (
     "portal_account_request",
     "portal_billing",
     "portal_billing_detail",
+)
+
+VOLUNTEER_EXPORTS = (
+    "volunteer_login",
+    "volunteer_logout",
+    "volunteer_change_password",
+    "volunteer_dashboard",
 )
 
 PUBLIC_EXPORTS = (
@@ -156,6 +169,7 @@ SERVICE_EXPORTS = ("receive_receipt_line", "reserve_stock_for_order")
 
 __all__ = [
     *PORTAL_EXPORTS,
+    *VOLUNTEER_EXPORTS,
     *PUBLIC_EXPORTS,
     *SCAN_FLOW_EXPORTS,
     *PRINT_EXPORTS,
