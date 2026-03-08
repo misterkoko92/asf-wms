@@ -12,6 +12,7 @@ from django.utils import timezone
 from django.utils.html import format_html, format_html_join
 
 from . import (
+    admin_billing,  # noqa: F401
     admin_misc,  # noqa: F401
     models,
 )
