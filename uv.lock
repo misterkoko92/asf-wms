@@ -9,6 +9,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "django" },
     { name = "djangorestframework" },
+    { name = "defusedxml" },
     { name = "gunicorn" },
     { name = "mysqlclient" },
     { name = "openpyxl" },
@@ -39,6 +40,7 @@ dev = [
 requires-dist = [
     { name = "django", specifier = "==4.2.11" },
     { name = "djangorestframework", specifier = "==3.15.2" },
+    { name = "defusedxml", specifier = "==0.7.1" },
     { name = "gunicorn", specifier = "==21.2.0" },
     { name = "mysqlclient", specifier = "==2.2.4" },
     { name = "openpyxl", specifier = "==3.1.5" },
