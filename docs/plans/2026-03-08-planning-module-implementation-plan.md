@@ -4,7 +4,7 @@
 
 **Goal:** Integrer dans `asf-wms` un module `planning` legacy Django capable de charger expeditions, benevoles et vols, d'appliquer les regles metier, d'executer le solveur, de permettre des ajustements manuels, de versionner les diffusions et de regenerer exports et brouillons de communication par version.
 
-**Architecture:** Ajouter un vrai domaine `planning` dans `asf-wms` plutot qu'un portage de l'application Streamlit. Le coeur technique repose sur des modeles de domaine explicites, des services internes `wms/planning/*` pour snapshots, validation, regles, solveur, exports et communications, puis des vues Django legacy sous `/planning/` pour piloter runs, versions et ajustements manuels. Les donnees `Shipment`, `Destination`, `VolunteerProfile` et `VolunteerAvailability` restent maitres dans leurs domaines existants; le planning les gele par snapshot pour garantir reproductibilite et versioning. L'equivalent de `ParamBE` n'est pas recreate dans `planning`: il doit reutiliser `ShipmentUnitEquivalenceRule` et `wms/billing_calculations.py`.
+**Architecture:** Ajouter un vrai domaine `planning` dans `asf-wms` plutot qu'un portage de l'application Streamlit. Le coeur technique repose sur des modeles de domaine explicites, des services internes `wms/planning/*` pour snapshots, validation, regles, solveur, exports et communications, puis des vues Django legacy sous `/planning/` pour piloter runs, versions et ajustements manuels. `ParamDest` devient planning-owned. `ParamBenev` vient du domaine benevole. `ParamExpediteur` vient du domaine portal ou contacts. `ParamBE` devient un referentiel partage avec un point d'entree transverse hors module facturation.
 
 **Tech Stack:** Django 4.2, ORM Django, formulaires Django, templates Django legacy, OR-Tools deja utilise par `../asf_scheduler/new_repo`, import Excel Python existant, `manage.py test`.
 
@@ -64,8 +64,6 @@ Expected: FAIL because the planning models do not exist yet.
 - Ajouter dans `wms/models_domain/planning.py`:
   - `PlanningParameterSet`
   - `PlanningDestinationRule`
-  - `PlanningShipperRule`
-  - `PlanningVolunteerRule`
   - `FlightSourceBatch`
   - `Flight`
   - `PlanningRun`
@@ -163,26 +161,34 @@ git add wms/models_domain/volunteer.py wms/forms_volunteer.py wms/views_voluntee
 git commit -m "feat(planning): extend volunteer constraints for solver inputs"
 ```
 
-### Task 3: Migrer les parametres Excel critiques restants et raccorder l'equivalence facturation
+### Task 3: Extraire l'equivalence partagee et migrer `ParamDest`
 
 **Files:**
+- Create: `wms/models_domain/equivalence.py`
+- Create: `wms/unit_equivalence.py`
+- Modify: `wms/models.py`
+- Modify: `wms/models_domain/billing.py`
+- Modify: `wms/admin_billing.py`
+- Modify: `wms/views_scan_billing.py`
 - Create: `wms/planning/parameter_import.py`
 - Create: `wms/management/commands/import_planning_parameters.py`
 - Create: `wms/tests/planning/tests_parameter_import.py`
+- Create: `wms/tests/planning/tests_unit_equivalence_shared.py`
 - Modify: `wms/models_domain/planning.py`
 - Modify: `wms/admin.py`
 - Modify: `wms/billing_calculations.py`
 
 **Step 1: Write the failing test**
 
-Ajouter un test d'import qui lit un fichier fixture minimal et cree un `PlanningParameterSet` avec des lignes `PlanningDestinationRule`, puis un test qui verifie que les regles d'equivalence existantes sont bien reutilisees pour calculer une quantite equivalente.
+Ajouter un test d'import qui lit un fichier fixture minimal et cree un `PlanningParameterSet` avec des lignes `PlanningDestinationRule`, puis un test qui verifie que l'equivalence partagee est resolue via un point d'entree transverse.
 
 ```python
 from django.core.management import call_command
 from django.test import TestCase
 
-from wms.billing_calculations import ShipmentUnitInput, resolve_shipment_unit_count
+from wms.billing_calculations import ShipmentUnitInput
 from wms.models import PlanningDestinationRule, PlanningParameterSet, ShipmentUnitEquivalenceRule
+from wms.unit_equivalence import resolve_shipment_unit_count
 
 
 class PlanningParameterImportTests(TestCase):
@@ -214,25 +220,29 @@ Expected: FAIL because the command and importer do not exist yet.
 
 **Step 3: Write minimal implementation**
 
-- Creer `wms/planning/parameter_import.py` pour lire `ParamDest`, `ParamExpediteur` et `ParamBenev`
-- Pour `ParamBE`, ne pas creer un nouveau referentiel planning: brancher l'import ou la verification sur `ShipmentUnitEquivalenceRule`
+- Deplacer `ShipmentUnitEquivalenceRule` hors `wms/models_domain/billing.py` vers `wms/models_domain/equivalence.py`
+- Creer `wms/unit_equivalence.py` comme point d'entree transverse pour `resolve_unit_equivalence_rule` et `resolve_shipment_unit_count`
+- Faire consommer ce point d'entree par la facturation sans regression d'UI dans `scan/billing/equivalence`
+- Creer `wms/planning/parameter_import.py` pour lire `ParamDest` uniquement
 - Creer `wms/management/commands/import_planning_parameters.py`
 - Ajouter une fixture Excel minimale dans `wms/tests/fixtures/`
-- Rendre les modeles de regles modifiables dans l'admin
-- Si necessaire, extraire dans `wms/billing_calculations.py` un point d'entree explicite reutilisable par le planning
+- Rendre `PlanningDestinationRule` modifiable dans l'admin planning
+- Laisser `ParamBenev` et `ParamExpediteur` venir de leurs domaines maitres, sans les dupliquer dans le planning
 
 **Step 4: Run tests to verify it passes**
 
 Run:
 - `./.venv/bin/python manage.py test wms.tests.planning.tests_parameter_import -v 2`
+- `./.venv/bin/python manage.py test wms.tests.planning.tests_unit_equivalence_shared -v 2`
 - `./.venv/bin/python manage.py test wms.tests.management.tests_management_runtime_dependencies -v 2`
+- `./.venv/bin/python manage.py test wms.tests.views.test_views_scan_billing -v 2`
 
 Expected: PASS and no unexpected runtime dependency regression.
 
 **Step 5: Commit**
 
 ```bash
-git add wms/planning/parameter_import.py wms/management/commands/import_planning_parameters.py wms/tests/planning/tests_parameter_import.py wms/tests/fixtures/planning_parameters_minimal.xlsx wms/models_domain/planning.py wms/admin.py wms/billing_calculations.py
+git add wms/models_domain/equivalence.py wms/unit_equivalence.py wms/models.py wms/models_domain/billing.py wms/admin_billing.py wms/views_scan_billing.py wms/planning/parameter_import.py wms/management/commands/import_planning_parameters.py wms/tests/planning/tests_parameter_import.py wms/tests/planning/tests_unit_equivalence_shared.py wms/tests/fixtures/planning_parameters_minimal.xlsx wms/models_domain/planning.py wms/admin.py wms/billing_calculations.py
 git commit -m "feat(planning): import planning parameter sets from Excel"
 ```
 
@@ -252,8 +262,9 @@ git commit -m "feat(planning): import planning parameter sets from Excel"
 Ajouter un test de preparation de run qui:
 - recupere des expeditions eligibles
 - recupere des benevoles et disponibilites
+- recupere les references expediteur depuis le domaine portal ou contacts
 - fige les snapshots
-- calcule la quantite equivalente de chaque expedition a partir de la logique de facturation
+- calcule la quantite equivalente de chaque expedition a partir du point d'entree partage d'equivalence
 - produit une erreur bloquante si une destination n'a pas de regle planning
 
 ```python
@@ -290,6 +301,7 @@ Expected: FAIL because the services do not exist yet.
 **Step 3: Write minimal implementation**
 
 - Implementer `wms/planning/sources.py` pour lire expeditions, destinations, benevoles et disponibilites depuis l'ORM
+- Lire aussi les references expediteur utiles depuis `AssociationProfile`, `OrganizationContact` ou les objets portal ou contacts pertinents
 - Implementer `wms/planning/snapshots.py` pour creer les snapshots de run et y figer les quantites equivalentes resolues
 - Implementer `wms/planning/validation.py` pour produire les `PlanningIssue`
 - Reutiliser `resolve_shipment_unit_count` pour la capacite vol plutot qu'une logique planning dupliquee
@@ -409,7 +421,10 @@ Expected: FAIL because the rule compiler and solver adapter do not exist yet.
 - Creer `wms/planning/rules.py` pour compiler les snapshots et regles en payload solveur
 - Creer `wms/planning/solver.py` comme facade vers le solveur OR-Tools existant
 - Copier ou adapter seulement les modules metier necessaires depuis `../asf_scheduler/new_repo/scheduler/`
-- Reutiliser les quantites equivalentes calculees depuis les regles de facturation pour les contraintes de capacite vol
+- Utiliser `PlanningDestinationRule` comme source planning-owned pour les contraintes destination
+- Utiliser les donnees `/benevole` comme source des contraintes benevole
+- Utiliser les donnees `/portal` ou contacts comme source des caracteristiques expediteur
+- Reutiliser les quantites equivalentes calculees depuis le point d'entree partage d'equivalence pour les contraintes de capacite vol
 - Enregistrer dans le run le payload et le resultat solveur
 - Creer la `PlanningVersion` brouillon initiale et les `PlanningAssignment`
 
@@ -656,7 +671,7 @@ Expected: FAIL because the shipment update service does not exist yet.
 - Implementer `wms/planning/shipment_updates.py`
 - Rattacher les evenements metier aux expeditons concernees
 - Brancher l'action dans `wms/views_planning.py`
-- Si coexistence transitoire avec l'ancien scheduler necessaire, ajouter des endpoints de compatibilite en `api/v1/` pour benevoles et parametres planning
+- Si coexistence transitoire avec l'ancien scheduler necessaire, ajouter des endpoints de compatibilite en `api/v1/` pour benevoles, references expediteur portal ou contacts, destinations planning et equivalence partagee
 
 **Step 4: Run tests to verify it passes**
 

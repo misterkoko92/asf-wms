@@ -21,6 +21,10 @@ Decisions produit validees pendant le cadrage:
 - le planning doit rester modifiable manuellement apres passage du solveur
 - toute republication doit creer une nouvelle version du planning
 - le verrouillage de decisions manuelles dans le solveur n'est pas une exigence V1
+- `ParamDest` doit devenir un referentiel specifique au planning
+- `ParamBenev` vient du domaine `/benevole`
+- `ParamExpediteur` vient des contacts associations du domaine `/portal`
+- `ParamBE` doit sortir de la facturation comme point d'entree partage reutilisable par plusieurs modules
 
 ## Decision Summary
 Decision retenue:
@@ -33,7 +37,10 @@ Decision explicite:
 - l'UI cible reste sur les vues, formulaires et templates Django legacy
 - `Planning.xlsx` reste genere pendant la migration pour ne pas casser l'operationnel
 - les messages email et WhatsApp sont rattaches a une version de planning et regenerables a chaque version
-- l'equivalent de `ParamBE` est fourni par le referentiel facturation existant, pas par un second referentiel planning duplique
+- `ParamDest` est planning-owned
+- `ParamBenev` est benevole-owned
+- `ParamExpediteur` est portal or contacts-owned
+- `ParamBE` devient shared-owned, avec un point d'entree transverse hors module facturation
 
 Decisions rejetees:
 - embarquer `asf_scheduler` presque tel quel dans `asf-wms`
@@ -50,7 +57,11 @@ Pourquoi:
 - chargement des expeditions depuis `asf-wms`
 - chargement des benevoles, contraintes et disponibilites depuis `asf-wms`
 - chargement des vols en mode API, Excel ou hybride
-- remplacement des parametres Excel critiques par des parametres administres dans `asf-wms`
+- remplacement des parametres Excel critiques par:
+  - un referentiel planning pour `ParamDest`
+  - le domaine benevole pour `ParamBenev`
+  - le domaine portal ou contacts pour `ParamExpediteur`
+  - un referentiel partage d'equivalence pour `ParamBE`
 - validation des donnees avant solveur avec blocants et warnings
 - execution du solveur et stockage des resultats
 - revue du planning dans `asf-wms`
@@ -81,19 +92,22 @@ Pourquoi:
 Je recommande une architecture metier explicite, decoupee en sous-composants internes:
 
 1. `wms/models_domain/planning.py`
-   Porte les objets persistants du domaine planning.
-2. `wms/planning/`
+   Porte les objets persistants purement planning, notamment `ParamDest`, les runs, snapshots, versions et affectations.
+2. `wms/models_domain/equivalence.py`
+   Porte le referentiel partage d'equivalence aujourd'hui loge dans la facturation.
+3. `wms/planning/`
    Porte les services metier internes: sources, snapshots, validation, regles, solveur, versioning, exports, communications, statistiques.
-3. `wms/views_planning.py` et `wms/planning_urls.py`
+4. `wms/views_planning.py` et `wms/planning_urls.py`
    Exposent la surface utilisateur legacy Django sous `/planning/`.
-4. `templates/planning/*`
+5. `templates/planning/*`
    Portent les ecrans de creation de run, revue, edition, publication, diff et preparation des communications.
-5. `wms/forms_planning.py`
+6. `wms/forms_planning.py`
    Porte les formulaires de creation de run, edition manuelle, publication et templates de communication.
 
 L'architecture cible ne reimporte pas l'application Streamlit. Elle reimporte les briques metier, puis les rebranche sur les conventions `asf-wms`.
 
 Structure de services recommandee:
+- `wms/unit_equivalence.py`
 - `wms/planning/sources.py`
 - `wms/planning/flight_sources.py`
 - `wms/planning/snapshots.py`
@@ -106,7 +120,7 @@ Structure de services recommandee:
 - `wms/planning/stats.py`
 - `wms/planning/shipment_updates.py`
 
-Le module planning doit reutiliser les briques existantes de facturation pour le calcul d'equivalence unite ou carton, notamment `ShipmentUnitEquivalenceRule`, `resolve_unit_equivalence_rule` et `resolve_shipment_unit_count`.
+Le module planning doit reutiliser un point d'entree transverse pour le calcul d'equivalence unite ou carton, idealement extrait vers `wms/models_domain/equivalence.py` et `wms/unit_equivalence.py`, puis consomme par facturation et planning.
 
 ## Domain Model
 Le domaine cible doit separer trois choses:
@@ -119,29 +133,45 @@ Le domaine cible doit separer trois choses:
 Jeu de parametres versionne, avec statut `draft` ou `active`, date d'effet, notes, auteur et marqueur "current".
 
 #### Equivalence unite ou carton
-Le contenu metier equivalent a `ParamBE` ne doit pas etre remodele dans `planning` comme un nouveau referentiel maitre.
+Le contenu metier equivalent a `ParamBE` ne doit pas etre remodele dans `planning` ni rester billing-owned.
 
 Source canonique recommandee:
-- `ShipmentUnitEquivalenceRule` cote facturation
-- logique de resolution existante dans `wms/billing_calculations.py`
+- `ShipmentUnitEquivalenceRule` deplace vers un domaine partage
+- logique de resolution exposee via un point d'entree transverse, par exemple `wms/unit_equivalence.py`
 
 Implication:
 - le planning consomme ce referentiel pour calculer la quantite equivalente mobilisee sur un vol
+- la facturation consomme le meme point d'entree
 - chaque run gele soit les regles actives appliquees, soit les quantites equivalentes resolues par expedition afin de garantir la reproductibilite
-- si des champs supplementaires purement planning deviennent necessaires, ils doivent de preference etendre ce referentiel existant plutot que creer un deuxieme systeme d'equivalence
+- si des champs supplementaires deviennent necessaires, ils doivent enrichir ce referentiel partage plutot que creer un deuxieme systeme d'equivalence
 
 #### `PlanningDestinationRule`
 Remplace le contenu metier de `ParamDest`: frequence de desserte, capacite, nombre de colis max, contraintes de jour, priorites locales, correspondants et drapeaux logistiques utiles.
 
-#### `PlanningShipperRule`
-Remplace le contenu metier de `ParamExpediteur`: priorites, comportements specifiques ou equivalences expeditrices qui conditionnent le tri des expeditions.
+#### Entrees expediteur
+Le contenu equivalent a `ParamExpediteur` doit venir des contacts associations et du referentiel portal ou contacts, pas d'un nouveau referentiel planning duplique.
 
-#### `PlanningVolunteerRule`
-Complete le domaine benevole pour les besoins planning, y compris les contraintes aujourd'hui implicites ou absentes. Le champ critique `max_colis_vol` doit etre porte nativement par `asf-wms`.
+Source canonique recommandee:
+- `AssociationProfile`
+- contacts organisation ou contacts portail pertinents
+- eventuels champs metier deja portes dans le domaine portal ou contacts
+
+Le planning consomme ces donnees et les fige dans les snapshots. Si un champ manque pour l'orchestration planning, il doit de preference etre ajoute au domaine portal ou contacts avant de creer un overlay planning.
+
+#### Entrees benevole
+Le contenu equivalent a `ParamBenev` doit venir du domaine benevole.
+
+Source canonique recommandee:
+- `VolunteerProfile`
+- `VolunteerConstraint`
+- `VolunteerAvailability`
+- `VolunteerUnavailability`
+
+Le champ critique `max_colis_vol` doit etre porte nativement par `asf-wms` dans le domaine benevole.
 
 Ces regles restent des donnees maitres modifiables dans `asf-wms`, puis gelees dans chaque run.
 
-Le referentiel d'equivalence facturation reste hors de `PlanningParameterSet` comme source maitre, mais son etat applique doit etre capture dans le run.
+Seul `ParamDest` reste planning-owned dans `PlanningParameterSet`. Les autres referentiels sont consommes depuis leurs domaines maitres puis figes dans le run.
 
 ### Alimentation vols
 #### `FlightSourceBatch`
@@ -174,7 +204,7 @@ Champs recommandes:
 Issue de validation rattachee a un run, avec severite (`error`, `warning`), code, message, objet source et contexte exploitable en UI.
 
 #### `PlanningShipmentSnapshot`
-Snapshot des expeditions eligibles pour un run. Il fige les champs utilises par le solveur a la date du calcul: destination, expediteur, priorite, statut, quantites, contraintes, drapeaux, et quantite equivalente issue du referentiel d'equivalence facturation.
+Snapshot des expeditions eligibles pour un run. Il fige les champs utilises par le solveur a la date du calcul: destination, expediteur, priorite, statut, quantites, contraintes, drapeaux, et quantite equivalente issue du referentiel partage d'equivalence.
 
 #### `PlanningVolunteerSnapshot`
 Snapshot des benevoles eligibles, de leurs disponibilites, contraintes, localisation utile, capacites et autres champs utilises par le solveur.
@@ -229,17 +259,18 @@ Flux cible:
 1. un operateur cree un `PlanningRun`
 2. `asf-wms` charge les expeditions eligibles depuis l'ORM
 3. `asf-wms` charge les benevoles, contraintes et disponibilites depuis le domaine benevole
-4. `asf-wms` charge les vols depuis un `FlightSourceBatch`
-5. `asf-wms` compile le `PlanningParameterSet` actif
-6. le systeme applique les regles d'equivalence facturation puis cree les snapshots du run
-7. la validation produit des `PlanningIssue`
-8. si des erreurs bloquantes existent, le run s'arrete avant solveur
-9. sinon, `wms/planning/rules.py` transforme les snapshots en payload solveur
-10. `wms/planning/solver.py` execute le solveur et cree une `PlanningVersion` brouillon
-11. l'operateur relit puis ajuste manuellement les `PlanningAssignment`
-12. la publication fige la version et genere ses artefacts
-13. si un changement arrive plus tard, l'operateur cree une nouvelle version a partir de la precedente
-14. `asf-wms` regenere exports, brouillons de communication et statistiques pour la nouvelle version
+4. `asf-wms` charge les references expediteur depuis le domaine portal ou contacts
+5. `asf-wms` charge les vols depuis un `FlightSourceBatch`
+6. `asf-wms` compile `PlanningDestinationRule` et charge le referentiel partage d'equivalence
+7. le systeme applique les regles d'equivalence partagees puis cree les snapshots du run
+8. la validation produit des `PlanningIssue`
+9. si des erreurs bloquantes existent, le run s'arrete avant solveur
+10. sinon, `wms/planning/rules.py` transforme les snapshots en payload solveur
+11. `wms/planning/solver.py` execute le solveur et cree une `PlanningVersion` brouillon
+12. l'operateur relit puis ajuste manuellement les `PlanningAssignment`
+13. la publication fige la version et genere ses artefacts
+14. si un changement arrive plus tard, l'operateur cree une nouvelle version a partir de la precedente
+15. `asf-wms` regenere exports, brouillons de communication et statistiques pour la nouvelle version
 
 ## Manual Adjustments And Versioning
 Le besoin metier valide impose une distinction forte entre calcul et diffusion.
@@ -296,7 +327,9 @@ Les fichiers Excel ne doivent plus etre les sources de verite du metier planning
 
 Remplacement cible:
 - `TABLEAU DE BORD.xlsx` est remplace par les expeditions, destinations, expediteurs et parametres administres dans `asf-wms`
-- `PLANNING BENEVOLE.xlsx` est remplace par `VolunteerProfile`, `VolunteerConstraint`, `VolunteerAvailability` et les regles planning associees
+- `PLANNING BENEVOLE.xlsx` est remplace par `VolunteerProfile`, `VolunteerConstraint`, `VolunteerAvailability` et `VolunteerUnavailability`
+- `ParamExpediteur` est remplace par les contacts associations du domaine `/portal` et du referentiel contacts
+- `ParamBE` est remplace par un referentiel partage d'equivalence transverse a plusieurs modules
 - `Vols.xlsx` reste acceptable comme source transitoire de `FlightSourceBatch`
 - `Planning.xlsx` reste un export de sortie en phase transitoire
 
@@ -333,7 +366,10 @@ Je recommande une migration en quatre phases:
 
 ### Phase 1
 - creer le domaine `planning`
-- modeliser les parametres restants et brancher l'equivalence facturation existante
+- creer le referentiel partage d'equivalence hors facturation
+- modeliser `ParamDest`
+- brancher `ParamBenev` sur le domaine benevole
+- brancher `ParamExpediteur` sur le domaine portal ou contacts
 - brancher les sources internes WMS et le chargement de vols
 - reintegrer validation et solveur
 - produire un `Planning.xlsx` compatible
