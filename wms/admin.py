@@ -69,6 +69,11 @@ from .services import (
     unpack_carton,
 )
 from .shipment_view_helpers import render_carton_document, render_shipment_document
+from .volunteer_access import build_volunteer_urls, send_volunteer_access_email
+from .volunteer_account_request_handlers import (
+    approve_volunteer_account_request,
+    describe_volunteer_account_request_skip_reason,
+)
 
 
 def _artifact_pdf_response(artifact):
@@ -1230,6 +1235,186 @@ class StockMovementAdmin(admin.ModelAdmin):
             title=title,
             render_fn=render,
         )
+
+
+@admin.register(models.VolunteerProfile)
+class VolunteerProfileAdmin(admin.ModelAdmin):
+    list_display = (
+        "volunteer_id",
+        "user",
+        "phone",
+        "city",
+        "is_active",
+        "must_change_password",
+    )
+    list_filter = ("is_active", "must_change_password", "country")
+    search_fields = ("user__username", "user__email", "phone", "city", "volunteer_id")
+    list_select_related = ("user", "contact")
+    actions = ("mark_password_change_required", "send_access_email")
+
+    def mark_password_change_required(self, request, queryset):
+        updated = queryset.update(must_change_password=True)
+        self.message_user(
+            request,
+            _("%(count)s acces benevole(s) marque(s) pour changement de mot de passe.")
+            % {"count": updated},
+        )
+
+    mark_password_change_required.short_description = gettext_lazy(
+        "Forcer le changement de mot de passe"
+    )
+
+    def send_access_email(self, request, queryset):
+        sent = 0
+        for profile in queryset.select_related("user"):
+            profile.must_change_password = True
+            profile.save(update_fields=["must_change_password"])
+            if send_volunteer_access_email(request=request, user=profile.user):
+                sent += 1
+        self.message_user(
+            request,
+            _("%(count)s email(s) d'acces benevole envoyes.") % {"count": sent},
+        )
+
+    send_access_email.short_description = gettext_lazy("Envoyer ou reinitialiser l'acces benevole")
+
+
+@admin.register(models.VolunteerAccountRequest)
+class VolunteerAccountRequestAdmin(admin.ModelAdmin):
+    list_display = (
+        "first_name",
+        "last_name",
+        "email",
+        "status_badge",
+        "created_at",
+        "reviewed_at",
+    )
+    list_filter = ("status", "country")
+    search_fields = ("first_name", "last_name", "email", "phone", "city")
+    readonly_fields = ("created_at", "reviewed_at", "reviewed_by")
+    actions = ("approve_requests", "reject_requests")
+
+    @staticmethod
+    def _build_volunteer_urls(*, request, user):
+        return build_volunteer_urls(request=request, user=user)
+
+    def _approve_request(self, request, account_request):
+        return approve_volunteer_account_request(
+            request=request,
+            account_request=account_request,
+            enqueue_email=enqueue_email_safe,
+            url_builder=self._build_volunteer_urls,
+        )
+
+    def approve_requests(self, request, queryset):
+        approved = 0
+        skipped = 0
+        for account_request in queryset:
+            if account_request.status == models.VolunteerAccountRequestStatus.APPROVED:
+                user_exists = (
+                    get_user_model().objects.filter(email__iexact=account_request.email).exists()
+                )
+                if user_exists:
+                    skipped += 1
+                    continue
+            ok, _reason = self._approve_request(request, account_request)
+            if ok:
+                approved += 1
+            else:
+                skipped += 1
+        if approved:
+            self.message_user(
+                request,
+                _("%(count)s demande(s) benevole approuvee(s).") % {"count": approved},
+            )
+        if skipped:
+            self.message_user(
+                request,
+                _("%(count)s demande(s) benevole ignoree(s).") % {"count": skipped},
+                level=messages.WARNING,
+            )
+
+    approve_requests.short_description = gettext_lazy("Approuver les demandes benevole")
+
+    def save_model(self, request, obj, form, change):
+        previous_status = None
+        if change and obj.pk:
+            previous_status = (
+                self.model.objects.filter(pk=obj.pk).values_list("status", flat=True).first()
+            )
+        super().save_model(request, obj, form, change)
+        if obj.status != models.VolunteerAccountRequestStatus.APPROVED:
+            return
+        user_exists = get_user_model().objects.filter(email__iexact=obj.email).exists()
+        if previous_status == models.VolunteerAccountRequestStatus.APPROVED and user_exists:
+            return
+        ok, reason = self._approve_request(request, obj)
+        if ok:
+            self.message_user(
+                request,
+                _("Compte benevole cree automatiquement apres validation."),
+                level=messages.SUCCESS,
+            )
+        else:
+            self.message_user(
+                request,
+                _("Validation benevole ignoree (%(reason)s).")
+                % {"reason": describe_volunteer_account_request_skip_reason(reason)},
+                level=messages.WARNING,
+            )
+
+    def reject_requests(self, request, queryset):
+        updated = queryset.update(
+            status=models.VolunteerAccountRequestStatus.REJECTED,
+            reviewed_at=timezone.now(),
+            reviewed_by=request.user,
+        )
+        self.message_user(
+            request,
+            _("%(count)s demande(s) benevole refusee(s).") % {"count": updated},
+        )
+
+    reject_requests.short_description = gettext_lazy("Refuser les demandes benevole")
+
+    def status_badge(self, obj):
+        return render_admin_status_badge(
+            status_value=obj.status,
+            label=obj.get_status_display(),
+            domain="account_request",
+        )
+
+    status_badge.short_description = "status"
+    status_badge.admin_order_field = "status"
+
+
+@admin.register(models.VolunteerConstraint)
+class VolunteerConstraintAdmin(admin.ModelAdmin):
+    list_display = (
+        "volunteer",
+        "max_days_per_week",
+        "max_expeditions_per_week",
+        "max_expeditions_per_day",
+        "max_wait_hours",
+        "updated_at",
+    )
+    list_select_related = ("volunteer", "volunteer__user")
+    search_fields = ("volunteer__user__username", "volunteer__user__email", "volunteer__phone")
+
+
+@admin.register(models.VolunteerAvailability)
+class VolunteerAvailabilityAdmin(admin.ModelAdmin):
+    list_display = ("volunteer", "date", "start_time", "end_time", "updated_at")
+    list_filter = ("date",)
+    list_select_related = ("volunteer", "volunteer__user")
+    search_fields = ("volunteer__user__username", "volunteer__user__email")
+
+
+@admin.register(models.VolunteerUnavailability)
+class VolunteerUnavailabilityAdmin(admin.ModelAdmin):
+    list_display = ("volunteer", "date", "updated_at")
+    list_filter = ("date",)
+    list_select_related = ("volunteer", "volunteer__user")
+    search_fields = ("volunteer__user__username", "volunteer__user__email")
 
 
 def _install_organization_roles_review_admin_url():

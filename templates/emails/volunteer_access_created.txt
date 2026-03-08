@@ -1,0 +1,9 @@
+Bonjour,
+
+Votre acces benevole ASF WMS est pret.
+
+Email: {{ email }}
+Definir votre mot de passe: {{ set_password_url }}
+Connexion: {{ login_url }}
+
+Si vous n'etes pas a l'origine de cette demande, ignorez ce message.

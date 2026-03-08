@@ -1,0 +1,68 @@
+{% extends "benevole/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Recap disponibilites" %}{% endblock %}
+
+{% block content %}
+  <div class="scan-card portal-card card border-0 ui-comp-card">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+      <div>
+        <h2 class="ui-comp-title mb-1">{% trans "Recap dispo semaine" %}</h2>
+        <p class="scan-help mb-0">
+          {% blocktrans with week=week_number start=week_start|date:"d/m/Y" end=week_end|date:"d/m/Y" %}
+          Semaine {{ week }} du {{ start }} au {{ end }}.
+          {% endblocktrans %}
+        </p>
+      </div>
+      <form method="get" class="d-flex flex-wrap gap-2 align-items-end">
+        <div>
+          <label class="form-label" for="id_week">{% trans "Semaine" %}</label>
+          <select id="id_week" name="week" class="form-select form-select-sm">
+            {% for option in week_options %}
+              <option value="{{ option.week }}" {% if option.week == week_number %}selected{% endif %}>{{ option.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <input type="hidden" name="year" value="{{ week_year }}">
+        <button type="submit" class="btn btn-outline-secondary btn-sm">{% trans "Aller" %}</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="scan-card portal-card card border-0 ui-comp-card">
+    {% if recap_rows %}
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead>
+            <tr>
+              <th>{% trans "Benevole" %}</th>
+              {% for day in week_days %}
+                <th>{{ day.label }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in recap_rows %}
+              <tr>
+                <td>{{ row.name }}</td>
+                {% for day in row.days %}
+                  <td>
+                    {% if day.status == "available" %}
+                      {{ day.start }} - {{ day.end }}
+                    {% elif day.status == "unavailable" %}
+                      {% trans "Indisponible" %}
+                    {% else %}
+                      -
+                    {% endif %}
+                  </td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="scan-help mb-0">{% trans "Aucun benevole a afficher." %}</p>
+    {% endif %}
+  </div>
+{% endblock %}

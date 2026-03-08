@@ -28,6 +28,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("scan/", include("wms.scan_urls")),
     path("portal/", include("wms.portal_urls")),
+    path("benevole/", include("wms.volunteer_urls")),
     path("api/", include("api.urls")),
 ]
 

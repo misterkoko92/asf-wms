@@ -1,0 +1,15 @@
+{% extends "benevole/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Demande envoyee" %}{% endblock %}
+
+{% block content %}
+  <div class="scan-card portal-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">{% trans "Demande envoyee" %}</h2>
+    <p class="scan-help">{% trans "Votre demande de compte benevole a ete enregistree. ASF la verifiera avant activation." %}</p>
+    <div class="d-flex gap-2">
+      <a class="btn btn-primary" href="{% url 'volunteer:login' %}">{% trans "Aller a la connexion" %}</a>
+      <a class="btn btn-outline-secondary" href="{% url 'home' %}">{% trans "Retour accueil" %}</a>
+    </div>
+  </div>
+{% endblock %}

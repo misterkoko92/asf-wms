@@ -741,3 +741,15 @@ Expected: PASS with targeted volunteer coverage plus portal regression coverage.
 git add docs/plans/2026-03-08-benevole-integration-design.md docs/plans/2026-03-08-benevole-integration-implementation-plan.md
 git commit -m "docs: finalize benevole rollout verification notes"
 ```
+
+## Execution Notes
+
+Verification du 2026-03-08:
+- `./.venv/bin/python manage.py test wms.tests.volunteer -v 2`: OK
+- `./.venv/bin/python manage.py test wms.tests.views.tests_views_volunteer wms.tests.views.tests_views_volunteer_account_request -v 2`: OK
+- `./.venv/bin/python manage.py test wms.tests.admin.tests_admin_volunteer wms.tests.emailing.tests_volunteer_email_flows -v 2`: OK
+- `./.venv/bin/python manage.py test wms.tests.views.tests_views_portal -v 2`: 2 echecs hors scope benevole
+
+Echecs `portal` verifies aussi sur le commit de base `c20bc55`, donc preexistants:
+- `wms.tests.views.tests_views_portal.PortalAccountViewsTests.test_portal_recipients_post_creates_recipient_with_native_english_message`
+- `wms.tests.views.tests_views_portal.PortalOrdersViewsTests.test_portal_order_create_post_success_uses_native_english_message`

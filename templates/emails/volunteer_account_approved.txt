@@ -1,0 +1,9 @@
+Bonjour {{ first_name|default:"" }}{% if first_name %} {% endif %},
+
+Votre demande de compte benevole ASF WMS a ete approuvee.
+
+Email: {{ email }}
+Definir votre mot de passe: {{ set_password_url }}
+Connexion: {{ login_url }}
+
+Vous pourrez ensuite vous connecter sur l'espace benevole.

@@ -1,0 +1,43 @@
+{% extends "benevole/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Tableau de bord benevole" %}{% endblock %}
+
+{% block content %}
+  <div class="scan-card portal-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">{% trans "Tableau de bord" %}</h2>
+    <p class="scan-help">
+      {% blocktrans with name=profile.user.first_name|default:profile.user.email %}
+      Bonjour {{ name }}, voici vos disponibilites recentes.
+      {% endblocktrans %}
+    </p>
+  </div>
+
+  <div class="scan-card portal-card card border-0 ui-comp-card">
+    <h3 class="ui-comp-title">{% trans "Disponibilites recentes" %}</h3>
+    {% if recent_availabilities %}
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead>
+            <tr>
+              <th>{% trans "Date" %}</th>
+              <th>{% trans "Debut" %}</th>
+              <th>{% trans "Fin" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for availability in recent_availabilities %}
+              <tr>
+                <td>{{ availability.date|date:"d/m/Y" }}</td>
+                <td>{{ availability.start_time|time:"H:i" }}</td>
+                <td>{{ availability.end_time|time:"H:i" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="scan-help">{% trans "Aucune disponibilite enregistree pour le moment." %}</p>
+    {% endif %}
+  </div>
+{% endblock %}

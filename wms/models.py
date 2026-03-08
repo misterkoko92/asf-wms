@@ -126,6 +126,14 @@ from .models_domain.shipment import (
     ShipmentTrackingStatus,
     StockMovement,
 )
+from .models_domain.volunteer import (
+    VolunteerAccountRequest,
+    VolunteerAccountRequestStatus,
+    VolunteerAvailability,
+    VolunteerConstraint,
+    VolunteerProfile,
+    VolunteerUnavailability,
+)
 
 RECEIPT_REFERENCE_RE = reference_sequences.RECEIPT_REFERENCE_RE
 normalize_reference_fragment = reference_sequences.normalize_reference_fragment
@@ -269,6 +277,12 @@ __all__ = [
     "IntegrationEvent",
     "UiMode",
     "UserUiPreference",
+    "VolunteerAccountRequest",
+    "VolunteerAccountRequestStatus",
+    "VolunteerAvailability",
+    "VolunteerConstraint",
+    "VolunteerProfile",
+    "VolunteerUnavailability",
     "RECEIPT_REFERENCE_RE",
     "normalize_reference_fragment",
     "generate_receipt_reference",

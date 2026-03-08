@@ -1,0 +1,22 @@
+{% extends "benevole/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Supprimer une disponibilite" %}{% endblock %}
+
+{% block content %}
+  <div class="scan-card portal-card card border-0 ui-comp-card">
+    <h2 class="ui-comp-title">{% trans "Supprimer une disponibilite" %}</h2>
+    <p class="scan-help">
+      {% blocktrans with date=availability.date|date:"d/m/Y" start=availability.start_time|time:"H:i" end=availability.end_time|time:"H:i" %}
+      Confirmez la suppression de la disponibilite du {{ date }} de {{ start }} a {{ end }}.
+      {% endblocktrans %}
+    </p>
+    <form method="post">
+      {% csrf_token %}
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-danger">{% trans "Supprimer" %}</button>
+        <a class="btn btn-outline-secondary" href="{% url 'volunteer:availability_list' %}">{% trans "Annuler" %}</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

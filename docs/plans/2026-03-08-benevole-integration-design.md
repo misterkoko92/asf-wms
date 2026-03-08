@@ -336,6 +336,17 @@ Mitigation:
 3. ajouter la V1.5 de demande de compte publique
 4. planifier la V2 de liaison `Contact`
 
+## Verification Notes
+Verification du 2026-03-08:
+- `wms.tests.volunteer`: OK
+- `wms.tests.views.tests_views_volunteer wms.tests.views.tests_views_volunteer_account_request`: OK
+- `wms.tests.admin.tests_admin_volunteer wms.tests.emailing.tests_volunteer_email_flows`: OK
+- `wms.tests.views.tests_views_portal`: 2 echecs preexistants hors scope benevole
+
+Echecs `portal` confirmes egalement sur le commit de base `c20bc55`:
+- `PortalAccountViewsTests.test_portal_recipients_post_creates_recipient_with_native_english_message`
+- `PortalOrdersViewsTests.test_portal_order_create_post_success_uses_native_english_message`
+
 ## Recommended Implementation Shape
 Structure recommandee:
 - `wms/models_domain/volunteer.py`

@@ -1,0 +1,53 @@
+{% extends "benevole/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Disponibilites benevole" %}{% endblock %}
+
+{% block content %}
+  <div class="scan-card portal-card card border-0 ui-comp-card">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+      <div>
+        <h2 class="ui-comp-title mb-1">{% trans "Mes disponibilites" %}</h2>
+        <p class="scan-help mb-0">{% trans "Consultez et mettez a jour vos plages horaires." %}</p>
+      </div>
+      <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary btn-sm" href="{% url 'volunteer:availability_recap' %}">{% trans "Recap semaine" %}</a>
+        <a class="btn btn-primary btn-sm" href="{% url 'volunteer:availability_create' %}">{% trans "Ajouter" %}</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="scan-card portal-card card border-0 ui-comp-card">
+    {% if availabilities %}
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead>
+            <tr>
+              <th>{% trans "Date" %}</th>
+              <th>{% trans "Debut" %}</th>
+              <th>{% trans "Fin" %}</th>
+              <th class="text-end">{% trans "Actions" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for availability in availabilities %}
+              <tr>
+                <td>{{ availability.date|date:"d/m/Y" }}</td>
+                <td>{{ availability.start_time|time:"H:i" }}</td>
+                <td>{{ availability.end_time|time:"H:i" }}</td>
+                <td class="text-end">
+                  <div class="d-inline-flex gap-2">
+                    <a class="btn btn-outline-secondary btn-sm" href="{% url 'volunteer:availability_edit' availability.pk %}">{% trans "Modifier" %}</a>
+                    <a class="btn btn-outline-danger btn-sm" href="{% url 'volunteer:availability_delete' availability.pk %}">{% trans "Supprimer" %}</a>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="scan-help mb-0">{% trans "Aucune disponibilite enregistree pour le moment." %}</p>
+    {% endif %}
+  </div>
+{% endblock %}

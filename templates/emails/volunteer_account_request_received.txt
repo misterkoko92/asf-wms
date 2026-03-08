@@ -1,0 +1,9 @@
+Nouvelle demande de compte benevole recue.
+
+Nom: {{ account_request.first_name }} {{ account_request.last_name }}
+Email: {{ account_request.email }}
+Telephone: {{ account_request.phone|default:"-" }}
+Ville: {{ account_request.city|default:"-" }}
+
+Revoir la demande dans l'admin:
+{{ admin_url }}
