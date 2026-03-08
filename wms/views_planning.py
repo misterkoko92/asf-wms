@@ -14,12 +14,14 @@ from .models import (
     CommunicationDraftStatus,
     PlanningAssignmentSource,
     PlanningRun,
+    PlanningRunStatus,
     PlanningVersion,
     PlanningVersionStatus,
 )
 from .planning.communications import generate_version_drafts
 from .planning.exports import export_version_workbook
 from .planning.shipment_updates import apply_version_updates
+from .planning.snapshots import prepare_run_inputs
 from .planning.solver import solve_run
 from .planning.stats import build_version_stats
 from .planning.versioning import clone_version, diff_versions, publish_version
@@ -104,8 +106,22 @@ def planning_run_detail(request, run_id):
 @require_http_methods(["POST"])
 def planning_run_solve(request, run_id):
     run = get_object_or_404(PlanningRun, pk=run_id)
+    if run.status in {PlanningRunStatus.VALIDATING, PlanningRunStatus.SOLVING}:
+        messages.error(request, "Le run est deja en cours de traitement.")
+        return redirect("planning:run_detail", run.pk)
+
+    if run.status != PlanningRunStatus.READY:
+        prepare_run_inputs(run)
+        run.refresh_from_db()
+    if run.status != PlanningRunStatus.READY:
+        messages.error(
+            request,
+            "La validation du run a echoue. Corrigez les issues puis relancez.",
+        )
+        return redirect("planning:run_detail", run.pk)
+
     version = solve_run(run)
-    messages.success(request, "Solveur lance et version brouillon creee.")
+    messages.success(request, "Planning genere et version brouillon creee.")
     return redirect("planning:version_detail", version.pk)
 
 

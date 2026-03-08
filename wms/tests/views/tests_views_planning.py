@@ -177,12 +177,12 @@ class PlanningViewTests(TestCase):
         self.assertRedirects(response, reverse("planning:run_detail", args=[run.pk]))
         self.assertEqual(run.created_by, self.staff_user)
 
-    def test_run_detail_shows_issues_and_solve_button(self):
+    def test_run_detail_shows_issues_and_generate_button_for_draft_run(self):
         run = PlanningRun.objects.create(
             week_start="2026-03-09",
             week_end="2026-03-15",
             parameter_set=self.parameter_set,
-            status=PlanningRunStatus.READY,
+            status=PlanningRunStatus.DRAFT,
             created_by=self.staff_user,
         )
         PlanningIssue.objects.create(
@@ -198,25 +198,76 @@ class PlanningViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Portal contact missing")
         self.assertContains(response, reverse("planning:run_solve", args=[run.pk]))
-        self.assertContains(response, "Lancer le solveur")
+        self.assertContains(response, "Generer le planning")
 
     @mock.patch("wms.views_planning.solve_run")
-    def test_run_solve_post_redirects_to_created_version(self, solve_run_mock):
+    @mock.patch("wms.views_planning.prepare_run_inputs")
+    def test_run_solve_post_prepares_draft_run_then_redirects_to_created_version(
+        self,
+        prepare_run_inputs_mock,
+        solve_run_mock,
+    ):
         run = PlanningRun.objects.create(
             week_start="2026-03-09",
             week_end="2026-03-15",
             parameter_set=self.parameter_set,
-            status=PlanningRunStatus.READY,
+            status=PlanningRunStatus.DRAFT,
             created_by=self.staff_user,
         )
         version = PlanningVersion.objects.create(run=run, created_by=self.staff_user)
+
+        def prepare_stub(prepared_run):
+            prepared_run.status = PlanningRunStatus.READY
+            prepared_run.save(update_fields=["status", "updated_at"])
+            return prepared_run
+
+        prepare_run_inputs_mock.side_effect = prepare_stub
         solve_run_mock.return_value = version
         self.client.force_login(self.staff_user)
 
         response = self.client.post(reverse("planning:run_solve", args=[run.pk]))
 
+        prepare_run_inputs_mock.assert_called_once()
         solve_run_mock.assert_called_once_with(run)
         self.assertRedirects(response, reverse("planning:version_detail", args=[version.pk]))
+
+    @mock.patch("wms.views_planning.solve_run")
+    @mock.patch("wms.views_planning.prepare_run_inputs")
+    def test_run_solve_post_redirects_back_to_run_when_validation_fails(
+        self,
+        prepare_run_inputs_mock,
+        solve_run_mock,
+    ):
+        run = PlanningRun.objects.create(
+            week_start="2026-03-09",
+            week_end="2026-03-15",
+            parameter_set=self.parameter_set,
+            status=PlanningRunStatus.DRAFT,
+            created_by=self.staff_user,
+        )
+        PlanningIssue.objects.create(
+            run=run,
+            severity="error",
+            code="missing_destination_rule",
+            message="Destination rule missing",
+        )
+
+        def prepare_stub(prepared_run):
+            prepared_run.status = PlanningRunStatus.VALIDATION_FAILED
+            prepared_run.save(update_fields=["status", "updated_at"])
+            return prepared_run
+
+        prepare_run_inputs_mock.side_effect = prepare_stub
+        self.client.force_login(self.staff_user)
+
+        response = self.client.post(
+            reverse("planning:run_solve", args=[run.pk]),
+            follow=True,
+        )
+
+        solve_run_mock.assert_not_called()
+        self.assertRedirects(response, reverse("planning:run_detail", args=[run.pk]))
+        self.assertContains(response, "Destination rule missing")
 
     def test_staff_can_update_draft_version_assignments(self):
         version, assignment, volunteer_bob, flight_af456 = self.make_version_with_assignment()
