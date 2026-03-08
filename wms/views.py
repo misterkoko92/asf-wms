@@ -5,6 +5,8 @@ from .views_imports import scan_import
 from .views_portal import (
     portal_account,
     portal_account_request,
+    portal_billing,
+    portal_billing_detail,
     portal_change_password,
     portal_dashboard,
     portal_forgot_password,
@@ -83,6 +85,8 @@ PORTAL_EXPORTS = (
     "portal_recipients",
     "portal_account",
     "portal_account_request",
+    "portal_billing",
+    "portal_billing_detail",
 )
 
 PUBLIC_EXPORTS = (

@@ -20,9 +20,16 @@ from wms.forms import ScanShipmentForm
 from wms.models import (
     AccountDocument,
     AccountDocumentType,
+    AssociationBillingChangeRequest,
+    AssociationBillingFrequency,
+    AssociationBillingGroupingMode,
     AssociationPortalContact,
     AssociationProfile,
     AssociationRecipient,
+    BillingDocument,
+    BillingDocumentKind,
+    BillingDocumentLine,
+    BillingIssue,
     Carton,
     CartonItem,
     CartonStatus,
@@ -1696,3 +1703,100 @@ class PortalAccountViewsTests(PortalBaseTestCase):
             link=None,
             redirect_url=self.account_request_url,
         )
+
+    def test_portal_account_request_billing_preferences_creates_change_request(self):
+        response = self.client.post(
+            self.account_url,
+            {
+                "action": "request_billing_preferences",
+                "billing_frequency": AssociationBillingFrequency.QUARTERLY,
+                "billing_grouping_mode": AssociationBillingGroupingMode.PER_SHIPMENT,
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self.account_url)
+        request_obj = AssociationBillingChangeRequest.objects.get()
+        self.assertEqual(request_obj.association_profile, self.profile)
+        self.assertEqual(
+            request_obj.requested_frequency,
+            AssociationBillingFrequency.QUARTERLY,
+        )
+        self.assertEqual(
+            request_obj.requested_grouping_mode,
+            AssociationBillingGroupingMode.PER_SHIPMENT,
+        )
+        self.assertEqual(request_obj.requested_by, self.user)
+
+
+class PortalBillingViewsTests(PortalBaseTestCase):
+    def setUp(self):
+        self.user = self._create_portal_user("portal-billing", "portal-billing@example.com")
+        self.profile = self._create_profile(self.user, with_address=True)
+        self._create_delivery_recipient(self.profile)
+        self.client.force_login(self.user)
+        self.billing_url = reverse("portal:portal_billing")
+
+    def _create_billing_document(self, *, kind=BillingDocumentKind.INVOICE, issued=True):
+        create_kwargs = {
+            "association_profile": self.profile,
+            "kind": kind,
+            "status": "issued" if issued else "draft",
+            "currency": "EUR",
+        }
+        if kind == BillingDocumentKind.QUOTE:
+            create_kwargs["quote_number"] = "DEV-2026-0001"
+        elif kind == BillingDocumentKind.INVOICE:
+            create_kwargs["invoice_number"] = "FAC-2026-001" if issued else None
+        else:
+            create_kwargs["credit_note_number"] = "AV-2026-001"
+        document = BillingDocument.objects.create(**create_kwargs)
+        BillingDocumentLine.objects.create(
+            document=document,
+            line_number=1,
+            label="Ligne portail",
+            description="Description portail",
+            quantity=1,
+            unit_price="75.00",
+            total_amount="75.00",
+        )
+        return document
+
+    def test_portal_billing_list_route_renders_issued_documents(self):
+        document = self._create_billing_document()
+
+        response = self.client.get(self.billing_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "FAC-2026-001")
+        self.assertContains(response, reverse("portal:portal_billing_detail", args=[document.id]))
+
+    def test_portal_billing_detail_hides_draft_documents(self):
+        draft_document = self._create_billing_document(issued=False)
+
+        response = self.client.get(
+            reverse("portal:portal_billing_detail", args=[draft_document.id])
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_portal_billing_detail_correction_request_creates_issue(self):
+        document = self._create_billing_document()
+
+        response = self.client.post(
+            reverse("portal:portal_billing_detail", args=[document.id]),
+            {
+                "action": "request_correction",
+                "issue_description": "Le montant doit etre revu.",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.url,
+            reverse("portal:portal_billing_detail", args=[document.id]),
+        )
+        issue = BillingIssue.objects.get()
+        self.assertEqual(issue.document, document)
+        self.assertEqual(issue.description, "Le montant doit etre revu.")
+        self.assertEqual(issue.reported_by, self.user)

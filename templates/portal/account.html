@@ -179,6 +179,63 @@
     </div>
 
     <div class="scan-card portal-card card border-0 ui-comp-card">
+      <h3 class="portal-section-title ui-comp-title">Pr&eacute;f&eacute;rences de facturation</h3>
+      <p class="scan-help">
+        Fr&eacute;quence actuelle: {{ billing_profile.get_billing_frequency_display }} |
+        Regroupement actuel: {{ billing_profile.get_grouping_mode_display }}
+      </p>
+
+      <form method="post" novalidate class="ui-comp-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="request_billing_preferences">
+        <div class="portal-grid-2">
+          <div class="scan-field">
+            <label class="form-label" for="id_billing_frequency">P&eacute;riodicit&eacute;</label>
+            <select class="form-select" id="id_billing_frequency" name="billing_frequency">
+              {% for value, label in billing_frequency_choices %}
+                <option value="{{ value }}" {% if billing_profile.billing_frequency == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="scan-field">
+            <label class="form-label" for="id_billing_grouping_mode">Regroupement</label>
+            <select class="form-select" id="id_billing_grouping_mode" name="billing_grouping_mode">
+              {% for value, label in billing_grouping_mode_choices %}
+                <option value="{{ value }}" {% if billing_profile.grouping_mode == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <button type="submit" class="scan-submit btn btn-primary">Envoyer une demande de changement</button>
+      </form>
+
+      {% if billing_change_requests %}
+        <div class="scan-table-wrap table-responsive mt-3">
+          <table class="portal-table scan-table table table-sm table-hover">
+            <thead>
+              <tr>
+                <th>Demand&eacute; le</th>
+                <th>P&eacute;riodicit&eacute;</th>
+                <th>Regroupement</th>
+                <th>Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for request in billing_change_requests %}
+                <tr>
+                  <td>{{ request.requested_at|date:"d/m/Y" }}</td>
+                  <td>{{ request.get_requested_frequency_display }}</td>
+                  <td>{{ request.get_requested_grouping_mode_display }}</td>
+                  <td>{{ request.get_status_display }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="scan-card portal-card card border-0 ui-comp-card">
       <h3 class="portal-section-title ui-comp-title">Documents de vérification</h3>
       {% if account_documents %}
         <div class="scan-table-wrap table-responsive">

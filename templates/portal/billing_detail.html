@@ -1,0 +1,163 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Document de facturation{% endblock %}
+
+{% block content %}
+  <div class="portal-tight">
+    <div class="scan-card portal-card card border-0 ui-comp-card">
+      <div class="d-flex flex-wrap justify-content-between gap-3 align-items-start">
+        <div>
+          <h2 class="portal-section-title ui-comp-title">{{ billing_entry.number }}</h2>
+          <p class="scan-help">Type: {{ billing_document.get_kind_display }}</p>
+          <p class="scan-help">Statut: {{ billing_document.get_status_display }}</p>
+          <p class="scan-help">Date d'&eacute;mission: {{ billing_document.issued_at|date:"d/m/Y"|default:"-" }}</p>
+          <p class="scan-help">Devise: {{ billing_entry.payload.currency }}</p>
+          {% if billing_entry.payload.exchange_rate %}
+            <p class="scan-help">Taux de change fig&eacute;: {{ billing_entry.payload.exchange_rate }}</p>
+          {% endif %}
+          <p class="scan-help">Montant total: {{ billing_entry.payload.total_amount }}</p>
+        </div>
+        <div>
+          <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_billing' %}">
+            Retour &agrave; la liste
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="scan-card portal-card card border-0 ui-comp-card">
+      <h3 class="portal-section-title ui-comp-title">Coordonn&eacute;es de facturation</h3>
+      <p class="scan-help mb-1">{{ billing_entry.payload.billing_name }}</p>
+      <div class="scan-help" style="white-space: pre-line;">{{ billing_entry.payload.billing_address|default:"-" }}</div>
+    </div>
+
+    <div class="scan-card portal-card card border-0 ui-comp-card">
+      <h3 class="portal-section-title ui-comp-title">Lignes du document</h3>
+      <div class="scan-table-wrap table-responsive">
+        <table class="portal-table scan-table table table-sm table-hover">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Libell&eacute;</th>
+              <th>Description</th>
+              <th>Quantit&eacute;</th>
+              <th>Prix unitaire</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for line in billing_entry.payload.lines %}
+              <tr>
+                <td>{{ line.line_number }}</td>
+                <td>{{ line.label }}</td>
+                <td>{{ line.description|default:"-" }}</td>
+                <td>{{ line.quantity }}</td>
+                <td>{{ line.unit_price }}</td>
+                <td>{{ line.total_amount }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="scan-card portal-card card border-0 ui-comp-card">
+      <h3 class="portal-section-title ui-comp-title">Exp&eacute;ditions rattach&eacute;es</h3>
+      <div class="scan-table-wrap table-responsive">
+        <table class="portal-table scan-table table table-sm table-hover">
+          <thead>
+            <tr>
+              <th>R&eacute;f&eacute;rence</th>
+              <th>Date d'exp&eacute;dition</th>
+              <th>Colis</th>
+              <th>Commentaire</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for shipment in billing_entry.payload.shipments %}
+              <tr>
+                <td>{{ shipment.reference }}</td>
+                <td>{{ shipment.shipment_date }}</td>
+                <td>{{ shipment.carton_count }}</td>
+                <td>{{ shipment.comment }}</td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="4">Aucune exp&eacute;dition rattach&eacute;e.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="scan-card portal-card card border-0 ui-comp-card">
+      <h3 class="portal-section-title ui-comp-title">Paiements</h3>
+      {% if payments %}
+        <div class="scan-table-wrap table-responsive">
+          <table class="portal-table scan-table table table-sm table-hover">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Montant</th>
+                <th>Mode</th>
+                <th>R&eacute;f&eacute;rence</th>
+                <th>Commentaire</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for payment in payments %}
+                <tr>
+                  <td>{{ payment.paid_on|date:"d/m/Y" }}</td>
+                  <td>{{ payment.amount }} {{ payment.currency }}</td>
+                  <td>{{ payment.get_payment_method_display }}</td>
+                  <td>{{ payment.reference|default:"-" }}</td>
+                  <td>{{ payment.comment|default:"-" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p>Aucun paiement enregistr&eacute; pour le moment.</p>
+      {% endif %}
+    </div>
+
+    <div class="scan-card portal-card card border-0 ui-comp-card">
+      <h3 class="portal-section-title ui-comp-title">Demande de correction</h3>
+      <p class="scan-help">Utilisez ce formulaire si vous souhaitez signaler une erreur ou demander une r&eacute;vision.</p>
+      <form method="post" novalidate class="ui-comp-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="request_correction">
+        <div class="scan-field">
+          <label class="form-label" for="id_issue_description">Motif</label>
+          <textarea class="form-control" id="id_issue_description" name="issue_description" rows="4" required></textarea>
+        </div>
+        <button type="submit" class="scan-submit btn btn-primary">Envoyer une demande</button>
+      </form>
+
+      {% if issues %}
+        <div class="scan-table-wrap table-responsive mt-3">
+          <table class="portal-table scan-table table table-sm table-hover">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Statut</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for issue in issues %}
+                <tr>
+                  <td>{{ issue.reported_at|date:"d/m/Y" }}</td>
+                  <td>{{ issue.get_status_display }}</td>
+                  <td>{{ issue.description }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

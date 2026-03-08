@@ -12,6 +12,10 @@ from .views_portal_auth import (
     portal_logout,
     portal_set_password,
 )
+from .views_portal_billing import (
+    portal_billing,
+    portal_billing_detail,
+)
 from .views_portal_orders import (
     portal_dashboard,
     portal_order_create,
@@ -38,4 +42,9 @@ ACCOUNT_EXPORTS = (
     "portal_account_request",
 )
 
-__all__ = [*AUTH_EXPORTS, *ORDER_EXPORTS, *ACCOUNT_EXPORTS]
+BILLING_EXPORTS = (
+    "portal_billing",
+    "portal_billing_detail",
+)
+
+__all__ = [*AUTH_EXPORTS, *ORDER_EXPORTS, *ACCOUNT_EXPORTS, *BILLING_EXPORTS]
