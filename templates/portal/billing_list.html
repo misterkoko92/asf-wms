@@ -1,0 +1,51 @@
+{% extends "portal/base.html" %}
+
+{% block title %}Facturation{% endblock %}
+
+{% block content %}
+  <div class="portal-tight">
+    <div class="scan-card portal-card card border-0 ui-comp-card">
+      <h2 class="portal-section-title ui-comp-title">Facturation</h2>
+      <p class="scan-help">Consultez vos devis et factures &eacute;mis par ASF.</p>
+    </div>
+
+    <div class="scan-card portal-card card border-0 ui-comp-card">
+      {% if documents %}
+        <div class="scan-table-wrap table-responsive">
+          <table class="portal-table scan-table table table-sm table-hover" data-table-tools="1">
+            <thead>
+              <tr>
+                <th>Document</th>
+                <th>Type</th>
+                <th>Date d'&eacute;mission</th>
+                <th>Devise</th>
+                <th>Montant</th>
+                <th>Exp&eacute;ditions</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for entry in documents %}
+                <tr>
+                  <td>{{ entry.number }}</td>
+                  <td>{{ entry.document.get_kind_display }}</td>
+                  <td>{{ entry.document.issued_at|date:"d/m/Y"|default:"-" }}</td>
+                  <td>{{ entry.payload.currency }}</td>
+                  <td>{{ entry.total_amount }}</td>
+                  <td>{{ entry.shipment_count }}</td>
+                  <td>
+                    <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_billing_detail' entry.document.id %}">
+                      Voir
+                    </a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p>Aucun document de facturation &eacute;mis pour le moment.</p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

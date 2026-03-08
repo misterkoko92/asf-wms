@@ -1,10 +1,12 @@
 from datetime import date
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
+from wms.billing_permissions import BILLING_STAFF_GROUP_NAME
 from wms.models import (
     Document,
     Location,
@@ -98,7 +100,31 @@ class ScanBootstrapUiTests(TestCase):
         response = self.client.get(reverse("scan:scan_stock"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Vue Stock")
-        self.assertContains(response, "Vue R&eacute;ception")
+        self.assertContains(response, "Vue Réception")
+
+    def test_scan_nav_shows_billing_dropdown_for_superuser(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Facturation")
+        self.assertContains(response, "Paramètres")
+        self.assertContains(response, "Equivalence")
+        self.assertContains(response, "Edition Devis/Facture")
+
+    def test_scan_nav_shows_billing_editor_only_for_billing_staff(self):
+        billing_group, _ = Group.objects.get_or_create(name=BILLING_STAFF_GROUP_NAME)
+        self.staff_user.groups.add(billing_group)
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("scan:scan_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Facturation")
+        self.assertContains(response, "Edition Devis/Facture")
+        self.assertNotContains(response, "Paramètres")
+        self.assertNotContains(response, "Equivalence")
 
     def test_scan_shipment_create_uses_bootstrap_and_preserves_js_hooks(self):
         response = self.client.get(reverse("scan:scan_shipment_create"))

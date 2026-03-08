@@ -14,6 +14,7 @@ from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy
 
 from . import (
+    admin_billing,  # noqa: F401
     admin_misc,  # noqa: F401
     models,
 )

@@ -11,7 +11,7 @@
     {% if create_form.non_field_errors %}
       <div class="scan-message error">{{ create_form.non_field_errors }}</div>
     {% endif %}
-    <form method="post" novalidate class="scan-filters row g-3 ui-comp-form scan-receive-association-primary-row">
+    <form method="post" enctype="multipart/form-data" novalidate class="scan-filters row g-3 ui-comp-form scan-receive-association-primary-row">
       {% csrf_token %}
 
       <div class="scan-field scan-receive-association-field col-12 col-md-6 col-lg-2">
@@ -54,6 +54,38 @@
         {% endfor %}
       </div>
 
+      <div class="scan-field scan-receive-association-field col-12 col-md-6 col-lg-2">
+        <label class="form-label" for="id_pickup_charge_amount">Co&ucirc;t enl&egrave;vement</label>
+        {{ create_form.pickup_charge_amount }}
+        {% for error in create_form.pickup_charge_amount.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="scan-field scan-receive-association-field col-12 col-md-6 col-lg-2">
+        <label class="form-label" for="id_pickup_charge_currency">Devise enl&egrave;vement</label>
+        {{ create_form.pickup_charge_currency }}
+        {% for error in create_form.pickup_charge_currency.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="scan-field scan-receive-association-field col-12 col-lg-4">
+        <label class="form-label" for="id_pickup_charge_comment">Commentaire enl&egrave;vement</label>
+        {{ create_form.pickup_charge_comment }}
+        {% for error in create_form.pickup_charge_comment.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="scan-field scan-receive-association-field col-12 col-lg-4">
+        <label class="form-label" for="id_pickup_charge_proof">Justificatif enl&egrave;vement</label>
+        {{ create_form.pickup_charge_proof }}
+        {% for error in create_form.pickup_charge_proof.errors %}
+          <div class="scan-message error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
       <div class="scan-filter-actions scan-receive-association-actions-inline col-12 d-flex flex-wrap flex-lg-nowrap gap-2 align-items-center">
         <button type="submit" class="scan-submit btn btn-primary">{% trans "Enregistrer la réception association" %}</button>
         <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
@@ -72,6 +104,78 @@
     </form>
     <p class="scan-help ui-comp-note">{% trans "La référence est générée automatiquement (format YY-XX-WWW-ZZ)." %}</p>
   </div>
+
+  {% if selected_receipt %}
+    <div class="scan-card card border-0 ui-comp-card">
+      <h3 class="ui-comp-title">Allocations - {{ selected_receipt.reference }}</h3>
+      <p class="scan-help ui-comp-note">
+        Association:
+        {% if selected_receipt.source_contact %}{{ selected_receipt.source_contact.name }}{% else %}-{% endif %}
+        |
+        Cartons: {% if selected_receipt.carton_count %}{{ selected_receipt.carton_count }}{% else %}0{% endif %}
+        |
+        Hors format: {% if selected_receipt.hors_format_count %}{{ selected_receipt.hors_format_count }}{% else %}0{% endif %}
+      </p>
+
+      {% if allocation_form %}
+        <form method="post" class="scan-filters ui-comp-form">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_allocation">
+          <input type="hidden" name="receipt_id" value="{{ selected_receipt.id }}">
+
+          <div class="scan-inline scan-inline-equal">
+            <div class="scan-field">
+              {{ allocation_form.shipment.label_tag }}
+              {{ allocation_form.shipment }}
+              {% if allocation_form.shipment.errors %}<div class="scan-message error">{{ allocation_form.shipment.errors|join:", " }}</div>{% endif %}
+            </div>
+            <div class="scan-field">
+              {{ allocation_form.allocated_received_units.label_tag }}
+              {{ allocation_form.allocated_received_units }}
+              {% if allocation_form.allocated_received_units.errors %}<div class="scan-message error">{{ allocation_form.allocated_received_units.errors|join:", " }}</div>{% endif %}
+            </div>
+          </div>
+
+          <div class="scan-field">
+            {{ allocation_form.note.label_tag }}
+            {{ allocation_form.note }}
+            {% if allocation_form.note.errors %}<div class="scan-message error">{{ allocation_form.note.errors|join:", " }}</div>{% endif %}
+          </div>
+
+          {% if allocation_form.non_field_errors %}
+            <div class="scan-message error">{{ allocation_form.non_field_errors|join:", " }}</div>
+          {% endif %}
+
+          <div class="scan-filter-actions">
+            <button type="submit" class="scan-submit btn btn-primary">Ajouter allocation</button>
+          </div>
+        </form>
+      {% endif %}
+
+      {% if receipt_allocations %}
+        <table class="scan-table">
+          <thead>
+            <tr>
+              <th>Exp&eacute;dition</th>
+              <th>Unit&eacute;s allou&eacute;es</th>
+              <th>Note</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for allocation in receipt_allocations %}
+              <tr>
+                <td>{{ allocation.shipment.reference }}</td>
+                <td>{{ allocation.allocated_received_units }}</td>
+                <td>{% if allocation.note %}{{ allocation.note }}{% else %}-{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="scan-help">Aucune allocation enregistr&eacute;e pour cette r&eacute;ception.</p>
+      {% endif %}
+    </div>
+  {% endif %}
 
   {{ line_values|json_script:"association-lines-data" }}
   {{ line_errors|json_script:"association-lines-errors" }}

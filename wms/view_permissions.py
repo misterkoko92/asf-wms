@@ -75,14 +75,21 @@ def association_required(view):
                 return redirect(change_url)
         recipients_url = reverse("portal:portal_recipients")
         account_url = reverse("portal:portal_account")
+        billing_url = reverse("portal:portal_billing")
         allowed_paths = {
             recipients_url,
             account_url,
             reverse("portal:portal_logout"),
             reverse("portal:portal_change_password"),
         }
+
+        def _is_allowed_portal_path(path):
+            if path in allowed_paths:
+                return True
+            return path.startswith(billing_url)
+
         shipper_block_reason = _resolve_shipper_access_block_reason(profile)
-        if shipper_block_reason and request.path not in allowed_paths:
+        if shipper_block_reason and not _is_allowed_portal_path(request.path):
             blocked_message = BLOCKED_MESSAGES.get(shipper_block_reason)
             if blocked_message:
                 messages.error(request, blocked_message)
@@ -92,7 +99,7 @@ def association_required(view):
             is_active=True,
             is_delivery_contact=True,
         ).exists()
-        if not has_delivery_contact and request.path not in allowed_paths:
+        if not has_delivery_contact and not _is_allowed_portal_path(request.path):
             return redirect(
                 f"{recipients_url}?{BLOCKED_REASON_QUERY_PARAM}={BLOCKED_REASON_MISSING_DELIVERY_CONTACT}"
             )

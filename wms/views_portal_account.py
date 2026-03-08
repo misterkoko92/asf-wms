@@ -15,6 +15,9 @@ from .document_uploads import validate_document_upload
 from .models import (
     AccountDocument,
     AccountDocumentType,
+    AssociationBillingChangeRequest,
+    AssociationBillingFrequency,
+    AssociationBillingGroupingMode,
     AssociationContactTitle,
     AssociationPortalContact,
     AssociationRecipient,
@@ -43,6 +46,7 @@ ACTION_UPDATE_NOTIFICATIONS = "update_notifications"
 ACTION_UPDATE_PROFILE = "update_profile"
 ACTION_UPLOAD_ACCOUNT_DOC = "upload_account_doc"
 ACTION_UPLOAD_ACCOUNT_DOCS = "upload_account_docs"
+ACTION_REQUEST_BILLING_PREFERENCES = "request_billing_preferences"
 
 DEFAULT_COUNTRY = "France"
 MAX_PORTAL_CONTACTS = 10
@@ -55,6 +59,7 @@ MESSAGE_UPDATE_NOTIFICATIONS_DEPRECATED = _(
 )
 MESSAGE_DOCUMENT_ADDED = _("Document ajouté.")
 MESSAGE_DOCUMENTS_ADDED = _("Documents ajoutés.")
+MESSAGE_BILLING_PREFERENCES_REQUESTED = _("Demande de préférences de facturation envoyée.")
 ERROR_NO_DOCUMENT_SELECTED = _("Aucun fichier sélectionné.")
 ERROR_RECIPIENT_DESTINATION_REQUIRED = _("Escale de livraison requise.")
 ERROR_RECIPIENT_STRUCTURE_REQUIRED = _("Nom de la structure requis.")
@@ -69,6 +74,9 @@ ERROR_ASSOCIATION_NAME_REQUIRED = _("Nom de l'association requis.")
 ERROR_ASSOCIATION_ADDRESS_REQUIRED = _("Adresse requise.")
 ERROR_CONTACT_ROWS_LIMIT = _("Maximum %(count)s contacts.")
 ERROR_CONTACT_REQUIRED = _("Ajoutez au moins un contact email.")
+ERROR_BILLING_PREFERENCES_INVALID = _(
+    "Choisissez une périodicité et un mode de regroupement valides."
+)
 
 
 def _split_multi_values(value):
@@ -176,10 +184,11 @@ def _validate_recipient_form_data(form_data, destinations_by_id):
 
 
 def _build_recipient_payload(form_data):
+    title_label = dict(AssociationContactTitle.choices).get(form_data["contact_title"], "")
     contact_display = " ".join(
         part
         for part in [
-            dict(AssociationContactTitle.choices).get(form_data["contact_title"], ""),
+            str(title_label) if title_label else "",
             form_data["contact_first_name"],
             (form_data["contact_last_name"] or "").upper(),
         ]
@@ -546,6 +555,12 @@ def _build_portal_account_context(
         "association": association,
         "address": address,
         "notification_emails": profile.notification_emails,
+        "billing_profile": profile.billing_profile,
+        "billing_frequency_choices": list(AssociationBillingFrequency.choices),
+        "billing_grouping_mode_choices": list(AssociationBillingGroupingMode.choices),
+        "billing_change_requests": list(
+            profile.billing_change_requests.order_by("-requested_at")[:5]
+        ),
         "account_documents": account_documents,
         "account_doc_types": list(AccountDocumentType.choices),
         "account_form_errors": account_form_errors or [],
@@ -651,6 +666,27 @@ def portal_account(request):
             return _handle_account_document_uploads(request, association)
         elif action == ACTION_UPLOAD_ACCOUNT_DOC:
             return _handle_account_document_upload(request, association)
+        elif action == ACTION_REQUEST_BILLING_PREFERENCES:
+            requested_frequency = (request.POST.get("billing_frequency") or "").strip()
+            requested_grouping_mode = (request.POST.get("billing_grouping_mode") or "").strip()
+            valid_frequencies = {choice for choice, _label in AssociationBillingFrequency.choices}
+            valid_grouping_modes = {
+                choice for choice, _label in AssociationBillingGroupingMode.choices
+            }
+            if (
+                requested_frequency not in valid_frequencies
+                or requested_grouping_mode not in valid_grouping_modes
+            ):
+                account_form_errors.append(ERROR_BILLING_PREFERENCES_INVALID)
+            else:
+                AssociationBillingChangeRequest.objects.create(
+                    association_profile=profile,
+                    requested_frequency=requested_frequency,
+                    requested_grouping_mode=requested_grouping_mode,
+                    requested_by=request.user,
+                )
+                messages.success(request, MESSAGE_BILLING_PREFERENCES_REQUESTED)
+                return redirect("portal:portal_account")
 
     return render(
         request,

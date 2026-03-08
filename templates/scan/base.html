@@ -46,7 +46,7 @@
                     {% trans "Voir les états" %}
                   </button>
                   <ul class="dropdown-menu">
-                    <li><a href="{% url 'scan:scan_stock' %}" class="dropdown-item{% if active == 'stock' %} active{% endif %}">{% trans "Vue stock" %}</a></li>
+                    <li><a href="{% url 'scan:scan_stock' %}" class="dropdown-item{% if active == 'stock' %} active{% endif %}">{% trans "Vue Stock" %}</a></li>
                     <li><a href="{% url 'scan:scan_kits_view' %}" class="dropdown-item{% if active == 'kits_view' %} active{% endif %}">{% trans "Vue Kits" %}</a></li>
                     <li><a href="{% url 'scan:scan_cartons_ready' %}" class="dropdown-item{% if active == 'cartons_ready' %} active{% endif %}">{% trans "Vue Colis" %}</a></li>
                     <li><a href="{% url 'scan:scan_shipments_ready' %}" class="dropdown-item{% if active == 'shipments_ready' %} active{% endif %}">{% trans "Vue Expéditions" %}</a></li>
@@ -91,6 +91,20 @@
                 <li class="nav-item">
                   <a href="{% url 'scan:scan_shipments_tracking' %}" class="nav-link{% if active == 'shipments_tracking' %} active{% endif %}">{% trans "Suivi expéditions" %}</a>
                 </li>
+                {% if scan_billing_visible %}
+                  <li class="nav-item dropdown">
+                    <button class="nav-link dropdown-toggle btn-tertiary{% if active == 'billing_settings' or active == 'billing_equivalence' or active == 'billing_editor' %} active{% endif %}" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                      {% trans "Facturation" %}
+                    </button>
+                    <ul class="dropdown-menu">
+                      {% if scan_billing_admin_visible %}
+                        <li><a href="{% url 'scan:scan_billing_settings' %}" class="dropdown-item{% if active == 'billing_settings' %} active{% endif %}">{% trans "Paramètres" %}</a></li>
+                        <li><a href="{% url 'scan:scan_billing_equivalence' %}" class="dropdown-item{% if active == 'billing_equivalence' %} active{% endif %}">{% trans "Equivalence" %}</a></li>
+                      {% endif %}
+                      <li><a href="{% url 'scan:scan_billing_editor' %}" class="dropdown-item{% if active == 'billing_editor' %} active{% endif %}">{% trans "Edition Devis/Facture" %}</a></li>
+                    </ul>
+                  </li>
+                {% endif %}
                 {% if request.user.is_superuser %}
                   <li class="nav-item dropdown ms-xl-auto">
                     <button class="nav-link dropdown-toggle btn-tertiary{% if active == 'settings' or active == 'ui_lab' or active == 'admin_contacts' or active == 'admin_products' or active == 'admin_design' or active == 'product_labels' %} active{% endif %}" type="button" data-bs-toggle="dropdown" aria-expanded="false">

@@ -162,6 +162,18 @@ def _render_shipment_form(
     return render(request, TEMPLATE_SHIPMENT_FORM, context)
 
 
+def _build_receipt_allocation_summary(shipment):
+    return list(
+        shipment.receipt_allocations.select_related(
+            "receipt__source_contact", "created_by"
+        ).order_by(
+            "receipt__received_on",
+            "receipt__reference",
+            "id",
+        )
+    )
+
+
 def _build_tracking_page_data(shipment):
     documents, carton_docs, additional_docs = build_shipment_document_links(shipment, public=True)
     events = shipment.tracking_events.select_related("created_by").all()
@@ -622,6 +634,7 @@ def scan_shipment_edit(request, shipment_id):
             "tracking_url": shipment.get_tracking_url(request=request),
             "documents": documents,
             "carton_docs": carton_docs,
+            "receipt_allocations": _build_receipt_allocation_summary(shipment),
         },
     )
 

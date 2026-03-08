@@ -12,6 +12,9 @@ from openpyxl import Workbook
 
 from contacts.models import Contact, ContactType
 from wms.models import (
+    AssociationProfile,
+    BillingDocument,
+    BillingDocumentKind,
     Carton,
     Destination,
     PrintCellMapping,
@@ -82,6 +85,18 @@ class PrintTemplateViewsTests(TestCase):
         workbook.save(output)
         workbook.close()
         return output.getvalue()
+
+    def _create_association_profile(self):
+        user = get_user_model().objects.create_user(
+            username="print-billing-user",
+            email="print-billing-user@example.com",
+        )
+        contact = Contact.objects.create(
+            name="Print Billing Association",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        return AssociationProfile.objects.create(user=user, contact=contact)
 
     def _activate_english(self):
         self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = "en"
@@ -530,3 +545,40 @@ class PrintTemplateViewsTests(TestCase):
         preview_context_mock.assert_called_once()
         render_layout_mock.assert_called_once()
         self.assertEqual(render_mock.call_args.args[2]["blocks"], [{"type": "text"}])
+
+    def test_scan_print_template_preview_billing_document(self):
+        association_profile = self._create_association_profile()
+        billing_document = BillingDocument.objects.create(
+            association_profile=association_profile,
+            kind=BillingDocumentKind.INVOICE,
+            invoice_number="FAC-2026-010",
+            status="issued",
+        )
+
+        with mock.patch(
+            "wms.views_print_templates.build_preview_context",
+            return_value={"billing": {"kind": "invoice"}},
+        ) as preview_context_mock:
+            with mock.patch(
+                "wms.views_print_templates.render_layout_from_layout",
+                return_value=[{"type": "text"}],
+            ):
+                with mock.patch(
+                    "wms.views_print_templates.render",
+                    side_effect=self._render_stub,
+                ):
+                    response = self.client.post(
+                        self._preview_url(),
+                        {
+                            "doc_type": "billing_invoice",
+                            "billing_document_id": str(billing_document.id),
+                            "layout_json": "{}",
+                        },
+                    )
+
+        self.assertEqual(response.status_code, 200)
+        preview_context_mock.assert_called_once()
+        self.assertEqual(
+            preview_context_mock.call_args.kwargs["billing_document"].id,
+            billing_document.id,
+        )

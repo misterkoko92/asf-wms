@@ -26,6 +26,13 @@ urlpatterns = [
     path("receive/", views.scan_receive, name="scan_receive"),
     path("receive-pallet/", views.scan_receive_pallet, name="scan_receive_pallet"),
     path("receive-association/", views.scan_receive_association, name="scan_receive_association"),
+    path("billing/settings/", views.scan_billing_settings, name="scan_billing_settings"),
+    path(
+        "billing/equivalence/",
+        views.scan_billing_equivalence,
+        name="scan_billing_equivalence",
+    ),
+    path("billing/editor/", views.scan_billing_editor, name="scan_billing_editor"),
     path("stock-update/", views.scan_stock_update, name="scan_stock_update"),
     path("orders-view/", views.scan_orders_view, name="scan_orders_view"),
     path("orders/", views.scan_order, name="scan_order"),

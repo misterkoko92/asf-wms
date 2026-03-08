@@ -575,7 +575,7 @@ class ScanViewTests(TestCase):
 
         follow_response = self.client.get(response.url)
         self.assertEqual(follow_response.status_code, 200)
-        self.assertContains(follow_response, "T&eacute;l&eacute;charger le picking")
+        self.assertContains(follow_response, "Télécharger le picking")
         self.assertContains(
             follow_response,
             reverse("scan:scan_prepare_kits_picking"),
@@ -1096,7 +1096,7 @@ class ScanViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(
             response,
-            "Revenir &agrave; la liste des exp&eacute;ditions",
+            "Revenir à la liste des expéditions",
         )
         self.assertContains(
             response,
@@ -1240,7 +1240,7 @@ class ScanViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(
             response,
-            "Mise &agrave; jour du suivi indisponible sur ce lien legacy.",
+            "Mise à jour du suivi indisponible sur ce lien legacy. Utilisez le QR code le plus récent.",
         )
         self.assertNotContains(response, str(shipment.tracking_token))
         response = self.client.post(

@@ -5,6 +5,8 @@ from .views_imports import scan_import
 from .views_portal import (
     portal_account,
     portal_account_request,
+    portal_billing,
+    portal_billing_detail,
     portal_change_password,
     portal_dashboard,
     portal_forgot_password,
@@ -37,6 +39,9 @@ from .views_scan import (
     scan_admin_contacts,
     scan_admin_design,
     scan_admin_products,
+    scan_billing_editor,
+    scan_billing_equivalence,
+    scan_billing_settings,
     scan_cartons_ready,
     scan_dashboard,
     scan_faq,
@@ -80,6 +85,8 @@ PORTAL_EXPORTS = (
     "portal_recipients",
     "portal_account",
     "portal_account_request",
+    "portal_billing",
+    "portal_billing_detail",
 )
 
 PUBLIC_EXPORTS = (
@@ -100,6 +107,9 @@ SCAN_FLOW_EXPORTS = (
     "scan_receive",
     "scan_receive_pallet",
     "scan_receive_association",
+    "scan_billing_settings",
+    "scan_billing_equivalence",
+    "scan_billing_editor",
     "scan_order",
     "scan_orders_view",
     "scan_prepare_kits",

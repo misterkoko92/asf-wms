@@ -10,6 +10,31 @@ from django.utils import timezone
 
 from . import reference_sequences
 from .document_scan import DocumentScanStatus
+from .models_domain.billing import (
+    AssociationBillingChangeRequest,
+    AssociationBillingChangeRequestStatus,
+    AssociationBillingFrequency,
+    AssociationBillingGroupingMode,
+    AssociationBillingProfile,
+    BillingAssociationPriceOverride,
+    BillingBaseUnitSource,
+    BillingComputationProfile,
+    BillingDocument,
+    BillingDocumentCorrectionState,
+    BillingDocumentKind,
+    BillingDocumentLine,
+    BillingDocumentReceipt,
+    BillingDocumentShipment,
+    BillingDocumentStatus,
+    BillingExtraUnitMode,
+    BillingIssue,
+    BillingIssueStatus,
+    BillingPayment,
+    BillingPaymentMethod,
+    BillingServiceCatalogItem,
+    ReceiptShipmentAllocation,
+    ShipmentUnitEquivalenceRule,
+)
 from .models_domain.catalog import Product, ProductCategory, ProductKitItem, ProductTag
 from .models_domain.integration import (
     IntegrationDirection,
@@ -134,6 +159,29 @@ def generate_shipment_reference() -> str:
 
 
 __all__ = [
+    "AssociationBillingFrequency",
+    "AssociationBillingGroupingMode",
+    "AssociationBillingChangeRequestStatus",
+    "BillingBaseUnitSource",
+    "BillingExtraUnitMode",
+    "BillingDocumentKind",
+    "BillingDocumentStatus",
+    "BillingDocumentCorrectionState",
+    "BillingPaymentMethod",
+    "BillingIssueStatus",
+    "AssociationBillingProfile",
+    "AssociationBillingChangeRequest",
+    "BillingComputationProfile",
+    "BillingServiceCatalogItem",
+    "ShipmentUnitEquivalenceRule",
+    "BillingAssociationPriceOverride",
+    "ReceiptShipmentAllocation",
+    "BillingDocument",
+    "BillingDocumentShipment",
+    "BillingDocumentReceipt",
+    "BillingDocumentLine",
+    "BillingPayment",
+    "BillingIssue",
     "ProductCategory",
     "ProductTag",
     "Product",

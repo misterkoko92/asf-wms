@@ -14,6 +14,9 @@ from wms.models import (
     AccountDocumentType,
     AssociationProfile,
     AssociationRecipient,
+    BillingDocument,
+    BillingDocumentKind,
+    BillingDocumentLine,
     Destination,
     DocumentReviewStatus,
     Order,
@@ -46,7 +49,7 @@ class PortalBootstrapUiTests(TestCase):
             country="France",
             is_default=True,
         )
-        AssociationProfile.objects.create(
+        self.profile = AssociationProfile.objects.create(
             user=self.user,
             contact=association_contact,
             must_change_password=False,
@@ -151,6 +154,42 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "form-select")
         self.assertContains(response, "btn btn-primary")
 
+    def test_portal_base_navigation_includes_billing_link(self):
+        response = self.client.get(reverse("portal:portal_dashboard"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse("portal:portal_billing"))
+
+    def test_portal_billing_pages_use_bootstrap_tables(self):
+        billing_document = BillingDocument.objects.create(
+            association_profile=self.profile,
+            kind=BillingDocumentKind.INVOICE,
+            status="issued",
+            invoice_number="FAC-2026-777",
+            currency="EUR",
+        )
+        BillingDocumentLine.objects.create(
+            document=billing_document,
+            line_number=1,
+            label="Ligne bootstrap",
+            description="Description bootstrap",
+            quantity=1,
+            unit_price="75.00",
+            total_amount="75.00",
+        )
+
+        list_response = self.client.get(reverse("portal:portal_billing"))
+        self.assertEqual(list_response.status_code, 200)
+        self.assertContains(list_response, "table table-sm table-hover")
+        self.assertContains(list_response, "FAC-2026-777")
+
+        detail_response = self.client.get(
+            reverse("portal:portal_billing_detail", args=[billing_document.id])
+        )
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertContains(detail_response, "scan-card portal-card card border-0")
+        self.assertContains(detail_response, "table table-sm table-hover")
+        self.assertContains(detail_response, "btn btn-primary")
+
     def test_portal_recipients_uses_bootstrap_forms_and_tables(self):
         response = self.client.get(reverse("portal:portal_recipients"))
         self.assertEqual(response.status_code, 200)
@@ -188,7 +227,7 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(login_response, "ui-comp-form")
         self.assertContains(login_response, reverse("portal:portal_forgot_password"))
         self.assertContains(login_response, "Mot de passe oubli")
-        self.assertContains(login_response, "Premi&egrave;re connexion")
+        self.assertContains(login_response, "Première connexion")
 
         uidb64 = urlsafe_base64_encode(str(self.user.pk).encode())
         set_password_url = reverse(

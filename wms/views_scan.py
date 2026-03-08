@@ -7,6 +7,11 @@ from .views_scan_admin import (
     scan_product_labels_print_labels,
     scan_product_labels_print_qr,
 )
+from .views_scan_billing import (
+    scan_billing_editor,
+    scan_billing_equivalence,
+    scan_billing_settings,
+)
 from .views_scan_dashboard import scan_dashboard
 from .views_scan_design import scan_admin_design
 from .views_scan_misc import scan_faq, scan_service_worker, scan_ui_lab
@@ -45,6 +50,9 @@ SCAN_FLOW_EXPORTS = (
     "scan_receive",
     "scan_receive_pallet",
     "scan_receive_association",
+    "scan_billing_settings",
+    "scan_billing_equivalence",
+    "scan_billing_editor",
     "scan_order",
     "scan_orders_view",
     "scan_prepare_kits",

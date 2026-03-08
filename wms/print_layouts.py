@@ -257,6 +257,57 @@ DEFAULT_LAYOUTS = {
             }
         ]
     },
+    "billing_quote": {
+        "blocks": [
+            {
+                "id": "heading",
+                "type": "text",
+                "tag": "h1",
+                "text": "DEVIS {{ billing_number }}",
+            },
+            {"id": "meta1", "type": "text", "text": "Association: {{ billing_name }}"},
+            {"id": "meta2", "type": "text", "text": "Devise: {{ billing_currency }}"},
+            {
+                "id": "meta3",
+                "type": "text",
+                "text": "Total: {{ billing_total_amount }}",
+            },
+        ]
+    },
+    "billing_invoice": {
+        "blocks": [
+            {
+                "id": "heading",
+                "type": "text",
+                "tag": "h1",
+                "text": "FACTURE {{ billing_number }}",
+            },
+            {"id": "meta1", "type": "text", "text": "Association: {{ billing_name }}"},
+            {"id": "meta2", "type": "text", "text": "Devise: {{ billing_currency }}"},
+            {
+                "id": "meta3",
+                "type": "text",
+                "text": "Total: {{ billing_total_amount }}",
+            },
+        ]
+    },
+    "billing_credit_note": {
+        "blocks": [
+            {
+                "id": "heading",
+                "type": "text",
+                "tag": "h1",
+                "text": "AVOIR {{ billing_number }}",
+            },
+            {"id": "meta1", "type": "text", "text": "Association: {{ billing_name }}"},
+            {"id": "meta2", "type": "text", "text": "Devise: {{ billing_currency }}"},
+            {
+                "id": "meta3",
+                "type": "text",
+                "text": "Total: {{ billing_total_amount }}",
+            },
+        ]
+    },
 }
 
 DOCUMENT_TEMPLATES = [
@@ -269,6 +320,9 @@ DOCUMENT_TEMPLATES = [
     ("shipment_label", "Étiquette expédition"),
     ("product_label", "Étiquettes produit"),
     ("product_qr", "QR produits"),
+    ("billing_quote", "Devis facturation"),
+    ("billing_invoice", "Facture"),
+    ("billing_credit_note", "Avoir"),
 ]
 
 BLOCK_LIBRARY = {

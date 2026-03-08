@@ -637,6 +637,7 @@ msgid "Administratif"
 msgstr "Administrative"
 
 #: templates/portal/account.html:165 templates/portal/account.html:298
+#: templates/scan/base.html:97
 msgid "Facturation"
 msgstr "Billing"
 
@@ -2326,6 +2327,14 @@ msgstr "Shipment tracking"
 #: templates/scan/base.html:100 templates/scan/settings.html:8
 msgid "Paramètres"
 msgstr "Settings"
+
+#: templates/scan/base.html:102
+msgid "Equivalence"
+msgstr "Equivalence"
+
+#: templates/scan/base.html:104
+msgid "Edition Devis/Facture"
+msgstr "Quote/Invoice editor"
 
 #: templates/scan/base.html:103
 msgid "Contacts"
