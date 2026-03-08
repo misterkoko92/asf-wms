@@ -14,4 +14,19 @@ urlpatterns = [
         views_planning.planning_version_detail,
         name="version_detail",
     ),
+    path(
+        "versions/<int:version_id>/clone/",
+        views_planning.planning_version_clone,
+        name="version_clone",
+    ),
+    path(
+        "versions/<int:version_id>/publish/",
+        views_planning.planning_version_publish,
+        name="version_publish",
+    ),
+    path(
+        "versions/<int:version_id>/diff/",
+        views_planning.planning_version_diff,
+        name="version_diff",
+    ),
 ]

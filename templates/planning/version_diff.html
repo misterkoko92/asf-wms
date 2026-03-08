@@ -1,0 +1,45 @@
+{% extends "planning/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Diff version" %}{% endblock %}
+
+{% block content %}
+  <section class="scan-card portal-card card border-0 shadow-sm">
+    <div class="card-body">
+      <h1 class="h3 mb-1">{% trans "Diff entre versions" %}</h1>
+      <p class="text-muted mb-0">
+        {% trans "Comparaison" %}: v{{ previous_version.number }} → v{{ version.number }}
+      </p>
+    </div>
+  </section>
+
+  <section class="scan-card portal-card card border-0 shadow-sm mt-3">
+    <div class="card-body">
+      <h2 class="h5">{% trans "Affectations modifiees" %}</h2>
+      <div class="table-responsive">
+        <table class="table align-middle">
+          <thead>
+            <tr>
+              <th>{% trans "Expedition" %}</th>
+              <th>{% trans "Avant" %}</th>
+              <th>{% trans "Apres" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in comparison.changed %}
+              <tr>
+                <td>{{ item.shipment_reference }}</td>
+                <td>{{ item.from.volunteer }} · {{ item.from.flight }} · {{ item.from.cartons }}</td>
+                <td>{{ item.to.volunteer }} · {{ item.to.flight }} · {{ item.to.cartons }}</td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="3" class="text-muted">{% trans "Aucune difference." %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+{% endblock %}
