@@ -12,6 +12,11 @@ urlpatterns = [
         name="request_account_done",
     ),
     path("login/", views.volunteer_login, name="login"),
+    path(
+        "forgot-password/",
+        views.volunteer_forgot_password,
+        name="forgot_password",
+    ),
     path("logout/", views.volunteer_logout, name="logout"),
     path(
         "set-password/<uidb64>/<token>/",
