@@ -12,10 +12,10 @@
           {% trans "Statut" %}: {{ run.get_status_display }} · {% trans "Parametres" %}: {{ run.parameter_set|default:"-" }}
         </p>
       </div>
-      {% if run.status == "ready" %}
+      {% if run.status != "solved" and run.status != "solving" and run.status != "validating" %}
         <form method="post" action="{% url 'planning:run_solve' run.pk %}">
           {% csrf_token %}
-          <button type="submit" class="btn btn-primary">{% trans "Lancer le solveur" %}</button>
+          <button type="submit" class="btn btn-primary">{% trans "Generer le planning" %}</button>
         </form>
       {% endif %}
     </div>
