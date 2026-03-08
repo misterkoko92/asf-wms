@@ -16,6 +16,10 @@ from wms.models import (
     PlanningVersion,
     PlanningVersionStatus,
     PlanningVolunteerSnapshot,
+    Shipment,
+    ShipmentStatus,
+    ShipmentTrackingEvent,
+    ShipmentTrackingStatus,
 )
 
 
@@ -85,6 +89,55 @@ class PlanningViewTests(TestCase):
             sequence=1,
         )
         return version, assignment, volunteer_bob, flight_af456
+
+    def make_published_version_with_live_shipment(self):
+        shipment = Shipment.objects.create(
+            status=ShipmentStatus.PACKED,
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            destination_address="1 Rue Test",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        run = PlanningRun.objects.create(
+            week_start="2026-03-09",
+            week_end="2026-03-15",
+            parameter_set=self.parameter_set,
+            status=PlanningRunStatus.SOLVED,
+            created_by=self.staff_user,
+        )
+        version = PlanningVersion.objects.create(
+            run=run,
+            status=PlanningVersionStatus.PUBLISHED,
+            created_by=self.staff_user,
+        )
+        shipment_snapshot = PlanningShipmentSnapshot.objects.create(
+            run=run,
+            shipment=shipment,
+            shipment_reference=shipment.reference,
+            carton_count=3,
+            equivalent_units=3,
+        )
+        volunteer = PlanningVolunteerSnapshot.objects.create(
+            run=run,
+            volunteer_label="Alice",
+        )
+        flight = PlanningFlightSnapshot.objects.create(
+            run=run,
+            flight_number="AF123",
+            departure_date="2026-03-10",
+            destination_iata="CDG",
+        )
+        PlanningAssignment.objects.create(
+            version=version,
+            shipment_snapshot=shipment_snapshot,
+            volunteer_snapshot=volunteer,
+            flight_snapshot=flight,
+            assigned_carton_count=3,
+            source=PlanningAssignmentSource.MANUAL,
+            sequence=1,
+        )
+        return version, shipment
 
     def test_planning_run_list_requires_staff(self):
         response = self.client.get(reverse("planning:run_list"))
@@ -259,3 +312,22 @@ class PlanningViewTests(TestCase):
         self.assertContains(response, "SHP-001")
         self.assertContains(response, "Alice")
         self.assertContains(response, "Bob")
+
+    def test_staff_can_apply_published_version_updates_to_shipments(self):
+        version, shipment = self.make_published_version_with_live_shipment()
+        self.client.force_login(self.staff_user)
+
+        response = self.client.post(
+            reverse("planning:version_detail", args=[version.pk]),
+            {"shipment_action": "apply_updates"},
+        )
+
+        shipment.refresh_from_db()
+        self.assertRedirects(response, reverse("planning:version_detail", args=[version.pk]))
+        self.assertEqual(shipment.status, ShipmentStatus.PLANNED)
+        self.assertTrue(
+            ShipmentTrackingEvent.objects.filter(
+                shipment=shipment,
+                status=ShipmentTrackingStatus.PLANNED,
+            ).exists()
+        )

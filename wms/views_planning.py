@@ -19,6 +19,7 @@ from .models import (
 )
 from .planning.communications import generate_version_drafts
 from .planning.exports import export_version_workbook
+from .planning.shipment_updates import apply_version_updates
 from .planning.solver import solve_run
 from .planning.stats import build_version_stats
 from .planning.versioning import clone_version, diff_versions, publish_version
@@ -156,6 +157,22 @@ def planning_version_detail(request, version_id):
         elif request.POST.get("artifact_action") == "export":
             export_version_workbook(version)
             messages.success(request, "Export Planning.xlsx regenere.")
+            return redirect("planning:version_detail", version.pk)
+        elif request.POST.get("shipment_action") == "apply_updates":
+            summary = apply_version_updates(
+                version,
+                actor_name=request.user.get_username() or "planner",
+                user=request.user,
+            )
+            messages.success(
+                request,
+                "Mises a jour expedition appliquees: {updated} mise(s) a jour, "
+                "{locked} ignoree(s), {events} evenement(s) tracking cree(s).".format(
+                    updated=summary["updated"],
+                    locked=summary["skipped_locked"],
+                    events=summary["tracking_events_created"],
+                ),
+            )
             return redirect("planning:version_detail", version.pk)
 
     return render(
