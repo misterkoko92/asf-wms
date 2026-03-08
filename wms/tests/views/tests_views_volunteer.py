@@ -240,6 +240,7 @@ class VolunteerProfileViewTests(TestCase):
                 "max_expeditions_per_week": 3,
                 "max_expeditions_per_day": 1,
                 "max_wait_hours": 4,
+                "max_colis_vol": 5,
             },
         )
 
@@ -249,6 +250,7 @@ class VolunteerProfileViewTests(TestCase):
         self.assertEqual(constraints.max_expeditions_per_week, 3)
         self.assertEqual(constraints.max_expeditions_per_day, 1)
         self.assertEqual(constraints.max_wait_hours, 4)
+        self.assertEqual(constraints.max_colis_vol, 5)
 
 
 class VolunteerAvailabilityViewTests(TestCase):
