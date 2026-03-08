@@ -10,7 +10,23 @@ from .models import (
     VolunteerProfile,
 )
 
-TIME_INPUT_WIDGET = forms.TimeInput(attrs={"type": "time", "step": "900"})
+TIME_INPUT_WIDGET = forms.TimeInput(attrs={"type": "time", "step": "900", "class": "form-control"})
+
+
+def _quarter_hour_choices():
+    choices = [("", "---------")]
+    for hour in range(24):
+        for minute in (0, 15, 30, 45):
+            value = f"{hour:02d}:{minute:02d}"
+            choices.append((value, value))
+    return choices
+
+
+def _quarter_hour_select_widget():
+    return forms.Select(
+        choices=_quarter_hour_choices(),
+        attrs={"class": "form-select"},
+    )
 
 
 class VolunteerAccountForm(forms.ModelForm):
@@ -124,8 +140,8 @@ class VolunteerAvailabilityWeekForm(forms.Form):
         initial="unavailable",
     )
     date = forms.DateField(widget=forms.HiddenInput)
-    start_time = forms.TimeField(required=False, widget=TIME_INPUT_WIDGET)
-    end_time = forms.TimeField(required=False, widget=TIME_INPUT_WIDGET)
+    start_time = forms.TimeField(required=False, widget=_quarter_hour_select_widget())
+    end_time = forms.TimeField(required=False, widget=_quarter_hour_select_widget())
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

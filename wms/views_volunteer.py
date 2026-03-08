@@ -59,6 +59,56 @@ def _build_week_days(week_start: date):
     return days
 
 
+def _latest_week_availability_map(*, profile, week_start, week_end):
+    availability_map = {}
+    availabilities = VolunteerAvailability.objects.filter(
+        volunteer=profile,
+        date__range=(week_start, week_end),
+    ).order_by("date", "-created_at", "-id")
+    for availability in availabilities:
+        availability_map.setdefault(availability.date, availability)
+    return availability_map
+
+
+def _week_form_initials(*, profile, week_days, week_start, week_end):
+    unavailability_dates = set(
+        VolunteerUnavailability.objects.filter(
+            volunteer=profile,
+            date__range=(week_start, week_end),
+        ).values_list("date", flat=True)
+    )
+    availability_map = _latest_week_availability_map(
+        profile=profile,
+        week_start=week_start,
+        week_end=week_end,
+    )
+    initials = []
+    for day in week_days:
+        day_date = day["date"]
+        initial = {
+            "date": day_date,
+            "availability": "unavailable",
+            "start_time": "",
+            "end_time": "",
+        }
+        if day_date in unavailability_dates:
+            initials.append(initial)
+            continue
+        availability = availability_map.get(day_date)
+        if availability is None:
+            initials.append(initial)
+            continue
+        initial.update(
+            {
+                "availability": "available",
+                "start_time": availability.start_time.strftime("%H:%M"),
+                "end_time": availability.end_time.strftime("%H:%M"),
+            }
+        )
+        initials.append(initial)
+    return initials
+
+
 def _resolve_week_start(request):
     if request.method == "POST":
         value = request.POST.get("week_start")
@@ -203,7 +253,12 @@ def volunteer_availability_create(request):
             return redirect("volunteer:availability_list")
     else:
         formset = formset_class(
-            initial=[{"date": day["date"], "availability": "unavailable"} for day in week_days]
+            initial=_week_form_initials(
+                profile=profile,
+                week_days=week_days,
+                week_start=week_start,
+                week_end=week_end,
+            )
         )
 
     for form, day in zip(formset.forms, week_days):
