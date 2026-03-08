@@ -1,14 +1,14 @@
-Bonjour {{ association_name }},
+{% load i18n %}{% blocktrans with association_name=association_name %}Bonjour {{ association_name }},{% endblocktrans %}
 
-Votre compte association a ete valide par ASF.
+{% trans "Votre compte association a été validé par ASF." %}
 
-Identifiant: {{ email }}
-Pour definir votre mot de passe, utilisez ce lien securise:
+{% trans "Identifiant" %}: {{ email }}
+{% trans "Pour définir votre mot de passe, utilisez ce lien sécurisé:" %}
 {{ set_password_url }}
 
-Une fois le mot de passe defini, connectez-vous ici:
+{% trans "Connexion association" %}:
 {{ login_url }}
 
-Si vous n'etes pas a l'origine de cette demande, merci de contacter ASF.
+{% trans "Si vous n'êtes pas à l'origine de cette demande, merci de contacter ASF." %}
 
 ASF WMS

@@ -1,12 +1,12 @@
-Nouvelle commande portail
+{% load i18n %}{% trans "Nouvelle commande portail" %}
 
-Association: {{ association_name }}
-Email: {{ email|default:"-" }}
-Telephone: {{ phone|default:"-" }}
-Reference: {{ order_reference }}
+{% trans "Association" %}: {{ association_name }}
+{% trans "Email" %}: {{ email|default:"-" }}
+{% trans "Téléphone" %}: {{ phone|default:"-" }}
+{% trans "Référence" %}: {{ order_reference }}
 
-Recapitulatif:
+{% trans "Récapitulatif" %}:
 {{ summary_url }}
 
-Admin:
+{% trans "Admin" %}:
 {{ admin_url }}

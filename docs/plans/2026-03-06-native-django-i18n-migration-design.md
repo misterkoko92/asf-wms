@@ -190,7 +190,7 @@ Une page ne sera consideree comme migree que si:
 Mesures de verification:
 - etendre [wms/tests/views/tests_i18n_language_switch.py](/Users/EdouardGonnu/asf-wms/wms/tests/views/tests_i18n_language_switch.py),
 - ajouter des tests par domaine (portal, scan, admin, emails, print),
-- ajouter une verification automatisee pour reperer les chaines accentuees ou francaises visibles non internationalisees dans les templates et modules legacy,
+- ajouter une verification automatisee via `./.venv/bin/python manage.py audit_i18n_strings` pour reperer les textes visibles encore non encapsules par les primitives Django i18n dans les templates legacy,
 - executer une passe de smoke tests EN avec middleware coupe.
 
 ## Risques et mitigations

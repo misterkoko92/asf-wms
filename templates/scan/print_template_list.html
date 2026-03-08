@@ -1,24 +1,25 @@
 {% extends "scan/base.html" %}
+{% load i18n %}
 
-{% block title %}Templates XLSX{% endblock %}
+{% block title %}{% trans "Templates XLSX" %}{% endblock %}
 
 {% block content %}
   <div class="scan-card card border-0 ui-comp-card">
-    <h2 class="ui-comp-title">Templates XLSX</h2>
-    <p>Gestion des templates et mappings Print Pack (superuser uniquement).</p>
+    <h2 class="ui-comp-title">{% trans "Templates XLSX" %}</h2>
+    <p>{% trans "Gestion des templates et mappings Print Pack (superuser uniquement)." %}</p>
 
     <div class="scan-table-wrap">
       <table class="scan-table">
         <thead>
           <tr>
             <th>Pack</th>
-            <th>Document</th>
+            <th>{% trans "Document" %}</th>
             <th>Variant</th>
-            <th>Template XLSX</th>
+            <th>{% trans "Template XLSX" %}</th>
             <th>Mappings</th>
             <th>Version</th>
-            <th>Derni&egrave;re maj</th>
-            <th>Par</th>
+            <th>{% trans "Dernière maj" %}</th>
+            <th>{% trans "Par" %}</th>
             <th></th>
           </tr>
         </thead>
@@ -37,9 +38,9 @@
                   <small>{{ item.template_filename }}</small>
                   <br>
                   {% if item.template_is_uploaded %}
-                    Upload&eacute;
+                    {% trans "Uploadé" %}
                   {% else %}
-                    Fichier source
+                    {% trans "Fichier source" %}
                   {% endif %}
                 {% else %}
                   -
@@ -69,13 +70,13 @@
               </td>
               <td>
                 <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_print_template_edit' doc_type=item.route_key %}">
-                  Modifier
+                  {% trans "Modifier" %}
                 </a>
               </td>
             </tr>
           {% empty %}
             <tr>
-              <td colspan="9">Aucun template disponible.</td>
+              <td colspan="9">{% trans "Aucun template disponible." %}</td>
             </tr>
           {% endfor %}
         </tbody>

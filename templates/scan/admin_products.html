@@ -1,13 +1,16 @@
 {% extends "scan/base.html" %}
+{% load i18n %}
 
-{% block title %}WMS Scan - Admin Produit{% endblock %}
+{% block title %}{% trans "WMS Scan - Admin Produit" %}{% endblock %}
 
 {% block content %}
   <div class="scan-card card border-0 ui-comp-card">
-    <h2 class="ui-comp-title">Admin - Produit</h2>
+    <h2 class="ui-comp-title">{% trans "Admin - Produit" %}</h2>
     <p class="scan-help ui-comp-note">
-      Gestion des kits: cr&eacute;er, modifier, supprimer, attribuer des produits et quantit&eacute;s.
-      Les actions ouvrent les formulaires admin complets.
+      {% blocktrans trimmed %}
+        Gestion des kits: créer, modifier, supprimer, attribuer des produits et quantités.
+        Les actions ouvrent les formulaires admin complets.
+      {% endblocktrans %}
     </p>
   </div>
 
@@ -15,34 +18,34 @@
     <form method="get" class="scan-filters ui-comp-form">
       <div class="scan-inline">
         <div class="scan-field">
-          <label class="form-label" for="scan-admin-products-q">Recherche kit</label>
-          <input id="scan-admin-products-q" type="text" name="q" value="{{ query }}" placeholder="Nom, SKU, code barre">
+          <label class="form-label" for="scan-admin-products-q">{% trans "Recherche kit" %}</label>
+          <input id="scan-admin-products-q" type="text" name="q" value="{{ query }}" placeholder="{% trans "Nom, SKU, code barre" %}">
         </div>
       </div>
       <div class="scan-filter-actions">
-        <button type="submit" class="scan-submit btn btn-primary">Filtrer</button>
-        <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_admin_products' %}">R&eacute;initialiser</a>
+        <button type="submit" class="scan-submit btn btn-primary">{% trans "Filtrer" %}</button>
+        <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_admin_products' %}">{% trans "Réinitialiser" %}</a>
       </div>
     </form>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
     <div class="scan-filter-actions">
-      <a class="scan-scan-btn btn btn-tertiary" href="{{ products_admin_url }}">Tous les produits (admin)</a>
-      <a class="scan-scan-btn btn btn-tertiary" href="{{ product_add_url }}">Cr&eacute;er un kit</a>
+      <a class="scan-scan-btn btn btn-tertiary" href="{{ products_admin_url }}">{% trans "Tous les produits (admin)" %}</a>
+      <a class="scan-scan-btn btn btn-tertiary" href="{{ product_add_url }}">{% trans "Créer un kit" %}</a>
     </div>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
-    <h3>Kits disponibles ({% if kit_rows %}{{ kit_rows|length }}{% else %}0{% endif %})</h3>
+    <h3>{% blocktrans trimmed with count=kit_rows|length|default:0 %}Kits disponibles ({{ count }}){% endblocktrans %}</h3>
     {% if kit_rows %}
       <table class="scan-table">
         <thead>
           <tr>
             <th>Kit</th>
-            <th>Composition directe</th>
-            <th>Composition d&eacute;ploy&eacute;e</th>
-            <th>Actions</th>
+            <th>{% trans "Composition directe" %}</th>
+            <th>{% trans "Composition déployée" %}</th>
+            <th>{% trans "Actions" %}</th>
           </tr>
         </thead>
         <tbody>
@@ -61,7 +64,7 @@
               </td>
               <td>
                 {% if row.has_cycle %}
-                  <span class="scan-help">Cycle d&eacute;tect&eacute; dans la composition.</span>
+                  <span class="scan-help">{% trans "Cycle détecté dans la composition." %}</span>
                 {% else %}
                   {% for line in row.flattened_lines %}
                     {{ line }}{% if not forloop.last %}<br>{% endif %}
@@ -71,15 +74,15 @@
                 {% endif %}
               </td>
               <td>
-                <a class="scan-scan-btn btn btn-tertiary" href="{{ row.edit_url }}">Modifier</a>
-                <a class="scan-scan-btn btn btn-danger" href="{{ row.delete_url }}">Supprimer</a>
+                <a class="scan-scan-btn btn btn-tertiary" href="{{ row.edit_url }}">{% trans "Modifier" %}</a>
+                <a class="scan-scan-btn btn btn-danger" href="{{ row.delete_url }}">{% trans "Supprimer" %}</a>
               </td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
     {% else %}
-      <p class="scan-help">Aucun kit trouv&eacute;.</p>
+      <p class="scan-help">{% trans "Aucun kit trouvé." %}</p>
     {% endif %}
   </div>
 {% endblock %}

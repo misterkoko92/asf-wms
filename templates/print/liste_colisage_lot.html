@@ -1,6 +1,7 @@
 {% extends "print/base_a5.html" %}
+{% load i18n %}
 
-{% block title %}Liste colisage lot{% endblock %}
+{% block title %}{% trans "Liste colisage lot" %}{% endblock %}
 
 {% block extra_style %}
   .print-body { padding-bottom: 0; }
@@ -8,7 +9,7 @@
 
 {% block body %}
   <h1>
-    LISTE DE COLISAGE - EXP&Eacute;DITION N&deg; {{ shipment_ref }} - DESTINATION
+    {% trans "LISTE DE COLISAGE - EXPÉDITION N°" %} {{ shipment_ref }} - {% trans "DESTINATION" %}
     {% if destination_city %}
       {{ destination_city|upper }}{% if destination_iata %} / {{ destination_iata|upper }}{% endif %}
     {% else %}
@@ -16,15 +17,15 @@
     {% endif %}
   </h1>
 
-  <div class="meta">Cartons: {{ carton_count }}</div>
+  <div class="meta">{% trans "Cartons" %}: {{ carton_count }}</div>
   <div class="meta">
-    Poids total:
+    {% trans "Poids total" %}:
     {% if weight_total_kg is not None and weight_total_kg > 0 %}
       {{ weight_total_kg|floatformat:2 }} kg
     {% else %}
       -
     {% endif %}
-    &nbsp;&nbsp;|&nbsp;&nbsp;Volume total:
+    &nbsp;&nbsp;|&nbsp;&nbsp;{% trans "Volume total" %}:
     {% if volume_total_m3 %}
       {{ volume_total_m3|floatformat:2 }} m3
     {% else %}
@@ -35,10 +36,10 @@
   <table>
     <thead>
       <tr>
-        <th>Produit</th>
-        <th>Quantit&eacute;</th>
-        <th>Date de p&eacute;remption</th>
-        <th>Num&eacute;ro de carton</th>
+        <th>{% trans "Produit" %}</th>
+        <th>{% trans "Quantité" %}</th>
+        <th>{% trans "Date de péremption" %}</th>
+        <th>{% trans "Numéro de carton" %}</th>
       </tr>
     </thead>
     <tbody>

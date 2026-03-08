@@ -1,6 +1,7 @@
 from django.http import Http404
 from django.shortcuts import render
 from django.urls import reverse
+from django.utils.translation import gettext_lazy as _
 
 from .contact_filters import TAG_RECIPIENT, TAG_SHIPPER
 from .models import CartonStatus, Document, DocumentType, ShipmentStatus, ShipmentTrackingStatus
@@ -31,11 +32,11 @@ SHIPMENT_DOCUMENT_TEMPLATES = {
 }
 
 SHIPMENT_DOCUMENT_LINKS = (
-    ("Bon d'expédition", "shipment_note"),
-    ("Liste colisage (lot)", "packing_list_shipment"),
-    ("Attestation donation", "donation_certificate"),
-    ("Attestation aide humanitaire", "humanitarian_certificate"),
-    ("Attestation douane", "customs"),
+    (_("Bon d'expédition"), "shipment_note"),
+    (_("Liste colisage (lot)"), "packing_list_shipment"),
+    (_("Attestation donation"), "donation_certificate"),
+    (_("Attestation aide humanitaire"), "humanitarian_certificate"),
+    (_("Attestation douane"), "customs"),
 )
 
 STATUS_READY_CARTON = {CartonStatus.LABELED, CartonStatus.SHIPPED}
@@ -80,7 +81,7 @@ def _build_carton_document_link(shipment, carton):
 def _build_label_link(shipment, *, public=False):
     shipment_identifier = shipment.reference if public else shipment.id
     return {
-        "label": "Étiquettes colis",
+        "label": _("Étiquettes colis"),
         "url": reverse(DOC_ROUTE_LABELS, args=[shipment_identifier]),
     }
 
@@ -122,15 +123,15 @@ def _shipment_carton_totals(shipment):
 
 def _shipment_progress_label(*, total, ready):
     if total == 0:
-        return "CREATION"
+        return _("Création")
     if ready < total:
-        return f"EN COURS ({ready}/{total})"
-    return "PRET"
+        return _("En cours (%(ready)s/%(total)s)") % {"ready": ready, "total": total}
+    return _("Prêt")
 
 
 def _shipment_status_label(shipment, progress_label):
     if shipment.status == ShipmentStatus.DRAFT:
-        base_label = "Brouillon"
+        base_label = _("Brouillon")
     elif shipment.status in STATUS_LOCKED_SHIPMENT:
         try:
             base_label = ShipmentStatus(shipment.status).label
@@ -139,11 +140,11 @@ def _shipment_status_label(shipment, progress_label):
     else:
         base_label = progress_label
     if getattr(shipment, "is_disputed", False):
-        return f"Litige - {base_label}"
+        return _("Litige - %(label)s") % {"label": base_label}
     return base_label
 
 
-def _shipment_status_tone(shipment, progress_label):
+def _shipment_status_tone(shipment, *, total, ready):
     if getattr(shipment, "is_disputed", False):
         return resolve_status_tone(
             shipment.status,
@@ -152,7 +153,7 @@ def _shipment_status_tone(shipment, progress_label):
         )
     if shipment.status in STATUS_LOCKED_SHIPMENT or shipment.status == ShipmentStatus.DRAFT:
         return resolve_status_tone(shipment.status, domain="shipment")
-    if progress_label == "PRET":
+    if total > 0 and ready >= total:
         return BADGE_TONE_READY
     return BADGE_TONE_PROGRESS
 
@@ -284,7 +285,7 @@ def build_shipments_ready_rows(shipments_qs):
         total, ready = _shipment_carton_totals(shipment)
         progress_label = _shipment_progress_label(total=total, ready=ready)
         status_label = _shipment_status_label(shipment, progress_label)
-        status_tone = _shipment_status_tone(shipment, progress_label)
+        status_tone = _shipment_status_tone(shipment, total=total, ready=ready)
         shipper_contact = _resolve_shipment_party_contact(
             shipment,
             ref_attr="shipper_contact_ref",

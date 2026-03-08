@@ -1,10 +1,10 @@
-Livraison confirmee
+{% load i18n %}{% trans "Livraison confirmée" %}
 
-Votre expedition est marquee comme livree.
+{% trans "Votre expédition est marquée comme livrée." %}
 
-Expedition: {{ shipment_reference }}
-Destination: {{ destination_label|default:"-" }}
-Date: {{ delivered_at|date:"d/m/Y H:i" }}
+{% trans "Expédition" %}: {{ shipment_reference }}
+{% trans "Destination" %}: {{ destination_label|default:"-" }}
+{% trans "Date" %}: {{ delivered_at|date:"d/m/Y H:i" }}
 
-Suivi:
+{% trans "Suivi" %}:
 {{ tracking_url }}

@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 from unittest import mock
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 from django.test import TestCase
@@ -18,6 +19,9 @@ class ScanReceiptsViewsTests(TestCase):
         )
         self.client.force_login(self.staff_user)
         self.warehouse = Warehouse.objects.create(name="Reception", code="REC")
+
+    def _activate_english(self):
+        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = "en"
 
     def _render_stub(self, _request, template_name, context):
         response = HttpResponse(template_name)
@@ -212,6 +216,17 @@ class ScanReceiptsViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "scan/receive_pallet.html")
         self.assertEqual(response.context_data["context_key"], "pallet")
+
+    def test_scan_receive_pages_render_native_english(self):
+        self._activate_english()
+
+        pallet_response = self.client.get(reverse("scan:scan_receive_pallet"))
+        self.assertContains(pallet_response, "Pallet receiving")
+        self.assertContains(pallet_response, "Save pallet receiving")
+
+        association_response = self.client.get(reverse("scan:scan_receive_association"))
+        self.assertContains(association_response, "Association receiving")
+        self.assertContains(association_response, "Save association receiving")
 
     def test_scan_receive_association_get_renders_context(self):
         fake_form = object()

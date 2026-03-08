@@ -1,5 +1,7 @@
 from django.contrib import admin
 from django.utils import timezone
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy
 
 from . import models
 from .admin_badges import render_admin_status_badge
@@ -54,7 +56,7 @@ class AssociationRecipientAdmin(admin.ModelAdmin):
     def display_name(self, obj):
         return obj.get_display_name()
 
-    display_name.short_description = "Destinataire"
+    display_name.short_description = gettext_lazy("Destinataire")
 
 
 class _OrderDocumentStatusMixin:
@@ -66,9 +68,12 @@ class _OrderDocumentStatusMixin:
             reviewed_at=timezone.now(),
             reviewed_by=request.user,
         )
-        self.message_user(request, f"{updated} document(s) approuvé(s).")
+        self.message_user(
+            request,
+            _("%(count)s document(s) approuvé(s).") % {"count": updated},
+        )
 
-    mark_approved.short_description = "Marquer comme approuvé"
+    mark_approved.short_description = gettext_lazy("Marquer comme approuvé")
 
     def mark_rejected(self, request, queryset):
         updated = queryset.update(
@@ -76,9 +81,12 @@ class _OrderDocumentStatusMixin:
             reviewed_at=timezone.now(),
             reviewed_by=request.user,
         )
-        self.message_user(request, f"{updated} document(s) refusé(s).")
+        self.message_user(
+            request,
+            _("%(count)s document(s) refusé(s).") % {"count": updated},
+        )
 
-    mark_rejected.short_description = "Marquer comme refusé"
+    mark_rejected.short_description = gettext_lazy("Marquer comme refusé")
 
 
 @admin.register(models.OrderDocument)

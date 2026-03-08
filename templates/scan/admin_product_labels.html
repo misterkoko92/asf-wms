@@ -1,22 +1,25 @@
 {% extends "scan/base.html" %}
+{% load i18n %}
 
-{% block title %}WMS Scan - Etiquette Produit{% endblock %}
+{% block title %}{% trans "WMS Scan - Etiquette Produit" %}{% endblock %}
 
 {% block content %}
   <div class="scan-card card border-0 ui-comp-card">
-    <h2 class="ui-comp-title">Gestion - Etiquette Produit</h2>
+    <h2 class="ui-comp-title">{% trans "Gestion - Etiquette Produit" %}</h2>
     <p class="scan-help ui-comp-note">
-      Impression des etiquettes produit et QR code depuis le site (superuser uniquement).
-      Le rendu conserve les regles actuelles (rack color et templates d'impression).
+      {% blocktrans trimmed %}
+        Impression des etiquettes produit et QR code depuis le site (superuser uniquement).
+        Le rendu conserve les regles actuelles (rack color et templates d'impression).
+      {% endblocktrans %}
     </p>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
     <div class="scan-filter-actions">
-      <a class="scan-scan-btn btn btn-tertiary" href="{{ products_admin_url }}">Produits (admin)</a>
-      <a class="scan-scan-btn btn btn-tertiary" href="{{ print_templates_url }}">Templates</a>
-      <a class="scan-scan-btn btn btn-tertiary" href="{{ product_label_template_url }}">Template product_label</a>
-      <a class="scan-scan-btn btn btn-tertiary" href="{{ product_qr_template_url }}">Template product_qr</a>
+      <a class="scan-scan-btn btn btn-tertiary" href="{{ products_admin_url }}">{% trans "Produits (admin)" %}</a>
+      <a class="scan-scan-btn btn btn-tertiary" href="{{ print_templates_url }}">{% trans "Templates" %}</a>
+      <a class="scan-scan-btn btn btn-tertiary" href="{{ product_label_template_url }}">{% trans "Template product_label" %}</a>
+      <a class="scan-scan-btn btn btn-tertiary" href="{{ product_qr_template_url }}">{% trans "Template product_qr" %}</a>
     </div>
   </div>
 
@@ -24,30 +27,30 @@
     <form method="get" class="scan-filters ui-comp-form">
       <div class="scan-inline">
         <div class="scan-field">
-          <label class="form-label" for="scan-product-labels-q">Recherche produit</label>
+          <label class="form-label" for="scan-product-labels-q">{% trans "Recherche produit" %}</label>
           <input
             id="scan-product-labels-q"
             type="text"
             name="q"
             value="{{ query }}"
-            placeholder="Nom, SKU, code barre, EAN"
+            placeholder="{% trans "Nom, SKU, code barre, EAN" %}"
           >
         </div>
         <div class="scan-field">
-          <label class="form-label" for="scan-product-selection-mode">Mode</label>
+          <label class="form-label" for="scan-product-selection-mode">{% trans "Mode" %}</label>
           <select
             id="scan-product-selection-mode"
             class="form-select"
             name="selection_mode"
           >
-            <option value="{{ selection_mode_selection }}"{% if selection_mode == selection_mode_selection %} selected{% endif %}>Selection manuelle</option>
-            <option value="{{ selection_mode_all_filtered }}"{% if selection_mode == selection_mode_all_filtered %} selected{% endif %}>Tous les produits filtres</option>
+            <option value="{{ selection_mode_selection }}"{% if selection_mode == selection_mode_selection %} selected{% endif %}>{% trans "Selection manuelle" %}</option>
+            <option value="{{ selection_mode_all_filtered }}"{% if selection_mode == selection_mode_all_filtered %} selected{% endif %}>{% trans "Tous les produits filtres" %}</option>
           </select>
         </div>
       </div>
       <div class="scan-filter-actions">
-        <button type="submit" class="scan-scan-btn btn btn-secondary">Filtrer</button>
-        <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_product_labels' %}">Reinitialiser</a>
+        <button type="submit" class="scan-scan-btn btn btn-secondary">{% trans "Filtrer" %}</button>
+        <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_product_labels' %}">{% trans "Reinitialiser" %}</a>
       </div>
     </form>
   </div>
@@ -59,17 +62,17 @@
       <input type="hidden" name="selection_mode" value="{{ selection_mode }}">
 
       <div class="scan-filter-actions mb-2">
-        <button type="submit" class="scan-scan-btn btn btn-secondary" formaction="{{ print_labels_url }}">Imprimer etiquettes</button>
-        <button type="submit" class="scan-scan-btn btn btn-secondary" formaction="{{ print_qr_url }}">Imprimer QR</button>
-        <button type="button" class="scan-scan-btn btn btn-secondary" id="scan-print-both">Imprimer les deux</button>
+        <button type="submit" class="scan-scan-btn btn btn-secondary" formaction="{{ print_labels_url }}">{% trans "Imprimer etiquettes" %}</button>
+        <button type="submit" class="scan-scan-btn btn btn-secondary" formaction="{{ print_qr_url }}">{% trans "Imprimer QR" %}</button>
+        <button type="button" class="scan-scan-btn btn btn-secondary" id="scan-print-both">{% trans "Imprimer les deux" %}</button>
       </div>
       <p class="scan-help">
-        Mode actif:
+        {% trans "Mode actif:" %}
         <strong>
           {% if selection_mode == selection_mode_all_filtered %}
-            tous les produits filtres
+            {% trans "tous les produits filtres" %}
           {% else %}
-            selection manuelle
+            {% trans "selection manuelle" %}
           {% endif %}
         </strong>
       </p>
@@ -81,9 +84,9 @@
               <th style="width: 80px;">
                 <input id="scan-product-select-all" type="checkbox">
               </th>
-              <th>Nom</th>
+              <th>{% trans "Nom" %}</th>
               <th>SKU</th>
-              <th>Code barre</th>
+              <th>{% trans "Code barre" %}</th>
               <th>EAN</th>
             </tr>
           </thead>
@@ -107,7 +110,7 @@
           </tbody>
         </table>
       {% else %}
-        <p class="scan-help">Aucun produit trouve.</p>
+        <p class="scan-help">{% trans "Aucun produit trouve." %}</p>
       {% endif %}
     </form>
   </div>

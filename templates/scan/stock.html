@@ -1,20 +1,21 @@
 {% extends "scan/base.html" %}
+{% load i18n %}
 
-{% block title %}WMS Scan - Vue stock{% endblock %}
+{% block title %}WMS Scan - {% trans "Vue stock" %}{% endblock %}
 
 {% block content %}
   <div class="scan-card card border-0 ui-comp-card">
-    <h2 class="h4 mb-3 ui-comp-title">Vue stock</h2>
+    <h2 class="h4 mb-3 ui-comp-title">{% trans "Vue stock" %}</h2>
     <form method="get" class="scan-filters row g-3 ui-comp-form scan-stock-filter-row">
       <div class="scan-field scan-stock-field col-12 col-md-6 col-lg-2">
-        <label class="form-label" for="id_q">Recherche</label>
-        <input type="text" class="form-control" id="id_q" name="q" value="{{ query }}" placeholder="Nom, r&eacute;f&eacute;rence, code-barres">
+        <label class="form-label" for="id_q">{% trans "Recherche" %}</label>
+        <input type="text" class="form-control" id="id_q" name="q" value="{{ query }}" placeholder='{% trans "Nom, référence, code-barres" %}'>
       </div>
 
       <div class="scan-field scan-stock-field col-12 col-md-6 col-lg-2">
-        <label class="form-label" for="id_category">Cat&eacute;gorie</label>
+        <label class="form-label" for="id_category">{% trans "Catégorie" %}</label>
         <select id="id_category" name="category" class="form-select">
-          <option value="">Toutes cat&eacute;gories</option>
+          <option value="">{% trans "Toutes catégories" %}</option>
           {% for category in categories %}
             <option value="{{ category.id }}" {% if category_id == category.id|stringformat:"s" %}selected{% endif %}>{{ category }}</option>
           {% endfor %}
@@ -22,9 +23,9 @@
       </div>
 
       <div class="scan-field scan-stock-field col-12 col-md-6 col-lg-2">
-        <label class="form-label" for="id_warehouse">Entrep&ocirc;t</label>
+        <label class="form-label" for="id_warehouse">{% trans "Entrepôt" %}</label>
         <select id="id_warehouse" name="warehouse" class="form-select">
-          <option value="">Tous entrep&ocirc;ts</option>
+          <option value="">{% trans "Tous entrepôts" %}</option>
           {% for warehouse in warehouses %}
             <option value="{{ warehouse.id }}" {% if warehouse_id == warehouse.id|stringformat:"s" %}selected{% endif %}>{{ warehouse.name }}</option>
           {% endfor %}
@@ -32,13 +33,13 @@
       </div>
 
       <div class="scan-field scan-stock-field col-12 col-md-6 col-lg-2">
-        <label class="form-label" for="id_sort">Tri</label>
+        <label class="form-label" for="id_sort">{% trans "Tri" %}</label>
         <select id="id_sort" name="sort" class="form-select">
-          <option value="category" {% if sort == "category" %}selected{% endif %}>Cat&eacute;gorie</option>
-          <option value="name" {% if sort == "name" %}selected{% endif %}>Nom</option>
-          <option value="sku" {% if sort == "sku" %}selected{% endif %}>R&eacute;f&eacute;rence</option>
-          <option value="qty_asc" {% if sort == "qty_asc" %}selected{% endif %}>Stock croissant</option>
-          <option value="qty_desc" {% if sort == "qty_desc" %}selected{% endif %}>Stock d&eacute;croissant</option>
+          <option value="category" {% if sort == "category" %}selected{% endif %}>{% trans "Catégorie" %}</option>
+          <option value="name" {% if sort == "name" %}selected{% endif %}>{% trans "Nom" %}</option>
+          <option value="sku" {% if sort == "sku" %}selected{% endif %}>{% trans "Référence" %}</option>
+          <option value="qty_asc" {% if sort == "qty_asc" %}selected{% endif %}>{% trans "Stock croissant" %}</option>
+          <option value="qty_desc" {% if sort == "qty_desc" %}selected{% endif %}>{% trans "Stock décroissant" %}</option>
         </select>
       </div>
       <div class="scan-field scan-stock-switch-field col-12 col-md-6 col-lg-4 d-flex flex-column justify-content-end">
@@ -53,20 +54,20 @@
               {% if include_zero %}checked{% endif %}
             >
             <label class="form-check-label" for="id_include_zero">
-              Inclure les produits avec stock &agrave; 0
+              {% trans "Inclure les produits avec stock à 0" %}
             </label>
           </div>
         </div>
       </div>
 
       <div class="scan-filter-actions scan-stock-filter-actions-inline col-12 d-flex flex-wrap flex-lg-nowrap gap-2 align-items-center ui-comp-actions">
-        <button type="submit" class="scan-submit secondary scan-submit-inline btn btn-primary">Filtrer</button>
-        <a class="btn btn-tertiary" href="{% url 'scan:scan_stock' %}">R&eacute;initialiser</a>
+        <button type="submit" class="scan-submit secondary scan-submit-inline btn btn-primary">{% trans "Filtrer" %}</button>
+        <a class="btn btn-tertiary" href="{% url 'scan:scan_stock' %}">{% trans "Réinitialiser" %}</a>
         <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:wms_productcategory_add' %}" target="_blank" rel="noopener">
-          Ajouter cat&eacute;gorie
+          {% trans "Ajouter catégorie" %}
         </a>
         <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:wms_warehouse_add' %}" target="_blank" rel="noopener">
-          Ajouter entrep&ocirc;t
+          {% trans "Ajouter entrepôt" %}
         </a>
       </div>
     </form>
@@ -74,7 +75,7 @@
 
   <div class="scan-card card border-0 ui-comp-card">
     <h2 class="h4 mb-3 ui-comp-title d-flex align-items-center gap-2 flex-wrap">
-      {% if include_zero %}Produits{% else %}Produits en stock{% endif %}
+      {% if include_zero %}{% trans "Produits" %}{% else %}{% trans "Produits en stock" %}{% endif %}
       <span class="badge text-bg-light ui-comp-count-badge">{{ products|length }}</span>
     </h2>
     {% if products %}
@@ -82,11 +83,11 @@
         <table class="scan-table table table-sm table-hover" data-table-tools="1">
           <thead>
             <tr>
-              <th>R&eacute;f&eacute;rence</th>
-              <th>Produit</th>
-              <th>Cat&eacute;gorie</th>
-              <th>Stock</th>
-              <th>Derni&egrave;re modification</th>
+              <th>{% trans "Référence" %}</th>
+              <th>{% trans "Produit" %}</th>
+              <th>{% trans "Catégorie" %}</th>
+              <th>{% trans "Stock" %}</th>
+              <th>{% trans "Dernière modification" %}</th>
             </tr>
           </thead>
           <tbody>
@@ -115,9 +116,9 @@
     {% else %}
       <p class="scan-help ui-comp-note">
         {% if include_zero %}
-          Aucun produit pour ces filtres.
+          {% trans "Aucun produit pour ces filtres." %}
         {% else %}
-          Aucun produit en stock pour ces filtres.
+          {% trans "Aucun produit en stock pour ces filtres." %}
         {% endif %}
       </p>
     {% endif %}

@@ -1,3 +1,9 @@
+import re
+import unicodedata
+
+from django.utils.translation import gettext as _
+
+
 def build_stockmovement_form_response(
     *,
     request,
@@ -26,7 +32,7 @@ def handle_receive_view(
     transaction_module,
     message_user,
 ):
-    title = "Réception stock"
+    title = _("Réception stock")
     if request.method == "POST":
         form = form_class(request.POST)
         if form.is_valid():
@@ -36,7 +42,7 @@ def handle_receive_view(
             if location is None:
                 form.add_error(
                     "location",
-                    "Emplacement requis ou définir un emplacement par défaut.",
+                    _("Emplacement requis ou définir un emplacement par défaut."),
                 )
                 return render_form(request, form, title)
             with transaction_module.atomic():
@@ -51,7 +57,7 @@ def handle_receive_view(
                     status=status,
                     storage_conditions=form.cleaned_data["storage_conditions"],
                 )
-            message_user(request, "Stock réceptionné et lot créé avec succès.")
+            message_user(request, _("Stock réceptionné et lot créé avec succès."))
             return redirect_fn("admin:wms_productlot_change", lot.id)
     else:
         form = form_class()
@@ -69,7 +75,7 @@ def handle_adjust_view(
     transaction_module,
     message_user,
 ):
-    title = "Ajuster stock"
+    title = _("Ajuster stock")
     if request.method == "POST":
         form = form_class(request.POST)
         if form.is_valid():
@@ -84,12 +90,12 @@ def handle_adjust_view(
                         reason_code=form.cleaned_data["reason_code"] or "",
                         reason_notes=form.cleaned_data["reason_notes"] or "",
                     )
-                message_user(request, "Ajustement de stock enregistré.")
+                message_user(request, _("Ajustement de stock enregistré."))
                 return redirect_fn("admin:wms_productlot_change", lot.id)
             except stock_error_cls:
                 form.add_error(
                     "quantity_delta",
-                    "Stock insuffisant pour appliquer cette correction.",
+                    _("Stock insuffisant pour appliquer cette correction."),
                 )
     else:
         form = form_class()
@@ -107,7 +113,7 @@ def handle_transfer_view(
     transaction_module,
     message_user,
 ):
-    title = "Transférer stock"
+    title = _("Transférer stock")
     if request.method == "POST":
         form = form_class(request.POST)
         if form.is_valid():
@@ -120,26 +126,62 @@ def handle_transfer_view(
                         lot=lot,
                         to_location=to_location,
                     )
-                message_user(request, "Transfert de stock enregistré.")
+                message_user(request, _("Transfert de stock enregistré."))
                 return redirect_fn("admin:wms_productlot_change", lot.id)
             except stock_error_cls:
-                form.add_error("to_location", "Le lot est déjà à cet emplacement.")
+                form.add_error("to_location", _("Le lot est déjà à cet emplacement."))
     else:
         form = form_class()
     return render_form(request, form, title)
 
 
 def _map_pack_error_to_field(error_message):
-    if "Carton deja lie" in error_message or "Carton déjà lié" in error_message:
+    normalized_message = _normalize_pack_error_message(error_message)
+    if "carton deja lie" in normalized_message:
         return "shipment"
-    if "Stock insuffisant" in error_message:
+    if "stock insuffisant" in normalized_message:
         return "quantity"
-    lowered = error_message.lower()
-    if "carton expedie" in lowered or "carton expédié" in lowered:
+    if "carton expedie" in normalized_message:
         return "carton"
-    if "expedition expediee" in lowered or "expédition expédiée" in lowered:
+    if "expedition expediee" in normalized_message or "expedition en litige" in normalized_message:
         return "shipment"
     return None
+
+
+def _normalize_pack_error_message(error_message):
+    normalized = unicodedata.normalize("NFKD", error_message or "")
+    return normalized.encode("ascii", "ignore").decode("ascii").lower()
+
+
+def _translate_pack_error_message(error_message):
+    normalized_message = _normalize_pack_error_message(error_message)
+    if "carton deja lie" in normalized_message:
+        return _("Carton déjà lié à une autre expédition.")
+    if "stock insuffisant" in normalized_message:
+        match = re.search(r"stock insuffisant:\s*(?P<count>\d+)\s+disponible", normalized_message)
+        if match:
+            return _("Stock insuffisant: %(count)s disponible(s).") % {
+                "count": match.group("count")
+            }
+        return _("Stock insuffisant.")
+    if "carton expedie" in normalized_message:
+        return _("Impossible de modifier un carton expédié.")
+    if "composition de kit invalide" in normalized_message:
+        return _("Composition de kit invalide: cycle detecte.")
+    if "le kit ne contient aucun composant valide" in normalized_message:
+        return _("Le kit ne contient aucun composant valide.")
+    if "composant de kit introuvable" in normalized_message:
+        return _("Composant de kit introuvable.")
+    if "expedition en litige" in normalized_message:
+        return _("Impossible de modifier une expédition en litige.")
+    if (
+        "expedition expediee" in normalized_message
+        or "expedition expediee ou livree" in normalized_message
+    ):
+        return _("Impossible de modifier une expédition expédiée ou livrée.")
+    if "carton vide" in normalized_message:
+        return _("Carton vide.")
+    return error_message
 
 
 def handle_pack_view(
@@ -153,7 +195,7 @@ def handle_pack_view(
     transaction_module,
     message_user,
 ):
-    title = "Préparer carton"
+    title = _("Préparer carton")
     if request.method == "POST":
         form = form_class(request.POST)
         if form.is_valid():
@@ -175,11 +217,14 @@ def handle_pack_view(
                         current_location=current_location,
                     )
                 except stock_error_cls as exc:
-                    message = str(exc)
-                    form.add_error(_map_pack_error_to_field(message), message)
+                    raw_message = str(exc)
+                    form.add_error(
+                        _map_pack_error_to_field(raw_message),
+                        _translate_pack_error_message(raw_message),
+                    )
                     return render_form(request, form, title)
 
-            message_user(request, "Carton préparé avec succès.")
+            message_user(request, _("Carton préparé avec succès."))
             return redirect_fn("admin:wms_carton_change", carton.id)
     else:
         form = form_class()

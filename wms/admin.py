@@ -10,6 +10,8 @@ from django.shortcuts import redirect, render
 from django.urls import path, reverse
 from django.utils import timezone
 from django.utils.html import format_html, format_html_join
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy
 
 from . import (
     admin_billing,  # noqa: F401
@@ -20,6 +22,7 @@ from .admin_account_request_approval import (
     approve_account_request,
     build_account_access_lines,
     build_portal_urls,
+    describe_account_request_skip_reason,
 )
 from .admin_badges import render_admin_status_badge
 from .admin_carton_handlers import (
@@ -186,7 +189,7 @@ class ProductAdmin(admin.ModelAdmin):
             )
         return "-"
 
-    qr_code_preview.short_description = "QR code"
+    qr_code_preview.short_description = gettext_lazy("QR code")
 
     def photo_preview(self, obj):
         if obj.photo:
@@ -196,19 +199,19 @@ class ProductAdmin(admin.ModelAdmin):
             )
         return "-"
 
-    photo_preview.short_description = "Photo"
+    photo_preview.short_description = gettext_lazy("Photo")
 
     def archive_products(self, request, queryset):
         updated = queryset.update(is_active=False)
-        self.message_user(request, f"{updated} produit(s) archives.")
+        self.message_user(request, _("%(count)s produit(s) archives.") % {"count": updated})
 
-    archive_products.short_description = "Archiver les produits"
+    archive_products.short_description = gettext_lazy("Archiver les produits")
 
     def unarchive_products(self, request, queryset):
         updated = queryset.update(is_active=True)
-        self.message_user(request, f"{updated} produit(s) réactivés.")
+        self.message_user(request, _("%(count)s produit(s) réactivés.") % {"count": updated})
 
-    unarchive_products.short_description = "Réactiver les produits"
+    unarchive_products.short_description = gettext_lazy("Réactiver les produits")
 
     def generate_qr_codes(self, request, queryset):
         count = 0
@@ -217,25 +220,25 @@ class ProductAdmin(admin.ModelAdmin):
                 product.generate_qr_code()
                 product.save(update_fields=["qr_code_image"])
                 count += 1
-        self.message_user(request, f"{count} QR code(s) générés.")
+        self.message_user(request, _("%(count)s QR code(s) générés.") % {"count": count})
 
-    generate_qr_codes.short_description = "Générer les QR codes"
+    generate_qr_codes.short_description = gettext_lazy("Générer les QR codes")
 
     def print_product_labels(self, request, queryset):
         if not queryset.exists():
-            self.message_user(request, "Aucun produit sélectionné.", level=messages.WARNING)
+            self.message_user(request, _("Aucun produit sélectionné."), level=messages.WARNING)
             return None
         return render_product_labels_response(request, queryset)
 
-    print_product_labels.short_description = "Imprimer étiquettes produit"
+    print_product_labels.short_description = gettext_lazy("Imprimer étiquettes produit")
 
     def print_product_qr_labels(self, request, queryset):
         if not queryset.exists():
-            self.message_user(request, "Aucun produit sélectionné.", level=messages.WARNING)
+            self.message_user(request, _("Aucun produit sélectionné."), level=messages.WARNING)
             return None
         return render_product_qr_labels_response(request, queryset)
 
-    print_product_qr_labels.short_description = "Imprimer QR produits"
+    print_product_qr_labels.short_description = gettext_lazy("Imprimer QR produits")
 
 
 @admin.register(models.PublicOrderLink)
@@ -283,22 +286,26 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
                 if user_exists:
                     skipped += 1
                     continue
-            ok, _ = self._approve_request(request, account_request)
+            ok, _reason = self._approve_request(request, account_request)
             if ok:
                 approved += 1
             else:
                 skipped += 1
 
         if approved:
-            self.message_user(request, f"{approved} demande(s) approuvée(s).")
+            self.message_user(
+                request,
+                _("%(count)s demande(s) approuvée(s).") % {"count": approved},
+            )
         if skipped:
             self.message_user(
                 request,
-                f"{skipped} demande(s) ignorée(s) (déjà approuvées ou identifiant réservé).",
+                _("%(count)s demande(s) ignorée(s) (déjà approuvées ou identifiant réservé).")
+                % {"count": skipped},
                 level=messages.WARNING,
             )
 
-    approve_requests.short_description = "Approuver les demandes"
+    approve_requests.short_description = gettext_lazy("Approuver les demandes")
 
     def save_model(self, request, obj, form, change):
         previous_status = None
@@ -316,13 +323,14 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
         if ok:
             self.message_user(
                 request,
-                "Compte créé automatiquement après validation.",
+                _("Compte créé automatiquement après validation."),
                 level=messages.SUCCESS,
             )
         else:
             self.message_user(
                 request,
-                f"Validation ignorée ({reason}).",
+                _("Validation ignorée (%(reason)s).")
+                % {"reason": describe_account_request_skip_reason(reason)},
                 level=messages.WARNING,
             )
 
@@ -335,7 +343,7 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
             return message
         return format_html_join("<br>", "{}", ((line,) for line in lines))
 
-    account_access_info.short_description = "Accès portail"
+    account_access_info.short_description = gettext_lazy("Accès portail")
 
     def status_badge(self, obj):
         return render_admin_status_badge(
@@ -366,7 +374,7 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
             },
         ),
         (
-            "Adresse",
+            gettext_lazy("Adresse"),
             {
                 "fields": (
                     "address_line1",
@@ -378,7 +386,7 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
             },
         ),
         (
-            "Validation",
+            gettext_lazy("Validation"),
             {"fields": ("created_at", "reviewed_at", "reviewed_by", "account_access_info")},
         ),
     )
@@ -389,9 +397,12 @@ class PublicAccountRequestAdmin(admin.ModelAdmin):
             reviewed_at=timezone.now(),
             reviewed_by=request.user,
         )
-        self.message_user(request, f"{updated} demande(s) refusée(s).")
+        self.message_user(
+            request,
+            _("%(count)s demande(s) refusée(s).") % {"count": updated},
+        )
 
-    reject_requests.short_description = "Refuser les demandes"
+    reject_requests.short_description = gettext_lazy("Refuser les demandes")
 
 
 class _DocumentStatusMixin:
@@ -403,9 +414,12 @@ class _DocumentStatusMixin:
             reviewed_at=timezone.now(),
             reviewed_by=request.user,
         )
-        self.message_user(request, f"{updated} document(s) approuvé(s).")
+        self.message_user(
+            request,
+            _("%(count)s document(s) approuvé(s).") % {"count": updated},
+        )
 
-    mark_approved.short_description = "Marquer comme approuvé"
+    mark_approved.short_description = gettext_lazy("Marquer comme approuvé")
 
     def mark_rejected(self, request, queryset):
         updated = queryset.update(
@@ -413,9 +427,12 @@ class _DocumentStatusMixin:
             reviewed_at=timezone.now(),
             reviewed_by=request.user,
         )
-        self.message_user(request, f"{updated} document(s) refusé(s).")
+        self.message_user(
+            request,
+            _("%(count)s document(s) refusé(s).") % {"count": updated},
+        )
 
-    mark_rejected.short_description = "Marquer comme refusé"
+    mark_rejected.short_description = gettext_lazy("Marquer comme refusé")
 
 
 @admin.register(models.AccountDocument)
@@ -436,9 +453,9 @@ class AccountDocumentAdmin(_DocumentStatusMixin, admin.ModelAdmin):
 
 
 class RackColorAdminForm(forms.ModelForm):
-    zone = forms.ChoiceField(label="Rack", required=True)
+    zone = forms.ChoiceField(label=gettext_lazy("Rack"), required=True)
     color_picker = forms.CharField(
-        label="Palette",
+        label=gettext_lazy("Palette"),
         required=False,
         widget=forms.TextInput(attrs={"type": "color"}),
     )
@@ -449,7 +466,7 @@ class RackColorAdminForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["color"].help_text = "Format attendu: #RRGGBB (ex: #1C8BC0)."
+        self.fields["color"].help_text = _("Format attendu: #RRGGBB (ex: #1C8BC0).")
         self.fields["color"].widget.attrs.setdefault("placeholder", "#1C8BC0")
         warehouse_id = None
         if self.data.get("warehouse"):
@@ -482,7 +499,7 @@ class RackColorAdminForm(forms.ModelForm):
             return color
         if picker:
             return picker
-        raise forms.ValidationError("Couleur requise.")
+        raise forms.ValidationError(_("Couleur requise."))
 
     def clean(self):
         cleaned_data = super().clean()
@@ -491,7 +508,7 @@ class RackColorAdminForm(forms.ModelForm):
         if warehouse and zone:
             exists = models.Location.objects.filter(warehouse=warehouse, zone=zone).exists()
             if not exists:
-                self.add_error("zone", "Rack inexistant pour cet entrepôt.")
+                self.add_error("zone", _("Rack inexistant pour cet entrepôt."))
         return cleaned_data
 
 
@@ -506,7 +523,7 @@ class RackColorAdmin(admin.ModelAdmin):
     def rack(self, obj):
         return obj.zone
 
-    rack.short_description = "Rack"
+    rack.short_description = gettext_lazy("Rack")
 
     class Media:
         js = ("wms/rack_color_admin.js",)
@@ -585,11 +602,14 @@ class ReceiptAdmin(admin.ModelAdmin):
                 except StockError as exc:
                     errors.append(f"{receipt}: {exc}")
         if processed:
-            self.message_user(request, f"{processed} ligne(s) réceptionnée(s).")
+            self.message_user(
+                request,
+                _("%(count)s ligne(s) réceptionnée(s).") % {"count": processed},
+            )
         for error in errors:
             self.message_user(request, error, level=messages.ERROR)
 
-    receive_lines.short_description = "Réceptionner les lignes"
+    receive_lines.short_description = gettext_lazy("Réceptionner les lignes")
 
 
 @admin.register(models.ReceiptLine)
@@ -612,11 +632,14 @@ class ReceiptLineAdmin(admin.ModelAdmin):
             except StockError as exc:
                 errors.append(f"{line.receipt}: {exc}")
         if processed:
-            self.message_user(request, f"{processed} ligne(s) réceptionnée(s).")
+            self.message_user(
+                request,
+                _("%(count)s ligne(s) réceptionnée(s).") % {"count": processed},
+            )
         for error in errors:
             self.message_user(request, error, level=messages.ERROR)
 
-    receive_selected_lines.short_description = "Réceptionner les lignes sélectionnées"
+    receive_selected_lines.short_description = gettext_lazy("Réceptionner les lignes sélectionnées")
     list_select_related = ("receipt", "receipt__warehouse", "product", "location", "received_lot")
 
 
@@ -647,7 +670,7 @@ class ProductLotAdmin(admin.ModelAdmin):
     def quantity_available(self, obj):
         return max(0, obj.quantity_on_hand - obj.quantity_reserved)
 
-    quantity_available.short_description = "Disponible"
+    quantity_available.short_description = gettext_lazy("Disponible")
 
     def status_badge(self, obj):
         return render_admin_status_badge(
@@ -663,7 +686,7 @@ class ProductLotAdmin(admin.ModelAdmin):
         if not request.user.is_superuser:
             self.message_user(
                 request,
-                "Seuls les admins peuvent libérer la quarantaine.",
+                _("Seuls les admins peuvent libérer la quarantaine."),
                 level=messages.ERROR,
             )
             return
@@ -673,9 +696,12 @@ class ProductLotAdmin(admin.ModelAdmin):
             released_by=request.user,
             released_at=timezone.now(),
         )
-        self.message_user(request, f"{updated} lot(s) libéré(s) de quarantaine.")
+        self.message_user(
+            request,
+            _("%(count)s lot(s) libéré(s) de quarantaine.") % {"count": updated},
+        )
 
-    release_quarantine.short_description = "Libérer la quarantaine"
+    release_quarantine.short_description = gettext_lazy("Libérer la quarantaine")
 
 
 class CartonItemInline(admin.TabularInline):
@@ -718,7 +744,7 @@ class OrderAdmin(admin.ModelAdmin):
     def shipment_reference(self, obj):
         return obj.shipment.reference if obj.shipment else "-"
 
-    shipment_reference.short_description = "Expédition"
+    shipment_reference.short_description = gettext_lazy("Expédition")
 
     def status_badge(self, obj):
         return render_admin_status_badge(
@@ -738,9 +764,12 @@ class OrderAdmin(admin.ModelAdmin):
             create_shipment_for_order(order=order)
             created += 1
         if created:
-            self.message_user(request, f"{created} expédition(s) créée(s).")
+            self.message_user(
+                request,
+                _("%(count)s expédition(s) créée(s).") % {"count": created},
+            )
 
-    create_shipment.short_description = "Créer une expédition"
+    create_shipment.short_description = gettext_lazy("Créer une expédition")
 
     def reserve_order(self, request, queryset):
         processed = 0
@@ -752,11 +781,14 @@ class OrderAdmin(admin.ModelAdmin):
             except StockError as exc:
                 errors.append(f"{order}: {exc}")
         if processed:
-            self.message_user(request, f"{processed} commande(s) réservée(s).")
+            self.message_user(
+                request,
+                _("%(count)s commande(s) réservée(s).") % {"count": processed},
+            )
         for error in errors:
             self.message_user(request, error, level=messages.ERROR)
 
-    reserve_order.short_description = "Réserver le stock"
+    reserve_order.short_description = gettext_lazy("Réserver le stock")
 
     def prepare_order_action(self, request, queryset):
         processed = 0
@@ -768,11 +800,14 @@ class OrderAdmin(admin.ModelAdmin):
             except StockError as exc:
                 errors.append(f"{order}: {exc}")
         if processed:
-            self.message_user(request, f"{processed} commande(s) préparée(s).")
+            self.message_user(
+                request,
+                _("%(count)s commande(s) préparée(s).") % {"count": processed},
+            )
         for error in errors:
             self.message_user(request, error, level=messages.ERROR)
 
-    prepare_order_action.short_description = "Préparer les commandes"
+    prepare_order_action.short_description = gettext_lazy("Préparer les commandes")
 
 
 @admin.register(models.Carton)
@@ -816,15 +851,18 @@ class CartonAdmin(admin.ModelAdmin):
             transaction_module=transaction,
         )
         if unpacked:
-            self.message_user(request, f"{unpacked} carton(s) déconditionné(s).")
+            self.message_user(
+                request,
+                _("%(count)s carton(s) déconditionné(s).") % {"count": unpacked},
+            )
         if skipped:
             self.message_user(
                 request,
-                f"{skipped} carton(s) ignorés (déjà expédiés ou vides).",
+                _("%(count)s carton(s) ignorés (déjà expédiés ou vides).") % {"count": skipped},
                 level=messages.WARNING,
             )
 
-    unpack_cartons.short_description = "Déconditionner les cartons"
+    unpack_cartons.short_description = gettext_lazy("Déconditionner les cartons")
 
 
 class CartonInline(admin.TabularInline):
@@ -913,7 +951,7 @@ class ShipmentAdmin(admin.ModelAdmin):
             )
         return "-"
 
-    qr_code_preview.short_description = "QR code"
+    qr_code_preview.short_description = gettext_lazy("QR code")
 
     def status_badge(self, obj):
         label = obj.get_status_display()

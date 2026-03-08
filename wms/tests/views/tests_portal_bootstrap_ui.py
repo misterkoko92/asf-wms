@@ -227,7 +227,7 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(login_response, "ui-comp-form")
         self.assertContains(login_response, reverse("portal:portal_forgot_password"))
         self.assertContains(login_response, "Mot de passe oubli")
-        self.assertContains(login_response, "Premi&egrave;re connexion")
+        self.assertContains(login_response, "Première connexion")
 
         uidb64 = urlsafe_base64_encode(str(self.user.pk).encode())
         set_password_url = reverse(

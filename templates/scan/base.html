@@ -31,65 +31,65 @@
         </div>
       </div>
 
-        <nav class="scan-nav scan-nav-bootstrap navbar navbar-expand-xl ui-comp-panel" aria-label="Navigation Scan">
+        <nav class="scan-nav scan-nav-bootstrap navbar navbar-expand-xl ui-comp-panel" aria-label="{% trans "Navigation Scan" %}">
           <div class="container-fluid px-0">
-            <button class="navbar-toggler border-0 px-2 btn-tertiary" type="button" data-bs-toggle="collapse" data-bs-target="#scan-main-nav" aria-controls="scan-main-nav" aria-expanded="false" aria-label="Afficher la navigation">
+            <button class="navbar-toggler border-0 px-2 btn-tertiary" type="button" data-bs-toggle="collapse" data-bs-target="#scan-main-nav" aria-controls="scan-main-nav" aria-expanded="false" aria-label="{% trans "Afficher la navigation" %}">
               <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="scan-main-nav">
               <ul class="navbar-nav w-100 flex-wrap gap-1">
                 <li class="nav-item">
-                  <a href="{% url 'scan:scan_dashboard' %}" class="nav-link{% if active == 'dashboard' %} active{% endif %}">Tableau de bord</a>
+                  <a href="{% url 'scan:scan_dashboard' %}" class="nav-link{% if active == 'dashboard' %} active{% endif %}">{% trans "Tableau de bord" %}</a>
                 </li>
                 <li class="nav-item dropdown">
                   <button class="nav-link dropdown-toggle btn-tertiary{% if active == 'stock' or active == 'kits_view' or active == 'cartons_ready' or active == 'shipments_ready' or active == 'orders_view' or active == 'receipts_view' %} active{% endif %}" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    Voir les états
+                    {% trans "Voir les états" %}
                   </button>
                   <ul class="dropdown-menu">
-                    <li><a href="{% url 'scan:scan_stock' %}" class="dropdown-item{% if active == 'stock' %} active{% endif %}">Vue Stock</a></li>
-                    <li><a href="{% url 'scan:scan_kits_view' %}" class="dropdown-item{% if active == 'kits_view' %} active{% endif %}">Vue Kits</a></li>
-                    <li><a href="{% url 'scan:scan_cartons_ready' %}" class="dropdown-item{% if active == 'cartons_ready' %} active{% endif %}">Vue Colis</a></li>
-                    <li><a href="{% url 'scan:scan_shipments_ready' %}" class="dropdown-item{% if active == 'shipments_ready' %} active{% endif %}">Vue Exp&eacute;ditions</a></li>
-                    <li><a href="{% url 'scan:scan_orders_view' %}" class="dropdown-item{% if active == 'orders_view' %} active{% endif %}">Vue Commande</a></li>
-                    <li><a href="{% url 'scan:scan_receipts_view' %}" class="dropdown-item{% if active == 'receipts_view' %} active{% endif %}">Vue R&eacute;ception</a></li>
+                    <li><a href="{% url 'scan:scan_stock' %}" class="dropdown-item{% if active == 'stock' %} active{% endif %}">{% trans "Vue Stock" %}</a></li>
+                    <li><a href="{% url 'scan:scan_kits_view' %}" class="dropdown-item{% if active == 'kits_view' %} active{% endif %}">{% trans "Vue Kits" %}</a></li>
+                    <li><a href="{% url 'scan:scan_cartons_ready' %}" class="dropdown-item{% if active == 'cartons_ready' %} active{% endif %}">{% trans "Vue Colis" %}</a></li>
+                    <li><a href="{% url 'scan:scan_shipments_ready' %}" class="dropdown-item{% if active == 'shipments_ready' %} active{% endif %}">{% trans "Vue Expéditions" %}</a></li>
+                    <li><a href="{% url 'scan:scan_orders_view' %}" class="dropdown-item{% if active == 'orders_view' %} active{% endif %}">{% trans "Vue Commande" %}</a></li>
+                    <li><a href="{% url 'scan:scan_receipts_view' %}" class="dropdown-item{% if active == 'receipts_view' %} active{% endif %}">{% trans "Vue Réception" %}</a></li>
                   </ul>
                 </li>
                 <li class="nav-item dropdown">
                   <button class="nav-link dropdown-toggle btn-tertiary{% if active == 'receive_pallet' or active == 'receive_association' or active == 'stock_update' %} active{% endif %}" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    R&eacute;ception
+                    {% trans "Réception" %}
                   </button>
                   <ul class="dropdown-menu">
-                    <li><a href="{% url 'scan:scan_receive_pallet' %}" class="dropdown-item{% if active == 'receive_pallet' %} active{% endif %}">R&eacute;ception palette</a></li>
-                    <li><a href="{% url 'scan:scan_receive_association' %}" class="dropdown-item{% if active == 'receive_association' %} active{% endif %}">R&eacute;ception association</a></li>
-                    <li><a href="{% url 'scan:scan_stock_update' %}" class="dropdown-item{% if active == 'stock_update' %} active{% endif %}">MAJ stock</a></li>
+                    <li><a href="{% url 'scan:scan_receive_pallet' %}" class="dropdown-item{% if active == 'receive_pallet' %} active{% endif %}">{% trans "Réception palette" %}</a></li>
+                    <li><a href="{% url 'scan:scan_receive_association' %}" class="dropdown-item{% if active == 'receive_association' %} active{% endif %}">{% trans "Réception association" %}</a></li>
+                    <li><a href="{% url 'scan:scan_stock_update' %}" class="dropdown-item{% if active == 'stock_update' %} active{% endif %}">{% trans "MAJ stock" %}</a></li>
                   </ul>
                 </li>
                 <li class="nav-item dropdown">
                   <button class="nav-link dropdown-toggle btn-tertiary{% if active == 'prepare_kits' or active == 'pack' or active == 'shipment' %} active{% endif %}" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    Pr&eacute;paration
+                    {% trans "Préparation" %}
                   </button>
                   <ul class="dropdown-menu">
-                    <li><a href="{% url 'scan:scan_prepare_kits' %}" class="dropdown-item{% if active == 'prepare_kits' %} active{% endif %}">Pr&eacute;parer des kits</a></li>
-                    <li><a href="{% url 'scan:scan_pack' %}" class="dropdown-item{% if active == 'pack' %} active{% endif %}">Pr&eacute;parer des colis</a></li>
-                    <li><a href="{% url 'scan:scan_shipment_create' %}" class="dropdown-item{% if active == 'shipment' %} active{% endif %}">Pr&eacute;paration exp&eacute;dition</a></li>
+                    <li><a href="{% url 'scan:scan_prepare_kits' %}" class="dropdown-item{% if active == 'prepare_kits' %} active{% endif %}">{% trans "Préparer des kits" %}</a></li>
+                    <li><a href="{% url 'scan:scan_pack' %}" class="dropdown-item{% if active == 'pack' %} active{% endif %}">{% trans "Préparer des colis" %}</a></li>
+                    <li><a href="{% url 'scan:scan_shipment_create' %}" class="dropdown-item{% if active == 'shipment' %} active{% endif %}">{% trans "Préparation expédition" %}</a></li>
                   </ul>
                 </li>
                 <li class="nav-item dropdown">
                   <button class="nav-link dropdown-toggle btn-tertiary{% if active == 'out' or active == 'faq' or active == 'imports' or active == 'print_templates' or active == 'product_labels' %} active{% endif %}" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    Gestion
+                    {% trans "Gestion" %}
                   </button>
                   <ul class="dropdown-menu">
-                    <li><a href="{% url 'scan:scan_out' %}" class="dropdown-item{% if active == 'out' %} active{% endif %}">Supprimer produit</a></li>
-                    <li><a href="{% url 'scan:scan_faq' %}" class="dropdown-item{% if active == 'faq' %} active{% endif %}">FAQ / Documentation</a></li>
+                    <li><a href="{% url 'scan:scan_out' %}" class="dropdown-item{% if active == 'out' %} active{% endif %}">{% trans "Supprimer produit" %}</a></li>
+                    <li><a href="{% url 'scan:scan_faq' %}" class="dropdown-item{% if active == 'faq' %} active{% endif %}">{% trans "FAQ / Documentation" %}</a></li>
                     {% if request.user.is_superuser %}
-                      <li><a href="{% url 'scan:scan_import' %}" class="dropdown-item{% if active == 'imports' %} active{% endif %}">Imports</a></li>
-                      <li><a href="{% url 'scan:scan_print_templates' %}" class="dropdown-item{% if active == 'print_templates' %} active{% endif %}">Templates</a></li>
-                      <li><a href="{% url 'scan:scan_product_labels' %}" class="dropdown-item{% if active == 'product_labels' %} active{% endif %}">Etiquette Produit</a></li>
+                      <li><a href="{% url 'scan:scan_import' %}" class="dropdown-item{% if active == 'imports' %} active{% endif %}">{% trans "Imports" %}</a></li>
+                      <li><a href="{% url 'scan:scan_print_templates' %}" class="dropdown-item{% if active == 'print_templates' %} active{% endif %}">{% trans "Templates" %}</a></li>
+                      <li><a href="{% url 'scan:scan_product_labels' %}" class="dropdown-item{% if active == 'product_labels' %} active{% endif %}">{% trans "Etiquette Produit" %}</a></li>
                     {% endif %}
                   </ul>
                 </li>
                 <li class="nav-item">
-                  <a href="{% url 'scan:scan_shipments_tracking' %}" class="nav-link{% if active == 'shipments_tracking' %} active{% endif %}">Suivi exp&eacute;ditions</a>
+                  <a href="{% url 'scan:scan_shipments_tracking' %}" class="nav-link{% if active == 'shipments_tracking' %} active{% endif %}">{% trans "Suivi expéditions" %}</a>
                 </li>
                 {% if scan_billing_visible %}
                   <li class="nav-item dropdown">
@@ -108,32 +108,32 @@
                 {% if request.user.is_superuser %}
                   <li class="nav-item dropdown ms-xl-auto">
                     <button class="nav-link dropdown-toggle btn-tertiary{% if active == 'settings' or active == 'ui_lab' or active == 'admin_contacts' or active == 'admin_products' or active == 'admin_design' or active == 'product_labels' %} active{% endif %}" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                      Admin
+                      {% trans "Admin" %}
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                      <li><a href="{% url 'scan:scan_settings' %}" class="dropdown-item{% if active == 'settings' %} active{% endif %}">Param&egrave;tres</a></li>
+                      <li><a href="{% url 'scan:scan_settings' %}" class="dropdown-item{% if active == 'settings' %} active{% endif %}">{% trans "Paramètres" %}</a></li>
                       <li><a href="{% url 'scan:scan_ui_lab' %}" class="dropdown-item{% if active == 'ui_lab' %} active{% endif %}">UI Lab</a></li>
                       <li><hr class="dropdown-divider"></li>
-                      <li><a href="{% url 'scan:scan_admin_contacts' %}" class="dropdown-item{% if active == 'admin_contacts' %} active{% endif %}">Contacts</a></li>
-                      <li><a href="{% url 'scan:scan_admin_products' %}" class="dropdown-item{% if active == 'admin_products' %} active{% endif %}">Produit</a></li>
-                      <li><a href="{% url 'scan:scan_product_labels' %}" class="dropdown-item{% if active == 'product_labels' %} active{% endif %}">Etiquette Produit</a></li>
-                      <li><a href="{% url 'scan:scan_admin_design' %}" class="dropdown-item{% if active == 'admin_design' %} active{% endif %}">Design</a></li>
+                      <li><a href="{% url 'scan:scan_admin_contacts' %}" class="dropdown-item{% if active == 'admin_contacts' %} active{% endif %}">{% trans "Contacts" %}</a></li>
+                      <li><a href="{% url 'scan:scan_admin_products' %}" class="dropdown-item{% if active == 'admin_products' %} active{% endif %}">{% trans "Produit" %}</a></li>
+                      <li><a href="{% url 'scan:scan_product_labels' %}" class="dropdown-item{% if active == 'product_labels' %} active{% endif %}">{% trans "Etiquette Produit" %}</a></li>
+                      <li><a href="{% url 'scan:scan_admin_design' %}" class="dropdown-item{% if active == 'admin_design' %} active{% endif %}">{% trans "Design" %}</a></li>
                     </ul>
                   </li>
                 {% endif %}
                 <li class="nav-item dropdown scan-nav-account{% if not request.user.is_superuser %} ms-xl-auto{% endif %}">
                   <button class="nav-link dropdown-toggle btn-tertiary" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    Compte
+                    {% trans "Compte" %}
                   </button>
                   <ul class="dropdown-menu dropdown-menu-end">
                     <li><h6 class="dropdown-header">{{ request.user.email|default:request.user.username }}</h6></li>
-                    <li><span class="dropdown-item-text">Username: {{ request.user.username }}</span></li>
+                    <li><span class="dropdown-item-text">{% trans "Username:" %} {{ request.user.username }}</span></li>
                     {% if request.user.is_staff %}
-                      <li><a class="dropdown-item" href="/admin/">Admin Django</a></li>
+                      <li><a class="dropdown-item" href="/admin/">{% trans "Admin Django" %}</a></li>
                     {% endif %}
                     <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item" href="/admin/logout/?next=/admin/login/?next=/scan/">Changer de compte</a></li>
-                    <li><a class="dropdown-item" href="/admin/logout/?next=/">Déconnexion</a></li>
+                    <li><a class="dropdown-item" href="/admin/logout/?next=/admin/login/?next=/scan/">{% trans "Changer de compte" %}</a></li>
+                    <li><a class="dropdown-item" href="/admin/logout/?next=/">{% trans "Déconnexion" %}</a></li>
                   </ul>
                 </li>
               </ul>
@@ -153,13 +153,13 @@
         {% endif %}
         {% if admin_pending_account_requests %}
           <div class="scan-message warning">
-            Nouvelles demandes de compte en attente : {{ admin_pending_account_requests }}
-            (<a href="{% url 'admin:wms_publicaccountrequest_changelist' %}">voir</a>)
+            {% blocktrans with pending_count=admin_pending_account_requests %}Nouvelles demandes de compte en attente : {{ pending_count }}{% endblocktrans %}
+            (<a href="{% url 'admin:wms_publicaccountrequest_changelist' %}">{% trans "voir" %}</a>)
           </div>
         {% endif %}
         <div id="scan-sync-banner" class="scan-sync-banner" data-sync-url="{% url 'scan:scan_sync' %}" data-sync-interval="8000">
-          <span>Des changements sont disponibles. Recharge pour synchroniser.</span>
-          <button type="button" id="scan-sync-reload" class="btn btn-tertiary btn-sm">Recharger</button>
+          <span>{% trans "Des changements sont disponibles. Recharge pour synchroniser." %}</span>
+          <button type="button" id="scan-sync-reload" class="btn btn-tertiary btn-sm">{% trans "Recharger" %}</button>
         </div>
 
         {% block content %}{% endblock %}
@@ -170,13 +170,13 @@
   <div id="scan-overlay" class="scan-overlay">
     <div class="scan-modal">
       <div class="scan-modal-header">
-        <strong id="scan-modal-title">Caméra scan</strong>
-        <button type="button" id="scan-close" class="btn btn-tertiary btn-sm">Fermer</button>
+        <strong id="scan-modal-title">{% trans "Caméra scan" %}</strong>
+        <button type="button" id="scan-close" class="btn btn-tertiary btn-sm">{% trans "Fermer" %}</button>
       </div>
       <video id="scan-video" class="scan-video" playsinline></video>
-      <div class="scan-help" id="scan-status">Scan en cours...</div>
+      <div class="scan-help" id="scan-status">{% trans "Scan en cours..." %}</div>
       <div class="scan-modal-actions">
-        <button type="button" id="scan-capture" class="scan-scan-btn btn btn-tertiary">Capturer texte</button>
+        <button type="button" id="scan-capture" class="scan-scan-btn btn btn-tertiary">{% trans "Capturer texte" %}</button>
       </div>
     </div>
   </div>

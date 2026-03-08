@@ -1,6 +1,7 @@
 {% extends "scan/base.html" %}
+{% load i18n %}
 
-{% block title %}WMS Scan - Admin Design{% endblock %}
+{% block title %}{% trans "WMS Scan - Admin Design" %}{% endblock %}
 
 {% block extra_head %}
   <style>
@@ -478,10 +479,12 @@
 
 {% block content %}
   <div class="scan-card card border-0 ui-comp-card">
-    <h2 class="ui-comp-title">Admin - Design</h2>
+    <h2 class="ui-comp-title">{% trans "Admin - Design" %}</h2>
     <p class="scan-help ui-comp-note">
-      Cette page est réservée aux superusers. Les variables sont regroupées par famille pour éviter les erreurs.
-      Survolez les pastilles <strong>i</strong> pour comprendre l'impact de chaque réglage.
+      {% blocktrans trimmed %}
+        Cette page est réservée aux superusers. Les variables sont regroupées par famille pour éviter les erreurs.
+        Survolez les pastilles <strong>i</strong> pour comprendre l'impact de chaque réglage.
+      {% endblocktrans %}
     </p>
   </div>
 
@@ -505,8 +508,8 @@
       </div>
 
       <div class="scan-filter-actions scan-design-style-actions">
-        <button type="submit" name="action" value="apply_preset" class="scan-scan-btn btn btn-secondary">Appliquer le style</button>
-        <button type="submit" name="action" value="save_custom_preset" class="scan-scan-btn btn btn-secondary">Sauvegarder ce style</button>
+        <button type="submit" name="action" value="apply_preset" class="scan-scan-btn btn btn-secondary">{% trans "Appliquer le style" %}</button>
+        <button type="submit" name="action" value="save_custom_preset" class="scan-scan-btn btn btn-secondary">{% trans "Sauvegarder ce style" %}</button>
       </div>
 
       {% for section in design_sections %}
@@ -570,14 +573,14 @@
       {% endif %}
 
       <div class="scan-filter-actions">
-        <button type="submit" name="action" value="save" class="scan-submit btn btn-primary">Enregistrer</button>
-        <button type="submit" name="action" value="reset" class="scan-scan-btn btn btn-tertiary">Réinitialiser (valeurs recommandées)</button>
+        <button type="submit" name="action" value="save" class="scan-submit btn btn-primary">{% trans "Enregistrer" %}</button>
+        <button type="submit" name="action" value="reset" class="scan-scan-btn btn btn-tertiary">{% trans "Réinitialiser (valeurs recommandées)" %}</button>
       </div>
     </form>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
-    <h3>Aperçu rapide (live)</h3>
+    <h3>{% trans "Aperçu rapide (live)" %}</h3>
     <div
       class="scan-design-preview"
       data-design-live-preview="1"
@@ -658,50 +661,50 @@
       "
     >
       <div class="preview-surface">
-        <span class="preview-nav-item active">Nav actif</span>
-        <span class="preview-nav-item">Nav standard</span>
+        <span class="preview-nav-item active">{% trans "Nav actif" %}</span>
+        <span class="preview-nav-item">{% trans "Nav standard" %}</span>
       </div>
       <div class="preview-surface">
         <h4>Dashboard</h4>
-        <p>Exemple de rendu live des cartes, textes, tableaux et actions.</p>
+        <p>{% trans "Exemple de rendu live des cartes, textes, tableaux et actions." %}</p>
       </div>
-      <span class="preview-kpi">Colis prêts: 128</span>
-      <span class="preview-kpi">Kits prêts: 42</span>
-      <span class="preview-kpi">Expéditions: 7</span>
+      <span class="preview-kpi">{% trans "Colis prêts: 128" %}</span>
+      <span class="preview-kpi">{% trans "Kits prêts: 42" %}</span>
+      <span class="preview-kpi">{% trans "Expéditions: 7" %}</span>
       <div>
-        <span class="preview-button primary">Action principale</span>
-        <span class="preview-button secondary">Action secondaire</span>
-        <span class="preview-button tertiary">Action tertiaire</span>
-        <span class="preview-button success">Succès</span>
-        <span class="preview-button warning">Alerte</span>
-        <span class="preview-button danger">Danger</span>
+        <span class="preview-button primary">{% trans "Action principale" %}</span>
+        <span class="preview-button secondary">{% trans "Action secondaire" %}</span>
+        <span class="preview-button tertiary">{% trans "Action tertiaire" %}</span>
+        <span class="preview-button success">{% trans "Succès" %}</span>
+        <span class="preview-button warning">{% trans "Alerte" %}</span>
+        <span class="preview-button danger">{% trans "Danger" %}</span>
       </div>
       <table class="preview-table">
         <thead>
           <tr>
-            <th>Commande</th>
-            <th>Statut</th>
-            <th>Quantité</th>
+            <th>{% trans "Commande" %}</th>
+            <th>{% trans "Statut" %}</th>
+            <th>{% trans "Quantité" %}</th>
           </tr>
         </thead>
         <tbody>
           <tr>
             <td>ORD-1251</td>
-            <td>En préparation</td>
+            <td>{% trans "En préparation" %}</td>
             <td>42</td>
           </tr>
           <tr class="preview-hover">
             <td>ORD-1252</td>
-            <td>Prête</td>
+            <td>{% trans "Prête" %}</td>
             <td>18</td>
           </tr>
         </tbody>
       </table>
       <div class="preview-status-row">
-        <span class="preview-status ready">Prêt</span>
-        <span class="preview-status in-progress">En cours</span>
-        <span class="preview-status warning">Alerte</span>
-        <span class="preview-status error">Erreur</span>
+        <span class="preview-status ready">{% trans "Prêt" %}</span>
+        <span class="preview-status in-progress">{% trans "En cours" %}</span>
+        <span class="preview-status warning">{% trans "Alerte" %}</span>
+        <span class="preview-status error">{% trans "Erreur" %}</span>
       </div>
     </div>
   </div>

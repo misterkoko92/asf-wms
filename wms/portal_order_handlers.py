@@ -1,6 +1,7 @@
 from collections import defaultdict
 
 from django.db import transaction
+from django.utils.translation import gettext as _
 
 from .carton_status_events import set_carton_status
 from .models import Carton, CartonStatus, Order, OrderStatus
@@ -13,7 +14,7 @@ def _resolve_ready_cartons(ready_carton_ids):
     if not ready_carton_ids:
         return []
     if len(ready_carton_ids) != len(set(ready_carton_ids)):
-        raise StockError("Colis prêt indisponible.")
+        raise StockError(_("Colis prêt indisponible."))
 
     cartons = (
         Carton.objects.select_for_update()
@@ -25,9 +26,9 @@ def _resolve_ready_cartons(ready_carton_ids):
     for carton_id in ready_carton_ids:
         carton = cartons_by_id.get(carton_id)
         if carton is None:
-            raise StockError("Colis prêt indisponible.")
+            raise StockError(_("Colis prêt indisponible."))
         if carton.status != CartonStatus.PACKED or carton.shipment_id is not None:
-            raise StockError("Colis prêt indisponible.")
+            raise StockError(_("Colis prêt indisponible."))
         selected_cartons.append(carton)
     return selected_cartons
 

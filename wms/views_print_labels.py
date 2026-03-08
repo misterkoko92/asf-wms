@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, render
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods
 
 from .models import Shipment
@@ -149,7 +150,7 @@ def scan_shipment_label(request, shipment_id, carton_id):
     shipment = _get_shipment_by_id(shipment_id)
     carton = shipment.carton_set.filter(pk=carton_id).first()
     if carton is None:
-        raise Http404("Carton not found for shipment")
+        raise Http404(_("Carton introuvable pour cette expédition."))
     pack_route = resolve_single_label_pack()
     try:
         artifact = generate_pack(
@@ -171,7 +172,7 @@ def scan_shipment_label(request, shipment_id, carton_id):
         cartons = list(shipment.carton_set.order_by("code"))
         position = _find_carton_position(cartons, carton_id)
         if position is None:
-            raise Http404("Carton not found for shipment")
+            raise Http404(_("Carton introuvable pour cette expédition."))
         label_context = build_label_context(
             shipment,
             position=position,
@@ -185,7 +186,7 @@ def scan_shipment_label(request, shipment_id, carton_id):
         cartons = list(shipment.carton_set.order_by("code"))
         position = _find_carton_position(cartons, carton_id)
         if position is None:
-            raise Http404("Carton not found for shipment")
+            raise Http404(_("Carton introuvable pour cette expédition."))
         label_context = build_label_context(
             shipment,
             position=position,

@@ -1,5 +1,5 @@
 {% extends "scan/base.html" %}
-{% load static %}
+{% load i18n static %}
 
 {% block title %}UI Lab{% endblock %}
 
@@ -13,27 +13,25 @@
     <div class="ui-lab-hero-head">
       <div>
         <h2 class="ui-comp-title">UI Lab</h2>
-        <p class="scan-help">
-          Bac &agrave; sable visuel pour tester les composants, couleurs, typographies et densit&eacute;.
-        </p>
+        <p class="scan-help">{% trans "Bac à sable visuel pour tester les composants, couleurs, typographies et densité." %}</p>
       </div>
-      <span class="badge text-bg-warning">Sandbox uniquement</span>
+      <span class="badge text-bg-warning">{% trans "Sandbox uniquement" %}</span>
     </div>
   </section>
 
   <section class="scan-card card border-0 ui-comp-card ui-lab-controls">
-    <h3 class="ui-comp-title">R&eacute;glages live</h3>
+    <h3 class="ui-comp-title">{% trans "Réglages live" %}</h3>
     <div class="ui-lab-controls-grid">
       <div class="scan-field">
-        <label class="form-label" for="ui-lab-palette">Palette</label>
+        <label class="form-label" for="ui-lab-palette">{% trans "Palette" %}</label>
         <select class="form-select" id="ui-lab-palette">
-          <option value="sage">Sauge douce</option>
-          <option value="mist">Bleu brume</option>
-          <option value="tea">Th&eacute; vert sable</option>
+          <option value="sage">{% trans "Sauge douce" %}</option>
+          <option value="mist">{% trans "Bleu brume" %}</option>
+          <option value="tea">{% trans "Thé vert sable" %}</option>
         </select>
       </div>
       <div class="scan-field">
-        <label class="form-label" for="ui-lab-typography">Typographie</label>
+        <label class="form-label" for="ui-lab-typography">{% trans "Typographie" %}</label>
         <select class="form-select" id="ui-lab-typography">
           <option value="dm-nunito" selected>DM Sans + Nunito Sans</option>
           <option value="manrope-source">Manrope + Source Sans 3</option>
@@ -41,15 +39,15 @@
         </select>
       </div>
       <div class="scan-field">
-        <label class="form-label" for="ui-lab-density">Densit&eacute;</label>
+        <label class="form-label" for="ui-lab-density">{% trans "Densité" %}</label>
         <select class="form-select" id="ui-lab-density">
-          <option value="compact">Compact</option>
-          <option value="standard" selected>Standard</option>
-          <option value="airy">A&eacute;r&eacute;</option>
+          <option value="compact">{% trans "Compact" %}</option>
+          <option value="standard" selected>{% trans "Standard" %}</option>
+          <option value="airy">{% trans "Aéré" %}</option>
         </select>
       </div>
     </div>
-    <p class="scan-help">Ces r&eacute;glages s'appliquent uniquement &agrave; cette page (sandbox).</p>
+    <p class="scan-help">{% trans "Ces réglages s'appliquent uniquement à cette page (sandbox)." %}</p>
   </section>
 
   <div
@@ -60,27 +58,29 @@
     data-ui-lab-density="standard"
   >
     <section class="scan-card card border-0 ui-comp-card">
-      <h3 class="ui-comp-title">Typographie</h3>
+      <h3 class="ui-comp-title">{% trans "Typographie" %}</h3>
       <div class="ui-lab-typography">
         <article class="ui-lab-surface">
-          <h4>Titres</h4>
-          <h1>H1 - Op&eacute;rations &amp; exp&eacute;ditions</h1>
-          <h2>H2 - Pr&eacute;paration des commandes</h2>
-          <h3>H3 - D&eacute;tail des stocks</h3>
+          <h4>{% trans "Titres" %}</h4>
+          <h1>{% trans "H1 - Opérations & expéditions" %}</h1>
+          <h2>{% trans "H2 - Préparation des commandes" %}</h2>
+          <h3>{% trans "H3 - Détail des stocks" %}</h3>
         </article>
         <article class="ui-lab-surface">
-          <h4>Texte courant</h4>
+          <h4>{% trans "Texte courant" %}</h4>
           <p>
-            Interface professionnelle et apais&eacute;e, pens&eacute;e pour un usage quotidien en entrep&ocirc;t
-            avec une lecture confortable sur desktop et mobile.
+            {% blocktrans trimmed %}
+              Interface professionnelle et apaisée, pensée pour un usage quotidien en entrepôt
+              avec une lecture confortable sur desktop et mobile.
+            {% endblocktrans %}
           </p>
-          <p class="scan-help">Ce bloc permet de valider le contraste et la densit&eacute; des paragraphes.</p>
+          <p class="scan-help">{% trans "Ce bloc permet de valider le contraste et la densité des paragraphes." %}</p>
         </article>
       </div>
     </section>
 
     <section class="scan-card card border-0 ui-comp-card">
-      <h3 class="ui-comp-title">Palette</h3>
+      <h3 class="ui-comp-title">{% trans "Palette" %}</h3>
       <div class="ui-lab-swatches">
         <div class="ui-lab-swatch swatch-primary"><strong>Primary</strong><span>variable</span></div>
         <div class="ui-lab-swatch swatch-primary-soft"><strong>Primary Soft</strong><span>variable</span></div>
@@ -92,110 +92,110 @@
     </section>
 
     <section class="scan-card card border-0 ui-comp-card">
-      <h3 class="ui-comp-title">Boutons et &eacute;tats</h3>
+      <h3 class="ui-comp-title">{% trans "Boutons et états" %}</h3>
       <div class="ui-lab-row">
-        <button type="button" class="btn btn-primary">Action principale</button>
-        <button type="button" class="btn btn-secondary">Action secondaire</button>
-        <button type="button" class="btn btn-tertiary">Action tertiaire</button>
-        <button type="button" class="btn btn-primary" disabled>D&eacute;sactiv&eacute;</button>
+        <button type="button" class="btn btn-primary">{% trans "Action principale" %}</button>
+        <button type="button" class="btn btn-secondary">{% trans "Action secondaire" %}</button>
+        <button type="button" class="btn btn-tertiary">{% trans "Action tertiaire" %}</button>
+        <button type="button" class="btn btn-primary" disabled>{% trans "Désactivé" %}</button>
       </div>
       <div class="ui-lab-row">
-        <span class="badge text-bg-success">Succ&egrave;s</span>
-        <span class="badge text-bg-warning">Attention</span>
-        <span class="badge text-bg-danger">Erreur</span>
-        <span class="badge text-bg-info">Information</span>
+        <span class="badge text-bg-success">{% trans "Succès" %}</span>
+        <span class="badge text-bg-warning">{% trans "Attention" %}</span>
+        <span class="badge text-bg-danger">{% trans "Erreur" %}</span>
+        <span class="badge text-bg-info">{% trans "Information" %}</span>
       </div>
     </section>
 
     <section class="scan-card card border-0 ui-comp-card">
-      <h3 class="ui-comp-title">Formulaires</h3>
+      <h3 class="ui-comp-title">{% trans "Formulaires" %}</h3>
       <form class="ui-lab-form ui-comp-form" onsubmit="return false;">
         <div class="scan-field">
-          <label class="form-label" for="ui-lab-name">Nom du composant</label>
-          <input class="form-control" id="ui-lab-name" type="text" placeholder="Ex: Table commandes">
+          <label class="form-label" for="ui-lab-name">{% trans "Nom du composant" %}</label>
+          <input class="form-control" id="ui-lab-name" type="text" placeholder="{% trans "Ex: Table commandes" %}">
         </div>
         <div class="scan-field">
-          <label class="form-label" for="ui-lab-type">Type</label>
+          <label class="form-label" for="ui-lab-type">{% trans "Type" %}</label>
           <select class="form-select" id="ui-lab-type">
-            <option>Tableau</option>
-            <option>Formulaire</option>
-            <option>Carte KPI</option>
+            <option>{% trans "Tableau" %}</option>
+            <option>{% trans "Formulaire" %}</option>
+            <option>{% trans "Carte KPI" %}</option>
           </select>
         </div>
         <div class="scan-field">
-          <label class="form-label" for="ui-lab-notes">Notes</label>
-          <textarea class="form-control" id="ui-lab-notes" rows="3" placeholder="Commentaires design"></textarea>
+          <label class="form-label" for="ui-lab-notes">{% trans "Notes" %}</label>
+          <textarea class="form-control" id="ui-lab-notes" rows="3" placeholder="{% trans "Commentaires design" %}"></textarea>
         </div>
       </form>
     </section>
 
     <section class="scan-card card border-0 ui-comp-card">
-      <h3 class="ui-comp-title">Filtres et tri</h3>
+      <h3 class="ui-comp-title">{% trans "Filtres et tri" %}</h3>
       <form class="ui-comp-toolbar" onsubmit="return false;">
         <div class="scan-field ui-comp-filter">
-          <label class="form-label" for="ui-lab-filter-search">Recherche</label>
-          <input class="form-control" id="ui-lab-filter-search" type="text" placeholder="Nom produit, lot, emplacement">
+          <label class="form-label" for="ui-lab-filter-search">{% trans "Recherche" %}</label>
+          <input class="form-control" id="ui-lab-filter-search" type="text" placeholder="{% trans "Nom produit, lot, emplacement" %}">
         </div>
         <div class="scan-field ui-comp-filter">
-          <label class="form-label" for="ui-lab-filter-category">Cat&eacute;gorie</label>
+          <label class="form-label" for="ui-lab-filter-category">{% trans "Catégorie" %}</label>
           <select class="form-select" id="ui-lab-filter-category">
-            <option>Toutes</option>
-            <option>Hygi&egrave;ne</option>
-            <option>M&eacute;dical</option>
-            <option>Logistique</option>
+            <option>{% trans "Toutes" %}</option>
+            <option>{% trans "Hygiène" %}</option>
+            <option>{% trans "Médical" %}</option>
+            <option>{% trans "Logistique" %}</option>
           </select>
         </div>
         <div class="scan-field ui-comp-filter">
-          <label class="form-label" for="ui-lab-filter-state">&Eacute;tat</label>
+          <label class="form-label" for="ui-lab-filter-state">{% trans "État" %}</label>
           <select class="form-select" id="ui-lab-filter-state">
-            <option>Tous</option>
-            <option>Pr&ecirc;t</option>
-            <option>En pr&eacute;paration</option>
-            <option>Bloqu&eacute;</option>
+            <option>{% trans "Tous" %}</option>
+            <option>{% trans "Prêt" %}</option>
+            <option>{% trans "En préparation" %}</option>
+            <option>{% trans "Bloqué" %}</option>
           </select>
         </div>
         <div class="ui-comp-filter-actions">
-          <button type="button" class="btn btn-tertiary btn-sm ui-comp-sort-btn">Tri stock &uarr;</button>
-          <button type="button" class="btn btn-tertiary btn-sm ui-comp-sort-btn">Tri p&eacute;remption &darr;</button>
+          <button type="button" class="btn btn-tertiary btn-sm ui-comp-sort-btn">{% trans "Tri stock ↑" %}</button>
+          <button type="button" class="btn btn-tertiary btn-sm ui-comp-sort-btn">{% trans "Tri péremption ↓" %}</button>
         </div>
       </form>
       <div class="ui-comp-chip-list">
-        <span class="ui-comp-chip">Cat&eacute;gorie: Hygi&egrave;ne</span>
-        <span class="ui-comp-chip">&Eacute;tat: Pr&ecirc;t</span>
+        <span class="ui-comp-chip">{% trans "Catégorie: Hygiène" %}</span>
+        <span class="ui-comp-chip">{% trans "État: Prêt" %}</span>
         <span class="ui-comp-chip">Stock &gt; 20</span>
       </div>
     </section>
 
     <section class="scan-card card border-0 ui-comp-card">
-      <h3 class="ui-comp-title">Tableau</h3>
+      <h3 class="ui-comp-title">{% trans "Tableau" %}</h3>
       <div class="scan-table-wrap table-responsive">
         <table class="scan-table table table-sm table-hover align-middle ui-comp-data-table">
           <thead>
             <tr>
-              <th><button type="button" class="btn btn-tertiary p-0 border-0 bg-transparent">Composant</button></th>
-              <th><button type="button" class="btn btn-tertiary p-0 border-0 bg-transparent">Usage</button></th>
-              <th><button type="button" class="btn btn-tertiary p-0 border-0 bg-transparent">Version</button></th>
-              <th><button type="button" class="btn btn-tertiary p-0 border-0 bg-transparent">&Eacute;tat</button></th>
+              <th><button type="button" class="btn btn-tertiary p-0 border-0 bg-transparent">{% trans "Composant" %}</button></th>
+              <th><button type="button" class="btn btn-tertiary p-0 border-0 bg-transparent">{% trans "Usage" %}</button></th>
+              <th><button type="button" class="btn btn-tertiary p-0 border-0 bg-transparent">{% trans "Version" %}</button></th>
+              <th><button type="button" class="btn btn-tertiary p-0 border-0 bg-transparent">{% trans "État" %}</button></th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td>Primary button</td>
-              <td>CTA principal</td>
+              <td>{% trans "CTA principal" %}</td>
               <td>v1</td>
-              <td><span class="ui-comp-status-pill is-ready">Valid&eacute;</span></td>
+              <td><span class="ui-comp-status-pill is-ready">{% trans "Validé" %}</span></td>
             </tr>
             <tr>
               <td>Form field</td>
-              <td>Entr&eacute;e utilisateur</td>
+              <td>{% trans "Entrée utilisateur" %}</td>
               <td>v2</td>
-              <td><span class="ui-comp-status-pill is-progress">&Agrave; revoir</span></td>
+              <td><span class="ui-comp-status-pill is-progress">{% trans "À revoir" %}</span></td>
             </tr>
             <tr>
               <td>Data table</td>
-              <td>Vues stock/commandes</td>
+              <td>{% trans "Vues stock/commandes" %}</td>
               <td>v1</td>
-              <td><span class="ui-comp-status-pill is-info">En test</span></td>
+              <td><span class="ui-comp-status-pill is-info">{% trans "En test" %}</span></td>
             </tr>
           </tbody>
         </table>
@@ -209,21 +209,21 @@
           <span class="ui-lab-stat-icon"><i class="ti ti-package"></i></span>
           <div class="ui-lab-stat-copy">
             <strong>128</strong>
-            <span>Colis pr&ecirc;ts</span>
+            <span>{% trans "Colis prêts" %}</span>
           </div>
         </article>
         <article class="ui-lab-stat-card ui-comp-kpi-card">
           <span class="ui-lab-stat-icon"><i class="ti ti-clipboard-check"></i></span>
           <div class="ui-lab-stat-copy">
             <strong>42</strong>
-            <span>Commandes valid&eacute;es</span>
+            <span>{% trans "Commandes validées" %}</span>
           </div>
         </article>
         <article class="ui-lab-stat-card ui-comp-kpi-card">
           <span class="ui-lab-stat-icon"><i class="ti ti-truck-delivery"></i></span>
           <div class="ui-lab-stat-copy">
             <strong>7</strong>
-            <span>Exp&eacute;ditions en cours</span>
+            <span>{% trans "Expéditions en cours" %}</span>
           </div>
         </article>
       </div>
@@ -232,15 +232,15 @@
         <article class="ui-lab-activity-item">
           <span class="ui-lab-activity-icon"><i class="ti ti-scan"></i></span>
           <div>
-            <strong>Picking g&eacute;n&eacute;r&eacute;</strong>
-            <p class="scan-help">Carton C-20260227-14 · il y a 4 min</p>
+            <strong>{% trans "Picking généré" %}</strong>
+            <p class="scan-help">{% trans "Carton C-20260227-14 · il y a 4 min" %}</p>
           </div>
         </article>
         <article class="ui-lab-activity-item">
           <span class="ui-lab-activity-icon"><i class="ti ti-user-check"></i></span>
           <div>
-            <strong>Compte association valid&eacute;</strong>
-            <p class="scan-help">Secours Med Local · il y a 12 min</p>
+            <strong>{% trans "Compte association validé" %}</strong>
+            <p class="scan-help">{% trans "Secours Med Local · il y a 12 min" %}</p>
           </div>
         </article>
       </div>

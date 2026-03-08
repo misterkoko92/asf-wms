@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import DateTimeField, F, Max, Q, Value
 from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_http_methods
 
 from .document_scan import DocumentScanStatus
@@ -58,19 +59,21 @@ ACTION_UPLOAD_DOCUMENTS = "upload_docs"
 RECIPIENT_SELF = "self"
 DEFAULT_COUNTRY = "France"
 
-ERROR_RECIPIENT_REQUIRED = "Destinataire requis."
-ERROR_DESTINATION_REQUIRED = "Destination requise."
-ERROR_DESTINATION_INVALID = "Destination invalide."
-ERROR_RECIPIENT_UNAVAILABLE_FOR_DESTINATION = "Destinataire non disponible pour cette destination."
-ERROR_PRODUCT_REQUIRED = "Ajoutez au moins un produit."
-ERROR_ASSOCIATION_ADDRESS_REQUIRED = "Adresse association manquante."
-ERROR_RECIPIENT_INVALID = "Destinataire invalide."
-ERROR_ORDER_UPLOAD_NOT_APPROVED = "Documents disponibles après validation de la commande."
-ERROR_ORDER_NO_DOCUMENT_SELECTED = "Aucun fichier sélectionné."
+ERROR_RECIPIENT_REQUIRED = _("Destinataire requis.")
+ERROR_DESTINATION_REQUIRED = _("Destination requise.")
+ERROR_DESTINATION_INVALID = _("Destination invalide.")
+ERROR_RECIPIENT_UNAVAILABLE_FOR_DESTINATION = _(
+    "Destinataire non disponible pour cette destination."
+)
+ERROR_PRODUCT_REQUIRED = _("Ajoutez au moins un produit.")
+ERROR_ASSOCIATION_ADDRESS_REQUIRED = _("Adresse association manquante.")
+ERROR_RECIPIENT_INVALID = _("Destinataire invalide.")
+ERROR_ORDER_UPLOAD_NOT_APPROVED = _("Documents disponibles après validation de la commande.")
+ERROR_ORDER_NO_DOCUMENT_SELECTED = _("Aucun fichier sélectionné.")
 
-MESSAGE_ORDER_SENT = "Commande envoyée."
-MESSAGE_ORDER_DOCUMENT_ADDED = "Document ajouté."
-MESSAGE_ORDER_DOCUMENTS_ADDED = "Documents ajoutés."
+MESSAGE_ORDER_SENT = _("Commande envoyée.")
+MESSAGE_ORDER_DOCUMENT_ADDED = _("Document ajouté.")
+MESSAGE_ORDER_DOCUMENTS_ADDED = _("Documents ajoutés.")
 
 
 def _get_dashboard_orders(profile):
@@ -142,7 +145,7 @@ def _build_recipient_options(profile, recipients):
     options = [
         {
             "id": RECIPIENT_SELF,
-            "label": f"{profile.contact.name} (association)",
+            "label": _("%(name)s (association)") % {"name": profile.contact.name},
             "destination_id": "",
         },
         *[

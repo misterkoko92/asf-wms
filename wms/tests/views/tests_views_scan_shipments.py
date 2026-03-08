@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 from unittest import mock
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 from django.test import TestCase, override_settings
@@ -28,6 +29,9 @@ class ScanShipmentsViewsTests(TestCase):
         response = HttpResponse(template_name)
         response.context_data = context
         return response
+
+    def _activate_english(self):
+        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = "en"
 
     def _create_shipment(self, *, status=ShipmentStatus.DRAFT):
         return Shipment.objects.create(
@@ -212,6 +216,32 @@ class ScanShipmentsViewsTests(TestCase):
         shipment.refresh_from_db()
         self.assertIsNone(shipment.closed_at)
         self.assertIsNone(shipment.closed_by)
+
+    def test_scan_shipment_pages_render_native_english(self):
+        shipment = self._create_shipment()
+        self._activate_english()
+
+        shipments_ready_response = self.client.get(reverse("scan:scan_shipments_ready"))
+        self.assertContains(shipments_ready_response, "Shipments view")
+        self.assertNotContains(shipments_ready_response, "Vue Exp&eacute;ditions")
+
+        shipments_tracking_response = self.client.get(reverse("scan:scan_shipments_tracking"))
+        self.assertContains(shipments_tracking_response, "Shipment tracking")
+        self.assertContains(shipments_tracking_response, "Planned week")
+        self.assertNotContains(shipments_tracking_response, "Suivi des exp&eacute;ditions")
+
+        shipment_create_response = self.client.get(reverse("scan:scan_shipment_create"))
+        self.assertContains(shipment_create_response, "Create shipment")
+        self.assertContains(shipment_create_response, "Save draft")
+        self.assertNotContains(shipment_create_response, "Cr&eacute;er une exp&eacute;dition")
+
+        with mock.patch("wms.views_scan_shipments.Shipment.ensure_qr_code"):
+            tracking_response = self.client.get(
+                reverse("scan:scan_shipment_track", args=[shipment.tracking_token])
+            )
+        self.assertContains(tracking_response, "Shipment tracking")
+        self.assertContains(tracking_response, "Current status")
+        self.assertNotContains(tracking_response, "Suivi exp&eacute;dition")
 
     def test_scan_pack_get_uses_session_pack_results_and_defaults(self):
         session = self.client.session

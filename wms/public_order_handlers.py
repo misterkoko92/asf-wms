@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.db import transaction
 from django.template.loader import render_to_string
 from django.urls import reverse
+from django.utils.translation import gettext_lazy as _
 
 from .emailing import enqueue_email_safe, get_order_admin_emails, send_email_safe
 from .models import Order, OrderStatus
@@ -19,9 +20,9 @@ LOGGER = logging.getLogger(__name__)
 TEMPLATE_ORDER_CONFIRMATION = "emails/order_confirmation.txt"
 TEMPLATE_ORDER_ADMIN_NOTIFICATION = "emails/order_admin_notification_public.txt"
 
-SUBJECT_PUBLIC_ORDER_ADMIN = "ASF WMS - Nouvelle commande publique"
-SUBJECT_PUBLIC_ORDER_CONFIRMATION = "ASF WMS - Confirmation de commande"
-MESSAGE_CONFIRMATION_WARNING = (
+SUBJECT_PUBLIC_ORDER_ADMIN = _("ASF WMS - Nouvelle commande publique")
+SUBJECT_PUBLIC_ORDER_CONFIRMATION = _("ASF WMS - Confirmation de commande")
+MESSAGE_CONFIRMATION_WARNING = _(
     "Commande envoyée, mais la confirmation email n'a pas pu être planifiée."
 )
 
@@ -34,7 +35,7 @@ def _form_value(form_data, key, default=""):
 
 
 def _order_reference(order):
-    return order.reference or f"Commande {order.id}"
+    return order.reference or (_("Commande %(id)s") % {"id": order.id})
 
 
 def _build_public_order_urls(request, *, token, order):

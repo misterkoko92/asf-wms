@@ -1,12 +1,12 @@
-Nouvelle demande de compte
+{% load i18n %}{% trans "Nouvelle demande de compte" %}
 
-Type de profil: {% if account_type == "user" %}Utilisateur WMS{% else %}Association{% endif %}
-Association / entite: {{ association_name }}
+{% trans "Type de profil" %}: {% if account_type == "user" %}{% trans "Utilisateur WMS" %}{% else %}{% trans "Association" %}{% endif %}
+{% trans "Association / entité" %}: {{ association_name }}
 {% if account_type == "user" %}
-Nom d'utilisateur demande: {{ requested_username|default:"-" }}
+{% trans "Nom d'utilisateur demandé" %}: {{ requested_username|default:"-" }}
 {% endif %}
-Email: {{ email }}
-Telephone: {{ phone|default:"-" }}
+{% trans "Email" %}: {{ email }}
+{% trans "Téléphone" %}: {{ phone|default:"-" }}
 
-Voir dans l'admin:
+{% trans "Voir dans l'admin" %}:
 {{ admin_url }}

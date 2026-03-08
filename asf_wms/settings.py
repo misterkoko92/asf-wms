@@ -111,7 +111,6 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "wms.middleware_runtime_translation.RuntimeEnglishTranslationMiddleware",
 ]
 
 ROOT_URLCONF = "asf_wms.urls"

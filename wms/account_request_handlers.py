@@ -11,6 +11,7 @@ from django.db import transaction
 from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
+from django.utils.translation import gettext as _
 
 from contacts.models import Contact
 
@@ -375,12 +376,12 @@ def _queue_account_request_emails(
         admin_sent = True
         if admin_recipients:
             admin_sent = send_or_enqueue_email_safe(
-                subject="ASF WMS - Nouvelle demande de compte",
+                subject=_("ASF WMS - Nouvelle demande de compte"),
                 message=admin_message,
                 recipient=admin_recipients,
             )
         requester_sent = send_or_enqueue_email_safe(
-            subject="ASF WMS - Demande de compte reçue",
+            subject=_("ASF WMS - Demande de compte reçue"),
             message=requester_message,
             recipient=email,
         )

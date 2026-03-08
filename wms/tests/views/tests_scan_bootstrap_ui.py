@@ -100,7 +100,7 @@ class ScanBootstrapUiTests(TestCase):
         response = self.client.get(reverse("scan:scan_stock"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Vue Stock")
-        self.assertContains(response, "Vue R&eacute;ception")
+        self.assertContains(response, "Vue Réception")
 
     def test_scan_nav_shows_billing_dropdown_for_superuser(self):
         self.client.force_login(self.superuser)

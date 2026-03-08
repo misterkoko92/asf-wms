@@ -4,7 +4,7 @@
 <html lang="{{ LANGUAGE_CODE|default:'fr' }}">
 <head>
   <meta charset="utf-8">
-  <title>Connexion association</title>
+  <title>{% trans "Connexion association" %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -27,11 +27,15 @@
         {% include "includes/language_switch.html" %}
       </div>
       <div class="scan-card card border-0 ui-comp-card">
-        <h2 class="ui-comp-title">Connexion association</h2>
-        <p class="scan-help">Utilisez votre email et votre mot de passe.</p>
-        <p class="scan-help">Pas de compte ? Envoyez une demande, elle sera valid&eacute;e par un administrateur ASF.</p>
+        <h2 class="ui-comp-title">{% trans "Connexion association" %}</h2>
+        <p class="scan-help">{% trans "Utilisez votre email et votre mot de passe." %}</p>
+        <p class="scan-help">
+          {% blocktrans trimmed %}
+          Pas de compte ? Envoyez une demande, elle sera validée par un administrateur ASF.
+          {% endblocktrans %}
+        </p>
         <a class="scan-scan-btn scan-doc-btn btn btn-tertiary" href="{% url 'portal:portal_account_request' %}">
-          Demander un compte
+          {% trans "Demander un compte" %}
         </a>
       </div>
 
@@ -54,13 +58,13 @@
             <input class="form-control" type="text" id="identifier" name="identifier" value="{{ identifier|default:'' }}" required>
           </div>
           <div class="scan-field">
-            <label class="form-label" for="password">Mot de passe</label>
+            <label class="form-label" for="password">{% trans "Mot de passe" %}</label>
             <input class="form-control" type="password" id="password" name="password" required>
           </div>
           <p class="scan-help">
-            <a href="{% url 'portal:portal_forgot_password' %}">Mot de passe oubli&eacute; / Premi&egrave;re connexion</a>
+            <a href="{% url 'portal:portal_forgot_password' %}">{% trans "Mot de passe oublié / Première connexion" %}</a>
           </p>
-          <button type="submit" class="scan-submit btn btn-primary">Se connecter</button>
+          <button type="submit" class="scan-submit btn btn-primary">{% trans "Se connecter" %}</button>
         </form>
       </div>
     </main>

@@ -1,13 +1,13 @@
-Changement de statut expedition
+{% load i18n %}{% trans "Changement de statut expédition" %}
 
-Expedition: {{ shipment_reference }}
-Ancien statut: {{ old_status }}
-Nouveau statut: {{ new_status }}
-Destination: {{ destination_label|default:"-" }}
-Date: {{ changed_at|date:"d/m/Y H:i" }}
+{% trans "Expédition" %}: {{ shipment_reference }}
+{% trans "Ancien statut" %}: {{ old_status }}
+{% trans "Nouveau statut" %}: {{ new_status }}
+{% trans "Destination" %}: {{ destination_label|default:"-" }}
+{% trans "Date" %}: {{ changed_at|date:"d/m/Y H:i" }}
 
-Suivi:
+{% trans "Suivi" %}:
 {{ tracking_url }}
 
-Admin:
+{% trans "Admin" %}:
 {{ admin_url }}

@@ -1,10 +1,11 @@
 {% extends "scan/base.html" %}
+{% load i18n %}
 
-{% block title %}WMS Scan - MAJ stock{% endblock %}
+{% block title %}WMS Scan - {% trans "MAJ stock" %}{% endblock %}
 
 {% block content %}
   <div class="scan-card card border-0 ui-comp-card">
-    <h2 class="ui-comp-title">MAJ stock</h2>
+    <h2 class="ui-comp-title">{% trans "MAJ stock" %}</h2>
     {% if create_form.non_field_errors %}
       <div class="scan-message error">{{ create_form.non_field_errors }}</div>
     {% endif %}
@@ -12,10 +13,10 @@
       {% csrf_token %}
 
       <div class="scan-field">
-        <label class="form-label" for="id_product_code">Nom du produit</label>
+        <label class="form-label" for="id_product_code">{{ create_form.product_code.label }}</label>
         <div class="scan-inline">
           {{ create_form.product_code }}
-          <button type="button" class="scan-scan-btn btn btn-tertiary" data-scan-target="id_product_code">Scan</button>
+          <button type="button" class="scan-scan-btn btn btn-tertiary" data-scan-target="id_product_code">{% trans "Scan" %}</button>
         </div>
         {% for error in create_form.product_code.errors %}
           <div class="scan-message error">{{ error }}</div>
@@ -23,12 +24,12 @@
       </div>
 
       <div id="product-create-actions" class="scan-field" style="display:none;">
-        <a class="scan-submit secondary btn btn-secondary" href="{% url 'admin:wms_product_add' %}">Cr&eacute;er le produit dans la base</a>
+        <a class="scan-submit secondary btn btn-secondary" href="{% url 'admin:wms_product_add' %}">{% trans "Créer le produit dans la base" %}</a>
       </div>
 
       <div id="stock-update-fields" class="scan-stock-update-main-row row g-3">
         <div class="scan-field scan-stock-update-primary-field col-12 col-md-6 col-lg-3">
-          <label class="form-label" for="id_quantity">Quantit&eacute;</label>
+          <label class="form-label" for="id_quantity">{{ create_form.quantity.label }}</label>
           {{ create_form.quantity }}
           {% for error in create_form.quantity.errors %}
             <div class="scan-message error">{{ error }}</div>
@@ -36,7 +37,7 @@
         </div>
 
         <div class="scan-field scan-stock-update-primary-field col-12 col-md-6 col-lg-3">
-          <label class="form-label" for="id_expires_on">Date p&eacute;remption</label>
+          <label class="form-label" for="id_expires_on">{{ create_form.expires_on.label }}</label>
           {{ create_form.expires_on }}
           {% for error in create_form.expires_on.errors %}
             <div class="scan-message error">{{ error }}</div>
@@ -44,7 +45,7 @@
         </div>
 
         <div class="scan-field scan-stock-update-primary-field col-12 col-md-6 col-lg-3">
-          <label class="form-label" for="id_lot_code">Numero de lot</label>
+          <label class="form-label" for="id_lot_code">{{ create_form.lot_code.label }}</label>
           {{ create_form.lot_code }}
           {% for error in create_form.lot_code.errors %}
             <div class="scan-message error">{{ error }}</div>
@@ -52,7 +53,7 @@
         </div>
 
         <div class="scan-field scan-stock-update-primary-field col-12 col-md-6 col-lg-3">
-          <label class="form-label" for="id_donor_contact">Donateur</label>
+          <label class="form-label" for="id_donor_contact">{{ create_form.donor_contact.label }}</label>
           {{ create_form.donor_contact }}
           {% for error in create_form.donor_contact.errors %}
             <div class="scan-message error">{{ error }}</div>
@@ -60,26 +61,26 @@
         </div>
 
         <div class="scan-filter-actions scan-stock-update-actions-inline col-12 d-flex flex-wrap flex-lg-nowrap gap-2 align-items-center">
-          <button type="submit" class="scan-submit btn btn-primary">Enregistrer</button>
+          <button type="submit" class="scan-submit btn btn-primary">{% trans "Enregistrer" %}</button>
           <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
-            Ajouter contact
+            {% trans "Ajouter contact" %}
           </a>
         </div>
 
         <div class="scan-divider col-12"></div>
 
         <div class="scan-field scan-stock-update-readonly-row col-12 col-md-4">
-          <label class="form-label" for="id_brand_display">Marque</label>
+          <label class="form-label" for="id_brand_display">{% trans "Marque" %}</label>
           <input type="text" id="id_brand_display" readonly>
         </div>
 
         <div class="scan-field scan-stock-update-readonly-row col-12 col-md-4">
-          <label class="form-label" for="id_location_display">Emplacement</label>
+          <label class="form-label" for="id_location_display">{% trans "Emplacement" %}</label>
           <input type="text" id="id_location_display" readonly>
         </div>
 
         <div class="scan-field scan-stock-update-readonly-row col-12 col-md-4">
-          <label class="form-label" for="id_warehouse_display">Entrep&ocirc;t</label>
+          <label class="form-label" for="id_warehouse_display">{% trans "Entrepôt" %}</label>
           <input type="text" id="id_warehouse_display" readonly>
         </div>
       </div>

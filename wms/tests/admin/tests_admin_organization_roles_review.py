@@ -1,5 +1,6 @@
+from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from contacts.models import Contact, ContactType
@@ -49,6 +50,9 @@ class OrganizationRolesReviewAdminTests(TestCase):
             correspondent_contact=correspondent,
             is_active=True,
         )
+
+    def _activate_english(self):
+        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = "en"
 
     def test_requires_superuser_access(self):
         self.client.force_login(self.staff_user)
@@ -177,6 +181,37 @@ class OrganizationRolesReviewAdminTests(TestCase):
                 role=models.OrganizationRole.RECIPIENT,
             ).exists()
         )
+
+    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
+    def test_resolve_binding_success_message_renders_in_english(self):
+        recipient_org = self._create_org("Recipient English")
+        shipper_org = self._create_org("Shipper English")
+        destination = self._create_destination("LFW")
+        review_item = models.MigrationReviewItem.objects.create(
+            organization=recipient_org,
+            role=models.OrganizationRole.RECIPIENT,
+            reason_code=REVIEW_REASON_MISSING_SHIPPER_LINKS,
+            status=models.MigrationReviewItemStatus.OPEN,
+            payload={"recipient_id": recipient_org.id},
+        )
+
+        self.client.force_login(self.superuser)
+        self._activate_english()
+        response = self.client.post(
+            self.url,
+            {
+                "action": "resolve_binding",
+                "item_id": str(review_item.id),
+                "shipper_org_id": str(shipper_org.id),
+                "destination_id": str(destination.id),
+                "resolution_note": "English path",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Recipient mapping saved and review item resolved.")
+        self.assertNotContains(response, "Mapping destinataire valide et item resolu.")
 
     def test_resolve_recipient_organization_falls_back_to_legacy_contact_or_legacy_org(self):
         recipient_org = self._create_org("Recipient Legacy")

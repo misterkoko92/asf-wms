@@ -1,13 +1,13 @@
-Bonjour {{ association_name }},
+{% load i18n %}{% blocktrans with association_name=association_name %}Bonjour {{ association_name }},{% endblocktrans %}
 
-Votre commande a bien ete recue par ASF WMS.
+{% trans "Votre commande a bien été reçue par ASF WMS." %}
 
-Reference: {{ order_reference }}
+{% trans "Référence" %}: {{ order_reference }}
 
-Recapitulatif PDF:
+{% trans "Récapitulatif PDF" %}:
 {{ summary_url }}
 
-Nous reviendrons vers vous des que la preparation sera planifiee.
+{% trans "Nous reviendrons vers vous dès que la préparation sera planifiée." %}
 
-Merci,
+{% trans "Merci," %}
 ASF WMS

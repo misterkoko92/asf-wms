@@ -49,6 +49,9 @@ class ScanAdminViewTests(TestCase):
         )
         ProductKitItem.objects.create(kit=self.kit, component=self.component, quantity=5)
 
+    def _activate_english(self):
+        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = "en"
+
     def _design_form_payload(self):
         payload = {
             "action": "save",
@@ -322,7 +325,30 @@ class ScanAdminViewTests(TestCase):
             reverse("scan:scan_product_labels") + "?q=Kit",
         )
         message_texts = [str(message) for message in get_messages(response.wsgi_request)]
-        self.assertIn("Aucun produit selectionne.", message_texts)
+        self.assertIn("Aucun produit sélectionné.", message_texts)
+
+    def test_scan_product_labels_print_actions_require_products_in_native_english(self):
+        self.client.force_login(self.superuser)
+        self._activate_english()
+
+        for route_name in (
+            "scan:scan_product_labels_print_labels",
+            "scan:scan_product_labels_print_qr",
+        ):
+            with self.subTest(route_name=route_name):
+                response = self.client.post(
+                    reverse(route_name),
+                    {"selection_mode": "selection", "q": "Kit"},
+                    follow=True,
+                )
+                self.assertEqual(response.status_code, 200)
+                self.assertRedirects(
+                    response,
+                    reverse("scan:scan_product_labels") + "?q=Kit",
+                )
+                message_texts = [str(message) for message in get_messages(response.wsgi_request)]
+                self.assertIn("No product selected.", message_texts)
+                self.assertNotIn("Aucun produit sélectionné.", message_texts)
 
     def test_scan_admin_design_renders_design_form(self):
         self.client.force_login(self.superuser)

@@ -1,9 +1,10 @@
-{% load static %}
+{% load i18n static %}
+{% get_current_language as LANGUAGE_CODE %}
 <!doctype html>
-<html lang="fr">
+<html lang="{{ LANGUAGE_CODE }}">
 <head>
   <meta charset="utf-8">
-  <title>Recapitulatif commande</title>
+  <title>{% trans "Récapitulatif commande" %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="{% static 'scan/scan.css' %}">
   {% if scan_bootstrap_enabled %}
@@ -23,47 +24,48 @@
   </style>
 </head>
 <body{% if scan_bootstrap_enabled %} class="scan-bootstrap-enabled"{% endif %}>
+  {% trans "Commande" as order_fallback_label %}
   <div class="scan-shell">
     <main class="scan-main">
       <div class="scan-card{% if scan_bootstrap_enabled %} card{% endif %}">
         <div class="summary-header">
-          <h2>R&eacute;capitulatif commande</h2>
-          <button type="button" class="scan-scan-btn no-print{% if scan_bootstrap_enabled %} btn btn-primary{% endif %}" onclick="window.print()">Imprimer / PDF</button>
+          <h2>{% trans "Récapitulatif commande" %}</h2>
+          <button type="button" class="scan-scan-btn no-print{% if scan_bootstrap_enabled %} btn btn-primary{% endif %}" onclick="window.print()">{% trans "Imprimer / PDF" %}</button>
         </div>
         <div class="summary-meta">
           <div>
-            <strong>R&eacute;f&eacute;rence</strong>
-            <div>{{ order.reference|default:"Commande" }}{% if not order.reference %} {{ order.id }}{% endif %}</div>
+            <strong>{% trans "Référence" %}</strong>
+            <div>{{ order.reference|default:order_fallback_label }}{% if not order.reference %} {{ order.id }}{% endif %}</div>
           </div>
           <div>
-            <strong>Association</strong>
+            <strong>{% trans "Association" %}</strong>
             <div>{{ order.recipient_name }}</div>
           </div>
           <div>
-            <strong>Adresse</strong>
+            <strong>{% trans "Adresse" %}</strong>
             <div>{{ order.destination_address|linebreaksbr }}</div>
           </div>
           <div>
-            <strong>Statut</strong>
+            <strong>{% trans "Statut" %}</strong>
             <div>{{ order.get_status_display }}</div>
           </div>
         </div>
         {% if carton_format %}
           <div class="scan-help">
-            Estimation basee sur le format: {{ carton_format.name }} ({{ carton_format.length_cm }}x{{ carton_format.width_cm }}x{{ carton_format.height_cm }} cm).
+            {% blocktrans with name=carton_format.name length=carton_format.length_cm width=carton_format.width_cm height=carton_format.height_cm trimmed %}Estimation basee sur le format: {{ name }} ({{ length }}x{{ width }}x{{ height }} cm).{% endblocktrans %}
           </div>
         {% endif %}
       </div>
 
       <div class="scan-card{% if scan_bootstrap_enabled %} card{% endif %}">
-        <h3>Produits demandes</h3>
+        <h3>{% trans "Produits demandés" %}</h3>
         <div class="scan-table-wrap{% if scan_bootstrap_enabled %} table-responsive{% endif %}">
           <table class="scan-table{% if scan_bootstrap_enabled %} table table-sm table-hover align-middle{% endif %}">
             <thead>
               <tr>
-                <th>Produit</th>
-                <th>Quantit&eacute;</th>
-                <th>Cartons estimes</th>
+                <th>{% trans "Produit" %}</th>
+                <th>{% trans "Quantité" %}</th>
+                <th>{% trans "Cartons estimés" %}</th>
               </tr>
             </thead>
             <tbody>
@@ -78,7 +80,7 @@
           </table>
         </div>
         <div class="scan-field{% if scan_bootstrap_enabled %} mt-3{% endif %}">
-          <label{% if scan_bootstrap_enabled %} class="form-label"{% endif %}>Total cartons estimes</label>
+          <label{% if scan_bootstrap_enabled %} class="form-label"{% endif %}>{% trans "Total cartons estimés" %}</label>
           <div class="scan-help">{{ total_cartons|default:"-" }}</div>
         </div>
       </div>

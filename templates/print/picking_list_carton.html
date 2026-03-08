@@ -1,6 +1,7 @@
 {% extends "print/base_a5.html" %}
+{% load i18n %}
 
-{% block title %}Picking carton{% endblock %}
+{% block title %}{% trans "Picking carton" %}{% endblock %}
 
 {% block extra_style %}
   .print-body { padding-bottom: 0; }
@@ -57,16 +58,16 @@
 {% block body %}
   <section class="picking-sheet">
     <div class="picking-head">
-      <h1>Liste picking - carton</h1>
-      <p class="picking-meta">Carton code: {{ carton_code }}</p>
+      <h1>{% trans "Liste picking - carton" %}</h1>
+      <p class="picking-meta">{% trans "Code carton" %}: {{ carton_code }}</p>
     </div>
 
     <table class="picking-table">
       <thead>
         <tr>
-          <th>Produit</th>
-          <th>Quantit&eacute;</th>
-          <th>Emplacement (Rack - &Eacute;tag&egrave;re - Bac)</th>
+          <th>{% trans "Produit" %}</th>
+          <th>{% trans "Quantité" %}</th>
+          <th>{% trans "Emplacement (Rack - Étagère - Bac)" %}</th>
         </tr>
       </thead>
       <tbody>

@@ -10,6 +10,7 @@ from django.db import transaction
 from django.db.models import Count
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods
 from openpyxl import load_workbook
 from openpyxl.utils.cell import column_index_from_string, coordinate_from_string
@@ -434,7 +435,8 @@ def _collect_mapping_rows(request):
             continue
         if not (worksheet_name and column and row_value and source_key):
             errors.append(
-                f"Ligne {index + 1}: worksheet, colonne, ligne et champ source sont requis."
+                _("Ligne %(line_number)s: worksheet, colonne, ligne et champ source sont requis.")
+                % {"line_number": index + 1}
             )
             continue
         if sequence_raw.isdigit() and int(sequence_raw) > 0:
@@ -459,7 +461,7 @@ def _validate_and_normalize_rows(parsed_rows, workbook):
     normalized_rows = []
     errors = []
     if workbook is None:
-        return [], ["Template XLSX introuvable ou invalide."]
+        return [], [_("Template XLSX introuvable ou invalide.")]
     worksheet_map = {
         worksheet_name: workbook[worksheet_name] for worksheet_name in workbook.sheetnames
     }
@@ -467,32 +469,50 @@ def _validate_and_normalize_rows(parsed_rows, workbook):
     for index, row_data in enumerate(parsed_rows, start=1):
         worksheet_name = row_data["worksheet_name"]
         if worksheet_name not in worksheet_map:
-            errors.append(f"Ligne {index}: worksheet inconnu ({worksheet_name}).")
+            errors.append(
+                _("Ligne %(line_number)s: worksheet inconnu (%(worksheet_name)s).")
+                % {"line_number": index, "worksheet_name": worksheet_name}
+            )
             continue
         worksheet = worksheet_map[worksheet_name]
         try:
             row_number = int(row_data["row"])
         except (TypeError, ValueError):
-            errors.append(f"Ligne {index}: numéro de ligne invalide ({row_data['row']}).")
+            errors.append(
+                _("Ligne %(line_number)s: numéro de ligne invalide (%(row_value)s).")
+                % {"line_number": index, "row_value": row_data["row"]}
+            )
             continue
         if row_number <= 0 or row_number > max(1, int(worksheet.max_row or 1)):
             errors.append(
-                f"Ligne {index}: numéro de ligne hors limites pour la feuille {worksheet_name}."
+                _(
+                    "Ligne %(line_number)s: numéro de ligne hors limites pour la feuille %(worksheet_name)s."
+                )
+                % {"line_number": index, "worksheet_name": worksheet_name}
             )
             continue
         column = row_data["column"].upper()
         try:
             column_index_from_string(column)
         except ValueError:
-            errors.append(f"Ligne {index}: colonne invalide ({column}).")
+            errors.append(
+                _("Ligne %(line_number)s: colonne invalide (%(column)s).")
+                % {"line_number": index, "column": column}
+            )
             continue
         source_key = row_data["source_key"]
         if not is_allowed_source_key(source_key):
-            errors.append(f"Ligne {index}: champ source invalide ({source_key}).")
+            errors.append(
+                _("Ligne %(line_number)s: champ source invalide (%(source_key)s).")
+                % {"line_number": index, "source_key": source_key}
+            )
             continue
         transform = row_data["transform"]
         if transform not in VALID_TRANSFORMS:
-            errors.append(f"Ligne {index}: transformation invalide ({transform}).")
+            errors.append(
+                _("Ligne %(line_number)s: transformation invalide (%(transform)s).")
+                % {"line_number": index, "transform": transform}
+            )
             continue
         normalized_cell_ref, _merged_range = normalize_cell_ref(
             worksheet,
@@ -501,7 +521,12 @@ def _validate_and_normalize_rows(parsed_rows, workbook):
         dedupe_key = (worksheet_name, normalized_cell_ref)
         if dedupe_key in seen_cells:
             errors.append(
-                f"Ligne {index}: cellule dupliquée ({worksheet_name}!{normalized_cell_ref})."
+                _("Ligne %(line_number)s: cellule dupliquée (%(worksheet_name)s!%(cell_ref)s).")
+                % {
+                    "line_number": index,
+                    "worksheet_name": worksheet_name,
+                    "cell_ref": normalized_cell_ref,
+                }
             )
             continue
         seen_cells.add(dedupe_key)
@@ -584,12 +609,12 @@ def _handle_pack_document_save(request, pack_document):
     if uploaded_file is not None:
         uploaded_filename = basename(uploaded_file.name or "")
         if not uploaded_filename.lower().endswith(".xlsx"):
-            messages.error(request, "Le fichier doit être au format .xlsx.")
+            messages.error(request, _("Le fichier doit être au format .xlsx."))
             return
         uploaded_bytes = uploaded_file.read()
         workbook = _load_workbook_or_none(uploaded_bytes)
         if workbook is None:
-            messages.error(request, "Le fichier XLSX uploadé est invalide.")
+            messages.error(request, _("Le fichier XLSX uploadé est invalide."))
             return
     else:
         fallback_template_bytes, _from_db = _read_effective_template_bytes(pack_document)
@@ -597,7 +622,7 @@ def _handle_pack_document_save(request, pack_document):
         if workbook is None:
             messages.error(
                 request,
-                "Aucun template XLSX disponible. Uploadez un fichier avant de mapper.",
+                _("Aucun template XLSX disponible. Uploadez un fichier avant de mapper."),
             )
             return
     try:
@@ -622,13 +647,13 @@ def _handle_pack_document_save(request, pack_document):
         )
     finally:
         workbook.close()
-    messages.success(request, "Template XLSX et mappings enregistrés.")
+    messages.success(request, _("Template XLSX et mappings enregistrés."))
 
 
 def _handle_pack_document_restore(request, pack_document):
     version_id = (request.POST.get("version_id") or "").strip()
     if not version_id.isdigit():
-        messages.error(request, "Version requise.")
+        messages.error(request, _("Version requise."))
         return
     version = get_object_or_404(
         PrintPackDocumentVersion,
@@ -640,7 +665,9 @@ def _handle_pack_document_restore(request, pack_document):
         created_by=request.user,
         change_note=(request.POST.get("change_note") or "").strip(),
     )
-    messages.success(request, f"Version v{version.version} restaurée.")
+    messages.success(
+        request, _("Version v%(version_number)s restaurée.") % {"version_number": version.version}
+    )
 
 
 @scan_staff_required
@@ -672,7 +699,7 @@ def scan_print_template_edit(request, doc_type):
         elif action == "save":
             _handle_pack_document_save(request, pack_document)
         else:
-            messages.error(request, f"Action inconnue: {action}")
+            messages.error(request, _("Action inconnue: %(action)s") % {"action": action})
         return _redirect_template_edit(str(pack_document.id))
 
     return render(

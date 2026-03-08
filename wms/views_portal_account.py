@@ -5,6 +5,7 @@ from django.core.validators import EmailValidator
 from django.db import transaction
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_http_methods
 
 from .account_request_handlers import handle_account_request_form
@@ -49,31 +50,33 @@ ACTION_REQUEST_BILLING_PREFERENCES = "request_billing_preferences"
 
 DEFAULT_COUNTRY = "France"
 MAX_PORTAL_CONTACTS = 10
-MESSAGE_RECIPIENT_ADDED = "Destinataire ajouté."
-MESSAGE_RECIPIENT_UPDATED = "Destinataire modifié."
-MESSAGE_PROFILE_UPDATED = "Compte mis à jour."
-MESSAGE_CONTACTS_UPDATED = "Contacts emails mis à jour."
-MESSAGE_UPDATE_NOTIFICATIONS_DEPRECATED = (
+MESSAGE_RECIPIENT_ADDED = _("Destinataire ajouté.")
+MESSAGE_RECIPIENT_UPDATED = _("Destinataire modifié.")
+MESSAGE_PROFILE_UPDATED = _("Compte mis à jour.")
+MESSAGE_CONTACTS_UPDATED = _("Contacts emails mis à jour.")
+MESSAGE_UPDATE_NOTIFICATIONS_DEPRECATED = _(
     "Action obsolète: mettez à jour les contacts emails depuis le formulaire principal."
 )
-MESSAGE_DOCUMENT_ADDED = "Document ajouté."
-MESSAGE_DOCUMENTS_ADDED = "Documents ajoutés."
-MESSAGE_BILLING_PREFERENCES_REQUESTED = "Demande de preferences de facturation envoyee."
-ERROR_NO_DOCUMENT_SELECTED = "Aucun fichier sélectionné."
-ERROR_RECIPIENT_DESTINATION_REQUIRED = "Escale de livraison requise."
-ERROR_RECIPIENT_STRUCTURE_REQUIRED = "Nom de la structure requis."
-ERROR_RECIPIENT_ADDRESS_REQUIRED = "Adresse requise."
-ERROR_RECIPIENT_TITLE_INVALID = "Titre de contact invalide."
-ERROR_RECIPIENT_EMAILS_INVALID = "Emails invalides: {values}."
-ERROR_RECIPIENT_NOTIFY_EMAIL_REQUIRED = (
+MESSAGE_DOCUMENT_ADDED = _("Document ajouté.")
+MESSAGE_DOCUMENTS_ADDED = _("Documents ajoutés.")
+MESSAGE_BILLING_PREFERENCES_REQUESTED = _("Demande de préférences de facturation envoyée.")
+ERROR_NO_DOCUMENT_SELECTED = _("Aucun fichier sélectionné.")
+ERROR_RECIPIENT_DESTINATION_REQUIRED = _("Escale de livraison requise.")
+ERROR_RECIPIENT_STRUCTURE_REQUIRED = _("Nom de la structure requis.")
+ERROR_RECIPIENT_ADDRESS_REQUIRED = _("Adresse requise.")
+ERROR_RECIPIENT_TITLE_INVALID = _("Titre de contact invalide.")
+ERROR_RECIPIENT_EMAILS_INVALID = _("Emails invalides: %(values)s.")
+ERROR_RECIPIENT_NOTIFY_EMAIL_REQUIRED = _(
     "Ajoutez au moins un email pour activer l'alerte de livraison."
 )
-ERROR_RECIPIENT_NOT_FOUND = "Destinataire introuvable."
-ERROR_ASSOCIATION_NAME_REQUIRED = "Nom de l'association requis."
-ERROR_ASSOCIATION_ADDRESS_REQUIRED = "Adresse requise."
-ERROR_CONTACT_ROWS_LIMIT = f"Maximum {MAX_PORTAL_CONTACTS} contacts."
-ERROR_CONTACT_REQUIRED = "Ajoutez au moins un contact email."
-ERROR_BILLING_PREFERENCES_INVALID = "Choisissez une periodicite et un mode de regroupement valides."
+ERROR_RECIPIENT_NOT_FOUND = _("Destinataire introuvable.")
+ERROR_ASSOCIATION_NAME_REQUIRED = _("Nom de l'association requis.")
+ERROR_ASSOCIATION_ADDRESS_REQUIRED = _("Adresse requise.")
+ERROR_CONTACT_ROWS_LIMIT = _("Maximum %(count)s contacts.")
+ERROR_CONTACT_REQUIRED = _("Ajoutez au moins un contact email.")
+ERROR_BILLING_PREFERENCES_INVALID = _(
+    "Choisissez une périodicité et un mode de regroupement valides."
+)
 
 
 def _split_multi_values(value):
@@ -171,7 +174,7 @@ def _validate_recipient_form_data(form_data, destinations_by_id):
         except ValidationError:
             invalid_emails.append(value)
     if invalid_emails:
-        errors.append(ERROR_RECIPIENT_EMAILS_INVALID.format(values=", ".join(invalid_emails)))
+        errors.append(ERROR_RECIPIENT_EMAILS_INVALID % {"values": ", ".join(invalid_emails)})
     if form_data["notify_deliveries"] and not email_values:
         errors.append(ERROR_RECIPIENT_NOTIFY_EMAIL_REQUIRED)
 
@@ -181,10 +184,11 @@ def _validate_recipient_form_data(form_data, destinations_by_id):
 
 
 def _build_recipient_payload(form_data):
+    title_label = dict(AssociationContactTitle.choices).get(form_data["contact_title"], "")
     contact_display = " ".join(
         part
         for part in [
-            dict(AssociationContactTitle.choices).get(form_data["contact_title"], ""),
+            str(title_label) if title_label else "",
             form_data["contact_first_name"],
             (form_data["contact_last_name"] or "").upper(),
         ]
@@ -359,7 +363,7 @@ def _extract_contact_rows(post_data):
     errors = []
     requested_count = parse_int(post_data.get("contact_count")) or 1
     if requested_count > MAX_PORTAL_CONTACTS:
-        errors.append(ERROR_CONTACT_ROWS_LIMIT)
+        errors.append(ERROR_CONTACT_ROWS_LIMIT % {"count": MAX_PORTAL_CONTACTS})
     count = min(max(1, requested_count), MAX_PORTAL_CONTACTS)
     rows = []
     for index in range(count):
@@ -389,9 +393,9 @@ def _extract_contact_rows(post_data):
         if not has_values:
             continue
         if not row["email"]:
-            errors.append(f"Ligne {index + 1}: email requis.")
+            errors.append(_("Ligne %(index)s: email requis.") % {"index": index + 1})
         if not (row["is_administrative"] or row["is_shipping"] or row["is_billing"]):
-            errors.append(f"Ligne {index + 1}: cochez au moins un type.")
+            errors.append(_("Ligne %(index)s: cochez au moins un type.") % {"index": index + 1})
         rows.append(row)
 
     if not rows:

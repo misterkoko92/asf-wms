@@ -7,6 +7,7 @@ from django.db.models.signals import post_delete, post_save, pre_save
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from contacts.models import Contact
 
@@ -163,7 +164,8 @@ def _notify_shipment_delivery(instance) -> None:
     )
     transaction.on_commit(
         lambda: send_or_enqueue_email_safe(
-            subject=f"ASF WMS - Expedition {instance.reference} : livraison confirmee",
+            subject=_("ASF WMS - Expedition %(reference)s : livraison confirmee")
+            % {"reference": instance.reference},
             message=message,
             recipient=recipients,
         )
@@ -335,7 +337,11 @@ def _notify_role_based_shipment_status_change(*, shipment, old_label, new_label)
     _dispatch_shipment_role_event(
         shipment=shipment,
         event_type=RoleEventType.SHIPMENT_STATUS_UPDATED,
-        subject=f"ASF WMS - Expédition {shipment.reference} : statut {new_label}",
+        subject=_("ASF WMS - Expédition %(reference)s : statut %(status)s")
+        % {
+            "reference": shipment.reference,
+            "status": new_label,
+        },
         message=party_message,
         shipper_org=shipper_org,
         recipient_org=recipient_org,
@@ -358,7 +364,8 @@ def _notify_role_based_shipment_status_change(*, shipment, old_label, new_label)
     _dispatch_shipment_role_event(
         shipment=shipment,
         event_type=RoleEventType.SHIPMENT_DELIVERED,
-        subject=f"ASF WMS - Expedition {shipment.reference} : livraison confirmee",
+        subject=_("ASF WMS - Expedition %(reference)s : livraison confirmee")
+        % {"reference": shipment.reference},
         message=delivered_message,
         shipper_org=shipper_org,
         recipient_org=recipient_org,
@@ -379,18 +386,18 @@ def _notify_role_based_tracking_event(*, tracking_event):
     )
     message = "\n".join(
         [
-            f"Expedition: {shipment.reference}",
-            f"Statut suivi: {tracking_label}",
-            f"Acteur: {tracking_event.actor_name or '-'}",
-            f"Structure: {tracking_event.actor_structure or '-'}",
-            f"Commentaires: {tracking_event.comments or '-'}",
-            f"Tracking: {shipment.get_tracking_url()}",
+            _("Expedition: %(reference)s") % {"reference": shipment.reference},
+            _("Statut suivi: %(status)s") % {"status": tracking_label},
+            _("Acteur: %(actor)s") % {"actor": tracking_event.actor_name or "-"},
+            _("Structure: %(structure)s") % {"structure": tracking_event.actor_structure or "-"},
+            _("Commentaires: %(comments)s") % {"comments": tracking_event.comments or "-"},
+            _("Tracking: %(url)s") % {"url": shipment.get_tracking_url()},
         ]
     )
     _dispatch_shipment_role_event(
         shipment=shipment,
         event_type=RoleEventType.SHIPMENT_TRACKING_UPDATED,
-        subject=f"ASF WMS - Suivi expédition {shipment.reference}",
+        subject=_("ASF WMS - Suivi expédition %(reference)s") % {"reference": shipment.reference},
         message=message,
         shipper_org=shipper_org,
         recipient_org=recipient_org,
@@ -418,7 +425,11 @@ def _queue_shipment_party_notification(*, shipment, old_label, new_label):
     )
     transaction.on_commit(
         lambda: send_or_enqueue_email_safe(
-            subject=f"ASF WMS - Expédition {shipment.reference} : statut {new_label}",
+            subject=_("ASF WMS - Expédition %(reference)s : statut %(status)s")
+            % {
+                "reference": shipment.reference,
+                "status": new_label,
+            },
             message=message,
             recipient=recipients,
         )
@@ -450,7 +461,11 @@ def _queue_shipment_correspondant_notification(
     )
     transaction.on_commit(
         lambda: send_or_enqueue_email_safe(
-            subject=(f"ASF WMS - Suivi correspondant {shipment.reference} : {new_label}"),
+            subject=_("ASF WMS - Suivi correspondant %(reference)s : %(status)s")
+            % {
+                "reference": shipment.reference,
+                "status": new_label,
+            },
             message=message,
             recipient=recipients,
         )
@@ -496,7 +511,8 @@ def _notify_shipment_status_change(sender, instance, created, **kwargs) -> None:
         )
         transaction.on_commit(
             lambda: send_or_enqueue_email_safe(
-                subject=f"ASF WMS - Expédition {instance.reference} : statut mis à jour",
+                subject=_("ASF WMS - Expédition %(reference)s : statut mis à jour")
+                % {"reference": instance.reference},
                 message=message,
                 recipient=admin_recipients,
             )
@@ -561,7 +577,8 @@ def _notify_tracking_event(sender, instance, created, **kwargs) -> None:
         )
         transaction.on_commit(
             lambda: send_or_enqueue_email_safe(
-                subject=f"ASF WMS - Suivi expédition {shipment.reference}",
+                subject=_("ASF WMS - Suivi expédition %(reference)s")
+                % {"reference": shipment.reference},
                 message=message,
                 recipient=recipients,
             )
@@ -655,7 +672,7 @@ def _notify_order_status_change(sender, instance, created, **kwargs) -> None:
     message = render_to_string(
         ORDER_STATUS_ASSOCIATION_TEMPLATE,
         {
-            "order_reference": instance.reference or f"Commande {instance.id}",
+            "order_reference": instance.reference or (_("Commande %(id)s") % {"id": instance.id}),
             "old_status": _order_state_status_label(previous_status) or "-",
             "new_status": _order_state_status_label(instance.status),
             "old_review_status": _order_review_status_label(previous_review_status) or "-",
@@ -665,10 +682,8 @@ def _notify_order_status_change(sender, instance, created, **kwargs) -> None:
     )
     transaction.on_commit(
         lambda: send_or_enqueue_email_safe(
-            subject=(
-                f"ASF WMS - Commande {instance.reference or instance.id} : "
-                "validation/statut mis à jour"
-            ),
+            subject=_("ASF WMS - Commande %(reference)s : validation/statut mis à jour")
+            % {"reference": instance.reference or instance.id},
             message=message,
             recipient=recipients,
         )

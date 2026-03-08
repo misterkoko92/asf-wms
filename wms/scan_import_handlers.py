@@ -4,6 +4,8 @@ from pathlib import Path
 
 from django.contrib import messages
 from django.shortcuts import redirect, render
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _lazy
 
 from .import_results import normalize_import_result
 from .import_services import (
@@ -38,25 +40,31 @@ ACTION_PRODUCT_SINGLE = "product_single"
 ACTION_PRODUCT_FILE = "product_file"
 
 IMPORT_FILE_ACTIONS = {
-    "location_file": ("emplacements", import_locations),
-    "category_file": ("categories", import_categories),
-    "warehouse_file": ("entrepôts", import_warehouses),
-    "contact_file": ("contacts", import_contacts),
-    "user_file": ("utilisateurs", import_users),
+    "location_file": (_lazy("emplacements"), import_locations),
+    "category_file": (_lazy("categories"), import_categories),
+    "warehouse_file": (_lazy("entrepôts"), import_warehouses),
+    "contact_file": (_lazy("contacts"), import_contacts),
+    "user_file": (_lazy("utilisateurs"), import_users),
 }
 
 IMPORT_SINGLE_ACTIONS = {
-    "location_single": ("emplacement", import_locations),
-    "category_single": ("categorie", import_categories),
-    "warehouse_single": ("entrepôt", import_warehouses),
-    "contact_single": ("contact", import_contacts),
-    "user_single": ("utilisateur", import_users),
+    "location_single": (_lazy("emplacement"), import_locations),
+    "category_single": (_lazy("categorie"), import_categories),
+    "warehouse_single": (_lazy("entrepôt"), import_warehouses),
+    "contact_single": (_lazy("contact"), import_contacts),
+    "user_single": (_lazy("utilisateur"), import_users),
 }
 
 PRODUCT_ACTION_HANDLERS = {
     ACTION_PRODUCT_SINGLE: lambda request, **_: _handle_product_single_action(request),
     ACTION_PRODUCT_FILE: lambda request, **_: _handle_product_file_action(request),
 }
+
+
+def _translate_runtime_message(message):
+    if not message:
+        return ""
+    return str(_(str(message)))
 
 
 def render_scan_import(request, pending_import):
@@ -72,15 +80,31 @@ def _redirect_scan_import():
 def _add_limited_message_list(request, *, title, entries, label):
     if not entries:
         return
-    messages.warning(request, f"{title}: {len(entries)} {label}(s).")
+    messages.warning(
+        request,
+        _("%(title)s: %(count)s %(label)s(s).")
+        % {
+            "title": _translate_runtime_message(title),
+            "count": len(entries),
+            "label": _translate_runtime_message(label),
+        },
+    )
     for message in entries[:MAX_IMPORT_MESSAGES]:
-        messages.warning(request, message)
+        messages.warning(request, _translate_runtime_message(message))
 
 
 def _notify_import_result(request, *, title, created, updated, errors, warnings):
-    _add_limited_message_list(request, title=title, entries=errors, label="erreur")
-    _add_limited_message_list(request, title=title, entries=warnings, label="alerte")
-    messages.success(request, f"{title}: {created} créé(s), {updated} maj.")
+    _add_limited_message_list(request, title=title, entries=errors, label=_("erreur"))
+    _add_limited_message_list(request, title=title, entries=warnings, label=_("alerte"))
+    messages.success(
+        request,
+        _("%(title)s: %(created)s créé(s), %(updated)s maj.")
+        % {
+            "title": _translate_runtime_message(title),
+            "created": created,
+            "updated": updated,
+        },
+    )
 
 
 def _normalize_product_import_result(result):
@@ -105,17 +129,24 @@ def _notify_product_import_result(
     warnings,
     stats,
 ):
-    _add_limited_message_list(request, title=title, entries=errors, label="erreur")
-    _add_limited_message_list(request, title=title, entries=warnings, label="alerte")
+    _add_limited_message_list(request, title=title, entries=errors, label=_("erreur"))
+    _add_limited_message_list(request, title=title, entries=warnings, label=_("alerte"))
     distinct_products = stats.get("distinct_products", created + updated)
     temp_location_rows = stats.get("temp_location_rows", 0)
     messages.success(
         request,
-        (
-            f"{title}: {created} créé(s), {updated} ligne(s) maj., "
-            f"{distinct_products} produit(s) distinct(s) impacté(s), "
-            f"{temp_location_rows} ligne(s) envoyée(s) vers TEMP."
-        ),
+        _(
+            "%(title)s: %(created)s créé(s), %(updated)s ligne(s) maj., "
+            "%(distinct_products)s produit(s) distinct(s) impacté(s), "
+            "%(temp_location_rows)s ligne(s) envoyée(s) vers TEMP."
+        )
+        % {
+            "title": _translate_runtime_message(title),
+            "created": created,
+            "updated": updated,
+            "distinct_products": distinct_products,
+            "temp_location_rows": temp_location_rows,
+        },
     )
 
 
@@ -153,13 +184,13 @@ def _build_pending_decisions(request, pending):
         if not match_id:
             messages.error(
                 request,
-                "Import produit: sélection requise pour la mise à jour.",
+                _("Import produit: sélection requise pour la mise à jour."),
             )
             return None
         if str(match_id) not in match_ids:
             messages.error(
                 request,
-                "Import produit: produit cible invalide.",
+                _("Import produit: produit cible invalide."),
             )
             return None
         decisions[row_index] = {
@@ -260,11 +291,11 @@ def _handle_product_confirm_action(request, *, clear_pending_import):
     pending = _get_pending_import(request)
     token = (request.POST.get("pending_token") or "").strip()
     if not pending or token != pending.get("token"):
-        messages.error(request, "Import produit: confirmation invalide.")
+        messages.error(request, _("Import produit: confirmation invalide."))
         return _redirect_scan_import()
     if request.POST.get("cancel"):
         clear_pending_import()
-        messages.info(request, "Import produit annule.")
+        messages.info(request, _("Import produit annule."))
         return _redirect_scan_import()
 
     decisions = _build_pending_decisions(request, pending)
@@ -276,7 +307,7 @@ def _handle_product_confirm_action(request, *, clear_pending_import):
         clear_pending_import=clear_pending_import,
     )
     if rows is None:
-        messages.error(request, "Import produit: fichier temporaire introuvable.")
+        messages.error(request, _("Import produit: fichier temporaire introuvable."))
         return _redirect_scan_import()
 
     result = import_products_rows(
@@ -292,7 +323,7 @@ def _handle_product_confirm_action(request, *, clear_pending_import):
     clear_pending_import()
     _notify_product_import_result(
         request,
-        title="Import produits",
+        title=_("Import produits"),
         created=created,
         updated=updated,
         errors=errors,
@@ -334,11 +365,11 @@ def _handle_product_single_action(request):
         start_index=PRODUCT_IMPORT_START_INDEX_SINGLE,
     )
     if errors:
-        messages.error(request, errors[0])
+        messages.error(request, _translate_runtime_message(errors[0]))
     else:
         for message in warnings[:MAX_IMPORT_MESSAGES]:
-            messages.warning(request, message)
-        messages.success(request, "Produit créé.")
+            messages.warning(request, _translate_runtime_message(message))
+        messages.success(request, _("Produit créé."))
     return _redirect_scan_import()
 
 
@@ -347,12 +378,12 @@ def _handle_product_file_action(request):
     update_existing = bool(request.POST.get("update_existing"))
     quantity_mode = normalize_quantity_mode(request.POST.get(PRODUCT_STOCK_MODE_FIELD))
     if not uploaded:
-        messages.error(request, "Fichier requis pour importer les produits.")
+        messages.error(request, _("Fichier requis pour importer les produits."))
         return _redirect_scan_import()
 
     extension, data = _read_product_file_upload(uploaded)
     if _unsupported_product_extension(extension):
-        messages.error(request, "Format non supporte. Utilisez CSV/XLS/XLSX.")
+        messages.error(request, _("Format non supporte. Utilisez CSV/XLS/XLSX."))
         return _redirect_scan_import()
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=extension) as temp:
@@ -386,7 +417,7 @@ def _handle_product_file_action(request):
     Path(temp_path).unlink(missing_ok=True)
     _notify_product_import_result(
         request,
-        title="Import produits",
+        title=_("Import produits"),
         created=created,
         updated=updated,
         errors=errors,
@@ -400,7 +431,11 @@ def _handle_import_file_action(request, *, action, default_password):
     label, importer = IMPORT_FILE_ACTIONS[action]
     uploaded = request.FILES.get("import_file")
     if not uploaded:
-        messages.error(request, f"Fichier requis pour importer les {label}.")
+        messages.error(
+            request,
+            _("Fichier requis pour importer les %(label)s.")
+            % {"label": _translate_runtime_message(label)},
+        )
         return _redirect_scan_import()
 
     extension = Path(uploaded.name).suffix.lower()
@@ -414,13 +449,20 @@ def _handle_import_file_action(request, *, action, default_password):
             default_password=default_password,
         )
     except ValueError as exc:
-        messages.error(request, f"Import {label}: {exc}")
+        messages.error(
+            request,
+            _("Import %(label)s: %(message)s")
+            % {
+                "label": _translate_runtime_message(label),
+                "message": _translate_runtime_message(exc),
+            },
+        )
         return _redirect_scan_import()
 
     created, updated, errors, warnings = normalize_import_result(result)
     _notify_import_result(
         request,
-        title=f"Import {label}",
+        title=_("Import %(label)s") % {"label": label},
         created=created,
         updated=updated,
         errors=errors,
@@ -440,17 +482,27 @@ def _handle_import_single_action(request, *, action, default_password):
             default_password=default_password,
         )
     except ValueError as exc:
-        messages.error(request, f"Ajout {label}: {exc}")
+        messages.error(
+            request,
+            _("Ajout %(label)s: %(message)s")
+            % {
+                "label": _translate_runtime_message(label),
+                "message": _translate_runtime_message(exc),
+            },
+        )
         return _redirect_scan_import()
 
     created, updated, errors, warnings = normalize_import_result(result)
     if errors:
-        messages.error(request, errors[0])
+        messages.error(request, _translate_runtime_message(errors[0]))
     elif warnings:
         for message in warnings[:MAX_IMPORT_MESSAGES]:
-            messages.warning(request, message)
+            messages.warning(request, _translate_runtime_message(message))
     else:
-        messages.success(request, f"{label.capitalize()} ajouté.")
+        messages.success(
+            request,
+            _("%(label)s ajouté.") % {"label": _translate_runtime_message(label).capitalize()},
+        )
     return _redirect_scan_import()
 
 

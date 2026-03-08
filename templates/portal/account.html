@@ -1,13 +1,13 @@
 {% extends "portal/base.html" %}
-{% load wms_status %}
+{% load i18n wms_status %}
 
-{% block title %}Compte{% endblock %}
+{% block title %}{% trans "Compte" %}{% endblock %}
 
 {% block content %}
   <div class="portal-tight">
     <div class="scan-card portal-card card border-0 ui-comp-card">
-      <h2 class="portal-section-title ui-comp-title">Compte association</h2>
-      <p class="scan-help">Vous pouvez modifier toutes les informations de ce compte.</p>
+      <h2 class="portal-section-title ui-comp-title">{% trans "Compte association" %}</h2>
+      <p class="scan-help">{% trans "Vous pouvez modifier toutes les informations de ce compte." %}</p>
     </div>
 
     <div class="scan-card portal-card card border-0 ui-comp-card">
@@ -24,10 +24,10 @@
         <input type="hidden" name="action" value="update_profile">
         <input type="hidden" name="contact_count" id="id_contact_count" value="{{ portal_contact_rows|length }}">
 
-        <h3 class="portal-section-title ui-comp-title">Informations principales</h3>
+        <h3 class="portal-section-title ui-comp-title">{% trans "Informations principales" %}</h3>
         <div class="portal-grid-2">
           <div class="scan-field">
-            <label class="form-label" for="id_association_name">Association</label>
+            <label class="form-label" for="id_association_name">{% trans "Association" %}</label>
             <input
               class="form-control"
               type="text"
@@ -48,7 +48,7 @@
             >
           </div>
           <div class="scan-field">
-            <label class="form-label" for="id_association_phone">Téléphone</label>
+            <label class="form-label" for="id_association_phone">{% trans "Téléphone" %}</label>
             <input
               class="form-control"
               type="text"
@@ -59,10 +59,10 @@
           </div>
         </div>
 
-        <h3 class="portal-section-title ui-comp-title">Adresse</h3>
+        <h3 class="portal-section-title ui-comp-title">{% trans "Adresse" %}</h3>
         <div class="portal-grid-2">
           <div class="scan-field">
-            <label class="form-label" for="id_address_line1">Adresse</label>
+            <label class="form-label" for="id_address_line1">{% trans "Adresse" %}</label>
             <input
               class="form-control"
               type="text"
@@ -73,7 +73,7 @@
             >
           </div>
           <div class="scan-field">
-            <label class="form-label" for="id_address_line2">Complément</label>
+            <label class="form-label" for="id_address_line2">{% trans "Complément" %}</label>
             <input
               class="form-control"
               type="text"
@@ -85,7 +85,7 @@
         </div>
         <div class="portal-grid-3">
           <div class="scan-field">
-            <label class="form-label" for="id_postal_code">Code postal</label>
+            <label class="form-label" for="id_postal_code">{% trans "Code postal" %}</label>
             <input
               class="form-control"
               type="text"
@@ -95,7 +95,7 @@
             >
           </div>
           <div class="scan-field">
-            <label class="form-label" for="id_city">Ville</label>
+            <label class="form-label" for="id_city">{% trans "Ville" %}</label>
             <input
               class="form-control"
               type="text"
@@ -105,7 +105,7 @@
             >
           </div>
           <div class="scan-field">
-            <label class="form-label" for="id_country">Pays</label>
+            <label class="form-label" for="id_country">{% trans "Pays" %}</label>
             <input
               class="form-control"
               type="text"
@@ -116,17 +116,17 @@
           </div>
         </div>
 
-        <h3 class="portal-section-title ui-comp-title">Contacts emails</h3>
+        <h3 class="portal-section-title ui-comp-title">{% trans "Contacts emails" %}</h3>
         <p class="scan-help">
-          1 ligne = 1 contact. Maximum {{ max_portal_contacts }} lignes. Cochez au moins un type par ligne.
+          {% blocktrans with max_portal_contacts=max_portal_contacts %}1 ligne = 1 contact. Maximum {{ max_portal_contacts }} lignes. Cochez au moins un type par ligne.{% endblocktrans %}
         </p>
         <div class="portal-contact-head">
-          <span>Titre</span>
-          <span>Nom</span>
-          <span>Prénom</span>
-          <span>Téléphone</span>
-          <span>Mail</span>
-          <span>Type</span>
+          <span>{% trans "Titre" %}</span>
+          <span>{% trans "Nom" %}</span>
+          <span>{% trans "Prénom" %}</span>
+          <span>{% trans "Téléphone" %}</span>
+          <span>{% trans "Mail" %}</span>
+          <span>{% trans "Type" %}</span>
         </div>
         <div id="portal-contact-rows">
           {% for row in portal_contact_rows %}
@@ -140,13 +140,13 @@
                 </select>
               </div>
               <div class="scan-field">
-                <input class="form-control" type="text" name="contact_{{ row.index }}_last_name" value="{{ row.last_name }}" placeholder="Nom">
+                <input class="form-control" type="text" name="contact_{{ row.index }}_last_name" value="{{ row.last_name }}" placeholder="{% trans "Nom" %}">
               </div>
               <div class="scan-field">
-                <input class="form-control" type="text" name="contact_{{ row.index }}_first_name" value="{{ row.first_name }}" placeholder="Prénom">
+                <input class="form-control" type="text" name="contact_{{ row.index }}_first_name" value="{{ row.first_name }}" placeholder="{% trans "Prénom" %}">
               </div>
               <div class="scan-field">
-                <input class="form-control" type="text" name="contact_{{ row.index }}_phone" value="{{ row.phone }}" placeholder="Téléphone">
+                <input class="form-control" type="text" name="contact_{{ row.index }}_phone" value="{{ row.phone }}" placeholder="{% trans "Téléphone" %}">
               </div>
               <div class="scan-field">
                 <input class="form-control" type="email" name="contact_{{ row.index }}_email" value="{{ row.email }}" placeholder="email@domaine.org">
@@ -154,15 +154,15 @@
               <div class="portal-contact-types">
                 <label>
                   <input class="form-check-input" type="checkbox" name="contact_{{ row.index }}_is_administrative" value="1" {% if row.is_administrative %}checked{% endif %}>
-                  Administratif
+                  {% trans "Administratif" %}
                 </label>
                 <label>
                   <input class="form-check-input" type="checkbox" name="contact_{{ row.index }}_is_shipping" value="1" {% if row.is_shipping %}checked{% endif %}>
-                  Expédition
+                  {% trans "Expédition" %}
                 </label>
                 <label>
                   <input class="form-check-input" type="checkbox" name="contact_{{ row.index }}_is_billing" value="1" {% if row.is_billing %}checked{% endif %}>
-                  Facturation
+                  {% trans "Facturation" %}
                 </label>
               </div>
             </div>
@@ -170,19 +170,20 @@
         </div>
 
         <button type="button" class="scan-scan-btn btn btn-tertiary" id="add-contact-row">
-          Ajouter un autre contact
+          {% trans "Ajouter un autre contact" %}
         </button>
         <div class="scan-field portal-contact-submit">
-          <button type="submit" class="scan-submit btn btn-primary">Enregistrer les modifications</button>
+          <button type="submit" class="scan-submit btn btn-primary">{% trans "Enregistrer les modifications" %}</button>
         </div>
       </form>
     </div>
 
     <div class="scan-card portal-card card border-0 ui-comp-card">
-      <h3 class="portal-section-title ui-comp-title">Pr&eacute;f&eacute;rences de facturation</h3>
+      <h3 class="portal-section-title ui-comp-title">{% trans "Préférences de facturation" %}</h3>
       <p class="scan-help">
-        Fr&eacute;quence actuelle: {{ billing_profile.get_billing_frequency_display }} |
-        Regroupement actuel: {{ billing_profile.get_grouping_mode_display }}
+        {% blocktrans with frequency=billing_profile.get_billing_frequency_display grouping=billing_profile.get_grouping_mode_display %}
+          Fréquence actuelle: {{ frequency }} | Regroupement actuel: {{ grouping }}
+        {% endblocktrans %}
       </p>
 
       <form method="post" novalidate class="ui-comp-form">
@@ -190,7 +191,7 @@
         <input type="hidden" name="action" value="request_billing_preferences">
         <div class="portal-grid-2">
           <div class="scan-field">
-            <label class="form-label" for="id_billing_frequency">P&eacute;riodicit&eacute;</label>
+            <label class="form-label" for="id_billing_frequency">{% trans "Périodicité" %}</label>
             <select class="form-select" id="id_billing_frequency" name="billing_frequency">
               {% for value, label in billing_frequency_choices %}
                 <option value="{{ value }}" {% if billing_profile.billing_frequency == value %}selected{% endif %}>{{ label }}</option>
@@ -198,7 +199,7 @@
             </select>
           </div>
           <div class="scan-field">
-            <label class="form-label" for="id_billing_grouping_mode">Regroupement</label>
+            <label class="form-label" for="id_billing_grouping_mode">{% trans "Regroupement" %}</label>
             <select class="form-select" id="id_billing_grouping_mode" name="billing_grouping_mode">
               {% for value, label in billing_grouping_mode_choices %}
                 <option value="{{ value }}" {% if billing_profile.grouping_mode == value %}selected{% endif %}>{{ label }}</option>
@@ -206,7 +207,9 @@
             </select>
           </div>
         </div>
-        <button type="submit" class="scan-submit btn btn-primary">Envoyer une demande de changement</button>
+        <button type="submit" class="scan-submit btn btn-primary">
+          {% trans "Envoyer une demande de changement" %}
+        </button>
       </form>
 
       {% if billing_change_requests %}
@@ -214,10 +217,10 @@
           <table class="portal-table scan-table table table-sm table-hover">
             <thead>
               <tr>
-                <th>Demand&eacute; le</th>
-                <th>P&eacute;riodicit&eacute;</th>
-                <th>Regroupement</th>
-                <th>Statut</th>
+                <th>{% trans "Demandé le" %}</th>
+                <th>{% trans "Périodicité" %}</th>
+                <th>{% trans "Regroupement" %}</th>
+                <th>{% trans "Statut" %}</th>
               </tr>
             </thead>
             <tbody>
@@ -236,16 +239,16 @@
     </div>
 
     <div class="scan-card portal-card card border-0 ui-comp-card">
-      <h3 class="portal-section-title ui-comp-title">Documents de vérification</h3>
+      <h3 class="portal-section-title ui-comp-title">{% trans "Documents de vérification" %}</h3>
       {% if account_documents %}
         <div class="scan-table-wrap table-responsive">
           <table class="portal-table scan-table table table-sm table-hover">
             <thead>
               <tr>
-                <th>Type</th>
-                <th>Statut</th>
-                <th>Ajouté le</th>
-                <th>Fichier</th>
+                <th>{% trans "Type" %}</th>
+                <th>{% trans "Statut" %}</th>
+                <th>{% trans "Ajouté le" %}</th>
+                <th>{% trans "Fichier" %}</th>
               </tr>
             </thead>
             <tbody>
@@ -260,11 +263,11 @@
                   <td>{{ doc.uploaded_at|date:"d/m/Y" }}</td>
                   <td>
                     {% if doc.file and doc.scan_status == "clean" %}
-                      <a class="btn btn-tertiary btn-sm" href="{{ doc.file.url }}" target="_blank">Télécharger</a>
+                      <a class="btn btn-tertiary btn-sm" href="{{ doc.file.url }}" target="_blank">{% trans "Télécharger" %}</a>
                     {% elif doc.scan_status == "infected" %}
-                      <span class="scan-help">Bloqué (fichier suspect).</span>
+                      <span class="scan-help">{% trans "Bloqué (fichier suspect)." %}</span>
                     {% elif doc.file %}
-                      <span class="scan-help">Quarantaine (scan antivirus en cours).</span>
+                      <span class="scan-help">{% trans "Quarantaine (scan antivirus en cours)." %}</span>
                     {% else %}
                       -
                     {% endif %}
@@ -275,7 +278,7 @@
           </table>
         </div>
       {% else %}
-        <p>Aucun document pour le moment.</p>
+        <p>{% trans "Aucun document pour le moment." %}</p>
       {% endif %}
 
       <form method="post" enctype="multipart/form-data" novalidate class="ui-comp-form">
@@ -287,7 +290,7 @@
             <input class="form-control" type="file" id="id_doc_{{ value }}" name="doc_file_{{ value }}">
           </div>
         {% endfor %}
-        <button type="submit" class="scan-submit btn btn-primary">Ajouter les documents</button>
+        <button type="submit" class="scan-submit btn btn-primary">{% trans "Ajouter les documents" %}</button>
       </form>
     </div>
   </div>
@@ -330,13 +333,13 @@
             </select>
           </div>
           <div class="scan-field">
-            <input class="form-control" type="text" name="contact_${count}_last_name" placeholder="Nom">
+            <input class="form-control" type="text" name="contact_${count}_last_name" placeholder="{% trans "Nom" %}">
           </div>
           <div class="scan-field">
-            <input class="form-control" type="text" name="contact_${count}_first_name" placeholder="Prénom">
+            <input class="form-control" type="text" name="contact_${count}_first_name" placeholder="{% trans "Prénom" %}">
           </div>
           <div class="scan-field">
-            <input class="form-control" type="text" name="contact_${count}_phone" placeholder="Téléphone">
+            <input class="form-control" type="text" name="contact_${count}_phone" placeholder="{% trans "Téléphone" %}">
           </div>
           <div class="scan-field">
             <input class="form-control" type="email" name="contact_${count}_email" placeholder="email@domaine.org">
@@ -344,15 +347,15 @@
           <div class="portal-contact-types">
             <label>
               <input class="form-check-input" type="checkbox" name="contact_${count}_is_administrative" value="1">
-              Administratif
+              {% trans "Administratif" %}
             </label>
             <label>
               <input class="form-check-input" type="checkbox" name="contact_${count}_is_shipping" value="1">
-              Expédition
+              {% trans "Expédition" %}
             </label>
             <label>
               <input class="form-check-input" type="checkbox" name="contact_${count}_is_billing" value="1">
-              Facturation
+              {% trans "Facturation" %}
             </label>
           </div>
         `;

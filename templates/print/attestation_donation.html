@@ -1,21 +1,22 @@
 {% extends "print/base_a5.html" %}
+{% load i18n %}
 
-{% block title %}Attestation de donation{% endblock %}
+{% block title %}{% trans "Attestation de donation" %}{% endblock %}
 
 {% block body %}
-  <h1>Attestation de donation</h1>
+  <h1>{% trans "Attestation de donation" %}</h1>
 
-  <div class="meta">Document ref: {{ document_ref }}</div>
-  <div class="meta">Date: {{ document_date|date:"d/m/Y" }}</div>
+  <div class="meta">{% trans "Réf document" %}: {{ document_ref }}</div>
+  <div class="meta">{% trans "Date" %}: {{ document_date|date:"d/m/Y" }}</div>
 
-  <div class="block">Organisation: {{ org_name }}</div>
-  <div class="block">Adresse: {{ org_address }}</div>
-  <div class="block">Contact: {{ org_contact }}</div>
-  <div class="block">Donateur: {{ donor_name }}</div>
-  <div class="block">Destinataire: {{ recipient_name }}</div>
-  <div class="block">Destination: {{ destination_address }}</div>
-  <div class="block">Description du don: {{ donation_description }}</div>
+  <div class="block">{% trans "Organisation" %}: {{ org_name }}</div>
+  <div class="block">{% trans "Adresse" %}: {{ org_address }}</div>
+  <div class="block">{% trans "Contact" %}: {{ org_contact }}</div>
+  <div class="block">{% trans "Donateur" %}: {{ donor_name }}</div>
+  <div class="block">{% trans "Destinataire" %}: {{ recipient_name }}</div>
+  <div class="block">{% trans "Destination" %}: {{ destination_address }}</div>
+  <div class="block">{% trans "Description du don" %}: {{ donation_description }}</div>
 
-  <div class="signature">Signataire: {{ org_signatory }}</div>
-  <div class="signature">Signature: ________________________________</div>
+  <div class="signature">{% trans "Signataire" %}: {{ org_signatory }}</div>
+  <div class="signature">{% trans "Signature" %}: ________________________________</div>
 {% endblock %}

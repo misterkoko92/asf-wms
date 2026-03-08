@@ -1,7 +1,7 @@
 {% extends "scan/base.html" %}
-{% load static %}
+{% load i18n static %}
 
-{% block title %}Template XLSX {{ pack_document.pack.code }}{% endblock %}
+{% block title %}{% blocktrans trimmed with pack_code=pack_document.pack.code %}Template XLSX {{ pack_code }}{% endblocktrans %}{% endblock %}
 
 {% block extra_head %}
   <link rel="stylesheet" href="{% static 'scan/print_pack_mapping_editor.css' %}">
@@ -11,29 +11,29 @@
   <div class="scan-card card border-0 ui-comp-card mb-3">
     <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
       <div>
-        <h2 class="ui-comp-title mb-1">Template XLSX</h2>
+        <h2 class="ui-comp-title mb-1">{% trans "Template XLSX" %}</h2>
         <p class="mb-1">
-          <strong>Pack:</strong> {{ pack_document.pack.code }} - {{ pack_document.pack.name }}
+          <strong>{% trans "Pack:" %}</strong> {{ pack_document.pack.code }} - {{ pack_document.pack.name }}
         </p>
         <p class="mb-1">
-          <strong>Document:</strong> <code>{{ pack_document.doc_type }}</code>
-          <strong class="ms-3">Variant:</strong> <code>{{ pack_document.variant|default:"default" }}</code>
+          <strong>{% trans "Document:" %}</strong> <code>{{ pack_document.doc_type }}</code>
+          <strong class="ms-3">{% trans "Variant:" %}</strong> <code>{{ pack_document.variant|default:"default" }}</code>
         </p>
         <p class="mb-0">
-          <strong>Template actif:</strong>
+          <strong>{% trans "Template actif:" %}</strong>
           {% if template_filename %}
             {{ template_filename }}
             {% if template_is_uploaded %}
-              <span class="badge text-bg-primary ms-2">Uploadé</span>
+              <span class="badge text-bg-primary ms-2">{% trans "Uploadé" %}</span>
             {% else %}
-              <span class="badge text-bg-secondary ms-2">Source</span>
+              <span class="badge text-bg-secondary ms-2">{% trans "Source" %}</span>
             {% endif %}
           {% else %}
-            <span class="text-danger">Aucun template</span>
+            <span class="text-danger">{% trans "Aucun template" %}</span>
           {% endif %}
         </p>
       </div>
-      <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_print_templates' %}">Retour</a>
+      <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_print_templates' %}">{% trans "Retour" %}</a>
     </div>
   </div>
 
@@ -43,24 +43,26 @@
 
     <div class="row g-3 align-items-end mb-3">
       <div class="col-12 col-lg-4">
-        <label for="id_xlsx_template_file" class="form-label fw-semibold">Remplacer le template XLSX</label>
+        <label for="id_xlsx_template_file" class="form-label fw-semibold">{% trans "Remplacer le template XLSX" %}</label>
         <input id="id_xlsx_template_file" name="xlsx_template_file" type="file" accept=".xlsx" class="form-control">
       </div>
       <div class="col-12 col-lg-4">
-        <label for="id_change_note" class="form-label fw-semibold">Note de version (optionnel)</label>
-        <input id="id_change_note" name="change_note" type="text" class="form-control" maxlength="255" placeholder="Ex: mise à jour mapping expéditeur">
+        <label for="id_change_note" class="form-label fw-semibold">{% trans "Note de version (optionnel)" %}</label>
+        <input id="id_change_note" name="change_note" type="text" class="form-control" maxlength="255" placeholder="{% trans "Ex: mise à jour mapping expéditeur" %}">
       </div>
       <div class="col-12 col-lg-4">
         <p class="small text-muted mb-0">
-          Les cellules fusionnées sont normalisées automatiquement vers leur cellule d'ancrage
-          lors de l'enregistrement.
+          {% blocktrans trimmed %}
+            Les cellules fusionnées sont normalisées automatiquement vers leur cellule d'ancrage
+            lors de l'enregistrement.
+          {% endblocktrans %}
         </p>
       </div>
     </div>
 
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-      <h3 class="h5 mb-0">Mappings</h3>
-      <button type="button" class="btn btn-tertiary btn-sm" id="add-mapping-row">Ajouter une ligne</button>
+      <h3 class="h5 mb-0">{% trans "Mappings" %}</h3>
+      <button type="button" class="btn btn-tertiary btn-sm" id="add-mapping-row">{% trans "Ajouter une ligne" %}</button>
     </div>
 
     <div class="table-responsive">
@@ -69,14 +71,14 @@
           <tr>
             <th>#</th>
             <th>Worksheet</th>
-            <th>Colonne</th>
-            <th>Ligne</th>
-            <th>Cellule</th>
-            <th>Champ source</th>
+            <th>{% trans "Colonne" %}</th>
+            <th>{% trans "Ligne" %}</th>
+            <th>{% trans "Cellule" %}</th>
+            <th>{% trans "Champ source" %}</th>
             <th>Transform</th>
             <th>Required</th>
             <th>Sequence</th>
-            <th>Fusion</th>
+            <th>{% trans "Fusion" %}</th>
             <th></th>
           </tr>
         </thead>
@@ -98,7 +100,7 @@
               </td>
               <td>
                 <select name="mapping_source_key" class="form-select form-select-sm">
-                  <option value="">-- Choisir --</option>
+                  <option value="">{% trans "-- Choisir --" %}</option>
                   {% for source_key in source_keys %}
                     <option value="{{ source_key }}"{% if source_key == row.source_key %} selected{% endif %}>{{ source_key }}</option>
                   {% endfor %}
@@ -109,7 +111,7 @@
                   {% for transform in transform_choices %}
                     <option value="{{ transform }}"{% if transform == row.transform %} selected{% endif %}>
                       {% if transform == "" %}
-                        none
+                        {% trans "none" %}
                       {% else %}
                         {{ transform }}
                       {% endif %}
@@ -119,8 +121,8 @@
               </td>
               <td>
                 <select name="mapping_required" class="form-select form-select-sm">
-                  <option value="0"{% if not row.required %} selected{% endif %}>non</option>
-                  <option value="1"{% if row.required %} selected{% endif %}>oui</option>
+                  <option value="0"{% if not row.required %} selected{% endif %}>{% trans "non" %}</option>
+                  <option value="1"{% if row.required %} selected{% endif %}>{% trans "oui" %}</option>
                 </select>
               </td>
               <td>
@@ -130,7 +132,7 @@
                 <span class="small text-muted mapping-merged-range">{{ row.merged_range|default:"-" }}</span>
               </td>
               <td>
-                <button type="button" class="btn btn-danger btn-sm remove-mapping-row">Supprimer</button>
+                <button type="button" class="btn btn-danger btn-sm remove-mapping-row">{% trans "Supprimer" %}</button>
               </td>
             </tr>
           {% endfor %}
@@ -139,21 +141,21 @@
     </div>
 
     <div class="d-flex justify-content-end mt-3">
-      <button type="submit" class="scan-submit scan-submit-inline btn btn-primary">Enregistrer toutes les modifications</button>
+      <button type="submit" class="scan-submit scan-submit-inline btn btn-primary">{% trans "Enregistrer toutes les modifications" %}</button>
     </div>
   </form>
 
   <div class="scan-card card border-0 ui-comp-card">
-    <h3 class="h5 mb-2">Historique des versions</h3>
+    <h3 class="h5 mb-2">{% trans "Historique des versions" %}</h3>
     <div class="table-responsive">
       <table class="table table-sm align-middle mb-0">
         <thead>
           <tr>
-            <th>Version</th>
-            <th>Type</th>
-            <th>Note</th>
-            <th>Date</th>
-            <th>Auteur</th>
+            <th>{% trans "Version" %}</th>
+            <th>{% trans "Type" %}</th>
+            <th>{% trans "Note" %}</th>
+            <th>{% trans "Date" %}</th>
+            <th>{% trans "Auteur" %}</th>
             <th></th>
           </tr>
         </thead>
@@ -176,13 +178,13 @@
                   {% csrf_token %}
                   <input type="hidden" name="action" value="restore">
                   <input type="hidden" name="version_id" value="{{ version.id }}">
-                  <button type="submit" class="btn btn-warning btn-sm">Restaurer</button>
+                  <button type="submit" class="btn btn-warning btn-sm">{% trans "Restaurer" %}</button>
                 </form>
               </td>
             </tr>
           {% empty %}
             <tr>
-              <td colspan="6" class="text-muted">Aucune version disponible.</td>
+              <td colspan="6" class="text-muted">{% trans "Aucune version disponible." %}</td>
             </tr>
           {% endfor %}
         </tbody>

@@ -1,13 +1,13 @@
-Bonjour {{ requested_username }},
+{% load i18n %}{% blocktrans with requested_username=requested_username %}Bonjour {{ requested_username }},{% endblocktrans %}
 
-Votre compte utilisateur WMS a ete valide par ASF.
+{% trans "Votre compte utilisateur WMS a été validé par ASF." %}
 
-Identifiant: {{ requested_username }}
-Email: {{ email }}
+{% trans "Identifiant" %}: {{ requested_username }}
+{% trans "Email" %}: {{ email }}
 
-Vous pouvez vous connecter ici:
+{% trans "Connexion admin" %}:
 {{ login_url }}
 
-Si vous n'etes pas a l'origine de cette demande, merci de contacter ASF.
+{% trans "Si vous n'êtes pas à l'origine de cette demande, merci de contacter ASF." %}
 
 ASF WMS

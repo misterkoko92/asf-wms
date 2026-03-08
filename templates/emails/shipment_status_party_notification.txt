@@ -1,9 +1,9 @@
-Mise a jour de l'expedition
+{% load i18n %}{% trans "Mise à jour de l'expédition" %}
 
-Expedition: {{ shipment_reference }}
-Statut (ancien -> nouveau): {{ old_status }} -> {{ new_status }}
-Destination: {{ destination_label|default:"-" }}
-Date de mise a jour: {{ changed_at }}
+{% trans "Expédition" %}: {{ shipment_reference }}
+{% trans "Statut (ancien -> nouveau)" %}: {{ old_status }} -> {{ new_status }}
+{% trans "Destination" %}: {{ destination_label|default:"-" }}
+{% trans "Date de mise à jour" %}: {{ changed_at }}
 
-Suivi:
+{% trans "Suivi" %}:
 {{ tracking_url }}

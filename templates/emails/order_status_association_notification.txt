@@ -1,8 +1,8 @@
-Mise a jour commande
+{% load i18n %}{% trans "Mise à jour commande" %}
 
-Reference: {{ order_reference }}
-Statut commande (ancien -> nouveau): {{ old_status }} -> {{ new_status }}
-Statut validation (ancien -> nouveau): {{ old_review_status }} -> {{ new_review_status }}
+{% trans "Référence" %}: {{ order_reference }}
+{% trans "Statut commande (ancien -> nouveau)" %}: {{ old_status }} -> {{ new_status }}
+{% trans "Statut validation (ancien -> nouveau)" %}: {{ old_review_status }} -> {{ new_review_status }}
 
-Administration:
+{% trans "Administration" %}:
 {{ admin_url }}

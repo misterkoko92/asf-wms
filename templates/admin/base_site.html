@@ -1,9 +1,15 @@
 {% extends "admin/base_site.html" %}
-{% load static %}
+{% load i18n static %}
 
 {% block extrastyle %}
   {{ block.super }}
   <link rel="stylesheet" href="{% static 'wms/language-switch.css' %}">
+{% endblock %}
+
+{% block branding %}
+  <h1 id="site-name">
+    <a href="{% url 'admin:index' %}">{% trans "Django admin" %}</a>
+  </h1>
 {% endblock %}
 
 {% block userlinks %}

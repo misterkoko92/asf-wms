@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.db.models import Q
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods
 
 from contacts.models import Contact, ContactType
@@ -275,7 +276,7 @@ def scan_admin_contacts(request):
                 messages.error(request, message)
             return _build_contacts_redirect(query=query, contact_filter=contact_filter)
         else:
-            messages.error(request, "Action de contact non reconnue.")
+            messages.error(request, _("Action de contact non reconnue."))
 
     cockpit_context = build_cockpit_context(query=query, filters=cockpit_filters)
 
@@ -414,7 +415,7 @@ def scan_product_labels_print_labels(request):
     _require_superuser(request)
     products, query, selection_mode = _resolve_product_labels_selection(request)
     if not products:
-        messages.warning(request, "Aucun produit selectionne.")
+        messages.warning(request, _("Aucun produit sélectionné."))
         return _build_product_labels_redirect(query=query, selection_mode=selection_mode)
     return render_product_labels_response(request, products)
 
@@ -425,6 +426,6 @@ def scan_product_labels_print_qr(request):
     _require_superuser(request)
     products, query, selection_mode = _resolve_product_labels_selection(request)
     if not products:
-        messages.warning(request, "Aucun produit selectionne.")
+        messages.warning(request, _("Aucun produit sélectionné."))
         return _build_product_labels_redirect(query=query, selection_mode=selection_mode)
     return render_product_qr_labels_response(request, products)

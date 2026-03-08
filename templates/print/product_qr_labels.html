@@ -1,8 +1,10 @@
+{% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
 <!doctype html>
-<html lang="fr">
+<html lang="{{ LANGUAGE_CODE }}">
 <head>
   <meta charset="utf-8">
-  <title>QR codes produits</title>
+  <title>{% trans "QR codes produits" %}</title>
   <style>
     @page { size: A4; margin: {{ page_style.page_margin|default:"5mm" }}; }
     @media print {
