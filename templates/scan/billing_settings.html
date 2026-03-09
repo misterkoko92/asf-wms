@@ -2,6 +2,10 @@
 
 {% block title %}WMS Scan - Facturation Param&egrave;tres{% endblock %}
 
+{% block extra_head %}
+  {% include "scan/includes/billing_form_layout_styles.html" %}
+{% endblock %}
+
 {% block content %}
   <div class="scan-card card border-0 ui-comp-card">
     <h2 class="ui-comp-title">Facturation - Param&egrave;tres</h2>
@@ -17,68 +21,74 @@
       <input type="hidden" name="profile_id" value="{% if profile_form.instance.pk %}{{ profile_form.instance.pk }}{% endif %}">
 
       <h3 class="ui-comp-title">Profils de calcul</h3>
-      <div class="scan-inline scan-inline-equal">
-        <div class="scan-field">
+      <div class="billing-grid billing-grid--7">
+        <div class="scan-field billing-field">
           {{ profile_form.label.label_tag }}
           {{ profile_form.label }}
           {% if profile_form.label.errors %}<div class="scan-help">{{ profile_form.label.errors|join:", " }}</div>{% endif %}
         </div>
-        <div class="scan-field">
+        <div class="scan-field billing-field">
           {{ profile_form.applies_when_receipts_linked.label_tag }}
           {{ profile_form.applies_when_receipts_linked }}
           {% if profile_form.applies_when_receipts_linked.errors %}<div class="scan-help">{{ profile_form.applies_when_receipts_linked.errors|join:", " }}</div>{% endif %}
         </div>
-      </div>
-      <div class="scan-inline scan-inline-equal">
-        <div class="scan-field">
+        <div class="scan-field billing-field">
           {{ profile_form.base_unit_source.label_tag }}
           {{ profile_form.base_unit_source }}
           {% if profile_form.base_unit_source.errors %}<div class="scan-help">{{ profile_form.base_unit_source.errors|join:", " }}</div>{% endif %}
         </div>
-        <div class="scan-field">
+        <div class="scan-field billing-field">
           {{ profile_form.base_step_size.label_tag }}
           {{ profile_form.base_step_size }}
           {% if profile_form.base_step_size.errors %}<div class="scan-help">{{ profile_form.base_step_size.errors|join:", " }}</div>{% endif %}
           <div class="scan-help">{{ profile_form.base_step_size.help_text }}</div>
         </div>
-      </div>
-      <div class="scan-inline scan-inline-equal">
-        <div class="scan-field">
+        <div class="scan-field billing-field">
           {{ profile_form.base_step_price.label_tag }}
           {{ profile_form.base_step_price }}
           {% if profile_form.base_step_price.errors %}<div class="scan-help">{{ profile_form.base_step_price.errors|join:", " }}</div>{% endif %}
           <div class="scan-help">{{ profile_form.base_step_price.help_text }}</div>
         </div>
-        <div class="scan-field">
+        <div class="scan-field billing-field">
           {{ profile_form.extra_unit_mode.label_tag }}
           {{ profile_form.extra_unit_mode }}
           {% if profile_form.extra_unit_mode.errors %}<div class="scan-help">{{ profile_form.extra_unit_mode.errors|join:", " }}</div>{% endif %}
         </div>
-      </div>
-      <div class="scan-inline scan-inline-equal">
-        <div class="scan-field">
+        <div class="scan-field billing-field">
           {{ profile_form.extra_unit_price.label_tag }}
           {{ profile_form.extra_unit_price }}
           {% if profile_form.extra_unit_price.errors %}<div class="scan-help">{{ profile_form.extra_unit_price.errors|join:", " }}</div>{% endif %}
           <div class="scan-help">{{ profile_form.extra_unit_price.help_text }}</div>
         </div>
-        <div class="scan-field">
-          <label class="form-label" for="{{ profile_form.allow_manual_override.id_for_label }}">
-            {{ profile_form.allow_manual_override }}
+      </div>
+      <div class="billing-toggle-grid billing-toggle-grid--4">
+        <div class="billing-toggle">
+          <label class="billing-toggle__label" for="{{ profile_form.allow_manual_override.id_for_label }}">
             {{ profile_form.allow_manual_override.label }}
           </label>
-          <label class="form-label" for="{{ profile_form.is_default_for_shipment_only.id_for_label }}">
-            {{ profile_form.is_default_for_shipment_only }}
+          <div class="billing-toggle__control">{{ profile_form.allow_manual_override }}</div>
+          {% if profile_form.allow_manual_override.errors %}<div class="scan-help">{{ profile_form.allow_manual_override.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="billing-toggle">
+          <label class="billing-toggle__label" for="{{ profile_form.is_default_for_shipment_only.id_for_label }}">
             {{ profile_form.is_default_for_shipment_only.label }}
           </label>
-          <label class="form-label" for="{{ profile_form.is_default_for_receipt_linked.id_for_label }}">
-            {{ profile_form.is_default_for_receipt_linked }}
+          <div class="billing-toggle__control">{{ profile_form.is_default_for_shipment_only }}</div>
+          {% if profile_form.is_default_for_shipment_only.errors %}<div class="scan-help">{{ profile_form.is_default_for_shipment_only.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="billing-toggle">
+          <label class="billing-toggle__label" for="{{ profile_form.is_default_for_receipt_linked.id_for_label }}">
             {{ profile_form.is_default_for_receipt_linked.label }}
           </label>
-          <label class="form-label" for="{{ profile_form.is_active.id_for_label }}">
-            {{ profile_form.is_active }}
+          <div class="billing-toggle__control">{{ profile_form.is_default_for_receipt_linked }}</div>
+          {% if profile_form.is_default_for_receipt_linked.errors %}<div class="scan-help">{{ profile_form.is_default_for_receipt_linked.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="billing-toggle">
+          <label class="billing-toggle__label" for="{{ profile_form.is_active.id_for_label }}">
             {{ profile_form.is_active.label }}
           </label>
+          <div class="billing-toggle__control">{{ profile_form.is_active }}</div>
+          {% if profile_form.is_active.errors %}<div class="scan-help">{{ profile_form.is_active.errors|join:", " }}</div>{% endif %}
         </div>
       </div>
       {% if profile_form.non_field_errors %}
@@ -132,50 +142,52 @@
       <input type="hidden" name="service_id" value="{% if service_form.instance.pk %}{{ service_form.instance.pk }}{% endif %}">
 
       <h3 class="ui-comp-title">Services annexes</h3>
-      <div class="scan-inline scan-inline-equal">
-        <div class="scan-field">
+      <div class="billing-grid billing-grid--6">
+        <div class="scan-field billing-field">
           {{ service_form.label.label_tag }}
           {{ service_form.label }}
           {% if service_form.label.errors %}<div class="scan-help">{{ service_form.label.errors|join:", " }}</div>{% endif %}
         </div>
-        <div class="scan-field">
+        <div class="scan-field billing-field">
+          {{ service_form.description.label_tag }}
+          {{ service_form.description }}
+          {% if service_form.description.errors %}<div class="scan-help">{{ service_form.description.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="scan-field billing-field">
           {{ service_form.service_type.label_tag }}
           {{ service_form.service_type }}
           {% if service_form.service_type.errors %}<div class="scan-help">{{ service_form.service_type.errors|join:", " }}</div>{% endif %}
         </div>
-      </div>
-      <div class="scan-field">
-        {{ service_form.description.label_tag }}
-        {{ service_form.description }}
-        {% if service_form.description.errors %}<div class="scan-help">{{ service_form.description.errors|join:", " }}</div>{% endif %}
-      </div>
-      <div class="scan-inline scan-inline-equal">
-        <div class="scan-field">
+        <div class="scan-field billing-field">
           {{ service_form.default_unit_price.label_tag }}
           {{ service_form.default_unit_price }}
           {% if service_form.default_unit_price.errors %}<div class="scan-help">{{ service_form.default_unit_price.errors|join:", " }}</div>{% endif %}
         </div>
-        <div class="scan-field">
+        <div class="scan-field billing-field">
           {{ service_form.default_currency.label_tag }}
           {{ service_form.default_currency }}
           {% if service_form.default_currency.errors %}<div class="scan-help">{{ service_form.default_currency.errors|join:", " }}</div>{% endif %}
         </div>
-      </div>
-      <div class="scan-inline scan-inline-equal">
-        <div class="scan-field">
+        <div class="scan-field billing-field">
           {{ service_form.display_order.label_tag }}
           {{ service_form.display_order }}
           {% if service_form.display_order.errors %}<div class="scan-help">{{ service_form.display_order.errors|join:", " }}</div>{% endif %}
         </div>
-        <div class="scan-field">
-          <label class="form-label" for="{{ service_form.is_discount.id_for_label }}">
-            {{ service_form.is_discount }}
+      </div>
+      <div class="billing-toggle-grid billing-toggle-grid--2">
+        <div class="billing-toggle">
+          <label class="billing-toggle__label" for="{{ service_form.is_discount.id_for_label }}">
             {{ service_form.is_discount.label }}
           </label>
-          <label class="form-label" for="{{ service_form.is_active.id_for_label }}">
-            {{ service_form.is_active }}
+          <div class="billing-toggle__control">{{ service_form.is_discount }}</div>
+          {% if service_form.is_discount.errors %}<div class="scan-help">{{ service_form.is_discount.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="billing-toggle">
+          <label class="billing-toggle__label" for="{{ service_form.is_active.id_for_label }}">
             {{ service_form.is_active.label }}
           </label>
+          <div class="billing-toggle__control">{{ service_form.is_active }}</div>
+          {% if service_form.is_active.errors %}<div class="scan-help">{{ service_form.is_active.errors|join:", " }}</div>{% endif %}
         </div>
       </div>
       {% if service_form.non_field_errors %}
@@ -223,53 +235,47 @@
       <input type="hidden" name="override_id" value="{% if override_form.instance.pk %}{{ override_form.instance.pk }}{% endif %}">
 
       <h3 class="ui-comp-title">Surcharges association</h3>
-      <div class="scan-inline scan-inline-equal">
-        <div class="scan-field">
+      <div class="billing-grid billing-grid--7">
+        <div class="scan-field billing-field">
           {{ override_form.association_profile.label_tag }}
           {{ override_form.association_profile }}
           {% if override_form.association_profile.errors %}<div class="scan-help">{{ override_form.association_profile.errors|join:", " }}</div>{% endif %}
         </div>
-        <div class="scan-field">
+        <div class="scan-field billing-field">
           {{ override_form.service_catalog_item.label_tag }}
           {{ override_form.service_catalog_item }}
           {% if override_form.service_catalog_item.errors %}<div class="scan-help">{{ override_form.service_catalog_item.errors|join:", " }}</div>{% endif %}
         </div>
-      </div>
-      <div class="scan-inline scan-inline-equal">
-        <div class="scan-field">
+        <div class="scan-field billing-field">
           {{ override_form.computation_profile.label_tag }}
           {{ override_form.computation_profile }}
           {% if override_form.computation_profile.errors %}<div class="scan-help">{{ override_form.computation_profile.errors|join:", " }}</div>{% endif %}
         </div>
-        <div class="scan-field">
+        <div class="scan-field billing-field">
           {{ override_form.overridden_amount.label_tag }}
           {{ override_form.overridden_amount }}
           {% if override_form.overridden_amount.errors %}<div class="scan-help">{{ override_form.overridden_amount.errors|join:", " }}</div>{% endif %}
         </div>
-      </div>
-      <div class="scan-inline scan-inline-equal">
-        <div class="scan-field">
+        <div class="scan-field billing-field">
           {{ override_form.currency.label_tag }}
           {{ override_form.currency }}
           {% if override_form.currency.errors %}<div class="scan-help">{{ override_form.currency.errors|join:", " }}</div>{% endif %}
         </div>
-        <div class="scan-field">
+        <div class="scan-field billing-field">
           {{ override_form.effective_from.label_tag }}
           {{ override_form.effective_from }}
           {% if override_form.effective_from.errors %}<div class="scan-help">{{ override_form.effective_from.errors|join:", " }}</div>{% endif %}
         </div>
-      </div>
-      <div class="scan-inline scan-inline-equal">
-        <div class="scan-field">
+        <div class="scan-field billing-field">
           {{ override_form.effective_to.label_tag }}
           {{ override_form.effective_to }}
           {% if override_form.effective_to.errors %}<div class="scan-help">{{ override_form.effective_to.errors|join:", " }}</div>{% endif %}
         </div>
-        <div class="scan-field">
-          {{ override_form.notes.label_tag }}
-          {{ override_form.notes }}
-          {% if override_form.notes.errors %}<div class="scan-help">{{ override_form.notes.errors|join:", " }}</div>{% endif %}
-        </div>
+      </div>
+      <div class="scan-field billing-field billing-field--full">
+        {{ override_form.notes.label_tag }}
+        {{ override_form.notes }}
+        {% if override_form.notes.errors %}<div class="scan-help">{{ override_form.notes.errors|join:", " }}</div>{% endif %}
       </div>
       {% if override_form.non_field_errors %}
         <div class="scan-message error">{{ override_form.non_field_errors|join:", " }}</div>

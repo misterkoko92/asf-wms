@@ -1,0 +1,123 @@
+<style>
+  .billing-grid,
+  .billing-toggle-grid {
+    display: grid;
+    gap: 0.9rem;
+    align-items: start;
+  }
+
+  .billing-grid--7 {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
+  .billing-grid--6 {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .billing-grid--4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .billing-grid--3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .billing-grid--2,
+  .billing-toggle-grid--2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .billing-toggle-grid--4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .billing-field {
+    min-width: 0;
+  }
+
+  .billing-field--full {
+    grid-column: 1 / -1;
+  }
+
+  .billing-grid .billing-field textarea {
+    height: 2.75rem;
+    resize: vertical;
+  }
+
+  .billing-field--full textarea {
+    height: 5.25rem;
+  }
+
+  .billing-toggle {
+    display: grid;
+    gap: 0.45rem;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .billing-toggle__label {
+    display: block;
+    min-height: 2.7rem;
+    margin: 0;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  .billing-toggle__control {
+    display: flex;
+    min-height: 2rem;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .billing-toggle__control input {
+    margin: 0;
+  }
+
+  .billing-subtitle {
+    margin: 0;
+    font-weight: 700;
+  }
+
+  .billing-spacer {
+    height: 0.75rem;
+  }
+
+  .scan-design-help-dot {
+    display: inline-flex;
+    width: 1rem;
+    height: 1rem;
+    margin-left: 0.35rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: rgba(15, 95, 79, 0.12);
+    color: #0f5f4f;
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: help;
+  }
+
+  @media (max-width: 1400px) {
+    .billing-grid--7,
+    .billing-grid--6 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .billing-toggle-grid--4 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 900px) {
+    .billing-grid--7,
+    .billing-grid--6,
+    .billing-grid--4,
+    .billing-grid--3,
+    .billing-grid--2,
+    .billing-toggle-grid--4,
+    .billing-toggle-grid--2 {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+</style>
