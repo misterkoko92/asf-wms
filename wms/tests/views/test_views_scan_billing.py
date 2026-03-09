@@ -511,6 +511,18 @@ class ScanBillingViewTests(TestCase):
         self.assertContains(response, "save_service")
         self.assertContains(response, "save_override")
 
+    def test_scan_billing_settings_page_uses_dense_form_grids(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_billing_settings"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'class="billing-grid billing-grid--7"')
+        self.assertContains(response, 'class="billing-grid billing-grid--6"')
+        self.assertContains(response, 'class="billing-toggle-grid billing-toggle-grid--4"')
+        self.assertContains(response, 'class="billing-toggle-grid billing-toggle-grid--2"')
+        self.assertContains(response, 'class="scan-field billing-field billing-field--full"')
+
     def test_scan_billing_equivalence_creates_category_rule(self):
         root_category = ProductCategory.objects.create(name="MM")
         child_category = ProductCategory.objects.create(name="Wheelchair", parent=root_category)
@@ -598,6 +610,16 @@ class ScanBillingViewTests(TestCase):
             ["Hors format", "Wheelchair", "Generic CN"],
         )
 
+    def test_billing_equivalence_page_uses_dense_form_grid(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_billing_equivalence"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'class="billing-grid billing-grid--4"')
+        self.assertContains(response, 'class="billing-toggle-grid billing-toggle-grid--2"')
+        self.assertContains(response, 'class="scan-field billing-field billing-field--full"')
+
     def test_billing_equivalence_page_shows_hover_help_for_units_and_priority(self):
         self.client.force_login(self.superuser)
 
@@ -612,3 +634,18 @@ class ScanBillingViewTests(TestCase):
             response,
             'title="Departage les regles a specificite egale. Plus la valeur est petite, plus la regle est prioritaire."',
         )
+
+    def test_scan_billing_editor_page_reorders_currency_and_manual_sections(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_billing_editor"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'class="billing-grid billing-grid--2"')
+        self.assertContains(response, 'class="billing-grid billing-grid--3"')
+        body = response.content.decode()
+        self.assertIn("Devise :", body)
+        self.assertIn("S&eacute;lectionnez", body)
+        self.assertIn("exp&eacute;ditions &eacute;ligibles.", body)
+        self.assertLess(body.index("Devise :"), body.index("Devise document"))
+        self.assertLess(body.index("Devise document"), body.index("Ligne manuelle optionnelle"))
