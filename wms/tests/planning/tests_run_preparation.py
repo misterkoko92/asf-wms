@@ -184,7 +184,11 @@ class PlanningRunPreparationTests(TestCase):
             batch=batch,
             flight_number="AF702",
             departure_date=self.week_start + timedelta(days=1),
+            departure_time=time(9, 45),
             destination_iata="ABJ",
+            origin_iata="CDG",
+            routing="CDG-ABJ",
+            route_pos=1,
             destination=self.destination,
             capacity_units=20,
         )
@@ -210,3 +214,7 @@ class PlanningRunPreparationTests(TestCase):
         self.assertEqual(volunteer_snapshot.max_colis_vol, 4)
         self.assertEqual(volunteer_snapshot.availability_summary["slot_count"], 1)
         self.assertEqual(flight_snapshot.capacity_units, 20)
+        self.assertEqual(flight_snapshot.payload["departure_time"], "09:45")
+        self.assertEqual(flight_snapshot.payload["origin_iata"], "CDG")
+        self.assertEqual(flight_snapshot.payload["routing"], "CDG-ABJ")
+        self.assertEqual(flight_snapshot.payload["route_pos"], 1)

@@ -83,6 +83,12 @@ def _build_shipment_payload(*, shipment, destination_rule_map):
     return payload
 
 
+def _serialize_time(value):
+    if value is None:
+        return ""
+    return value.isoformat(timespec="minutes")
+
+
 @transaction.atomic
 def prepare_run_inputs(run):
     run.issues.all().delete()
@@ -152,6 +158,11 @@ def prepare_run_inputs(run):
             payload={
                 "batch_id": flight.batch_id,
                 "source": flight.batch.source,
+                "departure_time": _serialize_time(flight.departure_time),
+                "arrival_time": _serialize_time(flight.arrival_time),
+                "origin_iata": flight.origin_iata,
+                "routing": flight.routing,
+                "route_pos": flight.route_pos,
             },
         )
 

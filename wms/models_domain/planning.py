@@ -153,6 +153,8 @@ class Flight(models.Model):
     arrival_time = models.TimeField(null=True, blank=True)
     origin_iata = models.CharField(max_length=10, blank=True)
     destination_iata = models.CharField(max_length=10, blank=True)
+    routing = models.CharField(max_length=255, blank=True)
+    route_pos = models.PositiveSmallIntegerField(null=True, blank=True)
     destination = models.ForeignKey(
         "wms.Destination",
         on_delete=models.SET_NULL,
