@@ -67,6 +67,21 @@ Le harnais `wms.tests.planning.tests_solver_reference_cases` couvre deja les cas
 
 Le cas `missing_paramdest_stop` du legacy reste a porter avec un format d'assertion moins strict que l'egalite exacte des affectations, car le solveur peut retourner plusieurs matchings equivalents.
 
+## Legacy Session Extraction
+Le repo `asf_scheduler/new_repo` sait etre rejoue hors Streamlit a partir d'un dossier `session_*`.
+
+Commande WMS disponible pour fabriquer une fixture JSON compatible avec le harnais:
+
+```bash
+/Users/EdouardGonnu/asf-wms/.venv/bin/python manage.py build_legacy_planning_reference_case \
+  --case-name legacy_session_s11_2026 \
+  --legacy-root /Users/EdouardGonnu/asf_scheduler/new_repo \
+  --session-dir /Users/EdouardGonnu/asf_scheduler/new_repo/.tmp_asf/session_15e28a26-95f6-4d81-b680-b3af43a56bb2 \
+  --output /Users/EdouardGonnu/asf-wms/wms/tests/planning/fixtures/solver_reference_cases/legacy_session_s11_2026.json
+```
+
+Le replay legacy exige un `ASF_TMP_DIR` ecrivable pour ses logs; la commande le positionne par defaut sous `/tmp`.
+
 ## Residual Gap Log
 Tant que le corpus de semaines reelles n'est pas encore branche, documenter chaque ecart important selon ce format:
 - `week`: identifiant ou periode
