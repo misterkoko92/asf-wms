@@ -19,6 +19,7 @@ FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures" / "solver_reference_c
 class SolverReferenceCase:
     run: PlanningRun
     expected_assignments: list[tuple[str, str, str]]
+    expected_result: dict
 
 
 def load_reference_case(name: str) -> SolverReferenceCase:
@@ -71,4 +72,5 @@ def load_reference_case(name: str) -> SolverReferenceCase:
     return SolverReferenceCase(
         run=run,
         expected_assignments=[tuple(item) for item in data["expected_assignments"]],
+        expected_result=data.get("expected_result", {}),
     )

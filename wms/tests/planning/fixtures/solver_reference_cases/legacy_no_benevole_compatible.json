@@ -1,0 +1,50 @@
+{
+  "week_start": "2025-01-04",
+  "week_end": "2025-01-05",
+  "shipments": [
+    {
+      "reference": "BE_DLA_900",
+      "shipper_name": "ASF",
+      "destination_iata": "DLA",
+      "priority": 1,
+      "carton_count": 10,
+      "equivalent_units": 10
+    }
+  ],
+  "volunteers": [
+    {
+      "label": "Alice",
+      "max_colis_vol": 30,
+      "availability_summary": {
+        "slot_count": 1,
+        "slots": [
+          {
+            "date": "2025-01-04",
+            "start_time": "11:00",
+            "end_time": "11:05"
+          }
+        ]
+      }
+    }
+  ],
+  "flights": [
+    {
+      "flight_number": "AF9002",
+      "departure_date": "2025-01-04",
+      "destination_iata": "DLA",
+      "capacity_units": 25,
+      "payload": {
+        "departure_time": "10:00",
+        "origin_iata": "CDG",
+        "routing": "CDG-DLA",
+        "route_pos": 1
+      }
+    }
+  ],
+  "expected_assignments": [],
+  "expected_result": {
+    "assignment_count": 0,
+    "candidate_count": 0,
+    "nb_vols_sans_benevole_compatible": 1
+  }
+}
