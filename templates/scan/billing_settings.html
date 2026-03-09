@@ -16,7 +16,7 @@
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
-    <form method="post" class="scan-filters ui-comp-form">
+    <form method="post" class="scan-filters ui-comp-form billing-form-stack">
       {% csrf_token %}
       <input type="hidden" name="profile_id" value="{% if profile_form.instance.pk %}{{ profile_form.instance.pk }}{% endif %}">
 
@@ -137,7 +137,7 @@
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
-    <form method="post" class="scan-filters ui-comp-form">
+    <form method="post" class="scan-filters ui-comp-form billing-form-stack">
       {% csrf_token %}
       <input type="hidden" name="service_id" value="{% if service_form.instance.pk %}{{ service_form.instance.pk }}{% endif %}">
 
@@ -230,7 +230,7 @@
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
-    <form method="post" class="scan-filters ui-comp-form">
+    <form method="post" class="scan-filters ui-comp-form billing-form-stack">
       {% csrf_token %}
       <input type="hidden" name="override_id" value="{% if override_form.instance.pk %}{{ override_form.instance.pk }}{% endif %}">
 

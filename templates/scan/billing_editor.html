@@ -15,7 +15,7 @@
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
-    <form method="get" class="scan-filters ui-comp-form">
+    <form method="get" class="scan-filters ui-comp-form billing-form-stack">
       <h3 class="ui-comp-title">S&eacute;lection</h3>
       <div class="scan-inline scan-inline-equal">
         <div class="scan-field">
@@ -57,7 +57,7 @@
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
-    <form method="post" class="scan-filters ui-comp-form">
+    <form method="post" class="scan-filters ui-comp-form billing-form-stack">
       {% csrf_token %}
       <input type="hidden" name="action" value="build_draft">
       <input type="hidden" name="association_profile" value="{% if selected_association_profile %}{{ selected_association_profile.id }}{% endif %}">
@@ -252,7 +252,7 @@
 
       {% if draft_document.status == "draft" %}
         <div class="scan-divider"></div>
-        <form method="post" class="scan-filters ui-comp-form">
+        <form method="post" class="scan-filters ui-comp-form billing-form-stack">
           {% csrf_token %}
           <input type="hidden" name="action" value="issue_document">
           <input type="hidden" name="document_id" value="{{ draft_document.id }}">
@@ -282,7 +282,7 @@
 
       {% if draft_document.kind == "invoice" and draft_document.status != "draft" and draft_document.status != "cancelled_or_corrected" %}
         <div class="scan-divider"></div>
-        <form method="post" class="scan-filters ui-comp-form">
+        <form method="post" class="scan-filters ui-comp-form billing-form-stack">
           {% csrf_token %}
           <input type="hidden" name="action" value="add_payment">
           <input type="hidden" name="document_id" value="{{ draft_document.id }}">
@@ -327,7 +327,7 @@
         </form>
 
         <div class="scan-divider"></div>
-        <form method="post" class="scan-filters ui-comp-form">
+        <form method="post" class="scan-filters ui-comp-form billing-form-stack">
           {% csrf_token %}
           <input type="hidden" name="action" value="create_correction_chain">
           <input type="hidden" name="document_id" value="{{ draft_document.id }}">

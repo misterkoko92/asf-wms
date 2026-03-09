@@ -16,7 +16,7 @@
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
-    <form method="post" class="scan-filters ui-comp-form">
+    <form method="post" class="scan-filters ui-comp-form billing-form-stack">
       {% csrf_token %}
       <input type="hidden" name="rule_id" value="{% if rule_form.instance.pk %}{{ rule_form.instance.pk }}{% endif %}">
 

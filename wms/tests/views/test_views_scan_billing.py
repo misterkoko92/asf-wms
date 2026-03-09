@@ -517,6 +517,11 @@ class ScanBillingViewTests(TestCase):
         response = self.client.get(reverse("scan:scan_billing_settings"))
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'class="scan-filters ui-comp-form billing-form-stack"',
+            count=3,
+        )
         self.assertContains(response, 'class="billing-grid billing-grid--7"')
         self.assertContains(response, 'class="billing-grid billing-grid--6"')
         self.assertContains(response, 'class="billing-toggle-grid billing-toggle-grid--4"')
@@ -616,6 +621,10 @@ class ScanBillingViewTests(TestCase):
         response = self.client.get(reverse("scan:scan_billing_equivalence"))
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'class="scan-filters ui-comp-form billing-form-stack"',
+        )
         self.assertContains(response, 'class="billing-grid billing-grid--4"')
         self.assertContains(response, 'class="billing-toggle-grid billing-toggle-grid--2"')
         self.assertContains(response, 'class="scan-field billing-field billing-field--full"')
@@ -641,6 +650,11 @@ class ScanBillingViewTests(TestCase):
         response = self.client.get(reverse("scan:scan_billing_editor"))
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'class="scan-filters ui-comp-form billing-form-stack"',
+            count=2,
+        )
         self.assertContains(response, 'class="billing-grid billing-grid--2"')
         self.assertContains(response, 'class="billing-grid billing-grid--3"')
         body = response.content.decode()
