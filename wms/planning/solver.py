@@ -63,6 +63,7 @@ def summarize_solver_result(
 def _build_assignments(
     payload: dict, compatibility: dict[int, list[tuple[int, int]]]
 ) -> tuple[list, list]:
+    flight_by_id = {flight["snapshot_id"]: flight for flight in payload.get("flights", [])}
     flight_remaining_capacity = {
         flight["snapshot_id"]: flight.get("capacity_units") for flight in payload["flights"]
     }
@@ -70,12 +71,33 @@ def _build_assignments(
         volunteer["snapshot_id"]: volunteer.get("max_colis_vol")
         for volunteer in payload["volunteers"]
     }
+    volunteer_used_physical_flights = defaultdict(set)
     assignments = []
     unassigned = []
 
-    for shipment in payload["shipments"]:
+    ordered_shipments = sorted(
+        payload["shipments"],
+        key=lambda shipment: (
+            -int(shipment.get("priority") or 0),
+            min(
+                int(flight_by_id[flight_id].get("route_pos") or 1)
+                for flight_id, _volunteer_id in compatibility.get(shipment["snapshot_id"], [])
+            )
+            if compatibility.get(shipment["snapshot_id"])
+            else 999,
+            str(shipment.get("reference") or ""),
+            int(shipment["snapshot_id"]),
+        ),
+    )
+
+    for shipment in ordered_shipments:
         matched = False
         for flight_id, volunteer_id in compatibility.get(shipment["snapshot_id"], []):
+            physical_flight_key = flight_by_id.get(flight_id, {}).get("physical_flight_key") or str(
+                flight_id
+            )
+            if physical_flight_key in volunteer_used_physical_flights[volunteer_id]:
+                continue
             remaining_capacity = flight_remaining_capacity.get(flight_id)
             if remaining_capacity is not None and shipment["equivalent_units"] > remaining_capacity:
                 continue
@@ -98,6 +120,7 @@ def _build_assignments(
                 volunteer_remaining_cartons[volunteer_id] = (
                     remaining_cartons - shipment["carton_count"]
                 )
+            volunteer_used_physical_flights[volunteer_id].add(physical_flight_key)
             matched = True
             break
         if not matched:

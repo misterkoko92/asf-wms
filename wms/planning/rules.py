@@ -1,3 +1,5 @@
+from datetime import time
+
 from wms.models import (
     PlanningFlightSnapshot,
     PlanningRun,
@@ -5,6 +7,20 @@ from wms.models import (
     PlanningVolunteerSnapshot,
 )
 from wms.planning.validation import get_destination_rule_map
+
+
+def _parse_time_value(value: str | None) -> time | None:
+    if not value:
+        return None
+    parts = str(value).strip().split(":")
+    if len(parts) < 2:
+        return None
+    try:
+        hour = int(parts[0])
+        minute = int(parts[1])
+    except (TypeError, ValueError):
+        return None
+    return time(hour=hour, minute=minute)
 
 
 def _normalize_flight_number(value: str) -> str:
@@ -126,11 +142,44 @@ def materialize_solver_snapshots(run: PlanningRun) -> dict:
     }
 
 
-def _has_availability_for_date(volunteer_payload, departure_date: str) -> bool:
-    slots = (volunteer_payload.get("availability_summary") or {}).get("slots") or []
+def volunteer_is_compatible_with_flight(volunteer: dict, flight: dict) -> bool:
+    availability = volunteer.get("availability_summary") or {}
+    unavailable_dates = set(availability.get("unavailable_dates") or [])
+    departure_date = str(flight.get("departure_date") or "")
+    if departure_date in unavailable_dates:
+        return False
+
+    slots = availability.get("slots") or []
     if not slots:
         return True
-    return any(slot.get("date") == departure_date for slot in slots)
+
+    departure_time = _parse_time_value(flight.get("departure_time"))
+    for slot in slots:
+        if slot.get("date") != departure_date:
+            continue
+        if departure_time is None:
+            return True
+        start_time = _parse_time_value(slot.get("start_time"))
+        end_time = _parse_time_value(slot.get("end_time"))
+        if start_time is None or end_time is None:
+            return True
+        if start_time <= departure_time <= end_time:
+            return True
+    return False
+
+
+def shipment_is_compatible_with_flight(shipment: dict, flight: dict) -> bool:
+    shipment_dest = str(shipment.get("destination_iata") or "").upper()
+    flight_dest = str(flight.get("destination_iata") or "").upper()
+    if shipment_dest and flight_dest and shipment_dest != flight_dest:
+        return False
+    max_cartons_per_flight = flight.get("max_cartons_per_flight")
+    if max_cartons_per_flight is not None and shipment["carton_count"] > max_cartons_per_flight:
+        return False
+    capacity_units = flight.get("capacity_units")
+    if capacity_units is not None and shipment["equivalent_units"] > capacity_units:
+        return False
+    return True
 
 
 def compute_compatibility(payload: dict) -> dict[int, list[tuple[int, int]]]:
@@ -138,18 +187,22 @@ def compute_compatibility(payload: dict) -> dict[int, list[tuple[int, int]]]:
     for shipment in payload["shipments"]:
         pairs = []
         for flight in payload["flights"]:
-            if (
-                shipment["destination_iata"]
-                and flight["destination_iata"]
-                and shipment["destination_iata"] != flight["destination_iata"]
-            ):
+            if not shipment_is_compatible_with_flight(shipment, flight):
                 continue
             for volunteer in payload["volunteers"]:
                 max_colis_vol = volunteer.get("max_colis_vol")
                 if max_colis_vol is not None and shipment["carton_count"] > max_colis_vol:
                     continue
-                if not _has_availability_for_date(volunteer, flight["departure_date"]):
+                if not volunteer_is_compatible_with_flight(volunteer, flight):
                     continue
                 pairs.append((flight["snapshot_id"], volunteer["snapshot_id"]))
+        flight_metadata = {
+            flight["snapshot_id"]: (
+                int(flight.get("route_pos") or 1),
+                str(flight.get("flight_number") or ""),
+            )
+            for flight in payload["flights"]
+        }
+        pairs.sort(key=lambda pair: flight_metadata.get(pair[0], (999, "")))
         compatibility[shipment["snapshot_id"]] = pairs
     return compatibility
