@@ -1,0 +1,90 @@
+{
+  "week_start": "2026-03-09",
+  "week_end": "2026-03-15",
+  "shipments": [
+    {
+      "reference": "REF-ABJ-001",
+      "shipper_name": "Reference shipper",
+      "destination_iata": "ABJ",
+      "priority": 5,
+      "carton_count": 2,
+      "equivalent_units": 2
+    },
+    {
+      "reference": "REF-DKR-001",
+      "shipper_name": "Reference shipper",
+      "destination_iata": "DKR",
+      "priority": 4,
+      "carton_count": 1,
+      "equivalent_units": 1
+    }
+  ],
+  "volunteers": [
+    {
+      "label": "Alice",
+      "max_colis_vol": 4,
+      "availability_summary": {
+        "slot_count": 1,
+        "slots": [
+          {
+            "date": "2026-03-10",
+            "start_time": "08:00",
+            "end_time": "12:00"
+          }
+        ]
+      }
+    },
+    {
+      "label": "Bob",
+      "max_colis_vol": 2,
+      "availability_summary": {
+        "slot_count": 1,
+        "slots": [
+          {
+            "date": "2026-03-11",
+            "start_time": "08:00",
+            "end_time": "12:00"
+          }
+        ]
+      }
+    }
+  ],
+  "flights": [
+    {
+      "flight_number": "AF702",
+      "departure_date": "2026-03-10",
+      "destination_iata": "ABJ",
+      "capacity_units": 10,
+      "payload": {
+        "departure_time": "10:00",
+        "origin_iata": "CDG",
+        "routing": "CDG-ABJ",
+        "route_pos": 1
+      }
+    },
+    {
+      "flight_number": "AF718",
+      "departure_date": "2026-03-11",
+      "destination_iata": "DKR",
+      "capacity_units": 10,
+      "payload": {
+        "departure_time": "09:30",
+        "origin_iata": "CDG",
+        "routing": "CDG-DKR",
+        "route_pos": 1
+      }
+    }
+  ],
+  "expected_assignments": [
+    [
+      "REF-ABJ-001",
+      "AF702",
+      "Alice"
+    ],
+    [
+      "REF-DKR-001",
+      "AF718",
+      "Bob"
+    ]
+  ]
+}
