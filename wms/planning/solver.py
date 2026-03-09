@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from functools import cache
 
 from django.db import transaction
 
@@ -81,6 +82,104 @@ def _candidate_score(candidate: dict) -> int:
         + (equivalent_units * 1_000)
         + cartons
     )
+
+
+def _coerce_int(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _volunteer_assignment_order_key(volunteer: dict) -> tuple:
+    payload = volunteer.get("payload") or {}
+    legacy_id = _coerce_int(payload.get("legacy_id"))
+    label = str(volunteer.get("label") or "")
+    snapshot_id = _coerce_int(volunteer.get("snapshot_id")) or 0
+    if legacy_id is not None:
+        return (0, legacy_id, label, snapshot_id)
+    return (1, label, snapshot_id)
+
+
+def _solve_lexicographic_flight_distribution(
+    shipment_weights: tuple[int, ...],
+    volunteer_capacities: tuple[int, ...],
+) -> tuple[int, ...] | None:
+    @cache
+    def _assign(index: int, remaining_capacities: tuple[int, ...]) -> tuple[int, ...] | None:
+        if index >= len(shipment_weights):
+            return ()
+
+        current_weight = shipment_weights[index]
+        for volunteer_index, remaining_capacity in enumerate(remaining_capacities):
+            if remaining_capacity < current_weight:
+                continue
+            next_remaining = list(remaining_capacities)
+            next_remaining[volunteer_index] -= current_weight
+            tail = _assign(index + 1, tuple(next_remaining))
+            if tail is not None:
+                return (volunteer_index,) + tail
+        return None
+
+    return _assign(0, volunteer_capacities)
+
+
+def _rebalance_assignments_by_flight(assignments: list[dict], payload: dict) -> list[dict]:
+    if not assignments:
+        return assignments
+
+    volunteer_by_id = {
+        volunteer["snapshot_id"]: volunteer for volunteer in payload.get("volunteers", [])
+    }
+    grouped_assignments = defaultdict(list)
+    for assignment in assignments:
+        grouped_assignments[assignment["flight_snapshot_id"]].append(assignment)
+
+    rebalanced = []
+    for flight_assignments in grouped_assignments.values():
+        if len(flight_assignments) <= 1:
+            rebalanced.extend(flight_assignments)
+            continue
+
+        ordered_shipments = sorted(
+            flight_assignments,
+            key=lambda item: (
+                str(item.get("reference") or ""),
+                int(item.get("shipment_snapshot_id") or 0),
+            ),
+        )
+        volunteer_ids = sorted(
+            {item["volunteer_snapshot_id"] for item in ordered_shipments},
+            key=lambda volunteer_id: _volunteer_assignment_order_key(
+                volunteer_by_id.get(volunteer_id, {"snapshot_id": volunteer_id})
+            ),
+        )
+        if len(volunteer_ids) <= 1:
+            rebalanced.extend(ordered_shipments)
+            continue
+
+        volunteer_capacities = []
+        for volunteer_id in volunteer_ids:
+            volunteer = volunteer_by_id.get(volunteer_id, {})
+            max_colis_vol = volunteer.get("max_colis_vol")
+            if max_colis_vol is None:
+                max_colis_vol = LEGACY_EQUIV_CAPACITY_PER_VOLUNTEER
+            volunteer_capacities.append(int(max_colis_vol))
+
+        distribution = _solve_lexicographic_flight_distribution(
+            tuple(int(item["equivalent_units"]) for item in ordered_shipments),
+            tuple(volunteer_capacities),
+        )
+        if distribution is None:
+            rebalanced.extend(ordered_shipments)
+            continue
+
+        for assignment, volunteer_index in zip(ordered_shipments, distribution):
+            updated_assignment = dict(assignment)
+            updated_assignment["volunteer_snapshot_id"] = volunteer_ids[volunteer_index]
+            rebalanced.append(updated_assignment)
+
+    return rebalanced
 
 
 def _build_candidates(payload: dict, compatibility: dict[int, list[tuple[int, int]]]) -> list[dict]:
@@ -269,6 +368,7 @@ def _solve_candidates(
     selected = [
         candidates[index] for index, variable in variables.items() if solver.Value(variable)
     ]
+    selected = _rebalance_assignments_by_flight(selected, payload)
     selected.sort(
         key=lambda item: (
             -int(item.get("priority") or 0),

@@ -123,3 +123,81 @@ class SolverOrtoolsTests(TestCase):
         )
         self.assertEqual(version.assignments.count(), 3)
         self.assertEqual(len(assigned_volunteers), 2)
+
+    def test_solve_run_reassigns_same_flight_load_using_legacy_volunteer_order(self):
+        user = get_user_model().objects.create_user(
+            username="planner-ortools-legacy-order@example.com",
+            email="planner-ortools-legacy-order@example.com",
+            password="pass1234",  # pragma: allowlist secret
+        )
+        run = PlanningRun.objects.create(
+            week_start="2026-03-09",
+            week_end="2026-03-15",
+            status=PlanningRunStatus.READY,
+            created_by=user,
+        )
+        for ref in ("250722", "250723", "250724"):
+            PlanningShipmentSnapshot.objects.create(
+                run=run,
+                shipment_reference=ref,
+                shipper_name="AR MADA",
+                destination_iata="RUN",
+                priority=2,
+                carton_count=10,
+                equivalent_units=10,
+            )
+        PlanningVolunteerSnapshot.objects.create(
+            run=run,
+            volunteer_label="PIERSON Gilles",
+            availability_summary={
+                "slot_count": 1,
+                "slots": [
+                    {
+                        "date": "2026-03-11",
+                        "start_time": "05:00",
+                        "end_time": "21:00",
+                    }
+                ],
+            },
+            payload={"legacy_id": 25},
+        )
+        PlanningVolunteerSnapshot.objects.create(
+            run=run,
+            volunteer_label="GUEDON Bernard",
+            availability_summary={
+                "slot_count": 1,
+                "slots": [
+                    {
+                        "date": "2026-03-11",
+                        "start_time": "05:00",
+                        "end_time": "21:00",
+                    }
+                ],
+            },
+            payload={"legacy_id": 33},
+        )
+        PlanningFlightSnapshot.objects.create(
+            run=run,
+            flight_number="AF652",
+            departure_date=date(2026, 3, 11),
+            destination_iata="RUN",
+            capacity_units=40,
+            payload={"departure_time": "18:20", "routing": "CDG-RUN", "route_pos": 1},
+        )
+
+        version = solve_run(run)
+
+        assignments = list(
+            version.assignments.order_by("shipment_snapshot__shipment_reference").values_list(
+                "shipment_snapshot__shipment_reference",
+                "volunteer_snapshot__volunteer_label",
+            )
+        )
+        self.assertEqual(
+            assignments,
+            [
+                ("250722", "PIERSON Gilles"),
+                ("250723", "PIERSON Gilles"),
+                ("250724", "GUEDON Bernard"),
+            ],
+        )

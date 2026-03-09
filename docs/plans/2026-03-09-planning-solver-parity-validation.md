@@ -64,6 +64,7 @@ Le harnais `wms.tests.planning.tests_solver_reference_cases` couvre deja les cas
 - `legacy_multistop_first_stop_without_route_pos`
 - `legacy_multistop_second_stop_without_conflict`
 - `legacy_no_benevole_compatible`
+- `legacy_session_s11_2026`
 
 Le cas `missing_paramdest_stop` du legacy reste a porter avec un format d'assertion moins strict que l'egalite exacte des affectations, car le solveur peut retourner plusieurs matchings equivalents.
 
@@ -88,20 +89,23 @@ La session legacy suivante a ete rejouee avec succes:
 - semaine detectee: `2026-03-09 -> 2026-03-15`
 - sortie extraite: `/tmp/legacy_session_s11_2026.json`
 
-Parite obtenue cote WMS apres alignement des contraintes:
+Parite obtenue cote WMS apres alignement des contraintes et de l'affectation intra-vol:
 - memes `4` expeditions affectees
 - memes vols retenus (`AF652`, `AF910`)
 - meme ensemble de benevoles mobilises (`PIERSON`, `GUEDON`, `CUBIZOLLES`)
+- meme distribution BE -> benevole sur `AF652`
 - meme affectation pour `AF910`
 
-Ecart residuel actuel:
-- sur `AF652`, le legacy assigne `250722` et `250723` a `PIERSON` puis `250724` a `GUEDON`
-- le solveur WMS assigne `250722` et `250723` a `GUEDON` puis `250724` a `PIERSON`
+Correction appliquee:
+- le solveur WMS conserve son choix CP-SAT des vols et du set de benevoles
+- une etape deterministe de repartition intra-vol recompose ensuite `BE -> benevole`
+- cette repartition suit l'ordre legacy des benevoles quand `payload.legacy_id` est disponible
+- l'algorithme utilise un backtracking borne pour garder une affectation faisable sous contrainte de capacite
 
-Interpretation:
-- les contraintes principales semblent maintenant alignees
-- l'ecart restant ressemble a un tie-break d'affectation intra-vol entre benevoles equivalemment valides
-- ne pas versionner ce cas comme golden test strict tant que ce tie-break n'est pas clarifie
+Statut:
+- le probe reel `legacy_session_s11_2026` n'a plus d'ecart connu
+- la fixture `wms/tests/planning/fixtures/solver_reference_cases/legacy_session_s11_2026.json` est maintenant versionnee
+- le harnais `wms.tests.planning.tests_solver_reference_cases` l'assert en egalite stricte
 
 ## Residual Gap Log
 Tant que le corpus de semaines reelles n'est pas encore branche, documenter chaque ecart important selon ce format:

@@ -249,3 +249,81 @@ class LegacyReferenceCaseBuilderTests(SimpleTestCase):
                 }
             ],
         )
+
+    def test_build_reference_case_payload_omits_incomparable_legacy_flight_metrics(self):
+        payload = build_reference_case_payload(
+            case_name="legacy_session_incomparable_stats",
+            df_be=pd.DataFrame(
+                [
+                    {
+                        "BE_Numero": "250722",
+                        "BE_Expediteur": "AR MADA",
+                        "Destination": "RUN",
+                        "Priorite": 2,
+                        "BE_Nb_Colis": 10,
+                        "Equiv_Colis": 10,
+                        "BE_Type": "MM",
+                        "BE_Destinataire": "AR MADA",
+                    }
+                ]
+            ),
+            df_vols=pd.DataFrame(
+                [
+                    {
+                        "Date_Vol_dt": pd.Timestamp("2026-03-11"),
+                        "Heure_Vol_dt": pd.Timestamp("1900-01-01 18:20:00"),
+                        "Numero_Vol": "AF 652",
+                        "IATA": "RUN",
+                        "Routing": "[CDG,RUN]",
+                        "Route_Pos": 1,
+                        "Max_Colis": 20,
+                        "Source": "excel",
+                    }
+                ]
+            ),
+            df_benev=pd.DataFrame(
+                [
+                    {
+                        "ID": 5,
+                        "Benevole": "PIERSON Gilles",
+                        "Date_dt": pd.Timestamp("2026-03-11"),
+                        "Heure_Arrivee_time": time(7, 0),
+                        "Heure_Depart_time": time(20, 0),
+                    }
+                ]
+            ),
+            df_param_benev=pd.DataFrame(
+                [
+                    {
+                        "ID": 5,
+                        "Benevole": "PIERSON Gilles",
+                        "Max_Colis_Vol": 30,
+                        "Telephone": "0600000000",
+                    }
+                ]
+            ),
+            planning_df=pd.DataFrame(
+                [
+                    {
+                        "Date_Vol": date(2026, 3, 11),
+                        "Numero_Vol": "652",
+                        "Destination": "RUN",
+                        "BE_Numero": "250722",
+                        "Benevole": "PIERSON Gilles",
+                    }
+                ]
+            ),
+            stats={
+                "nb_vols_total": 3,
+                "nb_vols_sans_be_compatible": 2,
+                "nb_vols_sans_benevole_compatible": 1,
+                "nb_vols_sans_compatibilite_complete": 2,
+            },
+        )
+
+        self.assertEqual(
+            payload["expected_result"],
+            {
+                "assignment_count": 1,
+            },
+        )

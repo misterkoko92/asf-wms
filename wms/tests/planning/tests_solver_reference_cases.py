@@ -40,3 +40,6 @@ class SolverReferenceCaseTests(TestCase):
 
     def test_reference_case_legacy_no_benevole_compatible_matches_expected_result(self):
         self._assert_reference_case("legacy_no_benevole_compatible")
+
+    def test_reference_case_legacy_session_s11_2026_matches_expected_assignments(self):
+        self._assert_reference_case("legacy_session_s11_2026")

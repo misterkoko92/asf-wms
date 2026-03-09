@@ -1,0 +1,2554 @@
+{
+  "case_name": "legacy_session_s11_2026",
+  "week_start": "2026-03-09",
+  "week_end": "2026-03-15",
+  "shipments": [
+    {
+      "reference": "250722",
+      "shipper_name": "AR MADA",
+      "destination_iata": "RUN",
+      "priority": 2,
+      "carton_count": 10,
+      "equivalent_units": 10,
+      "payload": {
+        "legacy_case_name": "legacy_session_s11_2026",
+        "legacy_type": "MM",
+        "legacy_destinataire": "AR MADA"
+      }
+    },
+    {
+      "reference": "250723",
+      "shipper_name": "AR MADA",
+      "destination_iata": "RUN",
+      "priority": 2,
+      "carton_count": 10,
+      "equivalent_units": 10,
+      "payload": {
+        "legacy_case_name": "legacy_session_s11_2026",
+        "legacy_type": "MM",
+        "legacy_destinataire": "AR MADA"
+      }
+    },
+    {
+      "reference": "250724",
+      "shipper_name": "AR MADA",
+      "destination_iata": "RUN",
+      "priority": 2,
+      "carton_count": 10,
+      "equivalent_units": 10,
+      "payload": {
+        "legacy_case_name": "legacy_session_s11_2026",
+        "legacy_type": "MM",
+        "legacy_destinataire": "AR MADA"
+      }
+    },
+    {
+      "reference": "260129",
+      "shipper_name": "ASSOROC",
+      "destination_iata": "NSI",
+      "priority": 2,
+      "carton_count": 6,
+      "equivalent_units": 6,
+      "payload": {
+        "legacy_case_name": "legacy_session_s11_2026",
+        "legacy_type": "MM",
+        "legacy_destinataire": "C. S. STE MADELEINE"
+      }
+    }
+  ],
+  "volunteers": [
+    {
+      "label": "ALBISSER Philippe",
+      "max_colis_vol": null,
+      "availability_summary": {
+        "slot_count": 7,
+        "slots": [
+          {
+            "date": "2026-03-09",
+            "start_time": "05:00",
+            "end_time": "13:00"
+          },
+          {
+            "date": "2026-03-10",
+            "start_time": "05:00",
+            "end_time": "13:00"
+          },
+          {
+            "date": "2026-03-11",
+            "start_time": "05:00",
+            "end_time": "13:00"
+          },
+          {
+            "date": "2026-03-12",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-13",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-14",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-15",
+            "start_time": "",
+            "end_time": ""
+          }
+        ]
+      },
+      "payload": {
+        "legacy_id": 7,
+        "legacy_phone": "33658734580"
+      }
+    },
+    {
+      "label": "AUFRAY Jean-Claude",
+      "max_colis_vol": null,
+      "availability_summary": {
+        "slot_count": 7,
+        "slots": [
+          {
+            "date": "2026-03-09",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-10",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-11",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-12",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-13",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-14",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-15",
+            "start_time": "",
+            "end_time": ""
+          }
+        ]
+      },
+      "payload": {
+        "legacy_id": 8,
+        "legacy_phone": "33681999591‬"
+      }
+    },
+    {
+      "label": "BACARA Claude",
+      "max_colis_vol": null,
+      "availability_summary": {
+        "slot_count": 7,
+        "slots": [
+          {
+            "date": "2026-03-09",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-10",
+            "start_time": "05:00",
+            "end_time": "17:00"
+          },
+          {
+            "date": "2026-03-11",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-12",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-13",
+            "start_time": "05:00",
+            "end_time": "18:00"
+          },
+          {
+            "date": "2026-03-14",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-15",
+            "start_time": "",
+            "end_time": ""
+          }
+        ]
+      },
+      "payload": {
+        "legacy_id": 9,
+        "legacy_phone": "33699874805‬"
+      }
+    },
+    {
+      "label": "BEAURAIN Pierre",
+      "max_colis_vol": null,
+      "availability_summary": {
+        "slot_count": 7,
+        "slots": [
+          {
+            "date": "2026-03-09",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-10",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-11",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-12",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-13",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-14",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-15",
+            "start_time": "",
+            "end_time": ""
+          }
+        ]
+      },
+      "payload": {
+        "legacy_id": 10,
+        "legacy_phone": "33782033584‬"
+      }
+    },
+    {
+      "label": "BOURGES Thierry",
+      "max_colis_vol": null,
+      "availability_summary": {
+        "slot_count": 7,
+        "slots": [
+          {
+            "date": "2026-03-09",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-10",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-11",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-12",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-13",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-14",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-15",
+            "start_time": "",
+            "end_time": ""
+          }
+        ]
+      },
+      "payload": {
+        "legacy_id": 11,
+        "legacy_phone": "33‭630961178‬"
+      }
+    },
+    {
+      "label": "BOUTANTIN Jean-Claude",
+      "max_colis_vol": null,
+      "availability_summary": {
+        "slot_count": 7,
+        "slots": [
+          {
+            "date": "2026-03-09",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-10",
+            "start_time": "06:00",
+            "end_time": "12:30"
+          },
+          {
+            "date": "2026-03-11",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-12",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-13",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-14",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-15",
+            "start_time": "",
+            "end_time": ""
+          }
+        ]
+      },
+      "payload": {
+        "legacy_id": 12,
+        "legacy_phone": "33607097314‬"
+      }
+    },
+    {
+      "label": "BRUGE Alain",
+      "max_colis_vol": null,
+      "availability_summary": {
+        "slot_count": 7,
+        "slots": [
+          {
+            "date": "2026-03-09",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-10",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-11",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-12",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-13",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-14",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-15",
+            "start_time": "",
+            "end_time": ""
+          }
+        ]
+      },
+      "payload": {
+        "legacy_id": 13,
+        "legacy_phone": "33664677049‬"
+      }
+    },
+    {
+      "label": "COURTOIS Alain",
+      "max_colis_vol": null,
+      "availability_summary": {
+        "slot_count": 7,
+        "slots": [
+          {
+            "date": "2026-03-09",
+            "start_time": "06:30",
+            "end_time": "13:30"
+          },
+          {
+            "date": "2026-03-10",
+            "start_time": "06:30",
+            "end_time": "13:30"
+          },
+          {
+            "date": "2026-03-11",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-12",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-13",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-14",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-15",
+            "start_time": "",
+            "end_time": ""
+          }
+        ]
+      },
+      "payload": {
+        "legacy_id": 14,
+        "legacy_phone": "33688592043"
+      }
+    },
+    {
+      "label": "CUBIZOLLES Alain",
+      "max_colis_vol": null,
+      "availability_summary": {
+        "slot_count": 7,
+        "slots": [
+          {
+            "date": "2026-03-09",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-10",
+            "start_time": "05:00",
+            "end_time": "18:30"
+          },
+          {
+            "date": "2026-03-11",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-12",
+            "start_time": "05:00",
+            "end_time": "18:30"
+          },
+          {
+            "date": "2026-03-13",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-14",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-15",
+            "start_time": "",
+            "end_time": ""
+          }
+        ]
+      },
+      "payload": {
+        "legacy_id": 15,
+        "legacy_phone": "33672963351‬"
+      }
+    },
+    {
+      "label": "ALVES Norbert",
+      "max_colis_vol": null,
+      "availability_summary": {
+        "slot_count": 7,
+        "slots": [
+          {
+            "date": "2026-03-09",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-10",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-11",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-12",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-13",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-14",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-15",
+            "start_time": "",
+            "end_time": ""
+          }
+        ]
+      },
+      "payload": {
+        "legacy_id": 16,
+        "legacy_phone": "33660621158‬"
+      }
+    },
+    {
+      "label": "DE MASCAREL Anthoine",
+      "max_colis_vol": null,
+      "availability_summary": {
+        "slot_count": 7,
+        "slots": [
+          {
+            "date": "2026-03-09",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-10",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-11",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-12",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-13",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-14",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-15",
+            "start_time": "",
+            "end_time": ""
+          }
+        ]
+      },
+      "payload": {
+        "legacy_id": 17,
+        "legacy_phone": "33616322437‬"
+      }
+    },
+    {
+      "label": "FAZILLE Guy-Laurent",
+      "max_colis_vol": null,
+      "availability_summary": {
+        "slot_count": 7,
+        "slots": [
+          {
+            "date": "2026-03-09",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-10",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-11",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-12",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-13",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-14",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-15",
+            "start_time": "",
+            "end_time": ""
+          }
+        ]
+      },
+      "payload": {
+        "legacy_id": 18,
+        "legacy_phone": "33681009424‬"
+      }
+    },
+    {
+      "label": "FILOU Thierry",
+      "max_colis_vol": null,
+      "availability_summary": {
+        "slot_count": 7,
+        "slots": [
+          {
+            "date": "2026-03-09",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-10",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-11",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-12",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-13",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-14",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-15",
+            "start_time": "",
+            "end_time": ""
+          }
+        ]
+      },
+      "payload": {
+        "legacy_id": 19,
+        "legacy_phone": "33676861556‬"
+      }
+    },
+    {
+      "label": "GIRAUD Claude",
+      "max_colis_vol": null,
+      "availability_summary": {
+        "slot_count": 7,
+        "slots": [
+          {
+            "date": "2026-03-09",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-10",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-11",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-12",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-13",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-14",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-15",
+            "start_time": "",
+            "end_time": ""
+          }
+        ]
+      },
+      "payload": {
+        "legacy_id": 20,
+        "legacy_phone": "33626013513‬"
+      }
+    },
+    {
+      "label": "GOARIN Jean-Michel",
+      "max_colis_vol": null,
+      "availability_summary": {
+        "slot_count": 7,
+        "slots": [
+          {
+            "date": "2026-03-09",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-10",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-11",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-12",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-13",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-14",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-15",
+            "start_time": "",
+            "end_time": ""
+          }
+        ]
+      },
+      "payload": {
+        "legacy_id": 21,
+        "legacy_phone": "33‭671230296‬"
+      }
+    },
+    {
+      "label": "GONNU Edouard",
+      "max_colis_vol": null,
+      "availability_summary": {
+        "slot_count": 7,
+        "slots": [
+          {
+            "date": "2026-03-09",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-10",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-11",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-12",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-13",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-14",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-15",
+            "start_time": "",
+            "end_time": ""
+          }
+        ]
+      },
+      "payload": {
+        "legacy_id": 22,
+        "legacy_phone": "33620262561"
+      }
+    },
+    {
+      "label": "JAFFRE Virginie",
+      "max_colis_vol": 30,
+      "availability_summary": {
+        "slot_count": 7,
+        "slots": [
+          {
+            "date": "2026-03-09",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-10",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-11",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-12",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-13",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-14",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-15",
+            "start_time": "",
+            "end_time": ""
+          }
+        ]
+      },
+      "payload": {
+        "legacy_id": 23,
+        "legacy_phone": "33660843795‬"
+      }
+    },
+    {
+      "label": "MALLIA Alain",
+      "max_colis_vol": null,
+      "availability_summary": {
+        "slot_count": 7,
+        "slots": [
+          {
+            "date": "2026-03-09",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-10",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-11",
+            "start_time": "05:00",
+            "end_time": "11:00"
+          },
+          {
+            "date": "2026-03-12",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-13",
+            "start_time": "05:00",
+            "end_time": "11:00"
+          },
+          {
+            "date": "2026-03-14",
+            "start_time": "05:00",
+            "end_time": "11:00"
+          },
+          {
+            "date": "2026-03-15",
+            "start_time": "",
+            "end_time": ""
+          }
+        ]
+      },
+      "payload": {
+        "legacy_id": 24,
+        "legacy_phone": "33660719472‬"
+      }
+    },
+    {
+      "label": "PIERSON Gilles",
+      "max_colis_vol": null,
+      "availability_summary": {
+        "slot_count": 7,
+        "slots": [
+          {
+            "date": "2026-03-09",
+            "start_time": "05:00",
+            "end_time": "21:00"
+          },
+          {
+            "date": "2026-03-10",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-11",
+            "start_time": "05:00",
+            "end_time": "21:00"
+          },
+          {
+            "date": "2026-03-12",
+            "start_time": "05:00",
+            "end_time": "21:00"
+          },
+          {
+            "date": "2026-03-13",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-14",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-15",
+            "start_time": "",
+            "end_time": ""
+          }
+        ]
+      },
+      "payload": {
+        "legacy_id": 25,
+        "legacy_phone": "33786413729‬"
+      }
+    },
+    {
+      "label": "RAYROUX Michel",
+      "max_colis_vol": null,
+      "availability_summary": {
+        "slot_count": 7,
+        "slots": [
+          {
+            "date": "2026-03-09",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-10",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-11",
+            "start_time": "09:00",
+            "end_time": "14:00"
+          },
+          {
+            "date": "2026-03-12",
+            "start_time": "09:00",
+            "end_time": "14:00"
+          },
+          {
+            "date": "2026-03-13",
+            "start_time": "09:00",
+            "end_time": "14:00"
+          },
+          {
+            "date": "2026-03-14",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-15",
+            "start_time": "",
+            "end_time": ""
+          }
+        ]
+      },
+      "payload": {
+        "legacy_id": 26,
+        "legacy_phone": "33680080403‬"
+      }
+    },
+    {
+      "label": "SIVALINGAM Kaje",
+      "max_colis_vol": null,
+      "availability_summary": {
+        "slot_count": 7,
+        "slots": [
+          {
+            "date": "2026-03-09",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-10",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-11",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-12",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-13",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-14",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-15",
+            "start_time": "",
+            "end_time": ""
+          }
+        ]
+      },
+      "payload": {
+        "legacy_id": 27,
+        "legacy_phone": "33666301407‬"
+      }
+    },
+    {
+      "label": "STOURM Bernard",
+      "max_colis_vol": null,
+      "availability_summary": {
+        "slot_count": 7,
+        "slots": [
+          {
+            "date": "2026-03-09",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-10",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-11",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-12",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-13",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-14",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-15",
+            "start_time": "",
+            "end_time": ""
+          }
+        ]
+      },
+      "payload": {
+        "legacy_id": 28,
+        "legacy_phone": "33‭679247194‬"
+      }
+    },
+    {
+      "label": "THEVENOT Jean-Louis",
+      "max_colis_vol": null,
+      "availability_summary": {
+        "slot_count": 7,
+        "slots": [
+          {
+            "date": "2026-03-09",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-10",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-11",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-12",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-13",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-14",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-15",
+            "start_time": "",
+            "end_time": ""
+          }
+        ]
+      },
+      "payload": {
+        "legacy_id": 29,
+        "legacy_phone": "33680626800‬"
+      }
+    },
+    {
+      "label": "CHRETIEN Cecile",
+      "max_colis_vol": null,
+      "availability_summary": {
+        "slot_count": 7,
+        "slots": [
+          {
+            "date": "2026-03-09",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-10",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-11",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-12",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-13",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-14",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-15",
+            "start_time": "",
+            "end_time": ""
+          }
+        ]
+      },
+      "payload": {
+        "legacy_id": 30,
+        "legacy_phone": "33685811518"
+      }
+    },
+    {
+      "label": "PEZERON Geoffrey",
+      "max_colis_vol": null,
+      "availability_summary": {
+        "slot_count": 7,
+        "slots": [
+          {
+            "date": "2026-03-09",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-10",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-11",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-12",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-13",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-14",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-15",
+            "start_time": "",
+            "end_time": ""
+          }
+        ]
+      },
+      "payload": {
+        "legacy_id": 31,
+        "legacy_phone": "33763747971"
+      }
+    },
+    {
+      "label": "PARRA Danielle",
+      "max_colis_vol": null,
+      "availability_summary": {
+        "slot_count": 7,
+        "slots": [
+          {
+            "date": "2026-03-09",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-10",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-11",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-12",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-13",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-14",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-15",
+            "start_time": "",
+            "end_time": ""
+          }
+        ]
+      },
+      "payload": {
+        "legacy_id": 32,
+        "legacy_phone": "33677759809"
+      }
+    },
+    {
+      "label": "GUEDON Bernard",
+      "max_colis_vol": null,
+      "availability_summary": {
+        "slot_count": 7,
+        "slots": [
+          {
+            "date": "2026-03-09",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-10",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-11",
+            "start_time": "05:00",
+            "end_time": "21:00"
+          },
+          {
+            "date": "2026-03-12",
+            "start_time": "05:00",
+            "end_time": "21:00"
+          },
+          {
+            "date": "2026-03-13",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-14",
+            "start_time": "",
+            "end_time": ""
+          },
+          {
+            "date": "2026-03-15",
+            "start_time": "",
+            "end_time": ""
+          }
+        ]
+      },
+      "payload": {
+        "legacy_id": 33,
+        "legacy_phone": "33676850860"
+      }
+    }
+  ],
+  "flights": [
+    {
+      "flight_number": "AF00VO",
+      "departure_date": "2026-03-09",
+      "destination_iata": "VOLSDIRECTS(AIRFRANCE+AFRIJET)",
+      "capacity_units": null,
+      "payload": {
+        "departure_time": "00:00",
+        "origin_iata": "CDG",
+        "routing": "CDG-VOLSDIRECTS(AIRFRANCE+AFRIJET)",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF566",
+      "departure_date": "2026-03-09",
+      "destination_iata": "BEY",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "09:10",
+        "origin_iata": "CDG",
+        "routing": "CDG-BEY",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF592",
+      "departure_date": "2026-03-09",
+      "destination_iata": "CKY",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "16:00",
+        "origin_iata": "CDG",
+        "routing": "CDG-CKY",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF702",
+      "departure_date": "2026-03-09",
+      "destination_iata": "ABJ",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "14:10",
+        "origin_iata": "CDG",
+        "routing": "CDG-ABJ",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF718",
+      "departure_date": "2026-03-09",
+      "destination_iata": "DSS",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "15:45",
+        "origin_iata": "CDG",
+        "routing": "CDG-DSS",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF728",
+      "departure_date": "2026-03-09",
+      "destination_iata": "FIH",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "09:40",
+        "origin_iata": "CDG",
+        "routing": "CDG-FIH-BZV",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF728",
+      "departure_date": "2026-03-09",
+      "destination_iata": "BZV",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "09:40",
+        "origin_iata": "CDG",
+        "routing": "CDG-FIH-BZV",
+        "route_pos": 2,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF822",
+      "departure_date": "2026-03-09",
+      "destination_iata": "SSG",
+      "capacity_units": null,
+      "payload": {
+        "departure_time": "11:00",
+        "origin_iata": "CDG",
+        "routing": "CDG-SSG-DLA",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF822",
+      "departure_date": "2026-03-09",
+      "destination_iata": "DLA",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "11:00",
+        "origin_iata": "CDG",
+        "routing": "CDG-SSG-DLA",
+        "route_pos": 2,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF830",
+      "departure_date": "2026-03-09",
+      "destination_iata": "ABV",
+      "capacity_units": null,
+      "payload": {
+        "departure_time": "14:05",
+        "origin_iata": "CDG",
+        "routing": "CDG-ABV-LFW",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF830",
+      "departure_date": "2026-03-09",
+      "destination_iata": "LFW",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "14:05",
+        "origin_iata": "CDG",
+        "routing": "CDG-ABV-LFW",
+        "route_pos": 2,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF908",
+      "departure_date": "2026-03-09",
+      "destination_iata": "NDJ",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "11:10",
+        "origin_iata": "CDG",
+        "routing": "CDG-NDJ-NSI",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF908",
+      "departure_date": "2026-03-09",
+      "destination_iata": "NSI",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "11:10",
+        "origin_iata": "CDG",
+        "routing": "CDG-NDJ-NSI",
+        "route_pos": 2,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF926",
+      "departure_date": "2026-03-09",
+      "destination_iata": "LBV",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "11:35",
+        "origin_iata": "CDG",
+        "routing": "CDG-LBV",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF566",
+      "departure_date": "2026-03-10",
+      "destination_iata": "BEY",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "09:10",
+        "origin_iata": "CDG",
+        "routing": "CDG-BEY",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF702",
+      "departure_date": "2026-03-10",
+      "destination_iata": "ABJ",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "14:10",
+        "origin_iata": "CDG",
+        "routing": "CDG-ABJ",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF718",
+      "departure_date": "2026-03-10",
+      "destination_iata": "DSS",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "15:45",
+        "origin_iata": "CDG",
+        "routing": "CDG-DSS",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF722",
+      "departure_date": "2026-03-10",
+      "destination_iata": "BZV",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "09:40",
+        "origin_iata": "CDG",
+        "routing": "CDG-BZV-FIH",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF722",
+      "departure_date": "2026-03-10",
+      "destination_iata": "FIH",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "09:40",
+        "origin_iata": "CDG",
+        "routing": "CDG-BZV-FIH",
+        "route_pos": 2,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF804",
+      "departure_date": "2026-03-10",
+      "destination_iata": "COO",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "16:05",
+        "origin_iata": "CDG",
+        "routing": "CDG-COO",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF860",
+      "departure_date": "2026-03-10",
+      "destination_iata": "LFW",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "16:20",
+        "origin_iata": "CDG",
+        "routing": "CDG-LFW",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF910",
+      "departure_date": "2026-03-10",
+      "destination_iata": "NSI",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "11:00",
+        "origin_iata": "CDG",
+        "routing": "CDG-NSI",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF926",
+      "departure_date": "2026-03-10",
+      "destination_iata": "LBV",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "11:35",
+        "origin_iata": "CDG",
+        "routing": "CDG-LBV",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF948",
+      "departure_date": "2026-03-10",
+      "destination_iata": "DLA",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "13:35",
+        "origin_iata": "CDG",
+        "routing": "CDG-DLA",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF566",
+      "departure_date": "2026-03-11",
+      "destination_iata": "BEY",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "09:10",
+        "origin_iata": "CDG",
+        "routing": "CDG-BEY",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF598",
+      "departure_date": "2026-03-11",
+      "destination_iata": "CKY",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "13:45",
+        "origin_iata": "CDG",
+        "routing": "CDG-CKY-NKC",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF598",
+      "departure_date": "2026-03-11",
+      "destination_iata": "NKC",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "13:45",
+        "origin_iata": "CDG",
+        "routing": "CDG-CKY-NKC",
+        "route_pos": 2,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF652",
+      "departure_date": "2026-03-11",
+      "destination_iata": "RUN",
+      "capacity_units": 40,
+      "payload": {
+        "departure_time": "18:20",
+        "origin_iata": "CDG",
+        "routing": "CDG-RUN",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF702",
+      "departure_date": "2026-03-11",
+      "destination_iata": "ABJ",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "14:10",
+        "origin_iata": "CDG",
+        "routing": "CDG-ABJ",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF718",
+      "departure_date": "2026-03-11",
+      "destination_iata": "DSS",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "15:45",
+        "origin_iata": "CDG",
+        "routing": "CDG-DSS",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF728",
+      "departure_date": "2026-03-11",
+      "destination_iata": "FIH",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "09:40",
+        "origin_iata": "CDG",
+        "routing": "CDG-FIH-BZV",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF728",
+      "departure_date": "2026-03-11",
+      "destination_iata": "BZV",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "09:40",
+        "origin_iata": "CDG",
+        "routing": "CDG-FIH-BZV",
+        "route_pos": 2,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF804",
+      "departure_date": "2026-03-11",
+      "destination_iata": "COO",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "16:05",
+        "origin_iata": "CDG",
+        "routing": "CDG-COO",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF822",
+      "departure_date": "2026-03-11",
+      "destination_iata": "SSG",
+      "capacity_units": null,
+      "payload": {
+        "departure_time": "11:00",
+        "origin_iata": "CDG",
+        "routing": "CDG-SSG-DLA",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF822",
+      "departure_date": "2026-03-11",
+      "destination_iata": "DLA",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "11:00",
+        "origin_iata": "CDG",
+        "routing": "CDG-SSG-DLA",
+        "route_pos": 2,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF830",
+      "departure_date": "2026-03-11",
+      "destination_iata": "ABV",
+      "capacity_units": null,
+      "payload": {
+        "departure_time": "14:05",
+        "origin_iata": "CDG",
+        "routing": "CDG-ABV-LFW",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF830",
+      "departure_date": "2026-03-11",
+      "destination_iata": "LFW",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "14:05",
+        "origin_iata": "CDG",
+        "routing": "CDG-ABV-LFW",
+        "route_pos": 2,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF908",
+      "departure_date": "2026-03-11",
+      "destination_iata": "NDJ",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "11:10",
+        "origin_iata": "CDG",
+        "routing": "CDG-NDJ-NSI",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF908",
+      "departure_date": "2026-03-11",
+      "destination_iata": "NSI",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "11:10",
+        "origin_iata": "CDG",
+        "routing": "CDG-NDJ-NSI",
+        "route_pos": 2,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF934",
+      "departure_date": "2026-03-11",
+      "destination_iata": "TNR",
+      "capacity_units": 40,
+      "payload": {
+        "departure_time": "10:25",
+        "origin_iata": "CDG",
+        "routing": "CDG-TNR",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF566",
+      "departure_date": "2026-03-12",
+      "destination_iata": "BEY",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "09:10",
+        "origin_iata": "CDG",
+        "routing": "CDG-BEY",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF592",
+      "departure_date": "2026-03-12",
+      "destination_iata": "CKY",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "16:00",
+        "origin_iata": "CDG",
+        "routing": "CDG-CKY",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF702",
+      "departure_date": "2026-03-12",
+      "destination_iata": "ABJ",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "14:10",
+        "origin_iata": "CDG",
+        "routing": "CDG-ABJ",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF718",
+      "departure_date": "2026-03-12",
+      "destination_iata": "DSS",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "15:45",
+        "origin_iata": "CDG",
+        "routing": "CDG-DSS",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF722",
+      "departure_date": "2026-03-12",
+      "destination_iata": "BZV",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "09:40",
+        "origin_iata": "CDG",
+        "routing": "CDG-BZV-FIH",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF722",
+      "departure_date": "2026-03-12",
+      "destination_iata": "FIH",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "09:40",
+        "origin_iata": "CDG",
+        "routing": "CDG-BZV-FIH",
+        "route_pos": 2,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF804",
+      "departure_date": "2026-03-12",
+      "destination_iata": "COO",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "16:05",
+        "origin_iata": "CDG",
+        "routing": "CDG-COO",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF860",
+      "departure_date": "2026-03-12",
+      "destination_iata": "LFW",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "16:20",
+        "origin_iata": "CDG",
+        "routing": "CDG-LFW",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF910",
+      "departure_date": "2026-03-12",
+      "destination_iata": "NSI",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "11:00",
+        "origin_iata": "CDG",
+        "routing": "CDG-NSI",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF926",
+      "departure_date": "2026-03-12",
+      "destination_iata": "LBV",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "11:35",
+        "origin_iata": "CDG",
+        "routing": "CDG-LBV",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF948",
+      "departure_date": "2026-03-12",
+      "destination_iata": "DLA",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "13:35",
+        "origin_iata": "CDG",
+        "routing": "CDG-DLA",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF566",
+      "departure_date": "2026-03-13",
+      "destination_iata": "BEY",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "09:10",
+        "origin_iata": "CDG",
+        "routing": "CDG-BEY",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF592",
+      "departure_date": "2026-03-13",
+      "destination_iata": "CKY",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "16:00",
+        "origin_iata": "CDG",
+        "routing": "CDG-CKY",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF594",
+      "departure_date": "2026-03-13",
+      "destination_iata": "NKC",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "17:30",
+        "origin_iata": "CDG",
+        "routing": "CDG-NKC",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF652",
+      "departure_date": "2026-03-13",
+      "destination_iata": "RUN",
+      "capacity_units": 40,
+      "payload": {
+        "departure_time": "18:20",
+        "origin_iata": "CDG",
+        "routing": "CDG-RUN",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF702",
+      "departure_date": "2026-03-13",
+      "destination_iata": "ABJ",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "14:10",
+        "origin_iata": "CDG",
+        "routing": "CDG-ABJ",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF718",
+      "departure_date": "2026-03-13",
+      "destination_iata": "DSS",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "15:45",
+        "origin_iata": "CDG",
+        "routing": "CDG-DSS",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF728",
+      "departure_date": "2026-03-13",
+      "destination_iata": "FIH",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "09:40",
+        "origin_iata": "CDG",
+        "routing": "CDG-FIH-BZV",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF728",
+      "departure_date": "2026-03-13",
+      "destination_iata": "BZV",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "09:40",
+        "origin_iata": "CDG",
+        "routing": "CDG-FIH-BZV",
+        "route_pos": 2,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF804",
+      "departure_date": "2026-03-13",
+      "destination_iata": "COO",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "16:05",
+        "origin_iata": "CDG",
+        "routing": "CDG-COO",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF822",
+      "departure_date": "2026-03-13",
+      "destination_iata": "SSG",
+      "capacity_units": null,
+      "payload": {
+        "departure_time": "11:00",
+        "origin_iata": "CDG",
+        "routing": "CDG-SSG-DLA",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF822",
+      "departure_date": "2026-03-13",
+      "destination_iata": "DLA",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "11:00",
+        "origin_iata": "CDG",
+        "routing": "CDG-SSG-DLA",
+        "route_pos": 2,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF860",
+      "departure_date": "2026-03-13",
+      "destination_iata": "LFW",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "16:20",
+        "origin_iata": "CDG",
+        "routing": "CDG-LFW",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF908",
+      "departure_date": "2026-03-13",
+      "destination_iata": "NDJ",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "11:10",
+        "origin_iata": "CDG",
+        "routing": "CDG-NDJ-NSI",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF908",
+      "departure_date": "2026-03-13",
+      "destination_iata": "NSI",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "11:10",
+        "origin_iata": "CDG",
+        "routing": "CDG-NDJ-NSI",
+        "route_pos": 2,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF926",
+      "departure_date": "2026-03-13",
+      "destination_iata": "LBV",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "11:35",
+        "origin_iata": "CDG",
+        "routing": "CDG-LBV",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF934",
+      "departure_date": "2026-03-13",
+      "destination_iata": "TNR",
+      "capacity_units": 40,
+      "payload": {
+        "departure_time": "10:25",
+        "origin_iata": "CDG",
+        "routing": "CDG-TNR",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF566",
+      "departure_date": "2026-03-14",
+      "destination_iata": "BEY",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "09:10",
+        "origin_iata": "CDG",
+        "routing": "CDG-BEY",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF592",
+      "departure_date": "2026-03-14",
+      "destination_iata": "CKY",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "16:00",
+        "origin_iata": "CDG",
+        "routing": "CDG-CKY",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF702",
+      "departure_date": "2026-03-14",
+      "destination_iata": "ABJ",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "14:10",
+        "origin_iata": "CDG",
+        "routing": "CDG-ABJ",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF718",
+      "departure_date": "2026-03-14",
+      "destination_iata": "DSS",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "15:45",
+        "origin_iata": "CDG",
+        "routing": "CDG-DSS",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF722",
+      "departure_date": "2026-03-14",
+      "destination_iata": "BZV",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "09:40",
+        "origin_iata": "CDG",
+        "routing": "CDG-BZV-FIH",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF722",
+      "departure_date": "2026-03-14",
+      "destination_iata": "FIH",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "09:40",
+        "origin_iata": "CDG",
+        "routing": "CDG-BZV-FIH",
+        "route_pos": 2,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF830",
+      "departure_date": "2026-03-14",
+      "destination_iata": "ABV",
+      "capacity_units": null,
+      "payload": {
+        "departure_time": "14:30",
+        "origin_iata": "CDG",
+        "routing": "CDG-ABV-LFW",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF830",
+      "departure_date": "2026-03-14",
+      "destination_iata": "LFW",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "14:30",
+        "origin_iata": "CDG",
+        "routing": "CDG-ABV-LFW",
+        "route_pos": 2,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF948",
+      "departure_date": "2026-03-14",
+      "destination_iata": "DLA",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "13:35",
+        "origin_iata": "CDG",
+        "routing": "CDG-DLA",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF566",
+      "departure_date": "2026-03-15",
+      "destination_iata": "BEY",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "09:00",
+        "origin_iata": "CDG",
+        "routing": "CDG-BEY",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF598",
+      "departure_date": "2026-03-15",
+      "destination_iata": "NKC",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "13:45",
+        "origin_iata": "CDG",
+        "routing": "CDG-NKC-CKY",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF598",
+      "departure_date": "2026-03-15",
+      "destination_iata": "CKY",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "13:45",
+        "origin_iata": "CDG",
+        "routing": "CDG-NKC-CKY",
+        "route_pos": 2,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF652",
+      "departure_date": "2026-03-15",
+      "destination_iata": "RUN",
+      "capacity_units": 40,
+      "payload": {
+        "departure_time": "18:20",
+        "origin_iata": "CDG",
+        "routing": "CDG-RUN",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF702",
+      "departure_date": "2026-03-15",
+      "destination_iata": "ABJ",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "14:10",
+        "origin_iata": "CDG",
+        "routing": "CDG-ABJ",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF718",
+      "departure_date": "2026-03-15",
+      "destination_iata": "DSS",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "15:45",
+        "origin_iata": "CDG",
+        "routing": "CDG-DSS",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF736",
+      "departure_date": "2026-03-15",
+      "destination_iata": "FIH",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "09:40",
+        "origin_iata": "CDG",
+        "routing": "CDG-FIH-BZV",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF736",
+      "departure_date": "2026-03-15",
+      "destination_iata": "BZV",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "09:40",
+        "origin_iata": "CDG",
+        "routing": "CDG-FIH-BZV",
+        "route_pos": 2,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF804",
+      "departure_date": "2026-03-15",
+      "destination_iata": "COO",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "16:05",
+        "origin_iata": "CDG",
+        "routing": "CDG-COO",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF860",
+      "departure_date": "2026-03-15",
+      "destination_iata": "LFW",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "16:40",
+        "origin_iata": "CDG",
+        "routing": "CDG-LFW",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF926",
+      "departure_date": "2026-03-15",
+      "destination_iata": "LBV",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "11:35",
+        "origin_iata": "CDG",
+        "routing": "CDG-LBV",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF934",
+      "departure_date": "2026-03-15",
+      "destination_iata": "TNR",
+      "capacity_units": 40,
+      "payload": {
+        "departure_time": "10:25",
+        "origin_iata": "CDG",
+        "routing": "CDG-TNR",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF948",
+      "departure_date": "2026-03-15",
+      "destination_iata": "DLA",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "13:35",
+        "origin_iata": "CDG",
+        "routing": "CDG-DLA",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    },
+    {
+      "flight_number": "AF974",
+      "departure_date": "2026-03-15",
+      "destination_iata": "NSI",
+      "capacity_units": 20,
+      "payload": {
+        "departure_time": "13:40",
+        "origin_iata": "CDG",
+        "routing": "CDG-NSI",
+        "route_pos": 1,
+        "legacy_source": "excel"
+      }
+    }
+  ],
+  "expected_assignments": [
+    [
+      "250722",
+      "AF652",
+      "PIERSON Gilles"
+    ],
+    [
+      "250723",
+      "AF652",
+      "PIERSON Gilles"
+    ],
+    [
+      "250724",
+      "AF652",
+      "GUEDON Bernard"
+    ],
+    [
+      "260129",
+      "AF910",
+      "CUBIZOLLES Alain"
+    ]
+  ],
+  "expected_result": {
+    "assignment_count": 4
+  }
+}

@@ -251,15 +251,17 @@ def build_reference_case_payload(
     expected_result = {
         "assignment_count": len(expected_assignments),
     }
-    for source_key, target_key in (
-        ("nb_vols_total", "nb_vols_total"),
-        ("nb_vols_sans_be_compatible", "nb_vols_sans_be_compatible"),
-        ("nb_vols_sans_benevole_compatible", "nb_vols_sans_benevole_compatible"),
-        ("nb_vols_sans_compatibilite_complete", "nb_vols_sans_compatibilite_complete"),
-    ):
-        value = _clean_int(stats.get(source_key))
-        if value is not None:
-            expected_result[target_key] = value
+    legacy_total_flights = _clean_int(stats.get("nb_vols_total"))
+    if legacy_total_flights == len(flights):
+        for source_key, target_key in (
+            ("nb_vols_total", "nb_vols_total"),
+            ("nb_vols_sans_be_compatible", "nb_vols_sans_be_compatible"),
+            ("nb_vols_sans_benevole_compatible", "nb_vols_sans_benevole_compatible"),
+            ("nb_vols_sans_compatibilite_complete", "nb_vols_sans_compatibilite_complete"),
+        ):
+            value = _clean_int(stats.get(source_key))
+            if value is not None:
+                expected_result[target_key] = value
 
     return {
         "case_name": case_name,
