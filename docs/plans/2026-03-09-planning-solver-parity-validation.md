@@ -58,6 +58,15 @@ Une semaine est acceptable pour la phase solveur si:
 - les arbitrages majeurs legacy vs WMS sont explicables
 - les ecarts restants sont documentes et classes
 
+## Current Reference Cases
+Le harnais `wms.tests.planning.tests_solver_reference_cases` couvre deja les cas legacy suivants:
+- `legacy_multistop_first_stop`
+- `legacy_multistop_first_stop_without_route_pos`
+- `legacy_multistop_second_stop_without_conflict`
+- `legacy_no_benevole_compatible`
+
+Le cas `missing_paramdest_stop` du legacy reste a porter avec un format d'assertion moins strict que l'egalite exacte des affectations, car le solveur peut retourner plusieurs matchings equivalents.
+
 ## Residual Gap Log
 Tant que le corpus de semaines reelles n'est pas encore branche, documenter chaque ecart important selon ce format:
 - `week`: identifiant ou periode
