@@ -13,10 +13,45 @@ from wms.models import (
     PlanningVersionStatus,
     PlanningVolunteerSnapshot,
 )
-from wms.planning.solver import solve_run
+from wms.planning.solver import solve_run, summarize_solver_result
 
 
 class PlanningSolverContractTests(TestCase):
+    def test_summarize_solver_result_exposes_candidate_and_unassigned_diagnostics(self):
+        payload = {
+            "shipments": [
+                {
+                    "snapshot_id": 101,
+                    "reference": "EXP-PLAN-101",
+                }
+            ],
+            "volunteers": [
+                {
+                    "snapshot_id": 201,
+                    "label": "Ada Volunteer",
+                }
+            ],
+            "flights": [
+                {
+                    "snapshot_id": 301,
+                    "flight_number": "AF702",
+                }
+            ],
+        }
+
+        summary = summarize_solver_result(
+            payload=payload,
+            assignments=[],
+            unassigned=[101],
+            compatibility={101: [(301, 201)]},
+        )
+
+        self.assertEqual(summary["candidate_count"], 1)
+        self.assertEqual(summary["assignment_count"], 0)
+        self.assertEqual(summary["unassigned_reasons"], {"101": "no_selected_candidate"})
+        self.assertEqual(summary["flight_usage"], {"301": 0})
+        self.assertEqual(summary["volunteer_usage"], {"201": 0})
+
     def test_solve_run_creates_draft_version_and_assignments(self):
         user = get_user_model().objects.create_user(
             username="planner@example.com",

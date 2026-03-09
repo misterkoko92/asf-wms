@@ -15,6 +15,51 @@ from wms.planning.rules import (
 )
 
 
+def summarize_solver_result(
+    *,
+    payload: dict,
+    assignments: list[dict],
+    unassigned: list[int],
+    compatibility: dict[int, list[tuple[int, int]]],
+    solver_name: str = "greedy_v1",
+) -> dict:
+    assignment_count_by_flight = defaultdict(int)
+    flight_usage = {str(flight["snapshot_id"]): 0 for flight in payload.get("flights", [])}
+    volunteer_usage = {
+        str(volunteer["snapshot_id"]): 0 for volunteer in payload.get("volunteers", [])
+    }
+    assigned_shipment_ids = {item["shipment_snapshot_id"] for item in assignments}
+
+    for item in assignments:
+        flight_id = item["flight_snapshot_id"]
+        volunteer_id = item["volunteer_snapshot_id"]
+        assignment_count_by_flight[flight_id] += 1
+        flight_usage[str(flight_id)] = flight_usage.get(str(flight_id), 0) + 1
+        volunteer_usage[str(volunteer_id)] = volunteer_usage.get(str(volunteer_id), 0) + 1
+
+    unassigned_reasons = {}
+    for shipment_id in unassigned:
+        if shipment_id in assigned_shipment_ids:
+            continue
+        if compatibility.get(shipment_id):
+            reason = "no_selected_candidate"
+        else:
+            reason = "no_compatible_candidate"
+        unassigned_reasons[str(shipment_id)] = reason
+
+    return {
+        "solver": solver_name,
+        "candidate_count": sum(len(pairs) for pairs in compatibility.values()),
+        "assignment_count": len(assignments),
+        "unassigned_shipment_snapshot_ids": unassigned,
+        "unassigned_reasons": unassigned_reasons,
+        "compatibility": {str(key): value for key, value in compatibility.items()},
+        "assignment_count_by_flight": dict(assignment_count_by_flight),
+        "flight_usage": flight_usage,
+        "volunteer_usage": volunteer_usage,
+    }
+
+
 def _build_assignments(
     payload: dict, compatibility: dict[int, list[tuple[int, int]]]
 ) -> tuple[list, list]:
@@ -89,18 +134,13 @@ def solve_run(run):
             sequence=sequence,
         )
 
-    assignment_count_by_flight = defaultdict(int)
-    for item in assignments:
-        assignment_count_by_flight[item["flight_snapshot_id"]] += 1
-
     run.solver_payload = payload
-    run.solver_result = {
-        "solver": "greedy_v1",
-        "assignment_count": len(assignments),
-        "unassigned_shipment_snapshot_ids": unassigned,
-        "compatibility": {str(key): value for key, value in compatibility.items()},
-        "assignment_count_by_flight": dict(assignment_count_by_flight),
-    }
+    run.solver_result = summarize_solver_result(
+        payload=payload,
+        assignments=assignments,
+        unassigned=unassigned,
+        compatibility=compatibility,
+    )
     run.status = PlanningRunStatus.SOLVED
     run.save(update_fields=["solver_payload", "solver_result", "status", "updated_at"])
     return version
