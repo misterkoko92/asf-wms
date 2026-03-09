@@ -184,6 +184,13 @@ def shipment_is_compatible_with_flight(shipment: dict, flight: dict) -> bool:
 
 def compute_compatibility(payload: dict) -> dict[int, list[tuple[int, int]]]:
     compatibility = {}
+    flight_metadata = {
+        flight["snapshot_id"]: (
+            int(flight.get("route_pos") or 1),
+            str(flight.get("flight_number") or ""),
+        )
+        for flight in payload["flights"]
+    }
     for shipment in payload["shipments"]:
         pairs = []
         for flight in payload["flights"]:
@@ -196,13 +203,37 @@ def compute_compatibility(payload: dict) -> dict[int, list[tuple[int, int]]]:
                 if not volunteer_is_compatible_with_flight(volunteer, flight):
                     continue
                 pairs.append((flight["snapshot_id"], volunteer["snapshot_id"]))
-        flight_metadata = {
-            flight["snapshot_id"]: (
-                int(flight.get("route_pos") or 1),
-                str(flight.get("flight_number") or ""),
-            )
-            for flight in payload["flights"]
-        }
         pairs.sort(key=lambda pair: flight_metadata.get(pair[0], (999, "")))
         compatibility[shipment["snapshot_id"]] = pairs
     return compatibility
+
+
+def build_solver_diagnostics(payload: dict) -> list[dict]:
+    diagnostics = []
+    for flight in payload["flights"]:
+        shipment_compat_count = sum(
+            1
+            for shipment in payload["shipments"]
+            if shipment_is_compatible_with_flight(shipment, flight)
+        )
+        benevole_compat_count = sum(
+            1
+            for volunteer in payload["volunteers"]
+            if volunteer_is_compatible_with_flight(volunteer, flight)
+        )
+        diagnostics.append(
+            {
+                "flight_snapshot_id": flight["snapshot_id"],
+                "flight_number": flight["flight_number"],
+                "departure_date": flight["departure_date"],
+                "departure_time": flight.get("departure_time") or "",
+                "destination_iata": flight["destination_iata"],
+                "physical_flight_key": flight.get("physical_flight_key") or "",
+                "route_pos": int(flight.get("route_pos") or 1),
+                "shipment_compat_count": shipment_compat_count,
+                "benevole_compat_count": benevole_compat_count,
+                "candidate_assignment_count": 0,
+                "used": False,
+            }
+        )
+    return diagnostics

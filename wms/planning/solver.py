@@ -11,6 +11,7 @@ from wms.models import (
     PlanningVersion,
 )
 from wms.planning.rules import (
+    build_solver_diagnostics,
     compile_run_solver_payload,
     compute_compatibility,
     materialize_solver_snapshots,
@@ -114,6 +115,11 @@ def _solve_candidates(
     compatibility: dict[int, list[tuple[int, int]]],
     candidates: list[dict],
 ) -> tuple[list[dict], dict]:
+    diagnostics = build_solver_diagnostics(payload)
+    diagnostics_by_flight_id = {item["flight_snapshot_id"]: item for item in diagnostics}
+    for candidate in candidates:
+        diagnostics_by_flight_id[candidate["flight_snapshot_id"]]["candidate_assignment_count"] += 1
+
     if cp_model is None:
         raise RuntimeError("ortools is required to solve planning runs.")
 
@@ -129,6 +135,24 @@ def _solve_candidates(
             {
                 "status": "OPTIMAL",
                 "assigned_shipment_snapshot_ids": [],
+                "vols_diagnostics": diagnostics,
+                "nb_vols_total": len(payload.get("flights", [])),
+                "nb_vols_sans_be_compatible": sum(
+                    1 for item in diagnostics if item["shipment_compat_count"] == 0
+                ),
+                "nb_vols_sans_benevole_compatible": sum(
+                    1 for item in diagnostics if item["benevole_compat_count"] == 0
+                ),
+                "nb_vols_sans_compatibilite_complete": sum(
+                    1
+                    for item in diagnostics
+                    if item["shipment_compat_count"] == 0 or item["benevole_compat_count"] == 0
+                ),
+                "nb_vols_non_utilises_avec_compatibilite": sum(
+                    1
+                    for item in diagnostics
+                    if item["shipment_compat_count"] > 0 and item["benevole_compat_count"] > 0
+                ),
             }
         )
         return [], result
@@ -252,6 +276,8 @@ def _solve_candidates(
         )
     )
     assigned_shipment_ids = [item["shipment_snapshot_id"] for item in selected]
+    for candidate in selected:
+        diagnostics_by_flight_id[candidate["flight_snapshot_id"]]["used"] = True
     result = summarize_solver_result(
         payload=payload,
         assignments=selected,
@@ -267,6 +293,28 @@ def _solve_candidates(
         {
             "status": status_name,
             "assigned_shipment_snapshot_ids": assigned_shipment_ids,
+            "vols_diagnostics": list(diagnostics_by_flight_id.values()),
+            "nb_vols_total": len(payload.get("flights", [])),
+            "nb_vols_sans_be_compatible": sum(
+                1 for item in diagnostics if item["shipment_compat_count"] == 0
+            ),
+            "nb_vols_sans_benevole_compatible": sum(
+                1 for item in diagnostics if item["benevole_compat_count"] == 0
+            ),
+            "nb_vols_sans_compatibilite_complete": sum(
+                1
+                for item in diagnostics
+                if item["shipment_compat_count"] == 0 or item["benevole_compat_count"] == 0
+            ),
+            "nb_vols_non_utilises_avec_compatibilite": sum(
+                1
+                for item in diagnostics_by_flight_id.values()
+                if (
+                    item["shipment_compat_count"] > 0
+                    and item["benevole_compat_count"] > 0
+                    and not item["used"]
+                )
+            ),
         }
     )
     return selected, result
