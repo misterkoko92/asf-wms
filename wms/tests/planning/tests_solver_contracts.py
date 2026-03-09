@@ -76,13 +76,13 @@ class PlanningSolverContractTests(TestCase):
         volunteer = PlanningVolunteerSnapshot.objects.create(
             run=run,
             volunteer_label="Ada Volunteer",
-            max_colis_vol=4,
+            max_colis_vol=8,
             availability_summary={
                 "slot_count": 1,
                 "slots": [
                     {
                         "date": "2026-03-10",
-                        "start_time": "09:00",
+                        "start_time": "07:00",
                         "end_time": "12:00",
                     }
                 ],
@@ -149,7 +149,7 @@ class PlanningSolverContractTests(TestCase):
                 "slots": [
                     {
                         "date": "2026-03-10",
-                        "start_time": "08:00",
+                        "start_time": "07:00",
                         "end_time": "18:00",
                     }
                 ],

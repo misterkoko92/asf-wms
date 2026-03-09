@@ -10,6 +10,7 @@ from wms.models import (
     PlanningRunStatus,
     PlanningVersion,
 )
+from wms.planning.config import LEGACY_EQUIV_CAPACITY_PER_VOLUNTEER
 from wms.planning.rules import (
     build_solver_diagnostics,
     compile_run_solver_payload,
@@ -221,15 +222,16 @@ def _solve_candidates(
             model.Add(variables[index] <= link_var)
         model.Add(sum(variables[index] for index in candidate_indexes) >= link_var)
 
-        max_colis_vol = volunteer_by_id[volunteer_id].get("max_colis_vol")
-        if max_colis_vol is not None:
-            model.Add(
-                sum(
-                    int(candidates[index]["assigned_carton_count"]) * variables[index]
-                    for index in candidate_indexes
-                )
-                <= int(max_colis_vol)
+        volunteer_equiv_capacity = volunteer_by_id[volunteer_id].get("max_colis_vol")
+        if volunteer_equiv_capacity is None:
+            volunteer_equiv_capacity = LEGACY_EQUIV_CAPACITY_PER_VOLUNTEER
+        model.Add(
+            sum(
+                int(candidates[index]["equivalent_units"]) * variables[index]
+                for index in candidate_indexes
             )
+            <= int(volunteer_equiv_capacity)
+        )
 
     grouped_by_volunteer_and_physical = defaultdict(list)
     for (volunteer_id, flight_id), link_var in volunteer_flight_vars.items():

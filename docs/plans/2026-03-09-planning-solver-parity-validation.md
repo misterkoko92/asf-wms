@@ -82,6 +82,27 @@ Commande WMS disponible pour fabriquer une fixture JSON compatible avec le harna
 
 Le replay legacy exige un `ASF_TMP_DIR` ecrivable pour ses logs; la commande le positionne par defaut sous `/tmp`.
 
+## Current Real-Week Probe
+La session legacy suivante a ete rejouee avec succes:
+- `session_15e28a26-95f6-4d81-b680-b3af43a56bb2`
+- semaine detectee: `2026-03-09 -> 2026-03-15`
+- sortie extraite: `/tmp/legacy_session_s11_2026.json`
+
+Parite obtenue cote WMS apres alignement des contraintes:
+- memes `4` expeditions affectees
+- memes vols retenus (`AF652`, `AF910`)
+- meme ensemble de benevoles mobilises (`PIERSON`, `GUEDON`, `CUBIZOLLES`)
+- meme affectation pour `AF910`
+
+Ecart residuel actuel:
+- sur `AF652`, le legacy assigne `250722` et `250723` a `PIERSON` puis `250724` a `GUEDON`
+- le solveur WMS assigne `250722` et `250723` a `GUEDON` puis `250724` a `PIERSON`
+
+Interpretation:
+- les contraintes principales semblent maintenant alignees
+- l'ecart restant ressemble a un tie-break d'affectation intra-vol entre benevoles equivalemment valides
+- ne pas versionner ce cas comme golden test strict tant que ce tie-break n'est pas clarifie
+
 ## Residual Gap Log
 Tant que le corpus de semaines reelles n'est pas encore branche, documenter chaque ecart important selon ce format:
 - `week`: identifiant ou periode

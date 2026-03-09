@@ -1,10 +1,14 @@
-from datetime import time
+from datetime import datetime, time, timedelta
 
 from wms.models import (
     PlanningFlightSnapshot,
     PlanningRun,
     PlanningShipmentSnapshot,
     PlanningVolunteerSnapshot,
+)
+from wms.planning.config import (
+    LEGACY_EQUIV_CAPACITY_PER_VOLUNTEER,
+    LEGACY_MISSION_LEAD_HOURS,
 )
 from wms.planning.validation import get_destination_rule_map
 
@@ -157,13 +161,17 @@ def volunteer_is_compatible_with_flight(volunteer: dict, flight: dict) -> bool:
     for slot in slots:
         if slot.get("date") != departure_date:
             continue
-        if departure_time is None:
-            return True
         start_time = _parse_time_value(slot.get("start_time"))
         end_time = _parse_time_value(slot.get("end_time"))
         if start_time is None or end_time is None:
+            continue
+        if departure_time is None:
             return True
-        if start_time <= departure_time <= end_time:
+        required_start = (
+            datetime.combine(datetime.fromisoformat(departure_date).date(), departure_time)
+            - timedelta(hours=LEGACY_MISSION_LEAD_HOURS)
+        ).time()
+        if start_time <= required_start and end_time >= departure_time:
             return True
     return False
 
@@ -197,8 +205,10 @@ def compute_compatibility(payload: dict) -> dict[int, list[tuple[int, int]]]:
             if not shipment_is_compatible_with_flight(shipment, flight):
                 continue
             for volunteer in payload["volunteers"]:
-                max_colis_vol = volunteer.get("max_colis_vol")
-                if max_colis_vol is not None and shipment["carton_count"] > max_colis_vol:
+                volunteer_equiv_capacity = volunteer.get("max_colis_vol")
+                if volunteer_equiv_capacity is None:
+                    volunteer_equiv_capacity = LEGACY_EQUIV_CAPACITY_PER_VOLUNTEER
+                if shipment["equivalent_units"] > int(volunteer_equiv_capacity):
                     continue
                 if not volunteer_is_compatible_with_flight(volunteer, flight):
                     continue
