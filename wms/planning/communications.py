@@ -94,27 +94,28 @@ def generate_version_drafts(version: PlanningVersion) -> list[CommunicationDraft
         raise ValidationError("Communication drafts can only be generated for published versions.")
 
     CommunicationDraft.objects.filter(version=version).delete()
-    templates_by_channel: dict[str, CommunicationTemplate] = {}
+    templates_by_channel: dict[str, list[CommunicationTemplate]] = {}
     for template in CommunicationTemplate.objects.filter(is_active=True).order_by("id"):
-        templates_by_channel.setdefault(template.channel, template)
+        templates_by_channel.setdefault(template.channel, []).append(template)
     plan = build_version_communication_plan(version)
 
     generated_drafts: list[CommunicationDraft] = []
     for plan_item in plan.items:
         context = _build_plan_item_context(version, plan_item)
-        template = templates_by_channel.get(plan_item.channel)
-        if template is not None:
-            generated_drafts.append(
-                CommunicationDraft(
-                    version=version,
-                    template=template,
-                    channel=template.channel,
-                    recipient_label=str(context["recipient_label"]),
-                    recipient_contact="",
-                    subject=_render_text(template.subject, context),
-                    body=_render_text(template.body, context),
+        templates = templates_by_channel.get(plan_item.channel, [])
+        if templates:
+            for template in templates:
+                generated_drafts.append(
+                    CommunicationDraft(
+                        version=version,
+                        template=template,
+                        channel=template.channel,
+                        recipient_label=str(context["recipient_label"]),
+                        recipient_contact="",
+                        subject=_render_text(template.subject, context),
+                        body=_render_text(template.body, context),
+                    )
                 )
-            )
             continue
         generated_drafts.append(
             CommunicationDraft(

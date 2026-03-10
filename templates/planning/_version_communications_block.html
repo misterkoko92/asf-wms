@@ -7,11 +7,13 @@
         <h2 class="h5 mb-1">{% trans "Communications" %}</h2>
         <p class="text-muted mb-0">{% trans "Brouillons regenerables et editables pour cette version." %}</p>
       </div>
-      <form method="post">
-        {% csrf_token %}
-        <input type="hidden" name="draft_action" value="generate">
-        <button type="submit" class="btn btn-tertiary">{% trans "Generer les brouillons" %}</button>
-      </form>
+      {% if version.status == "published" %}
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="draft_action" value="generate">
+          <button type="submit" class="btn btn-tertiary">{% trans "Generer les brouillons" %}</button>
+        </form>
+      {% endif %}
     </div>
 
     {% if dashboard.communications.groups %}

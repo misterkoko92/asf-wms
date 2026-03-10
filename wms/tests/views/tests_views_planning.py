@@ -361,6 +361,24 @@ class PlanningViewTests(TestCase):
         self.assertRedirects(response, reverse("planning:version_detail", args=[version.pk]))
         self.assertEqual(version.communication_drafts.count(), 1)
 
+    def test_generating_drafts_from_draft_version_shows_error(self):
+        version, _assignment, _volunteer_bob, _flight_af456 = self.make_version_with_assignment(
+            status=PlanningVersionStatus.DRAFT
+        )
+        self.client.force_login(self.staff_user)
+
+        response = self.client.post(
+            reverse("planning:version_detail", args=[version.pk]),
+            {"draft_action": "generate"},
+            follow=True,
+        )
+
+        self.assertRedirects(response, reverse("planning:version_detail", args=[version.pk]))
+        self.assertContains(
+            response, "Seules les versions publiees peuvent generer des brouillons."
+        )
+        self.assertEqual(version.communication_drafts.count(), 0)
+
     def test_version_detail_renders_communication_change_badges(self):
         run = PlanningRun.objects.create(
             week_start="2026-03-09",

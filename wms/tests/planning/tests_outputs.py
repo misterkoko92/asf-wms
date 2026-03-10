@@ -256,6 +256,32 @@ class PlanningOutputTests(TestCase):
         self.assertEqual(drafts_v2[0].recipient_label, "Alice")
         self.assertIn("annulation", drafts_v2[0].body.lower())
 
+    def test_generate_drafts_keeps_multiple_active_templates_on_same_channel(self):
+        second_template = CommunicationTemplate.objects.create(
+            label="Mail planning secondaire",
+            channel=CommunicationChannel.EMAIL,
+            subject="Second {{ recipient_label }}",
+            body="Second template pour {{ recipient_label }}",
+        )
+        version = self.make_published_version()
+
+        drafts = generate_version_drafts(version)
+
+        self.assertEqual(len(drafts), 2)
+        self.assertEqual(
+            sorted(draft.template_id for draft in drafts),
+            sorted([self.template.pk, second_template.pk]),
+        )
+        self.assertEqual(
+            sorted(
+                CommunicationDraft.objects.filter(version=version).values_list(
+                    "template__label",
+                    flat=True,
+                )
+            ),
+            ["Mail planning", "Mail planning secondaire"],
+        )
+
     def test_generate_drafts_keeps_separate_series_per_version(self):
         version_1 = self.make_published_version()
         version_2 = self.make_published_version(
