@@ -51,6 +51,28 @@ La surface actuelle suffit deja pour executer la recette:
 
 Si un frottement reel apparait pendant l'execution, il doit etre note dans la grille d'observation avant toute decision d'ajouter un outil.
 
+## Cartographie de la surface actuelle
+
+Actions disponibles dans la surface actuelle:
+- creation de run: `/planning/runs/new/`
+- detail de run et bouton `Generer le planning`: `/planning/runs/<id>/`
+- cockpit version: `/planning/versions/<id>/`
+- publication: bouton `Publier la version` dans le header de version
+- clonage: formulaire de creation de nouvelle version depuis `v1`
+- diff: bouton `Voir le diff`
+- regeneration des brouillons: bloc `Communications`
+- export workbook: bloc `Exports`
+
+Services sous-jacents deja presents dans le produit:
+- `publish_version(...)`
+- `clone_version(...)`
+- `generate_version_drafts(...)`
+- `export_version_workbook(...)`
+
+Conclusion de cette revue:
+- la recette phase 3 peut etre executee sur la surface existante
+- tout besoin d'outillage supplementaire doit etre justifie par une friction observee, pas anticipee
+
 ## Prerequis
 
 ### Donnees
