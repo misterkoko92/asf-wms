@@ -2530,6 +2530,192 @@
       }
     }
   ],
+  "destination_rules": [
+    {
+      "iata_code": "ABJ",
+      "city": "ABIDJAN",
+      "country": "COTE D'IVOIRE",
+      "weekly_frequency": 0,
+      "max_cartons_per_flight": 20,
+      "priority": 0
+    },
+    {
+      "iata_code": "BEY",
+      "city": "BEYROUTH",
+      "country": "LIBAN",
+      "weekly_frequency": 0,
+      "max_cartons_per_flight": 20,
+      "priority": 0
+    },
+    {
+      "iata_code": "BGF",
+      "city": "BANGUI",
+      "country": "République de Centre Afrique",
+      "weekly_frequency": 0,
+      "max_cartons_per_flight": 20,
+      "priority": 0
+    },
+    {
+      "iata_code": "BKO",
+      "city": "BAMAKO",
+      "country": "MALI",
+      "weekly_frequency": 0,
+      "max_cartons_per_flight": 20,
+      "priority": 0
+    },
+    {
+      "iata_code": "BZV",
+      "city": "BRAZZAVILLE",
+      "country": "CONGO",
+      "weekly_frequency": 0,
+      "max_cartons_per_flight": 20,
+      "priority": 0
+    },
+    {
+      "iata_code": "CKY",
+      "city": "CONAKRY",
+      "country": "GUINEE",
+      "weekly_frequency": 0,
+      "max_cartons_per_flight": 20,
+      "priority": 0
+    },
+    {
+      "iata_code": "CMN",
+      "city": "CASABLANCA",
+      "country": "MAROC",
+      "weekly_frequency": 0,
+      "max_cartons_per_flight": 20,
+      "priority": 0
+    },
+    {
+      "iata_code": "COO",
+      "city": "COTONOU",
+      "country": "BENIN",
+      "weekly_frequency": 0,
+      "max_cartons_per_flight": 20,
+      "priority": 0
+    },
+    {
+      "iata_code": "DLA",
+      "city": "DOUALA",
+      "country": "CAMEROUN",
+      "weekly_frequency": 0,
+      "max_cartons_per_flight": 20,
+      "priority": 0
+    },
+    {
+      "iata_code": "DSS",
+      "city": "DAKAR",
+      "country": "SENEGAL",
+      "weekly_frequency": 0,
+      "max_cartons_per_flight": 20,
+      "priority": 0
+    },
+    {
+      "iata_code": "DZA",
+      "city": "MAYOTTE",
+      "country": "REUNION",
+      "weekly_frequency": 0,
+      "max_cartons_per_flight": 20,
+      "priority": 0
+    },
+    {
+      "iata_code": "FIH",
+      "city": "KINSHASA",
+      "country": "CONGO RDC",
+      "weekly_frequency": 0,
+      "max_cartons_per_flight": 20,
+      "priority": 0
+    },
+    {
+      "iata_code": "HAV",
+      "city": "LA HAVANE",
+      "country": "Cuba",
+      "weekly_frequency": 0,
+      "max_cartons_per_flight": 20,
+      "priority": 0
+    },
+    {
+      "iata_code": "LBV",
+      "city": "LIBREVILLE",
+      "country": "GABON",
+      "weekly_frequency": 0,
+      "max_cartons_per_flight": 20,
+      "priority": 0
+    },
+    {
+      "iata_code": "LFW",
+      "city": "LOME",
+      "country": "TOGO",
+      "weekly_frequency": 0,
+      "max_cartons_per_flight": 20,
+      "priority": 0
+    },
+    {
+      "iata_code": "NDJ",
+      "city": "N'DJAMENA",
+      "country": "TCHAD",
+      "weekly_frequency": 0,
+      "max_cartons_per_flight": 20,
+      "priority": 0
+    },
+    {
+      "iata_code": "NIM",
+      "city": "NIAMEY",
+      "country": "NIGER",
+      "weekly_frequency": 0,
+      "max_cartons_per_flight": 20,
+      "priority": 0
+    },
+    {
+      "iata_code": "NKC",
+      "city": "NOUAKCHOTT",
+      "country": "MAURITANIE",
+      "weekly_frequency": 0,
+      "max_cartons_per_flight": 20,
+      "priority": 0
+    },
+    {
+      "iata_code": "NSI",
+      "city": "YAOUNDE",
+      "country": "CAMEROUN",
+      "weekly_frequency": 0,
+      "max_cartons_per_flight": 20,
+      "priority": 0
+    },
+    {
+      "iata_code": "OUA",
+      "city": "OUAGADOUGOU",
+      "country": "BURKINA FASO",
+      "weekly_frequency": 0,
+      "max_cartons_per_flight": 20,
+      "priority": 0
+    },
+    {
+      "iata_code": "ROB",
+      "city": "MONROVIA",
+      "country": "LIBERIA",
+      "weekly_frequency": 0,
+      "max_cartons_per_flight": 20,
+      "priority": 0
+    },
+    {
+      "iata_code": "RUN",
+      "city": "LA REUNION",
+      "country": "REUNION",
+      "weekly_frequency": 0,
+      "max_cartons_per_flight": 40,
+      "priority": 0
+    },
+    {
+      "iata_code": "TNR",
+      "city": "ANTANANARIVO",
+      "country": "MADAGASCAR",
+      "weekly_frequency": 0,
+      "max_cartons_per_flight": 40,
+      "priority": 0
+    }
+  ],
   "expected_assignments": [
     [
       "250722",

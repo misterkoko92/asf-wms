@@ -4,8 +4,12 @@ from pathlib import Path
 
 from django.contrib.auth import get_user_model
 
+from contacts.models import Contact, ContactType
 from wms.models import (
+    Destination,
+    PlanningDestinationRule,
     PlanningFlightSnapshot,
+    PlanningParameterSet,
     PlanningRun,
     PlanningRunStatus,
     PlanningShipmentSnapshot,
@@ -31,11 +35,38 @@ def load_reference_case(name: str) -> SolverReferenceCase:
         email=f"reference-{name}@example.com",
         password="pass1234",  # pragma: allowlist secret
     )
+    parameter_set = None
+    if data.get("destination_rules"):
+        parameter_set = PlanningParameterSet.objects.create(
+            name=f"Reference {name}",
+            created_by=planner,
+        )
+        for rule in data["destination_rules"]:
+            correspondent = Contact.objects.create(
+                name=f"Reference {rule['iata_code']}",
+                contact_type=ContactType.ORGANIZATION,
+                is_active=True,
+            )
+            destination = Destination.objects.create(
+                city=rule.get("city") or rule["iata_code"],
+                iata_code=rule["iata_code"],
+                country=rule.get("country") or "",
+                correspondent_contact=correspondent,
+            )
+            PlanningDestinationRule.objects.create(
+                parameter_set=parameter_set,
+                destination=destination,
+                label=rule.get("city") or rule["iata_code"],
+                weekly_frequency=rule.get("weekly_frequency"),
+                max_cartons_per_flight=rule.get("max_cartons_per_flight"),
+                priority=rule.get("priority") or 0,
+            )
     run = PlanningRun.objects.create(
         week_start=data["week_start"],
         week_end=data["week_end"],
         status=PlanningRunStatus.READY,
         created_by=planner,
+        parameter_set=parameter_set,
     )
 
     for shipment in data["shipments"]:

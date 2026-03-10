@@ -98,6 +98,7 @@ class Command(BaseCommand):
             case_name=options["case_name"],
             df_be=df_be,
             df_param_be=df_param_be,
+            df_param_dest=df_param_dest,
             df_vols=df_vols,
             df_benev=df_benev,
             df_param_benev=df_param_benev,

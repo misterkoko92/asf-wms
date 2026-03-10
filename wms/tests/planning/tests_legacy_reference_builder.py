@@ -32,6 +32,17 @@ class LegacyReferenceCaseBuilderTests(SimpleTestCase):
                     }
                 ]
             ),
+            df_param_dest=pd.DataFrame(
+                [
+                    {
+                        "Dest_IATA": "RUN",
+                        "Dest_Ville": "LA REUNION",
+                        "Dest_Pays": "REUNION",
+                        "Max_Colis_Par_Vol": 40,
+                        "Freq_Semaine": 0,
+                    }
+                ]
+            ),
             df_vols=pd.DataFrame(
                 [
                     {
@@ -147,6 +158,19 @@ class LegacyReferenceCaseBuilderTests(SimpleTestCase):
             ],
         )
         self.assertEqual(
+            payload["destination_rules"],
+            [
+                {
+                    "iata_code": "RUN",
+                    "city": "LA REUNION",
+                    "country": "REUNION",
+                    "weekly_frequency": 0,
+                    "max_cartons_per_flight": 40,
+                    "priority": 0,
+                }
+            ],
+        )
+        self.assertEqual(
             payload["expected_assignments"],
             [["250722", "AF652", "PIERSON Gilles"]],
         )
@@ -183,6 +207,17 @@ class LegacyReferenceCaseBuilderTests(SimpleTestCase):
                     {
                         "Type": "MM",
                         "Priorite_Type": 5,
+                    }
+                ]
+            ),
+            df_param_dest=pd.DataFrame(
+                [
+                    {
+                        "Dest_IATA": "RUN",
+                        "Dest_Ville": "LA REUNION",
+                        "Dest_Pays": "REUNION",
+                        "Max_Colis_Par_Vol": 40,
+                        "Freq_Semaine": 0,
                     }
                 ]
             ),
@@ -255,6 +290,7 @@ class LegacyReferenceCaseBuilderTests(SimpleTestCase):
         self.assertEqual(payload["week_start"], "2026-03-09")
         self.assertEqual(payload["week_end"], "2026-03-15")
         self.assertEqual(len(payload["flights"]), 1)
+        self.assertEqual(len(payload["destination_rules"]), 1)
         self.assertEqual(payload["flights"][0]["flight_number"], "AF652")
         self.assertEqual(
             payload["volunteers"][0]["availability_summary"]["slots"],
@@ -289,6 +325,17 @@ class LegacyReferenceCaseBuilderTests(SimpleTestCase):
                     {
                         "Type": "MM",
                         "Priorite_Type": 5,
+                    }
+                ]
+            ),
+            df_param_dest=pd.DataFrame(
+                [
+                    {
+                        "Dest_IATA": "RUN",
+                        "Dest_Ville": "LA REUNION",
+                        "Dest_Pays": "REUNION",
+                        "Max_Colis_Par_Vol": 40,
+                        "Freq_Semaine": 0,
                     }
                 ]
             ),

@@ -117,6 +117,7 @@ Etat actuel apres correction du sens de priorite legacy et injection de `ParamBE
 - le nombre d'affectations WMS est correct (`5`)
 - le set final n'est pas encore aligne sur le legacy
 - le delta residuel est descendu a `4` affectations manquantes / `4` affectations en trop sur le probe minimal
+- `ParamDest` est maintenant porte dans les fixtures de reference et injecte dans le `PlanningRun`, sans suppression de cet ecart
 
 Ecarts observes:
 - pour `NSI`, le legacy choisit `AF908` alors que WMS choisit encore `AF910`
@@ -124,7 +125,7 @@ Ecarts observes:
 - ces ecarts ne relevent plus du tie-break benevole intra-vol; ils pointent vers d'autres regles legacy encore manquantes
 
 Hypotheses de root cause restantes:
-- regles destination encore absentes du corpus de reference (`ParamDest` non embarque dans les fixtures)
+- arbitrage legacy sur le choix du vol au-dela de `ParamDest`
 - arbitrage legacy supplementaire sur la selection des BE a capacite contrainte
 - eventuels overlays expediteur non encore modelises dans le payload solveur
 

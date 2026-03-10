@@ -100,6 +100,7 @@ def build_reference_case_payload(
     case_name: str,
     df_be: pd.DataFrame,
     df_param_be: pd.DataFrame | None = None,
+    df_param_dest: pd.DataFrame | None = None,
     df_vols: pd.DataFrame,
     df_benev: pd.DataFrame,
     df_param_benev: pd.DataFrame,
@@ -247,6 +248,25 @@ def build_reference_case_payload(
             }
         )
 
+    destination_rules = []
+    if df_param_dest is not None and not df_param_dest.empty:
+        seen_destination_rules = set()
+        for row in df_param_dest.to_dict(orient="records"):
+            iata_code = str(row.get("Dest_IATA") or "").strip().upper()
+            if not iata_code or iata_code in seen_destination_rules:
+                continue
+            seen_destination_rules.add(iata_code)
+            destination_rules.append(
+                {
+                    "iata_code": iata_code,
+                    "city": str(row.get("Dest_Ville") or iata_code).strip(),
+                    "country": str(row.get("Dest_Pays") or "").strip(),
+                    "weekly_frequency": _clean_int(row.get("Freq_Semaine")),
+                    "max_cartons_per_flight": _clean_int(row.get("Max_Colis_Par_Vol")),
+                    "priority": 0,
+                }
+            )
+
     expected_assignments = []
     for row in filtered_planning_df.sort_values(["Date_Vol", "Numero_Vol", "BE_Numero"]).to_dict(
         orient="records"
@@ -281,6 +301,7 @@ def build_reference_case_payload(
         "shipments": shipments,
         "volunteers": volunteers,
         "flights": flights,
+        "destination_rules": destination_rules,
         "expected_assignments": expected_assignments,
         "expected_result": expected_result,
     }
