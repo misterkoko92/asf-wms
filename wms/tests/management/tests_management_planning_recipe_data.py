@@ -11,6 +11,7 @@ from wms.models import (
     PlanningParameterSet,
     PlanningRun,
     PlanningRunStatus,
+    Product,
     Shipment,
     ShipmentStatus,
     VolunteerProfile,
@@ -231,4 +232,15 @@ class PlanningRecipeDataCommandTests(TestCase):
                 batch__source="recipe", batch__file_name="phase3-s11-recipe"
             ).count(),
             0,
+        )
+
+    def test_seed_planning_recipe_data_reseeds_even_if_recipe_product_names_drift(self):
+        call_command("seed_planning_recipe_data", "--scenario=phase3-s11-recipe")
+        Product.objects.filter(name__startswith="[RECIPE").update(name="Legacy recipe product")
+
+        call_command("seed_planning_recipe_data", "--scenario=phase3-s11-recipe")
+
+        self.assertEqual(
+            Shipment.objects.filter(reference__startswith="RECIPE-PHASE3-S11").count(),
+            8,
         )

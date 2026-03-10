@@ -547,7 +547,7 @@ def _build_recipe_querysets(namespace: ScenarioNamespace) -> dict[str, object]:
     users = user_model.objects.filter(username__startswith=namespace.user_prefix)
     volunteer_profiles = VolunteerProfile.objects.filter(user__in=users)
     association_profiles = AssociationProfile.objects.filter(user__in=users)
-    contacts = Contact.objects.filter(name__startswith=namespace.contact_prefix)
+    contacts = Contact.objects.filter(name__istartswith=namespace.contact_prefix)
     planning_parameter_sets = PlanningParameterSet.objects.filter(name=namespace.parameter_set_name)
     planning_destination_rules = PlanningDestinationRule.objects.filter(
         parameter_set__in=planning_parameter_sets
@@ -565,15 +565,17 @@ def _build_recipe_querysets(namespace: ScenarioNamespace) -> dict[str, object]:
     carton_items = CartonItem.objects.filter(carton__in=cartons)
     portal_contacts = AssociationPortalContact.objects.filter(profile__in=association_profiles)
     communication_templates = CommunicationTemplate.objects.filter(
-        label__startswith=namespace.template_prefix
+        label__istartswith=namespace.template_prefix
     )
-    product_categories = ProductCategory.objects.filter(name__startswith=namespace.label_prefix)
-    products = Product.objects.filter(name__startswith=namespace.label_prefix)
-    product_lots = ProductLot.objects.filter(product__in=products)
-    locations = Location.objects.filter(warehouse__name=namespace.warehouse_name)
-    warehouses = Warehouse.objects.filter(name=namespace.warehouse_name)
+    warehouses = Warehouse.objects.filter(name__iexact=namespace.warehouse_name)
+    locations = Location.objects.filter(warehouse__in=warehouses)
+    products = Product.objects.filter(default_location__in=locations)
+    product_lots = ProductLot.objects.filter(location__in=locations)
+    product_categories = ProductCategory.objects.filter(
+        pk__in=products.values_list("category_id", flat=True)
+    )
     equivalence_rules = ShipmentUnitEquivalenceRule.objects.filter(
-        label__startswith=namespace.label_prefix
+        label__istartswith=namespace.label_prefix
     )
     return {
         "users": users,
