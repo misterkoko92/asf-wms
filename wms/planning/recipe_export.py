@@ -526,6 +526,7 @@ def _serialize_destination_rule(rule: PlanningDestinationRule) -> dict[str, Any]
         "label": rule.label,
         "weekly_frequency": rule.weekly_frequency,
         "max_cartons_per_flight": rule.max_cartons_per_flight,
+        "allowed_weekdays": list(rule.allowed_weekdays or []),
         "priority": rule.priority,
         "notes": rule.notes,
         "is_active": rule.is_active,

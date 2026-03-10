@@ -105,6 +105,7 @@ class PlanningDestinationRule(models.Model):
     label = models.CharField(max_length=120, blank=True)
     weekly_frequency = models.PositiveSmallIntegerField(null=True, blank=True)
     max_cartons_per_flight = models.PositiveSmallIntegerField(null=True, blank=True)
+    allowed_weekdays = models.JSONField(default=list, blank=True)
     priority = models.PositiveSmallIntegerField(default=0)
     notes = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)

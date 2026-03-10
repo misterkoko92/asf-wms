@@ -73,6 +73,34 @@ Conclusion de cette revue:
 - la recette phase 3 peut etre executee sur la surface existante
 - tout besoin d'outillage supplementaire doit etre justifie par une friction observee, pas anticipee
 
+## Jeu de recette jetable
+
+Si l'environnement ne contient pas encore de vraies donnees d'exploitation, utiliser le scenario jetable
+`phase3-s11-recipe` pour tester la chaine complete sans bricolage manuel.
+
+Creation du jeu de recette:
+
+```bash
+python manage.py seed_planning_recipe_data --scenario phase3-s11-recipe --solve
+```
+
+Ce scenario couvre volontairement:
+- une destination bloquee par `ParamDest` hors jeudi (`NSI`)
+- un vol multi-troncon `CDG-NSI-DLA` dont seule une destination doit etre retenue
+- une destination avec assez de colis mais pas assez de benevoles pour couvrir tous les vols (`DLA`)
+- un arbitrage entre deux benevoles compatibles sur `AF704`
+- au moins une expedition non affectee (`ABJ`)
+- au moins un ajustement manuel plausible avant publication
+
+Purge du jeu de recette:
+
+```bash
+python manage.py purge_planning_recipe_data --scenario phase3-s11-recipe
+python manage.py purge_planning_recipe_data --scenario phase3-s11-recipe --yes
+```
+
+La premiere commande est un `dry-run`. La seconde supprime uniquement le namespace recette.
+
 ## Prerequis
 
 ### Donnees
@@ -107,6 +135,9 @@ Recommendation:
 ## Palier A: base isolee/copied
 
 ### Preparation de l'export limite anonymise
+
+Si de vraies donnees existent deja, preferer ce chemin. Sinon, utiliser d'abord le jeu de recette
+jetable documente plus haut.
 
 Depuis PythonAnywhere, produire d'abord un jeu de recette limite pour la semaine cible:
 
