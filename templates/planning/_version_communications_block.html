@@ -7,56 +7,85 @@
         <h2 class="h5 mb-1">{% trans "Communications" %}</h2>
         <p class="text-muted mb-0">{% trans "Brouillons regenerables et editables pour cette version." %}</p>
       </div>
-      <form method="post">
-        {% csrf_token %}
-        <input type="hidden" name="draft_action" value="generate">
-        <button type="submit" class="btn btn-tertiary">{% trans "Generer les brouillons" %}</button>
-      </form>
+      {% if version.status == "published" %}
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="draft_action" value="generate">
+          <button type="submit" class="btn btn-tertiary">{% trans "Generer les brouillons" %}</button>
+        </form>
+      {% endif %}
     </div>
 
-    {% if draft_formset.forms %}
+    {% if dashboard.communications.groups %}
       <form method="post" class="vstack gap-3">
         {% csrf_token %}
         <input type="hidden" name="draft_action" value="save">
-        {{ draft_formset.management_form }}
+        {% if draft_formset.forms %}
+          {{ draft_formset.management_form }}
+        {% endif %}
         {% for group in dashboard.communications.groups %}
           <article class="border rounded-3 p-3">
             <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
               <div>
-                <h3 class="h6 mb-1">{{ group.channel_label }} · {{ group.recipient_label|default:"-" }}</h3>
-                <p class="text-muted mb-0">
-                  {% if group.changed_since_parent %}
-                    {% trans "Modification depuis la version precedente" %}
-                  {% else %}
-                    {% trans "Aucune modification detectee" %}
-                  {% endif %}
-                </p>
+                <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                  <h3 class="h6 mb-0">{{ group.channel_label }} · {{ group.recipient_label|default:"-" }}</h3>
+                  <span class="badge text-bg-light">{{ group.change_status_label }}</span>
+                </div>
+                <p class="text-muted mb-0">{{ group.change_summary }}</p>
               </div>
             </div>
-            <div class="table-responsive">
-              <table class="table align-middle mb-0">
-                <thead>
-                  <tr>
-                    <th>{% trans "Sujet" %}</th>
-                    <th>{% trans "Message" %}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for draft in group.drafts %}
+
+            {% if group.is_collapsed %}
+              <details>
+                <summary class="small text-muted">{% trans "Afficher le detail" %}</summary>
+            {% endif %}
+
+            {% if group.drafts %}
+              <div class="table-responsive mt-3">
+                <table class="table align-middle mb-0">
+                  <thead>
                     <tr>
-                      {{ draft.form.id }}
-                      <td>{{ draft.form.subject }}</td>
-                      <td>{{ draft.form.body }}</td>
+                      <th>{% trans "Sujet" %}</th>
+                      <th>{% trans "Message" %}</th>
                     </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {% for draft in group.drafts %}
+                      <tr>
+                        {% if draft.form %}{{ draft.form.id }}{% endif %}
+                        <td>
+                          {% if draft.form %}
+                            {{ draft.form.subject }}
+                          {% else %}
+                            {{ draft.subject }}
+                          {% endif %}
+                        </td>
+                        <td>
+                          {% if draft.form %}
+                            {{ draft.form.body }}
+                          {% else %}
+                            <div class="small">{{ draft.body|linebreaksbr }}</div>
+                          {% endif %}
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <p class="text-muted mb-0 mt-3">{% trans "Aucun brouillon genere pour ce destinataire." %}</p>
+            {% endif %}
+
+            {% if group.is_collapsed %}
+              </details>
+            {% endif %}
           </article>
         {% endfor %}
-        <div class="d-flex justify-content-end">
-          <button type="submit" class="btn btn-primary">{% trans "Enregistrer les brouillons" %}</button>
-        </div>
+        {% if draft_formset.forms %}
+          <div class="d-flex justify-content-end">
+            <button type="submit" class="btn btn-primary">{% trans "Enregistrer les brouillons" %}</button>
+          </div>
+        {% endif %}
       </form>
     {% else %}
       <p class="text-muted mb-0">{% trans "Aucun brouillon genere." %}</p>

@@ -48,9 +48,45 @@ Couverture validee:
 - portail benevole et ecrans de contraintes
 - integrations API critiques deja presentes dans `asf-wms`
 
+### Command 3
+```bash
+./.venv/bin/python manage.py test wms.tests.planning.tests_smoke_planning_flow -v 2
+```
+
+Result:
+- `1` test execute
+- `OK`
+
+Couverture validee:
+- `seed_planning_demo_data --solve`
+- resolution d'un `PlanningRun`
+- publication de la `PlanningVersion v1`
+- regeneration des brouillons de communication
+- regeneration de l'export `Planning.xlsx`
+- affichage du cockpit `/planning/versions/<id>/`
+
+Role de cette commande:
+- garde-fou de fumee bout en bout sur le chemin nominal planning
+- volontairement structurel, sans revalider la parite solveur ni le detail des messages ou du workbook
+
+### Command 4
+```bash
+./.venv/bin/python manage.py test wms.tests.planning wms.tests.views.tests_views_planning wms.tests.management.tests_management_seed_planning_demo_data wms.tests.management.tests_management_makemigrations_check -v 1
+```
+
+Result:
+- `85` tests executes
+- `OK`
+
+Couverture validee:
+- regression planning large apres ajout du smoke test
+- vues planning staff
+- seed de demonstration
+- garde-fou `makemigrations_check`
+
 ### Consolidated Outcome
-- `57` tests executes
-- `57` tests `OK`
+- `86` tests executes
+- `86` tests `OK`
 - aucun drift de schema ni erreur de system check observe pendant cette verification finale
 
 ## Demo Dataset Verification
@@ -134,7 +170,10 @@ Check-list de recette manuelle recommandee avant diffusion terrain:
 - publier `v2`
 - regenerer les brouillons de communication
 - verifier que les brouillons de `v1` et `v2` restent distincts
+- verifier que les brouillons sont maintenant agreges par destinataire et canal, et non plus par affectation
 - verifier qu'un operateur peut retoucher le texte genere avant diffusion
+- verifier la presence des statuts `Nouveau`, `Modifie`, `Annule`, `Inchange` dans le cockpit
+- verifier qu'un benevole retire d'une version precedente produit bien un brouillon d'annulation
 
 8. Export Excel
 - regenerer l'export `Planning.xlsx`
@@ -145,6 +184,8 @@ Check-list de recette manuelle recommandee avant diffusion terrain:
 - verifier la presence des blocs `Planning`, `Non affectes`, `Communications`, `Stats`, `Exports`, `Historique des versions`
 - verifier que le bloc `Planning` est bien groupe par vol
 - verifier que le bloc `Non affectes` affiche un motif lisible quand une expedition reste hors planning
+- verifier que le bloc `Communications` priorise `Nouveau`, `Modifie`, `Annule` avant `Inchange`
+- verifier que les groupes `Inchange` restent replies par defaut
 - verifier que le bloc `Historique des versions` resume le diff entre `v1` et `v2`
 
 10. Mise a jour expeditions
@@ -157,6 +198,7 @@ Check-list de recette manuelle recommandee avant diffusion terrain:
 - le connecteur vols API est maintenant interchangeable avec un provider Air France-KLM concret; la recette sur semaines reelles reste a finaliser avant generalisation
 - l'export `Planning.xlsx` est plus exploitable pour la transition, mais ne reproduit pas encore la structure historique complete du workbook legacy
 - les communications sont generees comme brouillons editables dans `asf-wms`, mais l'envoi email ou WhatsApp reste manuel par choix produit
+- le plan de communication reste un service Python, pas encore un modele persistant dedie
 - l'application des mises a jour expeditions est volontairement conservative: seules les expeditions encore `packed` ou deja `planned` sont touchees
 
 ## Local Environment Note

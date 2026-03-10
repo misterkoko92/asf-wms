@@ -16,6 +16,7 @@ from wms.models import (
     PlanningVersionStatus,
     PlanningVolunteerSnapshot,
 )
+from wms.planning.communications import generate_version_drafts
 from wms.planning.stats import build_version_stats
 from wms.planning.version_dashboard import build_version_dashboard
 
@@ -236,9 +237,83 @@ class PlanningVersionDashboardTests(TestCase):
 
         self.assertTrue(dashboard["history"]["has_parent"])
         self.assertEqual(dashboard["history"]["assignment_changes"]["changed_count"], 1)
+        self.assertEqual(len(dashboard["communications"]["groups"]), 2)
         self.assertEqual(dashboard["communications"]["groups"][0]["recipient_label"], "Bob")
-        self.assertTrue(dashboard["communications"]["groups"][0]["changed_since_parent"])
+        self.assertEqual(dashboard["communications"]["groups"][0]["change_status"], "new")
+        self.assertEqual(
+            dashboard["communications"]["groups"][0]["drafts"][0]["subject"], "Planning Bob"
+        )
+        self.assertEqual(dashboard["communications"]["groups"][1]["recipient_label"], "Alice")
+        self.assertEqual(dashboard["communications"]["groups"][1]["change_status"], "cancelled")
         self.assertEqual(dashboard["exports"]["artifacts"][0]["label"], "Planning v2")
+
+    def test_build_version_dashboard_prioritizes_changed_communication_groups(self):
+        volunteer_alice = PlanningVolunteerSnapshot.objects.create(
+            run=self.run,
+            volunteer_label="Alice",
+        )
+        shipment = PlanningShipmentSnapshot.objects.create(
+            run=self.run,
+            shipment_reference="SHP-001",
+            shipper_name="Association A",
+            destination_iata="RUN",
+            priority=1,
+            carton_count=3,
+            equivalent_units=3,
+        )
+        flight_1 = PlanningFlightSnapshot.objects.create(
+            run=self.run,
+            flight_number="AF652",
+            departure_date="2026-03-10",
+            destination_iata="RUN",
+            capacity_units=20,
+            payload={"departure_time": "18:20"},
+        )
+        flight_2 = PlanningFlightSnapshot.objects.create(
+            run=self.run,
+            flight_number="AF456",
+            departure_date="2026-03-11",
+            destination_iata="RUN",
+            capacity_units=20,
+            payload={"departure_time": "19:10"},
+        )
+        previous = PlanningVersion.objects.create(
+            run=self.run,
+            status=PlanningVersionStatus.PUBLISHED,
+            created_by=self.user,
+        )
+        current = PlanningVersion.objects.create(
+            run=self.run,
+            status=PlanningVersionStatus.PUBLISHED,
+            based_on=previous,
+            created_by=self.user,
+            change_reason="Maj vendredi",
+        )
+        PlanningAssignment.objects.create(
+            version=previous,
+            shipment_snapshot=shipment,
+            volunteer_snapshot=volunteer_alice,
+            flight_snapshot=flight_1,
+            assigned_carton_count=3,
+            source=PlanningAssignmentSource.SOLVER,
+            sequence=1,
+        )
+        PlanningAssignment.objects.create(
+            version=current,
+            shipment_snapshot=shipment,
+            volunteer_snapshot=volunteer_alice,
+            flight_snapshot=flight_2,
+            assigned_carton_count=3,
+            source=PlanningAssignmentSource.MANUAL,
+            sequence=1,
+        )
+        generate_version_drafts(current)
+
+        dashboard = build_version_dashboard(current)
+
+        self.assertEqual(dashboard["communications"]["groups"][0]["change_status"], "changed")
+        self.assertTrue(dashboard["communications"]["groups"][0]["is_priority"])
+        self.assertFalse(dashboard["communications"]["groups"][0]["is_collapsed"])
 
     def test_build_version_stats_exposes_unassigned_and_breakdowns(self):
         version = PlanningVersion.objects.create(

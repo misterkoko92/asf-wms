@@ -172,6 +172,12 @@ def planning_version_detail(request, version_id):
                 messages.success(request, "Affectations mises a jour.")
                 return redirect("planning:version_detail", version.pk)
         elif request.POST.get("draft_action") == "generate":
+            if version.status != PlanningVersionStatus.PUBLISHED:
+                messages.error(
+                    request,
+                    "Seules les versions publiees peuvent generer des brouillons.",
+                )
+                return redirect("planning:version_detail", version.pk)
             generate_version_drafts(version)
             messages.success(request, "Brouillons de communication regeneres.")
             return redirect("planning:version_detail", version.pk)

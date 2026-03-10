@@ -201,6 +201,87 @@ class PlanningOutputTests(TestCase):
             ],
         )
 
+    def test_generate_drafts_aggregates_multiple_assignments_for_same_recipient(self):
+        self.template.subject = "Planning v{{ version_number }} pour {{ recipient_label }}"
+        self.template.body = (
+            "{% for assignment in current_assignments %}"
+            "{{ assignment.flight_number }} {{ assignment.shipment_reference }};"
+            "{% endfor %}"
+        )
+        self.template.save(update_fields=["subject", "body", "updated_at"])
+        second_shipment = PlanningShipmentSnapshot.objects.create(
+            run=self.run,
+            shipment_reference="SHP-002",
+            carton_count=2,
+            equivalent_units=2,
+        )
+        second_flight = PlanningFlightSnapshot.objects.create(
+            run=self.run,
+            flight_number="AF456",
+            departure_date="2026-03-11",
+            destination_iata="NCE",
+        )
+        version = self.make_published_version()
+        PlanningAssignment.objects.create(
+            version=version,
+            shipment_snapshot=second_shipment,
+            volunteer_snapshot=self.volunteer_snapshot,
+            flight_snapshot=second_flight,
+            assigned_carton_count=2,
+            source=PlanningAssignmentSource.MANUAL,
+            sequence=2,
+        )
+
+        drafts = generate_version_drafts(version)
+
+        self.assertEqual(len(drafts), 1)
+        self.assertEqual(drafts[0].recipient_label, "Alice")
+        self.assertIn("AF123 SHP-001", drafts[0].body)
+        self.assertIn("AF456 SHP-002", drafts[0].body)
+
+    def test_generate_drafts_creates_cancellation_message_for_removed_recipient(self):
+        self.template.is_active = False
+        self.template.save(update_fields=["is_active", "updated_at"])
+        version_1 = self.make_published_version()
+        version_2 = PlanningVersion.objects.create(
+            run=self.run,
+            status=PlanningVersionStatus.PUBLISHED,
+            based_on=version_1,
+            created_by=self.user,
+        )
+
+        drafts_v2 = generate_version_drafts(version_2)
+
+        self.assertEqual(len(drafts_v2), 1)
+        self.assertEqual(drafts_v2[0].recipient_label, "Alice")
+        self.assertIn("annulation", drafts_v2[0].body.lower())
+
+    def test_generate_drafts_keeps_multiple_active_templates_on_same_channel(self):
+        second_template = CommunicationTemplate.objects.create(
+            label="Mail planning secondaire",
+            channel=CommunicationChannel.EMAIL,
+            subject="Second {{ recipient_label }}",
+            body="Second template pour {{ recipient_label }}",
+        )
+        version = self.make_published_version()
+
+        drafts = generate_version_drafts(version)
+
+        self.assertEqual(len(drafts), 2)
+        self.assertEqual(
+            sorted(draft.template_id for draft in drafts),
+            sorted([self.template.pk, second_template.pk]),
+        )
+        self.assertEqual(
+            sorted(
+                CommunicationDraft.objects.filter(version=version).values_list(
+                    "template__label",
+                    flat=True,
+                )
+            ),
+            ["Mail planning", "Mail planning secondaire"],
+        )
+
     def test_generate_drafts_keeps_separate_series_per_version(self):
         version_1 = self.make_published_version()
         version_2 = self.make_published_version(
@@ -214,7 +295,7 @@ class PlanningOutputTests(TestCase):
         drafts_v2 = generate_version_drafts(version_2)
 
         self.assertEqual(len(drafts_v1), 1)
-        self.assertEqual(len(drafts_v2), 1)
+        self.assertEqual(len(drafts_v2), 2)
         self.assertEqual(
             list(
                 CommunicationDraft.objects.filter(version=version_1).values_list(
@@ -225,11 +306,11 @@ class PlanningOutputTests(TestCase):
             ["Alice"],
         )
         self.assertEqual(
-            list(
+            sorted(
                 CommunicationDraft.objects.filter(version=version_2).values_list(
                     "recipient_label",
                     flat=True,
                 )
             ),
-            ["Bob"],
+            ["Alice", "Bob"],
         )
