@@ -14,7 +14,7 @@ ortools==9.15.6755
 packaging==26.0
 pdfminer-six==20231228
 pdfplumber==0.11.4
-pillow==10.3.0
+pillow==12.1.1
 pycparser==3.0 ; implementation_name != 'PyPy' and platform_python_implementation != 'PyPy'
 pypdf==4.3.1
 pypdfium2==5.5.0
