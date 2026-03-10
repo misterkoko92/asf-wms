@@ -166,23 +166,6 @@ def seed_recipe_dataset(*, scenario_slug: str, solve: bool = False) -> dict[str,
         contact_type=ContactType.ORGANIZATION,
         is_active=True,
     )
-    correspondent_contacts = {
-        "NSI": Contact.objects.create(
-            name=f"{namespace.contact_prefix} Correspondant NSI",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        ),
-        "DLA": Contact.objects.create(
-            name=f"{namespace.contact_prefix} Correspondant DLA",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        ),
-        "ABJ": Contact.objects.create(
-            name=f"{namespace.contact_prefix} Correspondant ABJ",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        ),
-    }
     association_profile = AssociationProfile.objects.create(
         user=association_user,
         contact=shipper_contact,
@@ -210,19 +193,16 @@ def seed_recipe_dataset(*, scenario_slug: str, solve: bool = False) -> dict[str,
             iata_code="NSI",
             city="Yaounde",
             country="Cameroun",
-            correspondent_contact=correspondent_contacts["NSI"],
         ),
         "DLA": _resolve_destination(
             iata_code="DLA",
             city="Douala",
             country="Cameroun",
-            correspondent_contact=correspondent_contacts["DLA"],
         ),
         "ABJ": _resolve_destination(
             iata_code="ABJ",
             city="Abidjan",
             country="Cote d'Ivoire",
-            correspondent_contact=correspondent_contacts["ABJ"],
         ),
     }
 
@@ -535,7 +515,6 @@ def purge_recipe_dataset(*, scenario_slug: str, dry_run: bool = True) -> dict[st
             "warehouses",
             "planning_destination_rules",
             "planning_parameter_sets",
-            "destinations",
             "contacts",
             "users",
             "equivalence_rules",
@@ -548,7 +527,7 @@ def build_recipe_namespace(scenario_slug: str) -> ScenarioNamespace:
     normalized = normalize_recipe_scenario_slug(scenario_slug)
     base_slug = normalized.removesuffix("-recipe")
     base_upper = base_slug.upper().replace("-", "-")
-    label_prefix = "[RECIPE phase3-s11]"
+    label_prefix = f"[RECIPE {normalized}]"
     return ScenarioNamespace(
         scenario_slug=normalized,
         label_prefix=label_prefix,
@@ -569,10 +548,6 @@ def _build_recipe_querysets(namespace: ScenarioNamespace) -> dict[str, object]:
     volunteer_profiles = VolunteerProfile.objects.filter(user__in=users)
     association_profiles = AssociationProfile.objects.filter(user__in=users)
     contacts = Contact.objects.filter(name__startswith=namespace.contact_prefix)
-    destinations = Destination.objects.filter(
-        correspondent_contact__name__startswith=namespace.contact_prefix,
-        iata_code__in=["NSI", "DLA", "ABJ"],
-    )
     planning_parameter_sets = PlanningParameterSet.objects.filter(name=namespace.parameter_set_name)
     planning_destination_rules = PlanningDestinationRule.objects.filter(
         parameter_set__in=planning_parameter_sets
@@ -603,7 +578,6 @@ def _build_recipe_querysets(namespace: ScenarioNamespace) -> dict[str, object]:
     return {
         "users": users,
         "contacts": contacts,
-        "destinations": destinations,
         "planning_parameter_sets": planning_parameter_sets,
         "planning_destination_rules": planning_destination_rules,
         "flight_batches": flight_batches,
@@ -642,7 +616,6 @@ def _resolve_destination(
     iata_code: str,
     city: str,
     country: str,
-    correspondent_contact: Contact,
 ) -> Destination:
     destination = Destination.objects.filter(iata_code=iata_code).first()
     if destination is not None:
@@ -650,6 +623,13 @@ def _resolve_destination(
     destination = Destination.objects.filter(city=city, country=country).first()
     if destination is not None:
         return destination
+    correspondent_contact, _ = Contact.objects.get_or_create(
+        name=f"[RECIPE DESTINATION] {iata_code}",
+        defaults={
+            "contact_type": ContactType.ORGANIZATION,
+            "is_active": True,
+        },
+    )
     return Destination.objects.create(
         city=city,
         country=country,

@@ -7,6 +7,42 @@ from wms.models import Flight, PlanningParameterSet, PlanningRun, PlanningRunSta
 
 
 class PlanningRecipeDataCommandTests(TestCase):
+    def test_recipe_scenarios_are_isolated_by_namespace(self):
+        call_command("seed_planning_recipe_data", "--scenario=phase3-s11-recipe")
+        call_command("seed_planning_recipe_data", "--scenario=phase3-s12-recipe")
+
+        self.assertTrue(
+            PlanningParameterSet.objects.filter(name="RECIPE phase3-s11-recipe").exists()
+        )
+        self.assertTrue(
+            PlanningParameterSet.objects.filter(name="RECIPE phase3-s12-recipe").exists()
+        )
+        self.assertEqual(
+            Shipment.objects.filter(reference__startswith="RECIPE-PHASE3-S11").count(),
+            8,
+        )
+        self.assertEqual(
+            Shipment.objects.filter(reference__startswith="RECIPE-PHASE3-S12").count(),
+            8,
+        )
+
+        call_command(
+            "purge_planning_recipe_data",
+            "--scenario=phase3-s11-recipe",
+            "--yes",
+        )
+
+        self.assertFalse(
+            PlanningParameterSet.objects.filter(name="RECIPE phase3-s11-recipe").exists()
+        )
+        self.assertTrue(
+            PlanningParameterSet.objects.filter(name="RECIPE phase3-s12-recipe").exists()
+        )
+        self.assertEqual(
+            Shipment.objects.filter(reference__startswith="RECIPE-PHASE3-S12").count(),
+            8,
+        )
+
     def test_seed_planning_recipe_data_creates_expected_volumes(self):
         output = StringIO()
 
