@@ -183,21 +183,146 @@ def _solve_lexicographic_flight_distribution(
     return _assign(0, volunteer_capacities)
 
 
-def _rebalance_assignments_by_flight(assignments: list[dict], payload: dict) -> list[dict]:
+def _volunteer_slot_bounds_for_flight(
+    volunteer: dict, flight: dict
+) -> tuple[datetime, datetime] | None:
+    availability = volunteer.get("availability_summary") or {}
+    departure_date = str(flight.get("departure_date") or "").strip()
+    best_slot = None
+    for slot in availability.get("slots") or []:
+        if str(slot.get("date") or "").strip() != departure_date:
+            continue
+        start_value = str(slot.get("start_time") or "").strip()
+        end_value = str(slot.get("end_time") or "").strip()
+        if not start_value or not end_value:
+            continue
+        try:
+            start_dt = datetime.fromisoformat(f"{departure_date}T{start_value}")
+            end_dt = datetime.fromisoformat(f"{departure_date}T{end_value}")
+        except ValueError:
+            continue
+        if end_dt <= start_dt:
+            continue
+        candidate = (start_dt, end_dt)
+        if best_slot is None or candidate[1] > best_slot[1]:
+            best_slot = candidate
+    return best_slot
+
+
+def _assignment_conflicts_for_volunteer(
+    volunteer_id: int,
+    flight_id: int,
+    assignments: list[dict],
+    flight_by_id: dict[int, dict],
+    *,
+    exclude_assignment: dict | None = None,
+) -> bool:
+    target_flight = flight_by_id[flight_id]
+    target_physical_key = target_flight.get("physical_flight_key") or str(flight_id)
+    target_dt = _flight_datetime_key(target_flight)
+
+    for assignment in assignments:
+        if assignment is exclude_assignment:
+            continue
+        if assignment["volunteer_snapshot_id"] != volunteer_id:
+            continue
+        other_flight = flight_by_id[assignment["flight_snapshot_id"]]
+        other_physical_key = other_flight.get("physical_flight_key") or str(
+            assignment["flight_snapshot_id"]
+        )
+        if (
+            target_physical_key == other_physical_key
+            and flight_id != assignment["flight_snapshot_id"]
+        ):
+            return True
+        other_dt = _flight_datetime_key(other_flight)
+        if abs((other_dt - target_dt).total_seconds()) < LEGACY_MIN_HOURS_BETWEEN_FLIGHTS * 3600:
+            return True
+    return False
+
+
+def _select_single_shipment_volunteer(
+    assignment: dict,
+    *,
+    assignments: list[dict],
+    compatibility: dict[int, list[tuple[int, int]]],
+    flight_by_id: dict[int, dict],
+    volunteer_by_id: dict[int, dict],
+) -> int:
+    shipment_id = assignment["shipment_snapshot_id"]
+    flight_id = assignment["flight_snapshot_id"]
+    flight = flight_by_id[flight_id]
+    compatible_volunteer_ids = {
+        volunteer_id
+        for candidate_flight_id, volunteer_id in compatibility.get(shipment_id, [])
+        if candidate_flight_id == flight_id
+    }
+    current_volunteer_id = assignment["volunteer_snapshot_id"]
+    best_choice = None
+
+    for volunteer_id in compatible_volunteer_ids:
+        volunteer = volunteer_by_id.get(volunteer_id)
+        if volunteer is None:
+            continue
+        max_colis_vol = volunteer.get("max_colis_vol")
+        if max_colis_vol is None:
+            max_colis_vol = LEGACY_EQUIV_CAPACITY_PER_VOLUNTEER
+        if int(assignment["equivalent_units"]) > int(max_colis_vol):
+            continue
+        if _assignment_conflicts_for_volunteer(
+            volunteer_id,
+            flight_id,
+            assignments,
+            flight_by_id,
+            exclude_assignment=assignment,
+        ):
+            continue
+        slot_bounds = _volunteer_slot_bounds_for_flight(volunteer, flight)
+        if slot_bounds is None:
+            continue
+        start_dt, end_dt = slot_bounds
+        duration_minutes = int((end_dt - start_dt).total_seconds() / 60)
+        choice = (
+            end_dt,
+            duration_minutes,
+            tuple(
+                -part if isinstance(part, int) else part
+                for part in _volunteer_assignment_order_key(volunteer)
+                if isinstance(part, int)
+            ),
+            volunteer_id,
+        )
+        if best_choice is None or choice > best_choice:
+            best_choice = choice
+
+    if best_choice is None:
+        return current_volunteer_id
+    return best_choice[-1]
+
+
+def _rebalance_assignments_by_flight(
+    assignments: list[dict],
+    payload: dict,
+    compatibility: dict[int, list[tuple[int, int]]],
+) -> list[dict]:
     if not assignments:
         return assignments
 
     volunteer_by_id = {
         volunteer["snapshot_id"]: volunteer for volunteer in payload.get("volunteers", [])
     }
+    flight_by_id = {flight["snapshot_id"]: flight for flight in payload.get("flights", [])}
     grouped_assignments = defaultdict(list)
     for assignment in assignments:
         grouped_assignments[assignment["flight_snapshot_id"]].append(assignment)
 
     rebalanced = []
+    single_assignments = []
     for flight_assignments in grouped_assignments.values():
-        if len(flight_assignments) <= 1:
-            rebalanced.extend(flight_assignments)
+        if not flight_assignments:
+            continue
+        if len(flight_assignments) == 1:
+            single_assignments.append(dict(flight_assignments[0]))
             continue
 
         ordered_shipments = sorted(
@@ -238,7 +363,23 @@ def _rebalance_assignments_by_flight(assignments: list[dict], payload: dict) -> 
             updated_assignment["volunteer_snapshot_id"] = volunteer_ids[volunteer_index]
             rebalanced.append(updated_assignment)
 
-    return rebalanced
+    single_assignments.sort(
+        key=lambda item: (
+            _flight_datetime_key(flight_by_id[item["flight_snapshot_id"]]),
+            str(item.get("reference") or ""),
+        )
+    )
+    final_assignments = rebalanced + single_assignments
+    for assignment in single_assignments:
+        assignment["volunteer_snapshot_id"] = _select_single_shipment_volunteer(
+            assignment,
+            assignments=final_assignments,
+            compatibility=compatibility,
+            flight_by_id=flight_by_id,
+            volunteer_by_id=volunteer_by_id,
+        )
+
+    return final_assignments
 
 
 def _build_candidates(payload: dict, compatibility: dict[int, list[tuple[int, int]]]) -> list[dict]:
@@ -347,7 +488,6 @@ def _solve_candidates(
         flight["snapshot_id"]: index
         for index, flight in enumerate(payload.get("flights", []), start=1)
     }
-
     shipment_flights = defaultdict(list)
     volunteer_flights = defaultdict(list)
     volunteers_by_shipment_flight = defaultdict(list)
@@ -389,19 +529,15 @@ def _solve_candidates(
             y_by_volunteer[volunteer_id].append((flight_id, var))
 
     z_vars = {}
-    z_order = {}
     z_by_flight = defaultdict(list)
     z_by_shipment_flight = defaultdict(list)
     z_by_volunteer_flight = defaultdict(list)
-    z_counter = 0
     for shipment in payload.get("shipments", []):
         shipment_id = shipment["snapshot_id"]
         for flight_id in shipment_flights.get(shipment_id, []):
             for volunteer_id in volunteers_by_shipment_flight.get((shipment_id, flight_id), []):
                 var = model.NewBoolVar(f"z_{shipment_id}_{volunteer_id}_{flight_id}")
                 z_vars[(shipment_id, volunteer_id, flight_id)] = var
-                z_counter += 1
-                z_order[(shipment_id, volunteer_id, flight_id)] = z_counter
                 z_by_flight[flight_id].append(var)
                 z_by_shipment_flight[(shipment_id, flight_id)].append(var)
                 z_by_volunteer_flight[(volunteer_id, flight_id)].append((shipment_id, var))
@@ -649,13 +785,6 @@ def _solve_candidates(
         raise RuntimeError("Planning solver failed during chronological tie-break.")
     model.Add(chronological_assignment_expr <= int(round(solver.ObjectiveValue())))
 
-    z_selection_order_expr = sum(z_order[key] * z_var for key, z_var in z_vars.items())
-    model.Maximize(z_selection_order_expr)
-    status = solver.Solve(model)
-    if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-        raise RuntimeError("Planning solver failed during assignment tie-break.")
-    model.Add(z_selection_order_expr >= int(round(solver.ObjectiveValue())))
-
     model.Minimize(sum(flight_used_vars.values()))
     status = solver.Solve(model)
     status_name = solver.StatusName(status)
@@ -681,7 +810,7 @@ def _solve_candidates(
                 "departure_date": flight.get("departure_date") or "",
             }
         )
-    selected = _rebalance_assignments_by_flight(selected, payload)
+    selected = _rebalance_assignments_by_flight(selected, payload, compatibility)
     selected.sort(
         key=lambda item: (
             str(item.get("departure_date") or ""),

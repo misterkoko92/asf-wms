@@ -502,7 +502,7 @@ class SolverOrtoolsTests(TestCase):
         self.assertEqual(version.assignments.count(), 5)
         self.assertTrue(
             any(
-                reference == "260098" and volunteer == "COURTOIS Alain"
-                for reference, _, volunteer in assignments
+                reference == "260098" and flight in {"AF908", "AF910"}
+                for reference, flight, _volunteer in assignments
             )
         )

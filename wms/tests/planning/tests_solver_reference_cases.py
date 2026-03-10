@@ -41,5 +41,21 @@ class SolverReferenceCaseTests(TestCase):
     def test_reference_case_legacy_no_benevole_compatible_matches_expected_result(self):
         self._assert_reference_case("legacy_no_benevole_compatible")
 
+    def test_reference_case_legacy_session_s10_2026_keeps_legacy_nsi_assignment(self):
+        case = load_reference_case("legacy_session_s10_2026")
+        version = solve_run(case.run)
+        case.run.refresh_from_db()
+
+        assignments = sorted(
+            version.assignments.values_list(
+                "shipment_snapshot__shipment_reference",
+                "flight_snapshot__flight_number",
+                "volunteer_snapshot__volunteer_label",
+            )
+        )
+
+        self.assertEqual(len(assignments), case.expected_result["assignment_count"])
+        self.assertIn(("260098", "AF908", "COURTOIS Alain"), assignments)
+
     def test_reference_case_legacy_session_s11_2026_matches_expected_assignments(self):
         self._assert_reference_case("legacy_session_s11_2026")

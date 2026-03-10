@@ -64,6 +64,7 @@ Le harnais `wms.tests.planning.tests_solver_reference_cases` couvre deja les cas
 - `legacy_multistop_first_stop_without_route_pos`
 - `legacy_multistop_second_stop_without_conflict`
 - `legacy_no_benevole_compatible`
+- `legacy_session_s10_2026` (assertion ciblee sur l'affectation mono-BE `260098`)
 - `legacy_session_s11_2026`
 
 Le cas `missing_paramdest_stop` du legacy reste a porter avec un format d'assertion moins strict que l'egalite exacte des affectations, car le solveur peut retourner plusieurs matchings equivalents.
@@ -114,6 +115,8 @@ Iteration supplementaire de cette phase:
   - `y`: benevole -> vol
   - `z`: expedition -> benevole -> vol
 - un tie-break explicite sur les options benevoles compatibles est ajoute avant les tie-breaks finaux
+- le tie-break artificiel qui favorisait les `z` crees le plus tard a ete retire
+- un post-traitement limite aux vols mono-BE tranche maintenant avec la fin de disponibilite du benevole sur le jour du vol, apres stabilisation des vols multi-BE
 - la verification locale reste verte sur:
   - `wms.tests.planning`
   - `wms.tests.views.tests_views_planning`
@@ -126,26 +129,21 @@ La session legacy suivante a ete rejouee comme deuxieme candidat de golden case:
 - semaine detectee: `2026-03-02 -> 2026-03-08`
 - sortie extraite: `/tmp/legacy_session_s10_small.json`
 
-Etat actuel apres correction du sens de priorite legacy et injection de `ParamBE` minimal:
-- le nombre d'affectations WMS est correct (`5`)
-- le set final n'est pas encore aligne sur le legacy
-- le delta residuel est descendu a `4` affectations manquantes / `4` affectations en trop sur le probe minimal
-- `ParamDest` est maintenant porte dans les fixtures de reference et injecte dans le `PlanningRun`, sans suppression de cet ecart
+Etat actuel apres retrait du tie-break `z` non legacy et ajout du tie-break mono-BE:
+- le nombre d'affectations WMS reste correct (`5`)
+- le choix legacy critique `260098 -> AF908 -> COURTOIS Alain` est maintenant aligne et assert dans le harnais
+- le mini-probe reste volontairement non-golden pour le sous-ensemble `RUN` sur `AF652`, car plusieurs matchings equivalents subsistent sur ce corpus reduit
+- `ParamDest` est porte dans les fixtures de reference et injecte dans le `PlanningRun`
 
-Ecarts observes:
-- pour `NSI`, le legacy choisit `AF908` alors que WMS choisit encore `AF910`
-- pour `RUN`, WMS ne retient pas exactement le meme sous-ensemble de BE sur `AF652`
-- ces ecarts ne relevent plus du tie-break benevole intra-vol; ils pointent vers d'autres regles legacy encore manquantes
-
-Hypotheses de root cause restantes:
-- arbitrage legacy sur le choix du vol au-dela de `ParamDest`
-- arbitrage legacy supplementaire sur la selection des BE a capacite contrainte
-- eventuels overlays expediteur non encore modelises dans le payload solveur
+Ecarts encore assumes sur ce probe:
+- le sous-ensemble exact de BE `RUN` retenu sur `AF652` n'est pas encore traite comme une parite forte
+- cet ecart est considere comme non conclusif tant que le corpus `s10` reste reduit et non rejoue sous forme de golden case hebdomadaire complet
 
 Note importante:
 - un mini-corpus synthetique derive de `s10` a servi de smoke test pendant le refactor
 - il ne doit pas etre traite comme golden case metier complet, car la reduction du contexte hebdomadaire change deja certaines decisions legacy
-- la prochaine preuve utile reste donc un deuxieme golden case reel complet, pas un durcissement excessif du mini-corpus
+- `legacy_session_s10_2026` sert maintenant de reference reelle partielle pour le cas mono-BE `NSI`
+- la prochaine preuve utile reste donc un deuxieme golden case reel complet sur semaine entiere, pas un durcissement excessif du mini-corpus
 
 ## Residual Gap Log
 Tant que le corpus de semaines reelles n'est pas encore branche, documenter chaque ecart important selon ce format:
