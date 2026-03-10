@@ -13,7 +13,8 @@
       "payload": {
         "legacy_case_name": "legacy_session_s11_2026",
         "legacy_type": "MM",
-        "legacy_destinataire": "AR MADA"
+        "legacy_destinataire": "AR MADA",
+        "legacy_type_priority": 5
       }
     },
     {
@@ -26,7 +27,8 @@
       "payload": {
         "legacy_case_name": "legacy_session_s11_2026",
         "legacy_type": "MM",
-        "legacy_destinataire": "AR MADA"
+        "legacy_destinataire": "AR MADA",
+        "legacy_type_priority": 5
       }
     },
     {
@@ -39,7 +41,8 @@
       "payload": {
         "legacy_case_name": "legacy_session_s11_2026",
         "legacy_type": "MM",
-        "legacy_destinataire": "AR MADA"
+        "legacy_destinataire": "AR MADA",
+        "legacy_type_priority": 5
       }
     },
     {
@@ -52,7 +55,8 @@
       "payload": {
         "legacy_case_name": "legacy_session_s11_2026",
         "legacy_type": "MM",
-        "legacy_destinataire": "C. S. STE MADELEINE"
+        "legacy_destinataire": "C. S. STE MADELEINE",
+        "legacy_type_priority": 5
       }
     }
   ],

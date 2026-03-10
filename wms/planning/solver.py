@@ -71,13 +71,15 @@ def summarize_solver_result(
 
 
 def _candidate_score(candidate: dict) -> int:
-    priority = int(candidate.get("priority") or 0)
+    equivalent_units = int(candidate.get("equivalent_units") or 0)
+    priority = int(candidate.get("priority_rank") or candidate.get("priority") or 0)
+    legacy_priority_bonus = max(0, 10 - priority)
+    weighted_priority = equivalent_units * legacy_priority_bonus
     route_pos = int(candidate.get("route_pos") or 1)
     route_bonus = max(0, 100 - route_pos)
-    equivalent_units = int(candidate.get("equivalent_units") or 0)
     cartons = int(candidate.get("assigned_carton_count") or 0)
     return (
-        (priority * 1_000_000_000)
+        (weighted_priority * 1_000_000_000)
         + (route_bonus * 1_000_000)
         + (equivalent_units * 1_000)
         + cartons
@@ -200,13 +202,27 @@ def _build_candidates(payload: dict, compatibility: dict[int, list[tuple[int, in
                     "assigned_carton_count": shipment["carton_count"],
                     "equivalent_units": shipment["equivalent_units"],
                     "priority": shipment["priority"],
+                    "priority_rank": shipment.get("priority_rank", shipment["priority"]),
                     "route_pos": int(flight.get("route_pos") or 1),
                     "physical_flight_key": flight.get("physical_flight_key") or str(flight_id),
                     "reference": shipment.get("reference") or "",
                     "departure_date": flight.get("departure_date") or "",
                 }
             )
-    return candidates
+    candidates_by_physical_key = defaultdict(list)
+    for candidate in candidates:
+        candidates_by_physical_key[candidate["physical_flight_key"]].append(candidate)
+
+    filtered_candidates = []
+    for physical_key, physical_candidates in candidates_by_physical_key.items():
+        if not physical_key:
+            filtered_candidates.extend(physical_candidates)
+            continue
+        min_route_pos = min(int(item.get("route_pos") or 1) for item in physical_candidates)
+        filtered_candidates.extend(
+            item for item in physical_candidates if int(item.get("route_pos") or 1) == min_route_pos
+        )
+    return filtered_candidates
 
 
 def _solve_candidates(

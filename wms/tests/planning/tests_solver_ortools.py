@@ -201,3 +201,135 @@ class SolverOrtoolsTests(TestCase):
                 ("250724", "GUEDON Bernard"),
             ],
         )
+
+    def test_solve_run_prefers_lower_legacy_priority_values_when_capacity_is_limited(self):
+        user = get_user_model().objects.create_user(
+            username="planner-ortools-priority@example.com",
+            email="planner-ortools-priority@example.com",
+            password="pass1234",  # pragma: allowlist secret
+        )
+        run = PlanningRun.objects.create(
+            week_start="2026-03-02",
+            week_end="2026-03-08",
+            status=PlanningRunStatus.READY,
+            created_by=user,
+        )
+        PlanningShipmentSnapshot.objects.create(
+            run=run,
+            shipment_reference="BE-PRIO-005",
+            shipper_name="ASF",
+            destination_iata="RUN",
+            priority=5,
+            carton_count=10,
+            equivalent_units=10,
+        )
+        for reference in ("BE-PRIO-002-A", "BE-PRIO-002-B"):
+            PlanningShipmentSnapshot.objects.create(
+                run=run,
+                shipment_reference=reference,
+                shipper_name="AR MADA",
+                destination_iata="RUN",
+                priority=2,
+                carton_count=10,
+                equivalent_units=10,
+            )
+        for label in ("FILOU Thierry", "PIERSON Gilles"):
+            PlanningVolunteerSnapshot.objects.create(
+                run=run,
+                volunteer_label=label,
+                availability_summary={
+                    "slot_count": 1,
+                    "slots": [
+                        {
+                            "date": "2026-03-04",
+                            "start_time": "05:00",
+                            "end_time": "21:00",
+                        }
+                    ],
+                },
+            )
+        PlanningFlightSnapshot.objects.create(
+            run=run,
+            flight_number="AF652",
+            departure_date=date(2026, 3, 4),
+            destination_iata="RUN",
+            capacity_units=20,
+            payload={"departure_time": "18:20", "routing": "CDG-RUN", "route_pos": 1},
+        )
+
+        version = solve_run(run)
+
+        assignments = list(
+            version.assignments.order_by("shipment_snapshot__shipment_reference").values_list(
+                "shipment_snapshot__shipment_reference",
+                flat=True,
+            )
+        )
+        self.assertEqual(assignments, ["BE-PRIO-002-A", "BE-PRIO-002-B"])
+
+    def test_solve_run_prefers_type_priority_rank_from_payload_over_snapshot_priority(self):
+        user = get_user_model().objects.create_user(
+            username="planner-ortools-type-priority@example.com",
+            email="planner-ortools-type-priority@example.com",
+            password="pass1234",  # pragma: allowlist secret
+        )
+        run = PlanningRun.objects.create(
+            week_start="2026-03-02",
+            week_end="2026-03-08",
+            status=PlanningRunStatus.READY,
+            created_by=user,
+        )
+        PlanningShipmentSnapshot.objects.create(
+            run=run,
+            shipment_reference="BE-TYPE-MM",
+            shipper_name="ASF",
+            destination_iata="RUN",
+            priority=2,
+            carton_count=10,
+            equivalent_units=10,
+            payload={"legacy_type_priority": 5},
+        )
+        for reference in ("BE-TYPE-CN-A", "BE-TYPE-CN-B"):
+            PlanningShipmentSnapshot.objects.create(
+                run=run,
+                shipment_reference=reference,
+                shipper_name="ASF",
+                destination_iata="RUN",
+                priority=5,
+                carton_count=10,
+                equivalent_units=10,
+                payload={"legacy_type_priority": 4},
+            )
+        for label in ("FILOU Thierry", "PIERSON Gilles"):
+            PlanningVolunteerSnapshot.objects.create(
+                run=run,
+                volunteer_label=label,
+                availability_summary={
+                    "slot_count": 1,
+                    "slots": [
+                        {
+                            "date": "2026-03-04",
+                            "start_time": "05:00",
+                            "end_time": "21:00",
+                        }
+                    ],
+                },
+            )
+        PlanningFlightSnapshot.objects.create(
+            run=run,
+            flight_number="AF652",
+            departure_date=date(2026, 3, 4),
+            destination_iata="RUN",
+            capacity_units=20,
+            payload={"departure_time": "18:20", "routing": "CDG-RUN", "route_pos": 1},
+        )
+
+        version = solve_run(run)
+
+        assignments = list(
+            version.assignments.order_by("shipment_snapshot__shipment_reference").values_list(
+                "shipment_snapshot__shipment_reference",
+                flat=True,
+            )
+        )
+        self.assertEqual(assignments, ["BE-TYPE-CN-A", "BE-TYPE-CN-B"])

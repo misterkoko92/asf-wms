@@ -107,6 +107,27 @@ Statut:
 - la fixture `wms/tests/planning/fixtures/solver_reference_cases/legacy_session_s11_2026.json` est maintenant versionnee
 - le harnais `wms.tests.planning.tests_solver_reference_cases` l'assert en egalite stricte
 
+## Secondary Real-Week Probe
+La session legacy suivante a ete rejouee comme deuxieme candidat de golden case:
+- `session_d2010257-bd54-4896-ba39-5726e035cb3e`
+- semaine detectee: `2026-03-02 -> 2026-03-08`
+- sortie extraite: `/tmp/legacy_session_s10_small.json`
+
+Etat actuel apres correction du sens de priorite legacy et injection de `ParamBE` minimal:
+- le nombre d'affectations WMS est correct (`5`)
+- le set final n'est pas encore aligne sur le legacy
+- le delta residuel est descendu a `4` affectations manquantes / `4` affectations en trop sur le probe minimal
+
+Ecarts observes:
+- pour `NSI`, le legacy choisit `AF908` alors que WMS choisit encore `AF910`
+- pour `RUN`, WMS ne retient pas exactement le meme sous-ensemble de BE sur `AF652`
+- ces ecarts ne relevent plus du tie-break benevole intra-vol; ils pointent vers d'autres regles legacy encore manquantes
+
+Hypotheses de root cause restantes:
+- regles destination encore absentes du corpus de reference (`ParamDest` non embarque dans les fixtures)
+- arbitrage legacy supplementaire sur la selection des BE a capacite contrainte
+- eventuels overlays expediteur non encore modelises dans le payload solveur
+
 ## Residual Gap Log
 Tant que le corpus de semaines reelles n'est pas encore branche, documenter chaque ecart important selon ce format:
 - `week`: identifiant ou periode

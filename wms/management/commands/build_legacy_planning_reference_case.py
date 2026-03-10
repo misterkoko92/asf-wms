@@ -97,6 +97,7 @@ class Command(BaseCommand):
         payload = build_reference_case_payload(
             case_name=options["case_name"],
             df_be=df_be,
+            df_param_be=df_param_be,
             df_vols=df_vols,
             df_benev=df_benev,
             df_param_benev=df_param_benev,

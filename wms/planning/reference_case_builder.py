@@ -99,6 +99,7 @@ def build_reference_case_payload(
     *,
     case_name: str,
     df_be: pd.DataFrame,
+    df_param_be: pd.DataFrame | None = None,
     df_vols: pd.DataFrame,
     df_benev: pd.DataFrame,
     df_param_benev: pd.DataFrame,
@@ -135,10 +136,19 @@ def build_reference_case_payload(
             planning_dates.between(week_start_ts, week_end_ts)
         ]
 
+    type_priority_map: dict[str, int] = {}
+    if df_param_be is not None and not df_param_be.empty:
+        for row in df_param_be.to_dict(orient="records"):
+            type_label = str(row.get("Type") or "").strip().upper()
+            priority_type = _clean_int(row.get("Priorite_Type"))
+            if type_label and priority_type is not None:
+                type_priority_map[type_label] = priority_type
+
     shipments = []
     for row in df_be.sort_values(["Priorite", "BE_Numero"], ascending=[False, True]).to_dict(
         orient="records"
     ):
+        legacy_type = str(row.get("BE_Type") or "").strip()
         shipments.append(
             {
                 "reference": str(row.get("BE_Numero") or "").strip(),
@@ -149,8 +159,9 @@ def build_reference_case_payload(
                 "equivalent_units": _clean_int(row.get("Equiv_Colis")) or 0,
                 "payload": {
                     "legacy_case_name": case_name,
-                    "legacy_type": str(row.get("BE_Type") or "").strip(),
+                    "legacy_type": legacy_type,
                     "legacy_destinataire": str(row.get("BE_Destinataire") or "").strip(),
+                    "legacy_type_priority": type_priority_map.get(legacy_type.upper()),
                 },
             }
         )

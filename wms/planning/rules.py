@@ -31,6 +31,13 @@ def _normalize_flight_number(value: str) -> str:
     return "".join(ch for ch in str(value or "").strip().upper() if ch.isalnum())
 
 
+def _coerce_int(value: object) -> int | None:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def _infer_route_pos(*, routing: str, destination_iata: str) -> int:
     parts = [
         part.strip().upper() for part in str(routing or "").replace(",", "-").split("-") if part
@@ -68,6 +75,9 @@ def compile_run_solver_payload(run: PlanningRun) -> dict:
             "reference": snapshot.shipment_reference,
             "destination_iata": snapshot.destination_iata,
             "priority": snapshot.priority,
+            "priority_rank": _coerce_int((snapshot.payload or {}).get("legacy_type_priority"))
+            or snapshot.priority
+            or 0,
             "carton_count": snapshot.carton_count,
             "equivalent_units": snapshot.equivalent_units,
             "payload": snapshot.payload,

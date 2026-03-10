@@ -24,6 +24,14 @@ class LegacyReferenceCaseBuilderTests(SimpleTestCase):
                     }
                 ]
             ),
+            df_param_be=pd.DataFrame(
+                [
+                    {
+                        "Type": "MM",
+                        "Priorite_Type": 5,
+                    }
+                ]
+            ),
             df_vols=pd.DataFrame(
                 [
                     {
@@ -92,6 +100,7 @@ class LegacyReferenceCaseBuilderTests(SimpleTestCase):
                         "legacy_case_name": "legacy_session_sample",
                         "legacy_type": "MM",
                         "legacy_destinataire": "AR MADA",
+                        "legacy_type_priority": 5,
                     },
                 }
             ],
@@ -166,6 +175,14 @@ class LegacyReferenceCaseBuilderTests(SimpleTestCase):
                         "Equiv_Colis": 10,
                         "BE_Type": "MM",
                         "BE_Destinataire": "AR MADA",
+                    }
+                ]
+            ),
+            df_param_be=pd.DataFrame(
+                [
+                    {
+                        "Type": "MM",
+                        "Priorite_Type": 5,
                     }
                 ]
             ),
@@ -264,6 +281,14 @@ class LegacyReferenceCaseBuilderTests(SimpleTestCase):
                         "Equiv_Colis": 10,
                         "BE_Type": "MM",
                         "BE_Destinataire": "AR MADA",
+                    }
+                ]
+            ),
+            df_param_be=pd.DataFrame(
+                [
+                    {
+                        "Type": "MM",
+                        "Priorite_Type": 5,
                     }
                 ]
             ),
