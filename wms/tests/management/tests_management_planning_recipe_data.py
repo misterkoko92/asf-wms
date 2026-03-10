@@ -1,9 +1,21 @@
 from io import StringIO
 
+from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.test import TestCase
 
-from wms.models import Flight, PlanningParameterSet, PlanningRun, PlanningRunStatus, Shipment
+from contacts.models import Contact, ContactType
+from wms.models import (
+    Destination,
+    Flight,
+    PlanningParameterSet,
+    PlanningRun,
+    PlanningRunStatus,
+    Product,
+    Shipment,
+    ShipmentStatus,
+    VolunteerProfile,
+)
 
 
 class PlanningRecipeDataCommandTests(TestCase):
@@ -134,6 +146,54 @@ class PlanningRecipeDataCommandTests(TestCase):
         )
         self.assertIn("solved", output.getvalue().lower())
 
+    def test_seed_planning_recipe_data_solve_ignores_non_recipe_weekly_data(self):
+        external_contact = Contact.objects.create(
+            name="External shipper",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        external_correspondent = Contact.objects.create(
+            name="External correspondent",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        external_destination = Destination.objects.create(
+            city="Dakar",
+            iata_code="DSS",
+            country="Senegal",
+            correspondent_contact=external_correspondent,
+        )
+        Shipment.objects.create(
+            reference="REAL-WEEK-001",
+            status=ShipmentStatus.PACKED,
+            shipper_name="External shipper",
+            shipper_contact_ref=external_contact,
+            recipient_name="External recipient",
+            destination=external_destination,
+            destination_address="Airport road",
+            destination_country="Senegal",
+            ready_at="2026-03-12T09:00:00+00:00",
+        )
+        external_user = get_user_model().objects.create_user(
+            username="real-volunteer@example.com",
+            email="real-volunteer@example.com",
+            password="pass1234",  # pragma: allowlist secret
+        )
+        VolunteerProfile.objects.create(user=external_user, city="Paris")
+
+        call_command(
+            "seed_planning_recipe_data",
+            "--scenario=phase3-s11-recipe",
+            "--solve",
+        )
+
+        run = PlanningRun.objects.get(parameter_set__name="RECIPE phase3-s11-recipe")
+
+        self.assertEqual(run.status, PlanningRunStatus.SOLVED)
+        self.assertEqual(run.shipment_snapshots.count(), 8)
+        self.assertEqual(run.volunteer_snapshots.count(), 5)
+        self.assertFalse(run.shipment_snapshots.filter(shipment_reference="REAL-WEEK-001").exists())
+
     def test_purge_planning_recipe_data_dry_run_only_reports_counts(self):
         output = StringIO()
         call_command("seed_planning_recipe_data", "--scenario=phase3-s11-recipe")
@@ -172,4 +232,15 @@ class PlanningRecipeDataCommandTests(TestCase):
                 batch__source="recipe", batch__file_name="phase3-s11-recipe"
             ).count(),
             0,
+        )
+
+    def test_seed_planning_recipe_data_reseeds_even_if_recipe_product_names_drift(self):
+        call_command("seed_planning_recipe_data", "--scenario=phase3-s11-recipe")
+        Product.objects.filter(name__startswith="[RECIPE").update(name="Legacy recipe product")
+
+        call_command("seed_planning_recipe_data", "--scenario=phase3-s11-recipe")
+
+        self.assertEqual(
+            Shipment.objects.filter(reference__startswith="RECIPE-PHASE3-S11").count(),
+            8,
         )
