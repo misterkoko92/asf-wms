@@ -14,10 +14,228 @@ from wms.models import (
     PlanningShipmentSnapshot,
     PlanningVolunteerSnapshot,
 )
+from wms.planning import solver as planning_solver
 from wms.planning.solver import solve_run
 
 
 class SolverOrtoolsTests(TestCase):
+    def test_configure_cp_solver_uses_deterministic_settings(self):
+        if planning_solver.cp_model is None:
+            self.skipTest("ortools is not installed")
+
+        solver = planning_solver.cp_model.CpSolver()
+
+        planning_solver.configure_cp_solver(solver)
+
+        self.assertEqual(solver.parameters.max_time_in_seconds, 30.0)
+        self.assertEqual(solver.parameters.num_search_workers, 8)
+        self.assertEqual(solver.parameters.random_seed, 0)
+
+    def test_canonicalize_equal_weight_assignments_spans_multiple_shippers(self):
+        payload = {
+            "shipments": [
+                {
+                    "snapshot_id": 1,
+                    "reference": "250705",
+                    "shipper_name": "ASF",
+                    "destination_iata": "RUN",
+                    "priority": 5,
+                    "priority_rank": 5,
+                    "carton_count": 10,
+                    "equivalent_units": 10,
+                    "payload": {
+                        "legacy_date_impression": "2025-11-17",
+                        "legacy_date_conditionnement": "2026-02-18",
+                        "legacy_date_depart_mag": "",
+                    },
+                },
+                {
+                    "snapshot_id": 2,
+                    "reference": "250706",
+                    "shipper_name": "ASF",
+                    "destination_iata": "RUN",
+                    "priority": 5,
+                    "priority_rank": 5,
+                    "carton_count": 10,
+                    "equivalent_units": 10,
+                    "payload": {
+                        "legacy_date_impression": "2025-11-17",
+                        "legacy_date_conditionnement": "2026-02-25",
+                        "legacy_date_depart_mag": "",
+                    },
+                },
+                {
+                    "snapshot_id": 3,
+                    "reference": "250719",
+                    "shipper_name": "AR MADA",
+                    "destination_iata": "RUN",
+                    "priority": 2,
+                    "priority_rank": 5,
+                    "carton_count": 10,
+                    "equivalent_units": 10,
+                    "payload": {
+                        "legacy_date_impression": "2025-11-18",
+                        "legacy_date_conditionnement": "2025-11-20",
+                        "legacy_date_depart_mag": "",
+                    },
+                },
+                {
+                    "snapshot_id": 4,
+                    "reference": "250722",
+                    "shipper_name": "AR MADA",
+                    "destination_iata": "RUN",
+                    "priority": 2,
+                    "priority_rank": 5,
+                    "carton_count": 10,
+                    "equivalent_units": 10,
+                    "payload": {
+                        "legacy_date_impression": "2025-11-18",
+                        "legacy_date_conditionnement": "2025-12-09",
+                        "legacy_date_depart_mag": "",
+                    },
+                },
+                {
+                    "snapshot_id": 5,
+                    "reference": "250723",
+                    "shipper_name": "AR MADA",
+                    "destination_iata": "RUN",
+                    "priority": 2,
+                    "priority_rank": 5,
+                    "carton_count": 10,
+                    "equivalent_units": 10,
+                    "payload": {
+                        "legacy_date_impression": "2025-11-18",
+                        "legacy_date_conditionnement": "2025-12-09",
+                        "legacy_date_depart_mag": "",
+                    },
+                },
+                {
+                    "snapshot_id": 6,
+                    "reference": "250729",
+                    "shipper_name": "AR MADA",
+                    "destination_iata": "RUN",
+                    "priority": 2,
+                    "priority_rank": 5,
+                    "carton_count": 10,
+                    "equivalent_units": 10,
+                    "payload": {
+                        "legacy_date_impression": "2025-11-18",
+                        "legacy_date_conditionnement": "2025-12-09",
+                        "legacy_date_depart_mag": "2026-01-23",
+                    },
+                },
+                {
+                    "snapshot_id": 7,
+                    "reference": "250771",
+                    "shipper_name": "AR MADA",
+                    "destination_iata": "RUN",
+                    "priority": 2,
+                    "priority_rank": 5,
+                    "carton_count": 10,
+                    "equivalent_units": 10,
+                    "payload": {
+                        "legacy_date_impression": "2025-12-08",
+                        "legacy_date_conditionnement": "2025-12-09",
+                        "legacy_date_depart_mag": "",
+                    },
+                },
+            ],
+            "flights": [
+                {
+                    "snapshot_id": 29,
+                    "flight_number": "AF652",
+                    "departure_date": "2026-03-04",
+                    "departure_time": "18:20",
+                },
+                {
+                    "snapshot_id": 55,
+                    "flight_number": "AF652",
+                    "departure_date": "2026-03-06",
+                    "departure_time": "18:20",
+                },
+            ],
+        }
+        compatibility = {
+            shipment["snapshot_id"]: [(29, 13), (55, 19)] for shipment in payload["shipments"]
+        }
+        assignments = [
+            {
+                "shipment_snapshot_id": 3,
+                "flight_snapshot_id": 29,
+                "volunteer_snapshot_id": 13,
+                "assigned_carton_count": 10,
+                "equivalent_units": 10,
+                "priority": 2,
+                "priority_rank": 5,
+                "route_pos": 1,
+                "physical_flight_key": "2026-03-04|18:20|AF652",
+                "reference": "250719",
+                "departure_date": "2026-03-04",
+            },
+            {
+                "shipment_snapshot_id": 4,
+                "flight_snapshot_id": 29,
+                "volunteer_snapshot_id": 13,
+                "assigned_carton_count": 10,
+                "equivalent_units": 10,
+                "priority": 2,
+                "priority_rank": 5,
+                "route_pos": 1,
+                "physical_flight_key": "2026-03-04|18:20|AF652",
+                "reference": "250722",
+                "departure_date": "2026-03-04",
+            },
+            {
+                "shipment_snapshot_id": 5,
+                "flight_snapshot_id": 55,
+                "volunteer_snapshot_id": 19,
+                "assigned_carton_count": 10,
+                "equivalent_units": 10,
+                "priority": 2,
+                "priority_rank": 5,
+                "route_pos": 1,
+                "physical_flight_key": "2026-03-06|18:20|AF652",
+                "reference": "250723",
+                "departure_date": "2026-03-06",
+            },
+            {
+                "shipment_snapshot_id": 6,
+                "flight_snapshot_id": 55,
+                "volunteer_snapshot_id": 19,
+                "assigned_carton_count": 10,
+                "equivalent_units": 10,
+                "priority": 2,
+                "priority_rank": 5,
+                "route_pos": 1,
+                "physical_flight_key": "2026-03-06|18:20|AF652",
+                "reference": "250729",
+                "departure_date": "2026-03-06",
+            },
+        ]
+
+        canonicalized = planning_solver._canonicalize_legacy_equal_weight_assignments(
+            assignments,
+            payload=payload,
+            compatibility=compatibility,
+        )
+
+        self.assertEqual(
+            sorted(
+                (
+                    item["reference"],
+                    item["flight_snapshot_id"],
+                    item["volunteer_snapshot_id"],
+                )
+                for item in canonicalized
+            ),
+            [
+                ("250706", 55, 19),
+                ("250722", 29, 13),
+                ("250729", 29, 13),
+                ("250771", 55, 19),
+            ],
+        )
+
     def _create_parameter_set_with_destination_rules(self, *, user):
         parameter_set = PlanningParameterSet.objects.create(
             name="Legacy parity mini case",

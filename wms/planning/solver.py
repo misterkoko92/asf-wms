@@ -12,7 +12,12 @@ from wms.models import (
     PlanningRunStatus,
     PlanningVersion,
 )
-from wms.planning.config import LEGACY_EQUIV_CAPACITY_PER_VOLUNTEER
+from wms.planning.config import (
+    LEGACY_EQUIV_CAPACITY_PER_VOLUNTEER,
+    PLANNING_SOLVER_MAX_TIME_SECONDS,
+    PLANNING_SOLVER_NUM_SEARCH_WORKERS,
+    PLANNING_SOLVER_RANDOM_SEED,
+)
 from wms.planning.rules import (
     build_solver_diagnostics,
     compile_run_solver_payload,
@@ -27,6 +32,12 @@ except ModuleNotFoundError:  # pragma: no cover - dependency guard
 
 LEGACY_MAX_BE_PER_FLIGHT = 5
 LEGACY_MIN_HOURS_BETWEEN_FLIGHTS = 3.0
+
+
+def configure_cp_solver(solver) -> None:
+    solver.parameters.max_time_in_seconds = PLANNING_SOLVER_MAX_TIME_SECONDS
+    solver.parameters.num_search_workers = PLANNING_SOLVER_NUM_SEARCH_WORKERS
+    solver.parameters.random_seed = PLANNING_SOLVER_RANDOM_SEED
 
 
 def summarize_solver_result(
@@ -165,6 +176,65 @@ def _shipment_legacy_tie_break_key(shipment: dict) -> tuple:
         -(_coerce_int(shipment.get("reference")) or 10**9),
         str(shipment.get("reference") or ""),
     )
+
+
+def _shipment_legacy_assignment_key(shipment: dict) -> tuple:
+    payload = shipment.get("payload") or {}
+    return (
+        int(shipment.get("priority") or 0),
+        0 if str(payload.get("legacy_date_depart_mag") or "").strip() else 1,
+        _coerce_iso_date_ordinal(payload.get("legacy_date_conditionnement")),
+        _coerce_iso_date_ordinal(payload.get("legacy_date_impression")),
+        _shipment_reference_sort_key(shipment),
+    )
+
+
+def _select_legacy_preferred_shipment_ids(
+    shipment_ids: list[int],
+    *,
+    shipment_by_id: dict[int, dict],
+    selected_count: int,
+) -> list[int]:
+    if selected_count <= 0:
+        return []
+
+    ranked_shipment_ids = sorted(
+        shipment_ids,
+        key=lambda shipment_id: _shipment_legacy_tie_break_key(shipment_by_id[shipment_id]),
+        reverse=True,
+    )
+    if selected_count >= len(ranked_shipment_ids):
+        return ranked_shipment_ids
+
+    shipment_ids_by_shipper = defaultdict(list)
+    for shipment_id in ranked_shipment_ids:
+        shipment = shipment_by_id[shipment_id]
+        shipper_key = str(shipment.get("shipper_name") or "").strip()
+        shipment_ids_by_shipper[shipper_key].append(shipment_id)
+
+    if len(shipment_ids_by_shipper) <= 1:
+        return ranked_shipment_ids[:selected_count]
+
+    representatives = []
+    for shipper_ids in shipment_ids_by_shipper.values():
+        representatives.append(shipper_ids[0])
+    representatives = sorted(
+        representatives,
+        key=lambda shipment_id: _shipment_legacy_tie_break_key(shipment_by_id[shipment_id]),
+        reverse=True,
+    )
+
+    selected_shipment_ids = representatives[:selected_count]
+    if len(selected_shipment_ids) >= selected_count:
+        return selected_shipment_ids
+
+    for shipment_id in ranked_shipment_ids:
+        if shipment_id in selected_shipment_ids:
+            continue
+        selected_shipment_ids.append(shipment_id)
+        if len(selected_shipment_ids) >= selected_count:
+            break
+    return selected_shipment_ids
 
 
 def _order_compatibility_pairs(
@@ -445,7 +515,6 @@ def _canonicalize_legacy_equal_weight_assignments(
     for shipment in payload.get("shipments", []):
         shipment_id = shipment["snapshot_id"]
         group_key = (
-            str(shipment.get("shipper_name") or ""),
             str(shipment.get("destination_iata") or ""),
             int(shipment.get("equivalent_units") or 0),
             int(shipment.get("carton_count") or 0),
@@ -469,14 +538,14 @@ def _canonicalize_legacy_equal_weight_assignments(
         ):
             continue
 
-        preferred_shipment_ids = sorted(
+        preferred_shipment_ids = _select_legacy_preferred_shipment_ids(
             shipment_ids,
-            key=lambda shipment_id: _shipment_legacy_tie_break_key(shipment_by_id[shipment_id]),
-            reverse=True,
-        )[: len(selected_assignments)]
+            shipment_by_id=shipment_by_id,
+            selected_count=len(selected_assignments),
+        )
         preferred_shipments = sorted(
             (shipment_by_id[shipment_id] for shipment_id in preferred_shipment_ids),
-            key=_shipment_reference_sort_key,
+            key=_shipment_legacy_assignment_key,
         )
         ordered_slots = sorted(
             selected_assignments,
@@ -835,8 +904,7 @@ def _solve_candidates(
         )
 
     solver = cp_model.CpSolver()
-    solver.parameters.max_time_in_seconds = 30.0
-    solver.parameters.num_search_workers = 8
+    configure_cp_solver(solver)
 
     model.Maximize(weighted_expr)
     status = solver.Solve(model)
