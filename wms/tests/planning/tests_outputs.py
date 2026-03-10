@@ -1,7 +1,9 @@
+from datetime import date
 from pathlib import Path
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from openpyxl import load_workbook
 
 from wms.models import (
     CommunicationChannel,
@@ -119,16 +121,84 @@ class PlanningOutputTests(TestCase):
         self.assertEqual(artifact.artifact_type, "planning_workbook")
         self.assertTrue(artifact.file_path.endswith(".xlsx"))
         self.assertTrue(Path(artifact.file_path).exists())
-
+        workbook = load_workbook(artifact.file_path)
+        sheet = workbook["Planning"]
         self.assertEqual(
-            stats,
-            {
-                "assignment_count": 1,
-                "carton_total": 4,
-                "volunteer_count": 1,
-                "flight_count": 1,
-                "manual_adjustment_count": 1,
-            },
+            [cell.value for cell in sheet[1]],
+            [
+                "Date",
+                "Flight",
+                "Destination",
+                "DepartureTime",
+                "Volunteer",
+                "Shipment",
+                "Shipper",
+                "Cartons",
+                "Status",
+                "Source",
+                "Notes",
+            ],
+        )
+        self.assertEqual(
+            [cell.value for cell in sheet[2]],
+            [
+                "2026-03-10",
+                "AF123",
+                "CDG",
+                None,
+                "Alice",
+                "SHP-001",
+                None,
+                4,
+                "proposed",
+                "manual",
+                None,
+            ],
+        )
+
+        self.assertEqual(stats["assignment_count"], 1)
+        self.assertEqual(stats["carton_total"], 4)
+        self.assertEqual(stats["volunteer_count"], 1)
+        self.assertEqual(stats["flight_count"], 1)
+        self.assertEqual(stats["manual_adjustment_count"], 1)
+        self.assertEqual(stats["unassigned_count"], 0)
+        self.assertEqual(
+            stats["destination_breakdown"],
+            [
+                {
+                    "destination_iata": "CDG",
+                    "assignment_count": 1,
+                    "carton_total": 4,
+                    "equivalent_total": 4,
+                }
+            ],
+        )
+        self.assertEqual(
+            stats["volunteer_breakdown"],
+            [
+                {
+                    "volunteer_label": "Alice",
+                    "assignment_count": 1,
+                    "carton_total": 4,
+                    "equivalent_total": 4,
+                }
+            ],
+        )
+        self.assertEqual(
+            stats["flight_load_breakdown"],
+            [
+                {
+                    "flight_snapshot_id": self.flight_snapshot.pk,
+                    "flight_number": "AF123",
+                    "departure_date": date(2026, 3, 10),
+                    "departure_time": "",
+                    "destination_iata": "CDG",
+                    "capacity_units": None,
+                    "assignment_count": 1,
+                    "carton_total": 4,
+                    "equivalent_total": 4,
+                }
+            ],
         )
 
     def test_generate_drafts_keeps_separate_series_per_version(self):
