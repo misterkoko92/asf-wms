@@ -6,7 +6,10 @@ from django.utils.dateparse import parse_date, parse_time
 
 from wms.import_utils import extract_tabular_data, get_value, normalize_header, parse_int, parse_str
 from wms.models import Flight, FlightSourceBatch, FlightSourceBatchStatus, PlanningRunFlightMode
-from wms.planning.flight_providers import UnknownPlanningFlightProviderError
+from wms.planning.flight_providers import (
+    PlanningFlightProviderError,
+    UnknownPlanningFlightProviderError,
+)
 from wms.planning.flight_providers.airfrance_klm import AirFranceKlmFlightProvider
 from wms.runtime_settings import get_planning_flight_api_config
 
@@ -116,6 +119,13 @@ def _persist_batch(*, source, records, file_name="", checksum="", notes=""):
     return batch
 
 
+def _append_batch_note(batch, note):
+    if not batch or not note:
+        return
+    batch.notes = f"{batch.notes}\n{note}".strip() if batch.notes else note
+    batch.save(update_fields=["notes"])
+
+
 def import_excel_flights(workbook_path):
     path = Path(workbook_path)
     data = path.read_bytes()
@@ -170,11 +180,17 @@ def collect_flight_batches(*, flight_mode, start_date, end_date, excel_batch=Non
     if flight_mode in {PlanningRunFlightMode.EXCEL, PlanningRunFlightMode.HYBRID} and excel_batch:
         batches.append(excel_batch)
     if flight_mode in {PlanningRunFlightMode.API, PlanningRunFlightMode.HYBRID}:
-        batches.append(
-            import_api_flights(
-                start_date=start_date,
-                end_date=end_date,
-                client=api_client,
+        try:
+            batches.append(
+                import_api_flights(
+                    start_date=start_date,
+                    end_date=end_date,
+                    client=api_client,
+                )
             )
-        )
+        except PlanningFlightProviderError as exc:
+            if flight_mode == PlanningRunFlightMode.HYBRID and excel_batch:
+                _append_batch_note(excel_batch, f"API import failed: {exc}")
+            else:
+                raise
     return batches

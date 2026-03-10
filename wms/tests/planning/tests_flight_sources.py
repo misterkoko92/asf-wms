@@ -10,6 +10,7 @@ from openpyxl import Workbook
 
 from contacts.models import Contact, ContactType
 from wms.models import Destination, PlanningRunFlightMode
+from wms.planning.flight_providers import PlanningFlightProviderError
 from wms.planning.flight_providers.airfrance_klm import (
     DEFAULT_AIRFRANCE_KLM_FLIGHT_API_BASE_URL,
     AirFranceKlmFlightProvider,
@@ -237,3 +238,37 @@ class FlightSourceTests(TestCase):
         self.assertEqual(batches[1].source, "api")
         self.assertEqual(batches[1].flights.get().flight_number, "AF704")
         self.assertEqual(batches[1].flights.get().destination, self.destination)
+
+    def test_collect_hybrid_flight_batches_keeps_excel_when_api_provider_fails(self):
+        tmp_dir, path = self._write_excel_workbook()
+        self.addCleanup(tmp_dir.cleanup)
+        excel_batch = import_excel_flights(path)
+
+        class FailingApiClient:
+            def fetch_flights(self, *, start_date, end_date):
+                raise PlanningFlightProviderError("API down")
+
+        batches = collect_flight_batches(
+            flight_mode=PlanningRunFlightMode.HYBRID,
+            start_date=date(2026, 3, 9),
+            end_date=date(2026, 3, 15),
+            excel_batch=excel_batch,
+            api_client=FailingApiClient(),
+        )
+
+        self.assertEqual([batch.source for batch in batches], ["excel"])
+        excel_batch.refresh_from_db()
+        self.assertIn("API down", excel_batch.notes)
+
+    def test_collect_api_flight_batches_raises_when_provider_fails_without_excel(self):
+        class FailingApiClient:
+            def fetch_flights(self, *, start_date, end_date):
+                raise PlanningFlightProviderError("API down")
+
+        with self.assertRaises(PlanningFlightProviderError):
+            collect_flight_batches(
+                flight_mode=PlanningRunFlightMode.API,
+                start_date=date(2026, 3, 9),
+                end_date=date(2026, 3, 15),
+                api_client=FailingApiClient(),
+            )
