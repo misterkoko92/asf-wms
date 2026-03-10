@@ -4,13 +4,24 @@ from collections import defaultdict
 
 from django.utils import timezone
 
-from wms.models import PlanningVersion
+from wms.models import CommunicationDraft, PlanningVersion
+from wms.planning.communication_plan import (
+    CHANGE_STATUS_PRIORITY,
+    build_version_communication_plan,
+)
 from wms.planning.stats import build_version_stats
 from wms.planning.versioning import diff_versions
 
 UNASSIGNED_REASON_LABELS = {
     "no_selected_candidate": "Non retenue par l'arbitrage solveur",
     "no_compatible_candidate": "Aucune compatibilite complete",
+}
+
+COMMUNICATION_CHANGE_LABELS = {
+    "new": "Nouveau",
+    "changed": "Modifie",
+    "cancelled": "Annule",
+    "unchanged": "Inchange",
 }
 
 
@@ -194,62 +205,80 @@ def _build_history(version: PlanningVersion) -> dict[str, object]:
     }
 
 
-def _impacted_recipients(history: dict[str, object]) -> set[str]:
-    if not history["has_parent"]:
-        return set()
-
-    impacted: set[str] = set()
-    assignment_changes = history["assignment_changes"]
-    for item in assignment_changes["changed"]:
-        from_volunteer = str(item["from"].get("volunteer") or "").strip()
-        to_volunteer = str(item["to"].get("volunteer") or "").strip()
-        if from_volunteer:
-            impacted.add(from_volunteer)
-        if to_volunteer:
-            impacted.add(to_volunteer)
-    for item in assignment_changes["added"] + assignment_changes["removed"]:
-        volunteer = str(item.get("volunteer") or "").strip()
-        if volunteer:
-            impacted.add(volunteer)
-    return impacted
+def _draft_payload(draft) -> dict[str, object]:
+    return {
+        "draft_id": draft.pk,
+        "subject": draft.subject,
+        "body": draft.body,
+        "status": draft.status,
+        "template_label": draft.template.label if draft.template_id else "",
+    }
 
 
-def _build_communications(
-    version: PlanningVersion, history: dict[str, object]
-) -> dict[str, object]:
-    impacted = _impacted_recipients(history)
-    grouped: dict[tuple[str, str], dict[str, object]] = {}
+def _build_legacy_draft_group(key, drafts: list[dict[str, object]]) -> dict[str, object]:
+    channel, recipient_label = key
+    return {
+        "channel": channel,
+        "channel_label": _channel_label(channel),
+        "recipient_label": recipient_label,
+        "recipient_contact": "",
+        "change_status": "unchanged",
+        "change_status_label": COMMUNICATION_CHANGE_LABELS["unchanged"],
+        "change_summary": "Aucun changement",
+        "changed_since_parent": False,
+        "is_priority": False,
+        "is_collapsed": True,
+        "drafts": drafts,
+    }
+
+
+def _channel_label(channel: str) -> str:
+    field = CommunicationDraft._meta.get_field("channel")
+    return dict(field.choices).get(channel, channel)
+
+
+def _build_communications(version: PlanningVersion) -> dict[str, object]:
+    drafts_by_key: dict[tuple[str, str], list[dict[str, object]]] = defaultdict(list)
     for draft in version.communication_drafts.select_related("template").order_by(
         "channel",
         "recipient_label",
         "id",
     ):
-        key = (draft.channel, draft.recipient_label or "")
-        group = grouped.get(key)
-        if group is None:
-            group = {
-                "channel": draft.channel,
-                "channel_label": draft.get_channel_display(),
-                "recipient_label": draft.recipient_label,
-                "recipient_contact": draft.recipient_contact,
-                "changed_since_parent": bool(
-                    draft.recipient_label and draft.recipient_label in impacted
-                ),
-                "drafts": [],
-            }
-            grouped[key] = group
-        group["drafts"].append(
+        drafts_by_key[(draft.channel, draft.recipient_label or "")].append(_draft_payload(draft))
+
+    plan = build_version_communication_plan(version)
+    groups: list[dict[str, object]] = []
+    for item in plan.items:
+        key = (item.channel, item.recipient_label)
+        groups.append(
             {
-                "draft_id": draft.pk,
-                "subject": draft.subject,
-                "body": draft.body,
-                "status": draft.status,
-                "template_label": draft.template.label if draft.template_id else "",
+                "channel": item.channel,
+                "channel_label": _channel_label(item.channel),
+                "recipient_label": item.recipient_label,
+                "recipient_contact": "",
+                "change_status": item.change_status,
+                "change_status_label": COMMUNICATION_CHANGE_LABELS.get(
+                    item.change_status,
+                    item.change_status,
+                ),
+                "change_summary": item.change_summary,
+                "changed_since_parent": item.change_status != "unchanged",
+                "is_priority": item.change_status != "unchanged",
+                "is_collapsed": item.change_status == "unchanged",
+                "drafts": drafts_by_key.pop(key, []),
             }
         )
 
-    groups = list(grouped.values())
-    groups.sort(key=lambda item: (item["channel"], item["recipient_label"] or ""))
+    for key, drafts in drafts_by_key.items():
+        groups.append(_build_legacy_draft_group(key, drafts))
+
+    groups.sort(
+        key=lambda item: (
+            CHANGE_STATUS_PRIORITY.get(item["change_status"], 99),
+            item["recipient_label"].lower(),
+            item["channel"],
+        )
+    )
     return {
         "draft_count": sum(len(group["drafts"]) for group in groups),
         "groups": groups,
@@ -279,7 +308,7 @@ def build_version_dashboard(version: PlanningVersion) -> dict[str, object]:
         "header": _build_header(version),
         "flight_groups": _build_flight_groups(version),
         "unassigned_shipments": _build_unassigned_shipments(version),
-        "communications": _build_communications(version, history),
+        "communications": _build_communications(version),
         "stats": build_version_stats(version),
         "exports": _build_exports(version),
         "history": history,

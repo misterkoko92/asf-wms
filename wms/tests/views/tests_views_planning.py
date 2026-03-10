@@ -21,6 +21,7 @@ from wms.models import (
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
 )
+from wms.planning.communications import generate_version_drafts
 
 
 class PlanningViewTests(TestCase):
@@ -330,6 +331,108 @@ class PlanningViewTests(TestCase):
         self.assertContains(response, "Historique des versions")
         self.assertContains(response, "AF123")
         self.assertContains(response, "SHP-UNASSIGNED")
+
+    def test_version_detail_renders_communication_change_badges(self):
+        run = PlanningRun.objects.create(
+            week_start="2026-03-09",
+            week_end="2026-03-15",
+            parameter_set=self.parameter_set,
+            status=PlanningRunStatus.SOLVED,
+            created_by=self.staff_user,
+        )
+        shipment_1 = PlanningShipmentSnapshot.objects.create(
+            run=run,
+            shipment_reference="SHP-001",
+            carton_count=3,
+            equivalent_units=3,
+        )
+        shipment_2 = PlanningShipmentSnapshot.objects.create(
+            run=run,
+            shipment_reference="SHP-002",
+            carton_count=2,
+            equivalent_units=2,
+        )
+        volunteer_alice = PlanningVolunteerSnapshot.objects.create(
+            run=run,
+            volunteer_label="Alice",
+        )
+        volunteer_bob = PlanningVolunteerSnapshot.objects.create(
+            run=run,
+            volunteer_label="Bob",
+        )
+        flight_af123 = PlanningFlightSnapshot.objects.create(
+            run=run,
+            flight_number="AF123",
+            departure_date="2026-03-10",
+            destination_iata="CDG",
+        )
+        flight_af456 = PlanningFlightSnapshot.objects.create(
+            run=run,
+            flight_number="AF456",
+            departure_date="2026-03-11",
+            destination_iata="NCE",
+        )
+        flight_af999 = PlanningFlightSnapshot.objects.create(
+            run=run,
+            flight_number="AF999",
+            departure_date="2026-03-12",
+            destination_iata="CDG",
+        )
+        previous = PlanningVersion.objects.create(
+            run=run,
+            status=PlanningVersionStatus.PUBLISHED,
+            created_by=self.staff_user,
+        )
+        current = PlanningVersion.objects.create(
+            run=run,
+            status=PlanningVersionStatus.PUBLISHED,
+            based_on=previous,
+            created_by=self.staff_user,
+        )
+        PlanningAssignment.objects.create(
+            version=previous,
+            shipment_snapshot=shipment_1,
+            volunteer_snapshot=volunteer_alice,
+            flight_snapshot=flight_af123,
+            assigned_carton_count=3,
+            source=PlanningAssignmentSource.SOLVER,
+            sequence=1,
+        )
+        PlanningAssignment.objects.create(
+            version=previous,
+            shipment_snapshot=shipment_2,
+            volunteer_snapshot=volunteer_bob,
+            flight_snapshot=flight_af456,
+            assigned_carton_count=2,
+            source=PlanningAssignmentSource.SOLVER,
+            sequence=2,
+        )
+        PlanningAssignment.objects.create(
+            version=current,
+            shipment_snapshot=shipment_1,
+            volunteer_snapshot=volunteer_alice,
+            flight_snapshot=flight_af999,
+            assigned_carton_count=3,
+            source=PlanningAssignmentSource.MANUAL,
+            sequence=1,
+        )
+        PlanningAssignment.objects.create(
+            version=current,
+            shipment_snapshot=shipment_2,
+            volunteer_snapshot=volunteer_bob,
+            flight_snapshot=flight_af456,
+            assigned_carton_count=2,
+            source=PlanningAssignmentSource.SOLVER,
+            sequence=2,
+        )
+        generate_version_drafts(current)
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("planning:version_detail", args=[current.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Modifie")
+        self.assertContains(response, "Inchange")
 
     def test_staff_can_clone_published_version(self):
         version, _assignment, _volunteer_bob, _flight_af456 = self.make_version_with_assignment(
