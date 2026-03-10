@@ -112,6 +112,9 @@ class LegacyReferenceCaseBuilderTests(SimpleTestCase):
                         "legacy_type": "MM",
                         "legacy_destinataire": "AR MADA",
                         "legacy_type_priority": 5,
+                        "legacy_date_impression": "",
+                        "legacy_date_conditionnement": "",
+                        "legacy_date_depart_mag": "",
                     },
                 }
             ],
@@ -181,6 +184,109 @@ class LegacyReferenceCaseBuilderTests(SimpleTestCase):
                 "nb_vols_total": 1,
                 "nb_vols_sans_benevole_compatible": 0,
             },
+        )
+
+    def test_build_reference_case_payload_sorts_expected_assignments_canonically(self):
+        payload = build_reference_case_payload(
+            case_name="legacy_session_ordering",
+            df_be=pd.DataFrame(
+                [
+                    {
+                        "BE_Numero": "250729",
+                        "BE_Expediteur": "AR MADA",
+                        "Destination": "RUN",
+                        "Priorite": 2,
+                        "BE_Nb_Colis": 10,
+                        "Equiv_Colis": 10,
+                        "BE_Type": "MM",
+                        "BE_Destinataire": "AR MADA",
+                    },
+                    {
+                        "BE_Numero": "250706",
+                        "BE_Expediteur": "AR MADA",
+                        "Destination": "RUN",
+                        "Priorite": 2,
+                        "BE_Nb_Colis": 10,
+                        "Equiv_Colis": 10,
+                        "BE_Type": "MM",
+                        "BE_Destinataire": "AR MADA",
+                    },
+                ]
+            ),
+            df_param_be=pd.DataFrame([{"Type": "MM", "Priorite_Type": 5}]),
+            df_param_dest=pd.DataFrame(
+                [
+                    {
+                        "Dest_IATA": "RUN",
+                        "Dest_Ville": "LA REUNION",
+                        "Dest_Pays": "REUNION",
+                        "Max_Colis_Par_Vol": 40,
+                        "Freq_Semaine": 0,
+                    }
+                ]
+            ),
+            df_vols=pd.DataFrame(
+                [
+                    {
+                        "Date_Vol_dt": pd.Timestamp("2026-03-11"),
+                        "Heure_Vol_dt": pd.Timestamp("1900-01-01 18:20:00"),
+                        "Numero_Vol": "AF 652",
+                        "IATA": "RUN",
+                        "Routing": "[CDG,RUN]",
+                        "Route_Pos": 1,
+                        "Max_Colis": 20,
+                        "Source": "excel",
+                    }
+                ]
+            ),
+            df_benev=pd.DataFrame(
+                [
+                    {
+                        "ID": 5,
+                        "Benevole": "PIERSON Gilles",
+                        "Date_dt": pd.Timestamp("2026-03-11"),
+                        "Heure_Arrivee_time": time(7, 0),
+                        "Heure_Depart_time": time(20, 0),
+                    }
+                ]
+            ),
+            df_param_benev=pd.DataFrame(
+                [
+                    {
+                        "ID": 5,
+                        "Benevole": "PIERSON Gilles",
+                        "Max_Colis_Vol": 30,
+                        "Telephone": "0600000000",
+                    }
+                ]
+            ),
+            planning_df=pd.DataFrame(
+                [
+                    {
+                        "Date_Vol": date(2026, 3, 11),
+                        "Numero_Vol": "652",
+                        "Destination": "RUN",
+                        "BE_Numero": "250729",
+                        "Benevole": "PIERSON Gilles",
+                    },
+                    {
+                        "Date_Vol": date(2026, 3, 11),
+                        "Numero_Vol": "652",
+                        "Destination": "RUN",
+                        "BE_Numero": "250706",
+                        "Benevole": "PIERSON Gilles",
+                    },
+                ]
+            ),
+            stats={"nb_vols_total": 1},
+        )
+
+        self.assertEqual(
+            payload["expected_assignments"],
+            [
+                ["250706", "AF652", "PIERSON Gilles"],
+                ["250729", "AF652", "PIERSON Gilles"],
+            ],
         )
 
     def test_build_reference_case_payload_respects_explicit_week_bounds(self):

@@ -1,5 +1,5 @@
 {
-  "case_name": "legacy_session_s10_small",
+  "case_name": "legacy_session_s10_2026",
   "week_start": "2026-03-02",
   "week_end": "2026-03-08",
   "shipments": [
@@ -11,10 +11,13 @@
       "carton_count": 10,
       "equivalent_units": 10,
       "payload": {
-        "legacy_case_name": "legacy_session_s10_small",
+        "legacy_case_name": "legacy_session_s10_2026",
         "legacy_type": "MM",
         "legacy_destinataire": "SŒUR MARIA",
-        "legacy_type_priority": 5
+        "legacy_type_priority": 5,
+        "legacy_date_impression": "2025-11-17",
+        "legacy_date_conditionnement": "2026-02-18",
+        "legacy_date_depart_mag": ""
       }
     },
     {
@@ -25,10 +28,13 @@
       "carton_count": 10,
       "equivalent_units": 10,
       "payload": {
-        "legacy_case_name": "legacy_session_s10_small",
+        "legacy_case_name": "legacy_session_s10_2026",
         "legacy_type": "MM",
         "legacy_destinataire": "PÈRE PEDRO",
-        "legacy_type_priority": 5
+        "legacy_type_priority": 5,
+        "legacy_date_impression": "2025-11-17",
+        "legacy_date_conditionnement": "2026-02-25",
+        "legacy_date_depart_mag": ""
       }
     },
     {
@@ -39,10 +45,13 @@
       "carton_count": 10,
       "equivalent_units": 10,
       "payload": {
-        "legacy_case_name": "legacy_session_s10_small",
+        "legacy_case_name": "legacy_session_s10_2026",
         "legacy_type": "CN",
         "legacy_destinataire": "CORRESPONDANT",
-        "legacy_type_priority": 4
+        "legacy_type_priority": 4,
+        "legacy_date_impression": "2026-02-13",
+        "legacy_date_conditionnement": "2026-02-26",
+        "legacy_date_depart_mag": ""
       }
     },
     {
@@ -53,10 +62,13 @@
       "carton_count": 10,
       "equivalent_units": 10,
       "payload": {
-        "legacy_case_name": "legacy_session_s10_small",
+        "legacy_case_name": "legacy_session_s10_2026",
         "legacy_type": "MM",
         "legacy_destinataire": "AR MADA",
-        "legacy_type_priority": 5
+        "legacy_type_priority": 5,
+        "legacy_date_impression": "2025-11-18",
+        "legacy_date_conditionnement": "2025-11-20",
+        "legacy_date_depart_mag": ""
       }
     },
     {
@@ -67,10 +79,13 @@
       "carton_count": 10,
       "equivalent_units": 10,
       "payload": {
-        "legacy_case_name": "legacy_session_s10_small",
+        "legacy_case_name": "legacy_session_s10_2026",
         "legacy_type": "MM",
         "legacy_destinataire": "AR MADA",
-        "legacy_type_priority": 5
+        "legacy_type_priority": 5,
+        "legacy_date_impression": "2025-11-18",
+        "legacy_date_conditionnement": "2025-12-09",
+        "legacy_date_depart_mag": ""
       }
     },
     {
@@ -81,10 +96,13 @@
       "carton_count": 10,
       "equivalent_units": 10,
       "payload": {
-        "legacy_case_name": "legacy_session_s10_small",
+        "legacy_case_name": "legacy_session_s10_2026",
         "legacy_type": "MM",
         "legacy_destinataire": "AR MADA",
-        "legacy_type_priority": 5
+        "legacy_type_priority": 5,
+        "legacy_date_impression": "2025-11-18",
+        "legacy_date_conditionnement": "2025-12-09",
+        "legacy_date_depart_mag": ""
       }
     },
     {
@@ -95,10 +113,13 @@
       "carton_count": 10,
       "equivalent_units": 10,
       "payload": {
-        "legacy_case_name": "legacy_session_s10_small",
+        "legacy_case_name": "legacy_session_s10_2026",
         "legacy_type": "MM",
         "legacy_destinataire": "AR MADA",
-        "legacy_type_priority": 5
+        "legacy_type_priority": 5,
+        "legacy_date_impression": "2025-11-18",
+        "legacy_date_conditionnement": "2025-12-09",
+        "legacy_date_depart_mag": ""
       }
     },
     {
@@ -109,10 +130,13 @@
       "carton_count": 10,
       "equivalent_units": 10,
       "payload": {
-        "legacy_case_name": "legacy_session_s10_small",
+        "legacy_case_name": "legacy_session_s10_2026",
         "legacy_type": "MM",
         "legacy_destinataire": "AR MADA",
-        "legacy_type_priority": 5
+        "legacy_type_priority": 5,
+        "legacy_date_impression": "2025-11-18",
+        "legacy_date_conditionnement": "2025-12-09",
+        "legacy_date_depart_mag": "2026-01-23"
       }
     },
     {
@@ -123,10 +147,13 @@
       "carton_count": 10,
       "equivalent_units": 10,
       "payload": {
-        "legacy_case_name": "legacy_session_s10_small",
+        "legacy_case_name": "legacy_session_s10_2026",
         "legacy_type": "MM",
         "legacy_destinataire": "AR MADA",
-        "legacy_type_priority": 5
+        "legacy_type_priority": 5,
+        "legacy_date_impression": "2025-12-08",
+        "legacy_date_conditionnement": "2025-12-09",
+        "legacy_date_depart_mag": ""
       }
     }
   ],
@@ -2788,9 +2815,9 @@
   ],
   "expected_assignments": [
     [
-      "260098",
-      "AF908",
-      "COURTOIS Alain"
+      "250706",
+      "AF652",
+      "PIERSON Gilles"
     ],
     [
       "250722",
@@ -2803,14 +2830,14 @@
       "FILOU Thierry"
     ],
     [
-      "250706",
+      "250771",
       "AF652",
       "PIERSON Gilles"
     ],
     [
-      "250771",
-      "AF652",
-      "PIERSON Gilles"
+      "260098",
+      "AF908",
+      "COURTOIS Alain"
     ]
   ],
   "expected_result": {

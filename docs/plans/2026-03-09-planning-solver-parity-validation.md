@@ -127,23 +127,28 @@ Iteration supplementaire de cette phase:
 La session legacy suivante a ete rejouee comme deuxieme candidat de golden case:
 - `session_d2010257-bd54-4896-ba39-5726e035cb3e`
 - semaine detectee: `2026-03-02 -> 2026-03-08`
-- sortie extraite: `/tmp/legacy_session_s10_small.json`
+- fixture hebdomadaire versionnee: `wms/tests/planning/fixtures/solver_reference_cases/legacy_session_s10_2026.json`
 
-Etat actuel apres retrait du tie-break `z` non legacy et ajout du tie-break mono-BE:
-- le nombre d'affectations WMS reste correct (`5`)
-- le choix legacy critique `260098 -> AF908 -> COURTOIS Alain` est maintenant aligne et assert dans le harnais
-- le mini-probe reste volontairement non-golden pour le sous-ensemble `RUN` sur `AF652`, car plusieurs matchings equivalents subsistent sur ce corpus reduit
-- `ParamDest` est porte dans les fixtures de reference et injecte dans le `PlanningRun`
+Etat actuel apres port du tie-break legacy complet:
+- `legacy_session_s10_2026` est maintenant un deuxieme golden case hebdomadaire complet
+- le solveur WMS reproduit strictement les `5` affectations legacy attendues sur la semaine entiere
+- le sous-ensemble `RUN` sur `AF652` n'est plus traite comme un ecart accepte
+- `ParamDest` et les metadonnees legacy utiles au tie-break sont portes dans la fixture et injectes dans le `PlanningRun`
+- le harnais compare des listes d'affectations canonisees de facon deterministe, sans relacher la parite metier
 
-Ecarts encore assumes sur ce probe:
-- le sous-ensemble exact de BE `RUN` retenu sur `AF652` n'est pas encore traite comme une parite forte
-- cet ecart est considere comme non conclusif tant que le corpus `s10` reste reduit et non rejoue sous forme de golden case hebdomadaire complet
+Verification locale de cloture pour cette phase:
+- `wms.tests.planning.tests_legacy_reference_builder`
+- `wms.tests.planning.tests_solver_reference_cases`
+- `wms.tests.planning`
+- `wms.tests.views.tests_views_planning`
+- `wms.tests.management.tests_management_makemigrations_check`
+- `wms.tests.management.tests_management_seed_planning_demo_data`
+- `ruff check wms/planning wms/tests/planning wms/views_planning.py`
 
-Note importante:
-- un mini-corpus synthetique derive de `s10` a servi de smoke test pendant le refactor
-- il ne doit pas etre traite comme golden case metier complet, car la reduction du contexte hebdomadaire change deja certaines decisions legacy
-- `legacy_session_s10_2026` sert maintenant de reference reelle partielle pour le cas mono-BE `NSI`
-- la prochaine preuve utile reste donc un deuxieme golden case reel complet sur semaine entiere, pas un durcissement excessif du mini-corpus
+Statut de la preuve de parite:
+- `legacy_session_s11_2026`: golden case reel complet, vert
+- `legacy_session_s10_2026`: golden case reel complet, vert
+- ecart residuel documente pour `s10`: `0`
 
 ## Residual Gap Log
 Tant que le corpus de semaines reelles n'est pas encore branche, documenter chaque ecart important selon ce format:
