@@ -107,6 +107,19 @@ Statut:
 - la fixture `wms/tests/planning/fixtures/solver_reference_cases/legacy_session_s11_2026.json` est maintenant versionnee
 - le harnais `wms.tests.planning.tests_solver_reference_cases` l'assert en egalite stricte
 
+Iteration supplementaire de cette phase:
+- le solveur WMS ne repose plus sur le modele simplifie `shipment/flight/volunteer` unique
+- il utilise maintenant un coeur `x/y/z` plus proche du legacy:
+  - `x`: expedition -> vol
+  - `y`: benevole -> vol
+  - `z`: expedition -> benevole -> vol
+- un tie-break explicite sur les options benevoles compatibles est ajoute avant les tie-breaks finaux
+- la verification locale reste verte sur:
+  - `wms.tests.planning`
+  - `wms.tests.views.tests_views_planning`
+  - `wms.tests.management.tests_management_makemigrations_check`
+  - `wms.tests.management.tests_management_seed_planning_demo_data`
+
 ## Secondary Real-Week Probe
 La session legacy suivante a ete rejouee comme deuxieme candidat de golden case:
 - `session_d2010257-bd54-4896-ba39-5726e035cb3e`
@@ -128,6 +141,11 @@ Hypotheses de root cause restantes:
 - arbitrage legacy sur le choix du vol au-dela de `ParamDest`
 - arbitrage legacy supplementaire sur la selection des BE a capacite contrainte
 - eventuels overlays expediteur non encore modelises dans le payload solveur
+
+Note importante:
+- un mini-corpus synthetique derive de `s10` a servi de smoke test pendant le refactor
+- il ne doit pas etre traite comme golden case metier complet, car la reduction du contexte hebdomadaire change deja certaines decisions legacy
+- la prochaine preuve utile reste donc un deuxieme golden case reel complet, pas un durcissement excessif du mini-corpus
 
 ## Residual Gap Log
 Tant que le corpus de semaines reelles n'est pas encore branche, documenter chaque ecart important selon ce format:

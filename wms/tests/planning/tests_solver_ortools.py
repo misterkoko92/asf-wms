@@ -3,8 +3,12 @@ from datetime import date
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
+from contacts.models import Contact, ContactType
 from wms.models import (
+    Destination,
+    PlanningDestinationRule,
     PlanningFlightSnapshot,
+    PlanningParameterSet,
     PlanningRun,
     PlanningRunStatus,
     PlanningShipmentSnapshot,
@@ -14,6 +18,36 @@ from wms.planning.solver import solve_run
 
 
 class SolverOrtoolsTests(TestCase):
+    def _create_parameter_set_with_destination_rules(self, *, user):
+        parameter_set = PlanningParameterSet.objects.create(
+            name="Legacy parity mini case",
+            created_by=user,
+        )
+        for iata_code, city, country, max_cartons in (
+            ("NSI", "YAOUNDE", "CAMEROUN", 20),
+            ("RUN", "LA REUNION", "REUNION", 40),
+        ):
+            correspondent = Contact.objects.create(
+                name=f"Legacy {iata_code}",
+                contact_type=ContactType.ORGANIZATION,
+                is_active=True,
+            )
+            destination = Destination.objects.create(
+                city=city,
+                iata_code=iata_code,
+                country=country,
+                correspondent_contact=correspondent,
+            )
+            PlanningDestinationRule.objects.create(
+                parameter_set=parameter_set,
+                destination=destination,
+                label=city,
+                weekly_frequency=0,
+                max_cartons_per_flight=max_cartons,
+                priority=0,
+            )
+        return parameter_set
+
     def test_solve_run_uses_ortools_and_persists_a_version(self):
         user = get_user_model().objects.create_user(
             username="planner-ortools@example.com",
@@ -333,3 +367,142 @@ class SolverOrtoolsTests(TestCase):
             )
         )
         self.assertEqual(assignments, ["BE-TYPE-CN-A", "BE-TYPE-CN-B"])
+
+    def test_solve_run_matches_legacy_mini_case_for_flight_choice_and_run_subset(self):
+        user = get_user_model().objects.create_user(
+            username="planner-ortools-legacy-mini@example.com",
+            email="planner-ortools-legacy-mini@example.com",
+            password="pass1234",  # pragma: allowlist secret
+        )
+        parameter_set = self._create_parameter_set_with_destination_rules(user=user)
+        run = PlanningRun.objects.create(
+            week_start="2026-03-02",
+            week_end="2026-03-08",
+            status=PlanningRunStatus.READY,
+            created_by=user,
+            parameter_set=parameter_set,
+        )
+
+        for reference, priority, type_priority in (
+            ("250705", 5, 5),
+            ("250706", 5, 5),
+            ("250719", 2, 5),
+            ("250722", 2, 5),
+            ("250723", 2, 5),
+            ("250724", 2, 5),
+            ("250729", 2, 5),
+            ("250771", 2, 5),
+        ):
+            PlanningShipmentSnapshot.objects.create(
+                run=run,
+                shipment_reference=reference,
+                shipper_name="ASF",
+                destination_iata="RUN",
+                priority=priority,
+                carton_count=10,
+                equivalent_units=10,
+                payload={"legacy_type_priority": type_priority},
+            )
+
+        PlanningShipmentSnapshot.objects.create(
+            run=run,
+            shipment_reference="260098",
+            shipper_name="ASF",
+            destination_iata="NSI",
+            priority=4,
+            carton_count=10,
+            equivalent_units=10,
+            payload={"legacy_type_priority": 4},
+        )
+
+        PlanningVolunteerSnapshot.objects.create(
+            run=run,
+            volunteer_label="COURTOIS Alain",
+            availability_summary={
+                "slot_count": 2,
+                "slots": [
+                    {
+                        "date": "2026-03-02",
+                        "start_time": "06:30",
+                        "end_time": "14:00",
+                    },
+                    {
+                        "date": "2026-03-03",
+                        "start_time": "06:30",
+                        "end_time": "14:00",
+                    },
+                ],
+            },
+            payload={"legacy_id": 14},
+        )
+        PlanningVolunteerSnapshot.objects.create(
+            run=run,
+            volunteer_label="FILOU Thierry",
+            availability_summary={
+                "slot_count": 1,
+                "slots": [
+                    {
+                        "date": "2026-03-04",
+                        "start_time": "10:00",
+                        "end_time": "18:30",
+                    }
+                ],
+            },
+            payload={"legacy_id": 19},
+        )
+        PlanningVolunteerSnapshot.objects.create(
+            run=run,
+            volunteer_label="PIERSON Gilles",
+            availability_summary={
+                "slot_count": 2,
+                "slots": [
+                    {
+                        "date": "2026-03-03",
+                        "start_time": "05:00",
+                        "end_time": "21:00",
+                    },
+                    {
+                        "date": "2026-03-06",
+                        "start_time": "05:00",
+                        "end_time": "21:00",
+                    },
+                ],
+            },
+            payload={"legacy_id": 25},
+        )
+
+        for flight_number, departure_date, destination_iata, departure_time, routing, route_pos in (
+            ("AF908", date(2026, 3, 2), "NSI", "11:10", "CDG-NDJ-NSI", 2),
+            ("AF910", date(2026, 3, 3), "NSI", "11:00", "CDG-NSI", 1),
+            ("AF652", date(2026, 3, 4), "RUN", "18:20", "CDG-RUN", 1),
+            ("AF652", date(2026, 3, 6), "RUN", "18:20", "CDG-RUN", 1),
+        ):
+            PlanningFlightSnapshot.objects.create(
+                run=run,
+                flight_number=flight_number,
+                departure_date=departure_date,
+                destination_iata=destination_iata,
+                capacity_units=40 if destination_iata == "RUN" else 20,
+                payload={
+                    "departure_time": departure_time,
+                    "routing": routing,
+                    "route_pos": route_pos,
+                },
+            )
+
+        version = solve_run(run)
+
+        assignments = set(
+            version.assignments.values_list(
+                "shipment_snapshot__shipment_reference",
+                "flight_snapshot__flight_number",
+                "volunteer_snapshot__volunteer_label",
+            )
+        )
+        self.assertEqual(version.assignments.count(), 5)
+        self.assertTrue(
+            any(
+                reference == "260098" and volunteer == "COURTOIS Alain"
+                for reference, _, volunteer in assignments
+            )
+        )
