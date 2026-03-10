@@ -79,6 +79,7 @@ def _build_shipment_payload(*, shipment, destination_rule_map):
             "label": destination_rule.label,
             "priority": destination_rule.priority,
             "max_cartons_per_flight": destination_rule.max_cartons_per_flight,
+            "allowed_weekdays": list(destination_rule.allowed_weekdays or []),
         }
     return payload
 

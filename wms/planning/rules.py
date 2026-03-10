@@ -67,6 +67,7 @@ def compile_run_solver_payload(run: PlanningRun) -> dict:
                 "priority": rule.priority,
                 "weekly_frequency": rule.weekly_frequency,
                 "max_cartons_per_flight": rule.max_cartons_per_flight,
+                "allowed_weekdays": list(rule.allowed_weekdays or []),
             }
 
     shipments = [
@@ -128,6 +129,7 @@ def compile_run_solver_payload(run: PlanningRun) -> dict:
                 "capacity_units": snapshot.capacity_units,
                 "max_cartons_per_flight": destination_rule.get("max_cartons_per_flight"),
                 "weekly_frequency": destination_rule.get("weekly_frequency"),
+                "allowed_weekdays": destination_rule.get("allowed_weekdays") or [],
                 "payload": payload,
             }
         )
@@ -192,6 +194,15 @@ def shipment_is_compatible_with_flight(shipment: dict, flight: dict) -> bool:
     flight_dest = str(flight.get("destination_iata") or "").upper()
     if shipment_dest and flight_dest and shipment_dest != flight_dest:
         return False
+    allowed_weekdays = [
+        str(value or "").strip().lower() for value in flight.get("allowed_weekdays") or []
+    ]
+    if allowed_weekdays:
+        departure_date = str(flight.get("departure_date") or "").strip()
+        if departure_date:
+            weekday_code = datetime.fromisoformat(departure_date).strftime("%a").lower()[:3]
+            if weekday_code not in allowed_weekdays:
+                return False
     max_cartons_per_flight = flight.get("max_cartons_per_flight")
     if max_cartons_per_flight is not None and shipment["carton_count"] > max_cartons_per_flight:
         return False
