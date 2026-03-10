@@ -1,12 +1,19 @@
+import json
 import tempfile
 from datetime import date
 from pathlib import Path
+from unittest import mock
+from urllib import error
 
 from django.test import SimpleTestCase, TestCase, override_settings
 from openpyxl import Workbook
 
 from contacts.models import Contact, ContactType
 from wms.models import Destination, PlanningRunFlightMode
+from wms.planning.flight_providers.airfrance_klm import (
+    DEFAULT_AIRFRANCE_KLM_FLIGHT_API_BASE_URL,
+    AirFranceKlmFlightProvider,
+)
 from wms.planning.flight_sources import collect_flight_batches, import_excel_flights
 from wms.runtime_settings import get_planning_flight_api_config
 
@@ -31,6 +38,102 @@ class PlanningFlightApiConfigTests(SimpleTestCase):
         self.assertEqual(config.origin_iata, "CDG")
         self.assertEqual(config.operating_airline_code, "AF")
         self.assertEqual(config.time_origin_type, "M")
+
+
+class AirFranceKlmFlightProviderTests(SimpleTestCase):
+    class _UrlOpenResponse:
+        def __init__(self, body):
+            self._body = body
+
+        def read(self):
+            return self._body
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    def test_fetch_flights_normalizes_multistop_payload(self):
+        payload = {
+            "operationalFlights": [
+                {
+                    "route": ["CDG", "NKC", "CKY"],
+                    "airline": {"code": "AF"},
+                    "flightNumber": 1234,
+                    "flightLegs": [
+                        {
+                            "departureInformation": {
+                                "departureStation": "CDG",
+                                "times": {
+                                    "scheduled": "2026-03-10T09:45:00.000+01:00",
+                                    "latestPublished": "2026-03-10T10:15:00.000+01:00",
+                                },
+                            }
+                        }
+                    ],
+                }
+            ]
+        }
+        provider = AirFranceKlmFlightProvider(
+            base_url=DEFAULT_AIRFRANCE_KLM_FLIGHT_API_BASE_URL,
+            api_key="test-api-key",  # pragma: allowlist secret
+            timeout_seconds=17,
+            origin_iata="CDG",
+            operating_airline_code="AF",
+            time_origin_type="M",
+        )
+
+        with mock.patch(
+            "wms.planning.flight_providers.airfrance_klm.request.urlopen",
+            return_value=self._UrlOpenResponse(json.dumps(payload).encode("utf-8")),
+        ) as urlopen_mock:
+            records = provider.fetch_flights(
+                start_date=date(2026, 3, 9),
+                end_date=date(2026, 3, 15),
+            )
+
+        self.assertEqual(len(records), 2)
+        self.assertEqual([record["destination_iata"] for record in records], ["NKC", "CKY"])
+        self.assertEqual([record["route_pos"] for record in records], [1, 2])
+        self.assertEqual(records[0]["flight_number"], "AF1234")
+        self.assertEqual(records[0]["routing"], "CDG-NKC-CKY")
+        self.assertEqual(records[0]["departure_date"], "2026-03-10")
+        self.assertEqual(records[0]["departure_time"], "10:15")
+        request_obj = urlopen_mock.call_args.args[0]
+        self.assertIn("origin=CDG", request_obj.full_url)
+        self.assertIn("operatingAirlineCode=AF", request_obj.full_url)
+        self.assertIn("timeOriginType=M", request_obj.full_url)
+        self.assertEqual(request_obj.headers["Api-key"], "test-api-key")
+        self.assertEqual(urlopen_mock.call_args.kwargs["timeout"], 17)
+
+    def test_fetch_flights_returns_empty_list_on_404(self):
+        http_error = error.HTTPError(
+            url=DEFAULT_AIRFRANCE_KLM_FLIGHT_API_BASE_URL,
+            code=404,
+            msg="Not Found",
+            hdrs=None,
+            fp=None,
+        )
+        provider = AirFranceKlmFlightProvider(
+            base_url=DEFAULT_AIRFRANCE_KLM_FLIGHT_API_BASE_URL,
+            api_key="test-api-key",  # pragma: allowlist secret
+            timeout_seconds=17,
+            origin_iata="CDG",
+            operating_airline_code="AF",
+            time_origin_type="P",
+        )
+
+        with mock.patch(
+            "wms.planning.flight_providers.airfrance_klm.request.urlopen",
+            side_effect=http_error,
+        ):
+            records = provider.fetch_flights(
+                start_date=date(2026, 3, 9),
+                end_date=date(2026, 3, 15),
+            )
+
+        self.assertEqual(records, [])
 
 
 class FlightSourceTests(TestCase):
