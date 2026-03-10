@@ -19,6 +19,15 @@ from wms.models import (
 FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures" / "solver_reference_cases"
 
 
+def _assignment_sort_key(assignment: tuple[str, str, str]) -> tuple[str, str, str]:
+    reference, flight_number, volunteer_label = assignment
+    return (
+        str(reference or "").strip(),
+        str(flight_number or "").strip(),
+        str(volunteer_label or "").strip(),
+    )
+
+
 @dataclass
 class SolverReferenceCase:
     run: PlanningRun
@@ -102,6 +111,9 @@ def load_reference_case(name: str) -> SolverReferenceCase:
 
     return SolverReferenceCase(
         run=run,
-        expected_assignments=[tuple(item) for item in data["expected_assignments"]],
+        expected_assignments=sorted(
+            (tuple(item) for item in data["expected_assignments"]),
+            key=_assignment_sort_key,
+        ),
         expected_result=data.get("expected_result", {}),
     )
