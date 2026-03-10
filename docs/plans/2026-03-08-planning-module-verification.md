@@ -142,6 +142,9 @@ Check-list de recette specifique:
 ## Operator Checklist
 Check-list de recette manuelle recommandee avant diffusion terrain:
 
+Runbook de recette complete phase 3:
+- [`2026-03-10-planning-phase3-recipe-runbook.md`](/Users/EdouardGonnu/asf-wms/.worktrees/codex/planning-phase3-recipe/docs/plans/2026-03-10-planning-phase3-recipe-runbook.md)
+
 1. Creation de run
 - creer un run sur une semaine cible avec un `PlanningParameterSet` actif
 - verifier le mode vols choisi: `excel`, `api` ou `hybrid`
