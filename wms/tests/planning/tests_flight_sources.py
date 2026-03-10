@@ -14,7 +14,11 @@ from wms.planning.flight_providers.airfrance_klm import (
     DEFAULT_AIRFRANCE_KLM_FLIGHT_API_BASE_URL,
     AirFranceKlmFlightProvider,
 )
-from wms.planning.flight_sources import collect_flight_batches, import_excel_flights
+from wms.planning.flight_sources import (
+    build_planning_flight_api_client,
+    collect_flight_batches,
+    import_excel_flights,
+)
 from wms.runtime_settings import get_planning_flight_api_config
 
 
@@ -38,6 +42,16 @@ class PlanningFlightApiConfigTests(SimpleTestCase):
         self.assertEqual(config.origin_iata, "CDG")
         self.assertEqual(config.operating_airline_code, "AF")
         self.assertEqual(config.time_origin_type, "M")
+
+    @override_settings(
+        PLANNING_FLIGHT_API_PROVIDER="airfrance_klm",
+        PLANNING_FLIGHT_API_KEY="test-api-key",  # pragma: allowlist secret
+    )
+    def test_build_planning_flight_api_client_returns_configured_provider(self):
+        client = build_planning_flight_api_client()
+
+        self.assertIsInstance(client, AirFranceKlmFlightProvider)
+        self.assertEqual(client.api_key, "test-api-key")
 
 
 class AirFranceKlmFlightProviderTests(SimpleTestCase):
