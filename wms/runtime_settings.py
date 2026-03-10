@@ -31,9 +31,13 @@ class RuntimeConfig:
 
 @dataclass(frozen=True)
 class PlanningFlightApiConfig:
+    provider: str
     base_url: str
     api_key: str
     timeout_seconds: int
+    origin_iata: str
+    operating_airline_code: str
+    time_origin_type: str
 
 
 def _fallback_runtime_config() -> RuntimeConfig:
@@ -151,6 +155,9 @@ def is_shipment_track_legacy_enabled() -> bool:
 
 def get_planning_flight_api_config() -> PlanningFlightApiConfig:
     return PlanningFlightApiConfig(
+        provider=(getattr(settings, "PLANNING_FLIGHT_API_PROVIDER", "airfrance_klm") or "")
+        .strip()
+        .lower(),
         base_url=(getattr(settings, "PLANNING_FLIGHT_API_BASE_URL", "") or "").strip(),
         api_key=(getattr(settings, "PLANNING_FLIGHT_API_KEY", "") or "").strip(),
         timeout_seconds=_safe_int(
@@ -158,4 +165,13 @@ def get_planning_flight_api_config() -> PlanningFlightApiConfig:
             default=30,
             minimum=1,
         ),
+        origin_iata=(getattr(settings, "PLANNING_FLIGHT_API_ORIGIN_IATA", "CDG") or "CDG")
+        .strip()
+        .upper(),
+        operating_airline_code=(getattr(settings, "PLANNING_FLIGHT_API_AIRLINE_CODE", "AF") or "AF")
+        .strip()
+        .upper(),
+        time_origin_type=(getattr(settings, "PLANNING_FLIGHT_API_TIME_ORIGIN_TYPE", "P") or "P")
+        .strip()
+        .upper(),
     )

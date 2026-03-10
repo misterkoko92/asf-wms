@@ -2,12 +2,35 @@ import tempfile
 from datetime import date
 from pathlib import Path
 
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
 from openpyxl import Workbook
 
 from contacts.models import Contact, ContactType
 from wms.models import Destination, PlanningRunFlightMode
 from wms.planning.flight_sources import collect_flight_batches, import_excel_flights
+from wms.runtime_settings import get_planning_flight_api_config
+
+
+class PlanningFlightApiConfigTests(SimpleTestCase):
+    @override_settings(
+        PLANNING_FLIGHT_API_PROVIDER="airfrance_klm",
+        PLANNING_FLIGHT_API_BASE_URL="https://example.test/flights",
+        PLANNING_FLIGHT_API_KEY="test-api-key",  # pragma: allowlist secret
+        PLANNING_FLIGHT_API_TIMEOUT_SECONDS=17,
+        PLANNING_FLIGHT_API_ORIGIN_IATA="CDG",
+        PLANNING_FLIGHT_API_AIRLINE_CODE="AF",
+        PLANNING_FLIGHT_API_TIME_ORIGIN_TYPE="M",
+    )
+    def test_runtime_config_exposes_provider_specific_fields(self):
+        config = get_planning_flight_api_config()
+
+        self.assertEqual(config.provider, "airfrance_klm")
+        self.assertEqual(config.base_url, "https://example.test/flights")
+        self.assertEqual(config.api_key, "test-api-key")
+        self.assertEqual(config.timeout_seconds, 17)
+        self.assertEqual(config.origin_iata, "CDG")
+        self.assertEqual(config.operating_airline_code, "AF")
+        self.assertEqual(config.time_origin_type, "M")
 
 
 class FlightSourceTests(TestCase):
