@@ -77,6 +77,32 @@ Scenario cree pour la recette locale:
 Limite importante:
 - `--solve` est fiable sur une base locale ou dediee, car la selection des expeditions et des benevoles dans le module planning reste globale au systeme et n'est pas encore scoping par scenario de demo
 
+## Flight API Provider Rollout
+Configuration requise pour activer le premier provider reel Air France-KLM:
+
+```bash
+PLANNING_FLIGHT_API_PROVIDER=airfrance_klm
+PLANNING_FLIGHT_API_BASE_URL=https://api.airfranceklm.com/opendata/flightstatus
+PLANNING_FLIGHT_API_KEY=<api-key>
+PLANNING_FLIGHT_API_TIMEOUT_SECONDS=30
+PLANNING_FLIGHT_API_ORIGIN_IATA=CDG
+PLANNING_FLIGHT_API_AIRLINE_CODE=AF
+PLANNING_FLIGHT_API_TIME_ORIGIN_TYPE=P
+```
+
+Comportement attendu:
+- mode `api`: un echec provider bloque l'import et doit etre traite
+- mode `hybrid`: si Excel est deja fourni, un echec API laisse le run continuer avec Excel seulement
+- en fallback `hybrid`, la note du batch Excel est enrichie avec le message d'erreur API
+- une reponse API vide sans erreur cree un batch `api` sans vols et doit etre interpretee cote operateur comme "aucun vol remonte" plutot que comme un crash
+
+Check-list de recette specifique:
+1. activer les settings du provider
+2. creer un run en mode `api` et verifier qu'un batch `api` est bien cree
+3. creer un run en mode `hybrid` avec Excel et forcer une erreur provider
+4. verifier que seul le batch Excel est retenu et que sa note mentionne l'incident API
+5. verifier qu'en mode `api` la meme erreur remonte explicitement
+
 ## Operator Checklist
 Check-list de recette manuelle recommandee avant diffusion terrain:
 

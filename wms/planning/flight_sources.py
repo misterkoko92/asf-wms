@@ -6,19 +6,14 @@ from django.utils.dateparse import parse_date, parse_time
 
 from wms.import_utils import extract_tabular_data, get_value, normalize_header, parse_int, parse_str
 from wms.models import Flight, FlightSourceBatch, FlightSourceBatchStatus, PlanningRunFlightMode
+from wms.planning.flight_providers import (
+    PlanningFlightProviderError,
+    UnknownPlanningFlightProviderError,
+)
+from wms.planning.flight_providers.airfrance_klm import AirFranceKlmFlightProvider
 from wms.runtime_settings import get_planning_flight_api_config
 
 FLIGHTS_SHEET_NAME = "Flights"
-
-
-class PlanningFlightApiClient:
-    def __init__(self, *, base_url, api_key, timeout_seconds):
-        self.base_url = base_url
-        self.api_key = api_key
-        self.timeout_seconds = timeout_seconds
-
-    def fetch_flights(self, *, start_date, end_date):
-        raise NotImplementedError("Configure a concrete planning flight API client.")
 
 
 def _rows_from_headers_and_values(headers, rows):
@@ -124,6 +119,13 @@ def _persist_batch(*, source, records, file_name="", checksum="", notes=""):
     return batch
 
 
+def _append_batch_note(batch, note):
+    if not batch or not note:
+        return
+    batch.notes = f"{batch.notes}\n{note}".strip() if batch.notes else note
+    batch.save(update_fields=["notes"])
+
+
 def import_excel_flights(workbook_path):
     path = Path(workbook_path)
     data = path.read_bytes()
@@ -146,10 +148,17 @@ def import_excel_flights(workbook_path):
 
 def build_planning_flight_api_client():
     config = get_planning_flight_api_config()
-    return PlanningFlightApiClient(
-        base_url=config.base_url,
-        api_key=config.api_key,
-        timeout_seconds=config.timeout_seconds,
+    if config.provider == "airfrance_klm":
+        return AirFranceKlmFlightProvider(
+            base_url=config.base_url,
+            api_key=config.api_key,
+            timeout_seconds=config.timeout_seconds,
+            origin_iata=config.origin_iata,
+            operating_airline_code=config.operating_airline_code,
+            time_origin_type=config.time_origin_type,
+        )
+    raise UnknownPlanningFlightProviderError(
+        f"Unsupported planning flight API provider: {config.provider or '<empty>'}"
     )
 
 
@@ -170,12 +179,18 @@ def collect_flight_batches(*, flight_mode, start_date, end_date, excel_batch=Non
     batches = []
     if flight_mode in {PlanningRunFlightMode.EXCEL, PlanningRunFlightMode.HYBRID} and excel_batch:
         batches.append(excel_batch)
-    if flight_mode in {PlanningRunFlightMode.API, PlanningRunFlightMode.HYBRID} and api_client:
-        batches.append(
-            import_api_flights(
-                start_date=start_date,
-                end_date=end_date,
-                client=api_client,
+    if flight_mode in {PlanningRunFlightMode.API, PlanningRunFlightMode.HYBRID}:
+        try:
+            batches.append(
+                import_api_flights(
+                    start_date=start_date,
+                    end_date=end_date,
+                    client=api_client,
+                )
             )
-        )
+        except PlanningFlightProviderError as exc:
+            if flight_mode == PlanningRunFlightMode.HYBRID and excel_batch:
+                _append_batch_note(excel_batch, f"API import failed: {exc}")
+            else:
+                raise
     return batches
