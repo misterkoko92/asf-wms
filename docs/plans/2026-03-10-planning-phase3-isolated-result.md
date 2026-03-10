@@ -9,10 +9,12 @@
 - Mode vols:
 - Parameter set:
 - Source de donnees:
+- Fichier export recette:
 
 ## Prerequis verifies
 
 - [ ] Compte staff disponible
+- [ ] Export limite anonymise genere
 - [ ] Parametres planning disponibles
 - [ ] Donnees benevoles suffisantes
 - [ ] Contacts expediteurs exploitables

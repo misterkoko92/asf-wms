@@ -106,6 +106,25 @@ Recommendation:
 
 ## Palier A: base isolee/copied
 
+### Preparation de l'export limite anonymise
+
+Depuis PythonAnywhere, produire d'abord un jeu de recette limite pour la semaine cible:
+
+```bash
+python manage.py planning_recipe_export \
+  --week-start 2026-03-09 \
+  --week-end 2026-03-15 \
+  --include-flight-batches \
+  --output /tmp/planning_recipe_s11_2026.json
+```
+
+Verifier:
+- que le fichier JSON est bien ecrit
+- que le resume affiche au moins les volumes `shipments`, `flights`, `volunteers`
+- que l'anonymisation reste active par defaut
+
+Ce fichier sert a preparer la base locale rejouable du palier A.
+
 ### Etape 1: preparation
 
 Verifier:
