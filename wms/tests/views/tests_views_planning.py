@@ -332,6 +332,35 @@ class PlanningViewTests(TestCase):
         self.assertContains(response, "AF123")
         self.assertContains(response, "SHP-UNASSIGNED")
 
+    def test_generating_drafts_from_version_detail_regenerates_aggregated_series(self):
+        version, _assignment, _volunteer_bob, flight_af456 = self.make_version_with_assignment(
+            status=PlanningVersionStatus.PUBLISHED
+        )
+        second_shipment = PlanningShipmentSnapshot.objects.create(
+            run=version.run,
+            shipment_reference="SHP-002",
+            carton_count=2,
+            equivalent_units=2,
+        )
+        PlanningAssignment.objects.create(
+            version=version,
+            shipment_snapshot=second_shipment,
+            volunteer_snapshot=version.assignments.get().volunteer_snapshot,
+            flight_snapshot=flight_af456,
+            assigned_carton_count=2,
+            source=PlanningAssignmentSource.MANUAL,
+            sequence=2,
+        )
+        self.client.force_login(self.staff_user)
+
+        response = self.client.post(
+            reverse("planning:version_detail", args=[version.pk]),
+            {"draft_action": "generate"},
+        )
+
+        self.assertRedirects(response, reverse("planning:version_detail", args=[version.pk]))
+        self.assertEqual(version.communication_drafts.count(), 1)
+
     def test_version_detail_renders_communication_change_badges(self):
         run = PlanningRun.objects.create(
             week_start="2026-03-09",

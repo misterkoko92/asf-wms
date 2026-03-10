@@ -289,3 +289,11 @@ La phase n'est pas terminee si:
 - le statut de changement n'est pas visible dans le cockpit
 - les annulations ne sont pas materialisees
 - l'operateur ne sait toujours pas rapidement quoi renvoyer
+
+## Notes de premiere implementation
+
+Pour le premier rollout recommande:
+- `CommunicationPlanItem` reste un objet de service, sans migration DB
+- `CommunicationDraft` reste l'objet persistant editable
+- les drafts sont regeneres par `(destinataire, canal)`
+- les anciens placeholders de template (`volunteer`, `flight`, `shipment_reference`, `cartons`) restent alimentes pour compatibilite ascendante, en plus du contexte agrege
