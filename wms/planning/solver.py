@@ -90,6 +90,16 @@ def _coerce_int(value):
         return None
 
 
+def _coerce_iso_date_ordinal(value: object) -> int:
+    text = str(value or "").strip()
+    if not text:
+        return -1
+    try:
+        return datetime.fromisoformat(text).date().toordinal()
+    except ValueError:
+        return -1
+
+
 def _flight_datetime_key(flight: dict) -> datetime:
     departure_date = str(flight.get("departure_date") or "").strip()
     departure_time = str(flight.get("departure_time") or "").strip() or "00:00"
@@ -124,6 +134,37 @@ def _volunteer_availability_minutes(volunteer: dict) -> int:
         if delta > 0:
             total += delta
     return total
+
+
+def _shipment_reference_sort_key(shipment: dict) -> tuple:
+    reference = str(shipment.get("reference") or "").strip()
+    reference_number = _coerce_int(reference)
+    if reference_number is not None:
+        return (0, reference_number, reference)
+    return (1, reference)
+
+
+def _shipment_has_legacy_tie_break_metadata(shipment: dict) -> bool:
+    payload = shipment.get("payload") or {}
+    return any(
+        str(payload.get(key) or "").strip()
+        for key in (
+            "legacy_date_depart_mag",
+            "legacy_date_impression",
+            "legacy_date_conditionnement",
+        )
+    )
+
+
+def _shipment_legacy_tie_break_key(shipment: dict) -> tuple:
+    payload = shipment.get("payload") or {}
+    return (
+        1 if str(payload.get("legacy_date_depart_mag") or "").strip() else 0,
+        _coerce_iso_date_ordinal(payload.get("legacy_date_impression")),
+        _coerce_iso_date_ordinal(payload.get("legacy_date_conditionnement")),
+        -(_coerce_int(shipment.get("reference")) or 10**9),
+        str(shipment.get("reference") or ""),
+    )
 
 
 def _order_compatibility_pairs(
@@ -380,6 +421,80 @@ def _rebalance_assignments_by_flight(
         )
 
     return final_assignments
+
+
+def _canonicalize_legacy_equal_weight_assignments(
+    assignments: list[dict],
+    *,
+    payload: dict,
+    compatibility: dict[int, list[tuple[int, int]]],
+) -> list[dict]:
+    if not assignments:
+        return assignments
+
+    shipment_by_id = {
+        shipment["snapshot_id"]: shipment for shipment in payload.get("shipments", [])
+    }
+    flight_by_id = {flight["snapshot_id"]: flight for flight in payload.get("flights", [])}
+    ordered_compatibility = _order_compatibility_pairs(payload, compatibility)
+    assignment_by_shipment_id = {
+        assignment["shipment_snapshot_id"]: dict(assignment) for assignment in assignments
+    }
+    grouped_shipment_ids = defaultdict(list)
+
+    for shipment in payload.get("shipments", []):
+        shipment_id = shipment["snapshot_id"]
+        group_key = (
+            str(shipment.get("shipper_name") or ""),
+            str(shipment.get("destination_iata") or ""),
+            int(shipment.get("equivalent_units") or 0),
+            int(shipment.get("carton_count") or 0),
+            int(shipment.get("priority_rank") or shipment.get("priority") or 0),
+            tuple(ordered_compatibility.get(shipment_id, [])),
+        )
+        grouped_shipment_ids[group_key].append(shipment_id)
+
+    canonicalized = list(assignment_by_shipment_id.values())
+    for shipment_ids in grouped_shipment_ids.values():
+        selected_assignments = [
+            assignment_by_shipment_id[shipment_id]
+            for shipment_id in shipment_ids
+            if shipment_id in assignment_by_shipment_id
+        ]
+        if not selected_assignments or len(selected_assignments) == len(shipment_ids):
+            continue
+        if not any(
+            _shipment_has_legacy_tie_break_metadata(shipment_by_id[shipment_id])
+            for shipment_id in shipment_ids
+        ):
+            continue
+
+        preferred_shipment_ids = sorted(
+            shipment_ids,
+            key=lambda shipment_id: _shipment_legacy_tie_break_key(shipment_by_id[shipment_id]),
+            reverse=True,
+        )[: len(selected_assignments)]
+        preferred_shipments = sorted(
+            (shipment_by_id[shipment_id] for shipment_id in preferred_shipment_ids),
+            key=_shipment_reference_sort_key,
+        )
+        ordered_slots = sorted(
+            selected_assignments,
+            key=lambda assignment: (
+                _flight_datetime_key(flight_by_id[assignment["flight_snapshot_id"]]),
+                str(assignment.get("reference") or ""),
+                int(assignment.get("shipment_snapshot_id") or 0),
+            ),
+        )
+        for slot, shipment in zip(ordered_slots, preferred_shipments):
+            slot["shipment_snapshot_id"] = shipment["snapshot_id"]
+            slot["assigned_carton_count"] = shipment["carton_count"]
+            slot["equivalent_units"] = shipment["equivalent_units"]
+            slot["priority"] = shipment["priority"]
+            slot["priority_rank"] = shipment.get("priority_rank", shipment["priority"])
+            slot["reference"] = shipment.get("reference") or ""
+
+    return canonicalized
 
 
 def _build_candidates(payload: dict, compatibility: dict[int, list[tuple[int, int]]]) -> list[dict]:
@@ -810,6 +925,11 @@ def _solve_candidates(
                 "departure_date": flight.get("departure_date") or "",
             }
         )
+    selected = _canonicalize_legacy_equal_weight_assignments(
+        selected,
+        payload=payload,
+        compatibility=compatibility,
+    )
     selected = _rebalance_assignments_by_flight(selected, payload, compatibility)
     selected.sort(
         key=lambda item: (

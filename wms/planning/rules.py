@@ -73,6 +73,7 @@ def compile_run_solver_payload(run: PlanningRun) -> dict:
         {
             "snapshot_id": snapshot.pk,
             "reference": snapshot.shipment_reference,
+            "shipper_name": snapshot.shipper_name,
             "destination_iata": snapshot.destination_iata,
             "priority": snapshot.priority,
             "priority_rank": _coerce_int((snapshot.payload or {}).get("legacy_type_priority"))

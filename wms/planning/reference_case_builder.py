@@ -6,6 +6,15 @@ from typing import Any
 import pandas as pd
 
 
+def _assignment_sort_key(assignment: list[str] | tuple[str, str, str]) -> tuple[str, str, str]:
+    reference, flight_number, volunteer_label = assignment
+    return (
+        str(reference or "").strip(),
+        str(flight_number or "").strip(),
+        str(volunteer_label or "").strip(),
+    )
+
+
 def _normalize_flight_number(value: Any) -> str:
     text = str(value or "").strip().upper()
     if not text:
@@ -36,6 +45,16 @@ def _iso_date(value: Any) -> str:
     if pd.isna(parsed):
         return str(value or "")
     return parsed.date().isoformat()
+
+
+def _optional_iso_date(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, float) and pd.isna(value):
+        return ""
+    if pd.isna(value):
+        return ""
+    return _iso_date(value)
 
 
 def _format_time_value(value: Any) -> str:
@@ -163,6 +182,11 @@ def build_reference_case_payload(
                     "legacy_type": legacy_type,
                     "legacy_destinataire": str(row.get("BE_Destinataire") or "").strip(),
                     "legacy_type_priority": type_priority_map.get(legacy_type.upper()),
+                    "legacy_date_impression": _optional_iso_date(row.get("BE_Date_Impression")),
+                    "legacy_date_conditionnement": _optional_iso_date(
+                        row.get("BE_Date_Conditionnement")
+                    ),
+                    "legacy_date_depart_mag": _optional_iso_date(row.get("BE_Date_Depart_Mag")),
                 },
             }
         )
@@ -278,6 +302,7 @@ def build_reference_case_payload(
                 str(row.get("Benevole") or "").strip(),
             ]
         )
+    expected_assignments.sort(key=_assignment_sort_key)
 
     expected_result = {
         "assignment_count": len(expected_assignments),
