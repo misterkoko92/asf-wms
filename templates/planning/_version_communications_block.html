@@ -1,0 +1,65 @@
+{% load i18n %}
+
+<section class="scan-card portal-card card border-0 shadow-sm mt-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
+      <div>
+        <h2 class="h5 mb-1">{% trans "Communications" %}</h2>
+        <p class="text-muted mb-0">{% trans "Brouillons regenerables et editables pour cette version." %}</p>
+      </div>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="draft_action" value="generate">
+        <button type="submit" class="btn btn-tertiary">{% trans "Generer les brouillons" %}</button>
+      </form>
+    </div>
+
+    {% if draft_formset.forms %}
+      <form method="post" class="vstack gap-3">
+        {% csrf_token %}
+        <input type="hidden" name="draft_action" value="save">
+        {{ draft_formset.management_form }}
+        {% for group in dashboard.communications.groups %}
+          <article class="border rounded-3 p-3">
+            <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
+              <div>
+                <h3 class="h6 mb-1">{{ group.channel_label }} · {{ group.recipient_label|default:"-" }}</h3>
+                <p class="text-muted mb-0">
+                  {% if group.changed_since_parent %}
+                    {% trans "Modification depuis la version precedente" %}
+                  {% else %}
+                    {% trans "Aucune modification detectee" %}
+                  {% endif %}
+                </p>
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="table align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>{% trans "Sujet" %}</th>
+                    <th>{% trans "Message" %}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for draft in group.drafts %}
+                    <tr>
+                      {{ draft.form.id }}
+                      <td>{{ draft.form.subject }}</td>
+                      <td>{{ draft.form.body }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </article>
+        {% endfor %}
+        <div class="d-flex justify-content-end">
+          <button type="submit" class="btn btn-primary">{% trans "Enregistrer les brouillons" %}</button>
+        </div>
+      </form>
+    {% else %}
+      <p class="text-muted mb-0">{% trans "Aucun brouillon genere." %}</p>
+    {% endif %}
+  </div>
+</section>

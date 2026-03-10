@@ -140,15 +140,22 @@ Check-list de recette manuelle recommandee avant diffusion terrain:
 - regenerer l'export `Planning.xlsx`
 - verifier que le classeur est cree dans le repertoire temp configure
 
-9. Mise a jour expeditions
+9. Cockpit operateur
+- ouvrir `/planning/versions/<id>/`
+- verifier la presence des blocs `Planning`, `Non affectes`, `Communications`, `Stats`, `Exports`, `Historique des versions`
+- verifier que le bloc `Planning` est bien groupe par vol
+- verifier que le bloc `Non affectes` affiche un motif lisible quand une expedition reste hors planning
+- verifier que le bloc `Historique des versions` resume le diff entre `v1` et `v2`
+
+10. Mise a jour expeditions
 - depuis une version publiee, lancer la mise a jour des expeditions
 - verifier qu'une expedition deja `shipped` n'est pas ramenee en arriere
 - verifier la creation de l'evenement de tracking `planned`
 
 ## Known Limits
-- le solveur implemente dans cette branche est `greedy_v1`; il porte le contrat fonctionnel du module, mais pas encore la parite OR-Tools du repo planning source
-- le connecteur vols API est abstrait derriere `PlanningFlightApiClient`; la branche prepare l'integration, mais pas encore un client de production complet
-- l'export `Planning.xlsx` est volontairement minimal et transitoire; il ne reproduit pas encore la structure historique complete du workbook legacy
+- le solveur planning est maintenant porte sur OR-Tools et verrouille sur deux golden cases reels (`s10` et `s11`), mais pas encore sur l'ensemble des semaines legacy
+- le connecteur vols API est maintenant interchangeable avec un provider Air France-KLM concret; la recette sur semaines reelles reste a finaliser avant generalisation
+- l'export `Planning.xlsx` est plus exploitable pour la transition, mais ne reproduit pas encore la structure historique complete du workbook legacy
 - les communications sont generees comme brouillons editables dans `asf-wms`, mais l'envoi email ou WhatsApp reste manuel par choix produit
 - l'application des mises a jour expeditions est volontairement conservative: seules les expeditions encore `packed` ou deja `planned` sont touchees
 

@@ -22,9 +22,13 @@ def export_version_workbook(version: PlanningVersion) -> PlanningArtifact:
     sheet.title = "Planning"
     sheet.append(
         [
-            "Shipment",
-            "Volunteer",
+            "Date",
             "Flight",
+            "Destination",
+            "DepartureTime",
+            "Volunteer",
+            "Shipment",
+            "Shipper",
             "Cartons",
             "Status",
             "Source",
@@ -36,15 +40,18 @@ def export_version_workbook(version: PlanningVersion) -> PlanningArtifact:
         "volunteer_snapshot",
         "flight_snapshot",
     ).order_by("sequence", "id"):
+        flight = assignment.flight_snapshot
+        shipment = assignment.shipment_snapshot
+        volunteer = assignment.volunteer_snapshot
         sheet.append(
             [
-                assignment.shipment_snapshot.shipment_reference
-                if assignment.shipment_snapshot_id
-                else "",
-                assignment.volunteer_snapshot.volunteer_label
-                if assignment.volunteer_snapshot_id
-                else "",
-                assignment.flight_snapshot.flight_number if assignment.flight_snapshot_id else "",
+                str(flight.departure_date) if flight else "",
+                flight.flight_number if flight else "",
+                flight.destination_iata if flight else "",
+                ((flight.payload or {}).get("departure_time", "") if flight else ""),
+                volunteer.volunteer_label if volunteer else "",
+                shipment.shipment_reference if shipment else "",
+                shipment.shipper_name if shipment else "",
                 assignment.assigned_carton_count,
                 assignment.status,
                 assignment.source,

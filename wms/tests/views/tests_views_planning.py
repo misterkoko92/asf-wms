@@ -297,6 +297,40 @@ class PlanningViewTests(TestCase):
         self.assertEqual(assignment.assigned_carton_count, 5)
         self.assertEqual(assignment.source, PlanningAssignmentSource.MANUAL)
 
+    def test_version_detail_renders_operator_cockpit_blocks(self):
+        version, assignment, _volunteer_bob, _flight_af456 = self.make_version_with_assignment(
+            status=PlanningVersionStatus.PUBLISHED
+        )
+        PlanningShipmentSnapshot.objects.create(
+            run=version.run,
+            shipment_reference="SHP-UNASSIGNED",
+            shipper_name="Association C",
+            destination_iata="DSS",
+            carton_count=2,
+            equivalent_units=2,
+        )
+        version.run.solver_result = {
+            "unassigned_reasons": {
+                str(
+                    version.run.shipment_snapshots.exclude(pk=assignment.shipment_snapshot_id)
+                    .get()
+                    .pk
+                ): ("no_selected_candidate")
+            }
+        }
+        version.run.save(update_fields=["solver_result", "updated_at"])
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("planning:version_detail", args=[version.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Planning")
+        self.assertContains(response, "Non affectes")
+        self.assertContains(response, "Communications")
+        self.assertContains(response, "Historique des versions")
+        self.assertContains(response, "AF123")
+        self.assertContains(response, "SHP-UNASSIGNED")
+
     def test_staff_can_clone_published_version(self):
         version, _assignment, _volunteer_bob, _flight_af456 = self.make_version_with_assignment(
             status=PlanningVersionStatus.PUBLISHED

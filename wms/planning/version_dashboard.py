@@ -1,0 +1,286 @@
+from __future__ import annotations
+
+from collections import defaultdict
+
+from django.utils import timezone
+
+from wms.models import PlanningVersion
+from wms.planning.stats import build_version_stats
+from wms.planning.versioning import diff_versions
+
+UNASSIGNED_REASON_LABELS = {
+    "no_selected_candidate": "Non retenue par l'arbitrage solveur",
+    "no_compatible_candidate": "Aucune compatibilite complete",
+}
+
+
+def _display_datetime(value):
+    if not value:
+        return ""
+    local_value = timezone.localtime(value) if timezone.is_aware(value) else value
+    return local_value.strftime("%Y-%m-%d %H:%M")
+
+
+def _build_header(version: PlanningVersion) -> dict[str, object]:
+    run = version.run
+    return {
+        "run_label": str(run),
+        "week_start": run.week_start,
+        "week_end": run.week_end,
+        "version_number": version.number,
+        "status": version.status,
+        "status_label": version.get_status_display(),
+        "flight_mode": run.flight_mode,
+        "parameter_set_name": run.parameter_set.name if run.parameter_set_id else "",
+        "created_by": version.created_by.get_username() if version.created_by_id else "",
+        "created_at": _display_datetime(version.created_at),
+        "published_at": _display_datetime(version.published_at),
+    }
+
+
+def _assignment_row(assignment) -> dict[str, object]:
+    shipment = assignment.shipment_snapshot
+    volunteer = assignment.volunteer_snapshot
+    flight = assignment.flight_snapshot
+    return {
+        "assignment_id": assignment.pk,
+        "shipment_reference": shipment.shipment_reference if shipment else "",
+        "shipper_name": shipment.shipper_name if shipment else "",
+        "destination_iata": shipment.destination_iata if shipment else "",
+        "volunteer_label": volunteer.volunteer_label if volunteer else "",
+        "flight_number": flight.flight_number if flight else "",
+        "cartons": assignment.assigned_carton_count,
+        "status": assignment.status,
+        "notes": assignment.notes,
+        "source": assignment.source,
+        "sequence": assignment.sequence,
+    }
+
+
+def _build_flight_groups(version: PlanningVersion) -> list[dict[str, object]]:
+    grouped: dict[tuple[int | None, str, str, str], dict[str, object]] = {}
+    assignments = version.assignments.select_related(
+        "shipment_snapshot",
+        "volunteer_snapshot",
+        "flight_snapshot",
+    ).order_by(
+        "flight_snapshot__departure_date",
+        "flight_snapshot__flight_number",
+        "sequence",
+        "id",
+    )
+    for assignment in assignments:
+        flight = assignment.flight_snapshot
+        if flight is None:
+            continue
+        key = (
+            flight.pk,
+            str(flight.departure_date),
+            flight.flight_number,
+            flight.destination_iata,
+        )
+        group = grouped.get(key)
+        if group is None:
+            group = {
+                "flight_snapshot_id": flight.pk,
+                "flight_number": flight.flight_number,
+                "departure_date": flight.departure_date,
+                "departure_time": (flight.payload or {}).get("departure_time", ""),
+                "destination_iata": flight.destination_iata,
+                "capacity_units": flight.capacity_units,
+                "used_cartons": 0,
+                "used_equivalent_units": 0,
+                "volunteer_labels": [],
+                "assignments": [],
+            }
+            grouped[key] = group
+        row = _assignment_row(assignment)
+        group["assignments"].append(row)
+        group["used_cartons"] += assignment.assigned_carton_count
+        if assignment.shipment_snapshot_id:
+            group["used_equivalent_units"] += assignment.shipment_snapshot.equivalent_units
+        if row["volunteer_label"] and row["volunteer_label"] not in group["volunteer_labels"]:
+            group["volunteer_labels"].append(row["volunteer_label"])
+
+    flight_groups = list(grouped.values())
+    flight_groups.sort(
+        key=lambda item: (
+            item["departure_date"],
+            item["departure_time"] or "",
+            item["flight_number"],
+            item["destination_iata"],
+        )
+    )
+    return flight_groups
+
+
+def _build_unassigned_shipments(version: PlanningVersion) -> list[dict[str, object]]:
+    assigned_ids = {
+        shipment_id
+        for shipment_id in version.assignments.values_list("shipment_snapshot_id", flat=True)
+        if shipment_id
+    }
+    unassigned_reasons = version.run.solver_result.get("unassigned_reasons", {})
+    rows = []
+    for snapshot in version.run.shipment_snapshots.exclude(pk__in=assigned_ids).order_by(
+        "priority",
+        "shipment_reference",
+        "id",
+    ):
+        reason_code = str(unassigned_reasons.get(str(snapshot.pk)) or "").strip()
+        rows.append(
+            {
+                "shipment_snapshot_id": snapshot.pk,
+                "shipment_reference": snapshot.shipment_reference,
+                "shipper_name": snapshot.shipper_name,
+                "destination_iata": snapshot.destination_iata,
+                "priority": snapshot.priority,
+                "carton_count": snapshot.carton_count,
+                "equivalent_units": snapshot.equivalent_units,
+                "reason_code": reason_code,
+                "reason": UNASSIGNED_REASON_LABELS.get(
+                    reason_code,
+                    "Non affectee dans cette version",
+                ),
+            }
+        )
+    return rows
+
+
+def _build_history(version: PlanningVersion) -> dict[str, object]:
+    versions = [
+        {
+            "id": item.pk,
+            "number": item.number,
+            "status": item.status,
+            "status_label": item.get_status_display(),
+            "is_current": item.pk == version.pk,
+            "change_reason": item.change_reason,
+            "created_at": _display_datetime(item.created_at),
+            "published_at": _display_datetime(item.published_at),
+        }
+        for item in version.run.versions.all().order_by("number", "id")
+    ]
+    if version.based_on_id is None:
+        return {
+            "has_parent": False,
+            "based_on_version_number": None,
+            "change_reason": version.change_reason,
+            "versions": versions,
+            "assignment_changes": {
+                "changed_count": 0,
+                "added_count": 0,
+                "removed_count": 0,
+                "changed": [],
+                "added": [],
+                "removed": [],
+            },
+        }
+
+    comparison = diff_versions(version.based_on, version)
+    return {
+        "has_parent": True,
+        "based_on_version_number": version.based_on.number,
+        "change_reason": version.change_reason,
+        "versions": versions,
+        "assignment_changes": {
+            "changed_count": len(comparison["changed"]),
+            "added_count": len(comparison["added"]),
+            "removed_count": len(comparison["removed"]),
+            "changed": comparison["changed"],
+            "added": comparison["added"],
+            "removed": comparison["removed"],
+        },
+    }
+
+
+def _impacted_recipients(history: dict[str, object]) -> set[str]:
+    if not history["has_parent"]:
+        return set()
+
+    impacted: set[str] = set()
+    assignment_changes = history["assignment_changes"]
+    for item in assignment_changes["changed"]:
+        from_volunteer = str(item["from"].get("volunteer") or "").strip()
+        to_volunteer = str(item["to"].get("volunteer") or "").strip()
+        if from_volunteer:
+            impacted.add(from_volunteer)
+        if to_volunteer:
+            impacted.add(to_volunteer)
+    for item in assignment_changes["added"] + assignment_changes["removed"]:
+        volunteer = str(item.get("volunteer") or "").strip()
+        if volunteer:
+            impacted.add(volunteer)
+    return impacted
+
+
+def _build_communications(
+    version: PlanningVersion, history: dict[str, object]
+) -> dict[str, object]:
+    impacted = _impacted_recipients(history)
+    grouped: dict[tuple[str, str], dict[str, object]] = {}
+    for draft in version.communication_drafts.select_related("template").order_by(
+        "channel",
+        "recipient_label",
+        "id",
+    ):
+        key = (draft.channel, draft.recipient_label or "")
+        group = grouped.get(key)
+        if group is None:
+            group = {
+                "channel": draft.channel,
+                "channel_label": draft.get_channel_display(),
+                "recipient_label": draft.recipient_label,
+                "recipient_contact": draft.recipient_contact,
+                "changed_since_parent": bool(
+                    draft.recipient_label and draft.recipient_label in impacted
+                ),
+                "drafts": [],
+            }
+            grouped[key] = group
+        group["drafts"].append(
+            {
+                "draft_id": draft.pk,
+                "subject": draft.subject,
+                "body": draft.body,
+                "status": draft.status,
+                "template_label": draft.template.label if draft.template_id else "",
+            }
+        )
+
+    groups = list(grouped.values())
+    groups.sort(key=lambda item: (item["channel"], item["recipient_label"] or ""))
+    return {
+        "draft_count": sum(len(group["drafts"]) for group in groups),
+        "groups": groups,
+    }
+
+
+def _build_exports(version: PlanningVersion) -> dict[str, object]:
+    artifacts = [
+        {
+            "artifact_id": artifact.pk,
+            "artifact_type": artifact.artifact_type,
+            "label": artifact.label or artifact.artifact_type,
+            "file_path": artifact.file_path,
+            "generated_at": _display_datetime(artifact.generated_at),
+        }
+        for artifact in version.artifacts.all().order_by("artifact_type", "id")
+    ]
+    return {
+        "artifact_count": len(artifacts),
+        "artifacts": artifacts,
+    }
+
+
+def build_version_dashboard(version: PlanningVersion) -> dict[str, object]:
+    history = _build_history(version)
+    return {
+        "header": _build_header(version),
+        "flight_groups": _build_flight_groups(version),
+        "unassigned_shipments": _build_unassigned_shipments(version),
+        "communications": _build_communications(version, history),
+        "stats": build_version_stats(version),
+        "exports": _build_exports(version),
+        "history": history,
+    }

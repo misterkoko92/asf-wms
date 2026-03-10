@@ -23,7 +23,7 @@ from .planning.exports import export_version_workbook
 from .planning.shipment_updates import apply_version_updates
 from .planning.snapshots import prepare_run_inputs
 from .planning.solver import solve_run
-from .planning.stats import build_version_stats
+from .planning.version_dashboard import build_version_dashboard
 from .planning.versioning import clone_version, diff_versions, publish_version
 from .view_permissions import scan_staff_required
 
@@ -33,6 +33,22 @@ TEMPLATE_RUN_DETAIL = "planning/run_detail.html"
 TEMPLATE_VERSION_DETAIL = "planning/version_detail.html"
 TEMPLATE_VERSION_DIFF = "planning/version_diff.html"
 ACTIVE_PLANNING_RUNS = "planning_runs"
+
+
+def _attach_assignment_forms(dashboard, assignment_formset):
+    if assignment_formset is None:
+        return
+    forms_by_id = {form.instance.pk: form for form in assignment_formset}
+    for group in dashboard["flight_groups"]:
+        for assignment in group["assignments"]:
+            assignment["form"] = forms_by_id.get(assignment["assignment_id"])
+
+
+def _attach_draft_forms(dashboard, draft_formset):
+    forms_by_id = {form.instance.pk: form for form in draft_formset}
+    for group in dashboard["communications"]["groups"]:
+        for draft in group["drafts"]:
+            draft["form"] = forms_by_id.get(draft["draft_id"])
 
 
 @scan_staff_required
@@ -191,6 +207,13 @@ def planning_version_detail(request, version_id):
             )
             return redirect("planning:version_detail", version.pk)
 
+    dashboard = build_version_dashboard(version)
+    _attach_assignment_forms(
+        dashboard,
+        assignment_formset if version.status == PlanningVersionStatus.DRAFT else None,
+    )
+    _attach_draft_forms(dashboard, draft_formset)
+
     return render(
         request,
         TEMPLATE_VERSION_DETAIL,
@@ -203,7 +226,7 @@ def planning_version_detail(request, version_id):
             else None,
             "draft_formset": draft_formset,
             "artifacts": version.artifacts.all(),
-            "version_stats": build_version_stats(version),
+            "dashboard": dashboard,
             "clone_form": PlanningVersionCloneForm(),
         },
     )
