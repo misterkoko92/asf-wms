@@ -361,19 +361,19 @@ class Command(BaseCommand):
                 user=volunteer_users[0],
                 scenario_slug=scenario_slug,
                 city="Paris",
-                max_colis_vol=4,
+                max_colis_vol=8,
                 availability_specs=(
-                    (DEMO_WEEK_START + timedelta(days=1), time(8, 30), time(12, 0)),
-                    (DEMO_WEEK_START + timedelta(days=2), time(8, 30), time(12, 0)),
+                    (DEMO_WEEK_START + timedelta(days=1), time(7, 0), time(12, 0)),
+                    (DEMO_WEEK_START + timedelta(days=2), time(6, 30), time(12, 0)),
                 ),
             ),
             self._upsert_volunteer(
                 user=volunteer_users[1],
                 scenario_slug=scenario_slug,
                 city="Lyon",
-                max_colis_vol=2,
+                max_colis_vol=6,
                 availability_specs=(
-                    (DEMO_WEEK_START + timedelta(days=1), time(9, 0), time(11, 30)),
+                    (DEMO_WEEK_START + timedelta(days=1), time(7, 0), time(11, 30)),
                 ),
             ),
         ]

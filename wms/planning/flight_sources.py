@@ -55,6 +55,17 @@ def _parse_departure_time(value):
     return parsed
 
 
+def _infer_route_pos(*, routing, destination_iata):
+    if not routing or not destination_iata:
+        return None
+    parts = [part.strip().upper() for part in str(routing).replace(",", "-").split("-") if part]
+    destination = str(destination_iata).strip().upper()
+    for index, code in enumerate(parts[1:], start=1):
+        if code == destination:
+            return index
+    return None
+
+
 def normalize_flight_record(row):
     flight_number = parse_str(get_value(row, "flight_number", "numero_vol", "numero_de_vol"))
     if not flight_number:
@@ -66,11 +77,18 @@ def normalize_flight_record(row):
         raise ValueError("Each flight row must contain a destination IATA code.")
     origin_iata = parse_str(get_value(row, "origin_iata", "origin", "code_iata_origin")) or ""
     departure_date = _parse_departure_date(get_value(row, "departure_date", "date_depart", "date"))
+    departure_time = _parse_departure_time(
+        get_value(row, "departure_time", "heure_depart", "departure")
+    )
     capacity_units = parse_int(
         get_value(row, "capacity_units", "capacite", "capacity", "max_colis_vol")
     )
+    routing = parse_str(get_value(row, "routing", "route", "routing_str")) or ""
+    route_pos = parse_int(get_value(row, "route_pos", "route_position", "stop_order"))
     destination_iata = destination_iata.upper()
     origin_iata = origin_iata.upper()
+    if route_pos is None:
+        route_pos = _infer_route_pos(routing=routing, destination_iata=destination_iata)
     destination = (
         Flight._meta.get_field("destination")
         .remote_field.model.objects.filter(iata_code__iexact=destination_iata)
@@ -79,11 +97,11 @@ def normalize_flight_record(row):
     return {
         "flight_number": flight_number.strip().upper(),
         "departure_date": departure_date,
-        "departure_time": _parse_departure_time(
-            get_value(row, "departure_time", "heure_depart", "departure")
-        ),
+        "departure_time": departure_time,
         "origin_iata": origin_iata,
         "destination_iata": destination_iata,
+        "routing": routing,
+        "route_pos": route_pos,
         "destination": destination,
         "capacity_units": capacity_units,
     }

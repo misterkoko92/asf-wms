@@ -1,0 +1,74 @@
+{
+  "week_start": "2025-01-02",
+  "week_end": "2025-01-05",
+  "shipments": [
+    {
+      "reference": "BE_NKC_001",
+      "shipper_name": "ASF",
+      "destination_iata": "NKC",
+      "priority": 1,
+      "carton_count": 10,
+      "equivalent_units": 10
+    },
+    {
+      "reference": "BE_CKY_001",
+      "shipper_name": "ASF",
+      "destination_iata": "CKY",
+      "priority": 1,
+      "carton_count": 20,
+      "equivalent_units": 20
+    }
+  ],
+  "volunteers": [
+    {
+      "label": "Alice",
+      "max_colis_vol": 30,
+      "availability_summary": {
+        "slot_count": 1,
+        "slots": [
+          {
+            "date": "2025-01-02",
+            "start_time": "00:00",
+            "end_time": "23:59"
+          }
+        ]
+      }
+    }
+  ],
+  "flights": [
+    {
+      "flight_number": "AF1234",
+      "departure_date": "2025-01-02",
+      "destination_iata": "NKC",
+      "capacity_units": 25,
+      "payload": {
+        "departure_time": "10:00",
+        "origin_iata": "CDG",
+        "routing": "CDG-NKC-CKY",
+        "route_pos": 1
+      }
+    },
+    {
+      "flight_number": "AF1234",
+      "departure_date": "2025-01-02",
+      "destination_iata": "CKY",
+      "capacity_units": 25,
+      "payload": {
+        "departure_time": "10:00",
+        "origin_iata": "CDG",
+        "routing": "CDG-NKC-CKY",
+        "route_pos": 2
+      }
+    }
+  ],
+  "expected_assignments": [
+    [
+      "BE_NKC_001",
+      "AF1234",
+      "Alice"
+    ]
+  ],
+  "expected_result": {
+    "assignment_count": 1
+  }
+}
