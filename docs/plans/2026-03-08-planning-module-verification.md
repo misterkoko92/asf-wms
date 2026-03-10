@@ -48,9 +48,45 @@ Couverture validee:
 - portail benevole et ecrans de contraintes
 - integrations API critiques deja presentes dans `asf-wms`
 
+### Command 3
+```bash
+./.venv/bin/python manage.py test wms.tests.planning.tests_smoke_planning_flow -v 2
+```
+
+Result:
+- `1` test execute
+- `OK`
+
+Couverture validee:
+- `seed_planning_demo_data --solve`
+- resolution d'un `PlanningRun`
+- publication de la `PlanningVersion v1`
+- regeneration des brouillons de communication
+- regeneration de l'export `Planning.xlsx`
+- affichage du cockpit `/planning/versions/<id>/`
+
+Role de cette commande:
+- garde-fou de fumee bout en bout sur le chemin nominal planning
+- volontairement structurel, sans revalider la parite solveur ni le detail des messages ou du workbook
+
+### Command 4
+```bash
+./.venv/bin/python manage.py test wms.tests.planning wms.tests.views.tests_views_planning wms.tests.management.tests_management_seed_planning_demo_data wms.tests.management.tests_management_makemigrations_check -v 1
+```
+
+Result:
+- `85` tests executes
+- `OK`
+
+Couverture validee:
+- regression planning large apres ajout du smoke test
+- vues planning staff
+- seed de demonstration
+- garde-fou `makemigrations_check`
+
 ### Consolidated Outcome
-- `57` tests executes
-- `57` tests `OK`
+- `86` tests executes
+- `86` tests `OK`
 - aucun drift de schema ni erreur de system check observe pendant cette verification finale
 
 ## Demo Dataset Verification
