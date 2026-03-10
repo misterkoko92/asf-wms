@@ -1,0 +1,33 @@
+{% load i18n %}
+
+<section class="scan-card portal-card card border-0 shadow-sm h-100">
+  <div class="card-body">
+    <h2 class="h5">{% trans "Stats" %}</h2>
+    <dl class="row mb-3">
+      <dt class="col-8">{% trans "Affectations" %}</dt>
+      <dd class="col-4 text-end">{{ dashboard.stats.assignment_count }}</dd>
+      <dt class="col-8">{% trans "Non affectees" %}</dt>
+      <dd class="col-4 text-end">{{ dashboard.stats.unassigned_count }}</dd>
+      <dt class="col-8">{% trans "Colis" %}</dt>
+      <dd class="col-4 text-end">{{ dashboard.stats.carton_total }}</dd>
+      <dt class="col-8">{% trans "Benevoles" %}</dt>
+      <dd class="col-4 text-end">{{ dashboard.stats.volunteer_count }}</dd>
+      <dt class="col-8">{% trans "Vols" %}</dt>
+      <dd class="col-4 text-end">{{ dashboard.stats.flight_count }}</dd>
+      <dt class="col-8">{% trans "Ajustements manuels" %}</dt>
+      <dd class="col-4 text-end">{{ dashboard.stats.manual_adjustment_count }}</dd>
+    </dl>
+
+    <div class="small text-muted mb-2">{% trans "Destinations" %}</div>
+    <ul class="list-group list-group-flush">
+      {% for item in dashboard.stats.destination_breakdown %}
+        <li class="list-group-item px-0 d-flex justify-content-between">
+          <span>{{ item.destination_iata }}</span>
+          <span>{{ item.carton_total }}</span>
+        </li>
+      {% empty %}
+        <li class="list-group-item px-0 text-muted">{% trans "Aucune destination." %}</li>
+      {% endfor %}
+    </ul>
+  </div>
+</section>

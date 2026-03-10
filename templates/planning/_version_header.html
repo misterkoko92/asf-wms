@@ -1,0 +1,46 @@
+{% load i18n %}
+
+<section class="scan-card portal-card card border-0 shadow-sm">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
+      <div>
+        <h1 class="h3 mb-1">{% trans "Version" %} v{{ version.number }}</h1>
+        <p class="text-muted mb-1">{{ dashboard.header.run_label }} · {{ dashboard.header.status_label }}</p>
+        <p class="text-muted mb-0">
+          {% trans "Mode vols" %}: {{ dashboard.header.flight_mode }} ·
+          {% trans "Parametres" %}: {{ dashboard.header.parameter_set_name|default:"-" }}
+        </p>
+      </div>
+      <div class="d-flex gap-2 flex-wrap">
+        {% if version.based_on %}
+          <a class="btn btn-tertiary" href="{% url 'planning:version_diff' version.pk %}">{% trans "Voir le diff" %}</a>
+        {% endif %}
+        {% if version.status == "draft" %}
+          <form method="post" action="{% url 'planning:version_publish' version.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary">{% trans "Publier la version" %}</button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-md-3">
+        <div class="small text-muted">{% trans "Cree par" %}</div>
+        <div>{{ dashboard.header.created_by|default:"-" }}</div>
+      </div>
+      <div class="col-md-3">
+        <div class="small text-muted">{% trans "Creation" %}</div>
+        <div>{{ dashboard.header.created_at|default:"-" }}</div>
+      </div>
+      <div class="col-md-3">
+        <div class="small text-muted">{% trans "Publication" %}</div>
+        <div>{{ dashboard.header.published_at|default:"-" }}</div>
+      </div>
+      <div class="col-md-3">
+        <div class="small text-muted">{% trans "Periode" %}</div>
+        <div>{{ dashboard.header.week_start }} → {{ dashboard.header.week_end }}</div>
+      </div>
+    </div>
+  </div>
+</section>

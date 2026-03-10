@@ -1,0 +1,37 @@
+{% load i18n %}
+
+<section class="scan-card portal-card card border-0 shadow-sm h-100">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+      <div>
+        <h2 class="h5 mb-1">{% trans "Exports" %}</h2>
+        <p class="text-muted mb-0">{% trans "Sorties et artefacts attaches a cette version." %}</p>
+      </div>
+      <div class="d-flex gap-2 flex-wrap">
+        {% if version.status == "published" %}
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="shipment_action" value="apply_updates">
+            <button type="submit" class="btn btn-tertiary">{% trans "Mettre a jour les expeditions" %}</button>
+          </form>
+        {% endif %}
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="artifact_action" value="export">
+          <button type="submit" class="btn btn-tertiary">{% trans "Exporter Planning.xlsx" %}</button>
+        </form>
+      </div>
+    </div>
+
+    <ul class="list-group list-group-flush mt-3">
+      {% for artifact in dashboard.exports.artifacts %}
+        <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+          <span>{{ artifact.label }}</span>
+          <small class="text-muted">{{ artifact.generated_at|default:artifact.file_path }}</small>
+        </li>
+      {% empty %}
+        <li class="list-group-item px-0 text-muted">{% trans "Aucun export genere." %}</li>
+      {% endfor %}
+    </ul>
+  </div>
+</section>
