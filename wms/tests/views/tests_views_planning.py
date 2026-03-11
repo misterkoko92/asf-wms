@@ -683,12 +683,17 @@ class PlanningViewTests(TestCase):
         self.assertContains(response, "Disponibilites benevoles (vue semaine)")
         self.assertContains(response, "Vols disponibles (vue semaine)")
         self.assertContains(response, "Bilan Planning")
+        self.assertContains(response, "Bilan Bénévoles")
+        self.assertContains(response, "Bilan Expéditions")
         self.assertContains(response, "Alice (2)")
         self.assertContains(response, "NSI (6)")
         self.assertContains(response, "Nb_Dispo")
         self.assertContains(response, "Nb_Jours_Affectes")
         self.assertContains(response, "Nb_Vols_Affectes")
         self.assertContains(response, "Nb_BE_Affectes")
+        self.assertContains(response, "Nb Colis Affecté")
+        self.assertContains(response, "Nb Equiv Affecté")
+        self.assertNotContains(response, "<th>Disponibilites</th>", status_code=200)
 
     def test_version_detail_renders_destination_bilan_table(self):
         data = self.make_operator_version()
@@ -733,9 +738,9 @@ class PlanningViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
-        self.assertGreaterEqual(content.count('data-table-tools="1"'), 2)
         self.assertGreaterEqual(content.count('style="width: 16ch;"'), 2)
         self.assertGreaterEqual(content.count('style="width: 28ch;"'), 14)
+        self.assertGreaterEqual(content.count('data-planning-simple-table="1"'), 3)
 
     def test_generating_drafts_from_version_detail_regenerates_aggregated_series(self):
         version, _assignment, _volunteer_bob, flight_af456 = self.make_version_with_assignment(

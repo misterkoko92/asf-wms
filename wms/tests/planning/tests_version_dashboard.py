@@ -468,6 +468,8 @@ class PlanningVersionDashboardTests(TestCase):
         self.assertEqual(alice_row["assigned_day_count"], 2)
         self.assertEqual(alice_row["assigned_flight_count"], 2)
         self.assertEqual(alice_row["assigned_shipment_count"], 2)
+        self.assertEqual(alice_row["assigned_carton_count"], 6)
+        self.assertEqual(alice_row["assigned_equivalent_units"], 6)
         self.assertEqual(
             alice_row["availability_label"],
             "10/03/26 07h00-18h00, 11/03/26 08h00-17h00",

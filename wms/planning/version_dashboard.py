@@ -465,6 +465,14 @@ def _build_planning_summary(version: PlanningVersion) -> dict[str, object]:
                 if assignment.shipment_snapshot_id
             }
         )
+        assigned_carton_count = sum(
+            assignment.assigned_carton_count for assignment in volunteer_assignments
+        )
+        assigned_equivalent_units = sum(
+            assignment.shipment_snapshot.equivalent_units
+            for assignment in volunteer_assignments
+            if assignment.shipment_snapshot_id and assignment.shipment_snapshot is not None
+        )
         volunteer_rows.append(
             {
                 "volunteer_label": volunteer_snapshot.volunteer_label or "-",
@@ -472,6 +480,8 @@ def _build_planning_summary(version: PlanningVersion) -> dict[str, object]:
                 "assigned_day_count": assigned_day_count,
                 "assigned_flight_count": assigned_flight_count,
                 "assigned_shipment_count": assigned_shipment_count,
+                "assigned_carton_count": assigned_carton_count,
+                "assigned_equivalent_units": assigned_equivalent_units,
                 "availability_label": availability_label,
             }
         )
