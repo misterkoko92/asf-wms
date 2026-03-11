@@ -4,9 +4,9 @@ from django.core.exceptions import ValidationError
 
 from wms.models import PlanningAssignment, PlanningAssignmentSource, PlanningVersionStatus
 from wms.planning.operator_options import (
-    _flight_tone_for_shipment,
-    _volunteer_tone_for_flight,
     build_operator_option_context,
+    explain_flight_rejection,
+    explain_volunteer_rejection,
 )
 
 
@@ -30,25 +30,43 @@ def _validate_manual_assignment(
     if shipment is None or volunteer is None or flight is None:
         raise ValidationError("Selection planning invalide.")
 
-    flight_tone = _flight_tone_for_shipment(
+    flight_reason = explain_flight_rejection(
         context,
         shipment=shipment,
         flight=flight,
         ignore_assignment_id=ignore_assignment_id,
     )
-    if flight_tone == "red":
-        raise ValidationError("Le vol selectionne ne peut pas accueillir cette expedition.")
+    if flight_reason == "remaining_capacity_insufficient":
+        raise ValidationError(
+            "Le vol selectionne n'a pas assez de capacite restante pour cette expedition."
+        )
+    if flight_reason == "flight_capacity_insufficient":
+        raise ValidationError(
+            "Le vol selectionne n'a pas la capacite requise pour cette expedition."
+        )
+    if flight_reason == "weekday_not_allowed":
+        raise ValidationError(
+            "Le vol selectionne n'est pas autorise pour cette destination a cette date."
+        )
+    if flight_reason == "max_cartons_per_flight":
+        raise ValidationError(
+            "Le vol selectionne depasse la limite de colis autorisee pour cette destination."
+        )
+    if flight_reason is not None:
+        raise ValidationError("Le vol selectionne n'est pas compatible avec cette expedition.")
 
-    volunteer_tone = _volunteer_tone_for_flight(
+    volunteer_reason = explain_volunteer_rejection(
         context,
         volunteer=volunteer,
         flight=flight,
         ignore_assignment_id=ignore_assignment_id,
     )
-    if volunteer_tone in {"red", "orange"}:
+    if volunteer_reason == "conflict":
         raise ValidationError(
-            "Le benevole selectionne n'est pas compatible avec ce vol dans la version courante."
+            "Le benevole selectionne est deja affecte sur un creneau incompatible (marge 2h30)."
         )
+    if volunteer_reason == "unavailable":
+        raise ValidationError("Le benevole selectionne est indisponible pour ce vol.")
 
 
 def delete_assignment(*, version, assignment) -> None:

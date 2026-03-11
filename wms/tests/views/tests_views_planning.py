@@ -451,6 +451,55 @@ class PlanningViewTests(TestCase):
         self.assertEqual(created.flight_snapshot, data["flight_af910"])
         self.assertEqual(created.source, PlanningAssignmentSource.MANUAL)
 
+    def test_staff_gets_precise_reason_when_unassigned_shipment_exceeds_remaining_capacity(self):
+        data = self.make_operator_version()
+        blocking_shipment = PlanningShipmentSnapshot.objects.create(
+            run=data["version"].run,
+            shipment_reference="260130",
+            shipper_name="ASF",
+            destination_iata="NSI",
+            carton_count=9,
+            equivalent_units=9,
+        )
+        PlanningAssignment.objects.create(
+            version=data["version"],
+            shipment_snapshot=blocking_shipment,
+            volunteer_snapshot=data["volunteer_alice"],
+            flight_snapshot=data["flight_af910"],
+            assigned_carton_count=9,
+            source=PlanningAssignmentSource.MANUAL,
+            sequence=2,
+        )
+        self.client.force_login(self.staff_user)
+
+        response = self.client.post(
+            reverse("planning:version_detail", args=[data["version"].pk]),
+            {
+                "shipment_action": "assign",
+                "shipment_snapshot_id": str(data["unassigned_shipment"].pk),
+                "volunteer_snapshot": str(data["volunteer_bob"].pk),
+                "flight_snapshot": str(data["flight_af910"].pk),
+            },
+            follow=True,
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("planning:version_detail", args=[data["version"].pk]),
+        )
+        messages = [str(message) for message in response.context["messages"]]
+        self.assertIn(
+            "Le vol selectionne n'a pas assez de capacite restante pour cette expedition.",
+            messages,
+            messages,
+        )
+        self.assertFalse(
+            PlanningAssignment.objects.filter(
+                version=data["version"],
+                shipment_snapshot=data["unassigned_shipment"],
+            ).exists()
+        )
+
     def test_version_detail_renders_operator_cockpit_blocks(self):
         version, assignment, _volunteer_bob, _flight_af456 = self.make_version_with_assignment(
             status=PlanningVersionStatus.PUBLISHED
@@ -546,6 +595,17 @@ class PlanningViewTests(TestCase):
         self.assertContains(response, "CDG-NSI")
         self.assertContains(response, "COURTOIS Alain")
         self.assertContains(response, "CORRESPONDANT")
+
+    def test_version_detail_uses_scan_table_styles_for_operator_tables(self):
+        data = self.make_operator_version()
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("planning:version_detail", args=[data["version"].pk]))
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertGreaterEqual(content.count("scan-table-wrap table-responsive"), 3)
+        self.assertGreaterEqual(content.count("scan-table table table-sm table-hover"), 3)
 
     def test_generating_drafts_from_version_detail_regenerates_aggregated_series(self):
         version, _assignment, _volunteer_bob, flight_af456 = self.make_version_with_assignment(

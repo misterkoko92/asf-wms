@@ -7,7 +7,6 @@ from datetime import datetime, timedelta
 from wms.models import PlanningVersion
 from wms.planning.rules import (
     compile_run_solver_payload,
-    shipment_is_compatible_with_flight,
     volunteer_is_compatible_with_flight,
 )
 from wms.planning.version_dashboard import (
@@ -23,6 +22,19 @@ TONE_STYLE = {
     "orange": "background-color: #fff1db;",
     "red": "background-color: #f8d7da;",
     "none": "",
+}
+
+FLIGHT_REASON_LABELS = {
+    "destination_mismatch": "Destination non compatible",
+    "weekday_not_allowed": "Jour non autorise par ParamDest",
+    "max_cartons_per_flight": "Limite colis destination depassee",
+    "flight_capacity_insufficient": "Capacite du vol insuffisante",
+    "remaining_capacity_insufficient": "Capacite restante insuffisante",
+}
+
+VOLUNTEER_REASON_LABELS = {
+    "unavailable": "Benevole indisponible",
+    "conflict": "Conflit horaire (marge 2h30)",
 }
 
 
@@ -110,6 +122,49 @@ def _remaining_capacity(
     return int(capacity) - int(used_equivalent_units)
 
 
+def explain_flight_rejection(
+    context: dict[str, object],
+    *,
+    shipment: dict,
+    flight: dict,
+    ignore_assignment_id: int | None = None,
+) -> str | None:
+    if _normalize_iata(flight.get("destination_iata")) != _normalize_iata(
+        shipment.get("destination_iata")
+    ):
+        return "destination_mismatch"
+
+    allowed_weekdays = [
+        str(value or "").strip().lower() for value in flight.get("allowed_weekdays") or []
+    ]
+    if allowed_weekdays:
+        departure_date = str(flight.get("departure_date") or "").strip()
+        if departure_date:
+            weekday_code = datetime.fromisoformat(departure_date).strftime("%a").lower()[:3]
+            if weekday_code not in allowed_weekdays:
+                return "weekday_not_allowed"
+
+    shipment_carton_count = int(shipment.get("carton_count") or 0)
+    max_cartons_per_flight = flight.get("max_cartons_per_flight")
+    if max_cartons_per_flight is not None and shipment_carton_count > int(max_cartons_per_flight):
+        return "max_cartons_per_flight"
+
+    shipment_equivalent_units = int(shipment.get("equivalent_units") or 0)
+    capacity_units = flight.get("capacity_units")
+    if capacity_units is not None and shipment_equivalent_units > int(capacity_units):
+        return "flight_capacity_insufficient"
+
+    remaining_capacity = _remaining_capacity(
+        context,
+        flight_snapshot_id=int(flight["snapshot_id"]),
+        ignore_assignment_id=ignore_assignment_id,
+    )
+    if remaining_capacity is not None and remaining_capacity < shipment_equivalent_units:
+        return "remaining_capacity_insufficient"
+
+    return None
+
+
 def _flight_tone_for_shipment(
     context: dict[str, object],
     *,
@@ -121,16 +176,12 @@ def _flight_tone_for_shipment(
         shipment.get("destination_iata")
     ):
         return None
-    base_compatible = shipment_is_compatible_with_flight(shipment, flight)
-    remaining_capacity = _remaining_capacity(
+    if explain_flight_rejection(
         context,
-        flight_snapshot_id=int(flight["snapshot_id"]),
+        shipment=shipment,
+        flight=flight,
         ignore_assignment_id=ignore_assignment_id,
-    )
-    remaining_ok = remaining_capacity is None or remaining_capacity >= int(
-        shipment.get("equivalent_units") or 0
-    )
-    if not base_compatible or not remaining_ok:
+    ):
         return "red"
     if _assignments_for_flight(context, flight_snapshot_id=int(flight["snapshot_id"])):
         return "orange"
@@ -192,6 +243,27 @@ def _volunteer_tone_for_flight(
     return "green"
 
 
+def explain_volunteer_rejection(
+    context: dict[str, object],
+    *,
+    volunteer: dict,
+    flight: dict,
+    ignore_assignment_id: int | None = None,
+) -> str | None:
+    if not _has_availability_info(volunteer):
+        return None
+    if not volunteer_is_compatible_with_flight(volunteer, flight):
+        return "unavailable"
+    if _volunteer_has_conflict(
+        context,
+        volunteer_snapshot_id=int(volunteer["snapshot_id"]),
+        flight=flight,
+        ignore_assignment_id=ignore_assignment_id,
+    ):
+        return "conflict"
+    return None
+
+
 def _build_date_options(*, flights: list[dict], selected_date: str) -> list[dict[str, object]]:
     grouped: dict[str, list[dict]] = defaultdict(list)
     for flight in flights:
@@ -233,6 +305,12 @@ def _build_flight_options(
         )
         if tone is None:
             continue
+        reason_code = explain_flight_rejection(
+            context,
+            shipment=shipment,
+            flight=flight,
+            ignore_assignment_id=ignore_assignment_id,
+        )
         options.append(
             {
                 "value": str(flight["snapshot_id"]),
@@ -244,6 +322,8 @@ def _build_flight_options(
                 "date_value": str(flight.get("departure_date") or ""),
                 "date_label": _format_flight_date(flight.get("departure_date")),
                 "tone": tone,
+                "reason_code": reason_code or "",
+                "reason_label": FLIGHT_REASON_LABELS.get(reason_code or "", ""),
                 "option_style": _option_style(tone),
                 "selected": int(flight["snapshot_id"]) == int(selected_flight_id or 0),
             }
@@ -263,13 +343,22 @@ def _build_volunteer_options(
     flights = sorted(context["flights"].values(), key=_flight_sort_key)
     for volunteer in context["volunteers"].values():
         tones_by_flight = {}
+        reasons_by_flight = {}
         for flight in flights:
-            tones_by_flight[str(flight["snapshot_id"])] = _volunteer_tone_for_flight(
+            flight_key = str(flight["snapshot_id"])
+            tones_by_flight[flight_key] = _volunteer_tone_for_flight(
                 context,
                 volunteer=volunteer,
                 flight=flight,
                 ignore_assignment_id=ignore_assignment_id,
             )
+            reason_code = explain_volunteer_rejection(
+                context,
+                volunteer=volunteer,
+                flight=flight,
+                ignore_assignment_id=ignore_assignment_id,
+            )
+            reasons_by_flight[flight_key] = reason_code or ""
         tone = tones_by_flight.get(selected_flight_id, "none") if selected_flight else "none"
         options.append(
             {
@@ -278,6 +367,7 @@ def _build_volunteer_options(
                 "tone": tone,
                 "option_style": _option_style(tone),
                 "tones_by_flight": tones_by_flight,
+                "reasons_by_flight": reasons_by_flight,
                 "selected": int(volunteer["snapshot_id"]) == int(selected_volunteer_id or 0),
             }
         )
@@ -329,6 +419,7 @@ def build_unassigned_editor_options(
         shipment=shipment,
         selected_flight_id=None,
     )
+    has_assignable_flight = any(item["tone"] in {"green", "orange"} for item in flight_options)
     selected_flight_option = (
         next(
             (item for item in flight_options if item["tone"] == "green"),
@@ -343,9 +434,27 @@ def build_unassigned_editor_options(
     return {
         "flight_options": flight_options,
         "selected_flight_id": selected_flight_option["value"] if selected_flight_option else "",
+        "has_assignable_flight": has_assignable_flight,
+        "blocking_reason": _summarize_unassigned_blocking_reason(flight_options),
         "volunteer_options": _build_volunteer_options(
             context,
             selected_flight=selected_flight,
             selected_volunteer_id=None,
         ),
     }
+
+
+def _summarize_unassigned_blocking_reason(flight_options: list[dict[str, object]]) -> str:
+    if not flight_options:
+        return "Aucun vol disponible pour cette destination."
+    reason_labels = [
+        str(item.get("reason_label") or "").strip()
+        for item in flight_options
+        if item.get("tone") == "red" and item.get("reason_label")
+    ]
+    unique_reason_labels = list(dict.fromkeys(label for label in reason_labels if label))
+    if len(unique_reason_labels) == 1:
+        return f"Aucun vol actuellement assignable: {unique_reason_labels[0].lower()}."
+    if unique_reason_labels:
+        return "Aucun vol actuellement assignable: plusieurs contraintes bloquent cette expedition."
+    return "Aucun vol actuellement assignable pour cette expedition."
