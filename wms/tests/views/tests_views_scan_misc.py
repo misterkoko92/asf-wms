@@ -56,7 +56,17 @@ class ScanMiscViewsTests(TestCase):
         self.assertEqual(response["Cache-Control"], "no-cache")
         self.assertEqual(response["Service-Worker-Allowed"], "/scan/")
         self.assertIn("CACHE_NAME", response.content.decode())
+        self.assertIn("wms-scan-v50", response.content.decode())
         self.assertEqual(response["Content-Type"], "application/javascript")
+
+    def test_scan_base_registers_versioned_service_worker_url(self):
+        response = self.client.get(reverse("scan:scan_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            f'{reverse("scan:scan_service_worker")}?v=50',
+        )
 
     @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
     def test_scan_faq_renders_native_english_when_runtime_disabled(self):

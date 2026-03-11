@@ -11,8 +11,9 @@ ACTIVE_UI_LAB = "ui_lab"
 SHELL_CLASS_WIDE = "scan-shell-wide"
 SCAN_SW_ALLOWED_SCOPE = "/scan/"
 CACHE_CONTROL_NO_CACHE = "no-cache"
+SCAN_SERVICE_WORKER_VERSION = "50"
 
-SERVICE_WORKER_JS = """const CACHE_NAME = 'wms-scan-v49';
+SERVICE_WORKER_JS = """const CACHE_NAME = 'wms-scan-v__VERSION__';
 const ASSETS = [
   '/static/scan/scan.css',
   '/static/scan/scan.js',
@@ -51,7 +52,7 @@ self.addEventListener('fetch', event => {
     caches.match(event.request).then(response => response || fetch(event.request))
   );
 });
-"""
+""".replace("__VERSION__", SCAN_SERVICE_WORKER_VERSION)
 
 
 def _build_faq_context():

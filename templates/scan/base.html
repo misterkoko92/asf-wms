@@ -91,6 +91,9 @@
                 <li class="nav-item">
                   <a href="{% url 'scan:scan_shipments_tracking' %}" class="nav-link{% if active == 'shipments_tracking' %} active{% endif %}">{% trans "Suivi expéditions" %}</a>
                 </li>
+                <li class="nav-item">
+                  <a href="{% url 'planning:run_list' %}" class="nav-link">{% trans "Planning" %}</a>
+                </li>
                 {% if scan_billing_visible %}
                   <li class="nav-item dropdown">
                     <button class="nav-link dropdown-toggle btn-tertiary{% if active == 'billing_settings' or active == 'billing_equivalence' or active == 'billing_editor' %} active{% endif %}" type="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -185,7 +188,7 @@
   <script src="{% static 'scan/scan.js' %}"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register("{% url 'scan:scan_service_worker' %}")
+      navigator.serviceWorker.register("{% url 'scan:scan_service_worker' %}?v=50")
         .then(function(registration) {
           if (registration.update) {
             registration.update();
