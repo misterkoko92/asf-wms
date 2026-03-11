@@ -102,6 +102,13 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "Vue Stock")
         self.assertContains(response, "Vue Réception")
 
+    def test_scan_nav_includes_planning_link(self):
+        response = self.client.get(reverse("scan:scan_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Planning")
+        self.assertContains(response, reverse("planning:run_list"))
+
     def test_scan_nav_shows_billing_dropdown_for_superuser(self):
         self.client.force_login(self.superuser)
 
