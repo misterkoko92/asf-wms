@@ -69,6 +69,7 @@
                           {% for option in item.editor_options.volunteer_options %}
                             <option
                               value="{{ option.value }}"
+                              {% if option.selected %}selected{% endif %}
                               {% if option.option_style %}style="{{ option.option_style }}"{% endif %}
                               data-flight-tones="{% for flight_id, tone in option.tones_by_flight.items %}{% if not forloop.first %},{% endif %}{{ flight_id }}:{{ tone }}{% endfor %}"
                             >
@@ -77,7 +78,7 @@
                           {% endfor %}
                         </select>
                       </div>
-                      {% if not item.editor_options.has_assignable_flight %}
+                      {% if not item.editor_options.has_assignable_pair %}
                         <p class="scan-help ui-comp-note mb-0">
                           {{ item.editor_options.blocking_reason }}
                         </p>
@@ -85,7 +86,7 @@
                       <button
                         type="submit"
                         class="btn btn-sm btn-primary align-self-start"
-                        {% if not item.editor_options.has_assignable_flight %}disabled{% endif %}
+                        {% if not item.editor_options.has_assignable_pair %}disabled{% endif %}
                       >
                         {% trans "Valider" %}
                       </button>

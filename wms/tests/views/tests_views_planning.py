@@ -1,3 +1,4 @@
+import re
 from unittest import mock
 
 from django.contrib.auth import get_user_model
@@ -450,6 +451,70 @@ class PlanningViewTests(TestCase):
         self.assertEqual(created.volunteer_snapshot, data["volunteer_bob"])
         self.assertEqual(created.flight_snapshot, data["flight_af910"])
         self.assertEqual(created.source, PlanningAssignmentSource.MANUAL)
+
+    def test_unassigned_operator_block_renders_selected_compatible_volunteer(self):
+        run = PlanningRun.objects.create(
+            week_start="2026-03-09",
+            week_end="2026-03-15",
+            parameter_set=self.parameter_set,
+            status=PlanningRunStatus.SOLVED,
+            created_by=self.staff_user,
+        )
+        version = PlanningVersion.objects.create(
+            run=run,
+            status=PlanningVersionStatus.DRAFT,
+            created_by=self.staff_user,
+        )
+        PlanningShipmentSnapshot.objects.create(
+            run=run,
+            shipment_reference="260129",
+            shipper_name="ASF",
+            destination_iata="NSI",
+            carton_count=2,
+            equivalent_units=2,
+        )
+        volunteer_alice = PlanningVolunteerSnapshot.objects.create(
+            run=run,
+            volunteer_label="Alice",
+            availability_summary={"slots": [], "unavailable_dates": ["2026-03-11"]},
+        )
+        volunteer_bob = PlanningVolunteerSnapshot.objects.create(
+            run=run,
+            volunteer_label="Bob",
+            availability_summary={
+                "slots": [{"date": "2026-03-12", "start_time": "07:00", "end_time": "18:00"}],
+                "unavailable_dates": [],
+            },
+        )
+        PlanningFlightSnapshot.objects.create(
+            run=run,
+            flight_number="AF908",
+            departure_date="2026-03-11",
+            destination_iata="NSI",
+            capacity_units=10,
+            payload={"departure_time": "11:10", "routing": "CDG-NSI"},
+        )
+        late_flight = PlanningFlightSnapshot.objects.create(
+            run=run,
+            flight_number="AF910",
+            departure_date="2026-03-12",
+            destination_iata="NSI",
+            capacity_units=10,
+            payload={"departure_time": "13:10", "routing": "CDG-NSI"},
+        )
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("planning:version_detail", args=[version.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertRegex(
+            response.content.decode(),
+            rf'<option[^>]*value="{volunteer_bob.pk}"[^>]*selected[^>]*>',
+        )
+        self.assertRegex(
+            response.content.decode(),
+            rf'<option[^>]*value="{late_flight.pk}"[^>]*selected[^>]*>',
+        )
 
     def test_staff_gets_precise_reason_when_unassigned_shipment_exceeds_remaining_capacity(self):
         data = self.make_operator_version()

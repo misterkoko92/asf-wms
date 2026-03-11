@@ -15,7 +15,10 @@ from wms.models import (
     PlanningVersionStatus,
     PlanningVolunteerSnapshot,
 )
-from wms.planning.operator_options import build_assignment_editor_options
+from wms.planning.operator_options import (
+    build_assignment_editor_options,
+    build_unassigned_editor_options,
+)
 
 
 class PlanningOperatorOptionsTests(TestCase):
@@ -162,5 +165,94 @@ class PlanningOperatorOptionsTests(TestCase):
         )
         self.assertEqual(
             volunteer_by_label["FILOU Thierry"]["tones_by_flight"][str(flight_green.pk)],
+            "green",
+        )
+
+    def test_build_unassigned_editor_options_preselects_first_compatible_volunteer(self):
+        shipment = PlanningShipmentSnapshot.objects.create(
+            run=self.run,
+            shipment_reference="260200",
+            shipper_name="ASF",
+            destination_iata="NSI",
+            carton_count=2,
+            equivalent_units=2,
+        )
+        volunteer_red = PlanningVolunteerSnapshot.objects.create(
+            run=self.run,
+            volunteer_label="ALPHA Red",
+            availability_summary={"slots": [], "unavailable_dates": ["2026-03-11"]},
+        )
+        volunteer_green = PlanningVolunteerSnapshot.objects.create(
+            run=self.run,
+            volunteer_label="BRAVO Green",
+            availability_summary={
+                "slots": [{"date": "2026-03-11", "start_time": "07:00", "end_time": "18:00"}],
+                "unavailable_dates": [],
+            },
+        )
+        flight = PlanningFlightSnapshot.objects.create(
+            run=self.run,
+            flight_number="AF910",
+            departure_date=date(2026, 3, 11),
+            destination_iata="NSI",
+            capacity_units=10,
+            payload={"departure_time": "13:10", "routing": "CDG-NSI"},
+        )
+
+        options = build_unassigned_editor_options(self.version, shipment_snapshot=shipment)
+
+        self.assertEqual(options["selected_flight_id"], str(flight.pk))
+        volunteer_by_label = {item["label"]: item for item in options["volunteer_options"]}
+        self.assertEqual(volunteer_by_label["ALPHA Red"]["tone"], "red")
+        self.assertEqual(volunteer_by_label["BRAVO Green"]["tone"], "green")
+        self.assertTrue(volunteer_by_label["BRAVO Green"]["selected"])
+        self.assertFalse(volunteer_by_label["ALPHA Red"]["selected"])
+
+    def test_build_unassigned_editor_options_prefers_assignable_flight_volunteer_pair(self):
+        shipment = PlanningShipmentSnapshot.objects.create(
+            run=self.run,
+            shipment_reference="260201",
+            shipper_name="ASF",
+            destination_iata="NSI",
+            carton_count=2,
+            equivalent_units=2,
+        )
+        volunteer = PlanningVolunteerSnapshot.objects.create(
+            run=self.run,
+            volunteer_label="BRAVO Green",
+            availability_summary={
+                "slots": [{"date": "2026-03-12", "start_time": "07:00", "end_time": "18:00"}],
+                "unavailable_dates": [],
+            },
+        )
+        early_flight = PlanningFlightSnapshot.objects.create(
+            run=self.run,
+            flight_number="AF908",
+            departure_date=date(2026, 3, 11),
+            destination_iata="NSI",
+            capacity_units=10,
+            payload={"departure_time": "11:10", "routing": "CDG-NSI"},
+        )
+        late_flight = PlanningFlightSnapshot.objects.create(
+            run=self.run,
+            flight_number="AF910",
+            departure_date=date(2026, 3, 12),
+            destination_iata="NSI",
+            capacity_units=10,
+            payload={"departure_time": "13:10", "routing": "CDG-NSI"},
+        )
+
+        options = build_unassigned_editor_options(self.version, shipment_snapshot=shipment)
+
+        self.assertEqual(options["selected_flight_id"], str(late_flight.pk))
+        self.assertTrue(options["has_assignable_pair"])
+        volunteer_by_label = {item["label"]: item for item in options["volunteer_options"]}
+        self.assertTrue(volunteer_by_label["BRAVO Green"]["selected"])
+        self.assertEqual(
+            volunteer_by_label["BRAVO Green"]["tones_by_flight"][str(early_flight.pk)],
+            "red",
+        )
+        self.assertEqual(
+            volunteer_by_label["BRAVO Green"]["tones_by_flight"][str(late_flight.pk)],
             "green",
         )

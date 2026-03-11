@@ -375,6 +375,69 @@ def _build_volunteer_options(
     return options
 
 
+def _volunteer_selection_rank(tone: str) -> int:
+    if tone == "green":
+        return 2
+    if tone == "none":
+        return 1
+    return 0
+
+
+def _pick_preferred_volunteer_id(
+    context: dict[str, object],
+    *,
+    flight: dict | None,
+    ignore_assignment_id: int | None = None,
+) -> int | None:
+    if flight is None:
+        return None
+    ranked_candidates: list[tuple[int, str, int]] = []
+    for volunteer in context["volunteers"].values():
+        tone = _volunteer_tone_for_flight(
+            context,
+            volunteer=volunteer,
+            flight=flight,
+            ignore_assignment_id=ignore_assignment_id,
+        )
+        rank = _volunteer_selection_rank(tone)
+        if rank <= 0:
+            continue
+        ranked_candidates.append(
+            (
+                rank,
+                str(volunteer.get("label") or "").lower(),
+                int(volunteer["snapshot_id"]),
+            )
+        )
+    if not ranked_candidates:
+        return None
+    ranked_candidates.sort(key=lambda item: (-item[0], item[1], item[2]))
+    return ranked_candidates[0][2]
+
+
+def _pick_preferred_unassigned_flight_option(
+    context: dict[str, object],
+    *,
+    flight_options: list[dict[str, object]],
+) -> tuple[dict[str, object] | None, int | None]:
+    selectable_flights = [item for item in flight_options if item["tone"] in {"green", "orange"}]
+    for preferred_tone in ("green", "orange"):
+        for option in selectable_flights:
+            if option["tone"] != preferred_tone:
+                continue
+            volunteer_id = _pick_preferred_volunteer_id(
+                context,
+                flight=context["flights"][int(option["value"])],
+            )
+            if volunteer_id is not None:
+                return option, volunteer_id
+    if selectable_flights:
+        return selectable_flights[0], None
+    if flight_options:
+        return flight_options[0], None
+    return None, None
+
+
 def build_assignment_editor_options(
     version: PlanningVersion,
     *,
@@ -420,31 +483,38 @@ def build_unassigned_editor_options(
         selected_flight_id=None,
     )
     has_assignable_flight = any(item["tone"] in {"green", "orange"} for item in flight_options)
-    selected_flight_option = (
-        next(
-            (item for item in flight_options if item["tone"] == "green"),
-            None,
-        )
-        or next((item for item in flight_options if item["tone"] == "orange"), None)
-        or (flight_options[0] if flight_options else None)
+    selected_flight_option, selected_volunteer_id = _pick_preferred_unassigned_flight_option(
+        context,
+        flight_options=flight_options,
     )
     selected_flight = (
         context["flights"][int(selected_flight_option["value"])] if selected_flight_option else None
     )
+    has_assignable_pair = selected_volunteer_id is not None and selected_flight is not None
     return {
         "flight_options": flight_options,
         "selected_flight_id": selected_flight_option["value"] if selected_flight_option else "",
         "has_assignable_flight": has_assignable_flight,
-        "blocking_reason": _summarize_unassigned_blocking_reason(flight_options),
+        "has_assignable_pair": has_assignable_pair,
+        "blocking_reason": _summarize_unassigned_blocking_reason(
+            flight_options,
+            has_assignable_pair=has_assignable_pair,
+        ),
         "volunteer_options": _build_volunteer_options(
             context,
             selected_flight=selected_flight,
-            selected_volunteer_id=None,
+            selected_volunteer_id=selected_volunteer_id,
         ),
     }
 
 
-def _summarize_unassigned_blocking_reason(flight_options: list[dict[str, object]]) -> str:
+def _summarize_unassigned_blocking_reason(
+    flight_options: list[dict[str, object]],
+    *,
+    has_assignable_pair: bool,
+) -> str:
+    if has_assignable_pair:
+        return ""
     if not flight_options:
         return "Aucun vol disponible pour cette destination."
     reason_labels = [
@@ -457,4 +527,4 @@ def _summarize_unassigned_blocking_reason(flight_options: list[dict[str, object]
         return f"Aucun vol actuellement assignable: {unique_reason_labels[0].lower()}."
     if unique_reason_labels:
         return "Aucun vol actuellement assignable: plusieurs contraintes bloquent cette expedition."
-    return "Aucun vol actuellement assignable pour cette expedition."
+    return "Aucun couple vol/benevole actuellement assignable pour cette expedition."
