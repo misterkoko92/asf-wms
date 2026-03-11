@@ -127,6 +127,7 @@ def build_communication_draft_formset(version, *, data=None):
     return PlanningCommunicationDraftFormSet(
         data=data,
         queryset=version.communication_drafts.select_related("template").order_by(
+            "family",
             "channel",
             "recipient_label",
             "id",

@@ -337,9 +337,10 @@ class PlanningVersionDashboardTests(TestCase):
         )
         CommunicationDraft.objects.create(
             version=current,
-            channel=CommunicationChannel.EMAIL,
+            channel=CommunicationChannel.WHATSAPP,
+            family="whatsapp_benevole",
             recipient_label="Bob",
-            recipient_contact="bob@example.com",
+            recipient_contact="",
             subject="Planning Bob",
             body="Vol AF456",
         )
@@ -354,14 +355,26 @@ class PlanningVersionDashboardTests(TestCase):
 
         self.assertTrue(dashboard["history"]["has_parent"])
         self.assertEqual(dashboard["history"]["assignment_changes"]["changed_count"], 1)
-        self.assertEqual(len(dashboard["communications"]["groups"]), 2)
-        self.assertEqual(dashboard["communications"]["groups"][0]["recipient_label"], "Bob")
-        self.assertEqual(dashboard["communications"]["groups"][0]["change_status"], "new")
+        self.assertEqual(len(dashboard["communications"]["groups"]), 5)
         self.assertEqual(
-            dashboard["communications"]["groups"][0]["drafts"][0]["subject"], "Planning Bob"
+            dashboard["communications"]["groups"][0]["family_key"], "whatsapp_benevole"
         )
-        self.assertEqual(dashboard["communications"]["groups"][1]["recipient_label"], "Alice")
-        self.assertEqual(dashboard["communications"]["groups"][1]["change_status"], "cancelled")
+        whatsapp_drafts = {
+            draft["recipient_label"]: draft
+            for draft in dashboard["communications"]["groups"][0]["drafts"]
+        }
+        self.assertEqual(
+            whatsapp_drafts["Bob"]["change_status"],
+            "new",
+        )
+        self.assertEqual(
+            whatsapp_drafts["Bob"]["subject"],
+            "Planning Bob",
+        )
+        self.assertEqual(
+            whatsapp_drafts["Alice"]["change_status"],
+            "cancelled",
+        )
         self.assertEqual(dashboard["exports"]["artifacts"][0]["label"], "Planning v2")
 
     def test_build_version_dashboard_prioritizes_changed_communication_groups(self):

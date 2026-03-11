@@ -11,6 +11,7 @@ from wms.planning.communication_plan import (
     CHANGE_STATUS_PRIORITY,
     build_version_communication_plan,
 )
+from wms.planning.legacy_communications import family_label, family_order_key
 from wms.planning.stats import build_version_stats
 from wms.planning.versioning import diff_versions
 
@@ -325,27 +326,13 @@ def _build_history(version: PlanningVersion) -> dict[str, object]:
 def _draft_payload(draft) -> dict[str, object]:
     return {
         "draft_id": draft.pk,
+        "family": draft.family,
         "subject": draft.subject,
         "body": draft.body,
         "status": draft.status,
         "template_label": draft.template.label if draft.template_id else "",
-    }
-
-
-def _build_legacy_draft_group(key, drafts: list[dict[str, object]]) -> dict[str, object]:
-    channel, recipient_label = key
-    return {
-        "channel": channel,
-        "channel_label": _channel_label(channel),
-        "recipient_label": recipient_label,
-        "recipient_contact": "",
-        "change_status": "unchanged",
-        "change_status_label": COMMUNICATION_CHANGE_LABELS["unchanged"],
-        "change_summary": "Aucun changement",
-        "changed_since_parent": False,
-        "is_priority": False,
-        "is_collapsed": True,
-        "drafts": drafts,
+        "recipient_label": draft.recipient_label,
+        "recipient_contact": draft.recipient_contact,
     }
 
 
@@ -355,24 +342,53 @@ def _channel_label(channel: str) -> str:
 
 
 def _build_communications(version: PlanningVersion) -> dict[str, object]:
-    drafts_by_key: dict[tuple[str, str], list[dict[str, object]]] = defaultdict(list)
+    plan = build_version_communication_plan(version)
+    plan_items_by_key = {
+        (item.family, item.recipient_label, item.recipient_contact): item for item in plan.items
+    }
+    drafts_by_key: dict[tuple[str, str, str], list[dict[str, object]]] = defaultdict(list)
     for draft in version.communication_drafts.select_related("template").order_by(
+        "family",
         "channel",
         "recipient_label",
         "id",
     ):
-        drafts_by_key[(draft.channel, draft.recipient_label or "")].append(_draft_payload(draft))
+        plan_item = plan_items_by_key.get(
+            (draft.family or "", draft.recipient_label or "", draft.recipient_contact or "")
+        )
+        payload = _draft_payload(draft)
+        if plan_item is not None:
+            payload.update(
+                {
+                    "change_status": plan_item.change_status,
+                    "change_status_label": COMMUNICATION_CHANGE_LABELS.get(
+                        plan_item.change_status,
+                        plan_item.change_status,
+                    ),
+                    "change_summary": plan_item.change_summary,
+                }
+            )
+        else:
+            payload.update(
+                {
+                    "change_status": "unchanged",
+                    "change_status_label": COMMUNICATION_CHANGE_LABELS["unchanged"],
+                    "change_summary": "Aucun changement",
+                }
+            )
+        drafts_by_key[(draft.family or "", draft.channel, draft.recipient_label or "")].append(
+            payload
+        )
 
-    plan = build_version_communication_plan(version)
-    groups: list[dict[str, object]] = []
+    groups_by_family: dict[str, dict[str, object]] = {}
     for item in plan.items:
-        key = (item.channel, item.recipient_label)
-        groups.append(
-            {
+        group = groups_by_family.get(item.family)
+        if group is None:
+            group = {
+                "family_key": item.family,
+                "family_label": item.family_label,
                 "channel": item.channel,
                 "channel_label": _channel_label(item.channel),
-                "recipient_label": item.recipient_label,
-                "recipient_contact": "",
                 "change_status": item.change_status,
                 "change_status_label": COMMUNICATION_CHANGE_LABELS.get(
                     item.change_status,
@@ -382,20 +398,74 @@ def _build_communications(version: PlanningVersion) -> dict[str, object]:
                 "changed_since_parent": item.change_status != "unchanged",
                 "is_priority": item.change_status != "unchanged",
                 "is_collapsed": item.change_status == "unchanged",
-                "drafts": drafts_by_key.pop(key, []),
+                "drafts": [],
             }
-        )
+            groups_by_family[item.family] = group
+        elif CHANGE_STATUS_PRIORITY.get(item.change_status, 99) < CHANGE_STATUS_PRIORITY.get(
+            group["change_status"], 99
+        ):
+            group["change_status"] = item.change_status
+            group["change_status_label"] = COMMUNICATION_CHANGE_LABELS.get(
+                item.change_status,
+                item.change_status,
+            )
+            group["change_summary"] = item.change_summary
+            group["changed_since_parent"] = item.change_status != "unchanged"
+            group["is_priority"] = item.change_status != "unchanged"
+            group["is_collapsed"] = item.change_status == "unchanged"
 
-    for key, drafts in drafts_by_key.items():
-        groups.append(_build_legacy_draft_group(key, drafts))
+        key = (item.family, item.channel, item.recipient_label)
+        family_drafts = drafts_by_key.pop(key, [])
+        if family_drafts:
+            group["drafts"].extend(family_drafts)
+        else:
+            group["drafts"].append(
+                {
+                    "draft_id": None,
+                    "family": item.family,
+                    "recipient_label": item.recipient_label,
+                    "recipient_contact": item.recipient_contact,
+                    "subject": "",
+                    "body": "",
+                    "status": "generated",
+                    "template_label": "",
+                    "change_status": item.change_status,
+                    "change_status_label": COMMUNICATION_CHANGE_LABELS.get(
+                        item.change_status,
+                        item.change_status,
+                    ),
+                    "change_summary": item.change_summary,
+                }
+            )
 
-    groups.sort(
-        key=lambda item: (
-            CHANGE_STATUS_PRIORITY.get(item["change_status"], 99),
-            item["recipient_label"].lower(),
-            item["channel"],
+    for (family, channel, recipient_label), drafts in drafts_by_key.items():
+        group = groups_by_family.setdefault(
+            family,
+            {
+                "family_key": family,
+                "family_label": family_label(family) if family else _channel_label(channel),
+                "channel": channel,
+                "channel_label": _channel_label(channel),
+                "change_status": "unchanged",
+                "change_status_label": COMMUNICATION_CHANGE_LABELS["unchanged"],
+                "change_summary": "Aucun changement",
+                "changed_since_parent": False,
+                "is_priority": False,
+                "is_collapsed": True,
+                "drafts": [],
+            },
         )
-    )
+        group["drafts"].extend(drafts)
+
+    groups = list(groups_by_family.values())
+    for group in groups:
+        group["drafts"].sort(
+            key=lambda draft: (
+                (draft.get("recipient_label") or "").lower(),
+                draft.get("subject") or "",
+            )
+        )
+    groups.sort(key=lambda item: family_order_key(item["family_key"]))
     return {
         "draft_count": sum(len(group["drafts"]) for group in groups),
         "groups": groups,

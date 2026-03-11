@@ -574,7 +574,7 @@ class PlanningViewTests(TestCase):
         )
 
         self.assertRedirects(response, reverse("planning:version_detail", args=[version.pk]))
-        self.assertEqual(version.communication_drafts.count(), 1)
+        self.assertEqual(version.communication_drafts.count(), 3)
 
     def test_generating_drafts_from_draft_version_shows_error(self):
         version, _assignment, _volunteer_bob, _flight_af456 = self.make_version_with_assignment(
@@ -695,6 +695,7 @@ class PlanningViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Modifie")
         self.assertContains(response, "Inchange")
+        self.assertContains(response, "WhatsApp bénévoles")
 
     def test_staff_can_clone_published_version(self):
         version, _assignment, _volunteer_bob, _flight_af456 = self.make_version_with_assignment(
