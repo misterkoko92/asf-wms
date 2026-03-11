@@ -672,6 +672,24 @@ class PlanningViewTests(TestCase):
         self.assertGreaterEqual(content.count("scan-table-wrap table-responsive"), 3)
         self.assertGreaterEqual(content.count("scan-table table table-sm table-hover"), 3)
 
+    def test_version_detail_renders_week_view_and_planning_summary_cards(self):
+        data = self.make_operator_version()
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("planning:version_detail", args=[data["version"].pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Vue Semaine")
+        self.assertContains(response, "Disponibilites benevoles (vue semaine)")
+        self.assertContains(response, "Vols disponibles (vue semaine)")
+        self.assertContains(response, "Bilan Planning")
+        self.assertContains(response, "Alice (2)")
+        self.assertContains(response, "NSI (6)")
+        self.assertContains(response, "Nb_Dispo")
+        self.assertContains(response, "Nb_Jours_Affectes")
+        self.assertContains(response, "Nb_Vols_Affectes")
+        self.assertContains(response, "Nb_BE_Affectes")
+
     def test_generating_drafts_from_version_detail_regenerates_aggregated_series(self):
         version, _assignment, _volunteer_bob, flight_af456 = self.make_version_with_assignment(
             status=PlanningVersionStatus.PUBLISHED

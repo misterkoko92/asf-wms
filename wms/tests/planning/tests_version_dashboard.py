@@ -271,6 +271,208 @@ class PlanningVersionDashboardTests(TestCase):
             "Aucune compatibilite complete",
         )
 
+    def test_build_version_dashboard_exposes_week_view_tables(self):
+        version = PlanningVersion.objects.create(
+            run=self.run,
+            status=PlanningVersionStatus.DRAFT,
+            created_by=self.user,
+        )
+        volunteer_alice = PlanningVolunteerSnapshot.objects.create(
+            run=self.run,
+            volunteer_label="Alice",
+            availability_summary={
+                "slots": [
+                    {"date": "2026-03-10", "start_time": "07:00", "end_time": "18:00"},
+                    {"date": "2026-03-11", "start_time": "08:00", "end_time": "17:00"},
+                ],
+                "unavailable_dates": [],
+            },
+        )
+        PlanningVolunteerSnapshot.objects.create(
+            run=self.run,
+            volunteer_label="Bob",
+            availability_summary={
+                "slots": [{"date": "2026-03-11", "start_time": "09:00", "end_time": "12:00"}],
+                "unavailable_dates": [],
+            },
+        )
+        shipment_nsi_a = PlanningShipmentSnapshot.objects.create(
+            run=self.run,
+            shipment_reference="260128",
+            shipper_name="ASF",
+            destination_iata="NSI",
+            priority=1,
+            carton_count=4,
+            equivalent_units=4,
+        )
+        PlanningShipmentSnapshot.objects.create(
+            run=self.run,
+            shipment_reference="260129",
+            shipper_name="ASF",
+            destination_iata="NSI",
+            priority=2,
+            carton_count=2,
+            equivalent_units=2,
+        )
+        shipment_run = PlanningShipmentSnapshot.objects.create(
+            run=self.run,
+            shipment_reference="260130",
+            shipper_name="ASF",
+            destination_iata="RUN",
+            priority=3,
+            carton_count=3,
+            equivalent_units=3,
+        )
+        flight_nsi = PlanningFlightSnapshot.objects.create(
+            run=self.run,
+            flight_number="AF908",
+            departure_date="2026-03-10",
+            destination_iata="NSI",
+            capacity_units=10,
+            payload={"departure_time": "11:10", "routing": "CDG-NSI"},
+        )
+        PlanningFlightSnapshot.objects.create(
+            run=self.run,
+            flight_number="AF910",
+            departure_date="2026-03-11",
+            destination_iata="NSI",
+            capacity_units=8,
+            payload={"departure_time": "13:10", "routing": "CDG-NSI"},
+        )
+        flight_run = PlanningFlightSnapshot.objects.create(
+            run=self.run,
+            flight_number="AF652",
+            departure_date="2026-03-11",
+            destination_iata="RUN",
+            capacity_units=12,
+            payload={"departure_time": "18:20", "routing": "CDG-RUN"},
+        )
+        PlanningAssignment.objects.create(
+            version=version,
+            shipment_snapshot=shipment_run,
+            volunteer_snapshot=volunteer_alice,
+            flight_snapshot=flight_run,
+            assigned_carton_count=3,
+            source=PlanningAssignmentSource.SOLVER,
+            sequence=1,
+        )
+        PlanningAssignment.objects.create(
+            version=version,
+            shipment_snapshot=shipment_nsi_a,
+            volunteer_snapshot=volunteer_alice,
+            flight_snapshot=flight_nsi,
+            assigned_carton_count=4,
+            source=PlanningAssignmentSource.SOLVER,
+            sequence=2,
+        )
+
+        dashboard = build_version_dashboard(version)
+
+        self.assertEqual(
+            [item["short_label"] for item in dashboard["week_view"]["day_labels"][:3]],
+            ["Lun 09/03", "Mar 10/03", "Mer 11/03"],
+        )
+        volunteer_row = dashboard["week_view"]["volunteer_rows"][0]
+        self.assertEqual(volunteer_row["display_label"], "Alice (2)")
+        self.assertEqual(volunteer_row["cells"][1]["label"], "07h00-18h00")
+        self.assertEqual(volunteer_row["cells"][1]["status"], "available")
+        self.assertEqual(volunteer_row["cells"][2]["label"], "08h00-17h00")
+        flight_row_nsi = dashboard["week_view"]["flight_rows"][0]
+        self.assertEqual(flight_row_nsi["destination_label"], "NSI (6)")
+        self.assertEqual(
+            flight_row_nsi["cells"][1]["entries"][0]["label"],
+            "11h10 · AF 908 · CDG-NSI",
+        )
+        self.assertEqual(flight_row_nsi["cells"][1]["entries"][0]["status"], "used")
+
+    def test_build_version_dashboard_exposes_planning_summary_per_volunteer(self):
+        version = PlanningVersion.objects.create(
+            run=self.run,
+            status=PlanningVersionStatus.DRAFT,
+            created_by=self.user,
+        )
+        volunteer_alice = PlanningVolunteerSnapshot.objects.create(
+            run=self.run,
+            volunteer_label="Alice",
+            availability_summary={
+                "slots": [
+                    {"date": "2026-03-10", "start_time": "07:00", "end_time": "18:00"},
+                    {"date": "2026-03-11", "start_time": "08:00", "end_time": "17:00"},
+                ],
+                "unavailable_dates": [],
+            },
+        )
+        PlanningVolunteerSnapshot.objects.create(
+            run=self.run,
+            volunteer_label="Bob",
+            availability_summary={"slots": [], "unavailable_dates": []},
+        )
+        shipment_a = PlanningShipmentSnapshot.objects.create(
+            run=self.run,
+            shipment_reference="260128",
+            shipper_name="ASF",
+            destination_iata="NSI",
+            priority=1,
+            carton_count=4,
+            equivalent_units=4,
+        )
+        shipment_b = PlanningShipmentSnapshot.objects.create(
+            run=self.run,
+            shipment_reference="260129",
+            shipper_name="ASF",
+            destination_iata="RUN",
+            priority=2,
+            carton_count=2,
+            equivalent_units=2,
+        )
+        flight_a = PlanningFlightSnapshot.objects.create(
+            run=self.run,
+            flight_number="AF908",
+            departure_date="2026-03-10",
+            destination_iata="NSI",
+            capacity_units=10,
+            payload={"departure_time": "11:10", "routing": "CDG-NSI"},
+        )
+        flight_b = PlanningFlightSnapshot.objects.create(
+            run=self.run,
+            flight_number="AF652",
+            departure_date="2026-03-11",
+            destination_iata="RUN",
+            capacity_units=12,
+            payload={"departure_time": "18:20", "routing": "CDG-RUN"},
+        )
+        PlanningAssignment.objects.create(
+            version=version,
+            shipment_snapshot=shipment_a,
+            volunteer_snapshot=volunteer_alice,
+            flight_snapshot=flight_a,
+            assigned_carton_count=4,
+            source=PlanningAssignmentSource.SOLVER,
+            sequence=1,
+        )
+        PlanningAssignment.objects.create(
+            version=version,
+            shipment_snapshot=shipment_b,
+            volunteer_snapshot=volunteer_alice,
+            flight_snapshot=flight_b,
+            assigned_carton_count=2,
+            source=PlanningAssignmentSource.MANUAL,
+            sequence=2,
+        )
+
+        dashboard = build_version_dashboard(version)
+
+        alice_row = dashboard["planning_summary"]["volunteer_rows"][0]
+        self.assertEqual(alice_row["volunteer_label"], "Alice")
+        self.assertEqual(alice_row["availability_count"], 2)
+        self.assertEqual(alice_row["assigned_day_count"], 2)
+        self.assertEqual(alice_row["assigned_flight_count"], 2)
+        self.assertEqual(alice_row["assigned_shipment_count"], 2)
+        self.assertEqual(
+            alice_row["availability_label"],
+            "10/03/26 07h00-18h00, 11/03/26 08h00-17h00",
+        )
+
     def test_build_version_dashboard_groups_drafts_and_parent_diff_summary(self):
         volunteer_alice = PlanningVolunteerSnapshot.objects.create(
             run=self.run,
