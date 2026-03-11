@@ -122,6 +122,123 @@ class PlanningVersionDashboardTests(TestCase):
             "SHP-001",
         )
 
+    def test_build_version_dashboard_formats_operator_header_summary(self):
+        version = PlanningVersion.objects.create(
+            run=self.run,
+            status=PlanningVersionStatus.DRAFT,
+            created_by=self.user,
+        )
+        volunteer = PlanningVolunteerSnapshot.objects.create(
+            run=self.run,
+            volunteer_label="COURTOIS Alain",
+        )
+        shipment = PlanningShipmentSnapshot.objects.create(
+            run=self.run,
+            shipment_reference="260128",
+            shipper_name="ASF",
+            destination_iata="NSI",
+            priority=1,
+            carton_count=10,
+            equivalent_units=10,
+            payload={
+                "legacy_type": "MM",
+                "legacy_destinataire": "CORRESPONDANT",
+            },
+        )
+        flight = PlanningFlightSnapshot.objects.create(
+            run=self.run,
+            flight_number="AF908",
+            departure_date="2026-03-10",
+            destination_iata="NSI",
+            capacity_units=20,
+            payload={"departure_time": "11:10", "routing": "CDG-NSI"},
+        )
+        PlanningAssignment.objects.create(
+            version=version,
+            shipment_snapshot=shipment,
+            volunteer_snapshot=volunteer,
+            flight_snapshot=flight,
+            assigned_carton_count=10,
+            source=PlanningAssignmentSource.SOLVER,
+            sequence=1,
+        )
+
+        dashboard = build_version_dashboard(version)
+
+        self.assertEqual(
+            dashboard["header"]["title"],
+            "Planning Semaine 11 (du 09/03/26 au 15/03/26)",
+        )
+        self.assertEqual(dashboard["header"]["status_badge"], "Brouillon")
+        self.assertEqual(dashboard["header"]["summary"]["flight_mode"], "hybrid")
+        self.assertEqual(dashboard["header"]["summary"]["used_flight_count"], 1)
+        self.assertEqual(dashboard["header"]["summary"]["available_carton_count"], 10)
+        self.assertEqual(dashboard["header"]["summary"]["assigned_carton_count"], 10)
+        self.assertEqual(dashboard["header"]["summary"]["available_volunteer_count"], 1)
+        self.assertEqual(dashboard["header"]["summary"]["assigned_volunteer_count"], 1)
+
+    def test_build_version_dashboard_exposes_detailed_planning_rows(self):
+        version = PlanningVersion.objects.create(
+            run=self.run,
+            status=PlanningVersionStatus.DRAFT,
+            created_by=self.user,
+        )
+        volunteer = PlanningVolunteerSnapshot.objects.create(
+            run=self.run,
+            volunteer_label="COURTOIS Alain",
+        )
+        shipment = PlanningShipmentSnapshot.objects.create(
+            run=self.run,
+            shipment_reference="260128",
+            shipper_name="ASF",
+            destination_iata="NSI",
+            priority=1,
+            carton_count=10,
+            equivalent_units=10,
+            payload={
+                "legacy_type": "MM",
+                "legacy_destinataire": "CORRESPONDANT",
+            },
+        )
+        flight = PlanningFlightSnapshot.objects.create(
+            run=self.run,
+            flight_number="AF908",
+            departure_date="2026-03-10",
+            destination_iata="NSI",
+            capacity_units=20,
+            payload={"departure_time": "11:10", "routing": "CDG-NSI"},
+        )
+        PlanningAssignment.objects.create(
+            version=version,
+            shipment_snapshot=shipment,
+            volunteer_snapshot=volunteer,
+            flight_snapshot=flight,
+            assigned_carton_count=10,
+            source=PlanningAssignmentSource.SOLVER,
+            sequence=1,
+        )
+
+        dashboard = build_version_dashboard(version)
+
+        self.assertEqual(len(dashboard["planning_rows"]), 1)
+        row = dashboard["planning_rows"][0]
+        self.assertEqual(row["assignment_id"], version.assignments.get().pk)
+        self.assertEqual(row["flight_date_label"], "Mardi 10/03/2026")
+        self.assertEqual(row["flight_time_label"], "11h10")
+        self.assertEqual(row["flight_number_label"], "AF 908")
+        self.assertEqual(row["destination_iata"], "NSI")
+        self.assertEqual(row["routing"], "CDG-NSI")
+        self.assertEqual(row["shipment_reference"], "260128")
+        self.assertEqual(row["assigned_carton_count"], 10)
+        self.assertEqual(row["equivalent_units"], 10)
+        self.assertEqual(row["volunteer_label"], "COURTOIS Alain")
+        self.assertEqual(row["shipment_type"], "MM")
+        self.assertEqual(row["shipper_name"], "ASF")
+        self.assertEqual(row["recipient_label"], "CORRESPONDANT")
+        self.assertEqual(row["status"], "proposed")
+        self.assertEqual(row["notes"], "")
+        self.assertEqual(row["source"], "solver")
+
     def test_build_version_dashboard_lists_unassigned_shipments_with_reason(self):
         version = PlanningVersion.objects.create(
             run=self.run,

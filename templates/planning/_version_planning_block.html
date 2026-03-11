@@ -5,115 +5,59 @@
     <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
       <div>
         <h2 class="h5 mb-1">{% trans "Planning" %}</h2>
-        <p class="text-muted mb-0">{% trans "Lecture principale du planning par vol." %}</p>
+        <p class="text-muted mb-0">{% trans "Lecture principale du planning par expedition affectee." %}</p>
       </div>
     </div>
 
-    {% if assignment_formset %}
-      <form method="post" class="vstack gap-3">
-        {% csrf_token %}
-        <input type="hidden" name="assignment_action" value="save">
-        {{ assignment_formset.management_form }}
-        {% for group in dashboard.flight_groups %}
-          <article class="border rounded-3 p-3">
-            <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
-              <div>
-                <h3 class="h6 mb-1">{{ group.flight_number }} · {{ group.destination_iata }}</h3>
-                <p class="text-muted mb-0">
-                  {{ group.departure_date }}{% if group.departure_time %} · {{ group.departure_time }}{% endif %}
-                </p>
-              </div>
-              <div class="text-end small">
-                <div>{% trans "Charge utilisee" %}: {{ group.used_cartons }}</div>
-                <div>{% trans "Capacite" %}: {{ group.capacity_units|default:"-" }}</div>
-                <div>{% trans "Benevole affecte" %}: {{ group.volunteer_labels|join:", "|default:"-" }}</div>
-              </div>
-            </div>
-            <div class="table-responsive">
-              <table class="table align-middle mb-0">
-                <thead>
-                  <tr>
-                    <th>{% trans "Expedition" %}</th>
-                    <th>{% trans "Benevole" %}</th>
-                    <th>{% trans "Vol" %}</th>
-                    <th>{% trans "Colis" %}</th>
-                    <th>{% trans "Statut" %}</th>
-                    <th>{% trans "Notes" %}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for assignment in group.assignments %}
-                    <tr>
-                      {{ assignment.form.id }}
-                      <td>
-                        <strong>{{ assignment.shipment_reference }}</strong><br>
-                        <small class="text-muted">{{ assignment.shipper_name|default:"-" }}</small>
-                      </td>
-                      <td>{{ assignment.form.volunteer_snapshot }}</td>
-                      <td>{{ assignment.form.flight_snapshot }}</td>
-                      <td>{{ assignment.form.assigned_carton_count }}</td>
-                      <td>{{ assignment.form.status }}</td>
-                      <td>{{ assignment.form.notes }}</td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          </article>
-        {% empty %}
-          <p class="text-muted mb-0">{% trans "Aucune affectation." %}</p>
-        {% endfor %}
-        <div class="d-flex justify-content-end">
-          <button type="submit" class="btn btn-primary">{% trans "Enregistrer les ajustements" %}</button>
-        </div>
-      </form>
-    {% else %}
-      <div class="vstack gap-3">
-        {% for group in dashboard.flight_groups %}
-          <article class="border rounded-3 p-3">
-            <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
-              <div>
-                <h3 class="h6 mb-1">{{ group.flight_number }} · {{ group.destination_iata }}</h3>
-                <p class="text-muted mb-0">
-                  {{ group.departure_date }}{% if group.departure_time %} · {{ group.departure_time }}{% endif %}
-                </p>
-              </div>
-              <div class="text-end small">
-                <div>{% trans "Charge utilisee" %}: {{ group.used_cartons }}</div>
-                <div>{% trans "Capacite" %}: {{ group.capacity_units|default:"-" }}</div>
-                <div>{% trans "Benevole affecte" %}: {{ group.volunteer_labels|join:", "|default:"-" }}</div>
-              </div>
-            </div>
-            <div class="table-responsive">
-              <table class="table align-middle mb-0">
-                <thead>
-                  <tr>
-                    <th>{% trans "Expedition" %}</th>
-                    <th>{% trans "Benevole" %}</th>
-                    <th>{% trans "Colis" %}</th>
-                    <th>{% trans "Source" %}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for assignment in group.assignments %}
-                    <tr>
-                      <td>
-                        <strong>{{ assignment.shipment_reference }}</strong><br>
-                        <small class="text-muted">{{ assignment.shipper_name|default:"-" }}</small>
-                      </td>
-                      <td>{{ assignment.volunteer_label|default:"-" }}</td>
-                      <td>{{ assignment.cartons }}</td>
-                      <td>{{ assignment.source }}</td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          </article>
-        {% empty %}
-          <p class="text-muted mb-0">{% trans "Aucune affectation." %}</p>
-        {% endfor %}
-      </div>
-    {% endif %}
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr>
+            <th>{% trans "Date_Vol" %}</th>
+            <th>{% trans "Heure_Vol" %}</th>
+            <th>{% trans "Numero_Vol" %}</th>
+            <th>{% trans "Destination" %}</th>
+            <th>{% trans "Routing" %}</th>
+            <th>{% trans "BE_Numero" %}</th>
+            <th>{% trans "BE_Nb_Colis" %}</th>
+            <th>{% trans "BE_Nb_Equiv" %}</th>
+            <th>{% trans "Benevole" %}</th>
+            <th>{% trans "BE_Type" %}</th>
+            <th>{% trans "BE_Expediteur" %}</th>
+            <th>{% trans "BE_Destinataire" %}</th>
+            <th>{% trans "Actions" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in dashboard.planning_rows %}
+            <tr>
+              <td>{{ row.flight_date_label|default:"-" }}</td>
+              <td>{{ row.flight_time_label|default:"-" }}</td>
+              <td>{{ row.flight_number_label|default:"-" }}</td>
+              <td>{{ row.destination_iata|default:"-" }}</td>
+              <td>{{ row.routing|default:"-" }}</td>
+              <td>{{ row.shipment_reference|default:"-" }}</td>
+              <td>{{ row.assigned_carton_count }}</td>
+              <td>{{ row.equivalent_units }}</td>
+              <td>{{ row.volunteer_label|default:"-" }}</td>
+              <td>{{ row.shipment_type|default:"-" }}</td>
+              <td>{{ row.shipper_name|default:"-" }}</td>
+              <td>{{ row.recipient_label|default:"-" }}</td>
+              <td class="text-nowrap">
+                {% if version.status == "draft" %}
+                  <span class="badge text-bg-light">{% trans "Edition a venir" %}</span>
+                {% else %}
+                  <span class="text-muted">-</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="13" class="text-muted">{% trans "Aucune affectation." %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 </section>

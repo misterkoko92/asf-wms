@@ -4,12 +4,10 @@
   <div class="card-body">
     <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
       <div>
-        <h1 class="h3 mb-1">{% trans "Version" %} v{{ version.number }}</h1>
-        <p class="text-muted mb-1">{{ dashboard.header.run_label }} · {{ dashboard.header.status_label }}</p>
-        <p class="text-muted mb-0">
-          {% trans "Mode vols" %}: {{ dashboard.header.flight_mode }} ·
-          {% trans "Parametres" %}: {{ dashboard.header.parameter_set_name|default:"-" }}
-        </p>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <h1 class="h3 mb-0">{{ dashboard.header.title }}</h1>
+          <span class="badge rounded-pill text-bg-secondary">{{ dashboard.header.status_badge }}</span>
+        </div>
       </div>
       <div class="d-flex gap-2 flex-wrap">
         {% if version.based_on %}
@@ -39,8 +37,33 @@
       </div>
       <div class="col-md-3">
         <div class="small text-muted">{% trans "Periode" %}</div>
-        <div>{{ dashboard.header.week_start }} → {{ dashboard.header.week_end }}</div>
+        <div>{{ dashboard.header.period_label }}</div>
       </div>
+    </div>
+
+    <div class="table-responsive mt-3">
+      <table class="table table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th>{% trans "Mode vols" %}</th>
+            <th>{% trans "Nb vols utilises" %}</th>
+            <th>{% trans "Nb colis disponibles" %}</th>
+            <th>{% trans "Nb colis affectes" %}</th>
+            <th>{% trans "Nb benevoles disponibles" %}</th>
+            <th>{% trans "Nb benevoles affectes" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>{{ dashboard.header.summary.flight_mode|default:"-" }}</td>
+            <td>{{ dashboard.header.summary.used_flight_count }}</td>
+            <td>{{ dashboard.header.summary.available_carton_count }}</td>
+            <td>{{ dashboard.header.summary.assigned_carton_count }}</td>
+            <td>{{ dashboard.header.summary.available_volunteer_count }}</td>
+            <td>{{ dashboard.header.summary.assigned_volunteer_count }}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </section>

@@ -329,8 +329,70 @@ class PlanningViewTests(TestCase):
         self.assertContains(response, "Non affectes")
         self.assertContains(response, "Communications")
         self.assertContains(response, "Historique des versions")
-        self.assertContains(response, "AF123")
+        self.assertContains(response, "AF 123")
         self.assertContains(response, "SHP-UNASSIGNED")
+
+    def test_version_detail_renders_operator_header_and_detailed_planning_row(self):
+        run = PlanningRun.objects.create(
+            week_start="2026-03-09",
+            week_end="2026-03-15",
+            parameter_set=self.parameter_set,
+            status=PlanningRunStatus.SOLVED,
+            flight_mode="excel",
+            created_by=self.staff_user,
+        )
+        version = PlanningVersion.objects.create(
+            run=run,
+            status=PlanningVersionStatus.DRAFT,
+            created_by=self.staff_user,
+        )
+        shipment = PlanningShipmentSnapshot.objects.create(
+            run=run,
+            shipment_reference="260128",
+            shipper_name="ASF",
+            destination_iata="NSI",
+            carton_count=10,
+            equivalent_units=10,
+            payload={
+                "legacy_type": "MM",
+                "legacy_destinataire": "CORRESPONDANT",
+            },
+        )
+        volunteer = PlanningVolunteerSnapshot.objects.create(
+            run=run,
+            volunteer_label="COURTOIS Alain",
+        )
+        flight = PlanningFlightSnapshot.objects.create(
+            run=run,
+            flight_number="AF908",
+            departure_date="2026-03-10",
+            destination_iata="NSI",
+            capacity_units=20,
+            payload={"departure_time": "11:10", "routing": "CDG-NSI"},
+        )
+        PlanningAssignment.objects.create(
+            version=version,
+            shipment_snapshot=shipment,
+            volunteer_snapshot=volunteer,
+            flight_snapshot=flight,
+            assigned_carton_count=10,
+            source=PlanningAssignmentSource.MANUAL,
+            sequence=1,
+        )
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("planning:version_detail", args=[version.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Planning Semaine 11 (du 09/03/26 au 15/03/26)")
+        self.assertContains(response, "Nb vols utilises")
+        self.assertContains(response, "Nb colis disponibles")
+        self.assertContains(response, "Mardi 10/03/2026")
+        self.assertContains(response, "11h10")
+        self.assertContains(response, "AF 908")
+        self.assertContains(response, "CDG-NSI")
+        self.assertContains(response, "COURTOIS Alain")
+        self.assertContains(response, "CORRESPONDANT")
 
     def test_generating_drafts_from_version_detail_regenerates_aggregated_series(self):
         version, _assignment, _volunteer_bob, flight_af456 = self.make_version_with_assignment(
