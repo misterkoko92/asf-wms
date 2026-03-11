@@ -725,6 +725,18 @@ class PlanningViewTests(TestCase):
         self.assertContains(response, 'data-planning-destination-toggle="group"')
         self.assertContains(response, 'data-planning-destination-toggle="all"')
 
+    def test_version_detail_week_view_tables_share_fixed_column_widths(self):
+        data = self.make_operator_version()
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("planning:version_detail", args=[data["version"].pk]))
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertGreaterEqual(content.count('data-table-tools="1"'), 2)
+        self.assertGreaterEqual(content.count('style="width: 16ch;"'), 2)
+        self.assertGreaterEqual(content.count('style="width: 28ch;"'), 14)
+
     def test_generating_drafts_from_version_detail_regenerates_aggregated_series(self):
         version, _assignment, _volunteer_bob, flight_af456 = self.make_version_with_assignment(
             status=PlanningVersionStatus.PUBLISHED

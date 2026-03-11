@@ -8,7 +8,13 @@
       <div class="mt-3">
         <h3 class="h6">{% trans "Disponibilites benevoles (vue semaine)" %}</h3>
         <div class="scan-table-wrap table-responsive">
-          <table class="scan-table table table-sm table-hover align-middle mb-0">
+          <table class="scan-table table table-sm table-hover align-middle mb-0" data-table-tools="1" style="table-layout: fixed;">
+            <colgroup>
+              <col style="width: 16ch;">
+              {% for day in dashboard.week_view.day_labels %}
+                <col style="width: 28ch;">
+              {% endfor %}
+            </colgroup>
             <thead>
               <tr>
                 <th>{% trans "Benevole" %}</th>
@@ -22,7 +28,7 @@
                 <tr>
                   <td>{{ row.display_label }}</td>
                   {% for cell in row.cells %}
-                    <td>
+                    <td style="white-space: nowrap;">
                       {% if cell.label %}
                         <span class="badge bg-success-subtle text-success-emphasis">{{ cell.label }}</span>
                       {% else %}
@@ -44,7 +50,13 @@
       <div class="mt-3">
         <h3 class="h6">{% trans "Vols disponibles (vue semaine)" %}</h3>
         <div class="scan-table-wrap table-responsive">
-          <table class="scan-table table table-sm table-hover align-middle mb-0">
+          <table class="scan-table table table-sm table-hover align-middle mb-0" data-table-tools="1" style="table-layout: fixed;">
+            <colgroup>
+              <col style="width: 16ch;">
+              {% for day in dashboard.week_view.day_labels %}
+                <col style="width: 28ch;">
+              {% endfor %}
+            </colgroup>
             <thead>
               <tr>
                 <th>{% trans "Destination" %}</th>
@@ -58,7 +70,7 @@
                 <tr>
                   <td>{{ row.destination_label }}</td>
                   {% for cell in row.cells %}
-                    <td>
+                    <td style="white-space: nowrap;">
                       {% if cell.entries %}
                         <div class="d-flex flex-column gap-1">
                           {% for entry in cell.entries %}
