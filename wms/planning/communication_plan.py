@@ -24,6 +24,7 @@ CHANGE_STATUS_PRIORITY = {
 
 @dataclass(frozen=True)
 class CommunicationAssignmentPayload:
+    shipment_snapshot_id: int | None
     shipment_reference: str
     shipper_name: str
     shipper_contact: str
@@ -127,6 +128,7 @@ def _normalize_assignment(assignment) -> CommunicationAssignmentPayload:
         volunteer_first_name = volunteer_label.split()[0]
 
     return CommunicationAssignmentPayload(
+        shipment_snapshot_id=shipment.pk if shipment else None,
         shipment_reference=shipment.shipment_reference if shipment else "",
         shipper_name=shipment.shipper_name if shipment else "",
         shipper_contact=_first_email(shipper_reference.get("notification_emails")),
