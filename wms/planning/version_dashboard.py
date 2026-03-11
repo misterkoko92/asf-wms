@@ -53,6 +53,9 @@ SHORT_DAY_NAMES = (
     "Dim",
 )
 
+SHIPMENT_STATUS_PLANNED = "Planifié"
+SHIPMENT_STATUS_NOT_DEPARTING = "Non partant"
+
 
 def _display_datetime(value):
     if not value:
@@ -102,6 +105,10 @@ def _format_flight_number(value: str) -> str:
     if match:
         return f"{match.group(1)} {match.group(2)}"
     return normalized
+
+
+def _format_ratio_label(numerator: int, denominator: int) -> str:
+    return f"{numerator} / {denominator}"
 
 
 def _build_header(version: PlanningVersion, *, stats: dict[str, object]) -> dict[str, object]:
@@ -421,9 +428,15 @@ def _build_planning_summary(version: PlanningVersion) -> dict[str, object]:
         )
     )
     assignments_by_volunteer: dict[int, list[object]] = defaultdict(list)
+    assignment_by_shipment: dict[int, object] = {}
     for assignment in assignments:
         if assignment.volunteer_snapshot_id:
             assignments_by_volunteer[assignment.volunteer_snapshot_id].append(assignment)
+        if (
+            assignment.shipment_snapshot_id
+            and assignment.shipment_snapshot_id not in assignment_by_shipment
+        ):
+            assignment_by_shipment[assignment.shipment_snapshot_id] = assignment
 
     volunteer_rows = []
     for volunteer_snapshot in version.run.volunteer_snapshots.all().order_by(
@@ -463,7 +476,83 @@ def _build_planning_summary(version: PlanningVersion) -> dict[str, object]:
             }
         )
 
-    return {"volunteer_rows": volunteer_rows}
+    grouped_shipments: dict[str, dict[str, object]] = {}
+    shipment_snapshots = version.run.shipment_snapshots.all().order_by(
+        "destination_iata",
+        "priority",
+        "shipment_reference",
+        "id",
+    )
+    for snapshot in shipment_snapshots:
+        destination = snapshot.destination_iata or "-"
+        group = grouped_shipments.get(destination)
+        if group is None:
+            group = {
+                "destination_iata": destination,
+                "planned_count": 0,
+                "total_count": 0,
+                "planned_carton_count": 0,
+                "total_carton_count": 0,
+                "planned_equivalent_units": 0,
+                "total_equivalent_units": 0,
+                "shipment_rows": [],
+            }
+            grouped_shipments[destination] = group
+
+        assignment = assignment_by_shipment.get(snapshot.pk)
+        is_planned = assignment is not None
+        status_label = SHIPMENT_STATUS_PLANNED if is_planned else SHIPMENT_STATUS_NOT_DEPARTING
+        shipment_payload = snapshot.payload or {}
+        shipment_row = {
+            "destination_iata": destination,
+            "shipment_reference": snapshot.shipment_reference or "-",
+            "status_label": status_label,
+            "carton_count": snapshot.carton_count,
+            "equivalent_units": snapshot.equivalent_units,
+            "shipment_type": shipment_payload.get("legacy_type", ""),
+            "shipper_name": snapshot.shipper_name or "",
+            "recipient_label": shipment_payload.get("legacy_destinataire", ""),
+            "is_planned": is_planned,
+        }
+        group["shipment_rows"].append(shipment_row)
+        group["total_count"] += 1
+        group["total_carton_count"] += snapshot.carton_count
+        group["total_equivalent_units"] += snapshot.equivalent_units
+        if is_planned:
+            group["planned_count"] += 1
+            group["planned_carton_count"] += snapshot.carton_count
+            group["planned_equivalent_units"] += snapshot.equivalent_units
+
+    destination_groups = []
+    for destination in sorted(grouped_shipments):
+        group = grouped_shipments[destination]
+        group["shipment_rows"].sort(
+            key=lambda item: (
+                item["shipment_reference"],
+                item["shipper_name"],
+                item["recipient_label"],
+            )
+        )
+        group["summary_row"] = {
+            "destination_iata": destination,
+            "shipment_reference": _format_ratio_label(group["planned_count"], group["total_count"]),
+            "status_label": _format_ratio_label(group["planned_count"], group["total_count"]),
+            "carton_count_label": _format_ratio_label(
+                group["planned_carton_count"], group["total_carton_count"]
+            ),
+            "equivalent_units_label": _format_ratio_label(
+                group["planned_equivalent_units"], group["total_equivalent_units"]
+            ),
+            "shipment_type": "",
+            "shipper_name": "",
+            "recipient_label": "",
+        }
+        destination_groups.append(group)
+
+    return {
+        "volunteer_rows": volunteer_rows,
+        "destination_groups": destination_groups,
+    }
 
 
 def _build_unassigned_shipments(version: PlanningVersion) -> list[dict[str, object]]:

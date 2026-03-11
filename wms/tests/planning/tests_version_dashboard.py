@@ -473,6 +473,94 @@ class PlanningVersionDashboardTests(TestCase):
             "10/03/26 07h00-18h00, 11/03/26 08h00-17h00",
         )
 
+    def test_build_version_dashboard_exposes_destination_summary_rows(self):
+        version = PlanningVersion.objects.create(
+            run=self.run,
+            status=PlanningVersionStatus.DRAFT,
+            created_by=self.user,
+        )
+        volunteer_alice = PlanningVolunteerSnapshot.objects.create(
+            run=self.run,
+            volunteer_label="Alice",
+        )
+        shipment_planned = PlanningShipmentSnapshot.objects.create(
+            run=self.run,
+            shipment_reference="260128",
+            shipper_name="ASF",
+            destination_iata="NSI",
+            priority=1,
+            carton_count=5,
+            equivalent_units=5,
+            payload={
+                "legacy_type": "MM",
+                "legacy_destinataire": "CORRESPONDANT",
+            },
+        )
+        shipment_unplanned = PlanningShipmentSnapshot.objects.create(
+            run=self.run,
+            shipment_reference="260129",
+            shipper_name="ASF 2",
+            destination_iata="NSI",
+            priority=2,
+            carton_count=3,
+            equivalent_units=4,
+            payload={
+                "legacy_type": "AR",
+                "legacy_destinataire": "HOPITAL",
+            },
+        )
+        flight = PlanningFlightSnapshot.objects.create(
+            run=self.run,
+            flight_number="AF908",
+            departure_date="2026-03-10",
+            destination_iata="NSI",
+            capacity_units=12,
+            payload={"departure_time": "11:10", "routing": "CDG-NSI"},
+        )
+        PlanningAssignment.objects.create(
+            version=version,
+            shipment_snapshot=shipment_planned,
+            volunteer_snapshot=volunteer_alice,
+            flight_snapshot=flight,
+            assigned_carton_count=5,
+            source=PlanningAssignmentSource.SOLVER,
+            sequence=1,
+        )
+
+        dashboard = build_version_dashboard(version)
+
+        self.assertIn("destination_groups", dashboard["planning_summary"])
+        self.assertEqual(len(dashboard["planning_summary"]["destination_groups"]), 1)
+        group = dashboard["planning_summary"]["destination_groups"][0]
+        summary_row = group["summary_row"]
+        self.assertEqual(group["destination_iata"], "NSI")
+        self.assertEqual(summary_row["destination_iata"], "NSI")
+        self.assertEqual(summary_row["shipment_reference"], "1 / 2")
+        self.assertEqual(summary_row["status_label"], "1 / 2")
+        self.assertEqual(summary_row["carton_count_label"], "5 / 8")
+        self.assertEqual(summary_row["equivalent_units_label"], "5 / 9")
+        self.assertEqual(summary_row["shipment_type"], "")
+        self.assertEqual(summary_row["shipper_name"], "")
+        self.assertEqual(summary_row["recipient_label"], "")
+
+        self.assertEqual(len(group["shipment_rows"]), 2)
+        planned_row = group["shipment_rows"][0]
+        unplanned_row = group["shipment_rows"][1]
+        self.assertEqual(planned_row["shipment_reference"], "260128")
+        self.assertEqual(planned_row["status_label"], "Planifié")
+        self.assertEqual(planned_row["carton_count"], 5)
+        self.assertEqual(planned_row["equivalent_units"], 5)
+        self.assertEqual(planned_row["shipment_type"], "MM")
+        self.assertEqual(planned_row["shipper_name"], "ASF")
+        self.assertEqual(planned_row["recipient_label"], "CORRESPONDANT")
+        self.assertEqual(unplanned_row["shipment_reference"], "260129")
+        self.assertEqual(unplanned_row["status_label"], "Non partant")
+        self.assertEqual(unplanned_row["carton_count"], 3)
+        self.assertEqual(unplanned_row["equivalent_units"], 4)
+        self.assertEqual(unplanned_row["shipment_type"], "AR")
+        self.assertEqual(unplanned_row["shipper_name"], "ASF 2")
+        self.assertEqual(unplanned_row["recipient_label"], "HOPITAL")
+
     def test_build_version_dashboard_groups_drafts_and_parent_diff_summary(self):
         volunteer_alice = PlanningVolunteerSnapshot.objects.create(
             run=self.run,

@@ -35,6 +35,316 @@
           </tbody>
         </table>
       </div>
+
+      <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mt-4">
+        <div>
+          <h3 class="h6 mb-1">{% trans "Vue destinations / expeditions" %}</h3>
+          <p class="text-muted mb-0">{% trans "Synthese reduite par destination, detail par expedition au depliage." %}</p>
+        </div>
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-secondary"
+          data-planning-destination-toggle="all"
+          data-expand-label="{% trans "Tout développer" %}"
+          data-collapse-label="{% trans "Tout réduire" %}"
+        >
+          {% trans "Tout développer" %}
+        </button>
+      </div>
+
+      <div class="scan-table-wrap table-responsive mt-3">
+        <table
+          class="scan-table table table-sm table-hover align-middle mb-0"
+          data-planning-destination-table="1"
+        >
+          <thead>
+            <tr>
+              <th>{% trans "Destination" %}</th>
+              <th>{% trans "BE_Numero" %}</th>
+              <th>{% trans "Etat" %}</th>
+              <th>{% trans "BE_Nb_Colis" %}</th>
+              <th>{% trans "BE_Nb_Equiv" %}</th>
+              <th>{% trans "BE_Type" %}</th>
+              <th>{% trans "BE_Expediteur" %}</th>
+              <th>{% trans "BE_Destinataire" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for group in dashboard.planning_summary.destination_groups %}
+              <tr
+                data-planning-destination-group="{{ group.destination_iata }}"
+                data-planning-destination-row="summary"
+                data-expanded="0"
+              >
+                <td data-sort-value="{{ group.summary_row.destination_iata }}">
+                  <div class="d-flex align-items-center gap-2">
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-tertiary"
+                      data-planning-destination-toggle="group"
+                      data-planning-destination-group-target="{{ group.destination_iata }}"
+                      aria-expanded="false"
+                      aria-label="{% blocktrans with destination=group.destination_iata %}Développer {{ destination }}{% endblocktrans %}"
+                    >
+                      +
+                    </button>
+                    <strong>{{ group.summary_row.destination_iata }}</strong>
+                  </div>
+                </td>
+                <td data-sort-value="{{ group.summary_row.shipment_reference }}">{{ group.summary_row.shipment_reference }}</td>
+                <td data-sort-value="{{ group.summary_row.status_label }}">{{ group.summary_row.status_label }}</td>
+                <td data-sort-value="{{ group.summary_row.carton_count_label }}">{{ group.summary_row.carton_count_label }}</td>
+                <td data-sort-value="{{ group.summary_row.equivalent_units_label }}">{{ group.summary_row.equivalent_units_label }}</td>
+                <td data-sort-value="">{{ group.summary_row.shipment_type|default:"" }}</td>
+                <td data-sort-value="">{{ group.summary_row.shipper_name|default:"" }}</td>
+                <td data-sort-value="">{{ group.summary_row.recipient_label|default:"" }}</td>
+              </tr>
+              {% for row in group.shipment_rows %}
+                <tr
+                  data-planning-destination-group="{{ group.destination_iata }}"
+                  data-planning-destination-row="shipment"
+                  hidden
+                >
+                  <td class="ps-4" data-sort-value="{{ row.destination_iata }}">{{ row.destination_iata }}</td>
+                  <td data-sort-value="{{ row.shipment_reference }}">{{ row.shipment_reference }}</td>
+                  <td data-sort-value="{{ row.status_label }}">{{ row.status_label }}</td>
+                  <td data-sort-value="{{ row.carton_count }}">{{ row.carton_count }}</td>
+                  <td data-sort-value="{{ row.equivalent_units }}">{{ row.equivalent_units }}</td>
+                  <td data-sort-value="{{ row.shipment_type }}">{{ row.shipment_type|default:"-" }}</td>
+                  <td data-sort-value="{{ row.shipper_name }}">{{ row.shipper_name|default:"-" }}</td>
+                  <td data-sort-value="{{ row.recipient_label }}">{{ row.recipient_label|default:"-" }}</td>
+                </tr>
+              {% endfor %}
+            {% empty %}
+              <tr>
+                <td colspan="8" class="text-muted">{% trans "Aucune expedition disponible." %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </details>
   </div>
 </section>
+
+<script>
+  (function() {
+    const table = document.querySelector('[data-planning-destination-table="1"]');
+    if (!table) {
+      return;
+    }
+
+    const tbody = table.tBodies && table.tBodies[0];
+    const headerRow = table.tHead && table.tHead.rows && table.tHead.rows[0];
+    if (!tbody || !headerRow) {
+      return;
+    }
+
+    const cleanText = value => (value || '').toString().replace(/\s+/g, ' ').trim();
+    const headerCells = Array.from(headerRow.cells);
+    const globalToggle = document.querySelector('[data-planning-destination-toggle="all"]');
+    let sortColumn = -1;
+    let sortDirection = 0;
+
+    const parseRatioValue = value => {
+      const match = cleanText(value).match(/^([+-]?\d+)\s*\/\s*([+-]?\d+)$/);
+      if (!match) {
+        return null;
+      }
+      return [parseInt(match[1], 10), parseInt(match[2], 10)];
+    };
+
+    const parseNumericValue = value => {
+      const text = cleanText(value);
+      if (!text) {
+        return null;
+      }
+      const normalized = text.replace(/\s/g, '').replace(',', '.');
+      const parsed = Number(normalized);
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+
+    const compareValues = (leftValue, rightValue) => {
+      const leftRatio = parseRatioValue(leftValue);
+      const rightRatio = parseRatioValue(rightValue);
+      if (leftRatio && rightRatio) {
+        if (leftRatio[0] !== rightRatio[0]) {
+          return leftRatio[0] - rightRatio[0];
+        }
+        return leftRatio[1] - rightRatio[1];
+      }
+
+      const leftNumber = parseNumericValue(leftValue);
+      const rightNumber = parseNumericValue(rightValue);
+      if (leftNumber !== null && rightNumber !== null) {
+        return leftNumber - rightNumber;
+      }
+
+      return String(leftValue || '').localeCompare(String(rightValue || ''), 'fr', {
+        sensitivity: 'base',
+        numeric: true
+      });
+    };
+
+    const getCellValue = (row, columnIndex) => {
+      const cell = row.cells[columnIndex];
+      if (!cell) {
+        return '';
+      }
+      return cleanText(cell.dataset.sortValue || cell.textContent);
+    };
+
+    const groups = Array.from(
+      tbody.querySelectorAll('[data-planning-destination-row="summary"]')
+    ).map((summaryRow, index) => {
+      const groupId = summaryRow.dataset.planningDestinationGroup;
+      return {
+        id: groupId,
+        summaryRow,
+        shipmentRows: Array.from(
+          tbody.querySelectorAll(
+            '[data-planning-destination-row="shipment"][data-planning-destination-group="' + groupId + '"]'
+          )
+        ),
+        originalIndex: index,
+        expanded: false,
+      };
+    });
+
+    const updateHeaderState = () => {
+      headerCells.forEach((cell, index) => {
+        const isSorted = index === sortColumn && sortDirection !== 0;
+        cell.classList.toggle('scan-table-sortable', true);
+        cell.classList.toggle('is-sorted', isSorted);
+        cell.classList.toggle('is-desc', isSorted && sortDirection < 0);
+        cell.setAttribute('role', 'button');
+        cell.setAttribute('tabindex', '0');
+        cell.setAttribute('aria-sort', !isSorted ? 'none' : (sortDirection > 0 ? 'ascending' : 'descending'));
+      });
+    };
+
+    const updateGroupButton = group => {
+      const button = group.summaryRow.querySelector('[data-planning-destination-toggle="group"]');
+      if (!button) {
+        return;
+      }
+      button.textContent = group.expanded ? '-' : '+';
+      button.setAttribute('aria-expanded', group.expanded ? 'true' : 'false');
+      button.setAttribute(
+        'aria-label',
+        (group.expanded ? 'Réduire ' : 'Développer ') + group.id
+      );
+    };
+
+    const updateGlobalButton = () => {
+      if (!globalToggle) {
+        return;
+      }
+      const allExpanded = groups.length > 0 && groups.every(group => group.expanded);
+      globalToggle.textContent = allExpanded
+        ? (globalToggle.dataset.collapseLabel || 'Tout réduire')
+        : (globalToggle.dataset.expandLabel || 'Tout développer');
+    };
+
+    const applyDisplay = () => {
+      groups.forEach(group => {
+        group.summaryRow.dataset.expanded = group.expanded ? '1' : '0';
+        updateGroupButton(group);
+        group.shipmentRows.forEach(row => {
+          row.hidden = !group.expanded;
+        });
+      });
+      updateGlobalButton();
+    };
+
+    const applyOrdering = () => {
+      const orderedGroups = [...groups];
+      if (sortColumn >= 0 && sortDirection !== 0) {
+        orderedGroups.sort((leftGroup, rightGroup) => {
+          const result = compareValues(
+            getCellValue(leftGroup.summaryRow, sortColumn),
+            getCellValue(rightGroup.summaryRow, sortColumn)
+          );
+          if (result === 0) {
+            return leftGroup.originalIndex - rightGroup.originalIndex;
+          }
+          return result * sortDirection;
+        });
+      } else {
+        orderedGroups.sort((leftGroup, rightGroup) => leftGroup.originalIndex - rightGroup.originalIndex);
+      }
+
+      orderedGroups.forEach(group => {
+        const orderedShipments = [...group.shipmentRows];
+        if (sortColumn >= 0 && sortDirection !== 0) {
+          orderedShipments.sort((leftRow, rightRow) => {
+            const result = compareValues(
+              getCellValue(leftRow, sortColumn),
+              getCellValue(rightRow, sortColumn)
+            );
+            if (result === 0) {
+              return group.shipmentRows.indexOf(leftRow) - group.shipmentRows.indexOf(rightRow);
+            }
+            return result * sortDirection;
+          });
+        }
+        tbody.appendChild(group.summaryRow);
+        orderedShipments.forEach(row => tbody.appendChild(row));
+        group.shipmentRows = orderedShipments;
+      });
+
+      updateHeaderState();
+      applyDisplay();
+    };
+
+    headerCells.forEach((cell, index) => {
+      const onSort = event => {
+        if (event.target && event.target.closest('button')) {
+          return;
+        }
+        if (sortColumn !== index) {
+          sortColumn = index;
+          sortDirection = 1;
+        } else if (sortDirection === 1) {
+          sortDirection = -1;
+        } else if (sortDirection === -1) {
+          sortDirection = 0;
+          sortColumn = -1;
+        } else {
+          sortDirection = 1;
+        }
+        applyOrdering();
+      };
+      cell.addEventListener('click', onSort);
+      cell.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onSort(event);
+        }
+      });
+    });
+
+    groups.forEach(group => {
+      const button = group.summaryRow.querySelector('[data-planning-destination-toggle="group"]');
+      if (!button) {
+        return;
+      }
+      button.addEventListener('click', () => {
+        group.expanded = !group.expanded;
+        applyDisplay();
+      });
+    });
+
+    if (globalToggle) {
+      globalToggle.addEventListener('click', () => {
+        const shouldExpand = groups.some(group => !group.expanded);
+        groups.forEach(group => {
+          group.expanded = shouldExpand;
+        });
+        applyDisplay();
+      });
+    }
+
+    applyOrdering();
+  })();
+</script>

@@ -690,6 +690,41 @@ class PlanningViewTests(TestCase):
         self.assertContains(response, "Nb_Vols_Affectes")
         self.assertContains(response, "Nb_BE_Affectes")
 
+    def test_version_detail_renders_destination_bilan_table(self):
+        data = self.make_operator_version()
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("planning:version_detail", args=[data["version"].pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Destination")
+        self.assertContains(response, "BE_Numero")
+        self.assertContains(response, "Etat")
+        self.assertContains(response, "BE_Nb_Colis")
+        self.assertContains(response, "BE_Nb_Equiv")
+        self.assertContains(response, "BE_Type")
+        self.assertContains(response, "BE_Expediteur")
+        self.assertContains(response, "BE_Destinataire")
+        self.assertContains(response, "Tout développer")
+        self.assertContains(response, "1 / 2")
+        self.assertContains(response, "4 / 6")
+        self.assertContains(response, "Planifié")
+        self.assertContains(response, "Non partant")
+
+    def test_version_detail_renders_destination_bilan_expand_controls(self):
+        data = self.make_operator_version()
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("planning:version_detail", args=[data["version"].pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-planning-destination-table="1"')
+        self.assertContains(response, 'data-planning-destination-group="NSI"')
+        self.assertContains(response, 'data-planning-destination-row="summary"')
+        self.assertContains(response, 'data-planning-destination-row="shipment"')
+        self.assertContains(response, 'data-planning-destination-toggle="group"')
+        self.assertContains(response, 'data-planning-destination-toggle="all"')
+
     def test_generating_drafts_from_version_detail_regenerates_aggregated_series(self):
         version, _assignment, _volunteer_bob, flight_af456 = self.make_version_with_assignment(
             status=PlanningVersionStatus.PUBLISHED
