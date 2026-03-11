@@ -1064,6 +1064,42 @@ class PlanningViewTests(TestCase):
             "PDF packing list indisponible.",
         )
 
+    def test_version_detail_renders_communication_helper_buttons(self):
+        data = self.make_published_version_with_communication_drafts()
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("planning:version_detail", args=[data["version"].pk]))
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertIn("Generer tous les WhatsApp", content)
+        self.assertGreaterEqual(content.count("Generer tous les mails"), 3)
+        self.assertIn("Ouvrir WhatsApp", content)
+        self.assertIn("Ouvrir le brouillon", content)
+        self.assertIn('data-planning-communication-helper="1"', content)
+        self.assertIn('src="/static/wms/planning_communications_helper.js"', content)
+        whatsapp_block = re.search(
+            r'<article[^>]+data-family-key="whatsapp_benevole".*?</article>',
+            content,
+            re.IGNORECASE | re.DOTALL,
+        )
+        self.assertIsNotNone(whatsapp_block)
+        self.assertNotIn("<th>Sujet</th>", whatsapp_block.group(0))
+
+    def test_version_detail_exposes_helper_bridge_hooks(self):
+        data = self.make_published_version_with_communication_drafts()
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("planning:version_detail", args=[data["version"].pk]))
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertIn('data-planning-helper-origin="127.0.0.1:38555"', content)
+        self.assertIn('data-draft-action-url="/planning/versions/', content)
+        self.assertIn('data-family-action-url="/planning/versions/', content)
+        self.assertIn('data-draft-id="', content)
+        self.assertIn('data-family-key="whatsapp_benevole"', content)
+
     def test_staff_can_clone_published_version(self):
         version, _assignment, _volunteer_bob, _flight_af456 = self.make_version_with_assignment(
             status=PlanningVersionStatus.PUBLISHED

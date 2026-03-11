@@ -1,6 +1,10 @@
 {% load i18n %}
 
-<section class="scan-card portal-card card border-0 shadow-sm mt-3">
+<section
+  class="scan-card portal-card card border-0 shadow-sm mt-3"
+  data-planning-communication-helper="1"
+  data-planning-helper-origin="127.0.0.1:38555"
+>
   <div class="card-body">
     <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
       <div>
@@ -15,6 +19,7 @@
         </form>
       {% endif %}
     </div>
+    <div class="alert alert-danger d-none" role="alert" data-planning-helper-error></div>
 
     {% if dashboard.communications.groups %}
       <form method="post" class="vstack gap-3">
@@ -24,7 +29,7 @@
           {{ draft_formset.management_form }}
         {% endif %}
         {% for group in dashboard.communications.groups %}
-          <article class="border rounded-3 p-3">
+          <article class="border rounded-3 p-3" data-family-key="{{ group.family_key }}">
             <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
               <div>
                 <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
@@ -33,6 +38,29 @@
                 </div>
                 <p class="text-muted mb-0">{{ group.channel_label }} · {{ group.change_summary }}</p>
               </div>
+              {% if group.drafts %}
+                {% if group.family_key == "whatsapp_benevole" %}
+                  <button
+                    type="button"
+                    class="btn btn-tertiary btn-sm"
+                    data-communication-open-family="1"
+                    data-family-key="{{ group.family_key }}"
+                    data-family-action-url="{% url 'planning:version_communication_family_action' version.pk group.family_key %}"
+                  >
+                    {% trans "Generer tous les WhatsApp" %}
+                  </button>
+                {% elif group.family_key == "email_correspondant" or group.family_key == "email_expediteur" or group.family_key == "email_destinataire" %}
+                  <button
+                    type="button"
+                    class="btn btn-tertiary btn-sm"
+                    data-communication-open-family="1"
+                    data-family-key="{{ group.family_key }}"
+                    data-family-action-url="{% url 'planning:version_communication_family_action' version.pk group.family_key %}"
+                  >
+                    {% trans "Generer tous les mails" %}
+                  </button>
+                {% endif %}
+              {% endif %}
             </div>
 
             {% if group.is_collapsed %}
@@ -47,13 +75,20 @@
                     <tr>
                       <th>{% trans "Destinataire" %}</th>
                       <th>{% trans "Statut" %}</th>
-                      <th>{% trans "Sujet" %}</th>
+                      {% if group.channel != "whatsapp" %}
+                        <th>{% trans "Sujet" %}</th>
+                      {% endif %}
                       <th>{% trans "Message" %}</th>
+                      <th>{% trans "Action" %}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {% for draft in group.drafts %}
-                      <tr>
+                      <tr
+                        data-planning-draft-row="1"
+                        {% if draft.draft_id %}data-draft-id="{{ draft.draft_id }}"{% endif %}
+                        data-family-key="{{ group.family_key }}"
+                      >
                         {% if draft.form %}{{ draft.form.id }}{% endif %}
                         <td>
                           <div class="fw-semibold">{{ draft.recipient_label|default:"-" }}</div>
@@ -65,18 +100,45 @@
                           <span class="badge text-bg-light">{{ draft.change_status_label }}</span>
                           <div class="small text-muted mt-1">{{ draft.change_summary }}</div>
                         </td>
-                        <td>
-                          {% if draft.form %}
-                            {{ draft.form.subject }}
-                          {% else %}
-                            {{ draft.subject }}
-                          {% endif %}
-                        </td>
+                        {% if group.channel != "whatsapp" %}
+                          <td>
+                            {% if draft.form %}
+                              {{ draft.form.subject }}
+                            {% else %}
+                              {{ draft.subject }}
+                            {% endif %}
+                          </td>
+                        {% endif %}
                         <td>
                           {% if draft.form %}
                             {{ draft.form.body }}
                           {% else %}
                             <div class="small">{{ draft.body|linebreaksbr }}</div>
+                          {% endif %}
+                        </td>
+                        <td class="text-nowrap">
+                          {% if draft.draft_id and group.channel == "whatsapp" %}
+                            <button
+                              type="button"
+                              class="btn btn-tertiary btn-sm"
+                              data-communication-open-draft="1"
+                              data-draft-id="{{ draft.draft_id }}"
+                              data-draft-action-url="{% url 'planning:version_communication_draft_action' version.pk draft.draft_id %}"
+                            >
+                              {% trans "Ouvrir WhatsApp" %}
+                            </button>
+                          {% elif draft.draft_id %}
+                            <button
+                              type="button"
+                              class="btn btn-tertiary btn-sm"
+                              data-communication-open-draft="1"
+                              data-draft-id="{{ draft.draft_id }}"
+                              data-draft-action-url="{% url 'planning:version_communication_draft_action' version.pk draft.draft_id %}"
+                            >
+                              {% trans "Ouvrir le brouillon" %}
+                            </button>
+                          {% else %}
+                            <span class="text-muted small">-</span>
                           {% endif %}
                         </td>
                       </tr>
