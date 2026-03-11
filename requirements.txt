@@ -16,7 +16,7 @@ pdfminer-six==20260107
 pdfplumber==0.11.4
 pillow==12.1.1
 pycparser==3.0 ; implementation_name != 'PyPy' and platform_python_implementation != 'PyPy'
-pypdf==4.3.1
+pypdf==6.7.5
 pypdfium2==5.5.0
 pypng==0.20220715.0
 qrcode==7.4.2
