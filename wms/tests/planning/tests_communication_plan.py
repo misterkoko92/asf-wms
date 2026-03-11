@@ -13,6 +13,7 @@ from wms.models import (
     PlanningVolunteerSnapshot,
 )
 from wms.planning.communication_plan import build_version_communication_plan
+from wms.planning.legacy_communications import CommunicationFamily
 
 
 class PlanningCommunicationPlanTests(TestCase):
@@ -86,17 +87,33 @@ class PlanningCommunicationPlanTests(TestCase):
             sequence=sequence,
         )
 
+    def assert_plan_item(self, plan, *, family, recipient_label):
+        self.assertTrue(
+            any(
+                item.family == family and item.recipient_label == recipient_label
+                for item in plan.items
+            )
+        )
+        return next(
+            item
+            for item in plan.items
+            if item.family == family and item.recipient_label == recipient_label
+        )
+
     def test_build_version_communication_plan_marks_first_publication_as_new(self):
         version = self.make_version()
         self.add_assignment(version, volunteer=self.alice, flight=self.flight_1)
 
         plan = build_version_communication_plan(version)
 
-        self.assertEqual(len(plan.items), 1)
-        item = plan.items[0]
+        item = self.assert_plan_item(
+            plan,
+            family=CommunicationFamily.WHATSAPP_BENEVOLE,
+            recipient_label="Alice",
+        )
         self.assertEqual(item.change_status, "new")
         self.assertEqual(item.recipient_label, "Alice")
-        self.assertEqual(item.channel, CommunicationChannel.EMAIL)
+        self.assertEqual(item.channel, CommunicationChannel.WHATSAPP)
         self.assertEqual(len(item.current_assignments), 1)
         self.assertEqual(item.previous_assignments, [])
 
@@ -107,8 +124,11 @@ class PlanningCommunicationPlanTests(TestCase):
 
         plan = build_version_communication_plan(version_2)
 
-        self.assertEqual(len(plan.items), 1)
-        item = plan.items[0]
+        item = self.assert_plan_item(
+            plan,
+            family=CommunicationFamily.WHATSAPP_BENEVOLE,
+            recipient_label="Alice",
+        )
         self.assertEqual(item.change_status, "cancelled")
         self.assertEqual(item.recipient_label, "Alice")
         self.assertEqual(item.current_assignments, [])
@@ -122,8 +142,11 @@ class PlanningCommunicationPlanTests(TestCase):
 
         plan = build_version_communication_plan(version_2)
 
-        self.assertEqual(len(plan.items), 1)
-        item = plan.items[0]
+        item = self.assert_plan_item(
+            plan,
+            family=CommunicationFamily.WHATSAPP_BENEVOLE,
+            recipient_label="Alice",
+        )
         self.assertEqual(item.change_status, "unchanged")
         self.assertEqual(item.recipient_label, "Alice")
 
@@ -135,8 +158,11 @@ class PlanningCommunicationPlanTests(TestCase):
 
         plan = build_version_communication_plan(version_2)
 
-        self.assertEqual(len(plan.items), 1)
-        item = plan.items[0]
+        item = self.assert_plan_item(
+            plan,
+            family=CommunicationFamily.WHATSAPP_BENEVOLE,
+            recipient_label="Alice",
+        )
         self.assertEqual(item.change_status, "changed")
         self.assertEqual(item.recipient_label, "Alice")
 
@@ -168,7 +194,10 @@ class PlanningCommunicationPlanTests(TestCase):
 
         plan = build_version_communication_plan(version)
 
-        self.assertEqual(len(plan.items), 1)
-        item = plan.items[0]
+        item = self.assert_plan_item(
+            plan,
+            family=CommunicationFamily.WHATSAPP_BENEVOLE,
+            recipient_label="Alice",
+        )
         self.assertEqual(item.change_status, "new")
         self.assertEqual(len(item.current_assignments), 2)

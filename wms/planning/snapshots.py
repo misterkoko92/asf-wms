@@ -10,6 +10,8 @@ from wms.models import (
     VolunteerConstraint,
 )
 from wms.planning.sources import (
+    build_correspondent_reference,
+    build_recipient_reference,
     build_shipper_reference,
     get_run_flights,
     get_run_shipments,
@@ -71,7 +73,13 @@ def _build_shipment_payload(*, shipment, destination_rule_map):
     payload = {
         "destination_id": shipment.destination_id,
         "destination_iata": shipment.destination.iata_code if shipment.destination_id else "",
+        "destination_city": shipment.destination.city.upper() if shipment.destination_id else "",
+        "legacy_type": "",
+        "legacy_expediteur": shipment.shipper_name,
+        "legacy_destinataire": shipment.recipient_name,
         "shipper_reference": build_shipper_reference(shipment),
+        "recipient_reference": build_recipient_reference(shipment),
+        "correspondent_reference": build_correspondent_reference(shipment),
     }
     if destination_rule is not None:
         payload["destination_rule"] = {
@@ -145,6 +153,8 @@ def prepare_run_inputs(run):
                 "phone": volunteer.phone,
                 "city": volunteer.city,
                 "country": volunteer.country,
+                "first_name": volunteer.user.first_name,
+                "last_name": volunteer.user.last_name,
             },
         )
 

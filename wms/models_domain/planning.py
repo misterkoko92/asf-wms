@@ -62,6 +62,15 @@ class CommunicationDraftStatus(models.TextChoices):
     SENT_MANUALLY = "sent_manually", "Sent manually"
 
 
+class CommunicationFamily(models.TextChoices):
+    WHATSAPP_BENEVOLE = "whatsapp_benevole", "WhatsApp bénévoles"
+    EMAIL_ASF = "email_asf", "Mail ASF interne"
+    EMAIL_AIRFRANCE = "email_airfrance", "Mail Air France"
+    EMAIL_CORRESPONDANT = "email_correspondant", "Mail Correspondants"
+    EMAIL_EXPEDITEUR = "email_expediteur", "Mail Expéditeurs"
+    EMAIL_DESTINATAIRE = "email_destinataire", "Mail Destinataires"
+
+
 class PlanningParameterSet(models.Model):
     name = models.CharField(max_length=120, unique=True)
     status = models.CharField(
@@ -521,6 +530,11 @@ class CommunicationDraft(models.Model):
         choices=CommunicationChannel.choices,
         default=CommunicationChannel.EMAIL,
     )
+    family = models.CharField(
+        max_length=40,
+        choices=CommunicationFamily.choices,
+        blank=True,
+    )
     recipient_label = models.CharField(max_length=255, blank=True)
     recipient_contact = models.CharField(max_length=255, blank=True)
     subject = models.CharField(max_length=255, blank=True)
@@ -542,7 +556,8 @@ class CommunicationDraft(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["version_id", "channel", "recipient_label", "id"]
+        ordering = ["version_id", "family", "channel", "recipient_label", "id"]
 
     def __str__(self) -> str:
-        return f"{self.channel} draft {self.pk or 'new'}"
+        family = self.family or self.channel
+        return f"{family} draft {self.pk or 'new'}"

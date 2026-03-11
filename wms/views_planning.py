@@ -1,4 +1,5 @@
 from django.contrib import messages
+from django.core.exceptions import ValidationError
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -12,14 +13,28 @@ from .forms_planning import (
 )
 from .models import (
     CommunicationDraftStatus,
+    PlanningAssignment,
     PlanningAssignmentSource,
+    PlanningFlightSnapshot,
     PlanningRun,
     PlanningRunStatus,
+    PlanningShipmentSnapshot,
     PlanningVersion,
     PlanningVersionStatus,
+    PlanningVolunteerSnapshot,
 )
 from .planning.communications import generate_version_drafts
 from .planning.exports import export_version_workbook
+from .planning.operator_mutations import (
+    assign_unassigned_shipment,
+    delete_assignment,
+    update_assignment,
+)
+from .planning.operator_options import (
+    build_assignment_editor_options,
+    build_operator_option_context,
+    build_unassigned_editor_options,
+)
 from .planning.shipment_updates import apply_version_updates
 from .planning.snapshots import prepare_run_inputs
 from .planning.solver import solve_run
@@ -44,11 +59,51 @@ def _attach_assignment_forms(dashboard, assignment_formset):
             assignment["form"] = forms_by_id.get(assignment["assignment_id"])
 
 
+def _attach_operator_options(version, dashboard):
+    if version.status != PlanningVersionStatus.DRAFT:
+        return
+    context = build_operator_option_context(version)
+    assignments_by_id = {
+        assignment.pk: assignment
+        for assignment in version.assignments.select_related(
+            "shipment_snapshot",
+            "volunteer_snapshot",
+            "flight_snapshot",
+        )
+    }
+    for row in dashboard["planning_rows"]:
+        assignment = assignments_by_id.get(row["assignment_id"])
+        if assignment is None:
+            continue
+        row["editor_options"] = build_assignment_editor_options(
+            version,
+            assignment=assignment,
+            context=context,
+        )
+
+    shipments_by_id = {snapshot.pk: snapshot for snapshot in version.run.shipment_snapshots.all()}
+    for row in dashboard["unassigned_shipments"]:
+        shipment_snapshot = shipments_by_id.get(row["shipment_snapshot_id"])
+        if shipment_snapshot is None:
+            continue
+        row["editor_options"] = build_unassigned_editor_options(
+            version,
+            shipment_snapshot=shipment_snapshot,
+            context=context,
+        )
+
+
 def _attach_draft_forms(dashboard, draft_formset):
     forms_by_id = {form.instance.pk: form for form in draft_formset}
     for group in dashboard["communications"]["groups"]:
         for draft in group["drafts"]:
             draft["form"] = forms_by_id.get(draft["draft_id"])
+
+
+def _validation_error_message(exc: ValidationError) -> str:
+    if getattr(exc, "messages", None):
+        return "; ".join(exc.messages)
+    return str(exc)
 
 
 @scan_staff_required
@@ -158,7 +213,48 @@ def planning_version_detail(request, version_id):
     draft_formset = build_communication_draft_formset(version)
 
     if request.method == "POST":
-        if request.POST.get("assignment_action") == "save":
+        if request.POST.get("assignment_action") == "delete":
+            try:
+                delete_assignment(
+                    version=version,
+                    assignment=get_object_or_404(
+                        PlanningAssignment.objects.select_related("version"),
+                        pk=request.POST.get("assignment_id"),
+                    ),
+                )
+            except ValidationError as exc:
+                messages.error(request, _validation_error_message(exc))
+            else:
+                messages.success(request, "Expedition retiree du planning.")
+            return redirect("planning:version_detail", version.pk)
+        elif request.POST.get("assignment_action") == "update":
+            assignment = get_object_or_404(
+                PlanningAssignment.objects.select_related("shipment_snapshot", "version"),
+                pk=request.POST.get("assignment_id"),
+            )
+            volunteer_snapshot = get_object_or_404(
+                PlanningVolunteerSnapshot,
+                pk=request.POST.get("volunteer_snapshot"),
+                run=version.run,
+            )
+            flight_snapshot = get_object_or_404(
+                PlanningFlightSnapshot,
+                pk=request.POST.get("flight_snapshot"),
+                run=version.run,
+            )
+            try:
+                update_assignment(
+                    version=version,
+                    assignment=assignment,
+                    volunteer_snapshot=volunteer_snapshot,
+                    flight_snapshot=flight_snapshot,
+                )
+            except ValidationError as exc:
+                messages.error(request, _validation_error_message(exc))
+            else:
+                messages.success(request, "Affectation mise a jour.")
+            return redirect("planning:version_detail", version.pk)
+        elif request.POST.get("assignment_action") == "save":
             if version.status != PlanningVersionStatus.DRAFT:
                 messages.error(request, "Seules les versions brouillon sont modifiables.")
                 return redirect("planning:version_detail", version.pk)
@@ -212,12 +308,41 @@ def planning_version_detail(request, version_id):
                 ),
             )
             return redirect("planning:version_detail", version.pk)
+        elif request.POST.get("shipment_action") == "assign":
+            shipment_snapshot = get_object_or_404(
+                PlanningShipmentSnapshot,
+                pk=request.POST.get("shipment_snapshot_id"),
+                run=version.run,
+            )
+            volunteer_snapshot = get_object_or_404(
+                PlanningVolunteerSnapshot,
+                pk=request.POST.get("volunteer_snapshot"),
+                run=version.run,
+            )
+            flight_snapshot = get_object_or_404(
+                PlanningFlightSnapshot,
+                pk=request.POST.get("flight_snapshot"),
+                run=version.run,
+            )
+            try:
+                assign_unassigned_shipment(
+                    version=version,
+                    shipment_snapshot=shipment_snapshot,
+                    volunteer_snapshot=volunteer_snapshot,
+                    flight_snapshot=flight_snapshot,
+                )
+            except ValidationError as exc:
+                messages.error(request, _validation_error_message(exc))
+            else:
+                messages.success(request, "Expedition ajoutee au planning.")
+            return redirect("planning:version_detail", version.pk)
 
     dashboard = build_version_dashboard(version)
     _attach_assignment_forms(
         dashboard,
         assignment_formset if version.status == PlanningVersionStatus.DRAFT else None,
     )
+    _attach_operator_options(version, dashboard)
     _attach_draft_forms(dashboard, draft_formset)
 
     return render(

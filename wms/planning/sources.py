@@ -26,7 +26,13 @@ def _get_recipe_scope(run):
 
 def get_run_shipments(run):
     queryset = (
-        Shipment.objects.select_related("destination", "shipper_contact_ref")
+        Shipment.objects.select_related(
+            "destination",
+            "destination__correspondent_contact",
+            "shipper_contact_ref",
+            "recipient_contact_ref",
+            "correspondent_contact_ref",
+        )
         .filter(
             status__in=ELIGIBLE_SHIPMENT_STATUSES,
             ready_at__date__gte=run.week_start,
@@ -41,24 +47,67 @@ def get_run_shipments(run):
     return queryset
 
 
+def _contact_emails(contact):
+    emails = []
+    for value in (getattr(contact, "email", ""), getattr(contact, "email2", "")):
+        normalized = str(value or "").strip()
+        if normalized and normalized.lower() not in {item.lower() for item in emails}:
+            emails.append(normalized)
+    return emails
+
+
+def _build_contact_reference(contact, *, fallback_name=""):
+    if contact is None:
+        name = str(fallback_name or "").strip()
+        return {
+            "contact_id": None,
+            "contact_name": name,
+            "notification_emails": [],
+        }
+
+    emails = _contact_emails(contact)
+    return {
+        "contact_id": contact.pk,
+        "contact_name": contact.name,
+        "contact_title": getattr(contact, "title", ""),
+        "contact_first_name": getattr(contact, "first_name", ""),
+        "contact_last_name": getattr(contact, "last_name", ""),
+        "notification_emails": emails,
+        "phone": getattr(contact, "phone", ""),
+        "phone2": getattr(contact, "phone2", ""),
+    }
+
+
 def build_shipper_reference(shipment):
     contact = shipment.shipper_contact_ref
-    if contact is None:
-        return {}
-
+    reference = _build_contact_reference(contact, fallback_name=shipment.shipper_name)
     association_profile = (
         contact.association_profiles.prefetch_related("portal_contacts").order_by("id").first()
+        if contact is not None
+        else None
     )
     notification_emails = (
         association_profile.get_notification_emails() if association_profile else []
     )
+    if notification_emails:
+        reference["notification_emails"] = notification_emails
+    reference["association_profile_id"] = association_profile.pk if association_profile else None
+    return reference
 
-    return {
-        "contact_id": contact.pk,
-        "contact_name": contact.name,
-        "association_profile_id": association_profile.pk if association_profile else None,
-        "notification_emails": notification_emails,
-    }
+
+def build_recipient_reference(shipment):
+    return _build_contact_reference(
+        shipment.recipient_contact_ref,
+        fallback_name=shipment.recipient_name,
+    )
+
+
+def build_correspondent_reference(shipment):
+    contact = shipment.correspondent_contact_ref or getattr(
+        shipment.destination, "correspondent_contact", None
+    )
+    fallback_name = shipment.correspondent_name or getattr(contact, "name", "") or ""
+    return _build_contact_reference(contact, fallback_name=fallback_name)
 
 
 def get_run_volunteers(run):

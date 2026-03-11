@@ -1,16 +1,32 @@
 from __future__ import annotations
 
+from datetime import date
+
 from django.core.exceptions import ValidationError
 from django.template import Context, Template
 
 from wms.models import (
-    CommunicationChannel,
     CommunicationDraft,
     CommunicationTemplate,
     PlanningVersion,
     PlanningVersionStatus,
 )
 from wms.planning.communication_plan import build_version_communication_plan
+from wms.planning.legacy_communications import (
+    DEFAULT_BODY_AIRFRANCE,
+    DEFAULT_BODY_ASF,
+    DEFAULT_BODY_DEST,
+    DEFAULT_BODY_EXPEDITEUR,
+    CommunicationFamily,
+    LegacyCommRow,
+    build_comm_table_html,
+    build_subject_airfrance,
+    build_subject_asf,
+    build_subject_destination,
+    build_subject_expediteur,
+    build_whatsapp_message,
+    family_order_key,
+)
 
 
 def _render_text(template_text: str, context: dict[str, object]) -> str:
@@ -19,74 +35,142 @@ def _render_text(template_text: str, context: dict[str, object]) -> str:
     return Template(template_text).render(Context(context)).strip()
 
 
-def _format_assignment_summary(assignments) -> str:
-    parts = []
-    for assignment in assignments:
-        flight = assignment.flight_number or "-"
-        shipment_reference = assignment.shipment_reference or "-"
-        cartons = assignment.cartons
-        parts.append(f"{flight} pour {shipment_reference} ({cartons} colis)")
-    return "; ".join(parts)
+def _rows_for_plan_item(plan_item) -> list[LegacyCommRow]:
+    assignments = plan_item.current_assignments or plan_item.previous_assignments
+    rows = [
+        LegacyCommRow(
+            flight_date=assignment.departure_date,
+            destination_city=assignment.destination_city,
+            destination_iata=assignment.destination_iata,
+            flight_number=assignment.flight_number,
+            departure_time=assignment.departure_time,
+            shipment_reference=assignment.shipment_reference,
+            cartons=assignment.cartons,
+            shipment_type=assignment.shipment_type,
+            shipper_name=assignment.shipper_name,
+            recipient_name=assignment.recipient_name,
+            volunteer_label=assignment.volunteer_label,
+            volunteer_first_name=assignment.volunteer_first_name,
+            volunteer_phone=assignment.volunteer_phone,
+            correspondent_label=assignment.correspondent_label,
+            correspondent_contact=assignment.correspondent_contact_details,
+            shipper_contact=assignment.shipper_contact,
+            recipient_contact=assignment.recipient_contact,
+        )
+        for assignment in assignments
+    ]
+    rows.sort(
+        key=lambda row: (
+            row.flight_date,
+            row.destination_city,
+            row.flight_number,
+            row.departure_time,
+            row.shipment_reference,
+        )
+    )
+    return rows
 
 
-def _change_status_label(change_status: str) -> str:
-    labels = {
-        "new": "nouveau",
-        "changed": "modifie",
-        "cancelled": "annulation",
-        "unchanged": "inchange",
-    }
-    return labels.get(change_status, change_status)
+def _coerce_date(value):
+    if isinstance(value, date):
+        return value
+    text = str(value or "").strip()
+    if not text:
+        return None
+    return date.fromisoformat(text)
+
+
+def _run_week(version: PlanningVersion) -> tuple[int, int]:
+    week_start = _coerce_date(version.run.week_start)
+    if week_start is None:
+        return (0, 0)
+    return (week_start.isocalendar().week, week_start.year)
+
+
+def _default_subject(version: PlanningVersion, plan_item) -> str:
+    week, year = _run_week(version)
+    rows = _rows_for_plan_item(plan_item)
+    if plan_item.family == CommunicationFamily.WHATSAPP_BENEVOLE:
+        return ""
+    if plan_item.family == CommunicationFamily.EMAIL_ASF:
+        return build_subject_asf(week=week, year=year)
+    if plan_item.family == CommunicationFamily.EMAIL_AIRFRANCE:
+        return build_subject_airfrance(week=week)
+    if not rows:
+        return ""
+    if plan_item.family == CommunicationFamily.EMAIL_CORRESPONDANT:
+        return build_subject_destination(destination_city=rows[0].destination_city, week=week)
+    if plan_item.family == CommunicationFamily.EMAIL_EXPEDITEUR:
+        return build_subject_expediteur(
+            party_name=plan_item.recipient_label,
+            destination_city=rows[0].destination_city,
+            week=week,
+        )
+    if plan_item.family == CommunicationFamily.EMAIL_DESTINATAIRE:
+        return build_subject_expediteur(
+            party_name=plan_item.recipient_label,
+            destination_city=rows[0].destination_city,
+            week=week,
+        )
+    return ""
+
+
+def _default_body(version: PlanningVersion, plan_item) -> str:
+    week, _ = _run_week(version)
+    rows = _rows_for_plan_item(plan_item)
+    if plan_item.family == CommunicationFamily.WHATSAPP_BENEVOLE:
+        return build_whatsapp_message(rows=rows)
+    if plan_item.family == CommunicationFamily.EMAIL_ASF:
+        return DEFAULT_BODY_ASF.format(week=week)
+    if plan_item.family == CommunicationFamily.EMAIL_AIRFRANCE:
+        return DEFAULT_BODY_AIRFRANCE.format(week=week)
+    if not rows:
+        return ""
+
+    table_html = build_comm_table_html(rows)
+    if plan_item.family == CommunicationFamily.EMAIL_CORRESPONDANT:
+        return DEFAULT_BODY_DEST.format(
+            destination=rows[0].destination_city,
+            table_html=table_html,
+        )
+    if plan_item.family in {
+        CommunicationFamily.EMAIL_EXPEDITEUR,
+        CommunicationFamily.EMAIL_DESTINATAIRE,
+    }:
+        return DEFAULT_BODY_EXPEDITEUR.format(
+            table_html=table_html,
+            coord_correspondant=rows[0].correspondent_contact,
+        )
+    return ""
+
+
+def _template_for_family(plan_item) -> CommunicationTemplate | None:
+    return (
+        CommunicationTemplate.objects.filter(
+            is_active=True,
+            scope=plan_item.family,
+            channel=plan_item.channel,
+        )
+        .order_by("id")
+        .first()
+    )
 
 
 def _build_plan_item_context(version: PlanningVersion, plan_item) -> dict[str, object]:
-    reference_assignments = plan_item.current_assignments or plan_item.previous_assignments
-    primary_assignment = reference_assignments[0] if reference_assignments else None
-    shipment_reference = primary_assignment.shipment_reference if primary_assignment else ""
-    volunteer = plan_item.recipient_label
-    flight = primary_assignment.flight_number if primary_assignment else ""
-    cartons = primary_assignment.cartons if primary_assignment else 0
+    rows = _rows_for_plan_item(plan_item)
+    primary = rows[0] if rows else None
+    week, year = _run_week(version)
     return {
         "version_number": version.number,
-        "week_start": version.run.week_start,
-        "week_end": version.run.week_end,
-        "shipment_reference": shipment_reference,
-        "volunteer": volunteer,
-        "recipient_label": volunteer,
-        "flight": flight,
-        "cartons": cartons,
-        "notes": primary_assignment.notes if primary_assignment else "",
-        "change_status": plan_item.change_status,
-        "change_status_label": _change_status_label(plan_item.change_status),
-        "change_summary": plan_item.change_summary,
-        "assignment_count": len(plan_item.current_assignments),
-        "current_assignments": plan_item.current_assignments,
-        "previous_assignments": plan_item.previous_assignments,
+        "week": week,
+        "year": year,
+        "recipient_label": plan_item.recipient_label,
+        "recipient_contact": plan_item.recipient_contact,
+        "destination": primary.destination_city if primary else "",
+        "correspondent_contact": primary.correspondent_contact if primary else "",
+        "table_html": build_comm_table_html(rows),
+        "rows": rows,
     }
-
-
-def _fallback_subject(version: PlanningVersion, plan_item) -> str:
-    recipient = plan_item.recipient_label or "-"
-    if plan_item.change_status == "cancelled":
-        return f"Annulation planning v{version.number} pour {recipient}"
-    if plan_item.change_status == "changed":
-        return f"Mise a jour planning v{version.number} pour {recipient}"
-    return f"Planning v{version.number} pour {recipient}"
-
-
-def _fallback_body(plan_item) -> str:
-    recipient = plan_item.recipient_label or "-"
-    if plan_item.change_status == "cancelled":
-        previous_summary = _format_assignment_summary(plan_item.previous_assignments)
-        return f"Annulation pour {recipient}: {previous_summary}."
-
-    current_summary = _format_assignment_summary(plan_item.current_assignments)
-    if plan_item.change_status == "changed":
-        previous_summary = _format_assignment_summary(plan_item.previous_assignments)
-        return f"Mise a jour pour {recipient}: {current_summary}. Avant: {previous_summary}."
-    if plan_item.change_status == "unchanged":
-        return f"Aucun changement pour {recipient}: {current_summary}."
-    return f"Planning pour {recipient}: {current_summary}."
 
 
 def generate_version_drafts(version: PlanningVersion) -> list[CommunicationDraft]:
@@ -94,37 +178,28 @@ def generate_version_drafts(version: PlanningVersion) -> list[CommunicationDraft
         raise ValidationError("Communication drafts can only be generated for published versions.")
 
     CommunicationDraft.objects.filter(version=version).delete()
-    templates_by_channel: dict[str, list[CommunicationTemplate]] = {}
-    for template in CommunicationTemplate.objects.filter(is_active=True).order_by("id"):
-        templates_by_channel.setdefault(template.channel, []).append(template)
     plan = build_version_communication_plan(version)
-
     generated_drafts: list[CommunicationDraft] = []
+
     for plan_item in plan.items:
-        context = _build_plan_item_context(version, plan_item)
-        templates = templates_by_channel.get(plan_item.channel, [])
-        if templates:
-            for template in templates:
-                generated_drafts.append(
-                    CommunicationDraft(
-                        version=version,
-                        template=template,
-                        channel=template.channel,
-                        recipient_label=str(context["recipient_label"]),
-                        recipient_contact="",
-                        subject=_render_text(template.subject, context),
-                        body=_render_text(template.body, context),
-                    )
-                )
-            continue
+        template = _template_for_family(plan_item)
+        if template is not None:
+            context = _build_plan_item_context(version, plan_item)
+            subject = _render_text(template.subject, context)
+            body = _render_text(template.body, context)
+        else:
+            subject = _default_subject(version, plan_item)
+            body = _default_body(version, plan_item)
         generated_drafts.append(
             CommunicationDraft(
                 version=version,
-                channel=CommunicationChannel.EMAIL,
-                recipient_label=str(context["recipient_label"]),
-                recipient_contact="",
-                subject=_fallback_subject(version, plan_item),
-                body=_fallback_body(plan_item),
+                template=template,
+                channel=plan_item.channel,
+                family=plan_item.family,
+                recipient_label=plan_item.recipient_label,
+                recipient_contact=plan_item.recipient_contact,
+                subject=subject,
+                body=body,
             )
         )
 
@@ -132,6 +207,7 @@ def generate_version_drafts(version: PlanningVersion) -> list[CommunicationDraft
         CommunicationDraft.objects.bulk_create(generated_drafts)
     return list(
         CommunicationDraft.objects.filter(version=version).order_by(
+            "family",
             "channel",
             "recipient_label",
             "id",

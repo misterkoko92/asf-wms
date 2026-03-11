@@ -21,6 +21,7 @@ from wms.models import (
 )
 from wms.planning.communications import generate_version_drafts
 from wms.planning.exports import export_version_workbook
+from wms.planning.legacy_communications import CommunicationFamily
 from wms.planning.stats import build_version_stats
 
 
@@ -55,12 +56,9 @@ class PlanningOutputTests(TestCase):
         self.template = CommunicationTemplate.objects.create(
             label="Mail planning",
             channel=CommunicationChannel.EMAIL,
-            subject="Planning v{{ version_number }} pour {{ volunteer }}",
-            body=(
-                "Bonjour {{ volunteer }}, "
-                "vol {{ flight }} pour {{ shipment_reference }} "
-                "({{ cartons }} colis)."
-            ),
+            scope=CommunicationFamily.EMAIL_ASF,
+            subject="Planning v{{ version_number }} pour ASF interne",
+            body="Bonjour ASF, semaine {{ week }}.",
         )
 
     def make_published_version(
@@ -111,11 +109,13 @@ class PlanningOutputTests(TestCase):
         artifact = export_version_workbook(version)
         stats = build_version_stats(version)
 
-        self.assertEqual(len(drafts), 1)
-        draft = CommunicationDraft.objects.get(version=version)
-        self.assertIn("Planning v1 pour Alice", draft.subject)
-        self.assertIn("AF123", draft.body)
-        self.assertIn("SHP-001", draft.body)
+        self.assertEqual(len(drafts), 3)
+        draft = CommunicationDraft.objects.get(
+            version=version,
+            family=CommunicationFamily.EMAIL_ASF,
+        )
+        self.assertEqual(draft.subject, "Planning v1 pour ASF interne")
+        self.assertEqual(draft.body, "Bonjour ASF, semaine 11.")
 
         self.assertIsInstance(artifact, PlanningArtifact)
         self.assertEqual(artifact.artifact_type, "planning_workbook")
@@ -202,13 +202,6 @@ class PlanningOutputTests(TestCase):
         )
 
     def test_generate_drafts_aggregates_multiple_assignments_for_same_recipient(self):
-        self.template.subject = "Planning v{{ version_number }} pour {{ recipient_label }}"
-        self.template.body = (
-            "{% for assignment in current_assignments %}"
-            "{{ assignment.flight_number }} {{ assignment.shipment_reference }};"
-            "{% endfor %}"
-        )
-        self.template.save(update_fields=["subject", "body", "updated_at"])
         second_shipment = PlanningShipmentSnapshot.objects.create(
             run=self.run,
             shipment_reference="SHP-002",
@@ -234,10 +227,15 @@ class PlanningOutputTests(TestCase):
 
         drafts = generate_version_drafts(version)
 
-        self.assertEqual(len(drafts), 1)
-        self.assertEqual(drafts[0].recipient_label, "Alice")
-        self.assertIn("AF123 SHP-001", drafts[0].body)
-        self.assertIn("AF456 SHP-002", drafts[0].body)
+        self.assertEqual(len(drafts), 3)
+        whatsapp_draft = next(
+            draft for draft in drafts if draft.family == CommunicationFamily.WHATSAPP_BENEVOLE
+        )
+        self.assertEqual(whatsapp_draft.recipient_label, "Alice")
+        self.assertIn("AF 123", whatsapp_draft.body)
+        self.assertIn("AF 456", whatsapp_draft.body)
+        self.assertIn("BE 000001", whatsapp_draft.body)
+        self.assertIn("BE 000002", whatsapp_draft.body)
 
     def test_generate_drafts_creates_cancellation_message_for_removed_recipient(self):
         self.template.is_active = False
@@ -252,14 +250,18 @@ class PlanningOutputTests(TestCase):
 
         drafts_v2 = generate_version_drafts(version_2)
 
-        self.assertEqual(len(drafts_v2), 1)
-        self.assertEqual(drafts_v2[0].recipient_label, "Alice")
-        self.assertIn("annulation", drafts_v2[0].body.lower())
+        self.assertEqual(len(drafts_v2), 3)
+        whatsapp_draft = next(
+            draft for draft in drafts_v2 if draft.family == CommunicationFamily.WHATSAPP_BENEVOLE
+        )
+        self.assertEqual(whatsapp_draft.recipient_label, "Alice")
+        self.assertIn("AF 123", whatsapp_draft.body)
 
     def test_generate_drafts_keeps_multiple_active_templates_on_same_channel(self):
         second_template = CommunicationTemplate.objects.create(
-            label="Mail planning secondaire",
+            label="Mail air france",
             channel=CommunicationChannel.EMAIL,
+            scope=CommunicationFamily.EMAIL_AIRFRANCE,
             subject="Second {{ recipient_label }}",
             body="Second template pour {{ recipient_label }}",
         )
@@ -267,19 +269,21 @@ class PlanningOutputTests(TestCase):
 
         drafts = generate_version_drafts(version)
 
-        self.assertEqual(len(drafts), 2)
+        self.assertEqual(len(drafts), 3)
         self.assertEqual(
-            sorted(draft.template_id for draft in drafts),
+            sorted(draft.template_id for draft in drafts if draft.template_id),
             sorted([self.template.pk, second_template.pk]),
         )
         self.assertEqual(
             sorted(
-                CommunicationDraft.objects.filter(version=version).values_list(
+                CommunicationDraft.objects.filter(
+                    version=version, template__isnull=False
+                ).values_list(
                     "template__label",
                     flat=True,
                 )
             ),
-            ["Mail planning", "Mail planning secondaire"],
+            ["Mail air france", "Mail planning"],
         )
 
     def test_generate_drafts_keeps_separate_series_per_version(self):
@@ -294,23 +298,21 @@ class PlanningOutputTests(TestCase):
         drafts_v1 = generate_version_drafts(version_1)
         drafts_v2 = generate_version_drafts(version_2)
 
-        self.assertEqual(len(drafts_v1), 1)
-        self.assertEqual(len(drafts_v2), 2)
-        self.assertEqual(
-            list(
-                CommunicationDraft.objects.filter(version=version_1).values_list(
-                    "recipient_label",
-                    flat=True,
-                )
-            ),
-            ["Alice"],
-        )
+        self.assertEqual(len(drafts_v1), 3)
+        self.assertEqual(len(drafts_v2), 4)
         self.assertEqual(
             sorted(
                 CommunicationDraft.objects.filter(version=version_2).values_list(
+                    "family",
                     "recipient_label",
-                    flat=True,
                 )
             ),
-            ["Alice", "Bob"],
+            sorted(
+                [
+                    (CommunicationFamily.EMAIL_AIRFRANCE, "Air France"),
+                    (CommunicationFamily.EMAIL_ASF, "ASF interne"),
+                    (CommunicationFamily.WHATSAPP_BENEVOLE, "Alice"),
+                    (CommunicationFamily.WHATSAPP_BENEVOLE, "Bob"),
+                ]
+            ),
         )
