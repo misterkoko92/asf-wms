@@ -1,0 +1,40 @@
+{% load i18n %}
+
+<section class="scan-card portal-card card border-0 shadow-sm mt-3">
+  <div class="card-body">
+    <details>
+      <summary class="h5 mb-0">{% trans "Bilan Planning" %}</summary>
+
+      <div class="scan-table-wrap table-responsive mt-3">
+        <table class="scan-table table table-sm table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>{% trans "Benevole" %}</th>
+              <th>{% trans "Nb_Dispo" %}</th>
+              <th>{% trans "Nb_Jours_Affectes" %}</th>
+              <th>{% trans "Nb_Vols_Affectes" %}</th>
+              <th>{% trans "Nb_BE_Affectes" %}</th>
+              <th>{% trans "Disponibilites" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in dashboard.planning_summary.volunteer_rows %}
+              <tr>
+                <td>{{ row.volunteer_label }}</td>
+                <td>{{ row.availability_count }}</td>
+                <td>{{ row.assigned_day_count }}</td>
+                <td>{{ row.assigned_flight_count }}</td>
+                <td>{{ row.assigned_shipment_count }}</td>
+                <td>{{ row.availability_label|default:"-" }}</td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="6" class="text-muted">{% trans "Aucun benevole disponible." %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  </div>
+</section>

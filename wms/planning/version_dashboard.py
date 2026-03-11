@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
-from datetime import date
+from datetime import date, timedelta
 
 from django.utils import timezone
 
@@ -41,6 +41,16 @@ DAY_NAMES = (
     "Vendredi",
     "Samedi",
     "Dimanche",
+)
+
+SHORT_DAY_NAMES = (
+    "Lun",
+    "Mar",
+    "Mer",
+    "Jeu",
+    "Ven",
+    "Sam",
+    "Dim",
 )
 
 
@@ -239,6 +249,221 @@ def _build_planning_rows(version: PlanningVersion) -> list[dict[str, object]]:
         )
     )
     return rows
+
+
+def _build_week_dates(version: PlanningVersion) -> list[date]:
+    start = _coerce_date(version.run.week_start)
+    end = _coerce_date(version.run.week_end)
+    if start is None:
+        return []
+    if end is None or end < start:
+        end = start + timedelta(days=6)
+    dates = []
+    current = start
+    while current <= end:
+        dates.append(current)
+        current += timedelta(days=1)
+    return dates
+
+
+def _build_week_day_labels(week_dates: list[date]) -> list[dict[str, str]]:
+    return [
+        {
+            "iso_date": value.isoformat(),
+            "short_label": f"{SHORT_DAY_NAMES[value.weekday()]} {value.strftime('%d/%m')}",
+            "long_label": _format_flight_date(value),
+        }
+        for value in week_dates
+    ]
+
+
+def _normalize_time_label(value: str) -> str:
+    return _format_flight_time(value)
+
+
+def _build_slot_map(volunteer_snapshot) -> dict[date, list[tuple[str, str]]]:
+    slot_map: dict[date, list[tuple[str, str]]] = defaultdict(list)
+    summary = volunteer_snapshot.availability_summary or {}
+    for slot in summary.get("slots", []):
+        slot_date = _coerce_date(slot.get("date"))
+        if slot_date is None:
+            continue
+        start_time = _normalize_time_label(str(slot.get("start_time", "")).strip())
+        end_time = _normalize_time_label(str(slot.get("end_time", "")).strip())
+        if not start_time and not end_time:
+            continue
+        slot_map[slot_date].append((start_time, end_time))
+    for value in slot_map.values():
+        value.sort()
+    return slot_map
+
+
+def _format_slot_range(start_time: str, end_time: str) -> str:
+    if start_time and end_time:
+        return f"{start_time}-{end_time}"
+    return start_time or end_time
+
+
+def _build_week_view(version: PlanningVersion) -> dict[str, object]:
+    week_dates = _build_week_dates(version)
+    day_labels = _build_week_day_labels(week_dates)
+    assignments = list(
+        version.assignments.select_related(
+            "flight_snapshot",
+            "shipment_snapshot",
+            "volunteer_snapshot",
+        )
+    )
+    used_flight_ids = {
+        assignment.flight_snapshot_id for assignment in assignments if assignment.flight_snapshot_id
+    }
+
+    volunteer_rows = []
+    for volunteer_snapshot in version.run.volunteer_snapshots.all().order_by(
+        "volunteer_label", "id"
+    ):
+        slot_map = _build_slot_map(volunteer_snapshot)
+        availability_count = len(slot_map)
+        cells = []
+        for day in week_dates:
+            day_slots = slot_map.get(day, [])
+            if day_slots:
+                cells.append(
+                    {
+                        "label": " / ".join(
+                            _format_slot_range(start_time, end_time)
+                            for start_time, end_time in day_slots
+                        ),
+                        "status": "available",
+                    }
+                )
+            else:
+                cells.append({"label": "", "status": "none"})
+        volunteer_rows.append(
+            {
+                "volunteer_label": volunteer_snapshot.volunteer_label,
+                "display_label": (
+                    f"{volunteer_snapshot.volunteer_label} ({availability_count})"
+                    if volunteer_snapshot.volunteer_label
+                    else f"- ({availability_count})"
+                ),
+                "availability_count": availability_count,
+                "cells": cells,
+            }
+        )
+
+    destination_totals: dict[str, int] = defaultdict(int)
+    for snapshot in version.run.shipment_snapshots.all():
+        destination_totals[snapshot.destination_iata or "-"] += snapshot.carton_count
+
+    flight_rows_by_destination: dict[str, dict[str, object]] = {}
+    for flight_snapshot in version.run.flight_snapshots.all().order_by(
+        "destination_iata",
+        "departure_date",
+        "flight_number",
+        "id",
+    ):
+        destination = flight_snapshot.destination_iata or "-"
+        row = flight_rows_by_destination.get(destination)
+        if row is None:
+            row = {
+                "destination_iata": destination,
+                "destination_label": f"{destination} ({destination_totals.get(destination, 0)})",
+                "cells": [{"entries": [], "status": "none"} for _ in week_dates],
+            }
+            flight_rows_by_destination[destination] = row
+        try:
+            day_index = week_dates.index(flight_snapshot.departure_date)
+        except ValueError:
+            continue
+        flight_label = " · ".join(
+            part
+            for part in [
+                _format_flight_time((flight_snapshot.payload or {}).get("departure_time", "")),
+                _format_flight_number(flight_snapshot.flight_number),
+                (flight_snapshot.payload or {}).get("routing", ""),
+            ]
+            if part
+        )
+        entry_status = "used" if flight_snapshot.pk in used_flight_ids else "available"
+        row["cells"][day_index]["entries"].append(
+            {
+                "label": flight_label or _format_flight_number(flight_snapshot.flight_number),
+                "status": entry_status,
+            }
+        )
+        row["cells"][day_index]["status"] = "used" if entry_status == "used" else "available"
+
+    return {
+        "day_labels": day_labels,
+        "volunteer_rows": volunteer_rows,
+        "flight_rows": list(flight_rows_by_destination.values()),
+    }
+
+
+def _build_availability_label(volunteer_snapshot) -> tuple[int, str]:
+    slot_map = _build_slot_map(volunteer_snapshot)
+    labels = []
+    for slot_date in sorted(slot_map):
+        for start_time, end_time in slot_map[slot_date]:
+            labels.append(
+                f"{slot_date.strftime('%d/%m/%y')} {_format_slot_range(start_time, end_time)}"
+            )
+    return len(slot_map), ", ".join(labels)
+
+
+def _build_planning_summary(version: PlanningVersion) -> dict[str, object]:
+    assignments = list(
+        version.assignments.select_related(
+            "volunteer_snapshot",
+            "flight_snapshot",
+            "shipment_snapshot",
+        )
+    )
+    assignments_by_volunteer: dict[int, list[object]] = defaultdict(list)
+    for assignment in assignments:
+        if assignment.volunteer_snapshot_id:
+            assignments_by_volunteer[assignment.volunteer_snapshot_id].append(assignment)
+
+    volunteer_rows = []
+    for volunteer_snapshot in version.run.volunteer_snapshots.all().order_by(
+        "volunteer_label", "id"
+    ):
+        volunteer_assignments = assignments_by_volunteer.get(volunteer_snapshot.pk, [])
+        availability_count, availability_label = _build_availability_label(volunteer_snapshot)
+        assigned_day_count = len(
+            {
+                assignment.flight_snapshot.departure_date
+                for assignment in volunteer_assignments
+                if assignment.flight_snapshot_id and assignment.flight_snapshot is not None
+            }
+        )
+        assigned_flight_count = len(
+            {
+                assignment.flight_snapshot_id
+                for assignment in volunteer_assignments
+                if assignment.flight_snapshot_id
+            }
+        )
+        assigned_shipment_count = len(
+            {
+                assignment.shipment_snapshot_id
+                for assignment in volunteer_assignments
+                if assignment.shipment_snapshot_id
+            }
+        )
+        volunteer_rows.append(
+            {
+                "volunteer_label": volunteer_snapshot.volunteer_label or "-",
+                "availability_count": availability_count,
+                "assigned_day_count": assigned_day_count,
+                "assigned_flight_count": assigned_flight_count,
+                "assigned_shipment_count": assigned_shipment_count,
+                "availability_label": availability_label,
+            }
+        )
+
+    return {"volunteer_rows": volunteer_rows}
 
 
 def _build_unassigned_shipments(version: PlanningVersion) -> list[dict[str, object]]:
@@ -494,6 +719,8 @@ def build_version_dashboard(version: PlanningVersion) -> dict[str, object]:
     history = _build_history(version)
     return {
         "header": _build_header(version, stats=stats),
+        "week_view": _build_week_view(version),
+        "planning_summary": _build_planning_summary(version),
         "planning_rows": _build_planning_rows(version),
         "flight_groups": _build_flight_groups(version),
         "unassigned_shipments": _build_unassigned_shipments(version),
