@@ -263,6 +263,8 @@ def _build_unassigned_shipments(version: PlanningVersion) -> list[dict[str, obje
                 "priority": snapshot.priority,
                 "carton_count": snapshot.carton_count,
                 "equivalent_units": snapshot.equivalent_units,
+                "shipment_type": (snapshot.payload or {}).get("legacy_type", ""),
+                "recipient_label": (snapshot.payload or {}).get("legacy_destinataire", ""),
                 "reason_code": reason_code,
                 "reason": UNASSIGNED_REASON_LABELS.get(
                     reason_code,

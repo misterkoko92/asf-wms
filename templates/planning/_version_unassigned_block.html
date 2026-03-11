@@ -8,28 +8,86 @@
       <table class="table align-middle mb-0">
         <thead>
           <tr>
-            <th>{% trans "Expedition" %}</th>
             <th>{% trans "Destination" %}</th>
-            <th>{% trans "Priorite" %}</th>
-            <th>{% trans "Colis" %}</th>
+            <th>{% trans "BE_Numero" %}</th>
+            <th>{% trans "BE_Nb_Colis" %}</th>
+            <th>{% trans "BE_Nb_Equiv" %}</th>
+            <th>{% trans "BE_Type" %}</th>
+            <th>{% trans "BE_Expediteur" %}</th>
+            <th>{% trans "BE_Destinataire" %}</th>
             <th>{% trans "Motif" %}</th>
+            <th>{% trans "Action" %}</th>
           </tr>
         </thead>
         <tbody>
           {% for item in dashboard.unassigned_shipments %}
             <tr>
-              <td>
-                <strong>{{ item.shipment_reference }}</strong><br>
-                <small class="text-muted">{{ item.shipper_name|default:"-" }}</small>
-              </td>
               <td>{{ item.destination_iata|default:"-" }}</td>
-              <td>{{ item.priority }}</td>
+              <td>{{ item.shipment_reference|default:"-" }}</td>
               <td>{{ item.carton_count }}</td>
+              <td>{{ item.equivalent_units }}</td>
+              <td>{{ item.shipment_type|default:"-" }}</td>
+              <td>{{ item.shipper_name|default:"-" }}</td>
+              <td>{{ item.recipient_label|default:"-" }}</td>
               <td>{{ item.reason }}</td>
+              <td class="text-nowrap">
+                {% if version.status == "draft" and item.editor_options %}
+                  <details>
+                    <summary class="btn btn-sm btn-outline-primary">{% trans "Ajouter au planning" %}</summary>
+                    <form method="post" class="mt-2 vstack gap-2">
+                      {% csrf_token %}
+                      <input type="hidden" name="shipment_action" value="assign">
+                      <input type="hidden" name="shipment_snapshot_id" value="{{ item.shipment_snapshot_id }}">
+                      <div>
+                        <label class="form-label mb-1" for="unassigned-flight-{{ item.shipment_snapshot_id }}">{% trans "Affecter un vol" %}</label>
+                        <select
+                          class="form-select form-select-sm"
+                          id="unassigned-flight-{{ item.shipment_snapshot_id }}"
+                          name="flight_snapshot"
+                          data-flight-select
+                          data-volunteer-target="unassigned-volunteer-{{ item.shipment_snapshot_id }}"
+                        >
+                          {% for option in item.editor_options.flight_options %}
+                            <option
+                              value="{{ option.value }}"
+                              {% if option.value == item.editor_options.selected_flight_id %}selected{% endif %}
+                              {% if option.option_style %}style="{{ option.option_style }}"{% endif %}
+                            >
+                              {{ option.date_label }} · {{ option.label }}
+                            </option>
+                          {% endfor %}
+                        </select>
+                      </div>
+                      <div>
+                        <label class="form-label mb-1" for="unassigned-volunteer-{{ item.shipment_snapshot_id }}">{% trans "Affecter un benevole" %}</label>
+                        <select
+                          class="form-select form-select-sm"
+                          id="unassigned-volunteer-{{ item.shipment_snapshot_id }}"
+                          name="volunteer_snapshot"
+                          data-volunteer-select
+                        >
+                          {% for option in item.editor_options.volunteer_options %}
+                            <option
+                              value="{{ option.value }}"
+                              {% if option.option_style %}style="{{ option.option_style }}"{% endif %}
+                              data-flight-tones="{% for flight_id, tone in option.tones_by_flight.items %}{% if not forloop.first %},{% endif %}{{ flight_id }}:{{ tone }}{% endfor %}"
+                            >
+                              {{ option.label }}
+                            </option>
+                          {% endfor %}
+                        </select>
+                      </div>
+                      <button type="submit" class="btn btn-sm btn-primary align-self-start">{% trans "Valider" %}</button>
+                    </form>
+                  </details>
+                {% else %}
+                  <span class="text-muted">-</span>
+                {% endif %}
+              </td>
             </tr>
           {% empty %}
             <tr>
-              <td colspan="5" class="text-muted">{% trans "Aucune expedition non affectee." %}</td>
+              <td colspan="8" class="text-muted">{% trans "Aucune expedition non affectee." %}</td>
             </tr>
           {% endfor %}
         </tbody>

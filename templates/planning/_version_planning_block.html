@@ -45,7 +45,85 @@
               <td>{{ row.recipient_label|default:"-" }}</td>
               <td class="text-nowrap">
                 {% if version.status == "draft" %}
-                  <span class="badge text-bg-light">{% trans "Edition a venir" %}</span>
+                  <div class="d-flex flex-column align-items-start gap-2">
+                    <form method="post" class="m-0">
+                      {% csrf_token %}
+                      <input type="hidden" name="assignment_action" value="delete">
+                      <input type="hidden" name="assignment_id" value="{{ row.assignment_id }}">
+                      <button type="submit" class="btn btn-sm btn-outline-danger">{% trans "Supprimer" %}</button>
+                    </form>
+                    {% if row.editor_options %}
+                      <details class="w-100">
+                        <summary class="btn btn-sm btn-outline-secondary">{% trans "Modifier" %}</summary>
+                        <form method="post" class="mt-2 vstack gap-2">
+                          {% csrf_token %}
+                          <input type="hidden" name="assignment_action" value="update">
+                          <input type="hidden" name="assignment_id" value="{{ row.assignment_id }}">
+                          <div>
+                            <label class="form-label mb-1" for="assignment-date-{{ row.assignment_id }}">{% trans "Date du vol" %}</label>
+                            <select
+                              class="form-select form-select-sm"
+                              id="assignment-date-{{ row.assignment_id }}"
+                              data-flight-date-select
+                              data-target="assignment-flight-{{ row.assignment_id }}"
+                            >
+                              {% for option in row.editor_options.date_options %}
+                                <option
+                                  value="{{ option.value }}"
+                                  {% if option.selected %}selected{% endif %}
+                                  {% if option.option_style %}style="{{ option.option_style }}"{% endif %}
+                                >
+                                  {{ option.label }}
+                                </option>
+                              {% endfor %}
+                            </select>
+                          </div>
+                          <div>
+                            <label class="form-label mb-1" for="assignment-flight-{{ row.assignment_id }}">{% trans "Vol" %}</label>
+                            <select
+                              class="form-select form-select-sm"
+                              id="assignment-flight-{{ row.assignment_id }}"
+                              name="flight_snapshot"
+                              data-flight-select
+                              data-volunteer-target="assignment-volunteer-{{ row.assignment_id }}"
+                            >
+                              {% for option in row.editor_options.flight_options %}
+                                <option
+                                  value="{{ option.value }}"
+                                  data-flight-date="{{ option.date_value }}"
+                                  {% if option.selected %}selected{% endif %}
+                                  {% if option.option_style %}style="{{ option.option_style }}"{% endif %}
+                                >
+                                  {{ option.label }}
+                                </option>
+                              {% endfor %}
+                            </select>
+                          </div>
+                          <div>
+                            <label class="form-label mb-1" for="assignment-volunteer-{{ row.assignment_id }}">{% trans "Benevole" %}</label>
+                            <select
+                              class="form-select form-select-sm"
+                              id="assignment-volunteer-{{ row.assignment_id }}"
+                              name="volunteer_snapshot"
+                              data-volunteer-select
+                            >
+                              {% for option in row.editor_options.volunteer_options %}
+                                <option
+                                  value="{{ option.value }}"
+                                  {% if option.selected %}selected{% endif %}
+                                  {% if option.option_style %}style="{{ option.option_style }}"{% endif %}
+                                  data-flight-tones="{% for flight_id, tone in option.tones_by_flight.items %}{% if not forloop.first %},{% endif %}{{ flight_id }}:{{ tone }}{% endfor %}"
+                                >
+                                  {{ option.label }}
+                                </option>
+                              {% endfor %}
+                            </select>
+                          </div>
+                          <button type="submit" class="btn btn-sm btn-primary align-self-start">{% trans "Valider" %}</button>
+                        </form>
+                      </details>
+                    {% endif %}
+                  </div>
                 {% else %}
                   <span class="text-muted">-</span>
                 {% endif %}
@@ -61,3 +139,70 @@
     </div>
   </div>
 </section>
+
+<script>
+  (function() {
+    function syncFlightSelect(dateSelect) {
+      const targetId = dateSelect.dataset.target;
+      if (!targetId) return;
+      const flightSelect = document.getElementById(targetId);
+      if (!flightSelect) return;
+      const selectedDate = dateSelect.value;
+      let firstVisible = null;
+      Array.from(flightSelect.options).forEach((option) => {
+        const isVisible = option.dataset.flightDate === selectedDate;
+        option.hidden = !isVisible;
+        if (isVisible && firstVisible === null) {
+          firstVisible = option;
+        }
+      });
+      if (flightSelect.selectedOptions.length === 0 || flightSelect.selectedOptions[0].hidden) {
+        if (firstVisible) {
+          firstVisible.selected = true;
+        }
+      }
+      syncVolunteerSelect(flightSelect);
+    }
+
+    function toneStyle(tone) {
+      switch (tone) {
+        case "green":
+          return "background-color: #e6f6ea;";
+        case "orange":
+          return "background-color: #fff1db;";
+        case "red":
+          return "background-color: #f8d7da;";
+        default:
+          return "";
+      }
+    }
+
+    function syncVolunteerSelect(flightSelect) {
+      const targetId = flightSelect.dataset.volunteerTarget;
+      if (!targetId) return;
+      const volunteerSelect = document.getElementById(targetId);
+      if (!volunteerSelect) return;
+      const selectedFlight = flightSelect.value;
+      Array.from(volunteerSelect.options).forEach((option) => {
+        const rawTones = option.dataset.flightTones || "";
+        const toneMap = Object.fromEntries(
+          rawTones
+            .split(",")
+            .filter(Boolean)
+            .map((entry) => entry.split(":"))
+            .filter((entry) => entry.length === 2)
+        );
+        option.style.cssText = toneStyle(toneMap[selectedFlight] || "none");
+      });
+    }
+
+    document.querySelectorAll("[data-flight-date-select]").forEach((select) => {
+      syncFlightSelect(select);
+      select.addEventListener("change", () => syncFlightSelect(select));
+    });
+    document.querySelectorAll("[data-flight-select]").forEach((select) => {
+      syncVolunteerSelect(select);
+      select.addEventListener("change", () => syncVolunteerSelect(select));
+    });
+  })();
+</script>

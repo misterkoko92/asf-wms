@@ -91,6 +91,92 @@ class PlanningViewTests(TestCase):
         )
         return version, assignment, volunteer_bob, flight_af456
 
+    def make_operator_version(self):
+        run = PlanningRun.objects.create(
+            week_start="2026-03-09",
+            week_end="2026-03-15",
+            parameter_set=self.parameter_set,
+            status=PlanningRunStatus.SOLVED,
+            created_by=self.staff_user,
+        )
+        version = PlanningVersion.objects.create(
+            run=run,
+            status=PlanningVersionStatus.DRAFT,
+            created_by=self.staff_user,
+        )
+        assigned_shipment = PlanningShipmentSnapshot.objects.create(
+            run=run,
+            shipment_reference="260128",
+            shipper_name="ASF",
+            destination_iata="NSI",
+            carton_count=4,
+            equivalent_units=4,
+            payload={"legacy_type": "MM", "legacy_destinataire": "CORRESPONDANT"},
+        )
+        unassigned_shipment = PlanningShipmentSnapshot.objects.create(
+            run=run,
+            shipment_reference="260129",
+            shipper_name="ASF",
+            destination_iata="NSI",
+            carton_count=2,
+            equivalent_units=2,
+            payload={"legacy_type": "MM", "legacy_destinataire": "DESTINATAIRE"},
+        )
+        volunteer_alice = PlanningVolunteerSnapshot.objects.create(
+            run=run,
+            volunteer_label="Alice",
+            availability_summary={
+                "slots": [
+                    {"date": "2026-03-10", "start_time": "07:00", "end_time": "18:00"},
+                    {"date": "2026-03-11", "start_time": "07:00", "end_time": "18:00"},
+                ],
+                "unavailable_dates": [],
+            },
+        )
+        volunteer_bob = PlanningVolunteerSnapshot.objects.create(
+            run=run,
+            volunteer_label="Bob",
+            availability_summary={
+                "slots": [{"date": "2026-03-11", "start_time": "07:00", "end_time": "18:00"}],
+                "unavailable_dates": [],
+            },
+        )
+        flight_af908 = PlanningFlightSnapshot.objects.create(
+            run=run,
+            flight_number="AF908",
+            departure_date="2026-03-10",
+            destination_iata="NSI",
+            capacity_units=10,
+            payload={"departure_time": "11:10", "routing": "CDG-NSI"},
+        )
+        flight_af910 = PlanningFlightSnapshot.objects.create(
+            run=run,
+            flight_number="AF910",
+            departure_date="2026-03-11",
+            destination_iata="NSI",
+            capacity_units=10,
+            payload={"departure_time": "13:10", "routing": "CDG-NSI"},
+        )
+        assignment = PlanningAssignment.objects.create(
+            version=version,
+            shipment_snapshot=assigned_shipment,
+            volunteer_snapshot=volunteer_alice,
+            flight_snapshot=flight_af908,
+            assigned_carton_count=4,
+            source=PlanningAssignmentSource.SOLVER,
+            sequence=1,
+        )
+        return {
+            "version": version,
+            "assignment": assignment,
+            "assigned_shipment": assigned_shipment,
+            "unassigned_shipment": unassigned_shipment,
+            "volunteer_alice": volunteer_alice,
+            "volunteer_bob": volunteer_bob,
+            "flight_af908": flight_af908,
+            "flight_af910": flight_af910,
+        }
+
     def make_published_version_with_live_shipment(self):
         shipment = Shipment.objects.create(
             status=ShipmentStatus.PACKED,
@@ -297,6 +383,73 @@ class PlanningViewTests(TestCase):
         self.assertEqual(assignment.flight_snapshot, flight_af456)
         self.assertEqual(assignment.assigned_carton_count, 5)
         self.assertEqual(assignment.source, PlanningAssignmentSource.MANUAL)
+
+    def test_staff_can_delete_assignment_from_operator_table(self):
+        data = self.make_operator_version()
+        self.client.force_login(self.staff_user)
+
+        response = self.client.post(
+            reverse("planning:version_detail", args=[data["version"].pk]),
+            {
+                "assignment_action": "delete",
+                "assignment_id": str(data["assignment"].pk),
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("planning:version_detail", args=[data["version"].pk]),
+        )
+        self.assertFalse(PlanningAssignment.objects.filter(pk=data["assignment"].pk).exists())
+
+    def test_staff_can_update_assignment_from_operator_row_form(self):
+        data = self.make_operator_version()
+        self.client.force_login(self.staff_user)
+
+        response = self.client.post(
+            reverse("planning:version_detail", args=[data["version"].pk]),
+            {
+                "assignment_action": "update",
+                "assignment_id": str(data["assignment"].pk),
+                "volunteer_snapshot": str(data["volunteer_bob"].pk),
+                "flight_snapshot": str(data["flight_af910"].pk),
+            },
+        )
+
+        data["assignment"].refresh_from_db()
+        self.assertRedirects(
+            response,
+            reverse("planning:version_detail", args=[data["version"].pk]),
+        )
+        self.assertEqual(data["assignment"].volunteer_snapshot, data["volunteer_bob"])
+        self.assertEqual(data["assignment"].flight_snapshot, data["flight_af910"])
+        self.assertEqual(data["assignment"].source, PlanningAssignmentSource.MANUAL)
+
+    def test_staff_can_assign_unassigned_shipment_from_operator_block(self):
+        data = self.make_operator_version()
+        self.client.force_login(self.staff_user)
+
+        response = self.client.post(
+            reverse("planning:version_detail", args=[data["version"].pk]),
+            {
+                "shipment_action": "assign",
+                "shipment_snapshot_id": str(data["unassigned_shipment"].pk),
+                "volunteer_snapshot": str(data["volunteer_bob"].pk),
+                "flight_snapshot": str(data["flight_af910"].pk),
+            },
+        )
+
+        created = PlanningAssignment.objects.get(
+            version=data["version"],
+            shipment_snapshot=data["unassigned_shipment"],
+        )
+        self.assertRedirects(
+            response,
+            reverse("planning:version_detail", args=[data["version"].pk]),
+        )
+        self.assertEqual(created.volunteer_snapshot, data["volunteer_bob"])
+        self.assertEqual(created.flight_snapshot, data["flight_af910"])
+        self.assertEqual(created.source, PlanningAssignmentSource.MANUAL)
 
     def test_version_detail_renders_operator_cockpit_blocks(self):
         version, assignment, _volunteer_bob, _flight_af456 = self.make_version_with_assignment(
