@@ -822,7 +822,8 @@ class PlanningViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
         self.assertGreaterEqual(content.count('style="width: 16ch;"'), 2)
-        self.assertGreaterEqual(content.count('style="width: 28ch;"'), 14)
+        self.assertGreaterEqual(content.count('style="width: 24ch;"'), 14)
+        self.assertIn("d-flex flex-column align-items-start gap-1", content)
         self.assertGreaterEqual(content.count('data-planning-simple-table="1"'), 3)
 
     def test_generating_drafts_from_version_detail_regenerates_aggregated_series(self):

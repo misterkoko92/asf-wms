@@ -12,7 +12,7 @@
             <colgroup>
               <col style="width: 16ch;">
               {% for day in dashboard.week_view.day_labels %}
-                <col style="width: 28ch;">
+                <col style="width: 24ch;">
               {% endfor %}
             </colgroup>
             <thead>
@@ -54,7 +54,7 @@
             <colgroup>
               <col style="width: 16ch;">
               {% for day in dashboard.week_view.day_labels %}
-                <col style="width: 28ch;">
+                <col style="width: 24ch;">
               {% endfor %}
             </colgroup>
             <thead>
@@ -72,7 +72,7 @@
                   {% for cell in row.cells %}
                     <td style="white-space: nowrap;">
                       {% if cell.entries %}
-                        <div class="d-flex flex-column gap-1">
+                        <div class="d-flex flex-column align-items-start gap-1">
                           {% for entry in cell.entries %}
                             <span class="badge {% if entry.status == 'used' %}bg-primary-subtle text-primary-emphasis{% else %}bg-light text-dark{% endif %} text-start">{{ entry.label }}</span>
                           {% endfor %}
