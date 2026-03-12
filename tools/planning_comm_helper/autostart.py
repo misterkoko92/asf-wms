@@ -79,22 +79,22 @@ def build_windows_autostart_paths(repo_root: Path | None = None) -> WindowsAutos
 
 
 def build_macos_launchagent_plist(paths: MacAutostartPaths) -> str:
-    return """<?xml version="1.0" encoding="UTF-8"?>
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>{label}</string>
+  <string>{LAUNCH_AGENT_LABEL}</string>
 
   <key>ProgramArguments</key>
   <array>
-    <string>{python_path}</string>
+    <string>{paths.python_path}</string>
     <string>-m</string>
     <string>tools.planning_comm_helper.server</string>
   </array>
 
   <key>WorkingDirectory</key>
-  <string>{repo_root}</string>
+  <string>{paths.repo_root}</string>
 
   <key>RunAtLoad</key>
   <true/>
@@ -103,29 +103,20 @@ def build_macos_launchagent_plist(paths: MacAutostartPaths) -> str:
   <true/>
 
   <key>StandardOutPath</key>
-  <string>{log_path}</string>
+  <string>{paths.log_path}</string>
 
   <key>StandardErrorPath</key>
-  <string>{log_path}</string>
+  <string>{paths.log_path}</string>
 </dict>
 </plist>
-""".format(
-        label=LAUNCH_AGENT_LABEL,
-        python_path=paths.python_path,
-        repo_root=paths.repo_root,
-        log_path=paths.log_path,
-    )
+"""
 
 
 def build_windows_runner_cmd(paths: WindowsAutostartPaths) -> str:
-    return """@echo off
-cd /d "{repo_root}"
-"{python_path}" -m tools.planning_comm_helper.server >> "{log_path}" 2>&1
-""".format(
-        repo_root=paths.repo_root,
-        python_path=paths.python_path,
-        log_path=paths.log_path,
-    )
+    return f"""@echo off
+cd /d "{paths.repo_root}"
+"{paths.python_path}" -m tools.planning_comm_helper.server >> "{paths.log_path}" 2>&1
+"""
 
 
 def _vbs_escape(value: str | Path) -> str:
@@ -133,13 +124,10 @@ def _vbs_escape(value: str | Path) -> str:
 
 
 def build_windows_startup_vbs(paths: WindowsAutostartPaths) -> str:
-    return """Set shell = CreateObject("WScript.Shell")
-shell.CurrentDirectory = "{repo_root}"
-shell.Run Chr(34) & "{runner_cmd_path}" & Chr(34), 0, False
-""".format(
-        repo_root=_vbs_escape(paths.repo_root),
-        runner_cmd_path=_vbs_escape(paths.runner_cmd_path),
-    )
+    return f"""Set shell = CreateObject("WScript.Shell")
+shell.CurrentDirectory = "{_vbs_escape(paths.repo_root)}"
+shell.Run Chr(34) & "{_vbs_escape(paths.runner_cmd_path)}" & Chr(34), 0, False
+"""
 
 
 def install_macos_autostart(
