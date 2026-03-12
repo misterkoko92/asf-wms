@@ -1104,6 +1104,34 @@ class PlanningViewTests(TestCase):
         self.assertIn('data-draft-id="', content)
         self.assertIn('data-family-key="whatsapp_benevole"', content)
 
+    def test_version_detail_renders_visual_html_editor_for_email_drafts_only(self):
+        data = self.make_published_version_with_communication_drafts()
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("planning:version_detail", args=[data["version"].pk]))
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertIn('src="/static/wms/planning_communications_editor.js"', content)
+        email_block = re.search(
+            r'<article[^>]+data-family-key="email_expediteur".*?</article>',
+            content,
+            re.IGNORECASE | re.DOTALL,
+        )
+        self.assertIsNotNone(email_block)
+        self.assertIn('data-planning-email-editor="1"', email_block.group(0))
+        self.assertIn('data-planning-email-editor-surface="1"', email_block.group(0))
+        self.assertIn('contenteditable="true"', email_block.group(0))
+        self.assertIn("Gras", email_block.group(0))
+        self.assertIn("Jaune", email_block.group(0))
+        whatsapp_block = re.search(
+            r'<article[^>]+data-family-key="whatsapp_benevole".*?</article>',
+            content,
+            re.IGNORECASE | re.DOTALL,
+        )
+        self.assertIsNotNone(whatsapp_block)
+        self.assertNotIn('data-planning-email-editor="1"', whatsapp_block.group(0))
+
     def test_version_detail_renders_destinataire_card_without_email_button_when_contact_missing(
         self,
     ):

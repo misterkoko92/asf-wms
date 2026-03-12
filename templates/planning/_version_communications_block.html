@@ -1,5 +1,30 @@
 {% load i18n %}
 
+<style>
+  .planning-email-editor-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .planning-email-editor-surface {
+    min-height: 12rem;
+    overflow: auto;
+    background: #fffdf9;
+    line-height: 1.5;
+  }
+
+  .planning-email-editor-surface:focus {
+    box-shadow: 0 0 0 0.2rem rgba(111, 154, 141, 0.24);
+    border-color: #6f9a8d;
+  }
+
+  .planning-email-editor-surface table {
+    max-width: 100%;
+  }
+</style>
+
 <section
   class="scan-card portal-card card border-0 shadow-sm mt-3"
   data-planning-communication-helper="1"
@@ -111,7 +136,29 @@
                         {% endif %}
                         <td>
                           {% if draft.form %}
-                            {{ draft.form.body }}
+                            {% if group.channel != "whatsapp" %}
+                              <div data-planning-email-editor="1">
+                                <div class="planning-email-editor-toolbar d-none" data-planning-email-editor-toolbar="1">
+                                  <button type="button" class="btn btn-tertiary btn-sm" data-planning-email-editor-command="bold">{% trans "Gras" %}</button>
+                                  <button type="button" class="btn btn-tertiary btn-sm" data-planning-email-editor-command="italic">{% trans "Italique" %}</button>
+                                  <button type="button" class="btn btn-tertiary btn-sm" data-planning-email-editor-command="underline">{% trans "Souligne" %}</button>
+                                  <button type="button" class="btn btn-tertiary btn-sm" data-planning-email-editor-command="highlight">{% trans "Jaune" %}</button>
+                                  <button type="button" class="btn btn-tertiary btn-sm" data-planning-email-editor-command="insertUnorderedList">{% trans "Liste" %}</button>
+                                  <button type="button" class="btn btn-tertiary btn-sm" data-planning-email-editor-command="removeFormat">{% trans "Nettoyer" %}</button>
+                                </div>
+                                <div
+                                  class="planning-email-editor-surface form-control d-none"
+                                  data-planning-email-editor-surface="1"
+                                  contenteditable="true"
+                                ></div>
+                                <div class="small text-muted d-none mt-2" data-planning-email-editor-hint="1">
+                                  {% trans "Edition visuelle HTML du mail." %}
+                                </div>
+                                {{ draft.form.body }}
+                              </div>
+                            {% else %}
+                              {{ draft.form.body }}
+                            {% endif %}
                           {% else %}
                             <div class="small">{{ draft.body|linebreaksbr }}</div>
                           {% endif %}

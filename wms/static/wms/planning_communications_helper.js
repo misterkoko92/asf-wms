@@ -73,15 +73,20 @@
     const overrides = {};
     const subjectField = row.querySelector('input[name$="-subject"]');
     const bodyField = row.querySelector('textarea[name$="-body"]');
+    const emailEditorSurface = row.querySelector("[data-planning-email-editor-surface='1']");
     if (action === "email" && subjectField) {
       overrides.subject = subjectField.value;
     }
-    if (bodyField) {
-      if (action === "email") {
+    if (action === "email") {
+      if (bodyField) {
         overrides.body_html = bodyField.value;
+      } else if (emailEditorSurface) {
+        overrides.body_html = emailEditorSurface.innerHTML;
       } else {
-        overrides.body = bodyField.value;
+        overrides.body_html = "";
       }
+    } else if (bodyField) {
+      overrides.body = bodyField.value;
     }
     return overrides;
   }
