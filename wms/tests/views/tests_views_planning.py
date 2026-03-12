@@ -1102,8 +1102,65 @@ class PlanningViewTests(TestCase):
         self.assertIn('data-planning-helper-origin="127.0.0.1:38555"', content)
         self.assertIn('data-draft-action-url="/planning/versions/', content)
         self.assertIn('data-family-action-url="/planning/versions/', content)
+        self.assertIn('data-planning-helper-install-url="/planning/versions/', content)
+        self.assertIn('data-planning-helper-install-command="', content)
         self.assertIn('data-draft-id="', content)
         self.assertIn('data-family-key="whatsapp_benevole"', content)
+        self.assertIn("Installer le helper", content)
+        self.assertIn("Reessayer", content)
+
+    @mock.patch("wms.views_planning.platform.system", return_value="Darwin")
+    def test_version_detail_helper_installer_downloads_macos_script(self, _platform_mock):
+        data = self.make_published_version_with_communication_drafts()
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(
+            reverse("planning:version_communication_helper_installer", args=[data["version"].pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/plain; charset=utf-8")
+        self.assertEqual(
+            response["Content-Disposition"],
+            'attachment; filename="install-asf-planning-helper.command"',
+        )
+        content = response.content.decode()
+        self.assertIn("#!/bin/zsh", content)
+        self.assertIn("tools.planning_comm_helper.autostart install", content)
+
+    @mock.patch("wms.views_planning.platform.system", return_value="Windows")
+    def test_version_detail_helper_installer_downloads_windows_script(self, _platform_mock):
+        data = self.make_published_version_with_communication_drafts()
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(
+            reverse("planning:version_communication_helper_installer", args=[data["version"].pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/plain; charset=utf-8")
+        self.assertEqual(
+            response["Content-Disposition"],
+            'attachment; filename="install-asf-planning-helper.cmd"',
+        )
+        content = response.content.decode()
+        self.assertIn("@echo off", content)
+        self.assertIn("tools.planning_comm_helper.autostart install", content)
+
+    @mock.patch("wms.views_planning.platform.system", return_value="Linux")
+    def test_version_detail_helper_installer_rejects_unsupported_platform(self, _platform_mock):
+        data = self.make_published_version_with_communication_drafts()
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(
+            reverse("planning:version_communication_helper_installer", args=[data["version"].pk])
+        )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(
+            response.json()["error"],
+            "Installation du helper indisponible sur ce poste.",
+        )
 
     def test_version_detail_renders_visual_html_editor_for_email_drafts_only(self):
         data = self.make_published_version_with_communication_drafts()

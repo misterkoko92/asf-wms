@@ -49,4 +49,9 @@ urlpatterns = [
         views_planning.planning_version_communication_packing_list_pdf,
         name="version_communication_packing_list_pdf",
     ),
+    path(
+        "versions/<int:version_id>/communications/helper-installer/",
+        views_planning.planning_version_communication_helper_installer,
+        name="version_communication_helper_installer",
+    ),
 ]

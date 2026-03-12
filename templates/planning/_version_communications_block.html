@@ -29,6 +29,11 @@
   class="scan-card portal-card card border-0 shadow-sm mt-3"
   data-planning-communication-helper="1"
   data-planning-helper-origin="127.0.0.1:38555"
+  data-planning-helper-install-url="{{ helper_install.install_url }}"
+  data-planning-helper-install-command="{{ helper_install.command }}"
+  data-planning-helper-install-label="{{ helper_install.download_label }}"
+  data-planning-helper-install-platform="{{ helper_install.platform_label }}"
+  data-planning-helper-install-available="{{ helper_install.available|yesno:'1,0' }}"
 >
   <div class="card-body">
     <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
@@ -45,6 +50,48 @@
       {% endif %}
     </div>
     <div class="alert d-none" role="alert" data-planning-helper-error></div>
+    <div class="alert alert-warning d-none mt-3" role="alert" data-planning-helper-install-panel>
+      <div class="fw-semibold">{% trans "Le helper local est requis pour ouvrir les brouillons mail." %}</div>
+      <p class="mb-2" data-planning-helper-install-caption>
+        {% if helper_install.available %}
+          {% blocktrans with platform=helper_install.platform_label %}Telechargez l'installeur pour {{ platform }}, lancez-le une fois sur ce poste, puis cliquez sur Reessayer.{% endblocktrans %}
+        {% else %}
+          {{ helper_install.error|default:_("Installation automatique indisponible sur ce poste.") }}
+        {% endif %}
+      </p>
+      <div class="d-flex gap-2 flex-wrap align-items-center">
+        <a
+          class="btn btn-primary btn-sm{% if not helper_install.available %} d-none{% endif %}"
+          href="{% if helper_install.available %}{{ helper_install.install_url }}{% else %}#{% endif %}"
+          data-planning-helper-install-link="1"
+          download
+        >
+          {% if helper_install.available %}
+            {{ helper_install.download_label }}
+          {% else %}
+            {% trans "Installer le helper" %}
+          {% endif %}
+        </a>
+        <button
+          type="button"
+          class="btn btn-tertiary btn-sm{% if not helper_install.command %} d-none{% endif %}"
+          data-planning-helper-copy-command="1"
+        >
+          {% trans "Copier la commande" %}
+        </button>
+        <button type="button" class="btn btn-tertiary btn-sm" data-planning-helper-retry="1">
+          {% trans "Reessayer" %}
+        </button>
+        <button type="button" class="btn btn-link btn-sm p-0" data-planning-helper-dismiss="1">
+          {% trans "Fermer" %}
+        </button>
+      </div>
+      <pre
+        class="small bg-light border rounded p-2 mt-3 mb-0{% if not helper_install.command %} d-none{% endif %}"
+        data-planning-helper-install-command-preview="1"
+      >{{ helper_install.command }}</pre>
+      <div class="small text-muted mt-2 d-none" data-planning-helper-install-status="1"></div>
+    </div>
 
     {% if dashboard.communications.groups %}
       <form method="post" class="vstack gap-3">

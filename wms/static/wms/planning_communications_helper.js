@@ -49,6 +49,47 @@
     errorNode.classList.add("d-none");
   }
 
+  function installPanel(root) {
+    return root.querySelector("[data-planning-helper-install-panel]");
+  }
+
+  function installStatusNode(root) {
+    return root.querySelector("[data-planning-helper-install-status]");
+  }
+
+  function hideInstallAssistant(root) {
+    const panel = installPanel(root);
+    if (!panel) {
+      return;
+    }
+    panel.classList.add("d-none");
+    const statusNode = installStatusNode(root);
+    if (statusNode) {
+      statusNode.textContent = "";
+      statusNode.classList.add("d-none");
+    }
+  }
+
+  function showInstallStatus(root, message) {
+    const statusNode = installStatusNode(root);
+    if (!statusNode) {
+      return;
+    }
+    statusNode.textContent = message;
+    statusNode.classList.remove("d-none");
+  }
+
+  function showInstallAssistant(root, retryAction) {
+    const panel = installPanel(root);
+    if (!panel) {
+      showWarning(root, helperUnavailableMessage());
+      return;
+    }
+    root._planningHelperRetryAction = retryAction;
+    panel.classList.remove("d-none");
+    showWarning(root, helperUnavailableMessage());
+  }
+
   function isHelperUnavailableError(error) {
     const message = String((error && error.message) || "");
     return /helper local/i.test(message) || /Failed to fetch/i.test(message);
@@ -276,6 +317,7 @@
   }
 
   async function handleClick(root, button) {
+    hideInstallAssistant(root);
     clearError(root);
     button.disabled = true;
     try {
@@ -290,10 +332,39 @@
         await openEmailDraft(root, button);
       }
     } catch (error) {
-      showError(root, error.message || "Une erreur est survenue.");
+      if (isHelperUnavailableError(error)) {
+        showInstallAssistant(root, function () {
+          handleClick(root, button);
+        });
+      } else {
+        showError(root, error.message || "Une erreur est survenue.");
+      }
     } finally {
       button.disabled = false;
     }
+  }
+
+  async function copyInstallCommand(root) {
+    const command = root.dataset.planningHelperInstallCommand || "";
+    if (!command) {
+      showInstallStatus(root, "Aucune commande d'installation disponible.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(command);
+      showInstallStatus(root, "Commande d'installation copiee. Lancez-la, puis cliquez sur Reessayer.");
+    } catch (error) {
+      showInstallStatus(root, "Copie impossible. Lancez manuellement la commande affichee ci-dessous.");
+    }
+  }
+
+  function retryPendingAction(root) {
+    const action = root._planningHelperRetryAction;
+    if (!action) {
+      showInstallStatus(root, "Lancez l'installation, puis recliquez sur le bouton voulu.");
+      return;
+    }
+    action();
   }
 
   document.addEventListener("DOMContentLoaded", function () {
@@ -308,5 +379,32 @@
           handleClick(root, button);
         });
       });
+    const installLink = root.querySelector("[data-planning-helper-install-link]");
+    if (installLink) {
+      installLink.addEventListener("click", function () {
+        showInstallStatus(
+          root,
+          "Installeur telecharge. Lancez-le sur ce poste, puis cliquez sur Reessayer."
+        );
+      });
+    }
+    const copyButton = root.querySelector("[data-planning-helper-copy-command]");
+    if (copyButton) {
+      copyButton.addEventListener("click", function () {
+        copyInstallCommand(root);
+      });
+    }
+    const retryButton = root.querySelector("[data-planning-helper-retry]");
+    if (retryButton) {
+      retryButton.addEventListener("click", function () {
+        retryPendingAction(root);
+      });
+    }
+    const dismissButton = root.querySelector("[data-planning-helper-dismiss]");
+    if (dismissButton) {
+      dismissButton.addEventListener("click", function () {
+        hideInstallAssistant(root);
+      });
+    }
   });
 })();

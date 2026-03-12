@@ -1,8 +1,9 @@
+import platform
 from pathlib import Path
 
 from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.http import FileResponse, Http404, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -60,6 +61,75 @@ TEMPLATE_RUN_DETAIL = "planning/run_detail.html"
 TEMPLATE_VERSION_DETAIL = "planning/version_detail.html"
 TEMPLATE_VERSION_DIFF = "planning/version_diff.html"
 ACTIVE_PLANNING_RUNS = "planning_runs"
+
+
+def _planning_helper_repo_root():
+    return Path(__file__).resolve().parent.parent
+
+
+def _build_helper_installer_payload():
+    system = platform.system()
+    repo_root = _planning_helper_repo_root()
+    if system == "Darwin":
+        python_path = repo_root / ".venv" / "bin" / "python"
+        command = (
+            f'cd "{repo_root}" && '
+            f'"{python_path}" -m tools.planning_comm_helper.autostart install'
+        )
+        script = f"""#!/bin/zsh
+set -e
+cd "{repo_root}"
+"{python_path}" -m tools.planning_comm_helper.autostart install
+"""
+        return {
+            "available": True,
+            "platform_label": "macOS",
+            "download_label": "Installer le helper (macOS)",
+            "filename": "install-asf-planning-helper.command",
+            "command": command,
+            "script": script,
+        }
+    if system == "Windows":
+        python_path = repo_root / ".venv" / "Scripts" / "python.exe"
+        command = (
+            f'cd /d "{repo_root}" && '
+            f'"{python_path}" -m tools.planning_comm_helper.autostart install'
+        )
+        script = f"""@echo off
+cd /d "{repo_root}"
+"{python_path}" -m tools.planning_comm_helper.autostart install
+"""
+        return {
+            "available": True,
+            "platform_label": "Windows",
+            "download_label": "Installer le helper (Windows)",
+            "filename": "install-asf-planning-helper.cmd",
+            "command": command,
+            "script": script,
+        }
+    raise ValidationError("Installation du helper indisponible sur ce poste.")
+
+
+def _build_helper_install_context(version):
+    try:
+        payload = _build_helper_installer_payload()
+    except ValidationError as exc:
+        return {
+            "available": False,
+            "platform_label": "ce poste",
+            "download_label": "",
+            "install_url": "",
+            "command": "",
+            "error": _validation_error_message(exc),
+        }
+    return {
+        **payload,
+        "install_url": reverse(
+            "planning:version_communication_helper_installer",
+            args=[version.pk],
+        ),
+        "error": "",
+    }
 
 
 def _attach_assignment_forms(dashboard, assignment_formset):
@@ -442,6 +512,7 @@ def planning_version_detail(request, version_id):
             "artifacts": version.artifacts.all(),
             "dashboard": dashboard,
             "clone_form": PlanningVersionCloneForm(),
+            "helper_install": _build_helper_install_context(version),
         },
     )
 
@@ -489,6 +560,22 @@ def planning_version_communication_packing_list_pdf(request, version_id, shipmen
         return _build_strict_packing_list_pdf_response(request, shipment_snapshot)
     except ValidationError as exc:
         return JsonResponse({"error": _validation_error_message(exc)}, status=409)
+
+
+@scan_staff_required
+@require_http_methods(["GET"])
+def planning_version_communication_helper_installer(request, version_id):
+    version = get_object_or_404(PlanningVersion, pk=version_id)
+    try:
+        payload = _build_helper_installer_payload()
+    except ValidationError as exc:
+        return JsonResponse({"error": _validation_error_message(exc)}, status=409)
+    response = HttpResponse(payload["script"], content_type="text/plain; charset=utf-8")
+    response["Content-Disposition"] = 'attachment; filename="{filename}"'.format(
+        filename=payload["filename"],
+    )
+    response["X-ASF-Planning-Version"] = str(version.pk)
+    return response
 
 
 @scan_staff_required
