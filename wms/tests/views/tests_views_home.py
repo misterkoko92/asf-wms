@@ -1,8 +1,29 @@
+from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
 
 class HomePageTests(TestCase):
+    def _create_staff_user(self):
+        return get_user_model().objects.create_user(
+            username="staff-home",
+            email="staff-home@example.com",
+            password="pass1234",  # pragma: allowlist secret
+            is_staff=True,
+            is_superuser=True,
+        )
+
+    def _assert_persistent_session(self):
+        self.assertFalse(self.client.session.get_expire_at_browser_close())
+        self.assertGreaterEqual(
+            self.client.session.get_expiry_age(),
+            settings.SESSION_COOKIE_AGE - 5,
+        )
+
+    def _assert_browser_session(self):
+        self.assertTrue(self.client.session.get_expire_at_browser_close())
+
     def test_favicon_route_redirects_to_scan_icon(self):
         response = self.client.get("/favicon.ico")
         self.assertEqual(response.status_code, 302)
@@ -19,6 +40,9 @@ class HomePageTests(TestCase):
         )
         self.assertContains(response, "Connexion")
         self.assertContains(response, 'action="/admin/login/?next=/scan/"')
+        self.assertContains(response, 'name="remember_me_supported"')
+        self.assertContains(response, 'name="remember_me"')
+        self.assertContains(response, "Rester connect")
         self.assertContains(response, reverse("password_help"))
         self.assertContains(response, reverse("portal:portal_account_request"))
         self.assertContains(response, reverse("volunteer:request_account"))
@@ -54,6 +78,57 @@ class HomePageTests(TestCase):
         self.assertContains(response, "home-bootstrap-enabled")
         self.assertContains(response, "form-control")
         self.assertContains(response, "btn btn-primary")
+
+    def test_home_login_with_remember_me_keeps_persistent_session(self):
+        user = self._create_staff_user()
+
+        response = self.client.post(
+            f"{reverse('admin:login')}?next=/scan/",
+            {
+                "username": user.username,
+                "password": "pass1234",  # pragma: allowlist secret
+                "next": "/scan/",
+                "remember_me_supported": "1",
+                "remember_me": "1",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/scan/")
+        self._assert_persistent_session()
+
+    def test_home_login_without_remember_me_uses_browser_session(self):
+        user = self._create_staff_user()
+
+        response = self.client.post(
+            f"{reverse('admin:login')}?next=/scan/",
+            {
+                "username": user.username,
+                "password": "pass1234",  # pragma: allowlist secret
+                "next": "/scan/",
+                "remember_me_supported": "1",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/scan/")
+        self._assert_browser_session()
+
+    def test_direct_admin_login_without_marker_keeps_default_persistent_session(self):
+        user = self._create_staff_user()
+
+        response = self.client.post(
+            f"{reverse('admin:login')}?next=/scan/",
+            {
+                "username": user.username,
+                "password": "pass1234",  # pragma: allowlist secret
+                "next": "/scan/",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/scan/")
+        self._assert_persistent_session()
 
     @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_password_help_page_includes_bootstrap_assets_when_enabled(self):

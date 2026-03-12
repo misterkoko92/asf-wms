@@ -17,6 +17,7 @@ from django.utils.http import (
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_http_methods
 
+from .auth_session import remember_me_requested
 from .client_ip import get_client_ip
 from .emailing import send_or_enqueue_email_safe
 from .portal_helpers import get_association_profile
@@ -51,8 +52,13 @@ RECOVERY_EMAIL_SUBJECT = _("ASF WMS - Mot de passe oublié / Première connexion
 RECOVERY_THROTTLE_SECONDS_DEFAULT = 300
 
 
-def _build_login_context(*, errors, identifier, next_url):
-    return {"errors": errors, "identifier": identifier, "next": next_url}
+def _build_login_context(*, errors, identifier, next_url, remember_me=False):
+    return {
+        "errors": errors,
+        "identifier": identifier,
+        "next": next_url,
+        "remember_me": remember_me,
+    }
 
 
 def _build_recovery_context(*, errors, email, success_message):
@@ -218,10 +224,12 @@ def portal_login(request):
 
     errors = []
     identifier = ""
+    remember_me = False
     next_url = _safe_next_url(request, request.GET.get("next"))
     if request.method == "POST":
         identifier = (request.POST.get("identifier") or "").strip()
         password = request.POST.get("password") or ""
+        remember_me = remember_me_requested(request.POST)
         next_url = _safe_next_url(request, request.POST.get("next"))
         if not identifier or not password:
             errors.append(ERROR_LOGIN_REQUIRED)
@@ -242,6 +250,7 @@ def portal_login(request):
                             errors=errors,
                             identifier=identifier,
                             next_url=next_url,
+                            remember_me=remember_me,
                         ),
                     )
                 login(request, user)
@@ -252,7 +261,12 @@ def portal_login(request):
     return render(
         request,
         TEMPLATE_LOGIN,
-        _build_login_context(errors=errors, identifier=identifier, next_url=next_url),
+        _build_login_context(
+            errors=errors,
+            identifier=identifier,
+            next_url=next_url,
+            remember_me=remember_me,
+        ),
     )
 
 

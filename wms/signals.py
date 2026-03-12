@@ -1,6 +1,7 @@
 from django.apps import apps
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.signals import user_logged_in
 from django.db import transaction
 from django.db.models import Q
 from django.db.models.signals import post_delete, post_save, pre_save
@@ -11,6 +12,7 @@ from django.utils.translation import gettext as _
 
 from contacts.models import Contact
 
+from .auth_session import apply_remember_me_session_policy
 from .correspondent_routing import (
     build_coordination_message_for_correspondent,
     resolve_correspondent_organizations,
@@ -763,6 +765,10 @@ def _sync_default_shipper_bindings_for_destination(sender, instance, created, **
     )
 
 
+def _apply_login_session_policy(sender, request, user, **kwargs) -> None:
+    apply_remember_me_session_policy(request)
+
+
 def register_change_signals() -> None:
     for app_label in ("wms", "contacts"):
         app_config = apps.get_app_config(app_label)
@@ -833,4 +839,8 @@ def register_change_signals() -> None:
         _sync_default_shipper_bindings_for_destination,
         sender=Destination,
         dispatch_uid="wms_default_shipper_bindings_destination_post_save",
+    )
+    user_logged_in.connect(
+        _apply_login_session_policy,
+        dispatch_uid="wms_apply_login_session_policy",
     )

@@ -45,6 +45,7 @@
           {% if next %}
             <input type="hidden" name="next" value="{{ next }}">
           {% endif %}
+          <input type="hidden" name="remember_me_supported" value="1">
           <div class="scan-field">
             <label class="form-label" for="identifier">Email</label>
             <input class="form-control" type="text" id="identifier" name="identifier" value="{{ identifier|default:'' }}" required>
@@ -52,6 +53,10 @@
           <div class="scan-field">
             <label class="form-label" for="password">{% trans "Mot de passe" %}</label>
             <input class="form-control" type="password" id="password" name="password" required>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="remember_me" name="remember_me" value="1"{% if remember_me %} checked{% endif %}>
+            <label class="form-check-label" for="remember_me">{% trans "Rester connecté" %}</label>
           </div>
           <p class="scan-help">
             <a href="{% url 'volunteer:forgot_password' %}">{% trans "Mot de passe oublié / Première connexion" %}</a>

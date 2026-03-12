@@ -190,6 +190,16 @@ class PortalAuthViewsTests(PortalBaseTestCase):
         self.change_password_url = reverse("portal:portal_change_password")
         self.dashboard_url = reverse("portal:portal_dashboard")
 
+    def _assert_persistent_session(self):
+        self.assertFalse(self.client.session.get_expire_at_browser_close())
+        self.assertGreaterEqual(
+            self.client.session.get_expiry_age(),
+            settings.SESSION_COOKIE_AGE - 5,
+        )
+
+    def _assert_browser_session(self):
+        self.assertTrue(self.client.session.get_expire_at_browser_close())
+
     def _set_password_url(self, user, token=None):
         token = token or default_token_generator.make_token(user)
         uidb64 = urlsafe_base64_encode(str(user.pk).encode())
@@ -220,6 +230,14 @@ class PortalAuthViewsTests(PortalBaseTestCase):
         self.assertContains(response, reverse("portal:portal_forgot_password"))
         self.assertContains(response, "Mot de passe oubli")
         self.assertContains(response, "Première connexion")
+
+    def test_portal_login_get_shows_remember_me_field(self):
+        response = self.client.get(self.login_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="remember_me_supported"')
+        self.assertContains(response, 'name="remember_me"')
+        self.assertContains(response, "Rester connect")
 
     def test_portal_forgot_password_get_renders_form(self):
         response = self.client.get(reverse("portal:portal_forgot_password"))
@@ -427,6 +445,41 @@ class PortalAuthViewsTests(PortalBaseTestCase):
         )
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, self.change_password_url)
+
+    def test_portal_login_with_remember_me_keeps_persistent_session(self):
+        user = self._create_portal_user("portal-auth-remember", "remember@example.com")
+        self._create_profile(user)
+
+        response = self.client.post(
+            self.login_url,
+            {
+                "identifier": user.email,
+                "password": "pass1234",
+                "remember_me_supported": "1",
+                "remember_me": "1",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self.dashboard_url)
+        self._assert_persistent_session()
+
+    def test_portal_login_without_remember_me_uses_browser_session(self):
+        user = self._create_portal_user("portal-auth-session", "session@example.com")
+        self._create_profile(user)
+
+        response = self.client.post(
+            self.login_url,
+            {
+                "identifier": user.email,
+                "password": "pass1234",
+                "remember_me_supported": "1",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, self.dashboard_url)
+        self._assert_browser_session()
 
     def test_portal_login_redirects_to_next_url_when_present(self):
         user = self._create_portal_user("portal-auth-d", "d@example.com")

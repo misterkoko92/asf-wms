@@ -1,5 +1,6 @@
 from unittest import mock
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from django.test import TestCase
@@ -29,6 +30,16 @@ class VolunteerAuthViewTests(TestCase):
             must_change_password=False,
         )
 
+    def _assert_persistent_session(self):
+        self.assertFalse(self.client.session.get_expire_at_browser_close())
+        self.assertGreaterEqual(
+            self.client.session.get_expiry_age(),
+            settings.SESSION_COOKIE_AGE - 5,
+        )
+
+    def _assert_browser_session(self):
+        self.assertTrue(self.client.session.get_expire_at_browser_close())
+
     def _set_password_url(self, user, token=None):
         token = token or default_token_generator.make_token(user)
         uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
@@ -53,6 +64,14 @@ class VolunteerAuthViewTests(TestCase):
         self.assertContains(response, "Mot de passe oubli")
         self.assertContains(response, "Première connexion")
 
+    def test_login_get_shows_remember_me_field(self):
+        response = self.client.get(reverse("volunteer:login"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="remember_me_supported"')
+        self.assertContains(response, 'name="remember_me"')
+        self.assertContains(response, "Rester connect")
+
     def test_dashboard_requires_login(self):
         response = self.client.get(reverse("volunteer:dashboard"))
 
@@ -74,6 +93,33 @@ class VolunteerAuthViewTests(TestCase):
         )
 
         self.assertRedirects(response, reverse("volunteer:change_password"))
+
+    def test_login_with_remember_me_keeps_persistent_session(self):
+        response = self.client.post(
+            reverse("volunteer:login"),
+            {
+                "identifier": "benevole@example.com",
+                "password": "pass1234",  # pragma: allowlist secret
+                "remember_me_supported": "1",
+                "remember_me": "1",
+            },
+        )
+
+        self.assertRedirects(response, reverse("volunteer:dashboard"))
+        self._assert_persistent_session()
+
+    def test_login_without_remember_me_uses_browser_session(self):
+        response = self.client.post(
+            reverse("volunteer:login"),
+            {
+                "identifier": "benevole@example.com",
+                "password": "pass1234",  # pragma: allowlist secret
+                "remember_me_supported": "1",
+            },
+        )
+
+        self.assertRedirects(response, reverse("volunteer:dashboard"))
+        self._assert_browser_session()
 
     def test_set_password_rejects_invalid_token(self):
         response = self.client.get(self._set_password_url(self.user, token="invalid-token"))
