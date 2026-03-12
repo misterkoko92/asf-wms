@@ -1091,7 +1091,8 @@ class PlanningViewTests(TestCase):
         self.assertIsNotNone(whatsapp_block)
         self.assertNotIn("<th>Sujet</th>", whatsapp_block.group(0))
 
-    def test_version_detail_exposes_helper_bridge_hooks(self):
+    @mock.patch("wms.views_planning.platform.system", return_value="Darwin")
+    def test_version_detail_exposes_helper_bridge_hooks(self, _platform_mock):
         data = self.make_published_version_with_communication_drafts()
         self.client.force_login(self.staff_user)
 
@@ -1104,6 +1105,7 @@ class PlanningViewTests(TestCase):
         self.assertIn('data-family-action-url="/planning/versions/', content)
         self.assertIn('data-planning-helper-install-url="/planning/versions/', content)
         self.assertIn('data-planning-helper-install-command="', content)
+        self.assertIn('data-planning-helper-install-available="1"', content)
         self.assertIn('data-draft-id="', content)
         self.assertIn('data-family-key="whatsapp_benevole"', content)
         self.assertIn("Installer le helper", content)
