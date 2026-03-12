@@ -13,6 +13,7 @@ PRE_COMMIT ?= $(shell [ -x .venv/bin/pre-commit ] && echo .venv/bin/pre-commit |
 COVERAGE ?= $(shell [ -x .venv/bin/coverage ] && echo .venv/bin/coverage || echo coverage)
 COVERAGE_FAIL_UNDER ?= 93
 COVERAGE_TEST_ARGS ?= --exclude-tag=next_frontend --exclude-tag=next_ui
+COMPILEMESSAGES_IGNORE ?= --ignore='.venv' --ignore='.venv/*' --ignore='.worktrees' --ignore='.worktrees/*' --ignore='frontend-next' --ignore='frontend-next/*'
 UV_EXPORT_ARGS ?= --frozen --no-header --no-annotate --no-hashes
 DEPLOY_ENV_FILE ?= .env.deploy.example
 FORMAT_SCOPE ?= asf_wms api contacts wms manage.py
@@ -20,7 +21,7 @@ FORMAT_EXCLUDES ?= --exclude frontend-next --exclude wms/views_next_frontend.py 
 
 BANDIT_EXCLUDES := wms/migrations,contacts/migrations,wms/tests,api/tests,contacts/tests
 
-.PHONY: install install-dev sync sync-no-dev lock export-requirements install-uv install-dev-uv check deploy-check deploy-check-prod-like migrate-check compilemessages fmt fmt-check lint typecheck typecheck-pyright bandit audit audit-soft security test test-next-ui scan-queue scan-queue-retry scan-queue-health scan-queue-stale scan-queue-runtime-check coverage pre-commit ci
+.PHONY: install install-dev sync sync-no-dev lock export-requirements deps-check install-uv install-dev-uv check deploy-check deploy-check-prod-like migrate-check compilemessages fmt fmt-check lint typecheck typecheck-pyright bandit audit audit-soft security test test-next-ui scan-queue scan-queue-retry scan-queue-health scan-queue-stale scan-queue-runtime-check coverage pre-commit ci
 
 install:
 	$(PIP) install -r requirements.txt
@@ -44,6 +45,18 @@ export-requirements: lock
 	$(UV) export $(UV_EXPORT_ARGS) --no-dev --no-emit-project --format requirements.txt -o requirements.txt
 	$(UV) export $(UV_EXPORT_ARGS) --only-group dev --no-emit-project --format requirements.txt -o requirements-dev.txt
 
+deps-check:
+	@command -v $(UV) >/dev/null 2>&1 || (echo "Missing uv. Install it first with: python -m pip install uv" >&2; exit 1)
+	$(UV) lock --check
+	@runtime_tmp=$$(mktemp); \
+	$(UV) export $(UV_EXPORT_ARGS) --no-dev --no-emit-project --format requirements.txt -o "$$runtime_tmp"; \
+	diff -u requirements.txt "$$runtime_tmp"; \
+	rm -f "$$runtime_tmp"
+	@dev_tmp=$$(mktemp); \
+	$(UV) export $(UV_EXPORT_ARGS) --only-group dev --no-emit-project --format requirements.txt -o "$$dev_tmp"; \
+	diff -u requirements-dev.txt "$$dev_tmp"; \
+	rm -f "$$dev_tmp"
+
 install-uv: sync-no-dev
 
 install-dev-uv: sync
@@ -66,7 +79,7 @@ migrate-check:
 	$(PYTHON) manage.py makemigrations --check --dry-run
 
 compilemessages:
-	$(PYTHON) manage.py compilemessages -v 1
+	$(PYTHON) manage.py compilemessages -v 1 $(COMPILEMESSAGES_IGNORE)
 
 fmt:
 	$(RUFF) format $(FORMAT_EXCLUDES) $(FORMAT_SCOPE)

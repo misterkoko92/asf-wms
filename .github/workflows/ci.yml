@@ -58,6 +58,9 @@ jobs:
       - name: Sync dependencies
         run: uv sync --frozen
 
+      - name: Dependency lock and export consistency
+        run: make deps-check
+
       - name: Dependency consistency check
         run: uv run python -m pip check
 
