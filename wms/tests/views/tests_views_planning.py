@@ -1,7 +1,10 @@
 import re
+from io import BytesIO
 from unittest import mock
 
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
+from django.http import FileResponse
 from django.test import TestCase
 from django.urls import reverse
 
@@ -226,6 +229,86 @@ class PlanningViewTests(TestCase):
             sequence=1,
         )
         return version, shipment
+
+    def make_published_version_with_communication_drafts(self):
+        shipment = Shipment.objects.create(
+            status=ShipmentStatus.PACKED,
+            shipper_name="Hopital Saint Joseph",
+            recipient_name="Centre Medical",
+            destination_address="1 Rue Test",
+            destination_country="Cameroun",
+            created_by=self.staff_user,
+        )
+        run = PlanningRun.objects.create(
+            week_start="2026-03-09",
+            week_end="2026-03-15",
+            parameter_set=self.parameter_set,
+            status=PlanningRunStatus.SOLVED,
+            created_by=self.staff_user,
+        )
+        version = PlanningVersion.objects.create(
+            run=run,
+            status=PlanningVersionStatus.PUBLISHED,
+            created_by=self.staff_user,
+        )
+        shipment_snapshot = PlanningShipmentSnapshot.objects.create(
+            run=run,
+            shipment=shipment,
+            shipment_reference=shipment.reference,
+            shipper_name="Hopital Saint Joseph",
+            destination_iata="NSI",
+            carton_count=10,
+            equivalent_units=12,
+            payload={
+                "destination_city": "YAOUNDE",
+                "legacy_type": "MM",
+                "legacy_destinataire": "Centre Medical",
+                "shipper_reference": {
+                    "contact_name": "Hopital Saint Joseph",
+                    "notification_emails": ["expediteur@example.com"],
+                },
+                "recipient_reference": {
+                    "contact_name": "Centre Medical",
+                    "notification_emails": ["destinataire@example.com"],
+                },
+                "correspondent_reference": {
+                    "contact_name": "Jean Dupont",
+                    "contact_title": "M.",
+                    "contact_first_name": "Jean",
+                    "contact_last_name": "Dupont",
+                    "notification_emails": ["correspondant@example.com"],
+                    "phone": "0601020304",
+                },
+            },
+        )
+        volunteer = PlanningVolunteerSnapshot.objects.create(
+            run=run,
+            volunteer_label="COURTOIS Alain",
+            payload={"phone": "0611223344", "first_name": "Alain", "last_name": "COURTOIS"},
+        )
+        flight = PlanningFlightSnapshot.objects.create(
+            run=run,
+            flight_number="AF908",
+            departure_date="2026-03-09",
+            destination_iata="NSI",
+            capacity_units=20,
+            payload={"departure_time": "11:10", "routing": "CDG-NSI"},
+        )
+        PlanningAssignment.objects.create(
+            version=version,
+            shipment_snapshot=shipment_snapshot,
+            volunteer_snapshot=volunteer,
+            flight_snapshot=flight,
+            assigned_carton_count=10,
+            source=PlanningAssignmentSource.MANUAL,
+            sequence=1,
+        )
+        generate_version_drafts(version)
+        return {
+            "version": version,
+            "shipment": shipment,
+            "shipment_snapshot": shipment_snapshot,
+        }
 
     def test_planning_run_list_requires_staff(self):
         response = self.client.get(reverse("planning:run_list"))
@@ -891,6 +974,131 @@ class PlanningViewTests(TestCase):
         self.assertContains(response, "Modifie")
         self.assertContains(response, "Inchange")
         self.assertContains(response, "WhatsApp bénévoles")
+
+    @mock.patch("wms.views_planning._build_strict_packing_list_pdf_response")
+    def test_version_detail_communication_helper_endpoints(self, packing_list_pdf_response_mock):
+        data = self.make_published_version_with_communication_drafts()
+        version = data["version"]
+        shipment_snapshot = data["shipment_snapshot"]
+        whatsapp_draft = version.communication_drafts.get(family="whatsapp_benevole")
+        email_draft = version.communication_drafts.get(family="email_asf")
+        expediteur_family = "email_expediteur"
+        packing_list_pdf_response_mock.return_value = FileResponse(
+            BytesIO(b"%PDF-1.4\n%"),
+            content_type="application/pdf",
+        )
+        self.client.force_login(self.staff_user)
+
+        whatsapp_response = self.client.get(
+            reverse(
+                "planning:version_communication_draft_action",
+                args=[version.pk, whatsapp_draft.pk],
+            )
+        )
+        self.assertEqual(whatsapp_response.status_code, 200)
+        self.assertEqual(whatsapp_response.json()["action"], "whatsapp")
+        self.assertNotIn("subject", whatsapp_response.json())
+
+        email_response = self.client.get(
+            reverse(
+                "planning:version_communication_draft_action",
+                args=[version.pk, email_draft.pk],
+            )
+        )
+        self.assertEqual(email_response.status_code, 200)
+        self.assertEqual(email_response.json()["action"], "email")
+        self.assertEqual(
+            email_response.json()["attachments"][0]["download_url"],
+            reverse("planning:version_communication_workbook", args=[version.pk]),
+        )
+
+        family_response = self.client.get(
+            reverse(
+                "planning:version_communication_family_action",
+                args=[version.pk, expediteur_family],
+            )
+        )
+        self.assertEqual(family_response.status_code, 200)
+        self.assertEqual(family_response.json()["family"], expediteur_family)
+        self.assertEqual(len(family_response.json()["drafts"]), 1)
+        self.assertEqual(
+            family_response.json()["drafts"][0]["attachments"][0]["download_url"],
+            reverse(
+                "planning:version_communication_packing_list_pdf",
+                args=[version.pk, shipment_snapshot.pk],
+            ),
+        )
+
+        workbook_response = self.client.get(
+            reverse("planning:version_communication_workbook", args=[version.pk])
+        )
+        self.assertEqual(workbook_response.status_code, 200)
+        self.assertEqual(
+            workbook_response["Content-Type"],
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
+        packing_list_response = self.client.get(
+            reverse(
+                "planning:version_communication_packing_list_pdf",
+                args=[version.pk, shipment_snapshot.pk],
+            )
+        )
+        self.assertEqual(packing_list_response.status_code, 200)
+        self.assertEqual(packing_list_response["Content-Type"], "application/pdf")
+
+        packing_list_pdf_response_mock.reset_mock()
+        packing_list_pdf_response_mock.side_effect = ValidationError(
+            "PDF packing list indisponible."
+        )
+
+        failed_packing_list_response = self.client.get(
+            reverse(
+                "planning:version_communication_packing_list_pdf",
+                args=[version.pk, shipment_snapshot.pk],
+            )
+        )
+        self.assertEqual(failed_packing_list_response.status_code, 409)
+        self.assertEqual(
+            failed_packing_list_response.json()["error"],
+            "PDF packing list indisponible.",
+        )
+
+    def test_version_detail_renders_communication_helper_buttons(self):
+        data = self.make_published_version_with_communication_drafts()
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("planning:version_detail", args=[data["version"].pk]))
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertIn("Generer tous les WhatsApp", content)
+        self.assertGreaterEqual(content.count("Generer tous les mails"), 3)
+        self.assertIn("Ouvrir WhatsApp", content)
+        self.assertIn("Ouvrir le brouillon", content)
+        self.assertIn('data-planning-communication-helper="1"', content)
+        self.assertIn('src="/static/wms/planning_communications_helper.js"', content)
+        whatsapp_block = re.search(
+            r'<article[^>]+data-family-key="whatsapp_benevole".*?</article>',
+            content,
+            re.IGNORECASE | re.DOTALL,
+        )
+        self.assertIsNotNone(whatsapp_block)
+        self.assertNotIn("<th>Sujet</th>", whatsapp_block.group(0))
+
+    def test_version_detail_exposes_helper_bridge_hooks(self):
+        data = self.make_published_version_with_communication_drafts()
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("planning:version_detail", args=[data["version"].pk]))
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertIn('data-planning-helper-origin="127.0.0.1:38555"', content)
+        self.assertIn('data-draft-action-url="/planning/versions/', content)
+        self.assertIn('data-family-action-url="/planning/versions/', content)
+        self.assertIn('data-draft-id="', content)
+        self.assertIn('data-family-key="whatsapp_benevole"', content)
 
     def test_staff_can_clone_published_version(self):
         version, _assignment, _volunteer_bob, _flight_af456 = self.make_version_with_assignment(

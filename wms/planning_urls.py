@@ -29,4 +29,24 @@ urlpatterns = [
         views_planning.planning_version_diff,
         name="version_diff",
     ),
+    path(
+        "versions/<int:version_id>/communications/drafts/<int:draft_id>/action/",
+        views_planning.planning_version_communication_draft_action,
+        name="version_communication_draft_action",
+    ),
+    path(
+        "versions/<int:version_id>/communications/families/<slug:family>/action/",
+        views_planning.planning_version_communication_family_action,
+        name="version_communication_family_action",
+    ),
+    path(
+        "versions/<int:version_id>/communications/planning-workbook/",
+        views_planning.planning_version_communication_workbook,
+        name="version_communication_workbook",
+    ),
+    path(
+        "versions/<int:version_id>/communications/shipments/<int:shipment_snapshot_id>/packing-list.pdf",
+        views_planning.planning_version_communication_packing_list_pdf,
+        name="version_communication_packing_list_pdf",
+    ),
 ]

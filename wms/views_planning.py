@@ -1,7 +1,10 @@
+from pathlib import Path
+
 from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.http import Http404
+from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
@@ -23,6 +26,12 @@ from .models import (
     PlanningVersionStatus,
     PlanningVolunteerSnapshot,
 )
+from .planning.communication_actions import (
+    PACKING_LIST_ATTACHMENT,
+    PLANNING_WORKBOOK_ATTACHMENT,
+    build_draft_helper_action_payload,
+    build_family_helper_action_payload,
+)
 from .planning.communications import generate_version_drafts
 from .planning.exports import export_version_workbook
 from .planning.operator_mutations import (
@@ -40,6 +49,9 @@ from .planning.snapshots import prepare_run_inputs
 from .planning.solver import solve_run
 from .planning.version_dashboard import build_version_dashboard
 from .planning.versioning import clone_version, diff_versions, publish_version
+from .print_pack_engine import PrintPackEngineError, generate_pack
+from .print_pack_graph import GraphPdfConversionError
+from .print_pack_routing import resolve_pack_request
 from .view_permissions import scan_staff_required
 
 TEMPLATE_RUN_LIST = "planning/run_list.html"
@@ -104,6 +116,77 @@ def _validation_error_message(exc: ValidationError) -> str:
     if getattr(exc, "messages", None):
         return "; ".join(exc.messages)
     return str(exc)
+
+
+def _communication_attachment_download_url(version, attachment):
+    attachment_type = attachment.get("attachment_type")
+    if attachment_type == PLANNING_WORKBOOK_ATTACHMENT:
+        return reverse("planning:version_communication_workbook", args=[version.pk])
+    if attachment_type == PACKING_LIST_ATTACHMENT:
+        return reverse(
+            "planning:version_communication_packing_list_pdf",
+            args=[version.pk, attachment.get("shipment_snapshot_id")],
+        )
+    return ""
+
+
+def _decorate_helper_payload(version, payload):
+    decorated = dict(payload)
+    if "attachments" in payload:
+        decorated["attachments"] = []
+        for attachment in payload.get("attachments", []):
+            attachment_payload = dict(attachment)
+            attachment_payload["download_url"] = _communication_attachment_download_url(
+                version,
+                attachment_payload,
+            )
+            decorated["attachments"].append(attachment_payload)
+    if "drafts" in payload:
+        decorated["drafts"] = [
+            _decorate_helper_payload(version, draft_payload)
+            for draft_payload in payload.get("drafts", [])
+        ]
+    return decorated
+
+
+def _build_workbook_file_response(version):
+    artifact = export_version_workbook(version)
+    filename = Path(artifact.file_path).name or f"planning-v{version.number}.xlsx"
+    response = FileResponse(
+        open(artifact.file_path, "rb"),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+def _build_strict_packing_list_pdf_response(request, shipment_snapshot):
+    if shipment_snapshot.shipment_id is None:
+        raise ValidationError("Aucune expédition source n'est liée à ce snapshot.")
+
+    pack_route = resolve_pack_request("packing_list_shipment")
+    if pack_route is None:
+        raise ValidationError("Route packing list indisponible.")
+
+    try:
+        artifact = generate_pack(
+            pack_code=pack_route.pack_code,
+            shipment=shipment_snapshot.shipment,
+            user=getattr(request, "user", None),
+            variant=pack_route.variant,
+        )
+    except (GraphPdfConversionError, PrintPackEngineError) as exc:
+        raise ValidationError("PDF packing list indisponible.") from exc
+
+    filename = (artifact.pdf_file.name or "").split("/")[-1]
+    if not filename:
+        filename = f"packing-list-{shipment_snapshot.shipment_reference}.pdf"
+    response = FileResponse(
+        artifact.pdf_file.open("rb"),
+        content_type="application/pdf",
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
 
 
 @scan_staff_required
@@ -361,6 +444,51 @@ def planning_version_detail(request, version_id):
             "clone_form": PlanningVersionCloneForm(),
         },
     )
+
+
+@scan_staff_required
+@require_http_methods(["GET"])
+def planning_version_communication_draft_action(request, version_id, draft_id):
+    version = get_object_or_404(PlanningVersion, pk=version_id)
+    draft = get_object_or_404(version.communication_drafts.all(), pk=draft_id)
+    try:
+        payload = build_draft_helper_action_payload(draft)
+    except ValidationError as exc:
+        return JsonResponse({"error": _validation_error_message(exc)}, status=409)
+    return JsonResponse(_decorate_helper_payload(version, payload))
+
+
+@scan_staff_required
+@require_http_methods(["GET"])
+def planning_version_communication_family_action(request, version_id, family):
+    version = get_object_or_404(PlanningVersion, pk=version_id)
+    try:
+        payload = build_family_helper_action_payload(version=version, family=family)
+    except ValidationError as exc:
+        return JsonResponse({"error": _validation_error_message(exc)}, status=409)
+    return JsonResponse(_decorate_helper_payload(version, payload))
+
+
+@scan_staff_required
+@require_http_methods(["GET"])
+def planning_version_communication_workbook(request, version_id):
+    version = get_object_or_404(PlanningVersion, pk=version_id)
+    return _build_workbook_file_response(version)
+
+
+@scan_staff_required
+@require_http_methods(["GET"])
+def planning_version_communication_packing_list_pdf(request, version_id, shipment_snapshot_id):
+    version = get_object_or_404(PlanningVersion.objects.select_related("run"), pk=version_id)
+    shipment_snapshot = get_object_or_404(
+        PlanningShipmentSnapshot.objects.select_related("shipment"),
+        pk=shipment_snapshot_id,
+        run=version.run,
+    )
+    try:
+        return _build_strict_packing_list_pdf_response(request, shipment_snapshot)
+    except ValidationError as exc:
+        return JsonResponse({"error": _validation_error_message(exc)}, status=409)
 
 
 @scan_staff_required
