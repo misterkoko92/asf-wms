@@ -660,6 +660,14 @@ def _draft_payload(draft) -> dict[str, object]:
     }
 
 
+def _draft_can_open(family: str, draft: dict[str, object]) -> bool:
+    if not draft.get("draft_id"):
+        return False
+    if family in {"email_asf", "email_airfrance"}:
+        return True
+    return bool(str(draft.get("recipient_contact") or "").strip())
+
+
 def _channel_label(channel: str) -> str:
     field = CommunicationDraft._meta.get_field("channel")
     return dict(field.choices).get(channel, channel)
@@ -789,6 +797,9 @@ def _build_communications(version: PlanningVersion) -> dict[str, object]:
                 draft.get("subject") or "",
             )
         )
+        for draft in group["drafts"]:
+            draft["can_open"] = _draft_can_open(group["family_key"], draft)
+        group["openable_draft_count"] = sum(1 for draft in group["drafts"] if draft["can_open"])
     groups.sort(key=lambda item: family_order_key(item["family_key"]))
     return {
         "draft_count": sum(len(group["drafts"]) for group in groups),

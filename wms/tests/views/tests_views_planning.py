@@ -230,7 +230,9 @@ class PlanningViewTests(TestCase):
         )
         return version, shipment
 
-    def make_published_version_with_communication_drafts(self):
+    def make_published_version_with_communication_drafts(
+        self, *, recipient_email="destinataire@example.com"
+    ):
         shipment = Shipment.objects.create(
             status=ShipmentStatus.PACKED,
             shipper_name="Hopital Saint Joseph",
@@ -269,7 +271,7 @@ class PlanningViewTests(TestCase):
                 },
                 "recipient_reference": {
                     "contact_name": "Centre Medical",
-                    "notification_emails": ["destinataire@example.com"],
+                    "notification_emails": [recipient_email] if recipient_email else [],
                 },
                 "correspondent_reference": {
                     "contact_name": "Jean Dupont",
@@ -1011,6 +1013,7 @@ class PlanningViewTests(TestCase):
             email_response.json()["attachments"][0]["download_url"],
             reverse("planning:version_communication_workbook", args=[version.pk]),
         )
+        self.assertFalse(email_response.json()["attachments"][0]["optional"])
 
         family_response = self.client.get(
             reverse(
@@ -1028,6 +1031,7 @@ class PlanningViewTests(TestCase):
                 args=[version.pk, shipment_snapshot.pk],
             ),
         )
+        self.assertTrue(family_response.json()["drafts"][0]["attachments"][0]["optional"])
 
         workbook_response = self.client.get(
             reverse("planning:version_communication_workbook", args=[version.pk])
@@ -1099,6 +1103,26 @@ class PlanningViewTests(TestCase):
         self.assertIn('data-family-action-url="/planning/versions/', content)
         self.assertIn('data-draft-id="', content)
         self.assertIn('data-family-key="whatsapp_benevole"', content)
+
+    def test_version_detail_renders_destinataire_card_without_email_button_when_contact_missing(
+        self,
+    ):
+        data = self.make_published_version_with_communication_drafts(recipient_email="")
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("planning:version_detail", args=[data["version"].pk]))
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        destinataire_block = re.search(
+            r'<article[^>]+data-family-key="email_destinataire".*?</article>',
+            content,
+            re.IGNORECASE | re.DOTALL,
+        )
+        self.assertIsNotNone(destinataire_block)
+        self.assertIn("Mail Destinataires", destinataire_block.group(0))
+        self.assertIn("Pas de mail disponible", destinataire_block.group(0))
+        self.assertNotIn("Ouvrir le brouillon", destinataire_block.group(0))
 
     def test_staff_can_clone_published_version(self):
         version, _assignment, _volunteer_bob, _flight_af456 = self.make_version_with_assignment(

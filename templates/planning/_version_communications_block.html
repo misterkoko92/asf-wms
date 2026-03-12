@@ -19,7 +19,7 @@
         </form>
       {% endif %}
     </div>
-    <div class="alert alert-danger d-none" role="alert" data-planning-helper-error></div>
+    <div class="alert d-none" role="alert" data-planning-helper-error></div>
 
     {% if dashboard.communications.groups %}
       <form method="post" class="vstack gap-3">
@@ -49,7 +49,7 @@
                   >
                     {% trans "Generer tous les WhatsApp" %}
                   </button>
-                {% elif group.family_key == "email_correspondant" or group.family_key == "email_expediteur" or group.family_key == "email_destinataire" %}
+                {% elif group.channel != "whatsapp" and group.family_key != "email_asf" and group.family_key != "email_airfrance" and group.openable_draft_count %}
                   <button
                     type="button"
                     class="btn btn-tertiary btn-sm"
@@ -117,7 +117,7 @@
                           {% endif %}
                         </td>
                         <td class="text-nowrap">
-                          {% if draft.draft_id and group.channel == "whatsapp" %}
+                          {% if draft.can_open and group.channel == "whatsapp" %}
                             <button
                               type="button"
                               class="btn btn-tertiary btn-sm"
@@ -127,7 +127,7 @@
                             >
                               {% trans "Ouvrir WhatsApp" %}
                             </button>
-                          {% elif draft.draft_id %}
+                          {% elif draft.can_open %}
                             <button
                               type="button"
                               class="btn btn-tertiary btn-sm"
@@ -137,6 +137,8 @@
                             >
                               {% trans "Ouvrir le brouillon" %}
                             </button>
+                          {% elif group.channel != "whatsapp" and group.family_key != "email_asf" and group.family_key != "email_airfrance" and not draft.recipient_contact %}
+                            <span class="text-muted small">{% trans "Pas de mail disponible" %}</span>
                           {% else %}
                             <span class="text-muted small">-</span>
                           {% endif %}

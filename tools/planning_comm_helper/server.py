@@ -30,6 +30,21 @@ def _require_drafts(payload: dict[str, object]) -> list[dict[str, object]]:
     return drafts
 
 
+def build_cors_headers(
+    *,
+    origin: str | None,
+    request_private_network: bool,
+) -> dict[str, str]:
+    headers = {
+        "Access-Control-Allow-Origin": origin or "*",
+        "Access-Control-Allow-Headers": f"Content-Type, {HELPER_HEADER}",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+    }
+    if request_private_network:
+        headers["Access-Control-Allow-Private-Network"] = "true"
+    return headers
+
+
 def handle_json_request(
     *,
     method: str,
@@ -98,9 +113,15 @@ class PlanningCommunicationHelperHandler(BaseHTTPRequestHandler):
         self.send_response(status_code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Access-Control-Allow-Origin", self.headers.get("Origin", "*"))
-        self.send_header("Access-Control-Allow-Headers", f"Content-Type, {HELPER_HEADER}")
-        self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
+        cors_headers = build_cors_headers(
+            origin=self.headers.get("Origin"),
+            request_private_network=(
+                str(self.headers.get("Access-Control-Request-Private-Network") or "").lower()
+                == "true"
+            ),
+        )
+        for header_name, header_value in cors_headers.items():
+            self.send_header(header_name, header_value)
         self.end_headers()
         self.wfile.write(body)
 

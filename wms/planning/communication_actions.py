@@ -50,6 +50,7 @@ def _planning_workbook_attachments(version: PlanningVersion) -> list[dict[str, o
             "attachment_type": PLANNING_WORKBOOK_ATTACHMENT,
             "version_id": version.pk,
             "filename": f"planning-v{version.number}.xlsx",
+            "optional": False,
         }
     ]
 
@@ -69,6 +70,7 @@ def _packing_list_attachments(draft: CommunicationDraft) -> list[dict[str, objec
                 "shipment_snapshot_id": shipment_snapshot_id,
                 "shipment_reference": shipment_reference,
                 "filename": f"packing-list-{shipment_reference}.pdf",
+                "optional": True,
             }
         )
     return attachments

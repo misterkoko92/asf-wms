@@ -158,6 +158,7 @@ class PlanningCommunicationActionTests(TestCase):
                             "attachment_type": "planning_workbook",
                             "version_id": version.pk,
                             "filename": f"planning-v{version.number}.xlsx",
+                            "optional": False,
                         }
                     ],
                 )
@@ -184,6 +185,7 @@ class PlanningCommunicationActionTests(TestCase):
                             "shipment_snapshot_id": self.shipment_snapshot.pk,
                             "shipment_reference": self.shipment.reference,
                             "filename": f"packing-list-{self.shipment.reference}.pdf",
+                            "optional": True,
                         }
                     ],
                 )
@@ -212,6 +214,7 @@ class PlanningCommunicationActionTests(TestCase):
                             "shipment_snapshot_id": self.shipment_snapshot.pk,
                             "shipment_reference": self.shipment.reference,
                             "filename": f"packing-list-{self.shipment.reference}.pdf",
+                            "optional": True,
                         }
                     ],
                 )

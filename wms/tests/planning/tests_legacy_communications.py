@@ -214,7 +214,7 @@ class PlanningLegacyCommunicationTests(TestCase):
 
         email_asf = drafts_by_family.get("email_asf")
         self.assertIsNotNone(email_asf)
-        self.assertEqual(email_asf.subject, "Planning SEMAINE 11 - 2026")
+        self.assertEqual(email_asf.subject, "Planning SEMAINE 11 - 2026 v1")
         self.assertEqual(
             email_asf.body,
             (
@@ -228,7 +228,7 @@ class PlanningLegacyCommunicationTests(TestCase):
 
         email_airfrance = drafts_by_family.get("email_airfrance")
         self.assertIsNotNone(email_airfrance)
-        self.assertEqual(email_airfrance.subject, "Aviation Sans Frontires / Planning S11")
+        self.assertEqual(email_airfrance.subject, "Aviation Sans Frontires / Planning S11 v1")
         self.assertEqual(
             email_airfrance.body,
             (
@@ -243,7 +243,7 @@ class PlanningLegacyCommunicationTests(TestCase):
 
         email_correspondant = drafts_by_family.get("email_correspondant")
         self.assertIsNotNone(email_correspondant)
-        self.assertEqual(email_correspondant.subject, "ASF / Expédition YAOUNDE / Semaine 11")
+        self.assertEqual(email_correspondant.subject, "ASF / Expédition YAOUNDE / Semaine 11 v1")
         self.assertEqual(
             email_correspondant.body,
             (
@@ -260,7 +260,7 @@ class PlanningLegacyCommunicationTests(TestCase):
         self.assertIsNotNone(email_expediteur)
         self.assertEqual(
             email_expediteur.subject,
-            "Hopital Saint Joseph / Expédition YAOUNDE / Semaine 11",
+            "Hopital Saint Joseph / Expédition YAOUNDE / Semaine 11 v1",
         )
         self.assertEqual(
             email_expediteur.body,
@@ -282,7 +282,7 @@ class PlanningLegacyCommunicationTests(TestCase):
         self.assertIsNotNone(email_destinataire)
         self.assertEqual(
             email_destinataire.subject,
-            "Centre Medical / Expédition YAOUNDE / Semaine 11",
+            "Centre Medical / Expédition YAOUNDE / Semaine 11 v1",
         )
         self.assertEqual(
             email_destinataire.body,

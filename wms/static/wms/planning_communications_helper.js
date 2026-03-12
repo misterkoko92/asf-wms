@@ -21,11 +21,21 @@
   }
 
   function showError(root, message) {
+    showAlert(root, message, "danger");
+  }
+
+  function showWarning(root, message) {
+    showAlert(root, message, "warning");
+  }
+
+  function showAlert(root, message, tone) {
     const errorNode = root.querySelector("[data-planning-helper-error]");
     if (!errorNode) {
       return;
     }
     errorNode.textContent = message;
+    errorNode.classList.remove("d-none", "alert-danger", "alert-warning", "alert-success");
+    errorNode.classList.add(`alert-${tone}`);
     errorNode.classList.remove("d-none");
   }
 
@@ -35,7 +45,25 @@
       return;
     }
     errorNode.textContent = "";
+    errorNode.classList.remove("alert-danger", "alert-warning", "alert-success");
     errorNode.classList.add("d-none");
+  }
+
+  function isHelperUnavailableError(error) {
+    const message = String((error && error.message) || "");
+    return /helper local/i.test(message) || /Failed to fetch/i.test(message);
+  }
+
+  function helperUnavailableMessage() {
+    return "Le helper local est indisponible. Vérifiez qu'il est démarré sur ce poste.";
+  }
+
+  function requiresDirectRecipientAddress(family) {
+    return (
+      family === "email_correspondant" ||
+      family === "email_expediteur" ||
+      family === "email_destinataire"
+    );
   }
 
   function rowOverrides(row, action) {
@@ -85,48 +113,67 @@
   }
 
   async function fetchAttachment(attachment) {
-    const response = await fetch(attachment.download_url, {
-      credentials: "same-origin",
-      headers: {
-        Accept: "*/*",
-      },
-    });
-    let errorPayload = {};
-    if (!response.ok) {
-      try {
-        errorPayload = await response.json();
-      } catch (error) {
-        errorPayload = {};
+    try {
+      const response = await fetch(attachment.download_url, {
+        credentials: "same-origin",
+        headers: {
+          Accept: "*/*",
+        },
+      });
+      let errorPayload = {};
+      if (!response.ok) {
+        try {
+          errorPayload = await response.json();
+        } catch (error) {
+          errorPayload = {};
+        }
+        throw new Error(errorPayload.error || `Telechargement impossible (${response.status})`);
       }
-      throw new Error(errorPayload.error || `Telechargement impossible (${response.status})`);
+      return {
+        attachment_type: attachment.attachment_type,
+        filename: attachment.filename,
+        mime_type: response.headers.get("Content-Type") || "application/octet-stream",
+        content_base64: arrayBufferToBase64(await response.arrayBuffer()),
+      };
+    } catch (error) {
+      if (attachment.optional) {
+        return {
+          skipped: true,
+          filename: attachment.filename,
+          error: error.message || "Piece jointe indisponible",
+        };
+      }
+      throw error;
     }
-    return {
-      attachment_type: attachment.attachment_type,
-      filename: attachment.filename,
-      mime_type: response.headers.get("Content-Type") || "application/octet-stream",
-      content_base64: arrayBufferToBase64(await response.arrayBuffer()),
-    };
   }
 
   async function hydrateEmailDraft(draft) {
-    const attachments = await Promise.all((draft.attachments || []).map(fetchAttachment));
+    const resolvedAttachments = await Promise.all((draft.attachments || []).map(fetchAttachment));
+    const attachments = resolvedAttachments.filter((attachment) => !attachment.skipped);
+    const skippedAttachments = resolvedAttachments.filter((attachment) => attachment.skipped);
     return {
       ...draft,
       attachments,
+      skippedAttachments,
     };
   }
 
   async function postToHelper(root, path, payload) {
     const helperOrigin = root.dataset.planningHelperOrigin;
     const helperUrl = `http://${helperOrigin}`;
-    const response = await fetch(`${helperUrl}${path}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-ASF-Planning-Helper": "1",
-      },
-      body: JSON.stringify(payload),
-    });
+    let response;
+    try {
+      response = await fetch(`${helperUrl}${path}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-ASF-Planning-Helper": "1",
+        },
+        body: JSON.stringify(payload),
+      });
+    } catch (error) {
+      throw new Error(helperUnavailableMessage());
+    }
     let responsePayload = {};
     try {
       responsePayload = await response.json();
@@ -155,6 +202,24 @@
     const row = button.closest("[data-planning-draft-row]");
     const draft = await hydrateEmailDraft(mergeDraftPayload(payload, row));
     await postToHelper(root, "/v1/outlook/open", { drafts: [draft] });
+    if (draft.skippedAttachments.length) {
+      showWarning(
+        root,
+        `Certaines pieces jointes sont indisponibles et ont ete ignorees: ${draft.skippedAttachments
+          .map((attachment) => attachment.filename)
+          .join(", ")}.`
+      );
+    }
+  }
+
+  async function openWhatsappDraftsDirectly(drafts) {
+    for (const draft of drafts) {
+      if (!draft.wa_url) {
+        continue;
+      }
+      window.open(draft.wa_url, "_blank", "noopener");
+      await new Promise((resolve) => window.setTimeout(resolve, 150));
+    }
   }
 
   async function openFamilyDrafts(root, button) {
@@ -176,10 +241,33 @@
       })
     );
     if (payload.action === "whatsapp") {
-      await postToHelper(root, "/v1/whatsapp/open", { drafts });
+      try {
+        await postToHelper(root, "/v1/whatsapp/open", { drafts });
+      } catch (error) {
+        if (!isHelperUnavailableError(error)) {
+          throw error;
+        }
+        await openWhatsappDraftsDirectly(drafts);
+      }
       return;
     }
-    await postToHelper(root, "/v1/outlook/open", { drafts });
+    const openableDrafts = drafts.filter(
+      (draft) => !requiresDirectRecipientAddress(draft.family) || draft.recipient_contact
+    );
+    if (!openableDrafts.length) {
+      showWarning(root, "Aucun mail disponible pour ce groupe.");
+      return;
+    }
+    await postToHelper(root, "/v1/outlook/open", { drafts: openableDrafts });
+    const skippedAttachments = openableDrafts.flatMap((draft) => draft.skippedAttachments || []);
+    if (skippedAttachments.length) {
+      showWarning(
+        root,
+        `Certaines pieces jointes sont indisponibles et ont ete ignorees: ${skippedAttachments
+          .map((attachment) => attachment.filename)
+          .join(", ")}.`
+      );
+    }
   }
 
   async function handleClick(root, button) {

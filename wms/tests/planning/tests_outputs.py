@@ -114,7 +114,7 @@ class PlanningOutputTests(TestCase):
             version=version,
             family=CommunicationFamily.EMAIL_ASF,
         )
-        self.assertEqual(draft.subject, "Planning v1 pour ASF interne")
+        self.assertEqual(draft.subject, "Planning v1 pour ASF interne v1")
         self.assertEqual(draft.body, "Bonjour ASF, semaine 11.")
 
         self.assertIsInstance(artifact, PlanningArtifact)

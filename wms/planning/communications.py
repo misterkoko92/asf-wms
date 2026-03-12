@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import date
 
 from django.core.exceptions import ValidationError
@@ -173,6 +174,18 @@ def _build_plan_item_context(version: PlanningVersion, plan_item) -> dict[str, o
     }
 
 
+def _subject_with_version_suffix(subject: str, version: PlanningVersion, *, channel: str) -> str:
+    if channel != "email":
+        return subject
+    normalized = str(subject or "").strip()
+    if not normalized:
+        return ""
+    suffix = f"v{version.number}"
+    if re.search(rf"(?:^|\s){re.escape(suffix)}$", normalized):
+        return normalized
+    return f"{normalized} {suffix}"
+
+
 def generate_version_drafts(version: PlanningVersion) -> list[CommunicationDraft]:
     if version.status != PlanningVersionStatus.PUBLISHED:
         raise ValidationError("Communication drafts can only be generated for published versions.")
@@ -190,6 +203,7 @@ def generate_version_drafts(version: PlanningVersion) -> list[CommunicationDraft
         else:
             subject = _default_subject(version, plan_item)
             body = _default_body(version, plan_item)
+        subject = _subject_with_version_suffix(subject, version, channel=plan_item.channel)
         generated_drafts.append(
             CommunicationDraft(
                 version=version,

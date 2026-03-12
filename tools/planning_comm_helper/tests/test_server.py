@@ -3,11 +3,22 @@ from unittest import TestCase, mock
 from tools.planning_comm_helper.server import (
     HELPER_HEADER,
     HelperRequestError,
+    build_cors_headers,
     handle_json_request,
 )
 
 
 class PlanningCommunicationHelperServerTests(TestCase):
+    def test_build_cors_headers_allows_private_network_preflight(self):
+        headers = build_cors_headers(
+            origin="https://example.com",
+            request_private_network=True,
+        )
+
+        self.assertEqual(headers["Access-Control-Allow-Origin"], "https://example.com")
+        self.assertEqual(headers["Access-Control-Allow-Private-Network"], "true")
+        self.assertIn(HELPER_HEADER, headers["Access-Control-Allow-Headers"])
+
     def test_handle_json_request_rejects_unsupported_route(self):
         with self.assertRaises(HelperRequestError) as error:
             handle_json_request(
