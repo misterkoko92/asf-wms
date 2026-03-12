@@ -2,6 +2,7 @@ from django import forms
 from django.utils.translation import gettext_lazy as _
 
 from .models import (
+    CommunicationChannel,
     CommunicationDraft,
     CommunicationDraftStatus,
     PlanningAssignment,
@@ -101,6 +102,18 @@ class PlanningVersionCloneForm(forms.Form):
 
 
 class PlanningCommunicationDraftForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["subject"].widget.attrs.setdefault(
+            "class",
+            "form-control form-control-sm",
+        )
+        body_attrs = self.fields["body"].widget.attrs
+        body_attrs.setdefault("class", "form-control form-control-sm")
+        body_attrs.setdefault("rows", 3)
+        if self.instance and self.instance.channel == CommunicationChannel.EMAIL:
+            body_attrs["data-planning-email-body-source"] = "1"
+
     class Meta:
         model = CommunicationDraft
         fields = [
