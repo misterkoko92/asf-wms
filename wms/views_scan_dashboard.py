@@ -6,6 +6,7 @@ from django.db.models.functions import Coalesce
 from django.shortcuts import render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 from django.views.decorators.http import require_http_methods
@@ -14,12 +15,14 @@ from .models import (
     TEMP_SHIPMENT_REFERENCE_PREFIX,
     Carton,
     CartonStatus,
+    CartonStatusEvent,
     Destination,
     IntegrationDirection,
     IntegrationEvent,
     IntegrationStatus,
     Order,
     OrderReviewStatus,
+    OrderStatus,
     Product,
     ProductLot,
     ProductLotStatus,
@@ -91,6 +94,27 @@ def _current_week_bounds():
     iso_year, iso_week, _ = today.isocalendar()
     week_start = date.fromisocalendar(iso_year, iso_week, 1)
     return week_start, week_start + timedelta(days=7)
+
+
+def _current_week_date_bounds():
+    start_date, end_exclusive = _current_week_bounds()
+    return start_date, end_exclusive - timedelta(days=1)
+
+
+def _parse_date_window(start_raw, end_raw):
+    default_start, default_end = _current_week_date_bounds()
+    start_date = parse_date((start_raw or "").strip()) or default_start
+    end_date = parse_date((end_raw or "").strip()) or default_end
+    if start_date > end_date:
+        start_date, end_date = default_start, default_end
+
+    tz = timezone.get_current_timezone()
+    start_at = timezone.make_aware(datetime.combine(start_date, time.min), tz)
+    end_exclusive = timezone.make_aware(
+        datetime.combine(end_date + timedelta(days=1), time.min),
+        tz,
+    )
+    return start_date, end_date, start_at, end_exclusive
 
 
 def _build_card(*, label, value, help_text, url, tone="neutral"):
@@ -319,6 +343,10 @@ def scan_dashboard(request):
 
     period = _normalize_period(request.GET.get("period"))
     period_start = _period_start(period)
+    kpi_start_date, kpi_end_date, kpi_start_at, kpi_end_exclusive = _parse_date_window(
+        request.GET.get("kpi_start"),
+        request.GET.get("kpi_end"),
+    )
 
     destinations = Destination.objects.filter(is_active=True).order_by("city")
     destination_raw = (request.GET.get("destination") or "").strip()
@@ -395,6 +423,72 @@ def scan_dashboard(request):
             value=Order.objects.filter(created_at__gte=period_start).count(),
             help_text=_("Demandes créées sur la période."),
             url=reverse("scan:scan_orders_view"),
+        ),
+    ]
+
+    kpi_cards = [
+        _build_card(
+            label=_("Nb Commandes reçues"),
+            value=Order.objects.filter(
+                created_at__gte=kpi_start_at,
+                created_at__lt=kpi_end_exclusive,
+            ).count(),
+            help_text=_("Commandes créées sur la période."),
+            url=reverse("scan:scan_orders_view"),
+        ),
+        _build_card(
+            label=_("Nb commandes en traitement"),
+            value=Order.objects.filter(
+                created_at__gte=kpi_start_at,
+                created_at__lt=kpi_end_exclusive,
+                status__in=[OrderStatus.RESERVED, OrderStatus.PREPARING],
+            ).count(),
+            help_text=_("Commandes réservées ou en préparation sur la période."),
+            url=reverse("scan:scan_orders_view"),
+        ),
+        _build_card(
+            label=_("Nb commandes à valider / corriger"),
+            value=Order.objects.filter(
+                created_at__gte=kpi_start_at,
+                created_at__lt=kpi_end_exclusive,
+                review_status__in=[
+                    OrderReviewStatus.PENDING,
+                    OrderReviewStatus.CHANGES_REQUESTED,
+                ],
+            ).count(),
+            help_text=_("Commandes en attente de revue ASF ou à corriger."),
+            url=reverse("scan:scan_orders_view"),
+        ),
+        _build_card(
+            label=_("Nb Colis créés"),
+            value=Carton.objects.filter(
+                created_at__gte=kpi_start_at,
+                created_at__lt=kpi_end_exclusive,
+            ).count(),
+            help_text=_("Colis créés sur la période."),
+            url=reverse("scan:scan_cartons_ready"),
+        ),
+        _build_card(
+            label=_("Nb Colis affectés"),
+            value=CartonStatusEvent.objects.filter(
+                created_at__gte=kpi_start_at,
+                created_at__lt=kpi_end_exclusive,
+                new_status=CartonStatus.ASSIGNED,
+            )
+            .values("carton_id")
+            .distinct()
+            .count(),
+            help_text=_("Transitions vers le statut Affecté sur la période."),
+            url=reverse("scan:scan_cartons_ready"),
+        ),
+        _build_card(
+            label=_("Nb Expéditions prêtes"),
+            value=Shipment.objects.filter(
+                ready_at__gte=kpi_start_at,
+                ready_at__lt=kpi_end_exclusive,
+            ).count(),
+            help_text=_("Expéditions passées à l'état prêt à planifier."),
+            url=reverse("scan:scan_shipments_ready"),
         ),
     ]
 
@@ -713,6 +807,9 @@ def scan_dashboard(request):
         "destination_id": str(selected_destination.id) if selected_destination else "",
         "destinations": destinations,
         "selected_destination": selected_destination,
+        "kpi_start": kpi_start_date.isoformat(),
+        "kpi_end": kpi_end_date.isoformat(),
+        "kpi_cards": kpi_cards,
         "activity_cards": activity_cards,
         "shipment_cards": shipment_cards,
         "carton_cards": carton_cards,

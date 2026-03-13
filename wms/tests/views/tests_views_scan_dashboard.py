@@ -9,6 +9,7 @@ from contacts.models import Contact
 from wms.models import (
     Carton,
     CartonStatus,
+    CartonStatusEvent,
     Destination,
     IntegrationDirection,
     IntegrationEvent,
@@ -16,6 +17,7 @@ from wms.models import (
     Location,
     Order,
     OrderReviewStatus,
+    OrderStatus,
     Product,
     ProductLot,
     ProductLotStatus,
@@ -78,6 +80,10 @@ class ScanDashboardViewTests(TestCase):
         self._create_flow_data()
         self._create_carton_data()
         self._create_integration_queue_data()
+
+    def _update_instance(self, instance, **updates):
+        instance.__class__.objects.filter(pk=instance.pk).update(**updates)
+        instance.refresh_from_db()
 
     def _create_stock_data(self):
         low_product = Product.objects.create(
@@ -427,3 +433,87 @@ class ScanDashboardViewTests(TestCase):
             card["label"]: card["value"] for card in response.context["workflow_blockage_cards"]
         }
         self.assertIn("Expéditions Création/En cours >96h", workflow_cards)
+
+    def test_scan_dashboard_defaults_kpi_dates_to_current_week(self):
+        response = self.client.get(reverse("scan:scan_dashboard"))
+        self.assertEqual(response.status_code, 200)
+
+        today = timezone.localdate()
+        week_start = today - timedelta(days=today.weekday())
+        week_end = week_start + timedelta(days=6)
+
+        self.assertEqual(response.context["kpi_start"], week_start.isoformat())
+        self.assertEqual(response.context["kpi_end"], week_end.isoformat())
+
+    def test_scan_dashboard_computes_kpis_from_custom_date_window(self):
+        target_at = timezone.now() - timedelta(days=10)
+        target_date = target_at.date().isoformat()
+
+        reserved = Order.objects.create(
+            status=OrderStatus.RESERVED,
+            review_status=OrderReviewStatus.APPROVED,
+            shipper_name="S",
+            recipient_name="R",
+            destination_address="A",
+            created_by=self.staff_user,
+        )
+        preparing = Order.objects.create(
+            status=OrderStatus.PREPARING,
+            review_status=OrderReviewStatus.APPROVED,
+            shipper_name="S",
+            recipient_name="R",
+            destination_address="A",
+            created_by=self.staff_user,
+        )
+        pending_review = Order.objects.create(
+            review_status=OrderReviewStatus.PENDING,
+            shipper_name="S",
+            recipient_name="R",
+            destination_address="A",
+            created_by=self.staff_user,
+        )
+        changes_requested = Order.objects.create(
+            review_status=OrderReviewStatus.CHANGES_REQUESTED,
+            shipper_name="S",
+            recipient_name="R",
+            destination_address="A",
+            created_by=self.staff_user,
+        )
+        for order in (reserved, preparing, pending_review, changes_requested):
+            self._update_instance(order, created_at=target_at)
+
+        created_carton = Carton.objects.create(code="CT-KPI-CREATED", status=CartonStatus.DRAFT)
+        assigned_carton = Carton.objects.create(
+            code="CT-KPI-ASSIGNED", status=CartonStatus.ASSIGNED
+        )
+        self._update_instance(created_carton, created_at=target_at)
+        self._update_instance(assigned_carton, created_at=target_at)
+
+        status_event = CartonStatusEvent.objects.create(
+            carton=assigned_carton,
+            previous_status=CartonStatus.PACKED,
+            new_status=CartonStatus.ASSIGNED,
+            created_by=self.staff_user,
+        )
+        self._update_instance(status_event, created_at=target_at)
+
+        ready_shipment = self._create_shipment(
+            destination=self.destination_a,
+            status=ShipmentStatus.PACKED,
+            reference="EXP-KPI-READY",
+        )
+        self._update_instance(ready_shipment, ready_at=target_at)
+
+        response = self.client.get(
+            reverse("scan:scan_dashboard"),
+            {"kpi_start": target_date, "kpi_end": target_date},
+        )
+        self.assertEqual(response.status_code, 200)
+
+        kpi_cards = {card["label"]: card["value"] for card in response.context["kpi_cards"]}
+        self.assertEqual(kpi_cards["Nb Commandes reçues"], 4)
+        self.assertEqual(kpi_cards["Nb commandes en traitement"], 2)
+        self.assertEqual(kpi_cards["Nb commandes à valider / corriger"], 2)
+        self.assertEqual(kpi_cards["Nb Colis créés"], 2)
+        self.assertEqual(kpi_cards["Nb Colis affectés"], 1)
+        self.assertEqual(kpi_cards["Nb Expéditions prêtes"], 1)
