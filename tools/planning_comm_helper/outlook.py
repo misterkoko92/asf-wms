@@ -7,11 +7,14 @@ import tempfile
 import uuid
 from pathlib import Path
 
-from tools.planning_comm_helper.planning_pdf import convert_workbook_to_pdf
+from tools.planning_comm_helper.excel_pdf import convert_workbook_to_pdf
 
 
 class OutlookPayloadError(ValueError):
     """Raised when an Outlook draft payload is incomplete."""
+
+
+EXCEL_ATTACHMENT_TYPES = {"excel_workbook", "planning_workbook"}
 
 
 def _clean_address_list(value) -> list[str]:
@@ -48,7 +51,7 @@ def _materialize_attachments(
         attachment_path = temp_root / f"{uuid.uuid4().hex}-{filename}"
         attachment_path.write_bytes(base64.b64decode(content_base64))
 
-        if attachment.get("attachment_type") == "planning_workbook":
+        if attachment.get("attachment_type") in EXCEL_ATTACHMENT_TYPES:
             pdf_path = convert_workbook_to_pdf(attachment_path)
             paths.append(str(pdf_path))
             continue

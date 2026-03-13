@@ -4,6 +4,12 @@ from django.shortcuts import get_object_or_404, render
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods
 
+from .local_document_helper import (
+    build_local_helper_document_response,
+    build_local_helper_job_response,
+    get_local_helper_document_index,
+    is_local_helper_job_request,
+)
 from .models import Shipment
 from .print_context import build_label_context
 from .print_pack_engine import (
@@ -92,11 +98,38 @@ def _generate_pack_xlsx_response(*, pack_code, shipment=None, carton=None, varia
     return build_xlsx_fallback_response(documents=documents, pack_code=pack_code)
 
 
+def _render_pack_xlsx_documents(*, pack_code, shipment=None, carton=None, variant=None):
+    return render_pack_xlsx_documents(
+        pack_code=pack_code,
+        shipment=shipment,
+        carton=carton,
+        variant=variant,
+    )
+
+
 @scan_staff_required
 @require_http_methods(["GET"])
 def scan_shipment_labels(request, shipment_id):
     shipment = _get_shipment_by_id(shipment_id)
     pack_route = resolve_shipment_labels_pack()
+    render_documents = lambda: _render_pack_xlsx_documents(
+        pack_code=pack_route.pack_code,
+        shipment=shipment,
+        carton=None,
+        variant=pack_route.variant,
+    )
+    if get_local_helper_document_index(request) is not None:
+        return build_local_helper_document_response(
+            request,
+            render_documents=render_documents,
+        )
+    if is_local_helper_job_request(request):
+        return build_local_helper_job_response(
+            request,
+            pack_code=pack_route.pack_code,
+            render_documents=render_documents,
+            shipment=shipment,
+        )
     try:
         artifact = generate_pack(
             pack_code=pack_route.pack_code,
@@ -123,6 +156,24 @@ def scan_shipment_labels(request, shipment_id):
 def scan_shipment_labels_public(request, shipment_ref):
     shipment = _get_shipment_by_reference(shipment_ref)
     pack_route = resolve_shipment_labels_pack()
+    render_documents = lambda: _render_pack_xlsx_documents(
+        pack_code=pack_route.pack_code,
+        shipment=shipment,
+        carton=None,
+        variant=pack_route.variant,
+    )
+    if get_local_helper_document_index(request) is not None:
+        return build_local_helper_document_response(
+            request,
+            render_documents=render_documents,
+        )
+    if is_local_helper_job_request(request):
+        return build_local_helper_job_response(
+            request,
+            pack_code=pack_route.pack_code,
+            render_documents=render_documents,
+            shipment=shipment,
+        )
     try:
         artifact = generate_pack(
             pack_code=pack_route.pack_code,
@@ -152,6 +203,25 @@ def scan_shipment_label(request, shipment_id, carton_id):
     if carton is None:
         raise Http404(_("Carton introuvable pour cette expédition."))
     pack_route = resolve_single_label_pack()
+    render_documents = lambda: _render_pack_xlsx_documents(
+        pack_code=pack_route.pack_code,
+        shipment=shipment,
+        carton=carton,
+        variant=pack_route.variant,
+    )
+    if get_local_helper_document_index(request) is not None:
+        return build_local_helper_document_response(
+            request,
+            render_documents=render_documents,
+        )
+    if is_local_helper_job_request(request):
+        return build_local_helper_job_response(
+            request,
+            pack_code=pack_route.pack_code,
+            render_documents=render_documents,
+            shipment=shipment,
+            carton=carton,
+        )
     try:
         artifact = generate_pack(
             pack_code=pack_route.pack_code,

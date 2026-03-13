@@ -5,6 +5,12 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods
 
+from .local_document_helper import (
+    build_local_helper_document_response,
+    build_local_helper_job_response,
+    get_local_helper_document_index,
+    is_local_helper_job_request,
+)
 from .models import Carton, Shipment
 from .print_context import build_carton_picking_context
 from .print_pack_engine import (
@@ -115,6 +121,15 @@ def _generate_pack_xlsx_response(*, pack_code, shipment=None, carton=None, varia
     return build_xlsx_fallback_response(documents=documents, pack_code=pack_code)
 
 
+def _render_pack_xlsx_documents(*, pack_code, shipment=None, carton=None, variant=None):
+    return render_pack_xlsx_documents(
+        pack_code=pack_code,
+        shipment=shipment,
+        carton=carton,
+        variant=variant,
+    )
+
+
 def _try_generate_pack_pdf_response(
     request,
     *,
@@ -151,6 +166,24 @@ def scan_shipment_document(request, shipment_id, doc_type):
     shipment = _get_shipment_by_id(shipment_id)
     pack_route = resolve_pack_request(doc_type)
     if pack_route:
+        render_documents = lambda: _render_pack_xlsx_documents(
+            pack_code=pack_route.pack_code,
+            shipment=shipment,
+            carton=None,
+            variant=pack_route.variant,
+        )
+        if get_local_helper_document_index(request) is not None:
+            return build_local_helper_document_response(
+                request,
+                render_documents=render_documents,
+            )
+        if is_local_helper_job_request(request):
+            return build_local_helper_job_response(
+                request,
+                pack_code=pack_route.pack_code,
+                render_documents=render_documents,
+                shipment=shipment,
+            )
         return _try_generate_pack_pdf_response(
             request,
             pack_code=pack_route.pack_code,
@@ -167,6 +200,24 @@ def scan_shipment_document_public(request, shipment_ref, doc_type):
     shipment = _get_shipment_by_reference(shipment_ref)
     pack_route = resolve_pack_request(doc_type)
     if pack_route:
+        render_documents = lambda: _render_pack_xlsx_documents(
+            pack_code=pack_route.pack_code,
+            shipment=shipment,
+            carton=None,
+            variant=pack_route.variant,
+        )
+        if get_local_helper_document_index(request) is not None:
+            return build_local_helper_document_response(
+                request,
+                render_documents=render_documents,
+            )
+        if is_local_helper_job_request(request):
+            return build_local_helper_job_response(
+                request,
+                pack_code=pack_route.pack_code,
+                render_documents=render_documents,
+                shipment=shipment,
+            )
         return _try_generate_pack_pdf_response(
             request,
             pack_code=pack_route.pack_code,
@@ -183,6 +234,25 @@ def scan_shipment_carton_document(request, shipment_id, carton_id):
     shipment = _get_shipment_by_id(shipment_id)
     carton = _get_shipment_carton_or_404(shipment, carton_id)
     pack_route = resolve_carton_packing_pack()
+    render_documents = lambda: _render_pack_xlsx_documents(
+        pack_code=pack_route.pack_code,
+        shipment=shipment,
+        carton=carton,
+        variant=pack_route.variant,
+    )
+    if get_local_helper_document_index(request) is not None:
+        return build_local_helper_document_response(
+            request,
+            render_documents=render_documents,
+        )
+    if is_local_helper_job_request(request):
+        return build_local_helper_job_response(
+            request,
+            pack_code=pack_route.pack_code,
+            render_documents=render_documents,
+            shipment=shipment,
+            carton=carton,
+        )
     return _try_generate_pack_pdf_response(
         request,
         pack_code=pack_route.pack_code,
@@ -199,6 +269,25 @@ def scan_shipment_carton_document_public(request, shipment_ref, carton_id):
     shipment = _get_shipment_by_reference(shipment_ref)
     carton = _get_shipment_carton_or_404(shipment, carton_id)
     pack_route = resolve_carton_packing_pack()
+    render_documents = lambda: _render_pack_xlsx_documents(
+        pack_code=pack_route.pack_code,
+        shipment=shipment,
+        carton=carton,
+        variant=pack_route.variant,
+    )
+    if get_local_helper_document_index(request) is not None:
+        return build_local_helper_document_response(
+            request,
+            render_documents=render_documents,
+        )
+    if is_local_helper_job_request(request):
+        return build_local_helper_job_response(
+            request,
+            pack_code=pack_route.pack_code,
+            render_documents=render_documents,
+            shipment=shipment,
+            carton=carton,
+        )
     return _try_generate_pack_pdf_response(
         request,
         pack_code=pack_route.pack_code,
@@ -228,6 +317,25 @@ def scan_carton_document(request, carton_id):
             request,
             _build_standalone_carton_context(carton),
         )
+    render_documents = lambda: _render_pack_xlsx_documents(
+        pack_code=pack_route.pack_code,
+        shipment=carton.shipment if carton.shipment_id else None,
+        carton=carton,
+        variant=pack_route.variant,
+    )
+    if get_local_helper_document_index(request) is not None:
+        return build_local_helper_document_response(
+            request,
+            render_documents=render_documents,
+        )
+    if is_local_helper_job_request(request):
+        return build_local_helper_job_response(
+            request,
+            pack_code=pack_route.pack_code,
+            render_documents=render_documents,
+            shipment=carton.shipment if carton.shipment_id else None,
+            carton=carton,
+        )
     return _try_generate_pack_pdf_response(
         request,
         pack_code=pack_route.pack_code,
@@ -249,6 +357,25 @@ def scan_carton_picking(request, carton_id):
         pk=carton_id,
     )
     pack_route = resolve_carton_picking_pack()
+    render_documents = lambda: _render_pack_xlsx_documents(
+        pack_code=pack_route.pack_code,
+        shipment=carton.shipment,
+        carton=carton,
+        variant=pack_route.variant,
+    )
+    if get_local_helper_document_index(request) is not None:
+        return build_local_helper_document_response(
+            request,
+            render_documents=render_documents,
+        )
+    if is_local_helper_job_request(request):
+        return build_local_helper_job_response(
+            request,
+            pack_code=pack_route.pack_code,
+            render_documents=render_documents,
+            shipment=carton.shipment,
+            carton=carton,
+        )
     return _try_generate_pack_pdf_response(
         request,
         pack_code=pack_route.pack_code,

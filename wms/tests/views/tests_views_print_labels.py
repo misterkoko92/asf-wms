@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from unittest import mock
 
 from django.contrib.auth import get_user_model
@@ -89,6 +90,48 @@ class PrintLabelsViewsTests(TestCase):
             variant="all_labels",
         )
         response_mock.assert_called_once()
+
+    def test_scan_shipment_labels_returns_helper_job_payload_when_requested(self):
+        shipment = self._create_shipment()
+        with mock.patch(
+            "wms.views_print_labels.render_pack_xlsx_documents",
+            return_value=[SimpleNamespace(filename="labels.xlsx", payload=b"xlsx-data")],
+        ):
+            response = self.client.get(
+                reverse(
+                    "scan:scan_shipment_labels",
+                    kwargs={"shipment_id": shipment.id},
+                ),
+                {"helper": "1"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["output_filename"], f"print-pack-D-{shipment.reference}.pdf")
+        self.assertEqual(payload["documents"][0]["filename"], "labels.xlsx")
+        self.assertIn("helper_document=0", payload["documents"][0]["download_url"])
+
+    def test_scan_shipment_label_returns_helper_document_when_requested(self):
+        shipment = self._create_shipment()
+        carton = Carton.objects.create(code="C-LABEL-HELPER", shipment=shipment)
+        with mock.patch(
+            "wms.views_print_labels.render_pack_xlsx_documents",
+            return_value=[SimpleNamespace(filename="label.xlsx", payload=b"xlsx-data")],
+        ):
+            response = self.client.get(
+                reverse(
+                    "scan:scan_shipment_label",
+                    kwargs={"shipment_id": shipment.id, "carton_id": carton.id},
+                ),
+                {"helper_document": "0"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response["Content-Type"],
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        self.assertEqual(response.content, b"xlsx-data")
 
     def test_scan_shipment_labels_falls_back_to_legacy_renderer_when_pack_is_missing(self):
         shipment = self._create_shipment()

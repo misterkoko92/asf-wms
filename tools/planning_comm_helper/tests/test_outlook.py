@@ -1,6 +1,12 @@
+import tempfile
+from pathlib import Path
 from unittest import TestCase, mock
 
-from tools.planning_comm_helper.outlook import OutlookPayloadError, open_outlook_drafts
+from tools.planning_comm_helper.outlook import (
+    OutlookPayloadError,
+    _materialize_attachments,
+    open_outlook_drafts,
+)
 
 
 class PlanningCommunicationHelperOutlookTests(TestCase):
@@ -56,3 +62,42 @@ class PlanningCommunicationHelperOutlookTests(TestCase):
         )
 
         open_macos_outlook_draft_mock.assert_called_once()
+
+    @mock.patch("tools.planning_comm_helper.outlook.convert_workbook_to_pdf")
+    def test_materialize_attachments_converts_generic_excel_workbook(self, convert_workbook_to_pdf_mock):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            convert_workbook_to_pdf_mock.return_value = Path(temp_dir) / "planning.pdf"
+
+            _materialize_attachments(
+                [
+                    {
+                        "attachment_type": "excel_workbook",
+                        "filename": "planning.xlsx",
+                        "content_base64": "eA==",
+                    }
+                ],
+                temp_root=Path(temp_dir),
+            )
+
+        convert_workbook_to_pdf_mock.assert_called_once()
+
+    @mock.patch("tools.planning_comm_helper.outlook.convert_workbook_to_pdf")
+    def test_materialize_attachments_keeps_legacy_planning_workbook_support(
+        self,
+        convert_workbook_to_pdf_mock,
+    ):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            convert_workbook_to_pdf_mock.return_value = Path(temp_dir) / "planning.pdf"
+
+            _materialize_attachments(
+                [
+                    {
+                        "attachment_type": "planning_workbook",
+                        "filename": "planning.xlsx",
+                        "content_base64": "eA==",
+                    }
+                ],
+                temp_root=Path(temp_dir),
+            )
+
+        convert_workbook_to_pdf_mock.assert_called_once()

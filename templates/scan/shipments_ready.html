@@ -1,14 +1,24 @@
 {% extends "scan/base.html" %}
-{% load i18n %}
+{% load i18n static %}
 
 {% block title %}{% trans "WMS Scan - Vue Expéditions" %}{% endblock %}
 
 {% block content %}
-  <div class="scan-card card border-0 ui-comp-card">
+  <div
+    class="scan-card card border-0 ui-comp-card"
+    data-local-document-helper-root="1"
+    data-local-document-helper-origin="{{ local_document_helper_origin }}"
+    data-local-document-helper-install-url="{{ helper_install.install_url }}"
+    data-local-document-helper-install-command="{{ helper_install.command }}"
+    data-local-document-helper-install-label="{{ helper_install.download_label }}"
+    data-local-document-helper-install-platform="{{ helper_install.platform_label }}"
+    data-local-document-helper-install-available="{{ helper_install.available|yesno:'1,0' }}"
+  >
     <h2 class="h4 mb-3 ui-comp-title d-flex align-items-center gap-2 flex-wrap">
       <span>{% trans "Vue Expéditions" %}</span>
       <span class="badge text-bg-light ui-comp-count-badge">{{ shipments|length }}</span>
     </h2>
+    {% include "wms/_local_document_helper_install_panel.html" %}
     {% if stale_draft_count %}
       <div class="scan-message error">
         {% blocktrans with stale_count=stale_draft_count stale_days=stale_draft_days %}{{ stale_count }} brouillon(s) temporaire(s) de plus de {{ stale_days }} jours.{% endblocktrans %}
@@ -53,16 +63,16 @@
                   <details class="scan-doc-menu">
                     <summary class="scan-scan-btn btn btn-tertiary scan-doc-menu-toggle">{% trans "Documents" %}</summary>
                     <div class="scan-doc-menu-list">
-                      <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'shipment_note' %}" target="_blank" rel="noopener">
+                      <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'shipment_note' %}" target="_blank" rel="noopener" data-local-document-helper-link="1">
                         {% trans "Bon d'expédition" %}
                       </a>
-                      <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'packing_list_shipment' %}" target="_blank" rel="noopener">
+                      <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'packing_list_shipment' %}" target="_blank" rel="noopener" data-local-document-helper-link="1">
                         {% trans "Liste colisage (lot)" %}
                       </a>
-                      <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'donation_certificate' %}" target="_blank" rel="noopener">
+                      <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'donation_certificate' %}" target="_blank" rel="noopener" data-local-document-helper-link="1">
                         {% trans "Attestation donation" %}
                       </a>
-                      <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_labels' shipment.id %}" target="_blank" rel="noopener">
+                      <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_labels' shipment.id %}" target="_blank" rel="noopener" data-local-document-helper-link="1">
                         {% trans "Étiquettes colis" %}
                       </a>
                     </div>
@@ -87,4 +97,5 @@
       <p class="scan-help ui-comp-note">{% trans "Aucune expédition." %}</p>
     {% endif %}
   </div>
+  <script src="{% static 'wms/local_document_helper.js' %}"></script>
 {% endblock %}

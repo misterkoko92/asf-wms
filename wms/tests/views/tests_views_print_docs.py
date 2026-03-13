@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from unittest import mock
 
 from django.contrib.auth import get_user_model
@@ -90,6 +91,48 @@ class PrintDocsViewsTests(TestCase):
             carton=None,
             variant="shipment",
         )
+
+    def test_scan_shipment_document_returns_helper_job_payload_when_requested(self):
+        shipment = self._create_shipment()
+        with mock.patch(
+            "wms.views_print_docs.render_pack_xlsx_documents",
+            return_value=[SimpleNamespace(filename="shipment-note.xlsx", payload=b"xlsx-data")],
+        ):
+            response = self.client.get(
+                reverse(
+                    "scan:scan_shipment_document",
+                    kwargs={"shipment_id": shipment.id, "doc_type": "shipment_note"},
+                ),
+                {"helper": "1"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["output_filename"], f"print-pack-C-{shipment.reference}.pdf")
+        self.assertTrue(payload["merge"] is False)
+        self.assertEqual(payload["documents"][0]["filename"], "shipment-note.xlsx")
+        self.assertIn("helper_document=0", payload["documents"][0]["download_url"])
+
+    def test_scan_shipment_document_returns_helper_document_when_requested(self):
+        shipment = self._create_shipment()
+        with mock.patch(
+            "wms.views_print_docs.render_pack_xlsx_documents",
+            return_value=[SimpleNamespace(filename="shipment-note.xlsx", payload=b"xlsx-data")],
+        ):
+            response = self.client.get(
+                reverse(
+                    "scan:scan_shipment_document",
+                    kwargs={"shipment_id": shipment.id, "doc_type": "shipment_note"},
+                ),
+                {"helper_document": "0"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response["Content-Type"],
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        self.assertEqual(response.content, b"xlsx-data")
 
     def test_scan_shipment_document_public_routes_packed_doc_to_pack_engine(self):
         from wms.views_print_docs import scan_shipment_document_public
