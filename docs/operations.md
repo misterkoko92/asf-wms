@@ -121,6 +121,18 @@ Notes:
 - `make audit` remains the strict command (network required) for a full local vulnerability run.
 - After editing dependencies, run `make lock` then `make export-requirements` to avoid drift between `uv.lock` and exported requirements files.
 
+### 2.1) Smoke scope policy
+
+Do not try to cover every user journey with smoke tests.
+
+Use smoke checks only for nominal, cross-layer chains that prove the app is still wired correctly after a change. In this repo, the reference CI smoke guards are:
+
+- `api.tests.tests_ui_e2e_workflows`
+- `wms.tests.emailing.tests_email_flows_e2e`
+- `wms.tests.planning.tests_smoke_planning_flow`
+
+Add a new CI smoke only when a new critical chain spans multiple layers and existing unit, integration, and view tests would not catch a wiring regression. Keep user variants, error branches, and detailed business rules in the targeted test suites instead of duplicating them in smoke coverage.
+
 ## 3) Deploy sequence
 
 ```bash
@@ -220,6 +232,14 @@ Validate:
 - Admin login page loads.
 - Scan and API routes answer (auth-protected routes may return `302/401/403`, which is acceptable).
 - Shipment views load for staff users after authentication.
+- Always-on authenticated smoke:
+  - validate shipment create sequencing (`destination -> expéditeur -> destinataire/correspondant -> détails`)
+  - validate "Enregistrer en brouillon" and confirm the `EXP-TEMP-XX` draft appears in Vue Expéditions
+  - validate one tracking or close action on an existing shipment
+- Conditional smoke based on release scope:
+  - if `portal` changed, validate portal login plus one nominal order or recipient update flow
+  - if `planning` changed, validate cockpit/version access on an existing run and artifact visibility/download when relevant
+  - if `billing` changed, validate one nominal billing preview/export or payment/correction flow
 
 ## 5) Email queue operations
 

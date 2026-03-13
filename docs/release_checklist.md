@@ -8,6 +8,7 @@ Use this checklist for each production release.
 - [ ] `pre-commit install`
 - [ ] `make pre-commit`
 - [ ] `make ci`
+- [ ] Keep the CI smoke subset small and deterministic. Current cross-domain smoke guards are `api.tests.tests_ui_e2e_workflows`, `wms.tests.emailing.tests_email_flows_e2e`, and `wms.tests.planning.tests_smoke_planning_flow`.
 - [ ] `make typecheck` is green and remains the blocking type gate.
 - [ ] `make typecheck-pyright` reviewed as informational only.
 - [ ] `make export-requirements` re-run after any dependency change.
@@ -47,9 +48,13 @@ Notes:
 
 ## D) After deploy
 
-- [ ] Smoke test `GET /`, `/admin/login/`, `/scan/`, `/scan/shipments-ready/`, `/scan/shipments-tracking/`, `/api/v1/products/`
-- [ ] Validate shipment create sequencing (destination -> expéditeur -> destinataire/correspondant -> détails).
-- [ ] Validate draft flow: "Enregistrer en brouillon" creates `EXP-TEMP-XX` and is visible in Vue Expéditions.
+- [ ] Always-on smoke: `GET /`, `/admin/login/`, `/scan/`, `/scan/shipments-ready/`, `/scan/shipments-tracking/`, `/api/v1/products/`
+- [ ] Always-on smoke: validate shipment create sequencing (destination -> expéditeur -> destinataire/correspondant -> détails).
+- [ ] Always-on smoke: validate draft flow so "Enregistrer en brouillon" creates `EXP-TEMP-XX` and the draft is visible in Vue Expéditions.
+- [ ] Always-on smoke: validate one shipment tracking or close action on an existing shipment.
+- [ ] Conditional smoke: if portal scope changed, validate portal login plus one nominal order or recipient update flow.
+- [ ] Conditional smoke: if planning scope changed, validate cockpit access on an existing run/version and artifact visibility or download if applicable.
+- [ ] Conditional smoke: if billing scope changed, validate one nominal billing preview/export or payment/correction flow.
 - [ ] Run `python manage.py process_email_queue --limit=100`
 - [ ] Check queue health (pending/failed counts)
 - [ ] Run `python manage.py process_document_scan_queue --limit=100`
