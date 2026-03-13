@@ -1,4 +1,15 @@
+from django import VERSION as DJANGO_VERSION
 from django.db import migrations, models
+
+
+def _check_constraint_compat(*, condition, name):
+    constraint_kwargs = {"name": name}
+    if DJANGO_VERSION >= (5, 1):
+        constraint_kwargs["condition"] = condition
+    else:
+        constraint_kwargs["check"] = condition
+    return models.CheckConstraint(**constraint_kwargs)
+
 
 class Migration(migrations.Migration):
     dependencies = [
@@ -55,8 +66,8 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name="associationportalcontact",
-            constraint=models.CheckConstraint(
-                check=(
+            constraint=_check_constraint_compat(
+                condition=(
                     models.Q(is_administrative=True)
                     | models.Q(is_shipping=True)
                     | models.Q(is_billing=True)

@@ -1,3 +1,5 @@
+from io import BytesIO
+
 from django.conf import settings
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, render
@@ -76,10 +78,8 @@ def _get_shipment_by_reference(shipment_ref):
 
 def _artifact_pdf_response(artifact):
     filename = (artifact.pdf_file.name or "").split("/")[-1] or "labels.pdf"
-    response = FileResponse(
-        artifact.pdf_file.open("rb"),
-        content_type="application/pdf",
-    )
+    with artifact.pdf_file.open("rb") as pdf_stream:
+        response = FileResponse(BytesIO(pdf_stream.read()), content_type="application/pdf")
     response["Content-Disposition"] = f'inline; filename="{filename}"'
     return response
 

@@ -1,5 +1,6 @@
 import uuid
 
+from django import VERSION as DJANGO_VERSION
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
@@ -11,6 +12,15 @@ from ..document_scan import DocumentScanStatus
 from .catalog import Product
 from .inventory import Destination, ProductLot
 from .shipment import Shipment
+
+
+def _check_constraint_compat(*, condition, name):
+    constraint_kwargs = {"name": name}
+    if DJANGO_VERSION >= (5, 1):
+        constraint_kwargs["condition"] = condition
+    else:
+        constraint_kwargs["check"] = condition
+    return models.CheckConstraint(**constraint_kwargs)
 
 
 class OrderStatus(models.TextChoices):
@@ -282,8 +292,8 @@ class AssociationPortalContact(models.Model):
     class Meta:
         ordering = ["position", "id"]
         constraints = [
-            models.CheckConstraint(
-                check=(
+            _check_constraint_compat(
+                condition=(
                     models.Q(is_administrative=True)
                     | models.Q(is_shipping=True)
                     | models.Q(is_billing=True)
@@ -949,8 +959,10 @@ class DestinationCorrespondentOverride(models.Model):
                 fields=["destination", "correspondent_org", "shipper_org", "recipient_org"],
                 name="wms_destination_corr_override_unique_key",
             ),
-            models.CheckConstraint(
-                check=models.Q(shipper_org__isnull=False) | models.Q(recipient_org__isnull=False),
+            _check_constraint_compat(
+                condition=(
+                    models.Q(shipper_org__isnull=False) | models.Q(recipient_org__isnull=False)
+                ),
                 name="wms_destination_corr_override_requires_scope",
             ),
         ]
