@@ -6,6 +6,8 @@ from django.http import HttpResponse, JsonResponse
 
 from tools.planning_comm_helper.autostart import MACOS_APP_BUNDLE_NAME
 
+from .helper_versioning import build_helper_version_policy
+
 
 def _helper_repo_root():
     return Path(__file__).resolve().parent.parent
@@ -68,6 +70,7 @@ cd /d "{resolved_repo_root}"
 
 
 def build_helper_install_context(*, install_url, app_label="asf-wms", system=None, repo_root=None):
+    version_policy = build_helper_version_policy()
     try:
         payload = build_helper_installer_payload(
             app_label=app_label,
@@ -76,6 +79,7 @@ def build_helper_install_context(*, install_url, app_label="asf-wms", system=Non
         )
     except ValidationError as exc:
         return {
+            **version_policy,
             "available": False,
             "platform_label": "ce poste",
             "download_label": "",
@@ -87,6 +91,7 @@ def build_helper_install_context(*, install_url, app_label="asf-wms", system=Non
         }
     return {
         **payload,
+        **version_policy,
         "install_url": install_url,
         "error": "",
     }
