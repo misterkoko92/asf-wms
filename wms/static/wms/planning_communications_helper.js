@@ -79,15 +79,15 @@
     statusNode.classList.remove("d-none");
   }
 
-  function showInstallAssistant(root, retryAction) {
+  function showInstallAssistant(root, retryAction, message) {
     const panel = installPanel(root);
     if (!panel) {
-      showWarning(root, helperUnavailableMessage());
+      showWarning(root, message || helperUnavailableMessage());
       return;
     }
     root._planningHelperRetryAction = retryAction;
     panel.classList.remove("d-none");
-    showWarning(root, helperUnavailableMessage());
+    showWarning(root, message || helperUnavailableMessage());
   }
 
   function isHelperUnavailableError(error) {
@@ -97,6 +97,96 @@
 
   function helperUnavailableMessage() {
     return "Le helper local est indisponible. Vérifiez qu'il est démarré sur ce poste.";
+  }
+
+  function parseVersion(value) {
+    return String(value || "")
+      .split(".")
+      .map((part) => {
+        const numericPart = parseInt(part, 10);
+        return Number.isFinite(numericPart) ? numericPart : 0;
+      });
+  }
+
+  function compareVersions(left, right) {
+    const leftParts = parseVersion(left);
+    const rightParts = parseVersion(right);
+    const partCount = Math.max(leftParts.length, rightParts.length, 3);
+    for (let index = 0; index < partCount; index += 1) {
+      const leftPart = leftParts[index] || 0;
+      const rightPart = rightParts[index] || 0;
+      if (leftPart < rightPart) {
+        return -1;
+      }
+      if (leftPart > rightPart) {
+        return 1;
+      }
+    }
+    return 0;
+  }
+
+  function normalizeCapabilities(capabilities) {
+    if (!Array.isArray(capabilities)) {
+      return [];
+    }
+    return capabilities
+      .map((capability) => String(capability || "").trim())
+      .filter((capability) => capability);
+  }
+
+  function evaluateHelperStatus({ health, minimumVersion, latestVersion, requiredCapabilities }) {
+    if (!health || health.ok !== true) {
+      return {
+        status: "missing",
+        message: helperUnavailableMessage(),
+      };
+    }
+
+    const helperVersion = String(health.helper_version || "").trim();
+    if (!helperVersion) {
+      return {
+        status: "missing",
+        message: helperUnavailableMessage(),
+      };
+    }
+
+    if (compareVersions(helperVersion, minimumVersion) < 0) {
+      return {
+        status: "outdated_blocking",
+        message: `Le helper local doit etre mis a jour avant de lancer cette action (minimum ${minimumVersion}).`,
+      };
+    }
+
+    const availableCapabilities = new Set(normalizeCapabilities(health.capabilities));
+    const missingCapabilities = normalizeCapabilities(requiredCapabilities).filter(
+      (capability) => !availableCapabilities.has(capability)
+    );
+    if (missingCapabilities.length) {
+      return {
+        status: "unsupported_blocking",
+        message: "Cette action requiert une version plus recente du helper local.",
+      };
+    }
+
+    if (latestVersion && compareVersions(helperVersion, latestVersion) < 0) {
+      return {
+        status: "outdated_recommended",
+        message: `Une version plus recente du helper local est disponible (${latestVersion}).`,
+      };
+    }
+
+    return {
+      status: "ready",
+      message: "",
+    };
+  }
+
+  function isBlockingHelperStatus(status) {
+    return (
+      status === "missing" ||
+      status === "outdated_blocking" ||
+      status === "unsupported_blocking"
+    );
   }
 
   function requiresDirectRecipientAddress(family) {
@@ -232,6 +322,41 @@
     return responsePayload;
   }
 
+  async function fetchHelperHealth(root) {
+    return postToHelper(root, "/health", {});
+  }
+
+  async function fetchHelperCompatibility(root, requiredCapabilities) {
+    try {
+      const health = await fetchHelperHealth(root);
+      return evaluateHelperStatus({
+        health,
+        minimumVersion: String(root.dataset.planningHelperMinimumVersion || "0.0.0"),
+        latestVersion: String(
+          root.dataset.planningHelperLatestVersion ||
+            root.dataset.planningHelperMinimumVersion ||
+            "0.0.0"
+        ),
+        requiredCapabilities,
+      });
+    } catch (error) {
+      return {
+        status: "missing",
+        message: error.message || helperUnavailableMessage(),
+      };
+    }
+  }
+
+  async function ensureHelperCompatibility(root, requiredCapabilities) {
+    const compatibility = await fetchHelperCompatibility(root, requiredCapabilities);
+    if (isBlockingHelperStatus(compatibility.status)) {
+      const error = new Error(compatibility.message);
+      error.helperCompatibility = compatibility;
+      throw error;
+    }
+    return compatibility;
+  }
+
   async function openWhatsappDraft(root, button) {
     const payload = await fetchJson(button.dataset.draftActionUrl);
     const row = button.closest("[data-planning-draft-row]");
@@ -245,17 +370,30 @@
 
   async function openEmailDraft(root, button) {
     const payload = await fetchJson(button.dataset.draftActionUrl);
+    const compatibility = await ensureHelperCompatibility(
+      root,
+      payload.required_capabilities || []
+    );
     const row = button.closest("[data-planning-draft-row]");
     const draft = await hydrateEmailDraft(mergeDraftPayload(payload, row));
     await postToHelper(root, "/v1/outlook/open", { drafts: [draft] });
+    hideInstallAssistant(root);
+    const warningMessages = [];
+    if (compatibility.status === "outdated_recommended") {
+      warningMessages.push(compatibility.message);
+    }
     if (draft.skippedAttachments.length) {
-      showWarning(
-        root,
+      warningMessages.push(
         `Certaines pieces jointes sont indisponibles et ont ete ignorees: ${draft.skippedAttachments
           .map((attachment) => attachment.filename)
           .join(", ")}.`
       );
     }
+    if (warningMessages.length) {
+      showWarning(root, warningMessages.join(" "));
+      return;
+    }
+    clearError(root);
   }
 
   async function openWhatsappDraftsDirectly(drafts) {
@@ -271,22 +409,17 @@
   async function openFamilyDrafts(root, button) {
     const payload = await fetchJson(button.dataset.familyActionUrl);
     const article = button.closest("[data-family-key]");
-    const drafts = await Promise.all(
-      (payload.drafts || []).map(async (draft) => {
+    if (payload.action === "whatsapp") {
+      const drafts = (payload.drafts || []).map((draft) => {
         const row = article.querySelector(
           `[data-planning-draft-row="1"][data-draft-id="${draft.draft_id}"]`
         );
         const mergedDraft = mergeDraftPayload(draft, row);
-        if (mergedDraft.action === "email") {
-          return hydrateEmailDraft(mergedDraft);
-        }
         return {
           ...mergedDraft,
           wa_url: buildWaUrl(mergedDraft.recipient_contact, mergedDraft.body),
         };
-      })
-    );
-    if (payload.action === "whatsapp") {
+      });
       try {
         await postToHelper(root, "/v1/whatsapp/open", { drafts });
       } catch (error) {
@@ -297,6 +430,18 @@
       }
       return;
     }
+    const compatibility = await ensureHelperCompatibility(
+      root,
+      payload.required_capabilities || []
+    );
+    const drafts = await Promise.all(
+      (payload.drafts || []).map(async (draft) => {
+        const row = article.querySelector(
+          `[data-planning-draft-row="1"][data-draft-id="${draft.draft_id}"]`
+        );
+        return hydrateEmailDraft(mergeDraftPayload(draft, row));
+      })
+    );
     const openableDrafts = drafts.filter(
       (draft) => !requiresDirectRecipientAddress(draft.family) || draft.recipient_contact
     );
@@ -306,14 +451,23 @@
     }
     await postToHelper(root, "/v1/outlook/open", { drafts: openableDrafts });
     const skippedAttachments = openableDrafts.flatMap((draft) => draft.skippedAttachments || []);
+    hideInstallAssistant(root);
+    const warningMessages = [];
+    if (compatibility.status === "outdated_recommended") {
+      warningMessages.push(compatibility.message);
+    }
     if (skippedAttachments.length) {
-      showWarning(
-        root,
+      warningMessages.push(
         `Certaines pieces jointes sont indisponibles et ont ete ignorees: ${skippedAttachments
           .map((attachment) => attachment.filename)
           .join(", ")}.`
       );
     }
+    if (warningMessages.length) {
+      showWarning(root, warningMessages.join(" "));
+      return;
+    }
+    clearError(root);
   }
 
   async function handleClick(root, button) {
@@ -332,10 +486,16 @@
         await openEmailDraft(root, button);
       }
     } catch (error) {
+      if (error.helperCompatibility && isBlockingHelperStatus(error.helperCompatibility.status)) {
+        showInstallAssistant(root, function () {
+          handleClick(root, button);
+        }, error.message);
+        return;
+      }
       if (isHelperUnavailableError(error)) {
         showInstallAssistant(root, function () {
           handleClick(root, button);
-        });
+        }, error.message);
       } else {
         showError(root, error.message || "Une erreur est survenue.");
       }

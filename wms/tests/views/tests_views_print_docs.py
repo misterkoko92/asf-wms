@@ -112,6 +112,35 @@ class PrintDocsViewsTests(TestCase):
         self.assertTrue(payload["merge"] is False)
         self.assertEqual(payload["documents"][0]["filename"], "shipment-note.xlsx")
         self.assertIn("helper_document=0", payload["documents"][0]["download_url"])
+        self.assertEqual(
+            payload["required_capabilities"],
+            ["pdf_render", "excel_render"],
+        )
+
+    def test_scan_shipment_document_requires_pdf_merge_for_multi_document_helper_job(self):
+        shipment = self._create_shipment()
+        with mock.patch(
+            "wms.views_print_docs.render_pack_xlsx_documents",
+            return_value=[
+                SimpleNamespace(filename="shipment-note-1.xlsx", payload=b"xlsx-data-1"),
+                SimpleNamespace(filename="shipment-note-2.xlsx", payload=b"xlsx-data-2"),
+            ],
+        ):
+            response = self.client.get(
+                reverse(
+                    "scan:scan_shipment_document",
+                    kwargs={"shipment_id": shipment.id, "doc_type": "shipment_note"},
+                ),
+                {"helper": "1"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["merge"])
+        self.assertEqual(
+            payload["required_capabilities"],
+            ["pdf_render", "excel_render", "pdf_merge"],
+        )
 
     def test_scan_shipment_document_returns_helper_document_when_requested(self):
         shipment = self._create_shipment()

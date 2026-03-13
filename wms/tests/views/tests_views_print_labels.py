@@ -110,6 +110,10 @@ class PrintLabelsViewsTests(TestCase):
         self.assertEqual(payload["output_filename"], f"print-pack-D-{shipment.reference}.pdf")
         self.assertEqual(payload["documents"][0]["filename"], "labels.xlsx")
         self.assertIn("helper_document=0", payload["documents"][0]["download_url"])
+        self.assertEqual(
+            payload["required_capabilities"],
+            ["pdf_render", "excel_render"],
+        )
 
     def test_scan_shipment_label_returns_helper_document_when_requested(self):
         shipment = self._create_shipment()

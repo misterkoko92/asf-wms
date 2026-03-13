@@ -35,6 +35,7 @@ def build_local_helper_job_response(
     carton=None,
 ) -> JsonResponse:
     documents = list(render_documents())
+    merge = len(documents) > 1
     payload = {
         "documents": [
             {
@@ -48,8 +49,9 @@ def build_local_helper_job_response(
             shipment=shipment,
             carton=carton,
         ),
-        "merge": len(documents) > 1,
+        "merge": merge,
         "open_after_render": True,
+        "required_capabilities": _build_required_capabilities(merge=merge),
     }
     return JsonResponse(payload)
 
@@ -86,3 +88,10 @@ def _helper_output_filename(*, pack_code, shipment=None, carton=None) -> str:
     if shipment is not None and getattr(shipment, "reference", ""):
         return f"print-pack-{pack_code}-{shipment.reference}.pdf"
     return f"print-pack-{pack_code}.pdf"
+
+
+def _build_required_capabilities(*, merge: bool) -> list[str]:
+    capabilities = ["pdf_render", "excel_render"]
+    if merge:
+        capabilities.append("pdf_merge")
+    return capabilities

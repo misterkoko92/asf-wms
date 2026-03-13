@@ -12,6 +12,96 @@
     return "Le helper local est indisponible. Vérifiez qu'il est démarré sur ce poste.";
   }
 
+  function parseVersion(value) {
+    return String(value || "")
+      .split(".")
+      .map((part) => {
+        const numericPart = parseInt(part, 10);
+        return Number.isFinite(numericPart) ? numericPart : 0;
+      });
+  }
+
+  function compareVersions(left, right) {
+    const leftParts = parseVersion(left);
+    const rightParts = parseVersion(right);
+    const partCount = Math.max(leftParts.length, rightParts.length, 3);
+    for (let index = 0; index < partCount; index += 1) {
+      const leftPart = leftParts[index] || 0;
+      const rightPart = rightParts[index] || 0;
+      if (leftPart < rightPart) {
+        return -1;
+      }
+      if (leftPart > rightPart) {
+        return 1;
+      }
+    }
+    return 0;
+  }
+
+  function normalizeCapabilities(capabilities) {
+    if (!Array.isArray(capabilities)) {
+      return [];
+    }
+    return capabilities
+      .map((capability) => String(capability || "").trim())
+      .filter((capability) => capability);
+  }
+
+  function evaluateHelperStatus({ health, minimumVersion, latestVersion, requiredCapabilities }) {
+    if (!health || health.ok !== true) {
+      return {
+        status: "missing",
+        message: helperUnavailableMessage(),
+      };
+    }
+
+    const helperVersion = String(health.helper_version || "").trim();
+    if (!helperVersion) {
+      return {
+        status: "missing",
+        message: helperUnavailableMessage(),
+      };
+    }
+
+    if (compareVersions(helperVersion, minimumVersion) < 0) {
+      return {
+        status: "outdated_blocking",
+        message: `Le helper local doit etre mis a jour avant de generer ce PDF (minimum ${minimumVersion}).`,
+      };
+    }
+
+    const availableCapabilities = new Set(normalizeCapabilities(health.capabilities));
+    const missingCapabilities = normalizeCapabilities(requiredCapabilities).filter(
+      (capability) => !availableCapabilities.has(capability)
+    );
+    if (missingCapabilities.length) {
+      return {
+        status: "unsupported_blocking",
+        message: "Cette action requiert une version plus recente du helper local.",
+      };
+    }
+
+    if (latestVersion && compareVersions(helperVersion, latestVersion) < 0) {
+      return {
+        status: "outdated_recommended",
+        message: `Une version plus recente du helper local est disponible (${latestVersion}).`,
+      };
+    }
+
+    return {
+      status: "ready",
+      message: "",
+    };
+  }
+
+  function isBlockingHelperStatus(status) {
+    return (
+      status === "missing" ||
+      status === "outdated_blocking" ||
+      status === "unsupported_blocking"
+    );
+  }
+
   function isHelperUnavailableError(error) {
     const message = String((error && error.message) || "");
     return /helper local/i.test(message) || /Failed to fetch/i.test(message);
@@ -80,13 +170,13 @@
     statusNode.classList.remove("d-none");
   }
 
-  function showInstallAssistant(root, retryAction) {
+  function showInstallAssistant(root, retryAction, message) {
     const panel = installPanel(root);
     if (panel) {
       panel.classList.remove("d-none");
     }
     root._localDocumentHelperRetryAction = retryAction;
-    showWarning(root, helperUnavailableMessage());
+    showWarning(root, message || helperUnavailableMessage());
   }
 
   async function copyInstallCommand(root) {
@@ -147,8 +237,8 @@
     };
   }
 
-  async function postToHelper(root, payload) {
-    const helperUrl = `http://${root.dataset.localDocumentHelperOrigin}/v1/pdf/render`;
+  async function postToHelperPath(root, path, payload) {
+    const helperUrl = `http://${root.dataset.localDocumentHelperOrigin}${path}`;
     let response;
     try {
       response = await fetch(helperUrl, {
@@ -174,9 +264,66 @@
     return responsePayload;
   }
 
+  async function fetchHelperHealth(root) {
+    return postToHelperPath(root, "/health", {});
+  }
+
+  async function postToHelper(root, payload) {
+    return postToHelperPath(root, "/v1/pdf/render", payload);
+  }
+
+  async function fetchHelperCompatibility(root, requiredCapabilities) {
+    try {
+      const health = await fetchHelperHealth(root);
+      return evaluateHelperStatus({
+        health,
+        minimumVersion: String(root.dataset.localDocumentHelperMinimumVersion || "0.0.0"),
+        latestVersion: String(
+          root.dataset.localDocumentHelperLatestVersion ||
+            root.dataset.localDocumentHelperMinimumVersion ||
+            "0.0.0"
+        ),
+        requiredCapabilities,
+      });
+    } catch (error) {
+      return {
+        status: "missing",
+        message: error.message || helperUnavailableMessage(),
+      };
+    }
+  }
+
   async function renderPdfFromLink(root, link) {
     const jobUrl = appendQueryParam(link.href, "helper", "1");
     const jobPayload = await fetchJson(jobUrl);
+    const compatibility = await fetchHelperCompatibility(
+      root,
+      jobPayload.required_capabilities || []
+    );
+    if (isBlockingHelperStatus(compatibility.status)) {
+      showInstallAssistant(
+        root,
+        function () {
+          renderPdfFromLink(root, link).catch((retryError) => {
+            if (isHelperUnavailableError(retryError)) {
+              showInstallAssistant(
+                root,
+                function () {
+                  renderPdfFromLink(root, link).catch((nestedRetryError) => {
+                    showError(root, nestedRetryError.message || "Une erreur est survenue.");
+                  });
+                },
+                retryError.message
+              );
+              return;
+            }
+            showError(root, retryError.message || "Une erreur est survenue.");
+          });
+        },
+        compatibility.message
+      );
+      return;
+    }
     const documents = await Promise.all((jobPayload.documents || []).map(fetchDocument));
     const helperResponse = await postToHelper(root, {
       ...jobPayload,
@@ -186,8 +333,12 @@
       showWarning(root, helperResponse.warning_messages.join(" "));
       return;
     }
-    clearAlert(root);
     hideInstallAssistant(root);
+    if (compatibility.status === "outdated_recommended") {
+      showWarning(root, compatibility.message);
+      return;
+    }
+    clearAlert(root);
   }
 
   function attachInstallControls(root) {
@@ -239,7 +390,7 @@
                 renderPdfFromLink(root, link).catch((retryError) => {
                   showError(root, retryError.message || "Une erreur est survenue.");
                 });
-              });
+              }, error.message);
               return;
             }
             showError(root, error.message || "Une erreur est survenue.");

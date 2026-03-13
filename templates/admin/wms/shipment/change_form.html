@@ -30,6 +30,8 @@
       data-local-document-helper-install-label="{{ helper_install.download_label }}"
       data-local-document-helper-install-platform="{{ helper_install.platform_label }}"
       data-local-document-helper-install-available="{{ helper_install.available|yesno:'1,0' }}"
+      data-local-document-helper-minimum-version="{{ helper_install.minimum_helper_version }}"
+      data-local-document-helper-latest-version="{{ helper_install.latest_helper_version }}"
     >
       <h2>{% trans "Impression A5" %}</h2>
       {% include "wms/_local_document_helper_install_panel.html" %}
