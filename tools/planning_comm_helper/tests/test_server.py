@@ -19,6 +19,31 @@ class PlanningCommunicationHelperServerTests(TestCase):
         self.assertEqual(headers["Access-Control-Allow-Private-Network"], "true")
         self.assertIn(HELPER_HEADER, headers["Access-Control-Allow-Headers"])
 
+    @mock.patch("tools.planning_comm_helper.server.get_helper_runtime_metadata")
+    def test_handle_json_request_returns_helper_health_metadata(self, metadata_mock):
+        metadata_mock.return_value = {
+            "helper_version": "0.1.0",
+            "platform": "Darwin",
+            "capabilities": ["pdf_render", "excel_render", "pdf_merge"],
+        }
+
+        response = handle_json_request(
+            method="POST",
+            path="/health",
+            headers={HELPER_HEADER: "1"},
+            payload={},
+        )
+
+        self.assertEqual(
+            response,
+            {
+                "ok": True,
+                "helper_version": "0.1.0",
+                "platform": "Darwin",
+                "capabilities": ["pdf_render", "excel_render", "pdf_merge"],
+            },
+        )
+
     def test_handle_json_request_rejects_unsupported_route(self):
         with self.assertRaises(HelperRequestError) as error:
             handle_json_request(

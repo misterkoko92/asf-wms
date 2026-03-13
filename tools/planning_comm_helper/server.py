@@ -5,6 +5,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from tools.planning_comm_helper.outlook import OutlookPayloadError, open_outlook_drafts
 from tools.planning_comm_helper.pdf_render import PdfRenderJobError, render_pdf_job
+from tools.planning_comm_helper.versioning import get_helper_runtime_metadata
 from tools.planning_comm_helper.whatsapp import WhatsAppPayloadError, open_whatsapp_drafts
 
 HELPER_HEADER = "X-ASF-Planning-Helper"
@@ -77,7 +78,7 @@ def handle_json_request(
     request_payload = payload or {}
 
     if path == "/health":
-        return {"ok": True}
+        return {"ok": True, **get_helper_runtime_metadata()}
 
     if path == "/v1/whatsapp/open":
         drafts = _require_drafts(request_payload)
