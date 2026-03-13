@@ -244,6 +244,7 @@ def scan_cartons_ready(request):
             "helper_install": build_helper_install_context(
                 install_url=reverse(LOCAL_DOCUMENT_HELPER_INSTALL_ROUTE),
                 app_label=LOCAL_DOCUMENT_HELPER_APP_LABEL,
+                request=request,
             ),
             "local_document_helper_origin": LOCAL_DOCUMENT_HELPER_ORIGIN,
             "carton_status_choices": sorted_choices(
@@ -388,6 +389,7 @@ def scan_shipments_ready(request):
             "helper_install": build_helper_install_context(
                 install_url=reverse(LOCAL_DOCUMENT_HELPER_INSTALL_ROUTE),
                 app_label=LOCAL_DOCUMENT_HELPER_APP_LABEL,
+                request=request,
             ),
             "local_document_helper_origin": LOCAL_DOCUMENT_HELPER_ORIGIN,
         },
@@ -397,7 +399,10 @@ def scan_shipments_ready(request):
 @scan_staff_required
 @require_http_methods(["GET"])
 def scan_local_document_helper_installer(request):
-    return build_helper_installer_response(app_label=LOCAL_DOCUMENT_HELPER_APP_LABEL)
+    return build_helper_installer_response(
+        request=request,
+        app_label=LOCAL_DOCUMENT_HELPER_APP_LABEL,
+    )
 
 
 @scan_staff_required

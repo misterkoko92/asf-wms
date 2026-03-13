@@ -1172,6 +1172,26 @@ class PlanningViewTests(TestCase):
             "Installation du helper indisponible sur ce poste.",
         )
 
+    @mock.patch("wms.views_planning.platform.system", return_value="Linux")
+    def test_version_detail_helper_installer_detects_macos_client_request(self, _platform_mock):
+        data = self.make_published_version_with_communication_drafts()
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(
+            reverse("planning:version_communication_helper_installer", args=[data["version"].pk]),
+            HTTP_USER_AGENT=(
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15"
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response["Content-Disposition"],
+            'attachment; filename="install-asf-planning-helper.command"',
+        )
+        self.assertIn("#!/bin/zsh", response.content.decode())
+
     def test_version_detail_renders_visual_html_editor_for_email_drafts_only(self):
         data = self.make_published_version_with_communication_drafts()
         self.client.force_login(self.staff_user)

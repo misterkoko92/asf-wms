@@ -15,7 +15,7 @@ from .forms_planning import (
     build_assignment_formset,
     build_communication_draft_formset,
 )
-from .helper_install import build_helper_install_context, build_helper_installer_payload
+from .helper_install import build_helper_install_context, build_helper_installer_response
 from .models import (
     CommunicationDraftStatus,
     PlanningAssignment,
@@ -70,15 +70,7 @@ def _planning_helper_repo_root():
     return Path(__file__).resolve().parent.parent
 
 
-def _build_helper_installer_payload():
-    return build_helper_installer_payload(
-        app_label="asf-planning",
-        system=platform.system(),
-        repo_root=_planning_helper_repo_root(),
-    )
-
-
-def _build_helper_install_context(version):
+def _build_helper_install_context(request, version):
     return build_helper_install_context(
         install_url=reverse(
             "planning:version_communication_helper_installer",
@@ -87,6 +79,7 @@ def _build_helper_install_context(version):
         app_label="asf-planning",
         system=platform.system(),
         repo_root=_planning_helper_repo_root(),
+        request=request,
     )
 
 
@@ -474,7 +467,7 @@ def planning_version_detail(request, version_id):
             "artifacts": version.artifacts.all(),
             "dashboard": dashboard,
             "clone_form": PlanningVersionCloneForm(),
-            "helper_install": _build_helper_install_context(version),
+            "helper_install": _build_helper_install_context(request, version),
         },
     )
 
@@ -528,14 +521,15 @@ def planning_version_communication_packing_list_pdf(request, version_id, shipmen
 @require_http_methods(["GET"])
 def planning_version_communication_helper_installer(request, version_id):
     version = get_object_or_404(PlanningVersion, pk=version_id)
-    try:
-        payload = _build_helper_installer_payload()
-    except ValidationError as exc:
-        return JsonResponse({"error": _validation_error_message(exc)}, status=409)
-    response = HttpResponse(payload["script"], content_type="text/plain; charset=utf-8")
-    response["Content-Disposition"] = 'attachment; filename="{filename}"'.format(
-        filename=payload["filename"],
+    response = build_helper_installer_response(
+        request=request,
+        app_label="asf-planning",
+        system=platform.system(),
+        repo_root=_planning_helper_repo_root(),
+        extra_headers={"X-ASF-Planning-Version": str(version.pk)},
     )
+    if response.status_code != 200:
+        return response
     response["X-ASF-Planning-Version"] = str(version.pk)
     return response
 
