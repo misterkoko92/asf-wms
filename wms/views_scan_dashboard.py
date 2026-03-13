@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import date, datetime, time, timedelta
 
 from django.db.models import Count, F, IntegerField, Max, Q, Sum, Value
@@ -6,6 +7,7 @@ from django.db.models.functions import Coalesce
 from django.shortcuts import render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 from django.views.decorators.http import require_http_methods
@@ -14,12 +16,14 @@ from .models import (
     TEMP_SHIPMENT_REFERENCE_PREFIX,
     Carton,
     CartonStatus,
+    CartonStatusEvent,
     Destination,
     IntegrationDirection,
     IntegrationEvent,
     IntegrationStatus,
     Order,
     OrderReviewStatus,
+    OrderStatus,
     Product,
     ProductLot,
     ProductLotStatus,
@@ -28,8 +32,10 @@ from .models import (
     Shipment,
     ShipmentStatus,
     ShipmentTrackingStatus,
+    ShipmentUnitEquivalenceRule,
 )
 from .runtime_settings import get_runtime_config
+from .unit_equivalence import ShipmentUnitInput, resolve_shipment_unit_count
 from .view_permissions import scan_staff_required
 
 TEMPLATE_DASHBOARD = "scan/dashboard.html"
@@ -93,6 +99,27 @@ def _current_week_bounds():
     return week_start, week_start + timedelta(days=7)
 
 
+def _current_week_date_bounds():
+    start_date, end_exclusive = _current_week_bounds()
+    return start_date, end_exclusive - timedelta(days=1)
+
+
+def _parse_date_window(start_raw, end_raw):
+    default_start, default_end = _current_week_date_bounds()
+    start_date = parse_date((start_raw or "").strip()) or default_start
+    end_date = parse_date((end_raw or "").strip()) or default_end
+    if start_date > end_date:
+        start_date, end_date = default_start, default_end
+
+    tz = timezone.get_current_timezone()
+    start_at = timezone.make_aware(datetime.combine(start_date, time.min), tz)
+    end_exclusive = timezone.make_aware(
+        datetime.combine(end_date + timedelta(days=1), time.min),
+        tz,
+    )
+    return start_date, end_date, start_at, end_exclusive
+
+
 def _build_card(*, label, value, help_text, url, tone="neutral"):
     return {
         "label": label,
@@ -148,6 +175,87 @@ def _build_chart_rows(status_count_map):
             }
         )
     return rows, total
+
+
+def _normalize_shipment_status(raw_value):
+    value = (raw_value or "").strip()
+    allowed = {choice[0] for choice in ShipmentStatus.choices}
+    if value in allowed:
+        return value
+    return ""
+
+
+def _build_destination_label(*, destination, fallback=""):
+    if destination is not None and destination.iata_code and destination.city:
+        return f"{destination.iata_code} - {destination.city}"
+    if destination is not None and destination.iata_code:
+        return destination.iata_code
+    if destination is not None and destination.city:
+        return destination.city
+    if fallback:
+        return fallback
+    return "-"
+
+
+def _build_shipment_equivalence_items(shipment):
+    items = []
+    for carton in shipment.carton_set.all():
+        for carton_item in carton.cartonitem_set.all():
+            items.append(
+                ShipmentUnitInput(
+                    product=carton_item.product_lot.product,
+                    quantity=carton_item.quantity,
+                )
+            )
+    return items
+
+
+def _build_destination_chart_rows(shipments, *, equivalence_rules):
+    buckets = defaultdict(
+        lambda: {
+            "destination_label": "-",
+            "shipment_count": 0,
+            "equivalent_units": 0,
+        }
+    )
+
+    for shipment in shipments:
+        label = _build_destination_label(
+            destination=shipment.destination,
+            fallback=shipment.destination_address,
+        )
+        bucket = buckets[label]
+        bucket["destination_label"] = label
+        bucket["shipment_count"] += 1
+        bucket["equivalent_units"] += resolve_shipment_unit_count(
+            items=_build_shipment_equivalence_items(shipment),
+            rules=equivalence_rules,
+        )
+
+    rows = sorted(
+        buckets.values(),
+        key=lambda item: (
+            -item["shipment_count"],
+            -item["equivalent_units"],
+            item["destination_label"],
+        ),
+    )
+    total_shipments = sum(row["shipment_count"] for row in rows)
+    total_equivalent_units = sum(row["equivalent_units"] for row in rows)
+    for row in rows:
+        row["shipment_percent"] = (
+            round((row["shipment_count"] / total_shipments) * 100, 1) if total_shipments else 0
+        )
+        row["equivalent_percent"] = (
+            round((row["equivalent_units"] / total_equivalent_units) * 100, 1)
+            if total_equivalent_units
+            else 0
+        )
+        # Keep the legacy template rendering until the dedicated template task rewires the card.
+        row["label"] = row["destination_label"]
+        row["count"] = row["shipment_count"]
+        row["percent"] = row["shipment_percent"]
+    return rows, total_shipments, total_equivalent_units
 
 
 def _stock_snapshot(*, low_stock_threshold):
@@ -319,6 +427,15 @@ def scan_dashboard(request):
 
     period = _normalize_period(request.GET.get("period"))
     period_start = _period_start(period)
+    kpi_start_date, kpi_end_date, kpi_start_at, kpi_end_exclusive = _parse_date_window(
+        request.GET.get("kpi_start"),
+        request.GET.get("kpi_end"),
+    )
+    chart_start_date, chart_end_date, chart_start_at, chart_end_exclusive = _parse_date_window(
+        request.GET.get("chart_start") or request.GET.get("kpi_start"),
+        request.GET.get("chart_end") or request.GET.get("kpi_end"),
+    )
+    shipment_status = _normalize_shipment_status(request.GET.get("shipment_status"))
 
     destinations = Destination.objects.filter(is_active=True).order_by("city")
     destination_raw = (request.GET.get("destination") or "").strip()
@@ -332,7 +449,30 @@ def scan_dashboard(request):
 
     shipments_with_tracking = _annotate_tracking_dates(shipments_scope)
     status_map = _status_count_map(shipments_scope)
-    chart_rows, shipments_total = _build_chart_rows(status_map)
+    chart_shipments_qs = Shipment.objects.filter(
+        archived_at__isnull=True,
+        created_at__gte=chart_start_at,
+        created_at__lt=chart_end_exclusive,
+    )
+    if selected_destination:
+        chart_shipments_qs = chart_shipments_qs.filter(destination=selected_destination)
+    if shipment_status:
+        chart_shipments_qs = chart_shipments_qs.filter(status=shipment_status)
+    chart_shipments = list(
+        chart_shipments_qs.select_related("destination").prefetch_related(
+            "carton_set__cartonitem_set__product_lot__product__category__parent"
+        )
+    )
+    equivalence_rules = list(
+        ShipmentUnitEquivalenceRule.objects.filter(is_active=True).select_related(
+            "category",
+            "category__parent",
+        )
+    )
+    chart_rows, shipments_total, shipment_equivalent_total = _build_destination_chart_rows(
+        chart_shipments,
+        equivalence_rules=equivalence_rules,
+    )
 
     week_start, week_end = _current_week_bounds()
     in_transit_count = (
@@ -395,6 +535,72 @@ def scan_dashboard(request):
             value=Order.objects.filter(created_at__gte=period_start).count(),
             help_text=_("Demandes créées sur la période."),
             url=reverse("scan:scan_orders_view"),
+        ),
+    ]
+
+    kpi_cards = [
+        _build_card(
+            label=_("Nb Commandes reçues"),
+            value=Order.objects.filter(
+                created_at__gte=kpi_start_at,
+                created_at__lt=kpi_end_exclusive,
+            ).count(),
+            help_text=_("Commandes créées sur la période."),
+            url=reverse("scan:scan_orders_view"),
+        ),
+        _build_card(
+            label=_("Nb commandes en traitement"),
+            value=Order.objects.filter(
+                created_at__gte=kpi_start_at,
+                created_at__lt=kpi_end_exclusive,
+                status__in=[OrderStatus.RESERVED, OrderStatus.PREPARING],
+            ).count(),
+            help_text=_("Commandes réservées ou en préparation sur la période."),
+            url=reverse("scan:scan_orders_view"),
+        ),
+        _build_card(
+            label=_("Nb commandes à valider / corriger"),
+            value=Order.objects.filter(
+                created_at__gte=kpi_start_at,
+                created_at__lt=kpi_end_exclusive,
+                review_status__in=[
+                    OrderReviewStatus.PENDING,
+                    OrderReviewStatus.CHANGES_REQUESTED,
+                ],
+            ).count(),
+            help_text=_("Commandes en attente de revue ASF ou à corriger."),
+            url=reverse("scan:scan_orders_view"),
+        ),
+        _build_card(
+            label=_("Nb Colis créés"),
+            value=Carton.objects.filter(
+                created_at__gte=kpi_start_at,
+                created_at__lt=kpi_end_exclusive,
+            ).count(),
+            help_text=_("Colis créés sur la période."),
+            url=reverse("scan:scan_cartons_ready"),
+        ),
+        _build_card(
+            label=_("Nb Colis affectés"),
+            value=CartonStatusEvent.objects.filter(
+                created_at__gte=kpi_start_at,
+                created_at__lt=kpi_end_exclusive,
+                new_status=CartonStatus.ASSIGNED,
+            )
+            .values("carton_id")
+            .distinct()
+            .count(),
+            help_text=_("Transitions vers le statut Affecté sur la période."),
+            url=reverse("scan:scan_cartons_ready"),
+        ),
+        _build_card(
+            label=_("Nb Expéditions prêtes"),
+            value=Shipment.objects.filter(
+                ready_at__gte=kpi_start_at,
+                ready_at__lt=kpi_end_exclusive,
+            ).count(),
+            help_text=_("Expéditions passées à l'état prêt à planifier."),
+            url=reverse("scan:scan_shipments_ready"),
         ),
     ]
 
@@ -713,6 +919,13 @@ def scan_dashboard(request):
         "destination_id": str(selected_destination.id) if selected_destination else "",
         "destinations": destinations,
         "selected_destination": selected_destination,
+        "kpi_start": kpi_start_date.isoformat(),
+        "kpi_end": kpi_end_date.isoformat(),
+        "kpi_cards": kpi_cards,
+        "chart_start": chart_start_date.isoformat(),
+        "chart_end": chart_end_date.isoformat(),
+        "shipment_status": shipment_status,
+        "chart_status_choices": ShipmentStatus.choices,
         "activity_cards": activity_cards,
         "shipment_cards": shipment_cards,
         "carton_cards": carton_cards,
@@ -728,5 +941,6 @@ def scan_dashboard(request):
         "workflow_blockage_hours": workflow_blockage_hours,
         "shipment_chart_rows": chart_rows,
         "shipments_total": shipments_total,
+        "shipment_equivalent_total": shipment_equivalent_total,
     }
     return render(request, TEMPLATE_DASHBOARD, context)

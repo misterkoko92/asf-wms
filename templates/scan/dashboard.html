@@ -8,14 +8,6 @@
     <h2 class="h4 mb-3 ui-comp-title">{% trans "Tableau de bord" %}</h2>
     <form method="get" class="scan-filters row g-3 scan-dashboard-filter-row">
       <div class="scan-field scan-dashboard-field col-12 col-md-6 col-lg-4">
-        <label class="form-label" for="id_period">{% trans "Période KPI" %}</label>
-        <select id="id_period" name="period" class="form-select">
-          {% for value, label in period_choices %}
-            <option value="{{ value }}"{% if period == value %} selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="scan-field scan-dashboard-field col-12 col-md-6 col-lg-4">
         <label class="form-label" for="id_destination">{% trans "Destination" %}</label>
         <select id="id_destination" name="destination" class="form-select">
           <option value="">{% trans "Toutes les destinations" %}</option>
@@ -26,20 +18,43 @@
           {% endfor %}
         </select>
       </div>
+      <input type="hidden" name="kpi_start" value="{{ kpi_start }}">
+      <input type="hidden" name="kpi_end" value="{{ kpi_end }}">
+      <input type="hidden" name="chart_start" value="{{ chart_start }}">
+      <input type="hidden" name="chart_end" value="{{ chart_end }}">
+      <input type="hidden" name="shipment_status" value="{{ shipment_status }}">
       <div class="scan-filter-actions scan-dashboard-filter-actions-inline col-12 col-lg-4 d-flex flex-wrap flex-lg-nowrap gap-2 align-items-end">
         <button type="submit" class="scan-scan-btn btn btn-primary">{% trans "Appliquer" %}</button>
         <a class="btn btn-tertiary" href="{% url 'scan:scan_dashboard' %}">{% trans "Réinitialiser" %}</a>
       </div>
       <p class="scan-help col-12 mb-0">
-        {% trans "La destination filtre les widgets expédition/suivi. Le stock reste un instantané global." %}
+        {% trans "La destination filtre les widgets expédition/suivi et le graphique. Le stock reste un instantané global." %}
       </p>
     </form>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
-    <h2>{% blocktrans with period_label=period_label %}KPI période ({{ period_label }}){% endblocktrans %}</h2>
+    <h2>KPI</h2>
+    <form method="get" class="scan-filters row g-3 scan-dashboard-filter-row mb-3">
+      <div class="scan-field scan-dashboard-field col-12 col-md-6 col-lg-3">
+        <label class="form-label" for="id_kpi_start">{% trans "Date de début" %}</label>
+        <input id="id_kpi_start" name="kpi_start" type="date" class="form-control" value="{{ kpi_start }}">
+      </div>
+      <div class="scan-field scan-dashboard-field col-12 col-md-6 col-lg-3">
+        <label class="form-label" for="id_kpi_end">{% trans "Date de fin" %}</label>
+        <input id="id_kpi_end" name="kpi_end" type="date" class="form-control" value="{{ kpi_end }}">
+      </div>
+      <input type="hidden" name="destination" value="{{ destination_id }}">
+      <input type="hidden" name="chart_start" value="{{ chart_start }}">
+      <input type="hidden" name="chart_end" value="{{ chart_end }}">
+      <input type="hidden" name="shipment_status" value="{{ shipment_status }}">
+      <div class="scan-filter-actions scan-dashboard-filter-actions-inline col-12 col-lg-4 d-flex flex-wrap flex-lg-nowrap gap-2 align-items-end">
+        <button type="submit" class="scan-scan-btn btn btn-primary">{% trans "Appliquer" %}</button>
+        <a class="btn btn-tertiary" href="{% url 'scan:scan_dashboard' %}">{% trans "Réinitialiser" %}</a>
+      </div>
+    </form>
     <div class="scan-kpi-grid">
-      {% for card in activity_cards %}
+      {% for card in kpi_cards %}
         <a href="{{ card.url }}" class="scan-kpi-card{% if card.tone != 'neutral' %} is-{{ card.tone }}{% endif %}">
           <span class="scan-kpi-label">{{ card.label }}</span>
           <span class="scan-kpi-value">{{ card.value }}</span>
@@ -64,15 +79,43 @@
 
   <div class="scan-card card border-0 ui-comp-card">
     <h2>{% blocktrans with shipments_total=shipments_total %}Graphique expéditions ({{ shipments_total }}){% endblocktrans %}</h2>
+    <form method="get" class="scan-filters row g-3 scan-dashboard-filter-row mb-3">
+      <div class="scan-field scan-dashboard-field col-12 col-md-6 col-lg-3">
+        <label class="form-label" for="id_shipment_status">{% trans "État expédition" %}</label>
+        <select id="id_shipment_status" name="shipment_status" class="form-select">
+          <option value="">{% trans "Tous les états" %}</option>
+          {% for value, label in chart_status_choices %}
+            <option value="{{ value }}"{% if shipment_status == value %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="scan-field scan-dashboard-field col-12 col-md-6 col-lg-3">
+        <label class="form-label" for="id_chart_start">{% trans "Date de début" %}</label>
+        <input id="id_chart_start" name="chart_start" type="date" class="form-control" value="{{ chart_start }}">
+      </div>
+      <div class="scan-field scan-dashboard-field col-12 col-md-6 col-lg-3">
+        <label class="form-label" for="id_chart_end">{% trans "Date de fin" %}</label>
+        <input id="id_chart_end" name="chart_end" type="date" class="form-control" value="{{ chart_end }}">
+      </div>
+      <input type="hidden" name="destination" value="{{ destination_id }}">
+      <input type="hidden" name="kpi_start" value="{{ kpi_start }}">
+      <input type="hidden" name="kpi_end" value="{{ kpi_end }}">
+      <div class="scan-filter-actions scan-dashboard-filter-actions-inline col-12 col-lg-3 d-flex flex-wrap flex-lg-nowrap gap-2 align-items-end">
+        <button type="submit" class="scan-scan-btn btn btn-primary">{% trans "Appliquer" %}</button>
+        <a class="btn btn-tertiary" href="{% url 'scan:scan_dashboard' %}">{% trans "Réinitialiser" %}</a>
+      </div>
+    </form>
     <div class="scan-chart-bars">
       {% for row in shipment_chart_rows %}
         <div class="scan-chart-row">
-          <div class="scan-chart-label">{{ row.label }}</div>
-          <div class="scan-chart-track">
-            <div class="scan-chart-bar" style="width: {{ row.percent }}%;"></div>
+          <div class="scan-chart-label">{{ row.destination_label }}</div>
+          <div class="scan-chart-track mb-2">
+            <div class="scan-chart-bar" style="width: {{ row.shipment_percent }}%;"></div>
           </div>
-          <div class="scan-chart-value">{{ row.count }} / {{ row.percent }}%</div>
+          <div class="scan-chart-value">{{ row.shipment_count }} {% trans "expéditions" %} / {{ row.equivalent_units }} {% trans "équiv" %}</div>
         </div>
+      {% empty %}
+        <p class="scan-help mb-0">{% trans "Aucune expédition sur la période sélectionnée." %}</p>
       {% endfor %}
     </div>
   </div>
