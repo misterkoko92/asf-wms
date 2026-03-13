@@ -8,6 +8,7 @@ from django.utils import timezone
 from contacts.models import Contact
 from wms.models import (
     Carton,
+    CartonItem,
     CartonStatus,
     CartonStatusEvent,
     Destination,
@@ -19,6 +20,7 @@ from wms.models import (
     OrderReviewStatus,
     OrderStatus,
     Product,
+    ProductCategory,
     ProductLot,
     ProductLotStatus,
     Receipt,
@@ -28,6 +30,7 @@ from wms.models import (
     ShipmentStatus,
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
+    ShipmentUnitEquivalenceRule,
     Warehouse,
     WmsRuntimeSettings,
 )
@@ -517,3 +520,86 @@ class ScanDashboardViewTests(TestCase):
         self.assertEqual(kpi_cards["Nb Colis créés"], 2)
         self.assertEqual(kpi_cards["Nb Colis affectés"], 1)
         self.assertEqual(kpi_cards["Nb Expéditions prêtes"], 1)
+
+    def test_scan_dashboard_builds_destination_chart_with_status_filter_and_equivalent_units(self):
+        target_at = timezone.now() - timedelta(days=12)
+        target_date = target_at.date().isoformat()
+
+        category = ProductCategory.objects.create(name="Chart Category")
+        product = Product.objects.create(
+            sku="SKU-CHART",
+            name="Produit Chart",
+            is_active=True,
+            category=category,
+            default_location=self.location,
+            qr_code_image="qr_codes/chart.png",
+        )
+        product_lot = ProductLot.objects.create(
+            product=product,
+            lot_code="CHART-LOT",
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=100,
+            quantity_reserved=0,
+            location=self.location,
+        )
+        ShipmentUnitEquivalenceRule.objects.create(
+            label="Chart rule",
+            category=category,
+            units_per_item=2,
+            priority=10,
+            is_active=True,
+        )
+
+        shipment_a1 = self._create_shipment(
+            destination=self.destination_a,
+            status=ShipmentStatus.PACKED,
+            reference="EXP-CHART-A1",
+        )
+        shipment_a2 = self._create_shipment(
+            destination=self.destination_a,
+            status=ShipmentStatus.PACKED,
+            reference="EXP-CHART-A2",
+        )
+        shipment_b1 = self._create_shipment(
+            destination=self.destination_b,
+            status=ShipmentStatus.PACKED,
+            reference="EXP-CHART-B1",
+        )
+        shipment_other = self._create_shipment(
+            destination=self.destination_b,
+            status=ShipmentStatus.PLANNED,
+            reference="EXP-CHART-OTHER",
+        )
+        for shipment in (shipment_a1, shipment_a2, shipment_b1, shipment_other):
+            self._update_instance(shipment, created_at=target_at)
+
+        carton_a1 = Carton.objects.create(code="CT-CHART-A1", shipment=shipment_a1)
+        carton_a2 = Carton.objects.create(code="CT-CHART-A2", shipment=shipment_a2)
+        carton_b1 = Carton.objects.create(code="CT-CHART-B1", shipment=shipment_b1)
+        carton_other = Carton.objects.create(code="CT-CHART-OTHER", shipment=shipment_other)
+        CartonItem.objects.create(carton=carton_a1, product_lot=product_lot, quantity=1)
+        CartonItem.objects.create(carton=carton_a2, product_lot=product_lot, quantity=2)
+        CartonItem.objects.create(carton=carton_b1, product_lot=product_lot, quantity=1)
+        CartonItem.objects.create(carton=carton_other, product_lot=product_lot, quantity=9)
+
+        response = self.client.get(
+            reverse("scan:scan_dashboard"),
+            {
+                "kpi_start": target_date,
+                "kpi_end": target_date,
+                "shipment_status": ShipmentStatus.PACKED,
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["chart_start"], target_date)
+        self.assertEqual(response.context["chart_end"], target_date)
+        self.assertEqual(response.context["shipment_status"], ShipmentStatus.PACKED)
+
+        chart_rows = response.context["shipment_chart_rows"]
+        self.assertEqual(len(chart_rows), 2)
+        self.assertEqual(chart_rows[0]["destination_label"], "ABJ - ABIDJAN")
+        self.assertEqual(chart_rows[0]["shipment_count"], 2)
+        self.assertEqual(chart_rows[0]["equivalent_units"], 6)
+        self.assertEqual(chart_rows[1]["destination_label"], "BZV - BRAZZAVILLE")
+        self.assertEqual(chart_rows[1]["shipment_count"], 1)
+        self.assertEqual(chart_rows[1]["equivalent_units"], 2)
