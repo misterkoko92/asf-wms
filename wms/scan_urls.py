@@ -9,6 +9,11 @@ urlpatterns = [
     path("dashboard/", views.scan_dashboard, name="scan_dashboard"),
     path("stock/", views.scan_stock, name="scan_stock"),
     path("kits/", views.scan_kits_view, name="scan_kits_view"),
+    path(
+        "helper/install/",
+        views.scan_local_document_helper_installer,
+        name="scan_local_document_helper_installer",
+    ),
     path("prepare-kits/", views.scan_prepare_kits, name="scan_prepare_kits"),
     path(
         "prepare-kits/picking/",

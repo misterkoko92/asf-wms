@@ -41,6 +41,31 @@ class PlanningCommunicationHelperServerTests(TestCase):
 
         self.assertEqual(error.exception.status_code, 422)
 
+    def test_handle_json_request_validates_pdf_render_payload(self):
+        with self.assertRaises(HelperRequestError) as error:
+            handle_json_request(
+                method="POST",
+                path="/v1/pdf/render",
+                headers={HELPER_HEADER: "1"},
+                payload={"output_filename": "planning.pdf"},
+            )
+
+        self.assertEqual(error.exception.status_code, 422)
+
+    def test_handle_json_request_validates_pdf_render_document_shape(self):
+        with self.assertRaises(HelperRequestError) as error:
+            handle_json_request(
+                method="POST",
+                path="/v1/pdf/render",
+                headers={HELPER_HEADER: "1"},
+                payload={
+                    "documents": [{"filename": "", "content_base64": ""}],
+                    "output_filename": "planning.pdf",
+                },
+            )
+
+        self.assertEqual(error.exception.status_code, 422)
+
     @mock.patch("tools.planning_comm_helper.server.open_whatsapp_drafts")
     def test_handle_json_request_dispatches_whatsapp_drafts(self, open_whatsapp_drafts_mock):
         open_whatsapp_drafts_mock.return_value = 1
@@ -75,3 +100,31 @@ class PlanningCommunicationHelperServerTests(TestCase):
 
         open_outlook_drafts_mock.assert_called_once()
         self.assertEqual(response["opened_count"], 1)
+
+    @mock.patch("tools.planning_comm_helper.server.render_pdf_job", create=True)
+    def test_handle_json_request_dispatches_pdf_render_job(self, render_pdf_job_mock):
+        render_pdf_job_mock.return_value = {
+            "ok": True,
+            "output_filename": "planning.pdf",
+            "opened": True,
+            "warning_messages": [],
+        }
+        response = handle_json_request(
+            method="POST",
+            path="/v1/pdf/render",
+            headers={HELPER_HEADER: "1"},
+            payload={
+                "documents": [
+                    {
+                        "filename": "planning.xlsx",
+                        "content_base64": "eA==",
+                    }
+                ],
+                "output_filename": "planning.pdf",
+                "open_after_render": True,
+            },
+        )
+
+        render_pdf_job_mock.assert_called_once()
+        self.assertEqual(response["output_filename"], "planning.pdf")
+        self.assertTrue(response["opened"])

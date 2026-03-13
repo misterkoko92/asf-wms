@@ -4,6 +4,7 @@ import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from tools.planning_comm_helper.outlook import OutlookPayloadError, open_outlook_drafts
+from tools.planning_comm_helper.pdf_render import PdfRenderJobError, render_pdf_job
 from tools.planning_comm_helper.whatsapp import WhatsAppPayloadError, open_whatsapp_drafts
 
 HELPER_HEADER = "X-ASF-Planning-Helper"
@@ -28,6 +29,20 @@ def _require_drafts(payload: dict[str, object]) -> list[dict[str, object]]:
     if not all(isinstance(draft, dict) for draft in drafts):
         raise HelperRequestError(422, "Draft payloads must be objects.")
     return drafts
+
+
+def _require_pdf_render_payload(payload: dict[str, object]) -> dict[str, object]:
+    documents = payload.get("documents")
+    if not isinstance(documents, list) or not documents:
+        raise HelperRequestError(422, "At least one document is required.")
+    if not all(isinstance(document, dict) for document in documents):
+        raise HelperRequestError(422, "Documents must be objects.")
+    for document in documents:
+        filename = str(document.get("filename") or "").strip()
+        content_base64 = str(document.get("content_base64") or "").strip()
+        if not filename or not content_base64:
+            raise HelperRequestError(422, "Document filename and content are required.")
+    return payload
 
 
 def build_cors_headers(
@@ -79,6 +94,13 @@ def handle_json_request(
         except OutlookPayloadError as exc:
             raise HelperRequestError(422, str(exc)) from exc
         return {"ok": True, "opened_count": opened_count}
+
+    if path == "/v1/pdf/render":
+        render_payload = _require_pdf_render_payload(request_payload)
+        try:
+            return render_pdf_job(render_payload)
+        except PdfRenderJobError as exc:
+            raise HelperRequestError(422, str(exc)) from exc
 
     raise HelperRequestError(404, "Unsupported helper route.")
 

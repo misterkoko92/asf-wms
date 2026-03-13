@@ -1,4 +1,5 @@
 import re
+from io import BytesIO
 
 from django import forms
 from django.conf import settings
@@ -44,6 +45,14 @@ from .contact_filters import (
 )
 from .emailing import enqueue_email_safe
 from .forms import AdjustStockForm, PackCartonForm, ReceiveStockForm, TransferStockForm
+from .helper_install import build_helper_install_context
+from .local_document_helper import (
+    LOCAL_DOCUMENT_HELPER_ORIGIN,
+    build_local_helper_document_response,
+    build_local_helper_job_response,
+    get_local_helper_document_index,
+    is_local_helper_job_request,
+)
 from .print_pack_engine import (
     PrintPackEngineError,
     generate_pack,
@@ -78,10 +87,8 @@ from .volunteer_account_request_handlers import (
 
 def _artifact_pdf_response(artifact):
     filename = (artifact.pdf_file.name or "").split("/")[-1] or "document.pdf"
-    response = FileResponse(
-        artifact.pdf_file.open("rb"),
-        content_type="application/pdf",
-    )
+    with artifact.pdf_file.open("rb") as pdf_stream:
+        response = FileResponse(BytesIO(pdf_stream.read()), content_type="application/pdf")
     response["Content-Disposition"] = f'inline; filename="{filename}"'
     return response
 
@@ -988,12 +995,48 @@ class ShipmentAdmin(admin.ModelAdmin):
         ]
         return custom_urls + urls
 
+    def render_change_form(self, request, context, add=False, change=False, form_url="", obj=None):
+        response_context = {
+            **context,
+            "helper_install": build_helper_install_context(
+                install_url=reverse("scan:scan_local_document_helper_installer"),
+                app_label="asf-wms",
+            ),
+            "local_document_helper_origin": LOCAL_DOCUMENT_HELPER_ORIGIN,
+        }
+        return super().render_change_form(
+            request,
+            response_context,
+            add=add,
+            change=change,
+            form_url=form_url,
+            obj=obj,
+        )
+
     def print_document(self, request, shipment_id, doc_type):
         shipment = self.get_object(request, shipment_id)
         if shipment is None:
             raise Http404("Shipment not found")
         pack_route = resolve_pack_request(doc_type)
         if pack_route:
+            render_documents = lambda: render_pack_xlsx_documents(
+                pack_code=pack_route.pack_code,
+                shipment=shipment,
+                carton=None,
+                variant=pack_route.variant,
+            )
+            if get_local_helper_document_index(request) is not None:
+                return build_local_helper_document_response(
+                    request,
+                    render_documents=render_documents,
+                )
+            if is_local_helper_job_request(request):
+                return build_local_helper_job_response(
+                    request,
+                    pack_code=pack_route.pack_code,
+                    render_documents=render_documents,
+                    shipment=shipment,
+                )
             artifact = _try_generate_pack_artifact(
                 pack_code=pack_route.pack_code,
                 shipment=shipment,
@@ -1018,6 +1061,25 @@ class ShipmentAdmin(admin.ModelAdmin):
         if carton is None:
             raise Http404("Carton not found for shipment")
         pack_route = resolve_carton_packing_pack()
+        render_documents = lambda: render_pack_xlsx_documents(
+            pack_code=pack_route.pack_code,
+            shipment=shipment,
+            carton=carton,
+            variant=pack_route.variant,
+        )
+        if get_local_helper_document_index(request) is not None:
+            return build_local_helper_document_response(
+                request,
+                render_documents=render_documents,
+            )
+        if is_local_helper_job_request(request):
+            return build_local_helper_job_response(
+                request,
+                pack_code=pack_route.pack_code,
+                render_documents=render_documents,
+                shipment=shipment,
+                carton=carton,
+            )
         artifact = _try_generate_pack_artifact(
             pack_code=pack_route.pack_code,
             shipment=shipment,

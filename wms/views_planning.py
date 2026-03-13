@@ -15,6 +15,7 @@ from .forms_planning import (
     build_assignment_formset,
     build_communication_draft_formset,
 )
+from .helper_install import build_helper_install_context, build_helper_installer_payload
 from .models import (
     CommunicationDraftStatus,
     PlanningAssignment,
@@ -28,6 +29,8 @@ from .models import (
     PlanningVolunteerSnapshot,
 )
 from .planning.communication_actions import (
+    EXCEL_WORKBOOK_ATTACHMENT,
+    LEGACY_PLANNING_WORKBOOK_ATTACHMENT,
     PACKING_LIST_ATTACHMENT,
     PLANNING_WORKBOOK_ATTACHMENT,
     build_draft_helper_action_payload,
@@ -68,68 +71,23 @@ def _planning_helper_repo_root():
 
 
 def _build_helper_installer_payload():
-    system = platform.system()
-    repo_root = _planning_helper_repo_root()
-    if system == "Darwin":
-        python_path = repo_root / ".venv" / "bin" / "python"
-        command = (
-            f'cd "{repo_root}" && '
-            f'"{python_path}" -m tools.planning_comm_helper.autostart install'
-        )
-        script = f"""#!/bin/zsh
-set -e
-cd "{repo_root}"
-"{python_path}" -m tools.planning_comm_helper.autostart install
-"""
-        return {
-            "available": True,
-            "platform_label": "macOS",
-            "download_label": "Installer le helper (macOS)",
-            "filename": "install-asf-planning-helper.command",
-            "command": command,
-            "script": script,
-        }
-    if system == "Windows":
-        python_path = repo_root / ".venv" / "Scripts" / "python.exe"
-        command = (
-            f'cd /d "{repo_root}" && '
-            f'"{python_path}" -m tools.planning_comm_helper.autostart install'
-        )
-        script = f"""@echo off
-cd /d "{repo_root}"
-"{python_path}" -m tools.planning_comm_helper.autostart install
-"""
-        return {
-            "available": True,
-            "platform_label": "Windows",
-            "download_label": "Installer le helper (Windows)",
-            "filename": "install-asf-planning-helper.cmd",
-            "command": command,
-            "script": script,
-        }
-    raise ValidationError("Installation du helper indisponible sur ce poste.")
+    return build_helper_installer_payload(
+        app_label="asf-planning",
+        system=platform.system(),
+        repo_root=_planning_helper_repo_root(),
+    )
 
 
 def _build_helper_install_context(version):
-    try:
-        payload = _build_helper_installer_payload()
-    except ValidationError as exc:
-        return {
-            "available": False,
-            "platform_label": "ce poste",
-            "download_label": "",
-            "install_url": "",
-            "command": "",
-            "error": _validation_error_message(exc),
-        }
-    return {
-        **payload,
-        "install_url": reverse(
+    return build_helper_install_context(
+        install_url=reverse(
             "planning:version_communication_helper_installer",
             args=[version.pk],
         ),
-        "error": "",
-    }
+        app_label="asf-planning",
+        system=platform.system(),
+        repo_root=_planning_helper_repo_root(),
+    )
 
 
 def _attach_assignment_forms(dashboard, assignment_formset):
@@ -190,7 +148,11 @@ def _validation_error_message(exc: ValidationError) -> str:
 
 def _communication_attachment_download_url(version, attachment):
     attachment_type = attachment.get("attachment_type")
-    if attachment_type == PLANNING_WORKBOOK_ATTACHMENT:
+    if attachment_type in {
+        EXCEL_WORKBOOK_ATTACHMENT,
+        LEGACY_PLANNING_WORKBOOK_ATTACHMENT,
+        PLANNING_WORKBOOK_ATTACHMENT,
+    }:
         return reverse("planning:version_communication_workbook", args=[version.pk])
     if attachment_type == PACKING_LIST_ATTACHMENT:
         return reverse(

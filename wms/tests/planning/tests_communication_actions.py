@@ -134,7 +134,7 @@ class PlanningCommunicationActionTests(TestCase):
         self.assertNotIn("subject", payload)
         self.assertEqual(payload["attachments"], [])
 
-    def test_build_draft_helper_action_payload_for_internal_emails_uses_planning_workbook(self):
+    def test_build_draft_helper_action_payload_for_internal_emails_uses_excel_workbook(self):
         version = self.make_version()
         self.add_assignment(version)
         generate_version_drafts(version)
@@ -155,7 +155,7 @@ class PlanningCommunicationActionTests(TestCase):
                     payload["attachments"],
                     [
                         {
-                            "attachment_type": "planning_workbook",
+                            "attachment_type": "excel_workbook",
                             "version_id": version.pk,
                             "filename": f"planning-v{version.number}.xlsx",
                             "optional": False,

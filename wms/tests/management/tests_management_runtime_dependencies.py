@@ -1,11 +1,23 @@
 import tomllib
 from pathlib import Path
 
+import django
 from django.conf import settings
 from django.test import SimpleTestCase
+from rest_framework import VERSION as DRF_VERSION
 
 
 class RuntimeDependencyExportsTests(SimpleTestCase):
+    def test_runtime_dependency_versions_match_supported_baseline(self):
+        self.assertTrue(
+            django.get_version().startswith("5.2"),
+            f"Django runtime must be on the supported 5.2 baseline, got {django.get_version()}",
+        )
+        self.assertTrue(
+            DRF_VERSION.startswith("3.16"),
+            f"DRF runtime must be on the supported 3.16 baseline, got {DRF_VERSION}",
+        )
+
     def test_pyproject_runtime_dependencies_include_defusedxml(self):
         pyproject_path = Path(settings.BASE_DIR) / "pyproject.toml"
         pyproject = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))

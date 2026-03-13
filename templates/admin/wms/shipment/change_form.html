@@ -20,24 +20,35 @@
 
 {% block after_field_sets %}
   {{ block.super }}
-      {% if change and original %}
-    <fieldset class="module admin-bootstrap-docs card border-0">
+  {% if change and original %}
+    <fieldset
+      class="module admin-bootstrap-docs card border-0"
+      data-local-document-helper-root="1"
+      data-local-document-helper-origin="{{ local_document_helper_origin }}"
+      data-local-document-helper-install-url="{{ helper_install.install_url }}"
+      data-local-document-helper-install-command="{{ helper_install.command }}"
+      data-local-document-helper-install-label="{{ helper_install.download_label }}"
+      data-local-document-helper-install-platform="{{ helper_install.platform_label }}"
+      data-local-document-helper-install-available="{{ helper_install.available|yesno:'1,0' }}"
+    >
       <h2>{% trans "Impression A5" %}</h2>
+      {% include "wms/_local_document_helper_install_panel.html" %}
       <div class="block admin-bootstrap-doc-links">
-        <a class="btn btn-outline-primary btn-sm" href="{% url 'admin:wms_shipment_print_doc' original.pk 'shipment_note' %}" target="_blank" rel="noopener">{% trans "Bon d'expédition" %}</a>
-        <a class="btn btn-outline-primary btn-sm" href="{% url 'admin:wms_shipment_print_doc' original.pk 'donation_certificate' %}" target="_blank" rel="noopener">{% trans "Attestation donation" %}</a>
+        <a class="btn btn-outline-primary btn-sm" href="{% url 'admin:wms_shipment_print_doc' original.pk 'shipment_note' %}" target="_blank" rel="noopener" data-local-document-helper-link="1">{% trans "Bon d'expédition" %}</a>
+        <a class="btn btn-outline-primary btn-sm" href="{% url 'admin:wms_shipment_print_doc' original.pk 'donation_certificate' %}" target="_blank" rel="noopener" data-local-document-helper-link="1">{% trans "Attestation donation" %}</a>
         <a class="btn btn-outline-primary btn-sm" href="{% url 'admin:wms_shipment_print_doc' original.pk 'humanitarian_certificate' %}" target="_blank" rel="noopener">{% trans "Attestation aide humanitaire" %}</a>
         <a class="btn btn-outline-primary btn-sm" href="{% url 'admin:wms_shipment_print_doc' original.pk 'customs' %}" target="_blank" rel="noopener">{% trans "Attestation douane" %}</a>
-        <a class="btn btn-outline-primary btn-sm" href="{% url 'admin:wms_shipment_print_doc' original.pk 'packing_list_shipment' %}" target="_blank" rel="noopener">{% trans "Liste colisage lot" %}</a>
+        <a class="btn btn-outline-primary btn-sm" href="{% url 'admin:wms_shipment_print_doc' original.pk 'packing_list_shipment' %}" target="_blank" rel="noopener" data-local-document-helper-link="1">{% trans "Liste colisage lot" %}</a>
       </div>
       {% if original.carton_set.exists %}
         <div class="block admin-bootstrap-doc-links">
           <strong>{% trans "Liste colisage par carton" %}:</strong>
           {% for carton in original.carton_set.all %}
-            <a class="btn btn-outline-secondary btn-sm" href="{% url 'admin:wms_shipment_print_carton' original.pk carton.pk %}" target="_blank" rel="noopener">{{ carton.code }}</a>
+            <a class="btn btn-outline-secondary btn-sm" href="{% url 'admin:wms_shipment_print_carton' original.pk carton.pk %}" target="_blank" rel="noopener" data-local-document-helper-link="1">{{ carton.code }}</a>
           {% endfor %}
         </div>
       {% endif %}
     </fieldset>
   {% endif %}
+  <script src="{% static 'wms/local_document_helper.js' %}"></script>
 {% endblock %}
