@@ -603,3 +603,15 @@ class ScanDashboardViewTests(TestCase):
         self.assertEqual(chart_rows[1]["destination_label"], "BZV - BRAZZAVILLE")
         self.assertEqual(chart_rows[1]["shipment_count"], 1)
         self.assertEqual(chart_rows[1]["equivalent_units"], 2)
+
+    def test_scan_dashboard_renders_reorganized_kpi_and_chart_controls(self):
+        response = self.client.get(reverse("scan:scan_dashboard"))
+        self.assertEqual(response.status_code, 200)
+
+        self.assertContains(response, "<h2>KPI</h2>", html=True)
+        self.assertContains(response, 'id="id_kpi_start"')
+        self.assertContains(response, 'id="id_kpi_end"')
+        self.assertContains(response, 'id="id_chart_start"')
+        self.assertContains(response, 'id="id_chart_end"')
+        self.assertContains(response, 'name="shipment_status"')
+        self.assertNotContains(response, 'name="period"')

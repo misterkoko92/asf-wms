@@ -474,6 +474,12 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "scan-card card border-0")
         self.assertContains(response, "row g-3")
         self.assertContains(response, "btn btn-primary")
+        self.assertContains(response, 'name="kpi_start"')
+        self.assertContains(response, 'name="kpi_end"')
+        self.assertContains(response, 'name="chart_start"')
+        self.assertContains(response, 'name="chart_end"')
+        self.assertContains(response, 'name="shipment_status"')
+        self.assertNotContains(response, 'name="period"')
 
     def test_scan_forms_keep_requested_controls_on_single_desktop_rows(self):
         dashboard_response = self.client.get(reverse("scan:scan_dashboard"))
