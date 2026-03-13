@@ -4,9 +4,15 @@ from pathlib import Path
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse, JsonResponse
 
+from tools.planning_comm_helper.autostart import MACOS_APP_BUNDLE_NAME
+
 
 def _helper_repo_root():
     return Path(__file__).resolve().parent.parent
+
+
+def _macos_installed_app_path() -> Path:
+    return Path.home() / "Applications" / MACOS_APP_BUNDLE_NAME
 
 
 def build_helper_installer_payload(*, app_label="asf-wms", system=None, repo_root=None):
@@ -14,6 +20,7 @@ def build_helper_installer_payload(*, app_label="asf-wms", system=None, repo_roo
     resolved_repo_root = Path(repo_root or _helper_repo_root())
     if system_name == "Darwin":
         python_path = resolved_repo_root / ".venv" / "bin" / "python"
+        installed_app_path = _macos_installed_app_path()
         command = (
             f'cd "{resolved_repo_root}" && '
             f'"{python_path}" -m tools.planning_comm_helper.autostart install'
@@ -30,6 +37,12 @@ cd "{resolved_repo_root}"
             "filename": f"install-{app_label}-helper.command",
             "command": command,
             "script": script,
+            "installed_app_path": str(installed_app_path),
+            "post_install_guidance": (
+                "Au premier lancement, macOS peut demander d'autoriser "
+                "ASF Planning Communication Helper a controler Microsoft Excel. "
+                f"Validez une fois pour ce poste. L'app stable sera installee dans {installed_app_path}."
+            ),
         }
     if system_name == "Windows":
         python_path = resolved_repo_root / ".venv" / "Scripts" / "python.exe"
@@ -48,6 +61,8 @@ cd /d "{resolved_repo_root}"
             "filename": f"install-{app_label}-helper.cmd",
             "command": command,
             "script": script,
+            "installed_app_path": "",
+            "post_install_guidance": "",
         }
     raise ValidationError("Installation du helper indisponible sur ce poste.")
 
@@ -66,6 +81,8 @@ def build_helper_install_context(*, install_url, app_label="asf-wms", system=Non
             "download_label": "",
             "install_url": "",
             "command": "",
+            "installed_app_path": "",
+            "post_install_guidance": "",
             "error": _validation_error_message(exc),
         }
     return {

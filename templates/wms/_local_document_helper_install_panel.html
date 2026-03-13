@@ -10,6 +10,9 @@
       {{ helper_install.error|default:_("Installation automatique indisponible sur ce poste.") }}
     {% endif %}
   </p>
+  {% if helper_install.post_install_guidance %}
+    <p class="small text-muted mb-2">{{ helper_install.post_install_guidance }}</p>
+  {% endif %}
   <div class="d-flex gap-2 flex-wrap align-items-center">
     <a
       class="btn btn-primary btn-sm{% if not helper_install.available %} d-none{% endif %}"
