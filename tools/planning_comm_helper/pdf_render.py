@@ -22,18 +22,22 @@ class PdfRenderJobError(ValueError):
     """Raised when a local PDF render job payload is invalid or cannot complete."""
 
 
+HELPER_RENDER_DIRNAME = "ASF Planning Communication Helper"
+
+
 def render_pdf_job(
     payload: dict[str, object],
     *,
     temp_dir: str | Path | None = None,
 ) -> dict[str, object]:
-    temp_root = Path(temp_dir) if temp_dir else Path(tempfile.mkdtemp(prefix="planning-helper-"))
-    temp_root.mkdir(parents=True, exist_ok=True)
-
     documents = _require_documents(payload)
     output_filename = _resolve_output_filename(payload)
     merge = bool(payload.get("merge"))
     open_after_render = bool(payload.get("open_after_render"))
+    for document in documents:
+        _parse_document(document)
+    temp_root = Path(temp_dir) if temp_dir else _default_temp_root()
+    temp_root.mkdir(parents=True, exist_ok=True)
 
     rendered_paths = [
         _render_document(document=document, temp_root=temp_root)
@@ -57,6 +61,28 @@ def render_pdf_job(
     }
 
 
+def _default_temp_root() -> Path:
+    system = platform.system()
+    if system == "Darwin":
+        return (
+            Path.home()
+            / "Library"
+            / "Application Support"
+            / HELPER_RENDER_DIRNAME
+            / "pdf-render"
+        )
+    if system == "Windows":
+        return _windows_local_appdata_root() / "ASF" / "planning_comm_helper" / "pdf-render"
+    return Path(tempfile.gettempdir()) / "planning-helper"
+
+
+def _windows_local_appdata_root() -> Path:
+    local_appdata = os.environ.get("LOCALAPPDATA")
+    if local_appdata:
+        return Path(local_appdata)
+    return Path.home() / "AppData" / "Local"
+
+
 def _require_documents(payload: dict[str, object]) -> list[dict[str, object]]:
     documents = payload.get("documents")
     if not isinstance(documents, list) or not documents:
@@ -74,10 +100,7 @@ def _resolve_output_filename(payload: dict[str, object]) -> str:
 
 
 def _render_document(*, document: dict[str, object], temp_root: Path) -> Path:
-    filename = str(document.get("filename") or "").strip()
-    content_base64 = str(document.get("content_base64") or "").strip()
-    if not filename or not content_base64:
-        raise PdfRenderJobError("Document filename and content are required.")
+    filename, content_base64 = _parse_document(document)
 
     workbook_path = temp_root / f"{uuid.uuid4().hex}-{Path(filename).name}"
     try:
@@ -86,6 +109,14 @@ def _render_document(*, document: dict[str, object], temp_root: Path) -> Path:
         raise PdfRenderJobError(f"Invalid base64 content for document {filename}.") from exc
 
     return convert_workbook_to_pdf(workbook_path)
+
+
+def _parse_document(document: dict[str, object]) -> tuple[str, str]:
+    filename = str(document.get("filename") or "").strip()
+    content_base64 = str(document.get("content_base64") or "").strip()
+    if not filename or not content_base64:
+        raise PdfRenderJobError("Document filename and content are required.")
+    return filename, content_base64
 
 
 def _build_final_output(

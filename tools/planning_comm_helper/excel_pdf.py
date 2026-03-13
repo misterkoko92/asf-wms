@@ -104,7 +104,7 @@ def _build_macos_excel_script(*, workbook_path: Path, pdf_path: Path, strict: bo
         tell application "Microsoft Excel"
             activate
             set display alerts to false
-            set wb to open workbook workbook file name (workbookFile as alias as string)
+            set wb to open workbook workbook file name workbookFile
             save wb in pdfFile as PDF file format
             close wb saving no
             set display alerts to true

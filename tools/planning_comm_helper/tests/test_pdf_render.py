@@ -72,6 +72,49 @@ class PlanningCommunicationHelperPdfRenderTests(TestCase):
         self.assertEqual(result["output_filename"], "planning.pdf")
         self.assertTrue(result["opened"])
 
+    @mock.patch("tools.planning_comm_helper.pdf_render.platform.system", return_value="Darwin")
+    @mock.patch("tools.planning_comm_helper.pdf_render.convert_workbook_to_pdf")
+    def test_render_pdf_job_uses_stable_default_temp_dir_on_macos(
+        self,
+        convert_workbook_to_pdf_mock,
+        _platform_system_mock,
+    ):
+        pdf_render = _import_pdf_render_module(self)
+        with tempfile.TemporaryDirectory() as home_dir:
+            home_path = Path(home_dir)
+            stable_root = (
+                home_path
+                / "Library"
+                / "Application Support"
+                / "ASF Planning Communication Helper"
+                / "pdf-render"
+            )
+
+            def _convert_stub(workbook_path):
+                self.assertEqual(workbook_path.parent, stable_root)
+                pdf_path = stable_root / "planning.pdf"
+                pdf_path.write_bytes(b"%PDF-1.4 test")
+                return pdf_path
+
+            convert_workbook_to_pdf_mock.side_effect = _convert_stub
+
+            with mock.patch("tools.planning_comm_helper.pdf_render.Path.home", return_value=home_path):
+                result = pdf_render.render_pdf_job(
+                    {
+                        "documents": [
+                            {
+                                "filename": "planning.xlsx",
+                                "content_base64": base64.b64encode(b"xlsx-data").decode("ascii"),
+                            }
+                        ],
+                        "output_filename": "planning.pdf",
+                    }
+                )
+                stable_root_exists = stable_root.is_dir()
+
+        self.assertEqual(result["output_filename"], "planning.pdf")
+        self.assertTrue(stable_root_exists)
+
     @mock.patch("tools.planning_comm_helper.pdf_render._open_path")
     @mock.patch("tools.planning_comm_helper.pdf_render.merge_pdf_documents")
     @mock.patch("tools.planning_comm_helper.pdf_render.convert_workbook_to_pdf")

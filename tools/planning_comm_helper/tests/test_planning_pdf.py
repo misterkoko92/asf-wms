@@ -2,6 +2,7 @@ import tempfile
 from pathlib import Path
 from unittest import TestCase, mock
 
+from tools.planning_comm_helper import excel_pdf
 from tools.planning_comm_helper.planning_pdf import (
     PlanningPdfConversionError,
     convert_workbook_to_pdf,
@@ -29,6 +30,17 @@ class PlanningCommunicationHelperPlanningPdfTests(TestCase):
             convert_workbook_to_pdf("/tmp/missing-workbook.xlsx")
 
         self.assertIn("Workbook not found", str(error.exception))
+
+    def test_build_macos_excel_script_uses_file_reference_without_alias_prompt(self):
+        script = excel_pdf._build_macos_excel_script(
+            workbook_path=Path("/tmp/example.xlsx"),
+            pdf_path=Path("/tmp/example.pdf"),
+            strict=True,
+        )
+
+        self.assertIn('set workbookFile to POSIX file "/tmp/example.xlsx"', script)
+        self.assertIn("open workbook workbook file name workbookFile", script)
+        self.assertNotIn("as alias", script)
 
     @mock.patch("tools.planning_comm_helper.planning_pdf.platform.system", return_value="Linux")
     def test_convert_workbook_to_pdf_rejects_unsupported_platform_without_libreoffice_message(
