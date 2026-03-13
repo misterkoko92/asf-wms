@@ -168,6 +168,20 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertEqual(response.content.decode(), "installer")
         response_mock.assert_called_once()
 
+    def test_scan_shipments_ready_exposes_helper_version_metadata(self):
+        response = self.client.get(reverse("scan:scan_shipments_ready"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-local-document-helper-minimum-version="0.1.0"')
+        self.assertContains(response, 'data-local-document-helper-latest-version="0.1.0"')
+
+    def test_scan_cartons_ready_exposes_helper_version_metadata(self):
+        response = self.client.get(reverse("scan:scan_cartons_ready"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-local-document-helper-minimum-version="0.1.0"')
+        self.assertContains(response, 'data-local-document-helper-latest-version="0.1.0"')
+
     def test_scan_shipments_tracking_renders_rows_context(self):
         with mock.patch(
             "wms.views_scan_shipments.build_shipments_tracking_rows",
