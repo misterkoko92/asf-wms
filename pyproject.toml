@@ -3,7 +3,7 @@ name = "asf-wms"
 version = "0.0.0"
 requires-python = ">=3.11,<3.13"
 dependencies = [
-    "Django==4.2.11",
+    "Django==5.2.12",
     "djangorestframework==3.15.2",
     "defusedxml==0.7.1",
     "gunicorn==25.1.0",
