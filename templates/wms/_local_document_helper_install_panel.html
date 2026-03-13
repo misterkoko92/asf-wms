@@ -1,0 +1,45 @@
+{% load i18n %}
+
+<div class="alert d-none" role="alert" data-local-document-helper-error></div>
+<div class="alert alert-warning d-none mt-3" role="alert" data-local-document-helper-install-panel>
+  <div class="fw-semibold">{% trans "Le helper local Excel est requis pour generer le PDF sur ce poste." %}</div>
+  <p class="mb-2">
+    {% if helper_install.available %}
+      {% blocktrans with platform=helper_install.platform_label %}Telechargez l'installeur pour {{ platform }}, lancez-le une fois sur ce poste, puis cliquez sur Reessayer.{% endblocktrans %}
+    {% else %}
+      {{ helper_install.error|default:_("Installation automatique indisponible sur ce poste.") }}
+    {% endif %}
+  </p>
+  <div class="d-flex gap-2 flex-wrap align-items-center">
+    <a
+      class="btn btn-primary btn-sm{% if not helper_install.available %} d-none{% endif %}"
+      href="{% if helper_install.available %}{{ helper_install.install_url }}{% else %}#{% endif %}"
+      data-local-document-helper-install-link="1"
+      download
+    >
+      {% if helper_install.available %}
+        {{ helper_install.download_label }}
+      {% else %}
+        {% trans "Installer le helper" %}
+      {% endif %}
+    </a>
+    <button
+      type="button"
+      class="btn btn-tertiary btn-sm{% if not helper_install.command %} d-none{% endif %}"
+      data-local-document-helper-copy-command="1"
+    >
+      {% trans "Copier la commande" %}
+    </button>
+    <button type="button" class="btn btn-tertiary btn-sm" data-local-document-helper-retry="1">
+      {% trans "Reessayer" %}
+    </button>
+    <button type="button" class="btn btn-link btn-sm p-0" data-local-document-helper-dismiss="1">
+      {% trans "Fermer" %}
+    </button>
+  </div>
+  <pre
+    class="small bg-light border rounded p-2 mt-3 mb-0{% if not helper_install.command %} d-none{% endif %}"
+    data-local-document-helper-install-command-preview="1"
+  >{{ helper_install.command }}</pre>
+  <div class="small text-muted mt-2 d-none" data-local-document-helper-install-status="1"></div>
+</div>

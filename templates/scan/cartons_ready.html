@@ -1,14 +1,24 @@
 {% extends "scan/base.html" %}
-{% load i18n %}
+{% load i18n static %}
 
 {% block title %}WMS Scan - {% trans "Vue Colis" %}{% endblock %}
 
 {% block content %}
-  <div class="scan-card card border-0 ui-comp-card">
+  <div
+    class="scan-card card border-0 ui-comp-card"
+    data-local-document-helper-root="1"
+    data-local-document-helper-origin="{{ local_document_helper_origin }}"
+    data-local-document-helper-install-url="{{ helper_install.install_url }}"
+    data-local-document-helper-install-command="{{ helper_install.command }}"
+    data-local-document-helper-install-label="{{ helper_install.download_label }}"
+    data-local-document-helper-install-platform="{{ helper_install.platform_label }}"
+    data-local-document-helper-install-available="{{ helper_install.available|yesno:'1,0' }}"
+  >
     <h2 class="h4 mb-3 ui-comp-title d-flex align-items-center gap-2 flex-wrap">
       <span>{% trans "Vue Colis" %}</span>
       <span class="badge text-bg-light ui-comp-count-badge">{{ cartons|length }}</span>
     </h2>
+    {% include "wms/_local_document_helper_install_panel.html" %}
     {% if cartons %}
       <div class="scan-table-wrap table-responsive">
         <table class="scan-table table table-sm table-hover" data-table-tools="1">
@@ -92,10 +102,10 @@
                       {% endfor %}
                     </div>
                     <div class="scan-field scan-field-gap scan-inline-actions ui-comp-actions">
-                      <a class="scan-scan-btn btn btn-tertiary" href="{{ carton.packing_list_url }}" target="_blank" rel="noopener">
+                      <a class="scan-scan-btn btn btn-tertiary" href="{{ carton.packing_list_url }}" target="_blank" rel="noopener" data-local-document-helper-link="1">
                         {% trans "Imprimer / télécharger" %}
                       </a>
-                      <a class="scan-scan-btn btn btn-tertiary" href="{{ carton.picking_url }}" target="_blank" rel="noopener">
+                      <a class="scan-scan-btn btn btn-tertiary" href="{{ carton.picking_url }}" target="_blank" rel="noopener" data-local-document-helper-link="1">
                         Picking
                       </a>
                     </div>
@@ -112,4 +122,5 @@
       <p class="scan-help ui-comp-note">{% trans "Aucun colis conditionné." %}</p>
     {% endif %}
   </div>
+  <script src="{% static 'wms/local_document_helper.js' %}"></script>
 {% endblock %}

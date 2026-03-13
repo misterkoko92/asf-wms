@@ -59,23 +59,29 @@ class ScanShipmentsViewsTests(TestCase):
             "wms.views_scan_shipments.handle_carton_status_update",
             return_value=None,
         ):
+            helper_install = {"available": True, "install_url": "/scan/helper/install/"}
             with mock.patch(
-                "wms.views_scan_shipments.get_carton_capacity_cm3",
-                return_value=12345,
+                "wms.views_scan_shipments.build_helper_install_context",
+                return_value=helper_install,
             ):
                 with mock.patch(
-                    "wms.views_scan_shipments.build_cartons_ready_rows",
-                    return_value=[{"id": 1, "code": "C-001"}],
-                ) as rows_mock:
+                    "wms.views_scan_shipments.get_carton_capacity_cm3",
+                    return_value=12345,
+                ):
                     with mock.patch(
-                        "wms.views_scan_shipments.render",
-                        side_effect=self._render_stub,
-                    ):
-                        response = self.client.get(reverse("scan:scan_cartons_ready"))
+                        "wms.views_scan_shipments.build_cartons_ready_rows",
+                        return_value=[{"id": 1, "code": "C-001"}],
+                    ) as rows_mock:
+                        with mock.patch(
+                            "wms.views_scan_shipments.render",
+                            side_effect=self._render_stub,
+                        ):
+                            response = self.client.get(reverse("scan:scan_cartons_ready"))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "scan/cartons_ready.html")
         self.assertEqual(response.context_data["active"], "cartons_ready")
         self.assertEqual(response.context_data["cartons"], [{"id": 1, "code": "C-001"}])
+        self.assertEqual(response.context_data["helper_install"], helper_install)
         self.assertEqual(rows_mock.call_args.kwargs["carton_capacity_cm3"], 12345)
 
     def test_scan_kits_view_renders_rows_context(self):
@@ -128,15 +134,20 @@ class ScanShipmentsViewsTests(TestCase):
         )
 
     def test_scan_shipments_ready_renders_rows_context(self):
+        helper_install = {"available": True, "install_url": "/scan/helper/install/"}
         with mock.patch(
             "wms.views_scan_shipments.build_shipments_ready_rows",
             return_value=[{"id": 1, "reference": "S-001"}],
         ):
             with mock.patch(
-                "wms.views_scan_shipments.render",
-                side_effect=self._render_stub,
+                "wms.views_scan_shipments.build_helper_install_context",
+                return_value=helper_install,
             ):
-                response = self.client.get(reverse("scan:scan_shipments_ready"))
+                with mock.patch(
+                    "wms.views_scan_shipments.render",
+                    side_effect=self._render_stub,
+                ):
+                    response = self.client.get(reverse("scan:scan_shipments_ready"))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "scan/shipments_ready.html")
         self.assertEqual(response.context_data["active"], "shipments_ready")
@@ -144,6 +155,18 @@ class ScanShipmentsViewsTests(TestCase):
             response.context_data["shipments"],
             [{"id": 1, "reference": "S-001"}],
         )
+        self.assertEqual(response.context_data["helper_install"], helper_install)
+
+    def test_scan_local_document_helper_installer_delegates_to_helper_install_response(self):
+        with mock.patch(
+            "wms.views_scan_shipments.build_helper_installer_response",
+            return_value=HttpResponse("installer"),
+        ) as response_mock:
+            response = self.client.get(reverse("scan:scan_local_document_helper_installer"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.decode(), "installer")
+        response_mock.assert_called_once()
 
     def test_scan_shipments_tracking_renders_rows_context(self):
         with mock.patch(

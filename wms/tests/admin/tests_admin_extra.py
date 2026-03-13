@@ -1,3 +1,4 @@
+import json
 from types import SimpleNamespace
 from unittest import mock
 
@@ -802,6 +803,16 @@ class ProductLotAndOtherAdminTests(_AdminTestBase):
 
 
 class ShipmentAndStockMovementAdminTests(_AdminTestBase):
+    def test_shipment_change_form_exposes_local_helper_metadata(self):
+        self.client.force_login(self.superuser)
+        shipment = self._shipment(reference="260099")
+
+        response = self.client.get(f"/admin/wms/shipment/{shipment.id}/change/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "data-local-document-helper-root")
+        self.assertContains(response, "/static/wms/local_document_helper.js")
+
     def test_shipment_print_helpers_and_stockmovement_helpers(self):
         shipment_admin = ShipmentAdmin(models.Shipment, self.site)
         stock_admin = StockMovementAdmin(models.StockMovement, self.site)
@@ -846,6 +857,22 @@ class ShipmentAndStockMovementAdminTests(_AdminTestBase):
             variant="shipment",
         )
         pdf_response_mock.assert_called_once_with(artifact)
+
+        helper_request = self.factory.get("/admin/?helper=1")
+        helper_request.user = self.superuser
+        with (
+            mock.patch.object(shipment_admin, "get_object", return_value=shipment),
+            mock.patch(
+                "wms.admin.render_pack_xlsx_documents",
+                return_value=[SimpleNamespace(filename="shipment-note.xlsx", payload=b"xlsx-data")],
+            ),
+        ):
+            response = shipment_admin.print_document(helper_request, shipment.id, "shipment_note")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            json.loads(response.content.decode("utf-8"))["output_filename"],
+            f"print-pack-C-{shipment.reference}.pdf",
+        )
 
         with (
             mock.patch.object(shipment_admin, "get_object", return_value=shipment),

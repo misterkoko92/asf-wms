@@ -18,7 +18,9 @@ from .forms import (
     ScanShipmentForm,
     ShipmentTrackingForm,
 )
+from .helper_install import build_helper_install_context, build_helper_installer_response
 from .kits_view_helpers import build_kits_view_rows
+from .local_document_helper import LOCAL_DOCUMENT_HELPER_ORIGIN
 from .models import (
     Carton,
     CartonStatus,
@@ -106,6 +108,8 @@ ACTIVE_CARTONS_READY = "cartons_ready"
 ACTIVE_KITS_VIEW = "kits_view"
 ACTIVE_PREPARE_KITS = "prepare_kits"
 ACTIVE_PACK = "pack"
+LOCAL_DOCUMENT_HELPER_APP_LABEL = "asf-wms"
+LOCAL_DOCUMENT_HELPER_INSTALL_ROUTE = "scan:scan_local_document_helper_installer"
 
 
 def _build_shipment_form_support(*, extra_carton_options=None, product_options=None):
@@ -237,6 +241,11 @@ def scan_cartons_ready(request):
         {
             "active": ACTIVE_CARTONS_READY,
             "cartons": cartons,
+            "helper_install": build_helper_install_context(
+                install_url=reverse(LOCAL_DOCUMENT_HELPER_INSTALL_ROUTE),
+                app_label=LOCAL_DOCUMENT_HELPER_APP_LABEL,
+            ),
+            "local_document_helper_origin": LOCAL_DOCUMENT_HELPER_ORIGIN,
             "carton_status_choices": sorted_choices(
                 [
                     (CartonStatus.DRAFT, CartonStatus.DRAFT.label),
@@ -376,8 +385,19 @@ def scan_shipments_ready(request):
             "shipments": shipments,
             "stale_draft_count": stale_draft_count,
             "stale_draft_days": _stale_drafts_age_days(),
+            "helper_install": build_helper_install_context(
+                install_url=reverse(LOCAL_DOCUMENT_HELPER_INSTALL_ROUTE),
+                app_label=LOCAL_DOCUMENT_HELPER_APP_LABEL,
+            ),
+            "local_document_helper_origin": LOCAL_DOCUMENT_HELPER_ORIGIN,
         },
     )
+
+
+@scan_staff_required
+@require_http_methods(["GET"])
+def scan_local_document_helper_installer(request):
+    return build_helper_installer_response(app_label=LOCAL_DOCUMENT_HELPER_APP_LABEL)
 
 
 @scan_staff_required

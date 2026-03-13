@@ -24,10 +24,19 @@ class PlanningCommunicationHelperPlanningPdfTests(TestCase):
         convert_with_windows_excel_mock.assert_called_once()
         self.assertEqual(pdf_path.suffix, ".pdf")
 
+    def test_convert_workbook_to_pdf_rejects_missing_workbook(self):
+        with self.assertRaises(PlanningPdfConversionError) as error:
+            convert_workbook_to_pdf("/tmp/missing-workbook.xlsx")
+
+        self.assertIn("Workbook not found", str(error.exception))
+
     @mock.patch("tools.planning_comm_helper.planning_pdf.platform.system", return_value="Linux")
-    def test_convert_workbook_to_pdf_refuses_libreoffice_fallback(self, _platform_mock):
+    def test_convert_workbook_to_pdf_rejects_unsupported_platform_without_libreoffice_message(
+        self,
+        _platform_mock,
+    ):
         with tempfile.NamedTemporaryFile(suffix=".xlsx") as workbook:
             with self.assertRaises(PlanningPdfConversionError) as error:
                 convert_workbook_to_pdf(workbook.name)
 
-        self.assertIn("LibreOffice fallback is not supported", str(error.exception))
+        self.assertNotIn("LibreOffice", str(error.exception))

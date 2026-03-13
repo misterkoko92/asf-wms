@@ -7,7 +7,9 @@ from django.core.exceptions import ValidationError
 from wms.models import CommunicationChannel, CommunicationDraft, PlanningVersion
 from wms.planning.communication_plan import build_version_communication_plan
 
-PLANNING_WORKBOOK_ATTACHMENT = "planning_workbook"
+EXCEL_WORKBOOK_ATTACHMENT = "excel_workbook"
+PLANNING_WORKBOOK_ATTACHMENT = EXCEL_WORKBOOK_ATTACHMENT
+LEGACY_PLANNING_WORKBOOK_ATTACHMENT = "planning_workbook"
 PACKING_LIST_ATTACHMENT = "packing_list_pdf"
 
 
@@ -47,7 +49,7 @@ def _assignments_for_draft(draft: CommunicationDraft):
 def _planning_workbook_attachments(version: PlanningVersion) -> list[dict[str, object]]:
     return [
         {
-            "attachment_type": PLANNING_WORKBOOK_ATTACHMENT,
+            "attachment_type": EXCEL_WORKBOOK_ATTACHMENT,
             "version_id": version.pk,
             "filename": f"planning-v{version.number}.xlsx",
             "optional": False,
