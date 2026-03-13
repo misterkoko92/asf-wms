@@ -3,11 +3,14 @@ from __future__ import annotations
 import argparse
 import os
 import platform
+import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
 LAUNCH_AGENT_LABEL = "com.asf.planning_comm_helper"
+MACOS_APP_BUNDLE_NAME = "ASF Planning Communication Helper.app"
+MACOS_APP_EXECUTABLE_NAME = "ASF Planning Communication Helper"
 WINDOWS_STARTUP_VBS = "ASF Planning Communication Helper.vbs"
 WINDOWS_RUNNER_CMD = "start-helper.cmd"
 WINDOWS_SUPPORT_DIRNAME = "planning_comm_helper"
@@ -17,6 +20,9 @@ WINDOWS_SUPPORT_DIRNAME = "planning_comm_helper"
 class MacAutostartPaths:
     plist_path: Path
     log_path: Path
+    launcher_app_path: Path
+    launcher_executable_path: Path
+    launcher_info_plist_path: Path
     python_path: Path
     repo_root: Path
 
@@ -50,9 +56,14 @@ def _windows_local_appdata() -> Path:
 
 def build_macos_autostart_paths(repo_root: Path | None = None) -> MacAutostartPaths:
     repo_root = repo_root or repo_root_from_file()
+    launcher_app_path = Path.home() / "Applications" / MACOS_APP_BUNDLE_NAME
+    launcher_contents_path = launcher_app_path / "Contents"
     return MacAutostartPaths(
         plist_path=Path.home() / "Library" / "LaunchAgents" / f"{LAUNCH_AGENT_LABEL}.plist",
         log_path=Path("/tmp/asf-planning-comm-helper.log"),
+        launcher_app_path=launcher_app_path,
+        launcher_executable_path=launcher_contents_path / "MacOS" / MACOS_APP_EXECUTABLE_NAME,
+        launcher_info_plist_path=launcher_contents_path / "Info.plist",
         python_path=repo_root / ".venv" / "bin" / "python",
         repo_root=repo_root,
     )
@@ -88,9 +99,7 @@ def build_macos_launchagent_plist(paths: MacAutostartPaths) -> str:
 
   <key>ProgramArguments</key>
   <array>
-    <string>{paths.python_path}</string>
-    <string>-m</string>
-    <string>tools.planning_comm_helper.server</string>
+    <string>{paths.launcher_executable_path}</string>
   </array>
 
   <key>WorkingDirectory</key>
@@ -109,6 +118,36 @@ def build_macos_launchagent_plist(paths: MacAutostartPaths) -> str:
   <string>{paths.log_path}</string>
 </dict>
 </plist>
+"""
+
+
+def build_macos_app_info_plist(paths: MacAutostartPaths) -> str:
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleDisplayName</key>
+  <string>ASF Planning Communication Helper</string>
+  <key>CFBundleExecutable</key>
+  <string>{MACOS_APP_EXECUTABLE_NAME}</string>
+  <key>CFBundleIdentifier</key>
+  <string>{LAUNCH_AGENT_LABEL}</string>
+  <key>CFBundleName</key>
+  <string>ASF Planning Communication Helper</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>LSUIElement</key>
+  <true/>
+</dict>
+</plist>
+"""
+
+
+def build_macos_app_launcher(paths: MacAutostartPaths) -> str:
+    return f"""#!/bin/zsh
+set -e
+cd "{paths.repo_root}"
+exec "{paths.python_path}" -m tools.planning_comm_helper.server >> "{paths.log_path}" 2>&1
 """
 
 
@@ -137,7 +176,18 @@ def install_macos_autostart(
 ) -> MacAutostartPaths:
     paths = build_macos_autostart_paths(repo_root)
     paths.plist_path.parent.mkdir(parents=True, exist_ok=True)
+    paths.launcher_info_plist_path.parent.mkdir(parents=True, exist_ok=True)
+    paths.launcher_executable_path.parent.mkdir(parents=True, exist_ok=True)
+    paths.launcher_info_plist_path.write_text(build_macos_app_info_plist(paths), encoding="utf-8")
+    paths.launcher_executable_path.write_text(build_macos_app_launcher(paths), encoding="utf-8")
+    paths.launcher_executable_path.chmod(0o755)
     paths.plist_path.write_text(build_macos_launchagent_plist(paths), encoding="utf-8")
+    subprocess.run(
+        ["launchctl", "bootout", f"gui/{uid or os.getuid()}", str(paths.plist_path)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
     subprocess.run(
         ["launchctl", "bootstrap", f"gui/{uid or os.getuid()}", str(paths.plist_path)],
         check=False,
@@ -161,6 +211,8 @@ def uninstall_macos_autostart(*, uid: int | None = None) -> MacAutostartPaths:
     )
     if paths.plist_path.exists():
         paths.plist_path.unlink()
+    if paths.launcher_app_path.exists():
+        shutil.rmtree(paths.launcher_app_path, ignore_errors=True)
     return paths
 
 

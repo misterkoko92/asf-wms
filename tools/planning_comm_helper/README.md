@@ -21,4 +21,5 @@ Autostart removal:
 Notes:
 
 - On macOS the installer writes `~/Library/LaunchAgents/com.asf.planning_comm_helper.plist`.
+- On macOS the installer also writes `~/Applications/ASF Planning Communication Helper.app` as a stable user-level launcher for Automation permissions.
 - On Windows the installer writes a hidden startup launcher in the current user's Startup folder and a runner script under `%LOCALAPPDATA%\ASF\planning_comm_helper\`.
