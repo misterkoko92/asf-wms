@@ -1,5 +1,6 @@
 from datetime import date
 from pathlib import Path
+from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -122,39 +123,42 @@ class PlanningOutputTests(TestCase):
         self.assertTrue(artifact.file_path.endswith(".xlsx"))
         self.assertTrue(Path(artifact.file_path).exists())
         workbook = load_workbook(artifact.file_path)
-        sheet = workbook["Planning"]
-        self.assertEqual(
-            [cell.value for cell in sheet[1]],
-            [
-                "Date",
-                "Flight",
-                "Destination",
-                "DepartureTime",
-                "Volunteer",
-                "Shipment",
-                "Shipper",
-                "Cartons",
-                "Status",
-                "Source",
-                "Notes",
-            ],
-        )
-        self.assertEqual(
-            [cell.value for cell in sheet[2]],
-            [
-                "2026-03-10",
-                "AF123",
-                "CDG",
-                None,
-                "Alice",
-                "SHP-001",
-                None,
-                4,
-                "proposed",
-                "manual",
-                None,
-            ],
-        )
+        try:
+            sheet = workbook["Planning"]
+            self.assertEqual(
+                [cell.value for cell in sheet[1]],
+                [
+                    "Date",
+                    "Flight",
+                    "Destination",
+                    "DepartureTime",
+                    "Volunteer",
+                    "Shipment",
+                    "Shipper",
+                    "Cartons",
+                    "Status",
+                    "Source",
+                    "Notes",
+                ],
+            )
+            self.assertEqual(
+                [cell.value for cell in sheet[2]],
+                [
+                    "2026-03-10",
+                    "AF123",
+                    "CDG",
+                    None,
+                    "Alice",
+                    "SHP-001",
+                    None,
+                    4,
+                    "proposed",
+                    "manual",
+                    None,
+                ],
+            )
+        finally:
+            workbook.close()
 
         self.assertEqual(stats["assignment_count"], 1)
         self.assertEqual(stats["carton_total"], 4)
@@ -200,6 +204,19 @@ class PlanningOutputTests(TestCase):
                 }
             ],
         )
+
+    @mock.patch("wms.planning.exports.Workbook")
+    def test_export_version_workbook_closes_workbook_after_save(self, workbook_cls):
+        version = self.make_published_version()
+        workbook = mock.MagicMock()
+        sheet = mock.MagicMock()
+        workbook.active = sheet
+        workbook_cls.return_value = workbook
+
+        export_version_workbook(version)
+
+        workbook.save.assert_called_once()
+        workbook.close.assert_called_once_with()
 
     def test_generate_drafts_aggregates_multiple_assignments_for_same_recipient(self):
         second_shipment = PlanningShipmentSnapshot.objects.create(

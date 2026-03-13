@@ -275,7 +275,10 @@ class ScanViewTests(TestCase):
                     kwargs=kwargs,
                     data=data,
                 )
-                self.assertEqual(response.status_code, 403)
+                try:
+                    self.assertEqual(response.status_code, 403)
+                finally:
+                    response.close()
 
     def test_scan_internal_routes_redirect_anonymous_to_admin_login(self):
         self.client.logout()
@@ -287,8 +290,11 @@ class ScanViewTests(TestCase):
                     kwargs=kwargs,
                     data=data,
                 )
-                self.assertEqual(response.status_code, 302)
-                self.assertIn("/admin/login/", response.url)
+                try:
+                    self.assertEqual(response.status_code, 302)
+                    self.assertIn("/admin/login/", response.url)
+                finally:
+                    response.close()
 
     def test_scan_internal_routes_for_staff_do_not_return_server_errors(self):
         for route_name, method, kwargs, data in self._scan_internal_route_specs():
@@ -299,7 +305,10 @@ class ScanViewTests(TestCase):
                     kwargs=kwargs,
                     data=data,
                 )
-                self.assertLess(response.status_code, 500)
+                try:
+                    self.assertLess(response.status_code, 500)
+                finally:
+                    response.close()
 
     def test_scan_cartons_ready_blocks_assigned_update(self):
         shipment = Shipment.objects.create(
@@ -1053,22 +1062,34 @@ class ScanViewTests(TestCase):
         shipment, _carton = self._create_shipment_with_carton()
         url = reverse("scan:scan_shipment_document", args=[shipment.id, "shipment_note"])
         response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
+        try:
+            self.assertEqual(response.status_code, 200)
+        finally:
+            response.close()
 
     def test_scan_shipment_carton_document_renders(self):
         shipment, carton = self._create_shipment_with_carton()
         url = reverse("scan:scan_shipment_carton_document", args=[shipment.id, carton.id])
         response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
+        try:
+            self.assertEqual(response.status_code, 200)
+        finally:
+            response.close()
 
     def test_scan_shipment_labels_render(self):
         shipment, carton = self._create_shipment_with_carton()
         url = reverse("scan:scan_shipment_labels", args=[shipment.id])
         response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
+        try:
+            self.assertEqual(response.status_code, 200)
+        finally:
+            response.close()
         url = reverse("scan:scan_shipment_label", args=[shipment.id, carton.id])
         response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
+        try:
+            self.assertEqual(response.status_code, 200)
+        finally:
+            response.close()
 
     def test_scan_shipment_track_accepts_token_route(self):
         shipment, carton = self._create_shipment_with_carton()

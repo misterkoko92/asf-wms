@@ -1,4 +1,5 @@
 import re
+from io import BytesIO
 
 from django import forms
 from django.conf import settings
@@ -78,10 +79,8 @@ from .volunteer_account_request_handlers import (
 
 def _artifact_pdf_response(artifact):
     filename = (artifact.pdf_file.name or "").split("/")[-1] or "document.pdf"
-    response = FileResponse(
-        artifact.pdf_file.open("rb"),
-        content_type="application/pdf",
-    )
+    with artifact.pdf_file.open("rb") as pdf_stream:
+        response = FileResponse(BytesIO(pdf_stream.read()), content_type="application/pdf")
     response["Content-Disposition"] = f'inline; filename="{filename}"'
     return response
 

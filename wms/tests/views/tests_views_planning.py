@@ -1037,11 +1037,14 @@ class PlanningViewTests(TestCase):
         workbook_response = self.client.get(
             reverse("planning:version_communication_workbook", args=[version.pk])
         )
-        self.assertEqual(workbook_response.status_code, 200)
-        self.assertEqual(
-            workbook_response["Content-Type"],
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        )
+        try:
+            self.assertEqual(workbook_response.status_code, 200)
+            self.assertEqual(
+                workbook_response["Content-Type"],
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        finally:
+            workbook_response.close()
 
         packing_list_response = self.client.get(
             reverse(
@@ -1049,8 +1052,11 @@ class PlanningViewTests(TestCase):
                 args=[version.pk, shipment_snapshot.pk],
             )
         )
-        self.assertEqual(packing_list_response.status_code, 200)
-        self.assertEqual(packing_list_response["Content-Type"], "application/pdf")
+        try:
+            self.assertEqual(packing_list_response.status_code, 200)
+            self.assertEqual(packing_list_response["Content-Type"], "application/pdf")
+        finally:
+            packing_list_response.close()
 
         packing_list_pdf_response_mock.reset_mock()
         packing_list_pdf_response_mock.side_effect = ValidationError(
