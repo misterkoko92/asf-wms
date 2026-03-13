@@ -166,7 +166,10 @@ class ScanShipmentsViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "installer")
-        response_mock.assert_called_once()
+        response_mock.assert_called_once_with(
+            request=mock.ANY,
+            app_label="asf-wms",
+        )
 
     def test_scan_shipments_ready_exposes_helper_version_metadata(self):
         response = self.client.get(reverse("scan:scan_shipments_ready"))
@@ -174,6 +177,22 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'data-local-document-helper-minimum-version="0.1.0"')
         self.assertContains(response, 'data-local-document-helper-latest-version="0.1.0"')
+
+    @mock.patch("wms.helper_install.platform.system", return_value="Linux")
+    def test_scan_shipments_ready_detects_macos_client_on_linux_server(self, _platform_mock):
+        response = self.client.get(
+            reverse("scan:scan_shipments_ready"),
+            HTTP_USER_AGENT=(
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15"
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-local-document-helper-install-available="1"')
+        self.assertContains(
+            response, 'data-local-document-helper-install-label="Installer le helper (macOS)"'
+        )
 
     def test_scan_cartons_ready_exposes_helper_version_metadata(self):
         response = self.client.get(reverse("scan:scan_cartons_ready"))

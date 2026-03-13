@@ -1001,6 +1001,7 @@ class ShipmentAdmin(admin.ModelAdmin):
             "helper_install": build_helper_install_context(
                 install_url=reverse("scan:scan_local_document_helper_installer"),
                 app_label="asf-wms",
+                request=request,
             ),
             "local_document_helper_origin": LOCAL_DOCUMENT_HELPER_ORIGIN,
         }
