@@ -66,13 +66,13 @@
                 <td>{{ shipment.delivered_at|date:"d/m/y H\\hi"|default:"-" }}</td>
                 <td>
                   <div class="scan-inline-actions">
-                    <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_shipment_track' shipment.tracking_token %}?return_to=shipments_tracking">
+                    <a class="scan-scan-btn btn btn-primary" href="{% url 'scan:scan_shipment_track' shipment.tracking_token %}?return_to=shipments_tracking">
                       {% trans "Suivi/MAJ" %}
                     </a>
                     {% if shipment.is_closed %}
                       <button
                         type="button"
-                        class="scan-scan-btn btn btn-success scan-shipment-close-btn is-closed"
+                        class="scan-scan-btn btn btn-secondary scan-shipment-close-btn is-closed"
                         disabled
                       >
                         {% trans "Dossier clôturé" %}
@@ -86,7 +86,7 @@
                         <input type="hidden" name="closed" value="{{ closed_filter }}">
                         <button
                           type="submit"
-                          class="scan-scan-btn btn btn-success scan-shipment-close-btn is-ready"
+                          class="scan-scan-btn btn btn-secondary scan-shipment-close-btn is-ready"
                         >
                           {% trans "Clore le dossier" %}
                         </button>
@@ -94,7 +94,7 @@
                     {% else %}
                       <button
                         type="button"
-                        class="scan-scan-btn btn btn-danger scan-shipment-close-btn is-blocked"
+                        class="scan-scan-btn btn btn-secondary scan-shipment-close-btn is-blocked"
                         onclick="window.alert('{{ close_inactive_message }}'); return false;"
                       >
                         {% trans "Clore le dossier" %}

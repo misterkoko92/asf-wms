@@ -188,6 +188,7 @@ def export_contacts_csv():
         "email2",
         "phone",
         "phone2",
+        "is_active",
         "use_organization_address",
         "tags",
         "destinations",
@@ -207,6 +208,7 @@ def export_contacts_csv():
         "address_phone",
         "address_email",
         "address_is_default",
+        "address_notes",
         "notes",
     ]
     rows = []
@@ -263,6 +265,7 @@ def export_contacts_csv():
                     contact.email2 or "",
                     contact.phone or "",
                     contact.phone2 or "",
+                    _bool_to_csv(contact.is_active),
                     _bool_to_csv(contact.use_organization_address),
                     tags,
                     destinations,
@@ -272,6 +275,7 @@ def export_contacts_csv():
                     contact.vat_number or "",
                     contact.legal_registration_number or "",
                     contact.asf_id or "",
+                    "",
                     "",
                     "",
                     "",
@@ -299,6 +303,7 @@ def export_contacts_csv():
                     contact.email2 or "",
                     contact.phone or "",
                     contact.phone2 or "",
+                    _bool_to_csv(contact.is_active),
                     _bool_to_csv(contact.use_organization_address),
                     tags,
                     destinations,
@@ -318,6 +323,7 @@ def export_contacts_csv():
                     address.phone or "",
                     address.email or "",
                     _bool_to_csv(address.is_default),
+                    address.notes or "",
                     contact.notes or "",
                 ]
             )

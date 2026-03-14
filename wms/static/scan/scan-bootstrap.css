@@ -789,6 +789,30 @@ body.scan-bootstrap-enabled {
   min-height: auto;
 }
 
+.scan-bootstrap-enabled .scan-radio-inline-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: auto;
+}
+
+.scan-bootstrap-enabled .scan-radio-inline-choice .form-check-input {
+  margin: 0;
+  float: none;
+}
+
+.scan-bootstrap-enabled .scan-radio-inline-choice .form-check-label {
+  margin-bottom: 0;
+}
+
+.scan-bootstrap-enabled .scan-inline-switch {
+  margin-bottom: 0;
+}
+
+.scan-bootstrap-enabled .scan-inline-switch .form-check-input {
+  margin-top: 0.12rem;
+}
+
 .scan-bootstrap-enabled .scan-week-input {
   min-width: 15.5rem;
   width: 100%;
@@ -1003,29 +1027,64 @@ body.scan-bootstrap-enabled {
   --bs-btn-active-color: var(--wms-color-btn-danger-text);
 }
 
-.scan-bootstrap-enabled .scan-shipment-close-btn.is-ready,
-.scan-bootstrap-enabled .scan-shipment-close-btn.is-closed {
-  --bs-btn-bg: var(--wms-color-btn-success-bg);
-  --bs-btn-border-color: var(--wms-color-btn-success-border);
-  --bs-btn-color: var(--wms-color-btn-success-text);
-  --bs-btn-hover-bg: var(--wms-color-btn-success-hover-bg);
-  --bs-btn-hover-border-color: var(--wms-color-btn-success-border);
-  --bs-btn-hover-color: var(--wms-color-btn-success-text);
-  --bs-btn-active-bg: var(--wms-color-btn-success-active-bg);
-  --bs-btn-active-border-color: var(--wms-color-btn-success-border);
-  --bs-btn-active-color: var(--wms-color-btn-success-text);
+.scan-bootstrap-enabled .scan-shipment-status-pill.scan-shipment-status--draft {
+  background: #f2efe6;
+  border-color: #d6c7a3;
+  color: #6c5531;
+}
+
+.scan-bootstrap-enabled .scan-shipment-status-pill.scan-shipment-status--in-progress {
+  background: #e8f0fb;
+  border-color: #b5cae8;
+  color: #29507f;
+}
+
+.scan-bootstrap-enabled .scan-shipment-status-pill.scan-shipment-status--ready {
+  background: #e6f5ec;
+  border-color: #b7dac7;
+  color: #275c43;
+}
+
+.scan-bootstrap-enabled .scan-shipment-status-pill.scan-shipment-status--planned {
+  background: #fbf1df;
+  border-color: #e7cd91;
+  color: #75561f;
+}
+
+.scan-bootstrap-enabled .scan-shipment-status-pill.scan-shipment-status--shipped {
+  background: #e5f2f3;
+  border-color: #b4d5d7;
+  color: #2f5f67;
+}
+
+.scan-bootstrap-enabled .scan-shipment-status-pill.scan-shipment-status--received {
+  background: #edeaf8;
+  border-color: #cac1e7;
+  color: #56448a;
+}
+
+.scan-bootstrap-enabled .scan-shipment-status-pill.scan-shipment-status--delivered {
+  background: #e4f1e6;
+  border-color: #b2d0b7;
+  color: #2f6536;
+}
+
+.scan-bootstrap-enabled .scan-shipment-status-pill.scan-shipment-status--disputed {
+  background: #faece7;
+  border-color: #dfb0b0;
+  color: #7b3030;
 }
 
 .scan-bootstrap-enabled .scan-shipment-close-btn.is-blocked {
-  --bs-btn-bg: var(--wms-color-btn-danger-bg);
-  --bs-btn-border-color: var(--wms-color-btn-danger-border);
-  --bs-btn-color: var(--wms-color-btn-danger-text);
-  --bs-btn-hover-bg: var(--wms-color-btn-danger-hover-bg);
-  --bs-btn-hover-border-color: var(--wms-color-btn-danger-border);
-  --bs-btn-hover-color: var(--wms-color-btn-danger-text);
-  --bs-btn-active-bg: var(--wms-color-btn-danger-active-bg);
-  --bs-btn-active-border-color: var(--wms-color-btn-danger-border);
-  --bs-btn-active-color: var(--wms-color-btn-danger-text);
+  --bs-btn-bg: var(--wms-color-btn-secondary-bg);
+  --bs-btn-border-color: var(--wms-color-btn-secondary-border);
+  --bs-btn-color: var(--wms-color-btn-secondary-text);
+  --bs-btn-hover-bg: var(--wms-color-btn-secondary-bg);
+  --bs-btn-hover-border-color: var(--wms-color-btn-secondary-border);
+  --bs-btn-hover-color: var(--wms-color-btn-secondary-text);
+  --bs-btn-active-bg: var(--wms-color-btn-secondary-bg);
+  --bs-btn-active-border-color: var(--wms-color-btn-secondary-border);
+  --bs-btn-active-color: var(--wms-color-btn-secondary-text);
 }
 
 .scan-bootstrap-enabled .scan-shipment-close-btn.is-closed[disabled] {
@@ -1237,12 +1296,6 @@ body.scan-bootstrap-enabled[data-btn-style-mode="outlined"] .btn-tertiary {
     flex-wrap: nowrap !important;
   }
 
-  .scan-bootstrap-enabled .scan-pack-shipping-row .scan-switch-card {
-    min-height: var(--wms-input-height);
-    height: 100%;
-    display: flex;
-    align-items: center;
-  }
 }
 
 @media (max-width: 992px) {

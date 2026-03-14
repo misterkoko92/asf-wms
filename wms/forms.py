@@ -13,7 +13,6 @@ from .contact_filters import (
     TAG_TRANSPORTER,
     contacts_with_tags,
     filter_contacts_for_destination,
-    filter_recipients_for_shipper,
     filter_structure_contacts,
 )
 from .contact_labels import build_contact_select_label
@@ -35,7 +34,6 @@ from .models import (
 )
 from .organization_role_resolvers import (
     OrganizationRoleResolutionError,
-    eligible_recipients_for_shipper_destination,
     is_org_roles_engine_enabled,
     resolve_recipient_binding_for_operation,
     resolve_shipper_for_operation,
@@ -472,41 +470,18 @@ class ScanShipmentForm(forms.Form):
             destinations=destinations,
             destination_id=destination_id,
         )
-        org_roles_engine_enabled = is_org_roles_engine_enabled()
         all_shipper_contacts = filter_structure_contacts(contacts_with_tags(TAG_SHIPPER))
-        if org_roles_engine_enabled:
-            shipper_contacts = (
-                all_shipper_contacts if selected_destination else all_shipper_contacts.none()
-            )
-        else:
-            shipper_contacts = all_shipper_contacts
-            if selected_destination:
-                shipper_contacts = filter_contacts_for_destination(
-                    shipper_contacts,
-                    selected_destination,
-                )
-            else:
-                shipper_contacts = shipper_contacts.none()
+        shipper_contacts = (
+            all_shipper_contacts if selected_destination else all_shipper_contacts.none()
+        )
         self.fields["shipper_contact"].queryset = shipper_contacts.order_by("name")
         self.fields["shipper_contact"].label_from_instance = build_contact_select_label
-        selected_shipper = self._resolve_selected_shipper()
 
         recipients = filter_structure_contacts(contacts_with_tags(TAG_RECIPIENT))
         correspondents = contacts_with_tags(TAG_CORRESPONDENT)
 
-        if selected_shipper:
-            if org_roles_engine_enabled:
-                recipients = eligible_recipients_for_shipper_destination(
-                    shipper_org=selected_shipper,
-                    destination=selected_destination,
-                )
-            else:
-                recipients = filter_recipients_for_shipper(recipients, selected_shipper)
-                if selected_destination:
-                    recipients = filter_contacts_for_destination(
-                        recipients,
-                        selected_destination,
-                    )
+        if selected_destination:
+            recipients = filter_contacts_for_destination(recipients, selected_destination)
         else:
             recipients = recipients.none()
 
@@ -524,6 +499,8 @@ class ScanShipmentForm(forms.Form):
         self.fields["recipient_contact"].queryset = recipients.distinct().order_by("name")
         self.fields["correspondent_contact"].queryset = correspondents.distinct().order_by("name")
         self.fields["recipient_contact"].label_from_instance = build_contact_select_label
+        if not self.is_bound:
+            _select_single_choice(self.fields["correspondent_contact"])
 
     def _selected_value(self, field_name, *, explicit_value=None):
         if explicit_value:
@@ -548,12 +525,6 @@ class ScanShipmentForm(forms.Form):
         if not destination_value:
             return None
         return destinations.filter(pk=destination_value).first()
-
-    def _resolve_selected_shipper(self):
-        shipper_value = self._selected_value("shipper_contact")
-        if not shipper_value:
-            return None
-        return self.fields["shipper_contact"].queryset.filter(pk=shipper_value).first()
 
     def _raw_field_value(self, field_name):
         if not self.is_bound:
@@ -639,8 +610,6 @@ class ScanShipmentForm(forms.Form):
         field_name,
         raw_value,
         destination,
-        shipper,
-        shipper_has_errors=False,
     ):
         prefix = {
             "shipper_contact": _("Expéditeur invalide"),
@@ -674,31 +643,18 @@ class ScanShipmentForm(forms.Form):
             return _("%(prefix)s: ce contact n'a pas le tag requis.") % {"prefix": prefix}
 
         if (
-            destination
-            and not filter_contacts_for_destination(
-                Contact.objects.filter(pk=contact.pk), destination
-            ).exists()
+            field_name in {"recipient_contact", "correspondent_contact"}
+            and destination
+            and not (
+                filter_contacts_for_destination(
+                    Contact.objects.filter(pk=contact.pk),
+                    destination,
+                ).exists()
+            )
         ):
             return _(
                 "%(prefix)s: ce contact n'est pas disponible pour la destination sélectionnée."
             ) % {"prefix": prefix}
-
-        if field_name == "recipient_contact":
-            if shipper_has_errors:
-                return _("%(prefix)s: l'expéditeur sélectionné n'est pas valide.") % {
-                    "prefix": prefix
-                }
-            if shipper is None:
-                return _("%(prefix)s: sélectionnez d'abord un expéditeur valide.") % {
-                    "prefix": prefix
-                }
-            if not filter_recipients_for_shipper(
-                Contact.objects.filter(pk=contact.pk),
-                shipper,
-            ).exists():
-                return _(
-                    "%(prefix)s: ce destinataire n'est pas lié à l'expéditeur sélectionné."
-                ) % {"prefix": prefix}
 
         if (
             field_name == "correspondent_contact"
@@ -712,7 +668,7 @@ class ScanShipmentForm(forms.Form):
 
         return _("%(prefix)s: ce choix n'est plus disponible.") % {"prefix": prefix}
 
-    def _apply_invalid_choice_messages(self, *, destination, shipper):
+    def _apply_invalid_choice_messages(self, *, destination):
         if self._has_invalid_choice_error("destination"):
             self._replace_invalid_choice_error(
                 "destination",
@@ -727,15 +683,9 @@ class ScanShipmentForm(forms.Form):
                     field_name="shipper_contact",
                     raw_value=self._raw_field_value("shipper_contact"),
                     destination=destination,
-                    shipper=None,
                 ),
             )
 
-        shipper_for_recipient = shipper
-        if shipper_for_recipient is None:
-            shipper_for_recipient = self._resolve_contact_from_raw(
-                self._raw_field_value("shipper_contact")
-            )
         if self._has_invalid_choice_error("recipient_contact"):
             self._replace_invalid_choice_error(
                 "recipient_contact",
@@ -743,8 +693,6 @@ class ScanShipmentForm(forms.Form):
                     field_name="recipient_contact",
                     raw_value=self._raw_field_value("recipient_contact"),
                     destination=destination,
-                    shipper=shipper_for_recipient,
-                    shipper_has_errors=shipper_has_invalid_choice,
                 ),
             )
 
@@ -755,7 +703,6 @@ class ScanShipmentForm(forms.Form):
                     field_name="correspondent_contact",
                     raw_value=self._raw_field_value("correspondent_contact"),
                     destination=destination,
-                    shipper=None,
                 ),
             )
 
@@ -765,31 +712,7 @@ class ScanShipmentForm(forms.Form):
         shipper = cleaned.get("shipper_contact")
         recipient = cleaned.get("recipient_contact")
         correspondent = cleaned.get("correspondent_contact")
-        self._apply_invalid_choice_messages(destination=destination, shipper=shipper)
-        if (
-            destination
-            and shipper
-            and not filter_contacts_for_destination(
-                Contact.objects.filter(pk=shipper.pk),
-                destination,
-            ).exists()
-        ):
-            self.add_error(
-                "shipper_contact",
-                _("Contact non disponible pour cette destination."),
-            )
-        if (
-            shipper
-            and recipient
-            and not filter_recipients_for_shipper(
-                Contact.objects.filter(pk=recipient.pk),
-                shipper,
-            ).exists()
-        ):
-            self.add_error(
-                "recipient_contact",
-                _("Destinataire non disponible pour cet expéditeur."),
-            )
+        self._apply_invalid_choice_messages(destination=destination)
         if (
             destination
             and recipient

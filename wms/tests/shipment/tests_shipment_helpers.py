@@ -99,6 +99,7 @@ class ShipmentHelpersTests(TestCase):
                 {
                     "id": shipper.id,
                     "name": "Shipper Org",
+                    "organization_id": shipper.id,
                     "destination_id": destination.id,
                     "destination_ids": [destination.id],
                     "scoped_destination_ids": [],
@@ -108,6 +109,7 @@ class ShipmentHelpersTests(TestCase):
         self.assertEqual(len(recipients_json), 1)
         self.assertEqual(recipients_json[0]["id"], recipient.id)
         self.assertEqual(recipients_json[0]["name"], "Recipient Org")
+        self.assertEqual(recipients_json[0]["organization_id"], recipient.id)
         self.assertEqual(recipients_json[0]["countries"], ["France", "UK"])
         self.assertEqual(recipients_json[0]["destination_id"], destination.id)
         self.assertEqual(recipients_json[0]["destination_ids"], [destination.id])
@@ -427,6 +429,8 @@ class ShipmentHelpersTests(TestCase):
         recipient_entry = next(
             entry for entry in recipients_json if entry["id"] == recipient_org.id
         )
+        self.assertEqual(shipper_entry["organization_id"], shipper_org.id)
+        self.assertEqual(recipient_entry["organization_id"], recipient_org.id)
         self.assertEqual(shipper_entry["scoped_destination_ids"], [destination_abj.id])
         self.assertEqual(
             recipient_entry["binding_pairs"],

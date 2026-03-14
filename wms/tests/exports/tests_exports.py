@@ -1,12 +1,27 @@
+from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
+from django.conf import settings
 from django.test import SimpleTestCase
 
 from wms import exports
 
 
 class ExportsTests(SimpleTestCase):
+    def _read_template_header(self, filename):
+        template_path = (
+            Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "import_templates" / filename
+        )
+        return template_path.read_text(encoding="utf-8").splitlines()[0].split(";")
+
+    def _read_template_rows(self, filename):
+        template_path = (
+            Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "import_templates" / filename
+        )
+        lines = template_path.read_text(encoding="utf-8").splitlines()
+        return [line.split(";") for line in lines[1:] if line.strip()]
+
     def test_bool_to_csv_and_build_csv_response(self):
         self.assertEqual(exports._bool_to_csv(True), "true")
         self.assertEqual(exports._bool_to_csv(False), "false")
@@ -210,6 +225,7 @@ class ExportsTests(SimpleTestCase):
             vat_number="",
             legal_registration_number="",
             asf_id="ASF-1",
+            is_active=True,
             notes="note1",
         )
 
@@ -224,6 +240,7 @@ class ExportsTests(SimpleTestCase):
             phone="999",
             email="addr@example.com",
             is_default=True,
+            notes="Gate A",
         )
         contact_with_addresses = SimpleNamespace(
             contact_type="association",
@@ -245,6 +262,7 @@ class ExportsTests(SimpleTestCase):
             vat_number="V1",
             legal_registration_number="L1",
             asf_id="ASF-2",
+            is_active=False,
             notes="note2",
         )
 
@@ -268,12 +286,14 @@ class ExportsTests(SimpleTestCase):
         rows = response_mock.call_args.args[2]
         self.assertEqual(len(rows), 2)
         self.assertEqual(rows[0][0], "individual")
-        self.assertEqual(rows[0][12], "TagA|TagB")
-        self.assertEqual(rows[0][18], "")
+        self.assertEqual(rows[0][11], "true")
+        self.assertEqual(rows[0][13], "TagA|TagB")
+        self.assertEqual(rows[0][20], "ASF-1")
         self.assertEqual(rows[1][0], "association")
         self.assertEqual(rows[1][5], "OrgX")
-        self.assertEqual(rows[1][20], "HQ")
-        self.assertEqual(rows[1][29], "true")
+        self.assertEqual(rows[1][11], "false")
+        self.assertEqual(rows[1][21], "HQ")
+        self.assertEqual(rows[1][30], "true")
 
     def test_export_users_csv(self):
         fake_user_model = SimpleNamespace(
@@ -304,3 +324,79 @@ class ExportsTests(SimpleTestCase):
             response_mock.call_args.args[2],
             [["user1", "u1@example.com", "U", "One", "true", "false", "true", ""]],
         )
+
+    def test_static_products_template_header_matches_export_header(self):
+        stock_qs = mock.MagicMock()
+        stock_values_qs = mock.MagicMock()
+        stock_qs.values.return_value = stock_values_qs
+        stock_values_qs.annotate.return_value = []
+        product_qs = mock.MagicMock()
+        product_qs.prefetch_related.return_value = product_qs
+        product_qs.all.return_value = []
+
+        with mock.patch("wms.exports.RackColor.objects.all", return_value=[]):
+            with mock.patch("wms.exports.ProductLot.objects.filter", return_value=stock_qs):
+                with mock.patch(
+                    "wms.exports.Product.objects.select_related",
+                    return_value=product_qs,
+                ):
+                    with mock.patch(
+                        "wms.exports._build_csv_response",
+                        return_value="products-response",
+                    ) as response_mock:
+                        exports.export_products_csv()
+
+        self.assertEqual(
+            response_mock.call_args.args[1],
+            self._read_template_header("products.csv"),
+        )
+
+    def test_static_contacts_template_header_matches_export_header_and_current_fields(self):
+        contacts_qs = mock.MagicMock()
+        contacts_qs.prefetch_related.return_value = []
+
+        with mock.patch(
+            "wms.exports.Contact.objects.select_related",
+            return_value=contacts_qs,
+        ):
+            with mock.patch(
+                "wms.exports._build_csv_response",
+                return_value="contacts-response",
+            ) as response_mock:
+                exports.export_contacts_csv()
+
+        header = response_mock.call_args.args[1]
+        self.assertEqual(header, self._read_template_header("contacts.csv"))
+        self.assertIn("is_active", header)
+        self.assertIn("address_notes", header)
+
+    def test_static_users_template_header_matches_export_header(self):
+        fake_user_model = SimpleNamespace(objects=SimpleNamespace(all=lambda: []))
+
+        with mock.patch("wms.exports.get_user_model", return_value=fake_user_model):
+            with mock.patch(
+                "wms.exports._build_csv_response",
+                return_value="users-response",
+            ) as response_mock:
+                exports.export_users_csv()
+
+        self.assertEqual(
+            response_mock.call_args.args[1],
+            self._read_template_header("users.csv"),
+        )
+
+    def test_static_import_template_example_rows_keep_header_column_count(self):
+        for filename in (
+            "products.csv",
+            "locations.csv",
+            "categories.csv",
+            "warehouses.csv",
+            "contacts.csv",
+            "users.csv",
+        ):
+            with self.subTest(filename=filename):
+                header = self._read_template_header(filename)
+                rows = self._read_template_rows(filename)
+                self.assertTrue(rows)
+                for row in rows:
+                    self.assertEqual(len(row), len(header))

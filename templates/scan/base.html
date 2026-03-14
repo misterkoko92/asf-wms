@@ -75,7 +75,7 @@
                   </ul>
                 </li>
                 <li class="nav-item dropdown">
-                  <button class="nav-link dropdown-toggle btn-tertiary{% if active == 'out' or active == 'faq' or active == 'imports' or active == 'print_templates' or active == 'product_labels' %} active{% endif %}" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                  <button class="nav-link dropdown-toggle btn-tertiary{% if active == 'out' or active == 'faq' or active == 'imports' or active == 'admin_contacts' or active == 'print_templates' or active == 'product_labels' %} active{% endif %}" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                     {% trans "Gestion" %}
                   </button>
                   <ul class="dropdown-menu">
@@ -83,6 +83,7 @@
                     <li><a href="{% url 'scan:scan_faq' %}" class="dropdown-item{% if active == 'faq' %} active{% endif %}">{% trans "FAQ / Documentation" %}</a></li>
                     {% if request.user.is_superuser %}
                       <li><a href="{% url 'scan:scan_import' %}" class="dropdown-item{% if active == 'imports' %} active{% endif %}">{% trans "Imports" %}</a></li>
+                      <li><a href="{% url 'scan:scan_admin_contacts' %}" class="dropdown-item{% if active == 'admin_contacts' %} active{% endif %}">{% trans "Contacts" %}</a></li>
                       <li><a href="{% url 'scan:scan_print_templates' %}" class="dropdown-item{% if active == 'print_templates' %} active{% endif %}">{% trans "Templates" %}</a></li>
                       <li><a href="{% url 'scan:scan_product_labels' %}" class="dropdown-item{% if active == 'product_labels' %} active{% endif %}">{% trans "Etiquette Produit" %}</a></li>
                     {% endif %}
@@ -110,14 +111,13 @@
                 {% endif %}
                 {% if request.user.is_superuser %}
                   <li class="nav-item dropdown ms-xl-auto">
-                    <button class="nav-link dropdown-toggle btn-tertiary{% if active == 'settings' or active == 'ui_lab' or active == 'admin_contacts' or active == 'admin_products' or active == 'admin_design' or active == 'product_labels' %} active{% endif %}" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <button class="nav-link dropdown-toggle btn-tertiary{% if active == 'settings' or active == 'ui_lab' or active == 'admin_products' or active == 'admin_design' or active == 'product_labels' %} active{% endif %}" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                       {% trans "Admin" %}
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
                       <li><a href="{% url 'scan:scan_settings' %}" class="dropdown-item{% if active == 'settings' %} active{% endif %}">{% trans "Paramètres" %}</a></li>
                       <li><a href="{% url 'scan:scan_ui_lab' %}" class="dropdown-item{% if active == 'ui_lab' %} active{% endif %}">UI Lab</a></li>
                       <li><hr class="dropdown-divider"></li>
-                      <li><a href="{% url 'scan:scan_admin_contacts' %}" class="dropdown-item{% if active == 'admin_contacts' %} active{% endif %}">{% trans "Contacts" %}</a></li>
                       <li><a href="{% url 'scan:scan_admin_products' %}" class="dropdown-item{% if active == 'admin_products' %} active{% endif %}">{% trans "Produit" %}</a></li>
                       <li><a href="{% url 'scan:scan_product_labels' %}" class="dropdown-item{% if active == 'product_labels' %} active{% endif %}">{% trans "Etiquette Produit" %}</a></li>
                       <li><a href="{% url 'scan:scan_admin_design' %}" class="dropdown-item{% if active == 'admin_design' %} active{% endif %}">{% trans "Design" %}</a></li>

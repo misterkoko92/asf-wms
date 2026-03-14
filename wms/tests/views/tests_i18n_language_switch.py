@@ -396,16 +396,14 @@ class LanguageSwitchI18nTests(TestCase):
         response = self.client.get(reverse("scan:scan_faq"))
 
         self.assertContains(response, "Overview")
-        self.assertContains(response, "This page describes the full WMS Scan workflow")
-        self.assertContains(response, "Reference data")
-        self.assertContains(response, "Shipment tracking (Management)")
-        self.assertContains(response, "Pallet receiving")
-        self.assertContains(response, "Quick filter: Pallet, Association, or All.")
-        self.assertContains(response, "A QR code is generated when the shipment is created.")
-        self.assertContains(response, "The sync banner indicates that an update is available.")
+        self.assertContains(response, "Main workflows")
+        self.assertContains(response, "Scan reference")
+        self.assertContains(response, "Planning reference")
+        self.assertContains(response, "Association portal")
+        self.assertContains(response, "Volunteer area")
+        self.assertContains(response, "Admin & support")
+        self.assertContains(response, "Create a shipment with prepared parcels")
+        self.assertContains(response, "Create a shipment without prepared parcels")
         self.assertNotContains(response, "Données de référence")
-        self.assertNotContains(response, "Filtre rapide : Palette, Association ou Tout.")
-        self.assertNotContains(
-            response,
-            "La bannière de synchro indique qu'une mise à jour est disponible.",
-        )
+        self.assertNotContains(response, "Flux principaux")
+        self.assertNotContains(response, "Espace bénévole")

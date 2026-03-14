@@ -4,7 +4,14 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 from .contact_filters import TAG_RECIPIENT, TAG_SHIPPER
-from .models import CartonStatus, Document, DocumentType, ShipmentStatus, ShipmentTrackingStatus
+from .models import (
+    CartonStatus,
+    Document,
+    DocumentType,
+    ShipmentStatus,
+    ShipmentTrackingStatus,
+    ShipmentUnitEquivalenceRule,
+)
 from .print_context import (
     build_carton_document_context,
     build_label_context,
@@ -12,6 +19,7 @@ from .print_context import (
 )
 from .print_renderer import get_template_layout, render_layout_from_layout
 from .status_badges import BADGE_TONE_PROGRESS, BADGE_TONE_READY, resolve_status_tone
+from .unit_equivalence import ShipmentUnitInput, resolve_shipment_unit_count
 from .view_utils import resolve_contact_by_name
 
 TEMPLATE_DYNAMIC_DOCUMENT = "print/dynamic_document.html"
@@ -158,6 +166,47 @@ def _shipment_status_tone(shipment, *, total, ready):
     return BADGE_TONE_PROGRESS
 
 
+def _shipment_status_variant(shipment, *, total, ready):
+    if getattr(shipment, "is_disputed", False):
+        return "disputed"
+    if shipment.status == ShipmentStatus.DRAFT:
+        return "draft"
+    if shipment.status == ShipmentStatus.PLANNED:
+        return "planned"
+    if shipment.status == ShipmentStatus.SHIPPED:
+        return "shipped"
+    if shipment.status == ShipmentStatus.RECEIVED_CORRESPONDENT:
+        return "received"
+    if shipment.status == ShipmentStatus.DELIVERED:
+        return "delivered"
+    if total > 0 and ready >= total:
+        return "ready"
+    return "in-progress"
+
+
+def _build_shipment_equivalence_items(shipment):
+    items = []
+    carton_set = getattr(shipment, "carton_set", None)
+    if carton_set is None:
+        return items
+    if hasattr(carton_set, "all"):
+        cartons = carton_set.all()
+    else:
+        try:
+            cartons = list(carton_set)
+        except TypeError:
+            cartons = []
+    for carton in cartons:
+        for carton_item in carton.cartonitem_set.all():
+            items.append(
+                ShipmentUnitInput(
+                    product=carton_item.product_lot.product,
+                    quantity=carton_item.quantity,
+                )
+            )
+    return items
+
+
 def _shipment_party_label(contact, fallback_name):
     if contact:
         organization = getattr(contact, "organization", None)
@@ -280,12 +329,19 @@ def render_shipment_labels(request, shipment):
 
 
 def build_shipments_ready_rows(shipments_qs):
+    equivalence_rules = list(
+        ShipmentUnitEquivalenceRule.objects.filter(is_active=True).select_related(
+            "category",
+            "category__parent",
+        )
+    )
     shipments = []
     for shipment in shipments_qs:
         total, ready = _shipment_carton_totals(shipment)
         progress_label = _shipment_progress_label(total=total, ready=ready)
         status_label = _shipment_status_label(shipment, progress_label)
         status_tone = _shipment_status_tone(shipment, total=total, ready=ready)
+        status_variant = _shipment_status_variant(shipment, total=total, ready=ready)
         shipper_contact = _resolve_shipment_party_contact(
             shipment,
             ref_attr="shipper_contact_ref",
@@ -304,6 +360,10 @@ def build_shipments_ready_rows(shipments_qs):
                 "reference": shipment.reference,
                 "tracking_token": shipment.tracking_token,
                 "carton_count": total,
+                "equivalent_carton_count": resolve_shipment_unit_count(
+                    items=_build_shipment_equivalence_items(shipment),
+                    rules=equivalence_rules,
+                ),
                 "destination_iata": shipment.destination.iata_code if shipment.destination else "",
                 "shipper_name": _shipment_party_label(
                     shipper_contact,
@@ -317,6 +377,7 @@ def build_shipments_ready_rows(shipments_qs):
                 "ready_at": shipment.ready_at,
                 "status_label": status_label,
                 "status_tone": status_tone,
+                "status_variant": status_variant,
                 "can_edit": shipment.status not in STATUS_LOCKED_SHIPMENT,
             }
         )

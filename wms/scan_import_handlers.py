@@ -2,6 +2,7 @@ import tempfile
 import uuid
 from pathlib import Path
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.shortcuts import redirect, render
@@ -83,6 +84,9 @@ def render_scan_import(request, pending_import):
     context = dict(IMPORT_BASE_CONTEXT)
     context["product_match_pending"] = build_match_context(pending_import)
     context["import_selector_data"] = _build_import_selector_data()
+    context["import_default_password_configured"] = bool(
+        getattr(settings, "IMPORT_DEFAULT_PASSWORD", None)
+    )
     return render(request, IMPORT_TEMPLATE, context)
 
 

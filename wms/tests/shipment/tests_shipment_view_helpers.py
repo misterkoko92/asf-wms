@@ -13,6 +13,7 @@ from wms.models import (
     Shipment,
     ShipmentStatus,
     ShipmentTrackingStatus,
+    ShipmentUnitEquivalenceRule,
 )
 from wms.shipment_view_helpers import (
     build_carton_options,
@@ -438,7 +439,128 @@ class ShipmentViewHelpersTests(TestCase):
 
         self.assertEqual(rows[0]["status_label"], "Prêt")
         self.assertEqual(rows[0]["status_tone"], "ready")
+        self.assertEqual(rows[0]["status_variant"], "ready")
         self.assertTrue(rows[0]["can_edit"])
+
+    def test_build_shipments_ready_rows_uses_equivalence_rules_for_equivalent_cartons(self):
+        now = timezone.now()
+        ShipmentUnitEquivalenceRule.objects.create(label="Default x2", units_per_item=2)
+
+        class FakeFiltered:
+            def __init__(self, count):
+                self._count = count
+
+            def count(self):
+                return self._count
+
+        class FakeItemSet:
+            def __init__(self, items):
+                self._items = items
+
+            def all(self):
+                return self._items
+
+        class FakeCartonSet:
+            def __init__(self, total, ready, cartons):
+                self._total = total
+                self._ready = ready
+                self._cartons = cartons
+
+            def count(self):
+                return self._total
+
+            def filter(self, **_kwargs):
+                return FakeFiltered(self._ready)
+
+            def all(self):
+                return self._cartons
+
+        carton = SimpleNamespace(
+            cartonitem_set=FakeItemSet(
+                [
+                    SimpleNamespace(
+                        product_lot=SimpleNamespace(product=SimpleNamespace(category=None)),
+                        quantity=3,
+                    )
+                ]
+            )
+        )
+        ready = SimpleNamespace(
+            id=12,
+            reference="S-012",
+            tracking_token="token-12",
+            carton_count=1,
+            ready_count=1,
+            carton_set=FakeCartonSet(total=1, ready=1, cartons=[carton]),
+            destination=SimpleNamespace(iata_code="NCE"),
+            shipper_name="ASF",
+            recipient_name="Equivalent Recipient",
+            created_at=now,
+            ready_at=now,
+            status=ShipmentStatus.PACKED,
+        )
+
+        rows = build_shipments_ready_rows([ready])
+
+        self.assertEqual(rows[0]["equivalent_carton_count"], 6)
+
+    def test_build_shipments_ready_rows_assigns_specific_status_variants(self):
+        now = timezone.now()
+
+        class FakeFiltered:
+            def __init__(self, count):
+                self._count = count
+
+            def count(self):
+                return self._count
+
+        class FakeCartonSet:
+            def __init__(self, total, ready):
+                self._total = total
+                self._ready = ready
+
+            def count(self):
+                return self._total
+
+            def filter(self, **_kwargs):
+                return FakeFiltered(self._ready)
+
+            def all(self):
+                return []
+
+        planned = SimpleNamespace(
+            id=13,
+            reference="S-013",
+            tracking_token="token-13",
+            carton_count=1,
+            ready_count=1,
+            carton_set=FakeCartonSet(total=1, ready=1),
+            destination=None,
+            shipper_name="ASF",
+            recipient_name="Planned Recipient",
+            created_at=now,
+            ready_at=now,
+            status=ShipmentStatus.PLANNED,
+        )
+        delivered = SimpleNamespace(
+            id=14,
+            reference="S-014",
+            tracking_token="token-14",
+            carton_count=1,
+            ready_count=1,
+            carton_set=FakeCartonSet(total=1, ready=1),
+            destination=None,
+            shipper_name="ASF",
+            recipient_name="Delivered Recipient",
+            created_at=now,
+            ready_at=now,
+            status=ShipmentStatus.DELIVERED,
+        )
+
+        rows = build_shipments_ready_rows([planned, delivered])
+
+        self.assertEqual(rows[0]["status_variant"], "planned")
+        self.assertEqual(rows[1]["status_variant"], "delivered")
 
     def test_build_shipments_ready_rows_marks_disputed_status_as_error(self):
         now = timezone.now()

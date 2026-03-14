@@ -39,6 +39,18 @@ class ScanMiscViewsTests(TestCase):
         self.assertContains(response, 'data-faq-default-expanded="false"')
         self.assertContains(response, 'data-faq-open-on-summary-click="true"')
 
+    def test_scan_faq_covers_cross_area_sections_and_main_workflows(self):
+        response = self.client.get(reverse("scan:scan_faq"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Flux principaux")
+        self.assertContains(response, "Référence planning")
+        self.assertContains(response, "Portal association")
+        self.assertContains(response, "Espace bénévole")
+        self.assertContains(response, "Administration & support")
+        self.assertContains(response, "Créer une expédition avec des colis déjà préparés")
+        self.assertContains(response, "Créer une expédition sans colis préparés")
+
     def test_scan_ui_lab_renders_template(self):
         response = self.client.get(reverse("scan:scan_ui_lab"))
         self.assertEqual(response.status_code, 200)
@@ -76,11 +88,14 @@ class ScanMiscViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Access & roles")
-        self.assertContains(response, "Shipment tracking (Management)")
-        self.assertContains(response, "This page describes the full WMS Scan workflow")
-        self.assertContains(response, "Quick filter: Pallet, Association, or All.")
+        self.assertContains(response, "Main workflows")
+        self.assertContains(response, "Planning reference")
+        self.assertContains(response, "Association portal")
+        self.assertContains(response, "Volunteer area")
+        self.assertContains(response, "Admin & support")
+        self.assertContains(response, "Create a shipment with prepared parcels")
         self.assertNotContains(response, "Accès & rôles")
-        self.assertNotContains(response, "Filtre rapide : Palette, Association ou Tout.")
+        self.assertNotContains(response, "Flux principaux")
 
     def test_scan_faq_requires_staff(self):
         non_staff = get_user_model().objects.create_user(

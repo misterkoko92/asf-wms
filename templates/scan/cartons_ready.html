@@ -40,32 +40,36 @@
               <tr>
                 <td>{{ carton.code }}</td>
                 <td>{{ carton.created_at|date:"d/m/y H\\hi" }}</td>
-                <td class="status">
+                <td class="status scan-carton-status-cell">
                   {% if carton.can_toggle %}
                     <form method="post" class="scan-toggle-form">
                       {% csrf_token %}
                       <input type="hidden" name="action" value="update_carton_status">
                       <input type="hidden" name="carton_id" value="{{ carton.id }}">
-                      <label class="scan-toggle">
-                        <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                      <label class="scan-toggle scan-carton-status-select-wrap">
+                        <select
+                          name="status"
+                          class="form-select form-select-sm scan-carton-status-select"
+                          onchange="this.form.submit()"
+                        >
                           {% for value, label in carton_status_choices %}
                             <option value="{{ value }}" {% if value == carton.status_value %}selected{% endif %}>
-                              {{ label }}
+                              {% if value == "packed" %}{% trans "Disponible" %}{% else %}{{ label }}{% endif %}
                             </option>
                           {% endfor %}
                         </select>
                       </label>
                     </form>
                   {% else %}
-                    <div>
-                      <span class="ui-comp-status-pill is-{{ carton.status_tone }}">{{ carton.status_label }}</span>
+                    <div class="scan-carton-status-display">
+                      <span class="ui-comp-status-pill scan-carton-status-pill is-{{ carton.status_tone }}">{{ carton.status_label }}</span>
                     </div>
                     {% if carton.can_mark_labeled %}
                       <form method="post" class="scan-toggle-form scan-field-gap">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="mark_carton_labeled">
                         <input type="hidden" name="carton_id" value="{{ carton.id }}">
-                        <button type="submit" class="scan-scan-btn btn btn-success">{% trans "Marquer étiqueté" %}</button>
+                        <button type="submit" class="scan-scan-btn btn btn-sm btn-tertiary">{% trans "Marquer étiqueté" %}</button>
                       </form>
                     {% endif %}
                     {% if carton.can_mark_assigned %}

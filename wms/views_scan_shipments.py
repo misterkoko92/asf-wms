@@ -376,6 +376,7 @@ def scan_shipments_ready(request):
             "shipper_contact_ref__organization",
             "recipient_contact_ref__organization",
         )
+        .prefetch_related("carton_set__cartonitem_set__product_lot__product__category__parent")
         .annotate(
             carton_count=Count("carton", distinct=True),
             ready_count=Count(

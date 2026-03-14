@@ -10,6 +10,7 @@ from django.urls import reverse
 from wms.helper_install import build_helper_install_context
 from wms.models import (
     Carton,
+    CartonStatus,
     Shipment,
     ShipmentStatus,
     ShipmentTrackingEvent,
@@ -223,6 +224,39 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertContains(response, 'data-local-document-helper-minimum-version="0.1.0"')
         self.assertContains(response, 'data-local-document-helper-latest-version="0.1.0"')
 
+    def test_scan_shipments_ready_uses_updated_headers_and_status_markup(self):
+        with mock.patch(
+            "wms.views_scan_shipments.build_shipments_ready_rows",
+            return_value=[
+                {
+                    "id": 1,
+                    "reference": "S-001",
+                    "tracking_token": "11111111-1111-1111-1111-111111111111",
+                    "carton_count": 4,
+                    "equivalent_carton_count": 10,
+                    "destination_iata": "CDG",
+                    "shipper_name": "ASF",
+                    "recipient_name": "Dest",
+                    "created_at": None,
+                    "ready_at": None,
+                    "status_label": "Planifié",
+                    "status_tone": "progress",
+                    "status_variant": "planned",
+                    "can_edit": True,
+                }
+            ],
+        ):
+            response = self.client.get(reverse("scan:scan_shipments_ready"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "scan-shipment-reference-col")
+        self.assertContains(response, "Nb Colis Equivalent")
+        self.assertContains(response, "scan-shipment-ready-col")
+        self.assertContains(
+            response,
+            'class="ui-comp-status-pill scan-shipment-status-pill scan-shipment-status--planned is-progress"',
+        )
+
     @mock.patch("wms.helper_install.platform.system", return_value="Linux")
     def test_scan_shipments_ready_detects_macos_client_on_linux_server(self, _platform_mock):
         response = self.client.get(
@@ -246,6 +280,63 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertContains(response, 'data-local-document-helper-minimum-version="0.1.0"')
         self.assertContains(response, 'data-local-document-helper-latest-version="0.1.0"')
 
+    def test_scan_cartons_ready_uses_available_label_and_updated_status_controls(self):
+        with mock.patch(
+            "wms.views_scan_shipments.build_cartons_ready_rows",
+            return_value=[
+                {
+                    "id": 1,
+                    "code": "C-READY",
+                    "created_at": None,
+                    "status_value": CartonStatus.PACKED,
+                    "status_tone": "ready",
+                    "can_toggle": True,
+                    "can_mark_labeled": False,
+                    "can_mark_assigned": False,
+                    "shipment_reference": "",
+                    "location": "",
+                    "packing_list": [],
+                    "packing_list_url": "",
+                    "picking_url": "",
+                    "weight_kg": None,
+                    "volume_percent": None,
+                },
+                {
+                    "id": 2,
+                    "code": "C-ASSIGNED",
+                    "created_at": None,
+                    "status_label": "Affecté",
+                    "status_value": CartonStatus.ASSIGNED,
+                    "status_tone": "progress",
+                    "can_toggle": False,
+                    "can_mark_labeled": True,
+                    "can_mark_assigned": False,
+                    "shipment_reference": "S-001",
+                    "location": "",
+                    "packing_list": [],
+                    "packing_list_url": "",
+                    "picking_url": "",
+                    "weight_kg": None,
+                    "volume_percent": None,
+                },
+            ],
+        ):
+            response = self.client.get(reverse("scan:scan_cartons_ready"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "scan-carton-status-cell")
+        self.assertContains(response, "scan-carton-status-select-wrap")
+        self.assertContains(response, "Disponible")
+        self.assertContains(response, "scan-carton-status-display")
+        self.assertContains(
+            response,
+            'class="ui-comp-status-pill scan-carton-status-pill is-progress"',
+        )
+        self.assertContains(
+            response,
+            'class="scan-scan-btn btn btn-sm btn-tertiary"',
+        )
+
     def test_scan_shipments_tracking_renders_rows_context(self):
         with mock.patch(
             "wms.views_scan_shipments.build_shipments_tracking_rows",
@@ -263,7 +354,80 @@ class ScanShipmentsViewsTests(TestCase):
             response.context_data["shipments"],
             [{"id": 1, "reference": "S-TRACK-001"}],
         )
-        self.assertEqual(response.context_data["closed_filter"], "exclude")
+
+    def test_scan_pack_hides_top_reference_scan_button(self):
+        response = self.client.get(reverse("scan:scan_pack"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'data-scan-target="id_shipment_reference"')
+
+    def test_scan_pack_uses_updated_spacing_and_location_action_layout(self):
+        response = self.client.get(reverse("scan:scan_pack"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "scan-pack-add-line-btn")
+        self.assertContains(
+            response,
+            'class="scan-scan-btn btn btn-tertiary text-nowrap"',
+        )
+
+    def test_scan_shipment_create_renders_secondary_draft_button_near_submit(self):
+        response = self.client.get(reverse("scan:scan_shipment_create"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="action" value="save_draft"', count=2)
+
+    def test_scan_shipment_create_renders_single_correspondent_display_markers(self):
+        response = self.client.get(reverse("scan:scan_shipment_create"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="shipment-correspondent-select-wrap"')
+        self.assertContains(response, 'id="shipment-correspondent-single"')
+
+    def test_scan_prepare_kits_groups_top_controls_in_single_panel(self):
+        response = self.client.get(reverse("scan:scan_prepare_kits"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "scan-prepare-kits-top-panel", count=1)
+        self.assertContains(response, "scan-prepare-kits-top-group", count=2)
+
+    def test_scan_shipments_tracking_uses_primary_follow_up_and_secondary_close_buttons(self):
+        shipment = Shipment.objects.create(
+            status=ShipmentStatus.DELIVERED,
+            shipper_name="Aviation Sans Frontieres",
+            recipient_name="Association Dest",
+            destination_address="1 Rue Test",
+            destination_country="France",
+            created_by=self.staff_user,
+        )
+        for status in (
+            ShipmentTrackingStatus.PLANNED,
+            ShipmentTrackingStatus.BOARDING_OK,
+            ShipmentTrackingStatus.RECEIVED_CORRESPONDENT,
+            ShipmentTrackingStatus.RECEIVED_RECIPIENT,
+        ):
+            ShipmentTrackingEvent.objects.create(
+                shipment=shipment,
+                status=status,
+                actor_name="Ops",
+                actor_structure="ASF",
+                comments="step",
+                created_by=self.staff_user,
+            )
+
+        response = self.client.get(reverse("scan:scan_shipments_tracking"))
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertIn(
+            f'class="scan-scan-btn btn btn-primary" href="{reverse("scan:scan_shipment_track", args=[shipment.tracking_token])}?return_to=shipments_tracking"',
+            content,
+        )
+        self.assertIn(
+            'class="scan-scan-btn btn btn-secondary scan-shipment-close-btn is-ready"',
+            content,
+        )
+        self.assertIn('<option value="exclude" selected>', content)
 
     def test_scan_shipments_tracking_post_closes_ready_shipment(self):
         shipment = self._create_shipment(status=ShipmentStatus.DELIVERED)

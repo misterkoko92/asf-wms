@@ -158,6 +158,19 @@ class ScanAdminViewTests(TestCase):
         self.assertContains(response, self.correspondent.name)
         self.assertContains(response, self.destination.city)
 
+    def test_scan_contacts_navigation_is_under_gestion_instead_of_admin(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_import"))
+
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode("utf-8")
+        imports_index = html.index(reverse("scan:scan_import"))
+        contacts_index = html.index(reverse("scan:scan_admin_contacts"))
+        settings_index = html.index(reverse("scan:scan_settings"))
+        self.assertLess(imports_index, contacts_index)
+        self.assertLess(contacts_index, settings_index)
+
     def test_scan_admin_contacts_filters_by_contact_type(self):
         self.client.force_login(self.superuser)
         person = Contact.objects.create(

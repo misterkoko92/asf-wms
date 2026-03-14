@@ -81,6 +81,56 @@ class ScanImportViewTests(TestCase):
             'class="form-check form-check-inline scan-import-radio-option"',
         )
 
+    def test_scan_import_products_update_existing_is_checked_by_default(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            '<input type="checkbox" id="product_update" name="update_existing" value="1" checked>',
+            html=True,
+        )
+
+    def test_scan_import_css_centers_inline_stock_radio_options(self):
+        css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "import_selectors.css"
+        css_content = css_path.read_text(encoding="utf-8")
+
+        self.assertIn(".scan-import-radio-option {", css_content)
+        self.assertIn("align-items: center;", css_content)
+        self.assertIn("margin-top: 0;", css_content)
+
+    def test_scan_import_contacts_card_is_bulk_only(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="action" value="contact_file"')
+        self.assertContains(response, "Template contacts")
+        self.assertContains(response, "Exporter contacts")
+        self.assertNotContains(response, 'name="action" value="contact_single"')
+        self.assertNotContains(response, 'id="contact_name"')
+
+    def test_scan_import_user_password_is_required_without_default_password(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="user_password" name="password" required')
+
+    @override_settings(IMPORT_DEFAULT_PASSWORD="TempPwd!")
+    def test_scan_import_user_password_is_optional_when_default_password_is_configured(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="user_password" name="password"')
+        self.assertNotContains(response, 'id="user_password" name="password" required')
+
     @override_settings(IMPORT_DEFAULT_PASSWORD="TempPwd!")
     def test_scan_import_post_uses_handler_response(self):
         self.client.force_login(self.superuser)

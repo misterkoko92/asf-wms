@@ -36,16 +36,20 @@
         <table class="scan-table table table-sm table-hover" data-table-tools="1">
           <thead>
             <tr>
-              <th>{% trans "N° expédition" %}</th>
+              <th class="scan-shipment-reference-col">
+                <span>NUMERO</span><br>
+                <span>EXPEDITION</span>
+              </th>
               <th>{% trans "Nb colis" %}</th>
+              <th>{% trans "Nb Colis Equivalent" %}</th>
               <th>{% trans "Destination (IATA)" %}</th>
               <th>{% trans "Expéditeur" %}</th>
               <th>{% trans "Destinataire" %}</th>
               <th>{% trans "Date création" %}</th>
-              <th>{% trans "Date mise en disponible" %}</th>
+              <th class="scan-shipment-ready-col">{% trans "Date mise en disponible" %}</th>
               <th>{% trans "Statut" %}</th>
               <th>{% trans "Documents" %}</th>
-              <th>{% trans "Actions" %}</th>
+              <th class="scan-shipment-actions-col">{% trans "Actions" %}</th>
             </tr>
           </thead>
           <tbody>
@@ -53,13 +57,30 @@
               <tr>
                 <td>{{ shipment.reference }}</td>
                 <td class="qty">{{ shipment.carton_count }}</td>
+                <td class="qty">{{ shipment.equivalent_carton_count }}</td>
                 <td>{{ shipment.destination_iata|default:"-" }}</td>
                 <td>{{ shipment.shipper_name }}</td>
                 <td>{{ shipment.recipient_name }}</td>
-                <td>{{ shipment.created_at|date:"d/m/y H\\hi" }}</td>
-                <td>{{ shipment.ready_at|date:"d/m/y H\\hi"|default:"-" }}</td>
+                <td>
+                  <div class="scan-shipment-date">
+                    <div>{{ shipment.created_at|date:"d/m/y"|default:"-" }}</div>
+                    {% if shipment.created_at %}
+                      <div class="scan-help">{{ shipment.created_at|date:"H\\hi" }}</div>
+                    {% endif %}
+                  </div>
+                </td>
+                <td class="scan-shipment-ready-col">
+                  {% if shipment.ready_at %}
+                    <div class="scan-shipment-date">
+                      <div>{{ shipment.ready_at|date:"d/m/y" }}</div>
+                      <div class="scan-help">{{ shipment.ready_at|date:"H\\hi" }}</div>
+                    </div>
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
                 <td class="status">
-                  <span class="ui-comp-status-pill is-{{ shipment.status_tone }}">{{ shipment.status_label }}</span>
+                  <span class="ui-comp-status-pill scan-shipment-status-pill scan-shipment-status--{{ shipment.status_variant }} is-{{ shipment.status_tone }}">{{ shipment.status_label }}</span>
                 </td>
                 <td>
                   <details class="scan-doc-menu">
@@ -80,7 +101,7 @@
                     </div>
                   </details>
                 </td>
-                <td>
+                <td class="scan-shipment-actions-col">
                   <div class="scan-inline ui-comp-actions">
                     <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_shipment_track' shipment.tracking_token %}?return_to=shipments_ready">
                       {% trans "Suivi" %}
