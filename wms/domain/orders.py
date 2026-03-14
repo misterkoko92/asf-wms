@@ -29,6 +29,7 @@ from ..organization_role_resolvers import (
 )
 from ..scan_helpers import build_packing_bins
 from ..shipment_helpers import build_destination_label
+from ..shipment_party_rules import normalize_party_contact_to_org
 from ..shipment_status import sync_shipment_ready_state
 from .stock import (
     StockConsumeResult,
@@ -113,6 +114,8 @@ def _resolve_destination_for_order(
         if destination:
             return destination
 
+    candidate_contacts = []
+    seen_contact_ids = set()
     for contact in (
         recipient_contact,
         shipper_contact,
@@ -122,6 +125,13 @@ def _resolve_destination_for_order(
     ):
         if not contact:
             continue
+        for candidate in (contact, normalize_party_contact_to_org(contact)):
+            if not candidate or candidate.pk in seen_contact_ids:
+                continue
+            seen_contact_ids.add(candidate.pk)
+            candidate_contacts.append(candidate)
+
+    for contact in candidate_contacts:
         scoped_destination_ids = contact_destination_ids(contact)
         if not scoped_destination_ids:
             continue
@@ -173,6 +183,8 @@ def _build_shipment_defaults_from_order(order: Order):
         shipper_contact=shipper_contact,
         recipient_contact=recipient_contact,
     )
+    shipper_org = normalize_party_contact_to_org(shipper_contact)
+    recipient_org = normalize_party_contact_to_org(recipient_contact)
 
     if is_org_roles_engine_enabled():
         if shipper_contact is None:
@@ -183,12 +195,12 @@ def _build_shipment_defaults_from_order(order: Order):
             raise StockError("Escale requise.")
         try:
             resolve_shipper_for_operation(
-                shipper_org=shipper_contact,
+                shipper_org=shipper_org,
                 destination=destination,
             )
             resolve_recipient_binding_for_operation(
-                shipper_org=shipper_contact,
-                recipient_org=recipient_contact,
+                shipper_org=shipper_org,
+                recipient_org=recipient_org,
                 destination=destination,
             )
         except OrganizationRoleResolutionError as exc:
