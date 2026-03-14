@@ -13,6 +13,8 @@ PRE_COMMIT ?= $(shell [ -x .venv/bin/pre-commit ] && echo .venv/bin/pre-commit |
 COVERAGE ?= $(shell [ -x .venv/bin/coverage ] && echo .venv/bin/coverage || echo coverage)
 COVERAGE_FAIL_UNDER ?= 93
 COVERAGE_TEST_ARGS ?= --exclude-tag=next_frontend --exclude-tag=next_ui
+TEST_PARALLEL ?= 4
+TEST_PARALLEL_ARGS ?= --parallel $(TEST_PARALLEL)
 COMPILEMESSAGES_IGNORE ?= --ignore='.venv' --ignore='.venv/*' --ignore='.worktrees' --ignore='.worktrees/*' --ignore='frontend-next' --ignore='frontend-next/*'
 UV_EXPORT_ARGS ?= --frozen --no-header --no-annotate --no-hashes
 DEPLOY_ENV_FILE ?= .env.deploy.example
@@ -117,7 +119,7 @@ audit-soft:
 security: bandit audit
 
 test:
-	$(PYTHON) manage.py test
+	$(PYTHON) manage.py test $(TEST_PARALLEL_ARGS)
 
 test-next-ui:
 	RUN_UI_TESTS=1 $(PYTHON) manage.py test wms.tests.core.tests_ui.NextUiTests
@@ -138,7 +140,9 @@ scan-queue-runtime-check:
 	$(PYTHON) manage.py check_document_scan_runtime --max-failed=0 --max-stale-processing=0
 
 coverage: compilemessages
-	$(COVERAGE) run --rcfile=.coveragerc manage.py test $(COVERAGE_TEST_ARGS)
+	$(COVERAGE) erase
+	$(COVERAGE) run --rcfile=.coveragerc manage.py test $(COVERAGE_TEST_ARGS) $(TEST_PARALLEL_ARGS)
+	$(COVERAGE) combine
 	$(COVERAGE) report -m --fail-under=$(COVERAGE_FAIL_UNDER)
 	$(COVERAGE) xml
 
