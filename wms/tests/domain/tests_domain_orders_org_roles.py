@@ -50,6 +50,17 @@ class DomainOrdersOrgRolesTests(TestCase):
             is_active=True,
         )
 
+    def _create_person(self, name: str, *, organization: Contact) -> Contact:
+        first_name, last_name = name.split(" ", 1)
+        return Contact.objects.create(
+            name=name,
+            contact_type=ContactType.PERSON,
+            first_name=first_name,
+            last_name=last_name,
+            organization=organization,
+            is_active=True,
+        )
+
     def _build_order(self, *, shipper, recipient, destination):
         order = Order.objects.create(
             status=OrderStatus.DRAFT,
@@ -104,6 +115,48 @@ class DomainOrdersOrgRolesTests(TestCase):
 
         self.assertEqual(shipment.shipper_contact_ref_id, shipper.id)
         self.assertEqual(shipment.recipient_contact_ref_id, recipient.id)
+        self.assertEqual(shipment.destination_id, destination.id)
+
+    def test_create_shipment_for_order_normalizes_person_contacts_to_org_roles(self):
+        destination = self._create_destination("RUN")
+        shipper_org = self._create_org("Shipper Org RUN")
+        recipient_org = self._create_org("Recipient Org RUN")
+        shipper_person = self._create_person("Sam Shipper", organization=shipper_org)
+        recipient_person = self._create_person("Ana Recipient", organization=recipient_org)
+
+        shipper_assignment = OrganizationRoleAssignment.objects.create(
+            organization=shipper_org,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
+        OrganizationRoleAssignment.objects.create(
+            organization=recipient_org,
+            role=OrganizationRole.RECIPIENT,
+            is_active=True,
+        )
+        ShipperScope.objects.create(
+            role_assignment=shipper_assignment,
+            destination=destination,
+            all_destinations=False,
+            is_active=True,
+        )
+        RecipientBinding.objects.create(
+            shipper_org=shipper_org,
+            recipient_org=recipient_org,
+            destination=destination,
+            is_active=True,
+        )
+
+        order = self._build_order(
+            shipper=shipper_person,
+            recipient=recipient_person,
+            destination=destination,
+        )
+
+        shipment = create_shipment_for_order(order=order)
+
+        self.assertEqual(shipment.shipper_contact_ref_id, shipper_person.id)
+        self.assertEqual(shipment.recipient_contact_ref_id, recipient_person.id)
         self.assertEqual(shipment.destination_id, destination.id)
 
     def test_create_shipment_for_order_blocks_unbound_recipient_when_engine_enabled(self):

@@ -1,6 +1,7 @@
 from django.utils.text import slugify
 
 from wms.models import Flight, Shipment, ShipmentStatus, VolunteerProfile
+from wms.shipment_party_rules import build_party_contact_reference, normalize_party_contact_to_org
 
 ELIGIBLE_SHIPMENT_STATUSES = (
     ShipmentStatus.PACKED,
@@ -47,40 +48,9 @@ def get_run_shipments(run):
     return queryset
 
 
-def _contact_emails(contact):
-    emails = []
-    for value in (getattr(contact, "email", ""), getattr(contact, "email2", "")):
-        normalized = str(value or "").strip()
-        if normalized and normalized.lower() not in {item.lower() for item in emails}:
-            emails.append(normalized)
-    return emails
-
-
-def _build_contact_reference(contact, *, fallback_name=""):
-    if contact is None:
-        name = str(fallback_name or "").strip()
-        return {
-            "contact_id": None,
-            "contact_name": name,
-            "notification_emails": [],
-        }
-
-    emails = _contact_emails(contact)
-    return {
-        "contact_id": contact.pk,
-        "contact_name": contact.name,
-        "contact_title": getattr(contact, "title", ""),
-        "contact_first_name": getattr(contact, "first_name", ""),
-        "contact_last_name": getattr(contact, "last_name", ""),
-        "notification_emails": emails,
-        "phone": getattr(contact, "phone", ""),
-        "phone2": getattr(contact, "phone2", ""),
-    }
-
-
 def build_shipper_reference(shipment):
-    contact = shipment.shipper_contact_ref
-    reference = _build_contact_reference(contact, fallback_name=shipment.shipper_name)
+    contact = normalize_party_contact_to_org(shipment.shipper_contact_ref)
+    reference = build_party_contact_reference(contact, fallback_name=shipment.shipper_name)
     association_profile = (
         contact.association_profiles.prefetch_related("portal_contacts").order_by("id").first()
         if contact is not None
@@ -96,8 +66,8 @@ def build_shipper_reference(shipment):
 
 
 def build_recipient_reference(shipment):
-    return _build_contact_reference(
-        shipment.recipient_contact_ref,
+    return build_party_contact_reference(
+        normalize_party_contact_to_org(shipment.recipient_contact_ref),
         fallback_name=shipment.recipient_name,
     )
 
@@ -106,8 +76,9 @@ def build_correspondent_reference(shipment):
     contact = shipment.correspondent_contact_ref or getattr(
         shipment.destination, "correspondent_contact", None
     )
+    normalized_contact = normalize_party_contact_to_org(contact)
     fallback_name = shipment.correspondent_name or getattr(contact, "name", "") or ""
-    return _build_contact_reference(contact, fallback_name=fallback_name)
+    return build_party_contact_reference(normalized_contact, fallback_name=fallback_name)
 
 
 def get_run_volunteers(run):

@@ -6,7 +6,6 @@ from contacts.destination_scope import (
     contact_destination_ids,
     contact_primary_destination_id,
 )
-from contacts.models import ContactType
 
 from .contact_filters import (
     TAG_CORRESPONDENT,
@@ -23,6 +22,7 @@ from .models import (
     ShipperScope,
 )
 from .scan_helpers import parse_int, resolve_product
+from .shipment_party_rules import normalize_party_contact_to_org
 
 
 def _destination_ids(contact):
@@ -38,9 +38,8 @@ def _linked_shipper_ids(contact):
 
 
 def _contact_organization_id(contact):
-    if contact.contact_type == ContactType.ORGANIZATION:
-        return contact.id
-    return contact.organization_id
+    organization = normalize_party_contact_to_org(contact)
+    return organization.id if organization else None
 
 
 def _current_window_q(prefix=""):
@@ -180,14 +179,41 @@ def build_shipment_contact_payload():
                 ),
             }
         )
+    correspondent_destination_ids_by_contact = {}
+    for destination in destinations:
+        if not destination.correspondent_contact_id:
+            continue
+        correspondent_destination_ids_by_contact.setdefault(
+            destination.correspondent_contact_id, set()
+        ).add(destination.id)
+    destination_correspondents = [
+        destination.correspondent_contact
+        for destination in destinations
+        if destination.correspondent_contact_id
+    ]
+    correspondent_contacts_by_id = {contact.id: contact for contact in correspondent_contacts}
+    correspondent_contacts_by_id.update(
+        {contact.id: contact for contact in destination_correspondents if contact}
+    )
     correspondent_contacts_json = [
         {
             "id": contact.id,
             "name": contact.name,
-            "destination_id": _primary_destination_id(contact),
-            "destination_ids": _destination_ids(contact),
+            "destination_id": (
+                _primary_destination_id(contact)
+                or (
+                    sorted(correspondent_destination_ids_by_contact.get(contact.id, []))[0]
+                    if len(correspondent_destination_ids_by_contact.get(contact.id, [])) == 1
+                    else None
+                )
+            ),
+            "destination_ids": sorted(
+                set(_destination_ids(contact)).union(
+                    correspondent_destination_ids_by_contact.get(contact.id, set())
+                )
+            ),
         }
-        for contact in correspondent_contacts
+        for contact in correspondent_contacts_by_id.values()
     ]
     return (
         destinations_json,

@@ -264,6 +264,28 @@ class FormsTests(TestCase):
 
         self.assertEqual(form.fields["correspondent_contact"].initial, correspondent.id)
 
+    def test_scan_shipment_form_init_keeps_destination_correspondent_without_tag(self):
+        correspondent = self._create_contact("Correspondent Untagged")
+        destination = Destination.objects.create(
+            city="Dakar",
+            iata_code="DKR-AUTO",
+            country="Senegal",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        shipper_tag = ContactTag.objects.create(name="expediteur")
+        shipper = self._create_contact("Shipper Dakar")
+        shipper.tags.add(shipper_tag)
+        shipper.destinations.add(destination)
+
+        form = ScanShipmentForm(destination_id=str(destination.id))
+
+        self.assertEqual(
+            list(form.fields["correspondent_contact"].queryset.values_list("id", flat=True)),
+            [correspondent.id],
+        )
+        self.assertEqual(form.fields["correspondent_contact"].initial, correspondent.id)
+
     def test_scan_shipment_form_init_without_destination_hides_contact_selectors(self):
         global_shipper = self._create_contact("Global Shipper")
         shipper_tag = ContactTag.objects.create(name="expediteur")
