@@ -59,6 +59,21 @@ class ScanBootstrapUiTests(TestCase):
             location=location,
         )
 
+    def _scan_nav_html(self, response):
+        content = response.content.decode()
+        nav_start = content.index(
+            '<nav class="scan-nav scan-nav-bootstrap navbar navbar-expand-xl ui-comp-panel"'
+        )
+        nav_end = content.index("</nav>", nav_start)
+        return content[nav_start:nav_end]
+
+    def _assert_nav_labels_in_order(self, nav_html, expected_labels):
+        last_position = -1
+        for label in expected_labels:
+            current_position = nav_html.index(label)
+            self.assertGreater(current_position, last_position)
+            last_position = current_position
+
     def test_scan_context_exposes_bootstrap_flag_enabled_by_default(self):
         response = self.client.get(reverse("scan:scan_stock"))
         self.assertEqual(response.status_code, 200)
@@ -108,6 +123,76 @@ class ScanBootstrapUiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Planning")
         self.assertContains(response, reverse("planning:run_list"))
+
+    def test_scan_nav_orders_top_level_tabs_for_standard_staff(self):
+        response = self.client.get(reverse("scan:scan_stock"))
+
+        self.assertEqual(response.status_code, 200)
+        nav_html = self._scan_nav_html(response)
+        self._assert_nav_labels_in_order(
+            nav_html,
+            [
+                "Tableau De Bord",
+                "Voir Les États",
+                "Réception",
+                "Préparation",
+                "Planning",
+                "Suivi Des Expéditions",
+                "Gestion",
+                "Compte",
+            ],
+        )
+        self.assertNotIn("Facturation", nav_html)
+        self.assertNotRegex(nav_html, r">\s*Admin\s*</button>")
+
+    def test_scan_nav_orders_top_level_tabs_for_billing_staff(self):
+        billing_group, _ = Group.objects.get_or_create(name=BILLING_STAFF_GROUP_NAME)
+        self.staff_user.groups.add(billing_group)
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("scan:scan_stock"))
+
+        self.assertEqual(response.status_code, 200)
+        nav_html = self._scan_nav_html(response)
+        self._assert_nav_labels_in_order(
+            nav_html,
+            [
+                "Tableau De Bord",
+                "Voir Les États",
+                "Réception",
+                "Préparation",
+                "Planning",
+                "Suivi Des Expéditions",
+                "Facturation",
+                "Gestion",
+                "Compte",
+            ],
+        )
+        self.assertNotRegex(nav_html, r">\s*Admin\s*</button>")
+
+    def test_scan_nav_orders_top_level_tabs_for_superuser(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_stock"))
+
+        self.assertEqual(response.status_code, 200)
+        nav_html = self._scan_nav_html(response)
+        self._assert_nav_labels_in_order(
+            nav_html,
+            [
+                "Tableau De Bord",
+                "Voir Les États",
+                "Réception",
+                "Préparation",
+                "Planning",
+                "Suivi Des Expéditions",
+                "Facturation",
+                "Gestion",
+                "Admin",
+                "Compte",
+            ],
+        )
+        self.assertRegex(nav_html, r">\s*Admin\s*</button>")
 
     def test_scan_nav_shows_billing_dropdown_for_superuser(self):
         self.client.force_login(self.superuser)
