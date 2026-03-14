@@ -19,6 +19,7 @@ from .print_context import (
 )
 from .print_renderer import get_template_layout, render_layout_from_layout
 from .status_badges import BADGE_TONE_PROGRESS, BADGE_TONE_READY, resolve_status_tone
+from .status_presenters import present_shipment_status
 from .unit_equivalence import ShipmentUnitInput, resolve_shipment_unit_count
 from .view_utils import resolve_contact_by_name
 
@@ -134,19 +135,21 @@ def _shipment_progress_label(*, total, ready):
         return _("Création")
     if ready < total:
         return _("En cours (%(ready)s/%(total)s)") % {"ready": ready, "total": total}
-    return _("Prêt")
+    return present_shipment_status(ShipmentStatus.PACKED)["label"]
 
 
 def _shipment_status_label(shipment, progress_label):
     if shipment.status == ShipmentStatus.DRAFT:
-        base_label = _("Brouillon")
+        return present_shipment_status(
+            shipment,
+            is_disputed=getattr(shipment, "is_disputed", False),
+        )["label"]
     elif shipment.status in STATUS_LOCKED_SHIPMENT:
-        try:
-            base_label = ShipmentStatus(shipment.status).label
-        except ValueError:
-            base_label = shipment.status
-    else:
-        base_label = progress_label
+        return present_shipment_status(
+            shipment,
+            is_disputed=getattr(shipment, "is_disputed", False),
+        )["label"]
+    base_label = progress_label
     if getattr(shipment, "is_disputed", False):
         return _("Litige - %(label)s") % {"label": base_label}
     return base_label

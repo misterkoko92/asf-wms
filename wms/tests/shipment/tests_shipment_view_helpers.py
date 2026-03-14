@@ -396,7 +396,7 @@ class ShipmentViewHelpersTests(TestCase):
         self.assertEqual(rows[1]["status_tone"], "progress")
         self.assertEqual(rows[1]["destination_iata"], "CDG")
         self.assertEqual(rows[2]["status_label"], ShipmentStatus(ShipmentStatus.SHIPPED).label)
-        self.assertEqual(rows[2]["status_tone"], "progress")
+        self.assertEqual(rows[2]["status_tone"], "info")
         self.assertFalse(rows[2]["can_edit"])
 
     def test_build_shipments_ready_rows_uses_ready_tone_for_ready_unlocked_shipment(self):
@@ -437,7 +437,7 @@ class ShipmentViewHelpersTests(TestCase):
 
         rows = build_shipments_ready_rows([ready])
 
-        self.assertEqual(rows[0]["status_label"], "Prêt")
+        self.assertEqual(rows[0]["status_label"], "Disponible")
         self.assertEqual(rows[0]["status_tone"], "ready")
         self.assertEqual(rows[0]["status_variant"], "ready")
         self.assertTrue(rows[0]["can_edit"])
