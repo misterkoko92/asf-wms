@@ -16,7 +16,8 @@
           <thead>
             <tr>
               <th>{% trans "Référence" %}</th>
-              <th>{% trans "Statut" %}</th>
+              <th>{% trans "Statut commande" %}</th>
+              <th>{% trans "Statut expédition" %}</th>
               <th>{% trans "Escale" %}</th>
               <th>{% trans "Destinataire" %}</th>
               <th>{% trans "Date de création" %}</th>
@@ -38,9 +39,18 @@
                   {% endif %}
                 </td>
                 <td>
-                  <span class="{% status_portal_badge_class order.status 'order' %}">
-                    {{ order.get_status_display }}
+                  <span class="{% status_portal_badge_class order.order_status_display.value order.order_status_display.domain order.order_status_display.is_disputed %}">
+                    {{ order.order_status_display.label }}
                   </span>
+                </td>
+                <td>
+                  {% if order.shipment_status_display.value %}
+                    <span class="{% status_portal_badge_class order.shipment_status_display.value order.shipment_status_display.domain order.shipment_status_display.is_disputed %}">
+                      {{ order.shipment_status_display.label }}
+                    </span>
+                  {% else %}
+                    -
+                  {% endif %}
                 </td>
                 <td>{{ order.escale_label|default:"-" }}</td>
                 <td>{{ order.recipient_name }}</td>

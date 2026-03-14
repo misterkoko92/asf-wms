@@ -50,6 +50,11 @@ from .shipment_party_rules import (
     eligible_recipient_contacts_for_shipper_destination,
     normalize_party_contact_to_org,
 )
+from .status_presenters import (
+    present_order_review_status,
+    present_order_shipment_status,
+    present_order_status,
+)
 from .upload_utils import validate_upload
 from .view_permissions import association_required
 from .view_utils import sorted_choices
@@ -78,6 +83,13 @@ ERROR_ORDER_NO_DOCUMENT_SELECTED = _("Aucun fichier sélectionné.")
 MESSAGE_ORDER_SENT = _("Commande envoyée.")
 MESSAGE_ORDER_DOCUMENT_ADDED = _("Document ajouté.")
 MESSAGE_ORDER_DOCUMENTS_ADDED = _("Documents ajoutés.")
+
+
+def _decorate_order_status_displays(order):
+    order.order_status_display = present_order_status(order)
+    order.review_status_display = present_order_review_status(order)
+    order.shipment_status_display = present_order_shipment_status(order)
+    return order
 
 
 def _get_dashboard_orders(profile):
@@ -515,6 +527,7 @@ def _handle_order_document_uploads(request, order):
 
 
 def _build_order_detail_context(order):
+    _decorate_order_status_displays(order)
     carton_format = get_default_carton_format()
     line_rows, total_estimated_cartons = build_order_line_estimates(
         order.lines.select_related("product"),
@@ -527,6 +540,9 @@ def _build_order_detail_context(order):
         "order_documents": order.documents.all(),
         "order_doc_types": sorted_choices(OrderDocumentType.choices),
         "can_upload_docs": order.review_status == OrderReviewStatus.APPROVED,
+        "order_status_display": order.order_status_display,
+        "review_status_display": order.review_status_display,
+        "shipment_status_display": order.shipment_status_display,
     }
 
 
@@ -535,7 +551,7 @@ def _build_order_detail_context(order):
 @require_http_methods(["GET"])
 def portal_dashboard(request):
     profile = request.association_profile
-    orders = _get_dashboard_orders(profile)
+    orders = [_decorate_order_status_displays(order) for order in _get_dashboard_orders(profile)]
     return render(request, TEMPLATE_PORTAL_DASHBOARD, {"orders": orders})
 
 

@@ -2888,6 +2888,12 @@ h3 {
   color: var(--wms-status-info-text);
 }
 
+.portal-badge.is-info {
+  background: var(--wms-status-info-bg);
+  border-color: var(--wms-status-info-border);
+  color: var(--wms-status-info-text);
+}
+
 .portal-badge.is-ready {
   background: var(--wms-status-ready-bg);
   border-color: var(--wms-status-ready-border);

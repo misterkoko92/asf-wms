@@ -24,6 +24,8 @@ from wms.models import (
     OrderDocumentType,
     OrderReviewStatus,
     OrderStatus,
+    Shipment,
+    ShipmentStatus,
 )
 
 
@@ -115,9 +117,17 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "btn btn-tertiary btn-sm")
 
     def test_portal_pages_apply_status_badge_levels(self):
+        shipment = Shipment.objects.create(
+            shipper_name="ASF",
+            recipient_name="Destinataire Bootstrap",
+            destination_address="2 Rue Livraison\n75001 Paris\nFrance",
+            destination_country="France",
+            status=ShipmentStatus.SHIPPED,
+        )
+        self.order.shipment = shipment
         self.order.status = OrderStatus.READY
         self.order.review_status = OrderReviewStatus.CHANGES_REQUESTED
-        self.order.save(update_fields=["status", "review_status"])
+        self.order.save(update_fields=["shipment", "status", "review_status"])
         OrderDocument.objects.create(
             order=self.order,
             doc_type=OrderDocumentType.OTHER,
@@ -135,6 +145,7 @@ class PortalBootstrapUiTests(TestCase):
         )
         self.assertEqual(detail_response.status_code, 200)
         self.assertContains(detail_response, "portal-badge is-ready")
+        self.assertContains(detail_response, "portal-badge is-info")
         self.assertContains(detail_response, "portal-badge is-warning")
         self.assertContains(detail_response, "portal-badge is-error")
 
