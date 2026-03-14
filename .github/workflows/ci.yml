@@ -91,7 +91,7 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          COVERAGE_FAIL_UNDER=93 uv run make coverage
+          COVERAGE_FAIL_UNDER=93 TEST_PARALLEL=4 uv run make coverage
 
       - name: Dependency vulnerability audit (informational)
         continue-on-error: true

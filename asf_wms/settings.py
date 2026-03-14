@@ -134,6 +134,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "asf_wms.wsgi.application"
+TEST_RUNNER = "asf_wms.test_runner.LanguageResetDiscoverRunner"
 
 USE_MYSQL_FOR_TESTS = _env_bool("USE_MYSQL_FOR_TESTS")
 USE_SQLITE_FOR_TESTS = RUNNING_TESTS and not USE_MYSQL_FOR_TESTS
