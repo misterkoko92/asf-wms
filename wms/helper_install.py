@@ -4,7 +4,9 @@ import platform
 import textwrap
 import zipfile
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
+from django.core import signing
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse, JsonResponse
 
@@ -16,6 +18,9 @@ from .helper_versioning import build_helper_version_policy
 HELPER_RUNTIME_REQUIREMENTS = """pypdf==6.7.5
 pywin32>=306; platform_system == "Windows"
 """
+HELPER_INSTALL_TOKEN_QUERY_PARAM = "installer_token"  # nosec B105
+HELPER_INSTALL_TOKEN_SALT = "wms.helper_install"  # nosec B105
+HELPER_INSTALL_TOKEN_MAX_AGE_SECONDS = 3600
 HELPER_BUNDLE_FILES = (
     "tools/planning_comm_helper/__init__.py",
     "tools/planning_comm_helper/autostart.py",
@@ -43,6 +48,63 @@ def _absolute_install_url(*, install_url: str, request=None) -> str:
     if request is None:
         return install_url
     return request.build_absolute_uri(install_url)
+
+
+def _install_url_path(install_url: str) -> str:
+    return urlsplit(install_url).path
+
+
+def _signed_helper_install_token(*, install_url: str, app_label: str, system_name: str) -> str:
+    return signing.dumps(
+        {
+            "app_label": app_label,
+            "install_path": _install_url_path(install_url),
+            "system": system_name,
+        },
+        salt=HELPER_INSTALL_TOKEN_SALT,
+    )
+
+
+def _append_query_param(url: str, *, name: str, value: str) -> str:
+    if not url:
+        return ""
+    parsed = urlsplit(url)
+    query = parse_qsl(parsed.query, keep_blank_values=True)
+    query.append((name, value))
+    return urlunsplit(
+        (
+            parsed.scheme,
+            parsed.netloc,
+            parsed.path,
+            urlencode(query),
+            parsed.fragment,
+        )
+    )
+
+
+def _signed_install_url(
+    *,
+    install_url: str,
+    app_label: str,
+    system_name: str,
+    request=None,
+    absolute: bool = False,
+) -> str:
+    if not install_url or not system_name:
+        return ""
+    base_url = (
+        _absolute_install_url(install_url=install_url, request=request) if absolute else install_url
+    )
+    token = _signed_helper_install_token(
+        install_url=install_url,
+        app_label=app_label,
+        system_name=system_name,
+    )
+    return _append_query_param(
+        base_url,
+        name=HELPER_INSTALL_TOKEN_QUERY_PARAM,
+        value=token,
+    )
 
 
 def _normalize_platform_hint(value):
@@ -75,6 +137,35 @@ def _request_client_system(request):
 
 def _resolved_system(*, request=None, system=None):
     return _request_client_system(request) or system or platform.system()
+
+
+def resolve_helper_installer_access(request, *, app_label: str):
+    if request is None:
+        return None
+    raw_token = str(getattr(request, "GET", {}).get(HELPER_INSTALL_TOKEN_QUERY_PARAM) or "").strip()
+    if not raw_token:
+        return None
+    try:
+        payload = signing.loads(
+            raw_token,
+            salt=HELPER_INSTALL_TOKEN_SALT,
+            max_age=HELPER_INSTALL_TOKEN_MAX_AGE_SECONDS,
+        )
+    except signing.BadSignature:
+        return None
+    expected_path = request.path
+    install_path = str(payload.get("install_path") or "")
+    signed_app_label = str(payload.get("app_label") or "")
+    system_name = _normalize_platform_hint(payload.get("system"))
+    if install_path != expected_path or signed_app_label != app_label:
+        return None
+    if system_name not in {"Darwin", "Windows"}:
+        return None
+    return {
+        "app_label": signed_app_label,
+        "install_path": install_path,
+        "system": system_name,
+    }
 
 
 def _helper_bundle_archive(repo_root: Path | None = None) -> bytes:
@@ -214,10 +305,23 @@ def _build_windows_echo_block(bundle_base64: str) -> str:
 def build_helper_installer_payload(
     *, app_label="asf-wms", system=None, repo_root=None, request=None, install_url=None
 ):
-    system_name = _resolved_system(request=request, system=system)
-    absolute_install_url = _absolute_install_url(
+    signed_access = resolve_helper_installer_access(request, app_label=app_label)
+    system_name = _resolved_system(
+        request=None if signed_access else request,
+        system=signed_access["system"] if signed_access else system,
+    )
+    signed_install_url = _signed_install_url(
         install_url=install_url or "",
+        app_label=app_label,
+        system_name=system_name,
         request=request,
+    )
+    absolute_install_url = _signed_install_url(
+        install_url=install_url or "",
+        app_label=app_label,
+        system_name=system_name,
+        request=request,
+        absolute=True,
     )
     if system_name == "Darwin":
         bundle_base64 = _helper_bundle_base64(repo_root=repo_root)
@@ -228,6 +332,7 @@ def build_helper_installer_payload(
             "download_label": "Installer le helper (macOS)",
             "filename": f"install-{app_label}-helper.command",
             "command": _macos_install_command(absolute_install_url) if absolute_install_url else "",
+            "install_url": signed_install_url,
             "script": _build_macos_installer_script(bundle_base64=bundle_base64),
             "installed_app_path": str(installed_app_path),
             "post_install_guidance": (
@@ -249,6 +354,7 @@ def build_helper_installer_payload(
                 if absolute_install_url
                 else ""
             ),
+            "install_url": signed_install_url,
             "script": _build_windows_installer_script(bundle_base64=bundle_base64),
             "installed_app_path": "",
             "post_install_guidance": "",
@@ -288,7 +394,7 @@ def build_helper_install_context(
     return {
         **payload,
         **version_policy,
-        "install_url": install_url,
+        "install_url": payload.get("install_url", install_url),
         "error": "",
     }
 

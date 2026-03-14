@@ -5,9 +5,10 @@ from unittest import mock
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.http import FileResponse
-from django.test import TestCase
+from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
+from wms.helper_install import build_helper_install_context
 from wms.models import (
     PlanningAssignment,
     PlanningAssignmentSource,
@@ -30,6 +31,7 @@ from wms.planning.communications import generate_version_drafts
 
 class PlanningViewTests(TestCase):
     def setUp(self):
+        self.factory = RequestFactory()
         self.staff_user = get_user_model().objects.create_user(
             username="planning-staff",
             password="pass1234",  # pragma: allowlist secret
@@ -1190,6 +1192,42 @@ class PlanningViewTests(TestCase):
             response["Content-Disposition"],
             'attachment; filename="install-asf-planning-helper.command"',
         )
+        self.assertIn("#!/bin/zsh", response.content.decode())
+
+    @mock.patch("wms.views_planning.platform.system", return_value="Linux")
+    @mock.patch("wms.helper_install._helper_bundle_base64", return_value="QUJD")
+    def test_version_detail_helper_installer_allows_signed_anonymous_request(
+        self,
+        _bundle_mock,
+        _platform_mock,
+    ):
+        data = self.make_published_version_with_communication_drafts()
+        request = self.factory.get(
+            reverse("planning:version_detail", args=[data["version"].pk]),
+            HTTP_USER_AGENT=(
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15"
+            ),
+        )
+        context = build_helper_install_context(
+            install_url=reverse(
+                "planning:version_communication_helper_installer",
+                args=[data["version"].pk],
+            ),
+            app_label="asf-planning",
+            system="Linux",
+            request=request,
+        )
+
+        self.client.logout()
+        response = self.client.get(context["install_url"])
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response["Content-Disposition"],
+            'attachment; filename="install-asf-planning-helper.command"',
+        )
+        self.assertEqual(response["X-ASF-Planning-Version"], str(data["version"].pk))
         self.assertIn("#!/bin/zsh", response.content.decode())
 
     def test_version_detail_renders_visual_html_editor_for_email_drafts_only(self):
