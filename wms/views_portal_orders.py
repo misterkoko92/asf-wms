@@ -46,6 +46,10 @@ from .portal_recipient_sync import sync_association_recipient_to_contact
 from .scan_helpers import build_product_selection_data
 from .scan_helpers import parse_int as parse_int_safe
 from .services import StockError
+from .shipment_party_rules import (
+    eligible_recipient_contacts_for_shipper_destination,
+    normalize_party_contact_to_org,
+)
 from .upload_utils import validate_upload
 from .view_permissions import association_required
 from .view_utils import sorted_choices
@@ -135,7 +139,7 @@ def _build_destination_options(destinations):
     return [{"id": str(destination.id), "label": str(destination)} for destination in destinations]
 
 
-def _build_recipient_options(profile, recipients):
+def _build_recipient_options(profile, recipients, *, allowed_destination_ids_by_recipient=None):
     def _build_recipient_label(recipient):
         label = recipient.get_display_name()
         if recipient.destination:
@@ -153,6 +157,11 @@ def _build_recipient_options(profile, recipients):
                 "id": str(recipient.id),
                 "label": _build_recipient_label(recipient),
                 "destination_id": str(recipient.destination_id or ""),
+                "allowed_destination_ids": (
+                    allowed_destination_ids_by_recipient.get(str(recipient.id))
+                    if allowed_destination_ids_by_recipient is not None
+                    else None
+                ),
             }
             for recipient in recipients
         ],
@@ -160,18 +169,72 @@ def _build_recipient_options(profile, recipients):
     return sorted(options, key=lambda item: str(item["label"] or "").lower())
 
 
-def _filter_recipient_options(recipient_options, destination_id):
+def _filter_recipient_options(recipient_options, destination_id, *, allowed_recipient_ids=None):
     selected_destination_id = (destination_id or "").strip()
     if not selected_destination_id:
         return [option for option in recipient_options if option["id"] == RECIPIENT_SELF]
 
-    return [
+    filtered_options = [
         option
         for option in recipient_options
         if option["id"] == RECIPIENT_SELF
         or not option.get("destination_id")
         or option.get("destination_id") == selected_destination_id
     ]
+    if allowed_recipient_ids is None:
+        return filtered_options
+    return [
+        option
+        for option in filtered_options
+        if option["id"] == RECIPIENT_SELF or option["id"] in allowed_recipient_ids
+    ]
+
+
+def _allowed_recipient_option_ids(*, selected_destination, allowed_destination_ids_by_recipient):
+    if selected_destination is None or allowed_destination_ids_by_recipient is None:
+        return None
+    selected_destination_id = selected_destination.id
+    return {
+        recipient_id
+        for recipient_id, destination_ids in allowed_destination_ids_by_recipient.items()
+        if selected_destination_id in destination_ids
+    }
+
+
+def _allowed_destination_ids_by_recipient(profile, recipients, destinations):
+    if not is_org_roles_engine_enabled():
+        return None
+
+    recipient_contact_by_id = {
+        recipient.id: sync_association_recipient_to_contact(recipient) for recipient in recipients
+    }
+    allowed_destination_ids_by_recipient = {str(recipient.id): set() for recipient in recipients}
+
+    for destination in destinations:
+        allowed_contacts = eligible_recipient_contacts_for_shipper_destination(
+            shipper_contact=profile.contact,
+            destination=destination,
+        )
+        allowed_org_ids = {
+            normalized.id
+            for contact in allowed_contacts
+            if (normalized := normalize_party_contact_to_org(contact)) is not None
+        }
+        if not allowed_org_ids:
+            continue
+        for recipient in recipients:
+            if recipient.destination_id not in {destination.id, None}:
+                continue
+            normalized_recipient = normalize_party_contact_to_org(
+                recipient_contact_by_id.get(recipient.id)
+            )
+            if normalized_recipient and normalized_recipient.id in allowed_org_ids:
+                allowed_destination_ids_by_recipient[str(recipient.id)].add(destination.id)
+
+    return {
+        recipient_id: sorted(destination_ids)
+        for recipient_id, destination_ids in allowed_destination_ids_by_recipient.items()
+    }
 
 
 def _build_order_create_defaults():
@@ -485,7 +548,16 @@ def portal_order_create(request):
     destinations = _get_active_destinations()
     destination_options = _build_destination_options(destinations)
     destination_by_id = {str(destination.id): destination for destination in destinations}
-    recipient_options_all = _build_recipient_options(profile, recipients)
+    allowed_destination_ids_by_recipient = _allowed_destination_ids_by_recipient(
+        profile,
+        recipients,
+        destinations,
+    )
+    recipient_options_all = _build_recipient_options(
+        profile,
+        recipients,
+        allowed_destination_ids_by_recipient=allowed_destination_ids_by_recipient,
+    )
 
     product_options, product_by_id, available_by_id = build_product_selection_data()
 
@@ -518,9 +590,14 @@ def portal_order_create(request):
             if selected_destination is None:
                 errors.append(ERROR_DESTINATION_INVALID)
 
+        allowed_recipient_ids = _allowed_recipient_option_ids(
+            selected_destination=selected_destination,
+            allowed_destination_ids_by_recipient=allowed_destination_ids_by_recipient,
+        )
         recipient_options = _filter_recipient_options(
             recipient_options_all,
             form_data["destination_id"],
+            allowed_recipient_ids=allowed_recipient_ids,
         )
         if not form_data["recipient_id"]:
             errors.append(ERROR_RECIPIENT_REQUIRED)
@@ -587,13 +664,15 @@ def portal_order_create(request):
         ):
             if is_org_roles_engine_enabled():
                 try:
+                    shipper_org = normalize_party_contact_to_org(profile.contact)
+                    recipient_org = normalize_party_contact_to_org(destination["recipient_contact"])
                     resolve_shipper_for_operation(
-                        shipper_org=profile.contact,
+                        shipper_org=shipper_org,
                         destination=selected_destination,
                     )
                     resolve_recipient_binding_for_operation(
-                        shipper_org=profile.contact,
-                        recipient_org=destination["recipient_contact"],
+                        shipper_org=shipper_org,
+                        recipient_org=recipient_org,
                         destination=selected_destination,
                     )
                 except OrganizationRoleResolutionError as exc:

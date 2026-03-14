@@ -290,10 +290,16 @@
               return optionId === 'self';
             }
             const optionDestinationId = normalizeId(option.destination_id);
+            const allowedDestinationIds = Array.isArray(option.allowed_destination_ids)
+              ? option.allowed_destination_ids.map(normalizeId)
+              : null;
+            const matchesAllowedDestination =
+              !allowedDestinationIds || allowedDestinationIds.includes(selectedDestinationId);
             return (
-              optionId === 'self' ||
-              !optionDestinationId ||
-              optionDestinationId === selectedDestinationId
+              (optionId === 'self' ||
+                !optionDestinationId ||
+                optionDestinationId === selectedDestinationId) &&
+              (optionId === 'self' || matchesAllowedDestination)
             );
           })
         );
