@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from unittest import mock
+from urllib.parse import parse_qs, urlsplit
 
 from django.test import RequestFactory, SimpleTestCase
 
@@ -9,6 +10,7 @@ from wms.helper_install import (
     build_helper_install_context,
     build_helper_installer_payload,
     build_helper_installer_response,
+    resolve_helper_installer_access,
 )
 
 
@@ -46,7 +48,9 @@ class HelperInstallTests(SimpleTestCase):
                 repo_root=Path("/repo"),
             )
 
-        self.assertEqual(context["install_url"], "/scan/helper/install/")
+        parsed = urlsplit(context["install_url"])
+        self.assertEqual(parsed.path, "/scan/helper/install/")
+        self.assertIn("installer_token", parse_qs(parsed.query))
         self.assertEqual(
             context["installed_app_path"],
             "/Users/test/Applications/ASF Planning Communication Helper.app",
@@ -69,12 +73,17 @@ class HelperInstallTests(SimpleTestCase):
                 request=request,
             )
 
-        self.assertEqual(
-            context["command"],
-            'curl -fsSL "http://testserver/scan/helper/install/" | zsh',
+        self.assertTrue(
+            context["command"].startswith('curl -fsSL "http://testserver/scan/helper/install/?')
         )
+        self.assertIn("installer_token=", context["command"])
         self.assertNotIn("/home/messmed/asf-wms", context["command"])
         self.assertIn("Copier la commande", context["post_install_guidance"])
+
+        signed_install_url = context["install_url"]
+        parsed = urlsplit(signed_install_url)
+        self.assertEqual(parsed.path, "/scan/helper/install/")
+        self.assertIn("installer_token", parse_qs(parsed.query))
 
     def test_build_helper_install_context_uses_client_macos_user_agent_before_linux_server(self):
         request = self.factory.get(
@@ -122,6 +131,38 @@ class HelperInstallTests(SimpleTestCase):
         self.assertNotIn("/home/messmed/asf-wms/.venv/bin/python", content)
         self.assertNotIn('cd "/home/messmed/asf-wms"', content)
 
+    def test_build_helper_installer_response_uses_signed_platform_hint_without_browser_headers(
+        self,
+    ):
+        request = self.factory.get("/scan/shipments-ready/")
+        with (
+            mock.patch("pathlib.Path.home", return_value=Path("/Users/test")),
+            mock.patch("wms.helper_install._helper_bundle_base64", return_value="QUJD"),
+        ):
+            context = build_helper_install_context(
+                install_url="/scan/helper/install/",
+                app_label="asf-wms",
+                system="Darwin",
+                repo_root=Path("/repo"),
+                request=request,
+            )
+
+        signed_request = self.factory.get(context["install_url"])
+        with mock.patch("wms.helper_install._helper_bundle_base64", return_value="QUJD"):
+            response = build_helper_installer_response(
+                request=signed_request,
+                app_label="asf-wms",
+                system="Linux",
+                repo_root=Path("/repo"),
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response["Content-Disposition"],
+            'attachment; filename="install-asf-wms-helper.command"',
+        )
+        self.assertIn("#!/bin/zsh", response.content.decode())
+
     def test_build_helper_installer_response_uses_client_windows_platform_hint(self):
         request = self.factory.get(
             "/scan/helper/install/",
@@ -157,4 +198,34 @@ class HelperInstallTests(SimpleTestCase):
         self.assertIn("powershell", context["command"].lower())
         self.assertIn("http://testserver/scan/helper/install/", context["command"])
         self.assertIn("-OutFile", context["command"])
+        self.assertIn("installer_token=", context["command"])
         self.assertNotIn("/home/messmed/asf-wms", context["command"])
+
+    def test_resolve_helper_installer_access_returns_signed_platform(self):
+        request = self.factory.get("/scan/shipments-ready/")
+        with (
+            mock.patch("pathlib.Path.home", return_value=Path("/Users/test")),
+            mock.patch("wms.helper_install._helper_bundle_base64", return_value="QUJD"),
+        ):
+            context = build_helper_install_context(
+                install_url="/scan/helper/install/",
+                app_label="asf-wms",
+                system="Windows",
+                repo_root=Path("/repo"),
+                request=request,
+            )
+
+        signed_request = self.factory.get(context["install_url"])
+        access = resolve_helper_installer_access(
+            signed_request,
+            app_label="asf-wms",
+        )
+
+        self.assertEqual(
+            access,
+            {
+                "app_label": "asf-wms",
+                "install_path": "/scan/helper/install/",
+                "system": "Windows",
+            },
+        )

@@ -56,7 +56,10 @@ from .planning.versioning import clone_version, diff_versions, publish_version
 from .print_pack_engine import PrintPackEngineError, generate_pack
 from .print_pack_graph import GraphPdfConversionError
 from .print_pack_routing import resolve_pack_request
-from .view_permissions import scan_staff_required
+from .view_permissions import (
+    scan_staff_or_helper_installer_token_required,
+    scan_staff_required,
+)
 
 TEMPLATE_RUN_LIST = "planning/run_list.html"
 TEMPLATE_RUN_CREATE = "planning/run_create.html"
@@ -517,7 +520,7 @@ def planning_version_communication_packing_list_pdf(request, version_id, shipmen
         return JsonResponse({"error": _validation_error_message(exc)}, status=409)
 
 
-@scan_staff_required
+@scan_staff_or_helper_installer_token_required(app_label="asf-planning")
 @require_http_methods(["GET"])
 def planning_version_communication_helper_installer(request, version_id):
     version = get_object_or_404(PlanningVersion, pk=version_id)

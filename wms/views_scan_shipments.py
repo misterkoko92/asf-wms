@@ -69,7 +69,10 @@ from .shipment_view_helpers import (
     build_shipments_tracking_rows,
     next_tracking_status,
 )
-from .view_permissions import scan_staff_required
+from .view_permissions import (
+    scan_staff_or_helper_installer_token_required,
+    scan_staff_required,
+)
 from .view_utils import sorted_choices
 from .views_scan_shipments_support import (
     ACTIVE_SHIPMENT,
@@ -396,7 +399,7 @@ def scan_shipments_ready(request):
     )
 
 
-@scan_staff_required
+@scan_staff_or_helper_installer_token_required(app_label=LOCAL_DOCUMENT_HELPER_APP_LABEL)
 @require_http_methods(["GET"])
 def scan_local_document_helper_installer(request):
     return build_helper_installer_response(

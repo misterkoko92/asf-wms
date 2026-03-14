@@ -4,9 +4,10 @@ from unittest import mock
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
-from django.test import TestCase, override_settings
+from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 
+from wms.helper_install import build_helper_install_context
 from wms.models import (
     Carton,
     Shipment,
@@ -23,6 +24,7 @@ class ScanShipmentsViewsTests(TestCase):
             password="pass1234",
             is_staff=True,
         )
+        self.factory = RequestFactory()
         self.client.force_login(self.staff_user)
 
     def _render_stub(self, _request, template_name, context):
@@ -170,6 +172,43 @@ class ScanShipmentsViewsTests(TestCase):
             request=mock.ANY,
             app_label="asf-wms",
         )
+
+    def test_scan_local_document_helper_installer_requires_login_without_signed_token(self):
+        self.client.logout()
+
+        response = self.client.get(reverse("scan:scan_local_document_helper_installer"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/admin/login/", response["Location"])
+
+    @mock.patch("wms.helper_install._helper_bundle_base64", return_value="QUJD")
+    def test_scan_local_document_helper_installer_allows_signed_anonymous_request(
+        self,
+        _bundle_mock,
+    ):
+        request = self.factory.get(
+            "/scan/shipments-ready/",
+            HTTP_USER_AGENT=(
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15"
+            ),
+        )
+        context = build_helper_install_context(
+            install_url=reverse("scan:scan_local_document_helper_installer"),
+            app_label="asf-wms",
+            system="Linux",
+            request=request,
+        )
+
+        self.client.logout()
+        response = self.client.get(context["install_url"])
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response["Content-Disposition"],
+            'attachment; filename="install-asf-wms-helper.command"',
+        )
+        self.assertIn("#!/bin/zsh", response.content.decode())
 
     def test_scan_shipments_ready_exposes_helper_version_metadata(self):
         response = self.client.get(reverse("scan:scan_shipments_ready"))

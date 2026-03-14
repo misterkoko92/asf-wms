@@ -7,6 +7,7 @@ from django.shortcuts import redirect
 from django.urls import NoReverseMatch, reverse
 
 from .compliance import is_role_operation_allowed
+from .helper_install import resolve_helper_installer_access
 from .models import AssociationRecipient, OrganizationRole, OrganizationRoleAssignment
 from .portal_helpers import get_association_profile
 
@@ -45,6 +46,23 @@ def scan_staff_required(view):
         return view(request, *args, **kwargs)
 
     return wrapped
+
+
+def scan_staff_or_helper_installer_token_required(*, app_label):
+    def decorator(view):
+        staff_view = scan_staff_required(view)
+
+        @wraps(view)
+        def wrapped(request, *args, **kwargs):
+            helper_access = resolve_helper_installer_access(request, app_label=app_label)
+            if helper_access is not None:
+                request.helper_installer_access = helper_access
+                return view(request, *args, **kwargs)
+            return staff_view(request, *args, **kwargs)
+
+        return wrapped
+
+    return decorator
 
 
 def volunteer_required(view):
