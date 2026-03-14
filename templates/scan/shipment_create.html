@@ -1,12 +1,23 @@
 {% extends "scan/base.html" %}
-{% load i18n %}
+{% load i18n static %}
 
 {% block title %}
   WMS Scan - {% if is_edit %}{% trans "Modifier expédition" %}{% else %}{% trans "Créer expédition" %}{% endif %}
 {% endblock %}
 
 {% block content %}
-  <div class="scan-card card border-0 ui-comp-card">
+  <div
+    class="scan-card card border-0 ui-comp-card"
+    data-local-document-helper-root="1"
+    data-local-document-helper-origin="{{ local_document_helper_origin }}"
+    data-local-document-helper-install-url="{{ helper_install.install_url }}"
+    data-local-document-helper-install-command="{{ helper_install.command }}"
+    data-local-document-helper-install-label="{{ helper_install.download_label }}"
+    data-local-document-helper-install-platform="{{ helper_install.platform_label }}"
+    data-local-document-helper-install-available="{{ helper_install.available|yesno:'1,0' }}"
+    data-local-document-helper-minimum-version="{{ helper_install.minimum_helper_version }}"
+    data-local-document-helper-latest-version="{{ helper_install.latest_helper_version }}"
+  >
     <h2 class="ui-comp-title">
       {% if is_edit %}
         {% blocktrans with reference=shipment.reference %}Modifier l'expédition {{ reference }}{% endblocktrans %}
@@ -14,6 +25,7 @@
         {% trans "Créer une expédition" %}
       {% endif %}
     </h2>
+    {% include "wms/_local_document_helper_install_panel.html" %}
     {% if form.non_field_errors %}
       <div class="scan-message error">{{ form.non_field_errors }}</div>
     {% endif %}
@@ -173,16 +185,16 @@
       <div class="scan-field">
         <label class="form-label">{% trans "Documents générés" %}</label>
         <div class="scan-docs">
-          <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'shipment_note' %}" target="_blank" rel="noopener">
+          <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'shipment_note' %}" target="_blank" rel="noopener" data-local-document-helper-link="1">
             {% trans "Bon d'expédition" %}
           </a>
-          <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'packing_list_shipment' %}" target="_blank" rel="noopener">
+          <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'packing_list_shipment' %}" target="_blank" rel="noopener" data-local-document-helper-link="1">
             {% trans "Liste colisage (lot)" %}
           </a>
-          <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'donation_certificate' %}" target="_blank" rel="noopener">
+          <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'donation_certificate' %}" target="_blank" rel="noopener" data-local-document-helper-link="1">
             {% trans "Attestation donation" %}
           </a>
-          <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_labels' shipment.id %}" target="_blank" rel="noopener">
+          <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_labels' shipment.id %}" target="_blank" rel="noopener" data-local-document-helper-link="1">
             {% trans "Étiquettes colis" %}
           </a>
         </div>
@@ -193,7 +205,7 @@
         {% if carton_docs %}
           <div class="scan-docs">
             {% for carton in carton_docs %}
-              <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_carton_document' shipment.id carton.id %}" target="_blank" rel="noopener">
+              <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_carton_document' shipment.id carton.id %}" target="_blank" rel="noopener" data-local-document-helper-link="1">
                 {{ carton.code }}
               </a>
             {% endfor %}
@@ -208,7 +220,7 @@
         {% if carton_docs %}
           <div class="scan-docs">
             {% for carton in carton_docs %}
-              <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_label' shipment.id carton.id %}" target="_blank" rel="noopener">
+              <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_label' shipment.id carton.id %}" target="_blank" rel="noopener" data-local-document-helper-link="1">
                 {{ carton.code }}
               </a>
             {% endfor %}
@@ -302,4 +314,5 @@
       {% endfor %}
     </datalist>
   </div>
+  <script src="{% static 'wms/local_document_helper.js' %}"></script>
 {% endblock %}

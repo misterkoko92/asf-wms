@@ -139,6 +139,17 @@ def _build_shipment_form_support(*, extra_carton_options=None, product_options=N
     }
 
 
+def _build_local_document_helper_context(request):
+    return {
+        "helper_install": build_helper_install_context(
+            install_url=reverse(LOCAL_DOCUMENT_HELPER_INSTALL_ROUTE),
+            app_label=LOCAL_DOCUMENT_HELPER_APP_LABEL,
+            request=request,
+        ),
+        "local_document_helper_origin": LOCAL_DOCUMENT_HELPER_ORIGIN,
+    }
+
+
 def _render_shipment_form(
     request,
     *,
@@ -164,6 +175,7 @@ def _render_shipment_form(
         org_roles_engine_enabled=is_org_roles_engine_enabled(),
     )
     context["active"] = active
+    context.update(_build_local_document_helper_context(request))
     if extra_context:
         context.update(extra_context)
     return render(request, TEMPLATE_SHIPMENT_FORM, context)
@@ -244,12 +256,6 @@ def scan_cartons_ready(request):
         {
             "active": ACTIVE_CARTONS_READY,
             "cartons": cartons,
-            "helper_install": build_helper_install_context(
-                install_url=reverse(LOCAL_DOCUMENT_HELPER_INSTALL_ROUTE),
-                app_label=LOCAL_DOCUMENT_HELPER_APP_LABEL,
-                request=request,
-            ),
-            "local_document_helper_origin": LOCAL_DOCUMENT_HELPER_ORIGIN,
             "carton_status_choices": sorted_choices(
                 [
                     (CartonStatus.DRAFT, CartonStatus.DRAFT.label),
@@ -257,6 +263,7 @@ def scan_cartons_ready(request):
                     (CartonStatus.PACKED, CartonStatus.PACKED.label),
                 ]
             ),
+            **_build_local_document_helper_context(request),
         },
     )
 
@@ -323,6 +330,7 @@ def scan_prepare_kits(request):
             "active": ACTIVE_PREPARE_KITS,
             "form": form,
             **page_context,
+            **_build_local_document_helper_context(request),
         },
     )
 
@@ -389,12 +397,7 @@ def scan_shipments_ready(request):
             "shipments": shipments,
             "stale_draft_count": stale_draft_count,
             "stale_draft_days": _stale_drafts_age_days(),
-            "helper_install": build_helper_install_context(
-                install_url=reverse(LOCAL_DOCUMENT_HELPER_INSTALL_ROUTE),
-                app_label=LOCAL_DOCUMENT_HELPER_APP_LABEL,
-                request=request,
-            ),
-            "local_document_helper_origin": LOCAL_DOCUMENT_HELPER_ORIGIN,
+            **_build_local_document_helper_context(request),
         },
     )
 
@@ -529,6 +532,7 @@ def scan_pack(request):
             "packing_result": packing_result,
             "missing_defaults": missing_defaults,
             "confirm_defaults": confirm_defaults,
+            **_build_local_document_helper_context(request),
         },
     )
 

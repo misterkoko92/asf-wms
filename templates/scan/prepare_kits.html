@@ -1,11 +1,23 @@
 {% extends "scan/base.html" %}
-{% load i18n %}
+{% load i18n static %}
 
 {% block title %}WMS Scan - {% trans "Préparer des kits" %}{% endblock %}
 
 {% block content %}
-  <div class="scan-card card border-0 ui-comp-card">
+  <div
+    class="scan-card card border-0 ui-comp-card"
+    data-local-document-helper-root="1"
+    data-local-document-helper-origin="{{ local_document_helper_origin }}"
+    data-local-document-helper-install-url="{{ helper_install.install_url }}"
+    data-local-document-helper-install-command="{{ helper_install.command }}"
+    data-local-document-helper-install-label="{{ helper_install.download_label }}"
+    data-local-document-helper-install-platform="{{ helper_install.platform_label }}"
+    data-local-document-helper-install-available="{{ helper_install.available|yesno:'1,0' }}"
+    data-local-document-helper-minimum-version="{{ helper_install.minimum_helper_version }}"
+    data-local-document-helper-latest-version="{{ helper_install.latest_helper_version }}"
+  >
     <h2 class="h4 mb-3 ui-comp-title">{% trans "Préparer des kits" %}</h2>
+    {% include "wms/_local_document_helper_install_panel.html" %}
     {% if form.non_field_errors %}
       <div class="scan-message error">{{ form.non_field_errors }}</div>
     {% endif %}
@@ -77,7 +89,13 @@
     <div class="scan-field scan-field-gap ui-comp-panel">
       {% if prepare_result %}
         <p class="scan-help ui-comp-note">{% blocktrans with total=prepare_result.carton_count %}{{ total }} colis généré(s).{% endblocktrans %}</p>
-        <a class="scan-scan-btn btn btn-tertiary" href="{{ prepare_result.picking_url }}" target="_blank" rel="noopener">
+        <a
+          class="scan-scan-btn btn btn-tertiary"
+          href="{{ prepare_result.picking_url }}"
+          target="_blank"
+          rel="noopener"
+          {% if prepare_result.carton_count == 1 %}data-local-document-helper-link="1"{% endif %}
+        >
           {% trans "Télécharger le picking" %}
         </a>
       {% else %}
@@ -163,4 +181,5 @@
       renderKit();
     })();
   </script>
+  <script src="{% static 'wms/local_document_helper.js' %}"></script>
 {% endblock %}
