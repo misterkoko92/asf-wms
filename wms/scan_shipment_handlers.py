@@ -7,8 +7,6 @@ from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.translation import gettext as _
 
-from contacts.models import ContactType
-
 from .carton_status_events import set_carton_status
 from .models import (
     TEMP_SHIPMENT_REFERENCE_PREFIX,
@@ -25,6 +23,7 @@ from .organization_role_resolvers import (
 from .runtime_settings import get_runtime_config
 from .services import StockError, pack_carton, pack_carton_from_reserved
 from .shipment_helpers import build_destination_label, parse_shipment_lines
+from .shipment_party_rules import normalize_party_contact_to_org
 from .shipment_status import sync_shipment_ready_state
 
 LOCKED_SHIPMENT_STATUSES = {
@@ -38,14 +37,6 @@ SAVE_DRAFT_PACK_ACTION = "save_draft_pack"
 TEMP_SHIPMENT_REFERENCE_RE = re.compile(r"^EXP-TEMP-(\d+)$")
 TEMP_SHIPMENT_REFERENCE_MAX_RETRIES = 5
 logger = logging.getLogger(__name__)
-
-
-def _resolve_contact_organization(contact):
-    if contact is None:
-        return None
-    if contact.contact_type == ContactType.ORGANIZATION or contact.organization_id is None:
-        return contact
-    return contact.organization or contact
 
 
 def _parse_carton_count(raw_value):
@@ -117,8 +108,8 @@ def _related_order_for_shipment(shipment):
 def _validate_org_role_selection(*, shipper_contact, recipient_contact, destination):
     if not get_runtime_config().org_roles_engine_enabled:
         return
-    shipper_org = _resolve_contact_organization(shipper_contact)
-    recipient_org = _resolve_contact_organization(recipient_contact)
+    shipper_org = normalize_party_contact_to_org(shipper_contact)
+    recipient_org = normalize_party_contact_to_org(recipient_contact)
     try:
         resolve_shipper_for_operation(
             shipper_org=shipper_org,

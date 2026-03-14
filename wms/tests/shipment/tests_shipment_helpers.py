@@ -123,8 +123,48 @@ class ShipmentHelpersTests(TestCase):
                     "name": "Corr Contact",
                     "destination_id": destination.id,
                     "destination_ids": [destination.id],
-                }
+                },
+                {
+                    "id": correspondent.id,
+                    "name": "Corr A",
+                    "destination_id": destination.id,
+                    "destination_ids": [destination.id],
+                },
             ],
+        )
+
+    def test_build_shipment_contact_payload_includes_destination_correspondent_without_tag(self):
+        correspondent = Contact.objects.create(
+            name="Corr Untagged",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        destination = Destination.objects.create(
+            city="Dakar",
+            iata_code="DKR-CORR",
+            country="Senegal",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        shipper = Contact.objects.create(
+            name="Shipper Dakar",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        shipper_tag = ContactTag.objects.create(name="expediteur")
+        shipper.tags.add(shipper_tag)
+        shipper.destinations.add(destination)
+
+        _, _, _, correspondents_json = build_shipment_contact_payload()
+
+        self.assertIn(
+            {
+                "id": correspondent.id,
+                "name": "Corr Untagged",
+                "destination_id": destination.id,
+                "destination_ids": [destination.id],
+            },
+            correspondents_json,
         )
 
     def test_build_shipment_contact_payload_formats_shipper_and_recipient_names(self):

@@ -35,24 +35,20 @@ from .models import (
 )
 from .organization_role_resolvers import (
     OrganizationRoleResolutionError,
-    eligible_recipients_for_shipper_destination,
     is_org_roles_engine_enabled,
     resolve_recipient_binding_for_operation,
     resolve_shipper_for_operation,
 )
 from .scan_helpers import resolve_product
+from .shipment_party_rules import (
+    eligible_correspondent_contacts_for_destination,
+    eligible_recipient_contacts_for_shipper_destination,
+    normalize_party_contact_to_org,
+)
 
 
 def _contact_label(contact):
     return contact.organization.name if contact.organization else contact.name
-
-
-def _resolve_contact_organization(contact):
-    if contact is None:
-        return None
-    if contact.contact_type == ContactType.ORGANIZATION or contact.organization_id is None:
-        return contact
-    return contact.organization or contact
 
 
 def _sorted_choices(choices):
@@ -497,29 +493,13 @@ class ScanShipmentForm(forms.Form):
             recipients = recipients.none()
 
         if selected_destination and selected_shipper and is_org_roles_engine_enabled():
-            selected_shipper_org = _resolve_contact_organization(selected_shipper)
-            eligible_recipient_org_ids = list(
-                eligible_recipients_for_shipper_destination(
-                    shipper_org=selected_shipper_org,
-                    destination=selected_destination,
-                ).values_list("id", flat=True)
+            recipients = eligible_recipient_contacts_for_shipper_destination(
+                shipper_contact=selected_shipper,
+                destination=selected_destination,
             )
-            if eligible_recipient_org_ids:
-                recipients = recipients.filter(
-                    Q(pk__in=eligible_recipient_org_ids)
-                    | Q(organization_id__in=eligible_recipient_org_ids)
-                )
-            else:
-                recipients = recipients.none()
 
         if selected_destination:
-            correspondents = filter_contacts_for_destination(correspondents, selected_destination)
-            if selected_destination.correspondent_contact_id:
-                correspondents = correspondents.filter(
-                    pk=selected_destination.correspondent_contact_id
-                )
-            else:
-                correspondents = correspondents.none()
+            correspondents = eligible_correspondent_contacts_for_destination(selected_destination)
         else:
             correspondents = correspondents.none()
 
@@ -739,8 +719,8 @@ class ScanShipmentForm(forms.Form):
         shipper = cleaned.get("shipper_contact")
         recipient = cleaned.get("recipient_contact")
         correspondent = cleaned.get("correspondent_contact")
-        shipper_org = _resolve_contact_organization(shipper)
-        recipient_org = _resolve_contact_organization(recipient)
+        shipper_org = normalize_party_contact_to_org(shipper)
+        recipient_org = normalize_party_contact_to_org(recipient)
         self._apply_invalid_choice_messages(destination=destination)
         if (
             destination
