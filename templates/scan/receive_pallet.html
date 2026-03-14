@@ -144,8 +144,8 @@
         </div>
         <div class="scan-field">
           <label class="form-label">{% trans "Type de fichier" %}</label>
-          <div class="scan-radio-inline-group">
-            <div class="form-check form-check-inline">
+          <div class="scan-radio-inline-group scan-radio-inline-group-tight">
+            <div class="form-check form-check-inline scan-radio-inline-choice">
               <input
                 type="radio"
                 id="id_listing_file_type_pdf"
@@ -156,7 +156,7 @@
               >
               <label class="form-check-label" for="id_listing_file_type_pdf">PDF</label>
             </div>
-            <div class="form-check form-check-inline">
+            <div class="form-check form-check-inline scan-radio-inline-choice">
               <input
                 type="radio"
                 id="id_listing_file_type_excel"
@@ -167,7 +167,7 @@
               >
               <label class="form-check-label" for="id_listing_file_type_excel">Excel</label>
             </div>
-            <div class="form-check form-check-inline">
+            <div class="form-check form-check-inline scan-radio-inline-choice">
               <input
                 type="radio"
                 id="id_listing_file_type_csv"
@@ -187,8 +187,8 @@
         {% if listing_pdf_total_pages %}
           <div class="scan-help">{% blocktrans %}Pages totales: {{ listing_pdf_total_pages }}{% endblocktrans %}</div>
         {% endif %}
-        <div class="scan-radio-inline-group">
-          <div class="form-check form-check-inline">
+        <div class="scan-radio-inline-group scan-radio-inline-group-tight">
+          <div class="form-check form-check-inline scan-radio-inline-choice">
             <input
               type="radio"
               id="id_listing_pdf_pages_mode_all"
@@ -199,7 +199,7 @@
             >
             <label class="form-check-label" for="id_listing_pdf_pages_mode_all">{% trans "Toutes les pages" %}</label>
           </div>
-          <div class="form-check form-check-inline">
+          <div class="form-check form-check-inline scan-radio-inline-choice">
             <input
               type="radio"
               id="id_listing_pdf_pages_mode_custom"

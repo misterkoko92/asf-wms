@@ -113,7 +113,7 @@
       </div>
 
       <div class="pack-lines" id="pack-lines"></div>
-      <button type="button" class="scan-submit secondary btn btn-secondary" id="pack-add-line">+ {% trans "Ajouter un produit" %}</button>
+      <button type="button" class="scan-submit secondary btn btn-secondary scan-pack-add-line-btn mb-3" id="pack-add-line">+ {% trans "Ajouter un produit" %}</button>
       <input type="hidden" id="pack_line_count" name="line_count" value="{{ line_count }}">
 
       <div class="row g-3 align-items-end scan-pack-shipping-row">
@@ -131,20 +131,18 @@
         </div>
 
         <div class="scan-field scan-pack-shipping-field col-12 col-lg-4">
-          <div class="scan-switch-card">
-            <div class="form-check form-switch">
-              <input
-                type="checkbox"
-                id="id_confirm_defaults"
-                name="confirm_defaults"
-                value="1"
-                class="form-check-input"
-                {% if confirm_defaults %}checked{% endif %}
-              >
-              <label class="form-check-label" for="id_confirm_defaults">
-                {% trans "Autoriser l'ajout avec valeurs standard (1 x 1 x 1 cm et 5 g) pour les produits sans dimensions/poids." %}
-              </label>
-            </div>
+          <div class="form-check form-switch scan-inline-switch scan-inline-switch-wide">
+            <input
+              type="checkbox"
+              id="id_confirm_defaults"
+              name="confirm_defaults"
+              value="1"
+              class="form-check-input"
+              {% if confirm_defaults %}checked{% endif %}
+            >
+            <label class="form-check-label" for="id_confirm_defaults">
+              {% trans "Autoriser l'ajout avec valeurs standard (1 x 1 x 1 cm et 5 g) pour les produits sans dimensions/poids." %}
+            </label>
           </div>
         </div>
       </div>
@@ -159,8 +157,7 @@
         </div>
       {% endif %}
       <div class="scan-filter-actions scan-pack-shipping-actions-inline d-flex flex-wrap flex-lg-nowrap gap-2 align-items-center">
-        <button type="button" class="scan-scan-btn btn btn-tertiary" data-scan-target="id_shipment_reference">{% trans "Scan" %}</button>
-        <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:wms_location_add' %}" target="_blank" rel="noopener">
+        <a class="scan-scan-btn btn btn-tertiary text-nowrap" href="{% url 'admin:wms_location_add' %}" target="_blank" rel="noopener">
           {% trans "Ajouter emplacement" %}
         </a>
         <button type="submit" class="scan-submit btn btn-primary">{% trans "Préparer" %}</button>

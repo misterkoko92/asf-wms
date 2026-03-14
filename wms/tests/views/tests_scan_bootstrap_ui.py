@@ -1,5 +1,7 @@
 from datetime import date
+from pathlib import Path
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -107,7 +109,7 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "table table-sm table-hover")
         self.assertContains(response, 'data-table-tools="1"')
         self.assertContains(response, "form-check form-switch")
-        self.assertContains(response, "scan-switch-card")
+        self.assertContains(response, "scan-inline-switch")
         self.assertContains(response, "id_include_zero")
         self.assertContains(response, "Inclure les produits avec stock")
 
@@ -225,6 +227,7 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, 'id="shipment-lines"')
         self.assertContains(response, "btn btn-primary")
         self.assertContains(response, 'id="shipment-details-section"')
+        self.assertContains(response, "scan-shipment-contact-slot")
 
     def test_scan_stock_and_shipment_create_use_design_component_classes(self):
         stock_response = self.client.get(reverse("scan:scan_stock"))
@@ -296,8 +299,9 @@ class ScanBootstrapUiTests(TestCase):
         )
         response = self.client.get(reverse("scan:scan_shipments_ready"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "ui-comp-status-pill is-progress")
-        self.assertContains(response, "ui-comp-status-pill is-error")
+        self.assertContains(response, "ui-comp-status-pill")
+        self.assertContains(response, "is-progress")
+        self.assertContains(response, "is-error")
 
         Order.objects.create(
             shipper_name="ASF",
@@ -352,6 +356,51 @@ class ScanBootstrapUiTests(TestCase):
         self.assertNotContains(response, "background:#e8f7ec")
         self.assertNotContains(response, "background:#fdecec")
         self.assertNotContains(response, "border-color:#9fcfb0")
+
+    def test_scan_shipments_tracking_uses_secondary_style_for_blocked_close_buttons(self):
+        Shipment.objects.create(
+            shipper_name="Blocked Tracking",
+            recipient_name="Blocked Recipient",
+            destination_address="1 rue de la Paix",
+            status=ShipmentStatus.PLANNED,
+        )
+
+        response = self.client.get(reverse("scan:scan_shipments_tracking"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "btn btn-secondary scan-shipment-close-btn is-blocked")
+        self.assertNotContains(response, "btn btn-danger scan-shipment-close-btn is-blocked")
+
+    def test_scan_shipments_ready_uses_split_numero_expedition_header_copy(self):
+        Shipment.objects.create(
+            shipper_name="Header Tracking",
+            recipient_name="Header Recipient",
+            destination_address="1 rue de la Paix",
+            status=ShipmentStatus.DRAFT,
+        )
+        response = self.client.get(reverse("scan:scan_shipments_ready"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "<span>NUMERO</span><br>", html=True)
+        self.assertContains(response, "<span>EXPEDITION</span>", html=True)
+
+    def test_scan_bootstrap_css_scopes_shipment_status_variants_with_higher_specificity(self):
+        css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"
+        css_content = css_path.read_text(encoding="utf-8")
+
+        self.assertIn(
+            ".scan-bootstrap-enabled .scan-shipment-status-pill.scan-shipment-status--draft",
+            css_content,
+        )
+        self.assertIn(
+            ".scan-bootstrap-enabled .scan-shipment-status-pill.scan-shipment-status--planned",
+            css_content,
+        )
+        self.assertIn(
+            ".scan-bootstrap-enabled .scan-shipment-close-btn.is-blocked {\n"
+            "  --bs-btn-bg: var(--wms-color-btn-secondary-bg);",
+            css_content,
+        )
 
     def test_scan_superuser_admin_pages_use_design_component_classes(self):
         self.client.force_login(self.superuser)
@@ -418,11 +467,48 @@ class ScanBootstrapUiTests(TestCase):
                 self.assertContains(response, "ui-comp-form")
                 if route_name == "scan:scan_pack":
                     self.assertContains(response, "form-check form-switch")
-                    self.assertContains(response, "scan-switch-card")
+                    self.assertContains(response, "scan-inline-switch")
                     self.assertContains(
                         response,
                         "Autoriser l'ajout avec valeurs standard",
                     )
+
+    def test_scan_pack_js_uses_barcode_label_without_ocr_shortcut(self):
+        js_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan.js"
+        js_content = js_path.read_text(encoding="utf-8")
+
+        self.assertIn("Scanner un code barre ou QR Code", js_content)
+        self.assertNotIn("ocrBtn.textContent = 'Texte';", js_content)
+
+    def test_scan_shipment_create_js_supports_grouped_contact_selects(self):
+        js_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan.js"
+        js_content = js_path.read_text(encoding="utf-8")
+
+        self.assertIn("AVIATION SANS FRONTIERES", js_content)
+        self.assertIn("renderGroupedOptions", js_content)
+        self.assertIn("shipment-correspondent-single", js_content)
+
+    def test_scan_shipment_create_js_keeps_unlinked_recipients_out_of_pair_group(self):
+        js_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan.js"
+        js_content = js_path.read_text(encoding="utf-8")
+
+        self.assertIn("if (!linkedShipperIds.length) {\n        return false;\n      }", js_content)
+        self.assertNotIn(
+            "if (!linkedShipperIds.length) {\n        return true;\n      }", js_content
+        )
+
+    def test_scan_shipment_create_places_secondary_draft_button_before_primary_submit(self):
+        response = self.client.get(reverse("scan:scan_shipment_create"))
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        details_start = content.index('id="shipment-details-section"')
+        details_end = content.index("</form>", details_start)
+        details_content = content[details_start:details_end]
+        self.assertLess(
+            details_content.index('name="action" value="save_draft"'),
+            details_content.index('class="scan-submit btn btn-primary"'),
+        )
 
     def test_scan_receive_page_uses_design_component_classes(self):
         response = self.client.get(reverse("scan:scan_receive"))
@@ -441,6 +527,13 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "id_listing_file_type_pdf")
         self.assertContains(response, "id_listing_file_type_excel")
         self.assertContains(response, "id_listing_file_type_csv")
+
+    def test_scan_receive_pallet_uses_inline_radio_alignment_markers(self):
+        response = self.client.get(reverse("scan:scan_receive_pallet"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "scan-radio-inline-group-tight", count=2)
+        self.assertContains(response, "scan-radio-inline-choice", count=5)
 
     def test_scan_receive_association_page_uses_design_component_classes(self):
         response = self.client.get(reverse("scan:scan_receive_association"))

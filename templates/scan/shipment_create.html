@@ -49,7 +49,7 @@
       {% if not is_edit %}
         <div class="scan-inline scan-inline-gap ui-comp-actions">
           <button type="submit" name="action" value="save_draft" class="scan-submit secondary scan-submit-inline btn btn-secondary">
-            {% trans "Enregistrer en brouillon" %}
+            {% if LANGUAGE_CODE|slice:":2" == "en" %}{% trans "Enregistrer en brouillon" %}{% else %}Enregistrer un brouillon{% endif %}
           </button>
         </div>
         <p class="scan-help ui-comp-note">{% trans "Enregistre une expédition temporaire (EXP-TEMP-XX) pour la modifier ultérieurement." %}</p>
@@ -96,7 +96,10 @@
         <div class="scan-field">
           <label class="form-label" for="id_correspondent_contact">{% trans "Correspondant" %}</label>
           <div class="scan-inline">
-            {{ form.correspondent_contact }}
+            <div id="shipment-correspondent-select-wrap" class="scan-shipment-contact-slot">
+              {{ form.correspondent_contact }}
+            </div>
+            <div id="shipment-correspondent-single" class="scan-hidden scan-shipment-contact-fixed scan-shipment-contact-slot" hidden></div>
             <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
               {% trans "Ajouter correspondant" %}
             </a>
@@ -146,6 +149,11 @@
           </p>
         </div>
 
+        {% if not is_edit %}
+          <button type="submit" name="action" value="save_draft" class="scan-submit secondary btn btn-secondary mt-2">
+            {% if LANGUAGE_CODE|slice:":2" == "en" %}{% trans "Enregistrer en brouillon" %}{% else %}Enregistrer un brouillon{% endif %}
+          </button>
+        {% endif %}
         <button type="submit" class="scan-submit btn btn-primary">
           {% if is_edit %}{% trans "Enregistrer modifications" %}{% else %}{% trans "Créer expédition" %}{% endif %}
         </button>

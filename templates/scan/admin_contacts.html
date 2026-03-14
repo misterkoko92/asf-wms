@@ -46,7 +46,7 @@
         <label class="form-label" for="scan-admin-contacts-shipper-filter">{% trans "Destinataires d'un expéditeur" %}</label>
         <select id="scan-admin-contacts-shipper-filter" name="shipper_org_id" class="form-select">
           <option value="">{% trans "Tous" %}</option>
-          {% for organization in cockpit_organizations %}
+          {% for organization in cockpit_binding_shipper_organizations %}
             <option value="{{ organization.id }}" {% if cockpit_filters.shipper_org_id == organization.id|stringformat:"s" %}selected{% endif %}>
               {{ organization.name }}
             </option>

@@ -134,6 +134,13 @@ class ScanStockViewsTests(TestCase):
         self.assertEqual(payload["version"], 12)
         self.assertEqual(payload["changed_at"], "2026-01-05T10:30:00")
 
+    def test_scan_stock_hides_category_and_warehouse_shortcuts(self):
+        response = self.client.get(reverse("scan:scan_stock"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Ajouter catégorie")
+        self.assertNotContains(response, "Ajouter entrepôt")
+
     @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
     def test_scan_stock_pages_render_native_english_when_runtime_disabled(self):
         self._activate_english()

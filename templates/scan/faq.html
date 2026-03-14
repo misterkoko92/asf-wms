@@ -87,6 +87,99 @@
   </div>
 
   <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+    <h2 class="ui-comp-title">{% trans "Flux principaux" %}</h2>
+    <p class="scan-help">
+      {% trans "Les parcours ci-dessous résument l'ordre des pages à ouvrir et des boutons principaux à utiliser." %}
+    </p>
+
+    <h3 class="ui-comp-title">{% trans "Réception de don et mise en stock" %}</h3>
+    <p>
+      {% blocktrans trimmed %}
+        1. Utiliser <strong>Réception palette</strong> pour créer le dossier logistique ou
+        <strong>Réception standard (don/palette)</strong> pour saisir directement des lignes
+        de stock. 2. Renseigner le donateur, le transporteur et la date. 3. Importer un
+        listing ou saisir les produits manuellement. 4. Utiliser <strong>Réceptionner
+        maintenant</strong> ou la validation du listing pour créer les lots. 5. Contrôler le
+        résultat dans <strong>Vue Réception</strong> puis <strong>Vue Stock</strong>.
+      {% endblocktrans %}
+    </p>
+
+    <h3 class="ui-comp-title">{% trans "Mise à jour des stocks" %}</h3>
+    <p>
+      {% blocktrans trimmed %}
+        1. Ouvrir <strong>MAJ stock</strong>. 2. Identifier le produit par recherche ou
+        avec le bouton <strong>Scan</strong>. 3. Saisir quantité, lot et péremption. 4.
+        Enregistrer pour créer un nouveau lot sur l'emplacement par défaut. 5. Vérifier la
+        nouvelle quantité dans <strong>Vue Stock</strong>.
+      {% endblocktrans %}
+    </p>
+
+    <h3 class="ui-comp-title">{% trans "Créer des colis" %}</h3>
+    <p>
+      {% blocktrans trimmed %}
+        1. Utiliser <strong>Préparer des colis</strong> pour des produits unitaires ou
+        <strong>Préparer des kits</strong> pour des préparations répétées. 2. Choisir le
+        format, le kit ou les produits. 3. Ajouter les lignes avec <strong>Ajouter un
+        produit</strong> ou <strong>Ajouter</strong>. 4. Lancer la préparation avec le
+        bouton principal de la page. 5. Vérifier le résultat dans <strong>Vue Colis</strong>.
+      {% endblocktrans %}
+    </p>
+
+    <h3 class="ui-comp-title">{% trans "Créer une expédition avec des colis déjà préparés" %}</h3>
+    <p>
+      {% blocktrans trimmed %}
+        1. Ouvrir <strong>Créer une expédition</strong>. 2. Choisir la destination puis les
+        contacts proposés. 3. Ajouter les colis <strong>Prêt</strong> non affectés. 4.
+        Utiliser <strong>Enregistrer un brouillon</strong> si le dossier n'est pas finalisé
+        ou <strong>Créer Expédition</strong> pour générer la référence finale. 5. Étiqueter
+        les colis puis suivre l'avancement dans <strong>Vue Expéditions</strong> et
+        <strong>Suivi expéditions</strong>.
+      {% endblocktrans %}
+    </p>
+
+    <h3 class="ui-comp-title">{% trans "Créer une expédition sans colis préparés" %}</h3>
+    <p>
+      {% blocktrans trimmed %}
+        1. Ouvrir <strong>Créer une expédition</strong> et renseigner destination,
+        expéditeur, destinataire et correspondant. 2. Utiliser <strong>Enregistrer un
+        brouillon</strong> pour figer le dossier ou <strong>Créer des colis multi-produits</strong>
+        pour basculer vers la préparation. 3. Préparer ensuite les colis depuis les produits
+        ou les kits. 4. Revenir sur l'expédition pour affecter, étiqueter et suivre les colis.
+      {% endblocktrans %}
+    </p>
+
+    <h3 class="ui-comp-title">{% trans "Commande association sur le portal" %}</h3>
+    <p>
+      {% blocktrans trimmed %}
+        1. Se connecter au <strong>Portal association</strong>. 2. Ouvrir
+        <strong>Nouvelle commande</strong>. 3. Choisir destination, destinataire, quantités
+        et documents éventuels. 4. Envoyer la commande. 5. Suivre la validation ASF depuis
+        <strong>Mes commandes</strong> puis récupérer les documents sur la fiche commande.
+      {% endblocktrans %}
+    </p>
+
+    <h3 class="ui-comp-title">{% trans "Planning hebdomadaire" %}</h3>
+    <p>
+      {% blocktrans trimmed %}
+        1. Créer un run depuis <strong>Planning &gt; Nouveau run</strong>. 2. Ouvrir le run
+        puis lancer <strong>Générer le planning</strong>. 3. Vérifier les issues et les
+        versions. 4. Ajuster les affectations dans la version courante. 5. Publier la version,
+        exporter le fichier et mettre à jour les expéditions si nécessaire.
+      {% endblocktrans %}
+    </p>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+    <h2 class="ui-comp-title">{% trans "Référence scan" %}</h2>
+    <ul>
+      <li>{% blocktrans trimmed %}<strong>Voir les états</strong> regroupe les pages de consultation: <strong>Vue Stock</strong>, <strong>Vue Kits</strong>, <strong>Vue Colis</strong>, <strong>Vue Expéditions</strong>, <strong>Vue Commande</strong> et <strong>Vue Réception</strong>. Leur objectif est de contrôler l'état courant et d'utiliser les actions rapides de tableau.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Réception</strong> sert à faire entrer un don, tracer une réception palette, importer un listing ou corriger le stock. Les boutons principaux créent soit un dossier logistique, soit un véritable mouvement de stock selon la page.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Préparation</strong> transforme le stock en kits, colis et expéditions. Les boutons d'ajout créent des lignes, le bouton <strong>Scan</strong> remplit un champ, et les boutons principaux enregistrent un brouillon, préparent les colis ou créent l'expédition.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Gestion</strong> couvre la sortie de stock, la documentation, les imports, les templates et le suivi après préparation. Les pages admin et superuser modifient les référentiels utilisés par tout le reste du WMS.{% endblocktrans %}</li>
+    </ul>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
     <h2 class="ui-comp-title">{% trans "Vue stock" %}</h2>
     <ul>
       <li>{% trans "Recherche multi-clés : nom, SKU, barcode, EAN." %}</li>
@@ -344,6 +437,51 @@
       <li>{% trans "Si le scan n'est pas supporté, saisir le code manuellement." %}</li>
       <li>{% trans "Le QR expédition ouvre uniquement la page de suivi + documents (sans login)." %}</li>
       <li>{% trans "La bannière de synchro indique qu'une mise à jour est disponible." %}</li>
+    </ul>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+    <h2 class="ui-comp-title">{% trans "Référence planning" %}</h2>
+    <ul>
+      <li>{% blocktrans trimmed %}<strong>Runs</strong> liste l'historique des générations. Le bouton <strong>Créer un run</strong> ouvre la création, et le bouton <strong>Ouvrir</strong> affiche le détail d'une semaine.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Détail run</strong> centralise le statut, les issues et les versions. Le bouton <strong>Générer le planning</strong> lance le calcul, puis <strong>Voir</strong> ouvre une version donnée.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Version planning</strong> sert à relire, corriger et publier. Les boutons <strong>Voir le diff</strong>, <strong>Publier la version</strong>, <strong>Ajouter au planning</strong>, <strong>Modifier</strong>, <strong>Valider</strong> et <strong>Supprimer</strong> servent à ajuster les affectations.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Exports & communications</strong> rassemblent les sorties opérationnelles. Les boutons <strong>Exporter Planning.xlsx</strong>, <strong>Mettre à jour les expéditions</strong>, <strong>Générer les brouillons</strong>, <strong>Ouvrir le brouillon</strong>, <strong>Ouvrir WhatsApp</strong> et <strong>Enregistrer les brouillons</strong> pilotent la diffusion du planning.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}Quand le helper local est requis, les boutons <strong>Installer le helper</strong>, <strong>Copier la commande</strong>, <strong>Réessayer</strong> et <strong>Fermer</strong> servent uniquement à remettre l'ouverture locale des brouillons en service.{% endblocktrans %}</li>
+    </ul>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+    <h2 class="ui-comp-title">{% trans "Portal association" %}</h2>
+    <ul>
+      <li>{% blocktrans trimmed %}<strong>Connexion et accès</strong> : le bouton <strong>Demander un compte</strong> crée une demande d'accès, <strong>Se connecter</strong> ouvre la session, et <strong>Mot de passe oublié / Première connexion</strong> envoie le lien de définition ou de réinitialisation du mot de passe.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Mes commandes</strong> affiche l'historique association. Le bouton <strong>Voir</strong> ouvre le détail d'une commande et ses documents.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Nouvelle commande</strong> sert à choisir destination, destinataire et quantités. Le lien <strong>Ajouter</strong> ouvre la gestion des destinataires si la bonne option n'existe pas, et le bouton <strong>Envoyer la commande</strong> soumet la demande à ASF.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Destinataires</strong> est la fiche privée des contacts de réception. Les boutons <strong>Modifier</strong>, <strong>Ajouter</strong>, <strong>Enregistrer</strong> et <strong>Annuler</strong> servent à maintenir cette liste par escale.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Compte</strong> centralise l'identité de l'association, les contacts mails, les préférences de facturation et les pièces de vérification. Les boutons <strong>Ajouter un autre contact</strong>, <strong>Enregistrer les modifications</strong>, <strong>Envoyer une demande de changement</strong>, <strong>Télécharger</strong> et <strong>Ajouter les documents</strong> agissent sur ces blocs.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Facturation</strong> sert à consulter devis et factures. Le bouton <strong>Voir</strong> ouvre le document détaillé, <strong>Télécharger</strong> récupère les pièces disponibles, et <strong>Envoyer une demande</strong> transmet une correction à ASF.{% endblocktrans %}</li>
+    </ul>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+    <h2 class="ui-comp-title">{% trans "Espace bénévole" %}</h2>
+    <ul>
+      <li>{% blocktrans trimmed %}<strong>Accès bénévole</strong> : la page de demande de compte enregistre une candidature, le bouton <strong>Envoyer</strong> soumet le formulaire, <strong>Aller à la connexion</strong> revient sur la page de login, puis <strong>Se connecter</strong> ouvre le portail personnel du bénévole.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Tableau de bord</strong> rappelle les dernières disponibilités enregistrées et sert de point d'entrée rapide vers le reste du portail bénévole.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Profil</strong> et <strong>Contraintes</strong> servent à maintenir les coordonnées, limites horaires et contraintes personnelles. Le bouton <strong>Enregistrer</strong> sauvegarde les formulaires.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Disponibilités</strong> regroupe la liste et les formulaires. Les boutons <strong>Ajouter</strong>, <strong>Modifier</strong>, <strong>Supprimer</strong>, <strong>Enregistrer</strong> et <strong>Annuler</strong> gèrent les plages individuelles ou hebdomadaires.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Récap semaine</strong> synthétise les disponibilités de tous les bénévoles. Le bouton <strong>Aller</strong> recharge la semaine choisie.{% endblocktrans %}</li>
+    </ul>
+  </div>
+
+  <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
+    <h2 class="ui-comp-title">{% trans "Administration & support" %}</h2>
+    <ul>
+      <li>{% blocktrans trimmed %}<strong>Contacts</strong> est le cockpit org-role. Il active les rôles, les scopes expéditeur, les bindings destinataire et les contacts principaux. C'est la page à corriger quand un sélecteur expéditeur, destinataire ou correspondant paraît incomplet.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Destinations</strong> pilotent la ville, le pays, le code IATA et le correspondant lié. Une destination incorrecte se répercute sur la création d'expédition, le portal association et le planning.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Imports</strong> servent à charger produits, contacts, utilisateurs, emplacements, catégories et exports de référence. Les templates d'import doivent être utilisés en priorité pour rester aligné sur les champs attendus.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Templates</strong> pilotent les documents XLSX. Les uploads remplacent le fichier actif, les mappings choisissent les cellules à remplir, et l'historique permet un rollback complet.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Etiquette Produit</strong>, <strong>Produit</strong>, <strong>Paramètres</strong>, <strong>Design</strong> et <strong>Admin Django</strong> sont des surfaces de support. Elles servent à ajuster le référentiel, les impressions, les réglages transverses et les opérations de maintenance qui ne passent pas par les écrans métier standards.{% endblocktrans %}</li>
     </ul>
   </div>
 

@@ -870,6 +870,185 @@ h3 {
   width: auto;
 }
 
+.scan-carton-status-cell {
+  min-width: 11rem;
+}
+
+.scan-carton-status-cell .scan-toggle-form {
+  width: 100%;
+}
+
+.scan-carton-status-select-wrap {
+  position: relative;
+  display: flex;
+  width: 100%;
+}
+
+.scan-carton-status-select-wrap::after {
+  content: "▾";
+  position: absolute;
+  right: 0.8rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ink-soft);
+  pointer-events: none;
+  font-size: 0.9rem;
+}
+
+.scan-carton-status-select {
+  width: 100%;
+  padding-right: 2rem;
+  text-align-last: center;
+}
+
+.scan-carton-status-display {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.scan-carton-status-pill {
+  width: 100%;
+  justify-content: center;
+  text-align: center;
+}
+
+.scan-radio-inline-group-tight {
+  gap: 0.75rem;
+}
+
+.scan-radio-inline-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0;
+}
+
+.scan-radio-inline-choice .form-check-input {
+  margin: 0;
+  float: none;
+}
+
+.scan-radio-inline-choice .form-check-label {
+  margin: 0;
+}
+
+.scan-inline-switch {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  width: 100%;
+  min-height: var(--wms-input-height);
+  margin-bottom: 0;
+  padding: 0.18rem 0;
+}
+
+.scan-inline-switch .form-check-input {
+  margin: 0.12rem 0 0;
+  float: none;
+  flex: 0 0 auto;
+}
+
+.scan-inline-switch .form-check-label {
+  margin: 0;
+  font-weight: 700;
+}
+
+.scan-inline-switch-wide {
+  max-width: 100%;
+}
+
+.scan-shipment-contact-slot {
+  min-width: 0;
+  width: 100%;
+}
+
+.scan-shipment-contact-fixed {
+  display: flex;
+  align-items: center;
+  min-height: var(--wms-input-height);
+  width: 100%;
+  padding: 0 var(--wms-input-padding-x);
+  border: 1px solid var(--wms-input-border);
+  border-radius: var(--wms-input-radius);
+  background: var(--wms-input-bg);
+  color: var(--wms-input-text);
+}
+
+.scan-prepare-kits-top-panel {
+  margin-bottom: 0;
+}
+
+.scan-prepare-kits-top-group {
+  min-width: 0;
+}
+
+.scan-shipment-reference-col {
+  width: 10ch;
+  white-space: normal;
+}
+
+.scan-shipment-ready-col {
+  width: 8.5rem;
+}
+
+.scan-shipment-actions-col {
+  width: 1%;
+}
+
+.scan-shipment-date {
+  display: inline-grid;
+  gap: 0.08rem;
+}
+
+.scan-shipment-status-pill.scan-shipment-status--draft {
+  background: #f2efe6;
+  border-color: #d6c7a3;
+  color: #6c5531;
+}
+
+.scan-shipment-status-pill.scan-shipment-status--in-progress {
+  background: #e8f0fb;
+  border-color: #b5cae8;
+  color: #29507f;
+}
+
+.scan-shipment-status-pill.scan-shipment-status--ready {
+  background: #e6f5ec;
+  border-color: #b7dac7;
+  color: #275c43;
+}
+
+.scan-shipment-status-pill.scan-shipment-status--planned {
+  background: #fbf1df;
+  border-color: #e7cd91;
+  color: #75561f;
+}
+
+.scan-shipment-status-pill.scan-shipment-status--shipped {
+  background: #e5f2f3;
+  border-color: #b4d5d7;
+  color: #2f5f67;
+}
+
+.scan-shipment-status-pill.scan-shipment-status--received {
+  background: #edeaf8;
+  border-color: #cac1e7;
+  color: #56448a;
+}
+
+.scan-shipment-status-pill.scan-shipment-status--delivered {
+  background: #e4f1e6;
+  border-color: #b2d0b7;
+  color: #2f6536;
+}
+
+.scan-shipment-status-pill.scan-shipment-status--disputed {
+  background: #faece7;
+  border-color: #dfb0b0;
+  color: #7b3030;
+}
+
 .scan-packing-list {
   display: grid;
   gap: 2px;

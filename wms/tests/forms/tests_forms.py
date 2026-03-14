@@ -244,6 +244,26 @@ class FormsTests(TestCase):
             form.fields["shipper_contact"].queryset.values_list("id", flat=True),
         )
 
+    def test_scan_shipment_form_init_auto_selects_single_correspondent_when_unbound(self):
+        correspondent = self._create_contact("Correspondent Auto")
+        correspondent_tag = ContactTag.objects.create(name="correspondant")
+        correspondent.tags.add(correspondent_tag)
+        destination = Destination.objects.create(
+            city="Paris",
+            iata_code="PAR-AUTO",
+            country="France",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        shipper_tag = ContactTag.objects.create(name="expediteur")
+        shipper = self._create_contact("Shipper Auto")
+        shipper.tags.add(shipper_tag)
+        shipper.destinations.add(destination)
+
+        form = ScanShipmentForm(destination_id=str(destination.id))
+
+        self.assertEqual(form.fields["correspondent_contact"].initial, correspondent.id)
+
     def test_scan_shipment_form_init_without_destination_hides_contact_selectors(self):
         global_shipper = self._create_contact("Global Shipper")
         shipper_tag = ContactTag.objects.create(name="expediteur")
@@ -271,7 +291,9 @@ class FormsTests(TestCase):
         self.assertEqual(form.fields["recipient_contact"].queryset.count(), 0)
         self.assertEqual(form.fields["correspondent_contact"].queryset.count(), 0)
 
-    def test_scan_shipment_form_init_filters_recipients_by_selected_shipper(self):
+    def test_scan_shipment_form_init_keeps_destination_recipients_available_for_grouped_select(
+        self,
+    ):
         correspondent = self._create_contact("Correspondent Shipper")
         correspondent_tag = ContactTag.objects.create(name="correspondant")
         correspondent.tags.add(correspondent_tag)
@@ -310,7 +332,7 @@ class FormsTests(TestCase):
         recipient_ids = set(form.fields["recipient_contact"].queryset.values_list("id", flat=True))
         self.assertIn(global_recipient.id, recipient_ids)
         self.assertIn(linked_recipient.id, recipient_ids)
-        self.assertNotIn(other_recipient.id, recipient_ids)
+        self.assertIn(other_recipient.id, recipient_ids)
 
     def test_scan_shipment_form_excludes_people_without_organization_from_shipper_and_recipient(
         self,
@@ -493,7 +515,7 @@ class FormsTests(TestCase):
         self.assertEqual(shipper_label, "ASSOCIATION TEST (M., Jean, DUPONT)")
         self.assertEqual(recipient_label, "ASSOCIATION TEST (Mme, Alice, MARTIN)")
 
-    def test_scan_shipment_form_clean_rejects_contact_for_other_destination(self):
+    def test_scan_shipment_form_clean_accepts_shipper_for_other_destination_group(self):
         expected_correspondent = self._create_contact("Corr Expected")
         destination = Destination.objects.create(
             city="Paris",
@@ -526,10 +548,7 @@ class FormsTests(TestCase):
         form.fields["recipient_contact"].queryset = Contact.objects.all()
         form.fields["correspondent_contact"].queryset = Contact.objects.all()
 
-        self.assertFalse(form.is_valid())
-        self.assertEqual(
-            form.errors["shipper_contact"], ["Contact non disponible pour cette destination."]
-        )
+        self.assertTrue(form.is_valid())
 
     def test_scan_shipment_form_clean_accepts_shipper_scoped_with_multi_destinations(self):
         expected_correspondent = self._create_contact("Corr Multi")
@@ -586,7 +605,7 @@ class FormsTests(TestCase):
 
         self.assertTrue(form.is_valid())
 
-    def test_scan_shipment_form_clean_rejects_recipient_not_linked_to_shipper(self):
+    def test_scan_shipment_form_clean_accepts_recipient_in_other_destination_group(self):
         expected_correspondent = self._create_contact("Corr Expected 4")
         destination = Destination.objects.create(
             city="Douala",
@@ -613,11 +632,7 @@ class FormsTests(TestCase):
         form.fields["recipient_contact"].queryset = Contact.objects.all()
         form.fields["correspondent_contact"].queryset = Contact.objects.all()
 
-        self.assertFalse(form.is_valid())
-        self.assertEqual(
-            form.errors["recipient_contact"],
-            ["Destinataire non disponible pour cet expéditeur."],
-        )
+        self.assertTrue(form.is_valid())
 
     def test_scan_shipment_form_clean_rejects_unlinked_correspondent(self):
         expected_correspondent = self._create_contact("Corr Expected 3")
@@ -695,7 +710,7 @@ class FormsTests(TestCase):
             ["Destinataire invalide: ce contact est un particulier sans organisation."],
         )
 
-    def test_scan_shipment_form_invalid_choice_explains_recipient_not_linked_to_shipper(self):
+    def test_scan_shipment_form_init_keeps_other_shippers_available_for_grouped_select(self):
         correspondent = self._create_contact("Corr Invalid Link")
         correspondent_tag = ContactTag.objects.create(name="correspondant")
         correspondent.tags.add(correspondent_tag)
@@ -706,73 +721,28 @@ class FormsTests(TestCase):
             correspondent_contact=correspondent,
             is_active=True,
         )
+        other_destination = Destination.objects.create(
+            city="Bafoussam",
+            iata_code="BFX-INV",
+            country="Cameroun",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
         shipper_tag = ContactTag.objects.create(name="expediteur")
         shipper_a = self._create_contact("Shipper A Invalid Link")
         shipper_a.tags.add(shipper_tag)
-        shipper_a.destinations.add(destination)
-        shipper_b = self._create_contact("Shipper B Invalid Link")
-        shipper_b.tags.add(shipper_tag)
-        shipper_b.destinations.add(destination)
-        recipient_tag = ContactTag.objects.create(name="destinataire")
-        recipient = self._create_contact("Recipient Invalid Link")
-        recipient.tags.add(recipient_tag)
-        recipient.destinations.add(destination)
-        recipient.linked_shippers.add(shipper_b)
+        shipper_a.destinations.add(other_destination)
 
         form = ScanShipmentForm(
             data={
                 "destination": str(destination.id),
                 "shipper_contact": str(shipper_a.id),
-                "recipient_contact": str(recipient.id),
-                "correspondent_contact": str(correspondent.id),
                 "carton_count": "1",
             }
         )
 
-        self.assertFalse(form.is_valid())
-        self.assertEqual(
-            form.errors["recipient_contact"],
-            ["Destinataire invalide: ce destinataire n'est pas lié à l'expéditeur sélectionné."],
-        )
-
-    def test_scan_shipment_form_invalid_choice_explains_shipper_outside_destination_scope(self):
-        correspondent = self._create_contact("Corr Invalid Shipper")
-        correspondent_tag = ContactTag.objects.create(name="correspondant")
-        correspondent.tags.add(correspondent_tag)
-        destination = Destination.objects.create(
-            city="Paris",
-            iata_code="CDG-INV",
-            country="France",
-            correspondent_contact=correspondent,
-            is_active=True,
-        )
-        other_destination = Destination.objects.create(
-            city="Lyon",
-            iata_code="LYS-INV",
-            country="France",
-            correspondent_contact=correspondent,
-            is_active=True,
-        )
-        shipper_tag = ContactTag.objects.create(name="expediteur")
-        shipper_wrong_scope = self._create_contact("Shipper Wrong Scope")
-        shipper_wrong_scope.tags.add(shipper_tag)
-        shipper_wrong_scope.destinations.add(other_destination)
-
-        form = ScanShipmentForm(
-            data={
-                "destination": str(destination.id),
-                "shipper_contact": str(shipper_wrong_scope.id),
-                "carton_count": "1",
-            }
-        )
-
-        self.assertFalse(form.is_valid())
-        self.assertEqual(
-            form.errors["shipper_contact"],
-            [
-                "Expéditeur invalide: ce contact n'est pas disponible pour la destination sélectionnée."
-            ],
-        )
+        shipper_ids = set(form.fields["shipper_contact"].queryset.values_list("id", flat=True))
+        self.assertIn(shipper_a.id, shipper_ids)
 
     def test_shipment_tracking_form_uses_first_choice_for_unknown_initial(self):
         form = ShipmentTrackingForm(initial_status="unknown-status")

@@ -1202,18 +1202,11 @@
       scanBtn.type = 'button';
       scanBtn.className = 'scan-scan-btn';
       scanBtn.dataset.scanTarget = productInput.id;
-      scanBtn.textContent = 'Scan';
-
-      const ocrBtn = document.createElement('button');
-      ocrBtn.type = 'button';
-      ocrBtn.className = 'scan-scan-btn scan-ocr-btn';
-      ocrBtn.dataset.ocrTarget = productInput.id;
-      ocrBtn.textContent = 'Texte';
+      scanBtn.textContent = 'Scanner un code barre ou QR Code';
 
       const actionWrap = document.createElement('div');
       actionWrap.className = 'scan-inline-actions';
       actionWrap.appendChild(scanBtn);
-      actionWrap.appendChild(ocrBtn);
 
       productInline.appendChild(productStack);
       productInline.appendChild(actionWrap);
@@ -1900,6 +1893,8 @@
     const shipperEmptyMessage = document.getElementById('shipper-empty-message');
     const recipientEmptyMessage = document.getElementById('recipient-empty-message');
     const correspondentEmptyMessage = document.getElementById('correspondent-empty-message');
+    const correspondentSelectWrap = document.getElementById('shipment-correspondent-select-wrap');
+    const correspondentSingle = document.getElementById('shipment-correspondent-single');
     const destinationsEl = document.getElementById('destination-data');
     const shippersEl = document.getElementById('shipper-contacts-data');
     const recipientsEl = document.getElementById('recipient-contacts-data');
@@ -1961,6 +1956,7 @@
     const selectValue = select => asId(select && select.value ? select.value : '');
     const orgRolesEngineEnabled =
       shipmentForm && shipmentForm.dataset.orgRolesEngineEnabled === '1';
+    const ASF_PRIORITY_LABEL = normalizeText('AVIATION SANS FRONTIERES');
     const asIdList = values =>
       Array.isArray(values)
         ? values
@@ -2009,7 +2005,7 @@
       }
       const linkedShipperIds = asIdList(recipient.linked_shipper_ids);
       if (!linkedShipperIds.length) {
-        return true;
+        return false;
       }
       return linkedShipperIds.includes(String(shipperId));
     };
@@ -2046,20 +2042,28 @@
     };
 
     const renderOptions = (select, options, selectedValue) => {
+      const normalizedOptions = sortUniqueOptions(options).map(option => ({
+        ...option,
+        disabled: Boolean(option && option.disabled)
+      }));
       const fragment = document.createDocumentFragment();
       const empty = document.createElement('option');
       empty.value = '';
       empty.textContent = '---';
       fragment.appendChild(empty);
 
-      const sortedOptions = sortUniqueOptions(options);
       const optionIds = new Set();
-      sortedOptions.forEach(option => {
+      const enabledOptionIds = new Set();
+      normalizedOptions.forEach(option => {
         const optionEl = document.createElement('option');
         optionEl.value = String(option.id);
         optionEl.textContent = option.name;
+        optionEl.disabled = Boolean(option.disabled);
         fragment.appendChild(optionEl);
         optionIds.add(String(option.id));
+        if (!option.disabled) {
+          enabledOptionIds.add(String(option.id));
+        }
       });
       select.innerHTML = '';
       select.appendChild(fragment);
@@ -2068,45 +2072,55 @@
       } else {
         select.value = '';
       }
+      return {
+        optionIds,
+        enabledOptionIds,
+        options: normalizedOptions
+      };
     };
 
-    const renderShipperOptions = (
-      select,
-      { explicitDestinationOptions, allShipperOptions },
-      selectedValue
-    ) => {
+    const renderGroupedOptions = (select, groups, selectedValue) => {
       const fragment = document.createDocumentFragment();
       const empty = document.createElement('option');
       empty.value = '';
       empty.textContent = '---';
       fragment.appendChild(empty);
 
-      const explicitOptions = sortUniqueOptions(explicitDestinationOptions);
-      const allOptions = sortUniqueOptions(allShipperOptions);
       const optionIds = new Set();
+      const enabledOptionIds = new Set();
+      const renderedOptions = [];
+      let hasVisibleGroup = false;
 
-      explicitOptions.forEach(option => {
-        const optionEl = document.createElement('option');
-        optionEl.value = String(option.id);
-        optionEl.textContent = option.name;
-        fragment.appendChild(optionEl);
-        optionIds.add(String(option.id));
-      });
-
-      if (explicitOptions.length && allOptions.length) {
-        const separator = document.createElement('option');
-        separator.value = '';
-        separator.textContent = '-----';
-        separator.disabled = true;
-        fragment.appendChild(separator);
-      }
-
-      allOptions.forEach(option => {
-        const optionEl = document.createElement('option');
-        optionEl.value = String(option.id);
-        optionEl.textContent = option.name;
-        fragment.appendChild(optionEl);
-        optionIds.add(String(option.id));
+      groups.forEach(group => {
+        const visibleOptions = sortUniqueOptions(group)
+          .map(option => ({
+            ...option,
+            disabled: Boolean(option && option.disabled)
+          }))
+          .filter(option => !optionIds.has(String(option.id)));
+        if (!visibleOptions.length) {
+          return;
+        }
+        if (hasVisibleGroup) {
+          const separator = document.createElement('option');
+          separator.value = '';
+          separator.textContent = '---';
+          separator.disabled = true;
+          fragment.appendChild(separator);
+        }
+        visibleOptions.forEach(option => {
+          const optionEl = document.createElement('option');
+          optionEl.value = String(option.id);
+          optionEl.textContent = option.name;
+          optionEl.disabled = Boolean(option.disabled);
+          fragment.appendChild(optionEl);
+          optionIds.add(String(option.id));
+          if (!option.disabled) {
+            enabledOptionIds.add(String(option.id));
+          }
+          renderedOptions.push(option);
+        });
+        hasVisibleGroup = true;
       });
 
       select.innerHTML = '';
@@ -2115,6 +2129,60 @@
         select.value = String(selectedValue);
       } else {
         select.value = '';
+      }
+      return {
+        optionIds,
+        enabledOptionIds,
+        options: renderedOptions
+      };
+    };
+
+    const decorateOption = (option, extra = {}) => ({
+      ...option,
+      ...extra
+    });
+
+    const isPriorityShipper = shipper =>
+      normalizeText(shipper && shipper.name).includes(ASF_PRIORITY_LABEL);
+
+    const renderShipperOptions = (select, destinationId, selectedValue) => {
+      const priorityOptions = shippers
+        .filter(shipper => isPriorityShipper(shipper))
+        .map(shipper =>
+          decorateOption(shipper, {
+            disabled: orgRolesEngineEnabled && !matchesExplicitDestination(shipper, destinationId)
+          })
+        );
+      const destinationOptions = shippers
+        .filter(shipper => matchesExplicitDestination(shipper, destinationId))
+        .map(shipper => decorateOption(shipper));
+      const remainingOptions = shippers
+        .filter(
+          shipper =>
+            !isPriorityShipper(shipper) && !matchesExplicitDestination(shipper, destinationId)
+        )
+        .map(shipper =>
+          decorateOption(shipper, {
+            disabled: Boolean(orgRolesEngineEnabled)
+          })
+        );
+      return renderGroupedOptions(
+        select,
+        [priorityOptions, destinationOptions, remainingOptions],
+        selectedValue
+      );
+    };
+
+    const setCorrespondentSingleDisplay = option => {
+      const hasSingleOption = Boolean(option);
+      if (correspondentSelectWrap) {
+        correspondentSelectWrap.classList.toggle('scan-hidden', hasSingleOption);
+        correspondentSelectWrap.hidden = hasSingleOption;
+      }
+      if (correspondentSingle) {
+        correspondentSingle.textContent = hasSingleOption ? option.name : '';
+        correspondentSingle.classList.toggle('scan-hidden', !hasSingleOption);
+        correspondentSingle.hidden = !hasSingleOption;
       }
     };
 
@@ -2128,6 +2196,7 @@
         renderOptions(shipperSelect, [], '');
         renderOptions(recipientSelect, [], '');
         renderOptions(correspondentSelect, [], '');
+        setCorrespondentSingleDisplay(null);
         setVisible(shipperSection, false);
         setVisible(recipientSection, false);
         setVisible(correspondentSection, false);
@@ -2140,20 +2209,19 @@
 
       setVisible(shipperSection, true);
       const destination = destinationMap.get(destinationId) || null;
-      const explicitDestinationShipperOptions = shippers.filter(shipper =>
-        matchesExplicitDestination(shipper, destinationId)
-      );
-      const allShipperOptions = [...shippers];
-      renderShipperOptions(
+      const shipperRender = renderShipperOptions(
         shipperSelect,
-        {
-          explicitDestinationOptions: explicitDestinationShipperOptions,
-          allShipperOptions
-        },
+        destinationId,
         selectedShipper
       );
       const resolvedShipper = selectValue(shipperSelect);
-      setVisible(shipperEmptyMessage, allShipperOptions.length === 0);
+      const resolvedShipperEntry =
+        shippers.find(shipper => asId(shipper.id) === resolvedShipper) || null;
+      const resolvedShipperOrgId = asId(
+        resolvedShipperEntry &&
+          (resolvedShipperEntry.organization_id || resolvedShipperEntry.id)
+      );
+      setVisible(shipperEmptyMessage, shipperRender.enabledOptionIds.size === 0);
 
       const canShowRecipientAndCorrespondent = Boolean(resolvedShipper);
       setVisible(recipientSection, canShowRecipientAndCorrespondent);
@@ -2162,16 +2230,49 @@
       let recipientOptions = [];
       let correspondentOptions = [];
       if (canShowRecipientAndCorrespondent) {
-        if (orgRolesEngineEnabled) {
-          recipientOptions = recipients.filter(recipient =>
-            matchesRecipientBindingPair(recipient, resolvedShipper, destinationId)
-          );
-        } else {
-          recipientOptions = recipients.filter(recipient =>
+        const destinationRecipients = recipients.filter(recipient =>
+          matchesDestination(recipient, destinationId)
+        );
+        const isRecipientPairMatched = recipient => {
+          if (orgRolesEngineEnabled) {
+            return matchesRecipientBindingPair(
+              recipient,
+              resolvedShipperOrgId,
+              destinationId
+            );
+          }
+          return (
             matchesLinkedShipper(recipient, resolvedShipper) &&
             matchesDestination(recipient, destinationId)
           );
-        }
+        };
+        const destinationCorrespondentRecipientId = asId(
+          destination && destination.correspondent_contact_id
+        );
+        const priorityRecipientOptions = destinationRecipients
+          .filter(
+            recipient => asId(recipient.id) === destinationCorrespondentRecipientId
+          )
+          .map(recipient =>
+            decorateOption(recipient, {
+              disabled: orgRolesEngineEnabled && !isRecipientPairMatched(recipient)
+            })
+          );
+        const pairRecipientOptions = destinationRecipients
+          .filter(recipient => isRecipientPairMatched(recipient))
+          .map(recipient => decorateOption(recipient));
+        const otherRecipientOptions = destinationRecipients
+          .filter(
+            recipient =>
+              asId(recipient.id) !== destinationCorrespondentRecipientId &&
+              !isRecipientPairMatched(recipient)
+          )
+          .map(recipient =>
+            decorateOption(recipient, {
+              disabled: Boolean(orgRolesEngineEnabled)
+            })
+          );
+        recipientOptions = [priorityRecipientOptions, pairRecipientOptions, otherRecipientOptions];
         correspondentOptions = correspondents.filter(correspondent =>
           matchesDestination(correspondent, destinationId)
         );
@@ -2185,15 +2286,29 @@
         }
       }
 
-      renderOptions(recipientSelect, recipientOptions, selectedRecipient);
-      renderOptions(correspondentSelect, correspondentOptions, selectedCorrespondent);
+      const recipientRender = renderGroupedOptions(
+        recipientSelect,
+        recipientOptions,
+        selectedRecipient
+      );
+      const correspondentRender = renderOptions(
+        correspondentSelect,
+        correspondentOptions,
+        selectedCorrespondent
+      );
+      const singleCorrespondentOption =
+        correspondentRender.options.length === 1 ? correspondentRender.options[0] : null;
+      if (singleCorrespondentOption) {
+        correspondentSelect.value = String(singleCorrespondentOption.id);
+      }
+      setCorrespondentSingleDisplay(singleCorrespondentOption);
       setVisible(
         recipientEmptyMessage,
-        canShowRecipientAndCorrespondent && recipientOptions.length === 0
+        canShowRecipientAndCorrespondent && recipientRender.enabledOptionIds.size === 0
       );
       setVisible(
         correspondentEmptyMessage,
-        canShowRecipientAndCorrespondent && correspondentOptions.length === 0
+        canShowRecipientAndCorrespondent && correspondentRender.enabledOptionIds.size === 0
       );
 
       const canShowDetails =
@@ -2377,7 +2492,7 @@
         const scanButton = document.createElement('button');
         scanButton.type = 'button';
         scanButton.className = 'scan-scan-btn';
-        scanButton.textContent = 'Scan';
+        scanButton.textContent = 'Scanner un code barre ou QR Code';
         scanButton.setAttribute('data-scan-target', productInput.id);
 
         const productWrap = document.createElement('div');

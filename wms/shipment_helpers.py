@@ -147,6 +147,7 @@ def build_shipment_contact_payload():
         {
             "id": contact.id,
             "name": build_contact_select_label(contact),
+            "organization_id": _contact_organization_id(contact) or contact.id,
             "destination_id": _primary_destination_id(contact),
             "destination_ids": _destination_ids(contact),
             "scoped_destination_ids": shipper_scope_destination_ids_by_org.get(
@@ -168,6 +169,7 @@ def build_shipment_contact_payload():
             {
                 "id": contact.id,
                 "name": build_contact_select_label(contact),
+                "organization_id": _contact_organization_id(contact) or contact.id,
                 "countries": sorted(countries),
                 "destination_id": _primary_destination_id(contact),
                 "destination_ids": _destination_ids(contact),

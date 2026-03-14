@@ -147,6 +147,36 @@ class ScanAdminContactsCockpitViewTests(TestCase):
         rows = response.context["cockpit_rows"]
         self.assertEqual([row["organization"].id for row in rows], [self.recipient.id])
 
+    def test_shipper_filter_lists_only_active_shipper_organizations(self):
+        self.client.force_login(self.superuser)
+        Contact.objects.create(
+            name="Donor Org",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        inactive_shipper = Contact.objects.create(
+            name="Inactive Shipper",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        OrganizationRoleAssignment.objects.create(
+            organization=inactive_shipper,
+            role=OrganizationRole.SHIPPER,
+            is_active=False,
+        )
+
+        response = self.client.get(reverse("scan:scan_admin_contacts"))
+
+        self.assertEqual(response.status_code, 200)
+        select_markup = self._extract_select_markup(
+            response=response,
+            select_id="scan-admin-contacts-shipper-filter",
+        )
+        self.assertIn("Shipper Org", select_markup)
+        self.assertNotIn("Recipient Org", select_markup)
+        self.assertNotIn("Donor Org", select_markup)
+        self.assertNotIn("Inactive Shipper", select_markup)
+
     def test_assign_role_requires_primary_email_contact(self):
         self.client.force_login(self.superuser)
 

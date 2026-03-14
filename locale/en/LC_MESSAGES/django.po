@@ -7984,6 +7984,58 @@ msgstr "Some steps still need validation, check before closing"
 msgid "Expédition non modifiable."
 msgstr "Shipment cannot be edited."
 
+#: templates/scan/faq.html:90
+msgid "Flux principaux"
+msgstr "Main workflows"
+
+#: templates/scan/faq.html:95
+msgid "Réception de don et mise en stock"
+msgstr "Donation receiving and stock entry"
+
+#: templates/scan/faq.html:107
+msgid "Mise à jour des stocks"
+msgstr "Stock update flow"
+
+#: templates/scan/faq.html:117
+msgid "Créer des colis"
+msgstr "Create parcels"
+
+#: templates/scan/faq.html:129
+msgid "Créer une expédition avec des colis déjà préparés"
+msgstr "Create a shipment with prepared parcels"
+
+#: templates/scan/faq.html:141
+msgid "Créer une expédition sans colis préparés"
+msgstr "Create a shipment without prepared parcels"
+
+#: templates/scan/faq.html:152
+msgid "Commande association sur le portal"
+msgstr "Association portal order flow"
+
+#: templates/scan/faq.html:163
+msgid "Planning hebdomadaire"
+msgstr "Weekly planning"
+
+#: templates/scan/faq.html:175
+msgid "Référence scan"
+msgstr "Scan reference"
+
+#: templates/scan/faq.html:434
+msgid "Référence planning"
+msgstr "Planning reference"
+
+#: templates/scan/faq.html:444
+msgid "Portal association"
+msgstr "Association portal"
+
+#: templates/scan/faq.html:455
+msgid "Espace bénévole"
+msgstr "Volunteer area"
+
+#: templates/scan/faq.html:465
+msgid "Administration & support"
+msgstr "Admin & support"
+
 #, fuzzy
 #~| msgid "Créer un nouveau kit"
 #~ msgid "Créez un nouveau contact d"
