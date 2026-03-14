@@ -465,6 +465,29 @@ class ScanViewTests(TestCase):
         )
         self.assertEqual(response.status_code, 302)
         self.assertEqual(Carton.objects.count(), 1)
+        carton = Carton.objects.get()
+
+        follow_response = self.client.get(response.url)
+        self.assertEqual(follow_response.status_code, 200)
+        self.assertContains(follow_response, 'data-local-document-helper-root="1"')
+        self.assertContains(
+            follow_response,
+            'data-local-document-helper-minimum-version="0.1.0"',
+        )
+        self.assertContains(
+            follow_response,
+            (
+                f'href="{reverse("scan:scan_carton_document", args=[carton.id])}" '
+                'target="_blank" rel="noopener" data-local-document-helper-link="1"'
+            ),
+        )
+        self.assertContains(
+            follow_response,
+            (
+                f'href="{reverse("scan:scan_carton_picking", args=[carton.id])}" '
+                'target="_blank" rel="noopener" data-local-document-helper-link="1"'
+            ),
+        )
 
     def test_scan_prepare_kits_get_exposes_selected_kit_context(self):
         component_a = Product.objects.create(
@@ -585,10 +608,61 @@ class ScanViewTests(TestCase):
         follow_response = self.client.get(response.url)
         self.assertEqual(follow_response.status_code, 200)
         self.assertContains(follow_response, "Télécharger le picking")
+        self.assertContains(follow_response, 'data-local-document-helper-root="1"')
         self.assertContains(
             follow_response,
             reverse("scan:scan_prepare_kits_picking"),
         )
+        self.assertNotContains(
+            follow_response,
+            (
+                f'href="{reverse("scan:scan_prepare_kits_picking")}?carton_ids='
+                f'{cartons[0].id},{cartons[1].id}" target="_blank" rel="noopener" '
+                'data-local-document-helper-link="1"'
+            ),
+        )
+
+    def test_scan_prepare_kits_single_carton_marks_helper_picking_link(self):
+        component = Product.objects.create(
+            sku="KIT3-COMP-A",
+            name="Masque",
+            default_location=self.location,
+            qr_code_image="qr_codes/kit3_comp_a.png",
+        )
+        ProductLot.objects.create(
+            product=component,
+            lot_code="KIT3-LOT-A",
+            received_on=date(2025, 12, 1),
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=20,
+            quantity_reserved=0,
+            location=self.location,
+        )
+        kit = Product.objects.create(
+            sku="KIT-003",
+            name="Kit Single",
+            qr_code_image="qr_codes/kit_single.png",
+        )
+        ProductKitItem.objects.create(kit=kit, component=component, quantity=2)
+
+        response = self.client.post(
+            reverse("scan:scan_prepare_kits"),
+            {
+                "kit_id": str(kit.id),
+                "quantity": "1",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+
+        carton = Carton.objects.get(shipment__isnull=True, status=CartonStatus.PICKING)
+        follow_response = self.client.get(response.url)
+        self.assertEqual(follow_response.status_code, 200)
+        self.assertContains(follow_response, 'data-local-document-helper-root="1"')
+        self.assertContains(
+            follow_response,
+            f'href="{reverse("scan:scan_carton_picking", args=[carton.id])}"',
+        )
+        self.assertContains(follow_response, 'data-local-document-helper-link="1"')
 
     def test_scan_prepare_kits_picking_renders_rows(self):
         carton = Carton.objects.create(code="KIT-PICK-1", status=CartonStatus.PICKING)
@@ -901,6 +975,77 @@ class ScanViewTests(TestCase):
         self.assertEqual(response.status_code, 302)
         shipment.refresh_from_db()
         self.assertEqual(shipment.destination_id, new_destination.id)
+
+    def test_scan_shipment_edit_marks_helper_generated_document_links_only(self):
+        shipment, carton = self._create_shipment_with_carton()
+        document = Document.objects.create(
+            shipment=shipment,
+            doc_type="additional",
+            file=SimpleUploadedFile(
+                "attestation.pdf",
+                b"%PDF-1.4 attestation",
+                content_type="application/pdf",
+            ),
+        )
+
+        response = self.client.get(reverse("scan:scan_shipment_edit", args=[shipment.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-local-document-helper-root="1"')
+        self.assertContains(
+            response,
+            'data-local-document-helper-minimum-version="0.1.0"',
+        )
+        self.assertContains(
+            response,
+            (
+                f'href="{reverse("scan:scan_shipment_document", args=[shipment.id, "shipment_note"])}" '
+                'target="_blank" rel="noopener" data-local-document-helper-link="1"'
+            ),
+        )
+        self.assertContains(
+            response,
+            (
+                f'href="{reverse("scan:scan_shipment_document", args=[shipment.id, "packing_list_shipment"])}" '
+                'target="_blank" rel="noopener" data-local-document-helper-link="1"'
+            ),
+        )
+        self.assertContains(
+            response,
+            (
+                f'href="{reverse("scan:scan_shipment_document", args=[shipment.id, "donation_certificate"])}" '
+                'target="_blank" rel="noopener" data-local-document-helper-link="1"'
+            ),
+        )
+        self.assertContains(
+            response,
+            (
+                f'href="{reverse("scan:scan_shipment_labels", args=[shipment.id])}" '
+                'target="_blank" rel="noopener" data-local-document-helper-link="1"'
+            ),
+        )
+        self.assertContains(
+            response,
+            (
+                f'href="{reverse("scan:scan_shipment_carton_document", args=[shipment.id, carton.id])}" '
+                'target="_blank" rel="noopener" data-local-document-helper-link="1"'
+            ),
+        )
+        self.assertContains(
+            response,
+            (
+                f'href="{reverse("scan:scan_shipment_label", args=[shipment.id, carton.id])}" '
+                'target="_blank" rel="noopener" data-local-document-helper-link="1"'
+            ),
+        )
+        self.assertContains(response, document.file.url)
+        self.assertNotContains(
+            response,
+            (
+                f'href="{document.file.url}" target="_blank" rel="noopener" '
+                'data-local-document-helper-link="1"'
+            ),
+        )
 
     def test_scan_shipment_edit_with_missing_additional_document_file_does_not_500(self):
         shipment = Shipment.objects.create(

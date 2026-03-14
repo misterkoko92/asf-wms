@@ -1,26 +1,59 @@
 {% extends "scan/base.html" %}
-{% load i18n %}
+{% load i18n static %}
 
 {% block title %}WMS Scan - {% trans "Préparer des colis" %}{% endblock %}
 
 {% block content %}
-  {% if packing_result %}
-    <div class="scan-card card border-0 ui-comp-card">
-      <h2 class="ui-comp-title">{% trans "Liste de colisage" %}</h2>
-      <h3 class="scan-subtitle">{% trans "Par carton" %}</h3>
-      {% for carton in packing_result.cartons %}
-        <div class="pack-list">
-          <div class="scan-inline scan-inline-gap">
-            <strong>{% blocktrans with carton_code=carton.code %}Carton {{ carton_code }}{% endblocktrans %}</strong>
-            <div class="scan-inline-actions">
-              <a class="scan-scan-btn btn btn-tertiary" href="{{ carton.packing_list_url }}" target="_blank" rel="noopener">
-                {% trans "Imprimer / télécharger" %}
-              </a>
-              <a class="scan-scan-btn btn btn-tertiary" href="{{ carton.picking_url }}" target="_blank" rel="noopener">
-                Picking
-              </a>
+  <div
+    data-local-document-helper-root="1"
+    data-local-document-helper-origin="{{ local_document_helper_origin }}"
+    data-local-document-helper-install-url="{{ helper_install.install_url }}"
+    data-local-document-helper-install-command="{{ helper_install.command }}"
+    data-local-document-helper-install-label="{{ helper_install.download_label }}"
+    data-local-document-helper-install-platform="{{ helper_install.platform_label }}"
+    data-local-document-helper-install-available="{{ helper_install.available|yesno:'1,0' }}"
+    data-local-document-helper-minimum-version="{{ helper_install.minimum_helper_version }}"
+    data-local-document-helper-latest-version="{{ helper_install.latest_helper_version }}"
+  >
+    {% include "wms/_local_document_helper_install_panel.html" %}
+    {% if packing_result %}
+      <div class="scan-card card border-0 ui-comp-card">
+        <h2 class="ui-comp-title">{% trans "Liste de colisage" %}</h2>
+        <h3 class="scan-subtitle">{% trans "Par carton" %}</h3>
+        {% for carton in packing_result.cartons %}
+          <div class="pack-list">
+            <div class="scan-inline scan-inline-gap">
+              <strong>{% blocktrans with carton_code=carton.code %}Carton {{ carton_code }}{% endblocktrans %}</strong>
+              <div class="scan-inline-actions">
+                <a class="scan-scan-btn btn btn-tertiary" href="{{ carton.packing_list_url }}" target="_blank" rel="noopener" data-local-document-helper-link="1">
+                  {% trans "Imprimer / télécharger" %}
+                </a>
+                <a class="scan-scan-btn btn btn-tertiary" href="{{ carton.picking_url }}" target="_blank" rel="noopener" data-local-document-helper-link="1">
+                  Picking
+                </a>
+              </div>
             </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>{% trans "Produit" %}</th>
+                  <th>{% trans "Quantité" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in carton.items %}
+                  <tr>
+                    <td>{{ item.label }}</td>
+                    <td>{{ item.quantity }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
           </div>
+        {% endfor %}
+
+        <h3 class="scan-subtitle">{% trans "Liste generale" %}</h3>
+        <div class="pack-list">
           <table>
             <thead>
               <tr>
@@ -29,7 +62,7 @@
               </tr>
             </thead>
             <tbody>
-              {% for item in carton.items %}
+              {% for item in packing_result.aggregate %}
                 <tr>
                   <td>{{ item.label }}</td>
                   <td>{{ item.quantity }}</td>
@@ -38,36 +71,15 @@
             </tbody>
           </table>
         </div>
-      {% endfor %}
-
-      <h3 class="scan-subtitle">{% trans "Liste generale" %}</h3>
-      <div class="pack-list">
-        <table>
-          <thead>
-            <tr>
-              <th>{% trans "Produit" %}</th>
-              <th>{% trans "Quantité" %}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for item in packing_result.aggregate %}
-              <tr>
-                <td>{{ item.label }}</td>
-                <td>{{ item.quantity }}</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
       </div>
-    </div>
-  {% endif %}
-  <div class="scan-card card border-0 ui-comp-card">
-    <h2 class="ui-comp-title">{% trans "Préparation cartons" %}</h2>
-    {% if form.non_field_errors %}
-      <div class="scan-message error">{{ form.non_field_errors }}</div>
     {% endif %}
-    <form method="post" novalidate class="ui-comp-form">
-      {% csrf_token %}
+    <div class="scan-card card border-0 ui-comp-card">
+      <h2 class="ui-comp-title">{% trans "Préparation cartons" %}</h2>
+      {% if form.non_field_errors %}
+        <div class="scan-message error">{{ form.non_field_errors }}</div>
+      {% endif %}
+      <form method="post" novalidate class="ui-comp-form">
+        {% csrf_token %}
 
       <div class="scan-field">
         <label class="form-label" for="id_carton_format">{% trans "Format carton" %}</label>
@@ -154,15 +166,17 @@
         <button type="submit" class="scan-submit btn btn-primary">{% trans "Préparer" %}</button>
       </div>
       <p class="scan-help ui-comp-note">{% trans "Si la référence d'expédition est vide, les cartons sont pré-conditionnés." %}</p>
-    </form>
-    {{ products_json|json_script:"product-data" }}
-    {{ carton_formats|json_script:"carton-format-data" }}
-    {{ line_values|json_script:"pack-lines-data" }}
-    {{ line_errors|json_script:"pack-lines-errors" }}
-    <datalist id="product-options">
-      {% for product in products_json %}
-        <option value="{{ product.name }}" label="{{ product.sku }}{% if product.barcode %} | {{ product.barcode }}{% endif %}{% if product.ean %} | {{ product.ean }}{% endif %}"></option>
-      {% endfor %}
-    </datalist>
+      </form>
+      {{ products_json|json_script:"product-data" }}
+      {{ carton_formats|json_script:"carton-format-data" }}
+      {{ line_values|json_script:"pack-lines-data" }}
+      {{ line_errors|json_script:"pack-lines-errors" }}
+      <datalist id="product-options">
+        {% for product in products_json %}
+          <option value="{{ product.name }}" label="{{ product.sku }}{% if product.barcode %} | {{ product.barcode }}{% endif %}{% if product.ean %} | {{ product.ean }}{% endif %}"></option>
+        {% endfor %}
+      </datalist>
+    </div>
   </div>
+  <script src="{% static 'wms/local_document_helper.js' %}"></script>
 {% endblock %}

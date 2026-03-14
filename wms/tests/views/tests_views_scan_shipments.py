@@ -106,6 +106,7 @@ class ScanShipmentsViewsTests(TestCase):
 
     def test_scan_prepare_kits_get_renders_rows_context(self):
         fake_form = object()
+        helper_install = {"available": True, "install_url": "/scan/helper/install/"}
         with mock.patch(
             "wms.views_scan_shipments.ScanPrepareKitsForm",
             return_value=fake_form,
@@ -119,17 +120,22 @@ class ScanShipmentsViewsTests(TestCase):
                 },
             ):
                 with mock.patch(
-                    "wms.views_scan_shipments.render",
-                    side_effect=self._render_stub,
+                    "wms.views_scan_shipments.build_helper_install_context",
+                    return_value=helper_install,
                 ):
-                    response = self.client.get(
-                        reverse("scan:scan_prepare_kits"),
-                        {"kit_id": "1"},
-                    )
+                    with mock.patch(
+                        "wms.views_scan_shipments.render",
+                        side_effect=self._render_stub,
+                    ):
+                        response = self.client.get(
+                            reverse("scan:scan_prepare_kits"),
+                            {"kit_id": "1"},
+                        )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "scan/prepare_kits.html")
         self.assertEqual(response.context_data["active"], "prepare_kits")
         self.assertEqual(response.context_data["form"], fake_form)
+        self.assertEqual(response.context_data["helper_install"], helper_install)
         self.assertEqual(
             response.context_data["selected_kit"]["name"],
             "Kit Test",
@@ -344,6 +350,7 @@ class ScanShipmentsViewsTests(TestCase):
         session.save()
 
         fake_form = object()
+        helper_install = {"available": True, "install_url": "/scan/helper/install/"}
         with mock.patch(
             "wms.views_scan_shipments.ScanPackForm",
             return_value=fake_form,
@@ -370,13 +377,18 @@ class ScanShipmentsViewsTests(TestCase):
                             ),
                         ):
                             with mock.patch(
-                                "wms.views_scan_shipments.render",
-                                side_effect=self._render_stub,
+                                "wms.views_scan_shipments.build_helper_install_context",
+                                return_value=helper_install,
                             ):
-                                response = self.client.get(reverse("scan:scan_pack"))
+                                with mock.patch(
+                                    "wms.views_scan_shipments.render",
+                                    side_effect=self._render_stub,
+                                ):
+                                    response = self.client.get(reverse("scan:scan_pack"))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "scan/pack.html")
         self.assertEqual(response.context_data["packing_result"], {"packed_count": 2})
+        self.assertEqual(response.context_data["helper_install"], helper_install)
         self.assertEqual(response.context_data["line_count"], 2)
         self.assertEqual(response.context_data["line_values"], [{"line": 1}, {"line": 2}])
         self.assertEqual(response.context_data["missing_defaults"], [])
@@ -414,6 +426,7 @@ class ScanShipmentsViewsTests(TestCase):
 
     def test_scan_pack_post_renders_context_when_handler_has_no_response(self):
         fake_form = object()
+        helper_install = {"available": True, "install_url": "/scan/helper/install/"}
         pack_state = {
             "carton_format_id": "1",
             "carton_custom": {"length_cm": 40},
@@ -440,12 +453,17 @@ class ScanShipmentsViewsTests(TestCase):
                         return_value=(None, pack_state),
                     ):
                         with mock.patch(
-                            "wms.views_scan_shipments.render",
-                            side_effect=self._render_stub,
+                            "wms.views_scan_shipments.build_helper_install_context",
+                            return_value=helper_install,
                         ):
-                            response = self.client.post(reverse("scan:scan_pack"), {})
+                            with mock.patch(
+                                "wms.views_scan_shipments.render",
+                                side_effect=self._render_stub,
+                            ):
+                                response = self.client.post(reverse("scan:scan_pack"), {})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "scan/pack.html")
+        self.assertEqual(response.context_data["helper_install"], helper_install)
         self.assertEqual(response.context_data["line_count"], 3)
         self.assertEqual(response.context_data["line_errors"], {"1": "invalid"})
         self.assertEqual(response.context_data["missing_defaults"], ["SKU-001"])
@@ -453,6 +471,7 @@ class ScanShipmentsViewsTests(TestCase):
 
     def test_scan_shipment_create_get_builds_initial_line_values(self):
         fake_form = SimpleNamespace(initial={"carton_count": 2})
+        helper_install = {"available": True, "install_url": "/scan/helper/install/"}
         with mock.patch(
             "wms.views_scan_shipments.ScanShipmentForm",
             return_value=fake_form,
@@ -474,14 +493,19 @@ class ScanShipmentsViewsTests(TestCase):
                             return_value={"context_key": "value"},
                         ):
                             with mock.patch(
-                                "wms.views_scan_shipments.render",
-                                side_effect=self._render_stub,
+                                "wms.views_scan_shipments.build_helper_install_context",
+                                return_value=helper_install,
                             ):
-                                response = self.client.get(reverse("scan:scan_shipment_create"))
+                                with mock.patch(
+                                    "wms.views_scan_shipments.render",
+                                    side_effect=self._render_stub,
+                                ):
+                                    response = self.client.get(reverse("scan:scan_shipment_create"))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "scan/shipment_create.html")
         self.assertEqual(response.context_data["context_key"], "value")
         self.assertEqual(response.context_data["active"], "shipment")
+        self.assertEqual(response.context_data["helper_install"], helper_install)
         line_values_mock.assert_called_once_with(2)
 
     def test_scan_shipment_create_post_returns_handler_response_when_available(self):
@@ -508,6 +532,7 @@ class ScanShipmentsViewsTests(TestCase):
 
     def test_scan_shipment_create_post_renders_context_when_no_handler_response(self):
         fake_form = SimpleNamespace(initial={"carton_count": 1})
+        helper_install = {"available": True, "install_url": "/scan/helper/install/"}
         with mock.patch(
             "wms.views_scan_shipments.ScanShipmentForm",
             return_value=fake_form,
@@ -529,16 +554,21 @@ class ScanShipmentsViewsTests(TestCase):
                             return_value={"context_key": "post"},
                         ):
                             with mock.patch(
-                                "wms.views_scan_shipments.render",
-                                side_effect=self._render_stub,
+                                "wms.views_scan_shipments.build_helper_install_context",
+                                return_value=helper_install,
                             ):
-                                response = self.client.post(
-                                    reverse("scan:scan_shipment_create"), {}
-                                )
+                                with mock.patch(
+                                    "wms.views_scan_shipments.render",
+                                    side_effect=self._render_stub,
+                                ):
+                                    response = self.client.post(
+                                        reverse("scan:scan_shipment_create"), {}
+                                    )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "scan/shipment_create.html")
         self.assertEqual(response.context_data["context_key"], "post")
         self.assertEqual(response.context_data["active"], "shipment")
+        self.assertEqual(response.context_data["helper_install"], helper_install)
 
     def test_scan_shipment_edit_redirects_when_shipment_is_not_editable(self):
         shipment = self._create_shipment(status=ShipmentStatus.SHIPPED)
@@ -553,6 +583,7 @@ class ScanShipmentsViewsTests(TestCase):
         carton = Carton.objects.create(code="C-EDIT-1", shipment=shipment)
         fake_form = object()
         initial = {"destination": "", "carton_count": 1}
+        helper_install = {"available": True, "install_url": "/scan/helper/install/"}
 
         with mock.patch("wms.views_scan_shipments.Shipment.ensure_qr_code"):
             with mock.patch(
@@ -584,18 +615,23 @@ class ScanShipmentsViewsTests(TestCase):
                                         return_value={"context_key": "edit-get"},
                                     ):
                                         with mock.patch(
-                                            "wms.views_scan_shipments.render",
-                                            side_effect=self._render_stub,
+                                            "wms.views_scan_shipments.build_helper_install_context",
+                                            return_value=helper_install,
                                         ):
-                                            response = self.client.get(
-                                                reverse(
-                                                    "scan:scan_shipment_edit",
-                                                    kwargs={"shipment_id": shipment.id},
+                                            with mock.patch(
+                                                "wms.views_scan_shipments.render",
+                                                side_effect=self._render_stub,
+                                            ):
+                                                response = self.client.get(
+                                                    reverse(
+                                                        "scan:scan_shipment_edit",
+                                                        kwargs={"shipment_id": shipment.id},
+                                                    )
                                                 )
-                                            )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "scan/shipment_create.html")
         self.assertEqual(response.context_data["context_key"], "edit-get")
+        self.assertEqual(response.context_data["helper_install"], helper_install)
         self.assertTrue(response.context_data["is_edit"])
         self.assertEqual(response.context_data["shipment"].id, shipment.id)
         self.assertIn("tracking_url", response.context_data)
@@ -647,6 +683,7 @@ class ScanShipmentsViewsTests(TestCase):
         shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
         fake_form = object()
         initial = {"destination": "", "carton_count": 2}
+        helper_install = {"available": True, "install_url": "/scan/helper/install/"}
 
         with mock.patch("wms.views_scan_shipments.Shipment.ensure_qr_code"):
             with mock.patch(
@@ -678,19 +715,24 @@ class ScanShipmentsViewsTests(TestCase):
                                         return_value={"context_key": "edit-post"},
                                     ):
                                         with mock.patch(
-                                            "wms.views_scan_shipments.render",
-                                            side_effect=self._render_stub,
+                                            "wms.views_scan_shipments.build_helper_install_context",
+                                            return_value=helper_install,
                                         ):
-                                            response = self.client.post(
-                                                reverse(
-                                                    "scan:scan_shipment_edit",
-                                                    kwargs={"shipment_id": shipment.id},
-                                                ),
-                                                {},
-                                            )
+                                            with mock.patch(
+                                                "wms.views_scan_shipments.render",
+                                                side_effect=self._render_stub,
+                                            ):
+                                                response = self.client.post(
+                                                    reverse(
+                                                        "scan:scan_shipment_edit",
+                                                        kwargs={"shipment_id": shipment.id},
+                                                    ),
+                                                    {},
+                                                )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "scan/shipment_create.html")
         self.assertEqual(response.context_data["context_key"], "edit-post")
+        self.assertEqual(response.context_data["helper_install"], helper_install)
         self.assertTrue(response.context_data["is_edit"])
 
     def test_scan_shipment_track_get_renders_tracking_context(self):
