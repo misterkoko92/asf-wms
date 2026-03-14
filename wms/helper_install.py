@@ -1,12 +1,32 @@
+import base64
+import io
 import platform
+import textwrap
+import zipfile
 from pathlib import Path
 
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse, JsonResponse
 
 from tools.planning_comm_helper.autostart import MACOS_APP_BUNDLE_NAME
+from tools.planning_comm_helper.versioning import HELPER_VERSION
 
 from .helper_versioning import build_helper_version_policy
+
+HELPER_RUNTIME_REQUIREMENTS = """pypdf==6.7.5
+pywin32>=306; platform_system == "Windows"
+"""
+HELPER_BUNDLE_FILES = (
+    "tools/planning_comm_helper/__init__.py",
+    "tools/planning_comm_helper/autostart.py",
+    "tools/planning_comm_helper/excel_pdf.py",
+    "tools/planning_comm_helper/outlook.py",
+    "tools/planning_comm_helper/pdf_render.py",
+    "tools/planning_comm_helper/planning_pdf.py",
+    "tools/planning_comm_helper/server.py",
+    "tools/planning_comm_helper/versioning.py",
+    "tools/planning_comm_helper/whatsapp.py",
+)
 
 
 def _helper_repo_root():
@@ -15,6 +35,14 @@ def _helper_repo_root():
 
 def _macos_installed_app_path() -> Path:
     return Path.home() / "Applications" / MACOS_APP_BUNDLE_NAME
+
+
+def _absolute_install_url(*, install_url: str, request=None) -> str:
+    if not install_url:
+        return ""
+    if request is None:
+        return install_url
+    return request.build_absolute_uri(install_url)
 
 
 def _normalize_platform_hint(value):
@@ -49,54 +77,179 @@ def _resolved_system(*, request=None, system=None):
     return _request_client_system(request) or system or platform.system()
 
 
+def _helper_bundle_archive(repo_root: Path | None = None) -> bytes:
+    resolved_repo_root = Path(repo_root or _helper_repo_root())
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for relative_path in HELPER_BUNDLE_FILES:
+            source_path = resolved_repo_root / relative_path
+            archive.writestr(relative_path, source_path.read_bytes())
+        archive.writestr("requirements-helper.txt", HELPER_RUNTIME_REQUIREMENTS)
+        archive.writestr("helper-version.txt", f"{HELPER_VERSION}\n")
+    return buffer.getvalue()
+
+
+def _helper_bundle_base64(repo_root: Path | None = None) -> str:
+    return base64.b64encode(_helper_bundle_archive(repo_root)).decode("ascii")
+
+
+def _wrapped_base64_lines(payload: str) -> str:
+    return "\n".join(textwrap.wrap(payload, 88))
+
+
+def _macos_install_command(install_url: str) -> str:
+    return f'curl -fsSL "{install_url}" | zsh'
+
+
+def _windows_install_command(install_url: str, *, app_label: str) -> str:
+    escaped_url = install_url.replace("'", "''")
+    safe_filename = f"install-{app_label}-helper.cmd"
+    return (
+        "powershell -NoProfile -ExecutionPolicy Bypass -Command "
+        f"\"$tmp = Join-Path $env:TEMP '{safe_filename}'; "
+        f"iwr -UseBasicParsing '{escaped_url}' -OutFile $tmp; "
+        'cmd /c $tmp"'
+    )
+
+
+def _build_macos_installer_script(*, bundle_base64: str) -> str:
+    return f"""#!/bin/zsh
+set -euo pipefail
+
+INSTALL_ROOT="$HOME/Library/Application Support/ASF/planning_comm_helper"
+REPO_ROOT="$INSTALL_ROOT/repo"
+BUNDLE_B64="$INSTALL_ROOT/helper-bundle.b64"
+
+PYTHON_BIN=""
+if command -v python3 >/dev/null 2>&1; then
+  PYTHON_BIN="$(command -v python3)"
+elif command -v python >/dev/null 2>&1; then
+  PYTHON_BIN="$(command -v python)"
+fi
+
+if [[ -z "$PYTHON_BIN" ]]; then
+  echo "Python 3 est requis pour installer le helper local."
+  exit 1
+fi
+
+mkdir -p "$INSTALL_ROOT"
+cat > "$BUNDLE_B64" <<'__ASF_HELPER_BUNDLE__'
+{_wrapped_base64_lines(bundle_base64)}
+__ASF_HELPER_BUNDLE__
+
+"$PYTHON_BIN" - <<'PY' "$INSTALL_ROOT"
+import base64
+import pathlib
+import shutil
+import sys
+import zipfile
+
+install_root = pathlib.Path(sys.argv[1])
+repo_root = install_root / "repo"
+bundle_path = install_root / "helper-bundle.b64"
+archive_path = install_root / "helper-bundle.zip"
+archive_path.write_bytes(base64.b64decode(bundle_path.read_text(encoding="utf-8")))
+shutil.rmtree(repo_root, ignore_errors=True)
+repo_root.mkdir(parents=True, exist_ok=True)
+with zipfile.ZipFile(archive_path) as archive:
+    archive.extractall(repo_root)
+PY
+
+"$PYTHON_BIN" -m venv "$REPO_ROOT/.venv"
+"$REPO_ROOT/.venv/bin/python" -m pip install -r "$REPO_ROOT/requirements-helper.txt"
+cd "$REPO_ROOT"
+"$REPO_ROOT/.venv/bin/python" -m tools.planning_comm_helper.autostart install
+
+echo "Helper local installe."
+"""
+
+
+def _build_windows_installer_script(*, bundle_base64: str) -> str:
+    return f"""@echo off
+setlocal
+
+set "INSTALL_ROOT=%LOCALAPPDATA%\\ASF\\planning_comm_helper"
+set "REPO_ROOT=%INSTALL_ROOT%\\repo"
+set "BUNDLE_B64=%INSTALL_ROOT%\\helper-bundle.b64"
+
+set "PYTHON_CMD="
+where py >nul 2>nul && set "PYTHON_CMD=py -3"
+if not defined PYTHON_CMD where python >nul 2>nul && set "PYTHON_CMD=python"
+
+if not defined PYTHON_CMD (
+  echo Python 3 est requis pour installer le helper local.
+  exit /b 1
+)
+
+mkdir "%INSTALL_ROOT%" 2>nul
+> "%BUNDLE_B64%" (
+{_build_windows_echo_block(bundle_base64)}
+)
+
+%PYTHON_CMD% -c "import base64, pathlib, shutil, sys, zipfile; install_root = pathlib.Path(sys.argv[1]); repo_root = install_root / 'repo'; bundle_path = install_root / 'helper-bundle.b64'; archive_path = install_root / 'helper-bundle.zip'; archive_path.write_bytes(base64.b64decode(bundle_path.read_text(encoding='utf-8'))); shutil.rmtree(repo_root, ignore_errors=True); repo_root.mkdir(parents=True, exist_ok=True); zipfile.ZipFile(archive_path).extractall(repo_root)" "%INSTALL_ROOT%"
+%PYTHON_CMD% -m venv "%REPO_ROOT%\\.venv"
+"%REPO_ROOT%\\.venv\\Scripts\\python.exe" -m pip install -r "%REPO_ROOT%\\requirements-helper.txt"
+pushd "%REPO_ROOT%"
+"%REPO_ROOT%\\.venv\\Scripts\\python.exe" -m tools.planning_comm_helper.autostart install
+popd
+
+echo Helper local installe.
+"""
+
+
+def _build_windows_echo_block(bundle_base64: str) -> str:
+    lines = []
+    for chunk in textwrap.wrap(bundle_base64, 88):
+        escaped_chunk = (
+            chunk.replace("^", "^^")
+            .replace("&", "^&")
+            .replace("|", "^|")
+            .replace(">", "^>")
+            .replace("<", "^<")
+        )
+        lines.append(f"  echo {escaped_chunk}")
+    return "\n".join(lines)
+
+
 def build_helper_installer_payload(
-    *, app_label="asf-wms", system=None, repo_root=None, request=None
+    *, app_label="asf-wms", system=None, repo_root=None, request=None, install_url=None
 ):
     system_name = _resolved_system(request=request, system=system)
-    resolved_repo_root = Path(repo_root or _helper_repo_root())
+    absolute_install_url = _absolute_install_url(
+        install_url=install_url or "",
+        request=request,
+    )
     if system_name == "Darwin":
-        python_path = resolved_repo_root / ".venv" / "bin" / "python"
+        bundle_base64 = _helper_bundle_base64(repo_root=repo_root)
         installed_app_path = _macos_installed_app_path()
-        command = (
-            f'cd "{resolved_repo_root}" && '
-            f'"{python_path}" -m tools.planning_comm_helper.autostart install'
-        )
-        script = f"""#!/bin/zsh
-set -e
-cd "{resolved_repo_root}"
-"{python_path}" -m tools.planning_comm_helper.autostart install
-"""
         return {
             "available": True,
             "platform_label": "macOS",
             "download_label": "Installer le helper (macOS)",
             "filename": f"install-{app_label}-helper.command",
-            "command": command,
-            "script": script,
+            "command": _macos_install_command(absolute_install_url) if absolute_install_url else "",
+            "script": _build_macos_installer_script(bundle_base64=bundle_base64),
             "installed_app_path": str(installed_app_path),
             "post_install_guidance": (
                 "Au premier lancement, macOS peut demander d'autoriser "
                 "ASF Planning Communication Helper a controler Microsoft Excel. "
-                f"Validez une fois pour ce poste. L'app stable sera installee dans {installed_app_path}."
+                f"Validez une fois pour ce poste. L'app stable sera installee dans {installed_app_path}. "
+                "Si macOS bloque le fichier telecharge, utilisez Copier la commande ou Faites clic droit > Ouvrir."
             ),
         }
     if system_name == "Windows":
-        python_path = resolved_repo_root / ".venv" / "Scripts" / "python.exe"
-        command = (
-            f'cd /d "{resolved_repo_root}" && '
-            f'"{python_path}" -m tools.planning_comm_helper.autostart install'
-        )
-        script = f"""@echo off
-cd /d "{resolved_repo_root}"
-"{python_path}" -m tools.planning_comm_helper.autostart install
-"""
+        bundle_base64 = _helper_bundle_base64(repo_root=repo_root)
         return {
             "available": True,
             "platform_label": "Windows",
             "download_label": "Installer le helper (Windows)",
             "filename": f"install-{app_label}-helper.cmd",
-            "command": command,
-            "script": script,
+            "command": (
+                _windows_install_command(absolute_install_url, app_label=app_label)
+                if absolute_install_url
+                else ""
+            ),
+            "script": _build_windows_installer_script(bundle_base64=bundle_base64),
             "installed_app_path": "",
             "post_install_guidance": "",
         }
@@ -118,6 +271,7 @@ def build_helper_install_context(
             system=system,
             repo_root=repo_root,
             request=request,
+            install_url=install_url,
         )
     except ValidationError as exc:
         return {
