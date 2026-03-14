@@ -484,10 +484,18 @@ class ScanShipmentsViewsTests(TestCase):
 
     def test_scan_shipment_pages_render_native_english(self):
         shipment = self._create_shipment()
+        packed_shipment = self._create_shipment(status=ShipmentStatus.PACKED)
+        Carton.objects.create(
+            shipment=packed_shipment,
+            code="CRT-I18N-READY",
+            status=CartonStatus.LABELED,
+        )
         self._activate_english()
 
         shipments_ready_response = self.client.get(reverse("scan:scan_shipments_ready"))
         self.assertContains(shipments_ready_response, "Shipments view")
+        self.assertContains(shipments_ready_response, "Available")
+        self.assertNotContains(shipments_ready_response, "Ready")
         self.assertNotContains(shipments_ready_response, "Vue Exp&eacute;ditions")
 
         shipments_tracking_response = self.client.get(reverse("scan:scan_shipments_tracking"))

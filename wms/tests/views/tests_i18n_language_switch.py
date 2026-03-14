@@ -11,8 +11,11 @@ from wms.models import (
     AssociationRecipient,
     Destination,
     Order,
+    OrderReviewStatus,
+    OrderStatus,
     PublicOrderLink,
     Shipment,
+    ShipmentStatus,
 )
 
 
@@ -218,9 +221,32 @@ class LanguageSwitchI18nTests(TestCase):
         self.client.force_login(self.portal_user)
         self._activate_english()
 
+        association_contact = AssociationProfile.objects.get(user=self.portal_user).contact
+        shipment = Shipment.objects.create(
+            shipper_name="ASF",
+            recipient_name="Destinataire I18N",
+            destination_address="2 Rue Livraison\n75001 Paris\nFrance",
+            destination_country="France",
+            status=ShipmentStatus.PACKED,
+        )
+        order = Order.objects.create(
+            association_contact=association_contact,
+            shipper_name="ASF",
+            recipient_name="Destinataire I18N",
+            destination_address="2 Rue Livraison\n75001 Paris\nFrance",
+            destination_country="France",
+            status=OrderStatus.RESERVED,
+            review_status=OrderReviewStatus.APPROVED,
+            shipment=shipment,
+        )
+
         dashboard = self.client.get(reverse("portal:portal_dashboard"))
         self.assertContains(dashboard, "Association portal")
         self.assertContains(dashboard, "New order")
+        self.assertContains(dashboard, "Order status")
+        self.assertContains(dashboard, "Shipment status")
+        self.assertContains(dashboard, "Reserved")
+        self.assertContains(dashboard, "Available")
         self.assertNotContains(dashboard, "Portail association")
 
         order_create = self.client.get(reverse("portal:portal_order_create"))
@@ -228,6 +254,14 @@ class LanguageSwitchI18nTests(TestCase):
         self.assertContains(order_create, "Available parcels")
         self.assertContains(order_create, "Submit order")
         self.assertNotContains(order_create, "Nouvelle commande")
+
+        order_detail = self.client.get(reverse("portal:portal_order_detail", args=[order.id]))
+        self.assertContains(order_detail, "Order status")
+        self.assertContains(order_detail, "ASF review")
+        self.assertContains(order_detail, "Shipment status")
+        self.assertContains(order_detail, "Reserved")
+        self.assertContains(order_detail, "Approved")
+        self.assertContains(order_detail, "Available")
 
     def test_receive_pages_render_native_english(self):
         self.client.force_login(self.staff_user)
