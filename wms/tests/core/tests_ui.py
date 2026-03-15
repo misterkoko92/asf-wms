@@ -30,6 +30,8 @@ from wms.models import (
     Location,
     Order,
     OrderReviewStatus,
+    OrganizationRole,
+    OrganizationRoleAssignment,
     PrintTemplate,
     Product,
     ProductLot,
@@ -37,11 +39,14 @@ from wms.models import (
     Receipt,
     ReceiptStatus,
     ReceiptType,
+    RecipientBinding,
     Shipment,
     ShipmentStatus,
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
+    ShipperScope,
     Warehouse,
+    WmsRuntimeSettings,
 )
 
 try:
@@ -136,6 +141,109 @@ class ScanUiTests(StaticLiveServerTestCase):
             )
             status_text = page.locator("#scan-status").inner_text()
             self.assertIn("Accès caméra refusé.", status_text)
+            context.close()
+            browser.close()
+
+    def test_scan_shipment_create_hides_unbound_recipients_when_org_roles_enabled(self):
+        runtime = WmsRuntimeSettings.get_solo()
+        runtime.org_roles_engine_enabled = True
+        runtime.save(update_fields=["org_roles_engine_enabled"])
+
+        correspondent = Contact.objects.create(
+            name="Legacy Shipment Corr",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        destination = Destination.objects.create(
+            city="Antananarivo",
+            iata_code="TNR-LEGACY-UI",
+            country="Madagascar",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        shipper_tag, _ = ContactTag.objects.get_or_create(name=TAG_SHIPPER[0])
+        recipient_tag, _ = ContactTag.objects.get_or_create(name=TAG_RECIPIENT[0])
+        shipper = Contact.objects.create(
+            name="Legacy UI Shipper",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        recipient_allowed = Contact.objects.create(
+            name="Legacy UI Recipient Allowed",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        recipient_blocked = Contact.objects.create(
+            name="Legacy UI Recipient Blocked",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        shipper.tags.add(shipper_tag)
+        recipient_allowed.tags.add(recipient_tag)
+        recipient_blocked.tags.add(recipient_tag)
+        recipient_allowed.destinations.add(destination)
+        recipient_blocked.destinations.add(destination)
+
+        shipper_assignment = OrganizationRoleAssignment.objects.create(
+            organization=shipper,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
+        OrganizationRoleAssignment.objects.create(
+            organization=recipient_allowed,
+            role=OrganizationRole.RECIPIENT,
+            is_active=True,
+        )
+        OrganizationRoleAssignment.objects.create(
+            organization=recipient_blocked,
+            role=OrganizationRole.RECIPIENT,
+            is_active=True,
+        )
+        ShipperScope.objects.create(
+            role_assignment=shipper_assignment,
+            destination=destination,
+            all_destinations=False,
+            is_active=True,
+        )
+        RecipientBinding.objects.create(
+            shipper_org=shipper,
+            recipient_org=recipient_allowed,
+            destination=destination,
+            is_active=True,
+        )
+
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = self._new_context(browser)
+            page = context.new_page()
+            page.goto(
+                f"{self.live_server_url}{reverse('scan:scan_shipment_create')}",
+                wait_until="domcontentloaded",
+            )
+            page.wait_for_selector("h2")
+            page.locator("#id_destination").select_option(str(destination.id))
+            page.locator("#id_shipper_contact").select_option(str(shipper.id))
+            page.wait_for_function(
+                """
+                (allowedId) => !!document.querySelector(
+                  `#id_recipient_contact option[value="${allowedId}"]`
+                )
+                """,
+                arg=str(recipient_allowed.id),
+            )
+
+            self.assertEqual(
+                page.locator(
+                    f'#id_recipient_contact option[value="{recipient_allowed.id}"]'
+                ).count(),
+                1,
+            )
+            self.assertEqual(
+                page.locator(
+                    f'#id_recipient_contact option[value="{recipient_blocked.id}"]'
+                ).count(),
+                0,
+            )
             context.close()
             browser.close()
 
