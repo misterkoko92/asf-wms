@@ -100,6 +100,12 @@
   border-color: var(--wms-status-progress-border);
 }
 
+.portal-bootstrap-enabled .portal-badge.is-info {
+  background: var(--wms-status-info-bg);
+  color: var(--wms-status-info-text);
+  border-color: var(--wms-status-info-border);
+}
+
 .portal-bootstrap-enabled .portal-badge.is-warning {
   background: var(--wms-status-warning-bg);
   color: var(--wms-status-warning-text);

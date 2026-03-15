@@ -1,5 +1,6 @@
 import re
 
+BADGE_TONE_INFO = "info"
 BADGE_TONE_READY = "ready"
 BADGE_TONE_PROGRESS = "progress"
 BADGE_TONE_WARNING = "warning"
@@ -22,8 +23,8 @@ _STATUS_TONES_BY_DOMAIN = {
         "draft": BADGE_TONE_PROGRESS,
         "picking": BADGE_TONE_PROGRESS,
         "packed": BADGE_TONE_READY,
-        "planned": BADGE_TONE_PROGRESS,
-        "shipped": BADGE_TONE_PROGRESS,
+        "planned": BADGE_TONE_WARNING,
+        "shipped": BADGE_TONE_INFO,
         "received_correspondent": BADGE_TONE_PROGRESS,
         "delivered": BADGE_TONE_READY,
     },

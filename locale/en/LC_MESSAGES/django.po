@@ -2005,6 +2005,10 @@ msgstr ""
 msgid "En préparation"
 msgstr "In preparation"
 
+#: templates/portal/order_detail.html:20
+msgid "Validation ASF"
+msgstr "ASF review"
+
 #: templates/scan/admin_design.html:698
 #, fuzzy
 #| msgid "Prêtes"
@@ -2485,6 +2489,30 @@ msgstr "Ref"
 #: templates/scan/dashboard.html:111 wms/admin.py:672
 msgid "Disponible"
 msgstr "Available"
+
+#: wms/status_presenters.py:11
+msgid "Réservée"
+msgstr "Reserved"
+
+#: wms/status_presenters.py:13
+msgid "Annulée"
+msgstr "Cancelled"
+
+#: wms/status_presenters.py:17
+msgid "En attente de validation"
+msgstr "Pending approval"
+
+#: wms/status_presenters.py:18
+msgid "Validée"
+msgstr "Approved"
+
+#: wms/status_presenters.py:19
+msgid "Modifications demandées"
+msgstr "Changes requested"
+
+#: wms/status_presenters.py:20
+msgid "Refusée"
+msgstr "Rejected"
 
 #: templates/scan/dashboard.html:125
 #, python-format
@@ -5442,7 +5470,7 @@ msgstr "Destination (IATA)"
 
 #: templates/scan/shipments_ready.html:33
 msgid "Date mise en disponible"
-msgstr "Ready date"
+msgstr "Available date"
 
 #: templates/scan/shipments_ready.html:87
 msgid "Aucune expédition."

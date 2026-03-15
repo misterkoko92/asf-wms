@@ -15,12 +15,20 @@
       </h2>
       <p class="scan-help">{% blocktrans with recipient_name=order.recipient_name %}Destinataire: {{ recipient_name }}{% endblocktrans %}</p>
       <p class="scan-help">
-        {% trans "Statut" %}:
-        <span class="{% status_portal_badge_class order.status 'order' %}">{{ order.get_status_display }}</span>
+        {% trans "Statut commande" %}:
+        <span class="{% status_portal_badge_class order_status_display.value order_status_display.domain order_status_display.is_disputed %}">{{ order_status_display.label }}</span>
       </p>
       <p class="scan-help">
-        {% trans "Validation" %}:
-        <span class="{% status_portal_badge_class order.review_status 'order_review' %}">{{ order.get_review_status_display }}</span>
+        {% trans "Validation ASF" %}:
+        <span class="{% status_portal_badge_class review_status_display.value review_status_display.domain review_status_display.is_disputed %}">{{ review_status_display.label }}</span>
+      </p>
+      <p class="scan-help">
+        {% trans "Statut expédition" %}:
+        {% if shipment_status_display.value %}
+          <span class="{% status_portal_badge_class shipment_status_display.value shipment_status_display.domain shipment_status_display.is_disputed %}">{{ shipment_status_display.label }}</span>
+        {% else %}
+          -
+        {% endif %}
       </p>
       <p class="scan-help">{% blocktrans with created_date=order.created_at|date:"d/m/Y" %}Date: {{ created_date }}{% endblocktrans %}</p>
     </div>

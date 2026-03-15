@@ -20,6 +20,10 @@ class StatusBadgesTests(SimpleTestCase):
             "error",
         )
 
+    def test_resolve_status_tone_distinguishes_planned_and_shipped_shipments(self):
+        self.assertEqual(resolve_status_tone("planned", domain="shipment"), "warning")
+        self.assertEqual(resolve_status_tone("shipped", domain="shipment"), "info")
+
     def test_build_status_class_uses_base_class_and_tone(self):
         self.assertEqual(
             build_status_class("ready", domain="order", base_class="portal-badge"),

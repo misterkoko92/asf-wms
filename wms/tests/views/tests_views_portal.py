@@ -44,6 +44,7 @@ from wms.models import (
     OrderDocument,
     OrderDocumentType,
     OrderReviewStatus,
+    OrderStatus,
     OrganizationRole,
     OrganizationRoleAssignment,
     Product,
@@ -52,6 +53,7 @@ from wms.models import (
     ProductLotStatus,
     RecipientBinding,
     Shipment,
+    ShipmentStatus,
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
     ShipperScope,
@@ -677,6 +679,30 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertIn("Abidjan", html)
         reviewed_display = timezone.localtime(reviewed_at).strftime("%d/%m/%Y")
         self.assertIn(reviewed_display, html)
+
+    def test_portal_dashboard_exposes_separate_order_and_shipment_statuses(self):
+        shipment = Shipment.objects.create(
+            shipper_name="ASF",
+            recipient_name=self.profile.contact.name,
+            destination_address="1 Rue Test",
+            destination_country="France",
+            status=ShipmentStatus.PACKED,
+        )
+        order = self._order(review_status=OrderReviewStatus.APPROVED)
+        order.status = OrderStatus.RESERVED
+        order.shipment = shipment
+        order.save(update_fields=["status", "shipment"])
+
+        response = self.client.get(self.dashboard_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Statut commande")
+        self.assertContains(response, "Statut expédition")
+        self.assertContains(response, "Réservée")
+        self.assertContains(response, "Disponible")
+        dashboard_order = list(response.context["orders"])[0]
+        self.assertEqual(dashboard_order.order_status_display["label"], "Réservée")
+        self.assertEqual(dashboard_order.shipment_status_display["label"], "Disponible")
 
     def test_portal_dashboard_redirects_when_delivery_contact_missing(self):
         AssociationRecipient.objects.filter(association_contact=self.profile.contact).delete()
@@ -1621,6 +1647,34 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.context["can_upload_docs"])
+
+    def test_portal_order_detail_context_exposes_order_review_and_shipment_statuses(self):
+        shipment = Shipment.objects.create(
+            shipper_name="ASF",
+            recipient_name=self.profile.contact.name,
+            destination_address="1 Rue Test",
+            destination_country="France",
+            status=ShipmentStatus.PACKED,
+        )
+        order = self._order(review_status=OrderReviewStatus.APPROVED)
+        order.status = OrderStatus.RESERVED
+        order.shipment = shipment
+        order.save(update_fields=["status", "shipment"])
+
+        response = self.client.get(
+            reverse("portal:portal_order_detail", kwargs={"order_id": order.id})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Statut commande")
+        self.assertContains(response, "Validation ASF")
+        self.assertContains(response, "Statut expédition")
+        self.assertContains(response, "Réservée")
+        self.assertContains(response, "Validée")
+        self.assertContains(response, "Disponible")
+        self.assertEqual(response.context["order_status_display"]["label"], "Réservée")
+        self.assertEqual(response.context["review_status_display"]["label"], "Validée")
+        self.assertEqual(response.context["shipment_status_display"]["label"], "Disponible")
 
     def test_portal_order_detail_is_scoped_to_association(self):
         other_contact = self._create_association_contact("Association X", with_address=True)
