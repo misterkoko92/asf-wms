@@ -32,3 +32,7 @@ class Command(BaseCommand):
         self.stdout.write("Preserved models:")
         for label, count in summary.keep_counts_after.items():
             self.stdout.write(f"- {label}: {count}")
+        if summary.missing_table_labels:
+            self.stdout.write("Skipped missing tables:")
+            for label in summary.missing_table_labels:
+                self.stdout.write(f"- {label}")

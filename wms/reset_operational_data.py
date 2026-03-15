@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from django.apps import apps
-from django.db import transaction
+from django.db import connection, transaction
 
 KEEP_MODEL_LABELS = frozenset(
     {
@@ -169,6 +169,7 @@ class ResetOperationalDataSummary:
     delete_counts_after: dict[str, int]
     keep_counts_before: dict[str, int]
     keep_counts_after: dict[str, int]
+    missing_table_labels: tuple[str, ...] = ()
 
 
 def _all_known_model_labels() -> set[str]:
@@ -196,6 +197,21 @@ def _count_labels(labels: tuple[str, ...] | frozenset[str]) -> dict[str, int]:
     return counts
 
 
+def _existing_table_labels(
+    labels: tuple[str, ...] | frozenset[str],
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    existing_tables = set(connection.introspection.table_names())
+    present_labels: list[str] = []
+    missing_labels: list[str] = []
+    for label in labels:
+        model = _resolve_model(label)
+        if model._meta.db_table in existing_tables:
+            present_labels.append(label)
+            continue
+        missing_labels.append(label)
+    return tuple(present_labels), tuple(missing_labels)
+
+
 def _validate_configuration():
     known_labels = _all_known_model_labels()
     delete_labels = set(_delete_model_labels())
@@ -215,8 +231,10 @@ def _validate_configuration():
 def reset_operational_data(*, apply: bool) -> ResetOperationalDataSummary:
     _validate_configuration()
 
-    delete_labels = _delete_model_labels()
-    keep_counts_before = _count_labels(KEEP_MODEL_LABELS)
+    delete_labels, missing_delete_labels = _existing_table_labels(_delete_model_labels())
+    keep_labels, missing_keep_labels = _existing_table_labels(KEEP_MODEL_LABELS)
+    missing_table_labels = tuple(sorted(set(missing_delete_labels).union(missing_keep_labels)))
+    keep_counts_before = _count_labels(keep_labels)
     delete_counts_before = _count_labels(delete_labels)
 
     if not apply:
@@ -226,14 +244,17 @@ def reset_operational_data(*, apply: bool) -> ResetOperationalDataSummary:
             delete_counts_after=delete_counts_before.copy(),
             keep_counts_before=keep_counts_before,
             keep_counts_after=keep_counts_before.copy(),
+            missing_table_labels=missing_table_labels,
         )
 
     with transaction.atomic():
         for _batch_name, batch_labels in DELETE_BATCHES:
             for label in batch_labels:
+                if label not in delete_labels:
+                    continue
                 _resolve_model(label)._default_manager.all().delete()
 
-        keep_counts_after = _count_labels(KEEP_MODEL_LABELS)
+        keep_counts_after = _count_labels(keep_labels)
         delete_counts_after = _count_labels(delete_labels)
 
         for label, count in delete_counts_after.items():
@@ -252,4 +273,5 @@ def reset_operational_data(*, apply: bool) -> ResetOperationalDataSummary:
             delete_counts_after=delete_counts_after,
             keep_counts_before=keep_counts_before,
             keep_counts_after=keep_counts_after,
+            missing_table_labels=missing_table_labels,
         )
