@@ -9,6 +9,7 @@ from wms.models import (
     Location,
     PlanningDestinationRule,
     PlanningParameterSet,
+    ReceiptDonorSequence,
     Warehouse,
     WmsRuntimeSettings,
 )
@@ -35,6 +36,15 @@ class ResetOperationalDataCommandTests(TestCase):
             correspondent_contact=self.correspondent,
             is_active=True,
         )
+        self.donor = Contact.objects.create(
+            name="Donor A",
+            contact_type=ContactType.ORGANIZATION,
+        )
+        self.receipt_donor_sequence = ReceiptDonorSequence.objects.create(
+            year=2026,
+            donor=self.donor,
+            last_number=3,
+        )
         self.parameter_set = PlanningParameterSet.objects.create(name="Main Planning Set")
         self.destination_rule = PlanningDestinationRule.objects.create(
             parameter_set=self.parameter_set,
@@ -54,6 +64,9 @@ class ResetOperationalDataCommandTests(TestCase):
         self.assertTrue(
             PlanningDestinationRule.objects.filter(pk=self.destination_rule.pk).exists()
         )
+        self.assertTrue(
+            ReceiptDonorSequence.objects.filter(pk=self.receipt_donor_sequence.pk).exists()
+        )
         self.assertTrue(Warehouse.objects.filter(pk=self.warehouse.pk).exists())
         self.assertTrue(Location.objects.filter(pk=self.location.pk).exists())
         self.assertTrue(WmsRuntimeSettings.objects.filter(pk=self.runtime_settings.pk).exists())
@@ -68,6 +81,7 @@ class ResetOperationalDataCommandTests(TestCase):
         self.assertFalse(Contact.objects.exists())
         self.assertFalse(Destination.objects.exists())
         self.assertFalse(PlanningDestinationRule.objects.exists())
+        self.assertFalse(ReceiptDonorSequence.objects.exists())
         self.assertTrue(Warehouse.objects.filter(pk=self.warehouse.pk).exists())
         self.assertTrue(Location.objects.filter(pk=self.location.pk).exists())
         self.assertTrue(WmsRuntimeSettings.objects.filter(pk=self.runtime_settings.pk).exists())
