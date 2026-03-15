@@ -4,7 +4,7 @@ from django.core.management import call_command
 from django.test import TestCase
 
 from contacts.models import Contact, ContactTag, ContactType
-from wms.models import OrganizationRole, OrganizationRoleAssignment
+from wms.models import Destination, OrganizationRole, OrganizationRoleAssignment
 
 
 class BackfillCorrespondentRecipientsCommandTests(TestCase):
@@ -88,3 +88,32 @@ class BackfillCorrespondentRecipientsCommandTests(TestCase):
                 is_active=True,
             ).exists()
         )
+
+    def test_apply_syncs_correspondent_destination_scope_from_destination_reference(self):
+        person = Contact.objects.create(
+            name="Scoped Backfill Correspondent",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        self._attach_correspondent_tag_without_signal(person)
+        destination = Destination.objects.create(
+            city="Libreville",
+            iata_code="LBV",
+            country="Gabon",
+            correspondent_contact=person,
+            is_active=True,
+        )
+
+        call_command("backfill_correspondent_recipients", "--apply")
+
+        person.refresh_from_db()
+        self.assertEqual(
+            set(person.destinations.values_list("id", flat=True)),
+            {destination.id},
+        )
+        self.assertEqual(person.destination_id, destination.id)
+
+        stdout = StringIO()
+        call_command("backfill_correspondent_recipients", "--dry-run", stdout=stdout)
+        output = stdout.getvalue()
+        self.assertIn("- Contacts changed: 0", output)
