@@ -2,11 +2,12 @@ from dataclasses import dataclass
 
 from django.db import transaction
 
+from contacts.destination_scope import contact_destination_ids, set_contact_destination_scope
 from contacts.models import Contact, ContactTag, ContactType
 from contacts.querysets import contacts_with_tags
 from contacts.rules import tags_match
 from contacts.tagging import TAG_CORRESPONDENT, TAG_RECIPIENT, normalize_tag_name
-from wms.models import OrganizationRole, OrganizationRoleAssignment
+from wms.models import Destination, OrganizationRole, OrganizationRoleAssignment
 
 RECIPIENT_TAG_DEFAULT_NAME = "Destinataire"
 SUPPORT_ORGANIZATION_NAME = "ASF - CORRESPONDANT"
@@ -19,6 +20,7 @@ class CorrespondentRecipientPromotionResult:
     recipient_tag_added: bool = False
     support_organization_created: bool = False
     attached_to_support_organization: bool = False
+    destination_scope_synced: bool = False
     recipient_role_created: bool = False
     recipient_role_reactivated: bool = False
 
@@ -90,6 +92,15 @@ def _resolve_recipient_organization(contact):
     return support_organization, created, False
 
 
+def _destination_ids_from_correspondent_assignments(contact) -> list[int]:
+    return sorted(
+        Destination.objects.filter(
+            correspondent_contact=contact,
+            is_active=True,
+        ).values_list("id", flat=True)
+    )
+
+
 def promote_correspondent_to_recipient_ready(
     contact, *, tags=None
 ) -> CorrespondentRecipientPromotionResult:
@@ -111,6 +122,12 @@ def promote_correspondent_to_recipient_ready(
         contact.tags.add(recipient_tag)
         recipient_tag_added = True
 
+    destination_scope_synced = False
+    destination_ids = _destination_ids_from_correspondent_assignments(contact)
+    if destination_ids and contact_destination_ids(contact) != destination_ids:
+        set_contact_destination_scope(contact=contact, destination_ids=destination_ids)
+        destination_scope_synced = True
+
     assignment, created = OrganizationRoleAssignment.objects.get_or_create(
         organization=organization,
         role=OrganizationRole.RECIPIENT,
@@ -127,6 +144,7 @@ def promote_correspondent_to_recipient_ready(
                 recipient_tag_added,
                 support_created,
                 attached_to_support,
+                destination_scope_synced,
                 created,
                 reactivated,
             ]
@@ -134,6 +152,7 @@ def promote_correspondent_to_recipient_ready(
         recipient_tag_added=recipient_tag_added,
         support_organization_created=support_created,
         attached_to_support_organization=attached_to_support,
+        destination_scope_synced=destination_scope_synced,
         recipient_role_created=created,
         recipient_role_reactivated=reactivated,
     )
