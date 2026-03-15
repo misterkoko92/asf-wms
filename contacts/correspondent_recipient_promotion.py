@@ -1,4 +1,9 @@
+from dataclasses import dataclass
+
+from django.db import transaction
+
 from contacts.models import Contact, ContactTag, ContactType
+from contacts.querysets import contacts_with_tags
 from contacts.rules import tags_match
 from contacts.tagging import TAG_CORRESPONDENT, TAG_RECIPIENT, normalize_tag_name
 from wms.models import OrganizationRole, OrganizationRoleAssignment
@@ -6,6 +11,16 @@ from wms.models import OrganizationRole, OrganizationRoleAssignment
 RECIPIENT_TAG_DEFAULT_NAME = "Destinataire"
 SUPPORT_ORGANIZATION_NAME = "ASF - CORRESPONDANT"
 SUPPORT_ORGANIZATION_NOTES_MARKER = "[system] correspondent recipient support organization"
+
+
+@dataclass(frozen=True)
+class CorrespondentRecipientPromotionResult:
+    changed: bool = False
+    recipient_tag_added: bool = False
+    support_organization_created: bool = False
+    attached_to_support_organization: bool = False
+    recipient_role_created: bool = False
+    recipient_role_reactivated: bool = False
 
 
 def _get_or_create_recipient_tag() -> ContactTag:
@@ -28,11 +43,14 @@ def _get_or_create_support_organization():
         .first()
     )
     if existing is None:
-        return Contact.objects.create(
-            name=SUPPORT_ORGANIZATION_NAME,
-            contact_type=ContactType.ORGANIZATION,
-            notes=SUPPORT_ORGANIZATION_NOTES_MARKER,
-            is_active=True,
+        return (
+            Contact.objects.create(
+                name=SUPPORT_ORGANIZATION_NAME,
+                contact_type=ContactType.ORGANIZATION,
+                notes=SUPPORT_ORGANIZATION_NOTES_MARKER,
+                is_active=True,
+            ),
+            True,
         )
 
     updated_fields = []
@@ -49,55 +67,112 @@ def _get_or_create_support_organization():
         updated_fields.append("notes")
     if updated_fields:
         existing.save(update_fields=updated_fields)
-    return existing
+    return existing, False
 
 
 def _resolve_recipient_organization(contact):
     if contact.contact_type == ContactType.ORGANIZATION:
-        return contact
+        return contact, False, False
     if contact.contact_type != ContactType.PERSON:
-        return None
+        return None, False, False
     if contact.organization_id:
         organization = contact.organization
         if organization and organization.contact_type == ContactType.ORGANIZATION:
             if not organization.is_active:
                 organization.is_active = True
                 organization.save(update_fields=["is_active"])
-            return organization
-    support_organization = _get_or_create_support_organization()
+            return organization, False, False
+    support_organization, created = _get_or_create_support_organization()
     if contact.organization_id != support_organization.id:
         contact.organization = support_organization
         contact.save(update_fields=["organization"])
-    return support_organization
+        return support_organization, created, True
+    return support_organization, created, False
 
 
-def promote_correspondent_to_recipient_ready(contact, *, tags=None) -> bool:
+def promote_correspondent_to_recipient_ready(
+    contact, *, tags=None
+) -> CorrespondentRecipientPromotionResult:
     if not contact or not contact.pk:
-        return False
+        return CorrespondentRecipientPromotionResult()
     tag_source = tags if tags is not None else contact.tags.all()
     if not tags_match(tag_source, TAG_CORRESPONDENT):
-        return False
+        return CorrespondentRecipientPromotionResult()
     if not contact.is_active:
-        return False
+        return CorrespondentRecipientPromotionResult()
 
-    changed = False
-    organization = _resolve_recipient_organization(contact)
+    organization, support_created, attached_to_support = _resolve_recipient_organization(contact)
     if organization is None:
-        return False
+        return CorrespondentRecipientPromotionResult()
+
+    recipient_tag_added = False
     recipient_tag = _get_or_create_recipient_tag()
     if not contact.tags.filter(pk=recipient_tag.pk).exists():
         contact.tags.add(recipient_tag)
-        changed = True
+        recipient_tag_added = True
 
     assignment, created = OrganizationRoleAssignment.objects.get_or_create(
         organization=organization,
         role=OrganizationRole.RECIPIENT,
         defaults={"is_active": True},
     )
-    if created:
-        return True
+    reactivated = False
     if not assignment.is_active:
         assignment.is_active = True
         assignment.save(update_fields=["is_active"])
-        changed = True
-    return changed
+        reactivated = True
+    return CorrespondentRecipientPromotionResult(
+        changed=any(
+            [
+                recipient_tag_added,
+                support_created,
+                attached_to_support,
+                created,
+                reactivated,
+            ]
+        ),
+        recipient_tag_added=recipient_tag_added,
+        support_organization_created=support_created,
+        attached_to_support_organization=attached_to_support,
+        recipient_role_created=created,
+        recipient_role_reactivated=reactivated,
+    )
+
+
+def _backfill_correspondent_recipients_impl():
+    summary = {
+        "processed_contacts": 0,
+        "changed_contacts": 0,
+        "recipient_tags_added": 0,
+        "support_organizations_created": 0,
+        "contacts_attached_to_support_org": 0,
+        "recipient_roles_created": 0,
+        "recipient_roles_reactivated": 0,
+    }
+    correspondents = contacts_with_tags(TAG_CORRESPONDENT).select_related("organization")
+    for contact in correspondents:
+        summary["processed_contacts"] += 1
+        result = promote_correspondent_to_recipient_ready(contact)
+        if result.changed:
+            summary["changed_contacts"] += 1
+        if result.recipient_tag_added:
+            summary["recipient_tags_added"] += 1
+        if result.support_organization_created:
+            summary["support_organizations_created"] += 1
+        if result.attached_to_support_organization:
+            summary["contacts_attached_to_support_org"] += 1
+        if result.recipient_role_created:
+            summary["recipient_roles_created"] += 1
+        if result.recipient_role_reactivated:
+            summary["recipient_roles_reactivated"] += 1
+    return summary
+
+
+def backfill_correspondent_recipients(*, dry_run=False):
+    if not dry_run:
+        return _backfill_correspondent_recipients_impl()
+
+    with transaction.atomic():
+        summary = _backfill_correspondent_recipients_impl()
+        transaction.set_rollback(True)
+        return summary
