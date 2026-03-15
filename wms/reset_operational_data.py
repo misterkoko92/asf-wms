@@ -140,19 +140,19 @@ DELETE_BATCHES = (
         ),
     ),
     (
-        "contacts",
-        (
-            "contacts.ContactAddress",
-            "contacts.Contact",
-            "contacts.ContactTag",
-        ),
-    ),
-    (
         "operational_sequences",
         (
             "wms.ReceiptDonorSequence",
             "wms.ReceiptSequence",
             "wms.ShipmentSequence",
+        ),
+    ),
+    (
+        "contacts",
+        (
+            "contacts.ContactAddress",
+            "contacts.Contact",
+            "contacts.ContactTag",
         ),
     ),
     (
