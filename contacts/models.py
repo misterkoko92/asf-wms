@@ -190,8 +190,10 @@ def _contact_tags_changed(sender, instance, action, **kwargs):
     if action != "post_add":
         return
     _assign_asf_id(instance)
+    from .correspondent_recipient_promotion import promote_correspondent_to_recipient_ready
     from .rules import ensure_default_shipper_for_recipient
 
+    promote_correspondent_to_recipient_ready(instance, tags=instance.tags.all())
     ensure_default_shipper_for_recipient(instance)
 
 
