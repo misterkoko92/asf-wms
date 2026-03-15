@@ -179,6 +179,53 @@ class ShipmentHelpersTests(TestCase):
             correspondents_json,
         )
 
+    def test_build_shipment_contact_payload_scopes_promoted_correspondent_from_destination_reference(
+        self,
+    ):
+        destination_correspondent = Contact.objects.create(
+            name="Scoped Promoted Correspondent",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        destination = Destination.objects.create(
+            city="N'Djamena",
+            iata_code="NDJ-CORR",
+            country="Chad",
+            correspondent_contact=destination_correspondent,
+            is_active=True,
+        )
+        shipper = Contact.objects.create(
+            name="Shipper NDJ",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        shipper_tag = ContactTag.objects.create(name="expediteur")
+        shipper.tags.add(shipper_tag)
+        shipper.destinations.add(destination)
+
+        promoted_correspondent_tag = ContactTag.objects.create(name="correspondant")
+        destination_correspondent.tags.add(promoted_correspondent_tag)
+
+        _, _, recipients_json, correspondents_json = build_shipment_contact_payload()
+
+        recipient_entry = next(
+            entry for entry in recipients_json if entry["id"] == destination_correspondent.id
+        )
+        self.assertEqual(recipient_entry["destination_id"], destination.id)
+        self.assertEqual(recipient_entry["destination_ids"], [destination.id])
+        self.assertEqual(
+            recipient_entry["organization_id"], destination_correspondent.organization_id
+        )
+        self.assertIn(
+            {
+                "id": destination_correspondent.id,
+                "name": "Scoped Promoted Correspondent",
+                "destination_id": destination.id,
+                "destination_ids": [destination.id],
+            },
+            correspondents_json,
+        )
+
     def test_build_shipment_contact_payload_formats_shipper_and_recipient_names(self):
         correspondent = Contact.objects.create(name="Corr B")
         destination = Destination.objects.create(

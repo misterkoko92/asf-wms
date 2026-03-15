@@ -2272,7 +2272,9 @@
               disabled: Boolean(orgRolesEngineEnabled)
             })
           );
-        recipientOptions = [priorityRecipientOptions, pairRecipientOptions, otherRecipientOptions];
+        recipientOptions = orgRolesEngineEnabled
+          ? [priorityRecipientOptions, pairRecipientOptions]
+          : [priorityRecipientOptions, pairRecipientOptions, otherRecipientOptions];
         correspondentOptions = correspondents.filter(correspondent =>
           matchesDestination(correspondent, destinationId)
         );
