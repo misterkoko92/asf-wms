@@ -194,3 +194,42 @@ class CorrespondentRecipientPromotionTests(TestCase):
             ).count(),
             1,
         )
+
+    def test_removing_correspondent_tag_does_not_remove_recipient_tag(self):
+        correspondent_tag = ContactTag.objects.create(name="correspondant")
+        person = Contact.objects.create(
+            name="Removal Correspondent",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+
+        person.tags.add(correspondent_tag)
+        person.tags.remove(correspondent_tag)
+
+        self.assertTrue(person.tags.filter(name__iexact="destinataire").exists())
+
+    def test_removing_correspondent_tag_does_not_remove_recipient_role(self):
+        from contacts.correspondent_recipient_promotion import SUPPORT_ORGANIZATION_NAME
+
+        correspondent_tag = ContactTag.objects.create(name="correspondant")
+        person = Contact.objects.create(
+            name="Removal Role Correspondent",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+
+        person.tags.add(correspondent_tag)
+        support_org = Contact.objects.get(
+            name=SUPPORT_ORGANIZATION_NAME,
+            contact_type=ContactType.ORGANIZATION,
+        )
+
+        person.tags.remove(correspondent_tag)
+
+        self.assertTrue(
+            OrganizationRoleAssignment.objects.filter(
+                organization=support_org,
+                role=OrganizationRole.RECIPIENT,
+                is_active=True,
+            ).exists()
+        )
