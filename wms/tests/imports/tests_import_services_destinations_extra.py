@@ -11,7 +11,7 @@ from wms.import_services_destinations import (
     _select_default_correspondent,
     _tags_include_correspondent,
 )
-from wms.models import Destination
+from wms.models import Destination, OrganizationRoleAssignment
 
 
 class ImportDestinationsExtraTests(TestCase):
@@ -60,6 +60,7 @@ class ImportDestinationsExtraTests(TestCase):
         existing.tags.add(tag)
         self.assertEqual(_select_default_correspondent().id, existing.id)
 
+        OrganizationRoleAssignment.objects.all().delete()
         Contact.objects.all().delete()
         ContactTag.objects.all().delete()
         created = _select_default_correspondent()

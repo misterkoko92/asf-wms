@@ -106,15 +106,27 @@ class ShipmentHelpersTests(TestCase):
                 }
             ],
         )
-        self.assertEqual(len(recipients_json), 1)
-        self.assertEqual(recipients_json[0]["id"], recipient.id)
-        self.assertEqual(recipients_json[0]["name"], "Recipient Org")
-        self.assertEqual(recipients_json[0]["organization_id"], recipient.id)
-        self.assertEqual(recipients_json[0]["countries"], ["France", "UK"])
-        self.assertEqual(recipients_json[0]["destination_id"], destination.id)
-        self.assertEqual(recipients_json[0]["destination_ids"], [destination.id])
-        self.assertEqual(recipients_json[0]["linked_shipper_ids"], [])
-        self.assertEqual(recipients_json[0]["binding_pairs"], [])
+        self.assertEqual(
+            {entry["id"] for entry in recipients_json}, {recipient.id, corr_contact.id}
+        )
+        recipient_entry = next(entry for entry in recipients_json if entry["id"] == recipient.id)
+        self.assertEqual(recipient_entry["name"], "Recipient Org")
+        self.assertEqual(recipient_entry["organization_id"], recipient.id)
+        self.assertEqual(recipient_entry["countries"], ["France", "UK"])
+        self.assertEqual(recipient_entry["destination_id"], destination.id)
+        self.assertEqual(recipient_entry["destination_ids"], [destination.id])
+        self.assertEqual(recipient_entry["linked_shipper_ids"], [])
+        self.assertEqual(recipient_entry["binding_pairs"], [])
+        promoted_correspondent_entry = next(
+            entry for entry in recipients_json if entry["id"] == corr_contact.id
+        )
+        self.assertEqual(promoted_correspondent_entry["name"], "Corr Contact")
+        self.assertEqual(promoted_correspondent_entry["organization_id"], corr_contact.id)
+        self.assertEqual(promoted_correspondent_entry["countries"], [])
+        self.assertEqual(promoted_correspondent_entry["destination_id"], destination.id)
+        self.assertEqual(promoted_correspondent_entry["destination_ids"], [destination.id])
+        self.assertEqual(promoted_correspondent_entry["linked_shipper_ids"], [])
+        self.assertEqual(promoted_correspondent_entry["binding_pairs"], [])
         self.assertEqual(
             correspondents_json,
             [

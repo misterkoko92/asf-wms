@@ -8,6 +8,7 @@ from wms.contact_filters import (
     contacts_with_tags,
     filter_contacts_for_destination,
     filter_recipients_for_shipper,
+    filter_structure_contacts,
 )
 from wms.models import Destination
 
@@ -166,6 +167,20 @@ class ContactFiltersTests(TestCase):
         )
 
         self.assertEqual(list(filtered), [])
+
+    def test_filter_structure_contacts_includes_person_promoted_from_correspondent(self):
+        correspondent_tag = ContactTag.objects.create(name="correspondant")
+        person = Contact.objects.create(
+            name="Promoted Correspondent",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+
+        person.tags.add(correspondent_tag)
+
+        filtered = filter_structure_contacts(contacts_with_tags(TAG_RECIPIENT)).filter(pk=person.pk)
+
+        self.assertEqual(list(filtered), [person])
 
     def test_ensure_default_shipper_for_recipient_returns_false_for_unsaved_contact(self):
         unsaved_contact = Contact(
