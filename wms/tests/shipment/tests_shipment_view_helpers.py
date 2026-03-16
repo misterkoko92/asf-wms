@@ -60,17 +60,54 @@ class ShipmentViewHelpersTests(TestCase):
                 quantity=2,
             )
         ]
+        preassigned_destination = type(
+            "PreassignedDestination",
+            (),
+            {
+                "id": 10,
+                "iata_code": "NKC",
+                "__str__": lambda self: "Nouakchott (NKC) - Mauritanie",
+            },
+        )()
         cartons = [
-            SimpleNamespace(id=1, code="C-001", cartonitem_set=item_set_a),
-            SimpleNamespace(id=2, code="C-002", cartonitem_set=item_set_b),
+            SimpleNamespace(
+                id=1,
+                code="C-001",
+                cartonitem_set=item_set_a,
+                preassigned_destination_id=10,
+                preassigned_destination=preassigned_destination,
+            ),
+            SimpleNamespace(
+                id=2,
+                code="C-002",
+                cartonitem_set=item_set_b,
+                preassigned_destination_id=None,
+                preassigned_destination=None,
+            ),
         ]
 
         rows = build_carton_options(cartons)
         self.assertEqual(
             rows,
             [
-                {"id": 1, "code": "C-001", "weight_g": 600},
-                {"id": 2, "code": "C-002", "weight_g": 0},
+                {
+                    "id": 1,
+                    "code": "C-001",
+                    "label": "C-001 (NKC)",
+                    "weight_g": 600,
+                    "preassigned_destination_id": 10,
+                    "preassigned_destination_iata": "NKC",
+                    "preassigned_destination_label": "Nouakchott (NKC) - Mauritanie",
+                },
+                {
+                    "id": 2,
+                    "code": "C-002",
+                    "label": "C-002",
+                    "weight_g": 0,
+                    "preassigned_destination_id": None,
+                    "preassigned_destination_iata": "",
+                    "preassigned_destination_label": "",
+                },
             ],
         )
 

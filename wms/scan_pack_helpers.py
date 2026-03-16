@@ -18,6 +18,7 @@ def build_pack_line_values(line_count, data=None):
             {
                 "product_code": (data.get(prefix + "product_code") if data else "") or "",
                 "quantity": (data.get(prefix + "quantity") if data else "") or "",
+                "expires_on": (data.get(prefix + "expires_on") if data else "") or "",
                 "pack_family_override": (
                     (data.get(prefix + "pack_family_override") if data else "") or ""
                 ),
@@ -78,6 +79,7 @@ def build_packing_bins(
                 "quantity": quantity,
                 "weight": float(weight_g) if weight_g is not None else 0.0,
                 "volume": float(volume_f) if volume_f is not None else 0.0,
+                "expires_on": line.get("expires_on"),
             }
         )
 
@@ -116,10 +118,19 @@ def build_packing_bins(
                     entry = bin_data["items"].get(item["product"].id)
                     if entry:
                         entry["quantity"] += max_fit
+                        if item["expires_on"] is not None:
+                            if entry["expires_on"] is None:
+                                entry["expires_on"] = item["expires_on"]
+                            else:
+                                entry["expires_on"] = min(
+                                    entry["expires_on"],
+                                    item["expires_on"],
+                                )
                     else:
                         bin_data["items"][item["product"].id] = {
                             "product": item["product"],
                             "quantity": max_fit,
+                            "expires_on": item["expires_on"],
                         }
                     remaining_qty -= max_fit
                     placed = True
@@ -140,6 +151,7 @@ def build_packing_bins(
                             item["product"].id: {
                                 "product": item["product"],
                                 "quantity": max_fit,
+                                "expires_on": item["expires_on"],
                             }
                         },
                     }

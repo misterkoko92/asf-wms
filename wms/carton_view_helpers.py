@@ -11,6 +11,12 @@ LOCKED_SHIPMENT_STATUSES = {
     ShipmentStatus.DELIVERED,
 }
 
+MUTATION_BLOCKED_SHIPMENT_STATUSES = {
+    ShipmentStatus.SHIPPED,
+    ShipmentStatus.RECEIVED_CORRESPONDENT,
+    ShipmentStatus.DELIVERED,
+}
+
 
 def get_carton_capacity_cm3():
     default_format = CartonFormat.objects.filter(is_default=True).first()
@@ -19,6 +25,28 @@ def get_carton_capacity_cm3():
     if not default_format:
         return None
     return default_format.length_cm * default_format.width_cm * default_format.height_cm
+
+
+def _build_shipment_reference(carton):
+    shipment = getattr(carton, "shipment", None)
+    if shipment:
+        return shipment.reference
+    preassigned_destination = getattr(carton, "preassigned_destination", None)
+    iata_code = getattr(preassigned_destination, "iata_code", "") if preassigned_destination else ""
+    if iata_code:
+        return f"({iata_code})"
+    return ""
+
+
+def _carton_allows_mutation(carton):
+    if carton.status == CartonStatus.SHIPPED:
+        return False
+    shipment = getattr(carton, "shipment", None)
+    if not shipment:
+        return True
+    if getattr(shipment, "is_disputed", False):
+        return False
+    return getattr(shipment, "status", None) not in MUTATION_BLOCKED_SHIPMENT_STATUSES
 
 
 def build_cartons_ready_rows(cartons_qs, *, carton_capacity_cm3):
@@ -90,7 +118,9 @@ def build_cartons_ready_rows(cartons_qs, *, carton_capacity_cm3):
                 "can_mark_assigned": is_assigned
                 and not shipment_locked
                 and carton.status == CartonStatus.LABELED,
-                "shipment_reference": carton.shipment.reference if carton.shipment else "",
+                "can_edit": _carton_allows_mutation(carton),
+                "can_delete": _carton_allows_mutation(carton),
+                "shipment_reference": _build_shipment_reference(carton),
                 "location": carton.current_location,
                 "packing_list": packing_list,
                 "packing_list_url": packing_list_url,

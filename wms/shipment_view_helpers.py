@@ -18,6 +18,7 @@ from .print_context import (
     build_shipment_document_context,
 )
 from .print_renderer import get_template_layout, render_layout_from_layout
+from .shipment_helpers import build_destination_label
 from .status_badges import BADGE_TONE_PROGRESS, BADGE_TONE_READY, resolve_status_tone
 from .status_presenters import present_shipment_status
 from .unit_equivalence import ShipmentUnitInput, resolve_shipment_unit_count
@@ -63,6 +64,28 @@ def _carton_total_weight(carton):
         product_weight = item.product_lot.product.weight_g or 0
         weight_total += product_weight * item.quantity
     return weight_total
+
+
+def _build_carton_option(carton):
+    preassigned_destination = getattr(carton, "preassigned_destination", None)
+    preassigned_destination_id = getattr(carton, "preassigned_destination_id", None)
+    preassigned_destination_iata = (
+        getattr(preassigned_destination, "iata_code", "") if preassigned_destination else ""
+    )
+    label = carton.code
+    if preassigned_destination_iata:
+        label = f"{label} ({preassigned_destination_iata})"
+    return {
+        "id": carton.id,
+        "code": carton.code,
+        "label": label,
+        "weight_g": _carton_total_weight(carton),
+        "preassigned_destination_id": preassigned_destination_id,
+        "preassigned_destination_iata": preassigned_destination_iata,
+        "preassigned_destination_label": (
+            build_destination_label(preassigned_destination) if preassigned_destination else ""
+        ),
+    }
 
 
 def _render_document_with_layout(request, *, doc_type, context, default_template):
@@ -239,16 +262,7 @@ def _resolve_shipment_party_contact(shipment, *, ref_attr, tag, fallback_name):
 
 
 def build_carton_options(cartons):
-    options = []
-    for carton in cartons:
-        options.append(
-            {
-                "id": carton.id,
-                "code": carton.code,
-                "weight_g": _carton_total_weight(carton),
-            }
-        )
-    return options
+    return [_build_carton_option(carton) for carton in cartons]
 
 
 def build_shipment_document_links(shipment, *, public=False):

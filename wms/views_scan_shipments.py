@@ -114,6 +114,12 @@ ACTIVE_PACK = "pack"
 LOCAL_DOCUMENT_HELPER_APP_LABEL = "asf-wms"
 LOCAL_DOCUMENT_HELPER_INSTALL_ROUTE = "scan:scan_local_document_helper_installer"
 
+EDIT_BLOCKED_SHIPMENT_STATUSES = {
+    ShipmentStatus.SHIPPED,
+    ShipmentStatus.RECEIVED_CORRESPONDENT,
+    ShipmentStatus.DELIVERED,
+}
+
 
 def _build_shipment_form_support(*, extra_carton_options=None, product_options=None):
     (
@@ -148,6 +154,57 @@ def _build_local_document_helper_context(request):
         ),
         "local_document_helper_origin": LOCAL_DOCUMENT_HELPER_ORIGIN,
     }
+
+
+def _render_pack_page(
+    request,
+    *,
+    form,
+    product_options,
+    carton_formats,
+    carton_format_id,
+    carton_custom,
+    line_count,
+    line_values,
+    line_errors,
+    packing_result,
+    missing_defaults,
+    confirm_defaults,
+    extra_context=None,
+):
+    context = {
+        "form": form,
+        "active": ACTIVE_PACK,
+        "products_json": product_options,
+        "carton_formats": carton_formats,
+        "carton_format_id": carton_format_id,
+        "carton_custom": carton_custom,
+        "line_count": line_count,
+        "line_values": line_values,
+        "line_errors": line_errors,
+        "packing_result": packing_result,
+        "missing_defaults": missing_defaults,
+        "confirm_defaults": confirm_defaults,
+        **_build_local_document_helper_context(request),
+    }
+    if extra_context:
+        context.update(extra_context)
+    return render(
+        request,
+        TEMPLATE_PACK,
+        context,
+    )
+
+
+def _carton_is_editable(carton):
+    if carton.status == CartonStatus.SHIPPED:
+        return False
+    shipment = getattr(carton, "shipment", None)
+    if not shipment:
+        return True
+    if getattr(shipment, "is_disputed", False):
+        return False
+    return shipment.status not in EDIT_BLOCKED_SHIPMENT_STATUSES
 
 
 def _render_shipment_form(
@@ -243,7 +300,7 @@ def scan_cartons_ready(request):
 
     cartons_qs = (
         Carton.objects.filter(cartonitem__isnull=False)
-        .select_related("shipment", "current_location")
+        .select_related("shipment", "current_location", "preassigned_destination")
         .prefetch_related("cartonitem_set__product_lot__product")
         .distinct()
         .order_by("-created_at")
@@ -517,24 +574,92 @@ def scan_pack(request):
         ) = build_pack_defaults(default_format)
         missing_defaults = []
         confirm_defaults = False
-    return render(
+    return _render_pack_page(
         request,
-        TEMPLATE_PACK,
-        {
-            "form": form,
-            "active": ACTIVE_PACK,
-            "products_json": product_options,
-            "carton_formats": carton_formats,
-            "carton_format_id": carton_format_id,
-            "carton_custom": carton_custom,
-            "line_count": line_count,
-            "line_values": line_values,
-            "line_errors": line_errors,
-            "packing_result": packing_result,
-            "missing_defaults": missing_defaults,
-            "confirm_defaults": confirm_defaults,
-            **_build_local_document_helper_context(request),
-        },
+        form=form,
+        product_options=product_options,
+        carton_formats=carton_formats,
+        carton_format_id=carton_format_id,
+        carton_custom=carton_custom,
+        line_count=line_count,
+        line_values=line_values,
+        line_errors=line_errors,
+        packing_result=packing_result,
+        missing_defaults=missing_defaults,
+        confirm_defaults=confirm_defaults,
+    )
+
+
+@scan_staff_required
+@require_http_methods(["GET", "POST"])
+def scan_carton_edit(request, carton_id):
+    editing_carton = get_object_or_404(
+        Carton.objects.select_related(
+            "shipment",
+            "preassigned_destination",
+            "current_location",
+        ).prefetch_related("cartonitem_set__product_lot__product"),
+        pk=carton_id,
+    )
+    if not _carton_is_editable(editing_carton):
+        messages.error(request, _("Impossible de modifier ce colis."))
+        return redirect("scan:scan_cartons_ready")
+
+    form_initial = {}
+    if request.method == "GET":
+        if editing_carton.shipment_id:
+            form_initial["shipment_reference"] = editing_carton.shipment.reference
+        elif editing_carton.preassigned_destination_id:
+            form_initial["preassigned_destination"] = editing_carton.preassigned_destination
+        if editing_carton.current_location_id:
+            form_initial["current_location"] = editing_carton.current_location
+
+    form = ScanPackForm(request.POST or None, initial=form_initial)
+    product_options = build_product_options(include_kits=True)
+    carton_formats, default_format = build_carton_formats()
+    line_errors = {}
+    packing_result = None
+
+    if request.method == "POST":
+        response, pack_state = handle_pack_post(
+            request,
+            form=form,
+            default_format=default_format,
+            editing_carton=editing_carton,
+        )
+        carton_format_id = pack_state["carton_format_id"]
+        carton_custom = pack_state["carton_custom"]
+        line_count = pack_state["line_count"]
+        line_values = pack_state["line_values"]
+        line_errors = pack_state["line_errors"]
+        missing_defaults = pack_state.get("missing_defaults", [])
+        confirm_defaults = pack_state.get("confirm_defaults", False)
+        if response:
+            return response
+    else:
+        (
+            carton_format_id,
+            carton_custom,
+            line_count,
+            line_values,
+        ) = build_pack_defaults(default_format, carton=editing_carton)
+        missing_defaults = []
+        confirm_defaults = False
+
+    return _render_pack_page(
+        request,
+        form=form,
+        product_options=product_options,
+        carton_formats=carton_formats,
+        carton_format_id=carton_format_id,
+        carton_custom=carton_custom,
+        line_count=line_count,
+        line_values=line_values,
+        line_errors=line_errors,
+        packing_result=packing_result,
+        missing_defaults=missing_defaults,
+        confirm_defaults=confirm_defaults,
+        extra_context={"editing_carton": editing_carton},
     )
 
 

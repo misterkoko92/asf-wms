@@ -1614,6 +1614,7 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
                     "carton_id": "",
                     "product_code": "PORTAL-FLOW-001",
                     "quantity": "2",
+                    "expires_on": "",
                 }
             ],
         )

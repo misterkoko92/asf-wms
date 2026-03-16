@@ -398,6 +398,11 @@ class ScanReceiptLineForm(forms.Form):
 
 class ScanPackForm(forms.Form):
     shipment_reference = forms.CharField(label="Référence expédition", required=False)
+    preassigned_destination = forms.ModelChoiceField(
+        label=_("Destination pre-affectee"),
+        queryset=Destination.objects.filter(is_active=True).order_by("city"),
+        required=False,
+    )
     current_location = forms.ModelChoiceField(
         label="Emplacement",
         queryset=Location.objects.all().order_by("warehouse__name", "zone", "aisle", "shelf"),

@@ -13,6 +13,7 @@ from ..models import (
     Carton,
     CartonFormat,
     CartonItem,
+    CartonSequence,
     CartonStatus,
     Location,
     MovementType,
@@ -41,6 +42,7 @@ class StockConsumeResult:
 
 
 CARTON_CODE_RE = re.compile(r"^(?P<type>[A-Z0-9]{2})-(?P<date>\d{8})-(?P<seq>\d+)$")
+LINEAR_CARTON_CODE_RE = re.compile(r"^(?P<type>[A-Z0-9]{2})-(?P<seq>\d{5})$")
 
 
 def _carton_date_str(carton):
@@ -127,17 +129,63 @@ def _format_carton_code(type_code, date_str, sequence):
     return f"{type_code}-{date_str}-{sequence}"
 
 
+def _normalize_carton_family(type_code):
+    normalized = (type_code or "").strip().upper()
+    if not normalized:
+        return "XX"
+    return normalized.ljust(2, "X")[:2]
+
+
+def _next_linear_carton_sequence(type_code):
+    family = _normalize_carton_family(type_code)
+    with transaction.atomic():
+        sequence_qs = CartonSequence.objects
+        if connection.features.has_select_for_update:
+            sequence_qs = sequence_qs.select_for_update()
+        sequence = sequence_qs.filter(family=family).first()
+        if sequence is None:
+            try:
+                sequence = CartonSequence.objects.create(family=family, last_number=0)
+            except IntegrityError:
+                sequence = sequence_qs.get(family=family)
+        sequence.last_number += 1
+        sequence.save(update_fields=["last_number"])
+        return sequence.last_number
+
+
+def _format_linear_carton_code(type_code, sequence):
+    return f"{_normalize_carton_family(type_code)}-{sequence:05d}"
+
+
 def generate_carton_code(*, type_code=None, date_str=None) -> str:
-    date_str = date_str or timezone.localdate().strftime("%Y%m%d")
-    type_code = type_code or "XX"
-    sequence = _next_carton_sequence(date_str)
-    return _format_carton_code(type_code, date_str, sequence)
+    del date_str
+    sequence = _next_linear_carton_sequence(type_code)
+    return _format_linear_carton_code(type_code, sequence)
 
 
 def ensure_carton_code(carton, *, type_code=None):
     if getattr(carton, "_manual_code", False):
         return
     current = carton.code or ""
+    linear_match = LINEAR_CARTON_CODE_RE.match(current)
+    if linear_match:
+        family = _normalize_carton_family(type_code or _dominant_type_code(carton))
+        if linear_match.group("type") == family:
+            return
+        last_error = None
+        for _ in range(2):
+            new_code = _format_linear_carton_code(family, _next_linear_carton_sequence(family))
+            if Carton.objects.filter(code=new_code).exclude(pk=carton.pk).exists():
+                continue
+            try:
+                carton.code = new_code
+                carton.save(update_fields=["code"])
+                return
+            except IntegrityError as exc:
+                last_error = exc
+        if last_error:
+            raise last_error
+        return
     match = CARTON_CODE_RE.match(current)
     date_str = _carton_date_str(carton)
     is_legacy_auto = current.startswith("C-") and not match
@@ -173,6 +221,7 @@ def _prepare_carton(
     user,
     carton: Carton | None,
     shipment: Shipment | None,
+    preassigned_destination=None,
     current_location=None,
     carton_code: str | None = None,
     carton_size=None,
@@ -184,7 +233,6 @@ def _prepare_carton(
     if shipment and getattr(shipment, "is_disputed", False):
         raise StockError("Impossible de modifier une expédition en litige.")
     if shipment and shipment.status in {
-        ShipmentStatus.PLANNED,
         ShipmentStatus.SHIPPED,
         ShipmentStatus.RECEIVED_CORRESPONDENT,
         ShipmentStatus.DELIVERED,
@@ -199,6 +247,7 @@ def _prepare_carton(
                     code=code,
                     status=CartonStatus.DRAFT,
                     shipment=shipment,
+                    preassigned_destination=preassigned_destination if shipment is None else None,
                     current_location=current_location,
                     prepared_by=user,
                 )
@@ -216,6 +265,9 @@ def _prepare_carton(
             raise StockError("Carton déjà lié à une autre expédition.")
         if shipment and carton.shipment is None:
             carton.shipment = shipment
+            carton.preassigned_destination = None
+        elif shipment is None and preassigned_destination is not None:
+            carton.preassigned_destination = preassigned_destination
         if current_location is not None:
             carton.current_location = current_location
         carton.save()
@@ -493,6 +545,8 @@ def pack_carton(
     carton: Carton | None = None,
     carton_code: str | None = None,
     shipment: Shipment | None = None,
+    preassigned_destination=None,
+    display_expires_on=None,
     current_location=None,
     carton_size=None,
 ):
@@ -500,6 +554,7 @@ def pack_carton(
         user=user,
         carton=carton,
         shipment=shipment,
+        preassigned_destination=preassigned_destination,
         current_location=current_location,
         carton_code=carton_code,
         carton_size=carton_size,
@@ -530,10 +585,28 @@ def pack_carton(
         )
         for entry in consumed:
             item, _ = CartonItem.objects.get_or_create(
-                carton=carton, product_lot=entry.lot, defaults={"quantity": 0}
+                carton=carton,
+                product_lot=entry.lot,
+                defaults={
+                    "quantity": 0,
+                    "display_expires_on": display_expires_on,
+                },
             )
             item.quantity += entry.quantity
-            item.save(update_fields=["quantity"])
+            resolved_display_expires_on = item.display_expires_on
+            if display_expires_on is not None:
+                if resolved_display_expires_on is None:
+                    resolved_display_expires_on = display_expires_on
+                else:
+                    resolved_display_expires_on = min(
+                        resolved_display_expires_on,
+                        display_expires_on,
+                    )
+            update_fields = ["quantity"]
+            if resolved_display_expires_on != item.display_expires_on:
+                item.display_expires_on = resolved_display_expires_on
+                update_fields.append("display_expires_on")
+            item.save(update_fields=update_fields)
     target_status = None
     status_reason = ""
     if shipment is not None:
@@ -561,7 +634,6 @@ def unpack_carton(*, user, carton: Carton):
     if shipment and getattr(shipment, "is_disputed", False):
         raise StockError("Impossible de modifier une expédition en litige.")
     if shipment and shipment.status in {
-        ShipmentStatus.PLANNED,
         ShipmentStatus.SHIPPED,
         ShipmentStatus.RECEIVED_CORRESPONDENT,
         ShipmentStatus.DELIVERED,

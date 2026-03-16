@@ -7,6 +7,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods
 
+from .documents import resolve_carton_item_expires_on
 from .local_document_helper import (
     build_local_helper_document_response,
     build_local_helper_job_response,
@@ -67,7 +68,7 @@ def _build_standalone_carton_context(carton):
                 "product": product.name,
                 "lot": item.product_lot.lot_code or "N/A",
                 "quantity": item.quantity,
-                "expires_on": item.product_lot.expires_on,
+                "expires_on": resolve_carton_item_expires_on(item),
             }
         )
     return {

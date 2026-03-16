@@ -1,3 +1,4 @@
+from datetime import date
 from types import SimpleNamespace
 from unittest import mock
 
@@ -7,7 +8,7 @@ from django.test import RequestFactory, TestCase
 from django.utils.translation import override as override_language
 
 from contacts.models import Contact, ContactType
-from wms.models import CartonStatus, Destination, ShipmentStatus
+from wms.models import Carton, CartonStatus, Destination, Shipment, ShipmentStatus
 from wms.scan_shipment_handlers import (
     _get_carton_count,
     _handle_shipment_save_draft_post,
@@ -15,6 +16,7 @@ from wms.scan_shipment_handlers import (
     handle_shipment_edit_post,
 )
 from wms.services import StockError
+from wms.shipment_helpers import parse_shipment_lines
 
 
 class _FakeForm:
@@ -112,12 +114,46 @@ class ScanShipmentHandlersTests(TestCase):
         self.assertEqual(_get_carton_count(form, self._request({"carton_count": "0"})), 1)
         self.assertEqual(_get_carton_count(form, self._request({"carton_count": "bad"})), 1)
 
+    def test_parse_shipment_lines_keeps_expiry_for_product_lines(self):
+        product = SimpleNamespace(id=7, name="Produit test")
+
+        with mock.patch("wms.shipment_helpers.resolve_product", return_value=product):
+            line_values, line_items, line_errors = parse_shipment_lines(
+                carton_count=1,
+                data={
+                    "line_1_product_code": "SKU-1",
+                    "line_1_quantity": "2",
+                    "line_1_expires_on": "2026-02-01",
+                },
+                allowed_carton_ids=set(),
+            )
+
+        self.assertEqual(line_errors, {})
+        self.assertEqual(line_values[0]["expires_on"], "2026-02-01")
+        self.assertEqual(line_items[0]["expires_on"], date(2026, 2, 1))
+
+    def test_parse_shipment_lines_keeps_preassignment_confirmation_for_selected_carton(self):
+        line_values, line_items, line_errors = parse_shipment_lines(
+            carton_count=1,
+            data={
+                "line_1_carton_id": "12",
+                "line_1_preassigned_destination_confirmed": "1",
+            },
+            allowed_carton_ids={"12"},
+        )
+
+        self.assertEqual(line_errors, {})
+        self.assertEqual(line_values[0]["carton_id"], "12")
+        self.assertEqual(line_items[0]["carton_id"], 12)
+        self.assertTrue(line_items[0]["preassigned_destination_confirmed"])
+
     def test_handle_shipment_create_post_success(self):
         request = self._request({"carton_count": "2"})
         form = _FakeForm(valid=True, cleaned_data=self._cleaned_data(carton_count=2))
         shipment = SimpleNamespace(reference="S-001")
         carton = SimpleNamespace(shipment=None, save=mock.Mock())
         carton_query = mock.MagicMock()
+        carton_query.select_related.return_value = carton_query
         carton_query.select_for_update.return_value = carton_query
         carton_query.first.return_value = carton
 
@@ -168,7 +204,9 @@ class ScanShipmentHandlersTests(TestCase):
         self.assertEqual(carton_count, 2)
         self.assertEqual(line_values, [{"line": 1}])
         self.assertEqual(line_errors, {})
-        carton.save.assert_called_once_with(update_fields=["shipment", "status"])
+        carton.save.assert_called_once_with(
+            update_fields=["shipment", "preassigned_destination", "status"]
+        )
         pack_mock.assert_called_once()
         sync_mock.assert_called_once_with(shipment)
         redirect_mock.assert_called_once_with("scan:scan_shipment_create")
@@ -178,6 +216,7 @@ class ScanShipmentHandlersTests(TestCase):
         form = _FakeForm(valid=True, cleaned_data=self._cleaned_data(carton_count=1))
         shipment = SimpleNamespace(reference="S-002")
         carton_query = mock.MagicMock()
+        carton_query.select_related.return_value = carton_query
         carton_query.first.return_value = None
 
         with mock.patch(
@@ -204,6 +243,162 @@ class ScanShipmentHandlersTests(TestCase):
 
         self.assertIsNone(response)
         self.assertIn((None, "Carton indisponible."), form.errors)
+
+    def test_handle_shipment_create_post_rejects_preassigned_destination_mismatch_without_confirmation(
+        self,
+    ):
+        correspondent = Contact.objects.create(
+            name="Correspondent mismatch",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        preassigned_destination = Destination.objects.create(
+            city="Nouakchott",
+            iata_code="NKC",
+            country="Mauritanie",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        target_destination = Destination.objects.create(
+            city="Conakry",
+            iata_code="CKY",
+            country="Guinee",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        carton = Carton.objects.create(
+            code="MM-00001",
+            status=CartonStatus.PACKED,
+            preassigned_destination=preassigned_destination,
+        )
+        request = self._request({"carton_count": "1"})
+        cleaned_data = self._cleaned_data(carton_count=1)
+        cleaned_data["destination"] = target_destination
+        form = _FakeForm(valid=True, cleaned_data=cleaned_data)
+
+        with mock.patch(
+            "wms.scan_shipment_handlers.parse_shipment_lines",
+            return_value=(
+                [
+                    {
+                        "carton_id": str(carton.id),
+                        "product_code": "",
+                        "quantity": "",
+                        "expires_on": "",
+                    }
+                ],
+                [{"carton_id": carton.id, "preassigned_destination_confirmed": False}],
+                {},
+            ),
+        ):
+            with mock.patch(
+                "wms.scan_shipment_handlers.Shipment.objects.create",
+                return_value=SimpleNamespace(reference="S-003"),
+            ):
+                response, *_ = handle_shipment_create_post(
+                    request,
+                    form=form,
+                    available_carton_ids={str(carton.id)},
+                )
+
+        self.assertIsNone(response)
+        self.assertIn(
+            (
+                None,
+                "Ce colis a été pré-affecté pour la destination "
+                f"{preassigned_destination}. Voulez vous vraiment l'affecter à "
+                f"l'expédition en cours pour la destination {target_destination} ?",
+            ),
+            form.errors,
+        )
+
+    def test_handle_shipment_edit_post_accepts_preassigned_destination_mismatch_with_confirmation(
+        self,
+    ):
+        correspondent = Contact.objects.create(
+            name="Correspondent edit mismatch",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        preassigned_destination = Destination.objects.create(
+            city="Nouakchott",
+            iata_code="NKC",
+            country="Mauritanie",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        target_destination = Destination.objects.create(
+            city="Conakry",
+            iata_code="CKY",
+            country="Guinee",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        shipment = Shipment.objects.create(
+            status=ShipmentStatus.DRAFT,
+            shipper_name="ASF",
+            recipient_name="Association Dest",
+            destination=target_destination,
+            destination_address=str(target_destination),
+            destination_country=target_destination.country,
+        )
+        shipper_contact = Contact.objects.create(
+            name="ASF shipment edit",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        recipient_contact = Contact.objects.create(
+            name="Association shipment edit",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        correspondent_contact = Contact.objects.create(
+            name="Correspondent shipment edit",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        carton = Carton.objects.create(
+            code="MM-00002",
+            status=CartonStatus.PACKED,
+            preassigned_destination=preassigned_destination,
+        )
+        request = self._request({"carton_count": "1"})
+        cleaned_data = self._cleaned_data(carton_count=1)
+        cleaned_data["destination"] = target_destination
+        cleaned_data["shipper_contact"] = shipper_contact
+        cleaned_data["recipient_contact"] = recipient_contact
+        cleaned_data["correspondent_contact"] = correspondent_contact
+        form = _FakeForm(valid=True, cleaned_data=cleaned_data)
+
+        with mock.patch(
+            "wms.scan_shipment_handlers.parse_shipment_lines",
+            return_value=(
+                [
+                    {
+                        "carton_id": str(carton.id),
+                        "product_code": "",
+                        "quantity": "",
+                        "expires_on": "",
+                    }
+                ],
+                [{"carton_id": carton.id, "preassigned_destination_confirmed": True}],
+                {},
+            ),
+        ):
+            with mock.patch("wms.scan_shipment_handlers.sync_shipment_ready_state"):
+                with mock.patch("wms.scan_shipment_handlers.messages.success"):
+                    response, *_ = handle_shipment_edit_post(
+                        request,
+                        form=form,
+                        shipment=shipment,
+                        allowed_carton_ids={str(carton.id)},
+                    )
+
+        self.assertEqual(response.status_code, 302)
+        carton.refresh_from_db()
+        self.assertEqual(carton.shipment_id, shipment.id)
+        self.assertEqual(carton.status, CartonStatus.ASSIGNED)
+        self.assertIsNone(carton.preassigned_destination)
 
     def test_handle_shipment_create_post_adds_form_error_on_integrity_error(self):
         request = self._request({"carton_count": "1"})
@@ -350,6 +545,7 @@ class ScanShipmentHandlersTests(TestCase):
             save=mock.Mock(),
         )
         carton_query = mock.MagicMock()
+        carton_query.select_related.return_value = carton_query
         carton_query.select_for_update.return_value = carton_query
         carton_query.first.return_value = selected_carton
 
@@ -399,7 +595,9 @@ class ScanShipmentHandlersTests(TestCase):
         self.assertEqual(line_errors, {})
         shipment.save.assert_called_once()
         carton_to_remove.save.assert_called_once_with(update_fields=["shipment"])
-        selected_carton.save.assert_called_once_with(update_fields=["shipment", "status"])
+        selected_carton.save.assert_called_once_with(
+            update_fields=["shipment", "preassigned_destination", "status"]
+        )
         pack_mock.assert_called_once()
         sync_mock.assert_called_once_with(shipment)
         redirect_mock.assert_called_once_with("scan:scan_shipments_ready")
@@ -459,6 +657,7 @@ class ScanShipmentHandlersTests(TestCase):
             quantity=2,
             carton=None,
             shipment=shipment,
+            display_expires_on=None,
         )
         pack_mock.assert_not_called()
 
@@ -539,6 +738,7 @@ class ScanShipmentHandlersTests(TestCase):
         )
         shipment.carton_set.exclude.return_value = []
         missing_query = mock.MagicMock()
+        missing_query.select_related.return_value = missing_query
         missing_query.first.return_value = None
 
         with mock.patch(
@@ -560,6 +760,7 @@ class ScanShipmentHandlersTests(TestCase):
 
         form_unavailable = _FakeForm(valid=True, cleaned_data=self._cleaned_data(carton_count=1))
         unavailable_query = mock.MagicMock()
+        unavailable_query.select_related.return_value = unavailable_query
         unavailable_query.first.return_value = SimpleNamespace(
             shipment_id=999, shipment=None, status=CartonStatus.PACKED, save=mock.Mock()
         )
@@ -649,6 +850,7 @@ class ScanShipmentHandlersTests(TestCase):
         )
         shipment.carton_set.exclude.return_value = []
         unavailable_query = mock.MagicMock()
+        unavailable_query.select_related.return_value = unavailable_query
         unavailable_query.first.return_value = SimpleNamespace(
             shipment_id=None,
             status=CartonStatus.ASSIGNED,

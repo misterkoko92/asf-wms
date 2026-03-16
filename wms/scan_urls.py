@@ -42,6 +42,7 @@ urlpatterns = [
     path("orders-view/", views.scan_orders_view, name="scan_orders_view"),
     path("orders/", views.scan_order, name="scan_order"),
     path("pack/", views.scan_pack, name="scan_pack"),
+    path("carton/<int:carton_id>/edit/", views.scan_carton_edit, name="scan_carton_edit"),
     path("shipment/", views.scan_shipment_create, name="scan_shipment_create"),
     path(
         "shipment/<int:shipment_id>/edit/",

@@ -236,10 +236,16 @@ class PrintContextTests(SimpleTestCase):
         product_missing = SimpleNamespace(name="Unknown", weight_g=None)
         item_ok = SimpleNamespace(
             quantity=2,
-            product_lot=SimpleNamespace(product=product_ok, lot_code="LOT-1", expires_on=None),
+            display_expires_on=date(2026, 2, 1),
+            product_lot=SimpleNamespace(
+                product=product_ok,
+                lot_code="LOT-1",
+                expires_on=date(2026, 5, 1),
+            ),
         )
         item_missing = SimpleNamespace(
             quantity=1,
+            display_expires_on=None,
             product_lot=SimpleNamespace(product=product_missing, lot_code="", expires_on=None),
         )
         carton = SimpleNamespace(
@@ -259,8 +265,32 @@ class PrintContextTests(SimpleTestCase):
 
         self.assertEqual(context["carton_code"], "C-40")
         self.assertEqual(len(context["item_rows"]), 2)
+        self.assertEqual(context["item_rows"][0]["expires_on"], date(2026, 2, 1))
         self.assertIsNone(context["carton_weight_kg"])
         self.assertTrue(context["hide_footer"])
+
+    def test_build_carton_document_context_falls_back_to_lot_expiry(self):
+        shipment = SimpleNamespace(reference="SHP-41")
+        product = SimpleNamespace(name="Mask", weight_g=400)
+        item = SimpleNamespace(
+            quantity=1,
+            display_expires_on=None,
+            product_lot=SimpleNamespace(
+                product=product,
+                lot_code="LOT-2",
+                expires_on=date(2026, 4, 1),
+            ),
+        )
+        carton = SimpleNamespace(
+            code="C-41",
+            cartonitem_set=SimpleNamespace(select_related=lambda *_args: [item]),
+        )
+
+        with mock.patch("wms.print_context.get_product_weight_g", return_value=100):
+            with mock.patch("wms.print_context.get_product_volume_cm3", return_value=None):
+                context = build_carton_document_context(shipment, carton)
+
+        self.assertEqual(context["item_rows"][0]["expires_on"], date(2026, 4, 1))
 
     def test_build_carton_picking_context_groups_and_sorts(self):
         product = SimpleNamespace(id=1, name="Mask", brand="Brand")

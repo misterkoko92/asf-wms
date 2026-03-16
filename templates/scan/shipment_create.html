@@ -29,7 +29,8 @@
     {% if form.non_field_errors %}
       <div class="scan-message error">{{ form.non_field_errors }}</div>
     {% endif %}
-    <form method="post" novalidate class="ui-comp-form" id="shipment-form" data-shipment-edit="{% if is_edit %}1{% else %}0{% endif %}" data-form-bound="{% if form.is_bound %}1{% else %}0{% endif %}" data-org-roles-engine-enabled="{% if org_roles_engine_enabled %}1{% else %}0{% endif %}">
+    {% blocktrans trimmed asvar preassignment_mismatch_template %}Ce colis a été pré-affecté pour la destination __EXPECTED__. Voulez vous vraiment l'affecter à l'expédition en cours pour la destination __CURRENT__ ?{% endblocktrans %}
+    <form method="post" novalidate class="ui-comp-form" id="shipment-form" data-shipment-edit="{% if is_edit %}1{% else %}0{% endif %}" data-form-bound="{% if form.is_bound %}1{% else %}0{% endif %}" data-org-roles-engine-enabled="{% if org_roles_engine_enabled %}1{% else %}0{% endif %}" data-preassignment-mismatch-template="{{ preassignment_mismatch_template }}">
       {% csrf_token %}
 
       <div class="scan-field ui-comp-panel">
@@ -166,6 +167,41 @@
         {% endif %}
       </div>
     </form>
+
+    <div
+      id="shipment-preassignment-overlay"
+      class="scan-choice-overlay"
+      aria-hidden="true"
+      hidden
+    >
+      <div
+        class="scan-choice-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="shipment-preassignment-title"
+      >
+        <div class="scan-choice-header">
+          <strong id="shipment-preassignment-title">{% trans "Pré-affectation destination" %}</strong>
+        </div>
+        <div class="scan-choice-status" id="shipment-preassignment-message"></div>
+        <div class="scan-choice-actions">
+          <button
+            type="button"
+            id="shipment-preassignment-accept"
+            class="scan-submit scan-submit-inline btn btn-primary"
+          >
+            {% trans "Accepter" %}
+          </button>
+          <button
+            type="button"
+            id="shipment-preassignment-reject"
+            class="scan-scan-btn btn btn-tertiary"
+          >
+            {% trans "Refuser" %}
+          </button>
+        </div>
+      </div>
+    </div>
 
     {% if is_edit %}
       <hr class="scan-divider">

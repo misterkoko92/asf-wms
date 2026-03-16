@@ -166,8 +166,8 @@ class ShipmentFormHelpersTests(SimpleTestCase):
         self.assertEqual(
             line_values,
             [
-                {"carton_id": 1, "product_code": "", "quantity": ""},
-                {"carton_id": 2, "product_code": "", "quantity": ""},
+                {"carton_id": 1, "product_code": "", "quantity": "", "expires_on": ""},
+                {"carton_id": 2, "product_code": "", "quantity": "", "expires_on": ""},
             ],
         )
 
@@ -210,8 +210,8 @@ class ShipmentFormHelpersTests(SimpleTestCase):
         self.assertEqual(
             values,
             [
-                {"carton_id": "", "product_code": "SKU-A", "quantity": "5"},
-                {"carton_id": "", "product_code": "Product B", "quantity": "2"},
+                {"carton_id": "", "product_code": "SKU-A", "quantity": "5", "expires_on": ""},
+                {"carton_id": "", "product_code": "Product B", "quantity": "2", "expires_on": ""},
             ],
         )
 

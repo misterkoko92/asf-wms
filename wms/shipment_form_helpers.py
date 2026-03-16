@@ -108,6 +108,7 @@ def build_shipment_order_line_values(order_lines):
                 "carton_id": "",
                 "product_code": product_code,
                 "quantity": str(quantity_value),
+                "expires_on": "",
             }
         )
     return values
@@ -145,7 +146,7 @@ def build_shipment_edit_initial(shipment, assigned_cartons, *, order_line_count=
 def build_shipment_edit_line_values(assigned_cartons, carton_count, *, order_line_values=None):
     if assigned_cartons:
         return [
-            {"carton_id": carton.id, "product_code": "", "quantity": ""}
+            {"carton_id": carton.id, "product_code": "", "quantity": "", "expires_on": ""}
             for carton in assigned_cartons
         ]
     if order_line_values:

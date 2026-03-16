@@ -41,7 +41,7 @@ from wms.models import (
     Warehouse,
     WmsRuntimeSettings,
 )
-from wms.services import StockError
+from wms.services import StockError, pack_carton
 
 
 class ScanViewTests(TestCase):
@@ -182,6 +182,7 @@ class ScanViewTests(TestCase):
             ("scan:scan_prepare_kits", "get", {}, None),
             ("scan:scan_prepare_kits_picking", "get", {}, None),
             ("scan:scan_pack", "get", {}, None),
+            ("scan:scan_carton_edit", "get", {"carton_id": carton.id}, None),
             ("scan:scan_shipment_create", "get", {}, None),
             ("scan:scan_shipment_edit", "get", {"shipment_id": shipment.id}, None),
             (
@@ -537,6 +538,101 @@ class ScanViewTests(TestCase):
                 'target="_blank" rel="noopener" data-local-document-helper-link="1"'
             ),
         )
+
+    def test_scan_pack_renders_preassigned_destination_field(self):
+        response = self.client.get(reverse("scan:scan_pack"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Destination pre-affectee")
+        self.assertContains(response, 'id="id_preassigned_destination"')
+
+    def test_scan_pack_creates_carton_with_preassigned_destination(self):
+        correspondent = Contact.objects.create(name="Pack Correspondent")
+        destination = Destination.objects.create(
+            city="Nouakchott",
+            iata_code="NKC",
+            country="Mauritanie",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_pack"),
+            {
+                "preassigned_destination": destination.id,
+                "line_count": 1,
+                "line_1_product_code": self.product.sku,
+                "line_1_quantity": 2,
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        carton = Carton.objects.get()
+        self.assertEqual(carton.preassigned_destination_id, destination.id)
+
+    def test_scan_carton_edit_prefills_existing_carton(self):
+        carton = pack_carton(
+            user=self.user,
+            product=self.product,
+            quantity=2,
+            current_location=self.location,
+            preassigned_destination=self.destination,
+        )
+        item = carton.cartonitem_set.get()
+        item.display_expires_on = date(2026, 2, 1)
+        item.save(update_fields=["display_expires_on"])
+
+        response = self.client.get(
+            reverse("scan:scan_carton_edit", kwargs={"carton_id": carton.id})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["editing_carton"].id, carton.id)
+        self.assertEqual(response.context["line_values"][0]["product_code"], self.product.sku)
+        self.assertEqual(response.context["line_values"][0]["quantity"], "2")
+        self.assertEqual(response.context["line_values"][0]["expires_on"], "2026-02-01")
+        self.assertEqual(
+            response.context["form"].initial["preassigned_destination"],
+            self.destination,
+        )
+        self.assertEqual(
+            response.context["form"].initial["current_location"],
+            self.location,
+        )
+
+    def test_scan_carton_edit_updates_existing_carton_without_changing_code(self):
+        carton = pack_carton(
+            user=self.user,
+            product=self.product,
+            quantity=2,
+            current_location=self.location,
+            preassigned_destination=self.destination,
+        )
+        original_code = carton.code
+
+        response = self.client.post(
+            reverse("scan:scan_carton_edit", kwargs={"carton_id": carton.id}),
+            {
+                "carton_format_id": str(CartonFormat.objects.get(is_default=True).id),
+                "preassigned_destination": self.destination.id,
+                "current_location": self.location.id,
+                "line_count": 1,
+                "line_1_product_code": self.product.sku,
+                "line_1_quantity": 3,
+                "line_1_expires_on": "2026-02-01",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("scan:scan_cartons_ready"))
+        carton.refresh_from_db()
+        self.assertEqual(carton.code, original_code)
+        self.assertEqual(carton.preassigned_destination_id, self.destination.id)
+        item = carton.cartonitem_set.get()
+        self.assertEqual(item.quantity, 3)
+        self.assertEqual(item.display_expires_on, date(2026, 2, 1))
+        lot = ProductLot.objects.get(pk=item.product_lot_id)
+        self.assertEqual(lot.quantity_on_hand, 47)
 
     def test_scan_prepare_kits_get_exposes_selected_kit_context(self):
         component_a = Product.objects.create(
@@ -1157,8 +1253,18 @@ class ScanViewTests(TestCase):
         self.assertEqual(
             response.context["line_values"],
             [
-                {"carton_id": "", "product_code": product_b.sku, "quantity": "2"},
-                {"carton_id": "", "product_code": self.product.sku, "quantity": "3"},
+                {
+                    "carton_id": "",
+                    "product_code": product_b.sku,
+                    "quantity": "2",
+                    "expires_on": "",
+                },
+                {
+                    "carton_id": "",
+                    "product_code": self.product.sku,
+                    "quantity": "3",
+                    "expires_on": "",
+                },
             ],
         )
         product_options = response.context["products_json"]

@@ -1,11 +1,19 @@
+from django.db import transaction
 from django.shortcuts import redirect
 
 from .carton_status_events import set_carton_status
 from .models import Carton, CartonStatus, ShipmentStatus
+from .services import StockError, unpack_carton
 from .shipment_status import sync_shipment_ready_state
 
 LOCKED_SHIPMENT_STATUSES = {
     ShipmentStatus.PLANNED,
+    ShipmentStatus.SHIPPED,
+    ShipmentStatus.RECEIVED_CORRESPONDENT,
+    ShipmentStatus.DELIVERED,
+}
+
+MUTATION_BLOCKED_SHIPMENT_STATUSES = {
     ShipmentStatus.SHIPPED,
     ShipmentStatus.RECEIVED_CORRESPONDENT,
     ShipmentStatus.DELIVERED,
@@ -21,6 +29,17 @@ def _shipment_is_locked(carton):
     return bool(getattr(shipment, "is_disputed", False))
 
 
+def _carton_can_be_mutated(carton):
+    if not carton or carton.status == CartonStatus.SHIPPED:
+        return False
+    shipment = getattr(carton, "shipment", None)
+    if not shipment:
+        return True
+    if getattr(shipment, "is_disputed", False):
+        return False
+    return shipment.status not in MUTATION_BLOCKED_SHIPMENT_STATUSES
+
+
 def handle_carton_status_update(request):
     if request.method != "POST":
         return None
@@ -29,6 +48,7 @@ def handle_carton_status_update(request):
         "update_carton_status",
         "mark_carton_labeled",
         "mark_carton_assigned",
+        "delete_carton",
     }
     if action not in allowed_actions:
         return None
@@ -53,6 +73,24 @@ def handle_carton_status_update(request):
                 reason="manual_update",
                 user=getattr(request, "user", None),
             )
+        return redirect("scan:scan_cartons_ready")
+
+    if action == "delete_carton":
+        if not _carton_can_be_mutated(carton):
+            return redirect("scan:scan_cartons_ready")
+        shipment = carton.shipment
+        try:
+            with transaction.atomic():
+                if carton.cartonitem_set.exists():
+                    unpack_carton(
+                        user=getattr(request, "user", None),
+                        carton=carton,
+                    )
+                carton.delete()
+        except StockError:
+            return redirect("scan:scan_cartons_ready")
+        if shipment is not None:
+            sync_shipment_ready_state(shipment)
         return redirect("scan:scan_cartons_ready")
 
     if not carton or not carton.shipment_id or _shipment_is_locked(carton):

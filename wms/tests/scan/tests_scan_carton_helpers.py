@@ -1,10 +1,12 @@
 from django.test import TestCase
 
+from contacts.models import Contact
 from wms.models import (
     Carton,
     CartonFormat,
     CartonItem,
     CartonStatus,
+    Destination,
     Location,
     Product,
     ProductLot,
@@ -24,12 +26,24 @@ class ScanCartonHelpersTests(TestCase):
         warehouse = Warehouse.objects.create(name="Main")
         location = Location.objects.create(warehouse=warehouse, zone="A", aisle="01", shelf="001")
         product = Product.objects.create(name="Item", sku="SKU-1", weight_g=100)
+        correspondent = Contact.objects.create(name="Correspondent")
+        destination = Destination.objects.create(
+            city="Nouakchott",
+            iata_code="NKC",
+            country="Mauritanie",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
         lot = ProductLot.objects.create(
             product=product,
             quantity_on_hand=5,
             location=location,
         )
-        ready = Carton.objects.create(code="C-READY", status=CartonStatus.PACKED)
+        ready = Carton.objects.create(
+            code="C-READY",
+            status=CartonStatus.PACKED,
+            preassigned_destination=destination,
+        )
         CartonItem.objects.create(carton=ready, product_lot=lot, quantity=2)
         Carton.objects.create(code="C-OUT", status=CartonStatus.PICKING)
         shipment = Shipment.objects.create(
@@ -48,7 +62,11 @@ class ScanCartonHelpersTests(TestCase):
         options = build_available_cartons()
         self.assertEqual(len(options), 1)
         self.assertEqual(options[0]["code"], "C-READY")
+        self.assertEqual(options[0]["label"], "C-READY (NKC)")
         self.assertEqual(options[0]["weight_g"], 200)
+        self.assertEqual(options[0]["preassigned_destination_id"], destination.id)
+        self.assertEqual(options[0]["preassigned_destination_iata"], "NKC")
+        self.assertEqual(options[0]["preassigned_destination_label"], str(destination))
 
     def test_build_carton_formats_returns_default(self):
         fmt = CartonFormat.objects.create(

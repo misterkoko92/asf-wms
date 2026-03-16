@@ -1029,6 +1029,7 @@
       Array.from(container.querySelectorAll('.pack-line')).map(line => ({
         product_code: line.querySelector('.pack-line-product')?.value || '',
         quantity: line.querySelector('.pack-line-quantity')?.value || '',
+        expires_on: line.querySelector('.pack-line-expires-on')?.value || '',
         pack_family_override:
           line.querySelector('.pack-line-family')?.value || ''
       }));
@@ -1235,6 +1236,19 @@
       quantityField.appendChild(quantityInput);
       grid.appendChild(quantityField);
 
+      const expiresOnField = document.createElement('div');
+      expiresOnField.className = 'pack-line-field';
+      const expiresOnLabel = document.createElement('label');
+      expiresOnLabel.textContent = 'Date de peremption';
+      const expiresOnInput = document.createElement('input');
+      expiresOnInput.type = 'date';
+      expiresOnInput.name = `line_${index}_expires_on`;
+      expiresOnInput.className = 'pack-line-expires-on';
+      expiresOnInput.value = value.expires_on || '';
+      expiresOnField.appendChild(expiresOnLabel);
+      expiresOnField.appendChild(expiresOnInput);
+      grid.appendChild(expiresOnField);
+
       let familyField = null;
       let familySelect = null;
       let familyStatus = null;
@@ -1397,11 +1411,18 @@
     const lineErrorsEl = document.getElementById('shipment-lines-errors');
     const cartonDataEl = document.getElementById('carton-data');
     const productDataEl = document.getElementById('product-data');
+    const destinationDataEl = document.getElementById('destination-data');
+    const shipmentForm = document.getElementById('shipment-form');
+    const mismatchOverlay = document.getElementById('shipment-preassignment-overlay');
+    const mismatchMessage = document.getElementById('shipment-preassignment-message');
+    const mismatchAcceptButton = document.getElementById('shipment-preassignment-accept');
+    const mismatchRejectButton = document.getElementById('shipment-preassignment-reject');
 
     let lineValues = [];
     let lineErrors = {};
     let cartons = [];
     let products = [];
+    let destinations = [];
 
     try {
       lineValues = JSON.parse(lineDataEl ? lineDataEl.textContent || '[]' : '[]');
@@ -1423,11 +1444,22 @@
     } catch (err) {
       products = [];
     }
+    try {
+      destinations = JSON.parse(destinationDataEl ? destinationDataEl.textContent || '[]' : '[]');
+    } catch (err) {
+      destinations = [];
+    }
 
     const cartonMap = new Map();
     cartons.forEach(carton => {
       if (carton && carton.id) {
         cartonMap.set(String(carton.id), carton);
+      }
+    });
+    const destinationMap = new Map();
+    destinations.forEach(destination => {
+      if (destination && destination.id) {
+        destinationMap.set(String(destination.id), destination);
       }
     });
 
@@ -1643,7 +1675,8 @@
         values.push({
           carton_id: line.querySelector('.shipment-line-carton')?.value || '',
           product_code: line.querySelector('.shipment-line-product')?.value || '',
-          quantity: line.querySelector('.shipment-line-quantity')?.value || ''
+          quantity: line.querySelector('.shipment-line-quantity')?.value || '',
+          expires_on: line.querySelector('.shipment-line-expires-on')?.value || ''
         });
       });
       return values;
@@ -1695,9 +1728,12 @@
       const cartonSelect = line.querySelector('.shipment-line-carton');
       const productInput = line.querySelector('.shipment-line-product');
       const quantityInput = line.querySelector('.shipment-line-quantity');
+      const expiresOnInput = line.querySelector('.shipment-line-expires-on');
       const productField = line.querySelector('.shipment-line-product-field');
       const quantityField = line.querySelector('.shipment-line-quantity-field');
+      const expiresField = line.querySelector('.shipment-line-expires-field');
       const filterInput = line.querySelector('.scan-select-filter');
+      const mismatchConfirmedInput = line.querySelector('.shipment-line-preassigned-confirmed');
       if (!cartonSelect || !productInput || !quantityInput) {
         return;
       }
@@ -1705,12 +1741,21 @@
       if (hasCarton) {
         productInput.value = '';
         quantityInput.value = '';
+        if (expiresOnInput) {
+          expiresOnInput.value = '';
+        }
         if (filterInput) {
           filterInput.value = '';
         }
       }
+      if (mismatchConfirmedInput) {
+        mismatchConfirmedInput.value = '';
+      }
       productInput.disabled = hasCarton;
       quantityInput.disabled = hasCarton;
+      if (expiresOnInput) {
+        expiresOnInput.disabled = hasCarton;
+      }
       if (filterInput) {
         filterInput.disabled = hasCarton;
       }
@@ -1719,6 +1764,9 @@
       }
       if (quantityField) {
         quantityField.style.display = hasCarton ? 'none' : '';
+      }
+      if (expiresField) {
+        expiresField.style.display = hasCarton ? 'none' : '';
       }
       const metrics = line.querySelector('.shipment-line-metrics');
       if (metrics) {
@@ -1738,6 +1786,60 @@
       field.appendChild(label);
       field.appendChild(control);
       return field;
+    };
+
+    const setMismatchOverlayVisible = visible => {
+      if (!mismatchOverlay) {
+        return;
+      }
+      mismatchOverlay.hidden = !visible;
+      mismatchOverlay.setAttribute('aria-hidden', visible ? 'false' : 'true');
+      mismatchOverlay.classList.toggle('scan-hidden', !visible);
+    };
+
+    const requestPreassignmentConfirmation = message =>
+      new Promise(resolve => {
+        if (
+          !mismatchOverlay ||
+          !mismatchMessage ||
+          !mismatchAcceptButton ||
+          !mismatchRejectButton
+        ) {
+          resolve(window.confirm(message));
+          return;
+        }
+        mismatchMessage.textContent = message;
+        setMismatchOverlayVisible(true);
+
+        const cleanup = accepted => {
+          mismatchAcceptButton.removeEventListener('click', handleAccept);
+          mismatchRejectButton.removeEventListener('click', handleReject);
+          setMismatchOverlayVisible(false);
+          resolve(accepted);
+        };
+
+        const handleAccept = () => cleanup(true);
+        const handleReject = () => cleanup(false);
+
+        mismatchAcceptButton.addEventListener('click', handleAccept);
+        mismatchRejectButton.addEventListener('click', handleReject);
+      });
+
+    const buildPreassignmentMismatchMessage = (carton, destinationId) => {
+      const template =
+        shipmentForm?.dataset.preassignmentMismatchTemplate ||
+        'Ce colis a été pré-affecté pour la destination __EXPECTED__. Voulez vous vraiment l\'affecter à l\'expédition en cours pour la destination __CURRENT__ ?';
+      const expectedLabel =
+        carton.preassigned_destination_label ||
+        carton.preassigned_destination_iata ||
+        carton.code ||
+        '';
+      const destination = destinationMap.get(String(destinationId));
+      const currentLabel =
+        (destination && (destination.label || destination.city || destination.iata_code)) || '';
+      return template
+        .replace('__EXPECTED__', expectedLabel)
+        .replace('__CURRENT__', currentLabel);
     };
 
     const renderLines = count => {
@@ -1769,8 +1871,8 @@
           const option = document.createElement('option');
           option.value = String(carton.id);
           option.textContent = carton.weight_g
-            ? `${carton.code} (${carton.weight_g} g)`
-            : carton.code;
+            ? `${carton.label || carton.code} (${carton.weight_g} g)`
+            : carton.label || carton.code;
           cartonSelect.appendChild(option);
         });
         cartonSelect.value = lineValue.carton_id || '';
@@ -1841,13 +1943,27 @@
         quantityInput.step = '1';
         quantityInput.value = lineValue.quantity || '';
 
+        const expiresOnInput = document.createElement('input');
+        expiresOnInput.type = 'date';
+        expiresOnInput.name = `line_${index}_expires_on`;
+        expiresOnInput.className = 'shipment-line-expires-on';
+        expiresOnInput.value = lineValue.expires_on || '';
+
+        const mismatchConfirmedInput = document.createElement('input');
+        mismatchConfirmedInput.type = 'hidden';
+        mismatchConfirmedInput.name = `line_${index}_preassigned_destination_confirmed`;
+        mismatchConfirmedInput.className = 'shipment-line-preassigned-confirmed';
+
         grid.appendChild(buildField('Colis prepare', cartonSelect));
         const productField = buildField('Produit', productWrap);
         productField.classList.add('shipment-line-product-field');
         const quantityField = buildField('Quantite', quantityInput);
         quantityField.classList.add('shipment-line-quantity-field');
+        const expiresField = buildField('Date de peremption', expiresOnInput);
+        expiresField.classList.add('shipment-line-expires-field');
         grid.appendChild(productField);
         grid.appendChild(quantityField);
+        grid.appendChild(expiresField);
 
         const metrics = document.createElement('div');
         metrics.className = 'shipment-line-metrics';
@@ -1858,6 +1974,7 @@
           '<div>Quantite restante apres preparation: <span class="shipment-line-remaining">-</span></div>';
         grid.appendChild(metrics);
         line.appendChild(grid);
+        line.appendChild(mismatchConfirmedInput);
 
         const errors = lineErrors[String(index)];
         if (errors && errors.length) {
@@ -1914,6 +2031,15 @@
           updateCartonAvailability();
           updateAllLineMetrics();
         });
+        expiresOnInput.addEventListener('input', () => {
+          if (productInput.value || quantityInput.value || expiresOnInput.value) {
+            cartonSelect.value = '';
+          }
+          syncLineState(line);
+          updateTotalWeight();
+          updateCartonAvailability();
+          updateAllLineMetrics();
+        });
 
         syncLineState(line);
         container.appendChild(line);
@@ -1922,6 +2048,69 @@
       updateTotalWeight();
       updateAllLineMetrics();
     };
+
+    if (shipmentForm) {
+      shipmentForm.addEventListener('submit', async event => {
+        if (shipmentForm.dataset.preassignmentConfirmedSubmit === '1') {
+          shipmentForm.dataset.preassignmentConfirmedSubmit = '0';
+          return;
+        }
+        const submitterAction =
+          event.submitter && event.submitter.name === 'action' ? event.submitter.value : '';
+        if (submitterAction === 'save_draft' || submitterAction === 'save_draft_pack') {
+          return;
+        }
+        const destinationId = document.getElementById('id_destination')?.value || '';
+        if (!destinationId) {
+          return;
+        }
+
+        const mismatches = [];
+        container.querySelectorAll('.shipment-line').forEach(line => {
+          const confirmInput = line.querySelector('.shipment-line-preassigned-confirmed');
+          if (confirmInput) {
+            confirmInput.value = '';
+          }
+          const cartonId = line.querySelector('.shipment-line-carton')?.value || '';
+          if (!cartonId) {
+            return;
+          }
+          const carton = cartonMap.get(cartonId);
+          const preassignedDestinationId =
+            carton && carton.preassigned_destination_id
+              ? String(carton.preassigned_destination_id)
+              : '';
+          if (!preassignedDestinationId || preassignedDestinationId === String(destinationId)) {
+            return;
+          }
+          mismatches.push({ carton, confirmInput, destinationId });
+        });
+
+        if (!mismatches.length) {
+          return;
+        }
+
+        event.preventDefault();
+        for (const mismatch of mismatches) {
+          const accepted = await requestPreassignmentConfirmation(
+            buildPreassignmentMismatchMessage(mismatch.carton, mismatch.destinationId)
+          );
+          if (!accepted) {
+            return;
+          }
+          if (mismatch.confirmInput) {
+            mismatch.confirmInput.value = '1';
+          }
+        }
+
+        shipmentForm.dataset.preassignmentConfirmedSubmit = '1';
+        if (typeof shipmentForm.requestSubmit === 'function' && event.submitter) {
+          shipmentForm.requestSubmit(event.submitter);
+          return;
+        }
+        shipmentForm.submit();
+      });
+    }
 
     const resolveCount = value => {
       const parsed = parseInt(value, 10);

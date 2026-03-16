@@ -1,3 +1,4 @@
+from datetime import date
 from types import SimpleNamespace
 from unittest import mock
 
@@ -393,8 +394,37 @@ class PrintDocsViewsTests(TestCase):
         self.assertEqual(len(context["item_rows"]), 1)
         self.assertEqual(context["item_rows"][0]["quantity"], 2)
         self.assertEqual(context["item_rows"][0]["lot"], "LOT-PRINT")
+        self.assertIsNone(context["item_rows"][0]["expires_on"])
         self.assertEqual(context["carton_weight_kg"], 1.0)
         self.assertTrue(context["hide_footer"])
+
+    def test_scan_carton_document_fallback_context_prefers_manual_expiry(self):
+        carton = self._create_standalone_carton_with_item()
+        item = carton.cartonitem_set.get()
+        item.display_expires_on = date(2026, 2, 1)
+        item.save(update_fields=["display_expires_on"])
+
+        with (
+            mock.patch(
+                "wms.views_print_docs._generate_pack_pdf_response",
+                side_effect=PrintPackEngineError("missing pack"),
+            ),
+            mock.patch(
+                "wms.views_print_docs.get_template_layout",
+                return_value=None,
+            ),
+            mock.patch(
+                "wms.views_print_docs.render",
+                side_effect=self._render_stub,
+            ) as render_mock,
+        ):
+            response = self.client.get(
+                reverse("scan:scan_carton_document", kwargs={"carton_id": carton.id})
+            )
+
+        self.assertEqual(response.status_code, 200)
+        context = render_mock.call_args.args[2]
+        self.assertEqual(context["item_rows"][0]["expires_on"], date(2026, 2, 1))
 
     def test_scan_carton_picking_routes_to_pack_engine(self):
         carton = self._create_standalone_carton_with_item()

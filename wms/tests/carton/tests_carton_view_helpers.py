@@ -116,21 +116,35 @@ class CartonViewHelpersTests(TestCase):
             status="unknown-status",
             shipment_id=None,
             shipment=None,
+            preassigned_destination=None,
             current_location="A3",
             cartonitem_set=SimpleNamespace(all=lambda: [item_missing_volume]),
         )
+        carton_preassigned = SimpleNamespace(
+            id=13,
+            code="MM-00013",
+            created_at=datetime(2026, 1, 13, 12, 0, 0),
+            status=CartonStatus.PACKED,
+            shipment_id=None,
+            shipment=None,
+            preassigned_destination=SimpleNamespace(iata_code="NKC"),
+            current_location="A4",
+            cartonitem_set=SimpleNamespace(all=lambda: [item_draft]),
+        )
 
         rows = build_cartons_ready_rows(
-            [carton_assigned, carton_draft, carton_unknown_status],
+            [carton_assigned, carton_draft, carton_unknown_status, carton_preassigned],
             carton_capacity_cm3=5000,
         )
 
-        self.assertEqual([row["id"] for row in rows], [10, 11, 12])
+        self.assertEqual([row["id"] for row in rows], [10, 11, 12, 13])
 
         assigned_row = rows[0]
         self.assertEqual(assigned_row["status_label"], "Affecté")
         self.assertEqual(assigned_row["status_tone"], "progress")
         self.assertFalse(assigned_row["can_toggle"])
+        self.assertTrue(assigned_row["can_edit"])
+        self.assertTrue(assigned_row["can_delete"])
         self.assertEqual(assigned_row["shipment_reference"], "S-077")
         self.assertEqual(
             assigned_row["packing_list_url"],
@@ -151,6 +165,8 @@ class CartonViewHelpersTests(TestCase):
         self.assertEqual(draft_row["status_label"], "Créé")
         self.assertEqual(draft_row["status_tone"], "progress")
         self.assertTrue(draft_row["can_toggle"])
+        self.assertTrue(draft_row["can_edit"])
+        self.assertTrue(draft_row["can_delete"])
         self.assertEqual(draft_row["shipment_reference"], "")
         self.assertEqual(
             draft_row["packing_list_url"],
@@ -165,3 +181,8 @@ class CartonViewHelpersTests(TestCase):
         self.assertEqual(unknown_row["status_tone"], "progress")
         self.assertIsNone(unknown_row["volume_percent"])
         self.assertEqual(unknown_row["packing_list"][0]["quantity"], 1)
+
+        preassigned_row = rows[3]
+        self.assertEqual(preassigned_row["shipment_reference"], "(NKC)")
+        self.assertTrue(preassigned_row["can_edit"])
+        self.assertTrue(preassigned_row["can_delete"])

@@ -11,8 +11,8 @@ class ScanShipmentHelpersTests(TestCase):
         self.assertEqual(
             lines,
             [
-                {"carton_id": "", "product_code": "", "quantity": ""},
-                {"carton_id": "", "product_code": "", "quantity": ""},
+                {"carton_id": "", "product_code": "", "quantity": "", "expires_on": ""},
+                {"carton_id": "", "product_code": "", "quantity": "", "expires_on": ""},
             ],
         )
 
@@ -21,11 +21,13 @@ class ScanShipmentHelpersTests(TestCase):
             "line_1_carton_id": "12",
             "line_1_product_code": "SKU-1",
             "line_1_quantity": "3",
+            "line_1_expires_on": "2026-02-01",
         }
         lines = build_shipment_line_values(1, data)
         self.assertEqual(lines[0]["carton_id"], "12")
         self.assertEqual(lines[0]["product_code"], "SKU-1")
         self.assertEqual(lines[0]["quantity"], "3")
+        self.assertEqual(lines[0]["expires_on"], "2026-02-01")
 
     def test_resolve_shipment_matches_reference_case_insensitive(self):
         shipment = Shipment.objects.create(

@@ -1,3 +1,4 @@
+from datetime import date
 from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -316,6 +317,7 @@ class PrintPackEngineTests(TestCase):
             lot_code="LOT-PAYLOAD",
             quantity_on_hand=10,
             location=location,
+            expires_on=date(2026, 4, 1),
         )
         shipment = Shipment.objects.create(
             shipper_name="Shipper",
@@ -325,13 +327,20 @@ class PrintPackEngineTests(TestCase):
             created_by=self.user,
         )
         carton = Carton.objects.create(code="C-001", shipment=shipment)
-        CartonItem.objects.create(carton=carton, product_lot=lot, quantity=6)
+        CartonItem.objects.create(
+            carton=carton,
+            product_lot=lot,
+            quantity=6,
+            display_expires_on=date(2026, 2, 1),
+        )
 
         payload = _build_mapping_payload(shipment=shipment, carton=carton)
 
         self.assertEqual(payload["shipment"]["items"][0]["carton_position"], 1)
         self.assertEqual(payload["shipment"]["items"][0]["category_root"], "MM")
+        self.assertEqual(payload["shipment"]["items"][0]["expires_on"], date(2026, 2, 1))
         self.assertEqual(payload["carton"]["items"][0]["category_root"], "MM")
+        self.assertEqual(payload["carton"]["items"][0]["expires_on"], date(2026, 2, 1))
         self.assertEqual(payload["carton"]["position"], 1)
 
     def test_build_mapping_payload_includes_recipient_contact_details(self):

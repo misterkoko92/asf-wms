@@ -47,6 +47,7 @@ from .models_domain.integration import (
     WmsRuntimeSettingsAudit,
 )
 from .models_domain.inventory import (
+    CartonSequence,
     Destination,
     Location,
     ProductLot,
@@ -223,6 +224,7 @@ __all__ = [
     "Warehouse",
     "Location",
     "RackColor",
+    "CartonSequence",
     "ProductLotStatus",
     "ProductLot",
     "ReceiptType",

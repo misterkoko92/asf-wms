@@ -404,6 +404,7 @@ def pack_carton_from_reserved(
     shipment: Shipment | None = None,
     current_location=None,
     carton_size=None,
+    display_expires_on=None,
 ):
     carton = _prepare_carton(
         user=user,
@@ -424,10 +425,25 @@ def pack_carton_from_reserved(
     )
     for entry in consumed:
         item, _ = CartonItem.objects.get_or_create(
-            carton=carton, product_lot=entry.lot, defaults={"quantity": 0}
+            carton=carton,
+            product_lot=entry.lot,
+            defaults={"quantity": 0, "display_expires_on": display_expires_on},
         )
         item.quantity += entry.quantity
-        item.save(update_fields=["quantity"])
+        update_fields = ["quantity"]
+        resolved_display_expires_on = item.display_expires_on
+        if display_expires_on is not None:
+            if resolved_display_expires_on is None:
+                resolved_display_expires_on = display_expires_on
+            else:
+                resolved_display_expires_on = min(
+                    resolved_display_expires_on,
+                    display_expires_on,
+                )
+        if resolved_display_expires_on != item.display_expires_on:
+            item.display_expires_on = resolved_display_expires_on
+            update_fields.append("display_expires_on")
+        item.save(update_fields=update_fields)
     target_status = None
     status_reason = ""
     if shipment is not None:

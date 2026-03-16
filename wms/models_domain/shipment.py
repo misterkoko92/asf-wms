@@ -272,6 +272,13 @@ class Carton(models.Model):
     )
     current_location = models.ForeignKey(Location, on_delete=models.PROTECT, null=True, blank=True)
     shipment = models.ForeignKey(Shipment, on_delete=models.SET_NULL, null=True, blank=True)
+    preassigned_destination = models.ForeignKey(
+        Destination,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="preassigned_cartons",
+    )
     prepared_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True
     )
@@ -314,6 +321,7 @@ class CartonItem(models.Model):
     carton = models.ForeignKey(Carton, on_delete=models.CASCADE)
     product_lot = models.ForeignKey(ProductLot, on_delete=models.PROTECT)
     quantity = models.IntegerField()
+    display_expires_on = models.DateField(null=True, blank=True)
 
     class Meta:
         unique_together = ("carton", "product_lot")

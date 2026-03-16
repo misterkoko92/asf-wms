@@ -21,6 +21,7 @@ from wms.domain.stock import (
     consume_stock,
     ensure_carton_code,
     fefo_lots,
+    generate_carton_code,
     pack_carton_from_input,
     receive_receipt_line,
     receive_stock,
@@ -185,6 +186,18 @@ class DomainStockExtraTests(TestCase):
         with mock.patch("wms.domain.stock.CARTON_CODE_RE", fake_regex):
             Carton.objects.create(code="XX-20260101-2", status=CartonStatus.DRAFT)
             self.assertEqual(_next_carton_sequence("20260101"), 1)
+
+    def test_generate_carton_code_uses_independent_linear_family_sequences(self):
+        self.assertEqual(generate_carton_code(type_code="MM"), "MM-00001")
+        self.assertEqual(generate_carton_code(type_code="MM"), "MM-00002")
+        self.assertEqual(generate_carton_code(type_code="CN"), "CN-00001")
+
+    def test_carton_models_expose_preassignment_and_manual_expiry_fields(self):
+        carton_field_names = {field.name for field in Carton._meta.get_fields()}
+        carton_item_field_names = {field.name for field in CartonItem._meta.get_fields()}
+
+        self.assertIn("preassigned_destination", carton_field_names)
+        self.assertIn("display_expires_on", carton_item_field_names)
 
     def test_fefo_lots_can_set_select_for_update_flag(self):
         self._create_lot(code="LOT-FEFO")
@@ -504,6 +517,15 @@ class DomainStockExtraTests(TestCase):
         ensure_carton_code(non_auto)
         non_auto.refresh_from_db()
         self.assertEqual(non_auto.code, "CUSTOM-CODE")
+
+    def test_ensure_carton_code_rewrites_linear_auto_code_to_requested_family(self):
+        carton = Carton.objects.create(code="XX-00001", status=CartonStatus.DRAFT)
+        Carton.objects.create(code="MM-00001", status=CartonStatus.DRAFT)
+
+        ensure_carton_code(carton, type_code="MM")
+
+        carton.refresh_from_db()
+        self.assertEqual(carton.code, "MM-00002")
 
     def test_ensure_carton_code_replaces_legacy_code_and_handles_collision(self):
         legacy_carton = Carton.objects.create(code="C-LEGACY", status=CartonStatus.DRAFT)

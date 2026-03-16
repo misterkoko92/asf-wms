@@ -291,6 +291,17 @@ class ShipmentSequence(models.Model):
         return f"{self.year}: {self.last_number}"
 
 
+class CartonSequence(models.Model):
+    family = models.CharField(max_length=2, unique=True)
+    last_number = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["family"]
+
+    def __str__(self) -> str:
+        return f"{self.family}: {self.last_number}"
+
+
 class Destination(models.Model):
     city = models.CharField(max_length=120)
     iata_code = models.CharField(max_length=10, unique=True)

@@ -7,6 +7,7 @@ from django.core.files.base import ContentFile
 from django.utils import timezone
 from openpyxl import load_workbook
 
+from .documents import resolve_carton_item_expires_on
 from .models import (
     GeneratedPrintArtifact,
     GeneratedPrintArtifactItem,
@@ -266,7 +267,7 @@ def _build_mapping_payload(*, shipment=None, carton=None, document=None):
                             "brand": product.brand or "",
                             "product_name": product.name,
                             "quantity": quantity,
-                            "expires_on": carton_item.product_lot.expires_on,
+                            "expires_on": resolve_carton_item_expires_on(carton_item),
                         }
                     )
         payload["shipment"] = {
@@ -326,7 +327,7 @@ def _build_mapping_payload(*, shipment=None, carton=None, document=None):
                         "product_name": product.name,
                         "brand": product.brand or "",
                         "quantity": carton_item.quantity,
-                        "expires_on": carton_item.product_lot.expires_on,
+                        "expires_on": resolve_carton_item_expires_on(carton_item),
                         "location": location_label,
                     }
                 )

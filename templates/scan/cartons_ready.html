@@ -32,6 +32,7 @@
               <th>{% trans "N° expédition" %}</th>
               <th>{% trans "Emplacement" %}</th>
               <th>{% trans "Remplissage" %}</th>
+              <th>{% trans "Actions" %}</th>
               <th>{% trans "Liste de colisage" %}</th>
             </tr>
           </thead>
@@ -96,6 +97,32 @@
                     {% if carton.volume_percent is not None %}
                       {{ carton.volume_percent }}%
                     {% else %}
+                      -
+                    {% endif %}
+                  </div>
+                </td>
+                <td>
+                  <div class="scan-field scan-field-gap scan-inline-actions ui-comp-actions">
+                    {% if carton.can_edit %}
+                      <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_carton_edit' carton.id %}">
+                        {% trans "Modifier" %}
+                      </a>
+                    {% endif %}
+                    {% if carton.can_delete %}
+                      <form method="post" class="scan-toggle-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="delete_carton">
+                        <input type="hidden" name="carton_id" value="{{ carton.id }}">
+                        <button
+                          type="submit"
+                          class="scan-scan-btn btn btn-danger"
+                          onclick="return confirm('{% trans "Supprimer ce colis ?" %}')"
+                        >
+                          {% trans "Supprimer" %}
+                        </button>
+                      </form>
+                    {% endif %}
+                    {% if not carton.can_edit and not carton.can_delete %}
                       -
                     {% endif %}
                   </div>

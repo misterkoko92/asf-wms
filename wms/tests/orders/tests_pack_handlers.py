@@ -59,12 +59,20 @@ class PackHandlersTests(TestCase):
         request.session = {}
         return request
 
-    def _form(self, *, valid=True, shipment_reference="", current_location=None):
+    def _form(
+        self,
+        *,
+        valid=True,
+        shipment_reference="",
+        current_location=None,
+        preassigned_destination=None,
+    ):
         return _FakeForm(
             valid=valid,
             cleaned_data={
                 "shipment_reference": shipment_reference,
                 "current_location": current_location,
+                "preassigned_destination": preassigned_destination,
             },
         )
 
@@ -143,7 +151,14 @@ class PackHandlersTests(TestCase):
         self.assertEqual(line_count, 1)
         self.assertEqual(
             line_values,
-            [{"product_code": "", "quantity": "", "pack_family_override": ""}],
+            [
+                {
+                    "product_code": "",
+                    "quantity": "",
+                    "expires_on": "",
+                    "pack_family_override": "",
+                }
+            ],
         )
 
         format_id, custom, line_count, line_values = build_pack_defaults(None)
@@ -160,7 +175,14 @@ class PackHandlersTests(TestCase):
         self.assertEqual(line_count, 1)
         self.assertEqual(
             line_values,
-            [{"product_code": "", "quantity": "", "pack_family_override": ""}],
+            [
+                {
+                    "product_code": "",
+                    "quantity": "",
+                    "expires_on": "",
+                    "pack_family_override": "",
+                }
+            ],
         )
 
     def test_handle_pack_post_validates_shipment_carton_and_line_fields(self):

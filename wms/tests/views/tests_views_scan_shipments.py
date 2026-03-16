@@ -8,10 +8,12 @@ from django.http import HttpResponse
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 
+from contacts.models import Contact
 from wms.helper_install import build_helper_install_context
 from wms.models import (
     Carton,
     CartonStatus,
+    Destination,
     Shipment,
     ShipmentStatus,
     ShipmentTrackingEvent,
@@ -809,6 +811,55 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertEqual(response.context_data["context_key"], "post")
         self.assertEqual(response.context_data["active"], "shipment")
         self.assertEqual(response.context_data["helper_install"], helper_install)
+
+    def test_scan_shipment_create_exposes_preassigned_carton_metadata_and_confirmation_modal(
+        self,
+    ):
+        correspondent = Contact.objects.create(name="Correspondent create modal")
+        destination = Destination.objects.create(
+            city="Nouakchott",
+            iata_code="NKC",
+            country="Mauritanie",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        Carton.objects.create(
+            code="MM-00003",
+            status=CartonStatus.PACKED,
+            preassigned_destination=destination,
+        )
+
+        response = self.client.get(reverse("scan:scan_shipment_create"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["cartons_json"][0]["preassigned_destination_iata"], "NKC")
+        self.assertEqual(response.context["cartons_json"][0]["label"], "MM-00003 (NKC)")
+        self.assertContains(response, 'id="shipment-preassignment-overlay"')
+        self.assertContains(response, "Accepter")
+        self.assertContains(response, "Refuser")
+
+    def test_scan_shipment_create_translates_preassignment_confirmation_in_english(self):
+        self._activate_english()
+        correspondent = Contact.objects.create(name="Correspondent create modal en")
+        destination = Destination.objects.create(
+            city="Nouakchott",
+            iata_code="NKC",
+            country="Mauritanie",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        Carton.objects.create(
+            code="MM-00004",
+            status=CartonStatus.PACKED,
+            preassigned_destination=destination,
+        )
+
+        response = self.client.get(reverse("scan:scan_shipment_create"))
+
+        self.assertContains(response, "Destination preassignment")
+        self.assertContains(response, "Accept")
+        self.assertContains(response, "Reject")
+        self.assertNotContains(response, "Pré-affectation destination")
 
     def test_scan_shipment_edit_redirects_when_shipment_is_not_editable(self):
         shipment = self._create_shipment(status=ShipmentStatus.SHIPPED)

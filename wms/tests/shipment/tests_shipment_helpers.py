@@ -621,8 +621,8 @@ class ShipmentHelpersTests(TestCase):
         self.assertEqual(
             line_items,
             [
-                {"carton_id": 10},
-                {"product": product, "quantity": 3},
+                {"carton_id": 10, "preassigned_destination_confirmed": False},
+                {"product": product, "quantity": 3, "expires_on": None},
             ],
         )
         self.assertEqual(line_errors, {})
