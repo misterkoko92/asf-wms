@@ -538,6 +538,37 @@ class ScanViewTests(TestCase):
             ),
         )
 
+    def test_scan_pack_renders_preassigned_destination_field(self):
+        response = self.client.get(reverse("scan:scan_pack"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Destination pre-affectee")
+        self.assertContains(response, 'id="id_preassigned_destination"')
+
+    def test_scan_pack_creates_carton_with_preassigned_destination(self):
+        correspondent = Contact.objects.create(name="Pack Correspondent")
+        destination = Destination.objects.create(
+            city="Nouakchott",
+            iata_code="NKC",
+            country="Mauritanie",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+
+        response = self.client.post(
+            reverse("scan:scan_pack"),
+            {
+                "preassigned_destination": destination.id,
+                "line_count": 1,
+                "line_1_product_code": self.product.sku,
+                "line_1_quantity": 2,
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        carton = Carton.objects.get()
+        self.assertEqual(carton.preassigned_destination_id, destination.id)
+
     def test_scan_prepare_kits_get_exposes_selected_kit_context(self):
         component_a = Product.objects.create(
             sku="KIT-COMP-A",

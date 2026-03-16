@@ -11,6 +11,7 @@ from wms.forms import (
     AdjustStockForm,
     PackCartonForm,
     ScanOrderSelectForm,
+    ScanPackForm,
     ScanReceiptCreateForm,
     ScanReceiptPalletForm,
     ScanReceiptSelectForm,
@@ -122,6 +123,30 @@ class FormsTests(TestCase):
         )
 
         self.assertTrue(form.is_valid())
+
+    def test_scan_pack_form_exposes_active_preassigned_destinations(self):
+        correspondent = Contact.objects.create(name="Correspondent")
+        active_destination = Destination.objects.create(
+            city="Nouakchott",
+            iata_code="NKC",
+            country="Mauritanie",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        Destination.objects.create(
+            city="Inactive",
+            iata_code="INA",
+            country="France",
+            correspondent_contact=correspondent,
+            is_active=False,
+        )
+
+        form = ScanPackForm()
+
+        destination_ids = set(
+            form.fields["preassigned_destination"].queryset.values_list("id", flat=True)
+        )
+        self.assertEqual(destination_ids, {active_destination.id})
 
     def test_scan_receipt_select_form_orders_unsliced_queryset(self):
         receipt_b = Receipt.objects.create(reference="B-RECEIPT", warehouse=self.warehouse)

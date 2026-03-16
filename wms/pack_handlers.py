@@ -5,6 +5,7 @@ from django.contrib import messages
 from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import redirect
+from django.utils.dateparse import parse_date
 from django.utils.translation import gettext as _
 
 from .carton_status_events import set_carton_status
@@ -125,6 +126,8 @@ def _handle_preparateur_pack(
     *,
     request,
     form,
+    shipment,
+    preassigned_destination,
     carton_size,
     carton_format_id,
     carton_custom,
@@ -237,7 +240,9 @@ def _handle_preparateur_pack(
                         quantity=entry["quantity"],
                         carton=carton,
                         carton_code=None,
-                        shipment=resolve_shipment(form.cleaned_data["shipment_reference"]),
+                        shipment=shipment,
+                        preassigned_destination=preassigned_destination,
+                        display_expires_on=entry.get("expires_on"),
                         current_location=plan["current_location"],
                         carton_size=carton_size,
                     )
@@ -329,6 +334,9 @@ def handle_pack_post(request, *, form, default_format):
 
     if form.is_valid():
         shipment = resolve_shipment(form.cleaned_data["shipment_reference"])
+        preassigned_destination = (
+            None if shipment is not None else form.cleaned_data["preassigned_destination"]
+        )
         if form.cleaned_data["shipment_reference"] and not shipment:
             form.add_error("shipment_reference", _("Expédition introuvable."))
         if carton_errors:
@@ -339,6 +347,7 @@ def handle_pack_post(request, *, form, default_format):
             prefix = f"line_{index}_"
             product_code = (request.POST.get(prefix + "product_code") or "").strip()
             quantity_raw = (request.POST.get(prefix + "quantity") or "").strip()
+            expires_on_raw = (request.POST.get(prefix + "expires_on") or "").strip()
             if not product_code and not quantity_raw:
                 continue
             errors = []
@@ -354,6 +363,11 @@ def handle_pack_post(request, *, form, default_format):
             product = resolve_product(product_code, include_kits=True) if product_code else None
             if product_code and not product:
                 errors.append(_("Produit introuvable."))
+            expires_on = None
+            if expires_on_raw:
+                expires_on = parse_date(expires_on_raw)
+                if expires_on is None:
+                    errors.append(_("Date de péremption invalide."))
             if errors:
                 line_errors[str(index)] = errors
             else:
@@ -361,6 +375,7 @@ def handle_pack_post(request, *, form, default_format):
                     {
                         "product": product,
                         "quantity": quantity,
+                        "expires_on": expires_on,
                         "index": index,
                         "pack_family_override": (
                             request.POST.get(prefix + "pack_family_override") or ""
@@ -408,6 +423,8 @@ def handle_pack_post(request, *, form, default_format):
                     return _handle_preparateur_pack(
                         request=request,
                         form=form,
+                        shipment=shipment,
+                        preassigned_destination=preassigned_destination,
                         carton_size=carton_size,
                         carton_format_id=carton_format_id,
                         carton_custom=carton_custom,
@@ -438,6 +455,8 @@ def handle_pack_post(request, *, form, default_format):
                                         carton=carton,
                                         carton_code=None,
                                         shipment=shipment,
+                                        preassigned_destination=preassigned_destination,
+                                        display_expires_on=entry.get("expires_on"),
                                         current_location=form.cleaned_data["current_location"],
                                         carton_size=carton_size,
                                     )

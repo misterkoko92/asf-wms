@@ -1029,6 +1029,7 @@
       Array.from(container.querySelectorAll('.pack-line')).map(line => ({
         product_code: line.querySelector('.pack-line-product')?.value || '',
         quantity: line.querySelector('.pack-line-quantity')?.value || '',
+        expires_on: line.querySelector('.pack-line-expires-on')?.value || '',
         pack_family_override:
           line.querySelector('.pack-line-family')?.value || ''
       }));
@@ -1234,6 +1235,19 @@
       quantityField.appendChild(quantityLabel);
       quantityField.appendChild(quantityInput);
       grid.appendChild(quantityField);
+
+      const expiresOnField = document.createElement('div');
+      expiresOnField.className = 'pack-line-field';
+      const expiresOnLabel = document.createElement('label');
+      expiresOnLabel.textContent = 'Date de peremption';
+      const expiresOnInput = document.createElement('input');
+      expiresOnInput.type = 'date';
+      expiresOnInput.name = `line_${index}_expires_on`;
+      expiresOnInput.className = 'pack-line-expires-on';
+      expiresOnInput.value = value.expires_on || '';
+      expiresOnField.appendChild(expiresOnLabel);
+      expiresOnField.appendChild(expiresOnInput);
+      grid.appendChild(expiresOnField);
 
       let familyField = null;
       let familySelect = null;

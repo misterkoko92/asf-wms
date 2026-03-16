@@ -170,8 +170,15 @@
       <input type="hidden" id="pack_line_count" name="line_count" value="{{ line_count }}">
 
       <div class="row g-3 align-items-end scan-pack-shipping-row">
+        <div class="scan-field scan-pack-shipping-field col-12 {% if request.scan_is_preparateur %}col-lg-6{% else %}col-lg-3{% endif %}">
+          <label class="form-label" for="id_preassigned_destination">{% trans "Destination pre-affectee" %}</label>
+          {{ form.preassigned_destination }}
+          {% for error in form.preassigned_destination.errors %}
+            <div class="scan-message error">{{ error }}</div>
+          {% endfor %}
+        </div>
         {% if not request.scan_is_preparateur %}
-          <div class="scan-field scan-pack-shipping-field col-12 col-lg-4">
+          <div class="scan-field scan-pack-shipping-field col-12 col-lg-3">
             <label class="form-label" for="id_shipment_reference">{% trans "Référence expédition (optionnel)" %}</label>
             {{ form.shipment_reference }}
             {% for error in form.shipment_reference.errors %}
@@ -179,13 +186,13 @@
             {% endfor %}
           </div>
 
-          <div class="scan-field scan-pack-shipping-field col-12 col-lg-4">
+          <div class="scan-field scan-pack-shipping-field col-12 col-lg-3">
             <label class="form-label" for="id_current_location">{% trans "Choisir un emplacement de rangement du colis prêt (optionnel)" %}</label>
             {{ form.current_location }}
           </div>
         {% endif %}
 
-        <div class="scan-field scan-pack-shipping-field col-12 {% if request.scan_is_preparateur %}col-lg-12{% else %}col-lg-4{% endif %}">
+        <div class="scan-field scan-pack-shipping-field col-12 {% if request.scan_is_preparateur %}col-lg-6{% else %}col-lg-3{% endif %}">
           <div class="form-check form-switch scan-inline-switch scan-inline-switch-wide">
             <input
               type="checkbox"

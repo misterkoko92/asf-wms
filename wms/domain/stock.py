@@ -202,6 +202,7 @@ def _prepare_carton(
     user,
     carton: Carton | None,
     shipment: Shipment | None,
+    preassigned_destination=None,
     current_location=None,
     carton_code: str | None = None,
     carton_size=None,
@@ -228,6 +229,7 @@ def _prepare_carton(
                     code=code,
                     status=CartonStatus.DRAFT,
                     shipment=shipment,
+                    preassigned_destination=preassigned_destination if shipment is None else None,
                     current_location=current_location,
                     prepared_by=user,
                 )
@@ -245,6 +247,9 @@ def _prepare_carton(
             raise StockError("Carton déjà lié à une autre expédition.")
         if shipment and carton.shipment is None:
             carton.shipment = shipment
+            carton.preassigned_destination = None
+        elif shipment is None and preassigned_destination is not None:
+            carton.preassigned_destination = preassigned_destination
         if current_location is not None:
             carton.current_location = current_location
         carton.save()
@@ -522,6 +527,8 @@ def pack_carton(
     carton: Carton | None = None,
     carton_code: str | None = None,
     shipment: Shipment | None = None,
+    preassigned_destination=None,
+    display_expires_on=None,
     current_location=None,
     carton_size=None,
 ):
@@ -529,6 +536,7 @@ def pack_carton(
         user=user,
         carton=carton,
         shipment=shipment,
+        preassigned_destination=preassigned_destination,
         current_location=current_location,
         carton_code=carton_code,
         carton_size=carton_size,
@@ -559,10 +567,28 @@ def pack_carton(
         )
         for entry in consumed:
             item, _ = CartonItem.objects.get_or_create(
-                carton=carton, product_lot=entry.lot, defaults={"quantity": 0}
+                carton=carton,
+                product_lot=entry.lot,
+                defaults={
+                    "quantity": 0,
+                    "display_expires_on": display_expires_on,
+                },
             )
             item.quantity += entry.quantity
-            item.save(update_fields=["quantity"])
+            resolved_display_expires_on = item.display_expires_on
+            if display_expires_on is not None:
+                if resolved_display_expires_on is None:
+                    resolved_display_expires_on = display_expires_on
+                else:
+                    resolved_display_expires_on = min(
+                        resolved_display_expires_on,
+                        display_expires_on,
+                    )
+            update_fields = ["quantity"]
+            if resolved_display_expires_on != item.display_expires_on:
+                item.display_expires_on = resolved_display_expires_on
+                update_fields.append("display_expires_on")
+            item.save(update_fields=update_fields)
     target_status = None
     status_reason = ""
     if shipment is not None:
