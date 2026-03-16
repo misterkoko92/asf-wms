@@ -67,8 +67,8 @@ class HelperInstallTests(SimpleTestCase):
             "/Users/test/Applications/ASF Planning Communication Helper.app",
         )
         self.assertTrue(context["post_install_guidance"].startswith("Au premier lancement"))
-        self.assertEqual(context["minimum_helper_version"], "0.1.0")
-        self.assertEqual(context["latest_helper_version"], "0.1.0")
+        self.assertEqual(context["minimum_helper_version"], "0.1.1")
+        self.assertEqual(context["latest_helper_version"], "0.1.1")
 
     def test_build_helper_install_context_uses_absolute_macos_install_command(self):
         request = self.factory.get("/scan/shipments-ready/")

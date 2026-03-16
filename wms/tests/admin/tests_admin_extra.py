@@ -812,8 +812,8 @@ class ShipmentAndStockMovementAdminTests(_AdminTestBase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "data-local-document-helper-root")
         self.assertContains(response, "/static/wms/local_document_helper.js")
-        self.assertContains(response, 'data-local-document-helper-minimum-version="0.1.0"')
-        self.assertContains(response, 'data-local-document-helper-latest-version="0.1.0"')
+        self.assertContains(response, 'data-local-document-helper-minimum-version="0.1.1"')
+        self.assertContains(response, 'data-local-document-helper-latest-version="0.1.1"')
 
     def test_shipment_print_helpers_and_stockmovement_helpers(self):
         shipment_admin = ShipmentAdmin(models.Shipment, self.site)

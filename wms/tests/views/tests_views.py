@@ -521,7 +521,7 @@ class ScanViewTests(TestCase):
         self.assertContains(follow_response, 'data-local-document-helper-root="1"')
         self.assertContains(
             follow_response,
-            'data-local-document-helper-minimum-version="0.1.0"',
+            'data-local-document-helper-minimum-version="0.1.1"',
         )
         self.assertContains(
             follow_response,
@@ -1043,7 +1043,7 @@ class ScanViewTests(TestCase):
         self.assertContains(response, 'data-local-document-helper-root="1"')
         self.assertContains(
             response,
-            'data-local-document-helper-minimum-version="0.1.0"',
+            'data-local-document-helper-minimum-version="0.1.1"',
         )
         self.assertContains(
             response,
