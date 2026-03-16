@@ -67,8 +67,8 @@ class HelperInstallTests(SimpleTestCase):
             "/Users/test/Applications/ASF Planning Communication Helper.app",
         )
         self.assertTrue(context["post_install_guidance"].startswith("Au premier lancement"))
-        self.assertEqual(context["minimum_helper_version"], "0.1.1")
-        self.assertEqual(context["latest_helper_version"], "0.1.1")
+        self.assertEqual(context["minimum_helper_version"], "0.1.2")
+        self.assertEqual(context["latest_helper_version"], "0.1.2")
 
     def test_build_helper_install_context_uses_absolute_macos_install_command(self):
         request = self.factory.get("/scan/shipments-ready/")
@@ -215,6 +215,29 @@ class HelperInstallTests(SimpleTestCase):
         self.assertIn("goto :install_failed", content)
         self.assertIn(":install_failed", content)
         self.assertIn("Microsoft Store", content)
+
+    def test_build_helper_installer_response_for_windows_stops_existing_helper_before_reinstall(
+        self,
+    ):
+        request = self.factory.get(
+            "/scan/helper/install/",
+            HTTP_SEC_CH_UA_PLATFORM='"Windows"',
+        )
+
+        with mock.patch("wms.helper_install._helper_bundle_base64", return_value="QUJD"):
+            response = build_helper_installer_response(
+                request=request,
+                app_label="asf-wms",
+                system="Linux",
+                repo_root=Path("/repo"),
+            )
+
+        content = response.content.decode()
+        self.assertIn("call :stop_existing_helper", content)
+        self.assertIn("Get-CimInstance Win32_Process", content)
+        self.assertIn("tools.planning_comm_helper.server", content)
+        self.assertIn("shutil.rmtree(repo_root)", content)
+        self.assertNotIn("ignore_errors=True", content)
 
     def test_build_helper_install_context_uses_absolute_windows_install_command(self):
         request = self.factory.get("/scan/shipments-ready/")

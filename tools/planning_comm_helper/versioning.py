@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import platform
 
-HELPER_VERSION = "0.1.1"
+HELPER_VERSION = "0.1.2"
 HELPER_CAPABILITIES = ("pdf_render", "excel_render", "pdf_merge")
 
 

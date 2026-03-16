@@ -282,7 +282,10 @@ if not exist "%INSTALL_ROOT%" goto :install_failed
 )
 if not exist "%BUNDLE_B64%" goto :install_failed
 
-call :run_python -c "import base64, pathlib, shutil, sys, zipfile; install_root = pathlib.Path(sys.argv[1]); repo_root = install_root / 'repo'; bundle_path = install_root / 'helper-bundle.b64'; archive_path = install_root / 'helper-bundle.zip'; archive_path.write_bytes(base64.b64decode(bundle_path.read_text(encoding='utf-8'))); shutil.rmtree(repo_root, ignore_errors=True); repo_root.mkdir(parents=True, exist_ok=True); zipfile.ZipFile(archive_path).extractall(repo_root)" "%INSTALL_ROOT%"
+call :stop_existing_helper
+if errorlevel 1 goto :install_failed
+
+call :run_python -c "import base64, pathlib, shutil, sys, zipfile; install_root = pathlib.Path(sys.argv[1]); repo_root = install_root / 'repo'; bundle_path = install_root / 'helper-bundle.b64'; archive_path = install_root / 'helper-bundle.zip'; archive_path.write_bytes(base64.b64decode(bundle_path.read_text(encoding='utf-8'))); shutil.rmtree(repo_root) if repo_root.exists() else None; repo_root.mkdir(parents=True, exist_ok=True); zipfile.ZipFile(archive_path).extractall(repo_root)" "%INSTALL_ROOT%"
 if errorlevel 1 goto :install_failed
 call :run_python -m venv "%REPO_ROOT%\\.venv"
 if errorlevel 1 goto :install_failed
@@ -320,6 +323,11 @@ exit /b 1
 call %* -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)" >nul 2>nul
 if errorlevel 1 exit /b 0
 set "PYTHON_CMD=%*"
+exit /b 0
+
+:stop_existing_helper
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$repo = [System.IO.Path]::GetFullPath($env:REPO_ROOT); $processes = @(Get-CimInstance Win32_Process); foreach ($process in $processes) {{ if ($process.CommandLine -and $process.CommandLine -like '*tools.planning_comm_helper.server*' -and $process.CommandLine -like ('*' + $repo + '*')) {{ Stop-Process -Id $process.ProcessId -Force -ErrorAction SilentlyContinue }} }}; Start-Sleep -Seconds 1"
+if errorlevel 1 exit /b 1
 exit /b 0
 
 :run_python

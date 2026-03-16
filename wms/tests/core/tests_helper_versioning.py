@@ -8,7 +8,7 @@ class HelperVersioningTests(SimpleTestCase):
         self.assertEqual(
             build_helper_version_policy(),
             {
-                "minimum_helper_version": "0.1.1",
-                "latest_helper_version": "0.1.1",
+                "minimum_helper_version": "0.1.2",
+                "latest_helper_version": "0.1.2",
             },
         )

@@ -232,8 +232,8 @@ class ScanShipmentsViewsTests(TestCase):
         response = self.client.get(reverse("scan:scan_shipments_ready"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'data-local-document-helper-minimum-version="0.1.1"')
-        self.assertContains(response, 'data-local-document-helper-latest-version="0.1.1"')
+        self.assertContains(response, 'data-local-document-helper-minimum-version="0.1.2"')
+        self.assertContains(response, 'data-local-document-helper-latest-version="0.1.2"')
 
     def test_scan_shipments_ready_uses_updated_headers_and_status_markup(self):
         with mock.patch(
@@ -288,8 +288,8 @@ class ScanShipmentsViewsTests(TestCase):
         response = self.client.get(reverse("scan:scan_cartons_ready"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'data-local-document-helper-minimum-version="0.1.1"')
-        self.assertContains(response, 'data-local-document-helper-latest-version="0.1.1"')
+        self.assertContains(response, 'data-local-document-helper-minimum-version="0.1.2"')
+        self.assertContains(response, 'data-local-document-helper-latest-version="0.1.2"')
 
     def test_scan_cartons_ready_uses_available_label_and_updated_status_controls(self):
         with mock.patch(
