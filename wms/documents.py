@@ -15,6 +15,10 @@ def build_org_context():
     }
 
 
+def resolve_carton_item_expires_on(item):
+    return item.display_expires_on or item.product_lot.expires_on
+
+
 def build_shipment_item_rows(shipment, *, carton_labels=None):
     items = (
         CartonItem.objects.filter(carton__shipment=shipment)
@@ -31,7 +35,7 @@ def build_shipment_item_rows(shipment, *, carton_labels=None):
                 "product": item.product_lot.product.name,
                 "lot": item.product_lot.lot_code or "N/A",
                 "quantity": item.quantity,
-                "expires_on": item.product_lot.expires_on,
+                "expires_on": resolve_carton_item_expires_on(item),
                 "carton_label": carton_label,
             }
         )

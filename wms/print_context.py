@@ -10,6 +10,7 @@ from .documents import (
     build_shipment_item_rows,
     build_shipment_type_labels,
     compute_weight_total_g,
+    resolve_carton_item_expires_on,
 )
 from .models import CartonFormat, CartonItem, RackColor
 from .scan_helpers import (
@@ -135,7 +136,7 @@ def build_carton_document_context(shipment, carton):
                 "product": item.product_lot.product.name,
                 "lot": item.product_lot.lot_code or "N/A",
                 "quantity": item.quantity,
-                "expires_on": item.product_lot.expires_on,
+                "expires_on": resolve_carton_item_expires_on(item),
             }
         )
 
