@@ -32,14 +32,19 @@ def convert_workbook_to_pdf(
 
 def _convert_with_windows_excel(workbook_path: Path, pdf_path: Path, *, strict: bool = True) -> Path:
     try:
+        import pythoncom  # type: ignore
         import win32com.client  # type: ignore
     except ImportError as exc:
         raise ExcelPdfConversionError("Excel automation is unavailable on Windows.") from exc
 
-    excel = win32com.client.Dispatch("Excel.Application")
-    excel.Visible = False
+    com_initialized = False
+    excel = None
     workbook = None
     try:
+        pythoncom.CoInitialize()
+        com_initialized = True
+        excel = win32com.client.Dispatch("Excel.Application")
+        excel.Visible = False
         workbook = excel.Workbooks.Open(str(workbook_path))
         if strict:
             _prepare_windows_workbook_for_export(excel, workbook)
@@ -49,7 +54,10 @@ def _convert_with_windows_excel(workbook_path: Path, pdf_path: Path, *, strict: 
     finally:  # pragma: no branch
         if workbook is not None:
             workbook.Close(False)
-        excel.Quit()
+        if excel is not None:
+            excel.Quit()
+        if com_initialized:
+            pythoncom.CoUninitialize()
 
     if not pdf_path.exists():
         raise ExcelPdfConversionError("Excel did not generate the PDF.")

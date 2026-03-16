@@ -85,25 +85,33 @@ def open_outlook_drafts(
 
 def _open_windows_outlook_draft(draft: dict[str, object], attachment_paths: list[str]) -> None:
     try:
+        import pythoncom  # type: ignore
         import win32com.client  # type: ignore
     except ImportError as exc:  # pragma: no cover - platform-specific
         raise RuntimeError("pywin32 is required to open Outlook drafts on Windows.") from exc
 
-    outlook = win32com.client.Dispatch("Outlook.Application")
-    mail = outlook.CreateItem(0)
-    to_list = _clean_address_list(draft.get("to") or draft.get("recipient_contact"))
-    cc_list = _clean_address_list(draft.get("cc"))
-    bcc_list = _clean_address_list(draft.get("bcc"))
-    mail.To = "; ".join(to_list)
-    mail.CC = "; ".join(cc_list)
-    mail.BCC = "; ".join(bcc_list)
-    mail.Subject = str(draft.get("subject") or "")
-    mail.Display()
-    signature_html = mail.HTMLBody or ""
-    mail.HTMLBody = f"{draft.get('body_html', '')}{signature_html}"
-    for path in attachment_paths:
-        mail.Attachments.Add(path)
-    mail.Display(True)
+    com_initialized = False
+    try:
+        pythoncom.CoInitialize()
+        com_initialized = True
+        outlook = win32com.client.Dispatch("Outlook.Application")
+        mail = outlook.CreateItem(0)
+        to_list = _clean_address_list(draft.get("to") or draft.get("recipient_contact"))
+        cc_list = _clean_address_list(draft.get("cc"))
+        bcc_list = _clean_address_list(draft.get("bcc"))
+        mail.To = "; ".join(to_list)
+        mail.CC = "; ".join(cc_list)
+        mail.BCC = "; ".join(bcc_list)
+        mail.Subject = str(draft.get("subject") or "")
+        mail.Display()
+        signature_html = mail.HTMLBody or ""
+        mail.HTMLBody = f"{draft.get('body_html', '')}{signature_html}"
+        for path in attachment_paths:
+            mail.Attachments.Add(path)
+        mail.Display(True)
+    finally:
+        if com_initialized:
+            pythoncom.CoUninitialize()
 
 
 def _open_macos_outlook_draft(draft: dict[str, object], attachment_paths: list[str]) -> None:
