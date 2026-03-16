@@ -18,6 +18,9 @@ def build_pack_line_values(line_count, data=None):
             {
                 "product_code": (data.get(prefix + "product_code") if data else "") or "",
                 "quantity": (data.get(prefix + "quantity") if data else "") or "",
+                "pack_family_override": (
+                    (data.get(prefix + "pack_family_override") if data else "") or ""
+                ),
             }
         )
     return lines
@@ -146,13 +149,36 @@ def build_packing_bins(
 
 
 def build_packing_result(carton_ids):
+    result_entries = []
+    for entry in carton_ids:
+        if isinstance(entry, dict):
+            carton_id = entry.get("carton_id") or entry.get("id")
+            if carton_id is None:
+                continue
+            result_entries.append(
+                {
+                    "carton_id": carton_id,
+                    "zone_label": entry.get("zone_label") or "",
+                    "family": entry.get("family") or "",
+                }
+            )
+        else:
+            result_entries.append(
+                {
+                    "carton_id": entry,
+                    "zone_label": "",
+                    "family": "",
+                }
+            )
+    resolved_carton_ids = [entry["carton_id"] for entry in result_entries]
     cartons = (
-        Carton.objects.filter(id__in=carton_ids)
-        .select_related("shipment")
+        Carton.objects.filter(id__in=resolved_carton_ids)
+        .select_related("shipment", "current_location")
         .prefetch_related("cartonitem_set__product_lot__product")
         .order_by("code")
     )
-    order = {carton_id: index for index, carton_id in enumerate(carton_ids)}
+    order = {entry["carton_id"]: index for index, entry in enumerate(result_entries)}
+    metadata_by_carton_id = {entry["carton_id"]: entry for entry in result_entries}
     cartons_sorted = sorted(cartons, key=lambda carton: order.get(carton.id, 0))
     carton_rows = []
     aggregate = {}
@@ -184,14 +210,24 @@ def build_packing_result(carton_ids):
         else:
             packing_list_url = reverse("scan:scan_carton_document", args=[carton.id])
         picking_url = reverse("scan:scan_carton_picking", args=[carton.id])
+        metadata = metadata_by_carton_id.get(carton.id, {})
+        zone_label = metadata.get("zone_label") or ""
+        if not zone_label and getattr(carton, "current_location", None):
+            zone_label = str(carton.current_location)
         carton_rows.append(
             {
                 "code": carton.code,
                 "items": items_sorted,
                 "packing_list_url": packing_list_url,
                 "picking_url": picking_url,
+                "zone_label": zone_label,
+                "family": metadata.get("family") or "",
             }
         )
 
     aggregate_rows = sorted(aggregate.values(), key=lambda row: row["label"])
-    return {"cartons": carton_rows, "aggregate": aggregate_rows}
+    return {
+        "cartons": carton_rows,
+        "aggregate": aggregate_rows,
+        "show_success_modal": bool(carton_rows),
+    }

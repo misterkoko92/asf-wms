@@ -12,7 +12,7 @@ from .views_scan_billing import (
     scan_billing_equivalence,
     scan_billing_settings,
 )
-from .views_scan_dashboard import scan_dashboard
+from .views_scan_dashboard import scan_dashboard, scan_root
 from .views_scan_design import scan_admin_design
 from .views_scan_misc import scan_faq, scan_service_worker, scan_ui_lab
 from .views_scan_orders import scan_order, scan_orders_view
@@ -40,6 +40,7 @@ from .views_scan_shipments import (
 from .views_scan_stock import scan_out, scan_stock, scan_stock_update, scan_sync
 
 SCAN_FLOW_EXPORTS = (
+    "scan_root",
     "scan_dashboard",
     "scan_stock",
     "scan_kits_view",

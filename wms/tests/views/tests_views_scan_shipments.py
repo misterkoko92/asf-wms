@@ -3,6 +3,7 @@ from unittest import mock
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.http import HttpResponse
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
@@ -45,6 +46,16 @@ class ScanShipmentsViewsTests(TestCase):
             destination_country="France",
             created_by=self.staff_user,
         )
+
+    def _create_preparateur_user(self):
+        user = get_user_model().objects.create_user(
+            username="scan-preparateur-ui",
+            password="pass1234",
+            is_staff=True,
+        )
+        group, _ = Group.objects.get_or_create(name="Preparateur")
+        user.groups.add(group)
+        return user
 
     def test_scan_cartons_ready_short_circuits_when_handler_returns_response(self):
         with mock.patch(
@@ -370,6 +381,63 @@ class ScanShipmentsViewsTests(TestCase):
             response,
             'class="scan-scan-btn btn btn-tertiary text-nowrap"',
         )
+
+    def test_scan_pack_preparateur_hides_non_essential_controls_and_reduces_navigation(self):
+        preparateur = self._create_preparateur_user()
+        self.client.force_login(preparateur)
+
+        response = self.client.get(reverse("scan:scan_pack"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Référence expédition (optionnel)")
+        self.assertNotContains(response, "Choisir un emplacement de rangement du colis prêt")
+        self.assertNotContains(response, "Ajouter emplacement")
+        self.assertContains(response, 'data-preparateur-pack-mode="1"')
+        self.assertContains(response, "Préparer des colis")
+        self.assertNotContains(response, "Tableau De Bord")
+        self.assertNotContains(response, "Vue Stock")
+        self.assertNotContains(response, "Admin Django")
+
+    def test_scan_pack_preparateur_renders_success_modal_with_distinct_carton_numbers(self):
+        preparateur = self._create_preparateur_user()
+        self.client.force_login(preparateur)
+        session = self.client.session
+        session["pack_results"] = [
+            {"carton_id": 10, "zone_label": "Colis Prets MM", "family": "MM"},
+            {"carton_id": 11, "zone_label": "Colis Prets CN", "family": "CN"},
+        ]
+        session.save()
+
+        with mock.patch(
+            "wms.views_scan_shipments.build_packing_result",
+            return_value={
+                "cartons": [
+                    {
+                        "code": "MM-20260316-12",
+                        "zone_label": "Colis Prets MM",
+                        "family": "MM",
+                        "items": [],
+                    },
+                    {
+                        "code": "CN-20260316-04",
+                        "zone_label": "Colis Prets CN",
+                        "family": "CN",
+                        "items": [],
+                    },
+                ],
+                "aggregate": [],
+                "show_success_modal": True,
+            },
+        ):
+            response = self.client.get(reverse("scan:scan_pack"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Colis créés avec succès")
+        self.assertContains(response, "Ranger le colis dans la zone Colis Prets MM")
+        self.assertContains(response, "Écrire le numéro MM-20260316-12")
+        self.assertContains(response, "Ranger le colis dans la zone Colis Prets CN")
+        self.assertContains(response, "Écrire le numéro CN-20260316-04")
+        self.assertContains(response, 'id="pack-success-modal"')
 
     def test_scan_shipment_create_renders_secondary_draft_button_near_submit(self):
         response = self.client.get(reverse("scan:scan_shipment_create"))

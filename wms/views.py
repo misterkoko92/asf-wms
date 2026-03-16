@@ -60,6 +60,7 @@ from .views_scan import (
     scan_receive,
     scan_receive_association,
     scan_receive_pallet,
+    scan_root,
     scan_service_worker,
     scan_settings,
     scan_shipment_create,
@@ -136,6 +137,7 @@ PUBLIC_EXPORTS = (
 )
 
 SCAN_FLOW_EXPORTS = (
+    "scan_root",
     "scan_dashboard",
     "scan_stock",
     "scan_kits_view",

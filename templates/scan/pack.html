@@ -5,18 +5,24 @@
 
 {% block content %}
   <div
-    data-local-document-helper-root="1"
-    data-local-document-helper-origin="{{ local_document_helper_origin }}"
-    data-local-document-helper-install-url="{{ helper_install.install_url }}"
-    data-local-document-helper-install-command="{{ helper_install.command }}"
-    data-local-document-helper-install-label="{{ helper_install.download_label }}"
-    data-local-document-helper-install-platform="{{ helper_install.platform_label }}"
-    data-local-document-helper-install-available="{{ helper_install.available|yesno:'1,0' }}"
-    data-local-document-helper-minimum-version="{{ helper_install.minimum_helper_version }}"
-    data-local-document-helper-latest-version="{{ helper_install.latest_helper_version }}"
+    id="pack-page"
+    data-preparateur-pack-mode="{% if request.scan_is_preparateur %}1{% else %}0{% endif %}"
+    {% if not request.scan_is_preparateur %}
+      data-local-document-helper-root="1"
+      data-local-document-helper-origin="{{ local_document_helper_origin }}"
+      data-local-document-helper-install-url="{{ helper_install.install_url }}"
+      data-local-document-helper-install-command="{{ helper_install.command }}"
+      data-local-document-helper-install-label="{{ helper_install.download_label }}"
+      data-local-document-helper-install-platform="{{ helper_install.platform_label }}"
+      data-local-document-helper-install-available="{{ helper_install.available|yesno:'1,0' }}"
+      data-local-document-helper-minimum-version="{{ helper_install.minimum_helper_version }}"
+      data-local-document-helper-latest-version="{{ helper_install.latest_helper_version }}"
+    {% endif %}
   >
-    {% include "wms/_local_document_helper_install_panel.html" %}
-    {% if packing_result %}
+    {% if not request.scan_is_preparateur %}
+      {% include "wms/_local_document_helper_install_panel.html" %}
+    {% endif %}
+    {% if packing_result and not request.scan_is_preparateur %}
       <div class="scan-card card border-0 ui-comp-card">
         <h2 class="ui-comp-title">{% trans "Liste de colisage" %}</h2>
         <h3 class="scan-subtitle">{% trans "Par carton" %}</h3>
@@ -73,6 +79,51 @@
         </div>
       </div>
     {% endif %}
+    {% if request.scan_is_preparateur and packing_result and packing_result.show_success_modal %}
+      <div
+        id="pack-success-modal"
+        class="modal fade show"
+        tabindex="-1"
+        aria-modal="true"
+        role="dialog"
+        style="display: block;"
+      >
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h2 class="modal-title fs-5">
+                {% if packing_result.cartons|length == 1 %}
+                  {% trans "Colis créé avec succès" %}
+                {% else %}
+                  {% trans "Colis créés avec succès" %}
+                {% endif %}
+              </h2>
+            </div>
+            <div class="modal-body">
+              {% for carton in packing_result.cartons %}
+                <div class="border rounded-3 p-3{% if not forloop.last %} mb-3{% endif %}">
+                  {% if carton.family %}
+                    <div class="small text-muted text-uppercase mb-2">{{ carton.family }}</div>
+                  {% endif %}
+                  <p class="mb-1">{% blocktrans with zone=carton.zone_label %}Ranger le colis dans la zone {{ zone }}{% endblocktrans %}</p>
+                  <p class="mb-0">{% blocktrans with code=carton.code %}Écrire le numéro {{ code }}{% endblocktrans %}</p>
+                </div>
+              {% endfor %}
+            </div>
+            <div class="modal-footer">
+              <button
+                type="button"
+                class="btn btn-primary"
+                onclick="document.getElementById('pack-success-modal').style.display='none';document.getElementById('pack-success-modal').classList.remove('show');"
+              >
+                {% trans "Fermer" %}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-backdrop fade show"></div>
+    {% endif %}
     <div class="scan-card card border-0 ui-comp-card">
       <h2 class="ui-comp-title">{% trans "Préparation cartons" %}</h2>
       {% if form.non_field_errors %}
@@ -94,9 +145,11 @@
             {% endfor %}
             <option value="custom" {% if carton_format_id == "custom" %}selected{% endif %}>{% trans "Personnalisé" %}</option>
           </select>
-          <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:wms_cartonformat_add' %}" target="_blank" rel="noopener">
-            {% trans "Ajouter format" %}
-          </a>
+          {% if not request.scan_is_preparateur %}
+            <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:wms_cartonformat_add' %}" target="_blank" rel="noopener">
+              {% trans "Ajouter format" %}
+            </a>
+          {% endif %}
         </div>
       </div>
 
@@ -117,20 +170,22 @@
       <input type="hidden" id="pack_line_count" name="line_count" value="{{ line_count }}">
 
       <div class="row g-3 align-items-end scan-pack-shipping-row">
-        <div class="scan-field scan-pack-shipping-field col-12 col-lg-4">
-          <label class="form-label" for="id_shipment_reference">{% trans "Référence expédition (optionnel)" %}</label>
-          {{ form.shipment_reference }}
-          {% for error in form.shipment_reference.errors %}
-            <div class="scan-message error">{{ error }}</div>
-          {% endfor %}
-        </div>
+        {% if not request.scan_is_preparateur %}
+          <div class="scan-field scan-pack-shipping-field col-12 col-lg-4">
+            <label class="form-label" for="id_shipment_reference">{% trans "Référence expédition (optionnel)" %}</label>
+            {{ form.shipment_reference }}
+            {% for error in form.shipment_reference.errors %}
+              <div class="scan-message error">{{ error }}</div>
+            {% endfor %}
+          </div>
 
-        <div class="scan-field scan-pack-shipping-field col-12 col-lg-4">
-          <label class="form-label" for="id_current_location">{% trans "Choisir un emplacement de rangement du colis prêt (optionnel)" %}</label>
-          {{ form.current_location }}
-        </div>
+          <div class="scan-field scan-pack-shipping-field col-12 col-lg-4">
+            <label class="form-label" for="id_current_location">{% trans "Choisir un emplacement de rangement du colis prêt (optionnel)" %}</label>
+            {{ form.current_location }}
+          </div>
+        {% endif %}
 
-        <div class="scan-field scan-pack-shipping-field col-12 col-lg-4">
+        <div class="scan-field scan-pack-shipping-field col-12 {% if request.scan_is_preparateur %}col-lg-12{% else %}col-lg-4{% endif %}">
           <div class="form-check form-switch scan-inline-switch scan-inline-switch-wide">
             <input
               type="checkbox"
@@ -157,12 +212,16 @@
         </div>
       {% endif %}
       <div class="scan-filter-actions scan-pack-shipping-actions-inline d-flex flex-wrap flex-lg-nowrap gap-2 align-items-center">
-        <a class="scan-scan-btn btn btn-tertiary text-nowrap" href="{% url 'admin:wms_location_add' %}" target="_blank" rel="noopener">
-          {% trans "Ajouter emplacement" %}
-        </a>
+        {% if not request.scan_is_preparateur %}
+          <a class="scan-scan-btn btn btn-tertiary text-nowrap" href="{% url 'admin:wms_location_add' %}" target="_blank" rel="noopener">
+            {% trans "Ajouter emplacement" %}
+          </a>
+        {% endif %}
         <button type="submit" class="scan-submit btn btn-primary">{% trans "Préparer" %}</button>
       </div>
-      <p class="scan-help ui-comp-note">{% trans "Si la référence d'expédition est vide, les cartons sont pré-conditionnés." %}</p>
+      {% if not request.scan_is_preparateur %}
+        <p class="scan-help ui-comp-note">{% trans "Si la référence d'expédition est vide, les cartons sont pré-conditionnés." %}</p>
+      {% endif %}
       </form>
       {{ products_json|json_script:"product-data" }}
       {{ carton_formats|json_script:"carton-format-data" }}
@@ -175,5 +234,7 @@
       </datalist>
     </div>
   </div>
-  <script src="{% static 'wms/local_document_helper.js' %}"></script>
+  {% if not request.scan_is_preparateur %}
+    <script src="{% static 'wms/local_document_helper.js' %}"></script>
+  {% endif %}
 {% endblock %}

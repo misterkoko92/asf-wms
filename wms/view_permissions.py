@@ -10,6 +10,7 @@ from .compliance import is_role_operation_allowed
 from .helper_install import resolve_helper_installer_access
 from .models import AssociationRecipient, OrganizationRole, OrganizationRoleAssignment
 from .portal_helpers import get_association_profile
+from .scan_permissions import is_scan_view_allowed_for_user, user_is_preparateur
 
 BLOCKED_REASON_QUERY_PARAM = "blocked"
 BLOCKED_REASON_MISSING_DELIVERY_CONTACT = "missing_delivery_contact"
@@ -42,6 +43,9 @@ def scan_staff_required(view):
     @wraps(view)
     def wrapped(request, *args, **kwargs):
         if not request.user.is_staff:
+            raise PermissionDenied
+        request.scan_is_preparateur = user_is_preparateur(request.user)
+        if not is_scan_view_allowed_for_user(request):
             raise PermissionDenied
         return view(request, *args, **kwargs)
 

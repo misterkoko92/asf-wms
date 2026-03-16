@@ -1,10 +1,15 @@
+from collections import defaultdict
 from decimal import Decimal
 
 from django.contrib import messages
 from django.db import transaction
+from django.db.models import Q
 from django.shortcuts import redirect
 from django.utils.translation import gettext as _
 
+from .carton_status_events import set_carton_status
+from .domain.stock import ensure_carton_code
+from .models import CartonStatus, Location
 from .scan_helpers import (
     build_pack_line_values,
     build_packing_bins,
@@ -15,7 +20,273 @@ from .scan_helpers import (
     resolve_product,
     resolve_shipment,
 )
+from .scan_permissions import user_is_preparateur
 from .services import StockError, pack_carton
+from .shipment_status import sync_shipment_ready_state
+
+PREPARATEUR_FAMILY_MM = "MM"
+PREPARATEUR_FAMILY_CN = "CN"
+PREPARATEUR_ALLOWED_FAMILIES = (
+    PREPARATEUR_FAMILY_MM,
+    PREPARATEUR_FAMILY_CN,
+)
+PREPARATEUR_LOCATION_LABELS = {
+    PREPARATEUR_FAMILY_MM: "Colis Prets MM",
+    PREPARATEUR_FAMILY_CN: "Colis Prets CN",
+}
+
+
+def _normalize_pack_family(value):
+    normalized = (value or "").strip().upper()
+    if normalized in PREPARATEUR_ALLOWED_FAMILIES:
+        return normalized
+    return ""
+
+
+def _get_product_root_category_name(product):
+    category = getattr(product, "category", None)
+    while category and category.parent_id:
+        category = category.parent
+    return (category.name or "").strip().upper() if category else ""
+
+
+def _resolve_preparateur_pack_family(product, override):
+    override_family = _normalize_pack_family(override)
+    if override_family:
+        return override_family
+    root_category_name = _get_product_root_category_name(product)
+    if root_category_name in PREPARATEUR_ALLOWED_FAMILIES:
+        return root_category_name
+    return ""
+
+
+def _resolve_preparateur_location(label):
+    matches = list(
+        Location.objects.filter(
+            Q(notes__iexact=label)
+            | Q(zone__iexact=label)
+            | Q(aisle__iexact=label)
+            | Q(shelf__iexact=label)
+        )
+        .select_related("warehouse")
+        .order_by("warehouse__name", "zone", "aisle", "shelf")
+    )
+    if not matches:
+        raise ValueError(
+            _("Configuration emplacement introuvable pour %(label)s.") % {"label": label}
+        )
+    if len(matches) > 1:
+        raise ValueError(_("Configuration emplacement ambigue pour %(label)s.") % {"label": label})
+    return matches[0]
+
+
+def _resolve_preparateur_locations():
+    return {
+        family: _resolve_preparateur_location(label)
+        for family, label in PREPARATEUR_LOCATION_LABELS.items()
+    }
+
+
+def _build_state(
+    *,
+    carton_format_id,
+    carton_custom,
+    line_count,
+    line_values,
+    line_errors,
+    missing_defaults,
+    confirm_defaults,
+):
+    return {
+        "carton_format_id": carton_format_id,
+        "carton_custom": carton_custom,
+        "line_count": line_count,
+        "line_values": line_values,
+        "line_errors": line_errors,
+        "missing_defaults": missing_defaults,
+        "confirm_defaults": confirm_defaults,
+    }
+
+
+def _finalize_preparateur_carton(*, carton, family, user):
+    if carton.status != CartonStatus.PACKED:
+        set_carton_status(
+            carton=carton,
+            new_status=CartonStatus.PACKED,
+            reason="scan_pack_preparateur_ready",
+            user=user,
+        )
+    ensure_carton_code(carton, type_code=family)
+    if carton.shipment_id:
+        sync_shipment_ready_state(carton.shipment)
+
+
+def _handle_preparateur_pack(
+    *,
+    request,
+    form,
+    carton_size,
+    carton_format_id,
+    carton_custom,
+    line_count,
+    line_values,
+    line_errors,
+    line_items,
+    missing_defaults,
+    confirm_defaults,
+):
+    grouped_line_items = defaultdict(list)
+    for item in line_items:
+        family = _resolve_preparateur_pack_family(
+            item["product"],
+            item.get("pack_family_override"),
+        )
+        if not family:
+            line_errors[str(item["index"])] = [
+                _("Choisissez manuellement MM ou CN pour ce produit."),
+            ]
+            continue
+        item["pack_family"] = family
+        grouped_line_items[family].append(item)
+
+    if line_errors:
+        form.add_error(
+            None,
+            _("Choisissez manuellement MM ou CN pour les produits sans categorie racine MM/CN."),
+        )
+        return (
+            None,
+            _build_state(
+                carton_format_id=carton_format_id,
+                carton_custom=carton_custom,
+                line_count=line_count,
+                line_values=line_values,
+                line_errors=line_errors,
+                missing_defaults=missing_defaults,
+                confirm_defaults=confirm_defaults,
+            ),
+        )
+
+    try:
+        locations_by_family = _resolve_preparateur_locations()
+    except ValueError as exc:
+        form.add_error(None, str(exc))
+        return (
+            None,
+            _build_state(
+                carton_format_id=carton_format_id,
+                carton_custom=carton_custom,
+                line_count=line_count,
+                line_values=line_values,
+                line_errors=line_errors,
+                missing_defaults=missing_defaults,
+                confirm_defaults=confirm_defaults,
+            ),
+        )
+
+    pack_errors = []
+    pack_warnings = []
+    packing_plan = []
+    for family in PREPARATEUR_ALLOWED_FAMILIES:
+        family_items = grouped_line_items.get(family, [])
+        if not family_items:
+            continue
+        bins, family_errors, family_warnings = build_packing_bins(
+            family_items,
+            carton_size,
+            apply_defaults=confirm_defaults,
+        )
+        pack_errors.extend(family_errors)
+        pack_warnings.extend(family_warnings)
+        if bins:
+            for bin_data in bins:
+                packing_plan.append(
+                    {
+                        "family": family,
+                        "zone_label": PREPARATEUR_LOCATION_LABELS[family],
+                        "current_location": locations_by_family[family],
+                        "bin_data": bin_data,
+                    }
+                )
+
+    if pack_errors:
+        for error in pack_errors:
+            form.add_error(None, error)
+        return (
+            None,
+            _build_state(
+                carton_format_id=carton_format_id,
+                carton_custom=carton_custom,
+                line_count=line_count,
+                line_values=line_values,
+                line_errors=line_errors,
+                missing_defaults=missing_defaults,
+                confirm_defaults=confirm_defaults,
+            ),
+        )
+
+    try:
+        created_cartons = []
+        with transaction.atomic():
+            for plan in packing_plan:
+                carton = None
+                for entry in plan["bin_data"]["items"].values():
+                    carton = pack_carton(
+                        user=request.user,
+                        product=entry["product"],
+                        quantity=entry["quantity"],
+                        carton=carton,
+                        carton_code=None,
+                        shipment=resolve_shipment(form.cleaned_data["shipment_reference"]),
+                        current_location=plan["current_location"],
+                        carton_size=carton_size,
+                    )
+                if carton:
+                    _finalize_preparateur_carton(
+                        carton=carton,
+                        family=plan["family"],
+                        user=request.user,
+                    )
+                    created_cartons.append(
+                        {
+                            "carton_id": carton.id,
+                            "zone_label": plan["zone_label"],
+                            "family": plan["family"],
+                        }
+                    )
+        for warning in pack_warnings:
+            messages.warning(request, warning)
+        request.session["pack_results"] = created_cartons
+        messages.success(
+            request,
+            _("%(count)s carton(s) préparé(s).") % {"count": len(created_cartons)},
+        )
+        return (
+            redirect("scan:scan_pack"),
+            _build_state(
+                carton_format_id=carton_format_id,
+                carton_custom=carton_custom,
+                line_count=line_count,
+                line_values=line_values,
+                line_errors=line_errors,
+                missing_defaults=missing_defaults,
+                confirm_defaults=confirm_defaults,
+            ),
+        )
+    except StockError as exc:
+        form.add_error(None, str(exc))
+        return (
+            None,
+            _build_state(
+                carton_format_id=carton_format_id,
+                carton_custom=carton_custom,
+                line_count=line_count,
+                line_values=line_values,
+                line_errors=line_errors,
+                missing_defaults=missing_defaults,
+                confirm_defaults=confirm_defaults,
+            ),
+        )
 
 
 def build_pack_defaults(default_format):
@@ -54,6 +325,7 @@ def handle_pack_post(request, *, form, default_format):
     line_items = []
     missing_defaults = []
     confirm_defaults = bool(request.POST.get("confirm_defaults"))
+    shipment = None
 
     if form.is_valid():
         shipment = resolve_shipment(form.cleaned_data["shipment_reference"])
@@ -85,7 +357,16 @@ def handle_pack_post(request, *, form, default_format):
             if errors:
                 line_errors[str(index)] = errors
             else:
-                line_items.append({"product": product, "quantity": quantity, "index": index})
+                line_items.append(
+                    {
+                        "product": product,
+                        "quantity": quantity,
+                        "index": index,
+                        "pack_family_override": (
+                            request.POST.get(prefix + "pack_family_override") or ""
+                        ),
+                    }
+                )
 
         if form.is_valid() and not line_errors and not carton_errors:
             if not line_items:
@@ -122,6 +403,20 @@ def handle_pack_post(request, *, form, default_format):
                             "missing_defaults": missing_defaults,
                             "confirm_defaults": confirm_defaults,
                         },
+                    )
+                if user_is_preparateur(request.user):
+                    return _handle_preparateur_pack(
+                        request=request,
+                        form=form,
+                        carton_size=carton_size,
+                        carton_format_id=carton_format_id,
+                        carton_custom=carton_custom,
+                        line_count=line_count,
+                        line_values=line_values,
+                        line_errors=line_errors,
+                        line_items=line_items,
+                        missing_defaults=missing_defaults,
+                        confirm_defaults=confirm_defaults,
                     )
                 bins, pack_errors, pack_warnings = build_packing_bins(
                     line_items, carton_size, apply_defaults=confirm_defaults
@@ -172,13 +467,13 @@ def handle_pack_post(request, *, form, default_format):
 
     return (
         None,
-        {
-            "carton_format_id": carton_format_id,
-            "carton_custom": carton_custom,
-            "line_count": line_count,
-            "line_values": line_values,
-            "line_errors": line_errors,
-            "missing_defaults": missing_defaults,
-            "confirm_defaults": confirm_defaults,
-        },
+        _build_state(
+            carton_format_id=carton_format_id,
+            carton_custom=carton_custom,
+            line_count=line_count,
+            line_values=line_values,
+            line_errors=line_errors,
+            missing_defaults=missing_defaults,
+            confirm_defaults=confirm_defaults,
+        ),
     )

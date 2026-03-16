@@ -2,6 +2,7 @@ from datetime import date, timedelta
 from unittest import mock
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -249,6 +250,16 @@ class ScanViewTests(TestCase):
         order.lines.create(product=self.product, quantity=1)
         return link, order
 
+    def _create_preparateur(self):
+        preparateur = get_user_model().objects.create_user(
+            username="scan-preparateur",
+            password="pass1234",
+            is_staff=True,
+        )
+        group, _ = Group.objects.get_or_create(name="Preparateur")
+        preparateur.groups.add(group)
+        return preparateur
+
     def test_scan_stock_update_creates_lot(self):
         url = reverse("scan:scan_stock_update")
         payload = {
@@ -309,6 +320,44 @@ class ScanViewTests(TestCase):
                     self.assertLess(response.status_code, 500)
                 finally:
                     response.close()
+
+    def test_scan_root_redirects_preparateur_to_pack(self):
+        preparateur = self._create_preparateur()
+        self.client.force_login(preparateur)
+
+        response = self.client.get(reverse("scan:scan_root"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("scan:scan_pack"))
+
+    def test_scan_root_redirects_regular_staff_to_dashboard(self):
+        response = self.client.get(reverse("scan:scan_root"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("scan:scan_dashboard"))
+
+    def test_preparateur_whitelist_blocks_dashboard_and_shipments_views(self):
+        preparateur = self._create_preparateur()
+        self.client.force_login(preparateur)
+
+        dashboard_response = self.client.get(reverse("scan:scan_dashboard"))
+        shipments_response = self.client.get(reverse("scan:scan_shipments_ready"))
+        pack_response = self.client.get(reverse("scan:scan_pack"))
+        sync_response = self.client.get(reverse("scan:scan_sync"))
+
+        self.assertEqual(dashboard_response.status_code, 403)
+        self.assertEqual(shipments_response.status_code, 403)
+        self.assertEqual(pack_response.status_code, 200)
+        self.assertEqual(sync_response.status_code, 200)
+
+    def test_admin_site_denies_preparateur(self):
+        preparateur = self._create_preparateur()
+        self.client.force_login(preparateur)
+
+        response = self.client.get("/admin/")
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/admin/login/", response["Location"])
 
     def test_scan_cartons_ready_blocks_assigned_update(self):
         shipment = Shipment.objects.create(

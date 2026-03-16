@@ -58,13 +58,18 @@ class ScanPackHelpersTests(TestCase):
         self.assertEqual(
             lines,
             [
-                {"product_code": "", "quantity": ""},
-                {"product_code": "", "quantity": ""},
+                {"product_code": "", "quantity": "", "pack_family_override": ""},
+                {"product_code": "", "quantity": "", "pack_family_override": ""},
             ],
         )
 
     def test_build_pack_line_values_reads_payload(self):
-        data = {"line_1_product_code": "SKU-1", "line_1_quantity": "3"}
+        data = {
+            "line_1_product_code": "SKU-1",
+            "line_1_quantity": "3",
+            "line_1_pack_family_override": "MM",
+        }
         lines = build_pack_line_values(1, data)
         self.assertEqual(lines[0]["product_code"], "SKU-1")
         self.assertEqual(lines[0]["quantity"], "3")
+        self.assertEqual(lines[0]["pack_family_override"], "MM")
