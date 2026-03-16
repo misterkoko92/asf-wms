@@ -175,16 +175,43 @@ class PlanningCommunicationHelperAutostartTests(unittest.TestCase):
             repo_root.mkdir(parents=True, exist_ok=True)
             appdata = Path(tmpdir) / "AppData" / "Roaming"
             local_appdata = Path(tmpdir) / "AppData" / "Local"
-            with mock.patch.dict(
-                "os.environ",
-                {
-                    "APPDATA": str(appdata),
-                    "LOCALAPPDATA": str(local_appdata),
-                },
-                clear=False,
+            with (
+                mock.patch.dict(
+                    "os.environ",
+                    {
+                        "APPDATA": str(appdata),
+                        "LOCALAPPDATA": str(local_appdata),
+                    },
+                    clear=False,
+                ),
+                mock.patch("subprocess.Popen"),
             ):
                 paths = autostart.install_windows_autostart(repo_root=repo_root)
                 self.assertTrue(paths.startup_vbs_path.exists())
                 self.assertTrue(paths.runner_cmd_path.exists())
                 self.assertIn("tools.planning_comm_helper.server", paths.runner_cmd_path.read_text())
                 self.assertIn("shell.Run", paths.startup_vbs_path.read_text())
+
+    def test_install_windows_autostart_starts_helper_immediately(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_root = Path(tmpdir) / "repo"
+            repo_root.mkdir(parents=True, exist_ok=True)
+            appdata = Path(tmpdir) / "AppData" / "Roaming"
+            local_appdata = Path(tmpdir) / "AppData" / "Local"
+            with (
+                mock.patch.dict(
+                    "os.environ",
+                    {
+                        "APPDATA": str(appdata),
+                        "LOCALAPPDATA": str(local_appdata),
+                    },
+                    clear=False,
+                ),
+                mock.patch("subprocess.Popen") as popen_mock,
+            ):
+                paths = autostart.install_windows_autostart(repo_root=repo_root)
+
+        popen_mock.assert_called_once_with(
+            ["wscript.exe", str(paths.startup_vbs_path)],
+            cwd=str(paths.repo_root),
+        )

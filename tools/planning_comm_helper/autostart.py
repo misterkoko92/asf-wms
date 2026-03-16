@@ -222,6 +222,7 @@ def install_windows_autostart(*, repo_root: Path | None = None) -> WindowsAutost
     paths.runner_cmd_path.parent.mkdir(parents=True, exist_ok=True)
     paths.runner_cmd_path.write_text(build_windows_runner_cmd(paths), encoding="utf-8")
     paths.startup_vbs_path.write_text(build_windows_startup_vbs(paths), encoding="utf-8")
+    _start_windows_helper(paths)
     return paths
 
 
@@ -232,6 +233,13 @@ def uninstall_windows_autostart() -> WindowsAutostartPaths:
     if paths.runner_cmd_path.exists():
         paths.runner_cmd_path.unlink()
     return paths
+
+
+def _start_windows_helper(paths: WindowsAutostartPaths) -> None:
+    subprocess.Popen(
+        ["wscript.exe", str(paths.startup_vbs_path)],
+        cwd=str(paths.repo_root),
+    )
 
 
 def install_autostart() -> Path:
