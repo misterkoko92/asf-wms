@@ -13,6 +13,7 @@ from ..models import (
     Carton,
     CartonFormat,
     CartonItem,
+    CartonSequence,
     CartonStatus,
     Location,
     MovementType,
@@ -41,6 +42,7 @@ class StockConsumeResult:
 
 
 CARTON_CODE_RE = re.compile(r"^(?P<type>[A-Z0-9]{2})-(?P<date>\d{8})-(?P<seq>\d+)$")
+LINEAR_CARTON_CODE_RE = re.compile(r"^(?P<type>[A-Z0-9]{2})-(?P<seq>\d{5})$")
 
 
 def _carton_date_str(carton):
@@ -127,11 +129,38 @@ def _format_carton_code(type_code, date_str, sequence):
     return f"{type_code}-{date_str}-{sequence}"
 
 
+def _normalize_carton_family(type_code):
+    normalized = (type_code or "").strip().upper()
+    if not normalized:
+        return "XX"
+    return normalized.ljust(2, "X")[:2]
+
+
+def _next_linear_carton_sequence(type_code):
+    family = _normalize_carton_family(type_code)
+    with transaction.atomic():
+        sequence_qs = CartonSequence.objects
+        if connection.features.has_select_for_update:
+            sequence_qs = sequence_qs.select_for_update()
+        sequence = sequence_qs.filter(family=family).first()
+        if sequence is None:
+            try:
+                sequence = CartonSequence.objects.create(family=family, last_number=0)
+            except IntegrityError:
+                sequence = sequence_qs.get(family=family)
+        sequence.last_number += 1
+        sequence.save(update_fields=["last_number"])
+        return sequence.last_number
+
+
+def _format_linear_carton_code(type_code, sequence):
+    return f"{_normalize_carton_family(type_code)}-{sequence:05d}"
+
+
 def generate_carton_code(*, type_code=None, date_str=None) -> str:
-    date_str = date_str or timezone.localdate().strftime("%Y%m%d")
-    type_code = type_code or "XX"
-    sequence = _next_carton_sequence(date_str)
-    return _format_carton_code(type_code, date_str, sequence)
+    del date_str
+    sequence = _next_linear_carton_sequence(type_code)
+    return _format_linear_carton_code(type_code, sequence)
 
 
 def ensure_carton_code(carton, *, type_code=None):
