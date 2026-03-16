@@ -8,6 +8,13 @@ from .kit_components import KitCycleError, get_unit_component_quantities
 from .models import Product, ProductLotStatus
 
 
+def get_product_root_category_name(product):
+    category = getattr(product, "category", None)
+    while category and category.parent_id:
+        category = category.parent
+    return (category.name or "").strip() if category else ""
+
+
 def resolve_product(code: str, *, include_kits: bool = False):
     code = (code or "").strip()
     if not code:
@@ -142,6 +149,18 @@ def build_product_options(*, include_kits: bool = False):
         )
 
     combined = base_products + kit_options
+    product_ids = [item["id"] for item in combined if item.get("id")]
+    products = Product.objects.filter(id__in=product_ids, is_active=True).select_related(
+        "category",
+        "category__parent",
+        "category__parent__parent",
+        "category__parent__parent__parent",
+    )
+    root_category_by_id = {
+        product.id: get_product_root_category_name(product) for product in products
+    }
+    for item in combined:
+        item["category_root"] = root_category_by_id.get(item.get("id"), "")
     combined.sort(key=lambda item: (item["name"] or "").lower())
     return combined
 

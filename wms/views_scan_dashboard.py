@@ -4,7 +4,7 @@ from datetime import date, datetime, time, timedelta
 from django.db.models import Count, F, IntegerField, Max, Q, Sum, Value
 from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Coalesce
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.dateparse import parse_date
@@ -35,6 +35,7 @@ from .models import (
     ShipmentUnitEquivalenceRule,
 )
 from .runtime_settings import get_runtime_config
+from .scan_permissions import user_is_preparateur
 from .unit_equivalence import ShipmentUnitInput, resolve_shipment_unit_count
 from .view_permissions import scan_staff_required
 
@@ -62,6 +63,14 @@ SHIPMENT_STATUS_ORDER = (
     ShipmentStatus.RECEIVED_CORRESPONDENT,
     ShipmentStatus.DELIVERED,
 )
+
+
+@scan_staff_required
+@require_http_methods(["GET"])
+def scan_root(request):
+    if user_is_preparateur(request.user):
+        return redirect("scan:scan_pack")
+    return redirect("scan:scan_dashboard")
 
 
 def _period_start(period_key):

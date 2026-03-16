@@ -869,6 +869,9 @@
     if (!container) {
       return;
     }
+    const packPage = document.getElementById('pack-page');
+    const preparateurMode =
+      !!packPage && packPage.dataset.preparateurPackMode === '1';
     const addButton = document.getElementById('pack-add-line');
     const lineCountInput = document.getElementById('pack_line_count');
     const formatSelect = document.getElementById('id_carton_format');
@@ -941,6 +944,8 @@
         lengthCm: parseNumber(product.length_cm),
         widthCm: parseNumber(product.width_cm),
         heightCm: parseNumber(product.height_cm)
+        ,
+        categoryRoot: (product.category_root || '').toString().trim().toUpperCase()
       }));
 
     setOcrProducts(
@@ -1023,7 +1028,9 @@
     const collectValues = () =>
       Array.from(container.querySelectorAll('.pack-line')).map(line => ({
         product_code: line.querySelector('.pack-line-product')?.value || '',
-        quantity: line.querySelector('.pack-line-quantity')?.value || ''
+        quantity: line.querySelector('.pack-line-quantity')?.value || '',
+        pack_family_override:
+          line.querySelector('.pack-line-family')?.value || ''
       }));
 
     const sumPlannedQuantity = product => {
@@ -1228,6 +1235,36 @@
       quantityField.appendChild(quantityInput);
       grid.appendChild(quantityField);
 
+      let familyField = null;
+      let familySelect = null;
+      let familyStatus = null;
+      if (preparateurMode) {
+        familyField = document.createElement('div');
+        familyField.className = 'pack-line-field';
+        const familyLabel = document.createElement('label');
+        familyLabel.textContent = 'Type MM/CN';
+        familySelect = document.createElement('select');
+        familySelect.name = `line_${index}_pack_family_override`;
+        familySelect.className = 'pack-line-family';
+        [
+          { value: '', label: 'Choisir' },
+          { value: 'MM', label: 'MM' },
+          { value: 'CN', label: 'CN' }
+        ].forEach(optionData => {
+          const option = document.createElement('option');
+          option.value = optionData.value;
+          option.textContent = optionData.label;
+          familySelect.appendChild(option);
+        });
+        familySelect.value = value.pack_family_override || '';
+        familyStatus = document.createElement('div');
+        familyStatus.className = 'scan-help mt-2';
+        familyField.appendChild(familyLabel);
+        familyField.appendChild(familySelect);
+        familyField.appendChild(familyStatus);
+        grid.appendChild(familyField);
+      }
+
       const metrics = document.createElement('div');
       metrics.className = 'pack-line-metrics';
       metrics.innerHTML = '<div>Max carton mono-produit: <span class=\"pack-line-max\">-</span></div><div>Equivalent cartons: <span class=\"pack-line-equivalent\">-</span></div><div>Quantite disponible en stock: <span class=\"pack-line-available\">-</span></div><div>Quantite restante apres preparation: <span class=\"pack-line-remaining\">-</span></div>';
@@ -1248,6 +1285,32 @@
         rebuildOptions(event.target.value);
       });
 
+      const updateFamilyControls = () => {
+        if (!preparateurMode || !familyField || !familySelect || !familyStatus) {
+          return;
+        }
+        const product = findProduct(productInput.value);
+        const resolvedFamily =
+          product && ['MM', 'CN'].includes(product.categoryRoot)
+            ? product.categoryRoot
+            : '';
+        if (!product) {
+          familyField.style.display = 'none';
+          familyStatus.textContent = '';
+          return;
+        }
+        if (resolvedFamily) {
+          familyField.style.display = 'none';
+          familyStatus.textContent = `Type detecte: ${resolvedFamily}`;
+          familySelect.value = '';
+          quantityField.appendChild(familyStatus);
+          return;
+        }
+        familyField.style.display = 'block';
+        familyStatus.textContent = 'Choisissez manuellement MM ou CN.';
+        familyField.appendChild(familyStatus);
+      };
+
       productInput.addEventListener('change', event => {
         updateAllLineMetrics();
         if (event.target.value) {
@@ -1256,9 +1319,11 @@
             filterInput.value = optionLabel(match);
           }
         }
+        updateFamilyControls();
       });
       quantityInput.addEventListener('input', updateAllLineMetrics);
       productInput.addEventListener('change', updateAllLineMetrics);
+      updateFamilyControls();
 
       return line;
     };

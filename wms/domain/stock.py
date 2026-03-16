@@ -134,7 +134,7 @@ def generate_carton_code(*, type_code=None, date_str=None) -> str:
     return _format_carton_code(type_code, date_str, sequence)
 
 
-def ensure_carton_code(carton):
+def ensure_carton_code(carton, *, type_code=None):
     if getattr(carton, "_manual_code", False):
         return
     current = carton.code or ""
@@ -143,7 +143,7 @@ def ensure_carton_code(carton):
     is_legacy_auto = current.startswith("C-") and not match
     if not match and not is_legacy_auto:
         return
-    type_code = _dominant_type_code(carton)
+    type_code = type_code or _dominant_type_code(carton)
     if match and match.group("date") == date_str:
         sequence = int(match.group("seq"))
     else:

@@ -133,6 +133,29 @@ class ScanPackHelpersExtraTests(TestCase):
             [{"label": "Mask (ASF) - Lot LOT-01", "quantity": 5}],
         )
 
+    def test_build_packing_result_keeps_zone_label_metadata(self):
+        product = SimpleNamespace(id=11, sku="SKU-11", name="Mask", brand="ASF")
+        lot = SimpleNamespace(product=product, lot_code="LOT-01")
+        item = SimpleNamespace(product_lot=lot, quantity=2)
+        carton = SimpleNamespace(
+            id=1,
+            code="MM-20260316-1",
+            shipment_id=None,
+            cartonitem_set=SimpleNamespace(all=lambda: [item]),
+        )
+        queryset = mock.MagicMock()
+        queryset.select_related.return_value = queryset
+        queryset.prefetch_related.return_value = queryset
+        queryset.order_by.return_value = [carton]
+
+        with mock.patch("wms.scan_pack_helpers.Carton.objects.filter", return_value=queryset):
+            result = build_packing_result(
+                [{"carton_id": 1, "zone_label": "Colis Prets MM", "family": "MM"}]
+            )
+
+        self.assertEqual(result["cartons"][0]["zone_label"], "Colis Prets MM")
+        self.assertEqual(result["cartons"][0]["family"], "MM")
+
     def test_build_packing_bins_guards_when_floor_division_returns_zero(self):
         product = Product.objects.create(
             name="Guarded",
