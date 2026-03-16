@@ -2,9 +2,38 @@ from .models import Carton, CartonFormat, CartonStatus
 from .scan_parse import parse_decimal, parse_int
 
 
+def _build_destination_label(destination):
+    if not destination:
+        return ""
+    return str(destination)
+
+
+def _build_carton_option(carton, *, weight_total):
+    preassigned_destination = getattr(carton, "preassigned_destination", None)
+    preassigned_destination_id = getattr(carton, "preassigned_destination_id", None)
+    preassigned_destination_iata = (
+        getattr(preassigned_destination, "iata_code", "") if preassigned_destination else ""
+    )
+    label = carton.code
+    if preassigned_destination_iata:
+        label = f"{label} ({preassigned_destination_iata})"
+    return {
+        "id": carton.id,
+        "code": carton.code,
+        "label": label,
+        "weight_g": weight_total,
+        "preassigned_destination_id": preassigned_destination_id,
+        "preassigned_destination_iata": preassigned_destination_iata,
+        "preassigned_destination_label": (
+            _build_destination_label(preassigned_destination) if preassigned_destination else ""
+        ),
+    }
+
+
 def build_available_cartons():
     cartons = (
         Carton.objects.filter(status=CartonStatus.PACKED, shipment__isnull=True)
+        .select_related("preassigned_destination")
         .prefetch_related("cartonitem_set__product_lot__product")
         .order_by("code")
     )
@@ -14,13 +43,7 @@ def build_available_cartons():
         for item in carton.cartonitem_set.all():
             product_weight = item.product_lot.product.weight_g or 0
             weight_total += product_weight * item.quantity
-        options.append(
-            {
-                "id": carton.id,
-                "code": carton.code,
-                "weight_g": weight_total,
-            }
-        )
+        options.append(_build_carton_option(carton, weight_total=weight_total))
     return options
 
 

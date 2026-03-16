@@ -10,6 +10,7 @@ def build_shipment_line_values(carton_count, data=None):
                 "carton_id": (data.get(prefix + "carton_id") if data else "") or "",
                 "product_code": (data.get(prefix + "product_code") if data else "") or "",
                 "quantity": (data.get(prefix + "quantity") if data else "") or "",
+                "expires_on": (data.get(prefix + "expires_on") if data else "") or "",
             }
         )
     return lines

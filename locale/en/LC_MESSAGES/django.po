@@ -8064,6 +8064,22 @@ msgstr "Volunteer area"
 msgid "Administration & support"
 msgstr "Admin & support"
 
+#: templates/scan/shipment_create.html:33
+msgid "Pré-affectation destination"
+msgstr "Destination preassignment"
+
+#: templates/scan/shipment_create.html:186
+msgid "Accepter"
+msgstr "Accept"
+
+#: templates/scan/shipment_create.html:193
+msgid "Refuser"
+msgstr "Reject"
+
+#: templates/scan/shipment_create.html:32
+msgid "Ce colis a été pré-affecté pour la destination __EXPECTED__. Voulez vous vraiment l'affecter à l'expédition en cours pour la destination __CURRENT__ ?"
+msgstr "This parcel was preassigned to destination __EXPECTED__. Are you sure you want to assign it to the current shipment for destination __CURRENT__?"
+
 #, fuzzy
 #~| msgid "Créer un nouveau kit"
 #~ msgid "Créez un nouveau contact d"

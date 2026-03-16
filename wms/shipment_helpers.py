@@ -1,5 +1,6 @@
 from django.db.models import Q
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from django.utils.translation import gettext as _
 
 from contacts.destination_scope import (
@@ -232,37 +233,54 @@ def parse_shipment_lines(*, carton_count, data, allowed_carton_ids):
         carton_id = (data.get(prefix + "carton_id") or "").strip()
         product_code = (data.get(prefix + "product_code") or "").strip()
         quantity_raw = (data.get(prefix + "quantity") or "").strip()
+        expires_on_raw = (data.get(prefix + "expires_on") or "").strip()
+        preassigned_destination_confirmed = (
+            data.get(prefix + "preassigned_destination_confirmed") or ""
+        ).strip() == "1"
         line_values.append(
             {
                 "carton_id": carton_id,
                 "product_code": product_code,
                 "quantity": quantity_raw,
+                "expires_on": expires_on_raw,
             }
         )
         errors = []
 
-        if carton_id and (product_code or quantity_raw):
+        if carton_id and (product_code or quantity_raw or expires_on_raw):
             errors.append(_("Choisissez un carton OU créez un colis depuis un produit."))
         elif carton_id:
             if carton_id not in allowed_carton_ids:
                 errors.append(_("Carton indisponible."))
             else:
-                line_items.append({"carton_id": int(carton_id)})
-        elif product_code or quantity_raw:
+                line_items.append(
+                    {
+                        "carton_id": int(carton_id),
+                        "preassigned_destination_confirmed": preassigned_destination_confirmed,
+                    }
+                )
+        elif product_code or quantity_raw or expires_on_raw:
             if not product_code:
                 errors.append(_("Produit requis."))
             quantity = None
+            expires_on = None
             if not quantity_raw:
                 errors.append(_("Quantité requise."))
             else:
                 quantity = parse_int(quantity_raw)
                 if quantity is None or quantity <= 0:
                     errors.append(_("Quantité invalide."))
+            if expires_on_raw:
+                expires_on = parse_date(expires_on_raw)
+                if expires_on is None:
+                    errors.append(_("Date de péremption invalide."))
             product = resolve_product(product_code) if product_code else None
             if product_code and not product:
                 errors.append(_("Produit introuvable."))
             if not errors and product and quantity:
-                line_items.append({"product": product, "quantity": quantity})
+                line_items.append(
+                    {"product": product, "quantity": quantity, "expires_on": expires_on}
+                )
         else:
             errors.append(_("Renseignez un carton ou un produit."))
 

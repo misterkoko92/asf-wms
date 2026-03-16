@@ -124,6 +124,32 @@ def _validate_org_role_selection(*, shipper_contact, recipient_contact, destinat
         raise StockError(str(exc)) from exc
 
 
+def _build_preassigned_destination_mismatch_error(*, carton, destination):
+    preassigned_destination = getattr(carton, "preassigned_destination", None)
+    expected_label = build_destination_label(preassigned_destination)
+    current_label = build_destination_label(destination)
+    return _(
+        "Ce colis a été pré-affecté pour la destination %(expected)s. "
+        "Voulez vous vraiment l'affecter à l'expédition en cours pour la destination "
+        "%(current)s ?"
+    ) % {
+        "expected": expected_label,
+        "current": current_label,
+    }
+
+
+def _validate_carton_preassignment(*, carton, destination, mismatch_confirmed):
+    destination_id = getattr(destination, "id", None)
+    preassigned_destination_id = getattr(carton, "preassigned_destination_id", None)
+    if not preassigned_destination_id or not destination_id:
+        return
+    if preassigned_destination_id == destination_id or mismatch_confirmed:
+        return
+    raise StockError(
+        _build_preassigned_destination_mismatch_error(carton=carton, destination=destination)
+    )
+
+
 def _handle_shipment_save_draft_post(request, *, form, redirect_to_pack=False):
     destination_value = (form.data.get("destination") or "").strip()
     if not destination_value:
@@ -265,17 +291,26 @@ def handle_shipment_create_post(request, *, form, available_carton_ids):
                             id=carton_id,
                             status=CartonStatus.PACKED,
                             shipment__isnull=True,
-                        )
+                        ).select_related("preassigned_destination")
                         if connection.features.has_select_for_update:
                             carton_query = carton_query.select_for_update()
                         carton = carton_query.first()
                         if carton is None:
                             raise StockError(_("Carton indisponible."))
+                        _validate_carton_preassignment(
+                            carton=carton,
+                            destination=destination,
+                            mismatch_confirmed=item.get(
+                                "preassigned_destination_confirmed",
+                                False,
+                            ),
+                        )
                         carton.shipment = shipment
+                        carton.preassigned_destination = None
                         set_carton_status(
                             carton=carton,
                             new_status=CartonStatus.ASSIGNED,
-                            update_fields=["shipment"],
+                            update_fields=["shipment", "preassigned_destination"],
                             reason="shipment_create_assign",
                             user=getattr(request, "user", None),
                         )
@@ -287,6 +322,7 @@ def handle_shipment_create_post(request, *, form, available_carton_ids):
                             carton=None,
                             carton_code=None,
                             shipment=shipment,
+                            display_expires_on=item.get("expires_on"),
                         )
                         set_carton_status(
                             carton=carton,
@@ -371,6 +407,9 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
                 selected_carton_ids = {
                     item["carton_id"] for item in line_items if "carton_id" in item
                 }
+                carton_items_by_id = {
+                    item["carton_id"]: item for item in line_items if "carton_id" in item
+                }
                 cartons_to_remove = shipment.carton_set.exclude(id__in=selected_carton_ids)
                 for carton in cartons_to_remove:
                     if carton.status == CartonStatus.SHIPPED:
@@ -388,7 +427,10 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
                         carton.save(update_fields=["shipment"])
 
                 for carton_id in selected_carton_ids:
-                    carton_query = Carton.objects.filter(id=carton_id)
+                    carton_item = carton_items_by_id.get(carton_id, {})
+                    carton_query = Carton.objects.filter(id=carton_id).select_related(
+                        "preassigned_destination"
+                    )
                     if connection.features.has_select_for_update:
                         carton_query = carton_query.select_for_update()
                     carton = carton_query.first()
@@ -399,11 +441,20 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
                     if carton.shipment_id != shipment.id and carton.status != CartonStatus.PACKED:
                         raise StockError(_("Carton indisponible."))
                     if carton.shipment_id != shipment.id:
+                        _validate_carton_preassignment(
+                            carton=carton,
+                            destination=destination,
+                            mismatch_confirmed=carton_item.get(
+                                "preassigned_destination_confirmed",
+                                False,
+                            ),
+                        )
                         carton.shipment = shipment
+                        carton.preassigned_destination = None
                         set_carton_status(
                             carton=carton,
                             new_status=CartonStatus.ASSIGNED,
-                            update_fields=["shipment"],
+                            update_fields=["shipment", "preassigned_destination"],
                             reason="shipment_edit_assign_existing",
                             user=getattr(request, "user", None),
                         )
@@ -434,6 +485,7 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
                                 quantity=item["quantity"],
                                 carton=None,
                                 shipment=shipment,
+                                display_expires_on=item.get("expires_on"),
                             )
                         else:
                             carton = pack_carton(
@@ -443,6 +495,7 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
                                 carton=None,
                                 carton_code=None,
                                 shipment=shipment,
+                                display_expires_on=item.get("expires_on"),
                             )
                         set_carton_status(
                             carton=carton,
