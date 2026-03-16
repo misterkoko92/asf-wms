@@ -142,6 +142,7 @@ DELETE_BATCHES = (
     (
         "operational_sequences",
         (
+            "wms.CartonSequence",
             "wms.ReceiptDonorSequence",
             "wms.ReceiptSequence",
             "wms.ShipmentSequence",

@@ -5,6 +5,7 @@ from django.test import TestCase
 
 from contacts.models import Contact, ContactType
 from wms.models import (
+    CartonSequence,
     Destination,
     Location,
     PlanningDestinationRule,
@@ -45,6 +46,10 @@ class ResetOperationalDataCommandTests(TestCase):
             donor=self.donor,
             last_number=3,
         )
+        self.carton_sequence = CartonSequence.objects.create(
+            family="MM",
+            last_number=7,
+        )
         self.parameter_set = PlanningParameterSet.objects.create(name="Main Planning Set")
         self.destination_rule = PlanningDestinationRule.objects.create(
             parameter_set=self.parameter_set,
@@ -67,6 +72,7 @@ class ResetOperationalDataCommandTests(TestCase):
         self.assertTrue(
             ReceiptDonorSequence.objects.filter(pk=self.receipt_donor_sequence.pk).exists()
         )
+        self.assertTrue(CartonSequence.objects.filter(pk=self.carton_sequence.pk).exists())
         self.assertTrue(Warehouse.objects.filter(pk=self.warehouse.pk).exists())
         self.assertTrue(Location.objects.filter(pk=self.location.pk).exists())
         self.assertTrue(WmsRuntimeSettings.objects.filter(pk=self.runtime_settings.pk).exists())
@@ -82,6 +88,7 @@ class ResetOperationalDataCommandTests(TestCase):
         self.assertFalse(Destination.objects.exists())
         self.assertFalse(PlanningDestinationRule.objects.exists())
         self.assertFalse(ReceiptDonorSequence.objects.exists())
+        self.assertFalse(CartonSequence.objects.exists())
         self.assertTrue(Warehouse.objects.filter(pk=self.warehouse.pk).exists())
         self.assertTrue(Location.objects.filter(pk=self.location.pk).exists())
         self.assertTrue(WmsRuntimeSettings.objects.filter(pk=self.runtime_settings.pk).exists())

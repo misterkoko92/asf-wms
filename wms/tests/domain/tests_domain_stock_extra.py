@@ -518,6 +518,15 @@ class DomainStockExtraTests(TestCase):
         non_auto.refresh_from_db()
         self.assertEqual(non_auto.code, "CUSTOM-CODE")
 
+    def test_ensure_carton_code_rewrites_linear_auto_code_to_requested_family(self):
+        carton = Carton.objects.create(code="XX-00001", status=CartonStatus.DRAFT)
+        Carton.objects.create(code="MM-00001", status=CartonStatus.DRAFT)
+
+        ensure_carton_code(carton, type_code="MM")
+
+        carton.refresh_from_db()
+        self.assertEqual(carton.code, "MM-00002")
+
     def test_ensure_carton_code_replaces_legacy_code_and_handles_collision(self):
         legacy_carton = Carton.objects.create(code="C-LEGACY", status=CartonStatus.DRAFT)
         Carton.objects.create(code="XX-20260101-1", status=CartonStatus.DRAFT)

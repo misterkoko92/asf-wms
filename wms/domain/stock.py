@@ -167,6 +167,25 @@ def ensure_carton_code(carton, *, type_code=None):
     if getattr(carton, "_manual_code", False):
         return
     current = carton.code or ""
+    linear_match = LINEAR_CARTON_CODE_RE.match(current)
+    if linear_match:
+        family = _normalize_carton_family(type_code or _dominant_type_code(carton))
+        if linear_match.group("type") == family:
+            return
+        last_error = None
+        for _ in range(2):
+            new_code = _format_linear_carton_code(family, _next_linear_carton_sequence(family))
+            if Carton.objects.filter(code=new_code).exclude(pk=carton.pk).exists():
+                continue
+            try:
+                carton.code = new_code
+                carton.save(update_fields=["code"])
+                return
+            except IntegrityError as exc:
+                last_error = exc
+        if last_error:
+            raise last_error
+        return
     match = CARTON_CODE_RE.match(current)
     date_str = _carton_date_str(carton)
     is_legacy_auto = current.startswith("C-") and not match
