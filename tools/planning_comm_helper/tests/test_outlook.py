@@ -6,8 +6,8 @@ from unittest import TestCase, mock
 
 from tools.planning_comm_helper.outlook import (
     OutlookPayloadError,
-    _open_windows_outlook_draft,
     _materialize_attachments,
+    _open_windows_outlook_draft,
     open_outlook_drafts,
 )
 
