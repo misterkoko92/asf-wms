@@ -18,6 +18,11 @@ from .helper_versioning import build_helper_version_policy
 HELPER_RUNTIME_REQUIREMENTS = """pypdf==6.7.5
 pywin32>=306; platform_system == "Windows"
 """
+WINDOWS_HELPER_PYTHON_GUIDANCE = (
+    "Python 3.10 ou plus doit etre installe sur ce poste avant le helper. "
+    "Le raccourci Microsoft Store pour python.exe ne suffit pas: "
+    "installez Python depuis python.org puis relancez la commande."
+)
 HELPER_INSTALL_TOKEN_QUERY_PARAM = "installer_token"  # nosec B105
 HELPER_INSTALL_TOKEN_SALT = "wms.helper_install"  # nosec B105
 HELPER_INSTALL_TOKEN_MAX_AGE_SECONDS = 3600
@@ -257,34 +262,73 @@ echo "Helper local installe."
 
 def _build_windows_installer_script(*, bundle_base64: str) -> str:
     return f"""@echo off
-setlocal
+setlocal EnableExtensions
 
-set "INSTALL_ROOT=%LOCALAPPDATA%\\ASF\\planning_comm_helper"
+set "LOCAL_APPDATA_ROOT=%LOCALAPPDATA%"
+if not defined LOCAL_APPDATA_ROOT set "LOCAL_APPDATA_ROOT=%USERPROFILE%\\AppData\\Local"
+set "INSTALL_ROOT=%LOCAL_APPDATA_ROOT%\\ASF\\planning_comm_helper"
 set "REPO_ROOT=%INSTALL_ROOT%\\repo"
 set "BUNDLE_B64=%INSTALL_ROOT%\\helper-bundle.b64"
 
 set "PYTHON_CMD="
-where py >nul 2>nul && set "PYTHON_CMD=py -3"
-if not defined PYTHON_CMD where python >nul 2>nul && set "PYTHON_CMD=python"
+call :resolve_python
+if errorlevel 1 exit /b 1
 
-if not defined PYTHON_CMD (
-  echo Python 3 est requis pour installer le helper local.
-  exit /b 1
-)
+if not exist "%INSTALL_ROOT%" mkdir "%INSTALL_ROOT%"
+if not exist "%INSTALL_ROOT%" goto :install_failed
 
-mkdir "%INSTALL_ROOT%" 2>nul
 > "%BUNDLE_B64%" (
 {_build_windows_echo_block(bundle_base64)}
 )
+if not exist "%BUNDLE_B64%" goto :install_failed
 
-%PYTHON_CMD% -c "import base64, pathlib, shutil, sys, zipfile; install_root = pathlib.Path(sys.argv[1]); repo_root = install_root / 'repo'; bundle_path = install_root / 'helper-bundle.b64'; archive_path = install_root / 'helper-bundle.zip'; archive_path.write_bytes(base64.b64decode(bundle_path.read_text(encoding='utf-8'))); shutil.rmtree(repo_root, ignore_errors=True); repo_root.mkdir(parents=True, exist_ok=True); zipfile.ZipFile(archive_path).extractall(repo_root)" "%INSTALL_ROOT%"
-%PYTHON_CMD% -m venv "%REPO_ROOT%\\.venv"
-"%REPO_ROOT%\\.venv\\Scripts\\python.exe" -m pip install -r "%REPO_ROOT%\\requirements-helper.txt"
+call :run_python -c "import base64, pathlib, shutil, sys, zipfile; install_root = pathlib.Path(sys.argv[1]); repo_root = install_root / 'repo'; bundle_path = install_root / 'helper-bundle.b64'; archive_path = install_root / 'helper-bundle.zip'; archive_path.write_bytes(base64.b64decode(bundle_path.read_text(encoding='utf-8'))); shutil.rmtree(repo_root, ignore_errors=True); repo_root.mkdir(parents=True, exist_ok=True); zipfile.ZipFile(archive_path).extractall(repo_root)" "%INSTALL_ROOT%"
+if errorlevel 1 goto :install_failed
+call :run_python -m venv "%REPO_ROOT%\\.venv"
+if errorlevel 1 goto :install_failed
+call "%REPO_ROOT%\\.venv\\Scripts\\python.exe" -m pip install -r "%REPO_ROOT%\\requirements-helper.txt"
+if errorlevel 1 goto :install_failed
 pushd "%REPO_ROOT%"
-"%REPO_ROOT%\\.venv\\Scripts\\python.exe" -m tools.planning_comm_helper.autostart install
+if errorlevel 1 goto :install_failed
+call "%REPO_ROOT%\\.venv\\Scripts\\python.exe" -m tools.planning_comm_helper.autostart install
+set "INSTALL_EXIT_CODE=%ERRORLEVEL%"
 popd
+if not "%INSTALL_EXIT_CODE%"=="0" goto :install_failed
 
 echo Helper local installe.
+exit /b 0
+
+:resolve_python
+where py >nul 2>nul
+if not errorlevel 1 (
+  call :try_python_cmd py -3
+  if defined PYTHON_CMD exit /b 0
+)
+for /f "delims=" %%I in ('where python 2^>nul') do (
+  echo %%~fI | findstr /I /C:"\\WindowsApps\\" >nul
+  if errorlevel 1 (
+    call :try_python_cmd "%%~fI"
+    if defined PYTHON_CMD exit /b 0
+  )
+)
+echo Python 3.10 ou plus est requis pour installer le helper local.
+echo Installez Python depuis python.org puis relancez cette commande.
+echo Desactivez si besoin le raccourci Microsoft Store dans Parametres ^> Applications ^> Alias d'execution.
+exit /b 1
+
+:try_python_cmd
+call %* -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)" >nul 2>nul
+if errorlevel 1 exit /b 0
+set "PYTHON_CMD=%*"
+exit /b 0
+
+:run_python
+call %PYTHON_CMD% %*
+exit /b %ERRORLEVEL%
+
+:install_failed
+echo L'installation du helper a echoue.
+exit /b 1
 """
 
 
@@ -357,7 +401,7 @@ def build_helper_installer_payload(
             "install_url": signed_install_url,
             "script": _build_windows_installer_script(bundle_base64=bundle_base64),
             "installed_app_path": "",
-            "post_install_guidance": "",
+            "post_install_guidance": WINDOWS_HELPER_PYTHON_GUIDANCE,
         }
     raise ValidationError("Installation du helper indisponible sur ce poste.")
 

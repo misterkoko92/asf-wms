@@ -36,6 +36,17 @@ class HelperInstallTests(SimpleTestCase):
         self.assertIn("ASF Planning Communication Helper", payload["post_install_guidance"])
         self.assertIn("Microsoft Excel", payload["post_install_guidance"])
 
+    def test_build_helper_installer_payload_for_windows_mentions_python_guidance(self):
+        with mock.patch("wms.helper_install._helper_bundle_base64", return_value="QUJD"):
+            payload = build_helper_installer_payload(
+                app_label="asf-wms",
+                system="Windows",
+                repo_root=Path("/repo"),
+            )
+
+        self.assertIn("Python 3.10", payload["post_install_guidance"])
+        self.assertIn("Microsoft Store", payload["post_install_guidance"])
+
     def test_build_helper_install_context_keeps_stable_helper_guidance(self):
         with (
             mock.patch("pathlib.Path.home", return_value=Path("/Users/test")),
@@ -183,6 +194,27 @@ class HelperInstallTests(SimpleTestCase):
             'attachment; filename="install-asf-wms-helper.cmd"',
         )
         self.assertIn("@echo off", response.content.decode())
+
+    def test_build_helper_installer_response_for_windows_skips_store_alias_and_fails_fast(self):
+        request = self.factory.get(
+            "/scan/helper/install/",
+            HTTP_SEC_CH_UA_PLATFORM='"Windows"',
+        )
+
+        with mock.patch("wms.helper_install._helper_bundle_base64", return_value="QUJD"):
+            response = build_helper_installer_response(
+                request=request,
+                app_label="asf-wms",
+                system="Linux",
+                repo_root=Path("/repo"),
+            )
+
+        content = response.content.decode()
+        self.assertIn("call :resolve_python", content)
+        self.assertIn("WindowsApps", content)
+        self.assertIn("goto :install_failed", content)
+        self.assertIn(":install_failed", content)
+        self.assertIn("Microsoft Store", content)
 
     def test_build_helper_install_context_uses_absolute_windows_install_command(self):
         request = self.factory.get("/scan/shipments-ready/")
