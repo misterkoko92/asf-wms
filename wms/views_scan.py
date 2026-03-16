@@ -24,6 +24,7 @@ from .views_scan_receipts import (
 )
 from .views_scan_settings import scan_settings
 from .views_scan_shipments import (
+    scan_carton_edit,
     scan_cartons_ready,
     scan_kits_view,
     scan_local_document_helper_installer,
@@ -61,6 +62,7 @@ SCAN_FLOW_EXPORTS = (
     "scan_prepare_kits",
     "scan_prepare_kits_picking",
     "scan_pack",
+    "scan_carton_edit",
     "scan_shipment_create",
     "scan_shipment_edit",
     "scan_shipment_track",

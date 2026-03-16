@@ -125,7 +125,13 @@
       <div class="modal-backdrop fade show"></div>
     {% endif %}
     <div class="scan-card card border-0 ui-comp-card">
-      <h2 class="ui-comp-title">{% trans "Préparation cartons" %}</h2>
+      <h2 class="ui-comp-title">
+        {% if editing_carton %}
+          {% blocktrans with code=editing_carton.code %}Modifier le colis {{ code }}{% endblocktrans %}
+        {% else %}
+          {% trans "Préparation cartons" %}
+        {% endif %}
+      </h2>
       {% if form.non_field_errors %}
         <div class="scan-message error">{{ form.non_field_errors }}</div>
       {% endif %}

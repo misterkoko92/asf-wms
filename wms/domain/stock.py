@@ -214,7 +214,6 @@ def _prepare_carton(
     if shipment and getattr(shipment, "is_disputed", False):
         raise StockError("Impossible de modifier une expédition en litige.")
     if shipment and shipment.status in {
-        ShipmentStatus.PLANNED,
         ShipmentStatus.SHIPPED,
         ShipmentStatus.RECEIVED_CORRESPONDENT,
         ShipmentStatus.DELIVERED,
@@ -616,7 +615,6 @@ def unpack_carton(*, user, carton: Carton):
     if shipment and getattr(shipment, "is_disputed", False):
         raise StockError("Impossible de modifier une expédition en litige.")
     if shipment and shipment.status in {
-        ShipmentStatus.PLANNED,
         ShipmentStatus.SHIPPED,
         ShipmentStatus.RECEIVED_CORRESPONDENT,
         ShipmentStatus.DELIVERED,

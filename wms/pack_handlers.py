@@ -10,7 +10,7 @@ from django.utils.translation import gettext as _
 
 from .carton_status_events import set_carton_status
 from .domain.stock import ensure_carton_code
-from .models import CartonStatus, Location
+from .models import CartonFormat, CartonStatus, Location
 from .scan_helpers import (
     build_pack_line_values,
     build_packing_bins,
@@ -22,7 +22,7 @@ from .scan_helpers import (
     resolve_shipment,
 )
 from .scan_permissions import user_is_preparateur
-from .services import StockError, pack_carton
+from .services import StockError, pack_carton, unpack_carton
 from .shipment_status import sync_shipment_ready_state
 
 PREPARATEUR_FAMILY_MM = "MM"
@@ -107,6 +107,88 @@ def _build_state(
         "missing_defaults": missing_defaults,
         "confirm_defaults": confirm_defaults,
     }
+
+
+def _build_carton_custom(default_format, carton):
+    matched_format = None
+    if (
+        carton.length_cm is not None
+        and carton.width_cm is not None
+        and carton.height_cm is not None
+    ):
+        matched_format = (
+            CartonFormat.objects.filter(
+                length_cm=carton.length_cm,
+                width_cm=carton.width_cm,
+                height_cm=carton.height_cm,
+            )
+            .order_by("-is_default", "id")
+            .first()
+        )
+    if matched_format is not None:
+        return str(matched_format.id), {
+            "length_cm": matched_format.length_cm,
+            "width_cm": matched_format.width_cm,
+            "height_cm": matched_format.height_cm,
+            "max_weight_g": matched_format.max_weight_g,
+        }
+    carton_custom = {
+        "length_cm": carton.length_cm
+        if carton.length_cm is not None
+        else (default_format.length_cm if default_format else Decimal("40")),
+        "width_cm": carton.width_cm
+        if carton.width_cm is not None
+        else (default_format.width_cm if default_format else Decimal("30")),
+        "height_cm": carton.height_cm
+        if carton.height_cm is not None
+        else (default_format.height_cm if default_format else Decimal("30")),
+        "max_weight_g": default_format.max_weight_g if default_format else 8000,
+    }
+    return "custom", carton_custom
+
+
+def _build_carton_edit_line_values(carton):
+    family_override = _normalize_pack_family((carton.code or "").split("-", 1)[0])
+    rows_by_product_id = {}
+    ordered_product_ids = []
+    for item in carton.cartonitem_set.select_related("product_lot__product").order_by(
+        "product_lot__product__name",
+        "product_lot__product__sku",
+        "product_lot__lot_code",
+        "id",
+    ):
+        product = item.product_lot.product
+        row = rows_by_product_id.get(product.id)
+        if row is None:
+            row = {
+                "product_code": product.sku or product.name or "",
+                "quantity": 0,
+                "expires_on": None,
+                "pack_family_override": family_override,
+            }
+            rows_by_product_id[product.id] = row
+            ordered_product_ids.append(product.id)
+        row["quantity"] += item.quantity
+        expires_on = item.display_expires_on or item.product_lot.expires_on
+        if expires_on is not None:
+            if row["expires_on"] is None:
+                row["expires_on"] = expires_on
+            else:
+                row["expires_on"] = min(row["expires_on"], expires_on)
+    line_values = []
+    for product_id in ordered_product_ids:
+        row = rows_by_product_id[product_id]
+        line_values.append(
+            {
+                "product_code": row["product_code"],
+                "quantity": str(row["quantity"]),
+                "expires_on": row["expires_on"].isoformat() if row["expires_on"] else "",
+                "pack_family_override": row["pack_family_override"],
+            }
+        )
+    if line_values:
+        return len(line_values), line_values
+    return 1, build_pack_line_values(1)
 
 
 def _finalize_preparateur_carton(*, carton, family, user):
@@ -294,20 +376,136 @@ def _handle_preparateur_pack(
         )
 
 
-def build_pack_defaults(default_format):
-    carton_format_id = str(default_format.id) if default_format is not None else "custom"
-    carton_custom = {
-        "length_cm": default_format.length_cm if default_format else Decimal("40"),
-        "width_cm": default_format.width_cm if default_format else Decimal("30"),
-        "height_cm": default_format.height_cm if default_format else Decimal("30"),
-        "max_weight_g": default_format.max_weight_g if default_format else 8000,
-    }
-    line_count = 1
-    line_values = build_pack_line_values(line_count)
+def _handle_carton_edit_pack(
+    *,
+    request,
+    form,
+    editing_carton,
+    shipment,
+    preassigned_destination,
+    carton_size,
+    carton_format_id,
+    carton_custom,
+    line_count,
+    line_values,
+    line_errors,
+    line_items,
+    missing_defaults,
+    confirm_defaults,
+):
+    bins, pack_errors, pack_warnings = build_packing_bins(
+        line_items,
+        carton_size,
+        apply_defaults=confirm_defaults,
+    )
+    if pack_errors:
+        for error in pack_errors:
+            form.add_error(None, error)
+        return (
+            None,
+            _build_state(
+                carton_format_id=carton_format_id,
+                carton_custom=carton_custom,
+                line_count=line_count,
+                line_values=line_values,
+                line_errors=line_errors,
+                missing_defaults=missing_defaults,
+                confirm_defaults=confirm_defaults,
+            ),
+        )
+    if len(bins) != 1:
+        form.add_error(None, _("Le carton modifié doit tenir dans un seul colis."))
+        return (
+            None,
+            _build_state(
+                carton_format_id=carton_format_id,
+                carton_custom=carton_custom,
+                line_count=line_count,
+                line_values=line_values,
+                line_errors=line_errors,
+                missing_defaults=missing_defaults,
+                confirm_defaults=confirm_defaults,
+            ),
+        )
+
+    target_shipment = editing_carton.shipment if editing_carton.shipment_id else shipment
+    target_preassigned_destination = (
+        None if target_shipment is not None else preassigned_destination
+    )
+    target_location = form.cleaned_data["current_location"]
+    if target_location is None and user_is_preparateur(request.user):
+        target_location = editing_carton.current_location
+
+    try:
+        with transaction.atomic():
+            if editing_carton.cartonitem_set.exists():
+                unpack_carton(user=request.user, carton=editing_carton)
+                editing_carton.refresh_from_db()
+            for entry in bins[0]["items"].values():
+                editing_carton = pack_carton(
+                    user=request.user,
+                    product=entry["product"],
+                    quantity=entry["quantity"],
+                    carton=editing_carton,
+                    carton_code=None,
+                    shipment=target_shipment,
+                    preassigned_destination=target_preassigned_destination,
+                    display_expires_on=entry.get("expires_on"),
+                    current_location=target_location,
+                    carton_size=carton_size,
+                )
+        for warning in pack_warnings:
+            messages.warning(request, warning)
+        messages.success(
+            request,
+            _("Colis %(code)s mis à jour.") % {"code": editing_carton.code},
+        )
+        return (
+            redirect("scan:scan_cartons_ready"),
+            _build_state(
+                carton_format_id=carton_format_id,
+                carton_custom=carton_custom,
+                line_count=line_count,
+                line_values=line_values,
+                line_errors=line_errors,
+                missing_defaults=missing_defaults,
+                confirm_defaults=confirm_defaults,
+            ),
+        )
+    except StockError as exc:
+        form.add_error(None, str(exc))
+        return (
+            None,
+            _build_state(
+                carton_format_id=carton_format_id,
+                carton_custom=carton_custom,
+                line_count=line_count,
+                line_values=line_values,
+                line_errors=line_errors,
+                missing_defaults=missing_defaults,
+                confirm_defaults=confirm_defaults,
+            ),
+        )
+
+
+def build_pack_defaults(default_format, *, carton=None):
+    if carton is None:
+        carton_format_id = str(default_format.id) if default_format is not None else "custom"
+        carton_custom = {
+            "length_cm": default_format.length_cm if default_format else Decimal("40"),
+            "width_cm": default_format.width_cm if default_format else Decimal("30"),
+            "height_cm": default_format.height_cm if default_format else Decimal("30"),
+            "max_weight_g": default_format.max_weight_g if default_format else 8000,
+        }
+        line_count = 1
+        line_values = build_pack_line_values(line_count)
+        return carton_format_id, carton_custom, line_count, line_values
+    carton_format_id, carton_custom = _build_carton_custom(default_format, carton)
+    line_count, line_values = _build_carton_edit_line_values(carton)
     return carton_format_id, carton_custom, line_count, line_values
 
 
-def handle_pack_post(request, *, form, default_format):
+def handle_pack_post(request, *, form, default_format, editing_carton=None):
     carton_format_id = (request.POST.get("carton_format_id") or "").strip()
     carton_custom = {
         "length_cm": request.POST.get("carton_length_cm", ""),
@@ -333,11 +531,19 @@ def handle_pack_post(request, *, form, default_format):
     shipment = None
 
     if form.is_valid():
-        shipment = resolve_shipment(form.cleaned_data["shipment_reference"])
+        shipment = (
+            editing_carton.shipment
+            if editing_carton is not None and editing_carton.shipment_id
+            else resolve_shipment(form.cleaned_data["shipment_reference"])
+        )
         preassigned_destination = (
             None if shipment is not None else form.cleaned_data["preassigned_destination"]
         )
-        if form.cleaned_data["shipment_reference"] and not shipment:
+        if (
+            (editing_carton is None or editing_carton.shipment_id is None)
+            and form.cleaned_data["shipment_reference"]
+            and not shipment
+        ):
             form.add_error("shipment_reference", _("Expédition introuvable."))
         if carton_errors:
             for error in carton_errors:
@@ -420,9 +626,43 @@ def handle_pack_post(request, *, form, default_format):
                         },
                     )
                 if user_is_preparateur(request.user):
+                    if editing_carton is not None:
+                        return _handle_carton_edit_pack(
+                            request=request,
+                            form=form,
+                            editing_carton=editing_carton,
+                            shipment=shipment,
+                            preassigned_destination=preassigned_destination,
+                            carton_size=carton_size,
+                            carton_format_id=carton_format_id,
+                            carton_custom=carton_custom,
+                            line_count=line_count,
+                            line_values=line_values,
+                            line_errors=line_errors,
+                            line_items=line_items,
+                            missing_defaults=missing_defaults,
+                            confirm_defaults=confirm_defaults,
+                        )
                     return _handle_preparateur_pack(
                         request=request,
                         form=form,
+                        shipment=shipment,
+                        preassigned_destination=preassigned_destination,
+                        carton_size=carton_size,
+                        carton_format_id=carton_format_id,
+                        carton_custom=carton_custom,
+                        line_count=line_count,
+                        line_values=line_values,
+                        line_errors=line_errors,
+                        line_items=line_items,
+                        missing_defaults=missing_defaults,
+                        confirm_defaults=confirm_defaults,
+                    )
+                if editing_carton is not None:
+                    return _handle_carton_edit_pack(
+                        request=request,
+                        form=form,
+                        editing_carton=editing_carton,
                         shipment=shipment,
                         preassigned_destination=preassigned_destination,
                         carton_size=carton_size,

@@ -1,14 +1,54 @@
+from datetime import date
 from types import SimpleNamespace
 
+from django.contrib.auth import get_user_model
 from django.test import RequestFactory, TestCase
 
 from wms.carton_handlers import _shipment_is_locked, handle_carton_status_update
-from wms.models import Carton, CartonStatus, Shipment, ShipmentStatus
+from wms.models import (
+    Carton,
+    CartonItem,
+    CartonStatus,
+    Location,
+    Product,
+    ProductLot,
+    ProductLotStatus,
+    Shipment,
+    ShipmentStatus,
+    Warehouse,
+)
 
 
 class CartonHandlersTests(TestCase):
     def setUp(self):
         self.factory = RequestFactory()
+        self.user = get_user_model().objects.create_user(
+            username="carton-handler-user",
+            password="pass1234",  # pragma: allowlist secret
+            is_staff=True,
+        )
+        self.warehouse = Warehouse.objects.create(name="Main", code="MAIN")
+        self.location = Location.objects.create(
+            warehouse=self.warehouse,
+            zone="A",
+            aisle="01",
+            shelf="001",
+        )
+        self.product = Product.objects.create(
+            sku="HANDLER-SKU",
+            name="Produit Handler",
+            default_location=self.location,
+            qr_code_image="qr_codes/handler.png",
+        )
+        self.lot = ProductLot.objects.create(
+            product=self.product,
+            lot_code="HANDLER-LOT",
+            received_on=date(2026, 1, 1),
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=10,
+            quantity_reserved=0,
+            location=self.location,
+        )
 
     def test_handle_carton_status_update_returns_none_for_non_post_or_other_action(self):
         get_request = self.factory.get("/scan/cartons-ready")
@@ -156,3 +196,36 @@ class CartonHandlersTests(TestCase):
         self.assertEqual(response.status_code, 302)
         carton.refresh_from_db()
         self.assertEqual(carton.status, CartonStatus.ASSIGNED)
+
+    def test_delete_carton_unpacks_and_deletes_non_shipped_carton(self):
+        shipment = Shipment.objects.create(
+            status=ShipmentStatus.PLANNED,
+            is_disputed=False,
+            shipper_name="Sender",
+            recipient_name="Recipient",
+            destination_address="1 rue test",
+            destination_country="France",
+        )
+        carton = Carton.objects.create(
+            code="CT-HANDLER-DELETE",
+            status=CartonStatus.ASSIGNED,
+            shipment=shipment,
+        )
+        self.lot.quantity_on_hand = 8
+        self.lot.save(update_fields=["quantity_on_hand"])
+        CartonItem.objects.create(carton=carton, product_lot=self.lot, quantity=2)
+        request = self.factory.post(
+            "/scan/cartons-ready",
+            {
+                "action": "delete_carton",
+                "carton_id": str(carton.id),
+            },
+        )
+        request.user = self.user
+
+        response = handle_carton_status_update(request)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Carton.objects.filter(pk=carton.id).exists())
+        self.lot.refresh_from_db()
+        self.assertEqual(self.lot.quantity_on_hand, 10)
