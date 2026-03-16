@@ -365,7 +365,15 @@ class ScanDashboardViewTests(TestCase):
         self.assertEqual(sla_cards["Reçu escale -> Livré >72h"], "0 / 1")
         self.assertEqual(sla_cards["Planifié -> Livré >216h"], "0 / 1")
 
-        self.assertEqual(response.context["shipments_total"], 8)
+        today = timezone.localdate()
+        week_start = today - timedelta(days=today.weekday())
+        week_end = week_start + timedelta(days=7)
+        expected_shipments_total = Shipment.objects.filter(
+            archived_at__isnull=True,
+            created_at__date__gte=week_start,
+            created_at__date__lt=week_end,
+        ).count()
+        self.assertEqual(response.context["shipments_total"], expected_shipments_total)
         self.assertTrue(response.context["low_stock_rows"])
 
     def test_scan_dashboard_filters_by_destination(self):
