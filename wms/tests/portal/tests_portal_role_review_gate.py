@@ -231,7 +231,7 @@ class PortalRoleReviewGateTests(TestCase):
             ).exists()
         )
 
-    def test_approve_account_request_creates_pending_shipper_role_assignment(self):
+    def test_approve_account_request_activates_shipper_role_assignment(self):
         admin_user = get_user_model().objects.create_user(
             username="admin-role-review",
             email="admin-role-review@example.org",
@@ -269,4 +269,4 @@ class PortalRoleReviewGateTests(TestCase):
             role=OrganizationRole.SHIPPER,
         ).first()
         self.assertIsNotNone(assignment)
-        self.assertFalse(assignment.is_active)
+        self.assertTrue(assignment.is_active)

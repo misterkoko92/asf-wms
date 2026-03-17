@@ -4,6 +4,7 @@ from django import forms as django_forms
 from django.test import TestCase
 from django.utils import timezone, translation
 
+from contacts.correspondent_recipient_promotion import SUPPORT_ORGANIZATION_NAME
 from contacts.models import Contact, ContactAddress, ContactTag, ContactType
 from wms.forms import (
     AdjustStockForm,
@@ -599,6 +600,52 @@ class FormsTests(TestCase):
         recipient_label = form.fields["recipient_contact"].label_from_instance(recipient)
         self.assertEqual(shipper_label, "ASSOCIATION TEST (M., Jean, DUPONT)")
         self.assertEqual(recipient_label, "ASSOCIATION TEST (Mme, Alice, MARTIN)")
+
+    def test_scan_shipment_form_labels_correspondent_recipients_with_iata_context(self):
+        destination = Destination.objects.create(
+            city="Bangui",
+            iata_code="BGF",
+            country="Centrafrique",
+            correspondent_contact=self._create_contact("Correspondent BGF"),
+            is_active=True,
+        )
+        shipper_tag = ContactTag.objects.create(name="expediteur")
+        recipient_tag = ContactTag.objects.create(name="destinataire")
+        correspondent_tag = ContactTag.objects.create(name="correspondant")
+
+        shipper = Contact.objects.create(
+            name="AVIATION SANS FRONTIERES",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        shipper.tags.add(shipper_tag)
+
+        support_org = Contact.objects.create(
+            name=SUPPORT_ORGANIZATION_NAME,
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        recipient = Contact.objects.create(
+            name="Christian Limbio",
+            contact_type=ContactType.PERSON,
+            first_name="Christian",
+            last_name="Limbio",
+            organization=support_org,
+            is_active=True,
+        )
+        recipient.tags.add(recipient_tag, correspondent_tag)
+        recipient.linked_shippers.add(shipper)
+
+        form = ScanShipmentForm(
+            data={
+                "destination": str(destination.id),
+                "shipper_contact": str(shipper.id),
+            },
+            destination_id=str(destination.id),
+        )
+
+        recipient_label = form.fields["recipient_contact"].label_from_instance(recipient)
+        self.assertEqual(recipient_label, "ASF - CORRESPONDANT (BGF, Christian LIMBIO)")
 
     def test_scan_shipment_form_clean_accepts_shipper_for_other_destination_group(self):
         expected_correspondent = self._create_contact("Corr Expected")

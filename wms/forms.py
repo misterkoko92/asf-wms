@@ -5,7 +5,17 @@ from django.utils.translation import gettext_lazy as _
 
 from contacts.models import Contact, ContactType
 
-from .contact_labels import build_contact_select_label
+from .contact_filters import (
+    TAG_CORRESPONDENT,
+    TAG_DONOR,
+    TAG_RECIPIENT,
+    TAG_SHIPPER,
+    TAG_TRANSPORTER,
+    contacts_with_tags,
+    filter_contacts_for_destination,
+    filter_structure_contacts,
+)
+from .contact_labels import build_contact_select_label, build_shipment_recipient_select_label
 from .models import (
     Carton,
     CartonStatus,
@@ -512,7 +522,12 @@ class ScanShipmentForm(forms.Form):
 
         self.fields["recipient_contact"].queryset = recipients.distinct().order_by("name")
         self.fields["correspondent_contact"].queryset = correspondents.distinct().order_by("name")
-        self.fields["recipient_contact"].label_from_instance = build_contact_select_label
+        self.fields["recipient_contact"].label_from_instance = (
+            lambda obj: build_shipment_recipient_select_label(
+                obj,
+                destination=selected_destination,
+            )
+        )
         if not self.is_bound:
             _select_single_choice(self.fields["correspondent_contact"])
 
