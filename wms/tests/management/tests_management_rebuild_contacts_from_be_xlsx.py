@@ -477,3 +477,114 @@ class RebuildContactsFromBeXlsxCommandTests(BeWorkbookMixin, TestCase):
 
         output = stdout.getvalue()
         self.assertIn("Source sheets: 2024, 2025, 2026", output)
+
+
+class RebuildContactsOrgRolesCanonicalCommandTests(BeWorkbookMixin, TestCase):
+    def setUp(self):
+        super().setUp()
+        self.workbook_path = self._build_be_workbook(
+            [
+                {
+                    "BE_DONATEUR": "Donor A",
+                    "ASSOCIATION_NOM": "AVIATION SANS FRONTIERES",
+                    "ASSOCIATION_PAYS": "France",
+                    "DESTINATAIRE_STRUCTURE": "Recipient A",
+                    "DESTINATAIRE_STATUT": "actif",
+                    "CORRESPONDANT_PRENOM": "Leontine",
+                    "CORRESPONDANT_NOM": "Rahazania",
+                    "CORRESPONDANT_PAYS": "Madagascar",
+                    "BE_DESTINATION": "ANTANANARIVO",
+                    "BE_CODE_IATA": "TNR",
+                }
+            ]
+        )
+        temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(temp_dir.cleanup)
+        self.report_path = Path(temp_dir.name) / "canonical-review.md"
+
+        self.existing_shipper = Contact.objects.create(
+            name="Legacy Shipper",
+            contact_type=ContactType.ORGANIZATION,
+        )
+        self.existing_recipient = Contact.objects.create(
+            name="Legacy Recipient",
+            contact_type=ContactType.ORGANIZATION,
+        )
+        self.existing_correspondent = Contact.objects.create(
+            name="Legacy Correspondent",
+            contact_type=ContactType.ORGANIZATION,
+        )
+        self.existing_destination = Destination.objects.create(
+            city="Legacy City",
+            iata_code="OLD",
+            country="France",
+            correspondent_contact=self.existing_correspondent,
+            is_active=True,
+        )
+        self.existing_shipper_assignment = OrganizationRoleAssignment.objects.create(
+            organization=self.existing_shipper,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
+        RecipientBinding.objects.create(
+            shipper_org=self.existing_shipper,
+            recipient_org=self.existing_recipient,
+            destination=self.existing_destination,
+            is_active=True,
+        )
+
+    def test_canonical_command_dry_run_leaves_existing_runtime_data_untouched(self):
+        stdout = StringIO()
+
+        call_command(
+            "rebuild_contacts_org_roles_canonical",
+            "--source",
+            str(self.workbook_path),
+            "--dry-run",
+            "--report-path",
+            str(self.report_path),
+            stdout=stdout,
+        )
+
+        output = stdout.getvalue()
+        self.assertIn("Canonical org-roles contact rebuild [DRY RUN]", output)
+        self.assertIn("Review report:", output)
+        self.assertTrue(Contact.objects.filter(pk=self.existing_shipper.pk).exists())
+        self.assertTrue(Destination.objects.filter(pk=self.existing_destination.pk).exists())
+        self.assertTrue(
+            OrganizationRoleAssignment.objects.filter(
+                pk=self.existing_shipper_assignment.pk
+            ).exists()
+        )
+        self.assertFalse(Contact.objects.filter(name="AVIATION SANS FRONTIERES").exists())
+        self.assertTrue(self.report_path.exists())
+
+    def test_canonical_command_apply_resets_then_imports_workbook_data(self):
+        stdout = StringIO()
+
+        call_command(
+            "rebuild_contacts_org_roles_canonical",
+            "--source",
+            str(self.workbook_path),
+            "--apply",
+            "--report-path",
+            str(self.report_path),
+            stdout=stdout,
+        )
+
+        output = stdout.getvalue()
+        self.assertIn("Canonical org-roles contact rebuild [APPLY]", output)
+        self.assertFalse(Contact.objects.filter(pk=self.existing_shipper.pk).exists())
+        self.assertFalse(Destination.objects.filter(pk=self.existing_destination.pk).exists())
+        self.assertTrue(Contact.objects.filter(name="AVIATION SANS FRONTIERES").exists())
+        self.assertTrue(Contact.objects.filter(name="Recipient A").exists())
+        self.assertTrue(Destination.objects.filter(iata_code="TNR").exists())
+        self.assertTrue(
+            RecipientBinding.objects.filter(
+                shipper_org__name="AVIATION SANS FRONTIERES",
+                recipient_org__name="Recipient A",
+                destination__iata_code="TNR",
+                is_active=True,
+            ).exists()
+        )
+        self.assertTrue(self.report_path.exists())

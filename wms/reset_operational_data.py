@@ -173,6 +173,22 @@ class ResetOperationalDataSummary:
     missing_table_labels: tuple[str, ...] = ()
 
 
+def render_reset_summary(
+    summary: ResetOperationalDataSummary, *, heading: str = "Operational reset"
+) -> list[str]:
+    lines = [f"{heading} [{summary.mode}]", "Planned deletions:"]
+    for label, count in summary.delete_counts_before.items():
+        lines.append(f"- {label}: {count}")
+    lines.append("Preserved models:")
+    for label, count in summary.keep_counts_after.items():
+        lines.append(f"- {label}: {count}")
+    if summary.missing_table_labels:
+        lines.append("Skipped missing tables:")
+        for label in summary.missing_table_labels:
+            lines.append(f"- {label}")
+    return lines
+
+
 def _all_known_model_labels() -> set[str]:
     return {f"{model._meta.app_label}.{model._meta.object_name}" for model in apps.get_models()}
 
