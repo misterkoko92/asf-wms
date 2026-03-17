@@ -23,8 +23,6 @@ from .models import (
     AssociationRecipient,
     Destination,
     DocumentReviewStatus,
-    OrganizationRole,
-    OrganizationRoleAssignment,
 )
 from .portal_helpers import get_contact_address
 from .portal_recipient_sync import sync_association_recipient_to_contact
@@ -225,13 +223,7 @@ def _create_recipient(profile, form_data):
         association_contact=profile.contact,
         **payload,
     )
-    synced_contact = sync_association_recipient_to_contact(recipient)
-    if synced_contact:
-        OrganizationRoleAssignment.objects.get_or_create(
-            organization=synced_contact,
-            role=OrganizationRole.RECIPIENT,
-            defaults={"is_active": True},
-        )
+    sync_association_recipient_to_contact(recipient)
     return recipient
 
 
@@ -240,13 +232,7 @@ def _update_recipient(recipient, form_data):
     for field_name, value in payload.items():
         setattr(recipient, field_name, value)
     recipient.save(update_fields=list(payload.keys()))
-    synced_contact = sync_association_recipient_to_contact(recipient)
-    if synced_contact:
-        OrganizationRoleAssignment.objects.get_or_create(
-            organization=synced_contact,
-            role=OrganizationRole.RECIPIENT,
-            defaults={"is_active": True},
-        )
+    sync_association_recipient_to_contact(recipient)
     return recipient
 
 

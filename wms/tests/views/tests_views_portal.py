@@ -14,8 +14,6 @@ from django.utils import timezone
 from django.utils.http import urlsafe_base64_encode
 
 from contacts.models import Contact, ContactAddress, ContactType
-from contacts.querysets import contacts_with_tags
-from contacts.tagging import TAG_RECIPIENT, TAG_SHIPPER
 from wms import portal_helpers
 from wms.forms import ScanShipmentForm
 from wms.models import (
@@ -1863,12 +1861,43 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertTrue(recipient.notify_deliveries)
         self.assertTrue(recipient.is_delivery_contact)
 
-        synced_contact = contacts_with_tags(TAG_RECIPIENT).filter(name="Structure C").first()
-        self.assertIsNotNone(synced_contact)
-        self.assertTrue(synced_contact.linked_shippers.filter(pk=self.profile.contact_id).exists())
-        self.assertTrue(synced_contact.destinations.filter(pk=self.destination.id).exists())
-        self.assertTrue(self.profile.contact.destinations.filter(pk=self.destination.id).exists())
-        self.assertTrue(contacts_with_tags(TAG_SHIPPER).filter(pk=self.profile.contact_id).exists())
+        synced_contact = Contact.objects.get(
+            notes__startswith=f"[Portail association][recipient_id={recipient.id}]"
+        )
+        recipient_assignment = OrganizationRoleAssignment.objects.get(
+            organization=synced_contact,
+            role=OrganizationRole.RECIPIENT,
+        )
+        shipper_assignment = OrganizationRoleAssignment.objects.get(
+            organization=self.profile.contact,
+            role=OrganizationRole.SHIPPER,
+        )
+        self.assertTrue(recipient_assignment.is_active)
+        self.assertTrue(
+            ShipperScope.objects.filter(
+                role_assignment=shipper_assignment,
+                destination=self.destination,
+                all_destinations=False,
+                is_active=True,
+            ).exists()
+        )
+        self.assertTrue(
+            RecipientBinding.objects.filter(
+                shipper_org=self.profile.contact,
+                recipient_org=synced_contact,
+                destination=self.destination,
+                is_active=True,
+            ).exists()
+        )
+        self.assertFalse(synced_contact.tags.exists())
+        self.assertFalse(synced_contact.linked_shippers.exists())
+        self.assertFalse(synced_contact.destinations.exists())
+        self.assertFalse(self.profile.contact.tags.exists())
+        self.assertFalse(self.profile.contact.destinations.exists())
+
+        runtime = WmsRuntimeSettings.get_solo()
+        runtime.org_roles_engine_enabled = True
+        runtime.save(update_fields=["org_roles_engine_enabled"])
 
         form = ScanShipmentForm(
             data={

@@ -21,8 +21,9 @@ from wms.models import (
     PublicAccountRequest,
     PublicAccountRequestStatus,
     PublicAccountRequestType,
+    RecipientBinding,
+    ShipperScope,
 )
-from wms.portal_recipient_sync import sync_association_recipient_to_contact
 from wms.view_permissions import (
     BLOCKED_REASON_COMPLIANCE_REQUIRED,
     BLOCKED_REASON_QUERY_PARAM,
@@ -199,13 +200,36 @@ class PortalRoleReviewGateTests(TestCase):
         self.assertEqual(response.status_code, 302)
 
         recipient = AssociationRecipient.objects.get(structure_name="Action contre la faim")
-        recipient_contact = sync_association_recipient_to_contact(recipient)
+        recipient_contact = Contact.objects.get(
+            notes__startswith=f"[Portail association][recipient_id={recipient.id}]"
+        )
         assignment = OrganizationRoleAssignment.objects.filter(
             organization=recipient_contact,
             role=OrganizationRole.RECIPIENT,
         ).first()
+        shipper_assignment = OrganizationRoleAssignment.objects.filter(
+            organization=self.profile.contact,
+            role=OrganizationRole.SHIPPER,
+        ).first()
         self.assertIsNotNone(assignment)
+        self.assertIsNotNone(shipper_assignment)
         self.assertTrue(assignment.is_active)
+        self.assertTrue(
+            ShipperScope.objects.filter(
+                role_assignment=shipper_assignment,
+                destination=destination,
+                all_destinations=False,
+                is_active=True,
+            ).exists()
+        )
+        self.assertTrue(
+            RecipientBinding.objects.filter(
+                shipper_org=self.profile.contact,
+                recipient_org=recipient_contact,
+                destination=destination,
+                is_active=True,
+            ).exists()
+        )
 
     def test_approve_account_request_creates_pending_shipper_role_assignment(self):
         admin_user = get_user_model().objects.create_user(

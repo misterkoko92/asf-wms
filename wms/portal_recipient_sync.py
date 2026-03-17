@@ -1,16 +1,16 @@
-from django.db.models import Q
+from django.db import transaction
+from django.utils import timezone
 
-from contacts.destination_scope import (
-    contact_destination_ids,
-    set_contact_destination_scope,
+from contacts.models import Contact, ContactAddress, ContactType
+from wms.models import (
+    OrganizationContact,
+    OrganizationRole,
+    OrganizationRoleAssignment,
+    OrganizationRoleContact,
+    RecipientBinding,
+    ShipperScope,
 )
-from contacts.models import Contact, ContactAddress, ContactTag, ContactType
-from contacts.querysets import contacts_with_tags
-from contacts.rules import ensure_default_shipper_for_recipient
-from contacts.tagging import TAG_RECIPIENT, TAG_SHIPPER, normalize_tag_name
 
-RECIPIENT_TAG_DEFAULT_NAME = "Destinataire"
-SHIPPER_TAG_DEFAULT_NAME = "Expéditeur"
 PORTAL_RECIPIENT_SOURCE_PREFIX = "[Portail association]"
 PORTAL_RECIPIENT_ADDRESS_LABEL = "Portail association"
 
@@ -44,56 +44,6 @@ def _recipient_display_name(recipient) -> str:
     return f"Destinataire {recipient.pk}"[:200]
 
 
-def _get_or_create_recipient_tag() -> ContactTag:
-    normalized_targets = {
-        normalize_tag_name(alias) for alias in TAG_RECIPIENT if normalize_tag_name(alias)
-    }
-    for tag in ContactTag.objects.only("id", "name"):
-        if normalize_tag_name(tag.name) in normalized_targets:
-            return tag
-    return ContactTag.objects.create(name=RECIPIENT_TAG_DEFAULT_NAME)
-
-
-def _get_or_create_shipper_tag() -> ContactTag:
-    normalized_targets = {
-        normalize_tag_name(alias) for alias in TAG_SHIPPER if normalize_tag_name(alias)
-    }
-    for tag in ContactTag.objects.only("id", "name"):
-        if normalize_tag_name(tag.name) in normalized_targets:
-            return tag
-    return ContactTag.objects.create(name=SHIPPER_TAG_DEFAULT_NAME)
-
-
-def _ensure_association_shipper_scope(*, association_contact, destination_id):
-    if not association_contact:
-        return
-    shipper_tag = _get_or_create_shipper_tag()
-    association_contact.tags.add(shipper_tag)
-    scoped_destination_ids = set(contact_destination_ids(association_contact))
-    if destination_id:
-        scoped_destination_ids.add(destination_id)
-    set_contact_destination_scope(
-        contact=association_contact,
-        destination_ids=sorted(scoped_destination_ids),
-    )
-
-
-def _candidate_shipper_ids_for_association(association_contact):
-    if not association_contact or not association_contact.pk:
-        return []
-    filters = Q(pk=association_contact.pk)
-    name = (association_contact.name or "").strip()
-    email = (association_contact.email or "").strip()
-    if name:
-        filters |= Q(name__iexact=name)
-    if email:
-        filters |= Q(email__iexact=email)
-
-    shipper_ids = set(contacts_with_tags(TAG_SHIPPER).filter(filters).values_list("id", flat=True))
-    shipper_ids.add(association_contact.pk)
-    return sorted(shipper_ids)
-
-
 def _find_synced_contact_by_marker(recipient):
     if not recipient.pk:
         return None
@@ -111,20 +61,11 @@ def _find_legacy_synced_contact(recipient):
     if not association:
         return None
     legacy_source = f"{PORTAL_RECIPIENT_SOURCE_PREFIX} {association}"
-    recipients = (
-        contacts_with_tags(TAG_RECIPIENT)
-        .filter(
-            linked_shippers=association,
-            name__iexact=_recipient_display_name(recipient),
-            notes__startswith=legacy_source,
-        )
-        .distinct()
-    )
-    destination_id = recipient.destination_id
-    if destination_id:
-        recipients = recipients.filter(
-            Q(destination_id=destination_id) | Q(destinations=destination_id)
-        )
+    recipients = Contact.objects.filter(
+        contact_type=ContactType.ORGANIZATION,
+        name__iexact=_recipient_display_name(recipient),
+        notes__startswith=legacy_source,
+    ).order_by("-id")
     if recipients.count() == 1:
         return recipients.first()
     return None
@@ -152,58 +93,193 @@ def _upsert_contact_address(*, contact, recipient, primary_phone, primary_email)
     address.save()
 
 
+def _ensure_association_shipper_scope(*, association_contact, destination):
+    if association_contact is None:
+        return None
+    assignment, _ = OrganizationRoleAssignment.objects.get_or_create(
+        organization=association_contact,
+        role=OrganizationRole.SHIPPER,
+        defaults={"is_active": False},
+    )
+    if destination is not None:
+        ShipperScope.objects.update_or_create(
+            role_assignment=assignment,
+            destination=destination,
+            defaults={
+                "all_destinations": False,
+                "is_active": True,
+                "valid_to": None,
+            },
+        )
+    return assignment
+
+
+def _ensure_primary_recipient_role_contact(
+    *, role_assignment, recipient, primary_email, primary_phone
+):
+    if not primary_email:
+        return None
+
+    primary_link = (
+        role_assignment.role_contacts.select_related("contact")
+        .filter(is_primary=True)
+        .order_by("-id")
+        .first()
+    )
+    org_contact = (
+        primary_link.contact
+        if primary_link is not None
+        else role_assignment.organization.organization_contacts.order_by("id").first()
+    )
+    if org_contact is None:
+        org_contact = OrganizationContact(organization=role_assignment.organization)
+
+    org_contact.title = recipient.contact_title or ""
+    org_contact.last_name = recipient.contact_last_name[:120]
+    org_contact.first_name = recipient.contact_first_name[:120]
+    org_contact.email = primary_email[:254]
+    org_contact.phone = primary_phone[:40]
+    org_contact.is_active = bool(recipient.is_active)
+    org_contact.save()
+
+    if primary_link is None:
+        role_contact, _ = OrganizationRoleContact.objects.get_or_create(
+            role_assignment=role_assignment,
+            contact=org_contact,
+            defaults={"is_primary": True, "is_active": True},
+        )
+    else:
+        role_contact = primary_link
+
+    updated_fields = []
+    if not role_contact.is_primary:
+        role_contact.is_primary = True
+        updated_fields.append("is_primary")
+    target_active = bool(recipient.is_active)
+    if role_contact.is_active != target_active:
+        role_contact.is_active = target_active
+        updated_fields.append("is_active")
+    if updated_fields:
+        role_contact.save(update_fields=updated_fields)
+    return role_contact
+
+
+def _ensure_recipient_role_assignment(*, contact, recipient, primary_email, primary_phone):
+    assignment, _ = OrganizationRoleAssignment.objects.get_or_create(
+        organization=contact,
+        role=OrganizationRole.RECIPIENT,
+        defaults={"is_active": False},
+    )
+    _ensure_primary_recipient_role_contact(
+        role_assignment=assignment,
+        recipient=recipient,
+        primary_email=primary_email,
+        primary_phone=primary_phone,
+    )
+    target_active = bool(recipient.is_active and primary_email)
+    if assignment.is_active != target_active:
+        assignment.is_active = target_active
+        assignment.save(update_fields=["is_active"])
+    return assignment
+
+
+def _sync_recipient_binding(*, association_contact, recipient_contact, destination, is_active):
+    if association_contact is None or recipient_contact is None:
+        return None
+
+    active_bindings = RecipientBinding.objects.filter(
+        shipper_org=association_contact,
+        recipient_org=recipient_contact,
+        is_active=True,
+    )
+    now = timezone.now()
+    if destination is None or not is_active:
+        active_bindings.update(is_active=False, valid_to=now)
+        return None
+
+    active_bindings.exclude(destination=destination).update(is_active=False, valid_to=now)
+    binding = (
+        RecipientBinding.objects.filter(
+            shipper_org=association_contact,
+            recipient_org=recipient_contact,
+            destination=destination,
+            is_active=True,
+        )
+        .order_by("-valid_from", "-id")
+        .first()
+    )
+    if binding is not None:
+        return binding
+    return RecipientBinding.objects.create(
+        shipper_org=association_contact,
+        recipient_org=recipient_contact,
+        destination=destination,
+        is_active=True,
+    )
+
+
 def sync_association_recipient_to_contact(recipient):
     if not recipient:
         return None
-    _ensure_association_shipper_scope(
-        association_contact=recipient.association_contact,
-        destination_id=recipient.destination_id,
-    )
-    recipient_tag = _get_or_create_recipient_tag()
     primary_email = _first_multi_value(recipient.emails, recipient.email)
     primary_phone = _first_multi_value(recipient.phones, recipient.phone)
+    target_is_active = bool(recipient.is_active)
 
-    contact = _find_synced_contact_by_marker(recipient) or _find_legacy_synced_contact(recipient)
-    if contact is None:
-        contact = Contact.objects.create(
-            contact_type=ContactType.ORGANIZATION,
-            name=_recipient_display_name(recipient),
-            email=primary_email[:254],
-            phone=primary_phone[:40],
-            notes=_build_contact_notes(recipient),
-            is_active=recipient.is_active,
-        )
-    else:
-        contact.contact_type = ContactType.ORGANIZATION
-        contact.name = _recipient_display_name(recipient)
-        contact.email = primary_email[:254]
-        contact.phone = primary_phone[:40]
-        contact.notes = _build_contact_notes(recipient)
-        contact.is_active = recipient.is_active
-        contact.save(
-            update_fields=[
-                "contact_type",
-                "name",
-                "email",
-                "phone",
-                "notes",
-                "is_active",
-            ]
+    with transaction.atomic():
+        _ensure_association_shipper_scope(
+            association_contact=recipient.association_contact,
+            destination=recipient.destination,
         )
 
-    _upsert_contact_address(
-        contact=contact,
-        recipient=recipient,
-        primary_phone=primary_phone,
-        primary_email=primary_email,
-    )
+        contact = _find_synced_contact_by_marker(recipient) or _find_legacy_synced_contact(
+            recipient
+        )
+        if contact is None:
+            contact = Contact.objects.create(
+                contact_type=ContactType.ORGANIZATION,
+                name=_recipient_display_name(recipient),
+                email=primary_email[:254],
+                phone=primary_phone[:40],
+                notes=_build_contact_notes(recipient),
+                is_active=True,
+            )
+        else:
+            contact.contact_type = ContactType.ORGANIZATION
+            contact.name = _recipient_display_name(recipient)
+            contact.email = primary_email[:254]
+            contact.phone = primary_phone[:40]
+            contact.notes = _build_contact_notes(recipient)
+            contact.is_active = True
+            contact.save(
+                update_fields=[
+                    "contact_type",
+                    "name",
+                    "email",
+                    "phone",
+                    "notes",
+                    "is_active",
+                ]
+            )
 
-    contact.tags.add(recipient_tag)
-    set_contact_destination_scope(
-        contact=contact,
-        destination_ids=[recipient.destination_id] if recipient.destination_id else [],
-    )
-    for shipper_id in _candidate_shipper_ids_for_association(recipient.association_contact):
-        contact.linked_shippers.add(shipper_id)
-    ensure_default_shipper_for_recipient(contact)
-    return contact
+        _upsert_contact_address(
+            contact=contact,
+            recipient=recipient,
+            primary_phone=primary_phone,
+            primary_email=primary_email,
+        )
+        _ensure_recipient_role_assignment(
+            contact=contact,
+            recipient=recipient,
+            primary_email=primary_email,
+            primary_phone=primary_phone,
+        )
+        _sync_recipient_binding(
+            association_contact=recipient.association_contact,
+            recipient_contact=contact,
+            destination=recipient.destination,
+            is_active=bool(recipient.is_active),
+        )
+        if contact.is_active != target_is_active:
+            contact.is_active = target_is_active
+            contact.save(update_fields=["is_active"])
+        return contact
