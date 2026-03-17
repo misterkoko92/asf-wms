@@ -10,6 +10,7 @@ from wms.forms import (
     PackCartonForm,
     ScanOrderSelectForm,
     ScanPackForm,
+    ScanReceiptAssociationForm,
     ScanReceiptCreateForm,
     ScanReceiptPalletForm,
     ScanReceiptSelectForm,
@@ -257,6 +258,52 @@ class FormsTests(TestCase):
         self.assertEqual(form.errors["carrier_contact"], ["Transporteur requis."])
         self.assertEqual(form.errors["warehouse"], ["Entrepôt requis."])
         self.assertEqual(form.cleaned_data.get("received_on"), timezone.localdate())
+
+    def test_scan_receipt_and_stock_forms_use_active_org_role_assignments(self):
+        donor = self._create_org("Donor Role")
+        shipper = self._create_org("Shipper Role")
+        transporter = self._create_org("Transporter Role")
+        inactive_donor = self._create_org("Inactive Donor")
+        legacy_contact = self._create_org("Legacy Only")
+        self._activate_recipient(legacy_contact)
+        OrganizationRoleAssignment.objects.create(
+            organization=donor,
+            role=OrganizationRole.DONOR,
+            is_active=True,
+        )
+        OrganizationRoleAssignment.objects.create(
+            organization=shipper,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
+        OrganizationRoleAssignment.objects.create(
+            organization=transporter,
+            role=OrganizationRole.TRANSPORTER,
+            is_active=True,
+        )
+        OrganizationRoleAssignment.objects.create(
+            organization=inactive_donor,
+            role=OrganizationRole.DONOR,
+            is_active=False,
+        )
+
+        create_form = ScanReceiptCreateForm()
+        pallet_form = ScanReceiptPalletForm()
+        association_form = ScanReceiptAssociationForm()
+        stock_form = ScanStockUpdateForm()
+
+        self.assertEqual(list(create_form.fields["source_contact"].queryset), [donor, shipper])
+        self.assertEqual(list(create_form.fields["carrier_contact"].queryset), [transporter])
+        self.assertEqual(list(pallet_form.fields["source_contact"].queryset), [donor])
+        self.assertEqual(list(pallet_form.fields["carrier_contact"].queryset), [transporter])
+        self.assertEqual(list(association_form.fields["source_contact"].queryset), [shipper])
+        self.assertEqual(
+            list(association_form.fields["carrier_contact"].queryset),
+            [transporter],
+        )
+        self.assertEqual(list(stock_form.fields["donor_contact"].queryset), [donor])
+        self.assertNotIn(legacy_contact, create_form.fields["source_contact"].queryset)
+        self.assertNotIn(inactive_donor, pallet_form.fields["source_contact"].queryset)
 
     def test_scan_stock_update_form_reports_missing_product(self):
         with mock.patch("wms.forms.resolve_product", return_value=None):

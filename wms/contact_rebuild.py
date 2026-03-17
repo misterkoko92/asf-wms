@@ -9,7 +9,6 @@ from django.db import transaction
 from django.utils import timezone
 from openpyxl import load_workbook
 
-from contacts.destination_scope import set_contact_destination_scope
 from contacts.models import Contact, ContactTag, ContactType
 from contacts.tagging import TAG_CORRESPONDENT, TAG_DONOR, TAG_RECIPIENT, TAG_SHIPPER
 from wms.models import (
@@ -584,7 +583,6 @@ def apply_be_contact_dataset(dataset: BeContactDataset) -> None:
                 destination.save(update_fields=updated_fields)
             destinations_by_iata[destination.iata_code] = destination
 
-        shipper_destination_ids: dict[int, set[int]] = {}
         for scope_data in dataset.shipper_scopes:
             shipper = contacts_by_key[scope_data["shipper_key"]]
             assignment = _ensure_role_assignment(contact=shipper, role=OrganizationRole.SHIPPER)
@@ -598,10 +596,7 @@ def apply_be_contact_dataset(dataset: BeContactDataset) -> None:
                     "valid_from": timezone.now(),
                 },
             )
-            shipper_destination_ids.setdefault(shipper.id, set()).add(destination.id)
 
-        recipient_destination_ids: dict[int, set[int]] = {}
-        recipient_linked_shippers: dict[int, set[int]] = {}
         for binding_data in dataset.recipient_bindings:
             shipper = contacts_by_key[binding_data["shipper_key"]]
             recipient = contacts_by_key[binding_data["recipient_key"]]
@@ -612,25 +607,4 @@ def apply_be_contact_dataset(dataset: BeContactDataset) -> None:
                 destination=destination,
                 is_active=True,
                 defaults={"valid_from": timezone.now()},
-            )
-            recipient_destination_ids.setdefault(recipient.id, set()).add(destination.id)
-            recipient_linked_shippers.setdefault(recipient.id, set()).add(shipper.id)
-
-        for shipper_id, destination_ids in shipper_destination_ids.items():
-            set_contact_destination_scope(
-                contact=contacts_by_key[
-                    next(key for key, value in contacts_by_key.items() if value.id == shipper_id)
-                ],
-                destination_ids=sorted(destination_ids),
-            )
-
-        for recipient_id, destination_ids in recipient_destination_ids.items():
-            recipient = next(
-                value for value in contacts_by_key.values() if value.id == recipient_id
-            )
-            set_contact_destination_scope(
-                contact=recipient, destination_ids=sorted(destination_ids)
-            )
-            recipient.linked_shippers.set(
-                sorted(recipient_linked_shippers.get(recipient_id, set()))
             )

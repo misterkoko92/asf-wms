@@ -354,7 +354,11 @@ class RebuildContactsFromBeXlsxPersistenceTests(TestCase):
         self.assertEqual(shipper.contact_type, ContactType.ORGANIZATION)
         self.assertEqual(recipient.contact_type, ContactType.ORGANIZATION)
         self.assertEqual(correspondent.contact_type, ContactType.PERSON)
-        self.assertTrue(recipient.linked_shippers.filter(pk=shipper.pk).exists())
+        self.assertFalse(shipper.destinations.exists())
+        self.assertIsNone(shipper.destination_id)
+        self.assertFalse(recipient.destinations.exists())
+        self.assertIsNone(recipient.destination_id)
+        self.assertFalse(recipient.linked_shippers.exists())
         self.assertEqual(destination.correspondent_contact_id, correspondent.id)
         self.assertTrue(
             OrganizationRoleAssignment.objects.filter(

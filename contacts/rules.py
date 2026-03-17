@@ -1,6 +1,7 @@
 from contacts.models import Contact
-from contacts.querysets import contacts_with_tags
-from contacts.tagging import TAG_RECIPIENT, TAG_SHIPPER, normalize_tag_name
+from contacts.tagging import TAG_RECIPIENT, normalize_tag_name
+from wms.models import OrganizationRole
+from wms.organization_role_resolvers import active_organizations_for_role
 
 DEFAULT_RECIPIENT_SHIPPER_NAME = "AVIATION SANS FRONTIERES"
 ERROR_RECIPIENT_LINKED_SHIPPERS_REQUIRED = (
@@ -21,8 +22,11 @@ def tags_match(tag_objects, expected_tags):
 
 def get_default_recipient_shipper():
     return (
-        contacts_with_tags(TAG_SHIPPER).filter(name__iexact=DEFAULT_RECIPIENT_SHIPPER_NAME).first()
+        active_organizations_for_role(OrganizationRole.SHIPPER)
+        .filter(name__iexact=DEFAULT_RECIPIENT_SHIPPER_NAME)
+        .first()
         or Contact.objects.filter(
+            contact_type="organization",
             is_active=True,
             name__iexact=DEFAULT_RECIPIENT_SHIPPER_NAME,
         ).first()
@@ -30,21 +34,8 @@ def get_default_recipient_shipper():
 
 
 def validate_recipient_links_for_creation(*, is_creation, tags, linked_shippers):
-    if is_creation and tags_match(tags, TAG_RECIPIENT) and not linked_shippers:
-        return ERROR_RECIPIENT_LINKED_SHIPPERS_REQUIRED
     return None
 
 
 def ensure_default_shipper_for_recipient(contact, *, tags=None):
-    if not contact or not contact.pk:
-        return False
-    tag_source = tags if tags is not None else contact.tags.all()
-    if not tags_match(tag_source, TAG_RECIPIENT):
-        return False
-    default_shipper = get_default_recipient_shipper()
-    if not default_shipper or default_shipper.pk == contact.pk:
-        return False
-    if contact.linked_shippers.filter(pk=default_shipper.pk).exists():
-        return False
-    contact.linked_shippers.add(default_shipper)
-    return True
+    return False
