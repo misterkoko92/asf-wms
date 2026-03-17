@@ -70,6 +70,7 @@ class Command(BaseCommand):
 
         self.stdout.write(f"Rebuild contacts from BE workbook [{'APPLY' if apply else 'DRY RUN'}]")
         self.stdout.write(f"Source: {source_path}")
+        self.stdout.write(f"Source sheets: {', '.join(dataset.source_sheets)}")
         self.stdout.write(f"Review report: {report_path}")
         self.stdout.write(f"Donors: {len(dataset.donors)}")
         self.stdout.write(f"Shippers: {len(dataset.shippers)}")

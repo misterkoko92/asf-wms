@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from django.db import transaction
@@ -20,6 +20,13 @@ from wms.models import (
     ShipperScope,
 )
 
+CANONICAL_BE_SHEET_NAMES = ("2024", "2025", "2026")
+CANONICAL_DESTINATION_CORRESPONDENT_OVERRIDES = {
+    "BEY": "Tony MDAWAR",
+    "BGF": "Christian LIMBIO",
+    "NDJ": "Geovanie Kamtar NDANGMBAYE",
+}
+
 
 @dataclass
 class BeContactDataset:
@@ -31,6 +38,7 @@ class BeContactDataset:
     shipper_scopes: list[dict]
     recipient_bindings: list[dict]
     review_items: list[dict]
+    source_sheets: list[str] = field(default_factory=list)
 
 
 def _normalize_text(value) -> str:
@@ -56,24 +64,26 @@ def _normalize_iata(value) -> str:
     return _normalize_text(value).upper()
 
 
-def _iter_rows(path: str | Path):
-    workbook = load_workbook(Path(path), read_only=True, data_only=True)
-    try:
-        sheet = workbook.active
-        rows = sheet.iter_rows(values_only=True)
-        headers = next(rows)
-        header_map: dict[str, list[int]] = {}
-        for index, header in enumerate(headers or ()):
-            key = _normalize_text(header)
-            if not key:
-                continue
-            header_map.setdefault(key, []).append(index)
-        for row in rows:
-            if not any(_normalize_text(value) for value in row):
-                continue
-            yield row, header_map
-    finally:
-        workbook.close()
+def _selected_sheet_names(workbook) -> list[str]:
+    names = [name for name in CANONICAL_BE_SHEET_NAMES if name in workbook.sheetnames]
+    if names:
+        return names
+    return [workbook.active.title]
+
+
+def _iter_sheet_rows(sheet):
+    rows = sheet.iter_rows(values_only=True)
+    headers = next(rows, ())
+    header_map: dict[str, list[int]] = {}
+    for index, header in enumerate(headers or ()):
+        key = _normalize_text(header)
+        if not key:
+            continue
+        header_map.setdefault(key, []).append(index)
+    for row in rows:
+        if not any(_normalize_text(value) for value in row):
+            continue
+        yield row, header_map
 
 
 def _get_cell(row, header_map, name: str) -> str:
@@ -116,6 +126,7 @@ def _merge_scalar(
     record: dict,
     field_name: str,
     value: str,
+    source_priority: int,
     review_items: list[dict],
     seen_conflicts: set[tuple[str, str, str]],
     entity_type: str,
@@ -124,8 +135,17 @@ def _merge_scalar(
     if not value:
         return
     existing = record.get(field_name, "")
+    field_priorities = record.setdefault("_field_priorities", {})
+    existing_priority = field_priorities.get(field_name, -1)
     if not existing:
         record[field_name] = value
+        field_priorities[field_name] = source_priority
+        return
+    if source_priority > existing_priority:
+        record[field_name] = value
+        field_priorities[field_name] = source_priority
+        return
+    if source_priority < existing_priority:
         return
     if _normalize_key(existing) == _normalize_key(value):
         if len(value) > len(existing):
@@ -143,15 +163,66 @@ def _merge_scalar(
     )
 
 
-def _get_or_create_entity(store: dict[str, dict], *, key: str, name: str) -> dict:
+def _get_or_create_entity(store: dict[str, dict], *, key: str) -> dict:
     if key not in store:
         store[key] = {
             "key": key,
-            "name": name,
+            "_field_priorities": {},
         }
-    elif name and len(name) > len(store[key].get("name", "")):
-        store[key]["name"] = name
     return store[key]
+
+
+def _clean_record(record: dict) -> dict:
+    return {key: value for key, value in record.items() if not key.startswith("_")}
+
+
+def _apply_destination_correspondent_overrides(
+    *,
+    destinations: dict[str, dict],
+    correspondents: dict[str, dict],
+):
+    for destination in destinations.values():
+        iata_code = _normalize_iata(destination.get("iata_code"))
+        override_name = CANONICAL_DESTINATION_CORRESPONDENT_OVERRIDES.get(iata_code, "")
+        if not override_name:
+            continue
+        override_key = _normalize_key(override_name)
+        destination["correspondent_key"] = override_key
+        correspondent = _get_or_create_entity(correspondents, key=override_key)
+        _merge_scalar(
+            record=correspondent,
+            field_name="name",
+            value=override_name,
+            source_priority=len(CANONICAL_BE_SHEET_NAMES),
+            review_items=[],
+            seen_conflicts=set(),
+            entity_type="correspondent",
+            key=override_key,
+        )
+        if destination.get("country"):
+            _merge_scalar(
+                record=correspondent,
+                field_name="country",
+                value=destination["country"],
+                source_priority=len(CANONICAL_BE_SHEET_NAMES),
+                review_items=[],
+                seen_conflicts=set(),
+                entity_type="correspondent",
+                key=override_key,
+            )
+
+
+def _prune_unreferenced_correspondents(
+    *,
+    destinations: dict[str, dict],
+    correspondents: dict[str, dict],
+) -> dict[str, dict]:
+    referenced_keys = {
+        destination.get("correspondent_key", "")
+        for destination in destinations.values()
+        if destination.get("correspondent_key")
+    }
+    return {key: record for key, record in correspondents.items() if key in referenced_keys}
 
 
 def build_be_contact_dataset(path: str | Path) -> BeContactDataset:
@@ -164,143 +235,222 @@ def build_be_contact_dataset(path: str | Path) -> BeContactDataset:
     recipient_bindings: set[tuple[str, str, str]] = set()
     review_items: list[dict] = []
     seen_conflicts: set[tuple[str, str, str]] = set()
-
-    for row, header_map in _iter_rows(path):
-        donor_name = _normalize_display_name(_get_cell(row, header_map, "BE_DONATEUR"))
-        shipper_name = _normalize_display_name(_get_cell(row, header_map, "ASSOCIATION_NOM"))
-        shipper_country = _normalize_display_name(_get_cell(row, header_map, "ASSOCIATION_PAYS"))
-        recipient_name = _normalize_display_name(
-            _get_cell(row, header_map, "DESTINATAIRE_STRUCTURE")
-        )
-        recipient_status = _normalize_display_name(
-            _get_cell(row, header_map, "DESTINATAIRE_STATUT")
-        )
-        correspondent_name = _normalize_display_name(
-            " ".join(
-                part
-                for part in (
-                    _get_cell(row, header_map, "CORRESPONDANT_PRENOM"),
-                    _get_cell(row, header_map, "CORRESPONDANT_NOM"),
+    workbook = load_workbook(Path(path), read_only=True, data_only=True)
+    try:
+        source_sheets = _selected_sheet_names(workbook)
+        for source_priority, sheet_name in enumerate(source_sheets):
+            sheet = workbook[sheet_name]
+            for row, header_map in _iter_sheet_rows(sheet):
+                donor_name = _normalize_display_name(_get_cell(row, header_map, "BE_DONATEUR"))
+                shipper_name = _normalize_display_name(
+                    _get_cell(row, header_map, "ASSOCIATION_NOM")
                 )
-                if part
-            )
-        )
-        correspondent_country = _normalize_display_name(
-            _get_cell(row, header_map, "CORRESPONDANT_PAYS")
-        )
-        destination_city = _normalize_display_name(_get_cell(row, header_map, "BE_DESTINATION"))
-        destination_iata = _normalize_iata(_get_cell(row, header_map, "BE_CODE_IATA"))
+                shipper_country = _normalize_display_name(
+                    _get_cell(row, header_map, "ASSOCIATION_PAYS")
+                )
+                recipient_name = _normalize_display_name(
+                    _get_cell(row, header_map, "DESTINATAIRE_STRUCTURE")
+                )
+                recipient_status = _normalize_display_name(
+                    _get_cell(row, header_map, "DESTINATAIRE_STATUT")
+                )
+                correspondent_name = _normalize_display_name(
+                    " ".join(
+                        part
+                        for part in (
+                            _get_cell(row, header_map, "CORRESPONDANT_PRENOM"),
+                            _get_cell(row, header_map, "CORRESPONDANT_NOM"),
+                        )
+                        if part
+                    )
+                )
+                correspondent_country = _normalize_display_name(
+                    _get_cell(row, header_map, "CORRESPONDANT_PAYS")
+                )
+                destination_city = _normalize_display_name(
+                    _get_cell(row, header_map, "BE_DESTINATION")
+                )
+                destination_iata = _normalize_iata(_get_cell(row, header_map, "BE_CODE_IATA"))
 
-        donor_key = _normalize_key(donor_name)
-        shipper_key = _normalize_key(shipper_name)
-        recipient_key = _normalize_key(recipient_name)
-        correspondent_key = _normalize_key(correspondent_name)
+                donor_key = _normalize_key(donor_name)
+                shipper_key = _normalize_key(shipper_name)
+                recipient_key = _normalize_key(recipient_name)
+                correspondent_key = _normalize_key(correspondent_name)
 
-        if donor_key:
-            _get_or_create_entity(donors, key=donor_key, name=donor_name)
+                if donor_key:
+                    donor = _get_or_create_entity(donors, key=donor_key)
+                    _merge_scalar(
+                        record=donor,
+                        field_name="name",
+                        value=donor_name,
+                        source_priority=source_priority,
+                        review_items=review_items,
+                        seen_conflicts=seen_conflicts,
+                        entity_type="donor",
+                        key=donor_key,
+                    )
 
-        if shipper_key:
-            shipper = _get_or_create_entity(shippers, key=shipper_key, name=shipper_name)
-            _merge_scalar(
-                record=shipper,
-                field_name="country",
-                value=shipper_country,
-                review_items=review_items,
-                seen_conflicts=seen_conflicts,
-                entity_type="shipper",
-                key=shipper_key,
-            )
+                if shipper_key:
+                    shipper = _get_or_create_entity(shippers, key=shipper_key)
+                    _merge_scalar(
+                        record=shipper,
+                        field_name="name",
+                        value=shipper_name,
+                        source_priority=source_priority,
+                        review_items=review_items,
+                        seen_conflicts=seen_conflicts,
+                        entity_type="shipper",
+                        key=shipper_key,
+                    )
+                    _merge_scalar(
+                        record=shipper,
+                        field_name="country",
+                        value=shipper_country,
+                        source_priority=source_priority,
+                        review_items=review_items,
+                        seen_conflicts=seen_conflicts,
+                        entity_type="shipper",
+                        key=shipper_key,
+                    )
 
-        if recipient_key:
-            recipient = _get_or_create_entity(recipients, key=recipient_key, name=recipient_name)
-            _merge_scalar(
-                record=recipient,
-                field_name="status",
-                value=recipient_status,
-                review_items=review_items,
-                seen_conflicts=seen_conflicts,
-                entity_type="recipient",
-                key=recipient_key,
-            )
+                if recipient_key:
+                    recipient = _get_or_create_entity(recipients, key=recipient_key)
+                    _merge_scalar(
+                        record=recipient,
+                        field_name="name",
+                        value=recipient_name,
+                        source_priority=source_priority,
+                        review_items=review_items,
+                        seen_conflicts=seen_conflicts,
+                        entity_type="recipient",
+                        key=recipient_key,
+                    )
+                    _merge_scalar(
+                        record=recipient,
+                        field_name="status",
+                        value=recipient_status,
+                        source_priority=source_priority,
+                        review_items=review_items,
+                        seen_conflicts=seen_conflicts,
+                        entity_type="recipient",
+                        key=recipient_key,
+                    )
 
-        if correspondent_key:
-            correspondent = _get_or_create_entity(
-                correspondents,
-                key=correspondent_key,
-                name=correspondent_name,
-            )
-            _merge_scalar(
-                record=correspondent,
-                field_name="country",
-                value=correspondent_country,
-                review_items=review_items,
-                seen_conflicts=seen_conflicts,
-                entity_type="correspondent",
-                key=correspondent_key,
-            )
+                if correspondent_key:
+                    correspondent = _get_or_create_entity(
+                        correspondents,
+                        key=correspondent_key,
+                    )
+                    _merge_scalar(
+                        record=correspondent,
+                        field_name="name",
+                        value=correspondent_name,
+                        source_priority=source_priority,
+                        review_items=review_items,
+                        seen_conflicts=seen_conflicts,
+                        entity_type="correspondent",
+                        key=correspondent_key,
+                    )
+                    _merge_scalar(
+                        record=correspondent,
+                        field_name="country",
+                        value=correspondent_country,
+                        source_priority=source_priority,
+                        review_items=review_items,
+                        seen_conflicts=seen_conflicts,
+                        entity_type="correspondent",
+                        key=correspondent_key,
+                    )
 
-        destination_key = destination_iata or _normalize_key(
-            f"{destination_city}|{correspondent_country}"
-        )
-        if destination_key and destination_city:
-            destination = destinations.setdefault(
-                destination_key,
-                {
-                    "key": destination_key,
-                    "city": destination_city,
-                    "country": correspondent_country,
-                    "iata_code": destination_iata,
-                    "correspondent_key": correspondent_key,
-                },
-            )
-            _merge_scalar(
-                record=destination,
-                field_name="city",
-                value=destination_city,
-                review_items=review_items,
-                seen_conflicts=seen_conflicts,
-                entity_type="destination",
-                key=destination_key,
-            )
-            _merge_scalar(
-                record=destination,
-                field_name="country",
-                value=correspondent_country,
-                review_items=review_items,
-                seen_conflicts=seen_conflicts,
-                entity_type="destination",
-                key=destination_key,
-            )
-            _merge_scalar(
-                record=destination,
-                field_name="iata_code",
-                value=destination_iata,
-                review_items=review_items,
-                seen_conflicts=seen_conflicts,
-                entity_type="destination",
-                key=destination_key,
-            )
-            _merge_scalar(
-                record=destination,
-                field_name="correspondent_key",
-                value=correspondent_key,
-                review_items=review_items,
-                seen_conflicts=seen_conflicts,
-                entity_type="destination",
-                key=destination_key,
-            )
+                destination_key = destination_iata or _normalize_key(
+                    f"{destination_city}|{correspondent_country}"
+                )
+                if destination_key and destination_city:
+                    destination = destinations.setdefault(
+                        destination_key,
+                        {
+                            "key": destination_key,
+                            "_field_priorities": {},
+                        },
+                    )
+                    _merge_scalar(
+                        record=destination,
+                        field_name="city",
+                        value=destination_city,
+                        source_priority=source_priority,
+                        review_items=review_items,
+                        seen_conflicts=seen_conflicts,
+                        entity_type="destination",
+                        key=destination_key,
+                    )
+                    _merge_scalar(
+                        record=destination,
+                        field_name="country",
+                        value=correspondent_country,
+                        source_priority=source_priority,
+                        review_items=review_items,
+                        seen_conflicts=seen_conflicts,
+                        entity_type="destination",
+                        key=destination_key,
+                    )
+                    _merge_scalar(
+                        record=destination,
+                        field_name="iata_code",
+                        value=destination_iata,
+                        source_priority=source_priority,
+                        review_items=review_items,
+                        seen_conflicts=seen_conflicts,
+                        entity_type="destination",
+                        key=destination_key,
+                    )
+                    _merge_scalar(
+                        record=destination,
+                        field_name="correspondent_key",
+                        value=correspondent_key,
+                        source_priority=source_priority,
+                        review_items=review_items,
+                        seen_conflicts=seen_conflicts,
+                        entity_type="destination",
+                        key=destination_key,
+                    )
 
-        if shipper_key and destination_iata:
-            shipper_scopes.add((shipper_key, destination_iata))
-        if recipient_key and shipper_key and destination_iata:
-            recipient_bindings.add((recipient_key, shipper_key, destination_iata))
+                if shipper_key and destination_iata:
+                    shipper_scopes.add((shipper_key, destination_iata))
+                if recipient_key and shipper_key and destination_iata:
+                    recipient_bindings.add((recipient_key, shipper_key, destination_iata))
+    finally:
+        workbook.close()
+
+    _apply_destination_correspondent_overrides(
+        destinations=destinations,
+        correspondents=correspondents,
+    )
+    correspondents = _prune_unreferenced_correspondents(
+        destinations=destinations,
+        correspondents=correspondents,
+    )
 
     return BeContactDataset(
-        donors=sorted(donors.values(), key=lambda item: item["name"]),
-        shippers=sorted(shippers.values(), key=lambda item: item["name"]),
-        recipients=sorted(recipients.values(), key=lambda item: item["name"]),
-        correspondents=sorted(correspondents.values(), key=lambda item: item["name"]),
-        destinations=sorted(destinations.values(), key=lambda item: item["iata_code"]),
+        donors=sorted(
+            (_clean_record(item) for item in donors.values()),
+            key=lambda item: item["name"],
+        ),
+        shippers=sorted(
+            (_clean_record(item) for item in shippers.values()),
+            key=lambda item: item["name"],
+        ),
+        recipients=sorted(
+            (_clean_record(item) for item in recipients.values()),
+            key=lambda item: item["name"],
+        ),
+        correspondents=sorted(
+            (_clean_record(item) for item in correspondents.values()),
+            key=lambda item: item["name"],
+        ),
+        destinations=sorted(
+            (_clean_record(item) for item in destinations.values()),
+            key=lambda item: item["iata_code"],
+        ),
         shipper_scopes=[
             {"shipper_key": shipper_key, "destination_iata": destination_iata}
             for shipper_key, destination_iata in sorted(shipper_scopes)
@@ -314,6 +464,7 @@ def build_be_contact_dataset(path: str | Path) -> BeContactDataset:
             for recipient_key, shipper_key, destination_iata in sorted(recipient_bindings)
         ],
         review_items=review_items,
+        source_sheets=source_sheets,
     )
 
 

@@ -46,6 +46,21 @@ class BeWorkbookMixin:
         workbook.save(path)
         return path
 
+    def _build_be_multisheet_workbook(self, sheets: dict[str, list[dict]]) -> Path:
+        temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(temp_dir.cleanup)
+        path = Path(temp_dir.name) / "be_source_multisheet.xlsx"
+
+        workbook = Workbook()
+        for index, (sheet_name, rows) in enumerate(sheets.items()):
+            sheet = workbook.active if index == 0 else workbook.create_sheet()
+            sheet.title = sheet_name
+            sheet.append(self.HEADER)
+            for row in rows:
+                sheet.append([row.get(header, "") for header in self.HEADER])
+        workbook.save(path)
+        return path
+
 
 class RebuildContactsFromBeXlsxNormalizationTests(BeWorkbookMixin, TestCase):
     def test_build_be_contact_dataset_groups_entities_and_surfaces_no_ambiguity(self):
@@ -131,6 +146,158 @@ class RebuildContactsFromBeXlsxNormalizationTests(BeWorkbookMixin, TestCase):
         report = render_review_report(dataset.review_items)
         self.assertIn("Association Test", report)
         self.assertIn("conflicting shipper country", report)
+
+    def test_build_be_contact_dataset_prefers_latest_sheet_values(self):
+        workbook_path = self._build_be_multisheet_workbook(
+            {
+                "2024": [
+                    {
+                        "ASSOCIATION_NOM": "AVIATION SANS FRONTIERES",
+                        "ASSOCIATION_PAYS": "France",
+                        "DESTINATAIRE_STRUCTURE": "Recipient BGF",
+                        "DESTINATAIRE_STATUT": "historique",
+                        "CORRESPONDANT_PRENOM": "Garba",
+                        "CORRESPONDANT_NOM": "TAHA ABOUBAKAR",
+                        "CORRESPONDANT_PAYS": "Centrafrique",
+                        "BE_DESTINATION": "BANGUI",
+                        "BE_CODE_IATA": "BGF",
+                    }
+                ],
+                "2025": [
+                    {
+                        "ASSOCIATION_NOM": "AVIATION SANS FRONTIERES",
+                        "ASSOCIATION_PAYS": "France",
+                        "DESTINATAIRE_STRUCTURE": "Recipient BGF",
+                        "DESTINATAIRE_STATUT": "actif",
+                        "CORRESPONDANT_PRENOM": "Christian",
+                        "CORRESPONDANT_NOM": "LIMBIO",
+                        "CORRESPONDANT_PAYS": "Centrafrique",
+                        "BE_DESTINATION": "BANGUI",
+                        "BE_CODE_IATA": "BGF",
+                    }
+                ],
+                "2026": [
+                    {
+                        "ASSOCIATION_NOM": "AVIATION SANS FRONTIERES",
+                        "ASSOCIATION_PAYS": "France",
+                        "DESTINATAIRE_STRUCTURE": "Recipient BGF",
+                        "DESTINATAIRE_STATUT": "prioritaire",
+                        "CORRESPONDANT_PRENOM": "Christian",
+                        "CORRESPONDANT_NOM": "LIMBIO",
+                        "CORRESPONDANT_PAYS": "Centrafrique",
+                        "BE_DESTINATION": "BANGUI",
+                        "BE_CODE_IATA": "BGF",
+                    }
+                ],
+            }
+        )
+
+        dataset = build_be_contact_dataset(workbook_path)
+
+        self.assertEqual(dataset.source_sheets, ["2024", "2025", "2026"])
+        self.assertEqual(
+            dataset.recipients,
+            [{"key": "recipient bgf", "name": "Recipient BGF", "status": "prioritaire"}],
+        )
+        self.assertEqual(
+            dataset.correspondents,
+            [
+                {
+                    "key": "christian limbio",
+                    "name": "Christian LIMBIO",
+                    "country": "Centrafrique",
+                }
+            ],
+        )
+        self.assertEqual(
+            dataset.destinations,
+            [
+                {
+                    "key": "BGF",
+                    "city": "BANGUI",
+                    "country": "Centrafrique",
+                    "iata_code": "BGF",
+                    "correspondent_key": "christian limbio",
+                }
+            ],
+        )
+        self.assertEqual(dataset.review_items, [])
+
+    def test_build_be_contact_dataset_applies_explicit_correspondent_overrides(self):
+        workbook_path = self._build_be_multisheet_workbook(
+            {
+                "2024": [
+                    {
+                        "ASSOCIATION_NOM": "AVIATION SANS FRONTIERES",
+                        "ASSOCIATION_PAYS": "France",
+                        "DESTINATAIRE_STRUCTURE": "Recipient BEY",
+                        "DESTINATAIRE_STATUT": "actif",
+                        "CORRESPONDANT_PRENOM": "Ancien",
+                        "CORRESPONDANT_NOM": "Correspondant",
+                        "CORRESPONDANT_PAYS": "Liban",
+                        "BE_DESTINATION": "BEYROUTH",
+                        "BE_CODE_IATA": "BEY",
+                    }
+                ],
+                "2025": [
+                    {
+                        "ASSOCIATION_NOM": "AVIATION SANS FRONTIERES",
+                        "ASSOCIATION_PAYS": "France",
+                        "DESTINATAIRE_STRUCTURE": "Recipient BGF",
+                        "DESTINATAIRE_STATUT": "actif",
+                        "CORRESPONDANT_PRENOM": "Garba",
+                        "CORRESPONDANT_NOM": "TAHA ABOUBAKAR",
+                        "CORRESPONDANT_PAYS": "Centrafrique",
+                        "BE_DESTINATION": "BANGUI",
+                        "BE_CODE_IATA": "BGF",
+                    }
+                ],
+                "2026": [
+                    {
+                        "ASSOCIATION_NOM": "AVIATION SANS FRONTIERES",
+                        "ASSOCIATION_PAYS": "France",
+                        "DESTINATAIRE_STRUCTURE": "Recipient NDJ",
+                        "DESTINATAIRE_STATUT": "actif",
+                        "CORRESPONDANT_PRENOM": "Rocher",
+                        "CORRESPONDANT_NOM": "DJEGUERBE MBAIOUNDADE",
+                        "CORRESPONDANT_PAYS": "Tchad",
+                        "BE_DESTINATION": "N'DJAMENA",
+                        "BE_CODE_IATA": "NDJ",
+                    }
+                ],
+            }
+        )
+
+        dataset = build_be_contact_dataset(workbook_path)
+        destinations_by_iata = {
+            destination["iata_code"]: destination for destination in dataset.destinations
+        }
+        correspondents_by_key = {
+            correspondent["key"]: correspondent for correspondent in dataset.correspondents
+        }
+
+        self.assertEqual(destinations_by_iata["BEY"]["correspondent_key"], "tony mdawar")
+        self.assertEqual(
+            correspondents_by_key["tony mdawar"]["name"],
+            "Tony MDAWAR",
+        )
+        self.assertEqual(
+            destinations_by_iata["BGF"]["correspondent_key"],
+            "christian limbio",
+        )
+        self.assertEqual(
+            correspondents_by_key["christian limbio"]["name"],
+            "Christian LIMBIO",
+        )
+        self.assertEqual(
+            destinations_by_iata["NDJ"]["correspondent_key"],
+            "geovanie kamtar ndangmbaye",
+        )
+        self.assertEqual(
+            correspondents_by_key["geovanie kamtar ndangmbaye"]["name"],
+            "Geovanie Kamtar NDANGMBAYE",
+        )
+        self.assertEqual(dataset.review_items, [])
 
 
 class RebuildContactsFromBeXlsxPersistenceTests(TestCase):
@@ -275,3 +442,38 @@ class RebuildContactsFromBeXlsxCommandTests(BeWorkbookMixin, TestCase):
         self.assertTrue(Contact.objects.exists())
         self.assertTrue(self.report_path.exists())
         self.assertTrue(Destination.objects.filter(iata_code="TNR").exists())
+
+    def test_rebuild_contacts_from_be_xlsx_reports_selected_source_sheets(self):
+        workbook_path = self._build_be_multisheet_workbook(
+            {
+                "2024": [
+                    {
+                        "ASSOCIATION_NOM": "AVIATION SANS FRONTIERES",
+                        "ASSOCIATION_PAYS": "France",
+                        "DESTINATAIRE_STRUCTURE": "Recipient A",
+                        "DESTINATAIRE_STATUT": "actif",
+                        "CORRESPONDANT_PRENOM": "Leontine",
+                        "CORRESPONDANT_NOM": "Rahazania",
+                        "CORRESPONDANT_PAYS": "Madagascar",
+                        "BE_DESTINATION": "ANTANANARIVO",
+                        "BE_CODE_IATA": "TNR",
+                    }
+                ],
+                "2025": [],
+                "2026": [],
+            }
+        )
+        stdout = StringIO()
+
+        call_command(
+            "rebuild_contacts_from_be_xlsx",
+            "--source",
+            str(workbook_path),
+            "--dry-run",
+            "--report-path",
+            str(self.report_path),
+            stdout=stdout,
+        )
+
+        output = stdout.getvalue()
+        self.assertIn("Source sheets: 2024, 2025, 2026", output)
