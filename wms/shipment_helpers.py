@@ -3,18 +3,6 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.utils.translation import gettext as _
 
-from contacts.destination_scope import (
-    contact_destination_ids,
-    contact_primary_destination_id,
-)
-
-from .contact_filters import (
-    TAG_CORRESPONDENT,
-    TAG_RECIPIENT,
-    TAG_SHIPPER,
-    contacts_with_tags,
-    filter_structure_contacts,
-)
 from .contact_labels import build_contact_select_label
 from .models import (
     Destination,
@@ -23,19 +11,11 @@ from .models import (
     ShipperScope,
 )
 from .scan_helpers import parse_int, resolve_product
-from .shipment_party_rules import normalize_party_contact_to_org
-
-
-def _destination_ids(contact):
-    return contact_destination_ids(contact)
-
-
-def _primary_destination_id(contact):
-    return contact_primary_destination_id(contact)
-
-
-def _linked_shipper_ids(contact):
-    return sorted(shipper.id for shipper in contact.linked_shippers.all())
+from .shipment_party_rules import (
+    active_recipient_contacts,
+    active_shipper_contacts,
+    normalize_party_contact_to_org,
+)
 
 
 def _contact_organization_id(contact):
@@ -72,6 +52,37 @@ def _build_shipper_scope_destination_ids_by_org():
     return {
         organization_id: sorted(destination_ids)
         for organization_id, destination_ids in scoped_destination_ids_by_org.items()
+    }
+
+
+def _build_shipper_destination_ids_by_org(*, destination_ids):
+    rows = (
+        ShipperScope.objects.filter(
+            role_assignment__role=OrganizationRole.SHIPPER,
+            role_assignment__is_active=True,
+            role_assignment__organization__is_active=True,
+            is_active=True,
+        )
+        .filter(_current_window_q())
+        .values_list(
+            "role_assignment__organization_id",
+            "all_destinations",
+            "destination_id",
+        )
+    )
+
+    allowed_destination_ids_by_org = {}
+    for organization_id, all_destinations, destination_id in rows:
+        allowed_destination_ids_by_org.setdefault(organization_id, set())
+        if all_destinations:
+            allowed_destination_ids_by_org[organization_id].update(destination_ids)
+            continue
+        if destination_id:
+            allowed_destination_ids_by_org[organization_id].add(destination_id)
+
+    return {
+        organization_id: sorted(allowed_destination_ids)
+        for organization_id, allowed_destination_ids in allowed_destination_ids_by_org.items()
     }
 
 
@@ -118,18 +129,14 @@ def build_shipment_contact_payload():
     destinations = Destination.objects.filter(is_active=True).select_related(
         "correspondent_contact"
     )
-    shipper_contacts = (
-        filter_structure_contacts(contacts_with_tags(TAG_SHIPPER))
-        .select_related("organization")
-        .prefetch_related("destinations")
-    )
+    shipper_contacts = active_shipper_contacts().select_related("organization")
     recipient_contacts = (
-        filter_structure_contacts(contacts_with_tags(TAG_RECIPIENT))
-        .select_related("organization")
-        .prefetch_related("addresses", "destinations", "linked_shippers")
+        active_recipient_contacts().select_related("organization").prefetch_related("addresses")
     )
-    correspondent_contacts = contacts_with_tags(TAG_CORRESPONDENT).prefetch_related("destinations")
     shipper_scope_destination_ids_by_org = _build_shipper_scope_destination_ids_by_org()
+    shipper_destination_ids_by_org = _build_shipper_destination_ids_by_org(
+        destination_ids=[destination.id for destination in destinations]
+    )
     recipient_binding_pairs_by_org = _build_recipient_binding_pairs_by_org()
 
     destinations_json = [
@@ -148,14 +155,19 @@ def build_shipment_contact_payload():
             "id": contact.id,
             "name": build_contact_select_label(contact),
             "organization_id": _contact_organization_id(contact) or contact.id,
-            "destination_id": _primary_destination_id(contact),
-            "destination_ids": _destination_ids(contact),
+            "destination_id": (
+                allowed_destination_ids[0] if len(allowed_destination_ids) == 1 else None
+            ),
+            "destination_ids": allowed_destination_ids,
             "scoped_destination_ids": shipper_scope_destination_ids_by_org.get(
                 _contact_organization_id(contact) or contact.id,
                 [],
             ),
         }
         for contact in shipper_contacts
+        for allowed_destination_ids in [
+            shipper_destination_ids_by_org.get(_contact_organization_id(contact) or contact.id, [])
+        ]
     ]
     recipient_contacts_json = []
     for contact in recipient_contacts:
@@ -165,19 +177,24 @@ def build_shipment_contact_payload():
             else contact.addresses.all()
         )
         countries = {address.country for address in address_source if address.country}
+        organization_id = _contact_organization_id(contact) or contact.id
+        binding_pairs = recipient_binding_pairs_by_org.get(organization_id, [])
+        destination_ids = sorted(
+            {pair["destination_id"] for pair in binding_pairs if pair["destination_id"] is not None}
+        )
+        linked_shipper_ids = sorted(
+            {pair["shipper_id"] for pair in binding_pairs if pair["shipper_id"] is not None}
+        )
         recipient_contacts_json.append(
             {
                 "id": contact.id,
                 "name": build_contact_select_label(contact),
-                "organization_id": _contact_organization_id(contact) or contact.id,
+                "organization_id": organization_id,
                 "countries": sorted(countries),
-                "destination_id": _primary_destination_id(contact),
-                "destination_ids": _destination_ids(contact),
-                "linked_shipper_ids": _linked_shipper_ids(contact),
-                "binding_pairs": recipient_binding_pairs_by_org.get(
-                    _contact_organization_id(contact) or contact.id,
-                    [],
-                ),
+                "destination_id": destination_ids[0] if len(destination_ids) == 1 else None,
+                "destination_ids": destination_ids,
+                "linked_shipper_ids": linked_shipper_ids,
+                "binding_pairs": binding_pairs,
             }
         )
     correspondent_destination_ids_by_contact = {}
@@ -192,26 +209,20 @@ def build_shipment_contact_payload():
         for destination in destinations
         if destination.correspondent_contact_id
     ]
-    correspondent_contacts_by_id = {contact.id: contact for contact in correspondent_contacts}
-    correspondent_contacts_by_id.update(
-        {contact.id: contact for contact in destination_correspondents if contact}
-    )
+    correspondent_contacts_by_id = {
+        contact.id: contact for contact in destination_correspondents if contact
+    }
     correspondent_contacts_json = [
         {
             "id": contact.id,
             "name": contact.name,
             "destination_id": (
-                _primary_destination_id(contact)
-                or (
-                    sorted(correspondent_destination_ids_by_contact.get(contact.id, []))[0]
-                    if len(correspondent_destination_ids_by_contact.get(contact.id, [])) == 1
-                    else None
-                )
+                sorted(correspondent_destination_ids_by_contact.get(contact.id, []))[0]
+                if len(correspondent_destination_ids_by_contact.get(contact.id, [])) == 1
+                else None
             ),
             "destination_ids": sorted(
-                set(_destination_ids(contact)).union(
-                    correspondent_destination_ids_by_contact.get(contact.id, set())
-                )
+                correspondent_destination_ids_by_contact.get(contact.id, set())
             ),
         }
         for contact in correspondent_contacts_by_id.values()

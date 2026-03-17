@@ -44,15 +44,11 @@ class ShipmentHelpersTests(TestCase):
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        shipper.destinations.add(destination)
-        shipper_tag = ContactTag.objects.create(name="expediteur")
-        shipper.tags.add(shipper_tag)
         recipient = Contact.objects.create(
             name="Recipient Org",
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        recipient.destinations.add(destination)
         ContactAddress.objects.create(
             contact=recipient,
             address_line1="1 Rue Test",
@@ -67,16 +63,28 @@ class ShipmentHelpersTests(TestCase):
             country="UK",
             is_default=False,
         )
-        recipient_tag = ContactTag.objects.create(name="destinataire")
-        recipient.tags.add(recipient_tag)
-
-        corr_contact = Contact.objects.create(
-            name="Corr Contact",
+        shipper_assignment = OrganizationRoleAssignment.objects.create(
+            organization=shipper,
+            role=OrganizationRole.SHIPPER,
             is_active=True,
         )
-        corr_contact.destinations.add(destination)
-        correspondent_tag = ContactTag.objects.create(name="correspondant")
-        corr_contact.tags.add(correspondent_tag)
+        OrganizationRoleAssignment.objects.create(
+            organization=recipient,
+            role=OrganizationRole.RECIPIENT,
+            is_active=True,
+        )
+        ShipperScope.objects.create(
+            role_assignment=shipper_assignment,
+            destination=destination,
+            all_destinations=False,
+            is_active=True,
+        )
+        RecipientBinding.objects.create(
+            shipper_org=shipper,
+            recipient_org=recipient,
+            destination=destination,
+            is_active=True,
+        )
 
         (
             destinations_json,
@@ -102,40 +110,30 @@ class ShipmentHelpersTests(TestCase):
                     "organization_id": shipper.id,
                     "destination_id": destination.id,
                     "destination_ids": [destination.id],
-                    "scoped_destination_ids": [],
+                    "scoped_destination_ids": [destination.id],
                 }
             ],
         )
-        self.assertEqual(
-            {entry["id"] for entry in recipients_json}, {recipient.id, corr_contact.id}
-        )
+        self.assertEqual({entry["id"] for entry in recipients_json}, {recipient.id})
         recipient_entry = next(entry for entry in recipients_json if entry["id"] == recipient.id)
         self.assertEqual(recipient_entry["name"], "Recipient Org")
         self.assertEqual(recipient_entry["organization_id"], recipient.id)
         self.assertEqual(recipient_entry["countries"], ["France", "UK"])
         self.assertEqual(recipient_entry["destination_id"], destination.id)
         self.assertEqual(recipient_entry["destination_ids"], [destination.id])
-        self.assertEqual(recipient_entry["linked_shipper_ids"], [])
-        self.assertEqual(recipient_entry["binding_pairs"], [])
-        promoted_correspondent_entry = next(
-            entry for entry in recipients_json if entry["id"] == corr_contact.id
+        self.assertEqual(recipient_entry["linked_shipper_ids"], [shipper.id])
+        self.assertEqual(
+            recipient_entry["binding_pairs"],
+            [
+                {
+                    "shipper_id": shipper.id,
+                    "destination_id": destination.id,
+                }
+            ],
         )
-        self.assertEqual(promoted_correspondent_entry["name"], "Corr Contact")
-        self.assertEqual(promoted_correspondent_entry["organization_id"], corr_contact.id)
-        self.assertEqual(promoted_correspondent_entry["countries"], [])
-        self.assertEqual(promoted_correspondent_entry["destination_id"], destination.id)
-        self.assertEqual(promoted_correspondent_entry["destination_ids"], [destination.id])
-        self.assertEqual(promoted_correspondent_entry["linked_shipper_ids"], [])
-        self.assertEqual(promoted_correspondent_entry["binding_pairs"], [])
         self.assertEqual(
             correspondents_json,
             [
-                {
-                    "id": corr_contact.id,
-                    "name": "Corr Contact",
-                    "destination_id": destination.id,
-                    "destination_ids": [destination.id],
-                },
                 {
                     "id": correspondent.id,
                     "name": "Corr A",
@@ -199,22 +197,22 @@ class ShipmentHelpersTests(TestCase):
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        shipper_tag = ContactTag.objects.create(name="expediteur")
-        shipper.tags.add(shipper_tag)
-        shipper.destinations.add(destination)
-
-        promoted_correspondent_tag = ContactTag.objects.create(name="correspondant")
-        destination_correspondent.tags.add(promoted_correspondent_tag)
+        shipper_assignment = OrganizationRoleAssignment.objects.create(
+            organization=shipper,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
+        ShipperScope.objects.create(
+            role_assignment=shipper_assignment,
+            destination=destination,
+            all_destinations=False,
+            is_active=True,
+        )
 
         _, _, recipients_json, correspondents_json = build_shipment_contact_payload()
 
-        recipient_entry = next(
-            entry for entry in recipients_json if entry["id"] == destination_correspondent.id
-        )
-        self.assertEqual(recipient_entry["destination_id"], destination.id)
-        self.assertEqual(recipient_entry["destination_ids"], [destination.id])
-        self.assertEqual(
-            recipient_entry["organization_id"], destination_correspondent.organization_id
+        self.assertFalse(
+            any(entry["id"] == destination_correspondent.id for entry in recipients_json)
         )
         self.assertIn(
             {
@@ -249,9 +247,6 @@ class ShipmentHelpersTests(TestCase):
             organization=organization,
             is_active=True,
         )
-        shipper.destinations.add(destination)
-        shipper_tag = ContactTag.objects.create(name="expediteur")
-        shipper.tags.add(shipper_tag)
 
         recipient = Contact.objects.create(
             name="Legacy Recipient",
@@ -262,9 +257,28 @@ class ShipmentHelpersTests(TestCase):
             organization=organization,
             is_active=True,
         )
-        recipient.destinations.add(destination)
-        recipient_tag = ContactTag.objects.create(name="destinataire")
-        recipient.tags.add(recipient_tag)
+        shipper_assignment = OrganizationRoleAssignment.objects.create(
+            organization=organization,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
+        OrganizationRoleAssignment.objects.create(
+            organization=organization,
+            role=OrganizationRole.RECIPIENT,
+            is_active=True,
+        )
+        ShipperScope.objects.create(
+            role_assignment=shipper_assignment,
+            destination=destination,
+            all_destinations=False,
+            is_active=True,
+        )
+        RecipientBinding.objects.create(
+            shipper_org=organization,
+            recipient_org=organization,
+            destination=destination,
+            is_active=True,
+        )
 
         _, shippers_json, recipients_json, _ = build_shipment_contact_payload()
 
@@ -293,16 +307,12 @@ class ShipmentHelpersTests(TestCase):
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        shipper_tag = ContactTag.objects.create(name="expediteur")
-        recipient_tag = ContactTag.objects.create(name="destinataire")
 
         shipper_org = Contact.objects.create(
             name="Shipper Org Scope",
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        shipper_org.tags.add(shipper_tag)
-        shipper_org.destinations.add(destination)
 
         shipper_person_with_org = Contact.objects.create(
             name="Shipper Person Scope",
@@ -312,8 +322,6 @@ class ShipmentHelpersTests(TestCase):
             organization=organization,
             is_active=True,
         )
-        shipper_person_with_org.tags.add(shipper_tag)
-        shipper_person_with_org.destinations.add(destination)
 
         shipper_person_no_org = Contact.objects.create(
             name="Shipper Person No Org Scope",
@@ -322,17 +330,12 @@ class ShipmentHelpersTests(TestCase):
             last_name="Martin",
             is_active=True,
         )
-        shipper_person_no_org.tags.add(shipper_tag)
-        shipper_person_no_org.destinations.add(destination)
 
         recipient_org = Contact.objects.create(
             name="Recipient Org Scope",
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        recipient_org.tags.add(recipient_tag)
-        recipient_org.destinations.add(destination)
-        recipient_org.linked_shippers.add(shipper_org)
 
         recipient_person_with_org = Contact.objects.create(
             name="Recipient Person Scope",
@@ -342,9 +345,6 @@ class ShipmentHelpersTests(TestCase):
             organization=organization,
             is_active=True,
         )
-        recipient_person_with_org.tags.add(recipient_tag)
-        recipient_person_with_org.destinations.add(destination)
-        recipient_person_with_org.linked_shippers.add(shipper_org)
 
         recipient_person_no_org = Contact.objects.create(
             name="Recipient Person No Org Scope",
@@ -353,9 +353,45 @@ class ShipmentHelpersTests(TestCase):
             last_name="Ndiaye",
             is_active=True,
         )
-        recipient_person_no_org.tags.add(recipient_tag)
-        recipient_person_no_org.destinations.add(destination)
-        recipient_person_no_org.linked_shippers.add(shipper_org)
+        shipper_org_assignment = OrganizationRoleAssignment.objects.create(
+            organization=shipper_org,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
+        organization_shipper_assignment = OrganizationRoleAssignment.objects.create(
+            organization=organization,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
+        OrganizationRoleAssignment.objects.create(
+            organization=recipient_org,
+            role=OrganizationRole.RECIPIENT,
+            is_active=True,
+        )
+        OrganizationRoleAssignment.objects.create(
+            organization=organization,
+            role=OrganizationRole.RECIPIENT,
+            is_active=True,
+        )
+        for assignment in (shipper_org_assignment, organization_shipper_assignment):
+            ShipperScope.objects.create(
+                role_assignment=assignment,
+                destination=destination,
+                all_destinations=False,
+                is_active=True,
+            )
+        RecipientBinding.objects.create(
+            shipper_org=shipper_org,
+            recipient_org=recipient_org,
+            destination=destination,
+            is_active=True,
+        )
+        RecipientBinding.objects.create(
+            shipper_org=shipper_org,
+            recipient_org=organization,
+            destination=destination,
+            is_active=True,
+        )
 
         _, shippers_json, recipients_json, _ = build_shipment_contact_payload()
         shipper_ids = {entry["id"] for entry in shippers_json}
@@ -382,7 +418,6 @@ class ShipmentHelpersTests(TestCase):
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        shipper_tag = ContactTag.objects.create(name="expediteur")
         shipper_a = Contact.objects.create(
             name="Shipper A",
             contact_type=ContactType.PERSON,
@@ -401,11 +436,6 @@ class ShipmentHelpersTests(TestCase):
             organization=organization,
             is_active=True,
         )
-        for shipper in (shipper_a, shipper_b):
-            shipper.destinations.add(destination)
-            shipper.tags.add(shipper_tag)
-
-        recipient_tag = ContactTag.objects.create(name="destinataire")
         recipient_a = Contact.objects.create(
             name="Recipient A",
             contact_type=ContactType.PERSON,
@@ -424,10 +454,28 @@ class ShipmentHelpersTests(TestCase):
             organization=organization,
             is_active=True,
         )
-        for recipient in (recipient_a, recipient_b):
-            recipient.destinations.add(destination)
-            recipient.tags.add(recipient_tag)
-            recipient.linked_shippers.add(shipper_a)
+        shipper_assignment = OrganizationRoleAssignment.objects.create(
+            organization=organization,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
+        OrganizationRoleAssignment.objects.create(
+            organization=organization,
+            role=OrganizationRole.RECIPIENT,
+            is_active=True,
+        )
+        ShipperScope.objects.create(
+            role_assignment=shipper_assignment,
+            destination=destination,
+            all_destinations=False,
+            is_active=True,
+        )
+        RecipientBinding.objects.create(
+            shipper_org=organization,
+            recipient_org=organization,
+            destination=destination,
+            is_active=True,
+        )
 
         _, shippers_json, recipients_json, _ = build_shipment_contact_payload()
         shipper_labels = {
@@ -544,6 +592,82 @@ class ShipmentHelpersTests(TestCase):
                 },
             ],
         )
+
+    def test_build_shipment_contact_payload_uses_org_roles_without_legacy_links(self):
+        correspondent = Contact.objects.create(name="Corr Org Roles Only")
+        destination = Destination.objects.create(
+            city="Lome",
+            iata_code="LFW-ORG",
+            country="Togo",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        shipper_org = Contact.objects.create(
+            name="Shipper Org Roles Only",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        shipper_person = Contact.objects.create(
+            name="Shipper Person Org Roles Only",
+            contact_type=ContactType.PERSON,
+            first_name="Jean",
+            last_name="Orgroles",
+            organization=shipper_org,
+            is_active=True,
+        )
+        recipient_org = Contact.objects.create(
+            name="Recipient Org Roles Only",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+
+        shipper_assignment = OrganizationRoleAssignment.objects.create(
+            organization=shipper_org,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
+        OrganizationRoleAssignment.objects.create(
+            organization=recipient_org,
+            role=OrganizationRole.RECIPIENT,
+            is_active=True,
+        )
+        ShipperScope.objects.create(
+            role_assignment=shipper_assignment,
+            destination=destination,
+            all_destinations=False,
+            is_active=True,
+        )
+        RecipientBinding.objects.create(
+            shipper_org=shipper_org,
+            recipient_org=recipient_org,
+            destination=destination,
+            is_active=True,
+        )
+
+        _, shippers_json, recipients_json, correspondents_json = build_shipment_contact_payload()
+
+        shipper_ids = {entry["id"] for entry in shippers_json}
+        recipient_entry = next(
+            entry for entry in recipients_json if entry["id"] == recipient_org.id
+        )
+        correspondent_entry = next(
+            entry for entry in correspondents_json if entry["id"] == correspondent.id
+        )
+
+        self.assertIn(shipper_org.id, shipper_ids)
+        self.assertIn(shipper_person.id, shipper_ids)
+        self.assertEqual(recipient_entry["destination_ids"], [destination.id])
+        self.assertEqual(recipient_entry["linked_shipper_ids"], [shipper_org.id])
+        self.assertEqual(
+            recipient_entry["binding_pairs"],
+            [
+                {
+                    "shipper_id": shipper_org.id,
+                    "destination_id": destination.id,
+                }
+            ],
+        )
+        self.assertEqual(correspondent_entry["destination_ids"], [destination.id])
 
     def test_parse_shipment_lines_collects_all_error_branches(self):
         product = Product.objects.create(

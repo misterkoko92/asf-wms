@@ -371,3 +371,57 @@ class FormsOrgRolesGateTests(TestCase):
                 for error in form_non_compliant.errors.get("recipient_contact", [])
             )
         )
+
+    def test_scan_shipment_form_lists_shipper_and_recipient_without_legacy_tags(self):
+        runtime = WmsRuntimeSettings.get_solo()
+        runtime.org_roles_engine_enabled = True
+        runtime.save(update_fields=["org_roles_engine_enabled"])
+
+        correspondent = self._create_org("Correspondent Org Roles Only")
+        destination = self._create_destination("LOS", correspondent)
+        shipper = self._create_org("Shipper Org Roles Only")
+        recipient_allowed = self._create_org("Recipient Allowed Org Roles Only")
+        recipient_blocked = self._create_org("Recipient Blocked Org Roles Only")
+
+        shipper_assignment = OrganizationRoleAssignment.objects.create(
+            organization=shipper,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
+        OrganizationRoleAssignment.objects.create(
+            organization=recipient_allowed,
+            role=OrganizationRole.RECIPIENT,
+            is_active=True,
+        )
+        OrganizationRoleAssignment.objects.create(
+            organization=recipient_blocked,
+            role=OrganizationRole.RECIPIENT,
+            is_active=True,
+        )
+        ShipperScope.objects.create(
+            role_assignment=shipper_assignment,
+            destination=destination,
+            all_destinations=False,
+            is_active=True,
+        )
+        RecipientBinding.objects.create(
+            shipper_org=shipper,
+            recipient_org=recipient_allowed,
+            destination=destination,
+            is_active=True,
+        )
+
+        form = ScanShipmentForm(
+            data={
+                "destination": str(destination.id),
+                "shipper_contact": str(shipper.id),
+            },
+            destination_id=str(destination.id),
+        )
+
+        shipper_ids = set(form.fields["shipper_contact"].queryset.values_list("id", flat=True))
+        recipient_ids = set(form.fields["recipient_contact"].queryset.values_list("id", flat=True))
+
+        self.assertIn(shipper.id, shipper_ids)
+        self.assertIn(recipient_allowed.id, recipient_ids)
+        self.assertNotIn(recipient_blocked.id, recipient_ids)

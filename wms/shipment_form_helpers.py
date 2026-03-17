@@ -1,11 +1,9 @@
-from .contact_filters import TAG_CORRESPONDENT, TAG_RECIPIENT, TAG_SHIPPER
 from .scan_helpers import (
     build_available_cartons,
     build_product_options,
     build_shipment_line_values,
 )
 from .shipment_helpers import build_shipment_contact_payload
-from .view_utils import resolve_contact_by_name
 
 
 def build_shipment_order_product_options(order_lines):
@@ -115,24 +113,12 @@ def build_shipment_order_line_values(order_lines):
 
 
 def build_shipment_edit_initial(shipment, assigned_cartons, *, order_line_count=0):
-    shipper_contact = getattr(shipment, "shipper_contact_ref", None) or resolve_contact_by_name(
-        TAG_SHIPPER,
-        shipment.shipper_name,
-    )
-    recipient_contact = getattr(shipment, "recipient_contact_ref", None) or resolve_contact_by_name(
-        TAG_RECIPIENT,
-        shipment.recipient_name,
-    )
-    correspondent_contact = None
+    shipper_contact = getattr(shipment, "shipper_contact_ref", None)
+    recipient_contact = getattr(shipment, "recipient_contact_ref", None)
     if shipment.destination and shipment.destination.correspondent_contact_id:
         correspondent_contact = shipment.destination.correspondent_contact
     else:
-        correspondent_contact = getattr(
-            shipment, "correspondent_contact_ref", None
-        ) or resolve_contact_by_name(
-            TAG_CORRESPONDENT,
-            shipment.correspondent_name,
-        )
+        correspondent_contact = getattr(shipment, "correspondent_contact_ref", None)
 
     return {
         "destination": shipment.destination_id,

@@ -84,8 +84,6 @@ class ShipmentFormHelpersTests(SimpleTestCase):
         self.assertEqual(by_id["3"]["code"], "C-3")
 
     def test_build_shipment_edit_initial_prefers_destination_correspondent_contact(self):
-        shipper = SimpleNamespace(id=11)
-        recipient = SimpleNamespace(id=22)
         destination_correspondent = SimpleNamespace(id=33)
         destination = SimpleNamespace(
             correspondent_contact_id=destination_correspondent.id,
@@ -99,64 +97,74 @@ class ShipmentFormHelpersTests(SimpleTestCase):
             destination_id=99,
         )
 
-        with mock.patch(
-            "wms.shipment_form_helpers.resolve_contact_by_name",
-            side_effect=[shipper, recipient],
-        ) as resolve_mock:
-            initial = build_shipment_edit_initial(shipment, assigned_cartons=[1, 2])
+        initial = build_shipment_edit_initial(shipment, assigned_cartons=[1, 2])
 
         self.assertEqual(initial["destination"], 99)
-        self.assertEqual(initial["shipper_contact"], 11)
-        self.assertEqual(initial["recipient_contact"], 22)
+        self.assertEqual(initial["shipper_contact"], None)
+        self.assertEqual(initial["recipient_contact"], None)
         self.assertEqual(initial["correspondent_contact"], 33)
         self.assertEqual(initial["carton_count"], 2)
-        self.assertEqual(resolve_mock.call_count, 2)
 
-    def test_build_shipment_edit_initial_falls_back_to_name_resolution(self):
+    def test_build_shipment_edit_initial_uses_explicit_contact_refs_without_name_fallback(self):
         shipper = SimpleNamespace(id=11)
-        recipient = None
+        recipient = SimpleNamespace(id=22)
         correspondent = SimpleNamespace(id=44)
         shipment = SimpleNamespace(
             shipper_name="Shipper Name",
             recipient_name="Recipient Name",
             correspondent_name="Corr Name",
+            shipper_contact_ref=shipper,
+            recipient_contact_ref=recipient,
+            correspondent_contact_ref=correspondent,
             destination=None,
             destination_id=None,
         )
 
-        with mock.patch(
-            "wms.shipment_form_helpers.resolve_contact_by_name",
-            side_effect=[shipper, recipient, correspondent],
-        ) as resolve_mock:
-            initial = build_shipment_edit_initial(shipment, assigned_cartons=[])
+        initial = build_shipment_edit_initial(shipment, assigned_cartons=[])
 
         self.assertEqual(initial["destination"], None)
         self.assertEqual(initial["shipper_contact"], 11)
-        self.assertEqual(initial["recipient_contact"], None)
+        self.assertEqual(initial["recipient_contact"], 22)
         self.assertEqual(initial["correspondent_contact"], 44)
         self.assertEqual(initial["carton_count"], 1)
-        self.assertEqual(resolve_mock.call_count, 3)
 
     def test_build_shipment_edit_initial_uses_order_line_count_when_no_cartons(self):
         shipment = SimpleNamespace(
             shipper_name="Shipper Name",
             recipient_name="Recipient Name",
             correspondent_name="Corr Name",
+            shipper_contact_ref=None,
+            recipient_contact_ref=None,
+            correspondent_contact_ref=None,
             destination=None,
             destination_id=None,
         )
 
-        with mock.patch(
-            "wms.shipment_form_helpers.resolve_contact_by_name",
-            side_effect=[None, None, None],
-        ):
-            initial = build_shipment_edit_initial(
-                shipment,
-                assigned_cartons=[],
-                order_line_count=3,
-            )
+        initial = build_shipment_edit_initial(
+            shipment,
+            assigned_cartons=[],
+            order_line_count=3,
+        )
 
         self.assertEqual(initial["carton_count"], 3)
+
+    def test_build_shipment_edit_initial_does_not_fallback_to_tag_name_resolution(self):
+        shipment = SimpleNamespace(
+            shipper_name="Legacy Shipper Name",
+            recipient_name="Legacy Recipient Name",
+            correspondent_name="Legacy Corr Name",
+            shipper_contact_ref=None,
+            recipient_contact_ref=None,
+            correspondent_contact_ref=None,
+            destination=None,
+            destination_id=None,
+        )
+
+        initial = build_shipment_edit_initial(shipment, assigned_cartons=[])
+
+        self.assertEqual(initial["shipper_contact"], None)
+        self.assertEqual(initial["recipient_contact"], None)
+        self.assertEqual(initial["correspondent_contact"], None)
 
     def test_build_shipment_edit_line_values_uses_assigned_cartons(self):
         assigned_cartons = [SimpleNamespace(id=1), SimpleNamespace(id=2)]
