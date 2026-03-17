@@ -40,6 +40,26 @@ def _current_window_q(prefix: str = ""):
     )
 
 
+def active_organizations_for_roles(*roles):
+    normalized_roles = [role for role in roles if role]
+    if not normalized_roles:
+        return Contact.objects.none()
+    return (
+        Contact.objects.filter(
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+            organization_role_assignments__role__in=normalized_roles,
+            organization_role_assignments__is_active=True,
+        )
+        .order_by("name")
+        .distinct()
+    )
+
+
+def active_organizations_for_role(role):
+    return active_organizations_for_roles(role)
+
+
 def eligible_shippers_for_destination(destination):
     if not is_org_roles_engine_enabled():
         return Contact.objects.none()

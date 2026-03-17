@@ -3,7 +3,7 @@ from django.test import RequestFactory, TestCase
 
 from contacts.admin import ContactAdmin, ContactAdminForm, ContactTagAdminForm
 from contacts.models import Contact, ContactTag, ContactType
-from wms.models import Destination
+from wms.models import Destination, OrganizationRole, OrganizationRoleAssignment
 
 
 class ContactAdminFormTests(TestCase):
@@ -11,21 +11,24 @@ class ContactAdminFormTests(TestCase):
         form = ContactAdminForm()
 
         self.assertIn("adresse par défaut", form.fields["use_organization_address"].help_text)
-        self.assertIn("Sélection multiple", form.fields["destinations"].help_text)
-        self.assertIn("destinataires", form.fields["linked_shippers"].help_text)
+        self.assertIn("legacy", form.fields["destinations"].help_text.lower())
+        self.assertIn("recipientbinding", form.fields["linked_shippers"].help_text.lower())
 
-    def test_form_init_prefills_default_shipper_for_new_contact(self):
-        shipper_tag = ContactTag.objects.create(name="Expéditeur")
+    def test_form_init_does_not_prefill_default_shipper_for_new_contact(self):
         default_shipper = Contact.objects.create(
             name="AVIATION SANS FRONTIERES",
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        default_shipper.tags.add(shipper_tag)
+        OrganizationRoleAssignment.objects.create(
+            organization=default_shipper,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
 
         form = ContactAdminForm()
 
-        self.assertEqual(form.fields["linked_shippers"].initial, [default_shipper.pk])
+        self.assertFalse(form.fields["linked_shippers"].initial)
 
     def test_clean_requires_tag_for_organization(self):
         form = ContactAdminForm(
@@ -71,7 +74,7 @@ class ContactAdminFormTests(TestCase):
 
         self.assertTrue(form.is_valid())
 
-    def test_clean_requires_linked_shipper_for_new_recipient(self):
+    def test_clean_does_not_require_legacy_linked_shipper_for_new_recipient(self):
         recipient_tag, _ = ContactTag.objects.get_or_create(name="Destinataire")
         form = ContactAdminForm(
             data={
@@ -83,25 +86,30 @@ class ContactAdminFormTests(TestCase):
             }
         )
 
-        self.assertFalse(form.is_valid())
-        self.assertIn("linked_shippers", form.errors)
-        self.assertIn("expéditeur lié", form.errors["linked_shippers"][0].lower())
+        self.assertTrue(form.is_valid())
 
-    def test_save_adds_default_shipper_for_recipient(self):
-        shipper_tag, _ = ContactTag.objects.get_or_create(name="Expéditeur")
+    def test_save_preserves_manual_legacy_linked_shippers_without_auto_adding_default(self):
         recipient_tag, _ = ContactTag.objects.get_or_create(name="Destinataire")
         default_shipper = Contact.objects.create(
             name="AVIATION SANS FRONTIERES",
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        default_shipper.tags.add(shipper_tag)
+        OrganizationRoleAssignment.objects.create(
+            organization=default_shipper,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
         extra_shipper = Contact.objects.create(
             name="Expediteur Local",
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        extra_shipper.tags.add(shipper_tag)
+        OrganizationRoleAssignment.objects.create(
+            organization=extra_shipper,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
         form = ContactAdminForm(
             data={
                 "contact_type": ContactType.ORGANIZATION,
@@ -117,24 +125,31 @@ class ContactAdminFormTests(TestCase):
 
         self.assertEqual(
             set(recipient.linked_shippers.values_list("id", flat=True)),
-            {default_shipper.id, extra_shipper.id},
+            {extra_shipper.id},
         )
 
-    def test_save_commit_false_then_save_m2m_adds_default_shipper_for_recipient(self):
-        shipper_tag, _ = ContactTag.objects.get_or_create(name="Expéditeur")
+    def test_save_commit_false_then_save_m2m_keeps_only_selected_legacy_linked_shippers(self):
         recipient_tag, _ = ContactTag.objects.get_or_create(name="Destinataire")
         default_shipper = Contact.objects.create(
             name="AVIATION SANS FRONTIERES",
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        default_shipper.tags.add(shipper_tag)
+        OrganizationRoleAssignment.objects.create(
+            organization=default_shipper,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
         extra_shipper = Contact.objects.create(
             name="Expediteur 2",
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        extra_shipper.tags.add(shipper_tag)
+        OrganizationRoleAssignment.objects.create(
+            organization=extra_shipper,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
         form = ContactAdminForm(
             data={
                 "contact_type": ContactType.ORGANIZATION,
@@ -152,7 +167,7 @@ class ContactAdminFormTests(TestCase):
 
         self.assertEqual(
             set(recipient.linked_shippers.values_list("id", flat=True)),
-            {default_shipper.id, extra_shipper.id},
+            {extra_shipper.id},
         )
 
 
@@ -205,6 +220,44 @@ class ContactAdminTests(TestCase):
         field = admin_obj.formfield_for_manytomany(db_field, request)
 
         self.assertEqual(list(field.queryset), [active_destination])
+        self.assertFalse(field.widget.can_add_related)
+        self.assertFalse(field.widget.can_change_related)
+        self.assertFalse(field.widget.can_delete_related)
+
+    def test_linked_shippers_many_to_many_uses_only_active_shipper_roles(self):
+        active_shipper = Contact.objects.create(
+            name="Active Shipper",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        inactive_assignment_shipper = Contact.objects.create(
+            name="Inactive Assignment Shipper",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        Contact.objects.create(
+            name="Non Shipper",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        OrganizationRoleAssignment.objects.create(
+            organization=active_shipper,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
+        OrganizationRoleAssignment.objects.create(
+            organization=inactive_assignment_shipper,
+            role=OrganizationRole.SHIPPER,
+            is_active=False,
+        )
+
+        admin_obj = ContactAdmin(Contact, AdminSite())
+        request = RequestFactory().get("/admin/contacts/contact/add/")
+        db_field = Contact._meta.get_field("linked_shippers")
+
+        field = admin_obj.formfield_for_manytomany(db_field, request)
+
+        self.assertEqual(list(field.queryset), [active_shipper])
         self.assertFalse(field.widget.can_add_related)
         self.assertFalse(field.widget.can_change_related)
         self.assertFalse(field.widget.can_delete_related)

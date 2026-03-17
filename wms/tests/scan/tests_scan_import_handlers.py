@@ -218,7 +218,7 @@ class ScanImportHandlersTests(TestCase):
                 "email": "monde@example.com",
                 "phone": "+33102030405",
                 "tags": "Donateur",
-                "destination": "Monaco (MCM) - Monaco",
+                "destination": "",
                 "address_line1": "1 rue du Monde",
                 "city": "Lyon",
                 "label": "Monde Contact",
@@ -250,6 +250,30 @@ class ScanImportHandlersTests(TestCase):
         self.assertIn("Donateur", data["contact_tags"])
         self.assertEqual(product.brand, "ONDE")
         self.assertEqual(user.username, "onde-user")
+
+    def test_build_import_selector_data_uses_org_role_destinations_for_contacts(self):
+        contact = Contact.objects.create(
+            contact_type=ContactType.ORGANIZATION,
+            name="Correspondant Dakar",
+            email="dkr@example.com",
+            phone="+22100000000",
+        )
+        Destination.objects.create(
+            city="Dakar",
+            iata_code="DKR",
+            country="Senegal",
+            correspondent_contact=contact,
+        )
+
+        data = scan_import_handlers._build_import_selector_data()
+
+        self._assert_contains_subset(
+            data["contacts"],
+            {
+                "name": "Correspondant Dakar",
+                "destination": "Dakar (DKR) - Senegal",
+            },
+        )
 
     def test_handle_scan_import_action_without_action_returns_none(self):
         request = self._build_post_request({})

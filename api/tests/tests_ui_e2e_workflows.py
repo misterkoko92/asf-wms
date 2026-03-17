@@ -11,11 +11,15 @@ from wms.models import (
     CartonStatus,
     Destination,
     Location,
+    OrganizationRole,
+    OrganizationRoleAssignment,
     Product,
     ProductLot,
     ProductLotStatus,
+    RecipientBinding,
     Shipment,
     ShipmentTrackingStatus,
+    ShipperScope,
     Warehouse,
 )
 
@@ -92,13 +96,13 @@ class UiApiE2EWorkflowsTests(TestCase):
             correspondent_contact=self.correspondent_contact,
             is_active=True,
         )
-        self.correspondent_contact.destinations.add(self.destination)
 
         self.shipper_contact = self._create_contact("E2E Shipper", tags=["expediteur"])
-        self.shipper_contact.destinations.add(self.destination)
+        self._grant_shipper_scope(self.shipper_contact, self.destination)
         self.recipient_contact = self._create_contact("E2E Recipient", tags=["destinataire"])
-        self.recipient_contact.destinations.add(self.destination)
+        self._bind_recipient(self.shipper_contact, self.recipient_contact, self.destination)
         self.donor_contact = self._create_contact("E2E Donor", tags=["donateur"])
+        self._assign_role(self.donor_contact, OrganizationRole.DONOR)
 
     def _create_contact(self, name, *, tags, contact_type=ContactType.ORGANIZATION):
         contact = Contact.objects.create(
@@ -110,6 +114,34 @@ class UiApiE2EWorkflowsTests(TestCase):
             tag, _ = ContactTag.objects.get_or_create(name=tag_name)
             contact.tags.add(tag)
         return contact
+
+    def _assign_role(self, contact, role):
+        assignment, _ = OrganizationRoleAssignment.objects.get_or_create(
+            organization=contact,
+            role=role,
+            defaults={"is_active": True},
+        )
+        if not assignment.is_active:
+            assignment.is_active = True
+            assignment.save(update_fields=["is_active", "updated_at"])
+        return assignment
+
+    def _grant_shipper_scope(self, shipper_contact, destination):
+        assignment = self._assign_role(shipper_contact, OrganizationRole.SHIPPER)
+        ShipperScope.objects.get_or_create(
+            role_assignment=assignment,
+            destination=destination,
+            defaults={"all_destinations": False, "is_active": True},
+        )
+
+    def _bind_recipient(self, shipper_contact, recipient_contact, destination):
+        self._assign_role(recipient_contact, OrganizationRole.RECIPIENT)
+        RecipientBinding.objects.get_or_create(
+            shipper_org=shipper_contact,
+            recipient_org=recipient_contact,
+            destination=destination,
+            defaults={"is_active": True},
+        )
 
     def _post_tracking(self, shipment_id, status_value):
         return self.staff_client.post(

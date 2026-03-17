@@ -3,9 +3,17 @@ from types import SimpleNamespace
 from unittest import mock
 
 from django.conf import settings
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, TestCase
 
+from contacts.models import Contact, ContactType
 from wms import exports
+from wms.models import (
+    Destination,
+    OrganizationRole,
+    OrganizationRoleAssignment,
+    RecipientBinding,
+    ShipperScope,
+)
 
 
 class ExportsTests(SimpleTestCase):
@@ -400,3 +408,67 @@ class ExportsTests(SimpleTestCase):
                 self.assertTrue(rows)
                 for row in rows:
                     self.assertEqual(len(row), len(header))
+
+
+class ExportsDatabaseTests(TestCase):
+    def test_export_contacts_csv_uses_org_role_relationships_for_scope_columns(self):
+        shipper = Contact.objects.create(
+            name="Shipper Org",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        recipient = Contact.objects.create(
+            name="Recipient Org",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        correspondent = Contact.objects.create(
+            name="Correspondent Person",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        destination = Destination.objects.create(
+            city="Bangui",
+            iata_code="BGF",
+            country="Central African Republic",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        shipper_assignment = OrganizationRoleAssignment.objects.create(
+            organization=shipper,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
+        OrganizationRoleAssignment.objects.create(
+            organization=recipient,
+            role=OrganizationRole.RECIPIENT,
+            is_active=True,
+        )
+        ShipperScope.objects.create(
+            role_assignment=shipper_assignment,
+            destination=destination,
+            all_destinations=False,
+            is_active=True,
+        )
+        RecipientBinding.objects.create(
+            shipper_org=shipper,
+            recipient_org=recipient,
+            destination=destination,
+            is_active=True,
+        )
+
+        with mock.patch(
+            "wms.exports._build_csv_response", return_value="contacts-response"
+        ) as response_mock:
+            result = exports.export_contacts_csv()
+
+        self.assertEqual(result, "contacts-response")
+        rows = {row[4]: row for row in response_mock.call_args.args[2]}
+        destination_label = str(destination)
+        self.assertEqual(rows["Shipper Org"][14], destination_label)
+        self.assertEqual(rows["Shipper Org"][16], destination_label)
+        self.assertEqual(rows["Recipient Org"][14], destination_label)
+        self.assertEqual(rows["Recipient Org"][15], "Shipper Org")
+        self.assertEqual(rows["Recipient Org"][16], destination_label)
+        self.assertEqual(rows["Correspondent Person"][14], destination_label)
+        self.assertEqual(rows["Correspondent Person"][16], destination_label)

@@ -24,6 +24,8 @@ from wms.models import (
     Location,
     Order,
     OrderStatus,
+    OrganizationRole,
+    OrganizationRoleAssignment,
     Product,
     ProductKitItem,
     ProductLot,
@@ -35,9 +37,11 @@ from wms.models import (
     ReceiptLine,
     ReceiptStatus,
     ReceiptType,
+    RecipientBinding,
     Shipment,
     ShipmentStatus,
     ShipmentTrackingEvent,
+    ShipperScope,
     Warehouse,
     WmsRuntimeSettings,
 )
@@ -88,11 +92,13 @@ class ScanViewTests(TestCase):
             "Shipper",
             tags=["expediteur"],
             address_country="FRANCE",
+            role=OrganizationRole.SHIPPER,
         )
         self.recipient = self._create_contact(
             "Recipient",
             tags=["destinataire"],
             address_country="COTE D'IVOIRE",
+            role=OrganizationRole.RECIPIENT,
         )
         self.correspondent = self._create_contact(
             "Correspondent",
@@ -111,14 +117,24 @@ class ScanViewTests(TestCase):
             "Transporter",
             tags=["transporteur"],
             address_country="FRANCE",
+            role=OrganizationRole.TRANSPORTER,
         )
         self.donor = self._create_contact(
             "Donor",
             tags=["donateur"],
             address_country="FRANCE",
+            role=OrganizationRole.DONOR,
         )
+        self._allow_shipments_to_destination(self.destination)
 
-    def _create_contact(self, name, tags, address_country, contact_type=ContactType.ORGANIZATION):
+    def _create_contact(
+        self,
+        name,
+        tags,
+        address_country,
+        contact_type=ContactType.ORGANIZATION,
+        role=None,
+    ):
         contact = Contact.objects.create(name=name, contact_type=contact_type, is_active=True)
         for tag in tags:
             tag_obj, _ = ContactTag.objects.get_or_create(name=tag)
@@ -131,7 +147,30 @@ class ScanViewTests(TestCase):
             country=address_country,
             is_default=True,
         )
+        if role:
+            OrganizationRoleAssignment.objects.create(
+                organization=contact,
+                role=role,
+                is_active=True,
+            )
         return contact
+
+    def _allow_shipments_to_destination(self, destination):
+        shipper_assignment = OrganizationRoleAssignment.objects.get(
+            organization=self.shipper,
+            role=OrganizationRole.SHIPPER,
+        )
+        ShipperScope.objects.get_or_create(
+            role_assignment=shipper_assignment,
+            destination=destination,
+            defaults={"is_active": True},
+        )
+        RecipientBinding.objects.get_or_create(
+            shipper_org=self.shipper,
+            recipient_org=self.recipient,
+            destination=destination,
+            defaults={"is_active": True},
+        )
 
     def _create_shipment_with_carton(self):
         shipment = Shipment.objects.create(
@@ -1105,6 +1144,7 @@ class ScanViewTests(TestCase):
             correspondent_contact=self.correspondent,
             is_active=True,
         )
+        self._allow_shipments_to_destination(new_destination)
         url = reverse("scan:scan_shipment_edit", args=[shipment.id])
         response = self.client.post(
             url,

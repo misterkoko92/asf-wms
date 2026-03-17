@@ -14,6 +14,8 @@ from django.utils.html import format_html, format_html_join
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy
 
+from contacts.models import Contact
+
 from . import (
     admin_billing,  # noqa: F401
     admin_misc,  # noqa: F401
@@ -37,11 +39,6 @@ from .admin_stockmovement_views import (
     handle_pack_view,
     handle_receive_view,
     handle_transfer_view,
-)
-from .contact_filters import (
-    TAG_CORRESPONDENT,
-    TAG_RECIPIENT,
-    contacts_with_tags,
 )
 from .emailing import enqueue_email_safe
 from .forms import AdjustStockForm, PackCartonForm, ReceiveStockForm, TransferStockForm
@@ -914,7 +911,7 @@ class DestinationAdmin(admin.ModelAdmin):
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "correspondent_contact":
-            kwargs["queryset"] = contacts_with_tags(TAG_CORRESPONDENT)
+            kwargs["queryset"] = Contact.objects.filter(is_active=True).order_by("name", "id")
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 

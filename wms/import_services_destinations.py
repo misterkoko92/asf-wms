@@ -1,11 +1,10 @@
 import re
 
-from django.db.models import Q
+from contacts.models import Contact, ContactType
+from contacts.tagging import TAG_CORRESPONDENT
 
-from contacts.models import Contact, ContactTag, ContactType
-
-from .contact_filters import TAG_CORRESPONDENT
-from .models import Destination
+from .models import Destination, OrganizationRole, OrganizationRoleAssignment
+from .organization_role_resolvers import active_organizations_for_role
 
 DESTINATION_LABEL_RE = re.compile(
     r"^(?P<city>.+?)\s*\((?P<iata>[^)]+)\)\s*(?:-\s*(?P<country>.+))?$"
@@ -62,21 +61,33 @@ def _tags_include_correspondent(tags):
     return any(name in tag_names for name in TAG_CORRESPONDENT)
 
 
+def _ensure_correspondent_role(contact):
+    if not contact or contact.contact_type != ContactType.ORGANIZATION:
+        return contact
+    if not contact.is_active:
+        contact.is_active = True
+        contact.save(update_fields=["is_active"])
+    assignment, _created = OrganizationRoleAssignment.objects.get_or_create(
+        organization=contact,
+        role=OrganizationRole.CORRESPONDENT,
+        defaults={"is_active": True},
+    )
+    if not assignment.is_active:
+        assignment.is_active = True
+        assignment.save(update_fields=["is_active"])
+    return contact
+
+
 def _select_default_correspondent():
-    tag_query = Q()
-    for name in TAG_CORRESPONDENT:
-        tag_query |= Q(tags__name__iexact=name)
-    correspondent = Contact.objects.filter(is_active=True).filter(tag_query).distinct().first()
+    correspondent = active_organizations_for_role(OrganizationRole.CORRESPONDENT).first()
     if correspondent:
         return correspondent
-    tag, _ = ContactTag.objects.get_or_create(name=TAG_CORRESPONDENT[0])
     correspondent, _ = Contact.objects.get_or_create(
         name=DEFAULT_CORRESPONDENT_NAME,
         contact_type=ContactType.ORGANIZATION,
-        defaults={"notes": DEFAULT_CORRESPONDENT_NOTES},
+        defaults={"notes": DEFAULT_CORRESPONDENT_NOTES, "is_active": True},
     )
-    correspondent.tags.add(tag)
-    return correspondent
+    return _ensure_correspondent_role(correspondent)
 
 
 def _find_destination_by_iata(iata_code):
@@ -103,9 +114,22 @@ def _find_existing_destination(*, city, country):
     ).first()
 
 
+def _contact_has_correspondent_role(contact):
+    if not contact or contact.contact_type != ContactType.ORGANIZATION:
+        return False
+    return OrganizationRoleAssignment.objects.filter(
+        organization=contact,
+        role=OrganizationRole.CORRESPONDENT,
+        is_active=True,
+    ).exists()
+
+
 def _resolve_destination_correspondent(*, contact, tags):
-    if contact and _tags_include_correspondent(tags or contact.tags.all()):
-        return contact
+    if contact and (
+        _contact_has_correspondent_role(contact)
+        or _tags_include_correspondent(tags or contact.tags.all())
+    ):
+        return _ensure_correspondent_role(contact)
     return _select_default_correspondent()
 
 

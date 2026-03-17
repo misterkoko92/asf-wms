@@ -97,6 +97,35 @@ class ShipmentPartyRulesTests(TestCase):
         self.assertNotIn(shipper_out_org.id, shipper_ids)
         self.assertNotIn(shipper_out_person.id, shipper_ids)
 
+    def test_eligible_shipper_contacts_for_destination_ignores_runtime_gate_for_reads(self):
+        runtime = WmsRuntimeSettings.get_solo()
+        runtime.org_roles_engine_enabled = False
+        runtime.save(update_fields=["org_roles_engine_enabled"])
+
+        correspondent = self._create_org("Correspondent RAK")
+        destination = self._create_destination("RAK", correspondent)
+        shipper_org = self._create_org("Shipper Runtime Off")
+        shipper_person = self._create_person("Shipper Runtime Person", organization=shipper_org)
+
+        shipper_assignment = OrganizationRoleAssignment.objects.create(
+            organization=shipper_org,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
+        ShipperScope.objects.create(
+            role_assignment=shipper_assignment,
+            destination=destination,
+            all_destinations=False,
+            is_active=True,
+        )
+
+        shipper_ids = set(
+            eligible_shipper_contacts_for_destination(destination).values_list("id", flat=True)
+        )
+
+        self.assertIn(shipper_org.id, shipper_ids)
+        self.assertIn(shipper_person.id, shipper_ids)
+
     def test_eligible_recipient_contacts_for_shipper_destination_returns_bound_org_and_people(
         self,
     ):
@@ -148,6 +177,55 @@ class ShipmentPartyRulesTests(TestCase):
         self.assertIn(recipient_person.id, recipient_ids)
         self.assertNotIn(blocked_org.id, recipient_ids)
         self.assertNotIn(blocked_person.id, recipient_ids)
+
+    def test_eligible_recipient_contacts_for_shipper_destination_ignores_runtime_gate_for_reads(
+        self,
+    ):
+        runtime = WmsRuntimeSettings.get_solo()
+        runtime.org_roles_engine_enabled = False
+        runtime.save(update_fields=["org_roles_engine_enabled"])
+
+        correspondent = self._create_org("Correspondent DKR")
+        destination = self._create_destination("DKR", correspondent)
+        shipper_org = self._create_org("Shipper Runtime Recipient")
+        shipper_person = self._create_person("Shipper Runtime Person", organization=shipper_org)
+        recipient_org = self._create_org("Recipient Runtime Allowed")
+        recipient_person = self._create_person(
+            "Recipient Runtime Person", organization=recipient_org
+        )
+
+        shipper_assignment = OrganizationRoleAssignment.objects.create(
+            organization=shipper_org,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
+        OrganizationRoleAssignment.objects.create(
+            organization=recipient_org,
+            role=OrganizationRole.RECIPIENT,
+            is_active=True,
+        )
+        ShipperScope.objects.create(
+            role_assignment=shipper_assignment,
+            destination=destination,
+            all_destinations=False,
+            is_active=True,
+        )
+        RecipientBinding.objects.create(
+            shipper_org=shipper_org,
+            recipient_org=recipient_org,
+            destination=destination,
+            is_active=True,
+        )
+
+        recipient_ids = set(
+            eligible_recipient_contacts_for_shipper_destination(
+                shipper_contact=shipper_person,
+                destination=destination,
+            ).values_list("id", flat=True)
+        )
+
+        self.assertIn(recipient_org.id, recipient_ids)
+        self.assertIn(recipient_person.id, recipient_ids)
 
     def test_eligible_correspondent_contacts_for_destination_returns_destination_contact(self):
         correspondent = self._create_person("Cora Correspondent")

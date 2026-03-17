@@ -1,8 +1,7 @@
 from django.conf import settings
 
-from contacts.models import Contact, ContactType
+from contacts.models import ContactType
 
-from .contact_filters import contacts_with_tags
 from .models import CartonItem
 
 
@@ -114,15 +113,6 @@ def build_shipment_type_labels(shipment):
     return ", ".join(sorted(roots)) if roots else "-"
 
 
-def _resolve_contact(tag_names, fallback_name):
-    if not fallback_name:
-        return None
-    contact = contacts_with_tags(tag_names).filter(name__iexact=fallback_name).first()
-    if contact:
-        return contact
-    return Contact.objects.filter(name__iexact=fallback_name).first()
-
-
 def _format_contact_address(address):
     if not address:
         return ""
@@ -139,8 +129,7 @@ def _format_contact_address(address):
     return "\n".join(lines)
 
 
-def build_contact_info(tag_names, fallback_name):
-    contact = _resolve_contact(tag_names, fallback_name)
+def build_contact_info(contact, fallback_name):
     if contact:
         if hasattr(contact, "get_effective_address"):
             address = contact.get_effective_address()

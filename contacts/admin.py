@@ -1,16 +1,10 @@
 from django import forms
 from django.contrib import admin
 
-from wms.models import Destination
+from wms.models import Destination, OrganizationRole
+from wms.organization_role_resolvers import active_organizations_for_role
 
 from .models import Contact, ContactAddress, ContactTag, ContactType
-from .querysets import contacts_with_tags
-from .rules import (
-    ensure_default_shipper_for_recipient,
-    get_default_recipient_shipper,
-    validate_recipient_links_for_creation,
-)
-from .tagging import TAG_SHIPPER
 
 
 class ContactAddressInline(admin.TabularInline):
@@ -42,15 +36,13 @@ class ContactAdminForm(forms.ModelForm):
         ].help_text = "Utilise l'adresse par défaut de la société et se met à jour automatiquement."
         self.fields[
             "destinations"
-        ].help_text = "Sélection multiple. Vide = toutes les destinations."
-        self.fields["linked_shippers"].queryset = contacts_with_tags(TAG_SHIPPER)
+        ].help_text = "Champ legacy. Les autorisations sont pilotées via les scopes org-role."
+        self.fields["linked_shippers"].queryset = active_organizations_for_role(
+            OrganizationRole.SHIPPER
+        )
         self.fields[
             "linked_shippers"
-        ].help_text = "Sélection multiple pour les destinataires. Obligatoire à la création."
-        if not self.instance.pk and not self.is_bound:
-            default_shipper = get_default_recipient_shipper()
-            if default_shipper:
-                self.fields["linked_shippers"].initial = [default_shipper.pk]
+        ].help_text = "Champ legacy. Les autorisations destinataire utilisent RecipientBinding."
 
     def clean(self):
         cleaned_data = super().clean()
@@ -58,42 +50,15 @@ class ContactAdminForm(forms.ModelForm):
         tags = cleaned_data.get("tags")
         organization = cleaned_data.get("organization")
         use_org_address = cleaned_data.get("use_organization_address")
-        linked_shippers = cleaned_data.get("linked_shippers")
 
         if contact_type == ContactType.ORGANIZATION and not tags:
             self.add_error("tags", "Au moins un tag est requis pour une société.")
         if contact_type == ContactType.PERSON and use_org_address and not organization:
             self.add_error("organization", "Sélectionnez une société pour utiliser son adresse.")
-        recipient_links_error = validate_recipient_links_for_creation(
-            is_creation=not self.instance.pk,
-            tags=tags,
-            linked_shippers=linked_shippers,
-        )
-        if recipient_links_error:
-            self.add_error("linked_shippers", recipient_links_error)
         return cleaned_data
 
     def save(self, commit=True):
-        instance = super().save(commit=commit)
-        if commit:
-            self._ensure_default_shipper_for_recipient(instance)
-        else:
-            base_save_m2m = self.save_m2m
-
-            def save_m2m_with_default():
-                base_save_m2m()
-                self._ensure_default_shipper_for_recipient(self.instance)
-
-            self.save_m2m = save_m2m_with_default
-        return instance
-
-    def _ensure_default_shipper_for_recipient(self, instance):
-        if not hasattr(self, "cleaned_data"):
-            return
-        ensure_default_shipper_for_recipient(
-            instance,
-            tags=self.cleaned_data.get("tags"),
-        )
+        return super().save(commit=commit)
 
 
 class ContactTagAdminForm(forms.ModelForm):
@@ -200,7 +165,7 @@ class ContactAdmin(admin.ModelAdmin):
         if db_field.name == "destinations":
             kwargs["queryset"] = Destination.objects.filter(is_active=True).order_by("city")
         if db_field.name == "linked_shippers":
-            kwargs["queryset"] = contacts_with_tags(TAG_SHIPPER)
+            kwargs["queryset"] = active_organizations_for_role(OrganizationRole.SHIPPER)
         field = super().formfield_for_manytomany(db_field, request, **kwargs)
         if db_field.name in {"destinations", "linked_shippers"}:
             field.widget.can_add_related = False

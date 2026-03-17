@@ -2,11 +2,11 @@ import csv
 import io
 
 from django.contrib.auth import get_user_model
-from django.db.models import F, IntegerField, Sum
+from django.db.models import F, IntegerField, Q, Sum
 from django.db.models.expressions import ExpressionWrapper
 from django.http import HttpResponse
+from django.utils import timezone
 
-from contacts.destination_scope import contact_destination_ids
 from contacts.models import Contact
 
 from .models import (
@@ -17,6 +17,8 @@ from .models import (
     ProductLot,
     ProductLotStatus,
     RackColor,
+    RecipientBinding,
+    ShipperScope,
     Warehouse,
 )
 from .product_display import category_levels
@@ -37,6 +39,76 @@ def _build_csv_response(filename, header, rows):
     response = HttpResponse(content, content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     return response
+
+
+def _current_window_q(prefix: str = ""):
+    now = timezone.now()
+    return Q(**{f"{prefix}valid_from__lte": now}) & (
+        Q(**{f"{prefix}valid_to__isnull": True}) | Q(**{f"{prefix}valid_to__gt": now})
+    )
+
+
+def _build_contact_role_scope_maps(contact_ids):
+    if not contact_ids:
+        return {}, {}, (set(), {})
+
+    destination_ids_by_contact_id = {contact_id: set() for contact_id in contact_ids}
+    linked_shippers_by_contact_id = {contact_id: set() for contact_id in contact_ids}
+    global_scope_contact_ids = set()
+
+    correspondent_rows = Destination.objects.filter(
+        is_active=True,
+        correspondent_contact_id__in=contact_ids,
+    ).values_list("correspondent_contact_id", "id")
+    for contact_id, destination_id in correspondent_rows:
+        destination_ids_by_contact_id.setdefault(contact_id, set()).add(destination_id)
+
+    shipper_scope_rows = (
+        ShipperScope.objects.filter(
+            role_assignment__organization_id__in=contact_ids,
+            is_active=True,
+        )
+        .filter(_current_window_q())
+        .values_list("role_assignment__organization_id", "all_destinations", "destination_id")
+    )
+    for contact_id, all_destinations, destination_id in shipper_scope_rows:
+        if all_destinations:
+            global_scope_contact_ids.add(contact_id)
+            continue
+        if destination_id:
+            destination_ids_by_contact_id.setdefault(contact_id, set()).add(destination_id)
+
+    recipient_binding_rows = (
+        RecipientBinding.objects.filter(
+            recipient_org_id__in=contact_ids,
+            is_active=True,
+        )
+        .filter(_current_window_q())
+        .values_list("recipient_org_id", "destination_id", "shipper_org__name")
+    )
+    for contact_id, destination_id, shipper_name in recipient_binding_rows:
+        if destination_id:
+            destination_ids_by_contact_id.setdefault(contact_id, set()).add(destination_id)
+        if shipper_name:
+            linked_shippers_by_contact_id.setdefault(contact_id, set()).add(shipper_name)
+
+    referenced_destination_ids = {
+        destination_id
+        for destination_ids in destination_ids_by_contact_id.values()
+        for destination_id in destination_ids
+    }
+    destination_labels_by_id = {
+        destination.id: str(destination)
+        for destination in Destination.objects.filter(pk__in=referenced_destination_ids)
+    }
+    return (
+        destination_ids_by_contact_id,
+        linked_shippers_by_contact_id,
+        (
+            global_scope_contact_ids,
+            destination_labels_by_id,
+        ),
+    )
 
 
 def export_products_csv():
@@ -216,35 +288,38 @@ def export_contacts_csv():
         Contact.objects.select_related("organization").prefetch_related(
             "tags",
             "addresses",
-            "destinations",
-            "linked_shippers",
         )
     )
-    destination_ids = set()
-    for contact in contacts:
-        destination_ids.update(contact_destination_ids(contact))
-    destination_labels_by_id = {}
-    if destination_ids:
-        destination_labels_by_id = {
-            destination.id: str(destination)
-            for destination in Destination.objects.filter(pk__in=destination_ids)
-        }
+    destination_ids_by_contact_id, linked_shipper_names_by_contact_id, scope_maps = (
+        _build_contact_role_scope_maps(
+            [contact.id for contact in contacts if getattr(contact, "id", None)]
+        )
+    )
+    global_scope_contact_ids, destination_labels_by_id = scope_maps
     for contact in contacts:
         tags = "|".join(sorted(tag.name for tag in contact.tags.all()))
-        destination_labels = [
-            destination_labels_by_id[destination_id]
-            for destination_id in contact_destination_ids(contact)
-            if destination_id in destination_labels_by_id
-        ]
-        destinations = "|".join(destination_labels)
-        linked_shippers_relation = getattr(contact, "linked_shippers", None)
-        linked_shipper_names = []
-        if linked_shippers_relation is not None and hasattr(linked_shippers_relation, "all"):
-            linked_shipper_names = sorted(
-                getattr(shipper, "name", str(shipper)) for shipper in linked_shippers_relation.all()
+        contact_id = getattr(contact, "id", None)
+        if contact_id in global_scope_contact_ids:
+            destination_labels = ["GLOBAL"]
+        else:
+            destination_ids = sorted(
+                destination_ids_by_contact_id.get(contact_id, set()),
+                key=lambda destination_id: destination_labels_by_id.get(destination_id, ""),
             )
-        linked_shippers = "|".join(linked_shipper_names)
-        destination = destination_labels[0] if len(destination_labels) == 1 else ""
+            destination_labels = [
+                destination_labels_by_id[destination_id]
+                for destination_id in destination_ids
+                if destination_id in destination_labels_by_id
+            ]
+        destinations = "|".join(destination_labels)
+        linked_shippers = "|".join(
+            sorted(linked_shipper_names_by_contact_id.get(contact_id, set()))
+        )
+        destination = (
+            destination_labels[0]
+            if len(destination_labels) == 1 and destination_labels[0] != "GLOBAL"
+            else ""
+        )
         address_source = (
             contact.get_effective_addresses()
             if hasattr(contact, "get_effective_addresses")

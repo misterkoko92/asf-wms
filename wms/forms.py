@@ -4,18 +4,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from contacts.models import Contact, ContactType
-from contacts.tagging import normalize_tag_name
 
-from .contact_filters import (
-    TAG_CORRESPONDENT,
-    TAG_DONOR,
-    TAG_RECIPIENT,
-    TAG_SHIPPER,
-    TAG_TRANSPORTER,
-    contacts_with_tags,
-    filter_contacts_for_destination,
-    filter_structure_contacts,
-)
 from .contact_labels import build_contact_select_label
 from .models import (
     Carton,
@@ -23,6 +12,8 @@ from .models import (
     Destination,
     Location,
     Order,
+    OrganizationRole,
+    OrganizationRoleAssignment,
     Product,
     ProductLot,
     ProductLotStatus,
@@ -35,15 +26,19 @@ from .models import (
 )
 from .organization_role_resolvers import (
     OrganizationRoleResolutionError,
+    active_organizations_for_role,
+    active_organizations_for_roles,
     is_org_roles_engine_enabled,
     resolve_recipient_binding_for_operation,
     resolve_shipper_for_operation,
 )
 from .scan_helpers import resolve_product
 from .shipment_party_rules import (
+    active_shipper_contacts,
     eligible_correspondent_contacts_for_destination,
     eligible_recipient_contacts_for_shipper_destination,
     normalize_party_contact_to_org,
+    recipient_contacts_for_destination,
 )
 
 
@@ -224,6 +219,13 @@ class ScanReceiptCreateForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["source_contact"].queryset = active_organizations_for_roles(
+            OrganizationRole.DONOR,
+            OrganizationRole.SHIPPER,
+        )
+        self.fields["carrier_contact"].queryset = active_organizations_for_role(
+            OrganizationRole.TRANSPORTER
+        )
         self.fields["source_contact"].label_from_instance = _contact_label
         self.fields["carrier_contact"].label_from_instance = _contact_label
 
@@ -258,8 +260,12 @@ class ScanReceiptPalletForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["source_contact"].queryset = contacts_with_tags(TAG_DONOR)
-        self.fields["carrier_contact"].queryset = contacts_with_tags(TAG_TRANSPORTER)
+        self.fields["source_contact"].queryset = active_organizations_for_role(
+            OrganizationRole.DONOR
+        )
+        self.fields["carrier_contact"].queryset = active_organizations_for_role(
+            OrganizationRole.TRANSPORTER
+        )
         self.fields["source_contact"].label_from_instance = _contact_label
         self.fields["carrier_contact"].label_from_instance = _contact_label
         _select_single_choice(self.fields["source_contact"])
@@ -319,8 +325,12 @@ class ScanReceiptAssociationForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["source_contact"].queryset = contacts_with_tags(TAG_SHIPPER)
-        self.fields["carrier_contact"].queryset = contacts_with_tags(TAG_TRANSPORTER)
+        self.fields["source_contact"].queryset = active_organizations_for_role(
+            OrganizationRole.SHIPPER
+        )
+        self.fields["carrier_contact"].queryset = active_organizations_for_role(
+            OrganizationRole.TRANSPORTER
+        )
         self.fields["source_contact"].label_from_instance = _contact_label
         self.fields["carrier_contact"].label_from_instance = _contact_label
         _select_single_choice(self.fields["source_contact"])
@@ -352,10 +362,8 @@ class ScanStockUpdateForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["donor_contact"].queryset = (
-            contacts_with_tags(TAG_DONOR)
-            .filter(contact_type=ContactType.ORGANIZATION)
-            .order_by("name")
+        self.fields["donor_contact"].queryset = active_organizations_for_role(
+            OrganizationRole.DONOR
         )
         self.fields["donor_contact"].label_from_instance = _contact_label
         _select_single_choice(self.fields["donor_contact"])
@@ -481,32 +489,26 @@ class ScanShipmentForm(forms.Form):
             destinations=destinations,
             destination_id=destination_id,
         )
-        all_shipper_contacts = filter_structure_contacts(contacts_with_tags(TAG_SHIPPER))
+        all_shipper_contacts = active_shipper_contacts()
         shipper_contacts = (
             all_shipper_contacts if selected_destination else all_shipper_contacts.none()
         )
         self.fields["shipper_contact"].queryset = shipper_contacts.order_by("name")
         self.fields["shipper_contact"].label_from_instance = build_contact_select_label
 
-        recipients = filter_structure_contacts(contacts_with_tags(TAG_RECIPIENT))
-        correspondents = contacts_with_tags(TAG_CORRESPONDENT)
+        recipients = Contact.objects.none()
+        correspondents = Contact.objects.none()
         selected_shipper = self._resolve_contact_from_raw(self._selected_value("shipper_contact"))
 
         if selected_destination:
-            recipients = filter_contacts_for_destination(recipients, selected_destination)
-        else:
-            recipients = recipients.none()
-
-        if selected_destination and selected_shipper and is_org_roles_engine_enabled():
-            recipients = eligible_recipient_contacts_for_shipper_destination(
-                shipper_contact=selected_shipper,
-                destination=selected_destination,
-            )
-
-        if selected_destination:
+            if selected_shipper:
+                recipients = eligible_recipient_contacts_for_shipper_destination(
+                    shipper_contact=selected_shipper,
+                    destination=selected_destination,
+                )
+            else:
+                recipients = recipient_contacts_for_destination(selected_destination)
             correspondents = eligible_correspondent_contacts_for_destination(selected_destination)
-        else:
-            correspondents = correspondents.none()
 
         self.fields["recipient_contact"].queryset = recipients.distinct().order_by("name")
         self.fields["correspondent_contact"].queryset = correspondents.distinct().order_by("name")
@@ -552,22 +554,6 @@ class ScanShipmentForm(forms.Form):
         except (TypeError, ValueError):
             return None
 
-    @staticmethod
-    def _contact_matches_tag(contact, expected_tag_names):
-        expected_tags = {
-            normalize_tag_name(tag_name)
-            for tag_name in expected_tag_names
-            if normalize_tag_name(tag_name)
-        }
-        if not expected_tags:
-            return True
-        contact_tags = {
-            normalize_tag_name(tag_name)
-            for tag_name in contact.tags.values_list("name", flat=True)
-            if normalize_tag_name(tag_name)
-        }
-        return bool(expected_tags.intersection(contact_tags))
-
     def _has_invalid_choice_error(self, field_name):
         field_errors = self._errors.get(field_name)
         if not field_errors:
@@ -598,12 +584,19 @@ class ScanShipmentForm(forms.Form):
         contact_id = self._parse_pk(raw_value)
         if contact_id is None:
             return None
-        return (
-            Contact.objects.select_related("organization")
-            .prefetch_related("tags")
-            .filter(pk=contact_id)
-            .first()
-        )
+        return Contact.objects.select_related("organization").filter(pk=contact_id).first()
+
+    @staticmethod
+    def _contact_has_active_org_role(contact, role):
+        organization = normalize_party_contact_to_org(contact)
+        if organization is None:
+            return False
+        return OrganizationRoleAssignment.objects.filter(
+            organization=organization,
+            role=role,
+            is_active=True,
+            organization__is_active=True,
+        ).exists()
 
     def _invalid_destination_message(self, raw_value):
         destination_id = self._parse_pk(raw_value)
@@ -646,23 +639,42 @@ class ScanShipmentForm(forms.Form):
                 "prefix": prefix
             }
 
-        expected_tags = {
-            "shipper_contact": TAG_SHIPPER,
-            "recipient_contact": TAG_RECIPIENT,
-            "correspondent_contact": TAG_CORRESPONDENT,
-        }.get(field_name)
-        if expected_tags and not self._contact_matches_tag(contact, expected_tags):
-            return _("%(prefix)s: ce contact n'a pas le tag requis.") % {"prefix": prefix}
+        if field_name == "shipper_contact" and not self._contact_has_active_org_role(
+            contact,
+            OrganizationRole.SHIPPER,
+        ):
+            return _("%(prefix)s: ce contact n'a pas de role expéditeur actif.") % {
+                "prefix": prefix
+            }
+        if field_name == "recipient_contact" and not self._contact_has_active_org_role(
+            contact,
+            OrganizationRole.RECIPIENT,
+        ):
+            return _("%(prefix)s: ce contact n'a pas de role destinataire actif.") % {
+                "prefix": prefix
+            }
 
-        if (
-            field_name in {"recipient_contact", "correspondent_contact"}
-            and destination
-            and not (
-                filter_contacts_for_destination(
-                    Contact.objects.filter(pk=contact.pk),
-                    destination,
-                ).exists()
+        if field_name == "recipient_contact" and destination:
+            selected_shipper = self._resolve_contact_from_raw(
+                self._raw_field_value("shipper_contact")
             )
+            if selected_shipper:
+                recipients = eligible_recipient_contacts_for_shipper_destination(
+                    shipper_contact=selected_shipper,
+                    destination=destination,
+                )
+            else:
+                recipients = recipient_contacts_for_destination(destination)
+            if not recipients.filter(pk=contact.pk).exists():
+                return _(
+                    "%(prefix)s: ce contact n'est pas disponible pour la destination sélectionnée."
+                ) % {"prefix": prefix}
+        if (
+            field_name == "correspondent_contact"
+            and destination
+            and not eligible_correspondent_contacts_for_destination(destination)
+            .filter(pk=contact.pk)
+            .exists()
         ):
             return _(
                 "%(prefix)s: ce contact n'est pas disponible pour la destination sélectionnée."
@@ -727,30 +739,6 @@ class ScanShipmentForm(forms.Form):
         shipper_org = normalize_party_contact_to_org(shipper)
         recipient_org = normalize_party_contact_to_org(recipient)
         self._apply_invalid_choice_messages(destination=destination)
-        if (
-            destination
-            and recipient
-            and not filter_contacts_for_destination(
-                Contact.objects.filter(pk=recipient.pk),
-                destination,
-            ).exists()
-        ):
-            self.add_error(
-                "recipient_contact",
-                _("Destinataire non disponible pour cette destination."),
-            )
-        if (
-            destination
-            and correspondent
-            and not filter_contacts_for_destination(
-                Contact.objects.filter(pk=correspondent.pk),
-                destination,
-            ).exists()
-        ):
-            self.add_error(
-                "correspondent_contact",
-                _("Contact non disponible pour cette destination."),
-            )
         if destination and destination.correspondent_contact_id:
             if correspondent and correspondent.id != destination.correspondent_contact_id:
                 self.add_error(

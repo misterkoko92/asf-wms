@@ -1,12 +1,8 @@
 import re
 
-from contacts.destination_scope import set_contact_destination_scope
 from contacts.models import Contact, ContactAddress, ContactTag, ContactType
-from contacts.rules import ensure_default_shipper_for_recipient
-from contacts.tagging import TAG_SHIPPER
 
 from .import_services_common import _row_is_empty
-from .import_services_destinations import _get_or_create_destination
 from .import_services_tags import build_contact_tags
 from .import_utils import get_value, parse_bool, parse_str
 
@@ -24,74 +20,6 @@ def _parse_multi_values(value):
         return []
     parts = [token.strip() for token in re.split(r"[|\n]", str(value))]
     return [part for part in parts if part]
-
-
-def _resolve_destinations_for_row(
-    *,
-    row,
-    contact,
-    tags,
-    fallback_city,
-    fallback_country,
-):
-    if not _row_has_any_key(row, *DESTINATION_KEYS, *DESTINATIONS_KEYS):
-        return None
-
-    tokens = []
-    for key in (*DESTINATIONS_KEYS, *DESTINATION_KEYS):
-        if key not in row:
-            continue
-        tokens.extend(_parse_multi_values(row.get(key)))
-    if not tokens:
-        return []
-
-    destinations = []
-    seen = set()
-    for token in tokens:
-        destination = _get_or_create_destination(
-            token,
-            contact=contact,
-            tags=tags,
-            fallback_city=fallback_city,
-            fallback_country=fallback_country,
-        )
-        if destination and destination.pk not in seen:
-            seen.add(destination.pk)
-            destinations.append(destination)
-    return destinations
-
-
-def _resolve_linked_shippers_for_row(*, row, warnings, index):
-    if not _row_has_any_key(row, *LINKED_SHIPPERS_KEYS):
-        return None
-
-    names = []
-    for key in LINKED_SHIPPERS_KEYS:
-        if key not in row:
-            continue
-        names.extend(_parse_multi_values(row.get(key)))
-    if not names:
-        return []
-
-    canonical_shipper_tag_name = TAG_SHIPPER[0]
-    shipper_tag, _ = ContactTag.objects.get_or_create(name=canonical_shipper_tag_name)
-    linked_contacts = []
-    seen = set()
-    for name in names:
-        linked_shipper = Contact.objects.filter(name__iexact=name).first()
-        if not linked_shipper:
-            linked_shipper = Contact.objects.create(
-                name=name,
-                contact_type=ContactType.ORGANIZATION,
-                notes="créé automatiquement depuis linked_shippers",
-            )
-            warnings.append(f"Ligne {index}: expéditeur lié créé automatiquement ({name}).")
-        if not linked_shipper.tags.filter(pk=shipper_tag.pk).exists():
-            linked_shipper.tags.add(shipper_tag)
-        if linked_shipper.pk not in seen:
-            seen.add(linked_shipper.pk)
-            linked_contacts.append(linked_shipper)
-    return linked_contacts
 
 
 def import_contacts(rows):
@@ -132,9 +60,6 @@ def import_contacts(rows):
                 get_value(row, "legal_registration_number", "numero_enregistrement_legal")
             )
             asf_id = parse_str(get_value(row, "asf_id", "id_asf"))
-            address_city = parse_str(get_value(row, "city", "ville"))
-            address_country = parse_str(get_value(row, "country", "pays"))
-
             if contact_type == ContactType.PERSON and not last_name and name and first_name:
                 last_name = name
                 name = None
@@ -249,30 +174,15 @@ def import_contacts(rows):
                     contact.organization = organization
                     contact.save(update_fields=["organization"])
 
-            destinations = _resolve_destinations_for_row(
-                row=row,
-                contact=contact,
-                tags=tags,
-                fallback_city=address_city,
-                fallback_country=address_country,
-            )
-            if destinations is not None:
-                set_contact_destination_scope(
-                    contact=contact,
-                    destination_ids=[destination.id for destination in destinations],
+            if _row_has_any_key(row, *DESTINATION_KEYS, *DESTINATIONS_KEYS):
+                warnings.append(
+                    f"Ligne {index}: colonnes legacy destination(s) ignorées; utilisez les scopes org-role."
                 )
 
-            linked_shippers = _resolve_linked_shippers_for_row(
-                row=row,
-                warnings=warnings,
-                index=index,
-            )
-            if linked_shippers is not None:
-                contact.linked_shippers.set(linked_shippers)
-            ensure_default_shipper_for_recipient(
-                contact,
-                tags=tags if tags else None,
-            )
+            if _row_has_any_key(row, *LINKED_SHIPPERS_KEYS):
+                warnings.append(
+                    f"Ligne {index}: colonne linked_shippers ignorée; utilisez RecipientBinding."
+                )
 
             address_line1 = parse_str(get_value(row, "address_line1", "adresse"))
             if address_line1 and not contact.use_organization_address:

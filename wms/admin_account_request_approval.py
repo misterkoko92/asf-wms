@@ -9,10 +9,9 @@ from django.utils.http import urlsafe_base64_encode
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy
 
-from contacts.models import Contact, ContactAddress, ContactTag
+from contacts.models import Contact, ContactAddress
 
 from . import models
-from .contact_filters import TAG_SHIPPER
 from .portal_permissions import assign_association_portal_group
 
 ACCOUNT_ACCESS_PENDING = gettext_lazy("Disponible après validation.")
@@ -143,8 +142,6 @@ def approve_account_request(
                 is_active=True,
             )
             account_request.contact = contact
-        tag, _created = ContactTag.objects.get_or_create(name=TAG_SHIPPER[0])
-        contact.tags.add(tag)
 
         contact_updates = []
         if account_request.email and contact.email != account_request.email:

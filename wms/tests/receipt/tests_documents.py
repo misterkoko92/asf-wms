@@ -6,7 +6,6 @@ from django.test import SimpleTestCase, TestCase
 from contacts.models import Contact, ContactType
 from wms.documents import (
     _format_contact_address,
-    _resolve_contact,
     build_contact_info,
     build_shipment_type_labels,
 )
@@ -52,17 +51,17 @@ class DocumentsHelpersTests(TestCase):
 
         self.assertEqual(labels, "MEDICAL")
 
-    def test_resolve_contact_handles_empty_and_fallback_lookup(self):
-        self.assertIsNone(_resolve_contact(("donateur",), ""))
-
-        expected = Contact.objects.create(
+    def test_build_contact_info_does_not_lookup_contact_by_fallback_name(self):
+        Contact.objects.create(
             name="Fallback Contact",
             contact_type=ContactType.ORGANIZATION,
+            notes="Primary Person",
         )
-        with mock.patch("wms.documents.contacts_with_tags", return_value=Contact.objects.none()):
-            resolved = _resolve_contact(("donateur",), "Fallback Contact")
+        info = build_contact_info(None, "Fallback Contact")
 
-        self.assertEqual(resolved.id, expected.id)
+        self.assertEqual(info["name"], "Fallback Contact")
+        self.assertEqual(info["person"], "Fallback Contact")
+        self.assertEqual(info["company"], "Fallback Contact")
 
 
 class DocumentsFormattingTests(SimpleTestCase):
@@ -83,8 +82,7 @@ class DocumentsFormattingTests(SimpleTestCase):
         self.assertIn("Ile-de-France", formatted)
 
     def test_build_contact_info_returns_fallback_when_contact_missing(self):
-        with mock.patch("wms.documents._resolve_contact", return_value=None):
-            info = build_contact_info(("tag",), "Fallback Name")
+        info = build_contact_info(None, "Fallback Name")
 
         self.assertEqual(info["name"], "Fallback Name")
         self.assertEqual(info["company"], "Fallback Name")
@@ -114,8 +112,7 @@ class DocumentsFormattingTests(SimpleTestCase):
             addresses=addresses,
         )
 
-        with mock.patch("wms.documents._resolve_contact", return_value=contact):
-            info = build_contact_info(("tag",), "Org Contact")
+        info = build_contact_info(contact, "Org Contact")
 
         self.assertEqual(info["company"], "Org Contact")
         self.assertEqual(info["person"], "Primary Person")

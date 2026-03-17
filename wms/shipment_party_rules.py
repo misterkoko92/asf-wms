@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 from django.db.models import Q, QuerySet
+from django.utils import timezone
 
 from contacts.models import Contact, ContactType
 
-from .organization_role_resolvers import (
-    eligible_recipients_for_shipper_destination,
-    eligible_shippers_for_destination,
-    is_org_roles_engine_enabled,
+from .models import (
+    OrganizationRole,
+    OrganizationRoleAssignment,
+    RecipientBinding,
+    ShipperScope,
 )
 
 
@@ -30,22 +32,85 @@ def _eligible_contacts_for_org_ids(org_ids) -> QuerySet[Contact]:
     )
 
 
-def eligible_shipper_contacts_for_destination(destination):
-    if not is_org_roles_engine_enabled():
+def _current_window_q(prefix: str = ""):
+    now = timezone.now()
+    return Q(**{f"{prefix}valid_from__lte": now}) & (
+        Q(**{f"{prefix}valid_to__isnull": True}) | Q(**{f"{prefix}valid_to__gt": now})
+    )
+
+
+def _active_org_ids_for_role(role: str) -> list[int]:
+    return list(
+        OrganizationRoleAssignment.objects.filter(
+            role=role,
+            is_active=True,
+            organization__is_active=True,
+            organization__contact_type=ContactType.ORGANIZATION,
+        ).values_list("organization_id", flat=True)
+    )
+
+
+def active_shipper_contacts() -> QuerySet[Contact]:
+    return _eligible_contacts_for_org_ids(_active_org_ids_for_role(OrganizationRole.SHIPPER))
+
+
+def active_recipient_contacts() -> QuerySet[Contact]:
+    return _eligible_contacts_for_org_ids(_active_org_ids_for_role(OrganizationRole.RECIPIENT))
+
+
+def recipient_contacts_for_destination(destination) -> QuerySet[Contact]:
+    if destination is None:
         return Contact.objects.none()
-    org_ids = list(eligible_shippers_for_destination(destination).values_list("id", flat=True))
+    org_ids = list(
+        RecipientBinding.objects.filter(
+            destination=destination,
+            is_active=True,
+            shipper_org__is_active=True,
+            recipient_org__is_active=True,
+        )
+        .filter(_current_window_q())
+        .values_list("recipient_org_id", flat=True)
+    )
+    return _eligible_contacts_for_org_ids(org_ids)
+
+
+def eligible_shipper_contacts_for_destination(destination):
+    if destination is None:
+        return Contact.objects.none()
+    assignment_ids = (
+        ShipperScope.objects.filter(
+            is_active=True,
+        )
+        .filter(_current_window_q())
+        .filter(Q(all_destinations=True) | Q(destination=destination))
+        .values_list("role_assignment_id", flat=True)
+    )
+    org_ids = list(
+        OrganizationRoleAssignment.objects.filter(
+            id__in=assignment_ids,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+            organization__is_active=True,
+            organization__contact_type=ContactType.ORGANIZATION,
+        ).values_list("organization_id", flat=True)
+    )
     return _eligible_contacts_for_org_ids(org_ids)
 
 
 def eligible_recipient_contacts_for_shipper_destination(*, shipper_contact, destination):
-    if not is_org_roles_engine_enabled():
-        return Contact.objects.none()
     shipper_org = normalize_party_contact_to_org(shipper_contact)
+    if shipper_org is None or destination is None:
+        return Contact.objects.none()
     org_ids = list(
-        eligible_recipients_for_shipper_destination(
+        RecipientBinding.objects.filter(
             shipper_org=shipper_org,
             destination=destination,
-        ).values_list("id", flat=True)
+            is_active=True,
+            shipper_org__is_active=True,
+            recipient_org__is_active=True,
+        )
+        .filter(_current_window_q())
+        .values_list("recipient_org_id", flat=True)
     )
     return _eligible_contacts_for_org_ids(org_ids)
 

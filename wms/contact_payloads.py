@@ -1,9 +1,9 @@
-from .contact_filters import TAG_SHIPPER, contacts_with_tags
 from .portal_helpers import get_contact_address
+from .shipment_party_rules import active_shipper_contacts
 
 
 def build_shipper_contact_payload():
-    contacts = list(contacts_with_tags(TAG_SHIPPER).prefetch_related("addresses").order_by("name"))
+    contacts = list(active_shipper_contacts().prefetch_related("addresses").order_by("name"))
     payload = []
     for contact in contacts:
         address = get_contact_address(contact)

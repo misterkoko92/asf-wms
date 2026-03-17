@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand, CommandError
 
-from wms.reset_operational_data import reset_operational_data
+from wms.reset_operational_data import render_reset_summary, reset_operational_data
 
 
 class Command(BaseCommand):
@@ -25,14 +25,5 @@ class Command(BaseCommand):
             raise CommandError("Choose either --dry-run or --apply, not both.")
 
         summary = reset_operational_data(apply=apply)
-        self.stdout.write(f"Operational reset [{summary.mode}]")
-        self.stdout.write("Planned deletions:")
-        for label, count in summary.delete_counts_before.items():
-            self.stdout.write(f"- {label}: {count}")
-        self.stdout.write("Preserved models:")
-        for label, count in summary.keep_counts_after.items():
-            self.stdout.write(f"- {label}: {count}")
-        if summary.missing_table_labels:
-            self.stdout.write("Skipped missing tables:")
-            for label in summary.missing_table_labels:
-                self.stdout.write(f"- {label}")
+        for line in render_reset_summary(summary):
+            self.stdout.write(line)

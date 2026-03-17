@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
+from contextvars import ContextVar
+
 from django.utils import timezone
 
 from contacts.models import Contact, ContactType
@@ -12,6 +15,24 @@ from .models import (
     RecipientBinding,
     ShipperScope,
 )
+
+_DEFAULT_SHIPPER_BINDING_SYNC_ENABLED = ContextVar(
+    "default_shipper_binding_sync_enabled",
+    default=True,
+)
+
+
+def default_shipper_binding_sync_enabled() -> bool:
+    return _DEFAULT_SHIPPER_BINDING_SYNC_ENABLED.get()
+
+
+@contextmanager
+def suppress_default_shipper_binding_sync():
+    token = _DEFAULT_SHIPPER_BINDING_SYNC_ENABLED.set(False)
+    try:
+        yield
+    finally:
+        _DEFAULT_SHIPPER_BINDING_SYNC_ENABLED.reset(token)
 
 
 def _resolve_default_shipper_organization() -> Contact | None:

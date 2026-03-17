@@ -203,7 +203,7 @@ class CorrespondentRecipientPromotionTests(TestCase):
             1,
         )
 
-    def test_adding_correspondent_tag_triggers_promotion(self):
+    def test_adding_correspondent_tag_does_not_trigger_promotion(self):
         from contacts.correspondent_recipient_promotion import SUPPORT_ORGANIZATION_NAME
 
         correspondent_tag = ContactTag.objects.create(name="correspondant")
@@ -216,22 +216,26 @@ class CorrespondentRecipientPromotionTests(TestCase):
         person.tags.add(correspondent_tag)
 
         person.refresh_from_db()
-        support_organization = Contact.objects.get(
-            name=SUPPORT_ORGANIZATION_NAME,
-            contact_type=ContactType.ORGANIZATION,
+        self.assertIsNone(person.organization)
+        self.assertFalse(person.tags.filter(name__iexact="destinataire").exists())
+        self.assertFalse(
+            Contact.objects.filter(
+                name=SUPPORT_ORGANIZATION_NAME,
+                contact_type=ContactType.ORGANIZATION,
+            ).exists()
         )
-        self.assertEqual(person.organization, support_organization)
-        self.assertTrue(person.tags.filter(name__iexact="destinataire").exists())
         self.assertTrue(
-            OrganizationRoleAssignment.objects.filter(
-                organization=support_organization,
+            not OrganizationRoleAssignment.objects.filter(
                 role=OrganizationRole.RECIPIENT,
                 is_active=True,
             ).exists()
         )
 
-    def test_readding_tags_is_idempotent(self):
-        from contacts.correspondent_recipient_promotion import SUPPORT_ORGANIZATION_NAME
+    def test_readding_or_removing_correspondent_tag_keeps_manual_promotion_state(self):
+        from contacts.correspondent_recipient_promotion import (
+            SUPPORT_ORGANIZATION_NAME,
+            promote_correspondent_to_recipient_ready,
+        )
 
         correspondent_tag = ContactTag.objects.create(name="correspondant")
         unrelated_tag = ContactTag.objects.create(name="autre")
@@ -241,60 +245,19 @@ class CorrespondentRecipientPromotionTests(TestCase):
             is_active=True,
         )
 
-        person.tags.add(correspondent_tag)
+        promote_correspondent_to_recipient_ready(person, tags=[correspondent_tag])
         support_org = Contact.objects.get(
             name=SUPPORT_ORGANIZATION_NAME,
             contact_type=ContactType.ORGANIZATION,
         )
 
+        person.tags.add(correspondent_tag)
         person.tags.add(unrelated_tag)
-
-        self.assertEqual(
-            Contact.objects.filter(
-                name=SUPPORT_ORGANIZATION_NAME,
-                contact_type=ContactType.ORGANIZATION,
-            ).count(),
-            1,
-        )
-        self.assertEqual(
-            OrganizationRoleAssignment.objects.filter(
-                organization=support_org,
-                role=OrganizationRole.RECIPIENT,
-            ).count(),
-            1,
-        )
-
-    def test_removing_correspondent_tag_does_not_remove_recipient_tag(self):
-        correspondent_tag = ContactTag.objects.create(name="correspondant")
-        person = Contact.objects.create(
-            name="Removal Correspondent",
-            contact_type=ContactType.PERSON,
-            is_active=True,
-        )
-
-        person.tags.add(correspondent_tag)
         person.tags.remove(correspondent_tag)
 
+        person.refresh_from_db()
+        self.assertEqual(person.organization, support_org)
         self.assertTrue(person.tags.filter(name__iexact="destinataire").exists())
-
-    def test_removing_correspondent_tag_does_not_remove_recipient_role(self):
-        from contacts.correspondent_recipient_promotion import SUPPORT_ORGANIZATION_NAME
-
-        correspondent_tag = ContactTag.objects.create(name="correspondant")
-        person = Contact.objects.create(
-            name="Removal Role Correspondent",
-            contact_type=ContactType.PERSON,
-            is_active=True,
-        )
-
-        person.tags.add(correspondent_tag)
-        support_org = Contact.objects.get(
-            name=SUPPORT_ORGANIZATION_NAME,
-            contact_type=ContactType.ORGANIZATION,
-        )
-
-        person.tags.remove(correspondent_tag)
-
         self.assertTrue(
             OrganizationRoleAssignment.objects.filter(
                 organization=support_org,

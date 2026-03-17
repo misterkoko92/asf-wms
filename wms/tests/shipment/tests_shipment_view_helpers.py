@@ -5,7 +5,7 @@ from django.http import Http404, HttpResponse
 from django.test import RequestFactory, TestCase
 from django.utils import timezone
 
-from contacts.models import Contact, ContactType
+from contacts.models import Contact, ContactTag, ContactType
 from wms.models import (
     Carton,
     Document,
@@ -700,6 +700,71 @@ class ShipmentViewHelpersTests(TestCase):
 
         self.assertEqual(rows[0]["shipper_name"], "ASSOCIATION TEST")
         self.assertEqual(rows[0]["recipient_name"], "Mme Alice MARTIN")
+
+    def test_build_shipments_ready_rows_does_not_resolve_contacts_from_names(self):
+        now = timezone.now()
+        shipper_tag = ContactTag.objects.create(name="expediteur")
+        recipient_tag = ContactTag.objects.create(name="destinataire")
+        shipper_org = Contact.objects.create(
+            name="Lookup Organization",
+            contact_type=ContactType.ORGANIZATION,
+        )
+        shipper_lookup = Contact.objects.create(
+            name="Fallback Sender",
+            contact_type=ContactType.PERSON,
+            first_name="Jean",
+            last_name="Dupont",
+            organization=shipper_org,
+        )
+        shipper_lookup.tags.add(shipper_tag)
+        recipient_lookup = Contact.objects.create(
+            name="Fallback Recipient",
+            contact_type=ContactType.PERSON,
+            title="Mme",
+            first_name="Alice",
+            last_name="Martin",
+        )
+        recipient_lookup.tags.add(recipient_tag)
+
+        class FakeFiltered:
+            def __init__(self, count):
+                self._count = count
+
+            def count(self):
+                return self._count
+
+        class FakeCartonSet:
+            def __init__(self, total, ready):
+                self._total = total
+                self._ready = ready
+
+            def count(self):
+                return self._total
+
+            def filter(self, **_kwargs):
+                return FakeFiltered(self._ready)
+
+        shipment = SimpleNamespace(
+            id=12,
+            reference="S-012",
+            tracking_token="token-12",
+            carton_count=1,
+            ready_count=1,
+            carton_set=FakeCartonSet(total=1, ready=1),
+            destination=SimpleNamespace(iata_code="BZV"),
+            shipper_name="Fallback Sender",
+            shipper_contact_ref=None,
+            recipient_name="Fallback Recipient",
+            recipient_contact_ref=None,
+            created_at=now,
+            ready_at=now,
+            status=ShipmentStatus.PACKED,
+        )
+
+        rows = build_shipments_ready_rows([shipment])
+
+        self.assertEqual(rows[0]["shipper_name"], "Fallback Sender")
+        self.assertEqual(rows[0]["recipient_name"], "Fallback Recipient")
 
     def test_build_shipments_tracking_rows_computes_close_eligibility(self):
         now = timezone.now()

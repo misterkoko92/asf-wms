@@ -11,7 +11,7 @@ from django.http import Http404
 from django.test import RequestFactory, TestCase, override_settings
 from django.utils import translation
 
-from contacts.models import Contact, ContactTag, ContactType
+from contacts.models import Contact, ContactType
 from wms import models
 from wms.admin import (
     AccountDocumentAdmin,
@@ -441,8 +441,12 @@ class PublicAccountRequestAdminTests(_AdminTestBase):
         self.assertEqual(profile.contact_id, target_contact.id)
         self.assertTrue(profile.must_change_password)
         self.assertTrue(
-            target_contact.tags.filter(name=ContactTag.objects.get(name="expediteur").name).exists()
+            models.OrganizationRoleAssignment.objects.filter(
+                organization=target_contact,
+                role=models.OrganizationRole.SHIPPER,
+            ).exists()
         )
+        self.assertFalse(target_contact.tags.exists())
         enqueue_mock.assert_called_once()
 
     def test_approve_requests_skip_counter_and_save_model_early_returns(self):
@@ -794,12 +798,19 @@ class ProductLotAndOtherAdminTests(_AdminTestBase):
 
         destination_admin = DestinationAdmin(models.Destination, self.site)
         db_field = models.Destination._meta.get_field("correspondent_contact")
-        with mock.patch(
-            "wms.admin.contacts_with_tags", return_value=Contact.objects.filter(pk=self.contact.pk)
-        ) as contacts_mock:
-            field = destination_admin.formfield_for_foreignkey(db_field, request_user)
-        contacts_mock.assert_called_once()
-        self.assertEqual(list(field.queryset), [self.contact])
+        inactive_contact = Contact.objects.create(
+            name="Inactive Correspondent",
+            contact_type=ContactType.PERSON,
+            is_active=False,
+        )
+        active_person = Contact.objects.create(
+            name="Active Person",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        field = destination_admin.formfield_for_foreignkey(db_field, request_user)
+        self.assertEqual(list(field.queryset), [active_person, self.contact])
+        self.assertNotIn(inactive_contact, field.queryset)
 
 
 class ShipmentAndStockMovementAdminTests(_AdminTestBase):

@@ -3,7 +3,7 @@ from unittest import mock
 from django.test import TestCase
 
 from contacts.models import Contact, ContactTag, ContactType
-from wms.contact_filters import TAG_CORRESPONDENT
+from contacts.tagging import TAG_CORRESPONDENT
 from wms.import_services_destinations import (
     _generate_destination_code,
     _get_or_create_destination,
@@ -11,7 +11,7 @@ from wms.import_services_destinations import (
     _select_default_correspondent,
     _tags_include_correspondent,
 )
-from wms.models import Destination, OrganizationRoleAssignment
+from wms.models import Destination, OrganizationRole, OrganizationRoleAssignment
 
 
 class ImportDestinationsExtraTests(TestCase):
@@ -51,13 +51,16 @@ class ImportDestinationsExtraTests(TestCase):
         self.assertTrue(_tags_include_correspondent([tag]))
 
     def test_select_default_correspondent_prefers_existing_then_creates(self):
-        tag = ContactTag.objects.create(name=TAG_CORRESPONDENT[0])
         existing = Contact.objects.create(
             name="Existing Correspondent",
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        existing.tags.add(tag)
+        OrganizationRoleAssignment.objects.create(
+            organization=existing,
+            role=OrganizationRole.CORRESPONDENT,
+            is_active=True,
+        )
         self.assertEqual(_select_default_correspondent().id, existing.id)
 
         OrganizationRoleAssignment.objects.all().delete()
@@ -65,7 +68,33 @@ class ImportDestinationsExtraTests(TestCase):
         ContactTag.objects.all().delete()
         created = _select_default_correspondent()
         self.assertEqual(created.name, "Correspondant par défaut")
-        self.assertTrue(created.tags.filter(name__iexact=TAG_CORRESPONDENT[0]).exists())
+        self.assertTrue(
+            OrganizationRoleAssignment.objects.filter(
+                organization=created,
+                role=OrganizationRole.CORRESPONDENT,
+                is_active=True,
+            ).exists()
+        )
+
+    def test_select_default_correspondent_reactivates_existing_default_contact(self):
+        existing = Contact.objects.create(
+            name="Correspondant par défaut",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=False,
+        )
+
+        resolved = _select_default_correspondent()
+
+        existing.refresh_from_db()
+        self.assertEqual(resolved.id, existing.id)
+        self.assertTrue(existing.is_active)
+        self.assertTrue(
+            OrganizationRoleAssignment.objects.filter(
+                organization=existing,
+                role=OrganizationRole.CORRESPONDENT,
+                is_active=True,
+            ).exists()
+        )
 
     def test_get_or_create_destination_core_paths(self):
         self.assertIsNone(_get_or_create_destination(""))

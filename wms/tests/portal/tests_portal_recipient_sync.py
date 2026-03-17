@@ -1,9 +1,14 @@
 from django.test import TestCase
 
-from contacts.models import Contact, ContactTag, ContactType
-from contacts.querysets import contacts_with_tags
-from contacts.tagging import TAG_RECIPIENT, TAG_SHIPPER
-from wms.models import AssociationRecipient, Destination
+from contacts.models import Contact, ContactType
+from wms.models import (
+    AssociationRecipient,
+    Destination,
+    OrganizationRole,
+    OrganizationRoleAssignment,
+    RecipientBinding,
+    ShipperScope,
+)
 from wms.portal_recipient_sync import sync_association_recipient_to_contact
 
 
@@ -61,10 +66,37 @@ class PortalRecipientSyncTests(TestCase):
             ).count(),
             1,
         )
-        self.assertTrue(first.destinations.filter(pk=self.destination_a.id).exists())
-        self.assertTrue(first.linked_shippers.filter(pk=self.association.id).exists())
-        self.assertTrue(contacts_with_tags(TAG_RECIPIENT).filter(pk=first.id).exists())
-        self.assertTrue(contacts_with_tags(TAG_SHIPPER).filter(pk=self.association.id).exists())
+        recipient_assignment = OrganizationRoleAssignment.objects.get(
+            organization=first,
+            role=OrganizationRole.RECIPIENT,
+        )
+        shipper_assignment = OrganizationRoleAssignment.objects.get(
+            organization=self.association,
+            role=OrganizationRole.SHIPPER,
+        )
+        self.assertTrue(recipient_assignment.is_active)
+        self.assertFalse(shipper_assignment.is_active)
+        self.assertTrue(
+            ShipperScope.objects.filter(
+                role_assignment=shipper_assignment,
+                destination=self.destination_a,
+                all_destinations=False,
+                is_active=True,
+            ).exists()
+        )
+        self.assertTrue(
+            RecipientBinding.objects.filter(
+                shipper_org=self.association,
+                recipient_org=first,
+                destination=self.destination_a,
+                is_active=True,
+            ).exists()
+        )
+        self.assertFalse(first.tags.exists())
+        self.assertFalse(first.destinations.exists())
+        self.assertFalse(first.linked_shippers.exists())
+        self.assertFalse(self.association.tags.exists())
+        self.assertFalse(self.association.destinations.exists())
 
     def test_sync_updates_contact_when_recipient_changes_destination(self):
         recipient = self._create_recipient()
@@ -79,19 +111,42 @@ class PortalRecipientSyncTests(TestCase):
 
         self.assertEqual(updated.id, synced.id)
         self.assertEqual(updated.name, "A.S.L.A.V Congo Update")
-        self.assertEqual(
-            list(updated.destinations.values_list("id", flat=True)),
-            [self.destination_b.id],
-        )
-        self.assertEqual(updated.destination_id, self.destination_b.id)
-
-    def test_sync_reuses_existing_recipient_tag_alias(self):
-        ContactTag.objects.create(name="destinataire")
-        recipient = self._create_recipient()
-
-        synced = sync_association_recipient_to_contact(recipient)
-
         self.assertTrue(
-            synced.tags.filter(name__iexact=TAG_RECIPIENT[0]).exists()
-            or synced.tags.filter(name__iexact="destinataire").exists()
+            RecipientBinding.objects.filter(
+                shipper_org=self.association,
+                recipient_org=updated,
+                destination=self.destination_b,
+                is_active=True,
+            ).exists()
+        )
+        self.assertFalse(
+            RecipientBinding.objects.filter(
+                shipper_org=self.association,
+                recipient_org=updated,
+                destination=self.destination_a,
+                is_active=True,
+            ).exists()
+        )
+
+    def test_sync_deactivates_binding_when_recipient_is_inactive(self):
+        recipient = self._create_recipient()
+        synced = sync_association_recipient_to_contact(recipient)
+        recipient.is_active = False
+        recipient.save(update_fields=["is_active"])
+
+        updated = sync_association_recipient_to_contact(recipient)
+
+        self.assertEqual(updated.id, synced.id)
+        self.assertFalse(
+            RecipientBinding.objects.filter(
+                shipper_org=self.association,
+                recipient_org=updated,
+                is_active=True,
+            ).exists()
+        )
+        self.assertFalse(
+            OrganizationRoleAssignment.objects.get(
+                organization=updated,
+                role=OrganizationRole.RECIPIENT,
+            ).is_active
         )

@@ -3,7 +3,6 @@ from django.shortcuts import render
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
-from .contact_filters import TAG_RECIPIENT, TAG_SHIPPER
 from .models import (
     CartonStatus,
     Document,
@@ -22,7 +21,6 @@ from .shipment_helpers import build_destination_label
 from .status_badges import BADGE_TONE_PROGRESS, BADGE_TONE_READY, resolve_status_tone
 from .status_presenters import present_shipment_status
 from .unit_equivalence import ShipmentUnitInput, resolve_shipment_unit_count
-from .view_utils import resolve_contact_by_name
 
 TEMPLATE_DYNAMIC_DOCUMENT = "print/dynamic_document.html"
 TEMPLATE_DYNAMIC_LABELS = "print/dynamic_labels.html"
@@ -254,11 +252,8 @@ def _shipment_party_label(contact, fallback_name):
     return (fallback_name or "").strip()
 
 
-def _resolve_shipment_party_contact(shipment, *, ref_attr, tag, fallback_name):
-    contact_ref = getattr(shipment, ref_attr, None)
-    if contact_ref:
-        return contact_ref
-    return resolve_contact_by_name(tag, fallback_name)
+def _resolve_shipment_party_contact(shipment, *, ref_attr):
+    return getattr(shipment, ref_attr, None)
 
 
 def build_carton_options(cartons):
@@ -362,14 +357,10 @@ def build_shipments_ready_rows(shipments_qs):
         shipper_contact = _resolve_shipment_party_contact(
             shipment,
             ref_attr="shipper_contact_ref",
-            tag=TAG_SHIPPER,
-            fallback_name=shipment.shipper_name,
         )
         recipient_contact = _resolve_shipment_party_contact(
             shipment,
             ref_attr="recipient_contact_ref",
-            tag=TAG_RECIPIENT,
-            fallback_name=shipment.recipient_name,
         )
         shipments.append(
             {
@@ -407,14 +398,10 @@ def build_shipments_tracking_rows(shipments_qs):
         shipper_contact = _resolve_shipment_party_contact(
             shipment,
             ref_attr="shipper_contact_ref",
-            tag=TAG_SHIPPER,
-            fallback_name=shipment.shipper_name,
         )
         recipient_contact = _resolve_shipment_party_contact(
             shipment,
             ref_attr="recipient_contact_ref",
-            tag=TAG_RECIPIENT,
-            fallback_name=shipment.recipient_name,
         )
 
         planned_at = getattr(shipment, "planned_at", None)

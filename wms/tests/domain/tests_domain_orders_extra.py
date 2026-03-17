@@ -132,6 +132,52 @@ class DomainOrdersExtraTests(TestCase):
 
         self.assertEqual(same_shipment.id, shipment.id)
 
+    def test_create_shipment_for_order_does_not_resolve_contacts_from_names(self):
+        shipper = Contact.objects.create(
+            name="Sender",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        recipient = Contact.objects.create(
+            name="Recipient",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        correspondent = Contact.objects.create(
+            name="Contact",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        destination = Destination.objects.create(
+            city="Brazzaville",
+            iata_code="BZV",
+            country="Rep. du Congo",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        order = Order.objects.create(
+            status=OrderStatus.DRAFT,
+            shipper_name=shipper.name,
+            recipient_name=recipient.name,
+            correspondent_name=correspondent.name,
+            destination_address="Legacy Address",
+            destination_city="Brazzaville",
+            destination_country="Rep. du Congo",
+            created_by=self.user,
+        )
+        OrderLine.objects.create(order=order, product=self.product, quantity=1)
+
+        shipment = create_shipment_for_order(order=order)
+
+        self.assertIsNone(shipment.shipper_contact_ref_id)
+        self.assertIsNone(shipment.recipient_contact_ref_id)
+        self.assertEqual(
+            shipment.correspondent_contact_ref_id, destination.correspondent_contact_id
+        )
+        self.assertEqual(shipment.shipper_name, "Sender")
+        self.assertEqual(shipment.recipient_name, "Recipient")
+        self.assertEqual(shipment.correspondent_name, "Contact")
+
     def test_create_shipment_for_order_sets_contact_refs_and_destination_from_order(self):
         shipper_tag, _ = ContactTag.objects.get_or_create(name="Expéditeur")
         recipient_tag, _ = ContactTag.objects.get_or_create(name="Destinataire")

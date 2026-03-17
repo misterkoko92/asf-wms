@@ -54,13 +54,19 @@ class PrintContextTests(SimpleTestCase):
 
     def test_build_shipment_document_context_hides_measurements_when_missing_defaults(self):
         cartons = [SimpleNamespace(id=10), SimpleNamespace(id=11)]
+        shipper_ref = SimpleNamespace(name="ASF Contact")
+        recipient_ref = SimpleNamespace(name="Recipient Contact Ref")
+        correspondent_ref = SimpleNamespace(name="Correspondent Contact Ref")
         shipment = SimpleNamespace(
             reference="SHP-10",
             shipper_name="ASF",
             shipper_contact="Shipper Contact",
+            shipper_contact_ref=shipper_ref,
             recipient_name="Recipient",
             recipient_contact="Recipient Contact",
+            recipient_contact_ref=recipient_ref,
             correspondent_name="Correspondent",
+            correspondent_contact_ref=correspondent_ref,
             destination=SimpleNamespace(city="Paris", iata_code="CDG"),
             destination_address="Fallback Address",
             destination_country="France",
@@ -129,12 +135,15 @@ class PrintContextTests(SimpleTestCase):
                                                 "wms.print_context.build_shipment_type_labels",
                                                 return_value="TypeX",
                                             ):
+                                                build_contact_info_mock = mock.Mock(
+                                                    side_effect=lambda contact, name: {
+                                                        "contact": contact,
+                                                        "name": name,
+                                                    }
+                                                )
                                                 with mock.patch(
                                                     "wms.print_context.build_contact_info",
-                                                    side_effect=lambda tag, name: {
-                                                        "tag": tag,
-                                                        "name": name,
-                                                    },
+                                                    build_contact_info_mock,
                                                 ):
                                                     with mock.patch(
                                                         "wms.print_context.build_org_context",
@@ -157,6 +166,17 @@ class PrintContextTests(SimpleTestCase):
         self.assertIsNone(context["carton_rows"][0]["volume_m3"])
         self.assertEqual(context["carton_rows"][0]["dimensions_cm"], "40 x 30 x 20")
         self.assertIsNone(context["carton_rows"][1]["dimensions_cm"])
+        self.assertEqual(context["shipper_info"]["contact"], shipper_ref)
+        self.assertEqual(context["recipient_info"]["contact"], recipient_ref)
+        self.assertEqual(context["correspondent_info"]["contact"], correspondent_ref)
+        self.assertEqual(
+            build_contact_info_mock.call_args_list,
+            [
+                mock.call(shipper_ref, "ASF"),
+                mock.call(recipient_ref, "Recipient"),
+                mock.call(correspondent_ref, "Correspondent"),
+            ],
+        )
 
     def test_build_shipment_document_context_regular_measurements_and_description(self):
         cartons = [SimpleNamespace(id=30)]

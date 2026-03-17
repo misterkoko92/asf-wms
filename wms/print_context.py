@@ -1,7 +1,6 @@
 from django.utils import timezone
 
 from .billing_document_handlers import build_billing_document_render_payload
-from .contact_filters import TAG_CORRESPONDENT, TAG_RECIPIENT, TAG_SHIPPER
 from .documents import (
     build_carton_rows,
     build_contact_info,
@@ -75,9 +74,18 @@ def build_shipment_document_context(shipment, doc_type):
         volume_total_m3 = None
     type_labels = build_shipment_type_labels(shipment)
     destination_city, destination_iata, destination_label = _build_destination_info(shipment)
-    shipper_info = build_contact_info(TAG_SHIPPER, shipment.shipper_name)
-    recipient_info = build_contact_info(TAG_RECIPIENT, shipment.recipient_name)
-    correspondent_info = build_contact_info(TAG_CORRESPONDENT, shipment.correspondent_name)
+    shipper_info = build_contact_info(
+        getattr(shipment, "shipper_contact_ref", None),
+        shipment.shipper_name,
+    )
+    recipient_info = build_contact_info(
+        getattr(shipment, "recipient_contact_ref", None),
+        shipment.recipient_name,
+    )
+    correspondent_info = build_contact_info(
+        getattr(shipment, "correspondent_contact_ref", None),
+        shipment.correspondent_name,
+    )
 
     description = f"{len(cartons)} cartons, {len(aggregate_rows)} produits"
     if shipment.requested_delivery_date:
