@@ -1,11 +1,8 @@
 from django.db import connection, transaction
 
-from contacts.destination_scope import contact_destination_ids
 from contacts.models import Contact
-from contacts.querysets import contacts_with_tags
 
 from ..carton_status_events import set_carton_status
-from ..contact_filters import TAG_CORRESPONDENT, TAG_RECIPIENT, TAG_SHIPPER
 from ..models import (
     Carton,
     CartonFormat,
@@ -57,41 +54,12 @@ def _active_contact(contact):
     return None
 
 
-def _resolve_tagged_contact_by_name(*, tag_aliases, name):
-    normalized_name = _normalized_text(name)
-    if not normalized_name:
-        return None
-    return contacts_with_tags(tag_aliases).filter(name__iexact=normalized_name).first()
-
-
-def _resolve_contact_by_name(name):
-    normalized_name = _normalized_text(name)
-    if not normalized_name:
-        return None
-    return Contact.objects.filter(is_active=True, name__iexact=normalized_name).first()
-
-
 def _resolve_shipper_contact_for_order(order: Order):
-    return (
-        _active_contact(order.shipper_contact)
-        or _active_contact(order.association_contact)
-        or _resolve_tagged_contact_by_name(
-            tag_aliases=TAG_SHIPPER,
-            name=order.shipper_name,
-        )
-        or _resolve_contact_by_name(order.shipper_name)
-    )
+    return _active_contact(order.shipper_contact) or _active_contact(order.association_contact)
 
 
 def _resolve_recipient_contact_for_order(order: Order):
-    return (
-        _active_contact(order.recipient_contact)
-        or _resolve_tagged_contact_by_name(
-            tag_aliases=TAG_RECIPIENT,
-            name=order.recipient_name,
-        )
-        or _resolve_contact_by_name(order.recipient_name)
-    )
+    return _active_contact(order.recipient_contact)
 
 
 def _resolve_destination_for_order(
@@ -114,41 +82,6 @@ def _resolve_destination_for_order(
         if destination:
             return destination
 
-    candidate_contacts = []
-    seen_contact_ids = set()
-    for contact in (
-        recipient_contact,
-        shipper_contact,
-        _active_contact(order.recipient_contact),
-        _active_contact(order.shipper_contact),
-        _active_contact(order.association_contact),
-    ):
-        if not contact:
-            continue
-        for candidate in (contact, normalize_party_contact_to_org(contact)):
-            if not candidate or candidate.pk in seen_contact_ids:
-                continue
-            seen_contact_ids.add(candidate.pk)
-            candidate_contacts.append(candidate)
-
-    for contact in candidate_contacts:
-        scoped_destination_ids = contact_destination_ids(contact)
-        if not scoped_destination_ids:
-            continue
-        scoped_destinations = Destination.objects.filter(
-            pk__in=scoped_destination_ids,
-            is_active=True,
-        ).order_by("id")
-        if city:
-            scoped_match = scoped_destinations.filter(city__iexact=city)
-            if country:
-                scoped_match = scoped_match.filter(country__iexact=country)
-            scoped_destination = scoped_match.first()
-            if scoped_destination:
-                return scoped_destination
-        if len(scoped_destination_ids) == 1:
-            return scoped_destinations.first()
-
     if city:
         fallback_query = Destination.objects.filter(
             is_active=True,
@@ -169,10 +102,7 @@ def _resolve_correspondent_contact_for_order(order: Order, *, destination: Desti
         and destination.correspondent_contact.is_active
     ):
         return destination.correspondent_contact
-    return _resolve_tagged_contact_by_name(
-        tag_aliases=TAG_CORRESPONDENT,
-        name=order.correspondent_name,
-    ) or _resolve_contact_by_name(order.correspondent_name)
+    return None
 
 
 def _build_shipment_defaults_from_order(order: Order):
