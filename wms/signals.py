@@ -18,6 +18,7 @@ from .correspondent_routing import (
     resolve_correspondent_organizations,
 )
 from .default_shipper_bindings import (
+    default_shipper_binding_sync_enabled,
     ensure_default_shipper_bindings_for_destination_id,
     ensure_default_shipper_bindings_for_recipient_assignment_id,
 )
@@ -744,6 +745,8 @@ def _sync_profile_contact_email_from_user(sender, instance, **kwargs) -> None:
 
 
 def _sync_default_shipper_bindings_for_recipient_role(sender, instance, created, **kwargs) -> None:
+    if not default_shipper_binding_sync_enabled():
+        return
     if instance.role != OrganizationRole.RECIPIENT:
         return
     if not instance.is_active:
@@ -756,6 +759,8 @@ def _sync_default_shipper_bindings_for_recipient_role(sender, instance, created,
 
 
 def _sync_default_shipper_bindings_for_destination(sender, instance, created, **kwargs) -> None:
+    if not default_shipper_binding_sync_enabled():
+        return
     if not instance.is_active:
         return
 

@@ -11,6 +11,7 @@ from openpyxl import load_workbook
 
 from contacts.models import Contact, ContactTag, ContactType
 from contacts.tagging import TAG_CORRESPONDENT, TAG_DONOR, TAG_RECIPIENT, TAG_SHIPPER
+from wms.default_shipper_bindings import suppress_default_shipper_binding_sync
 from wms.models import (
     Destination,
     OrganizationRole,
@@ -25,6 +26,7 @@ CANONICAL_DESTINATION_CORRESPONDENT_OVERRIDES = {
     "BGF": "Christian LIMBIO",
     "NDJ": "Geovanie Kamtar NDANGMBAYE",
 }
+CANONICAL_FALLBACK_CORRESPONDENT_NAME = "Correspondant non renseigne"
 
 
 @dataclass
@@ -116,6 +118,31 @@ def _note_conflict(
             "reason": f"conflicting {entity_type} {field_name}",
             "existing": existing,
             "incoming": incoming,
+        }
+    )
+
+
+def _note_missing(
+    *,
+    review_items: list[dict],
+    seen_conflicts: set[tuple[str, str, str]],
+    entity_type: str,
+    key: str,
+    display_name: str,
+    field_name: str,
+):
+    marker = (entity_type, key, field_name)
+    if marker in seen_conflicts:
+        return
+    seen_conflicts.add(marker)
+    review_items.append(
+        {
+            "entity_type": entity_type,
+            "key": key,
+            "display_name": display_name or key,
+            "reason": f"missing {entity_type} {field_name}",
+            "existing": "",
+            "incoming": "",
         }
     )
 
@@ -222,6 +249,41 @@ def _prune_unreferenced_correspondents(
         if destination.get("correspondent_key")
     }
     return {key: record for key, record in correspondents.items() if key in referenced_keys}
+
+
+def _ensure_destination_required_fields(
+    *,
+    destinations: dict[str, dict],
+    correspondents: dict[str, dict],
+    review_items: list[dict],
+    seen_conflicts: set[tuple[str, str, str]],
+):
+    fallback_key = _normalize_key(CANONICAL_FALLBACK_CORRESPONDENT_NAME)
+    for destination in destinations.values():
+        display_name = destination.get("city") or destination.get("iata_code") or destination["key"]
+        if "country" not in destination:
+            destination["country"] = ""
+            _note_missing(
+                review_items=review_items,
+                seen_conflicts=seen_conflicts,
+                entity_type="destination",
+                key=destination["key"],
+                display_name=display_name,
+                field_name="country",
+            )
+        if destination.get("correspondent_key"):
+            continue
+        destination["correspondent_key"] = fallback_key
+        fallback = _get_or_create_entity(correspondents, key=fallback_key)
+        fallback.setdefault("name", CANONICAL_FALLBACK_CORRESPONDENT_NAME)
+        _note_missing(
+            review_items=review_items,
+            seen_conflicts=seen_conflicts,
+            entity_type="destination",
+            key=destination["key"],
+            display_name=display_name,
+            field_name="correspondent_key",
+        )
 
 
 def build_be_contact_dataset(path: str | Path) -> BeContactDataset:
@@ -424,6 +486,12 @@ def build_be_contact_dataset(path: str | Path) -> BeContactDataset:
         destinations=destinations,
         correspondents=correspondents,
     )
+    _ensure_destination_required_fields(
+        destinations=destinations,
+        correspondents=correspondents,
+        review_items=review_items,
+        seen_conflicts=seen_conflicts,
+    )
     correspondents = _prune_unreferenced_correspondents(
         destinations=destinations,
         correspondents=correspondents,
@@ -511,100 +579,101 @@ def _ensure_role_assignment(*, contact: Contact, role: str) -> OrganizationRoleA
 
 
 def apply_be_contact_dataset(dataset: BeContactDataset) -> None:
-    with transaction.atomic():
-        donor_tag = _ensure_tag(TAG_DONOR[0])
-        shipper_tag = _ensure_tag(TAG_SHIPPER[0])
-        recipient_tag = _ensure_tag(TAG_RECIPIENT[0])
-        correspondent_tag = _ensure_tag(TAG_CORRESPONDENT[0])
+    with suppress_default_shipper_binding_sync():
+        with transaction.atomic():
+            donor_tag = _ensure_tag(TAG_DONOR[0])
+            shipper_tag = _ensure_tag(TAG_SHIPPER[0])
+            recipient_tag = _ensure_tag(TAG_RECIPIENT[0])
+            correspondent_tag = _ensure_tag(TAG_CORRESPONDENT[0])
 
-        contacts_by_key: dict[str, Contact] = {}
+            contacts_by_key: dict[str, Contact] = {}
 
-        for donor in dataset.donors:
-            contact = _get_or_create_contact(
-                name=donor["name"],
-                contact_type=ContactType.ORGANIZATION,
-            )
-            contact.tags.add(donor_tag)
-            contacts_by_key[donor["key"]] = contact
-            _ensure_role_assignment(contact=contact, role=OrganizationRole.DONOR)
+            for donor in dataset.donors:
+                contact = _get_or_create_contact(
+                    name=donor["name"],
+                    contact_type=ContactType.ORGANIZATION,
+                )
+                contact.tags.add(donor_tag)
+                contacts_by_key[donor["key"]] = contact
+                _ensure_role_assignment(contact=contact, role=OrganizationRole.DONOR)
 
-        for shipper in dataset.shippers:
-            contact = _get_or_create_contact(
-                name=shipper["name"],
-                contact_type=ContactType.ORGANIZATION,
-            )
-            contact.tags.add(shipper_tag)
-            contacts_by_key[shipper["key"]] = contact
-            _ensure_role_assignment(contact=contact, role=OrganizationRole.SHIPPER)
+            for shipper in dataset.shippers:
+                contact = _get_or_create_contact(
+                    name=shipper["name"],
+                    contact_type=ContactType.ORGANIZATION,
+                )
+                contact.tags.add(shipper_tag)
+                contacts_by_key[shipper["key"]] = contact
+                _ensure_role_assignment(contact=contact, role=OrganizationRole.SHIPPER)
 
-        for recipient in dataset.recipients:
-            contact = _get_or_create_contact(
-                name=recipient["name"],
-                contact_type=ContactType.ORGANIZATION,
-            )
-            contact.tags.add(recipient_tag)
-            contacts_by_key[recipient["key"]] = contact
-            _ensure_role_assignment(contact=contact, role=OrganizationRole.RECIPIENT)
+            for recipient in dataset.recipients:
+                contact = _get_or_create_contact(
+                    name=recipient["name"],
+                    contact_type=ContactType.ORGANIZATION,
+                )
+                contact.tags.add(recipient_tag)
+                contacts_by_key[recipient["key"]] = contact
+                _ensure_role_assignment(contact=contact, role=OrganizationRole.RECIPIENT)
 
-        for correspondent in dataset.correspondents:
-            contact = _get_or_create_contact(
-                name=correspondent["name"],
-                contact_type=ContactType.PERSON,
-            )
-            contact.tags.add(correspondent_tag)
-            contacts_by_key[correspondent["key"]] = contact
+            for correspondent in dataset.correspondents:
+                contact = _get_or_create_contact(
+                    name=correspondent["name"],
+                    contact_type=ContactType.PERSON,
+                )
+                contact.tags.add(correspondent_tag)
+                contacts_by_key[correspondent["key"]] = contact
 
-        destinations_by_iata: dict[str, Destination] = {}
-        for destination_data in dataset.destinations:
-            correspondent = contacts_by_key[destination_data["correspondent_key"]]
-            destination, _ = Destination.objects.get_or_create(
-                iata_code=destination_data["iata_code"],
-                defaults={
-                    "city": destination_data["city"],
-                    "country": destination_data["country"],
-                    "correspondent_contact": correspondent,
-                    "is_active": True,
-                },
-            )
-            updated_fields = []
-            if destination.city != destination_data["city"]:
-                destination.city = destination_data["city"]
-                updated_fields.append("city")
-            if destination.country != destination_data["country"]:
-                destination.country = destination_data["country"]
-                updated_fields.append("country")
-            if destination.correspondent_contact_id != correspondent.id:
-                destination.correspondent_contact = correspondent
-                updated_fields.append("correspondent_contact")
-            if not destination.is_active:
-                destination.is_active = True
-                updated_fields.append("is_active")
-            if updated_fields:
-                destination.save(update_fields=updated_fields)
-            destinations_by_iata[destination.iata_code] = destination
+            destinations_by_iata: dict[str, Destination] = {}
+            for destination_data in dataset.destinations:
+                correspondent = contacts_by_key[destination_data["correspondent_key"]]
+                destination, _ = Destination.objects.get_or_create(
+                    iata_code=destination_data["iata_code"],
+                    defaults={
+                        "city": destination_data["city"],
+                        "country": destination_data["country"],
+                        "correspondent_contact": correspondent,
+                        "is_active": True,
+                    },
+                )
+                updated_fields = []
+                if destination.city != destination_data["city"]:
+                    destination.city = destination_data["city"]
+                    updated_fields.append("city")
+                if destination.country != destination_data["country"]:
+                    destination.country = destination_data["country"]
+                    updated_fields.append("country")
+                if destination.correspondent_contact_id != correspondent.id:
+                    destination.correspondent_contact = correspondent
+                    updated_fields.append("correspondent_contact")
+                if not destination.is_active:
+                    destination.is_active = True
+                    updated_fields.append("is_active")
+                if updated_fields:
+                    destination.save(update_fields=updated_fields)
+                destinations_by_iata[destination.iata_code] = destination
 
-        for scope_data in dataset.shipper_scopes:
-            shipper = contacts_by_key[scope_data["shipper_key"]]
-            assignment = _ensure_role_assignment(contact=shipper, role=OrganizationRole.SHIPPER)
-            destination = destinations_by_iata[scope_data["destination_iata"]]
-            ShipperScope.objects.get_or_create(
-                role_assignment=assignment,
-                destination=destination,
-                defaults={
-                    "all_destinations": False,
-                    "is_active": True,
-                    "valid_from": timezone.now(),
-                },
-            )
+            for scope_data in dataset.shipper_scopes:
+                shipper = contacts_by_key[scope_data["shipper_key"]]
+                assignment = _ensure_role_assignment(contact=shipper, role=OrganizationRole.SHIPPER)
+                destination = destinations_by_iata[scope_data["destination_iata"]]
+                ShipperScope.objects.get_or_create(
+                    role_assignment=assignment,
+                    destination=destination,
+                    defaults={
+                        "all_destinations": False,
+                        "is_active": True,
+                        "valid_from": timezone.now(),
+                    },
+                )
 
-        for binding_data in dataset.recipient_bindings:
-            shipper = contacts_by_key[binding_data["shipper_key"]]
-            recipient = contacts_by_key[binding_data["recipient_key"]]
-            destination = destinations_by_iata[binding_data["destination_iata"]]
-            RecipientBinding.objects.get_or_create(
-                shipper_org=shipper,
-                recipient_org=recipient,
-                destination=destination,
-                is_active=True,
-                defaults={"valid_from": timezone.now()},
-            )
+            for binding_data in dataset.recipient_bindings:
+                shipper = contacts_by_key[binding_data["shipper_key"]]
+                recipient = contacts_by_key[binding_data["recipient_key"]]
+                destination = destinations_by_iata[binding_data["destination_iata"]]
+                RecipientBinding.objects.get_or_create(
+                    shipper_org=shipper,
+                    recipient_org=recipient,
+                    destination=destination,
+                    is_active=True,
+                    defaults={"valid_from": timezone.now()},
+                )

@@ -299,6 +299,44 @@ class RebuildContactsFromBeXlsxNormalizationTests(BeWorkbookMixin, TestCase):
         )
         self.assertEqual(dataset.review_items, [])
 
+    def test_build_be_contact_dataset_assigns_fallback_for_destination_without_correspondent(self):
+        workbook_path = self._build_be_workbook(
+            [
+                {
+                    "ASSOCIATION_NOM": "AVIATION SANS FRONTIERES",
+                    "ASSOCIATION_PAYS": "France",
+                    "BE_DESTINATION": "HANOI",
+                    "BE_CODE_IATA": "HAN",
+                }
+            ]
+        )
+
+        dataset = build_be_contact_dataset(workbook_path)
+
+        self.assertEqual(
+            dataset.destinations,
+            [
+                {
+                    "key": "HAN",
+                    "city": "HANOI",
+                    "country": "",
+                    "iata_code": "HAN",
+                    "correspondent_key": "correspondant non renseigne",
+                }
+            ],
+        )
+        self.assertEqual(
+            dataset.correspondents,
+            [{"key": "correspondant non renseigne", "name": "Correspondant non renseigne"}],
+        )
+        self.assertEqual(
+            {item["reason"] for item in dataset.review_items},
+            {
+                "missing destination correspondent_key",
+                "missing destination country",
+            },
+        )
+
 
 class RebuildContactsFromBeXlsxPersistenceTests(TestCase):
     def test_apply_be_contact_dataset_creates_contacts_destinations_and_org_role_links(self):
@@ -384,6 +422,85 @@ class RebuildContactsFromBeXlsxPersistenceTests(TestCase):
         )
         self.assertTrue(ContactTag.objects.filter(name="donateur").exists())
 
+    def test_apply_be_contact_dataset_keeps_default_shipper_bindings_limited_to_dataset(self):
+        dataset = BeContactDataset(
+            donors=[],
+            shippers=[
+                {
+                    "key": "aviation sans frontieres",
+                    "name": "AVIATION SANS FRONTIERES",
+                    "country": "France",
+                },
+                {
+                    "key": "association test",
+                    "name": "Association Test",
+                    "country": "France",
+                },
+            ],
+            recipients=[
+                {"key": "recipient a", "name": "Recipient A", "status": "actif"},
+                {"key": "recipient b", "name": "Recipient B", "status": "actif"},
+            ],
+            correspondents=[
+                {"key": "correspondent tnr", "name": "Correspondent TNR", "country": "Madagascar"},
+                {"key": "correspondent dkr", "name": "Correspondent DKR", "country": "Senegal"},
+            ],
+            destinations=[
+                {
+                    "key": "TNR",
+                    "city": "ANTANANARIVO",
+                    "country": "Madagascar",
+                    "iata_code": "TNR",
+                    "correspondent_key": "correspondent tnr",
+                },
+                {
+                    "key": "DKR",
+                    "city": "DAKAR",
+                    "country": "Senegal",
+                    "iata_code": "DKR",
+                    "correspondent_key": "correspondent dkr",
+                },
+            ],
+            shipper_scopes=[
+                {
+                    "shipper_key": "aviation sans frontieres",
+                    "destination_iata": "TNR",
+                },
+                {
+                    "shipper_key": "association test",
+                    "destination_iata": "DKR",
+                },
+            ],
+            recipient_bindings=[
+                {
+                    "recipient_key": "recipient a",
+                    "shipper_key": "aviation sans frontieres",
+                    "destination_iata": "TNR",
+                },
+                {
+                    "recipient_key": "recipient b",
+                    "shipper_key": "association test",
+                    "destination_iata": "DKR",
+                },
+            ],
+            review_items=[],
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            apply_be_contact_dataset(dataset)
+
+        self.assertCountEqual(
+            RecipientBinding.objects.filter(is_active=True).values_list(
+                "shipper_org__name",
+                "recipient_org__name",
+                "destination__iata_code",
+            ),
+            [
+                ("AVIATION SANS FRONTIERES", "Recipient A", "TNR"),
+                ("Association Test", "Recipient B", "DKR"),
+            ],
+        )
+
 
 class RebuildContactsFromBeXlsxCommandTests(BeWorkbookMixin, TestCase):
     def setUp(self):
@@ -446,6 +563,34 @@ class RebuildContactsFromBeXlsxCommandTests(BeWorkbookMixin, TestCase):
         self.assertTrue(Contact.objects.exists())
         self.assertTrue(self.report_path.exists())
         self.assertTrue(Destination.objects.filter(iata_code="TNR").exists())
+
+    def test_rebuild_contacts_from_be_xlsx_apply_handles_destination_without_correspondent(self):
+        workbook_path = self._build_be_workbook(
+            [
+                {
+                    "ASSOCIATION_NOM": "AVIATION SANS FRONTIERES",
+                    "ASSOCIATION_PAYS": "France",
+                    "BE_DESTINATION": "HANOI",
+                    "BE_CODE_IATA": "HAN",
+                }
+            ]
+        )
+        stdout = StringIO()
+
+        call_command(
+            "rebuild_contacts_from_be_xlsx",
+            "--source",
+            str(workbook_path),
+            "--apply",
+            "--report-path",
+            str(self.report_path),
+            stdout=stdout,
+        )
+
+        self.assertIn("Rebuild contacts from BE workbook [APPLY]", stdout.getvalue())
+        self.assertTrue(Destination.objects.filter(iata_code="HAN", city="HANOI").exists())
+        self.assertTrue(Contact.objects.filter(name="Correspondant non renseigne").exists())
+        self.assertIn("missing destination correspondent_key", self.report_path.read_text())
 
     def test_rebuild_contacts_from_be_xlsx_reports_selected_source_sheets(self):
         workbook_path = self._build_be_multisheet_workbook(

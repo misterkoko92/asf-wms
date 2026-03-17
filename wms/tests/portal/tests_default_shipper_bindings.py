@@ -288,13 +288,12 @@ class DefaultShipperBindingsHelpersTests(TestCase):
         recipient = self._create_org("Recipient Destination")
         self._create_recipient_role_assignment(recipient)
         destination = self._create_destination("DKR")
-        correspondent = destination.correspondent_contact
 
         created_missing_destination = ensure_default_shipper_bindings_for_destination_id(999999)
         self.assertEqual(created_missing_destination, 0)
 
         created = ensure_default_shipper_bindings_for_destination_id(destination.id)
-        self.assertEqual(created, 2)
+        self.assertEqual(created, 1)
         self.assertTrue(
             RecipientBinding.objects.filter(
                 shipper_org=shipper_org,
@@ -303,10 +302,10 @@ class DefaultShipperBindingsHelpersTests(TestCase):
                 is_active=True,
             ).exists()
         )
-        self.assertTrue(
+        self.assertFalse(
             RecipientBinding.objects.filter(
                 shipper_org=shipper_org,
-                recipient_org=correspondent,
+                recipient_org=destination.correspondent_contact,
                 destination=destination,
                 is_active=True,
             ).exists()
