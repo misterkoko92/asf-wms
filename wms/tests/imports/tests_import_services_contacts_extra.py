@@ -221,7 +221,7 @@ class ImportContactsExtraTests(TestCase):
         self.assertEqual(updated, 0)
         self.assertTrue(Contact.objects.filter(name="Org Company").exists())
 
-    def test_import_contacts_updates_destination_and_preserves_existing_asf_id(self):
+    def test_import_contacts_ignores_legacy_destination_columns_and_preserves_existing_asf_id(self):
         tag = ContactTag.objects.create(name="donateur")
         contact = Contact.objects.create(
             name="Org A",
@@ -229,43 +229,28 @@ class ImportContactsExtraTests(TestCase):
             asf_id="ASF-OLD",
         )
         contact.tags.add(tag)
-        correspondent = Contact.objects.create(
-            name="Correspondent",
-            contact_type=ContactType.ORGANIZATION,
-        )
-        destination = Destination.objects.create(
-            city="Paris",
-            iata_code="CDG",
-            country="France",
-            correspondent_contact=correspondent,
-        )
-        with mock.patch(
-            "wms.import_services_contacts._get_or_create_destination",
-            return_value=destination,
-        ) as destination_mock:
-            rows = [
-                {
-                    "contact_type": "organization",
-                    "name": "Org A",
-                    "asf_id": "ASF-NEW",
-                    "destination": "Paris (CDG) - France",
-                    "tags": "donateur",
-                }
-            ]
-            created, updated, errors, warnings = import_contacts(rows)
+        rows = [
+            {
+                "contact_type": "organization",
+                "name": "Org A",
+                "asf_id": "ASF-NEW",
+                "destination": "Paris (CDG) - France",
+                "tags": "donateur",
+            }
+        ]
+        created, updated, errors, warnings = import_contacts(rows)
 
         self.assertEqual(errors, [])
-        self.assertEqual(warnings, [])
+        self.assertEqual(
+            warnings,
+            ["Ligne 2: colonnes legacy destination(s) ignorées; utilisez les scopes org-role."],
+        )
         self.assertEqual(created, 0)
         self.assertEqual(updated, 1)
         contact.refresh_from_db()
         self.assertEqual(contact.asf_id, "ASF-OLD")
-        self.assertEqual(
-            list(contact.destinations.values_list("id", flat=True)),
-            [destination.id],
-        )
-        self.assertEqual(contact.destination_id, destination.id)
-        destination_mock.assert_called_once()
+        self.assertFalse(contact.destinations.exists())
+        self.assertIsNone(contact.destination_id)
 
     def test_import_contacts_updates_existing_address(self):
         tag = ContactTag.objects.create(name="donateur")
@@ -348,56 +333,35 @@ class ImportContactsExtraTests(TestCase):
         self.assertEqual(contact.addresses.count(), 1)
         self.assertTrue(contact.addresses.first().is_default)
 
-    def test_import_contacts_supports_multi_destinations_column(self):
+    def test_import_contacts_ignores_multi_destinations_column(self):
         tag = ContactTag.objects.create(name="donateur")
         contact = Contact.objects.create(
             name="Org Multi Dest",
             contact_type=ContactType.ORGANIZATION,
         )
         contact.tags.add(tag)
-        correspondent = Contact.objects.create(
-            name="Correspondent Dest",
-            contact_type=ContactType.ORGANIZATION,
-        )
-        destination_paris = Destination.objects.create(
-            city="Paris",
-            iata_code="CDG2",
-            country="France",
-            correspondent_contact=correspondent,
-        )
-        destination_lome = Destination.objects.create(
-            city="Lome",
-            iata_code="LFW2",
-            country="Togo",
-            correspondent_contact=correspondent,
-        )
-        with mock.patch(
-            "wms.import_services_contacts._get_or_create_destination",
-            side_effect=[destination_paris, destination_lome],
-        ) as destination_mock:
-            rows = [
-                {
-                    "contact_type": "organization",
-                    "name": "Org Multi Dest",
-                    "tags": "donateur",
-                    "destinations": "Paris (CDG2) - France|Lome (LFW2) - Togo",
-                }
-            ]
-            created, updated, errors, warnings = import_contacts(rows)
+        rows = [
+            {
+                "contact_type": "organization",
+                "name": "Org Multi Dest",
+                "tags": "donateur",
+                "destinations": "Paris (CDG2) - France|Lome (LFW2) - Togo",
+            }
+        ]
+        created, updated, errors, warnings = import_contacts(rows)
 
         self.assertEqual(created, 0)
         self.assertEqual(updated, 1)
         self.assertEqual(errors, [])
-        self.assertEqual(warnings, [])
-        contact.refresh_from_db()
         self.assertEqual(
-            set(contact.destinations.values_list("id", flat=True)),
-            {destination_paris.id, destination_lome.id},
+            warnings,
+            ["Ligne 2: colonnes legacy destination(s) ignorées; utilisez les scopes org-role."],
         )
+        contact.refresh_from_db()
+        self.assertFalse(contact.destinations.exists())
         self.assertIsNone(contact.destination_id)
-        self.assertEqual(destination_mock.call_count, 2)
 
-    def test_import_contacts_sets_linked_shippers_from_column(self):
+    def test_import_contacts_ignores_linked_shippers_column(self):
         recipient_tag = ContactTag.objects.create(name="destinataire")
         existing_shipper = Contact.objects.create(
             name="Shipper Existing",
@@ -417,12 +381,12 @@ class ImportContactsExtraTests(TestCase):
         self.assertEqual(created, 1)
         self.assertEqual(updated, 0)
         self.assertEqual(errors, [])
-        self.assertEqual(len(warnings), 1)
+        self.assertEqual(
+            warnings,
+            ["Ligne 2: colonne linked_shippers ignorée; utilisez RecipientBinding."],
+        )
         recipient = Contact.objects.get(name="Recipient Linked Import")
         self.assertTrue(recipient.tags.filter(pk=recipient_tag.pk).exists())
-        self.assertEqual(
-            set(recipient.linked_shippers.values_list("name", flat=True)),
-            {"Shipper Existing", "Shipper Created"},
-        )
-        created_shipper = Contact.objects.get(name="Shipper Created")
-        self.assertTrue(created_shipper.tags.filter(name__iexact="expediteur").exists())
+        self.assertFalse(recipient.linked_shippers.exists())
+        self.assertEqual(existing_shipper.tags.count(), 0)
+        self.assertFalse(Contact.objects.filter(name="Shipper Created").exists())
