@@ -1,5 +1,6 @@
 from django.test import TestCase
 
+from contacts.correspondent_recipient_promotion import promote_correspondent_to_recipient_ready
 from contacts.models import Contact, ContactTag, ContactType
 from contacts.rules import ensure_default_shipper_for_recipient, tags_match
 from wms.contact_filters import (
@@ -177,6 +178,7 @@ class ContactFiltersTests(TestCase):
         )
 
         person.tags.add(correspondent_tag)
+        promote_correspondent_to_recipient_ready(person, tags=[correspondent_tag])
 
         filtered = filter_structure_contacts(contacts_with_tags(TAG_RECIPIENT)).filter(pk=person.pk)
 
