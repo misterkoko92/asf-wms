@@ -11,7 +11,7 @@ from django.http import Http404
 from django.test import RequestFactory, TestCase, override_settings
 from django.utils import translation
 
-from contacts.models import Contact, ContactTag, ContactType
+from contacts.models import Contact, ContactType
 from wms import models
 from wms.admin import (
     AccountDocumentAdmin,
@@ -798,12 +798,19 @@ class ProductLotAndOtherAdminTests(_AdminTestBase):
 
         destination_admin = DestinationAdmin(models.Destination, self.site)
         db_field = models.Destination._meta.get_field("correspondent_contact")
-        with mock.patch(
-            "wms.admin.contacts_with_tags", return_value=Contact.objects.filter(pk=self.contact.pk)
-        ) as contacts_mock:
-            field = destination_admin.formfield_for_foreignkey(db_field, request_user)
-        contacts_mock.assert_called_once()
-        self.assertEqual(list(field.queryset), [self.contact])
+        inactive_contact = Contact.objects.create(
+            name="Inactive Correspondent",
+            contact_type=ContactType.PERSON,
+            is_active=False,
+        )
+        active_person = Contact.objects.create(
+            name="Active Person",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        field = destination_admin.formfield_for_foreignkey(db_field, request_user)
+        self.assertEqual(list(field.queryset), [active_person, self.contact])
+        self.assertNotIn(inactive_contact, field.queryset)
 
 
 class ShipmentAndStockMovementAdminTests(_AdminTestBase):

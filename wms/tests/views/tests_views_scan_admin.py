@@ -6,7 +6,7 @@ from django.contrib.messages import get_messages
 from django.test import TestCase
 from django.urls import reverse
 
-from contacts.models import Contact, ContactTag
+from contacts.models import Contact
 from wms.models import Destination, Product, ProductKitItem, WmsRuntimeSettings
 
 
@@ -22,13 +22,16 @@ class ScanAdminViewTests(TestCase):
             password="pass1234",
             email="scan-admin-superuser@example.com",
         )
-        self.correspondent_tag = ContactTag.objects.create(name="Correspondant")
         self.correspondent = Contact.objects.create(
             name="Correspondant Test",
             email="corr@example.com",
             is_active=True,
         )
-        self.correspondent.tags.add(self.correspondent_tag)
+        self.orphan_correspondent = Contact.objects.create(
+            name="Correspondant Orphelin",
+            email="orphan@example.com",
+            is_active=True,
+        )
         self.destination = Destination.objects.create(
             city="ABIDJAN",
             iata_code="ABJ",
@@ -36,7 +39,6 @@ class ScanAdminViewTests(TestCase):
             correspondent_contact=self.correspondent,
             is_active=True,
         )
-        self.correspondent.destinations.add(self.destination)
         self.component = Product.objects.create(
             sku="SCAN-ADMIN-COMP",
             name="Seringue",
@@ -157,6 +159,9 @@ class ScanAdminViewTests(TestCase):
         self.assertContains(response, reverse("admin:wms_destination_changelist"))
         self.assertContains(response, self.correspondent.name)
         self.assertContains(response, self.destination.city)
+        correspondents = list(response.context["correspondents"])
+        self.assertEqual(correspondents, [self.correspondent])
+        self.assertNotIn(self.orphan_correspondent, correspondents)
 
     def test_scan_contacts_navigation_is_under_gestion_instead_of_admin(self):
         self.client.force_login(self.superuser)

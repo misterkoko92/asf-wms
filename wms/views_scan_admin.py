@@ -8,8 +8,6 @@ from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods
 
 from contacts.models import Contact, ContactType
-from contacts.querysets import contacts_with_tags
-from contacts.tagging import TAG_CORRESPONDENT
 
 from .kit_components import KitCycleError, get_unit_component_quantities
 from .models import Product
@@ -176,16 +174,20 @@ def scan_admin_contacts(request):
 
     base_contacts_qs = _apply_contact_filter(
         Contact.objects.select_related("organization")
-        .prefetch_related("tags", "destinations", "linked_shippers")
+        .prefetch_related("tags")
         .order_by("name", "id"),
         contact_filter,
     )
     contacts = _apply_contact_query(base_contacts_qs, query)
 
     correspondents = _apply_contact_filter(
-        contacts_with_tags(TAG_CORRESPONDENT)
+        Contact.objects.filter(
+            is_active=True,
+            destinations_as_correspondent__is_active=True,
+        )
         .select_related("organization")
-        .prefetch_related("tags", "destinations"),
+        .distinct()
+        .order_by("name", "id"),
         contact_filter,
     )
     correspondents = _apply_contact_query(correspondents, query)

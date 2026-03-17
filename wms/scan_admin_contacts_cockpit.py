@@ -628,7 +628,9 @@ def _build_organizations_queryset(*, query: str, filters: dict):
             | Q(asf_id__icontains=query)
             | Q(email__icontains=query)
             | Q(phone__icontains=query)
-            | Q(destinations__iata_code__icontains=query)
+            | Q(
+                organization_role_assignments__shipper_scopes__destination__iata_code__icontains=query
+            )
             | Q(recipient_bindings_as_recipient__destination__iata_code__icontains=query)
         )
 
@@ -666,9 +668,7 @@ def build_cockpit_context(*, query: str, filters: dict) -> dict:
         Contact.objects.filter(
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
-        )
-        .prefetch_related("destinations")
-        .order_by("name", "id")
+        ).order_by("name", "id")
     )
     role_assignments = list(
         OrganizationRoleAssignment.objects.select_related("organization")
@@ -747,18 +747,6 @@ def build_cockpit_context(*, query: str, filters: dict) -> dict:
     recipient_default_destination_by_org_id: dict[int, int | None] = {}
     for organization in binding_recipient_organizations:
         suggested_destination_id = latest_destination_by_recipient_id.get(organization.id)
-        if not suggested_destination_id and organization.destination_id in active_destination_ids:
-            suggested_destination_id = organization.destination_id
-        if not suggested_destination_id:
-            scoped_destination_ids = sorted(
-                {
-                    destination.id
-                    for destination in organization.destinations.all()
-                    if destination.is_active
-                }
-            )
-            if len(scoped_destination_ids) == 1:
-                suggested_destination_id = scoped_destination_ids[0]
         recipient_default_destination_by_org_id[organization.id] = suggested_destination_id
         setattr(organization, "default_destination_id", suggested_destination_id or "")
     shipper_role_assignments = [
