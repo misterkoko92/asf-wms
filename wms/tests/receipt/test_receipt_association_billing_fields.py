@@ -8,7 +8,13 @@ from django.urls import reverse
 
 from contacts.models import Contact, ContactTag, ContactType
 from wms.forms import ScanReceiptAssociationForm
-from wms.models import Receipt, ReceiptType, Warehouse
+from wms.models import (
+    OrganizationRole,
+    OrganizationRoleAssignment,
+    Receipt,
+    ReceiptType,
+    Warehouse,
+)
 
 
 class AssociationReceiptBillingFieldsTests(TestCase):
@@ -25,10 +31,18 @@ class AssociationReceiptBillingFieldsTests(TestCase):
         )
         self.client.force_login(self.user)
         self.warehouse = Warehouse.objects.create(name="Reception", code="REC")
-        self.source_contact = self._create_contact("Association Billing", ["expediteur"])
-        self.carrier_contact = self._create_contact("Transport Billing", ["transporteur"])
+        self.source_contact = self._create_contact(
+            "Association Billing",
+            ["expediteur"],
+            role=OrganizationRole.SHIPPER,
+        )
+        self.carrier_contact = self._create_contact(
+            "Transport Billing",
+            ["transporteur"],
+            role=OrganizationRole.TRANSPORTER,
+        )
 
-    def _create_contact(self, name, tags):
+    def _create_contact(self, name, tags, *, role=None):
         contact = Contact.objects.create(
             name=name,
             contact_type=ContactType.ORGANIZATION,
@@ -37,6 +51,12 @@ class AssociationReceiptBillingFieldsTests(TestCase):
         for tag_name in tags:
             tag, _ = ContactTag.objects.get_or_create(name=tag_name)
             contact.tags.add(tag)
+        if role:
+            OrganizationRoleAssignment.objects.create(
+                organization=contact,
+                role=role,
+                is_active=True,
+            )
         return contact
 
     def test_association_receipt_stores_pickup_billing_fields(self):
