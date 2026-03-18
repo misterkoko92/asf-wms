@@ -32,7 +32,6 @@ from .admin_carton_handlers import (
     sync_carton_shipment_stock_movements,
     unpack_cartons_batch,
 )
-from .admin_organization_roles_review import get_organization_roles_review_urls
 from .admin_stockmovement_views import (
     build_stockmovement_form_response,
     handle_adjust_view,
@@ -1619,19 +1618,3 @@ class CommunicationDraftAdmin(admin.ModelAdmin):
     list_filter = ("channel", "status")
     list_select_related = ("version", "template", "edited_by")
     search_fields = ("recipient_label", "recipient_contact", "subject", "body")
-
-
-def _install_organization_roles_review_admin_url():
-    if getattr(admin.site, "_wms_org_roles_review_url_installed", False):
-        return
-
-    original_get_urls = admin.site.get_urls
-
-    def _get_urls():
-        return get_organization_roles_review_urls(admin_site=admin.site) + original_get_urls()
-
-    admin.site.get_urls = _get_urls
-    admin.site._wms_org_roles_review_url_installed = True
-
-
-_install_organization_roles_review_admin_url()

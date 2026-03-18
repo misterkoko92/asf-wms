@@ -126,7 +126,6 @@ DELETE_BATCHES = (
             "wms.OrganizationContact",
             "wms.RecipientBinding",
             "wms.ShipperScope",
-            "wms.MigrationReviewItem",
             "wms.OrganizationRoleAssignment",
         ),
     ),

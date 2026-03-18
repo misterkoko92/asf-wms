@@ -23,9 +23,7 @@
     "wms/public_order_helpers.py",
     "wms/views_public_order.py",
     "wms/organization_role_resolvers.py",
-    "wms/admin_organization_roles_review.py",
     "wms/management/commands/process_document_scan_queue.py",
-    "wms/management/commands/check_document_scan_runtime.py",
-    "wms/management/commands/import_org_roles_template.py"
+    "wms/management/commands/check_document_scan_runtime.py"
   ]
 }
