@@ -3,24 +3,24 @@ from io import StringIO
 from django.core.management import call_command
 from django.test import TestCase
 
-from contacts.models import Contact, ContactTag, ContactType
+from contacts.models import Contact, ContactType
 from wms.models import Destination, OrganizationRole, OrganizationRoleAssignment
 
 
 class BackfillCorrespondentRecipientsCommandTests(TestCase):
-    def setUp(self):
-        self.correspondent_tag = ContactTag.objects.create(name="correspondant")
-
-    def _attach_correspondent_tag_without_signal(self, contact):
-        Contact.tags.through.objects.create(contact=contact, contacttag=self.correspondent_tag)
-
     def test_dry_run_reports_changes_without_persisting(self):
         person = Contact.objects.create(
             name="Dry Run Correspondent",
             contact_type=ContactType.PERSON,
             is_active=True,
         )
-        self._attach_correspondent_tag_without_signal(person)
+        Destination.objects.create(
+            city="Douala",
+            iata_code="DLA",
+            country="Cameroun",
+            correspondent_contact=person,
+            is_active=True,
+        )
 
         stdout = StringIO()
 
@@ -38,7 +38,6 @@ class BackfillCorrespondentRecipientsCommandTests(TestCase):
         )
         person.refresh_from_db()
         self.assertIsNone(person.organization)
-        self.assertFalse(person.tags.filter(name__iexact="destinataire").exists())
         self.assertFalse(
             OrganizationRoleAssignment.objects.filter(role=OrganizationRole.RECIPIENT).exists()
         )
@@ -54,8 +53,20 @@ class BackfillCorrespondentRecipientsCommandTests(TestCase):
             contact_type=ContactType.PERSON,
             is_active=True,
         )
-        self._attach_correspondent_tag_without_signal(first)
-        self._attach_correspondent_tag_without_signal(second)
+        Destination.objects.create(
+            city="Bangui",
+            iata_code="BGF",
+            country="RCA",
+            correspondent_contact=first,
+            is_active=True,
+        )
+        Destination.objects.create(
+            city="Ndjamena",
+            iata_code="NDJ",
+            country="Tchad",
+            correspondent_contact=second,
+            is_active=True,
+        )
 
         stdout = StringIO()
 
@@ -79,8 +90,6 @@ class BackfillCorrespondentRecipientsCommandTests(TestCase):
         second.refresh_from_db()
         self.assertEqual(first.organization, support_org)
         self.assertEqual(second.organization, support_org)
-        self.assertTrue(first.tags.filter(name__iexact="destinataire").exists())
-        self.assertTrue(second.tags.filter(name__iexact="destinataire").exists())
         self.assertTrue(
             OrganizationRoleAssignment.objects.filter(
                 organization=support_org,
@@ -95,8 +104,7 @@ class BackfillCorrespondentRecipientsCommandTests(TestCase):
             contact_type=ContactType.PERSON,
             is_active=True,
         )
-        self._attach_correspondent_tag_without_signal(person)
-        destination = Destination.objects.create(
+        Destination.objects.create(
             city="Libreville",
             iata_code="LBV",
             country="Gabon",
@@ -107,11 +115,7 @@ class BackfillCorrespondentRecipientsCommandTests(TestCase):
         call_command("backfill_correspondent_recipients", "--apply")
 
         person.refresh_from_db()
-        self.assertEqual(
-            set(person.destinations.values_list("id", flat=True)),
-            {destination.id},
-        )
-        self.assertEqual(person.destination_id, destination.id)
+        self.assertIsNotNone(person.organization_id)
 
         stdout = StringIO()
         call_command("backfill_correspondent_recipients", "--dry-run", stdout=stdout)

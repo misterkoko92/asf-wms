@@ -56,21 +56,6 @@ def _find_synced_contact_by_marker(recipient):
     )
 
 
-def _find_legacy_synced_contact(recipient):
-    association = recipient.association_contact
-    if not association:
-        return None
-    legacy_source = f"{PORTAL_RECIPIENT_SOURCE_PREFIX} {association}"
-    recipients = Contact.objects.filter(
-        contact_type=ContactType.ORGANIZATION,
-        name__iexact=_recipient_display_name(recipient),
-        notes__startswith=legacy_source,
-    ).order_by("-id")
-    if recipients.count() == 1:
-        return recipients.first()
-    return None
-
-
 def _upsert_contact_address(*, contact, recipient, primary_phone, primary_email):
     if not recipient.address_line1:
         return
@@ -231,9 +216,7 @@ def sync_association_recipient_to_contact(recipient):
             destination=recipient.destination,
         )
 
-        contact = _find_synced_contact_by_marker(recipient) or _find_legacy_synced_contact(
-            recipient
-        )
+        contact = _find_synced_contact_by_marker(recipient)
         if contact is None:
             contact = Contact.objects.create(
                 contact_type=ContactType.ORGANIZATION,

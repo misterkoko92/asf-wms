@@ -5,16 +5,6 @@ from django.utils.translation import gettext_lazy as _
 
 from contacts.models import Contact, ContactType
 
-from .contact_filters import (
-    TAG_CORRESPONDENT,
-    TAG_DONOR,
-    TAG_RECIPIENT,
-    TAG_SHIPPER,
-    TAG_TRANSPORTER,
-    contacts_with_tags,
-    filter_contacts_for_destination,
-    filter_structure_contacts,
-)
 from .contact_labels import build_contact_select_label, build_shipment_recipient_select_label
 from .models import (
     Carton,

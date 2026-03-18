@@ -1,6 +1,7 @@
 from django.test import TestCase
 
 from contacts.models import Contact, ContactType
+from wms import portal_recipient_sync
 from wms.models import (
     AssociationRecipient,
     Destination,
@@ -13,6 +14,9 @@ from wms.portal_recipient_sync import sync_association_recipient_to_contact
 
 
 class PortalRecipientSyncTests(TestCase):
+    def test_module_has_no_legacy_synced_contact_fallback(self):
+        self.assertFalse(hasattr(portal_recipient_sync, "_find_legacy_synced_contact"))
+
     def setUp(self):
         self.association = Contact.objects.create(
             name="Association Test",

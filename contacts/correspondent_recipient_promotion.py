@@ -2,14 +2,9 @@ from dataclasses import dataclass
 
 from django.db import transaction
 
-from contacts.destination_scope import contact_destination_ids, set_contact_destination_scope
-from contacts.models import Contact, ContactTag, ContactType
-from contacts.querysets import contacts_with_tags
-from contacts.rules import tags_match
-from contacts.tagging import TAG_CORRESPONDENT, TAG_RECIPIENT, normalize_tag_name
+from contacts.models import Contact, ContactType
 from wms.models import Destination, OrganizationRole, OrganizationRoleAssignment
 
-RECIPIENT_TAG_DEFAULT_NAME = "Destinataire"
 SUPPORT_ORGANIZATION_NAME = "ASF - CORRESPONDANT"
 SUPPORT_ORGANIZATION_NOTES_MARKER = "[system] correspondent recipient support organization"
 
@@ -17,22 +12,10 @@ SUPPORT_ORGANIZATION_NOTES_MARKER = "[system] correspondent recipient support or
 @dataclass(frozen=True)
 class CorrespondentRecipientPromotionResult:
     changed: bool = False
-    recipient_tag_added: bool = False
     support_organization_created: bool = False
     attached_to_support_organization: bool = False
-    destination_scope_synced: bool = False
     recipient_role_created: bool = False
     recipient_role_reactivated: bool = False
-
-
-def _get_or_create_recipient_tag() -> ContactTag:
-    normalized_targets = {
-        normalize_tag_name(alias) for alias in TAG_RECIPIENT if normalize_tag_name(alias)
-    }
-    for tag in ContactTag.objects.only("id", "name"):
-        if normalize_tag_name(tag.name) in normalized_targets:
-            return tag
-    return ContactTag.objects.create(name=RECIPIENT_TAG_DEFAULT_NAME)
 
 
 def _get_or_create_support_organization():
@@ -101,32 +84,17 @@ def _destination_ids_from_correspondent_assignments(contact) -> list[int]:
     )
 
 
-def promote_correspondent_to_recipient_ready(
-    contact, *, tags=None
-) -> CorrespondentRecipientPromotionResult:
+def promote_correspondent_to_recipient_ready(contact) -> CorrespondentRecipientPromotionResult:
     if not contact or not contact.pk:
         return CorrespondentRecipientPromotionResult()
-    tag_source = tags if tags is not None else contact.tags.all()
-    if not tags_match(tag_source, TAG_CORRESPONDENT):
-        return CorrespondentRecipientPromotionResult()
     if not contact.is_active:
+        return CorrespondentRecipientPromotionResult()
+    if not _destination_ids_from_correspondent_assignments(contact):
         return CorrespondentRecipientPromotionResult()
 
     organization, support_created, attached_to_support = _resolve_recipient_organization(contact)
     if organization is None:
         return CorrespondentRecipientPromotionResult()
-
-    recipient_tag_added = False
-    recipient_tag = _get_or_create_recipient_tag()
-    if not contact.tags.filter(pk=recipient_tag.pk).exists():
-        contact.tags.add(recipient_tag)
-        recipient_tag_added = True
-
-    destination_scope_synced = False
-    destination_ids = _destination_ids_from_correspondent_assignments(contact)
-    if destination_ids and contact_destination_ids(contact) != destination_ids:
-        set_contact_destination_scope(contact=contact, destination_ids=destination_ids)
-        destination_scope_synced = True
 
     assignment, created = OrganizationRoleAssignment.objects.get_or_create(
         organization=organization,
@@ -141,18 +109,14 @@ def promote_correspondent_to_recipient_ready(
     return CorrespondentRecipientPromotionResult(
         changed=any(
             [
-                recipient_tag_added,
                 support_created,
                 attached_to_support,
-                destination_scope_synced,
                 created,
                 reactivated,
             ]
         ),
-        recipient_tag_added=recipient_tag_added,
         support_organization_created=support_created,
         attached_to_support_organization=attached_to_support,
-        destination_scope_synced=destination_scope_synced,
         recipient_role_created=created,
         recipient_role_reactivated=reactivated,
     )
@@ -162,20 +126,26 @@ def _backfill_correspondent_recipients_impl():
     summary = {
         "processed_contacts": 0,
         "changed_contacts": 0,
-        "recipient_tags_added": 0,
         "support_organizations_created": 0,
         "contacts_attached_to_support_org": 0,
         "recipient_roles_created": 0,
         "recipient_roles_reactivated": 0,
     }
-    correspondents = contacts_with_tags(TAG_CORRESPONDENT).select_related("organization")
+    correspondents = (
+        Contact.objects.filter(
+            pk__in=Destination.objects.filter(
+                is_active=True,
+                correspondent_contact__isnull=False,
+            ).values("correspondent_contact_id")
+        )
+        .select_related("organization")
+        .order_by("id")
+    )
     for contact in correspondents:
         summary["processed_contacts"] += 1
         result = promote_correspondent_to_recipient_ready(contact)
         if result.changed:
             summary["changed_contacts"] += 1
-        if result.recipient_tag_added:
-            summary["recipient_tags_added"] += 1
         if result.support_organization_created:
             summary["support_organizations_created"] += 1
         if result.attached_to_support_organization:
