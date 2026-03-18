@@ -2,7 +2,6 @@ import csv
 import tempfile
 
 from django.core.management import call_command
-from django.core.management.base import CommandError
 from django.test import TestCase
 
 from contacts.models import Contact, ContactType
@@ -129,10 +128,42 @@ class AuditOrgRoleTriplesCommandTests(TestCase):
         ]
         self.assertEqual(len(refused_out_of_scope), 2)
 
-    def test_command_fails_when_org_roles_engine_is_disabled(self):
+    def test_command_ignores_runtime_flag_when_exporting(self):
         runtime = WmsRuntimeSettings.get_solo()
         runtime.org_roles_engine_enabled = False
         runtime.save(update_fields=["org_roles_engine_enabled"])
 
-        with self.assertRaises(CommandError):
-            call_command("audit_org_role_triples", output="docs/audits/should_not_exist.csv")
+        correspondent = self._create_org("Corr Disabled")
+        destination = self._create_destination(iata_code="DLA", correspondent=correspondent)
+        shipper = self._create_org("Shipper Disabled")
+        recipient = self._create_org("Recipient Disabled")
+
+        shipper_assignment = OrganizationRoleAssignment.objects.create(
+            organization=shipper,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
+        OrganizationRoleAssignment.objects.create(
+            organization=recipient,
+            role=OrganizationRole.RECIPIENT,
+            is_active=True,
+        )
+        ShipperScope.objects.create(
+            role_assignment=shipper_assignment,
+            destination=destination,
+            all_destinations=False,
+            is_active=True,
+        )
+        RecipientBinding.objects.create(
+            shipper_org=shipper,
+            recipient_org=recipient,
+            destination=destination,
+            is_active=True,
+        )
+
+        with tempfile.NamedTemporaryFile(suffix=".csv") as output_file:
+            call_command("audit_org_role_triples", output=output_file.name, progress_every=1000)
+            output_file.seek(0)
+            rows = list(csv.DictReader(output_file.read().decode("utf-8").splitlines()))
+
+        self.assertGreater(len(rows), 0)

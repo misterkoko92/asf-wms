@@ -73,18 +73,8 @@ class OrganizationRoleResolversTests(TestCase):
             is_active=is_active,
         )
 
-    @mock.patch("wms.organization_role_resolvers.get_runtime_config")
-    def test_is_org_roles_engine_enabled_reads_runtime_flag(self, runtime_mock):
-        runtime_mock.return_value = mock.Mock(org_roles_engine_enabled=True)
+    def test_is_org_roles_engine_enabled_is_unconditional(self):
         self.assertTrue(is_org_roles_engine_enabled())
-
-        runtime_mock.return_value = mock.Mock(org_roles_engine_enabled=False)
-        self.assertFalse(is_org_roles_engine_enabled())
-
-    @mock.patch("wms.organization_role_resolvers.is_org_roles_engine_enabled", return_value=False)
-    def test_eligible_shippers_returns_empty_when_engine_disabled(self, _engine_mock):
-        destination = self._create_destination("ABJ")
-        self.assertFalse(eligible_shippers_for_destination(destination).exists())
 
     @mock.patch("wms.organization_role_resolvers.is_org_roles_engine_enabled", return_value=True)
     def test_eligible_shippers_returns_empty_without_destination(self, _engine_mock):
@@ -151,17 +141,6 @@ class OrganizationRoleResolversTests(TestCase):
         )
         self.assertEqual(shipper_ids, {shipper_in_scope.id, shipper_global.id})
 
-    @mock.patch("wms.organization_role_resolvers.is_org_roles_engine_enabled", return_value=False)
-    def test_eligible_recipients_returns_empty_when_engine_disabled(self, _engine_mock):
-        shipper_org = self._create_org("Shipper Disabled")
-        destination = self._create_destination("DLA")
-        self.assertFalse(
-            eligible_recipients_for_shipper_destination(
-                shipper_org=shipper_org,
-                destination=destination,
-            ).exists()
-        )
-
     @mock.patch("wms.organization_role_resolvers.is_org_roles_engine_enabled", return_value=True)
     def test_eligible_recipients_returns_empty_for_missing_inputs(self, _engine_mock):
         shipper_org = self._create_org("Shipper Missing Input")
@@ -220,15 +199,6 @@ class OrganizationRoleResolversTests(TestCase):
             ).values_list("id", flat=True)
         )
         self.assertEqual(recipient_ids, {recipient_allowed.id})
-
-    @mock.patch("wms.organization_role_resolvers.is_org_roles_engine_enabled", return_value=False)
-    def test_resolve_shipper_returns_input_when_engine_disabled(self, _engine_mock):
-        shipper_org = self._create_org("Shipper Engine Disabled")
-        destination = self._create_destination("TNR")
-        self.assertEqual(
-            resolve_shipper_for_operation(shipper_org=shipper_org, destination=destination),
-            shipper_org,
-        )
 
     @mock.patch("wms.organization_role_resolvers.is_org_roles_engine_enabled", return_value=True)
     def test_resolve_shipper_validates_required_inputs(self, _engine_mock):
@@ -322,22 +292,6 @@ class OrganizationRoleResolversTests(TestCase):
             destination=destination,
         )
         self.assertEqual(resolved.pk, assignment.pk)
-
-    @mock.patch("wms.organization_role_resolvers.is_org_roles_engine_enabled", return_value=False)
-    def test_resolve_recipient_binding_returns_none_when_engine_disabled(
-        self,
-        _engine_mock,
-    ):
-        shipper_org = self._create_org("Shipper Recipient Disabled")
-        recipient_org = self._create_org("Recipient Engine Disabled")
-        destination = self._create_destination("LAD")
-        self.assertIsNone(
-            resolve_recipient_binding_for_operation(
-                shipper_org=shipper_org,
-                recipient_org=recipient_org,
-                destination=destination,
-            )
-        )
 
     @mock.patch("wms.organization_role_resolvers.is_org_roles_engine_enabled", return_value=True)
     def test_resolve_recipient_binding_validates_required_inputs(self, _engine_mock):

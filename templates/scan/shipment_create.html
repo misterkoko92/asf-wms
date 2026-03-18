@@ -30,7 +30,7 @@
       <div class="scan-message error">{{ form.non_field_errors }}</div>
     {% endif %}
     {% blocktrans trimmed asvar preassignment_mismatch_template %}Ce colis a été pré-affecté pour la destination __EXPECTED__. Voulez vous vraiment l'affecter à l'expédition en cours pour la destination __CURRENT__ ?{% endblocktrans %}
-    <form method="post" novalidate class="ui-comp-form" id="shipment-form" data-shipment-edit="{% if is_edit %}1{% else %}0{% endif %}" data-form-bound="{% if form.is_bound %}1{% else %}0{% endif %}" data-org-roles-engine-enabled="{% if org_roles_engine_enabled %}1{% else %}0{% endif %}" data-preassignment-mismatch-template="{{ preassignment_mismatch_template }}">
+    <form method="post" novalidate class="ui-comp-form" id="shipment-form" data-shipment-edit="{% if is_edit %}1{% else %}0{% endif %}" data-form-bound="{% if form.is_bound %}1{% else %}0{% endif %}" data-org-roles-engine-enabled="1" data-preassignment-mismatch-template="{{ preassignment_mismatch_template }}">
       {% csrf_token %}
 
       <div class="scan-field ui-comp-panel">

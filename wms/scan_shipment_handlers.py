@@ -20,7 +20,6 @@ from .organization_role_resolvers import (
     resolve_recipient_binding_for_operation,
     resolve_shipper_for_operation,
 )
-from .runtime_settings import get_runtime_config
 from .services import StockError, pack_carton, pack_carton_from_reserved
 from .shipment_helpers import build_destination_label, parse_shipment_lines
 from .shipment_party_rules import normalize_party_contact_to_org
@@ -106,8 +105,6 @@ def _related_order_for_shipment(shipment):
 
 
 def _validate_org_role_selection(*, shipper_contact, recipient_contact, destination):
-    if not get_runtime_config().org_roles_engine_enabled:
-        return
     shipper_org = normalize_party_contact_to_org(shipper_contact)
     recipient_org = normalize_party_contact_to_org(recipient_contact)
     try:

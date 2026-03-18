@@ -12,7 +12,6 @@ from .models import (
     RecipientBinding,
     ShipperScope,
 )
-from .runtime_settings import get_runtime_config
 
 MESSAGE_DESTINATION_REQUIRED = "Escale requise."
 MESSAGE_SHIPPER_REQUIRED = "Expediteur requis."
@@ -30,7 +29,7 @@ class OrganizationRoleResolutionError(Exception):
 
 
 def is_org_roles_engine_enabled() -> bool:
-    return bool(get_runtime_config().org_roles_engine_enabled)
+    return True
 
 
 def _current_window_q(prefix: str = ""):
@@ -61,8 +60,6 @@ def active_organizations_for_role(role):
 
 
 def eligible_shippers_for_destination(destination):
-    if not is_org_roles_engine_enabled():
-        return Contact.objects.none()
     if destination is None:
         return Contact.objects.none()
 
@@ -89,8 +86,6 @@ def eligible_shippers_for_destination(destination):
 
 
 def eligible_recipients_for_shipper_destination(*, shipper_org, destination):
-    if not is_org_roles_engine_enabled():
-        return Contact.objects.none()
     if shipper_org is None or destination is None:
         return Contact.objects.none()
 
@@ -116,9 +111,6 @@ def eligible_recipients_for_shipper_destination(*, shipper_org, destination):
 
 
 def resolve_shipper_for_operation(*, shipper_org, destination):
-    if not is_org_roles_engine_enabled():
-        return shipper_org
-
     if destination is None:
         raise OrganizationRoleResolutionError(MESSAGE_DESTINATION_REQUIRED)
     if shipper_org is None:
@@ -156,9 +148,6 @@ def resolve_shipper_for_operation(*, shipper_org, destination):
 
 
 def resolve_recipient_binding_for_operation(*, shipper_org, recipient_org, destination):
-    if not is_org_roles_engine_enabled():
-        return None
-
     if destination is None:
         raise OrganizationRoleResolutionError(MESSAGE_DESTINATION_REQUIRED)
     if recipient_org is None:

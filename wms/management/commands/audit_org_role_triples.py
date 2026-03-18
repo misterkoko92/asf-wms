@@ -16,7 +16,6 @@ from wms.organization_role_resolvers import (
     MESSAGE_SHIPPER_OUT_OF_SCOPE,
     MESSAGE_SHIPPER_REVIEW_PENDING,
     OrganizationRoleResolutionError,
-    is_org_roles_engine_enabled,
     resolve_recipient_binding_for_operation,
     resolve_shipper_for_operation,
 )
@@ -82,12 +81,6 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        if not is_org_roles_engine_enabled():
-            raise CommandError(
-                "Le moteur organization roles est desactive. "
-                "Activez org_roles_engine_enabled avant cet audit."
-            )
-
         include_inactive = bool(options.get("include_inactive"))
         progress_every = max(1, int(options.get("progress_every") or 20000))
         max_triples = max(0, int(options.get("max_triples") or 0))
