@@ -25,14 +25,13 @@ from .import_services_products import (
     normalize_quantity_mode,
     resolve_photo_path,
 )
-from .import_services_tags import build_contact_tags, build_product_tags
+from .import_services_tags import build_product_tags
 from .import_services_users import import_users
 
 __all__ = [
     "_row_is_empty",
     "build_category_path",
     "build_product_tags",
-    "build_contact_tags",
     "extract_product_identity",
     "find_product_matches",
     "DEFAULT_QUANTITY_MODE",

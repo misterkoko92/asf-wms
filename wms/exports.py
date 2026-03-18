@@ -50,10 +50,9 @@ def _current_window_q(prefix: str = ""):
 
 def _build_contact_role_scope_maps(contact_ids):
     if not contact_ids:
-        return {}, {}, (set(), {})
+        return {}, (set(), {})
 
     destination_ids_by_contact_id = {contact_id: set() for contact_id in contact_ids}
-    linked_shippers_by_contact_id = {contact_id: set() for contact_id in contact_ids}
     global_scope_contact_ids = set()
 
     correspondent_rows = Destination.objects.filter(
@@ -84,13 +83,11 @@ def _build_contact_role_scope_maps(contact_ids):
             is_active=True,
         )
         .filter(_current_window_q())
-        .values_list("recipient_org_id", "destination_id", "shipper_org__name")
+        .values_list("recipient_org_id", "destination_id")
     )
-    for contact_id, destination_id, shipper_name in recipient_binding_rows:
+    for contact_id, destination_id in recipient_binding_rows:
         if destination_id:
             destination_ids_by_contact_id.setdefault(contact_id, set()).add(destination_id)
-        if shipper_name:
-            linked_shippers_by_contact_id.setdefault(contact_id, set()).add(shipper_name)
 
     referenced_destination_ids = {
         destination_id
@@ -103,11 +100,7 @@ def _build_contact_role_scope_maps(contact_ids):
     }
     return (
         destination_ids_by_contact_id,
-        linked_shippers_by_contact_id,
-        (
-            global_scope_contact_ids,
-            destination_labels_by_id,
-        ),
+        (global_scope_contact_ids, destination_labels_by_id),
     )
 
 
@@ -262,9 +255,6 @@ def export_contacts_csv():
         "phone2",
         "is_active",
         "use_organization_address",
-        "tags",
-        "destinations",
-        "linked_shippers",
         "destination",
         "siret",
         "vat_number",
@@ -284,20 +274,12 @@ def export_contacts_csv():
         "notes",
     ]
     rows = []
-    contacts = list(
-        Contact.objects.select_related("organization").prefetch_related(
-            "tags",
-            "addresses",
-        )
-    )
-    destination_ids_by_contact_id, linked_shipper_names_by_contact_id, scope_maps = (
-        _build_contact_role_scope_maps(
-            [contact.id for contact in contacts if getattr(contact, "id", None)]
-        )
+    contacts = list(Contact.objects.select_related("organization").prefetch_related("addresses"))
+    destination_ids_by_contact_id, scope_maps = _build_contact_role_scope_maps(
+        [contact.id for contact in contacts if getattr(contact, "id", None)]
     )
     global_scope_contact_ids, destination_labels_by_id = scope_maps
     for contact in contacts:
-        tags = "|".join(sorted(tag.name for tag in contact.tags.all()))
         contact_id = getattr(contact, "id", None)
         if contact_id in global_scope_contact_ids:
             destination_labels = ["GLOBAL"]
@@ -311,10 +293,6 @@ def export_contacts_csv():
                 for destination_id in destination_ids
                 if destination_id in destination_labels_by_id
             ]
-        destinations = "|".join(destination_labels)
-        linked_shippers = "|".join(
-            sorted(linked_shipper_names_by_contact_id.get(contact_id, set()))
-        )
         destination = (
             destination_labels[0]
             if len(destination_labels) == 1 and destination_labels[0] != "GLOBAL"
@@ -342,9 +320,6 @@ def export_contacts_csv():
                     contact.phone2 or "",
                     _bool_to_csv(contact.is_active),
                     _bool_to_csv(contact.use_organization_address),
-                    tags,
-                    destinations,
-                    linked_shippers,
                     destination,
                     contact.siret or "",
                     contact.vat_number or "",
@@ -380,9 +355,6 @@ def export_contacts_csv():
                     contact.phone2 or "",
                     _bool_to_csv(contact.is_active),
                     _bool_to_csv(contact.use_organization_address),
-                    tags,
-                    destinations,
-                    linked_shippers,
                     destination,
                     contact.siret or "",
                     contact.vat_number or "",

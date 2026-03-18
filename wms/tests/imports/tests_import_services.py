@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone
 
-from contacts.models import Contact, ContactAddress, ContactTag, ContactType
+from contacts.models import Contact, ContactAddress, ContactType
 from wms.import_services import (
     apply_pallet_listing_import,
     import_contacts,
@@ -18,7 +18,6 @@ class ImportContactsTests(TestCase):
             {
                 "contact_type": "organization",
                 "name": "Org Alpha",
-                "tags": "donateur",
                 "address_line1": "1 Rue Exemple",
                 "city": "Paris",
                 "postal_code": "75001",
@@ -38,13 +37,11 @@ class ImportContactsTests(TestCase):
         self.assertEqual(Contact.objects.count(), 1)
         self.assertEqual(ContactAddress.objects.count(), 1)
 
-    def test_import_contacts_allows_missing_tags_when_existing(self):
-        tag = ContactTag.objects.create(name="donateur")
+    def test_import_contacts_updates_existing_contact_without_tags_column(self):
         contact = Contact.objects.create(
             name="Org Beta",
             contact_type=ContactType.ORGANIZATION,
         )
-        contact.tags.add(tag)
 
         rows = [
             {
@@ -61,15 +58,13 @@ class ImportContactsTests(TestCase):
 
         contact.refresh_from_db()
         self.assertEqual(contact.phone, "0102030405")
-        self.assertEqual(list(contact.tags.values_list("name", flat=True)), ["donateur"])
+        self.assertEqual(contact.tags.count(), 0)
 
-    def test_import_contacts_merges_tags_with_warning(self):
-        tag = ContactTag.objects.create(name="donateur")
+    def test_import_contacts_ignores_legacy_tags_column_without_warning(self):
         contact = Contact.objects.create(
             name="Org Gamma",
             contact_type=ContactType.ORGANIZATION,
         )
-        contact.tags.add(tag)
 
         rows = [
             {
@@ -80,13 +75,12 @@ class ImportContactsTests(TestCase):
         ]
         created, updated, errors, warnings = import_contacts(rows)
         self.assertEqual(errors, [])
+        self.assertEqual(warnings, [])
         self.assertEqual(created, 0)
         self.assertEqual(updated, 1)
-        self.assertEqual(len(warnings), 1)
 
         contact.refresh_from_db()
-        tag_names = sorted(contact.tags.values_list("name", flat=True))
-        self.assertEqual(tag_names, ["donateur", "transporteur"])
+        self.assertEqual(contact.tags.count(), 0)
 
 
 class ImportProductsTests(TestCase):

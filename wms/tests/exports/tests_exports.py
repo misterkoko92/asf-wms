@@ -224,10 +224,6 @@ class ExportsTests(SimpleTestCase):
             phone="123",
             phone2="",
             use_organization_address=True,
-            tags=SimpleNamespace(
-                all=lambda: [SimpleNamespace(name="TagB"), SimpleNamespace(name="TagA")]
-            ),
-            destination=None,
             get_effective_addresses=lambda: [],
             siret="",
             vat_number="",
@@ -263,8 +259,6 @@ class ExportsTests(SimpleTestCase):
             phone="456",
             phone2="",
             use_organization_address=False,
-            tags=SimpleNamespace(all=lambda: []),
-            destination=SimpleNamespace(__str__=lambda self: "Paris - France"),
             addresses=SimpleNamespace(all=lambda: [address_1]),
             siret="S1",
             vat_number="V1",
@@ -295,13 +289,13 @@ class ExportsTests(SimpleTestCase):
         self.assertEqual(len(rows), 2)
         self.assertEqual(rows[0][0], "individual")
         self.assertEqual(rows[0][11], "true")
-        self.assertEqual(rows[0][13], "TagA|TagB")
-        self.assertEqual(rows[0][20], "ASF-1")
+        self.assertEqual(rows[0][13], "")
+        self.assertEqual(rows[0][17], "ASF-1")
         self.assertEqual(rows[1][0], "association")
         self.assertEqual(rows[1][5], "OrgX")
         self.assertEqual(rows[1][11], "false")
-        self.assertEqual(rows[1][21], "HQ")
-        self.assertEqual(rows[1][30], "true")
+        self.assertEqual(rows[1][18], "HQ")
+        self.assertEqual(rows[1][27], "true")
 
     def test_export_users_csv(self):
         fake_user_model = SimpleNamespace(
@@ -376,7 +370,11 @@ class ExportsTests(SimpleTestCase):
         header = response_mock.call_args.args[1]
         self.assertEqual(header, self._read_template_header("contacts.csv"))
         self.assertIn("is_active", header)
+        self.assertIn("destination", header)
         self.assertIn("address_notes", header)
+        self.assertNotIn("tags", header)
+        self.assertNotIn("destinations", header)
+        self.assertNotIn("linked_shippers", header)
 
     def test_static_users_template_header_matches_export_header(self):
         fake_user_model = SimpleNamespace(objects=SimpleNamespace(all=lambda: []))
@@ -465,10 +463,6 @@ class ExportsDatabaseTests(TestCase):
         self.assertEqual(result, "contacts-response")
         rows = {row[4]: row for row in response_mock.call_args.args[2]}
         destination_label = str(destination)
-        self.assertEqual(rows["Shipper Org"][14], destination_label)
-        self.assertEqual(rows["Shipper Org"][16], destination_label)
-        self.assertEqual(rows["Recipient Org"][14], destination_label)
-        self.assertEqual(rows["Recipient Org"][15], "Shipper Org")
-        self.assertEqual(rows["Recipient Org"][16], destination_label)
-        self.assertEqual(rows["Correspondent Person"][14], destination_label)
-        self.assertEqual(rows["Correspondent Person"][16], destination_label)
+        self.assertEqual(rows["Shipper Org"][13], destination_label)
+        self.assertEqual(rows["Recipient Org"][13], destination_label)
+        self.assertEqual(rows["Correspondent Person"][13], destination_label)

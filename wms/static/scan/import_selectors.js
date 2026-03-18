@@ -379,14 +379,7 @@
     setFieldValue("contact_name", record.name);
     setFieldValue("contact_email", record.email);
     setFieldValue("contact_phone", record.phone);
-    setFieldValue("contact_tags", record.tags);
-    setFieldValue("contact_destination", record.destination);
     setFieldValue("contact_address", record.address_line1);
-    setFieldValue("contact_city", record.city);
-  };
-
-  const fillDestination = record => {
-    setFieldValue("contact_destination", record.label);
     setFieldValue("contact_city", record.city);
   };
 
@@ -412,7 +405,6 @@
 
   const categorySecondary = record => joinParts([record.parent, record.path]);
   const contactSecondary = record => joinParts([record.email, record.phone, record.destination, record.city]);
-  const destinationSecondary = record => joinParts([record.iata_code, record.country]);
   const userSecondary = record => joinParts([record.email, record.first_name, record.last_name]);
 
   [
@@ -590,30 +582,13 @@
       inputId: config.inputId,
       datasetName: "contacts",
       valueKey: config.valueKey,
-      searchKeys: ["name", "email", "phone", "tags", "destination", "address_line1", "city"],
+      searchKeys: ["name", "email", "phone", "destination", "address_line1", "city"],
       fill: fillContact,
       render: record => ({
         primary: record[config.valueKey] || record.label,
         secondary: contactSecondary(record),
       }),
     });
-  });
-
-  attachRecordAutocomplete({
-    inputId: "contact_destination",
-    datasetName: "destinations",
-    valueKey: "label",
-    searchKeys: ["label", "city", "iata_code", "country"],
-    fill: fillDestination,
-    render: record => ({
-      primary: record.label,
-      secondary: destinationSecondary(record),
-    }),
-  });
-
-  attachTokenAutocomplete({
-    inputId: "contact_tags",
-    datasetName: "contact_tags",
   });
 
   [

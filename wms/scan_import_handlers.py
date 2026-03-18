@@ -9,7 +9,7 @@ from django.shortcuts import redirect, render
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 
-from contacts.models import Contact, ContactTag, ContactType
+from contacts.models import Contact, ContactType
 
 from .exports import _build_contact_role_scope_maps
 from .import_results import normalize_import_result
@@ -27,7 +27,6 @@ from .import_services import (
 )
 from .import_utils import decode_text, iter_import_rows
 from .models import (
-    Destination,
     Location,
     Product,
     ProductCategory,
@@ -266,13 +265,11 @@ def _build_product_selector_data():
 def _build_contact_selector_data():
     contacts = list(
         Contact.objects.select_related("organization")
-        .prefetch_related("tags", "addresses", "organization__addresses")
+        .prefetch_related("addresses", "organization__addresses")
         .order_by("name")
     )
-    destination_ids_by_contact_id, _linked_shipper_names, scope_maps = (
-        _build_contact_role_scope_maps(
-            [contact.id for contact in contacts if getattr(contact, "id", None)]
-        )
+    destination_ids_by_contact_id, scope_maps = _build_contact_role_scope_maps(
+        [contact.id for contact in contacts if getattr(contact, "id", None)]
     )
     global_scope_contact_ids, destination_labels_by_id = scope_maps
     data = []
@@ -298,7 +295,6 @@ def _build_contact_selector_data():
                 "contact_type": contact.contact_type,
                 "email": contact.email or "",
                 "phone": contact.phone or "",
-                "tags": "|".join(sorted(tag.name for tag in contact.tags.all())),
                 "destination": destination_label,
                 "address_line1": address.address_line1 if address else "",
                 "city": address.city if address else "",
@@ -306,18 +302,6 @@ def _build_contact_selector_data():
             }
         )
     return data
-
-
-def _build_destination_selector_data():
-    return [
-        {
-            "label": str(destination),
-            "city": destination.city,
-            "iata_code": destination.iata_code,
-            "country": destination.country,
-        }
-        for destination in Destination.objects.only("city", "iata_code", "country").order_by("city")
-    ]
 
 
 def _build_user_selector_data():
@@ -352,10 +336,8 @@ def _build_import_selector_data():
         "warehouses": _build_warehouse_selector_data(),
         "categories": _build_category_selector_data(),
         "contacts": _build_contact_selector_data(),
-        "destinations": _build_destination_selector_data(),
         "users": _build_user_selector_data(),
         "product_tags": list(ProductTag.objects.order_by("name").values_list("name", flat=True)),
-        "contact_tags": list(ContactTag.objects.order_by("name").values_list("name", flat=True)),
     }
 
 
