@@ -270,21 +270,26 @@ class ShipmentAuthorizedRecipientContact(models.Model):
     def clean(self):
         super().clean()
         errors = {}
-        if self.link_id and not self.link.is_active:
+        link = getattr(self, "link", None)
+        recipient_contact = getattr(self, "recipient_contact", None)
+
+        if link is not None and not link.is_active:
             errors["link"] = _("Le lien doit etre actif.")
 
-        if self.recipient_contact_id:
-            if not self.recipient_contact.is_active:
+        if recipient_contact is not None:
+            if not recipient_contact.is_active:
                 errors["recipient_contact"] = _("Le referent destinataire doit etre actif.")
-            elif self.link_id and (
-                self.recipient_contact.recipient_organization_id
-                != self.link.recipient_organization_id
+            elif link is not None and (
+                recipient_contact.recipient_organization_id != link.recipient_organization_id
             ):
                 errors["recipient_contact"] = _(
                     "Le referent destinataire doit appartenir a la structure destinataire liee."
                 )
-        if self.is_default and self.link_id and not self.recipient_contact.is_active:
-            errors["recipient_contact"] = _("Le referent destinataire par defaut doit etre actif.")
+        if self.is_default and link is not None and recipient_contact is not None:
+            if not recipient_contact.is_active:
+                errors["recipient_contact"] = _(
+                    "Le referent destinataire par defaut doit etre actif."
+                )
 
         if errors:
             raise ValidationError(errors)

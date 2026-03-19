@@ -153,6 +153,45 @@ class ShipmentPartyModelTests(TestCase):
                 is_active=True,
             )
 
+    def test_authorized_recipient_contact_full_clean_handles_missing_recipient_contact(self):
+        shipper_org = self._create_organization("Ship Org Missing Recipient")
+        shipper_default = self._create_person(
+            organization=shipper_org,
+            first_name="Sally",
+            last_name="Ship",
+        )
+        shipper = ShipmentShipper.objects.create(
+            organization=shipper_org,
+            default_contact=shipper_default,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            can_send_to_all=False,
+            is_active=True,
+        )
+
+        recipient_org = self._create_organization("Recipient Org Missing Recipient")
+        destination = self._create_destination("BKO-MISS")
+        recipient_structure = ShipmentRecipientOrganization.objects.create(
+            organization=recipient_org,
+            destination=destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_correspondent=False,
+            is_active=True,
+        )
+        link = ShipmentShipperRecipientLink.objects.create(
+            shipper=shipper,
+            recipient_organization=recipient_structure,
+            is_active=True,
+        )
+
+        with self.assertRaises(ValidationError) as exc:
+            ShipmentAuthorizedRecipientContact(
+                link=link,
+                is_default=True,
+                is_active=True,
+            ).full_clean()
+
+        self.assertIn("recipient_contact", exc.exception.message_dict)
+
     def test_recipient_organization_enforces_single_active_correspondent_per_stopover(self):
         destination = self._create_destination("NSI")
         first_org = self._create_organization("First Correspondent")
