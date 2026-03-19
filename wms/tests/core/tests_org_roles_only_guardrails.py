@@ -36,6 +36,10 @@ class OrgRolesOnlyGuardrailsTests(SimpleTestCase):
             ],
             "wms/portal_recipient_sync.py": [
                 "_find_legacy_synced_contact",
+                "_find_synced_contact_by_marker",
+                "PORTAL_RECIPIENT_SOURCE_PREFIX",
+                "_source_marker(",
+                "notes__startswith",
             ],
             "wms/import_services_contacts.py": [
                 "ContactTag",
@@ -48,7 +52,6 @@ class OrgRolesOnlyGuardrailsTests(SimpleTestCase):
                 '"contact_tags"',
             ],
             "wms/exports.py": [
-                '"tags"',
                 '"destinations"',
                 '"linked_shippers"',
             ],

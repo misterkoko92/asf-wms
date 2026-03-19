@@ -152,7 +152,6 @@ def build_shipment_form_context(
     shipper_contacts_json,
     recipient_contacts_json,
     correspondent_contacts_json,
-    org_roles_engine_enabled=False,
 ):
     return {
         "form": form,
@@ -165,5 +164,4 @@ def build_shipment_form_context(
         "shipper_contacts_json": shipper_contacts_json,
         "recipient_contacts_json": recipient_contacts_json,
         "correspondent_contacts_json": correspondent_contacts_json,
-        "org_roles_engine_enabled": bool(org_roles_engine_enabled),
     }

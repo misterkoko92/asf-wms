@@ -7,12 +7,14 @@ from django.core.exceptions import ValidationError
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
+from contacts.models import Contact, ContactType
 from wms.admin import PublicAccountRequestAdmin
 from wms.models import (
     AssociationProfile,
     Carton,
     CartonFormat,
     CartonStatus,
+    Destination,
     IntegrationDirection,
     IntegrationEvent,
     IntegrationStatus,
@@ -21,6 +23,8 @@ from wms.models import (
     Order,
     OrderLine,
     OrderStatus,
+    OrganizationRole,
+    OrganizationRoleAssignment,
     Product,
     ProductKitItem,
     ProductLot,
@@ -30,8 +34,10 @@ from wms.models import (
     Receipt,
     ReceiptLine,
     ReceiptStatus,
+    RecipientBinding,
     Shipment,
     ShipmentStatus,
+    ShipperScope,
     StockMovement,
     Warehouse,
 )
@@ -60,6 +66,21 @@ class StockFlowTests(TestCase):
             default_location=self.location,
             qr_code_image="qr_codes/test.png",
         )
+        self.correspondent_contact = self._create_contact(
+            "StockFlow Correspondent",
+            contact_type=ContactType.PERSON,
+        )
+        self.destination = Destination.objects.create(
+            city="Lyon",
+            iata_code="LYS",
+            country="France",
+            correspondent_contact=self.correspondent_contact,
+            is_active=True,
+        )
+        self.shipper_contact = self._create_contact("StockFlow Shipper")
+        self.recipient_contact = self._create_contact("StockFlow Recipient")
+        self._grant_shipper_scope(self.shipper_contact, self.destination)
+        self._bind_recipient(self.shipper_contact, self.recipient_contact, self.destination)
 
     def _create_lot(self, *, quantity, expires_on):
         return ProductLot.objects.create(
@@ -71,6 +92,42 @@ class StockFlowTests(TestCase):
             quantity_on_hand=quantity,
             location=self.location,
             storage_conditions="dry",
+        )
+
+    def _create_contact(self, name, *, contact_type=ContactType.ORGANIZATION):
+        return Contact.objects.create(
+            name=name,
+            contact_type=contact_type,
+            is_active=True,
+        )
+
+    def _assign_role(self, contact, role):
+        assignment, _ = OrganizationRoleAssignment.objects.get_or_create(
+            organization=contact,
+            role=role,
+            defaults={"is_active": True},
+        )
+        if not assignment.is_active:
+            assignment.is_active = True
+            assignment.save(update_fields=["is_active", "updated_at"])
+        return assignment
+
+    def _grant_shipper_scope(self, shipper_contact, destination):
+        assignment = self._assign_role(shipper_contact, OrganizationRole.SHIPPER)
+        ShipperScope.objects.get_or_create(
+            role_assignment=assignment,
+            destination=destination,
+            defaults={"is_active": True},
+        )
+
+    def _bind_recipient(self, shipper_contact, recipient_contact, destination):
+        self._assign_role(shipper_contact, OrganizationRole.SHIPPER)
+        self._assign_role(recipient_contact, OrganizationRole.RECIPIENT)
+        RecipientBinding.objects.get_or_create(
+            shipper_org=shipper_contact,
+            recipient_org=recipient_contact,
+            destination=destination,
+            defaults={"is_active": True},
         )
 
     def test_consume_stock_follows_fefo(self):
@@ -407,14 +464,69 @@ class OrderReservationTests(TestCase):
             max_weight_g=8000,
             is_default=True,
         )
+        self.correspondent_contact = self._create_contact(
+            "OrderFlow Correspondent",
+            contact_type=ContactType.PERSON,
+        )
+        self.destination = Destination.objects.create(
+            city="Lyon",
+            iata_code="LYS",
+            country="France",
+            correspondent_contact=self.correspondent_contact,
+            is_active=True,
+        )
+        self.shipper_contact = self._create_contact("OrderFlow Shipper")
+        self.recipient_contact = self._create_contact("OrderFlow Recipient")
+        self._grant_shipper_scope(self.shipper_contact, self.destination)
+        self._bind_recipient(self.shipper_contact, self.recipient_contact, self.destination)
+
+    def _create_contact(self, name, *, contact_type=ContactType.ORGANIZATION):
+        return Contact.objects.create(
+            name=name,
+            contact_type=contact_type,
+            is_active=True,
+        )
+
+    def _assign_role(self, contact, role):
+        assignment, _ = OrganizationRoleAssignment.objects.get_or_create(
+            organization=contact,
+            role=role,
+            defaults={"is_active": True},
+        )
+        if not assignment.is_active:
+            assignment.is_active = True
+            assignment.save(update_fields=["is_active", "updated_at"])
+        return assignment
+
+    def _grant_shipper_scope(self, shipper_contact, destination):
+        assignment = self._assign_role(shipper_contact, OrganizationRole.SHIPPER)
+        ShipperScope.objects.get_or_create(
+            role_assignment=assignment,
+            destination=destination,
+            defaults={"is_active": True},
+        )
+
+    def _bind_recipient(self, shipper_contact, recipient_contact, destination):
+        self._assign_role(shipper_contact, OrganizationRole.SHIPPER)
+        self._assign_role(recipient_contact, OrganizationRole.RECIPIENT)
+        RecipientBinding.objects.get_or_create(
+            shipper_org=shipper_contact,
+            recipient_org=recipient_contact,
+            destination=destination,
+            defaults={"is_active": True},
+        )
 
     def test_reserve_stock_for_order(self):
         order = Order.objects.create(
             status=OrderStatus.DRAFT,
-            shipper_name="Sender",
-            recipient_name="Recipient",
-            correspondent_name="Contact",
+            shipper_name=self.shipper_contact.name,
+            shipper_contact=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact=self.correspondent_contact,
             destination_address="10 Rue Test, Paris",
+            destination_city=self.destination.city,
             destination_country="France",
             created_by=self.user,
         )
@@ -430,10 +542,14 @@ class OrderReservationTests(TestCase):
     def test_prepare_order_consumes_reserved(self):
         order = Order.objects.create(
             status=OrderStatus.DRAFT,
-            shipper_name="Sender",
-            recipient_name="Recipient",
-            correspondent_name="Contact",
+            shipper_name=self.shipper_contact.name,
+            shipper_contact=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact=self.correspondent_contact,
             destination_address="10 Rue Test, Paris",
+            destination_city=self.destination.city,
             destination_country="France",
             created_by=self.user,
         )

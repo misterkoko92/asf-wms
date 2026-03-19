@@ -14,8 +14,10 @@ from wms.portal_recipient_sync import sync_association_recipient_to_contact
 
 
 class PortalRecipientSyncTests(TestCase):
-    def test_module_has_no_legacy_synced_contact_fallback(self):
+    def test_module_has_no_marker_based_contact_lookup(self):
         self.assertFalse(hasattr(portal_recipient_sync, "_find_legacy_synced_contact"))
+        self.assertFalse(hasattr(portal_recipient_sync, "_find_synced_contact_by_marker"))
+        self.assertFalse(hasattr(portal_recipient_sync, "_source_marker"))
 
     def setUp(self):
         self.association = Contact.objects.create(
@@ -62,14 +64,12 @@ class PortalRecipientSyncTests(TestCase):
 
         first = sync_association_recipient_to_contact(recipient)
         second = sync_association_recipient_to_contact(recipient)
+        recipient.refresh_from_db()
 
         self.assertEqual(first.id, second.id)
-        self.assertEqual(
-            Contact.objects.filter(
-                notes__startswith=f"[Portail association][recipient_id={recipient.id}]"
-            ).count(),
-            1,
-        )
+        self.assertEqual(recipient.synced_contact_id, first.id)
+        self.assertEqual(Contact.objects.filter(pk=first.id).count(), 1)
+        self.assertNotIn("[recipient_id=", first.notes)
         recipient_assignment = OrganizationRoleAssignment.objects.get(
             organization=first,
             role=OrganizationRole.RECIPIENT,
@@ -96,11 +96,6 @@ class PortalRecipientSyncTests(TestCase):
                 is_active=True,
             ).exists()
         )
-        self.assertFalse(first.tags.exists())
-        self.assertFalse(first.destinations.exists())
-        self.assertFalse(first.linked_shippers.exists())
-        self.assertFalse(self.association.tags.exists())
-        self.assertFalse(self.association.destinations.exists())
 
     def test_sync_updates_contact_when_recipient_changes_destination(self):
         recipient = self._create_recipient()
@@ -112,8 +107,10 @@ class PortalRecipientSyncTests(TestCase):
 
         updated = sync_association_recipient_to_contact(recipient)
         updated.refresh_from_db()
+        recipient.refresh_from_db()
 
         self.assertEqual(updated.id, synced.id)
+        self.assertEqual(recipient.synced_contact_id, synced.id)
         self.assertEqual(updated.name, "A.S.L.A.V Congo Update")
         self.assertTrue(
             RecipientBinding.objects.filter(
@@ -139,8 +136,10 @@ class PortalRecipientSyncTests(TestCase):
         recipient.save(update_fields=["is_active"])
 
         updated = sync_association_recipient_to_contact(recipient)
+        recipient.refresh_from_db()
 
         self.assertEqual(updated.id, synced.id)
+        self.assertEqual(recipient.synced_contact_id, synced.id)
         self.assertFalse(
             RecipientBinding.objects.filter(
                 shipper_org=self.association,

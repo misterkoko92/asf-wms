@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
-from contacts.models import Contact
+from contacts.models import Contact, ContactType
 from wms.models import (
     Carton,
     CartonFormat,
@@ -14,11 +14,15 @@ from wms.models import (
     Order,
     OrderLine,
     OrderStatus,
+    OrganizationRole,
+    OrganizationRoleAssignment,
     Product,
     ProductLot,
     ProductLotStatus,
+    RecipientBinding,
     Shipment,
     ShipmentStatus,
+    ShipperScope,
     StockMovement,
     Warehouse,
 )
@@ -41,6 +45,57 @@ class ApiTests(TestCase):
             default_location=self.location,
             qr_code_image="qr_codes/test.png",
         )
+        self.correspondent_contact = self._create_contact(
+            "API Correspondent",
+            contact_type=ContactType.PERSON,
+        )
+        self.destination = Destination.objects.create(
+            city="Saint-Denis",
+            iata_code="RUN",
+            country="France",
+            correspondent_contact=self.correspondent_contact,
+            is_active=True,
+        )
+        self.shipper_contact = self._create_contact("API Shipper")
+        self.recipient_contact = self._create_contact("API Recipient")
+        self._grant_shipper_scope(self.shipper_contact, self.destination)
+        self._bind_recipient(self.shipper_contact, self.recipient_contact, self.destination)
+
+    def _create_contact(self, name, *, contact_type=ContactType.ORGANIZATION):
+        return Contact.objects.create(
+            name=name,
+            contact_type=contact_type,
+            is_active=True,
+        )
+
+    def _assign_role(self, contact, role):
+        assignment, _ = OrganizationRoleAssignment.objects.get_or_create(
+            organization=contact,
+            role=role,
+            defaults={"is_active": True},
+        )
+        if not assignment.is_active:
+            assignment.is_active = True
+            assignment.save(update_fields=["is_active", "updated_at"])
+        return assignment
+
+    def _grant_shipper_scope(self, shipper_contact, destination):
+        assignment = self._assign_role(shipper_contact, OrganizationRole.SHIPPER)
+        ShipperScope.objects.get_or_create(
+            role_assignment=assignment,
+            destination=destination,
+            defaults={"is_active": True},
+        )
+
+    def _bind_recipient(self, shipper_contact, recipient_contact, destination):
+        self._assign_role(shipper_contact, OrganizationRole.SHIPPER)
+        self._assign_role(recipient_contact, OrganizationRole.RECIPIENT)
+        RecipientBinding.objects.get_or_create(
+            shipper_org=shipper_contact,
+            recipient_org=recipient_contact,
+            destination=destination,
+            defaults={"is_active": True},
+        )
 
     def _create_lot(self, quantity):
         return ProductLot.objects.create(
@@ -58,7 +113,7 @@ class ApiTests(TestCase):
         lot.quantity_reserved = 2
         lot.save(update_fields=["quantity_reserved"])
         response = self.client.get("/api/v1/products/")
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200, response.content)
         data = response.json()
         item = next(row for row in data if row["id"] == self.product.id)
         self.assertEqual(item["available_stock"], 8)
@@ -70,7 +125,7 @@ class ApiTests(TestCase):
             is_active=False,
         )
         response = self.client.get("/api/v1/products/")
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 200, response.content)
         data = response.json()
         ids = {row["id"] for row in data}
         self.assertIn(self.product.id, ids)
@@ -117,10 +172,14 @@ class ApiTests(TestCase):
         )
         order = Order.objects.create(
             status=OrderStatus.DRAFT,
-            shipper_name="Sender",
-            recipient_name="Recipient",
-            correspondent_name="Contact",
+            shipper_name=self.shipper_contact.name,
+            shipper_contact=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact=self.correspondent_contact,
             destination_address="10 Rue Test",
+            destination_city=self.destination.city,
             destination_country="France",
             created_by=self.user,
         )

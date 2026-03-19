@@ -24,8 +24,11 @@ from wms.models import (
     OrderDocumentType,
     OrderReviewStatus,
     OrderStatus,
+    OrganizationRole,
+    OrganizationRoleAssignment,
     Shipment,
     ShipmentStatus,
+    ShipperScope,
 )
 
 
@@ -66,6 +69,16 @@ class PortalBootstrapUiTests(TestCase):
             iata_code="PBS",
             country="France",
             correspondent_contact=correspondent,
+            is_active=True,
+        )
+        shipper_assignment = OrganizationRoleAssignment.objects.create(
+            organization=association_contact,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
+        ShipperScope.objects.create(
+            role_assignment=shipper_assignment,
+            destination=destination,
             is_active=True,
         )
         AssociationRecipient.objects.create(

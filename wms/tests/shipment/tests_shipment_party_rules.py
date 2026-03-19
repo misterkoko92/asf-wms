@@ -7,7 +7,6 @@ from wms.models import (
     OrganizationRoleAssignment,
     RecipientBinding,
     ShipperScope,
-    WmsRuntimeSettings,
 )
 from wms.shipment_party_rules import (
     build_party_contact_reference,
@@ -19,11 +18,6 @@ from wms.shipment_party_rules import (
 
 
 class ShipmentPartyRulesTests(TestCase):
-    def setUp(self):
-        runtime = WmsRuntimeSettings.get_solo()
-        runtime.org_roles_engine_enabled = True
-        runtime.save(update_fields=["org_roles_engine_enabled"])
-
     def _create_org(self, name: str) -> Contact:
         return Contact.objects.create(
             name=name,
@@ -97,11 +91,7 @@ class ShipmentPartyRulesTests(TestCase):
         self.assertNotIn(shipper_out_org.id, shipper_ids)
         self.assertNotIn(shipper_out_person.id, shipper_ids)
 
-    def test_eligible_shipper_contacts_for_destination_ignores_runtime_gate_for_reads(self):
-        runtime = WmsRuntimeSettings.get_solo()
-        runtime.org_roles_engine_enabled = False
-        runtime.save(update_fields=["org_roles_engine_enabled"])
-
+    def test_eligible_shipper_contacts_for_destination_reads_org_roles_unconditionally(self):
         correspondent = self._create_org("Correspondent RAK")
         destination = self._create_destination("RAK", correspondent)
         shipper_org = self._create_org("Shipper Runtime Off")
@@ -178,13 +168,9 @@ class ShipmentPartyRulesTests(TestCase):
         self.assertNotIn(blocked_org.id, recipient_ids)
         self.assertNotIn(blocked_person.id, recipient_ids)
 
-    def test_eligible_recipient_contacts_for_shipper_destination_ignores_runtime_gate_for_reads(
+    def test_eligible_recipient_contacts_for_shipper_destination_reads_org_roles_unconditionally(
         self,
     ):
-        runtime = WmsRuntimeSettings.get_solo()
-        runtime.org_roles_engine_enabled = False
-        runtime.save(update_fields=["org_roles_engine_enabled"])
-
         correspondent = self._create_org("Correspondent DKR")
         destination = self._create_destination("DKR", correspondent)
         shipper_org = self._create_org("Shipper Runtime Recipient")

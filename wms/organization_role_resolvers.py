@@ -28,10 +28,6 @@ class OrganizationRoleResolutionError(Exception):
     pass
 
 
-def is_org_roles_engine_enabled() -> bool:
-    return True
-
-
 def _current_window_q(prefix: str = ""):
     now = timezone.now()
     return Q(**{f"{prefix}valid_from__lte": now}) & (

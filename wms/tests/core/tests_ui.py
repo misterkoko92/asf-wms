@@ -11,8 +11,7 @@ from django.test import Client, tag
 from django.urls import reverse
 from django.utils import timezone
 
-from contacts.models import Contact, ContactTag, ContactType
-from contacts.tagging import TAG_CORRESPONDENT, TAG_RECIPIENT, TAG_SHIPPER
+from contacts.models import Contact, ContactType
 from wms.models import (
     TEMP_SHIPMENT_REFERENCE_PREFIX,
     AssociationContactTitle,
@@ -145,10 +144,6 @@ class ScanUiTests(StaticLiveServerTestCase):
             browser.close()
 
     def test_scan_shipment_create_hides_unbound_recipients_when_org_roles_enabled(self):
-        runtime = WmsRuntimeSettings.get_solo()
-        runtime.org_roles_engine_enabled = True
-        runtime.save(update_fields=["org_roles_engine_enabled"])
-
         correspondent = Contact.objects.create(
             name="Legacy Shipment Corr",
             contact_type=ContactType.PERSON,
@@ -161,8 +156,6 @@ class ScanUiTests(StaticLiveServerTestCase):
             correspondent_contact=correspondent,
             is_active=True,
         )
-        shipper_tag, _ = ContactTag.objects.get_or_create(name=TAG_SHIPPER[0])
-        recipient_tag, _ = ContactTag.objects.get_or_create(name=TAG_RECIPIENT[0])
         shipper = Contact.objects.create(
             name="Legacy UI Shipper",
             contact_type=ContactType.ORGANIZATION,
@@ -178,11 +171,6 @@ class ScanUiTests(StaticLiveServerTestCase):
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        shipper.tags.add(shipper_tag)
-        recipient_allowed.tags.add(recipient_tag)
-        recipient_blocked.tags.add(recipient_tag)
-        recipient_allowed.destinations.add(destination)
-        recipient_blocked.destinations.add(destination)
 
         shipper_assignment = OrganizationRoleAssignment.objects.create(
             organization=shipper,
@@ -313,18 +301,45 @@ class NextUiTests(StaticLiveServerTestCase):
             correspondent_contact=self.correspondent_contact,
             is_active=True,
         )
-        shipper_tag, _ = ContactTag.objects.get_or_create(name=TAG_SHIPPER[0])
-        recipient_tag, _ = ContactTag.objects.get_or_create(name=TAG_RECIPIENT[0])
-        correspondent_tag, _ = ContactTag.objects.get_or_create(name=TAG_CORRESPONDENT[0])
-        self.shipper_contact.tags.add(shipper_tag)
-        self.recipient_contact.tags.add(recipient_tag)
-        self.correspondent_contact.tags.add(correspondent_tag)
-        self.shipper_contact.destinations.add(self.destination)
-        self.recipient_contact.destinations.add(self.destination)
-        self.correspondent_contact.destinations.add(self.destination)
-        self.shipper_contact.destinations.add(self.secondary_destination)
-        self.recipient_contact.destinations.add(self.secondary_destination)
-        self.correspondent_contact.destinations.add(self.secondary_destination)
+        association_shipper_assignment = OrganizationRoleAssignment.objects.create(
+            organization=association_contact,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
+        shipper_assignment = OrganizationRoleAssignment.objects.create(
+            organization=self.shipper_contact,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
+        OrganizationRoleAssignment.objects.create(
+            organization=self.recipient_contact,
+            role=OrganizationRole.RECIPIENT,
+            is_active=True,
+        )
+        OrganizationRoleAssignment.objects.create(
+            organization=self.correspondent_contact,
+            role=OrganizationRole.CORRESPONDENT,
+            is_active=True,
+        )
+        for destination in (self.destination, self.secondary_destination):
+            ShipperScope.objects.create(
+                role_assignment=shipper_assignment,
+                destination=destination,
+                all_destinations=False,
+                is_active=True,
+            )
+            RecipientBinding.objects.create(
+                shipper_org=self.shipper_contact,
+                recipient_org=self.recipient_contact,
+                destination=destination,
+                is_active=True,
+            )
+        ShipperScope.objects.create(
+            role_assignment=association_shipper_assignment,
+            destination=self.destination,
+            all_destinations=False,
+            is_active=True,
+        )
         self.docs_shipment = Shipment.objects.create(
             status=ShipmentStatus.PLANNED,
             shipper_name=self.shipper_contact.name,
@@ -1707,10 +1722,6 @@ class NextUiTests(StaticLiveServerTestCase):
             browser.close()
 
     def test_next_shipment_create_shows_empty_shipper_message_and_blocks_submit(self):
-        shipper_tag = ContactTag.objects.get(name=TAG_SHIPPER[0])
-        for contact in Contact.objects.filter(tags=shipper_tag):
-            contact.destinations.set([self.destination, self.secondary_destination])
-
         empty_shipper_destination = Destination.objects.create(
             city="MRS",
             iata_code="MRS-NEXT-UI-EMPTY-SHIPPER",

@@ -491,20 +491,20 @@ Rules implemented in the "Créer une expédition" form:
 
 - Destination is mandatory to continue.
 - Shipper list:
-  - contacts tagged `Expéditeur`
-  - destination match (`contact.destinations` contains selected destination) OR global (`destinations` empty).
+  - active `SHIPPER` organizations only
+  - scoped by active `ShipperScope` on the selected destination (or all-destinations scope when configured).
 - Recipient list:
-  - contacts tagged `Destinataire`
-  - linked shipper match (`linked_shippers` contains selected shipper) OR global (`linked_shippers` empty).
+  - active `RECIPIENT` organizations only
+  - filtered by active `RecipientBinding` for the selected shipper + destination pair.
 - Correspondent list:
-  - contacts tagged `Correspondant` with destination match/global
-  - then restricted to destination correspondent when `Destination.correspondent_contact` is set.
+  - destination-linked correspondents only
+  - restricted to `Destination.correspondent_contact` when it is set.
   - if destination has no configured correspondent, the correspondent list is empty.
 
 Additional contact governance:
 
-- Recipient creation requires at least one linked shipper.
-- Default shipper `AVIATION SANS FRONTIERES` is auto-added to recipients when available.
+- Recipient availability is governed by explicit `RecipientBinding` records.
+- Shipper availability is governed by explicit `ShipperScope` records.
 
 ## 13) Tracking board and case closure
 

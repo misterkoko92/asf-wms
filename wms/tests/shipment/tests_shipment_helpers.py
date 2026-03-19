@@ -1,6 +1,6 @@
 from django.test import TestCase
 
-from contacts.models import Contact, ContactAddress, ContactTag, ContactType
+from contacts.models import Contact, ContactAddress, ContactType
 from wms.models import (
     Destination,
     OrganizationRole,
@@ -108,9 +108,9 @@ class ShipmentHelpersTests(TestCase):
                     "id": shipper.id,
                     "name": "Shipper Org",
                     "organization_id": shipper.id,
-                    "destination_id": destination.id,
-                    "destination_ids": [destination.id],
-                    "scoped_destination_ids": [destination.id],
+                    "default_destination_id": destination.id,
+                    "allowed_destination_ids": [destination.id],
+                    "scope_destination_ids": [destination.id],
                 }
             ],
         )
@@ -119,9 +119,9 @@ class ShipmentHelpersTests(TestCase):
         self.assertEqual(recipient_entry["name"], "Recipient Org")
         self.assertEqual(recipient_entry["organization_id"], recipient.id)
         self.assertEqual(recipient_entry["countries"], ["France", "UK"])
-        self.assertEqual(recipient_entry["destination_id"], destination.id)
-        self.assertEqual(recipient_entry["destination_ids"], [destination.id])
-        self.assertEqual(recipient_entry["linked_shipper_ids"], [shipper.id])
+        self.assertEqual(recipient_entry["default_destination_id"], destination.id)
+        self.assertEqual(recipient_entry["allowed_destination_ids"], [destination.id])
+        self.assertEqual(recipient_entry["bound_shipper_ids"], [shipper.id])
         self.assertEqual(
             recipient_entry["binding_pairs"],
             [
@@ -137,8 +137,8 @@ class ShipmentHelpersTests(TestCase):
                 {
                     "id": correspondent.id,
                     "name": "Corr A",
-                    "destination_id": destination.id,
-                    "destination_ids": [destination.id],
+                    "default_destination_id": destination.id,
+                    "covered_destination_ids": [destination.id],
                 },
             ],
         )
@@ -156,23 +156,14 @@ class ShipmentHelpersTests(TestCase):
             correspondent_contact=correspondent,
             is_active=True,
         )
-        shipper = Contact.objects.create(
-            name="Shipper Dakar",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-        shipper_tag = ContactTag.objects.create(name="expediteur")
-        shipper.tags.add(shipper_tag)
-        shipper.destinations.add(destination)
-
         _, _, _, correspondents_json = build_shipment_contact_payload()
 
         self.assertIn(
             {
                 "id": correspondent.id,
                 "name": "Corr Untagged",
-                "destination_id": destination.id,
-                "destination_ids": [destination.id],
+                "default_destination_id": destination.id,
+                "covered_destination_ids": [destination.id],
             },
             correspondents_json,
         )
@@ -218,8 +209,8 @@ class ShipmentHelpersTests(TestCase):
             {
                 "id": destination_correspondent.id,
                 "name": "Scoped Promoted Correspondent",
-                "destination_id": destination.id,
-                "destination_ids": [destination.id],
+                "default_destination_id": destination.id,
+                "covered_destination_ids": [destination.id],
             },
             correspondents_json,
         )
@@ -523,22 +514,17 @@ class ShipmentHelpersTests(TestCase):
             is_active=True,
         )
 
-        shipper_tag = ContactTag.objects.create(name="expediteur")
-        recipient_tag = ContactTag.objects.create(name="destinataire")
-
         shipper_org = Contact.objects.create(
             name="Shipper Roles",
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        shipper_org.tags.add(shipper_tag)
 
         recipient_org = Contact.objects.create(
             name="Recipient Roles",
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        recipient_org.tags.add(recipient_tag)
 
         shipper_assignment = OrganizationRoleAssignment.objects.create(
             organization=shipper_org,
@@ -578,7 +564,7 @@ class ShipmentHelpersTests(TestCase):
         )
         self.assertEqual(shipper_entry["organization_id"], shipper_org.id)
         self.assertEqual(recipient_entry["organization_id"], recipient_org.id)
-        self.assertEqual(shipper_entry["scoped_destination_ids"], [destination_abj.id])
+        self.assertEqual(shipper_entry["scope_destination_ids"], [destination_abj.id])
         self.assertEqual(
             recipient_entry["binding_pairs"],
             [
@@ -656,8 +642,8 @@ class ShipmentHelpersTests(TestCase):
 
         self.assertIn(shipper_org.id, shipper_ids)
         self.assertIn(shipper_person.id, shipper_ids)
-        self.assertEqual(recipient_entry["destination_ids"], [destination.id])
-        self.assertEqual(recipient_entry["linked_shipper_ids"], [shipper_org.id])
+        self.assertEqual(recipient_entry["allowed_destination_ids"], [destination.id])
+        self.assertEqual(recipient_entry["bound_shipper_ids"], [shipper_org.id])
         self.assertEqual(
             recipient_entry["binding_pairs"],
             [
@@ -667,7 +653,7 @@ class ShipmentHelpersTests(TestCase):
                 }
             ],
         )
-        self.assertEqual(correspondent_entry["destination_ids"], [destination.id])
+        self.assertEqual(correspondent_entry["covered_destination_ids"], [destination.id])
 
     def test_parse_shipment_lines_collects_all_error_branches(self):
         product = Product.objects.create(

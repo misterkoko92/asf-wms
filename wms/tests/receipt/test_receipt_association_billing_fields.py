@@ -6,7 +6,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from contacts.models import Contact, ContactTag, ContactType
+from contacts.models import Contact, ContactType
 from wms.forms import ScanReceiptAssociationForm
 from wms.models import (
     OrganizationRole,
@@ -33,24 +33,19 @@ class AssociationReceiptBillingFieldsTests(TestCase):
         self.warehouse = Warehouse.objects.create(name="Reception", code="REC")
         self.source_contact = self._create_contact(
             "Association Billing",
-            ["expediteur"],
             role=OrganizationRole.SHIPPER,
         )
         self.carrier_contact = self._create_contact(
             "Transport Billing",
-            ["transporteur"],
             role=OrganizationRole.TRANSPORTER,
         )
 
-    def _create_contact(self, name, tags, *, role=None):
+    def _create_contact(self, name, *, role=None):
         contact = Contact.objects.create(
             name=name,
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        for tag_name in tags:
-            tag, _ = ContactTag.objects.get_or_create(name=tag_name)
-            contact.tags.add(tag)
         if role:
             OrganizationRoleAssignment.objects.create(
                 organization=contact,

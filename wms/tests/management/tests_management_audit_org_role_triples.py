@@ -11,7 +11,6 @@ from wms.models import (
     OrganizationRoleAssignment,
     RecipientBinding,
     ShipperScope,
-    WmsRuntimeSettings,
 )
 
 
@@ -33,10 +32,6 @@ class AuditOrgRoleTriplesCommandTests(TestCase):
         )
 
     def test_command_exports_accepted_and_refused_with_reason(self):
-        runtime = WmsRuntimeSettings.get_solo()
-        runtime.org_roles_engine_enabled = True
-        runtime.save(update_fields=["org_roles_engine_enabled"])
-
         correspondent = self._create_org("Corr")
         destination = self._create_destination(iata_code="DLA", correspondent=correspondent)
         other_destination = self._create_destination(
@@ -129,10 +124,6 @@ class AuditOrgRoleTriplesCommandTests(TestCase):
         self.assertEqual(len(refused_out_of_scope), 2)
 
     def test_command_ignores_runtime_flag_when_exporting(self):
-        runtime = WmsRuntimeSettings.get_solo()
-        runtime.org_roles_engine_enabled = False
-        runtime.save(update_fields=["org_roles_engine_enabled"])
-
         correspondent = self._create_org("Corr Disabled")
         destination = self._create_destination(iata_code="DLA", correspondent=correspondent)
         shipper = self._create_org("Shipper Disabled")

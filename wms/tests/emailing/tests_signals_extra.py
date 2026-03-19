@@ -54,7 +54,7 @@ class SignalsExtraTests(SimpleTestCase):
             _notify_shipment_status_change(None, instance, created=False)
         emails_mock.assert_not_called()
 
-    def test_notify_shipment_status_change_returns_when_no_recipients(self):
+    def test_notify_shipment_status_change_does_not_send_when_no_recipients(self):
         instance = SimpleNamespace(
             _previous_status="draft",
             status="packed",
@@ -65,9 +65,15 @@ class SignalsExtraTests(SimpleTestCase):
             get_tracking_url=lambda: "/track/SHP-002",
         )
         with mock.patch("wms.signals._shipment_status_admin_recipients", return_value=[]):
-            with mock.patch("wms.signals.render_to_string") as render_mock:
-                _notify_shipment_status_change(None, instance, created=False)
-        render_mock.assert_not_called()
+            with mock.patch("wms.signals.render_to_string", return_value="body") as render_mock:
+                with mock.patch("wms.signals.send_or_enqueue_email_safe") as send_mock:
+                    with mock.patch(
+                        "wms.signals.transaction.on_commit",
+                        side_effect=lambda callback: callback(),
+                    ):
+                        _notify_shipment_status_change(None, instance, created=False)
+        render_mock.assert_called_once()
+        send_mock.assert_not_called()
 
     def test_notify_shipment_status_change_emits_structured_log(self):
         instance = SimpleNamespace(
@@ -95,7 +101,13 @@ class SignalsExtraTests(SimpleTestCase):
         emails_mock.assert_not_called()
 
     def test_notify_tracking_event_returns_when_no_recipients(self):
-        fake_event = SimpleNamespace(shipment=SimpleNamespace(id=1))
+        fake_event = SimpleNamespace(
+            shipment=SimpleNamespace(id=1, reference="SHP-010", get_tracking_url=lambda: "/track"),
+            status="planned",
+            actor_name="Agent",
+            actor_structure="ASF",
+            comments="",
+        )
         with mock.patch("wms.signals.get_admin_emails", return_value=[]):
             with mock.patch("wms.signals.render_to_string") as render_mock:
                 _notify_tracking_event(None, fake_event, created=True)
@@ -103,8 +115,12 @@ class SignalsExtraTests(SimpleTestCase):
 
     def test_notify_tracking_event_emits_structured_log(self):
         fake_event = SimpleNamespace(
-            shipment=SimpleNamespace(id=1),
+            shipment=SimpleNamespace(id=1, reference="SHP-011", get_tracking_url=lambda: "/track"),
             created_by=None,
+            status="planned",
+            actor_name="Agent",
+            actor_structure="ASF",
+            comments="",
         )
         with mock.patch("wms.signals.log_shipment_tracking_event") as log_mock:
             with mock.patch("wms.signals.get_admin_emails", return_value=[]):

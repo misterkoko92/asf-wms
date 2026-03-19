@@ -324,6 +324,13 @@ class AssociationRecipient(models.Model):
         on_delete=models.CASCADE,
         related_name="association_recipients",
     )
+    synced_contact = models.ForeignKey(
+        "contacts.Contact",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="synced_portal_recipients",
+    )
     destination = models.ForeignKey(
         Destination,
         on_delete=models.PROTECT,

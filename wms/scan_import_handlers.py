@@ -275,10 +275,10 @@ def _build_contact_selector_data():
     data = []
     for contact in contacts:
         address = _effective_contact_address(contact)
-        destination_label = ""
+        scope_label = ""
         contact_id = getattr(contact, "id", None)
         if contact_id in global_scope_contact_ids:
-            destination_label = "GLOBAL"
+            scope_label = "GLOBAL"
         else:
             destination_labels = [
                 destination_labels_by_id[destination_id]
@@ -288,14 +288,14 @@ def _build_contact_selector_data():
                 )
                 if destination_id in destination_labels_by_id
             ]
-            destination_label = " | ".join(destination_labels)
+            scope_label = " | ".join(destination_labels)
         data.append(
             {
                 "name": contact.name,
                 "contact_type": contact.contact_type,
                 "email": contact.email or "",
                 "phone": contact.phone or "",
-                "destination": destination_label,
+                "scope": scope_label,
                 "address_line1": address.address_line1 if address else "",
                 "city": address.city if address else "",
                 "label": contact.name,

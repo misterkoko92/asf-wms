@@ -365,6 +365,10 @@ def _resolve_destination(profile, recipient_id, errors, *, selected_destination)
     )
 
 
+def _requires_recipient_binding(*, profile, recipient_contact) -> bool:
+    return bool(recipient_contact and recipient_contact != profile.contact)
+
+
 def _build_order_create_context(
     *,
     destination_options,
@@ -681,11 +685,15 @@ def portal_order_create(request):
                     shipper_org=shipper_org,
                     destination=selected_destination,
                 )
-                resolve_recipient_binding_for_operation(
-                    shipper_org=shipper_org,
-                    recipient_org=recipient_org,
-                    destination=selected_destination,
-                )
+                if _requires_recipient_binding(
+                    profile=profile,
+                    recipient_contact=destination["recipient_contact"],
+                ):
+                    resolve_recipient_binding_for_operation(
+                        shipper_org=shipper_org,
+                        recipient_org=recipient_org,
+                        destination=selected_destination,
+                    )
             except OrganizationRoleResolutionError as exc:
                 errors.append(str(exc))
 

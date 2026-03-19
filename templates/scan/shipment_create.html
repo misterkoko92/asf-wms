@@ -67,7 +67,7 @@
           </div>
           <p class="scan-help ui-comp-note">{% trans "Merci de sélectionner un expéditeur pour poursuivre la création de l'expédition" %}</p>
           <div id="shipper-empty-message" class="scan-message error scan-hidden" hidden>
-            {% trans "Aucun expéditeur trouvé dans la base, vérifier les destinations des affectés aux expéditeurs dans les contacts et recommencez" %}
+            {% trans "Aucun expéditeur disponible pour cette escale. Vérifiez les affectations expéditeur actives et recommencez." %}
           </div>
           {% for error in form.shipper_contact.errors %}
             <div class="scan-message error">{{ error }}</div>
@@ -85,7 +85,7 @@
             </a>
           </div>
           <div id="recipient-empty-message" class="scan-message error scan-hidden" hidden>
-            {% trans "Aucun destinataire trouvé dans la base, vérifier les expéditeurs liés dans les contacts et recommencez" %}
+            {% trans "Aucun destinataire disponible pour cette combinaison escale/expéditeur. Vérifiez les bindings destinataire actifs et recommencez." %}
           </div>
           {% for error in form.recipient_contact.errors %}
             <div class="scan-message error">{{ error }}</div>

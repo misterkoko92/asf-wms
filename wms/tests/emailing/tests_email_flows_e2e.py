@@ -8,13 +8,20 @@ from contacts.models import Contact
 from wms.emailing import process_email_queue
 from wms.models import (
     AssociationProfile,
-    AssociationRecipient,
+    ContactSubscription,
     Destination,
     IntegrationDirection,
     IntegrationEvent,
     IntegrationStatus,
+    NotificationChannel,
     Order,
+    OrganizationContact,
+    OrganizationRole,
+    OrganizationRoleAssignment,
+    OrganizationRoleContact,
     PublicOrderLink,
+    RoleEventPolicy,
+    RoleEventType,
     Shipment,
     ShipmentStatus,
 )
@@ -170,6 +177,10 @@ class EmailFlowsEndToEndTests(TestCase):
             name="Association Delivery E2E",
             email="assoc-delivery@example.com",
         )
+        recipient_contact = Contact.objects.create(
+            name="Recipient Delivery E2E",
+            email="delivery-primary@example.com",
+        )
         destination = Destination.objects.create(
             city="Lyon",
             iata_code="LYS",
@@ -178,15 +189,81 @@ class EmailFlowsEndToEndTests(TestCase):
                 name="Correspondent Delivery E2E",
             ),
         )
-        AssociationRecipient.objects.create(
-            association_contact=association_contact,
+        shipper_assignment = OrganizationRoleAssignment.objects.create(
+            organization=association_contact,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
+        recipient_assignment = OrganizationRoleAssignment.objects.create(
+            organization=recipient_contact,
+            role=OrganizationRole.RECIPIENT,
+            is_active=True,
+        )
+        shipper_primary = OrganizationContact.objects.create(
+            organization=association_contact,
+            first_name="Association",
+            last_name="Primary",
+            email="assoc-delivery@example.com",
+            is_active=True,
+        )
+        OrganizationRoleContact.objects.create(
+            role_assignment=shipper_assignment,
+            contact=shipper_primary,
+            is_primary=True,
+            is_active=True,
+        )
+        recipient_contact_one = OrganizationContact.objects.create(
+            organization=recipient_contact,
+            first_name="Delivery",
+            last_name="One",
+            email="delivery-e2e@example.com",
+            is_active=True,
+        )
+        recipient_contact_two = OrganizationContact.objects.create(
+            organization=recipient_contact,
+            first_name="Delivery",
+            last_name="Two",
+            email="second-delivery-e2e@example.com",
+            is_active=True,
+        )
+        recipient_role_contact_one = OrganizationRoleContact.objects.create(
+            role_assignment=recipient_assignment,
+            contact=recipient_contact_one,
+            is_primary=True,
+            is_active=True,
+        )
+        recipient_role_contact_two = OrganizationRoleContact.objects.create(
+            role_assignment=recipient_assignment,
+            contact=recipient_contact_two,
+            is_primary=False,
+            is_active=True,
+        )
+        RoleEventPolicy.objects.create(
+            role=OrganizationRole.SHIPPER,
+            event_type=RoleEventType.SHIPMENT_STATUS_UPDATED,
+            is_notifiable=True,
+            is_active=True,
+        )
+        RoleEventPolicy.objects.create(
+            role=OrganizationRole.RECIPIENT,
+            event_type=RoleEventType.SHIPMENT_DELIVERED,
+            is_notifiable=True,
+            is_active=True,
+        )
+        ContactSubscription.objects.create(
+            role_contact=recipient_role_contact_one,
+            event_type=RoleEventType.SHIPMENT_DELIVERED,
+            channel=NotificationChannel.EMAIL,
             destination=destination,
-            name="Delivery Recipient",
-            emails="delivery-e2e@example.com; second-delivery-e2e@example.com",
-            address_line1="1 Rue Delivery",
-            city="Lyon",
-            country="France",
-            notify_deliveries=True,
+            shipper_org=association_contact,
+            is_active=True,
+        )
+        ContactSubscription.objects.create(
+            role_contact=recipient_role_contact_two,
+            event_type=RoleEventType.SHIPMENT_DELIVERED,
+            channel=NotificationChannel.EMAIL,
+            destination=destination,
+            shipper_org=association_contact,
             is_active=True,
         )
         shipment = Shipment.objects.create(
@@ -194,7 +271,8 @@ class EmailFlowsEndToEndTests(TestCase):
             shipper_name=association_contact.name,
             shipper_contact_ref=association_contact,
             shipper_contact=association_contact.name,
-            recipient_name="Recipient E2E",
+            recipient_name=recipient_contact.name,
+            recipient_contact_ref=recipient_contact,
             correspondent_name="Correspondent E2E",
             destination=destination,
             destination_address="1 Rue Delivery\n69000 Lyon\nFrance",

@@ -4,13 +4,21 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.test import TestCase
 
-from contacts.models import Contact
+from contacts.models import Contact, ContactType
 from wms.models import (
-    AssociationRecipient,
+    ContactSubscription,
     Destination,
+    DestinationCorrespondentDefault,
     IntegrationDirection,
     IntegrationEvent,
     IntegrationStatus,
+    NotificationChannel,
+    OrganizationContact,
+    OrganizationRole,
+    OrganizationRoleAssignment,
+    OrganizationRoleContact,
+    RoleEventPolicy,
+    RoleEventType,
     Shipment,
     ShipmentStatus,
     ShipmentTrackingEvent,
@@ -46,6 +54,41 @@ class ShipmentSignalEmailQueueTests(TestCase):
             destination_country="France",
             created_by=self.creator,
         )
+
+    def _create_org(self, name: str, email: str) -> Contact:
+        return Contact.objects.create(
+            name=name,
+            email=email,
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+
+    def _create_role_assignment_with_primary(
+        self,
+        *,
+        organization: Contact,
+        role: str,
+        primary_email: str,
+    ) -> OrganizationRoleAssignment:
+        assignment = OrganizationRoleAssignment.objects.create(
+            organization=organization,
+            role=role,
+            is_active=True,
+        )
+        org_contact = OrganizationContact.objects.create(
+            organization=organization,
+            first_name=role,
+            last_name="Primary",
+            email=primary_email,
+            is_active=True,
+        )
+        OrganizationRoleContact.objects.create(
+            role_assignment=assignment,
+            contact=org_contact,
+            is_primary=True,
+            is_active=True,
+        )
+        return assignment
 
     def test_shipment_status_change_queues_email_event(self):
         with self.captureOnCommitCallbacks(execute=True) as callbacks:
@@ -92,9 +135,14 @@ class ShipmentSignalEmailQueueTests(TestCase):
         )
         self.assertEqual(event.payload.get("recipient"), ["admin@example.com"])
 
-    def test_delivered_status_queues_delivery_notification_for_opted_recipients(self):
-        association_contact = Contact.objects.create(
-            name="Association Notify Deliveries",
+    def test_delivered_status_queues_role_based_delivery_notifications(self):
+        association_contact = self._create_org(
+            "Association Notify Deliveries",
+            "assoc-delivery@example.com",
+        )
+        recipient_contact = self._create_org(
+            "Recipient Notify Deliveries",
+            "recipient-delivery@example.com",
         )
         destination = Destination.objects.create(
             city="Lyon",
@@ -112,59 +160,70 @@ class ShipmentSignalEmailQueueTests(TestCase):
                 name="Correspondent Abidjan",
             ),
         )
-        AssociationRecipient.objects.create(
-            association_contact=association_contact,
+        shipper_assignment = self._create_role_assignment_with_primary(
+            organization=association_contact,
+            role=OrganizationRole.SHIPPER,
+            primary_email="assoc-delivery@example.com",
+        )
+        recipient_assignment = self._create_role_assignment_with_primary(
+            organization=recipient_contact,
+            role=OrganizationRole.RECIPIENT,
+            primary_email="delivery@example.com",
+        )
+        recipient_contact_two = OrganizationContact.objects.create(
+            organization=recipient_contact,
+            first_name="Delivery",
+            last_name="Secondary",
+            email="second@example.com",
+            is_active=True,
+        )
+        recipient_role_contact_two = OrganizationRoleContact.objects.create(
+            role_assignment=recipient_assignment,
+            contact=recipient_contact_two,
+            is_primary=False,
+            is_active=True,
+        )
+        RoleEventPolicy.objects.create(
+            role=OrganizationRole.SHIPPER,
+            event_type=RoleEventType.SHIPMENT_STATUS_UPDATED,
+            is_notifiable=True,
+            is_active=True,
+        )
+        RoleEventPolicy.objects.create(
+            role=OrganizationRole.RECIPIENT,
+            event_type=RoleEventType.SHIPMENT_DELIVERED,
+            is_notifiable=True,
+            is_active=True,
+        )
+        recipient_primary_role_contact = recipient_assignment.role_contacts.get(is_primary=True)
+        ContactSubscription.objects.create(
+            role_contact=recipient_primary_role_contact,
+            event_type=RoleEventType.SHIPMENT_DELIVERED,
+            channel=NotificationChannel.EMAIL,
             destination=destination,
-            name="Recipient A",
-            emails="delivery@example.com; DELIVERY@example.com; second@example.com",
-            address_line1="1 Rue A",
-            city="Lyon",
-            country="France",
-            notify_deliveries=True,
+            shipper_org=association_contact,
             is_active=True,
         )
-        AssociationRecipient.objects.create(
-            association_contact=association_contact,
-            destination=None,
-            name="Recipient B",
-            email="fallback@example.com",
-            address_line1="2 Rue B",
-            city="Paris",
-            country="France",
-            notify_deliveries=True,
-            is_active=True,
-        )
-        AssociationRecipient.objects.create(
-            association_contact=association_contact,
-            destination=other_destination,
-            name="Recipient C",
-            email="other-destination@example.com",
-            address_line1="3 Rue C",
-            city="Abidjan",
-            country="Cote d'Ivoire",
-            notify_deliveries=True,
-            is_active=True,
-        )
-        AssociationRecipient.objects.create(
-            association_contact=association_contact,
+        ContactSubscription.objects.create(
+            role_contact=recipient_role_contact_two,
+            event_type=RoleEventType.SHIPMENT_DELIVERED,
+            channel=NotificationChannel.EMAIL,
             destination=destination,
-            name="Recipient D",
-            email="disabled-notify@example.com",
-            address_line1="4 Rue D",
-            city="Lyon",
-            country="France",
-            notify_deliveries=False,
+            shipper_org=association_contact,
             is_active=True,
         )
         self.shipment.shipper_contact_ref = association_contact
+        self.shipment.recipient_contact_ref = recipient_contact
         self.shipment.destination = destination
-        self.shipment.save(update_fields=["shipper_contact_ref", "destination"])
+        self.shipment.save(
+            update_fields=["shipper_contact_ref", "recipient_contact_ref", "destination"]
+        )
 
         with self.captureOnCommitCallbacks(execute=True) as callbacks:
             self.shipment.status = ShipmentStatus.DELIVERED
             self.shipment.save(update_fields=["status"])
 
-        self.assertEqual(len(callbacks), 2)
+        self.assertEqual(len(callbacks), 3)
         events = list(
             IntegrationEvent.objects.filter(
                 direction=IntegrationDirection.OUTBOUND,
@@ -173,15 +232,23 @@ class ShipmentSignalEmailQueueTests(TestCase):
                 status=IntegrationStatus.PENDING,
             )
         )
-        self.assertEqual(len(events), 2)
+        self.assertEqual(len(events), 3)
         delivery_subject = f"ASF WMS - Expedition {self.shipment.reference} : livraison confirmee"
         delivery_event = next(
             event for event in events if event.payload.get("subject") == delivery_subject
         )
         self.assertEqual(
             delivery_event.payload.get("recipient"),
-            ["delivery@example.com", "second@example.com", "fallback@example.com"],
+            ["delivery@example.com", "second@example.com"],
         )
+        status_subject = f"ASF WMS - Expédition {self.shipment.reference} : statut Livré"
+        status_event = next(
+            event
+            for event in events
+            if event.payload.get("subject") == status_subject
+            and event.payload.get("recipient") == ["assoc-delivery@example.com"]
+        )
+        self.assertIsNotNone(status_event)
 
     def test_shipment_status_change_includes_shipment_status_update_group(self):
         grouped_staff = get_user_model().objects.create_user(
@@ -210,11 +277,80 @@ class ShipmentSignalEmailQueueTests(TestCase):
         )
 
     def test_planned_status_change_notifies_shipper_and_recipient(self):
-        shipper = Contact.objects.create(name="Shipper", email="shipper@example.com")
-        recipient = Contact.objects.create(name="Recipient", email="recipient@example.com")
+        shipper = self._create_org("Shipper", "shipper@example.com")
+        recipient = self._create_org("Recipient", "recipient@example.com")
+        self._create_role_assignment_with_primary(
+            organization=shipper,
+            role=OrganizationRole.SHIPPER,
+            primary_email="shipper@example.com",
+        )
+        self._create_role_assignment_with_primary(
+            organization=recipient,
+            role=OrganizationRole.RECIPIENT,
+            primary_email="recipient@example.com",
+        )
+        RoleEventPolicy.objects.create(
+            role=OrganizationRole.SHIPPER,
+            event_type=RoleEventType.SHIPMENT_STATUS_UPDATED,
+            is_notifiable=True,
+            is_active=True,
+        )
+        RoleEventPolicy.objects.create(
+            role=OrganizationRole.RECIPIENT,
+            event_type=RoleEventType.SHIPMENT_STATUS_UPDATED,
+            is_notifiable=True,
+            is_active=True,
+        )
         self.shipment.shipper_contact_ref = shipper
         self.shipment.recipient_contact_ref = recipient
         self.shipment.save(update_fields=["shipper_contact_ref", "recipient_contact_ref"])
+
+        with self.captureOnCommitCallbacks(execute=True):
+            self.shipment.status = ShipmentStatus.PLANNED
+            self.shipment.save(update_fields=["status"])
+
+        events = list(
+            IntegrationEvent.objects.filter(
+                direction=IntegrationDirection.OUTBOUND,
+                source="wms.email",
+                event_type="send_email",
+                status=IntegrationStatus.PENDING,
+                payload__subject=f"ASF WMS - Expédition {self.shipment.reference} : statut Planifié",
+            )
+        )
+        self.assertEqual(len(events), 2)
+        self.assertEqual(
+            {tuple(event.payload.get("recipient", [])) for event in events},
+            {("shipper@example.com",), ("recipient@example.com",)},
+        )
+
+    def test_planned_status_change_notifies_role_based_correspondents(self):
+        correspondent = self._create_org("Correspondent", "correspondent@example.com")
+        destination = Destination.objects.create(
+            city="Bamako",
+            iata_code="BKO-Q",
+            country="Mali",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        self._create_role_assignment_with_primary(
+            organization=correspondent,
+            role=OrganizationRole.CORRESPONDENT,
+            primary_email="correspondent@example.com",
+        )
+        RoleEventPolicy.objects.create(
+            role=OrganizationRole.CORRESPONDENT,
+            event_type=RoleEventType.SHIPMENT_STATUS_UPDATED,
+            is_notifiable=True,
+            is_active=True,
+        )
+        DestinationCorrespondentDefault.objects.create(
+            destination=destination,
+            correspondent_org=correspondent,
+            is_active=True,
+        )
+        self.shipment.destination = destination
+        self.shipment.save(update_fields=["destination"])
 
         with self.captureOnCommitCallbacks(execute=True):
             self.shipment.status = ShipmentStatus.PLANNED
@@ -229,61 +365,41 @@ class ShipmentSignalEmailQueueTests(TestCase):
         ).first()
         self.assertIsNotNone(event)
         self.assertEqual(
-            set(event.payload.get("recipient", [])),
-            {"shipper@example.com", "recipient@example.com"},
+            event.payload.get("recipient"),
+            ["correspondent@example.com"],
         )
 
-    def test_planned_status_change_notifies_correspondant_group_and_contact(self):
-        correspondent = Contact.objects.create(
-            name="Correspondent",
-            email="correspondent@example.com",
+    def test_boarding_ok_tracking_event_notifies_role_based_correspondents(self):
+        correspondent = self._create_org(
+            "Correspondent Boarding",
+            "correspondent-boarding@example.com",
         )
-        grouped_staff = get_user_model().objects.create_user(
-            username="shipment-correspondant-grouped",
-            email="shipment-correspondant-grouped@example.com",
-            password="pass1234",
-            is_staff=True,
+        destination = Destination.objects.create(
+            city="Dakar",
+            iata_code="DKR-Q",
+            country="Senegal",
+            correspondent_contact=correspondent,
+            is_active=True,
         )
-        Group.objects.get_or_create(name="Shipment_Status_Update_Correspondant")[0].user_set.add(
-            grouped_staff
+        self._create_role_assignment_with_primary(
+            organization=correspondent,
+            role=OrganizationRole.CORRESPONDENT,
+            primary_email="correspondent-boarding@example.com",
         )
-        self.shipment.correspondent_contact_ref = correspondent
-        self.shipment.save(update_fields=["correspondent_contact_ref"])
-
-        with self.captureOnCommitCallbacks(execute=True):
-            self.shipment.status = ShipmentStatus.PLANNED
-            self.shipment.save(update_fields=["status"])
-
-        event = IntegrationEvent.objects.filter(
-            direction=IntegrationDirection.OUTBOUND,
-            source="wms.email",
-            event_type="send_email",
-            status=IntegrationStatus.PENDING,
-            payload__subject=f"ASF WMS - Suivi correspondant {self.shipment.reference} : Planifié",
-        ).first()
-        self.assertIsNotNone(event)
-        self.assertEqual(
-            set(event.payload.get("recipient", [])),
-            {"shipment-correspondant-grouped@example.com", "correspondent@example.com"},
+        RoleEventPolicy.objects.create(
+            role=OrganizationRole.CORRESPONDENT,
+            event_type=RoleEventType.SHIPMENT_TRACKING_UPDATED,
+            is_notifiable=True,
+            is_active=True,
         )
-
-    def test_boarding_ok_tracking_event_notifies_correspondant_group_and_contact(self):
-        correspondent = Contact.objects.create(
-            name="Correspondent Boarding",
-            email="correspondent-boarding@example.com",
+        DestinationCorrespondentDefault.objects.create(
+            destination=destination,
+            correspondent_org=correspondent,
+            is_active=True,
         )
-        grouped_staff = get_user_model().objects.create_user(
-            username="shipment-correspondant-boarding-grouped",
-            email="shipment-correspondant-boarding-grouped@example.com",
-            password="pass1234",
-            is_staff=True,
-        )
-        Group.objects.get_or_create(name="Shipment_Status_Update_Correspondant")[0].user_set.add(
-            grouped_staff
-        )
-        self.shipment.correspondent_contact_ref = correspondent
+        self.shipment.destination = destination
         self.shipment.status = ShipmentStatus.PLANNED
-        self.shipment.save(update_fields=["correspondent_contact_ref", "status"])
+        self.shipment.save(update_fields=["destination", "status"])
 
         with self.captureOnCommitCallbacks(execute=True):
             ShipmentTrackingEvent.objects.create(
@@ -294,18 +410,26 @@ class ShipmentSignalEmailQueueTests(TestCase):
                 comments="ok",
             )
 
-        event = IntegrationEvent.objects.filter(
-            direction=IntegrationDirection.OUTBOUND,
-            source="wms.email",
-            event_type="send_email",
-            status=IntegrationStatus.PENDING,
-            payload__subject=f"ASF WMS - Suivi correspondant {self.shipment.reference} : OK mise à bord",
-        ).first()
+        events = list(
+            IntegrationEvent.objects.filter(
+                direction=IntegrationDirection.OUTBOUND,
+                source="wms.email",
+                event_type="send_email",
+                status=IntegrationStatus.PENDING,
+                payload__subject=f"ASF WMS - Suivi expédition {self.shipment.reference}",
+            )
+        )
+        self.assertEqual(len(events), 2)
+        event = next(
+            (
+                candidate
+                for candidate in events
+                if candidate.payload.get("recipient") == ["correspondent-boarding@example.com"]
+            ),
+            None,
+        )
         self.assertIsNotNone(event)
         self.assertEqual(
-            set(event.payload.get("recipient", [])),
-            {
-                "shipment-correspondant-boarding-grouped@example.com",
-                "correspondent-boarding@example.com",
-            },
+            event.payload.get("recipient"),
+            ["correspondent-boarding@example.com"],
         )

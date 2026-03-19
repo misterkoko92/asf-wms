@@ -149,6 +149,11 @@ class BillingModelTests(TestCase):
 
 
 class BillingMigrationTests(TransactionTestCase):
+    contacts_migrate_from = ("contacts", "0007_contact_linked_shippers")
+    contacts_migrate_to = (
+        "contacts",
+        "0008_remove_contact_tags_remove_contact_destination_and_more",
+    )
     migrate_from = ("wms", "0075_accountdocument_scan_message_and_more")
     migrate_to = ("wms", "0076_billing_domain_initial")
 
@@ -158,8 +163,10 @@ class BillingMigrationTests(TransactionTestCase):
 
     def test_initial_migration_backfills_billing_profiles_for_existing_associations(self):
         executor = MigrationExecutor(connection)
-        executor.migrate([self.migrate_from])
-        old_apps = executor.loader.project_state([self.migrate_from]).apps
+        executor.migrate([self.contacts_migrate_from, self.migrate_from])
+        old_apps = executor.loader.project_state(
+            [self.contacts_migrate_from, self.migrate_from]
+        ).apps
 
         User = old_apps.get_model(*self._user_model_label())
         Contact = old_apps.get_model("contacts", "Contact")
@@ -178,8 +185,8 @@ class BillingMigrationTests(TransactionTestCase):
 
         executor = MigrationExecutor(connection)
         executor.loader.build_graph()
-        executor.migrate([self.migrate_to])
-        new_apps = executor.loader.project_state([self.migrate_to]).apps
+        executor.migrate([self.contacts_migrate_to, self.migrate_to])
+        new_apps = executor.loader.project_state([self.contacts_migrate_to, self.migrate_to]).apps
         AssociationBillingProfileModel = new_apps.get_model("wms", "AssociationBillingProfile")
 
         self.assertTrue(

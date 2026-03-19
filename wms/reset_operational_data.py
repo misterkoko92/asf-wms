@@ -152,7 +152,6 @@ DELETE_BATCHES = (
         (
             "contacts.ContactAddress",
             "contacts.Contact",
-            "contacts.ContactTag",
         ),
     ),
     (

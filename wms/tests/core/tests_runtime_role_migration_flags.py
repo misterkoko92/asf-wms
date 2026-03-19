@@ -13,12 +13,10 @@ class RuntimeRoleMigrationFlagsTests(TestCase):
         self.assertEqual(runtime.org_roles_review_max_open_percent, 20)
 
         config = get_runtime_config()
-        self.assertFalse(hasattr(config, "org_roles_engine_enabled"))
         self.assertEqual(config.org_roles_review_max_open_percent, 20)
 
     def test_runtime_config_reads_review_threshold_from_settings_fallback(self):
         with override_settings(
-            ORG_ROLES_ENGINE_ENABLED=True,
             ORG_ROLES_REVIEW_MAX_OPEN_PERCENT=35,
         ):
             with mock.patch(
@@ -27,7 +25,6 @@ class RuntimeRoleMigrationFlagsTests(TestCase):
             ):
                 config = get_runtime_config()
 
-        self.assertFalse(hasattr(config, "org_roles_engine_enabled"))
         self.assertEqual(config.org_roles_review_max_open_percent, 35)
 
     def test_runtime_config_clamps_review_threshold_to_100(self):

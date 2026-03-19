@@ -8,7 +8,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from contacts.models import Contact, ContactAddress, ContactTag, ContactType
+from contacts.models import Contact, ContactAddress, ContactType
 from wms.models import (
     AssociationProfile,
     AssociationRecipient,
@@ -90,19 +90,16 @@ class ScanViewTests(TestCase):
 
         self.shipper = self._create_contact(
             "Shipper",
-            tags=["expediteur"],
             address_country="FRANCE",
             role=OrganizationRole.SHIPPER,
         )
         self.recipient = self._create_contact(
             "Recipient",
-            tags=["destinataire"],
             address_country="COTE D'IVOIRE",
             role=OrganizationRole.RECIPIENT,
         )
         self.correspondent = self._create_contact(
             "Correspondent",
-            tags=["correspondant"],
             address_country="COTE D'IVOIRE",
             contact_type=ContactType.PERSON,
         )
@@ -115,13 +112,11 @@ class ScanViewTests(TestCase):
         )
         self.transporter = self._create_contact(
             "Transporter",
-            tags=["transporteur"],
             address_country="FRANCE",
             role=OrganizationRole.TRANSPORTER,
         )
         self.donor = self._create_contact(
             "Donor",
-            tags=["donateur"],
             address_country="FRANCE",
             role=OrganizationRole.DONOR,
         )
@@ -130,15 +125,11 @@ class ScanViewTests(TestCase):
     def _create_contact(
         self,
         name,
-        tags,
         address_country,
         contact_type=ContactType.ORGANIZATION,
         role=None,
     ):
         contact = Contact.objects.create(name=name, contact_type=contact_type, is_active=True)
-        for tag in tags:
-            tag_obj, _ = ContactTag.objects.get_or_create(name=tag)
-            contact.tags.add(tag_obj)
         ContactAddress.objects.create(
             contact=contact,
             address_line1="1 Rue Test",
@@ -487,10 +478,15 @@ class ScanViewTests(TestCase):
             url,
             {
                 "action": "create_order",
-                "shipper_name": "Sender",
-                "recipient_name": "Recipient",
+                "shipper_name": self.shipper.name,
+                "recipient_name": self.recipient.name,
+                "correspondent_name": self.correspondent.name,
+                "shipper_contact": str(self.shipper.id),
+                "recipient_contact": str(self.recipient.id),
+                "correspondent_contact": str(self.correspondent.id),
                 "destination_address": "10 Rue Test",
-                "destination_country": "France",
+                "destination_city": self.destination.city,
+                "destination_country": self.destination.country,
             },
         )
         self.assertEqual(response.status_code, 302)
@@ -1003,6 +999,9 @@ class ScanViewTests(TestCase):
             {
                 "action": "save_draft",
                 "destination": self.destination.id,
+                "shipper_contact": self.shipper.id,
+                "recipient_contact": self.recipient.id,
+                "correspondent_contact": self.correspondent.id,
                 "carton_count": 1,
             },
         )
@@ -1024,6 +1023,9 @@ class ScanViewTests(TestCase):
             {
                 "action": "save_draft_pack",
                 "destination": self.destination.id,
+                "shipper_contact": self.shipper.id,
+                "recipient_contact": self.recipient.id,
+                "correspondent_contact": self.correspondent.id,
                 "carton_count": 1,
             },
         )

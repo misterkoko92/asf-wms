@@ -404,7 +404,7 @@
     joinParts([record.warehouse, [record.zone, record.aisle, record.shelf].filter(Boolean).join("-"), record.rack_color]);
 
   const categorySecondary = record => joinParts([record.parent, record.path]);
-  const contactSecondary = record => joinParts([record.email, record.phone, record.destination, record.city]);
+  const contactSecondary = record => joinParts([record.email, record.phone, record.scope, record.city]);
   const userSecondary = record => joinParts([record.email, record.first_name, record.last_name]);
 
   [
@@ -582,7 +582,7 @@
       inputId: config.inputId,
       datasetName: "contacts",
       valueKey: config.valueKey,
-      searchKeys: ["name", "email", "phone", "destination", "address_line1", "city"],
+      searchKeys: ["name", "email", "phone", "scope", "address_line1", "city"],
       fill: fillContact,
       render: record => ({
         primary: record[config.valueKey] || record.label,

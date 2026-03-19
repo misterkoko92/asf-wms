@@ -1,6 +1,6 @@
 from django.test import TestCase
 
-from contacts.models import Contact, ContactTag, ContactType
+from contacts.models import Contact, ContactType
 from wms.forms import ScanOrderCreateForm, ScanShipmentForm
 from wms.models import (
     Destination,
@@ -11,7 +11,6 @@ from wms.models import (
     OrganizationRoleContact,
     RecipientBinding,
     ShipperScope,
-    WmsRuntimeSettings,
 )
 
 
@@ -29,6 +28,36 @@ class FormsOrgRolesGateTests(TestCase):
             iata_code=iata,
             country="Country",
             correspondent_contact=correspondent,
+            is_active=True,
+        )
+
+    def _assign_role(self, organization: Contact, role: str, *, is_active: bool = True):
+        assignment, created = OrganizationRoleAssignment.objects.get_or_create(
+            organization=organization,
+            role=role,
+            defaults={"is_active": is_active},
+        )
+        if not created and assignment.is_active != is_active:
+            assignment.is_active = is_active
+            assignment.save(update_fields=["is_active"])
+        return assignment
+
+    def _grant_shipper_scope(self, shipper: Contact, destination: Destination):
+        assignment = self._assign_role(shipper, OrganizationRole.SHIPPER)
+        ShipperScope.objects.create(
+            role_assignment=assignment,
+            destination=destination,
+            all_destinations=False,
+            is_active=True,
+        )
+        return assignment
+
+    def _bind_recipient(self, shipper: Contact, recipient: Contact, destination: Destination):
+        self._assign_role(recipient, OrganizationRole.RECIPIENT)
+        RecipientBinding.objects.create(
+            shipper_org=shipper,
+            recipient_org=recipient,
+            destination=destination,
             is_active=True,
         )
 
@@ -52,51 +81,15 @@ class FormsOrgRolesGateTests(TestCase):
         self.assertTrue(form.is_valid())
 
     def test_scan_shipment_form_filters_recipients_from_bindings_when_engine_enabled(self):
-        runtime = WmsRuntimeSettings.get_solo()
-        runtime.org_roles_engine_enabled = True
-        runtime.save(update_fields=["org_roles_engine_enabled"])
-
         correspondent = self._create_org("Correspondent")
-        correspondent_tag, _ = ContactTag.objects.get_or_create(name="correspondant")
-        correspondent.tags.add(correspondent_tag)
-        shipper_tag, _ = ContactTag.objects.get_or_create(name="expediteur")
-        recipient_tag, _ = ContactTag.objects.get_or_create(name="destinataire")
-
         destination = self._create_destination("BKO", correspondent)
         shipper = self._create_org("Shipper")
         recipient_allowed = self._create_org("Recipient Allowed")
         recipient_blocked = self._create_org("Recipient Blocked")
-        shipper.tags.add(shipper_tag)
-        recipient_allowed.tags.add(recipient_tag)
-        recipient_blocked.tags.add(recipient_tag)
-
-        shipper_assignment = OrganizationRoleAssignment.objects.create(
-            organization=shipper,
-            role=OrganizationRole.SHIPPER,
-            is_active=True,
-        )
-        OrganizationRoleAssignment.objects.create(
-            organization=recipient_allowed,
-            role=OrganizationRole.RECIPIENT,
-            is_active=True,
-        )
-        OrganizationRoleAssignment.objects.create(
-            organization=recipient_blocked,
-            role=OrganizationRole.RECIPIENT,
-            is_active=True,
-        )
-        ShipperScope.objects.create(
-            role_assignment=shipper_assignment,
-            destination=destination,
-            all_destinations=False,
-            is_active=True,
-        )
-        RecipientBinding.objects.create(
-            shipper_org=shipper,
-            recipient_org=recipient_allowed,
-            destination=destination,
-            is_active=True,
-        )
+        self._grant_shipper_scope(shipper, destination)
+        self._assign_role(recipient_allowed, OrganizationRole.RECIPIENT)
+        self._assign_role(recipient_blocked, OrganizationRole.RECIPIENT)
+        self._bind_recipient(shipper, recipient_allowed, destination)
 
         form = ScanShipmentForm(
             destination_id=str(destination.id),
@@ -113,16 +106,7 @@ class FormsOrgRolesGateTests(TestCase):
     def test_scan_shipment_form_filters_person_recipients_from_org_bindings_when_engine_enabled(
         self,
     ):
-        runtime = WmsRuntimeSettings.get_solo()
-        runtime.org_roles_engine_enabled = True
-        runtime.save(update_fields=["org_roles_engine_enabled"])
-
         correspondent = self._create_org("Correspondent Org Contact")
-        correspondent_tag, _ = ContactTag.objects.get_or_create(name="correspondant")
-        correspondent.tags.add(correspondent_tag)
-        shipper_tag, _ = ContactTag.objects.get_or_create(name="expediteur")
-        recipient_tag, _ = ContactTag.objects.get_or_create(name="destinataire")
-
         destination = self._create_destination("LBV", correspondent)
         shipper_org = self._create_org("Shipper Org")
         recipient_allowed_org = self._create_org("Recipient Allowed Org")
@@ -151,37 +135,10 @@ class FormsOrgRolesGateTests(TestCase):
             organization=recipient_blocked_org,
             is_active=True,
         )
-        shipper_contact.tags.add(shipper_tag)
-        recipient_allowed_contact.tags.add(recipient_tag)
-        recipient_blocked_contact.tags.add(recipient_tag)
-
-        shipper_assignment = OrganizationRoleAssignment.objects.create(
-            organization=shipper_org,
-            role=OrganizationRole.SHIPPER,
-            is_active=True,
-        )
-        OrganizationRoleAssignment.objects.create(
-            organization=recipient_allowed_org,
-            role=OrganizationRole.RECIPIENT,
-            is_active=True,
-        )
-        OrganizationRoleAssignment.objects.create(
-            organization=recipient_blocked_org,
-            role=OrganizationRole.RECIPIENT,
-            is_active=True,
-        )
-        ShipperScope.objects.create(
-            role_assignment=shipper_assignment,
-            destination=destination,
-            all_destinations=False,
-            is_active=True,
-        )
-        RecipientBinding.objects.create(
-            shipper_org=shipper_org,
-            recipient_org=recipient_allowed_org,
-            destination=destination,
-            is_active=True,
-        )
+        self._grant_shipper_scope(shipper_org, destination)
+        self._assign_role(recipient_allowed_org, OrganizationRole.RECIPIENT)
+        self._assign_role(recipient_blocked_org, OrganizationRole.RECIPIENT)
+        self._bind_recipient(shipper_org, recipient_allowed_org, destination)
 
         form = ScanShipmentForm(
             destination_id=str(destination.id),
@@ -193,63 +150,16 @@ class FormsOrgRolesGateTests(TestCase):
         self.assertNotIn(recipient_blocked_contact.id, recipient_ids)
 
     def test_scan_shipment_form_keeps_all_shippers_selectable_when_engine_enabled(self):
-        runtime = WmsRuntimeSettings.get_solo()
-        runtime.org_roles_engine_enabled = True
-        runtime.save(update_fields=["org_roles_engine_enabled"])
-
         correspondent = self._create_org("Correspondent Scope")
-        correspondent_tag, _ = ContactTag.objects.get_or_create(name="correspondant")
-        correspondent.tags.add(correspondent_tag)
-        shipper_tag, _ = ContactTag.objects.get_or_create(name="expediteur")
-        recipient_tag, _ = ContactTag.objects.get_or_create(name="destinataire")
-
         destination = self._create_destination("CMN", correspondent)
         other_destination = self._create_destination("NBO", correspondent)
         shipper_in_scope = self._create_org("Shipper In Scope")
         shipper_out_scope = self._create_org("Shipper Out Scope")
         recipient = self._create_org("Recipient Scope")
-        shipper_in_scope.tags.add(shipper_tag)
-        shipper_out_scope.tags.add(shipper_tag)
-        recipient.tags.add(recipient_tag)
-
-        shipper_assignment = OrganizationRoleAssignment.objects.create(
-            organization=shipper_in_scope,
-            role=OrganizationRole.SHIPPER,
-            is_active=True,
-        )
-        OrganizationRoleAssignment.objects.create(
-            organization=shipper_out_scope,
-            role=OrganizationRole.SHIPPER,
-            is_active=True,
-        )
-        OrganizationRoleAssignment.objects.create(
-            organization=recipient,
-            role=OrganizationRole.RECIPIENT,
-            is_active=True,
-        )
-        ShipperScope.objects.create(
-            role_assignment=shipper_assignment,
-            destination=destination,
-            all_destinations=False,
-            is_active=True,
-        )
-        RecipientBinding.objects.create(
-            shipper_org=shipper_in_scope,
-            recipient_org=recipient,
-            destination=destination,
-            is_active=True,
-        )
-
-        out_scope_assignment = OrganizationRoleAssignment.objects.get(
-            organization=shipper_out_scope,
-            role=OrganizationRole.SHIPPER,
-        )
-        ShipperScope.objects.create(
-            role_assignment=out_scope_assignment,
-            destination=other_destination,
-            all_destinations=False,
-            is_active=True,
-        )
+        self._grant_shipper_scope(shipper_in_scope, destination)
+        self._grant_shipper_scope(shipper_out_scope, other_destination)
+        self._assign_role(recipient, OrganizationRole.RECIPIENT)
+        self._bind_recipient(shipper_in_scope, recipient, destination)
 
         form = ScanShipmentForm(
             data={
@@ -274,37 +184,16 @@ class FormsOrgRolesGateTests(TestCase):
         )
 
     def test_scan_shipment_form_blocks_recipient_pending_review_or_non_compliant(self):
-        runtime = WmsRuntimeSettings.get_solo()
-        runtime.org_roles_engine_enabled = True
-        runtime.save(update_fields=["org_roles_engine_enabled"])
-
         correspondent = self._create_org("Correspondent DLA")
-        correspondent_tag, _ = ContactTag.objects.get_or_create(name="correspondant")
-        correspondent.tags.add(correspondent_tag)
-        shipper_tag, _ = ContactTag.objects.get_or_create(name="expediteur")
-        recipient_tag, _ = ContactTag.objects.get_or_create(name="destinataire")
         destination = self._create_destination("DLA", correspondent)
 
         shipper = self._create_org("Shipper DLA")
         recipient = self._create_org("Recipient DLA")
-        shipper.tags.add(shipper_tag)
-        recipient.tags.add(recipient_tag)
-
-        shipper_assignment = OrganizationRoleAssignment.objects.create(
-            organization=shipper,
-            role=OrganizationRole.SHIPPER,
-            is_active=True,
-        )
-        recipient_assignment = OrganizationRoleAssignment.objects.create(
-            organization=recipient,
-            role=OrganizationRole.RECIPIENT,
+        self._grant_shipper_scope(shipper, destination)
+        recipient_assignment = self._assign_role(
+            recipient,
+            OrganizationRole.RECIPIENT,
             is_active=False,
-        )
-        ShipperScope.objects.create(
-            role_assignment=shipper_assignment,
-            destination=destination,
-            all_destinations=False,
-            is_active=True,
         )
         RecipientBinding.objects.create(
             shipper_org=shipper,
@@ -373,10 +262,6 @@ class FormsOrgRolesGateTests(TestCase):
         )
 
     def test_scan_shipment_form_lists_shipper_and_recipient_without_legacy_tags(self):
-        runtime = WmsRuntimeSettings.get_solo()
-        runtime.org_roles_engine_enabled = True
-        runtime.save(update_fields=["org_roles_engine_enabled"])
-
         correspondent = self._create_org("Correspondent Org Roles Only")
         destination = self._create_destination("LOS", correspondent)
         shipper = self._create_org("Shipper Org Roles Only")

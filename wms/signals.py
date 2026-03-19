@@ -44,7 +44,6 @@ from .models import (
     WmsChange,
 )
 from .notification_policy import resolve_notification_recipients
-from .organization_role_resolvers import is_org_roles_engine_enabled
 from .workflow_observability import (
     log_shipment_status_transition,
     log_shipment_tracking_event,
@@ -83,7 +82,7 @@ def _uniq_emails(values):
 
 def _org_roles_notifications_enabled() -> bool:
     try:
-        return is_org_roles_engine_enabled()
+        return True
     except Exception:
         # Some signal unit tests run in SimpleTestCase without DB access.
         return False

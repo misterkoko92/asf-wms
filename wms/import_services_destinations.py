@@ -1,7 +1,6 @@
 import re
 
 from contacts.models import Contact, ContactType
-from contacts.tagging import TAG_CORRESPONDENT
 
 from .models import Destination, OrganizationRole, OrganizationRoleAssignment
 from .organization_role_resolvers import active_organizations_for_role
@@ -12,7 +11,7 @@ DESTINATION_LABEL_RE = re.compile(
 DESTINATION_IATA_FALLBACK = "DEST"
 DEFAULT_DESTINATION_COUNTRY = "France"
 DEFAULT_CORRESPONDENT_NAME = "Correspondant par défaut"
-DEFAULT_CORRESPONDENT_NOTES = "créé à l'import destination"
+DEFAULT_CORRESPONDENT_NOTES = "cree a l'import destination"
 
 
 def _normalize_label_value(value):
@@ -52,13 +51,6 @@ def _generate_destination_code(base):
         trimmed = cleaned[: max(1, 10 - len(str(suffix)))]
         candidate = f"{trimmed}{suffix}"
     return candidate
-
-
-def _tags_include_correspondent(tags):
-    if not tags:
-        return False
-    tag_names = {tag.name.strip().lower() for tag in tags if tag.name}
-    return any(name in tag_names for name in TAG_CORRESPONDENT)
 
 
 def _ensure_correspondent_role(contact):
@@ -124,11 +116,8 @@ def _contact_has_correspondent_role(contact):
     ).exists()
 
 
-def _resolve_destination_correspondent(*, contact, tags):
-    if contact and (
-        _contact_has_correspondent_role(contact)
-        or _tags_include_correspondent(tags or contact.tags.all())
-    ):
+def _resolve_destination_correspondent(*, contact):
+    if contact and _contact_has_correspondent_role(contact):
         return _ensure_correspondent_role(contact)
     return _select_default_correspondent()
 
@@ -137,7 +126,6 @@ def _get_or_create_destination(
     raw_value,
     *,
     contact=None,
-    tags=None,
     fallback_city=None,
     fallback_country=None,
 ):
@@ -158,7 +146,7 @@ def _get_or_create_destination(
     if existing:
         return existing
     resolved_iata = iata_code or _generate_destination_code(resolved_city)
-    correspondent = _resolve_destination_correspondent(contact=contact, tags=tags)
+    correspondent = _resolve_destination_correspondent(contact=contact)
     return Destination.objects.create(
         city=resolved_city,
         iata_code=resolved_iata,

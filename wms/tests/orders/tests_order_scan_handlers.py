@@ -120,8 +120,45 @@ class OrderScanHandlersTests(TestCase):
         self.assertIsNone(order_lines)
         self.assertIsNone(remaining_total)
 
-    def test_handle_order_action_create_order_not_blocked_when_legacy_write_is_disabled(self):
-        create_form = self._create_order_form()
+    @mock.patch("wms.order_scan_handlers.messages.success")
+    @mock.patch("wms.order_scan_handlers.create_shipment_for_order")
+    @mock.patch("wms.order_scan_handlers.resolve_recipient_binding_for_operation")
+    @mock.patch("wms.order_scan_handlers.resolve_shipper_for_operation")
+    def test_handle_order_action_create_order_not_blocked_when_legacy_write_is_disabled(
+        self,
+        resolve_shipper_mock,
+        resolve_binding_mock,
+        create_shipment_mock,
+        _messages_success_mock,
+    ):
+        correspondent = Contact.objects.create(
+            name="Corr Legacy Disabled",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        Destination.objects.create(
+            city="Paris",
+            iata_code="PAR",
+            country="France",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        shipper = Contact.objects.create(
+            name="Sender Org",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        recipient = Contact.objects.create(
+            name="Recipient Org",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        create_form = self._create_order_form(
+            shipper_contact=shipper,
+            recipient_contact=recipient,
+        )
+        resolve_shipper_mock.return_value = None
+        resolve_binding_mock.return_value = None
 
         with mock.patch("wms.order_scan_handlers.messages.success"):
             response, order_lines, remaining_total = handle_order_action(
@@ -136,13 +173,11 @@ class OrderScanHandlersTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(Order.objects.count(), 1)
         self.assertEqual(create_form.errors, [])
+        create_shipment_mock.assert_called_once()
         self.assertIsNone(order_lines)
         self.assertIsNone(remaining_total)
 
-    @mock.patch("wms.order_scan_handlers.is_org_roles_engine_enabled", return_value=True)
-    def test_handle_order_action_create_order_with_org_roles_adds_required_errors(
-        self, _engine_mock
-    ):
+    def test_handle_order_action_create_order_with_org_roles_adds_required_errors(self):
         create_form = self._create_order_form(
             shipper_contact=None,
             recipient_contact=None,
@@ -170,10 +205,7 @@ class OrderScanHandlersTests(TestCase):
         )
         self.assertEqual(Order.objects.count(), 0)
 
-    @mock.patch("wms.order_scan_handlers.is_org_roles_engine_enabled", return_value=True)
-    def test_handle_order_action_create_order_with_org_roles_translates_errors_in_english(
-        self, _engine_mock
-    ):
+    def test_handle_order_action_create_order_with_org_roles_translates_errors_in_english(self):
         create_form = self._create_order_form(
             shipper_contact=None,
             recipient_contact=None,
@@ -202,14 +234,12 @@ class OrderScanHandlersTests(TestCase):
         )
         self.assertEqual(Order.objects.count(), 0)
 
-    @mock.patch("wms.order_scan_handlers.is_org_roles_engine_enabled", return_value=True)
     @mock.patch("wms.order_scan_handlers.resolve_recipient_binding_for_operation")
     @mock.patch("wms.order_scan_handlers.resolve_shipper_for_operation")
     def test_handle_order_action_create_order_with_org_roles_resolution_error(
         self,
         resolve_shipper_mock,
         resolve_binding_mock,
-        _engine_mock,
     ):
         correspondent = Contact.objects.create(
             name="Corr Paris",
@@ -261,10 +291,8 @@ class OrderScanHandlersTests(TestCase):
     @mock.patch("wms.order_scan_handlers.create_shipment_for_order")
     @mock.patch("wms.order_scan_handlers.resolve_recipient_binding_for_operation")
     @mock.patch("wms.order_scan_handlers.resolve_shipper_for_operation")
-    @mock.patch("wms.order_scan_handlers.is_org_roles_engine_enabled", return_value=True)
     def test_handle_order_action_create_order_with_org_roles_success(
         self,
-        _engine_mock,
         resolve_shipper_mock,
         resolve_binding_mock,
         create_shipment_mock,
@@ -368,17 +396,50 @@ class OrderScanHandlersTests(TestCase):
         create_shipment_mock,
         success_mock,
     ):
-        create_form = self._create_order_form()
+        correspondent = Contact.objects.create(
+            name="Corr English Success",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        Destination.objects.create(
+            city="Paris",
+            iata_code="PAR-EN",
+            country="France",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        shipper = Contact.objects.create(
+            name="Sender English",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        recipient = Contact.objects.create(
+            name="Recipient English",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        create_form = self._create_order_form(
+            shipper_contact=shipper,
+            recipient_contact=recipient,
+        )
 
         with translation.override("en"):
-            response, order_lines, remaining_total = handle_order_action(
-                self._request(),
-                action="create_order",
-                select_form=_DummyForm(is_valid=False),
-                create_form=create_form,
-                line_form=_DummyForm(is_valid=False),
-                selected_order=None,
-            )
+            with mock.patch(
+                "wms.order_scan_handlers.resolve_shipper_for_operation",
+                return_value=None,
+            ):
+                with mock.patch(
+                    "wms.order_scan_handlers.resolve_recipient_binding_for_operation",
+                    return_value=None,
+                ):
+                    response, order_lines, remaining_total = handle_order_action(
+                        self._request(),
+                        action="create_order",
+                        select_form=_DummyForm(is_valid=False),
+                        create_form=create_form,
+                        line_form=_DummyForm(is_valid=False),
+                        selected_order=None,
+                    )
 
         self.assertEqual(response.status_code, 302)
         created_order = Order.objects.get()

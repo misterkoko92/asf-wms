@@ -11,12 +11,7 @@ from wms.models import (
     ShipperScope,
 )
 
-PORTAL_RECIPIENT_SOURCE_PREFIX = "[Portail association]"
 PORTAL_RECIPIENT_ADDRESS_LABEL = "Portail association"
-
-
-def _source_marker(recipient_id: int) -> str:
-    return f"{PORTAL_RECIPIENT_SOURCE_PREFIX}[recipient_id={recipient_id}]"
 
 
 def _first_multi_value(raw_value: str, fallback: str = "") -> str:
@@ -30,11 +25,10 @@ def _first_multi_value(raw_value: str, fallback: str = "") -> str:
 
 def _build_contact_notes(recipient) -> str:
     notes = (recipient.notes or "").strip()
-    source = _source_marker(recipient.pk)
     association = f"Association: {recipient.association_contact}"
     if notes:
-        return f"{source}\n{association}\n{notes}"
-    return f"{source}\n{association}"
+        return f"{association}\n{notes}"
+    return association
 
 
 def _recipient_display_name(recipient) -> str:
@@ -44,16 +38,10 @@ def _recipient_display_name(recipient) -> str:
     return f"Destinataire {recipient.pk}"[:200]
 
 
-def _find_synced_contact_by_marker(recipient):
-    if not recipient.pk:
+def _get_synced_contact(recipient):
+    if not recipient.pk or not recipient.synced_contact_id:
         return None
-    return (
-        Contact.objects.filter(
-            notes__startswith=_source_marker(recipient.pk),
-        )
-        .order_by("-id")
-        .first()
-    )
+    return Contact.objects.filter(pk=recipient.synced_contact_id).first()
 
 
 def _upsert_contact_address(*, contact, recipient, primary_phone, primary_email):
@@ -216,7 +204,7 @@ def sync_association_recipient_to_contact(recipient):
             destination=recipient.destination,
         )
 
-        contact = _find_synced_contact_by_marker(recipient)
+        contact = _get_synced_contact(recipient)
         if contact is None:
             contact = Contact.objects.create(
                 contact_type=ContactType.ORGANIZATION,
@@ -243,6 +231,9 @@ def sync_association_recipient_to_contact(recipient):
                     "is_active",
                 ]
             )
+        if recipient.synced_contact_id != contact.id:
+            recipient.synced_contact = contact
+            recipient.save(update_fields=["synced_contact"])
 
         _upsert_contact_address(
             contact=contact,

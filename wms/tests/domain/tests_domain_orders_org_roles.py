@@ -14,7 +14,6 @@ from wms.models import (
     Product,
     RecipientBinding,
     ShipperScope,
-    WmsRuntimeSettings,
 )
 
 
@@ -29,9 +28,6 @@ class DomainOrdersOrgRolesTests(TestCase):
             name="Org Role Product",
             qr_code_image="qr_codes/test.png",
         )
-        runtime = WmsRuntimeSettings.get_solo()
-        runtime.org_roles_engine_enabled = True
-        runtime.save(update_fields=["org_roles_engine_enabled"])
 
     def _create_org(self, name: str) -> Contact:
         return Contact.objects.create(

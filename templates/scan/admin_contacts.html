@@ -610,7 +610,7 @@
             <tr>
               <th>{% trans "Nom" %}</th>
               <th>{% trans "Type" %}</th>
-              <th>{% trans "Tags" %}</th>
+              <th>{% trans "ASF ID" %}</th>
               <th>Email</th>
               <th>{% trans "Téléphone" %}</th>
               <th>{% trans "Actif" %}</th>
@@ -622,13 +622,7 @@
               <tr>
                 <td>{{ contact.name }}</td>
                 <td>{{ contact.get_contact_type_display }}</td>
-                <td>
-                  {% for tag in contact.tags.all %}
-                    {{ tag.name }}{% if not forloop.last %}, {% endif %}
-                  {% empty %}
-                    -
-                  {% endfor %}
-                </td>
+                <td>{{ contact.asf_id|default:"-" }}</td>
                 <td>{{ contact.email|default:"-" }}</td>
                 <td>{{ contact.phone|default:"-" }}</td>
                 <td>{% if contact.is_active %}{% trans "Oui" %}{% else %}{% trans "Non" %}{% endif %}</td>
@@ -678,7 +672,6 @@
     <div class="scan-filter-actions">
       <a class="scan-scan-btn btn btn-tertiary" href="{{ contacts_admin_url }}">{% trans "Tous les contacts (admin)" %}</a>
       <a class="scan-scan-btn btn btn-tertiary" href="{{ contact_add_url }}">{% trans "Ajouter un contact (admin)" %}</a>
-      <a class="scan-scan-btn btn btn-tertiary" href="{{ contact_tag_add_url }}">{% trans "Ajouter un tag (admin)" %}</a>
       <a class="scan-scan-btn btn btn-tertiary" href="{{ destination_admin_url }}">{% trans "Destinations (admin)" %}</a>
       <a class="scan-scan-btn btn btn-tertiary" href="{{ destination_add_url }}">{% trans "Ajouter une destination (admin)" %}</a>
     </div>

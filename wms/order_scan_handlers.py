@@ -6,7 +6,6 @@ from django.utils.translation import gettext as _
 from .models import Destination, Order, OrderStatus
 from .organization_role_resolvers import (
     OrganizationRoleResolutionError,
-    is_org_roles_engine_enabled,
     resolve_recipient_binding_for_operation,
     resolve_shipper_for_operation,
 )
@@ -49,46 +48,43 @@ def handle_order_action(
         recipient_contact = create_form.cleaned_data["recipient_contact"]
         correspondent_contact = create_form.cleaned_data["correspondent_contact"]
 
-        if is_org_roles_engine_enabled():
-            if shipper_contact is None:
-                create_form.add_error("shipper_contact", _("Expediteur requis."))
-            if recipient_contact is None:
-                create_form.add_error("recipient_contact", _("Destinataire requis."))
+        if shipper_contact is None:
+            create_form.add_error("shipper_contact", _("Expediteur requis."))
+        if recipient_contact is None:
+            create_form.add_error("recipient_contact", _("Destinataire requis."))
 
-            destination = None
-            destination_city = (create_form.cleaned_data.get("destination_city") or "").strip()
-            destination_country = (
-                create_form.cleaned_data.get("destination_country") or ""
-            ).strip()
-            if destination_city:
-                destination_qs = Destination.objects.filter(
-                    is_active=True,
-                    city__iexact=destination_city,
-                )
-                if destination_country:
-                    destination_qs = destination_qs.filter(country__iexact=destination_country)
-                destination = destination_qs.order_by("id").first()
-            if destination is None:
-                create_form.add_error(
-                    "destination_city",
-                    _("Escale invalide pour le mode organization roles."),
-                )
+        destination = None
+        destination_city = (create_form.cleaned_data.get("destination_city") or "").strip()
+        destination_country = (create_form.cleaned_data.get("destination_country") or "").strip()
+        if destination_city:
+            destination_qs = Destination.objects.filter(
+                is_active=True,
+                city__iexact=destination_city,
+            )
+            if destination_country:
+                destination_qs = destination_qs.filter(country__iexact=destination_country)
+            destination = destination_qs.order_by("id").first()
+        if destination is None:
+            create_form.add_error(
+                "destination_city",
+                _("Escale invalide pour le mode organization roles."),
+            )
 
-            if not create_form.errors:
-                try:
-                    resolve_shipper_for_operation(
-                        shipper_org=shipper_contact,
-                        destination=destination,
-                    )
-                    resolve_recipient_binding_for_operation(
-                        shipper_org=shipper_contact,
-                        recipient_org=recipient_contact,
-                        destination=destination,
-                    )
-                except OrganizationRoleResolutionError as exc:
-                    create_form.add_error(None, str(exc))
-            if create_form.errors:
-                return None, None, None
+        if not create_form.errors:
+            try:
+                resolve_shipper_for_operation(
+                    shipper_org=shipper_contact,
+                    destination=destination,
+                )
+                resolve_recipient_binding_for_operation(
+                    shipper_org=shipper_contact,
+                    recipient_org=recipient_contact,
+                    destination=destination,
+                )
+            except OrganizationRoleResolutionError as exc:
+                create_form.add_error(None, str(exc))
+        if create_form.errors:
+            return None, None, None
 
         order = Order.objects.create(
             reference="",

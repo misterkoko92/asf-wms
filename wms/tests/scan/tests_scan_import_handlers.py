@@ -142,7 +142,6 @@ class ScanImportHandlersTests(TestCase):
             name="Monde Contact",
             email="monde@example.com",
             phone="+33102030405",
-            destination=destination,
         )
         ContactAddress.objects.create(
             contact=contact,
@@ -215,7 +214,7 @@ class ScanImportHandlersTests(TestCase):
                 "contact_type": ContactType.ORGANIZATION,
                 "email": "monde@example.com",
                 "phone": "+33102030405",
-                "destination": "",
+                "scope": "",
                 "address_line1": "1 rue du Monde",
                 "city": "Lyon",
                 "label": "Monde Contact",
@@ -260,7 +259,7 @@ class ScanImportHandlersTests(TestCase):
             data["contacts"],
             {
                 "name": "Correspondant Dakar",
-                "destination": "Dakar (DKR) - Senegal",
+                "scope": "Dakar (DKR) - Senegal",
             },
         )
 

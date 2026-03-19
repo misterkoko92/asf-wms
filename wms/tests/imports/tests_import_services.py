@@ -37,7 +37,7 @@ class ImportContactsTests(TestCase):
         self.assertEqual(Contact.objects.count(), 1)
         self.assertEqual(ContactAddress.objects.count(), 1)
 
-    def test_import_contacts_updates_existing_contact_without_tags_column(self):
+    def test_import_contacts_updates_existing_contact_with_supported_columns_only(self):
         contact = Contact.objects.create(
             name="Org Beta",
             contact_type=ContactType.ORGANIZATION,
@@ -58,9 +58,8 @@ class ImportContactsTests(TestCase):
 
         contact.refresh_from_db()
         self.assertEqual(contact.phone, "0102030405")
-        self.assertEqual(contact.tags.count(), 0)
 
-    def test_import_contacts_ignores_legacy_tags_column_without_warning(self):
+    def test_import_contacts_ignores_unknown_columns_without_warning(self):
         contact = Contact.objects.create(
             name="Org Gamma",
             contact_type=ContactType.ORGANIZATION,
@@ -70,7 +69,7 @@ class ImportContactsTests(TestCase):
             {
                 "contact_type": "organization",
                 "name": "Org Gamma",
-                "tags": "donateur|transporteur",
+                "extra_column": "ignored",
             }
         ]
         created, updated, errors, warnings = import_contacts(rows)
@@ -80,7 +79,7 @@ class ImportContactsTests(TestCase):
         self.assertEqual(updated, 1)
 
         contact.refresh_from_db()
-        self.assertEqual(contact.tags.count(), 0)
+        self.assertEqual(contact.name, "Org Gamma")
 
 
 class ImportProductsTests(TestCase):

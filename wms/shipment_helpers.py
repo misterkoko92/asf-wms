@@ -134,7 +134,7 @@ def build_shipment_contact_payload():
         active_recipient_contacts().select_related("organization").prefetch_related("addresses")
     )
     shipper_scope_destination_ids_by_org = _build_shipper_scope_destination_ids_by_org()
-    shipper_destination_ids_by_org = _build_shipper_destination_ids_by_org(
+    allowed_destination_ids_by_shipper_org = _build_shipper_destination_ids_by_org(
         destination_ids=[destination.id for destination in destinations]
     )
     recipient_binding_pairs_by_org = _build_recipient_binding_pairs_by_org()
@@ -155,18 +155,21 @@ def build_shipment_contact_payload():
             "id": contact.id,
             "name": build_contact_select_label(contact),
             "organization_id": _contact_organization_id(contact) or contact.id,
-            "destination_id": (
+            "default_destination_id": (
                 allowed_destination_ids[0] if len(allowed_destination_ids) == 1 else None
             ),
-            "destination_ids": allowed_destination_ids,
-            "scoped_destination_ids": shipper_scope_destination_ids_by_org.get(
+            "allowed_destination_ids": allowed_destination_ids,
+            "scope_destination_ids": shipper_scope_destination_ids_by_org.get(
                 _contact_organization_id(contact) or contact.id,
                 [],
             ),
         }
         for contact in shipper_contacts
         for allowed_destination_ids in [
-            shipper_destination_ids_by_org.get(_contact_organization_id(contact) or contact.id, [])
+            allowed_destination_ids_by_shipper_org.get(
+                _contact_organization_id(contact) or contact.id,
+                [],
+            )
         ]
     ]
     recipient_contacts_json = []
@@ -191,9 +194,11 @@ def build_shipment_contact_payload():
                 "name": build_contact_select_label(contact),
                 "organization_id": organization_id,
                 "countries": sorted(countries),
-                "destination_id": destination_ids[0] if len(destination_ids) == 1 else None,
-                "destination_ids": destination_ids,
-                "linked_shipper_ids": linked_shipper_ids,
+                "default_destination_id": (
+                    destination_ids[0] if len(destination_ids) == 1 else None
+                ),
+                "allowed_destination_ids": destination_ids,
+                "bound_shipper_ids": linked_shipper_ids,
                 "binding_pairs": binding_pairs,
             }
         )
@@ -216,12 +221,12 @@ def build_shipment_contact_payload():
         {
             "id": contact.id,
             "name": contact.name,
-            "destination_id": (
+            "default_destination_id": (
                 sorted(correspondent_destination_ids_by_contact.get(contact.id, []))[0]
                 if len(correspondent_destination_ids_by_contact.get(contact.id, [])) == 1
                 else None
             ),
-            "destination_ids": sorted(
+            "covered_destination_ids": sorted(
                 correspondent_destination_ids_by_contact.get(contact.id, set())
             ),
         }

@@ -446,7 +446,6 @@ class PublicAccountRequestAdminTests(_AdminTestBase):
                 role=models.OrganizationRole.SHIPPER,
             ).exists()
         )
-        self.assertFalse(target_contact.tags.exists())
         enqueue_mock.assert_called_once()
 
     def test_approve_requests_skip_counter_and_save_model_early_returns(self):

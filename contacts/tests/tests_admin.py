@@ -2,7 +2,7 @@ from django.contrib.admin.sites import AdminSite, site
 from django.test import TestCase
 
 from contacts.admin import ContactAdmin, ContactAdminForm
-from contacts.models import Contact, ContactTag, ContactType
+from contacts.models import Contact, ContactType
 
 
 class ContactAdminFormTests(TestCase):
@@ -53,9 +53,6 @@ class ContactAdminFormTests(TestCase):
 
 
 class ContactAdminTests(TestCase):
-    def test_contact_tag_admin_is_not_registered(self):
-        self.assertNotIn(ContactTag, site._registry)
-
     def test_admin_configuration_does_not_reference_legacy_fields(self):
         admin_obj = ContactAdmin(Contact, AdminSite())
 

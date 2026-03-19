@@ -293,7 +293,6 @@ class ShipmentFormHelpersTests(SimpleTestCase):
             shipper_contacts_json=[{"id": 15}],
             recipient_contacts_json=[{"id": 20}],
             correspondent_contacts_json=[{"id": 30}],
-            org_roles_engine_enabled=True,
         )
 
         self.assertEqual(context["products_json"], [{"sku": "P1"}])
@@ -305,4 +304,4 @@ class ShipmentFormHelpersTests(SimpleTestCase):
         self.assertEqual(context["shipper_contacts_json"], [{"id": 15}])
         self.assertEqual(context["recipient_contacts_json"], [{"id": 20}])
         self.assertEqual(context["correspondent_contacts_json"], [{"id": 30}])
-        self.assertTrue(context["org_roles_engine_enabled"])
+        self.assertNotIn("org_roles_engine_enabled", context)

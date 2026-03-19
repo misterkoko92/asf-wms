@@ -3,7 +3,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from contacts.models import Contact, ContactTag, ContactType
+from contacts.models import Contact, ContactType
 from wms.carton_status_events import set_carton_status
 from wms.models import (
     AssociationContactTitle,
@@ -86,7 +86,6 @@ class UiApiE2EWorkflowsTests(TestCase):
 
         self.correspondent_contact = self._create_contact(
             "E2E Correspondent",
-            tags=["correspondant"],
             contact_type=ContactType.PERSON,
         )
         self.destination = Destination.objects.create(
@@ -96,23 +95,21 @@ class UiApiE2EWorkflowsTests(TestCase):
             correspondent_contact=self.correspondent_contact,
             is_active=True,
         )
+        self._grant_shipper_scope(self.association_contact, self.destination)
 
-        self.shipper_contact = self._create_contact("E2E Shipper", tags=["expediteur"])
+        self.shipper_contact = self._create_contact("E2E Shipper")
         self._grant_shipper_scope(self.shipper_contact, self.destination)
-        self.recipient_contact = self._create_contact("E2E Recipient", tags=["destinataire"])
+        self.recipient_contact = self._create_contact("E2E Recipient")
         self._bind_recipient(self.shipper_contact, self.recipient_contact, self.destination)
-        self.donor_contact = self._create_contact("E2E Donor", tags=["donateur"])
+        self.donor_contact = self._create_contact("E2E Donor")
         self._assign_role(self.donor_contact, OrganizationRole.DONOR)
 
-    def _create_contact(self, name, *, tags, contact_type=ContactType.ORGANIZATION):
+    def _create_contact(self, name, *, contact_type=ContactType.ORGANIZATION):
         contact = Contact.objects.create(
             name=name,
             contact_type=contact_type,
             is_active=True,
         )
-        for tag_name in tags:
-            tag, _ = ContactTag.objects.get_or_create(name=tag_name)
-            contact.tags.add(tag)
         return contact
 
     def _assign_role(self, contact, role):

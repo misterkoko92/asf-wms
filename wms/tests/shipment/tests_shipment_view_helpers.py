@@ -5,7 +5,7 @@ from django.http import Http404, HttpResponse
 from django.test import RequestFactory, TestCase
 from django.utils import timezone
 
-from contacts.models import Contact, ContactTag, ContactType
+from contacts.models import Contact, ContactType
 from wms.models import (
     Carton,
     Document,
@@ -703,8 +703,6 @@ class ShipmentViewHelpersTests(TestCase):
 
     def test_build_shipments_ready_rows_does_not_resolve_contacts_from_names(self):
         now = timezone.now()
-        shipper_tag = ContactTag.objects.create(name="expediteur")
-        recipient_tag = ContactTag.objects.create(name="destinataire")
         shipper_org = Contact.objects.create(
             name="Lookup Organization",
             contact_type=ContactType.ORGANIZATION,
@@ -716,7 +714,6 @@ class ShipmentViewHelpersTests(TestCase):
             last_name="Dupont",
             organization=shipper_org,
         )
-        shipper_lookup.tags.add(shipper_tag)
         recipient_lookup = Contact.objects.create(
             name="Fallback Recipient",
             contact_type=ContactType.PERSON,
@@ -724,7 +721,6 @@ class ShipmentViewHelpersTests(TestCase):
             first_name="Alice",
             last_name="Martin",
         )
-        recipient_lookup.tags.add(recipient_tag)
 
         class FakeFiltered:
             def __init__(self, count):

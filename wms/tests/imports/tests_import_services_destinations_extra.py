@@ -2,14 +2,12 @@ from unittest import mock
 
 from django.test import TestCase
 
-from contacts.models import Contact, ContactTag, ContactType
-from contacts.tagging import TAG_CORRESPONDENT
+from contacts.models import Contact, ContactType
 from wms.import_services_destinations import (
     _generate_destination_code,
     _get_or_create_destination,
     _parse_destination_label,
     _select_default_correspondent,
-    _tags_include_correspondent,
 )
 from wms.models import Destination, OrganizationRole, OrganizationRoleAssignment
 
@@ -45,11 +43,6 @@ class ImportDestinationsExtraTests(TestCase):
         self.assertEqual(_generate_destination_code("DEST"), "DEST3")
         self.assertEqual(_generate_destination_code(""), "DEST3")
 
-    def test_tags_include_correspondent(self):
-        self.assertFalse(_tags_include_correspondent([]))
-        tag = ContactTag(name=TAG_CORRESPONDENT[0])
-        self.assertTrue(_tags_include_correspondent([tag]))
-
     def test_select_default_correspondent_prefers_existing_then_creates(self):
         existing = Contact.objects.create(
             name="Existing Correspondent",
@@ -65,7 +58,6 @@ class ImportDestinationsExtraTests(TestCase):
 
         OrganizationRoleAssignment.objects.all().delete()
         Contact.objects.all().delete()
-        ContactTag.objects.all().delete()
         created = _select_default_correspondent()
         self.assertEqual(created.name, "Correspondant par défaut")
         self.assertTrue(
@@ -99,13 +91,16 @@ class ImportDestinationsExtraTests(TestCase):
     def test_get_or_create_destination_core_paths(self):
         self.assertIsNone(_get_or_create_destination(""))
 
-        tag = ContactTag.objects.create(name=TAG_CORRESPONDENT[0])
         correspondent = Contact.objects.create(
             name="Correspondent",
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        correspondent.tags.add(tag)
+        OrganizationRoleAssignment.objects.create(
+            organization=correspondent,
+            role=OrganizationRole.CORRESPONDENT,
+            is_active=True,
+        )
 
         existing_iata = Destination.objects.create(
             city="Paris",
@@ -168,7 +163,6 @@ class ImportDestinationsExtraTests(TestCase):
                 created = _get_or_create_destination(
                     "Niamey (NIM) - Niger",
                     contact=contact_without_tag,
-                    tags=[],
                 )
             self.assertEqual(created.correspondent_contact_id, default_corr.id)
 

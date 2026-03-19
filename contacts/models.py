@@ -1,18 +1,6 @@
-from django.db import models, transaction
-from django.db.models.signals import m2m_changed, pre_delete
+from django.db import models
+from django.db.models.signals import pre_delete
 from django.dispatch import receiver
-
-
-class ContactTag(models.Model):
-    name = models.CharField(max_length=80, unique=True)
-    asf_prefix = models.CharField(max_length=10, blank=True, null=True, unique=True)
-    asf_last_number = models.PositiveIntegerField(default=0)
-
-    class Meta:
-        ordering = ["name"]
-
-    def __str__(self) -> str:
-        return self.name
 
 
 class ContactType(models.TextChoices):
@@ -36,28 +24,6 @@ class Contact(models.Model):
         related_name="members",
         limit_choices_to={"contact_type": ContactType.ORGANIZATION},
     )
-    destination = models.ForeignKey(
-        "wms.Destination",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="contacts",
-        limit_choices_to={"is_active": True},
-        help_text="Laisser vide pour toutes les destinations.",
-    )
-    destinations = models.ManyToManyField(
-        "wms.Destination",
-        blank=True,
-        related_name="contacts_scoped",
-        help_text="Laisser vide pour toutes les destinations.",
-    )
-    linked_shippers = models.ManyToManyField(
-        "self",
-        blank=True,
-        symmetrical=False,
-        related_name="linked_recipients",
-        help_text="Utilise pour les destinataires: vide = tous les expéditeurs.",
-    )
     role = models.CharField(max_length=120, blank=True)
     email = models.EmailField(blank=True)
     email2 = models.EmailField(blank=True)
@@ -70,7 +36,6 @@ class Contact(models.Model):
     use_organization_address = models.BooleanField(default=False)
     notes = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
-    tags = models.ManyToManyField(ContactTag, blank=True)
 
     class Meta:
         ordering = ["name"]
@@ -135,30 +100,6 @@ class ContactAddress(models.Model):
             _sync_people_for_org(self.contact)
 
 
-def _select_asf_tag(contact):
-    return (
-        contact.tags.exclude(asf_prefix__isnull=True)
-        .exclude(asf_prefix="")
-        .order_by("name")
-        .first()
-    )
-
-
-def _assign_asf_id(contact):
-    if contact.asf_id or contact.contact_type != ContactType.ORGANIZATION:
-        return
-    tag = _select_asf_tag(contact)
-    if not tag:
-        return
-    with transaction.atomic():
-        locked_tag = ContactTag.objects.select_for_update().get(pk=tag.pk)
-        locked_tag.asf_last_number += 1
-        locked_tag.save(update_fields=["asf_last_number"])
-        number = locked_tag.asf_last_number
-    contact.asf_id = f"{locked_tag.asf_prefix}-{number:04d}"
-    contact.save(update_fields=["asf_id"])
-
-
 def _sync_contact_address_from_org(contact):
     if not contact.use_organization_address or not contact.organization:
         return
@@ -183,13 +124,6 @@ def _sync_contact_address_from_org(contact):
 def _sync_people_for_org(organization):
     for person in organization.members.filter(use_organization_address=True):
         _sync_contact_address_from_org(person)
-
-
-@receiver(m2m_changed, sender=Contact.tags.through)
-def _contact_tags_changed(sender, instance, action, **kwargs):
-    if action != "post_add":
-        return
-    _assign_asf_id(instance)
 
 
 @receiver(pre_delete, sender=Contact)

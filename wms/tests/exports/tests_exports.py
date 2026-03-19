@@ -290,12 +290,12 @@ class ExportsTests(SimpleTestCase):
         self.assertEqual(rows[0][0], "individual")
         self.assertEqual(rows[0][11], "true")
         self.assertEqual(rows[0][13], "")
-        self.assertEqual(rows[0][17], "ASF-1")
+        self.assertEqual(rows[0][16], "ASF-1")
         self.assertEqual(rows[1][0], "association")
         self.assertEqual(rows[1][5], "OrgX")
         self.assertEqual(rows[1][11], "false")
-        self.assertEqual(rows[1][18], "HQ")
-        self.assertEqual(rows[1][27], "true")
+        self.assertEqual(rows[1][17], "HQ")
+        self.assertEqual(rows[1][26], "true")
 
     def test_export_users_csv(self):
         fake_user_model = SimpleNamespace(
@@ -370,10 +370,10 @@ class ExportsTests(SimpleTestCase):
         header = response_mock.call_args.args[1]
         self.assertEqual(header, self._read_template_header("contacts.csv"))
         self.assertIn("is_active", header)
-        self.assertIn("destination", header)
+        self.assertIn("asf_id", header)
         self.assertIn("address_notes", header)
         self.assertNotIn("tags", header)
-        self.assertNotIn("destinations", header)
+        self.assertNotIn("destination", header)
         self.assertNotIn("linked_shippers", header)
 
     def test_static_users_template_header_matches_export_header(self):
@@ -409,7 +409,7 @@ class ExportsTests(SimpleTestCase):
 
 
 class ExportsDatabaseTests(TestCase):
-    def test_export_contacts_csv_uses_org_role_relationships_for_scope_columns(self):
+    def test_export_contacts_csv_does_not_emit_legacy_scope_columns(self):
         shipper = Contact.objects.create(
             name="Shipper Org",
             contact_type=ContactType.ORGANIZATION,
@@ -461,8 +461,11 @@ class ExportsDatabaseTests(TestCase):
             result = exports.export_contacts_csv()
 
         self.assertEqual(result, "contacts-response")
+        header = response_mock.call_args.args[1]
         rows = {row[4]: row for row in response_mock.call_args.args[2]}
-        destination_label = str(destination)
-        self.assertEqual(rows["Shipper Org"][13], destination_label)
-        self.assertEqual(rows["Recipient Org"][13], destination_label)
-        self.assertEqual(rows["Correspondent Person"][13], destination_label)
+        self.assertNotIn("destination", header)
+        self.assertNotIn("destinations", header)
+        self.assertNotIn("linked_shippers", header)
+        self.assertEqual(rows["Shipper Org"][13], "")
+        self.assertEqual(rows["Recipient Org"][13], "")
+        self.assertEqual(rows["Correspondent Person"][13], "")

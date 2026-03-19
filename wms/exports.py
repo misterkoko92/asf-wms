@@ -255,7 +255,6 @@ def export_contacts_csv():
         "phone2",
         "is_active",
         "use_organization_address",
-        "destination",
         "siret",
         "vat_number",
         "legal_registration_number",
@@ -275,29 +274,7 @@ def export_contacts_csv():
     ]
     rows = []
     contacts = list(Contact.objects.select_related("organization").prefetch_related("addresses"))
-    destination_ids_by_contact_id, scope_maps = _build_contact_role_scope_maps(
-        [contact.id for contact in contacts if getattr(contact, "id", None)]
-    )
-    global_scope_contact_ids, destination_labels_by_id = scope_maps
     for contact in contacts:
-        contact_id = getattr(contact, "id", None)
-        if contact_id in global_scope_contact_ids:
-            destination_labels = ["GLOBAL"]
-        else:
-            destination_ids = sorted(
-                destination_ids_by_contact_id.get(contact_id, set()),
-                key=lambda destination_id: destination_labels_by_id.get(destination_id, ""),
-            )
-            destination_labels = [
-                destination_labels_by_id[destination_id]
-                for destination_id in destination_ids
-                if destination_id in destination_labels_by_id
-            ]
-        destination = (
-            destination_labels[0]
-            if len(destination_labels) == 1 and destination_labels[0] != "GLOBAL"
-            else ""
-        )
         address_source = (
             contact.get_effective_addresses()
             if hasattr(contact, "get_effective_addresses")
@@ -320,7 +297,6 @@ def export_contacts_csv():
                     contact.phone2 or "",
                     _bool_to_csv(contact.is_active),
                     _bool_to_csv(contact.use_organization_address),
-                    destination,
                     contact.siret or "",
                     contact.vat_number or "",
                     contact.legal_registration_number or "",
@@ -355,7 +331,6 @@ def export_contacts_csv():
                     contact.phone2 or "",
                     _bool_to_csv(contact.is_active),
                     _bool_to_csv(contact.use_organization_address),
-                    destination,
                     contact.siret or "",
                     contact.vat_number or "",
                     contact.legal_registration_number or "",
