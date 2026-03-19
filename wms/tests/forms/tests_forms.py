@@ -636,7 +636,10 @@ class FormsTests(TestCase):
         )
 
         recipient_label = form.fields["recipient_contact"].label_from_instance(recipient)
-        self.assertEqual(recipient_label, "ASF - CORRESPONDANT (BGF, Christian LIMBIO)")
+        self.assertEqual(
+            recipient_label,
+            "ASF - CORRESPONDANT - BGF (Christian LIMBIO)",
+        )
 
     def test_scan_shipment_form_clean_rejects_shipper_out_of_scope_even_if_selectable(self):
         expected_correspondent = self._create_contact("Corr Expected")

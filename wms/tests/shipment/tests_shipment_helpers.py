@@ -107,6 +107,7 @@ class ShipmentHelpersTests(TestCase):
                 {
                     "id": shipper.id,
                     "name": "Shipper Org",
+                    "is_priority_shipper": False,
                     "organization_id": shipper.id,
                     "default_destination_id": destination.id,
                     "allowed_destination_ids": [destination.id],
@@ -139,6 +140,7 @@ class ShipmentHelpersTests(TestCase):
                     "name": "Corr A",
                     "default_destination_id": destination.id,
                     "covered_destination_ids": [destination.id],
+                    "recipient_labels_by_destination_id": {str(destination.id): "Corr A"},
                 },
             ],
         )
@@ -164,6 +166,9 @@ class ShipmentHelpersTests(TestCase):
                 "name": "Corr Untagged",
                 "default_destination_id": destination.id,
                 "covered_destination_ids": [destination.id],
+                "recipient_labels_by_destination_id": {
+                    str(destination.id): "ASF - CORRESPONDANT - DKR-CORR (Corr Untagged)"
+                },
             },
             correspondents_json,
         )
@@ -184,7 +189,7 @@ class ShipmentHelpersTests(TestCase):
             is_active=True,
         )
         shipper = Contact.objects.create(
-            name="Shipper NDJ",
+            name="AVIATION SANS FRONTIERES",
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
@@ -202,18 +207,63 @@ class ShipmentHelpersTests(TestCase):
 
         _, _, recipients_json, correspondents_json = build_shipment_contact_payload()
 
-        self.assertFalse(
-            any(entry["id"] == destination_correspondent.id for entry in recipients_json)
+        recipient_entry = next(
+            entry for entry in recipients_json if entry["id"] == destination_correspondent.id
         )
+        self.assertEqual(recipient_entry["bound_shipper_ids"], [shipper.id])
+        self.assertEqual(recipient_entry["allowed_destination_ids"], [destination.id])
         self.assertIn(
             {
                 "id": destination_correspondent.id,
                 "name": "Scoped Promoted Correspondent",
                 "default_destination_id": destination.id,
                 "covered_destination_ids": [destination.id],
+                "recipient_labels_by_destination_id": {
+                    str(destination.id): (
+                        "ASF - CORRESPONDANT - NDJ-CORR " "(Scoped Promoted Correspondent)"
+                    )
+                },
             },
             correspondents_json,
         )
+
+    def test_build_shipment_contact_payload_marks_only_exact_asf_shipper_as_priority(self):
+        correspondent = Contact.objects.create(name="Corr ASF")
+        destination = Destination.objects.create(
+            city="Paris",
+            iata_code="PAR",
+            country="France",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        asf_shipper = Contact.objects.create(
+            name="AVIATION SANS FRONTIERES",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        regional_shipper = Contact.objects.create(
+            name="AVIATION SANS FRONTIERES - SUD EST",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        for shipper in (asf_shipper, regional_shipper):
+            shipper_assignment = OrganizationRoleAssignment.objects.create(
+                organization=shipper,
+                role=OrganizationRole.SHIPPER,
+                is_active=True,
+            )
+            ShipperScope.objects.create(
+                role_assignment=shipper_assignment,
+                destination=destination,
+                all_destinations=False,
+                is_active=True,
+            )
+
+        _, shippers_json, _, _ = build_shipment_contact_payload()
+
+        priority_flags = {entry["name"]: entry["is_priority_shipper"] for entry in shippers_json}
+        self.assertTrue(priority_flags["AVIATION SANS FRONTIERES"])
+        self.assertFalse(priority_flags["AVIATION SANS FRONTIERES - SUD EST"])
 
     def test_build_shipment_contact_payload_formats_shipper_and_recipient_names(self):
         correspondent = Contact.objects.create(name="Corr B")

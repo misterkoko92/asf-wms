@@ -2212,7 +2212,6 @@
     const selectValue = select => asId(select && select.value ? select.value : '');
     const orgRolesEngineEnabled =
       shipmentForm && shipmentForm.dataset.orgRolesEngineEnabled === '1';
-    const ASF_PRIORITY_LABEL = normalizeText('AVIATION SANS FRONTIERES');
     const asIdList = values =>
       Array.isArray(values)
         ? values
@@ -2230,6 +2229,12 @@
     const destinationMap = new Map(
       destinations.map(destination => [String(destination.id), destination])
     );
+    const correspondentsById = new Map(
+      correspondents
+        .map(correspondent => [asId(correspondent && correspondent.id), correspondent])
+        .filter(([correspondentId]) => Boolean(correspondentId))
+    );
+    const allCorrespondentIds = new Set(correspondentsById.keys());
     const matchesExplicitDestination = (contact, destinationId) => {
       if (!contact || !destinationId) {
         return false;
@@ -2360,7 +2365,7 @@
         if (hasVisibleGroup) {
           const separator = document.createElement('option');
           separator.value = '';
-          separator.textContent = '---';
+          separator.textContent = '------';
           separator.disabled = true;
           fragment.appendChild(separator);
         }
@@ -2399,7 +2404,28 @@
     });
 
     const isPriorityShipper = shipper =>
-      normalizeText(shipper && shipper.name).includes(ASF_PRIORITY_LABEL);
+      Boolean(shipper && shipper.is_priority_shipper);
+
+    const buildCorrespondentRecipientLabel = (correspondentId, destinationId) => {
+      const correspondent = correspondentsById.get(asId(correspondentId));
+      if (!correspondent) {
+        return '';
+      }
+      const labelsByDestinationId =
+        correspondent.recipient_labels_by_destination_id || {};
+      return labelsByDestinationId[String(destinationId)] || correspondent.name || '';
+    };
+
+    const isHiddenCorrespondentRecipient = (
+      recipient,
+      destinationCorrespondentRecipientId
+    ) => {
+      const recipientId = asId(recipient && recipient.id);
+      if (!recipientId || !allCorrespondentIds.has(recipientId)) {
+        return false;
+      }
+      return recipientId !== destinationCorrespondentRecipientId;
+    };
 
     const renderShipperOptions = (select, destinationId, selectedValue) => {
       const priorityOptions = shippers
@@ -2486,8 +2512,15 @@
       let recipientOptions = [];
       let correspondentOptions = [];
       if (canShowRecipientAndCorrespondent) {
+        const destinationCorrespondentRecipientId = asId(
+          destination && destination.correspondent_contact_id
+        );
         const destinationRecipients = recipients.filter(recipient =>
-          matchesDestination(recipient, destinationId)
+          matchesDestination(recipient, destinationId) &&
+          !isHiddenCorrespondentRecipient(
+            recipient,
+            destinationCorrespondentRecipientId
+          )
         );
         const isRecipientPairMatched = recipient => {
           if (orgRolesEngineEnabled) {
@@ -2502,15 +2535,15 @@
             matchesDestination(recipient, destinationId)
           );
         };
-        const destinationCorrespondentRecipientId = asId(
-          destination && destination.correspondent_contact_id
-        );
         const priorityRecipientOptions = destinationRecipients
           .filter(
             recipient => asId(recipient.id) === destinationCorrespondentRecipientId
           )
           .map(recipient =>
             decorateOption(recipient, {
+              name:
+                buildCorrespondentRecipientLabel(recipient.id, destinationId) ||
+                recipient.name,
               disabled: orgRolesEngineEnabled && !isRecipientPairMatched(recipient)
             })
           );

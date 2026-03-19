@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from django.db import transaction
 
 from contacts.models import Contact, ContactType
+from wms.default_shipper_bindings import ensure_default_shipper_bindings_for_destination_id
 from wms.models import Destination, OrganizationRole, OrganizationRoleAssignment
 
 SUPPORT_ORGANIZATION_NAME = "ASF - CORRESPONDANT"
@@ -120,6 +121,24 @@ def promote_correspondent_to_recipient_ready(contact) -> CorrespondentRecipientP
         recipient_role_created=created,
         recipient_role_reactivated=reactivated,
     )
+
+
+def ensure_destination_correspondent_recipient_ready(destination):
+    if destination is None or not getattr(destination, "is_active", False):
+        return CorrespondentRecipientPromotionResult()
+    if not getattr(destination, "correspondent_contact_id", None):
+        return CorrespondentRecipientPromotionResult()
+
+    correspondent_contact = getattr(destination, "correspondent_contact", None)
+    if correspondent_contact is None:
+        correspondent_contact = Contact.objects.filter(
+            pk=destination.correspondent_contact_id
+        ).first()
+
+    result = promote_correspondent_to_recipient_ready(correspondent_contact)
+    if correspondent_contact and correspondent_contact.is_active:
+        ensure_default_shipper_bindings_for_destination_id(destination.id)
+    return result
 
 
 def _backfill_correspondent_recipients_impl():

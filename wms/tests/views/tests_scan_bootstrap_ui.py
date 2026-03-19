@@ -507,9 +507,11 @@ class ScanBootstrapUiTests(TestCase):
         js_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan.js"
         js_content = js_path.read_text(encoding="utf-8")
 
-        self.assertIn("AVIATION SANS FRONTIERES", js_content)
         self.assertIn("renderGroupedOptions", js_content)
         self.assertIn("shipment-correspondent-single", js_content)
+        self.assertIn("shipper.is_priority_shipper", js_content)
+        self.assertIn("recipient_labels_by_destination_id", js_content)
+        self.assertIn("separator.textContent = '------';", js_content)
 
     def test_scan_shipment_create_js_keeps_unlinked_recipients_out_of_pair_group(self):
         js_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan.js"

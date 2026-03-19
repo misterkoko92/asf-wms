@@ -46,6 +46,9 @@ def build_shipment_recipient_select_label(contact, *, destination=None):
         last_name = (getattr(contact, "last_name", "") or "").strip().upper()
         person_label = " ".join(part for part in [first_name, last_name] if part).strip()
         if person_label:
-            return f"{organization_name} ({iata_code}, {person_label})"
+            return f"{organization_name} - {iata_code} ({person_label})"
+        fallback_name = (getattr(contact, "name", "") or "").strip()
+        if fallback_name:
+            return f"{organization_name} - {iata_code} ({fallback_name})"
 
     return build_contact_select_label(contact)

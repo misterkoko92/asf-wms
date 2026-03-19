@@ -1,5 +1,6 @@
 from django.test import TestCase
 
+from contacts.correspondent_recipient_promotion import SUPPORT_ORGANIZATION_NAME
 from contacts.models import Contact, ContactType
 from wms.default_shipper_bindings import (
     _ensure_bindings_for_pairs,
@@ -158,6 +159,47 @@ class DefaultShipperBindingsSignalTests(TestCase):
             )
 
         self.assertEqual(RecipientBinding.objects.count(), 0)
+
+    def test_destination_creation_promotes_person_correspondent_and_creates_asf_binding(self):
+        default_shipper = self._create_default_shipper()
+        correspondent = Contact.objects.create(
+            name="Correspondent TNR",
+            contact_type=ContactType.PERSON,
+            first_name="Correspondent",
+            last_name="Tnr",
+            is_active=True,
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            destination = Destination.objects.create(
+                city="Antananarivo",
+                iata_code="TNR",
+                country="Madagascar",
+                correspondent_contact=correspondent,
+                is_active=True,
+            )
+
+        support_org = Contact.objects.get(
+            name=SUPPORT_ORGANIZATION_NAME,
+            contact_type=ContactType.ORGANIZATION,
+        )
+        correspondent.refresh_from_db()
+        self.assertEqual(correspondent.organization, support_org)
+        self.assertTrue(
+            OrganizationRoleAssignment.objects.filter(
+                organization=support_org,
+                role=OrganizationRole.RECIPIENT,
+                is_active=True,
+            ).exists()
+        )
+        self.assertTrue(
+            RecipientBinding.objects.filter(
+                shipper_org=default_shipper,
+                recipient_org=support_org,
+                destination=destination,
+                is_active=True,
+            ).exists()
+        )
 
 
 class DefaultShipperBindingsHelpersTests(TestCase):

@@ -3,7 +3,14 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.utils.translation import gettext as _
 
-from .contact_labels import build_contact_select_label
+from contacts.correspondent_recipient_promotion import (
+    ensure_destination_correspondent_recipient_ready,
+)
+
+from .contact_labels import (
+    build_contact_select_label,
+    build_shipment_recipient_select_label,
+)
 from .models import (
     Destination,
     OrganizationRole,
@@ -21,6 +28,10 @@ from .shipment_party_rules import (
 def _contact_organization_id(contact):
     organization = normalize_party_contact_to_org(contact)
     return organization.id if organization else None
+
+
+def _is_priority_shipper(contact):
+    return (getattr(contact, "name", "") or "").strip().casefold() == "aviation sans frontieres"
 
 
 def _current_window_q(prefix=""):
@@ -126,9 +137,13 @@ def build_destination_label(destination):
 
 
 def build_shipment_contact_payload():
-    destinations = Destination.objects.filter(is_active=True).select_related(
-        "correspondent_contact"
+    destinations = list(
+        Destination.objects.filter(is_active=True)
+        .select_related("correspondent_contact")
+        .order_by("city", "iata_code", "id")
     )
+    for destination in destinations:
+        ensure_destination_correspondent_recipient_ready(destination)
     shipper_contacts = active_shipper_contacts().select_related("organization")
     recipient_contacts = (
         active_recipient_contacts().select_related("organization").prefetch_related("addresses")
@@ -154,6 +169,7 @@ def build_shipment_contact_payload():
         {
             "id": contact.id,
             "name": build_contact_select_label(contact),
+            "is_priority_shipper": _is_priority_shipper(contact),
             "organization_id": _contact_organization_id(contact) or contact.id,
             "default_destination_id": (
                 allowed_destination_ids[0] if len(allowed_destination_ids) == 1 else None
@@ -182,6 +198,8 @@ def build_shipment_contact_payload():
         countries = {address.country for address in address_source if address.country}
         organization_id = _contact_organization_id(contact) or contact.id
         binding_pairs = recipient_binding_pairs_by_org.get(organization_id, [])
+        if not binding_pairs:
+            continue
         destination_ids = sorted(
             {pair["destination_id"] for pair in binding_pairs if pair["destination_id"] is not None}
         )
@@ -203,12 +221,20 @@ def build_shipment_contact_payload():
             }
         )
     correspondent_destination_ids_by_contact = {}
+    correspondent_recipient_labels_by_contact = {}
     for destination in destinations:
         if not destination.correspondent_contact_id:
             continue
         correspondent_destination_ids_by_contact.setdefault(
             destination.correspondent_contact_id, set()
         ).add(destination.id)
+        correspondent_recipient_labels_by_contact.setdefault(
+            destination.correspondent_contact_id,
+            {},
+        )[str(destination.id)] = build_shipment_recipient_select_label(
+            destination.correspondent_contact,
+            destination=destination,
+        )
     destination_correspondents = [
         destination.correspondent_contact
         for destination in destinations
@@ -228,6 +254,12 @@ def build_shipment_contact_payload():
             ),
             "covered_destination_ids": sorted(
                 correspondent_destination_ids_by_contact.get(contact.id, set())
+            ),
+            "recipient_labels_by_destination_id": dict(
+                sorted(
+                    correspondent_recipient_labels_by_contact.get(contact.id, {}).items(),
+                    key=lambda item: int(item[0]),
+                )
             ),
         }
         for contact in correspondent_contacts_by_id.values()

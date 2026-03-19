@@ -10,6 +10,9 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
+from contacts.correspondent_recipient_promotion import (
+    ensure_destination_correspondent_recipient_ready,
+)
 from contacts.models import Contact
 
 from .auth_session import apply_remember_me_session_policy
@@ -769,6 +772,27 @@ def _sync_default_shipper_bindings_for_destination(sender, instance, created, **
     )
 
 
+def _sync_destination_correspondent_recipient_support(sender, instance, created, **kwargs) -> None:
+    if not instance.is_active:
+        return
+    if not instance.correspondent_contact_id:
+        return
+
+    destination_id = instance.id
+
+    def _sync() -> None:
+        destination = (
+            Destination.objects.filter(pk=destination_id)
+            .select_related("correspondent_contact")
+            .first()
+        )
+        if destination is None:
+            return
+        ensure_destination_correspondent_recipient_ready(destination)
+
+    transaction.on_commit(_sync)
+
+
 def _apply_login_session_policy(sender, request, user, **kwargs) -> None:
     apply_remember_me_session_policy(request)
 
@@ -843,6 +867,11 @@ def register_change_signals() -> None:
         _sync_default_shipper_bindings_for_destination,
         sender=Destination,
         dispatch_uid="wms_default_shipper_bindings_destination_post_save",
+    )
+    post_save.connect(
+        _sync_destination_correspondent_recipient_support,
+        sender=Destination,
+        dispatch_uid="wms_destination_correspondent_recipient_support_post_save",
     )
     user_logged_in.connect(
         _apply_login_session_policy,
