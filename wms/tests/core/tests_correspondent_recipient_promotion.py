@@ -1,10 +1,72 @@
 from django.test import TestCase
 
 from contacts.models import Contact, ContactType
-from wms.models import Destination, OrganizationRole, OrganizationRoleAssignment
+from wms.default_shipper_bindings import suppress_default_shipper_binding_sync
+from wms.models import (
+    Destination,
+    OrganizationRole,
+    OrganizationRoleAssignment,
+    RecipientBinding,
+)
 
 
 class CorrespondentRecipientPromotionTests(TestCase):
+    def test_ensure_destination_correspondent_recipient_ready_skips_asf_bindings_when_sync_suppressed(
+        self,
+    ):
+        from contacts.correspondent_recipient_promotion import (
+            SUPPORT_ORGANIZATION_NAME,
+            ensure_destination_correspondent_recipient_ready,
+        )
+
+        default_shipper = Contact.objects.create(
+            name="AVIATION SANS FRONTIERES",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        OrganizationRoleAssignment.objects.create(
+            organization=default_shipper,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
+        correspondent = Contact.objects.create(
+            name="Suppressed Correspondent",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        destination = Destination.objects.create(
+            city="Dakar",
+            iata_code="DKR",
+            country="Senegal",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+
+        with suppress_default_shipper_binding_sync():
+            ensure_destination_correspondent_recipient_ready(destination)
+
+        correspondent.refresh_from_db()
+        support_organization = Contact.objects.get(
+            name=SUPPORT_ORGANIZATION_NAME,
+            contact_type=ContactType.ORGANIZATION,
+        )
+        self.assertEqual(correspondent.organization, support_organization)
+        self.assertTrue(
+            OrganizationRoleAssignment.objects.filter(
+                organization=support_organization,
+                role=OrganizationRole.RECIPIENT,
+                is_active=True,
+            ).exists()
+        )
+        self.assertFalse(
+            RecipientBinding.objects.filter(
+                shipper_org=default_shipper,
+                recipient_org=support_organization,
+                destination=destination,
+                is_active=True,
+            ).exists()
+        )
+
     def test_promote_correspondent_org_creates_recipient_role_from_destination_assignment(self):
         from contacts.correspondent_recipient_promotion import (
             promote_correspondent_to_recipient_ready,

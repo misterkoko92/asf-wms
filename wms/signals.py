@@ -773,6 +773,8 @@ def _sync_default_shipper_bindings_for_destination(sender, instance, created, **
 
 
 def _sync_destination_correspondent_recipient_support(sender, instance, created, **kwargs) -> None:
+    if not default_shipper_binding_sync_enabled():
+        return
     if not instance.is_active:
         return
     if not instance.correspondent_contact_id:

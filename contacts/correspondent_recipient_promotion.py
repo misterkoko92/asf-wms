@@ -3,7 +3,10 @@ from dataclasses import dataclass
 from django.db import transaction
 
 from contacts.models import Contact, ContactType
-from wms.default_shipper_bindings import ensure_default_shipper_bindings_for_destination_id
+from wms.default_shipper_bindings import (
+    default_shipper_binding_sync_enabled,
+    ensure_default_shipper_bindings_for_destination_id,
+)
 from wms.models import Destination, OrganizationRole, OrganizationRoleAssignment
 
 SUPPORT_ORGANIZATION_NAME = "ASF - CORRESPONDANT"
@@ -136,7 +139,11 @@ def ensure_destination_correspondent_recipient_ready(destination):
         ).first()
 
     result = promote_correspondent_to_recipient_ready(correspondent_contact)
-    if correspondent_contact and correspondent_contact.is_active:
+    if (
+        correspondent_contact
+        and correspondent_contact.is_active
+        and default_shipper_binding_sync_enabled()
+    ):
         ensure_default_shipper_bindings_for_destination_id(destination.id)
     return result
 
