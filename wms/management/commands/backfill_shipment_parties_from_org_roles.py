@@ -352,6 +352,17 @@ class ShipmentPartyBackfillService:
         default_contact: ShipmentRecipientContact | None,
     ) -> None:
         default_contact_id = default_contact.id if default_contact else None
+        if default_contact_id is None:
+            ShipmentAuthorizedRecipientContact.objects.filter(
+                link=link,
+                is_default=True,
+            ).update(is_default=False)
+        else:
+            ShipmentAuthorizedRecipientContact.objects.filter(
+                link=link,
+                is_default=True,
+            ).exclude(recipient_contact_id=default_contact_id).update(is_default=False)
+
         for shipment_contact in contacts:
             is_default = shipment_contact.id == default_contact_id
             authorized, created = ShipmentAuthorizedRecipientContact.objects.get_or_create(

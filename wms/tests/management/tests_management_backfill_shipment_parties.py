@@ -236,6 +236,83 @@ class BackfillShipmentPartiesCommandTests(TestCase):
             )
             self.assertEqual(default_authorized.recipient_contact.contact.last_name, "Truc")
 
+    def test_apply_backfill_reassigns_single_default_authorized_contact_on_rerun(self):
+        destination = self._create_destination("GAO")
+        shipper_org = self._create_organization("ASF Rerun")
+        shipper_assignment = self._create_role_assignment(
+            organization=shipper_org,
+            role=OrganizationRole.SHIPPER,
+        )
+        self._create_role_contact(
+            role_assignment=shipper_assignment,
+            first_name="Jeanne",
+            last_name="Shipper",
+            email="rerun.shipper@example.org",
+            is_primary=True,
+        )
+        ShipperScope.objects.create(
+            role_assignment=shipper_assignment,
+            all_destinations=False,
+            destination=destination,
+            is_active=True,
+        )
+
+        recipient_org = self._create_organization("Hopital Gao")
+        recipient_assignment = self._create_role_assignment(
+            organization=recipient_org,
+            role=OrganizationRole.RECIPIENT,
+        )
+        primary_contact = self._create_role_contact(
+            role_assignment=recipient_assignment,
+            first_name="Docteur",
+            last_name="Alpha",
+            email="alpha@example.org",
+            is_primary=True,
+        )
+        secondary_contact = self._create_role_contact(
+            role_assignment=recipient_assignment,
+            first_name="Docteur",
+            last_name="Beta",
+            email="beta@example.org",
+            is_primary=False,
+        )
+        RecipientBinding.objects.create(
+            shipper_org=shipper_org,
+            recipient_org=recipient_org,
+            destination=destination,
+            is_active=True,
+        )
+
+        call_command("backfill_shipment_parties_from_org_roles", "--apply")
+
+        primary_role_contact = recipient_assignment.role_contacts.get(contact=primary_contact)
+        secondary_role_contact = recipient_assignment.role_contacts.get(contact=secondary_contact)
+        primary_role_contact.is_primary = False
+        primary_role_contact.save(update_fields=["is_primary"])
+        secondary_role_contact.is_primary = True
+        secondary_role_contact.save(update_fields=["is_primary"])
+
+        call_command("backfill_shipment_parties_from_org_roles", "--apply")
+
+        link = ShipmentShipperRecipientLink.objects.get(
+            shipper__organization=shipper_org,
+            recipient_organization__organization=recipient_org,
+        )
+        self.assertEqual(
+            ShipmentAuthorizedRecipientContact.objects.filter(
+                link=link,
+                is_default=True,
+            ).count(),
+            1,
+        )
+        self.assertEqual(
+            ShipmentAuthorizedRecipientContact.objects.get(
+                link=link,
+                is_default=True,
+            ).recipient_contact.contact.last_name,
+            "Beta",
+        )
+
     def test_apply_backfill_creates_stopover_correspondent_without_legacy_recipient_role(self):
         correspondent = self._create_person(
             first_name="Paul",
