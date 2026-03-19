@@ -4,7 +4,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from django.urls import reverse
 from django.utils.http import urlsafe_base64_encode
 
@@ -32,7 +32,6 @@ from wms.models import (
 )
 
 
-@override_settings(SCAN_BOOTSTRAP_ENABLED=True)
 class PortalBootstrapUiTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(
@@ -411,13 +410,12 @@ class PortalBootstrapUiTests(TestCase):
         self.assertEqual(account_response.status_code, 200)
         self.assertContains(account_response, "btn btn-tertiary btn-sm")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=False)
-    def test_portal_base_does_not_render_legacy_controls_when_setting_is_disabled(self):
+    def test_portal_context_does_not_expose_deprecated_ui_flags(self):
         response = self.client.get(reverse("portal:portal_dashboard"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "bootstrap@5.3.3")
-        self.assertContains(response, "scan-bootstrap.css")
-        self.assertContains(response, "portal-bootstrap.css")
-        self.assertNotContains(response, 'id="portal-ui-toggle"')
-        self.assertNotContains(response, 'id="portal-ui-reset-default"')
-        self.assertNotContains(response, "Essayer interface Next")
+        with self.assertRaises(KeyError):
+            response.context["scan_bootstrap_enabled"]
+        with self.assertRaises(KeyError):
+            response.context["wms_ui_mode"]
+        with self.assertRaises(KeyError):
+            response.context["wms_ui_mode_is_next"]

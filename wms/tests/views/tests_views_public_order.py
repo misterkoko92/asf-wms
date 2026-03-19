@@ -74,7 +74,6 @@ class PublicOrderViewsTests(TestCase):
         self.assertIs(response.context["carton_format"], mock.sentinel.carton_format)
         self.assertEqual(estimate_mock.call_args.kwargs["estimate_key"], "cartons_estimated")
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_public_order_summary_includes_bootstrap_assets_when_enabled(self):
         order = self._create_order_for_link()
         url = reverse("scan:scan_public_order_summary", args=[self.link.token, order.id])

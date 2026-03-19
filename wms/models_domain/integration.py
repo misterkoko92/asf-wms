@@ -3,7 +3,6 @@ from django.db import models
 from django.db.models import F
 from django.utils import timezone
 
-from ..design_style_presets import DEFAULT_STYLE_PRESET_KEY
 from ..design_tokens import PRIORITY_ONE_TOKEN_DEFAULTS
 
 
@@ -77,33 +76,6 @@ class IntegrationEvent(models.Model):
         return f"{self.source}:{self.event_type} ({self.direction})"
 
 
-class UiMode(models.TextChoices):
-    LEGACY = "legacy", "Legacy"
-    NEXT = "next", "Next"
-
-
-class UserUiPreference(models.Model):
-    user = models.OneToOneField(
-        django_settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="wms_ui_preference",
-    )
-    ui_mode = models.CharField(
-        max_length=16,
-        choices=UiMode.choices,
-        default=UiMode.LEGACY,
-    )
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ["user_id"]
-        verbose_name = "Preference interface utilisateur"
-        verbose_name_plural = "Preferences interface utilisateur"
-
-    def __str__(self) -> str:
-        return f"{self.user_id}:{self.ui_mode}"
-
-
 def _safe_int(value, *, default, minimum):
     try:
         resolved = int(value)
@@ -124,7 +96,6 @@ class WmsRuntimeSettings(models.Model):
     email_queue_processing_timeout_seconds = models.PositiveIntegerField(default=900)
     enable_shipment_track_legacy = models.BooleanField(default=True)
     org_roles_review_max_open_percent = models.PositiveIntegerField(default=20)
-    scan_bootstrap_enabled = models.BooleanField(default=True)
     design_font_heading = models.CharField(
         max_length=160,
         default='"DM Sans", "Aptos", "Segoe UI", sans-serif',
@@ -153,11 +124,6 @@ class WmsRuntimeSettings(models.Model):
     design_color_text = models.CharField(max_length=16, default="#2f3a36")
     design_color_text_soft = models.CharField(max_length=16, default="#5a6964")
     design_tokens = models.JSONField(default=dict, blank=True)
-    design_selected_preset = models.CharField(
-        max_length=64,
-        default=DEFAULT_STYLE_PRESET_KEY,
-    )
-    design_custom_presets = models.JSONField(default=dict, blank=True)
     updated_by = models.ForeignKey(
         django_settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -212,9 +178,6 @@ class WmsRuntimeSettings(models.Model):
                     minimum=0,
                 ),
             ),
-            "scan_bootstrap_enabled": bool(
-                getattr(django_settings, "SCAN_BOOTSTRAP_ENABLED", True)
-            ),
             "design_font_heading": "DM Sans",
             "design_font_h1": "DM Sans",
             "design_font_h2": "DM Sans",
@@ -228,8 +191,6 @@ class WmsRuntimeSettings(models.Model):
             "design_color_text": "#2f3a36",
             "design_color_text_soft": "#5a6964",
             "design_tokens": dict(PRIORITY_ONE_TOKEN_DEFAULTS),
-            "design_selected_preset": DEFAULT_STYLE_PRESET_KEY,
-            "design_custom_presets": {},
         }
 
     @classmethod

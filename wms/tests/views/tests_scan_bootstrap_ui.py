@@ -5,7 +5,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from django.urls import reverse
 
 from wms.billing_permissions import BILLING_STAFF_GROUP_NAME
@@ -25,7 +25,6 @@ from wms.models import (
 )
 
 
-@override_settings(SCAN_BOOTSTRAP_ENABLED=True)
 class ScanBootstrapUiTests(TestCase):
     def setUp(self):
         self.staff_user = get_user_model().objects.create_user(
@@ -76,13 +75,17 @@ class ScanBootstrapUiTests(TestCase):
             self.assertGreater(current_position, last_position)
             last_position = current_position
 
-    def test_scan_context_exposes_bootstrap_flag_enabled_by_default(self):
+    def test_scan_context_does_not_expose_deprecated_ui_flags(self):
         response = self.client.get(reverse("scan:scan_stock"))
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.context["scan_bootstrap_enabled"])
+        with self.assertRaises(KeyError):
+            response.context["scan_bootstrap_enabled"]
+        with self.assertRaises(KeyError):
+            response.context["wms_ui_mode"]
+        with self.assertRaises(KeyError):
+            response.context["wms_ui_mode_is_next"]
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=False)
-    def test_scan_base_keeps_bootstrap_assets_when_setting_is_disabled(self):
+    def test_scan_base_keeps_bootstrap_assets_without_ui_toggle(self):
         response = self.client.get(reverse("scan:scan_stock"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "scan-bootstrap.css")
@@ -401,6 +404,26 @@ class ScanBootstrapUiTests(TestCase):
             "  --bs-btn-bg: var(--wms-color-btn-secondary-bg);",
             css_content,
         )
+
+    def test_scan_css_does_not_keep_removed_theme_selectors_or_toggle_controls(self):
+        css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan.css"
+        css_content = css_path.read_text(encoding="utf-8")
+
+        for removed_selector in [
+            'data-ui="nova"',
+            'data-ui="studio"',
+            'data-ui="benev"',
+            'data-ui="timeline"',
+            'data-ui="spreadsheet"',
+            'data-theme="atelier"',
+            ".scan-theme-toggle",
+            ".scan-ui-toggle",
+            ".scan-theme-button",
+            ".scan-ui-button",
+            ".scan-ui-reset",
+        ]:
+            with self.subTest(removed_selector=removed_selector):
+                self.assertNotIn(removed_selector, css_content)
 
     def test_scan_superuser_admin_pages_use_design_component_classes(self):
         self.client.force_login(self.superuser)

@@ -42,7 +42,6 @@ DELETE_BATCHES = (
             "admin.LogEntry",
             "wms.IntegrationEvent",
             "wms.WmsRuntimeSettingsAudit",
-            "wms.UserUiPreference",
             "wms.GeneratedPrintArtifactItem",
             "wms.GeneratedPrintArtifact",
             "wms.PrintTemplateVersion",

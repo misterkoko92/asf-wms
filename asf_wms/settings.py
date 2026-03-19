@@ -127,7 +127,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "wms.context_processors.admin_notifications",
-                "wms.context_processors.ui_mode_context",
+                "wms.context_processors.ui_context",
             ],
         },
     },
@@ -275,4 +275,3 @@ EMAIL_QUEUE_RETRY_BASE_SECONDS = _env_int("EMAIL_QUEUE_RETRY_BASE_SECONDS", 60)
 EMAIL_QUEUE_RETRY_MAX_SECONDS = _env_int("EMAIL_QUEUE_RETRY_MAX_SECONDS", 3600)
 EMAIL_QUEUE_PROCESSING_TIMEOUT_SECONDS = _env_int("EMAIL_QUEUE_PROCESSING_TIMEOUT_SECONDS", 900)
 ENABLE_SHIPMENT_TRACK_LEGACY = _env_bool("ENABLE_SHIPMENT_TRACK_LEGACY", True)
-SCAN_BOOTSTRAP_ENABLED = _env_bool("SCAN_BOOTSTRAP_ENABLED", True)

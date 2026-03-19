@@ -164,53 +164,24 @@ If the standardized Python tooling blocks a release or hotfix:
 3. If a local `pre-commit` hook is a false positive, bypass it temporarily with `SKIP=<hook-id> git commit ...` and fix the hook or baseline immediately after.
 4. If dependency artifacts drift, regenerate with `make export-requirements` from the committed `uv.lock`.
 
-### 3.0) Scan Bootstrap progressive rollout (`SCAN_BOOTSTRAP_ENABLED`)
+### 3.0) UI Bootstrap par défaut
 
-Goal: keep production usable while activating Bootstrap progressively on `/scan/*`.
+L’UI Django charge Bootstrap en permanence sur les surfaces scan, portail, accueil et admin personnalisées.
 
-1. Staging activation:
-   - set `SCAN_BOOTSTRAP_ENABLED=true` in staging env
+1. Déploiement standard:
    - run `python manage.py collectstatic --noinput`
    - restart app
-2. Staging smoke:
+2. Smoke recommandé:
    - `/scan/stock/`
    - `/scan/shipment/create/`
-   - verify no JS regression on dynamic sections (`shipment-form`, `shipment-lines`)
-3. Production activation:
-   - set `SCAN_BOOTSTRAP_ENABLED=true` in prod env
-   - run `python manage.py collectstatic --noinput`
-   - restart app
-4. Immediate rollback:
-   - set `SCAN_BOOTSTRAP_ENABLED=false`
-   - restart app
+   - `/portal/login/`
+   - `/admin/wms/stockmovement/`
+3. Ajustements visuels:
+   - utiliser `scan/admin/design/` pour modifier directement les tokens runtime
 
 Notes:
-- Bootstrap assets are loaded from jsDelivr CDN only when the flag is enabled.
+- Bootstrap assets are loaded from jsDelivr CDN.
 - Local bridge stylesheet remains `wms/static/scan/scan-bootstrap.css`.
-
-### 3.1) Next static export (PythonAnywhere low-disk flow)
-
-When `frontend-next` is hosted by Django under `/app/*`, deploy only `frontend-next/out`.
-
-Preferred path (local build + sync):
-
-```bash
-PA_SSH_TARGET="youruser@ssh.pythonanywhere.com" \
-PA_PROJECT_DIR="/home/youruser/asf-wms" \
-deploy/pythonanywhere/push_next_export.sh
-```
-
-Fallback path (artifact build in GitHub Actions):
-
-1. Run workflow `.github/workflows/frontend-next-export.yml` (`workflow_dispatch`).
-2. Download `next-export-<sha>.tar.gz`.
-3. Upload archive to PythonAnywhere.
-4. Install:
-
-```bash
-PROJECT_DIR="/home/youruser/asf-wms" \
-deploy/pythonanywhere/install_next_export.sh /home/youruser/next-export-<sha>.tar.gz
-```
 
 ## 4) Post-deploy smoke tests
 
