@@ -1,25 +1,30 @@
 from django.test import TestCase
 
-from contacts.models import Contact, ContactTag, ContactType
+from contacts.models import Contact, ContactType
 from wms.models import Destination, OrganizationRole, OrganizationRoleAssignment
 
 
 class CorrespondentRecipientPromotionTests(TestCase):
-    def test_promote_correspondent_org_adds_recipient_tag_and_role(self):
+    def test_promote_correspondent_org_creates_recipient_role_from_destination_assignment(self):
         from contacts.correspondent_recipient_promotion import (
             promote_correspondent_to_recipient_ready,
         )
 
-        correspondent_tag = ContactTag.objects.create(name="correspondant")
         organization = Contact.objects.create(
             name="Correspondent Org",
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
+        Destination.objects.create(
+            city="Douala",
+            iata_code="DLA",
+            country="Cameroun",
+            correspondent_contact=organization,
+            is_active=True,
+        )
 
-        promote_correspondent_to_recipient_ready(organization, tags=[correspondent_tag])
+        promote_correspondent_to_recipient_ready(organization)
 
-        self.assertTrue(organization.tags.filter(name__iexact="destinataire").exists())
         self.assertTrue(
             OrganizationRoleAssignment.objects.filter(
                 organization=organization,
@@ -34,7 +39,6 @@ class CorrespondentRecipientPromotionTests(TestCase):
             promote_correspondent_to_recipient_ready,
         )
 
-        correspondent_tag = ContactTag.objects.create(name="correspondant")
         person = Contact.objects.create(
             name="Scoped Correspondent",
             contact_type=ContactType.PERSON,
@@ -48,7 +52,7 @@ class CorrespondentRecipientPromotionTests(TestCase):
             is_active=True,
         )
 
-        promote_correspondent_to_recipient_ready(person, tags=[correspondent_tag])
+        promote_correspondent_to_recipient_ready(person)
 
         person.refresh_from_db()
         support_organization = Contact.objects.get(
@@ -56,46 +60,13 @@ class CorrespondentRecipientPromotionTests(TestCase):
             contact_type=ContactType.ORGANIZATION,
         )
         self.assertEqual(person.organization, support_organization)
-        self.assertEqual(
-            set(person.destinations.values_list("id", flat=True)),
-            {destination.id},
+        self.assertTrue(
+            OrganizationRoleAssignment.objects.filter(
+                organization=support_organization,
+                role=OrganizationRole.RECIPIENT,
+                is_active=True,
+            ).exists()
         )
-        self.assertEqual(person.destination_id, destination.id)
-
-    def test_promote_correspondent_org_scopes_multiple_destinations_and_clears_legacy_field(self):
-        from contacts.correspondent_recipient_promotion import (
-            promote_correspondent_to_recipient_ready,
-        )
-
-        correspondent_tag = ContactTag.objects.create(name="correspondant")
-        organization = Contact.objects.create(
-            name="Scoped Correspondent Org",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-        destination_abj = Destination.objects.create(
-            city="Abidjan",
-            iata_code="ABJ",
-            country="Cote d'Ivoire",
-            correspondent_contact=organization,
-            is_active=True,
-        )
-        destination_dkr = Destination.objects.create(
-            city="Dakar",
-            iata_code="DKR",
-            country="Senegal",
-            correspondent_contact=organization,
-            is_active=True,
-        )
-
-        promote_correspondent_to_recipient_ready(organization, tags=[correspondent_tag])
-
-        organization.refresh_from_db()
-        self.assertEqual(
-            set(organization.destinations.values_list("id", flat=True)),
-            {destination_abj.id, destination_dkr.id},
-        )
-        self.assertIsNone(organization.destination_id)
 
     def test_promote_person_with_org_reuses_existing_org(self):
         from contacts.correspondent_recipient_promotion import (
@@ -103,7 +74,6 @@ class CorrespondentRecipientPromotionTests(TestCase):
             promote_correspondent_to_recipient_ready,
         )
 
-        correspondent_tag = ContactTag.objects.create(name="correspondant")
         organization = Contact.objects.create(
             name="Recipient Org",
             contact_type=ContactType.ORGANIZATION,
@@ -115,8 +85,15 @@ class CorrespondentRecipientPromotionTests(TestCase):
             organization=organization,
             is_active=True,
         )
+        Destination.objects.create(
+            city="Bamako",
+            iata_code="BKO",
+            country="Mali",
+            correspondent_contact=person,
+            is_active=True,
+        )
 
-        promote_correspondent_to_recipient_ready(person, tags=[correspondent_tag])
+        promote_correspondent_to_recipient_ready(person)
 
         person.refresh_from_db()
         self.assertEqual(person.organization, organization)
@@ -126,7 +103,6 @@ class CorrespondentRecipientPromotionTests(TestCase):
                 contact_type=ContactType.ORGANIZATION,
             ).exists()
         )
-        self.assertTrue(person.tags.filter(name__iexact="destinataire").exists())
         self.assertTrue(
             OrganizationRoleAssignment.objects.filter(
                 organization=organization,
@@ -141,14 +117,20 @@ class CorrespondentRecipientPromotionTests(TestCase):
             promote_correspondent_to_recipient_ready,
         )
 
-        correspondent_tag = ContactTag.objects.create(name="correspondant")
         person = Contact.objects.create(
             name="Standalone Correspondent",
             contact_type=ContactType.PERSON,
             is_active=True,
         )
+        Destination.objects.create(
+            city="Bangui",
+            iata_code="BGF",
+            country="RCA",
+            correspondent_contact=person,
+            is_active=True,
+        )
 
-        promote_correspondent_to_recipient_ready(person, tags=[correspondent_tag])
+        promote_correspondent_to_recipient_ready(person)
 
         person.refresh_from_db()
         support_organization = Contact.objects.get(
@@ -156,7 +138,6 @@ class CorrespondentRecipientPromotionTests(TestCase):
             contact_type=ContactType.ORGANIZATION,
         )
         self.assertEqual(person.organization, support_organization)
-        self.assertTrue(person.tags.filter(name__iexact="destinataire").exists())
         self.assertTrue(
             OrganizationRoleAssignment.objects.filter(
                 organization=support_organization,
@@ -171,7 +152,6 @@ class CorrespondentRecipientPromotionTests(TestCase):
             promote_correspondent_to_recipient_ready,
         )
 
-        correspondent_tag = ContactTag.objects.create(name="correspondant")
         existing_support_org = Contact.objects.create(
             name=SUPPORT_ORGANIZATION_NAME,
             contact_type=ContactType.ORGANIZATION,
@@ -187,9 +167,23 @@ class CorrespondentRecipientPromotionTests(TestCase):
             contact_type=ContactType.PERSON,
             is_active=True,
         )
+        Destination.objects.create(
+            city="Lome",
+            iata_code="LFW",
+            country="Togo",
+            correspondent_contact=first,
+            is_active=True,
+        )
+        Destination.objects.create(
+            city="Ndjamena",
+            iata_code="NDJ",
+            country="Tchad",
+            correspondent_contact=second,
+            is_active=True,
+        )
 
-        promote_correspondent_to_recipient_ready(first, tags=[correspondent_tag])
-        promote_correspondent_to_recipient_ready(second, tags=[correspondent_tag])
+        promote_correspondent_to_recipient_ready(first)
+        promote_correspondent_to_recipient_ready(second)
 
         first.refresh_from_db()
         second.refresh_from_db()
@@ -203,64 +197,29 @@ class CorrespondentRecipientPromotionTests(TestCase):
             1,
         )
 
-    def test_adding_correspondent_tag_does_not_trigger_promotion(self):
-        from contacts.correspondent_recipient_promotion import SUPPORT_ORGANIZATION_NAME
+    def test_promotion_skips_contacts_without_active_destination_assignment(self):
+        from contacts.correspondent_recipient_promotion import (
+            SUPPORT_ORGANIZATION_NAME,
+            promote_correspondent_to_recipient_ready,
+        )
 
-        correspondent_tag = ContactTag.objects.create(name="correspondant")
         person = Contact.objects.create(
-            name="Signal Correspondent",
+            name="No Destination Correspondent",
             contact_type=ContactType.PERSON,
             is_active=True,
         )
 
-        person.tags.add(correspondent_tag)
+        result = promote_correspondent_to_recipient_ready(person)
 
-        person.refresh_from_db()
-        self.assertIsNone(person.organization)
-        self.assertFalse(person.tags.filter(name__iexact="destinataire").exists())
+        self.assertFalse(result.changed)
         self.assertFalse(
             Contact.objects.filter(
                 name=SUPPORT_ORGANIZATION_NAME,
                 contact_type=ContactType.ORGANIZATION,
             ).exists()
         )
-        self.assertTrue(
-            not OrganizationRoleAssignment.objects.filter(
-                role=OrganizationRole.RECIPIENT,
-                is_active=True,
-            ).exists()
-        )
-
-    def test_readding_or_removing_correspondent_tag_keeps_manual_promotion_state(self):
-        from contacts.correspondent_recipient_promotion import (
-            SUPPORT_ORGANIZATION_NAME,
-            promote_correspondent_to_recipient_ready,
-        )
-
-        correspondent_tag = ContactTag.objects.create(name="correspondant")
-        unrelated_tag = ContactTag.objects.create(name="autre")
-        person = Contact.objects.create(
-            name="Idempotent Correspondent",
-            contact_type=ContactType.PERSON,
-            is_active=True,
-        )
-
-        promote_correspondent_to_recipient_ready(person, tags=[correspondent_tag])
-        support_org = Contact.objects.get(
-            name=SUPPORT_ORGANIZATION_NAME,
-            contact_type=ContactType.ORGANIZATION,
-        )
-
-        person.tags.add(correspondent_tag)
-        person.tags.add(unrelated_tag)
-        person.tags.remove(correspondent_tag)
-
-        person.refresh_from_db()
-        self.assertEqual(person.organization, support_org)
-        self.assertTrue(person.tags.filter(name__iexact="destinataire").exists())
-        self.assertTrue(
+        self.assertFalse(
             OrganizationRoleAssignment.objects.filter(
-                organization=support_org,
                 role=OrganizationRole.RECIPIENT,
                 is_active=True,
             ).exists()

@@ -62,6 +62,7 @@ class ScanSettingsViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["active"], "settings")
         self.assertTrue(response.context["form"].fields)
+        self.assertNotIn("org_roles_engine_enabled", response.context["form"].fields)
 
     @override_settings(ENABLE_SHIPMENT_TRACK_LEGACY=False)
     def test_scan_settings_get_exposes_effective_legacy_flags(self):

@@ -8,7 +8,17 @@ from django.test import RequestFactory, TestCase
 from django.utils.translation import override as override_language
 
 from contacts.models import Contact, ContactType
-from wms.models import Carton, CartonStatus, Destination, Shipment, ShipmentStatus
+from wms.models import (
+    Carton,
+    CartonStatus,
+    Destination,
+    OrganizationRole,
+    OrganizationRoleAssignment,
+    RecipientBinding,
+    Shipment,
+    ShipmentStatus,
+    ShipperScope,
+)
 from wms.scan_shipment_handlers import (
     _get_carton_count,
     _handle_shipment_save_draft_post,
@@ -45,10 +55,50 @@ class ScanShipmentHandlersTests(TestCase):
         return request
 
     def _cleaned_data(self, *, carton_count=2):
-        destination = SimpleNamespace(country="France")
-        shipper = SimpleNamespace(name="ASF")
-        recipient = SimpleNamespace(name="Association Dest")
-        correspondent = SimpleNamespace(name="Correspondant")
+        suffix = Destination.objects.count() + 1
+        correspondent = Contact.objects.create(
+            name=f"Correspondant {suffix}",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        destination = Destination.objects.create(
+            city=f"Paris {suffix}",
+            iata_code=f"T{suffix:03d}",
+            country="France",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        shipper = Contact.objects.create(
+            name="ASF",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        recipient = Contact.objects.create(
+            name="Association Dest",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        shipper_assignment = OrganizationRoleAssignment.objects.create(
+            organization=shipper,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
+        OrganizationRoleAssignment.objects.create(
+            organization=recipient,
+            role=OrganizationRole.RECIPIENT,
+            is_active=True,
+        )
+        ShipperScope.objects.create(
+            role_assignment=shipper_assignment,
+            destination=destination,
+            is_active=True,
+        )
+        RecipientBinding.objects.create(
+            shipper_org=shipper,
+            recipient_org=recipient,
+            destination=destination,
+            is_active=True,
+        )
         return {
             "carton_count": carton_count,
             "destination": destination,
@@ -273,7 +323,41 @@ class ScanShipmentHandlersTests(TestCase):
         )
         request = self._request({"carton_count": "1"})
         cleaned_data = self._cleaned_data(carton_count=1)
+        shipper_contact = Contact.objects.create(
+            name="ASF mismatch create",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        recipient_contact = Contact.objects.create(
+            name="Association mismatch create",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        shipper_assignment = OrganizationRoleAssignment.objects.create(
+            organization=shipper_contact,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
+        OrganizationRoleAssignment.objects.create(
+            organization=recipient_contact,
+            role=OrganizationRole.RECIPIENT,
+            is_active=True,
+        )
+        ShipperScope.objects.create(
+            role_assignment=shipper_assignment,
+            destination=target_destination,
+            is_active=True,
+        )
+        RecipientBinding.objects.create(
+            shipper_org=shipper_contact,
+            recipient_org=recipient_contact,
+            destination=target_destination,
+            is_active=True,
+        )
         cleaned_data["destination"] = target_destination
+        cleaned_data["shipper_contact"] = shipper_contact
+        cleaned_data["recipient_contact"] = recipient_contact
+        cleaned_data["correspondent_contact"] = correspondent
         form = _FakeForm(valid=True, cleaned_data=cleaned_data)
 
         with mock.patch(
@@ -344,17 +428,38 @@ class ScanShipmentHandlersTests(TestCase):
         )
         shipper_contact = Contact.objects.create(
             name="ASF shipment edit",
-            contact_type=ContactType.PERSON,
+            contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
         recipient_contact = Contact.objects.create(
             name="Association shipment edit",
-            contact_type=ContactType.PERSON,
+            contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
         correspondent_contact = Contact.objects.create(
             name="Correspondent shipment edit",
             contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        shipper_assignment = OrganizationRoleAssignment.objects.create(
+            organization=shipper_contact,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
+        OrganizationRoleAssignment.objects.create(
+            organization=recipient_contact,
+            role=OrganizationRole.RECIPIENT,
+            is_active=True,
+        )
+        ShipperScope.objects.create(
+            role_assignment=shipper_assignment,
+            destination=target_destination,
+            is_active=True,
+        )
+        RecipientBinding.objects.create(
+            shipper_org=shipper_contact,
+            recipient_org=recipient_contact,
+            destination=target_destination,
             is_active=True,
         )
         carton = Carton.objects.create(

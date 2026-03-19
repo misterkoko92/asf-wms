@@ -16,7 +16,6 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
         "email_queue_retry_max_seconds",
         "email_queue_processing_timeout_seconds",
         "enable_shipment_track_legacy",
-        "org_roles_engine_enabled",
         "org_roles_review_max_open_percent",
     )
     MIN_ONE_FIELDS = (
@@ -50,7 +49,6 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
             "email_queue_processing_timeout_seconds",
             "org_roles_review_max_open_percent",
             "enable_shipment_track_legacy",
-            "org_roles_engine_enabled",
         ]
         labels = {
             "low_stock_threshold": _("Seuil stock bas"),
@@ -65,7 +63,6 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
             ),
             "org_roles_review_max_open_percent": _("Migration roles org: max dossiers ouverts (%)"),
             "enable_shipment_track_legacy": _("Activer la route legacy suivi expédition"),
-            "org_roles_engine_enabled": _("Activer le moteur organization roles"),
         }
         help_texts = {
             "low_stock_threshold": _("Produit considéré en stock bas sous ce seuil."),
@@ -82,9 +79,6 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
                 "Seuil max de dossiers destinataires en revue avant alerte/go-live."
             ),
             "enable_shipment_track_legacy": _("Permet la route /scan/shipment/track/<reference>/."),
-            "org_roles_engine_enabled": _(
-                "Bascule des résolveurs vers le nouveau modèle role-based."
-            ),
         }
         widgets = {
             "low_stock_threshold": forms.NumberInput(attrs={"min": 1, "step": 1}),
@@ -121,12 +115,6 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        for boolean_field in ("org_roles_engine_enabled",):
-            if boolean_field not in self.data:
-                if getattr(self.instance, "pk", None):
-                    cleaned_data[boolean_field] = bool(getattr(self.instance, boolean_field, False))
-                else:
-                    cleaned_data[boolean_field] = bool(self.fields[boolean_field].initial)
         review_percent = cleaned_data.get("org_roles_review_max_open_percent")
         if review_percent is None:
             if getattr(self.instance, "pk", None):

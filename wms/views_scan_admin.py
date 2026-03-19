@@ -173,9 +173,7 @@ def scan_admin_contacts(request):
     )
 
     base_contacts_qs = _apply_contact_filter(
-        Contact.objects.select_related("organization")
-        .prefetch_related("tags")
-        .order_by("name", "id"),
+        Contact.objects.select_related("organization").order_by("name", "id"),
         contact_filter,
     )
     contacts = _apply_contact_query(base_contacts_qs, query)
@@ -294,7 +292,6 @@ def scan_admin_contacts(request):
             "correspondents": correspondents,
             "contacts_admin_url": reverse("admin:contacts_contact_changelist"),
             "contact_add_url": reverse("admin:contacts_contact_add"),
-            "contact_tag_add_url": reverse("admin:contacts_contacttag_add"),
             "destination_admin_url": reverse("admin:wms_destination_changelist"),
             "destination_add_url": reverse("admin:wms_destination_add"),
             **cockpit_context,

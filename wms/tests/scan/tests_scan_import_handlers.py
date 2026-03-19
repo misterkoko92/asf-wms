@@ -13,7 +13,7 @@ from django.http import HttpResponse
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
-from contacts.models import Contact, ContactAddress, ContactTag, ContactType
+from contacts.models import Contact, ContactAddress, ContactType
 from wms import scan_import_handlers
 from wms.models import (
     Destination,
@@ -137,15 +137,12 @@ class ScanImportHandlersTests(TestCase):
             country="Monaco",
             correspondent_contact=correspondent,
         )
-        contact_tag = ContactTag.objects.create(name="Donateur")
         contact = Contact.objects.create(
             contact_type=ContactType.ORGANIZATION,
             name="Monde Contact",
             email="monde@example.com",
             phone="+33102030405",
-            destination=destination,
         )
-        contact.tags.add(contact_tag)
         ContactAddress.objects.create(
             contact=contact,
             address_line1="1 rue du Monde",
@@ -217,20 +214,10 @@ class ScanImportHandlersTests(TestCase):
                 "contact_type": ContactType.ORGANIZATION,
                 "email": "monde@example.com",
                 "phone": "+33102030405",
-                "tags": "Donateur",
-                "destination": "",
+                "scope": "",
                 "address_line1": "1 rue du Monde",
                 "city": "Lyon",
                 "label": "Monde Contact",
-            },
-        )
-        self._assert_contains_subset(
-            data["destinations"],
-            {
-                "label": "Monaco (MCM) - Monaco",
-                "city": "Monaco",
-                "iata_code": "MCM",
-                "country": "Monaco",
             },
         )
         self._assert_contains_subset(
@@ -247,7 +234,8 @@ class ScanImportHandlersTests(TestCase):
             },
         )
         self.assertIn("Fragile", data["product_tags"])
-        self.assertIn("Donateur", data["contact_tags"])
+        self.assertNotIn("contact_tags", data)
+        self.assertNotIn("destinations", data)
         self.assertEqual(product.brand, "ONDE")
         self.assertEqual(user.username, "onde-user")
 
@@ -271,7 +259,7 @@ class ScanImportHandlersTests(TestCase):
             data["contacts"],
             {
                 "name": "Correspondant Dakar",
-                "destination": "Dakar (DKR) - Senegal",
+                "scope": "Dakar (DKR) - Senegal",
             },
         )
 

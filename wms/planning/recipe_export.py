@@ -491,7 +491,6 @@ def _serialize_contact(
         "phone2": contact.phone2,
         "is_active": contact.is_active,
         "organization_id": contact.organization_id,
-        "destination_id": contact.destination_id,
     }
 
 

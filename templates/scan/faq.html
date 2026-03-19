@@ -239,9 +239,9 @@
     <h2 class="ui-comp-title">{% trans "Créer une expédition" %}</h2>
     <ul>
       <li>{% trans "Séquencement: destination d'abord, puis expéditeur, puis destinataire + correspondant, puis le reste du formulaire." %}</li>
-      <li>{% blocktrans trimmed %}Expéditeur: tag <strong>Expéditeur</strong> + destination explicite ou globale (destinations vides).{% endblocktrans %}</li>
-      <li>{% blocktrans trimmed %}Destinataire: tag <strong>Destinataire</strong> + expéditeur lié explicite ou global (expéditeurs liés vides).{% endblocktrans %}</li>
-      <li>{% blocktrans trimmed %}Correspondant: tag <strong>Correspondant</strong> + destination; si la destination a un correspondant lié, ce choix est imposé.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}Expéditeur: organisation avec rôle <strong>Expéditeur</strong> actif et scope autorisé sur la destination choisie.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}Destinataire: organisation avec rôle <strong>Destinataire</strong> actif et binding valide pour le couple expéditeur + destination.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}Correspondant: contact lié à la destination; si la destination a un correspondant défini, ce choix est imposé.{% endblocktrans %}</li>
       <li>{% trans "Si aucun correspondant n'est lié à la destination, le sélecteur correspondant reste vide." %}</li>
       <li>{% blocktrans trimmed %}Ajouter des cartons <strong>Prêt</strong> non affectés, ou créer des cartons depuis des produits.{% endblocktrans %}</li>
       <li>{% blocktrans trimmed %}À l'affectation à l'expédition, un carton passe en statut <strong>Affecté</strong>.{% endblocktrans %}</li>
@@ -387,7 +387,7 @@
       <li>{% trans "Quantité initiale applique un mouvement de stock (emplacement requis)." %}</li>
       <li>{% trans "Emplacements: entrepôt/rack/étagère/bac requis, rack color optionnel." %}</li>
       <li>{% trans "Catégories: chemin possible (L1 > L2 > L3)." %}</li>
-      <li>{% trans "Contacts: tags fusionnés (ajout), destination créée si absente." %}</li>
+      <li>{% trans "Contacts: import org-roles only, destinations et affectations créées depuis la source." %}</li>
       <li>{% trans "Utilisateurs: mot de passe obligatoire si IMPORT_DEFAULT_PASSWORD est vide." %}</li>
     </ul>
   </div>

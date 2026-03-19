@@ -155,7 +155,6 @@ class ScanAdminViewTests(TestCase):
         self.assertContains(response, "ui-comp-panel")
         self.assertContains(response, reverse("admin:contacts_contact_changelist"))
         self.assertContains(response, reverse("admin:contacts_contact_add"))
-        self.assertContains(response, reverse("admin:contacts_contacttag_add"))
         self.assertContains(response, reverse("admin:wms_destination_changelist"))
         self.assertContains(response, self.correspondent.name)
         self.assertContains(response, self.destination.city)
@@ -209,7 +208,6 @@ class ScanAdminViewTests(TestCase):
         self.assertNotContains(response, "Mode legacy désactivé")
         self.assertContains(response, reverse("admin:contacts_contact_changelist"))
         self.assertContains(response, reverse("admin:contacts_contact_add"))
-        self.assertContains(response, reverse("admin:contacts_contacttag_add"))
         self.assertContains(response, reverse("admin:wms_destination_changelist"))
         self.assertContains(response, reverse("admin:wms_destination_add"))
 

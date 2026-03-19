@@ -200,9 +200,8 @@ class PortalRoleReviewGateTests(TestCase):
         self.assertEqual(response.status_code, 302)
 
         recipient = AssociationRecipient.objects.get(structure_name="Action contre la faim")
-        recipient_contact = Contact.objects.get(
-            notes__startswith=f"[Portail association][recipient_id={recipient.id}]"
-        )
+        self.assertIsNotNone(recipient.synced_contact_id)
+        recipient_contact = recipient.synced_contact
         assignment = OrganizationRoleAssignment.objects.filter(
             organization=recipient_contact,
             role=OrganizationRole.RECIPIENT,

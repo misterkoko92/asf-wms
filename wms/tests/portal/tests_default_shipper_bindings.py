@@ -1,6 +1,6 @@
 from django.test import TestCase
 
-from contacts.models import Contact, ContactTag, ContactType
+from contacts.models import Contact, ContactType
 from wms.default_shipper_bindings import (
     _ensure_bindings_for_pairs,
     _ensure_default_shipper_assignment_and_scope,
@@ -26,8 +26,11 @@ class DefaultShipperBindingsSignalTests(TestCase):
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        shipper_tag, _ = ContactTag.objects.get_or_create(name="expediteur")
-        shipper.tags.add(shipper_tag)
+        OrganizationRoleAssignment.objects.create(
+            organization=shipper,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
         return shipper
 
     def _create_correspondent(self) -> Contact:
@@ -36,8 +39,11 @@ class DefaultShipperBindingsSignalTests(TestCase):
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        correspondent_tag, _ = ContactTag.objects.get_or_create(name="correspondant")
-        correspondent.tags.add(correspondent_tag)
+        OrganizationRoleAssignment.objects.create(
+            organization=correspondent,
+            role=OrganizationRole.CORRESPONDENT,
+            is_active=True,
+        )
         return correspondent
 
     def _create_destination(self, *, iata_code: str, correspondent: Contact) -> Destination:
@@ -50,14 +56,11 @@ class DefaultShipperBindingsSignalTests(TestCase):
         )
 
     def _create_recipient_org(self, name: str) -> Contact:
-        recipient = Contact.objects.create(
+        return Contact.objects.create(
             name=name,
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        recipient_tag, _ = ContactTag.objects.get_or_create(name="destinataire")
-        recipient.tags.add(recipient_tag)
-        return recipient
 
     def test_recipient_role_creation_creates_default_shipper_bindings_for_all_destinations(
         self,
@@ -167,14 +170,20 @@ class DefaultShipperBindingsHelpersTests(TestCase):
 
     def _create_default_shipper(self) -> Contact:
         shipper = self._create_org("AVIATION SANS FRONTIERES")
-        shipper_tag, _ = ContactTag.objects.get_or_create(name="expediteur")
-        shipper.tags.add(shipper_tag)
+        OrganizationRoleAssignment.objects.create(
+            organization=shipper,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
         return shipper
 
     def _create_destination(self, iata: str) -> Destination:
         correspondent = self._create_org(f"Correspondent {iata}")
-        correspondent_tag, _ = ContactTag.objects.get_or_create(name="correspondant")
-        correspondent.tags.add(correspondent_tag)
+        OrganizationRoleAssignment.objects.create(
+            organization=correspondent,
+            role=OrganizationRole.CORRESPONDENT,
+            is_active=True,
+        )
         return Destination.objects.create(
             city=f"City {iata}",
             iata_code=iata,
@@ -195,37 +204,18 @@ class DefaultShipperBindingsHelpersTests(TestCase):
             self.assertIsNone(_resolve_default_shipper_organization())
 
         inactive_default_shipper = self._create_org("Inactive ASF")
-        inactive_default_shipper_tag, _ = ContactTag.objects.get_or_create(name="expediteur")
-        inactive_default_shipper.tags.add(inactive_default_shipper_tag)
         inactive_default_shipper.is_active = False
         inactive_default_shipper.save(update_fields=["is_active"])
         self.assertIsNone(_resolve_default_shipper_organization())
 
-    def test_resolve_default_shipper_supports_person_linked_to_active_organization(self):
-        organization = self._create_default_shipper()
-        person = Contact.objects.create(
-            name="ASF Person",
-            contact_type=ContactType.PERSON,
-            is_active=True,
-            organization=organization,
-        )
-        shipper_tag, _ = ContactTag.objects.get_or_create(name="expediteur")
-        person.tags.add(shipper_tag)
-
-        resolved = _resolve_default_shipper_organization()
-        self.assertEqual(resolved.pk, organization.pk)
-
-        organization.is_active = False
-        organization.save(update_fields=["is_active"])
-        self.assertIsNone(_resolve_default_shipper_organization())
-
     def test_ensure_default_shipper_assignment_and_scope_reactivates_existing_records(self):
         shipper_org = self._create_default_shipper()
-        assignment = OrganizationRoleAssignment.objects.create(
+        assignment = OrganizationRoleAssignment.objects.get(
             organization=shipper_org,
             role=OrganizationRole.SHIPPER,
-            is_active=False,
         )
+        assignment.is_active = False
+        assignment.save(update_fields=["is_active"])
         primary_contact = OrganizationContact.objects.create(
             organization=shipper_org,
             first_name="Primary",

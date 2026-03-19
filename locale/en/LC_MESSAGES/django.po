@@ -2934,30 +2934,6 @@ msgstr ""
 "Sequence: destination first, then shipper, then recipient + correspondent, "
 "then the rest of the form."
 
-#: templates/scan/faq.html:149
-msgid ""
-"Expéditeur: tag <strong>Expéditeur</strong> + destination explicite ou "
-"globale (destinations vides)."
-msgstr ""
-"Shipper: <strong>Shipper</strong> tag + explicit or global destination "
-"(empty destinations)."
-
-#: templates/scan/faq.html:150
-msgid ""
-"Destinataire: tag <strong>Destinataire</strong> + expéditeur lié explicite "
-"ou global (expéditeurs liés vides)."
-msgstr ""
-"Recipient: <strong>Recipient</strong> tag + explicit or global linked "
-"shipper (empty linked shippers)."
-
-#: templates/scan/faq.html:151
-msgid ""
-"Correspondant: tag <strong>Correspondant</strong> + destination; si la "
-"destination a un correspondant lié, ce choix est imposé."
-msgstr ""
-"Correspondent: <strong>Correspondent</strong> tag + destination; if the "
-"destination has a linked correspondent, that choice is enforced."
-
 #: templates/scan/faq.html:152
 msgid ""
 "Si aucun correspondant n'est lié à la destination, le sélecteur "
@@ -3344,8 +3320,8 @@ msgid "Catégories: chemin possible (L1 > L2 > L3)."
 msgstr "Categories: path supported (L1 > L2 > L3)."
 
 #: templates/scan/faq.html:297
-msgid "Contacts: tags fusionnés (ajout), destination créée si absente."
-msgstr "Contacts: tags merged (added), destination created if missing."
+msgid "Contacts: import org-roles only, destinations et affectations créées depuis la source."
+msgstr "Contacts: org-roles-only import, destinations and assignments created from the source."
 
 #: templates/scan/faq.html:298
 msgid ""
@@ -5197,19 +5173,19 @@ msgstr "Please select a shipper to continue creating the shipment."
 
 #: templates/scan/shipment_create.html:57
 msgid ""
-"Aucun expéditeur trouvé dans la base, vérifier les destinations des affectés "
-"aux expéditeurs dans les contacts et recommencez"
+"Aucun expéditeur disponible pour cette escale. Vérifiez les affectations "
+"expéditeur actives et recommencez."
 msgstr ""
-"No shipper found in the database. Check destination assignments for shippers "
-"in Contacts and try again."
+"No shipper is available for this destination. Check active shipper scopes "
+"and try again."
 
 #: templates/scan/shipment_create.html:75
 msgid ""
-"Aucun destinataire trouvé dans la base, vérifier les expéditeurs liés dans "
-"les contacts et recommencez"
+"Aucun destinataire disponible pour cette combinaison escale/expéditeur. "
+"Vérifiez les bindings destinataire actifs et recommencez."
 msgstr ""
-"No recipient found in the database. Check linked shippers in Contacts and "
-"try again."
+"No recipient is available for this destination and shipper combination. "
+"Check active recipient bindings and try again."
 
 #: templates/scan/shipment_create.html:92
 msgid ""

@@ -56,7 +56,6 @@ from wms.models import (
     ShipmentTrackingStatus,
     ShipperScope,
     Warehouse,
-    WmsRuntimeSettings,
 )
 from wms.services import StockError
 
@@ -96,6 +95,11 @@ class PortalBaseTestCase(TestCase):
             f"Association {user.username}",
             with_address=with_address,
         )
+        OrganizationRoleAssignment.objects.create(
+            organization=contact,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
         profile = AssociationProfile.objects.create(
             user=user,
             contact=contact,
@@ -127,11 +131,14 @@ class PortalBaseTestCase(TestCase):
         structure_name="Structure Test",
     ):
         destination = self._create_destination(city=city, country=country)
+        email_local = structure_name.lower().replace(" ", ".")
         return AssociationRecipient.objects.create(
             association_contact=profile.contact,
             destination=destination,
             name=structure_name,
             structure_name=structure_name,
+            email=f"{email_local}@example.com",
+            emails=f"{email_local}@example.com",
             address_line1="1 Rue Réception",
             city=city,
             country=country,
@@ -835,10 +842,6 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertNotIn(str(other_recipient.id), recipient_ids)
 
     def test_portal_order_create_filters_recipient_options_by_shipper_binding(self):
-        runtime = WmsRuntimeSettings.get_solo()
-        runtime.org_roles_engine_enabled = True
-        runtime.save(update_fields=["org_roles_engine_enabled"])
-
         allowed_contact = Contact.objects.create(
             name="Allowed Recipient Contact",
             contact_type=ContactType.ORGANIZATION,
@@ -859,10 +862,9 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
             is_active=True,
         )
 
-        shipper_assignment = OrganizationRoleAssignment.objects.create(
+        shipper_assignment = OrganizationRoleAssignment.objects.get(
             organization=self.profile.contact,
             role=OrganizationRole.SHIPPER,
-            is_active=True,
         )
         OrganizationRoleAssignment.objects.create(
             organization=allowed_contact,
@@ -921,10 +923,6 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertNotIn(str(blocked_recipient.id), recipient_ids)
 
     def test_portal_order_create_exposes_allowed_destination_ids_for_recipient_options(self):
-        runtime = WmsRuntimeSettings.get_solo()
-        runtime.org_roles_engine_enabled = True
-        runtime.save(update_fields=["org_roles_engine_enabled"])
-
         allowed_contact = Contact.objects.create(
             name="Allowed Metadata Contact",
             contact_type=ContactType.ORGANIZATION,
@@ -945,10 +943,9 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
             is_active=True,
         )
 
-        shipper_assignment = OrganizationRoleAssignment.objects.create(
+        shipper_assignment = OrganizationRoleAssignment.objects.get(
             organization=self.profile.contact,
             role=OrganizationRole.SHIPPER,
-            is_active=True,
         )
         OrganizationRoleAssignment.objects.create(
             organization=allowed_contact,
@@ -1069,10 +1066,6 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         )
 
     def test_portal_order_create_post_rejects_recipient_outside_shipper_binding(self):
-        runtime = WmsRuntimeSettings.get_solo()
-        runtime.org_roles_engine_enabled = True
-        runtime.save(update_fields=["org_roles_engine_enabled"])
-
         allowed_contact = Contact.objects.create(
             name="Allowed Binding Contact",
             contact_type=ContactType.ORGANIZATION,
@@ -1094,10 +1087,9 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         )
         line_items = [(self.product, 1)]
 
-        shipper_assignment = OrganizationRoleAssignment.objects.create(
+        shipper_assignment = OrganizationRoleAssignment.objects.get(
             organization=self.profile.contact,
             role=OrganizationRole.SHIPPER,
-            is_active=True,
         )
         OrganizationRoleAssignment.objects.create(
             organization=allowed_contact,
@@ -1177,6 +1169,27 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         synced_recipient_contact = Contact.objects.create(
             name="Synced Recipient",
             contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        shipper_assignment = OrganizationRoleAssignment.objects.get(
+            organization=self.profile.contact,
+            role=OrganizationRole.SHIPPER,
+        )
+        ShipperScope.objects.create(
+            role_assignment=shipper_assignment,
+            destination=destination,
+            all_destinations=False,
+            is_active=True,
+        )
+        OrganizationRoleAssignment.objects.create(
+            organization=synced_recipient_contact,
+            role=OrganizationRole.RECIPIENT,
+            is_active=True,
+        )
+        RecipientBinding.objects.create(
+            shipper_org=self.profile.contact,
+            recipient_org=synced_recipient_contact,
+            destination=destination,
             is_active=True,
         )
         with mock.patch(
@@ -1861,9 +1874,9 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertTrue(recipient.notify_deliveries)
         self.assertTrue(recipient.is_delivery_contact)
 
-        synced_contact = Contact.objects.get(
-            notes__startswith=f"[Portail association][recipient_id={recipient.id}]"
-        )
+        recipient.refresh_from_db()
+        synced_contact = recipient.synced_contact
+        self.assertIsNotNone(synced_contact)
         recipient_assignment = OrganizationRoleAssignment.objects.get(
             organization=synced_contact,
             role=OrganizationRole.RECIPIENT,
@@ -1889,15 +1902,6 @@ class PortalAccountViewsTests(PortalBaseTestCase):
                 is_active=True,
             ).exists()
         )
-        self.assertFalse(synced_contact.tags.exists())
-        self.assertFalse(synced_contact.linked_shippers.exists())
-        self.assertFalse(synced_contact.destinations.exists())
-        self.assertFalse(self.profile.contact.tags.exists())
-        self.assertFalse(self.profile.contact.destinations.exists())
-
-        runtime = WmsRuntimeSettings.get_solo()
-        runtime.org_roles_engine_enabled = True
-        runtime.save(update_fields=["org_roles_engine_enabled"])
 
         form = ScanShipmentForm(
             data={
@@ -2007,12 +2011,8 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         self.assertEqual(recipient.phone, "+33123456789")
         self.assertTrue(recipient.notify_deliveries)
         self.assertTrue(recipient.is_delivery_contact)
-        self.assertEqual(
-            Contact.objects.filter(
-                notes__startswith=f"[Portail association][recipient_id={recipient.id}]"
-            ).count(),
-            1,
-        )
+        self.assertIsNotNone(recipient.synced_contact_id)
+        self.assertEqual(Contact.objects.filter(pk=recipient.synced_contact_id).count(), 1)
 
     def test_portal_recipients_get_exposes_extended_contact_titles(self):
         response = self.client.get(self.recipients_url)

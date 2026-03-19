@@ -66,18 +66,18 @@ This document reflects the implemented product behavior as of **February 19, 202
 
 ### Contacts
 
-- Tags drive role usage in shipment forms (`Expéditeur`, `Destinataire`, `Correspondant`, etc.).
-- `destinations` (M2M): destination scoping for shippers/correspondents.
-- `linked_shippers` (M2M): shipper scoping for recipients.
+- Organization roles drive contact usage in shipment forms (`SHIPPER`, `RECIPIENT`, `CORRESPONDENT`).
+- `ShipperScope`: destination scoping for shipper organizations.
+- `RecipientBinding`: shipper + destination scoping for recipient organizations.
 - Recipient governance:
-  - linked shippers required when creating a recipient contact.
-  - default shipper `AVIATION SANS FRONTIERES` auto-added when available.
+  - recipient availability requires an explicit active binding.
+  - default shipper automation is handled through org-role services, not legacy contact links.
 
 ## Shipment workflow (implemented)
 
 1. In `Créer une expédition`, destination is selected first.
-2. Shipper list is filtered by destination (explicit match + global contacts).
-3. Recipient list is filtered by selected shipper (explicit linked shippers + global recipients).
+2. Shipper list is filtered by active scopes on the selected destination.
+3. Recipient list is filtered by active recipient bindings for the selected shipper and destination.
 4. Correspondent list is destination-scoped and forced to the destination configured correspondent; if destination has no configured correspondent, the list is empty.
 5. Details section appears only after destination + shipper + recipient + correspondent are selected.
 6. User can:

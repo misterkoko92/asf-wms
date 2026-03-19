@@ -19,7 +19,6 @@ from wms.models import (
     ShipmentStatus,
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
-    WmsRuntimeSettings,
 )
 from wms.signals import _notify_shipment_status_change, _notify_tracking_event
 
@@ -31,10 +30,6 @@ class SignalsOrgRoleNotificationsTests(TestCase):
             email="signals-org-role-user@example.org",
             password="pass1234",
         )
-
-        runtime = WmsRuntimeSettings.get_solo()
-        runtime.org_roles_engine_enabled = True
-        runtime.save(update_fields=["org_roles_engine_enabled"])
 
     def _create_org(self, name: str, email: str) -> Contact:
         return Contact.objects.create(

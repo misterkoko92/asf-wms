@@ -726,15 +726,13 @@ class ScanAdminContactsCockpitViewTests(TestCase):
         self.assertNotIn(f'value="{self.shipper.id}"', recipient_select)
         self.assertNotIn(f'value="{self.other_org.id}"', recipient_select)
 
-    def test_binding_form_context_does_not_use_legacy_contact_destinations_as_default(self):
+    def test_binding_form_context_does_not_infer_default_destination_without_org_role_source(self):
         self.client.force_login(self.superuser)
         legacy_only_recipient = Contact.objects.create(
             name="Legacy Destination Recipient",
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
-            destination=self.destination,
         )
-        legacy_only_recipient.destinations.add(self.destination)
         OrganizationRoleAssignment.objects.create(
             organization=legacy_only_recipient,
             role=OrganizationRole.RECIPIENT,

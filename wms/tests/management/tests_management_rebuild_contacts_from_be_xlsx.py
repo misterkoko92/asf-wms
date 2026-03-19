@@ -8,7 +8,7 @@ from django.core.management import call_command
 from django.test import TestCase
 from openpyxl import Workbook
 
-from contacts.models import Contact, ContactTag, ContactType
+from contacts.models import Contact, ContactType
 from wms.contact_rebuild import (
     BeContactDataset,
     apply_be_contact_dataset,
@@ -392,11 +392,6 @@ class RebuildContactsFromBeXlsxPersistenceTests(TestCase):
         self.assertEqual(shipper.contact_type, ContactType.ORGANIZATION)
         self.assertEqual(recipient.contact_type, ContactType.ORGANIZATION)
         self.assertEqual(correspondent.contact_type, ContactType.PERSON)
-        self.assertFalse(shipper.destinations.exists())
-        self.assertIsNone(shipper.destination_id)
-        self.assertFalse(recipient.destinations.exists())
-        self.assertIsNone(recipient.destination_id)
-        self.assertFalse(recipient.linked_shippers.exists())
         self.assertEqual(destination.correspondent_contact_id, correspondent.id)
         self.assertTrue(
             OrganizationRoleAssignment.objects.filter(
@@ -420,7 +415,6 @@ class RebuildContactsFromBeXlsxPersistenceTests(TestCase):
                 is_active=True,
             ).exists()
         )
-        self.assertTrue(ContactTag.objects.filter(name="donateur").exists())
 
     def test_apply_be_contact_dataset_keeps_default_shipper_bindings_limited_to_dataset(self):
         dataset = BeContactDataset(

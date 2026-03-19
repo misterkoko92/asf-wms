@@ -29,7 +29,6 @@ from .models import (
     Shipment,
     ShipmentStatus,
 )
-from .organization_role_resolvers import is_org_roles_engine_enabled
 from .pack_handlers import build_pack_defaults, handle_pack_post
 from .prepare_kits_helpers import (
     _parse_carton_ids,
@@ -229,7 +228,6 @@ def _render_shipment_form(
         shipper_contacts_json=support["shipper_contacts_json"],
         recipient_contacts_json=support["recipient_contacts_json"],
         correspondent_contacts_json=support["correspondent_contacts_json"],
-        org_roles_engine_enabled=is_org_roles_engine_enabled(),
     )
     context["active"] = active
     context.update(_build_local_document_helper_context(request))

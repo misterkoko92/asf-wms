@@ -53,7 +53,21 @@ def sync_association_recipients_to_contacts(apps, schema_editor):
     AssociationRecipient = apps.get_model("wms", "AssociationRecipient")
     Contact = apps.get_model("contacts", "Contact")
     ContactAddress = apps.get_model("contacts", "ContactAddress")
-    ContactTag = apps.get_model("contacts", "ContactTag")
+
+    try:
+        ContactTag = apps.get_model("contacts", "ContactTag")
+    except LookupError:
+        ContactTag = None
+
+    contact_field_names = {field.name for field in Contact._meta.get_fields()}
+    supports_legacy_contact_links = {
+        "destination",
+        "destinations",
+        "linked_shippers",
+        "tags",
+    }.issubset(contact_field_names)
+    if ContactTag is None or not supports_legacy_contact_links:
+        return
 
     recipient_aliases = {
         _normalize("destinataire"),
@@ -87,15 +101,17 @@ def sync_association_recipients_to_contacts(apps, schema_editor):
         source = f"[Portail association] {recipient.association_contact}"
         full_notes = f"{source}\n{notes}".strip() if notes else source
 
-        contact = Contact.objects.create(
-            contact_type="organization",
-            name=_display_name(recipient),
-            email=primary_email,
-            phone=primary_phone,
-            destination_id=recipient.destination_id,
-            notes=full_notes,
-            is_active=recipient.is_active,
-        )
+        contact_kwargs = {
+            "contact_type": "organization",
+            "name": _display_name(recipient),
+            "email": primary_email,
+            "phone": primary_phone,
+            "notes": full_notes,
+            "is_active": recipient.is_active,
+        }
+        if "destination" in contact_field_names:
+            contact_kwargs["destination_id"] = recipient.destination_id
+        contact = Contact.objects.create(**contact_kwargs)
 
         if recipient.address_line1:
             ContactAddress.objects.create(

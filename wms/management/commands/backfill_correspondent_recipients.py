@@ -30,7 +30,6 @@ class Command(BaseCommand):
                 [
                     f"- Correspondents scanned: {summary['processed_contacts']}",
                     f"- Contacts changed: {summary['changed_contacts']}",
-                    f"- Recipient tags added: {summary['recipient_tags_added']}",
                     f"- Support organizations created: {summary['support_organizations_created']}",
                     (
                         "- Contacts attached to support organization: "

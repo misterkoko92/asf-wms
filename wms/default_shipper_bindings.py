@@ -6,7 +6,6 @@ from contextvars import ContextVar
 from django.utils import timezone
 
 from contacts.models import Contact, ContactType
-from contacts.rules import get_default_recipient_shipper
 
 from .models import (
     Destination,
@@ -20,6 +19,7 @@ _DEFAULT_SHIPPER_BINDING_SYNC_ENABLED = ContextVar(
     "default_shipper_binding_sync_enabled",
     default=True,
 )
+DEFAULT_RECIPIENT_SHIPPER_NAME = "AVIATION SANS FRONTIERES"
 
 
 def default_shipper_binding_sync_enabled() -> bool:
@@ -36,7 +36,24 @@ def suppress_default_shipper_binding_sync():
 
 
 def _resolve_default_shipper_organization() -> Contact | None:
-    default_shipper = get_default_recipient_shipper()
+    default_shipper = (
+        OrganizationRoleAssignment.objects.filter(
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+            organization__is_active=True,
+            organization__name__iexact=DEFAULT_RECIPIENT_SHIPPER_NAME,
+        )
+        .select_related("organization")
+        .order_by("id")
+        .first()
+    )
+    default_shipper = default_shipper.organization if default_shipper else None
+    if default_shipper is None:
+        default_shipper = Contact.objects.filter(
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+            name__iexact=DEFAULT_RECIPIENT_SHIPPER_NAME,
+        ).first()
     if default_shipper is None:
         return None
     if default_shipper.contact_type == ContactType.ORGANIZATION:

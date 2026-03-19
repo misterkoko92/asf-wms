@@ -26,14 +26,13 @@ class PublicOrderHelpersTests(TestCase):
         data.update(overrides)
         return data
 
-    def test_upsert_creates_contact_without_legacy_tag_or_address_side_effects(self):
+    def test_upsert_creates_contact_without_address_side_effects(self):
         contact = upsert_public_order_contact(self._form_data(association_country=""))
 
         self.assertTrue(contact.is_active)
         self.assertEqual(contact.name, "Association Test")
         self.assertEqual(contact.email, "asso@example.com")
         self.assertEqual(contact.phone, "0102030405")
-        self.assertEqual(contact.tags.count(), 0)
         self.assertEqual(contact.addresses.count(), 0)
 
     def test_upsert_updates_existing_contact_by_id_without_mutating_legacy_addresses(self):
@@ -120,7 +119,6 @@ class PublicOrderHelpersTests(TestCase):
         self.assertEqual(Contact.objects.count(), 2)
         self.assertTrue(result.is_active)
         self.assertEqual(result.name, "Association New Active")
-        self.assertEqual(result.tags.count(), 0)
         self.assertEqual(result.addresses.count(), 0)
 
     def test_upsert_does_not_create_address_for_existing_contact_without_any_address(self):

@@ -2,15 +2,13 @@ from unittest import mock
 
 from django.test import TestCase
 
-from contacts.models import Contact, ContactAddress, ContactTag, ContactType
+from contacts.models import Contact, ContactAddress, ContactType
 from wms.import_services_contacts import import_contacts
 from wms.import_utils import parse_str as import_parse_str
-from wms.models import Destination
 
 
 class ImportContactsExtraTests(TestCase):
     def test_import_contacts_updates_contact_type_when_lookup_returns_mismatch(self):
-        tag = ContactTag.objects.create(name="donateur")
         person = Contact.objects.create(
             name="Mismatch Contact",
             contact_type=ContactType.PERSON,
@@ -31,7 +29,6 @@ class ImportContactsExtraTests(TestCase):
                     {
                         "contact_type": "organization",
                         "name": "Mismatch Contact",
-                        "tags": "donateur",
                     }
                 ]
             )
@@ -39,10 +36,9 @@ class ImportContactsExtraTests(TestCase):
         self.assertEqual(created, 0)
         self.assertEqual(updated, 1)
         self.assertEqual(errors, [])
-        self.assertEqual(len(warnings), 1)
+        self.assertEqual(warnings, [])
         person.refresh_from_db()
         self.assertEqual(person.contact_type, ContactType.ORGANIZATION)
-        self.assertEqual(list(person.tags.values_list("name", flat=True)), [tag.name])
 
     def test_import_contacts_reports_missing_lookup_name_after_defensive_join(self):
         class TruthyEmptyString(str):
@@ -74,7 +70,7 @@ class ImportContactsExtraTests(TestCase):
 
     def test_import_contacts_skips_empty_rows(self):
         rows = [
-            {"name": "   ", "tags": "   "},
+            {"name": "   ", "extra_column": "   "},
         ]
 
         created, updated, errors, warnings = import_contacts(rows)
@@ -105,7 +101,6 @@ class ImportContactsExtraTests(TestCase):
         )
 
     def test_import_contacts_updates_optional_fields_for_existing_contact(self):
-        tag = ContactTag.objects.create(name="donateur")
         contact = Contact.objects.create(
             name="Org Optional",
             contact_type=ContactType.ORGANIZATION,
@@ -113,7 +108,6 @@ class ImportContactsExtraTests(TestCase):
             asf_id=None,
             is_active=True,
         )
-        contact.tags.add(tag)
         rows = [
             {
                 "contact_type": "organization",
@@ -194,7 +188,7 @@ class ImportContactsExtraTests(TestCase):
         self.assertEqual(warnings, [])
         self.assertEqual(errors, ["Ligne 2: Société requise pour utiliser l'adresse."])
 
-    def test_import_contacts_org_tag_requirement_and_name_fallback(self):
+    def test_import_contacts_org_name_fallback_and_unknown_columns_are_ignored(self):
         rows_error = [
             {
                 "contact_type": "organization",
@@ -205,13 +199,14 @@ class ImportContactsExtraTests(TestCase):
         self.assertEqual(created, 1)
         self.assertEqual(updated, 0)
         self.assertEqual(warnings, [])
-        self.assertEqual(errors, ["Ligne 2: Tag requis pour une societe."])
+        self.assertEqual(errors, [])
+        self.assertTrue(Contact.objects.filter(name="Org Last").exists())
 
         rows_ok = [
             {
                 "contact_type": "organization",
                 "company": "Org Company",
-                "tags": "donateur",
+                "extra_column": "ignored",
             }
         ]
         created, updated, errors, warnings = import_contacts(rows_ok)
@@ -221,44 +216,34 @@ class ImportContactsExtraTests(TestCase):
         self.assertEqual(updated, 0)
         self.assertTrue(Contact.objects.filter(name="Org Company").exists())
 
-    def test_import_contacts_ignores_legacy_destination_columns_and_preserves_existing_asf_id(self):
-        tag = ContactTag.objects.create(name="donateur")
+    def test_import_contacts_preserves_existing_asf_id_with_unknown_columns(self):
         contact = Contact.objects.create(
             name="Org A",
             contact_type=ContactType.ORGANIZATION,
             asf_id="ASF-OLD",
         )
-        contact.tags.add(tag)
         rows = [
             {
                 "contact_type": "organization",
                 "name": "Org A",
                 "asf_id": "ASF-NEW",
-                "destination": "Paris (CDG) - France",
-                "tags": "donateur",
+                "extra_column": "unused",
             }
         ]
         created, updated, errors, warnings = import_contacts(rows)
 
         self.assertEqual(errors, [])
-        self.assertEqual(
-            warnings,
-            ["Ligne 2: colonnes legacy destination(s) ignorées; utilisez les scopes org-role."],
-        )
+        self.assertEqual(warnings, [])
         self.assertEqual(created, 0)
         self.assertEqual(updated, 1)
         contact.refresh_from_db()
         self.assertEqual(contact.asf_id, "ASF-OLD")
-        self.assertFalse(contact.destinations.exists())
-        self.assertIsNone(contact.destination_id)
 
     def test_import_contacts_updates_existing_address(self):
-        tag = ContactTag.objects.create(name="donateur")
         contact = Contact.objects.create(
             name="Org Addr",
             contact_type=ContactType.ORGANIZATION,
         )
-        contact.tags.add(tag)
         address = ContactAddress.objects.create(
             contact=contact,
             label="Old",
@@ -277,7 +262,6 @@ class ImportContactsExtraTests(TestCase):
             {
                 "contact_type": "organization",
                 "name": "Org Addr",
-                "tags": "donateur",
                 "address_line1": "1 Rue",
                 "postal_code": "75000",
                 "city": "Paris",
@@ -309,7 +293,6 @@ class ImportContactsExtraTests(TestCase):
             {
                 "contact_type": "organization",
                 "name": "Org New Address",
-                "tags": "donateur",
                 "address_line1": "2 Rue",
                 "city": "Lyon",
                 "postal_code": "69000",
@@ -319,7 +302,6 @@ class ImportContactsExtraTests(TestCase):
             {
                 "contact_type": "organization",
                 "name": "Org Bad Bool",
-                "tags": "donateur",
                 "is_active": "maybe",
             },
         ]
@@ -333,19 +315,16 @@ class ImportContactsExtraTests(TestCase):
         self.assertEqual(contact.addresses.count(), 1)
         self.assertTrue(contact.addresses.first().is_default)
 
-    def test_import_contacts_ignores_multi_destinations_column(self):
-        tag = ContactTag.objects.create(name="donateur")
+    def test_import_contacts_ignores_unknown_extra_columns(self):
         contact = Contact.objects.create(
             name="Org Multi Dest",
             contact_type=ContactType.ORGANIZATION,
         )
-        contact.tags.add(tag)
         rows = [
             {
                 "contact_type": "organization",
                 "name": "Org Multi Dest",
-                "tags": "donateur",
-                "destinations": "Paris (CDG2) - France|Lome (LFW2) - Togo",
+                "extra_notes": "Paris (CDG2) - France|Lome (LFW2) - Togo",
             }
         ]
         created, updated, errors, warnings = import_contacts(rows)
@@ -353,16 +332,11 @@ class ImportContactsExtraTests(TestCase):
         self.assertEqual(created, 0)
         self.assertEqual(updated, 1)
         self.assertEqual(errors, [])
-        self.assertEqual(
-            warnings,
-            ["Ligne 2: colonnes legacy destination(s) ignorées; utilisez les scopes org-role."],
-        )
+        self.assertEqual(warnings, [])
         contact.refresh_from_db()
-        self.assertFalse(contact.destinations.exists())
-        self.assertIsNone(contact.destination_id)
+        self.assertEqual(contact.name, "Org Multi Dest")
 
-    def test_import_contacts_ignores_linked_shippers_column(self):
-        recipient_tag = ContactTag.objects.create(name="destinataire")
+    def test_import_contacts_unknown_columns_do_not_create_related_contacts(self):
         existing_shipper = Contact.objects.create(
             name="Shipper Existing",
             contact_type=ContactType.ORGANIZATION,
@@ -371,8 +345,7 @@ class ImportContactsExtraTests(TestCase):
             {
                 "contact_type": "organization",
                 "name": "Recipient Linked Import",
-                "tags": "destinataire",
-                "linked_shippers": "Shipper Existing|Shipper Created",
+                "unmapped_reference": "Shipper Existing|Shipper Created",
             }
         ]
 
@@ -381,12 +354,8 @@ class ImportContactsExtraTests(TestCase):
         self.assertEqual(created, 1)
         self.assertEqual(updated, 0)
         self.assertEqual(errors, [])
-        self.assertEqual(
-            warnings,
-            ["Ligne 2: colonne linked_shippers ignorée; utilisez RecipientBinding."],
-        )
+        self.assertEqual(warnings, [])
         recipient = Contact.objects.get(name="Recipient Linked Import")
-        self.assertTrue(recipient.tags.filter(pk=recipient_tag.pk).exists())
-        self.assertFalse(recipient.linked_shippers.exists())
-        self.assertEqual(existing_shipper.tags.count(), 0)
+        self.assertEqual(recipient.contact_type, ContactType.ORGANIZATION)
+        self.assertEqual(existing_shipper.name, "Shipper Existing")
         self.assertFalse(Contact.objects.filter(name="Shipper Created").exists())

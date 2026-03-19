@@ -9,7 +9,7 @@ from django.test import Client, TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from contacts.models import Contact, ContactTag, ContactType
+from contacts.models import Contact, ContactType
 from wms.models import (
     TEMP_SHIPMENT_REFERENCE_PREFIX,
     AssociationContactTitle,
@@ -72,14 +72,14 @@ class UiApiEndpointsTests(TestCase):
             is_superuser=True,
         )
 
-        association_contact = Contact.objects.create(
+        self.association_contact = Contact.objects.create(
             name="Association UI API",
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
         AssociationProfile.objects.create(
             user=self.portal_user,
-            contact=association_contact,
+            contact=self.association_contact,
         )
 
         self.staff_client = APIClient()
@@ -144,7 +144,6 @@ class UiApiEndpointsTests(TestCase):
 
         self.correspondent_contact = self._create_contact(
             "UI Correspondent",
-            tags=["correspondant"],
             contact_type=ContactType.PERSON,
         )
         self.destination = Destination.objects.create(
@@ -154,22 +153,20 @@ class UiApiEndpointsTests(TestCase):
             correspondent_contact=self.correspondent_contact,
             is_active=True,
         )
+        self._grant_shipper_scope(self.association_contact, self.destination)
 
         self.shipper_contact = self._create_contact(
             "UI Shipper",
-            tags=["expediteur"],
         )
         self._grant_shipper_scope(self.shipper_contact, self.destination)
 
         self.recipient_contact = self._create_contact(
             "UI Recipient",
-            tags=["destinataire"],
         )
         self._bind_recipient(self.shipper_contact, self.recipient_contact, self.destination)
 
         self.donor_contact = self._create_contact(
             "UI Donor",
-            tags=["donateur"],
         )
         self._assign_role(self.donor_contact, OrganizationRole.DONOR)
 
@@ -219,7 +216,7 @@ class UiApiEndpointsTests(TestCase):
             created_by=self.staff_user,
         )
         self.portal_order = Order.objects.create(
-            association_contact=association_contact,
+            association_contact=self.association_contact,
             review_status=OrderReviewStatus.PENDING,
             shipper_name="Sender",
             recipient_name="Recipient",
@@ -229,7 +226,7 @@ class UiApiEndpointsTests(TestCase):
             created_by=self.staff_user,
         )
         self.portal_recipient = AssociationRecipient.objects.create(
-            association_contact=association_contact,
+            association_contact=self.association_contact,
             destination=self.destination,
             name="Recipient Structure",
             structure_name="Recipient Structure",
@@ -243,15 +240,12 @@ class UiApiEndpointsTests(TestCase):
             phone="0102030405",
         )
 
-    def _create_contact(self, name, *, tags, contact_type=ContactType.ORGANIZATION):
+    def _create_contact(self, name, *, contact_type=ContactType.ORGANIZATION):
         contact = Contact.objects.create(
             name=name,
             contact_type=contact_type,
             is_active=True,
         )
-        for tag_name in tags:
-            tag, _ = ContactTag.objects.get_or_create(name=tag_name)
-            contact.tags.add(tag)
         return contact
 
     def _assign_role(self, contact, role):
@@ -322,9 +316,6 @@ class UiApiEndpointsTests(TestCase):
             correspondent_contact=self.correspondent_contact,
             is_active=True,
         )
-        self.shipper_contact.destinations.add(secondary_destination)
-        self.recipient_contact.destinations.add(secondary_destination)
-        self.correspondent_contact.destinations.add(secondary_destination)
         Shipment.objects.create(
             status=ShipmentStatus.PLANNED,
             shipper_name=self.shipper_contact.name,

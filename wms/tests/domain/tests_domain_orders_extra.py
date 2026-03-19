@@ -4,7 +4,7 @@ from unittest import mock
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-from contacts.models import Contact, ContactTag, ContactType
+from contacts.models import Contact, ContactType
 from wms.domain.orders import (
     assign_ready_cartons_to_order,
     consume_reserved_stock,
@@ -27,11 +27,15 @@ from wms.models import (
     OrderLine,
     OrderReservation,
     OrderStatus,
+    OrganizationRole,
+    OrganizationRoleAssignment,
     Product,
     ProductLot,
     ProductLotStatus,
+    RecipientBinding,
     Shipment,
     ShipmentStatus,
+    ShipperScope,
     StockMovement,
     Warehouse,
 )
@@ -62,6 +66,64 @@ class DomainOrdersExtraTests(TestCase):
             default_location=self.location,
             qr_code_image="qr_codes/test.png",
         )
+        self.correspondent_contact = self._create_person_contact("Domain Correspondent")
+        self.destination = Destination.objects.create(
+            city="Domain City",
+            iata_code="DOM",
+            country="Country",
+            correspondent_contact=self.correspondent_contact,
+            is_active=True,
+        )
+        self.shipper_contact = self._create_org_contact("Domain Shipper")
+        self.recipient_contact = self._create_org_contact("Domain Recipient")
+        self._grant_shipper_scope(self.shipper_contact, self.destination)
+        self._bind_recipient(self.shipper_contact, self.recipient_contact, self.destination)
+
+    def _create_org_contact(self, name):
+        return Contact.objects.create(
+            name=name,
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+
+    def _create_person_contact(self, name):
+        first_name, last_name = name.split(" ", 1)
+        return Contact.objects.create(
+            name=name,
+            contact_type=ContactType.PERSON,
+            first_name=first_name,
+            last_name=last_name,
+            is_active=True,
+        )
+
+    def _assign_role(self, contact, role):
+        assignment, _ = OrganizationRoleAssignment.objects.get_or_create(
+            organization=contact,
+            role=role,
+            defaults={"is_active": True},
+        )
+        if not assignment.is_active:
+            assignment.is_active = True
+            assignment.save(update_fields=["is_active", "updated_at"])
+        return assignment
+
+    def _grant_shipper_scope(self, shipper_contact, destination):
+        assignment = self._assign_role(shipper_contact, OrganizationRole.SHIPPER)
+        ShipperScope.objects.get_or_create(
+            role_assignment=assignment,
+            destination=destination,
+            defaults={"is_active": True},
+        )
+
+    def _bind_recipient(self, shipper_contact, recipient_contact, destination):
+        self._assign_role(shipper_contact, OrganizationRole.SHIPPER)
+        self._assign_role(recipient_contact, OrganizationRole.RECIPIENT)
+        RecipientBinding.objects.get_or_create(
+            shipper_org=shipper_contact,
+            recipient_org=recipient_contact,
+            destination=destination,
+            defaults={"is_active": True},
+        )
 
     def _create_order(
         self,
@@ -74,11 +136,15 @@ class DomainOrdersExtraTests(TestCase):
     ):
         order = Order.objects.create(
             status=status,
-            shipper_name="Sender",
-            recipient_name="Recipient",
-            correspondent_name="Contact",
+            shipper_name=self.shipper_contact.name,
+            shipper_contact=self.shipper_contact,
+            recipient_name=self.recipient_contact.name,
+            recipient_contact=self.recipient_contact,
+            correspondent_name=self.correspondent_contact.name,
+            correspondent_contact=self.correspondent_contact,
             destination_address="10 Rue Test",
-            destination_country="France",
+            destination_city=self.destination.city,
+            destination_country=self.destination.country,
             created_by=self.user,
         )
         line = OrderLine.objects.create(
@@ -132,7 +198,7 @@ class DomainOrdersExtraTests(TestCase):
 
         self.assertEqual(same_shipment.id, shipment.id)
 
-    def test_create_shipment_for_order_does_not_resolve_contacts_from_names(self):
+    def test_create_shipment_for_order_rejects_name_only_contacts(self):
         shipper = Contact.objects.create(
             name="Sender",
             contact_type=ContactType.ORGANIZATION,
@@ -167,42 +233,27 @@ class DomainOrdersExtraTests(TestCase):
         )
         OrderLine.objects.create(order=order, product=self.product, quantity=1)
 
-        shipment = create_shipment_for_order(order=order)
-
-        self.assertIsNone(shipment.shipper_contact_ref_id)
-        self.assertIsNone(shipment.recipient_contact_ref_id)
-        self.assertEqual(
-            shipment.correspondent_contact_ref_id, destination.correspondent_contact_id
-        )
-        self.assertEqual(shipment.shipper_name, "Sender")
-        self.assertEqual(shipment.recipient_name, "Recipient")
-        self.assertEqual(shipment.correspondent_name, "Contact")
+        with self.assertRaisesMessage(StockError, "Expediteur requis."):
+            create_shipment_for_order(order=order)
 
     def test_create_shipment_for_order_sets_contact_refs_and_destination_from_order(self):
-        shipper_tag, _ = ContactTag.objects.get_or_create(name="Expéditeur")
-        recipient_tag, _ = ContactTag.objects.get_or_create(name="Destinataire")
-        correspondent_tag, _ = ContactTag.objects.get_or_create(name="Correspondant")
-
         shipper = Contact.objects.create(
             name="Association Shipper",
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        shipper.tags.add(shipper_tag)
 
         recipient = Contact.objects.create(
             name="Recipient Scope",
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        recipient.tags.add(recipient_tag)
 
         correspondent = Contact.objects.create(
             name="Correspondent Scope",
             contact_type=ContactType.PERSON,
             is_active=True,
         )
-        correspondent.tags.add(correspondent_tag)
 
         destination = Destination.objects.create(
             city="Brazzaville",
@@ -211,6 +262,8 @@ class DomainOrdersExtraTests(TestCase):
             correspondent_contact=correspondent,
             is_active=True,
         )
+        self._grant_shipper_scope(shipper, destination)
+        self._bind_recipient(shipper, recipient, destination)
 
         order = Order.objects.create(
             status=OrderStatus.DRAFT,
@@ -259,6 +312,8 @@ class DomainOrdersExtraTests(TestCase):
             correspondent_contact=correspondent,
             is_active=True,
         )
+        self._grant_shipper_scope(association, destination)
+        self._bind_recipient(association, recipient, destination)
 
         existing_shipment = Shipment.objects.create(
             status=ShipmentStatus.DRAFT,

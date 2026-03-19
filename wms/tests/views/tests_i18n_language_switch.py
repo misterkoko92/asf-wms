@@ -13,9 +13,12 @@ from wms.models import (
     Order,
     OrderReviewStatus,
     OrderStatus,
+    OrganizationRole,
+    OrganizationRoleAssignment,
     PublicOrderLink,
     Shipment,
     ShipmentStatus,
+    ShipperScope,
 )
 
 
@@ -68,6 +71,16 @@ class LanguageSwitchI18nTests(TestCase):
             iata_code="I18",
             country="France",
             correspondent_contact=correspondent_contact,
+            is_active=True,
+        )
+        shipper_assignment = OrganizationRoleAssignment.objects.create(
+            organization=association_contact,
+            role=OrganizationRole.SHIPPER,
+            is_active=True,
+        )
+        ShipperScope.objects.create(
+            role_assignment=shipper_assignment,
+            destination=destination,
             is_active=True,
         )
         AssociationRecipient.objects.create(

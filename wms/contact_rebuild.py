@@ -9,8 +9,7 @@ from django.db import transaction
 from django.utils import timezone
 from openpyxl import load_workbook
 
-from contacts.models import Contact, ContactTag, ContactType
-from contacts.tagging import TAG_CORRESPONDENT, TAG_DONOR, TAG_RECIPIENT, TAG_SHIPPER
+from contacts.models import Contact, ContactType
 from wms.default_shipper_bindings import suppress_default_shipper_binding_sync
 from wms.models import (
     Destination,
@@ -549,11 +548,6 @@ def render_review_report(review_items: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def _ensure_tag(name: str) -> ContactTag:
-    tag, _ = ContactTag.objects.get_or_create(name=name)
-    return tag
-
-
 def _get_or_create_contact(*, name: str, contact_type: str) -> Contact:
     contact, _ = Contact.objects.get_or_create(
         name=name,
@@ -581,11 +575,6 @@ def _ensure_role_assignment(*, contact: Contact, role: str) -> OrganizationRoleA
 def apply_be_contact_dataset(dataset: BeContactDataset) -> None:
     with suppress_default_shipper_binding_sync():
         with transaction.atomic():
-            donor_tag = _ensure_tag(TAG_DONOR[0])
-            shipper_tag = _ensure_tag(TAG_SHIPPER[0])
-            recipient_tag = _ensure_tag(TAG_RECIPIENT[0])
-            correspondent_tag = _ensure_tag(TAG_CORRESPONDENT[0])
-
             contacts_by_key: dict[str, Contact] = {}
 
             for donor in dataset.donors:
@@ -593,7 +582,6 @@ def apply_be_contact_dataset(dataset: BeContactDataset) -> None:
                     name=donor["name"],
                     contact_type=ContactType.ORGANIZATION,
                 )
-                contact.tags.add(donor_tag)
                 contacts_by_key[donor["key"]] = contact
                 _ensure_role_assignment(contact=contact, role=OrganizationRole.DONOR)
 
@@ -602,7 +590,6 @@ def apply_be_contact_dataset(dataset: BeContactDataset) -> None:
                     name=shipper["name"],
                     contact_type=ContactType.ORGANIZATION,
                 )
-                contact.tags.add(shipper_tag)
                 contacts_by_key[shipper["key"]] = contact
                 _ensure_role_assignment(contact=contact, role=OrganizationRole.SHIPPER)
 
@@ -611,7 +598,6 @@ def apply_be_contact_dataset(dataset: BeContactDataset) -> None:
                     name=recipient["name"],
                     contact_type=ContactType.ORGANIZATION,
                 )
-                contact.tags.add(recipient_tag)
                 contacts_by_key[recipient["key"]] = contact
                 _ensure_role_assignment(contact=contact, role=OrganizationRole.RECIPIENT)
 
@@ -620,7 +606,6 @@ def apply_be_contact_dataset(dataset: BeContactDataset) -> None:
                     name=correspondent["name"],
                     contact_type=ContactType.PERSON,
                 )
-                contact.tags.add(correspondent_tag)
                 contacts_by_key[correspondent["key"]] = contact
 
             destinations_by_iata: dict[str, Destination] = {}

@@ -2233,8 +2233,8 @@
         return false;
       }
       const explicitDestinationIds = orgRolesEngineEnabled
-        ? asIdList(contact.scoped_destination_ids)
-        : asIdList(contact.destination_ids);
+        ? asIdList(contact.scope_destination_ids)
+        : asIdList(contact.allowed_destination_ids);
       if (!explicitDestinationIds.length) {
         return false;
       }
@@ -2244,12 +2244,12 @@
       if (!contact || !destinationId) {
         return false;
       }
-      const scopedDestinationIds = asIdList(contact.destination_ids);
+      const scopedDestinationIds = asIdList(contact.allowed_destination_ids);
       if (scopedDestinationIds.length) {
         return scopedDestinationIds.includes(String(destinationId));
       }
-      if (contact.destination_id) {
-        return String(contact.destination_id) === String(destinationId);
+      if (contact.default_destination_id) {
+        return String(contact.default_destination_id) === String(destinationId);
       }
       return true;
     };
@@ -2257,7 +2257,7 @@
       if (!recipient || !shipperId) {
         return false;
       }
-      const linkedShipperIds = asIdList(recipient.linked_shipper_ids);
+      const linkedShipperIds = asIdList(recipient.bound_shipper_ids);
       if (!linkedShipperIds.length) {
         return false;
       }

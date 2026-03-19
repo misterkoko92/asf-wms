@@ -1,18 +1,9 @@
 import re
 
-from contacts.models import Contact, ContactAddress, ContactTag, ContactType
+from contacts.models import Contact, ContactAddress, ContactType
 
 from .import_services_common import _row_is_empty
-from .import_services_tags import build_contact_tags
 from .import_utils import get_value, parse_bool, parse_str
-
-DESTINATION_KEYS = ("destination", "dest", "destination_name")
-DESTINATIONS_KEYS = ("destinations", "destination_scope", "destinations_scope")
-LINKED_SHIPPERS_KEYS = ("linked_shippers", "expediteurs_lies", "expediteurs_lie")
-
-
-def _row_has_any_key(row, *keys):
-    return any(key in row for key in keys)
 
 
 def _parse_multi_values(value):
@@ -131,29 +122,6 @@ def import_contacts(rows):
             if was_created:
                 created += 1
 
-            tags = build_contact_tags(get_value(row, "tags", "etiquettes"))
-            if (
-                contact.contact_type == ContactType.ORGANIZATION
-                and not tags
-                and not contact.tags.exists()
-            ):
-                raise ValueError("Tag requis pour une societe.")
-            if tags:
-                if was_created:
-                    contact.tags.set(tags)
-                else:
-                    existing_tag_names = set(contact.tags.values_list("name", flat=True))
-                    new_tags = [tag for tag in tags if tag.name not in existing_tag_names]
-                    if new_tags:
-                        contact.tags.add(*new_tags)
-                        warnings.append(
-                            "Ligne {}: tags fusionnés (ajoutés: {}).".format(
-                                index, ", ".join(sorted(tag.name for tag in new_tags))
-                            )
-                        )
-                    else:
-                        contact.tags.add(*tags)
-
             if contact_type == ContactType.PERSON:
                 organization_name = parse_str(
                     get_value(row, "organization", "societe", "company", "organisation")
@@ -173,16 +141,6 @@ def import_contacts(rows):
                         )
                     contact.organization = organization
                     contact.save(update_fields=["organization"])
-
-            if _row_has_any_key(row, *DESTINATION_KEYS, *DESTINATIONS_KEYS):
-                warnings.append(
-                    f"Ligne {index}: colonnes legacy destination(s) ignorées; utilisez les scopes org-role."
-                )
-
-            if _row_has_any_key(row, *LINKED_SHIPPERS_KEYS):
-                warnings.append(
-                    f"Ligne {index}: colonne linked_shippers ignorée; utilisez RecipientBinding."
-                )
 
             address_line1 = parse_str(get_value(row, "address_line1", "adresse"))
             if address_line1 and not contact.use_organization_address:

@@ -5,16 +5,6 @@ from django.utils.translation import gettext_lazy as _
 
 from contacts.models import Contact, ContactType
 
-from .contact_filters import (
-    TAG_CORRESPONDENT,
-    TAG_DONOR,
-    TAG_RECIPIENT,
-    TAG_SHIPPER,
-    TAG_TRANSPORTER,
-    contacts_with_tags,
-    filter_contacts_for_destination,
-    filter_structure_contacts,
-)
 from .contact_labels import build_contact_select_label, build_shipment_recipient_select_label
 from .models import (
     Carton,
@@ -38,7 +28,6 @@ from .organization_role_resolvers import (
     OrganizationRoleResolutionError,
     active_organizations_for_role,
     active_organizations_for_roles,
-    is_org_roles_engine_enabled,
     resolve_recipient_binding_for_operation,
     resolve_shipper_for_operation,
 )
@@ -761,24 +750,23 @@ class ScanShipmentForm(forms.Form):
                     _("Correspondant non lie a la destination."),
                 )
 
-        if is_org_roles_engine_enabled():
-            if shipper:
-                try:
-                    resolve_shipper_for_operation(
-                        shipper_org=shipper_org,
-                        destination=destination,
-                    )
-                except OrganizationRoleResolutionError as exc:
-                    self.add_error("shipper_contact", str(exc))
-            if shipper and recipient:
-                try:
-                    resolve_recipient_binding_for_operation(
-                        shipper_org=shipper_org,
-                        recipient_org=recipient_org,
-                        destination=destination,
-                    )
-                except OrganizationRoleResolutionError as exc:
-                    self.add_error("recipient_contact", str(exc))
+        if shipper:
+            try:
+                resolve_shipper_for_operation(
+                    shipper_org=shipper_org,
+                    destination=destination,
+                )
+            except OrganizationRoleResolutionError as exc:
+                self.add_error("shipper_contact", str(exc))
+        if shipper and recipient:
+            try:
+                resolve_recipient_binding_for_operation(
+                    shipper_org=shipper_org,
+                    recipient_org=recipient_org,
+                    destination=destination,
+                )
+            except OrganizationRoleResolutionError as exc:
+                self.add_error("recipient_contact", str(exc))
         return cleaned
 
 

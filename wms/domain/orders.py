@@ -20,7 +20,6 @@ from ..models import (
 )
 from ..organization_role_resolvers import (
     OrganizationRoleResolutionError,
-    is_org_roles_engine_enabled,
     resolve_recipient_binding_for_operation,
     resolve_shipper_for_operation,
 )
@@ -60,6 +59,13 @@ def _resolve_shipper_contact_for_order(order: Order):
 
 def _resolve_recipient_contact_for_order(order: Order):
     return _active_contact(order.recipient_contact)
+
+
+def _requires_recipient_binding_for_order(
+    order: Order, *, recipient_contact: Contact | None
+) -> bool:
+    association_contact = _active_contact(order.association_contact)
+    return bool(recipient_contact and recipient_contact != association_contact)
 
 
 def _resolve_destination_for_order(
@@ -116,25 +122,25 @@ def _build_shipment_defaults_from_order(order: Order):
     shipper_org = normalize_party_contact_to_org(shipper_contact)
     recipient_org = normalize_party_contact_to_org(recipient_contact)
 
-    if is_org_roles_engine_enabled():
-        if shipper_contact is None:
-            raise StockError("Expediteur requis.")
-        if recipient_contact is None:
-            raise StockError("Destinataire requis.")
-        if destination is None:
-            raise StockError("Escale requise.")
-        try:
-            resolve_shipper_for_operation(
-                shipper_org=shipper_org,
-                destination=destination,
-            )
+    if shipper_contact is None:
+        raise StockError("Expediteur requis.")
+    if recipient_contact is None:
+        raise StockError("Destinataire requis.")
+    if destination is None:
+        raise StockError("Escale requise.")
+    try:
+        resolve_shipper_for_operation(
+            shipper_org=shipper_org,
+            destination=destination,
+        )
+        if _requires_recipient_binding_for_order(order, recipient_contact=recipient_contact):
             resolve_recipient_binding_for_operation(
                 shipper_org=shipper_org,
                 recipient_org=recipient_org,
                 destination=destination,
             )
-        except OrganizationRoleResolutionError as exc:
-            raise StockError(str(exc)) from exc
+    except OrganizationRoleResolutionError as exc:
+        raise StockError(str(exc)) from exc
 
     correspondent_contact = _resolve_correspondent_contact_for_order(
         order,

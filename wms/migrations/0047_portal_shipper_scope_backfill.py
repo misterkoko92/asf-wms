@@ -18,7 +18,20 @@ def _normalize(value):
 def backfill_portal_shipper_scope(apps, schema_editor):
     AssociationRecipient = apps.get_model("wms", "AssociationRecipient")
     Contact = apps.get_model("contacts", "Contact")
-    ContactTag = apps.get_model("contacts", "ContactTag")
+
+    try:
+        ContactTag = apps.get_model("contacts", "ContactTag")
+    except LookupError:
+        ContactTag = None
+
+    contact_field_names = {field.name for field in Contact._meta.get_fields()}
+    supports_legacy_contact_links = {
+        "destinations",
+        "linked_shippers",
+        "tags",
+    }.issubset(contact_field_names)
+    if ContactTag is None or not supports_legacy_contact_links:
+        return
 
     shipper_aliases = {
         _normalize("expediteur"),

@@ -32,7 +32,6 @@ from .order_helpers import (
 from .order_notifications import send_portal_order_notifications
 from .organization_role_resolvers import (
     OrganizationRoleResolutionError,
-    is_org_roles_engine_enabled,
     resolve_recipient_binding_for_operation,
     resolve_shipper_for_operation,
 )
@@ -214,9 +213,6 @@ def _allowed_recipient_option_ids(*, selected_destination, allowed_destination_i
 
 
 def _allowed_destination_ids_by_recipient(profile, recipients, destinations):
-    if not is_org_roles_engine_enabled():
-        return None
-
     recipient_contact_by_id = {
         recipient.id: sync_association_recipient_to_contact(recipient) for recipient in recipients
     }
@@ -367,6 +363,10 @@ def _resolve_destination(profile, recipient_id, errors, *, selected_destination)
         errors,
         selected_destination=selected_destination,
     )
+
+
+def _requires_recipient_binding(*, profile, recipient_contact) -> bool:
+    return bool(recipient_contact and recipient_contact != profile.contact)
 
 
 def _build_order_create_context(
@@ -678,21 +678,24 @@ def portal_order_create(request):
             and not ready_carton_line_errors
             and not ready_kit_line_errors
         ):
-            if is_org_roles_engine_enabled():
-                try:
-                    shipper_org = normalize_party_contact_to_org(profile.contact)
-                    recipient_org = normalize_party_contact_to_org(destination["recipient_contact"])
-                    resolve_shipper_for_operation(
-                        shipper_org=shipper_org,
-                        destination=selected_destination,
-                    )
+            try:
+                shipper_org = normalize_party_contact_to_org(profile.contact)
+                recipient_org = normalize_party_contact_to_org(destination["recipient_contact"])
+                resolve_shipper_for_operation(
+                    shipper_org=shipper_org,
+                    destination=selected_destination,
+                )
+                if _requires_recipient_binding(
+                    profile=profile,
+                    recipient_contact=destination["recipient_contact"],
+                ):
                     resolve_recipient_binding_for_operation(
                         shipper_org=shipper_org,
                         recipient_org=recipient_org,
                         destination=selected_destination,
                     )
-                except OrganizationRoleResolutionError as exc:
-                    errors.append(str(exc))
+            except OrganizationRoleResolutionError as exc:
+                errors.append(str(exc))
 
         if (
             not errors
