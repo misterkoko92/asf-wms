@@ -153,6 +153,130 @@ class ShipmentPartyModelTests(TestCase):
                 is_active=True,
             )
 
+    def test_authorized_recipient_contact_rejects_contact_from_other_recipient_organization(
+        self,
+    ):
+        shipper_org = self._create_organization("Ship Org Other Org")
+        shipper_default = self._create_person(
+            organization=shipper_org,
+            first_name="Sally",
+            last_name="Ship",
+        )
+        shipper = ShipmentShipper.objects.create(
+            organization=shipper_org,
+            default_contact=shipper_default,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            can_send_to_all=False,
+            is_active=True,
+        )
+
+        recipient_org = self._create_organization("Recipient Org One")
+        other_recipient_org = self._create_organization("Recipient Org Two")
+        destination = self._create_destination("CDG")
+        recipient_structure = ShipmentRecipientOrganization.objects.create(
+            organization=recipient_org,
+            destination=destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_correspondent=False,
+            is_active=True,
+        )
+        other_recipient_structure = ShipmentRecipientOrganization.objects.create(
+            organization=other_recipient_org,
+            destination=destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_correspondent=False,
+            is_active=True,
+        )
+        mismatched_contact = self._create_person(
+            organization=other_recipient_org,
+            first_name="Dr",
+            last_name="Mismatch",
+        )
+        ShipmentRecipientContact.objects.create(
+            recipient_organization=other_recipient_structure,
+            contact=mismatched_contact,
+            is_active=True,
+        )
+        link = ShipmentShipperRecipientLink.objects.create(
+            shipper=shipper,
+            recipient_organization=recipient_structure,
+            is_active=True,
+        )
+
+        with self.assertRaises(ValidationError) as exc:
+            ShipmentAuthorizedRecipientContact(
+                link=link,
+                recipient_contact=ShipmentRecipientContact.objects.get(
+                    recipient_organization=other_recipient_structure,
+                    contact=mismatched_contact,
+                ),
+                is_default=False,
+                is_active=True,
+            ).full_clean()
+
+        self.assertIn("recipient_contact", exc.exception.message_dict)
+
+    def test_shipper_recipient_link_rejects_inactive_shipper_or_recipient_organization(self):
+        active_shipper_org = self._create_organization("Active Ship Org")
+        active_shipper_default = self._create_person(
+            organization=active_shipper_org,
+            first_name="Amy",
+            last_name="Shipper",
+        )
+        inactive_shipper = ShipmentShipper.objects.create(
+            organization=active_shipper_org,
+            default_contact=active_shipper_default,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            can_send_to_all=False,
+            is_active=False,
+        )
+
+        active_recipient_org = self._create_organization("Active Recipient Org")
+        inactive_recipient_org = self._create_organization("Inactive Recipient Org")
+        destination = self._create_destination("LFW")
+        active_recipient_structure = ShipmentRecipientOrganization.objects.create(
+            organization=active_recipient_org,
+            destination=destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_correspondent=False,
+            is_active=True,
+        )
+        inactive_recipient_structure = ShipmentRecipientOrganization.objects.create(
+            organization=inactive_recipient_org,
+            destination=destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_correspondent=False,
+            is_active=False,
+        )
+        valid_shipper_org = self._create_organization("Valid Ship Org")
+        valid_shipper_default = self._create_person(
+            organization=valid_shipper_org,
+            first_name="Tom",
+            last_name="Carrier",
+        )
+
+        with self.assertRaises(ValidationError) as shipper_exc:
+            ShipmentShipperRecipientLink(
+                shipper=inactive_shipper,
+                recipient_organization=active_recipient_structure,
+                is_active=True,
+            ).full_clean()
+        self.assertIn("shipper", shipper_exc.exception.message_dict)
+
+        with self.assertRaises(ValidationError) as recipient_exc:
+            ShipmentShipperRecipientLink(
+                shipper=ShipmentShipper.objects.create(
+                    organization=valid_shipper_org,
+                    default_contact=valid_shipper_default,
+                    validation_status=ShipmentValidationStatus.VALIDATED,
+                    can_send_to_all=False,
+                    is_active=True,
+                ),
+                recipient_organization=inactive_recipient_structure,
+                is_active=True,
+            ).full_clean()
+        self.assertIn("recipient_organization", recipient_exc.exception.message_dict)
+
     def test_authorized_recipient_contact_full_clean_handles_missing_recipient_contact(self):
         shipper_org = self._create_organization("Ship Org Missing Recipient")
         shipper_default = self._create_person(
