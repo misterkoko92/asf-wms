@@ -9,7 +9,6 @@ from contacts.models import Contact, ContactType
 from wms.models import Destination, Shipment
 
 
-@override_settings(SCAN_BOOTSTRAP_ENABLED=True)
 class AdminBootstrapUiTests(TestCase):
     def setUp(self):
         self.superuser = get_user_model().objects.create_superuser(
@@ -91,8 +90,7 @@ class AdminBootstrapUiTests(TestCase):
         self.assertIn("align-items: center;", css_content)
         self.assertIn("justify-content: center;", css_content)
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=False)
-    def test_admin_templates_keep_bootstrap_assets_when_setting_is_disabled(self):
+    def test_admin_templates_keep_bootstrap_assets_without_feature_flag(self):
         response = self.client.get(reverse("admin:wms_stockmovement_changelist"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "bootstrap@5.3.3")

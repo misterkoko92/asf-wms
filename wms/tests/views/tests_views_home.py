@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from django.urls import reverse
 
 
@@ -61,7 +61,6 @@ class HomePageTests(TestCase):
         self.assertContains(response, reverse("volunteer:request_account"))
         self.assertContains(response, reverse("home"))
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_home_page_includes_bootstrap_assets_when_enabled(self):
         response = self.client.get(reverse("home"))
         self.assertEqual(response.status_code, 200)
@@ -78,6 +77,25 @@ class HomePageTests(TestCase):
         self.assertContains(response, "home-bootstrap-enabled")
         self.assertContains(response, "form-control")
         self.assertContains(response, "btn btn-primary")
+
+    def test_home_pages_do_not_expose_deprecated_ui_flags(self):
+        home_response = self.client.get(reverse("home"))
+        self.assertEqual(home_response.status_code, 200)
+        with self.assertRaises(KeyError):
+            home_response.context["scan_bootstrap_enabled"]
+        with self.assertRaises(KeyError):
+            home_response.context["wms_ui_mode"]
+        with self.assertRaises(KeyError):
+            home_response.context["wms_ui_mode_is_next"]
+
+        password_help_response = self.client.get(reverse("password_help"))
+        self.assertEqual(password_help_response.status_code, 200)
+        with self.assertRaises(KeyError):
+            password_help_response.context["scan_bootstrap_enabled"]
+        with self.assertRaises(KeyError):
+            password_help_response.context["wms_ui_mode"]
+        with self.assertRaises(KeyError):
+            password_help_response.context["wms_ui_mode_is_next"]
 
     def test_home_login_with_remember_me_keeps_persistent_session(self):
         user = self._create_staff_user()
@@ -130,7 +148,6 @@ class HomePageTests(TestCase):
         self.assertEqual(response.url, "/scan/")
         self._assert_persistent_session()
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_password_help_page_includes_bootstrap_assets_when_enabled(self):
         response = self.client.get(reverse("password_help"))
         self.assertEqual(response.status_code, 200)

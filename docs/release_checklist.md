@@ -38,7 +38,6 @@ Fallback if `uv` is blocked locally:
 - [ ] `python manage.py migrate --noinput`
 - [ ] `python manage.py compilemessages -v 1`
 - [ ] `python manage.py collectstatic --noinput`
-- [ ] If `/app/*` changed, push updated `frontend-next/out` (see `deploy/pythonanywhere/push_next_export.sh`).
 - [ ] `python manage.py check --deploy --fail-level WARNING`
 - [ ] Restart app service/process
 

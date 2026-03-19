@@ -1,34 +1,21 @@
-from django.contrib.auth import get_user_model
-from django.contrib.auth.models import AnonymousUser
-from django.test import TestCase
-
-from wms.models import UiMode, UserUiPreference
-from wms.ui_mode import (
-    DEFAULT_UI_MODE,
-    get_ui_mode_for_user,
-    normalize_ui_mode,
-    set_ui_mode_for_user,
-)
+from django.test import SimpleTestCase
+from django.urls import NoReverseMatch, reverse
 
 
-class UiModeHelpersTests(TestCase):
-    def test_normalize_ui_mode_defaults_to_legacy(self):
-        self.assertEqual(normalize_ui_mode(None), UiMode.LEGACY)
-        self.assertEqual(normalize_ui_mode("anything"), UiMode.LEGACY)
-        self.assertEqual(normalize_ui_mode("NEXT"), UiMode.LEGACY)
+class BootstrapOnlyUiRoutingTests(SimpleTestCase):
+    def test_ui_mode_routes_are_not_exposed(self):
+        with self.assertRaises(NoReverseMatch):
+            reverse("ui_mode_set")
 
-    def test_get_ui_mode_for_anonymous_user_returns_default(self):
-        self.assertEqual(get_ui_mode_for_user(AnonymousUser()), DEFAULT_UI_MODE)
+        with self.assertRaises(NoReverseMatch):
+            reverse("ui_mode_set_mode", args=["legacy"])
 
-    def test_set_ui_mode_for_authenticated_user_persists_preference(self):
-        user = get_user_model().objects.create_user(
-            username="ui-mode-user",
-            password="pass1234",
-        )
+    def test_next_frontend_routes_are_not_exposed(self):
+        with self.assertRaises(NoReverseMatch):
+            reverse("next_frontend_root")
 
-        saved_mode = set_ui_mode_for_user(user, UiMode.NEXT)
+        with self.assertRaises(NoReverseMatch):
+            reverse("next_frontend", args=["scan/dashboard"])
 
-        self.assertEqual(saved_mode, UiMode.LEGACY)
-        preference = UserUiPreference.objects.get(user=user)
-        self.assertEqual(preference.ui_mode, UiMode.LEGACY)
-        self.assertEqual(get_ui_mode_for_user(user), UiMode.LEGACY)
+        with self.assertRaises(NoReverseMatch):
+            reverse("frontend_log_event")

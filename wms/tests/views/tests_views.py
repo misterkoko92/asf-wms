@@ -1538,7 +1538,6 @@ class ScanViewTests(TestCase):
                 response = self.client.get(url)
                 self.assertEqual(response.status_code, 200)
 
-    @override_settings(SCAN_BOOTSTRAP_ENABLED=True)
     def test_scan_public_pages_include_bootstrap_assets_when_enabled(self):
         shipment, _carton = self._create_shipment_with_carton()
         link, _order = self._create_public_order_link_with_order()

@@ -12,14 +12,14 @@ PIP_AUDIT_REPORT ?= pip-audit-report.json
 PRE_COMMIT ?= $(shell [ -x .venv/bin/pre-commit ] && echo .venv/bin/pre-commit || echo pre-commit)
 COVERAGE ?= $(shell [ -x .venv/bin/coverage ] && echo .venv/bin/coverage || echo coverage)
 COVERAGE_FAIL_UNDER ?= 93
-COVERAGE_TEST_ARGS ?= --exclude-tag=next_frontend --exclude-tag=next_ui
+COVERAGE_TEST_ARGS ?=
 TEST_PARALLEL ?= 4
 TEST_PARALLEL_ARGS ?= --parallel $(TEST_PARALLEL)
-COMPILEMESSAGES_IGNORE ?= --ignore='.venv' --ignore='.venv/*' --ignore='.worktrees' --ignore='.worktrees/*' --ignore='frontend-next' --ignore='frontend-next/*'
+COMPILEMESSAGES_IGNORE ?= --ignore='.venv' --ignore='.venv/*' --ignore='.worktrees' --ignore='.worktrees/*'
 UV_EXPORT_ARGS ?= --frozen --no-header --no-annotate --no-hashes
 DEPLOY_ENV_FILE ?= .env.deploy.example
 FORMAT_SCOPE ?= asf_wms api contacts wms manage.py
-FORMAT_EXCLUDES ?= --exclude frontend-next --exclude wms/views_next_frontend.py --exclude wms/ui_mode.py --exclude wms/tests/views/tests_views_next_frontend.py
+FORMAT_EXCLUDES ?=
 
 BANDIT_EXCLUDES := wms/migrations,contacts/migrations,wms/tests,api/tests,contacts/tests
 

@@ -38,12 +38,8 @@ target-version = "py311"
 line-length = 100
 extend-exclude = [
     ".venv",
-    "frontend-next",
     "wms/migrations",
     "contacts/migrations",
-    "wms/views_next_frontend.py",
-    "wms/ui_mode.py",
-    "wms/tests/views/tests_views_next_frontend.py",
 ]
 
 [tool.ruff.lint]

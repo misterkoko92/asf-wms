@@ -6,7 +6,6 @@ from wms.forms_scan_design import ScanDesignSettingsForm
 from wms.views_scan_design import (
     _empty_preview_values,
     _preview_values_from_post,
-    _resolve_selected_style_preset,
 )
 
 
@@ -33,25 +32,3 @@ class ScanDesignHelpersTests(SimpleTestCase):
 
         self.assertEqual(preview_values["design_color_primary"], "#112233")
         self.assertEqual(preview_values["design_font_h1"], "Manrope")
-
-    def test_resolve_selected_style_preset_falls_back_to_default(self):
-        runtime_settings = SimpleNamespace(design_selected_preset="missing")
-        preset_map = {
-            "wms-default": {"key": "wms-default"},
-            "wms-rect": {"key": "wms-rect"},
-        }
-
-        selected = _resolve_selected_style_preset(runtime_settings, preset_map)
-
-        self.assertEqual(selected, "wms-default")
-
-    def test_resolve_selected_style_preset_falls_back_to_first_when_no_default(self):
-        runtime_settings = SimpleNamespace(design_selected_preset="missing")
-        preset_map = {
-            "custom-a": {"key": "custom-a"},
-            "custom-b": {"key": "custom-b"},
-        }
-
-        selected = _resolve_selected_style_preset(runtime_settings, preset_map)
-
-        self.assertEqual(selected, "custom-a")

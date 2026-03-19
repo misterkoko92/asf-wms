@@ -8,7 +8,6 @@ from .design_tokens import (
 )
 from .models import PublicAccountRequest, PublicAccountRequestStatus
 from .runtime_settings import get_runtime_settings_instance
-from .ui_mode import UiMode, get_ui_mode_for_user
 
 
 def _normalize_font_name(value, fallback):
@@ -82,10 +81,6 @@ def _resolve_design_tokens():
     return resolved
 
 
-def _resolve_scan_bootstrap_enabled():
-    return True
-
-
 def admin_notifications(request):
     user = getattr(request, "user", None)
     if not user or not user.is_authenticated or not user.is_superuser:
@@ -94,13 +89,9 @@ def admin_notifications(request):
     return {"admin_pending_account_requests": pending}
 
 
-def ui_mode_context(request):
+def ui_context(request):
     user = getattr(request, "user", None)
-    mode = get_ui_mode_for_user(getattr(request, "user", None))
     return {
-        "wms_ui_mode": mode,
-        "wms_ui_mode_is_next": mode == UiMode.NEXT,
-        "scan_bootstrap_enabled": _resolve_scan_bootstrap_enabled(),
         "wms_design_tokens": _resolve_design_tokens(),
         "scan_billing_visible": user_can_access_billing_scan(user),
         "scan_billing_admin_visible": user_can_manage_billing_admin(user),
