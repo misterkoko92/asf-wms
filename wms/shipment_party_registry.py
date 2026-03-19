@@ -19,14 +19,21 @@ def _validated_active_shippers() -> QuerySet[ShipmentShipper]:
     )
 
 
+def _validated_active_recipient_organization_filters(*, prefix: str = "") -> dict[str, object]:
+    return {
+        f"{prefix}is_active": True,
+        f"{prefix}validation_status": ShipmentValidationStatus.VALIDATED,
+        f"{prefix}organization__is_active": True,
+        f"{prefix}destination__is_active": True,
+    }
+
+
 def _validated_active_recipient_organizations(
     *, destination
 ) -> QuerySet[ShipmentRecipientOrganization]:
     return ShipmentRecipientOrganization.objects.filter(
         destination=destination,
-        is_active=True,
-        validation_status=ShipmentValidationStatus.VALIDATED,
-        organization__is_active=True,
+        **_validated_active_recipient_organization_filters(),
     )
 
 
@@ -41,8 +48,9 @@ def eligible_shippers_for_stopover(destination) -> QuerySet[ShipmentShipper]:
             | Q(
                 recipient_links__is_active=True,
                 recipient_links__recipient_organization__destination=destination,
-                recipient_links__recipient_organization__is_active=True,
-                recipient_links__recipient_organization__validation_status=ShipmentValidationStatus.VALIDATED,
+                **_validated_active_recipient_organization_filters(
+                    prefix="recipient_links__recipient_organization__"
+                ),
             )
         )
         .distinct()
@@ -82,7 +90,7 @@ def eligible_recipient_contacts_for_link(link) -> QuerySet[ShipmentRecipientCont
             is_active=True,
             contact__is_active=True,
             recipient_organization_id=link.recipient_organization_id,
-            recipient_organization__is_active=True,
+            **_validated_active_recipient_organization_filters(prefix="recipient_organization__"),
         )
         .distinct()
         .order_by("contact__last_name", "id")
@@ -100,6 +108,9 @@ def default_recipient_contact_for_link(link) -> ShipmentRecipientContact | None:
             is_active=True,
             recipient_contact__is_active=True,
             recipient_contact__contact__is_active=True,
+            **_validated_active_recipient_organization_filters(
+                prefix="recipient_contact__recipient_organization__"
+            ),
         )
         .select_related("recipient_contact")
         .first()

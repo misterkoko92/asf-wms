@@ -301,6 +301,40 @@ class ShipmentPartyRegistryTests(TestCase):
 
         self.assertEqual(default_recipient_contact_for_link(link), default_contact)
 
+    def test_recipient_contact_registry_ignores_non_valid_recipient_organization(self):
+        destination = self._create_destination("GAO")
+        shipper = self._create_shipper(name="Shipper GAO")
+        recipient = self._create_recipient_organization(
+            name="Recipient GAO",
+            destination=destination,
+        )
+        link = ShipmentShipperRecipientLink.objects.create(
+            shipper=shipper,
+            recipient_organization=recipient,
+            is_active=True,
+        )
+        default_contact = ShipmentRecipientContact.objects.create(
+            recipient_organization=recipient,
+            contact=self._create_person(
+                organization=recipient.organization,
+                first_name="Fatou",
+                last_name="Default",
+            ),
+            is_active=True,
+        )
+        ShipmentAuthorizedRecipientContact.objects.create(
+            link=link,
+            recipient_contact=default_contact,
+            is_default=True,
+            is_active=True,
+        )
+
+        recipient.validation_status = ShipmentValidationStatus.PENDING
+        recipient.save(update_fields=["validation_status"])
+
+        self.assertEqual(eligible_recipient_contacts_for_link(link).count(), 0)
+        self.assertIsNone(default_recipient_contact_for_link(link))
+
     def test_stopover_correspondent_recipient_organization_returns_active_correspondent(self):
         destination = self._create_destination("BKO")
         correspondent = self._create_recipient_organization(
