@@ -549,6 +549,7 @@ def pack_carton(
     display_expires_on=None,
     current_location=None,
     carton_size=None,
+    skip_picking_status=False,
 ):
     carton = _prepare_carton(
         user=user,
@@ -612,7 +613,7 @@ def pack_carton(
     if shipment is not None:
         target_status = CartonStatus.ASSIGNED
         status_reason = "stock_pack_assign"
-    elif carton.status == CartonStatus.DRAFT:
+    elif carton.status == CartonStatus.DRAFT and not skip_picking_status:
         target_status = CartonStatus.PICKING
         status_reason = "stock_pack_start_picking"
     if target_status and carton.status != target_status:

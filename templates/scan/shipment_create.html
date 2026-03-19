@@ -29,7 +29,11 @@
     {% if form.non_field_errors %}
       <div class="scan-message error">{{ form.non_field_errors }}</div>
     {% endif %}
-    {% blocktrans trimmed asvar preassignment_mismatch_template %}Ce colis a été pré-affecté pour la destination __EXPECTED__. Voulez vous vraiment l'affecter à l'expédition en cours pour la destination __CURRENT__ ?{% endblocktrans %}
+    {% if LANGUAGE_CODE|slice:":2" == "en" %}
+      {% blocktrans trimmed asvar preassignment_mismatch_template %}This parcel is already assigned to __EXPECTED__. Do you really want to assign it to this shipment for __CURRENT__?{% endblocktrans %}
+    {% else %}
+      {% blocktrans trimmed asvar preassignment_mismatch_template %}Ce colis est déjà affecté pour __EXPECTED__. Souhaitez vous vraiment l'affecter à cette expédition pour __CURRENT__ ?{% endblocktrans %}
+    {% endif %}
     <form method="post" novalidate class="ui-comp-form" id="shipment-form" data-shipment-edit="{% if is_edit %}1{% else %}0{% endif %}" data-form-bound="{% if form.is_bound %}1{% else %}0{% endif %}" data-org-roles-engine-enabled="1" data-preassignment-mismatch-template="{{ preassignment_mismatch_template }}">
       {% csrf_token %}
 
@@ -190,7 +194,7 @@
             id="shipment-preassignment-accept"
             class="scan-submit scan-submit-inline btn btn-primary"
           >
-            {% trans "Accepter" %}
+            {% if LANGUAGE_CODE|slice:":2" == "en" %}Accept{% else %}Valider{% endif %}
           </button>
           <button
             type="button"

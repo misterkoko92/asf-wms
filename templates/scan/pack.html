@@ -225,12 +225,26 @@
         </div>
       {% endif %}
       <div class="scan-filter-actions scan-pack-shipping-actions-inline d-flex flex-wrap flex-lg-nowrap gap-2 align-items-center">
-        {% if not request.scan_is_preparateur %}
-          <a class="scan-scan-btn btn btn-tertiary text-nowrap" href="{% url 'admin:wms_location_add' %}" target="_blank" rel="noopener">
-            {% trans "Ajouter emplacement" %}
-          </a>
+        {% if not request.scan_is_preparateur and not editing_carton %}
+          <button
+            type="submit"
+            name="action"
+            value="prepare_without_conditioning"
+            class="scan-submit btn btn-secondary"
+          >
+            {% trans "Préparer sans conditionner" %}
+          </button>
+          <button
+            type="submit"
+            name="action"
+            value="prepare_available"
+            class="scan-submit btn btn-success"
+          >
+            {% trans "Préparer et mettre en disponible" %}
+          </button>
+        {% else %}
+          <button type="submit" class="scan-submit btn btn-primary">{% trans "Préparer" %}</button>
         {% endif %}
-        <button type="submit" class="scan-submit btn btn-primary">{% trans "Préparer" %}</button>
       </div>
       {% if not request.scan_is_preparateur %}
         <p class="scan-help ui-comp-note">{% trans "Si la référence d'expédition est vide, les cartons sont pré-conditionnés." %}</p>

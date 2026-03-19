@@ -1828,15 +1828,15 @@
     const buildPreassignmentMismatchMessage = (carton, destinationId) => {
       const template =
         shipmentForm?.dataset.preassignmentMismatchTemplate ||
-        'Ce colis a été pré-affecté pour la destination __EXPECTED__. Voulez vous vraiment l\'affecter à l\'expédition en cours pour la destination __CURRENT__ ?';
+        'Ce colis est déjà affecté pour __EXPECTED__. Souhaitez vous vraiment l\'affecter à cette expédition pour __CURRENT__ ?';
       const expectedLabel =
-        carton.preassigned_destination_label ||
         carton.preassigned_destination_iata ||
+        carton.preassigned_destination_label ||
         carton.code ||
         '';
       const destination = destinationMap.get(String(destinationId));
       const currentLabel =
-        (destination && (destination.label || destination.city || destination.iata_code)) || '';
+        (destination && (destination.iata_code || destination.label || destination.city)) || '';
       return template
         .replace('__EXPECTED__', expectedLabel)
         .replace('__CURRENT__', currentLabel);
@@ -2049,14 +2049,20 @@
       updateAllLineMetrics();
     };
 
+    let lastShipmentSubmitter = null;
     if (shipmentForm) {
+      shipmentForm
+        .querySelectorAll('button[type="submit"], input[type="submit"]')
+        .forEach(button => {
+          button.addEventListener('click', () => {
+            lastShipmentSubmitter = button;
+          });
+        });
+
       shipmentForm.addEventListener('submit', async event => {
-        if (shipmentForm.dataset.preassignmentConfirmedSubmit === '1') {
-          shipmentForm.dataset.preassignmentConfirmedSubmit = '0';
-          return;
-        }
+        const submitter = event.submitter || lastShipmentSubmitter;
         const submitterAction =
-          event.submitter && event.submitter.name === 'action' ? event.submitter.value : '';
+          submitter && submitter.name === 'action' ? submitter.value : '';
         if (submitterAction === 'save_draft' || submitterAction === 'save_draft_pack') {
           return;
         }
@@ -2103,11 +2109,7 @@
           }
         }
 
-        shipmentForm.dataset.preassignmentConfirmedSubmit = '1';
-        if (typeof shipmentForm.requestSubmit === 'function' && event.submitter) {
-          shipmentForm.requestSubmit(event.submitter);
-          return;
-        }
+        lastShipmentSubmitter = null;
         shipmentForm.submit();
       });
     }

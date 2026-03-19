@@ -389,9 +389,8 @@ class ScanShipmentHandlersTests(TestCase):
         self.assertIn(
             (
                 None,
-                "Ce colis a été pré-affecté pour la destination "
-                f"{preassigned_destination}. Voulez vous vraiment l'affecter à "
-                f"l'expédition en cours pour la destination {target_destination} ?",
+                "Ce colis est déjà affecté pour NKC. "
+                "Souhaitez vous vraiment l'affecter à cette expédition pour CKY ?",
             ),
             form.errors,
         )

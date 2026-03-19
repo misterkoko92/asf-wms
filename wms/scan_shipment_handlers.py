@@ -123,12 +123,15 @@ def _validate_org_role_selection(*, shipper_contact, recipient_contact, destinat
 
 def _build_preassigned_destination_mismatch_error(*, carton, destination):
     preassigned_destination = getattr(carton, "preassigned_destination", None)
-    expected_label = build_destination_label(preassigned_destination)
-    current_label = build_destination_label(destination)
+    expected_label = (
+        getattr(preassigned_destination, "iata_code", "") or ""
+    ).strip() or build_destination_label(preassigned_destination)
+    current_label = (
+        getattr(destination, "iata_code", "") or ""
+    ).strip() or build_destination_label(destination)
     return _(
-        "Ce colis a été pré-affecté pour la destination %(expected)s. "
-        "Voulez vous vraiment l'affecter à l'expédition en cours pour la destination "
-        "%(current)s ?"
+        "Ce colis est déjà affecté pour %(expected)s. "
+        "Souhaitez vous vraiment l'affecter à cette expédition pour %(current)s ?"
     ) % {
         "expected": expected_label,
         "current": current_label,

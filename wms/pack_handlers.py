@@ -31,6 +31,8 @@ PREPARATEUR_ALLOWED_FAMILIES = (
     PREPARATEUR_FAMILY_MM,
     PREPARATEUR_FAMILY_CN,
 )
+PACK_ACTION_PREPARE_WITHOUT_CONDITIONING = "prepare_without_conditioning"
+PACK_ACTION_PREPARE_AVAILABLE = "prepare_available"
 PREPARATEUR_LOCATION_LABELS = {
     PREPARATEUR_FAMILY_MM: "Colis Prets MM",
     PREPARATEUR_FAMILY_CN: "Colis Prets CN",
@@ -86,6 +88,34 @@ def _resolve_preparateur_locations():
         family: _resolve_preparateur_location(label)
         for family, label in PREPARATEUR_LOCATION_LABELS.items()
     }
+
+
+def _resolve_pack_action(request):
+    action = (request.POST.get("action") or "").strip()
+    if action == PACK_ACTION_PREPARE_AVAILABLE:
+        return PACK_ACTION_PREPARE_AVAILABLE
+    return PACK_ACTION_PREPARE_WITHOUT_CONDITIONING
+
+
+def _resolve_ready_location_for_available_pack(line_items):
+    families = {
+        _resolve_preparateur_pack_family(item["product"], item.get("pack_family_override"))
+        for item in line_items
+        if item.get("product") is not None
+    }
+    families.discard("")
+    if len(families) > 1:
+        return (
+            None,
+            _("Plusieurs types MM/CN ont été détectés. Emplacement READY laissé vide."),
+        )
+    if not families:
+        return (
+            None,
+            _("Type MM/CN impossible à déterminer. Emplacement READY laissé vide."),
+        )
+    locations_by_family = _resolve_preparateur_locations()
+    return locations_by_family[next(iter(families))], ""
 
 
 def _build_state(
@@ -529,6 +559,7 @@ def handle_pack_post(request, *, form, default_format, editing_carton=None):
     missing_defaults = []
     confirm_defaults = bool(request.POST.get("confirm_defaults"))
     shipment = None
+    pack_action = _resolve_pack_action(request)
 
     if form.is_valid():
         shipment = (
@@ -675,6 +706,23 @@ def handle_pack_post(request, *, form, default_format, editing_carton=None):
                         missing_defaults=missing_defaults,
                         confirm_defaults=confirm_defaults,
                     )
+                if pack_action == PACK_ACTION_PREPARE_AVAILABLE and shipment is not None:
+                    form.add_error(
+                        "shipment_reference",
+                        _("Retirez la référence d'expédition pour mettre les colis en disponible."),
+                    )
+                    return (
+                        None,
+                        _build_state(
+                            carton_format_id=carton_format_id,
+                            carton_custom=carton_custom,
+                            line_count=line_count,
+                            line_values=line_values,
+                            line_errors=line_errors,
+                            missing_defaults=missing_defaults,
+                            confirm_defaults=confirm_defaults,
+                        ),
+                    )
                 bins, pack_errors, pack_warnings = build_packing_bins(
                     line_items, carton_size, apply_defaults=confirm_defaults
                 )
@@ -682,6 +730,29 @@ def handle_pack_post(request, *, form, default_format, editing_carton=None):
                     for error in pack_errors:
                         form.add_error(None, error)
                 else:
+                    current_location = form.cleaned_data["current_location"]
+                    ready_location_warning = ""
+                    skip_picking_status = False
+                    if pack_action == PACK_ACTION_PREPARE_AVAILABLE:
+                        try:
+                            current_location, ready_location_warning = (
+                                _resolve_ready_location_for_available_pack(line_items)
+                            )
+                        except ValueError as exc:
+                            form.add_error(None, str(exc))
+                            return (
+                                None,
+                                _build_state(
+                                    carton_format_id=carton_format_id,
+                                    carton_custom=carton_custom,
+                                    line_count=line_count,
+                                    line_values=line_values,
+                                    line_errors=line_errors,
+                                    missing_defaults=missing_defaults,
+                                    confirm_defaults=confirm_defaults,
+                                ),
+                            )
+                        skip_picking_status = True
                     try:
                         created_cartons = []
                         with transaction.atomic():
@@ -697,17 +768,32 @@ def handle_pack_post(request, *, form, default_format, editing_carton=None):
                                         shipment=shipment,
                                         preassigned_destination=preassigned_destination,
                                         display_expires_on=entry.get("expires_on"),
-                                        current_location=form.cleaned_data["current_location"],
+                                        current_location=current_location,
                                         carton_size=carton_size,
+                                        skip_picking_status=skip_picking_status,
                                     )
                                 if carton:
+                                    if pack_action == PACK_ACTION_PREPARE_AVAILABLE:
+                                        set_carton_status(
+                                            carton=carton,
+                                            new_status=CartonStatus.PACKED,
+                                            reason="scan_pack_mark_ready",
+                                            user=request.user,
+                                        )
                                     created_cartons.append(carton)
+                        if ready_location_warning:
+                            messages.warning(request, ready_location_warning)
                         for warning in pack_warnings:
                             messages.warning(request, warning)
                         request.session["pack_results"] = [carton.id for carton in created_cartons]
                         messages.success(
                             request,
-                            _("%(count)s carton(s) préparé(s).") % {"count": len(created_cartons)},
+                            (
+                                _("%(count)s carton(s) préparé(s) et mis en disponible.")
+                                if pack_action == PACK_ACTION_PREPARE_AVAILABLE
+                                else _("%(count)s carton(s) préparé(s).")
+                            )
+                            % {"count": len(created_cartons)},
                         )
                         return (
                             redirect("scan:scan_pack"),

@@ -374,15 +374,14 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'data-scan-target="id_shipment_reference"')
 
-    def test_scan_pack_uses_updated_spacing_and_location_action_layout(self):
+    def test_scan_pack_shows_dual_prepare_buttons_and_hides_location_admin_action(self):
         response = self.client.get(reverse("scan:scan_pack"))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "scan-pack-add-line-btn")
-        self.assertContains(
-            response,
-            'class="scan-scan-btn btn btn-tertiary text-nowrap"',
-        )
+        self.assertContains(response, "Préparer sans conditionner")
+        self.assertContains(response, "Préparer et mettre en disponible")
+        self.assertNotContains(response, "Ajouter emplacement")
 
     def test_scan_pack_preparateur_hides_non_essential_controls_and_reduces_navigation(self):
         preparateur = self._create_preparateur_user()
@@ -835,7 +834,8 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertEqual(response.context["cartons_json"][0]["preassigned_destination_iata"], "NKC")
         self.assertEqual(response.context["cartons_json"][0]["label"], "MM-00003 (NKC)")
         self.assertContains(response, 'id="shipment-preassignment-overlay"')
-        self.assertContains(response, "Accepter")
+        self.assertContains(response, "Ce colis est déjà affecté pour __EXPECTED__.")
+        self.assertContains(response, "Valider")
         self.assertContains(response, "Refuser")
 
     def test_scan_shipment_create_translates_preassignment_confirmation_in_english(self):

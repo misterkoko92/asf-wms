@@ -9,6 +9,7 @@ from django.test import RequestFactory, TestCase
 from wms.models import (
     Carton,
     CartonStatus,
+    CartonStatusEvent,
     Location,
     Product,
     ProductCategory,
@@ -484,6 +485,131 @@ class PackHandlersTests(TestCase):
         )
         warning_mock.assert_not_called()
         success_mock.assert_called_once_with(request, "2 carton(s) préparé(s).")
+
+    def test_handle_pack_post_prepare_available_sets_ready_location_for_single_family(self):
+        stock_location, ready_mm, _ready_cn = self._create_locations()
+        category_mm = ProductCategory.objects.create(name="MM")
+        product_mm = Product.objects.create(
+            sku="SKU-MM-READY",
+            name="Produit MM Ready",
+            category=category_mm,
+            weight_g=100,
+            length_cm=Decimal("10"),
+            width_cm=Decimal("10"),
+            height_cm=Decimal("10"),
+            default_location=stock_location,
+        )
+        ProductLot.objects.create(
+            product=product_mm,
+            lot_code="LOT-MM-READY",
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=20,
+            location=stock_location,
+        )
+        request = self._db_request(
+            {
+                "action": "prepare_available",
+                "line_count": "1",
+                "line_1_product_code": "SKU-MM-READY",
+                "line_1_quantity": "2",
+            }
+        )
+        form = self._form(valid=True, shipment_reference="")
+
+        with mock.patch(
+            "wms.pack_handlers.resolve_carton_size",
+            return_value=(self._carton_size(), []),
+        ):
+            with mock.patch("wms.pack_handlers.messages.warning") as warning_mock:
+                with mock.patch("wms.pack_handlers.messages.success"):
+                    response, state = handle_pack_post(
+                        request,
+                        form=form,
+                        default_format=None,
+                    )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(state["line_errors"], {})
+        carton = Carton.objects.get()
+        self.assertEqual(carton.status, CartonStatus.PACKED)
+        self.assertEqual(carton.current_location, ready_mm)
+        self.assertFalse(
+            CartonStatusEvent.objects.filter(
+                carton=carton,
+                new_status=CartonStatus.PICKING,
+            ).exists()
+        )
+        warning_mock.assert_not_called()
+
+    def test_handle_pack_post_prepare_available_leaves_location_empty_for_mixed_families(self):
+        stock_location, _ready_mm, _ready_cn = self._create_locations()
+        category_mm = ProductCategory.objects.create(name="MM")
+        category_cn = ProductCategory.objects.create(name="CN")
+        product_mm = Product.objects.create(
+            sku="SKU-MM-MIX",
+            name="Produit MM Mix",
+            category=category_mm,
+            weight_g=100,
+            length_cm=Decimal("10"),
+            width_cm=Decimal("10"),
+            height_cm=Decimal("10"),
+            default_location=stock_location,
+        )
+        product_cn = Product.objects.create(
+            sku="SKU-CN-MIX",
+            name="Produit CN Mix",
+            category=category_cn,
+            weight_g=100,
+            length_cm=Decimal("10"),
+            width_cm=Decimal("10"),
+            height_cm=Decimal("10"),
+            default_location=stock_location,
+        )
+        ProductLot.objects.create(
+            product=product_mm,
+            lot_code="LOT-MM-MIX",
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=20,
+            location=stock_location,
+        )
+        ProductLot.objects.create(
+            product=product_cn,
+            lot_code="LOT-CN-MIX",
+            status=ProductLotStatus.AVAILABLE,
+            quantity_on_hand=20,
+            location=stock_location,
+        )
+        request = self._db_request(
+            {
+                "action": "prepare_available",
+                "line_count": "2",
+                "line_1_product_code": "SKU-MM-MIX",
+                "line_1_quantity": "1",
+                "line_2_product_code": "SKU-CN-MIX",
+                "line_2_quantity": "1",
+            }
+        )
+        form = self._form(valid=True, shipment_reference="")
+
+        with mock.patch(
+            "wms.pack_handlers.resolve_carton_size",
+            return_value=(self._carton_size(), []),
+        ):
+            with mock.patch("wms.pack_handlers.messages.warning") as warning_mock:
+                with mock.patch("wms.pack_handlers.messages.success"):
+                    response, state = handle_pack_post(
+                        request,
+                        form=form,
+                        default_format=None,
+                    )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(state["line_errors"], {})
+        carton = Carton.objects.get()
+        self.assertEqual(carton.status, CartonStatus.PACKED)
+        self.assertIsNone(carton.current_location)
+        warning_mock.assert_called_once()
+        self.assertIn("READY", warning_mock.call_args[0][1])
 
     def test_handle_pack_post_preparateur_requires_manual_mm_cn_override(self):
         warehouse = Warehouse.objects.create(name="Main", code="MAIN")
