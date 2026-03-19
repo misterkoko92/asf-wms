@@ -1,6 +1,6 @@
 from io import StringIO
 
-from django.core.management import call_command
+from django.core.management import CommandError, call_command
 from django.test import TestCase
 
 from contacts.correspondent_recipient_promotion import SUPPORT_ORGANIZATION_NAME
@@ -350,6 +350,93 @@ class BackfillShipmentPartiesCommandTests(TestCase):
                 role=OrganizationRole.RECIPIENT,
             ).exists()
         )
+
+    def test_apply_backfill_fails_fast_when_recipient_spans_multiple_destinations(self):
+        destination_one = self._create_destination("NIM")
+        destination_two = self._create_destination("MRS")
+
+        shipper_org = self._create_organization("ASF Multi")
+        shipper_assignment = self._create_role_assignment(
+            organization=shipper_org,
+            role=OrganizationRole.SHIPPER,
+        )
+        self._create_role_contact(
+            role_assignment=shipper_assignment,
+            first_name="Camille",
+            last_name="Shipper",
+            email="multi.shipper@example.org",
+            is_primary=True,
+        )
+        ShipperScope.objects.create(
+            role_assignment=shipper_assignment,
+            all_destinations=False,
+            destination=destination_one,
+            is_active=True,
+        )
+        ShipperScope.objects.create(
+            role_assignment=shipper_assignment,
+            all_destinations=False,
+            destination=destination_two,
+            is_active=True,
+        )
+
+        recipient_org = self._create_organization("Hopital Multi")
+        recipient_assignment = self._create_role_assignment(
+            organization=recipient_org,
+            role=OrganizationRole.RECIPIENT,
+        )
+        self._create_role_contact(
+            role_assignment=recipient_assignment,
+            first_name="Docteur",
+            last_name="Unique",
+            email="multi.recipient@example.org",
+            is_primary=True,
+        )
+        RecipientBinding.objects.create(
+            shipper_org=shipper_org,
+            recipient_org=recipient_org,
+            destination=destination_one,
+            is_active=True,
+        )
+        RecipientBinding.objects.create(
+            shipper_org=shipper_org,
+            recipient_org=recipient_org,
+            destination=destination_two,
+            is_active=True,
+        )
+
+        with self.assertRaisesMessage(CommandError, "multiple destinations"):
+            call_command("backfill_shipment_parties_from_org_roles", "--apply")
+
+        self.assertEqual(ShipmentShipper.objects.count(), 0)
+        self.assertEqual(ShipmentRecipientOrganization.objects.count(), 0)
+
+    def test_apply_backfill_fails_fast_when_support_correspondent_spans_multiple_destinations(self):
+        self._create_destination(
+            "LBV",
+            correspondent_contact=self._create_person(
+                first_name="Paul",
+                last_name="Libreville",
+            ),
+        )
+        self._create_destination(
+            "NDJ",
+            correspondent_contact=self._create_person(
+                first_name="Marie",
+                last_name="Ndjamena",
+            ),
+        )
+
+        with self.assertRaisesMessage(CommandError, "ASF - CORRESPONDANT"):
+            call_command("backfill_shipment_parties_from_org_roles", "--apply")
+
+        self.assertFalse(
+            Contact.objects.filter(
+                name=SUPPORT_ORGANIZATION_NAME,
+                contact_type=ContactType.ORGANIZATION,
+            ).exists()
+        )
+        self.assertEqual(ShipmentRecipientOrganization.objects.count(), 0)
 
     def test_dry_run_reports_without_persisting(self):
         destination = self._create_destination("CMN")

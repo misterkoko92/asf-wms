@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from collections.abc import Iterable
 
 from django.core.management.base import BaseCommand, CommandError
@@ -8,6 +9,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from contacts.correspondent_recipient_promotion import (
+    SUPPORT_ORGANIZATION_NAME,
     resolve_correspondent_recipient_organization,
 )
 from contacts.models import Contact, ContactType
@@ -59,6 +61,7 @@ class ShipmentPartyBackfillService:
         self._recipient_contacts_by_key: dict[tuple[int, int], ShipmentRecipientContact] = {}
 
     def run(self) -> dict[str, int]:
+        self._validate_destination_consistency()
         self._backfill_shippers()
         self._backfill_recipient_bindings()
         self._backfill_correspondents()
@@ -441,6 +444,62 @@ class ShipmentPartyBackfillService:
             .filter(_current_window_q())
             .select_related("shipper_org", "recipient_org", "destination")
             .order_by("id")
+        )
+
+    def _destination_conflict_key_for_correspondent(self, contact: Contact | None):
+        if contact is None or not contact.is_active:
+            return None, None
+        if contact.contact_type == ContactType.ORGANIZATION:
+            return ("org", contact.id), contact.name
+
+        organization = contact.organization
+        if (
+            organization is not None
+            and organization.is_active
+            and organization.contact_type == ContactType.ORGANIZATION
+        ):
+            return ("org", organization.id), organization.name
+
+        return ("support", SUPPORT_ORGANIZATION_NAME), SUPPORT_ORGANIZATION_NAME
+
+    def _validate_destination_consistency(self) -> None:
+        destinations_by_target: dict[tuple[str, object], set[str]] = defaultdict(set)
+        labels_by_target: dict[tuple[str, object], str] = {}
+
+        for binding in self._active_bindings():
+            key = ("org", binding.recipient_org_id)
+            destinations_by_target[key].add(str(binding.destination))
+            labels_by_target[key] = binding.recipient_org.name
+
+        for destination in Destination.objects.filter(is_active=True).select_related(
+            "correspondent_contact",
+            "correspondent_contact__organization",
+        ):
+            key, label = self._destination_conflict_key_for_correspondent(
+                destination.correspondent_contact
+            )
+            if key is None:
+                continue
+            destinations_by_target[key].add(str(destination))
+            labels_by_target[key] = label
+
+        conflicts = [
+            (
+                labels_by_target[key],
+                sorted(destinations),
+            )
+            for key, destinations in destinations_by_target.items()
+            if len(destinations) > 1
+        ]
+        if not conflicts:
+            return
+
+        details = "\n".join(
+            f"- {label}: {', '.join(destinations)}" for label, destinations in conflicts
+        )
+        raise CommandError(
+            "Cannot backfill shipment parties because some recipient organizations map to "
+            f"multiple destinations:\n{details}"
         )
 
     def _backfill_recipient_bindings(self) -> None:
