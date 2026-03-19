@@ -210,6 +210,32 @@ class ShipmentPartyRegistryTests(TestCase):
 
         self.assertEqual(recipient_ids, {recipient_one.id, recipient_two.id})
 
+    def test_eligible_recipient_organizations_for_shipper_requires_active_shipper_organization(
+        self,
+    ):
+        destination = self._create_destination("TNR")
+        shipper = self._create_shipper(name="Shipper TNR")
+        recipient = self._create_recipient_organization(
+            name="Recipient TNR",
+            destination=destination,
+        )
+        ShipmentShipperRecipientLink.objects.create(
+            shipper=shipper,
+            recipient_organization=recipient,
+            is_active=True,
+        )
+
+        shipper.organization.is_active = False
+        shipper.organization.save(update_fields=["is_active"])
+
+        self.assertEqual(
+            eligible_recipient_organizations_for_shipper(
+                shipper=shipper,
+                destination=destination,
+            ).count(),
+            0,
+        )
+
     def test_eligible_recipient_contacts_for_link_returns_only_active_authorized_contacts(self):
         destination = self._create_destination("DLA")
         shipper = self._create_shipper(name="Shipper DLA")

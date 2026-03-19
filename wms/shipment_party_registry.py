@@ -63,9 +63,7 @@ def eligible_recipient_organizations_for_shipper(
     if shipper is None or destination is None or not destination.is_active:
         return ShipmentRecipientOrganization.objects.none()
 
-    shipper_is_eligible = (
-        shipper.is_active and shipper.validation_status == ShipmentValidationStatus.VALIDATED
-    )
+    shipper_is_eligible = _validated_active_shippers().filter(pk=shipper.pk).exists()
     if not shipper_is_eligible:
         return ShipmentRecipientOrganization.objects.none()
 
