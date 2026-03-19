@@ -22,6 +22,13 @@ class CorrespondentRecipientPromotionResult:
     recipient_role_reactivated: bool = False
 
 
+@dataclass(frozen=True)
+class CorrespondentRecipientOrganizationResolution:
+    organization: Contact | None = None
+    support_organization_created: bool = False
+    attached_to_support_organization: bool = False
+
+
 def _get_or_create_support_organization():
     existing = (
         Contact.objects.filter(
@@ -79,12 +86,47 @@ def _resolve_recipient_organization(contact):
     return support_organization, created, False
 
 
+def _has_active_shipment_correspondent_recipient_for_destination(destination_id: int) -> bool:
+    if not destination_id:
+        return False
+    from wms.models import ShipmentRecipientOrganization
+
+    return ShipmentRecipientOrganization.objects.filter(
+        destination_id=destination_id,
+        is_correspondent=True,
+        is_active=True,
+    ).exists()
+
+
 def _destination_ids_from_correspondent_assignments(contact) -> list[int]:
     return sorted(
         Destination.objects.filter(
             correspondent_contact=contact,
             is_active=True,
         ).values_list("id", flat=True)
+    )
+
+
+def resolve_correspondent_recipient_organization(
+    contact,
+) -> CorrespondentRecipientOrganizationResolution:
+    """
+    Resolve the organization that should carry a correspondent in the shipment-party model.
+
+    This path prepares the person/support-organization attachment when needed without creating
+    the legacy recipient role and binding semantics used by the transitional org-roles runtime.
+    """
+
+    if not contact or not getattr(contact, "pk", None):
+        return CorrespondentRecipientOrganizationResolution()
+    if not contact.is_active:
+        return CorrespondentRecipientOrganizationResolution()
+
+    organization, support_created, attached_to_support = _resolve_recipient_organization(contact)
+    return CorrespondentRecipientOrganizationResolution(
+        organization=organization,
+        support_organization_created=support_created,
+        attached_to_support_organization=attached_to_support,
     )
 
 
@@ -96,7 +138,8 @@ def promote_correspondent_to_recipient_ready(contact) -> CorrespondentRecipientP
     if not _destination_ids_from_correspondent_assignments(contact):
         return CorrespondentRecipientPromotionResult()
 
-    organization, support_created, attached_to_support = _resolve_recipient_organization(contact)
+    resolution = resolve_correspondent_recipient_organization(contact)
+    organization = resolution.organization
     if organization is None:
         return CorrespondentRecipientPromotionResult()
 
@@ -113,14 +156,14 @@ def promote_correspondent_to_recipient_ready(contact) -> CorrespondentRecipientP
     return CorrespondentRecipientPromotionResult(
         changed=any(
             [
-                support_created,
-                attached_to_support,
+                resolution.support_organization_created,
+                resolution.attached_to_support_organization,
                 created,
                 reactivated,
             ]
         ),
-        support_organization_created=support_created,
-        attached_to_support_organization=attached_to_support,
+        support_organization_created=resolution.support_organization_created,
+        attached_to_support_organization=resolution.attached_to_support_organization,
         recipient_role_created=created,
         recipient_role_reactivated=reactivated,
     )
@@ -143,6 +186,7 @@ def ensure_destination_correspondent_recipient_ready(destination):
         correspondent_contact
         and correspondent_contact.is_active
         and default_shipper_binding_sync_enabled()
+        and not _has_active_shipment_correspondent_recipient_for_destination(destination.id)
     ):
         ensure_default_shipper_bindings_for_destination_id(destination.id)
     return result
