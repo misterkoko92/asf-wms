@@ -4,17 +4,17 @@ from django.urls import reverse
 from django.utils.translation import gettext as _
 
 from .models import Destination, Order, OrderStatus
-from .organization_role_resolvers import (
-    OrganizationRoleResolutionError,
-    resolve_recipient_binding_for_operation,
-    resolve_shipper_for_operation,
-)
 from .scan_helpers import resolve_product
 from .services import (
     StockError,
     create_shipment_for_order,
     prepare_order,
     reserve_stock_for_order,
+)
+from .shipment_party_rules import (
+    OrganizationRoleResolutionError,
+    resolve_recipient_binding_for_operation,
+    resolve_shipper_for_operation,
 )
 
 

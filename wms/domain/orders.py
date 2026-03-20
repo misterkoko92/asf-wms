@@ -18,14 +18,14 @@ from ..models import (
     ShipmentStatus,
     StockMovement,
 )
-from ..organization_role_resolvers import (
+from ..scan_helpers import build_packing_bins
+from ..shipment_helpers import build_destination_label
+from ..shipment_party_rules import (
     OrganizationRoleResolutionError,
+    normalize_party_contact_to_org,
     resolve_recipient_binding_for_operation,
     resolve_shipper_for_operation,
 )
-from ..scan_helpers import build_packing_bins
-from ..shipment_helpers import build_destination_label
-from ..shipment_party_rules import normalize_party_contact_to_org
 from ..shipment_party_snapshot import build_shipment_party_snapshot_payload
 from ..shipment_status import sync_shipment_ready_state
 from .stock import (

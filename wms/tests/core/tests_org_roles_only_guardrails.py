@@ -63,6 +63,11 @@ class OrgRolesOnlyGuardrailsTests(SimpleTestCase):
             "wms/models_domain/portal.py": [
                 "legacy_contact = models.ForeignKey(",
             ],
+            "README.md": [
+                "- Shipper: tag `Expediteur` + destination match or global (no destination).",
+                "- Recipient: tag `Destinataire` + linked shipper match or global (no linked shippers).",
+                "- Correspondent: destination-level contact; if destination has no configured correspondent, no correspondent is selectable.",
+            ],
         }
 
         violations = []

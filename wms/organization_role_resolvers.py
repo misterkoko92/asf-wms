@@ -13,6 +13,10 @@ from .models import (
     ShipperScope,
 )
 
+# Legacy org-role resolvers remain for donor/transporter and migration audit paths.
+# Shipment runtime validation now lives in `wms.shipment_party_rules`.
+from .shipment_party_rules import OrganizationRoleResolutionError
+
 MESSAGE_DESTINATION_REQUIRED = "Escale requise."
 MESSAGE_SHIPPER_REQUIRED = "Expediteur requis."
 MESSAGE_SHIPPER_REVIEW_PENDING = "Expediteur en cours de revue ASF."
@@ -22,10 +26,6 @@ MESSAGE_RECIPIENT_REQUIRED = "Destinataire requis."
 MESSAGE_RECIPIENT_REVIEW_PENDING = "Destinataire en cours de revue ASF."
 MESSAGE_RECIPIENT_COMPLIANCE_REQUIRED = "Destinataire non conforme: documents manquants."
 MESSAGE_RECIPIENT_BINDING_MISSING = "Destinataire non autorise pour cet expediteur et cette escale."
-
-
-class OrganizationRoleResolutionError(Exception):
-    pass
 
 
 def _current_window_q(prefix: str = ""):

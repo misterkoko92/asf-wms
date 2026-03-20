@@ -5,10 +5,10 @@ WMS for catalog, lot-based stock, cartons, shipments, and shipment tracking.
 ## Functional snapshot
 - Shipment creation is sequenced: `Destination` -> `Expediteur` -> `Destinataire + Correspondant` -> colis lines.
 - Draft shipments are supported (`EXP-TEMP-XX`) with later conversion to a final shipment reference.
-- Contact filtering is rule-based:
-  - Shipper: tag `Expediteur` + destination match or global (no destination).
-  - Recipient: tag `Destinataire` + linked shipper match or global (no linked shippers).
-  - Correspondent: destination-level contact; if destination has no configured correspondent, no correspondent is selectable.
+- Shipment-party runtime is registry-based:
+  - Shipper: validated `ShipmentShipper` with a default contact and stopover eligibility.
+  - Recipient: validated `ShipmentRecipientOrganization` linked to the shipper, with authorized recipient contacts.
+  - Correspondent: stopover-level correspondent recipient organization plus the active stopover correspondent contact.
 - Carton statuses: `draft`, `picking`, `packed`, `assigned`, `labeled`, `shipped`.
 - Shipment statuses: `draft`, `picking`, `packed`, `planned`, `shipped`, `received_correspondent`, `delivered` (+ dispute flag `is_disputed`).
 - Dedicated tracking board at `scan/shipments-tracking/` with weekly planned filter and case closure (`closed_at`, `closed_by`).

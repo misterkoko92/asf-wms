@@ -9,8 +9,28 @@ from .models import (
     OrganizationRole,
     OrganizationRoleAssignment,
     RecipientBinding,
+    ShipmentRecipientOrganization,
+    ShipmentShipper,
+    ShipmentShipperRecipientLink,
+    ShipmentValidationStatus,
     ShipperScope,
 )
+from .shipment_party_registry import (
+    eligible_recipient_organizations_for_shipper,
+    eligible_shippers_for_stopover,
+)
+
+MESSAGE_DESTINATION_REQUIRED = "Escale requise."
+MESSAGE_SHIPPER_REQUIRED = "Expediteur requis."
+MESSAGE_SHIPPER_REVIEW_PENDING = "Expediteur en cours de revue ASF."
+MESSAGE_SHIPPER_OUT_OF_SCOPE = "Expediteur non autorise pour cette escale."
+MESSAGE_RECIPIENT_REQUIRED = "Destinataire requis."
+MESSAGE_RECIPIENT_REVIEW_PENDING = "Destinataire en cours de revue ASF."
+MESSAGE_RECIPIENT_BINDING_MISSING = "Destinataire non autorise pour cet expediteur et cette escale."
+
+
+class OrganizationRoleResolutionError(Exception):
+    pass
 
 
 def normalize_party_contact_to_org(contact: Contact | None) -> Contact | None:
@@ -122,6 +142,99 @@ def eligible_correspondent_contacts_for_destination(destination):
         pk=destination.correspondent_contact_id,
         is_active=True,
     ).order_by("name", "id")
+
+
+def _shipment_shipper_record(shipper_org: Contact | None) -> ShipmentShipper | None:
+    shipper_org = normalize_party_contact_to_org(shipper_org)
+    if shipper_org is None:
+        return None
+    return (
+        ShipmentShipper.objects.filter(
+            organization=shipper_org,
+            is_active=True,
+            organization__is_active=True,
+        )
+        .select_related("organization", "default_contact", "default_contact__organization")
+        .order_by("id")
+        .first()
+    )
+
+
+def _shipment_recipient_organization_record(
+    *,
+    recipient_org: Contact | None,
+    destination,
+) -> ShipmentRecipientOrganization | None:
+    recipient_org = normalize_party_contact_to_org(recipient_org)
+    if recipient_org is None or destination is None:
+        return None
+    return (
+        ShipmentRecipientOrganization.objects.filter(
+            organization=recipient_org,
+            destination=destination,
+            is_active=True,
+            organization__is_active=True,
+        )
+        .select_related("organization", "destination")
+        .order_by("id")
+        .first()
+    )
+
+
+def resolve_shipper_for_operation(*, shipper_org, destination):
+    if destination is None:
+        raise OrganizationRoleResolutionError(MESSAGE_DESTINATION_REQUIRED)
+    shipper_org = normalize_party_contact_to_org(shipper_org)
+    if shipper_org is None:
+        raise OrganizationRoleResolutionError(MESSAGE_SHIPPER_REQUIRED)
+
+    shipper = _shipment_shipper_record(shipper_org)
+    if shipper is None or shipper.validation_status != ShipmentValidationStatus.VALIDATED:
+        raise OrganizationRoleResolutionError(MESSAGE_SHIPPER_REVIEW_PENDING)
+    return shipper
+
+
+def resolve_recipient_binding_for_operation(*, shipper_org, recipient_org, destination):
+    if destination is None:
+        raise OrganizationRoleResolutionError(MESSAGE_DESTINATION_REQUIRED)
+    recipient_org = normalize_party_contact_to_org(recipient_org)
+    if recipient_org is None:
+        raise OrganizationRoleResolutionError(MESSAGE_RECIPIENT_REQUIRED)
+    shipper = resolve_shipper_for_operation(
+        shipper_org=shipper_org,
+        destination=destination,
+    )
+
+    recipient_organization = _shipment_recipient_organization_record(
+        recipient_org=recipient_org,
+        destination=destination,
+    )
+    if recipient_organization is None:
+        raise OrganizationRoleResolutionError(MESSAGE_RECIPIENT_BINDING_MISSING)
+    if recipient_organization.validation_status != ShipmentValidationStatus.VALIDATED:
+        raise OrganizationRoleResolutionError(MESSAGE_RECIPIENT_REVIEW_PENDING)
+
+    if (
+        not eligible_recipient_organizations_for_shipper(
+            shipper=shipper,
+            destination=destination,
+        )
+        .filter(pk=recipient_organization.pk)
+        .exists()
+    ):
+        raise OrganizationRoleResolutionError(MESSAGE_RECIPIENT_BINDING_MISSING)
+
+    return (
+        ShipmentShipperRecipientLink.objects.filter(
+            shipper=shipper,
+            recipient_organization=recipient_organization,
+            is_active=True,
+        )
+        .select_related("shipper", "recipient_organization")
+        .order_by("id")
+        .first()
+        or recipient_organization
+    )
 
 
 def _contact_emails(contact: Contact | None) -> list[str]:
