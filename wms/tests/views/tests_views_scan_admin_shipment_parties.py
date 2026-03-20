@@ -23,7 +23,7 @@ class ScanAdminShipmentPartiesViewTests(TestCase):
     def setUp(self):
         self.superuser = get_user_model().objects.create_superuser(
             username="scan-shipment-parties-superuser",
-            password="pass1234",
+            password="pass1234",  # pragma: allowlist secret
             email="scan-shipment-parties-superuser@example.com",
         )
         self.correspondent_org = Contact.objects.create(
@@ -263,9 +263,7 @@ class ScanAdminShipmentPartiesViewTests(TestCase):
         migrated_contact = ShipmentRecipientContact.objects.get(contact=source_person)
         self.assertEqual(migrated_contact.recipient_organization_id, self.recipient_organization.id)
         self.assertEqual(migrated_contact.contact.organization_id, self.recipient_org.id)
-        self.assertFalse(
-            ShipmentShipperRecipientLink.objects.filter(pk=source_link.pk).exists()
-        )
+        self.assertFalse(ShipmentShipperRecipientLink.objects.filter(pk=source_link.pk).exists())
         self.assertTrue(
             ShipmentAuthorizedRecipientContact.objects.filter(
                 link=self.link,

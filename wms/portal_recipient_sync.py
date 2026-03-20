@@ -461,7 +461,8 @@ def _ensure_authorized_recipient_contact(
         recipient_contact=recipient_contact,
         defaults={
             "is_active": bool(is_active),
-            "is_default": bool(is_active and set_as_default),
+            # Clear any existing default before promoting this authorization.
+            "is_default": False,
         },
     )
     updated_fields = []

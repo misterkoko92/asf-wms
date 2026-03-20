@@ -36,7 +36,11 @@ from wms.models import (
     ReceiptStatus,
     RecipientBinding,
     Shipment,
+    ShipmentRecipientOrganization,
+    ShipmentShipper,
+    ShipmentShipperRecipientLink,
     ShipmentStatus,
+    ShipmentValidationStatus,
     ShipperScope,
     StockMovement,
     Warehouse,
@@ -101,6 +105,17 @@ class StockFlowTests(TestCase):
             is_active=True,
         )
 
+    def _create_person_contact(self, name, *, organization=None):
+        first_name, last_name = name.split(" ", 1)
+        return Contact.objects.create(
+            name=name,
+            contact_type=ContactType.PERSON,
+            first_name=first_name,
+            last_name=last_name,
+            organization=organization,
+            is_active=True,
+        )
+
     def _assign_role(self, contact, role):
         assignment, _ = OrganizationRoleAssignment.objects.get_or_create(
             organization=contact,
@@ -119,6 +134,7 @@ class StockFlowTests(TestCase):
             destination=destination,
             defaults={"is_active": True},
         )
+        self._ensure_shipment_shipper(shipper_contact)
 
     def _bind_recipient(self, shipper_contact, recipient_contact, destination):
         self._assign_role(shipper_contact, OrganizationRole.SHIPPER)
@@ -129,6 +145,69 @@ class StockFlowTests(TestCase):
             destination=destination,
             defaults={"is_active": True},
         )
+        shipper = self._ensure_shipment_shipper(shipper_contact)
+        recipient_organization, _created = ShipmentRecipientOrganization.objects.get_or_create(
+            organization=recipient_contact,
+            defaults={
+                "destination": destination,
+                "validation_status": ShipmentValidationStatus.VALIDATED,
+                "is_active": True,
+            },
+        )
+        updates = []
+        if recipient_organization.destination_id != destination.id:
+            recipient_organization.destination = destination
+            updates.append("destination")
+        if recipient_organization.validation_status != ShipmentValidationStatus.VALIDATED:
+            recipient_organization.validation_status = ShipmentValidationStatus.VALIDATED
+            updates.append("validation_status")
+        if not recipient_organization.is_active:
+            recipient_organization.is_active = True
+            updates.append("is_active")
+        if updates:
+            recipient_organization.save(update_fields=updates)
+        ShipmentShipperRecipientLink.objects.get_or_create(
+            shipper=shipper,
+            recipient_organization=recipient_organization,
+            defaults={"is_active": True},
+        )
+
+    def _ensure_shipment_shipper(self, shipper_contact):
+        default_contact = (
+            Contact.objects.filter(
+                organization=shipper_contact,
+                contact_type=ContactType.PERSON,
+                is_active=True,
+            )
+            .order_by("id")
+            .first()
+        )
+        if default_contact is None:
+            default_contact = self._create_person_contact(
+                f"Default {shipper_contact.name}",
+                organization=shipper_contact,
+            )
+        shipper, _created = ShipmentShipper.objects.get_or_create(
+            organization=shipper_contact,
+            defaults={
+                "default_contact": default_contact,
+                "validation_status": ShipmentValidationStatus.VALIDATED,
+                "is_active": True,
+            },
+        )
+        updates = []
+        if shipper.default_contact_id != default_contact.id:
+            shipper.default_contact = default_contact
+            updates.append("default_contact")
+        if shipper.validation_status != ShipmentValidationStatus.VALIDATED:
+            shipper.validation_status = ShipmentValidationStatus.VALIDATED
+            updates.append("validation_status")
+        if not shipper.is_active:
+            shipper.is_active = True
+            updates.append("is_active")
+        if updates:
+            shipper.save(update_fields=updates)
+        return shipper
 
     def test_consume_stock_follows_fefo(self):
         lot_early = self._create_lot(quantity=5, expires_on=date(2026, 1, 10))
@@ -487,6 +566,17 @@ class OrderReservationTests(TestCase):
             is_active=True,
         )
 
+    def _create_person_contact(self, name, *, organization=None):
+        first_name, last_name = name.split(" ", 1)
+        return Contact.objects.create(
+            name=name,
+            contact_type=ContactType.PERSON,
+            first_name=first_name,
+            last_name=last_name,
+            organization=organization,
+            is_active=True,
+        )
+
     def _assign_role(self, contact, role):
         assignment, _ = OrganizationRoleAssignment.objects.get_or_create(
             organization=contact,
@@ -505,6 +595,7 @@ class OrderReservationTests(TestCase):
             destination=destination,
             defaults={"is_active": True},
         )
+        self._ensure_shipment_shipper(shipper_contact)
 
     def _bind_recipient(self, shipper_contact, recipient_contact, destination):
         self._assign_role(shipper_contact, OrganizationRole.SHIPPER)
@@ -515,6 +606,69 @@ class OrderReservationTests(TestCase):
             destination=destination,
             defaults={"is_active": True},
         )
+        shipper = self._ensure_shipment_shipper(shipper_contact)
+        recipient_organization, _created = ShipmentRecipientOrganization.objects.get_or_create(
+            organization=recipient_contact,
+            defaults={
+                "destination": destination,
+                "validation_status": ShipmentValidationStatus.VALIDATED,
+                "is_active": True,
+            },
+        )
+        updates = []
+        if recipient_organization.destination_id != destination.id:
+            recipient_organization.destination = destination
+            updates.append("destination")
+        if recipient_organization.validation_status != ShipmentValidationStatus.VALIDATED:
+            recipient_organization.validation_status = ShipmentValidationStatus.VALIDATED
+            updates.append("validation_status")
+        if not recipient_organization.is_active:
+            recipient_organization.is_active = True
+            updates.append("is_active")
+        if updates:
+            recipient_organization.save(update_fields=updates)
+        ShipmentShipperRecipientLink.objects.get_or_create(
+            shipper=shipper,
+            recipient_organization=recipient_organization,
+            defaults={"is_active": True},
+        )
+
+    def _ensure_shipment_shipper(self, shipper_contact):
+        default_contact = (
+            Contact.objects.filter(
+                organization=shipper_contact,
+                contact_type=ContactType.PERSON,
+                is_active=True,
+            )
+            .order_by("id")
+            .first()
+        )
+        if default_contact is None:
+            default_contact = self._create_person_contact(
+                f"Default {shipper_contact.name}",
+                organization=shipper_contact,
+            )
+        shipper, _created = ShipmentShipper.objects.get_or_create(
+            organization=shipper_contact,
+            defaults={
+                "default_contact": default_contact,
+                "validation_status": ShipmentValidationStatus.VALIDATED,
+                "is_active": True,
+            },
+        )
+        updates = []
+        if shipper.default_contact_id != default_contact.id:
+            shipper.default_contact = default_contact
+            updates.append("default_contact")
+        if shipper.validation_status != ShipmentValidationStatus.VALIDATED:
+            shipper.validation_status = ShipmentValidationStatus.VALIDATED
+            updates.append("validation_status")
+        if not shipper.is_active:
+            shipper.is_active = True
+            updates.append("is_active")
+        if updates:
+            shipper.save(update_fields=updates)
+        return shipper
 
     def test_reserve_stock_for_order(self):
         order = Order.objects.create(

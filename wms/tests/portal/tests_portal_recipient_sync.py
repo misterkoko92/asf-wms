@@ -155,3 +155,38 @@ class PortalRecipientSyncTests(TestCase):
                 is_active=True,
             ).exists()
         )
+
+    def test_sync_switches_default_authorized_contact_when_recipient_contact_changes(self):
+        recipient = self._create_recipient()
+        synced = sync_association_recipient_to_contact(recipient)
+
+        recipient.contact_first_name = "Lucie"
+        recipient.contact_last_name = "Martin"
+        recipient.emails = "lucie.martin@example.org"
+        recipient.save(
+            update_fields=[
+                "contact_first_name",
+                "contact_last_name",
+                "emails",
+            ]
+        )
+
+        updated = sync_association_recipient_to_contact(recipient)
+
+        self.assertEqual(updated.id, synced.id)
+        shipper = ShipmentShipper.objects.get(organization=self.association)
+        recipient_org = ShipmentRecipientOrganization.objects.get(organization=updated)
+        link = ShipmentShipperRecipientLink.objects.get(
+            shipper=shipper,
+            recipient_organization=recipient_org,
+        )
+        active_defaults = ShipmentAuthorizedRecipientContact.objects.filter(
+            link=link,
+            is_active=True,
+            is_default=True,
+        ).select_related("recipient_contact__contact")
+        self.assertEqual(active_defaults.count(), 1)
+        self.assertEqual(
+            active_defaults.first().recipient_contact.contact.email,
+            "lucie.martin@example.org",
+        )

@@ -120,6 +120,11 @@ DELETE_BATCHES = (
         (
             "wms.ContactSubscription",
             "wms.ComplianceOverride",
+            "wms.ShipmentAuthorizedRecipientContact",
+            "wms.ShipmentRecipientContact",
+            "wms.ShipmentShipperRecipientLink",
+            "wms.ShipmentRecipientOrganization",
+            "wms.ShipmentShipper",
             "wms.OrganizationRoleDocument",
             "wms.OrganizationRoleContact",
             "wms.OrganizationContact",

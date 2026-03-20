@@ -8,6 +8,7 @@ from wms.carton_status_events import set_carton_status
 from wms.models import (
     AssociationContactTitle,
     AssociationProfile,
+    AssociationRecipient,
     CartonStatus,
     Destination,
     Location,
@@ -18,7 +19,13 @@ from wms.models import (
     ProductLotStatus,
     RecipientBinding,
     Shipment,
+    ShipmentAuthorizedRecipientContact,
+    ShipmentRecipientContact,
+    ShipmentRecipientOrganization,
+    ShipmentShipper,
+    ShipmentShipperRecipientLink,
     ShipmentTrackingStatus,
+    ShipmentValidationStatus,
     ShipperScope,
     Warehouse,
 )
@@ -84,9 +91,11 @@ class UiApiE2EWorkflowsTests(TestCase):
             location=location,
         )
 
+        self.correspondent_org = self._create_contact("E2E Correspondent Org")
         self.correspondent_contact = self._create_contact(
             "E2E Correspondent",
             contact_type=ContactType.PERSON,
+            organization=self.correspondent_org,
         )
         self.destination = Destination.objects.create(
             city="RUN",
@@ -95,19 +104,38 @@ class UiApiE2EWorkflowsTests(TestCase):
             correspondent_contact=self.correspondent_contact,
             is_active=True,
         )
+        ShipmentRecipientOrganization.objects.create(
+            organization=self.correspondent_org,
+            destination=self.destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_correspondent=True,
+            is_active=True,
+        )
         self._grant_shipper_scope(self.association_contact, self.destination)
 
         self.shipper_contact = self._create_contact("E2E Shipper")
         self._grant_shipper_scope(self.shipper_contact, self.destination)
+        self.shipper_referent = self.shipper_contact.shipment_shippers.first().default_contact
         self.recipient_contact = self._create_contact("E2E Recipient")
-        self._bind_recipient(self.shipper_contact, self.recipient_contact, self.destination)
+        self.recipient_referent = self._bind_recipient(
+            self.shipper_contact,
+            self.recipient_contact,
+            self.destination,
+        )
         self.donor_contact = self._create_contact("E2E Donor")
         self._assign_role(self.donor_contact, OrganizationRole.DONOR)
 
-    def _create_contact(self, name, *, contact_type=ContactType.ORGANIZATION):
+    def _create_contact(
+        self,
+        name,
+        *,
+        contact_type=ContactType.ORGANIZATION,
+        organization=None,
+    ):
         contact = Contact.objects.create(
             name=name,
             contact_type=contact_type,
+            organization=organization,
             is_active=True,
         )
         return contact
@@ -124,21 +152,107 @@ class UiApiE2EWorkflowsTests(TestCase):
         return assignment
 
     def _grant_shipper_scope(self, shipper_contact, destination):
-        assignment = self._assign_role(shipper_contact, OrganizationRole.SHIPPER)
+        shipper_org = (
+            shipper_contact.organization
+            if shipper_contact.contact_type == ContactType.PERSON
+            else shipper_contact
+        )
+        assignment = self._assign_role(shipper_org, OrganizationRole.SHIPPER)
         ShipperScope.objects.get_or_create(
             role_assignment=assignment,
             destination=destination,
             defaults={"all_destinations": False, "is_active": True},
         )
+        self._ensure_shipment_shipper(shipper_org)
 
     def _bind_recipient(self, shipper_contact, recipient_contact, destination):
-        self._assign_role(recipient_contact, OrganizationRole.RECIPIENT)
+        shipper_org = (
+            shipper_contact.organization
+            if shipper_contact.contact_type == ContactType.PERSON
+            else shipper_contact
+        )
+        recipient_org = (
+            recipient_contact.organization
+            if recipient_contact.contact_type == ContactType.PERSON
+            else recipient_contact
+        )
+        self._assign_role(recipient_org, OrganizationRole.RECIPIENT)
         RecipientBinding.objects.get_or_create(
-            shipper_org=shipper_contact,
-            recipient_org=recipient_contact,
+            shipper_org=shipper_org,
+            recipient_org=recipient_org,
             destination=destination,
             defaults={"is_active": True},
         )
+        shipment_shipper = self._ensure_shipment_shipper(shipper_org)
+        recipient_referent = self._ensure_recipient_contact(recipient_org)
+        recipient_organization, _created = ShipmentRecipientOrganization.objects.update_or_create(
+            organization=recipient_org,
+            defaults={
+                "destination": destination,
+                "validation_status": ShipmentValidationStatus.VALIDATED,
+                "is_active": True,
+            },
+        )
+        shipment_recipient_contact, _created = ShipmentRecipientContact.objects.update_or_create(
+            recipient_organization=recipient_organization,
+            contact=recipient_referent,
+            defaults={"is_active": True},
+        )
+        shipment_link, _created = ShipmentShipperRecipientLink.objects.update_or_create(
+            shipper=shipment_shipper,
+            recipient_organization=recipient_organization,
+            defaults={"is_active": True},
+        )
+        ShipmentAuthorizedRecipientContact.objects.update_or_create(
+            link=shipment_link,
+            recipient_contact=shipment_recipient_contact,
+            defaults={"is_default": True, "is_active": True},
+        )
+        return shipment_recipient_contact.contact
+
+    def _ensure_shipment_shipper(self, organization):
+        default_contact = (
+            Contact.objects.filter(
+                organization=organization,
+                contact_type=ContactType.PERSON,
+                is_active=True,
+            )
+            .order_by("id")
+            .first()
+        )
+        if default_contact is None:
+            default_contact = self._create_contact(
+                f"{organization.name} Referent",
+                contact_type=ContactType.PERSON,
+                organization=organization,
+            )
+        shipper, _created = ShipmentShipper.objects.update_or_create(
+            organization=organization,
+            defaults={
+                "default_contact": default_contact,
+                "validation_status": ShipmentValidationStatus.VALIDATED,
+                "is_active": True,
+            },
+        )
+        return shipper
+
+    def _ensure_recipient_contact(self, organization):
+        recipient_contact = (
+            Contact.objects.filter(
+                organization=organization,
+                contact_type=ContactType.PERSON,
+                is_active=True,
+            )
+            .order_by("id")
+            .first()
+        )
+        if recipient_contact is None:
+            recipient_contact = self._create_contact(
+                f"{organization.name} Referent",
+                contact_type=ContactType.PERSON,
+                organization=organization,
+            )
+        return recipient_contact
 
     def _post_tracking(self, shipment_id, status_value):
         return self.staff_client.post(
@@ -170,8 +284,8 @@ class UiApiE2EWorkflowsTests(TestCase):
             "/api/v1/ui/shipments/",
             {
                 "destination": self.destination.id,
-                "shipper_contact": self.shipper_contact.id,
-                "recipient_contact": self.recipient_contact.id,
+                "shipper_contact": self.shipper_referent.id,
+                "recipient_contact": self.recipient_referent.id,
                 "correspondent_contact": self.correspondent_contact.id,
                 "lines": [{"product_code": self.product.sku, "quantity": 2}],
             },
@@ -267,6 +381,10 @@ class UiApiE2EWorkflowsTests(TestCase):
         )
         self.assertEqual(recipient_create.status_code, 201)
         recipient_id = recipient_create.json()["recipient"]["id"]
+        portal_recipient = AssociationRecipient.objects.get(pk=recipient_id)
+        ShipmentRecipientOrganization.objects.filter(
+            organization=portal_recipient.synced_contact,
+        ).update(validation_status=ShipmentValidationStatus.VALIDATED)
 
         order_create = self.portal_client.post(
             "/api/v1/ui/portal/orders/",

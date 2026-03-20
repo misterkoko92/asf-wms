@@ -624,7 +624,9 @@ def set_stopover_correspondent_recipient_organization(*, data) -> tuple[bool, st
             recipient_organization.save(update_fields=["is_correspondent"])
 
         destination.correspondent_contact = (
-            replacement_contact.contact if replacement_contact is not None else recipient_organization.organization
+            replacement_contact.contact
+            if replacement_contact is not None
+            else recipient_organization.organization
         )
         destination.save(update_fields=["correspondent_contact"])
 
@@ -691,7 +693,9 @@ def merge_shipment_recipient_organizations(*, data) -> tuple[bool, str]:
         link_map = {}
         target_link_default_exists = {}
         source_links = list(
-            ShipmentShipperRecipientLink.objects.filter(recipient_organization=source).order_by("id")
+            ShipmentShipperRecipientLink.objects.filter(recipient_organization=source).order_by(
+                "id"
+            )
         )
         for source_link in source_links:
             target_link = (
@@ -712,11 +716,13 @@ def merge_shipment_recipient_organizations(*, data) -> tuple[bool, str]:
                     target_link.save(update_fields=["is_active"])
                 duplicate_link_ids_to_delete.append(source_link.pk)
             link_map[source_link.pk] = target_link
-            target_link_default_exists[target_link.pk] = ShipmentAuthorizedRecipientContact.objects.filter(
-                link=target_link,
-                is_default=True,
-                is_active=True,
-            ).exists()
+            target_link_default_exists[target_link.pk] = (
+                ShipmentAuthorizedRecipientContact.objects.filter(
+                    link=target_link,
+                    is_default=True,
+                    is_active=True,
+                ).exists()
+            )
 
         source_authorizations = list(
             ShipmentAuthorizedRecipientContact.objects.select_related("recipient_contact")
@@ -774,7 +780,9 @@ def merge_shipment_recipient_organizations(*, data) -> tuple[bool, str]:
             authorization.delete()
 
         if duplicate_link_ids_to_delete:
-            ShipmentShipperRecipientLink.objects.filter(id__in=duplicate_link_ids_to_delete).delete()
+            ShipmentShipperRecipientLink.objects.filter(
+                id__in=duplicate_link_ids_to_delete
+            ).delete()
         if duplicate_contact_ids_to_delete:
             ShipmentRecipientContact.objects.filter(id__in=duplicate_contact_ids_to_delete).delete()
 
@@ -1033,9 +1041,7 @@ def _build_shipment_party_authorization_options(links):
                 {
                     "link_id": link.id,
                     "recipient_contact_id": recipient_contact.id,
-                    "label": _(
-                        "%(shipper)s -> %(recipient)s / %(contact)s"
-                    )
+                    "label": _("%(shipper)s -> %(recipient)s / %(contact)s")
                     % {
                         "shipper": link.shipper.organization.name,
                         "recipient": link.recipient_organization.organization.name,

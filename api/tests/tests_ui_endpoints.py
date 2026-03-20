@@ -53,6 +53,7 @@ from wms.models import (
     ShipperScope,
     Warehouse,
 )
+from wms.portal_recipient_sync import sync_association_recipient_to_contact
 
 
 class UiApiEndpointsTests(TestCase):
@@ -295,6 +296,10 @@ class UiApiEndpointsTests(TestCase):
             phones="0102030405",
             phone="0102030405",
         )
+        sync_association_recipient_to_contact(self.portal_recipient)
+        ShipmentRecipientOrganization.objects.filter(
+            organization=self.portal_recipient.synced_contact,
+        ).update(validation_status=ShipmentValidationStatus.VALIDATED)
 
     def _create_contact(self, name, *, contact_type=ContactType.ORGANIZATION):
         contact = Contact.objects.create(
