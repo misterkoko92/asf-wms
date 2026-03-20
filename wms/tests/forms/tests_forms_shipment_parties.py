@@ -94,17 +94,17 @@ class ScanShipmentFormShipmentPartyTests(TestCase):
         link, _created = ShipmentShipperRecipientLink.objects.get_or_create(
             shipper=shipper,
             recipient_organization=recipient_org,
-            defaults={"is_active": link_active},
+            defaults={"is_active": True},
         )
-        if link.is_active != link_active:
-            link.is_active = link_active
-            link.save(update_fields=["is_active"])
         ShipmentAuthorizedRecipientContact.objects.create(
             link=link,
             recipient_contact=recipient_contact,
             is_default=is_default,
             is_active=authorization_active,
         )
+        if link.is_active != link_active:
+            link.is_active = link_active
+            link.save(update_fields=["is_active"])
         return person
 
     def test_scan_shipment_form_prefills_default_recipient_contact_for_shipper_link(self):
@@ -181,6 +181,72 @@ class ScanShipmentFormShipmentPartyTests(TestCase):
                 "destination": str(destination.id),
                 "shipper_contact": str(shipper_contact.id),
                 "recipient_contact": str(pending_recipient.id),
+                "correspondent_contact": str(correspondent.id),
+                "carton_count": "1",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(
+            form.errors["recipient_contact"],
+            [
+                "Destinataire invalide: ce contact n'est pas disponible pour la destination sélectionnée."
+            ],
+        )
+
+    def test_scan_shipment_form_rejects_recipient_when_shipper_link_is_inactive(self):
+        destination, correspondent = self._create_destination_with_correspondent("DKR")
+        shipper, shipper_contact = self._create_shipper("ASF Dakar")
+        recipient_org, _recipient_structure = self._create_recipient_structure(
+            "Hopital Dakar",
+            destination=destination,
+        )
+        inactive_link_recipient = self._authorize_recipient_contact(
+            shipper=shipper,
+            recipient_org=recipient_org,
+            person_name="Ibrahim Link",
+            is_default=True,
+            link_active=False,
+        )
+
+        form = ScanShipmentForm(
+            data={
+                "destination": str(destination.id),
+                "shipper_contact": str(shipper_contact.id),
+                "recipient_contact": str(inactive_link_recipient.id),
+                "correspondent_contact": str(correspondent.id),
+                "carton_count": "1",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(
+            form.errors["recipient_contact"],
+            [
+                "Destinataire invalide: ce contact n'est pas disponible pour la destination sélectionnée."
+            ],
+        )
+
+    def test_scan_shipment_form_rejects_recipient_when_authorized_contact_is_inactive(self):
+        destination, correspondent = self._create_destination_with_correspondent("NIM")
+        shipper, shipper_contact = self._create_shipper("ASF Niamey")
+        recipient_org, _recipient_structure = self._create_recipient_structure(
+            "Hopital Niamey",
+            destination=destination,
+        )
+        inactive_authorization_recipient = self._authorize_recipient_contact(
+            shipper=shipper,
+            recipient_org=recipient_org,
+            person_name="Awa Authorization",
+            is_default=True,
+            authorization_active=False,
+        )
+
+        form = ScanShipmentForm(
+            data={
+                "destination": str(destination.id),
+                "shipper_contact": str(shipper_contact.id),
+                "recipient_contact": str(inactive_authorization_recipient.id),
                 "correspondent_contact": str(correspondent.id),
                 "carton_count": "1",
             }
