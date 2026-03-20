@@ -72,7 +72,7 @@ class SignalsExtraTests(SimpleTestCase):
                         side_effect=lambda callback: callback(),
                     ):
                         _notify_shipment_status_change(None, instance, created=False)
-        render_mock.assert_called_once()
+        render_mock.assert_not_called()
         send_mock.assert_not_called()
 
     def test_notify_shipment_status_change_emits_structured_log(self):

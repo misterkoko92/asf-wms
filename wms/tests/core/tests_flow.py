@@ -13,6 +13,12 @@ from wms.models import (
     OrganizationRole,
     OrganizationRoleAssignment,
     RecipientBinding,
+    ShipmentAuthorizedRecipientContact,
+    ShipmentRecipientContact,
+    ShipmentRecipientOrganization,
+    ShipmentShipper,
+    ShipmentShipperRecipientLink,
+    ShipmentValidationStatus,
     ShipperScope,
 )
 from wms.services import prepare_order, reserve_stock_for_order
@@ -72,7 +78,19 @@ class FlowTests(TestCase):
             is_active=True,
         )
         shipper = self._create_contact("Flow Shipper")
+        shipper_contact = self._create_contact(
+            "Jean Flow Shipper",
+            contact_type=ContactType.PERSON,
+        )
+        shipper_contact.organization = shipper
+        shipper_contact.save(update_fields=["organization"])
         recipient = self._create_contact("Flow Recipient")
+        recipient_contact = self._create_contact(
+            "Marie Flow Recipient",
+            contact_type=ContactType.PERSON,
+        )
+        recipient_contact.organization = recipient
+        recipient_contact.save(update_fields=["organization"])
         shipper_assignment = self._assign_role(shipper, OrganizationRole.SHIPPER)
         self._assign_role(recipient, OrganizationRole.RECIPIENT)
         ShipperScope.objects.create(role_assignment=shipper_assignment, destination=destination)
@@ -81,13 +99,41 @@ class FlowTests(TestCase):
             recipient_org=recipient,
             destination=destination,
         )
+        shipment_shipper = ShipmentShipper.objects.create(
+            organization=shipper,
+            default_contact=shipper_contact,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+        shipment_recipient_organization = ShipmentRecipientOrganization.objects.create(
+            organization=recipient,
+            destination=destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+        shipment_recipient_contact = ShipmentRecipientContact.objects.create(
+            recipient_organization=shipment_recipient_organization,
+            contact=recipient_contact,
+            is_active=True,
+        )
+        shipment_link = ShipmentShipperRecipientLink.objects.create(
+            shipper=shipment_shipper,
+            recipient_organization=shipment_recipient_organization,
+            is_active=True,
+        )
+        ShipmentAuthorizedRecipientContact.objects.create(
+            link=shipment_link,
+            recipient_contact=shipment_recipient_contact,
+            is_default=True,
+            is_active=True,
+        )
 
         order = Order.objects.create(
             status=OrderStatus.DRAFT,
-            shipper_name=shipper.name,
-            shipper_contact=shipper,
-            recipient_name=recipient.name,
-            recipient_contact=recipient,
+            shipper_name=shipper_contact.name,
+            shipper_contact=shipper_contact,
+            recipient_name=recipient_contact.name,
+            recipient_contact=recipient_contact,
             correspondent_name=correspondent.name,
             correspondent_contact=correspondent,
             destination_address="10 Rue Test",

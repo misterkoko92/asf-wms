@@ -99,6 +99,29 @@ class ShipmentPartySnapshotTests(TestCase):
             destination=destination,
             defaults={"is_active": True},
         )
+        default_contact = (
+            Contact.objects.filter(
+                organization=shipper_org,
+                contact_type=ContactType.PERSON,
+                is_active=True,
+            )
+            .order_by("id")
+            .first()
+        )
+        if default_contact is None:
+            default_contact = self._create_person(
+                "Default",
+                shipper_org.name,
+                organization=shipper_org,
+            )
+        ShipmentShipper.objects.update_or_create(
+            organization=shipper_org,
+            defaults={
+                "default_contact": default_contact,
+                "validation_status": ShipmentValidationStatus.VALIDATED,
+                "is_active": True,
+            },
+        )
 
     def _bind_recipient(self, shipper_org, recipient_org, destination):
         self._assign_role(shipper_org, OrganizationRole.SHIPPER)
@@ -108,6 +131,45 @@ class ShipmentPartySnapshotTests(TestCase):
             recipient_org=recipient_org,
             destination=destination,
             defaults={"is_active": True},
+        )
+        shipper = ShipmentShipper.objects.get(organization=shipper_org)
+        shipment_recipient_org, _created = ShipmentRecipientOrganization.objects.update_or_create(
+            organization=recipient_org,
+            defaults={
+                "destination": destination,
+                "validation_status": ShipmentValidationStatus.VALIDATED,
+                "is_active": True,
+            },
+        )
+        link, _created = ShipmentShipperRecipientLink.objects.update_or_create(
+            shipper=shipper,
+            recipient_organization=shipment_recipient_org,
+            defaults={"is_active": True},
+        )
+        recipient_contact = (
+            Contact.objects.filter(
+                organization=recipient_org,
+                contact_type=ContactType.PERSON,
+                is_active=True,
+            )
+            .order_by("id")
+            .first()
+        )
+        if recipient_contact is None:
+            recipient_contact = self._create_person(
+                "Default",
+                recipient_org.name,
+                organization=recipient_org,
+            )
+        shipment_recipient_contact, _created = ShipmentRecipientContact.objects.update_or_create(
+            recipient_organization=shipment_recipient_org,
+            contact=recipient_contact,
+            defaults={"is_active": True},
+        )
+        ShipmentAuthorizedRecipientContact.objects.update_or_create(
+            link=link,
+            recipient_contact=shipment_recipient_contact,
+            defaults={"is_default": True, "is_active": True},
         )
 
     def _request(self, data):

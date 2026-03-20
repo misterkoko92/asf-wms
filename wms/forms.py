@@ -753,7 +753,11 @@ class ScanShipmentForm(forms.Form):
                     "shipper_contact",
                     _("Expéditeur invalide: ce choix n'est plus disponible."),
                 )
-            elif not self.fields["shipper_contact"].queryset.filter(pk=shipper.pk).exists():
+            elif (
+                not eligible_shipment_shipper_contacts_for_destination(destination)
+                .filter(pk=shipper.pk)
+                .exists()
+            ):
                 self.add_error(
                     "shipper_contact",
                     _("Expéditeur non disponible pour cette destination."),

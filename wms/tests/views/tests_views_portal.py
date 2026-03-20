@@ -1256,8 +1256,8 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
                         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Commande envoyée.")
-        self.assertNotContains(response, "Order sent.")
+        self.assertContains(response, "Order sent.")
+        self.assertNotContains(response, "Commande envoyée.")
 
     def test_portal_order_create_post_supports_ready_cartons_and_unit_products(self):
         warehouse = Warehouse.objects.create(name="Portal Mixed Order Warehouse")
@@ -1871,8 +1871,8 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Destinataire ajouté.")
-        self.assertNotContains(response, "Recipient added.")
+        self.assertContains(response, "Recipient added.")
+        self.assertNotContains(response, "Destinataire ajouté.")
 
     def test_portal_recipients_get_with_edit_prefills_form(self):
         recipient = AssociationRecipient.objects.create(

@@ -8,6 +8,7 @@ from contacts.models import Contact
 from wms.emailing import process_email_queue
 from wms.models import (
     AssociationProfile,
+    AssociationRecipient,
     ContactSubscription,
     Destination,
     IntegrationDirection,
@@ -189,81 +190,13 @@ class EmailFlowsEndToEndTests(TestCase):
                 name="Correspondent Delivery E2E",
             ),
         )
-        shipper_assignment = OrganizationRoleAssignment.objects.create(
-            organization=association_contact,
-            role=OrganizationRole.SHIPPER,
-            is_active=True,
-        )
-        recipient_assignment = OrganizationRoleAssignment.objects.create(
-            organization=recipient_contact,
-            role=OrganizationRole.RECIPIENT,
-            is_active=True,
-        )
-        shipper_primary = OrganizationContact.objects.create(
-            organization=association_contact,
-            first_name="Association",
-            last_name="Primary",
-            email="assoc-delivery@example.com",
-            is_active=True,
-        )
-        OrganizationRoleContact.objects.create(
-            role_assignment=shipper_assignment,
-            contact=shipper_primary,
-            is_primary=True,
-            is_active=True,
-        )
-        recipient_contact_one = OrganizationContact.objects.create(
-            organization=recipient_contact,
-            first_name="Delivery",
-            last_name="One",
-            email="delivery-e2e@example.com",
-            is_active=True,
-        )
-        recipient_contact_two = OrganizationContact.objects.create(
-            organization=recipient_contact,
-            first_name="Delivery",
-            last_name="Two",
-            email="second-delivery-e2e@example.com",
-            is_active=True,
-        )
-        recipient_role_contact_one = OrganizationRoleContact.objects.create(
-            role_assignment=recipient_assignment,
-            contact=recipient_contact_one,
-            is_primary=True,
-            is_active=True,
-        )
-        recipient_role_contact_two = OrganizationRoleContact.objects.create(
-            role_assignment=recipient_assignment,
-            contact=recipient_contact_two,
-            is_primary=False,
-            is_active=True,
-        )
-        RoleEventPolicy.objects.create(
-            role=OrganizationRole.SHIPPER,
-            event_type=RoleEventType.SHIPMENT_STATUS_UPDATED,
-            is_notifiable=True,
-            is_active=True,
-        )
-        RoleEventPolicy.objects.create(
-            role=OrganizationRole.RECIPIENT,
-            event_type=RoleEventType.SHIPMENT_DELIVERED,
-            is_notifiable=True,
-            is_active=True,
-        )
-        ContactSubscription.objects.create(
-            role_contact=recipient_role_contact_one,
-            event_type=RoleEventType.SHIPMENT_DELIVERED,
-            channel=NotificationChannel.EMAIL,
+        AssociationRecipient.objects.create(
+            association_contact=association_contact,
             destination=destination,
-            shipper_org=association_contact,
-            is_active=True,
-        )
-        ContactSubscription.objects.create(
-            role_contact=recipient_role_contact_two,
-            event_type=RoleEventType.SHIPMENT_DELIVERED,
-            channel=NotificationChannel.EMAIL,
-            destination=destination,
-            shipper_org=association_contact,
+            name="Delivery alert",
+            structure_name="Delivery alert",
+            emails="delivery-e2e@example.com, second-delivery-e2e@example.com",
+            notify_deliveries=True,
             is_active=True,
         )
         shipment = Shipment.objects.create(
@@ -287,7 +220,7 @@ class EmailFlowsEndToEndTests(TestCase):
         pending_events = list(
             self._email_events_queryset().filter(status=IntegrationStatus.PENDING)
         )
-        self.assertEqual(len(pending_events), 3)
+        self.assertEqual(len(pending_events), 4)
         delivery_subject = f"ASF WMS - Expedition {shipment.reference} : livraison confirmee"
         delivery_event = next(
             event for event in pending_events if event.payload.get("subject") == delivery_subject
@@ -298,20 +231,30 @@ class EmailFlowsEndToEndTests(TestCase):
         )
 
         parties_subject = f"ASF WMS - Expédition {shipment.reference} : statut Livré"
-        parties_event = next(
+        parties_events = [
             event for event in pending_events if event.payload.get("subject") == parties_subject
-        )
+        ]
+        self.assertEqual(len(parties_events), 2)
+        party_recipients = {tuple(event.payload.get("recipient", [])) for event in parties_events}
         self.assertEqual(
-            parties_event.payload.get("recipient"),
-            ["assoc-delivery@example.com"],
+            party_recipients,
+            {
+                ("assoc-delivery@example.com",),
+                ("delivery-primary@example.com",),
+            },
         )
+        admin_subject = f"ASF WMS - Expédition {shipment.reference} : statut mis à jour"
+        admin_event = next(
+            event for event in pending_events if event.payload.get("subject") == admin_subject
+        )
+        self.assertEqual(admin_event.payload.get("recipient"), ["admin@example.com"])
 
         with mock.patch("wms.emailing.send_email_safe", return_value=True):
             result = process_email_queue(limit=10)
 
-        self.assertEqual(result["selected"], 3)
-        self.assertEqual(result["processed"], 3)
+        self.assertEqual(result["selected"], 4)
+        self.assertEqual(result["processed"], 4)
         self.assertEqual(
             self._email_events_queryset().filter(status=IntegrationStatus.PROCESSED).count(),
-            3,
+            4,
         )
