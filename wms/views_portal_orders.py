@@ -6,6 +6,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_http_methods
 
+from .contact_labels import build_shipment_recipient_select_label
 from .document_scan import DocumentScanStatus
 from .document_scan_queue import queue_document_scan
 from .document_uploads import validate_document_upload
@@ -30,24 +31,19 @@ from .order_helpers import (
     split_ready_rows_into_kits,
 )
 from .order_notifications import send_portal_order_notifications
-from .organization_role_resolvers import (
-    OrganizationRoleResolutionError,
-    resolve_recipient_binding_for_operation,
-    resolve_shipper_for_operation,
-)
 from .portal_helpers import (
     build_destination_address,
     get_contact_address,
     get_default_carton_format,
 )
 from .portal_order_handlers import create_portal_order
-from .portal_recipient_sync import sync_association_recipient_to_contact
+from .portal_recipient_sync import resolve_association_recipient_party_contact
 from .scan_helpers import build_product_selection_data
 from .scan_helpers import parse_int as parse_int_safe
 from .services import StockError
-from .shipment_party_rules import (
-    eligible_recipient_contacts_for_shipper_destination,
-    normalize_party_contact_to_org,
+from .shipment_helpers import (
+    shipment_link_for_recipient_contact,
+    shipment_shipper_from_contact,
 )
 from .status_presenters import (
     present_order_review_status,
@@ -150,9 +146,27 @@ def _build_destination_options(destinations):
     return [{"id": str(destination.id), "label": str(destination)} for destination in destinations]
 
 
-def _build_recipient_options(profile, recipients, *, allowed_destination_ids_by_recipient=None):
+def _build_recipient_options(
+    profile,
+    recipients,
+    *,
+    allowed_destination_ids_by_recipient=None,
+    recipient_contacts_by_id=None,
+):
     def _build_recipient_label(recipient):
-        label = recipient.get_display_name()
+        recipient_contact = (
+            recipient_contacts_by_id.get(recipient.id)
+            if recipient_contacts_by_id is not None
+            else None
+        )
+        label = (
+            build_shipment_recipient_select_label(
+                recipient_contact,
+                destination=recipient.destination,
+            )
+            if recipient_contact is not None
+            else recipient.get_shipment_party_display_name()
+        )
         if recipient.destination:
             return f"{label} - {recipient.destination.city}"
         return label
@@ -214,35 +228,44 @@ def _allowed_recipient_option_ids(*, selected_destination, allowed_destination_i
 
 def _allowed_destination_ids_by_recipient(profile, recipients, destinations):
     recipient_contact_by_id = {
-        recipient.id: sync_association_recipient_to_contact(recipient) for recipient in recipients
+        recipient.id: resolve_association_recipient_party_contact(recipient)
+        for recipient in recipients
     }
     allowed_destination_ids_by_recipient = {str(recipient.id): set() for recipient in recipients}
+    shipper = shipment_shipper_from_contact(profile.contact)
+    if shipper is None:
+        return (
+            {
+                recipient_id: sorted(destination_ids)
+                for recipient_id, destination_ids in allowed_destination_ids_by_recipient.items()
+            },
+            recipient_contact_by_id,
+        )
 
     for destination in destinations:
-        allowed_contacts = eligible_recipient_contacts_for_shipper_destination(
-            shipper_contact=profile.contact,
-            destination=destination,
-        )
-        allowed_org_ids = {
-            normalized.id
-            for contact in allowed_contacts
-            if (normalized := normalize_party_contact_to_org(contact)) is not None
-        }
-        if not allowed_org_ids:
-            continue
         for recipient in recipients:
             if recipient.destination_id not in {destination.id, None}:
                 continue
-            normalized_recipient = normalize_party_contact_to_org(
-                recipient_contact_by_id.get(recipient.id)
-            )
-            if normalized_recipient and normalized_recipient.id in allowed_org_ids:
+            recipient_contact = recipient_contact_by_id.get(recipient.id)
+            if recipient_contact is None:
+                continue
+            if (
+                shipment_link_for_recipient_contact(
+                    shipper=shipper,
+                    recipient_contact=recipient_contact,
+                    destination=destination,
+                )
+                is not None
+            ):
                 allowed_destination_ids_by_recipient[str(recipient.id)].add(destination.id)
 
-    return {
-        recipient_id: sorted(destination_ids)
-        for recipient_id, destination_ids in allowed_destination_ids_by_recipient.items()
-    }
+    return (
+        {
+            recipient_id: sorted(destination_ids)
+            for recipient_id, destination_ids in allowed_destination_ids_by_recipient.items()
+        },
+        recipient_contact_by_id,
+    )
 
 
 def _build_order_create_defaults():
@@ -317,35 +340,47 @@ def _resolve_recipient_destination(profile, recipient_id, errors, *, selected_de
             "destination_address": "",
         }
 
-    recipient_contact = sync_association_recipient_to_contact(recipient)
+    recipient_contact = resolve_association_recipient_party_contact(recipient)
+    recipient_address = get_contact_address(recipient_contact) or get_contact_address(
+        getattr(recipient, "synced_contact", None)
+    )
     destination_city = (
-        selected_destination.city
-        if selected_destination
-        else (recipient.city or (recipient.destination.city if recipient.destination else ""))
+        (recipient_address.city if recipient_address else "")
+        or recipient.city
+        or (recipient.destination.city if recipient.destination else "")
+        or (selected_destination.city if selected_destination else "")
     )
     destination_country = (
-        selected_destination.country
-        if selected_destination
-        else (
-            recipient.country
-            or (recipient.destination.country if recipient.destination else "")
-            or DEFAULT_COUNTRY
+        (recipient_address.country if recipient_address else "")
+        or recipient.country
+        or (recipient.destination.country if recipient.destination else "")
+        or (selected_destination.country if selected_destination else "")
+        or DEFAULT_COUNTRY
+    )
+
+    recipient_name = (
+        build_shipment_recipient_select_label(
+            recipient_contact,
+            destination=recipient.destination,
         )
+        if recipient_contact is not None
+        else recipient.get_shipment_party_display_name()
     )
 
     return {
-        "recipient_name": recipient.get_display_name(),
+        "recipient_name": recipient_name,
         "recipient_contact": recipient_contact,
         "destination_city": destination_city,
         "destination_country": destination_country,
         "destination_address": build_destination_address(
-            line1=recipient.address_line1,
-            line2=recipient.address_line2,
-            postal_code=recipient.postal_code,
-            city=recipient.city or (recipient.destination.city if recipient.destination else ""),
-            country=recipient.country
-            or (recipient.destination.country if recipient.destination else "")
-            or DEFAULT_COUNTRY,
+            line1=(recipient_address.address_line1 if recipient_address else "")
+            or recipient.address_line1,
+            line2=(recipient_address.address_line2 if recipient_address else "")
+            or recipient.address_line2,
+            postal_code=(recipient_address.postal_code if recipient_address else "")
+            or recipient.postal_code,
+            city=destination_city,
+            country=destination_country,
         ),
     }
 
@@ -564,7 +599,10 @@ def portal_order_create(request):
     destinations = _get_active_destinations()
     destination_options = _build_destination_options(destinations)
     destination_by_id = {str(destination.id): destination for destination in destinations}
-    allowed_destination_ids_by_recipient = _allowed_destination_ids_by_recipient(
+    (
+        allowed_destination_ids_by_recipient,
+        recipient_contacts_by_id,
+    ) = _allowed_destination_ids_by_recipient(
         profile,
         recipients,
         destinations,
@@ -573,6 +611,7 @@ def portal_order_create(request):
         profile,
         recipients,
         allowed_destination_ids_by_recipient=allowed_destination_ids_by_recipient,
+        recipient_contacts_by_id=recipient_contacts_by_id,
     )
 
     product_options, product_by_id, available_by_id = build_product_selection_data()
@@ -679,22 +718,22 @@ def portal_order_create(request):
             and not ready_kit_line_errors
         ):
             try:
-                shipper_org = normalize_party_contact_to_org(profile.contact)
-                recipient_org = normalize_party_contact_to_org(destination["recipient_contact"])
-                resolve_shipper_for_operation(
-                    shipper_org=shipper_org,
-                    destination=selected_destination,
-                )
                 if _requires_recipient_binding(
                     profile=profile,
                     recipient_contact=destination["recipient_contact"],
                 ):
-                    resolve_recipient_binding_for_operation(
-                        shipper_org=shipper_org,
-                        recipient_org=recipient_org,
-                        destination=selected_destination,
-                    )
-            except OrganizationRoleResolutionError as exc:
+                    shipper = shipment_shipper_from_contact(profile.contact)
+                    if (
+                        shipper is None
+                        or shipment_link_for_recipient_contact(
+                            shipper=shipper,
+                            recipient_contact=destination["recipient_contact"],
+                            destination=selected_destination,
+                        )
+                        is None
+                    ):
+                        errors.append(ERROR_RECIPIENT_UNAVAILABLE_FOR_DESTINATION)
+            except StockError as exc:
                 errors.append(str(exc))
 
         if (

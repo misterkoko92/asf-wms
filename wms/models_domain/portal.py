@@ -409,6 +409,17 @@ class AssociationRecipient(models.Model):
             return contact_display
         return f"Destinataire #{self.pk}" if self.pk else "Destinataire"
 
+    def get_shipment_party_display_name(self) -> str:
+        structure_name = (self.structure_name or self.name or "").strip()
+        contact_display = self.get_contact_display_name()
+        if (
+            structure_name
+            and contact_display
+            and structure_name.casefold() != contact_display.casefold()
+        ):
+            return f"{contact_display}, {structure_name}"
+        return structure_name or contact_display or self.get_display_name()
+
     def _normalize_legacy_fields(self):
         if (self.structure_name or "").strip():
             self.name = self.structure_name.strip()

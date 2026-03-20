@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.validators import EmailValidator
 from django.db import transaction
+from django.db.models import Q
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
@@ -23,6 +24,7 @@ from .models import (
     AssociationRecipient,
     Destination,
     DocumentReviewStatus,
+    ShipmentRecipientOrganization,
 )
 from .portal_helpers import get_contact_address
 from .portal_recipient_sync import sync_association_recipient_to_contact
@@ -86,6 +88,7 @@ def _build_default_recipient_form_data():
     return {
         "destination_id": "",
         "structure_name": "",
+        "reuse_existing_structure": True,
         "contact_title": "",
         "contact_last_name": "",
         "contact_first_name": "",
@@ -106,6 +109,7 @@ def _extract_recipient_form_data(post_data):
     return {
         "destination_id": (post_data.get("destination_id") or "").strip(),
         "structure_name": (post_data.get("structure_name") or "").strip(),
+        "reuse_existing_structure": bool(post_data.get("reuse_existing_structure")),
         "contact_title": (post_data.get("contact_title") or "").strip(),
         "contact_last_name": (post_data.get("contact_last_name") or "").strip(),
         "contact_first_name": (post_data.get("contact_first_name") or "").strip(),
@@ -126,6 +130,7 @@ def _build_recipient_form_data_from_instance(recipient):
     return {
         "destination_id": str(recipient.destination_id or ""),
         "structure_name": recipient.structure_name or "",
+        "reuse_existing_structure": True,
         "contact_title": recipient.contact_title or "",
         "contact_last_name": recipient.contact_last_name or "",
         "contact_first_name": recipient.contact_first_name or "",
@@ -223,7 +228,10 @@ def _create_recipient(profile, form_data):
         association_contact=profile.contact,
         **payload,
     )
-    sync_association_recipient_to_contact(recipient)
+    sync_association_recipient_to_contact(
+        recipient,
+        prefer_existing_structure=form_data["reuse_existing_structure"],
+    )
     return recipient
 
 
@@ -232,7 +240,10 @@ def _update_recipient(recipient, form_data):
     for field_name, value in payload.items():
         setattr(recipient, field_name, value)
     recipient.save(update_fields=list(payload.keys()))
-    sync_association_recipient_to_contact(recipient)
+    sync_association_recipient_to_contact(
+        recipient,
+        prefer_existing_structure=form_data["reuse_existing_structure"],
+    )
     return recipient
 
 
@@ -257,6 +268,42 @@ def _get_active_recipients(profile):
         .select_related("destination")
         .order_by("structure_name", "name", "contact_last_name", "contact_first_name")
     )
+
+
+def _build_duplicate_recipient_suggestions(*, form_data, editing_recipient=None):
+    destination = form_data.get("destination")
+    structure_name = (form_data.get("structure_name") or "").strip()
+    if destination is None or not structure_name:
+        return []
+
+    suggestions = (
+        ShipmentRecipientOrganization.objects.filter(
+            destination=destination,
+            organization__is_active=True,
+        )
+        .filter(
+            Q(organization__name__iexact=structure_name)
+            | Q(organization__name__icontains=structure_name)
+            | Q(organization__name__istartswith=structure_name)
+        )
+        .select_related("organization", "destination")
+        .order_by("organization__name", "id")
+    )
+
+    current_synced_contact_id = getattr(editing_recipient, "synced_contact_id", None)
+    if current_synced_contact_id:
+        suggestions = suggestions.exclude(organization_id=current_synced_contact_id)
+
+    return [
+        {
+            "id": suggestion.id,
+            "name": suggestion.organization.name,
+            "destination": str(suggestion.destination),
+            "validation_status": suggestion.validation_status,
+            "is_correspondent": suggestion.is_correspondent,
+        }
+        for suggestion in suggestions[:5]
+    ]
 
 
 def _handle_account_document_upload(request, association):
@@ -571,6 +618,7 @@ def portal_recipients(request):
     destinations_by_id = {destination.id: destination for destination in destinations}
     blocked_reason = (request.GET.get(BLOCKED_REASON_QUERY_PARAM) or "").strip()
     blocked_popup_message = ""
+    duplicate_recipient_suggestions = []
     if blocked_reason in {BLOCKED_REASON_MISSING_DELIVERY_CONTACT}:
         blocked_popup_message = BLOCKED_MESSAGES.get(blocked_reason, "")
 
@@ -586,6 +634,10 @@ def portal_recipients(request):
             editing_recipient = _get_recipient_for_profile(profile, recipient_id)
             if editing_recipient is None:
                 errors.append(ERROR_RECIPIENT_NOT_FOUND)
+        duplicate_recipient_suggestions = _build_duplicate_recipient_suggestions(
+            form_data=form_data,
+            editing_recipient=editing_recipient,
+        )
         if not errors:
             if action == ACTION_UPDATE_RECIPIENT:
                 _update_recipient(editing_recipient, form_data)
@@ -601,6 +653,10 @@ def portal_recipients(request):
             editing_recipient = _get_recipient_for_profile(profile, edit_recipient_id)
             if editing_recipient is not None:
                 form_data = _build_recipient_form_data_from_instance(editing_recipient)
+                duplicate_recipient_suggestions = _build_duplicate_recipient_suggestions(
+                    form_data=form_data,
+                    editing_recipient=editing_recipient,
+                )
 
     recipients = _get_active_recipients(profile)
     return render(
@@ -614,6 +670,7 @@ def portal_recipients(request):
             "destinations": destinations,
             "contact_title_choices": list(AssociationContactTitle.choices),
             "blocked_popup_message": blocked_popup_message,
+            "duplicate_recipient_suggestions": duplicate_recipient_suggestions,
         },
     )
 

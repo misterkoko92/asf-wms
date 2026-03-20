@@ -8,6 +8,10 @@ from wms.models import (
     OrganizationRole,
     OrganizationRoleAssignment,
     RecipientBinding,
+    ShipmentAuthorizedRecipientContact,
+    ShipmentRecipientOrganization,
+    ShipmentShipper,
+    ShipmentShipperRecipientLink,
     ShipperScope,
 )
 from wms.portal_recipient_sync import sync_association_recipient_to_contact
@@ -109,22 +113,20 @@ class PortalRecipientSyncTests(TestCase):
         updated.refresh_from_db()
         recipient.refresh_from_db()
 
-        self.assertEqual(updated.id, synced.id)
-        self.assertEqual(recipient.synced_contact_id, synced.id)
+        self.assertNotEqual(updated.id, synced.id)
+        self.assertEqual(recipient.synced_contact_id, updated.id)
         self.assertEqual(updated.name, "A.S.L.A.V Congo Update")
+        self.assertTrue(
+            ShipmentRecipientOrganization.objects.filter(
+                organization=updated,
+                destination=self.destination_b,
+            ).exists()
+        )
         self.assertTrue(
             RecipientBinding.objects.filter(
                 shipper_org=self.association,
                 recipient_org=updated,
                 destination=self.destination_b,
-                is_active=True,
-            ).exists()
-        )
-        self.assertFalse(
-            RecipientBinding.objects.filter(
-                shipper_org=self.association,
-                recipient_org=updated,
-                destination=self.destination_a,
                 is_active=True,
             ).exists()
         )
@@ -140,16 +142,16 @@ class PortalRecipientSyncTests(TestCase):
 
         self.assertEqual(updated.id, synced.id)
         self.assertEqual(recipient.synced_contact_id, synced.id)
+        shipper = ShipmentShipper.objects.get(organization=self.association)
+        recipient_org = ShipmentRecipientOrganization.objects.get(organization=updated)
+        link = ShipmentShipperRecipientLink.objects.get(
+            shipper=shipper,
+            recipient_organization=recipient_org,
+        )
+        self.assertFalse(link.is_active)
         self.assertFalse(
-            RecipientBinding.objects.filter(
-                shipper_org=self.association,
-                recipient_org=updated,
+            ShipmentAuthorizedRecipientContact.objects.filter(
+                link=link,
                 is_active=True,
             ).exists()
-        )
-        self.assertFalse(
-            OrganizationRoleAssignment.objects.get(
-                organization=updated,
-                role=OrganizationRole.RECIPIENT,
-            ).is_active
         )

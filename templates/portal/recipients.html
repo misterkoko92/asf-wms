@@ -92,6 +92,25 @@
       <div class="scan-field">
         <label class="form-label" for="structure_name">{% trans "Nom de la structure" %}</label>
         <input class="form-control" type="text" id="structure_name" name="structure_name" value="{{ form_data.structure_name }}" required>
+        <div class="form-check mt-2">
+          <label class="form-check-label" for="reuse_existing_structure">
+            <input class="form-check-input" type="checkbox" id="reuse_existing_structure" name="reuse_existing_structure" value="1" {% if form_data.reuse_existing_structure %}checked{% endif %}>
+            {% trans "Réutiliser la structure existante si elle est déjà connue sur cette escale" %}
+          </label>
+        </div>
+        {% if duplicate_recipient_suggestions %}
+          <div class="scan-help mt-2">
+            {% trans "Structures similaires déjà connues sur cette escale :" %}
+          </div>
+          <ul class="mb-0">
+            {% for suggestion in duplicate_recipient_suggestions %}
+              <li>
+                {{ suggestion.name }}
+                {% if suggestion.validation_status == "validated" %}({% trans "validée ASF" %}){% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
       </div>
       <div class="portal-recipient-grid-3">
         <div class="scan-field">
