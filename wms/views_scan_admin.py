@@ -21,7 +21,10 @@ from .scan_admin_contacts_cockpit import (
     ACTION_CREATE_GUIDED_CONTACT,
     ACTION_DISABLE_SHIPPER_SCOPE,
     ACTION_LINK_ROLE_CONTACT,
+    ACTION_MERGE_SHIPMENT_RECIPIENT_ORGANIZATIONS,
+    ACTION_SET_DEFAULT_AUTHORIZED_RECIPIENT_CONTACT,
     ACTION_SET_PRIMARY_ROLE_CONTACT,
+    ACTION_SET_STOPOVER_CORRESPONDENT_RECIPIENT_ORGANIZATION,
     ACTION_UNASSIGN_ROLE,
     ACTION_UNLINK_ROLE_CONTACT,
     ACTION_UPSERT_ORG_CONTACT,
@@ -33,8 +36,11 @@ from .scan_admin_contacts_cockpit import (
     create_guided_contact,
     disable_shipper_scope,
     link_role_contact,
+    merge_shipment_recipient_organizations,
     parse_cockpit_filters,
+    set_default_authorized_recipient_contact,
     set_primary_role_contact,
+    set_stopover_correspondent_recipient_organization,
     unassign_role,
     unlink_role_contact,
     upsert_org_contact,
@@ -263,6 +269,27 @@ def scan_admin_contacts(request):
             return _build_contacts_redirect(query=query, contact_filter=contact_filter)
         elif action == ACTION_CLOSE_RECIPIENT_BINDING:
             ok, message = close_recipient_binding(data=request.POST)
+            if ok:
+                messages.success(request, message)
+            else:
+                messages.error(request, message)
+            return _build_contacts_redirect(query=query, contact_filter=contact_filter)
+        elif action == ACTION_SET_DEFAULT_AUTHORIZED_RECIPIENT_CONTACT:
+            ok, message = set_default_authorized_recipient_contact(data=request.POST)
+            if ok:
+                messages.success(request, message)
+            else:
+                messages.error(request, message)
+            return _build_contacts_redirect(query=query, contact_filter=contact_filter)
+        elif action == ACTION_SET_STOPOVER_CORRESPONDENT_RECIPIENT_ORGANIZATION:
+            ok, message = set_stopover_correspondent_recipient_organization(data=request.POST)
+            if ok:
+                messages.success(request, message)
+            else:
+                messages.error(request, message)
+            return _build_contacts_redirect(query=query, contact_filter=contact_filter)
+        elif action == ACTION_MERGE_SHIPMENT_RECIPIENT_ORGANIZATIONS:
+            ok, message = merge_shipment_recipient_organizations(data=request.POST)
             if ok:
                 messages.success(request, message)
             else:

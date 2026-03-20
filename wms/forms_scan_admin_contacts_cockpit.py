@@ -85,6 +85,20 @@ class RecipientBindingCloseForm(forms.Form):
     valid_to = forms.DateTimeField(required=True)
 
 
+class ShipmentAuthorizedRecipientDefaultForm(forms.Form):
+    link_id = forms.IntegerField(min_value=1)
+    recipient_contact_id = forms.IntegerField(min_value=1)
+
+
+class ShipmentRecipientOrganizationActionForm(forms.Form):
+    recipient_organization_id = forms.IntegerField(min_value=1)
+
+
+class ShipmentRecipientOrganizationMergeForm(forms.Form):
+    source_recipient_organization_id = forms.IntegerField(min_value=1)
+    target_recipient_organization_id = forms.IntegerField(min_value=1)
+
+
 class GuidedContactCreateForm(forms.Form):
     entity_kind = forms.ChoiceField(
         choices=(
