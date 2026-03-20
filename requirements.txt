@@ -21,7 +21,7 @@ pdfplumber==0.11.9
 pillow==12.1.1
 protobuf==6.33.5
 pycparser==3.0 ; implementation_name != 'PyPy' and platform_python_implementation != 'PyPy'
-pypdf==6.7.5
+pypdf==6.9.1
 pypdfium2==5.5.0
 pypng==0.20220715.0
 python-dateutil==2.9.0.post0
