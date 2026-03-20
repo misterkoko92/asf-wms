@@ -224,13 +224,12 @@ def ensure_destination_correspondent_recipient_ready(destination):
     has_shipment_correspondent = _has_active_shipment_correspondent_recipient_for_destination(
         destination.id
     )
-    result = promote_correspondent_to_recipient_ready(
-        correspondent_contact,
-        legacy_role_semantics=not has_shipment_correspondent,
-    )
+    if has_shipment_correspondent:
+        return CorrespondentRecipientPromotionResult()
+
+    result = promote_correspondent_to_recipient_ready(correspondent_contact)
     if (
-        not has_shipment_correspondent
-        and correspondent_contact
+        correspondent_contact
         and correspondent_contact.is_active
         and default_shipper_binding_sync_enabled()
     ):

@@ -262,10 +262,24 @@ class ShipmentPartyBackfillService:
         cached = self._recipient_orgs_by_org_id.get(organization.id)
         if cached is not None:
             if cached.destination_id != destination.id:
-                raise CommandError(
-                    f"Recipient organization {organization} is linked to multiple destinations "
-                    f"({cached.destination} vs {destination})."
+                if cached.is_active:
+                    raise CommandError(
+                        f"Recipient organization {organization} is linked to multiple destinations "
+                        f"({cached.destination} vs {destination})."
+                    )
+                updated_fields = ["destination"]
+                cached.destination = destination
+                _set_if_changed(
+                    cached,
+                    "validation_status",
+                    ShipmentValidationStatus.VALIDATED,
+                    updated_fields,
                 )
+                _set_if_changed(cached, "is_correspondent", is_correspondent, updated_fields)
+                _set_if_changed(cached, "is_active", True, updated_fields)
+                cached.save(update_fields=updated_fields)
+                self.summary["recipient_organizations_updated"] += 1
+                return cached
             if is_correspondent and not cached.is_correspondent:
                 cached.is_correspondent = True
                 cached.save(update_fields=["is_correspondent"])
@@ -287,12 +301,15 @@ class ShipmentPartyBackfillService:
             else:
                 self.summary["recipient_organizations_created"] += 1
         else:
-            if recipient_organization.destination_id != destination.id:
-                raise CommandError(
-                    f"Recipient organization {organization} is linked to multiple destinations "
-                    f"({recipient_organization.destination} vs {destination})."
-                )
             updated_fields: list[str] = []
+            if recipient_organization.destination_id != destination.id:
+                if recipient_organization.is_active:
+                    raise CommandError(
+                        f"Recipient organization {organization} is linked to multiple destinations "
+                        f"({recipient_organization.destination} vs {destination})."
+                    )
+                recipient_organization.destination = destination
+                updated_fields.append("destination")
             _set_if_changed(
                 recipient_organization,
                 "validation_status",
@@ -368,6 +385,19 @@ class ShipmentPartyBackfillService:
         contacts: Iterable[ShipmentRecipientContact],
         default_contact: ShipmentRecipientContact | None,
     ) -> None:
+        current_contact_ids = {contact.id for contact in contacts}
+        stale_authorized = ShipmentAuthorizedRecipientContact.objects.filter(
+            link=link,
+            is_active=True,
+        )
+        if current_contact_ids:
+            stale_authorized = stale_authorized.exclude(
+                recipient_contact_id__in=current_contact_ids
+            )
+        deactivated = stale_authorized.update(is_active=False, is_default=False)
+        if deactivated:
+            self.summary["authorized_contacts_updated"] += deactivated
+
         default_contact_id = default_contact.id if default_contact else None
         if default_contact_id is None:
             ShipmentAuthorizedRecipientContact.objects.filter(
@@ -401,6 +431,22 @@ class ShipmentPartyBackfillService:
                 authorized.save(update_fields=updated_fields)
                 self.summary["authorized_contacts_updated"] += 1
 
+    def _deactivate_stale_recipient_contacts(
+        self,
+        *,
+        recipient_organization: ShipmentRecipientOrganization,
+        active_contact_ids: set[int],
+    ) -> None:
+        stale_contacts = ShipmentRecipientContact.objects.filter(
+            recipient_organization=recipient_organization,
+            is_active=True,
+        )
+        if active_contact_ids:
+            stale_contacts = stale_contacts.exclude(contact_id__in=active_contact_ids)
+        deactivated = stale_contacts.update(is_active=False)
+        if deactivated:
+            self.summary["recipient_contacts_updated"] += deactivated
+
     def _recipient_contacts_from_assignment(
         self,
         *,
@@ -409,10 +455,15 @@ class ShipmentPartyBackfillService:
     ) -> tuple[list[ShipmentRecipientContact], ShipmentRecipientContact | None]:
         assignment = self._active_recipient_assignment_for_org(organization)
         if assignment is None:
+            self._deactivate_stale_recipient_contacts(
+                recipient_organization=recipient_organization,
+                active_contact_ids=set(),
+            )
             return [], None
 
         shipment_contacts: list[ShipmentRecipientContact] = []
         default_contact: ShipmentRecipientContact | None = None
+        active_contact_ids: set[int] = set()
 
         for role_contact in (
             assignment.role_contacts.select_related("contact")
@@ -434,9 +485,14 @@ class ShipmentPartyBackfillService:
                 is_active=True,
             )
             shipment_contacts.append(shipment_contact)
+            active_contact_ids.add(person.id)
             if role_contact.is_primary and default_contact is None:
                 default_contact = shipment_contact
 
+        self._deactivate_stale_recipient_contacts(
+            recipient_organization=recipient_organization,
+            active_contact_ids=active_contact_ids,
+        )
         if default_contact is None and shipment_contacts:
             default_contact = shipment_contacts[0]
         return shipment_contacts, default_contact
@@ -468,7 +524,9 @@ class ShipmentPartyBackfillService:
             set
         )
 
-        for shipment_recipient in ShipmentRecipientOrganization.objects.select_related(
+        for shipment_recipient in ShipmentRecipientOrganization.objects.filter(
+            is_active=True
+        ).select_related(
             "organization",
             "destination",
         ):

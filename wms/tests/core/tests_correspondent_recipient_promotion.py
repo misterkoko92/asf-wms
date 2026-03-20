@@ -73,7 +73,6 @@ class CorrespondentRecipientPromotionTests(TestCase):
         self,
     ):
         from contacts.correspondent_recipient_promotion import (
-            SUPPORT_ORGANIZATION_NAME,
             ensure_destination_correspondent_recipient_ready,
         )
 
@@ -87,15 +86,14 @@ class CorrespondentRecipientPromotionTests(TestCase):
             role=OrganizationRole.SHIPPER,
             is_active=True,
         )
-        support_organization = Contact.objects.create(
-            name=SUPPORT_ORGANIZATION_NAME,
+        shipment_party_organization = Contact.objects.create(
+            name="Shipment Party Correspondent Org",
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
         correspondent = Contact.objects.create(
             name="Shipment Party Correspondent",
             contact_type=ContactType.PERSON,
-            organization=support_organization,
             is_active=True,
         )
         destination = Destination.objects.create(
@@ -106,7 +104,7 @@ class CorrespondentRecipientPromotionTests(TestCase):
             is_active=True,
         )
         ShipmentRecipientOrganization.objects.create(
-            organization=support_organization,
+            organization=shipment_party_organization,
             destination=destination,
             validation_status=ShipmentValidationStatus.VALIDATED,
             is_correspondent=True,
@@ -115,18 +113,20 @@ class CorrespondentRecipientPromotionTests(TestCase):
 
         result = ensure_destination_correspondent_recipient_ready(destination)
 
+        correspondent.refresh_from_db()
+        self.assertIsNone(correspondent.organization_id)
         self.assertFalse(result.recipient_role_created)
         self.assertFalse(result.recipient_role_reactivated)
         self.assertFalse(
             OrganizationRoleAssignment.objects.filter(
-                organization=support_organization,
+                organization=shipment_party_organization,
                 role=OrganizationRole.RECIPIENT,
             ).exists()
         )
         self.assertFalse(
             RecipientBinding.objects.filter(
                 shipper_org=default_shipper,
-                recipient_org=support_organization,
+                recipient_org=shipment_party_organization,
                 destination=destination,
                 is_active=True,
             ).exists()
