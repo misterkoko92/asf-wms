@@ -615,13 +615,6 @@ class ShipmentPartyBackfillService:
             if destination.id in self._conflicting_correspondent_destination_ids:
                 self.summary["correspondent_destinations_skipped"] += 1
                 continue
-            resolution = resolve_correspondent_recipient_organization(
-                destination.correspondent_contact
-            )
-            organization = resolution.organization
-            if organization is None or not organization.is_active:
-                continue
-
             existing_correspondent = (
                 ShipmentRecipientOrganization.objects.filter(
                     destination=destination,
@@ -630,6 +623,17 @@ class ShipmentPartyBackfillService:
                 .order_by("-is_active", "id")
                 .first()
             )
+            resolution = resolve_correspondent_recipient_organization(
+                destination.correspondent_contact
+            )
+            organization = resolution.organization
+            if organization is None or not organization.is_active:
+                if existing_correspondent is not None and existing_correspondent.is_active:
+                    existing_correspondent.is_active = False
+                    existing_correspondent.save(update_fields=["is_active"])
+                    self.summary["recipient_organizations_updated"] += 1
+                continue
+
             if (
                 existing_correspondent is not None
                 and existing_correspondent.organization_id != organization.id

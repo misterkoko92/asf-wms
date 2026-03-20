@@ -682,6 +682,31 @@ class BackfillShipmentPartiesCommandTests(TestCase):
             ).exists()
         )
 
+    def test_apply_backfill_deactivates_correspondent_when_source_becomes_inactive(self):
+        correspondent = self._create_person(
+            first_name="Retired",
+            last_name="Correspondent",
+        )
+        destination = self._create_destination(
+            "RTD",
+            correspondent_contact=correspondent,
+        )
+
+        call_command("backfill_shipment_parties_from_org_roles", "--apply")
+
+        correspondent.is_active = False
+        correspondent.save(update_fields=["is_active"])
+
+        call_command("backfill_shipment_parties_from_org_roles", "--apply")
+
+        self.assertFalse(
+            ShipmentRecipientOrganization.objects.filter(
+                destination=destination,
+                is_correspondent=True,
+                is_active=True,
+            ).exists()
+        )
+
     def test_apply_backfill_reconciles_existing_shipment_party_correspondent(self):
         correspondent = self._create_person(
             first_name="Shipment",
