@@ -151,7 +151,7 @@ class ShipmentHelpersTests(TestCase):
             [
                 {
                     "id": shipper_contact.id,
-                    "name": "ASF (Jean, ASF)",
+                    "name": "Jean ASF, ASF",
                     "is_priority_shipper": False,
                     "organization_id": shipper.organization_id,
                     "default_destination_id": destination.id,
@@ -165,7 +165,7 @@ class ShipmentHelpersTests(TestCase):
             [
                 {
                     "id": recipient_contact.id,
-                    "name": "Hopital Abidjan (Alice, MARTIN)",
+                    "name": "Alice MARTIN, Hopital Abidjan",
                     "organization_id": recipient_org.organization_id,
                     "countries": ["France"],
                     "default_destination_id": destination.id,
@@ -189,7 +189,7 @@ class ShipmentHelpersTests(TestCase):
                     "default_destination_id": destination.id,
                     "covered_destination_ids": [destination.id],
                     "recipient_labels_by_destination_id": {
-                        str(destination.id): f"Correspondant ABJ (Corr, ABJ)"
+                        str(destination.id): "Corr ABJ, Correspondant ABJ"
                     },
                 }
             ],

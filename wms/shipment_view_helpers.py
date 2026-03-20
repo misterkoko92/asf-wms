@@ -3,6 +3,7 @@ from django.shortcuts import render
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
+from .contact_labels import build_contact_select_label
 from .models import (
     CartonStatus,
     Document,
@@ -231,25 +232,27 @@ def _build_shipment_equivalence_items(shipment):
     return items
 
 
-def _shipment_party_label(contact, fallback_name):
-    if contact:
-        organization = getattr(contact, "organization", None)
-        organization_name = (getattr(organization, "name", "") or "").strip()
-        if organization_name:
-            return organization_name
+def _normalized_text(value):
+    return str(value or "").strip()
 
-        title = (getattr(contact, "title", "") or "").strip()
-        first_name = (getattr(contact, "first_name", "") or "").strip()
-        last_name = (getattr(contact, "last_name", "") or "").strip()
-        if title or first_name or last_name:
-            person_parts = [title, first_name, last_name.upper() if last_name else ""]
-            return " ".join(part for part in person_parts if part)
 
-        contact_name = (getattr(contact, "name", "") or "").strip()
-        if contact_name:
-            return contact_name
+def _shipment_party_snapshot_entry(shipment, party_key):
+    snapshot = getattr(shipment, "party_snapshot", None) or {}
+    if not isinstance(snapshot, dict):
+        return {}
+    entry = snapshot.get(party_key) or {}
+    return entry if isinstance(entry, dict) else {}
 
-    return (fallback_name or "").strip()
+
+def _shipment_party_label(shipment, *, party_key, ref_attr, fallback_name):
+    snapshot_entry = _shipment_party_snapshot_entry(shipment, party_key)
+    snapshot_label = _normalized_text(snapshot_entry.get("label"))
+    if snapshot_label:
+        return snapshot_label
+    contact = getattr(shipment, ref_attr, None)
+    if contact is not None:
+        return build_contact_select_label(contact)
+    return _normalized_text(fallback_name)
 
 
 def _resolve_shipment_party_contact(shipment, *, ref_attr):
@@ -354,14 +357,6 @@ def build_shipments_ready_rows(shipments_qs):
         status_label = _shipment_status_label(shipment, progress_label)
         status_tone = _shipment_status_tone(shipment, total=total, ready=ready)
         status_variant = _shipment_status_variant(shipment, total=total, ready=ready)
-        shipper_contact = _resolve_shipment_party_contact(
-            shipment,
-            ref_attr="shipper_contact_ref",
-        )
-        recipient_contact = _resolve_shipment_party_contact(
-            shipment,
-            ref_attr="recipient_contact_ref",
-        )
         shipments.append(
             {
                 "id": shipment.id,
@@ -374,12 +369,16 @@ def build_shipments_ready_rows(shipments_qs):
                 ),
                 "destination_iata": shipment.destination.iata_code if shipment.destination else "",
                 "shipper_name": _shipment_party_label(
-                    shipper_contact,
-                    shipment.shipper_name,
+                    shipment,
+                    party_key="shipper",
+                    ref_attr="shipper_contact_ref",
+                    fallback_name=shipment.shipper_name,
                 ),
                 "recipient_name": _shipment_party_label(
-                    recipient_contact,
-                    shipment.recipient_name,
+                    shipment,
+                    party_key="recipient",
+                    ref_attr="recipient_contact_ref",
+                    fallback_name=shipment.recipient_name,
                 ),
                 "created_at": shipment.created_at,
                 "ready_at": shipment.ready_at,
@@ -395,15 +394,6 @@ def build_shipments_ready_rows(shipments_qs):
 def build_shipments_tracking_rows(shipments_qs):
     shipments = []
     for shipment in shipments_qs:
-        shipper_contact = _resolve_shipment_party_contact(
-            shipment,
-            ref_attr="shipper_contact_ref",
-        )
-        recipient_contact = _resolve_shipment_party_contact(
-            shipment,
-            ref_attr="recipient_contact_ref",
-        )
-
         planned_at = getattr(shipment, "planned_at", None)
         boarding_ok_at = getattr(shipment, "boarding_ok_at", None)
         shipped_at = getattr(shipment, "shipped_tracking_at", None) or boarding_ok_at
@@ -432,12 +422,16 @@ def build_shipments_tracking_rows(shipments_qs):
                 if shipment.carton_count is not None
                 else shipment.carton_set.count(),
                 "shipper_name": _shipment_party_label(
-                    shipper_contact,
-                    shipment.shipper_name,
+                    shipment,
+                    party_key="shipper",
+                    ref_attr="shipper_contact_ref",
+                    fallback_name=shipment.shipper_name,
                 ),
                 "recipient_name": _shipment_party_label(
-                    recipient_contact,
-                    shipment.recipient_name,
+                    shipment,
+                    party_key="recipient",
+                    ref_attr="recipient_contact_ref",
+                    fallback_name=shipment.recipient_name,
                 ),
                 "planned_at": planned_at,
                 "boarding_ok_at": boarding_ok_at,

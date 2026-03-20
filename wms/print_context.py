@@ -18,6 +18,135 @@ from .scan_helpers import (
     get_product_volume_cm3,
     get_product_weight_g,
 )
+from .shipment_party_snapshot import build_shipment_party_contact_label
+
+
+def _normalized_text(value):
+    return str(value or "").strip()
+
+
+def _shipment_party_snapshot_entry(shipment, party_key):
+    snapshot = getattr(shipment, "party_snapshot", None) or {}
+    if not isinstance(snapshot, dict):
+        return {}
+    entry = snapshot.get(party_key) or {}
+    return entry if isinstance(entry, dict) else {}
+
+
+def _snapshot_reference_email(reference):
+    emails = reference.get("notification_emails") or []
+    for value in emails:
+        normalized = _normalized_text(value)
+        if normalized:
+            return normalized
+    return ""
+
+
+def _build_snapshot_contact_info(entry):
+    if not entry:
+        return None
+    label = _normalized_text(entry.get("label"))
+    contact_label = _normalized_text(entry.get("contact_label"))
+    organization_label = _normalized_text(entry.get("organization_label"))
+    contact_reference = entry.get("contact") or {}
+    organization_reference = entry.get("organization") or {}
+    if not any(
+        [label, contact_label, organization_label, contact_reference, organization_reference]
+    ):
+        return None
+
+    if (
+        organization_label
+        and contact_label
+        and organization_label.casefold() != contact_label.casefold()
+    ):
+        company = organization_label
+        person = contact_label
+    elif organization_label:
+        company = organization_label
+        person = ""
+    else:
+        company = ""
+        person = contact_label or label
+
+    return {
+        "name": label or company or person,
+        "person": person,
+        "company": company,
+        "phone": _normalized_text(contact_reference.get("phone"))
+        or _normalized_text(organization_reference.get("phone")),
+        "email": _snapshot_reference_email(contact_reference)
+        or _snapshot_reference_email(organization_reference),
+    }
+
+
+def _build_live_party_labels(contact, *, fallback_name):
+    fallback_label = _normalized_text(fallback_name)
+    if contact is None:
+        return fallback_label, fallback_label, ""
+    organization = getattr(contact, "organization", None)
+    organization_label = _normalized_text(getattr(organization, "name", ""))
+    contact_label = build_shipment_party_contact_label(contact, fallback_name=fallback_label)
+    if (
+        organization_label
+        and contact_label
+        and organization_label.casefold() != contact_label.casefold()
+    ):
+        return f"{contact_label}, {organization_label}", contact_label, organization_label
+    return organization_label or contact_label or fallback_label, contact_label, organization_label
+
+
+def _build_live_contact_info(contact, *, fallback_name):
+    info = build_contact_info(contact, fallback_name)
+    label, contact_label, organization_label = _build_live_party_labels(
+        contact,
+        fallback_name=fallback_name,
+    )
+
+    info["name"] = label or info.get("name", "")
+    if (
+        organization_label
+        and contact_label
+        and organization_label.casefold() != contact_label.casefold()
+    ):
+        info["person"] = contact_label
+        info["company"] = organization_label
+    elif organization_label:
+        info["person"] = ""
+        info["company"] = organization_label
+    else:
+        info["person"] = contact_label or label
+        info["company"] = ""
+    return info
+
+
+def _build_shipment_party_info(shipment, *, party_key, contact, fallback_name):
+    info = _build_live_contact_info(contact, fallback_name=fallback_name)
+    snapshot_info = _build_snapshot_contact_info(
+        _shipment_party_snapshot_entry(shipment, party_key)
+    )
+    if snapshot_info is None:
+        return info
+    info["name"] = snapshot_info["name"] or info.get("name", "")
+    info["person"] = snapshot_info["person"]
+    info["company"] = snapshot_info["company"]
+    if snapshot_info["phone"]:
+        info["phone"] = snapshot_info["phone"]
+    if snapshot_info["email"]:
+        info["email"] = snapshot_info["email"]
+    return info
+
+
+def _build_shipment_party_label(shipment, *, party_key, contact, fallback_name):
+    entry = _shipment_party_snapshot_entry(shipment, party_key)
+    snapshot_label = _normalized_text(entry.get("label"))
+    if snapshot_label:
+        return snapshot_label
+    label, _contact_label, _organization_label = _build_live_party_labels(
+        contact,
+        fallback_name=fallback_name,
+    )
+    return label
 
 
 def _build_destination_info(shipment):
@@ -74,17 +203,48 @@ def build_shipment_document_context(shipment, doc_type):
         volume_total_m3 = None
     type_labels = build_shipment_type_labels(shipment)
     destination_city, destination_iata, destination_label = _build_destination_info(shipment)
-    shipper_info = build_contact_info(
-        getattr(shipment, "shipper_contact_ref", None),
-        shipment.shipper_name,
+    shipper_contact = getattr(shipment, "shipper_contact_ref", None)
+    recipient_contact = getattr(shipment, "recipient_contact_ref", None)
+    correspondent_contact = getattr(shipment, "correspondent_contact_ref", None) or getattr(
+        shipment.destination,
+        "correspondent_contact",
+        None,
     )
-    recipient_info = build_contact_info(
-        getattr(shipment, "recipient_contact_ref", None),
-        shipment.recipient_name,
+    shipper_name = _build_shipment_party_label(
+        shipment,
+        party_key="shipper",
+        contact=shipper_contact,
+        fallback_name=shipment.shipper_name,
     )
-    correspondent_info = build_contact_info(
-        getattr(shipment, "correspondent_contact_ref", None),
-        shipment.correspondent_name,
+    recipient_name = _build_shipment_party_label(
+        shipment,
+        party_key="recipient",
+        contact=recipient_contact,
+        fallback_name=shipment.recipient_name,
+    )
+    correspondent_name = _build_shipment_party_label(
+        shipment,
+        party_key="correspondent",
+        contact=correspondent_contact,
+        fallback_name=shipment.correspondent_name,
+    )
+    shipper_info = _build_shipment_party_info(
+        shipment,
+        party_key="shipper",
+        contact=shipper_contact,
+        fallback_name=shipper_name,
+    )
+    recipient_info = _build_shipment_party_info(
+        shipment,
+        party_key="recipient",
+        contact=recipient_contact,
+        fallback_name=recipient_name,
+    )
+    correspondent_info = _build_shipment_party_info(
+        shipment,
+        party_key="correspondent",
+        contact=correspondent_contact,
+        fallback_name=correspondent_name,
     )
 
     description = f"{len(cartons)} cartons, {len(aggregate_rows)} produits"
@@ -99,11 +259,11 @@ def build_shipment_document_context(shipment, doc_type):
         "document_ref": f"DOC-{shipment.reference}-{doc_type}".upper(),
         "document_date": timezone.localdate(),
         "shipment_ref": shipment.reference,
-        "shipper_name": shipment.shipper_name,
+        "shipper_name": shipper_name,
         "shipper_contact": shipment.shipper_contact,
-        "recipient_name": shipment.recipient_name,
+        "recipient_name": recipient_name,
         "recipient_contact": shipment.recipient_contact,
-        "correspondent_name": shipment.correspondent_name,
+        "correspondent_name": correspondent_name,
         "destination_address": shipment.destination_address,
         "destination_country": shipment.destination_country,
         "destination_label": destination_label,
@@ -120,7 +280,7 @@ def build_shipment_document_context(shipment, doc_type):
         "shipper_info": shipper_info,
         "recipient_info": recipient_info,
         "correspondent_info": correspondent_info,
-        "donor_name": shipment.shipper_name,
+        "donor_name": shipper_name,
         "donation_description": shipment.notes or description,
         "humanitarian_purpose": shipment.notes or "Aide humanitaire",
         "shipment_description": description,
