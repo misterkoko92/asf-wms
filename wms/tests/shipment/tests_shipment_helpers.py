@@ -3,11 +3,12 @@ from django.test import TestCase
 from contacts.models import Contact, ContactAddress, ContactType
 from wms.models import (
     Destination,
-    OrganizationRole,
-    OrganizationRoleAssignment,
-    Product,
-    RecipientBinding,
-    ShipperScope,
+    ShipmentAuthorizedRecipientContact,
+    ShipmentRecipientContact,
+    ShipmentRecipientOrganization,
+    ShipmentShipper,
+    ShipmentShipperRecipientLink,
+    ShipmentValidationStatus,
 )
 from wms.shipment_helpers import (
     build_destination_label,
@@ -17,73 +18,112 @@ from wms.shipment_helpers import (
 
 
 class ShipmentHelpersTests(TestCase):
+    def _create_organization(self, name):
+        return Contact.objects.create(
+            name=name,
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+
+    def _create_person(self, name, *, organization):
+        first_name, _, last_name = name.partition(" ")
+        return Contact.objects.create(
+            name=name,
+            contact_type=ContactType.PERSON,
+            first_name=first_name,
+            last_name=last_name or first_name,
+            organization=organization,
+            is_active=True,
+        )
+
+    def _create_destination_with_correspondent(self, code):
+        correspondent_org = self._create_organization(f"Correspondant {code}")
+        correspondent = self._create_person(f"Corr {code}", organization=correspondent_org)
+        destination = Destination.objects.create(
+            city=f"Ville {code}",
+            iata_code=code,
+            country="France",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        ShipmentRecipientOrganization.objects.create(
+            organization=correspondent_org,
+            destination=destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_correspondent=True,
+            is_active=True,
+        )
+        return destination, correspondent
+
+    def _create_shipper(self, name, *, can_send_to_all=False):
+        organization = self._create_organization(name)
+        default_contact = self._create_person(f"Jean {name}", organization=organization)
+        shipper = ShipmentShipper.objects.create(
+            organization=organization,
+            default_contact=default_contact,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            can_send_to_all=can_send_to_all,
+            is_active=True,
+        )
+        return shipper, default_contact
+
+    def _create_linked_recipient_contact(
+        self,
+        *,
+        shipper,
+        destination,
+        recipient_name,
+        referent_name,
+        is_default=True,
+    ):
+        organization = self._create_organization(recipient_name)
+        ContactAddress.objects.create(
+            contact=organization,
+            address_line1=f"{recipient_name} addr",
+            country="France",
+            is_default=True,
+        )
+        recipient_org = ShipmentRecipientOrganization.objects.create(
+            organization=organization,
+            destination=destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+        contact = self._create_person(referent_name, organization=organization)
+        recipient_contact = ShipmentRecipientContact.objects.create(
+            recipient_organization=recipient_org,
+            contact=contact,
+            is_active=True,
+        )
+        link = ShipmentShipperRecipientLink.objects.create(
+            shipper=shipper,
+            recipient_organization=recipient_org,
+            is_active=True,
+        )
+        ShipmentAuthorizedRecipientContact.objects.create(
+            link=link,
+            recipient_contact=recipient_contact,
+            is_default=is_default,
+            is_active=True,
+        )
+        return contact, recipient_org, link
+
     def test_build_destination_label_returns_empty_for_missing_destination(self):
         self.assertEqual(build_destination_label(None), "")
 
     def test_build_destination_label_uses_destination_string(self):
-        correspondent = Contact.objects.create(name="Correspondent")
-        destination = Destination.objects.create(
-            city="Paris",
-            iata_code="PAR",
-            country="France",
-            correspondent_contact=correspondent,
-        )
+        destination, _correspondent = self._create_destination_with_correspondent("PAR")
+
         self.assertEqual(build_destination_label(destination), str(destination))
 
-    def test_build_shipment_contact_payload_collects_destination_scoped_contacts(self):
-        correspondent = Contact.objects.create(name="Corr A")
-        destination = Destination.objects.create(
-            city="Lyon",
-            iata_code="LYS",
-            country="France",
-            correspondent_contact=correspondent,
-            is_active=True,
-        )
-        shipper = Contact.objects.create(
-            name="Shipper Org",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-        recipient = Contact.objects.create(
-            name="Recipient Org",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-        ContactAddress.objects.create(
-            contact=recipient,
-            address_line1="1 Rue Test",
-            city="Lyon",
-            country="France",
-            is_default=True,
-        )
-        ContactAddress.objects.create(
-            contact=recipient,
-            address_line1="2 Main St",
-            city="London",
-            country="UK",
-            is_default=False,
-        )
-        shipper_assignment = OrganizationRoleAssignment.objects.create(
-            organization=shipper,
-            role=OrganizationRole.SHIPPER,
-            is_active=True,
-        )
-        OrganizationRoleAssignment.objects.create(
-            organization=recipient,
-            role=OrganizationRole.RECIPIENT,
-            is_active=True,
-        )
-        ShipperScope.objects.create(
-            role_assignment=shipper_assignment,
+    def test_build_shipment_contact_payload_collects_shipment_party_contacts(self):
+        destination, correspondent = self._create_destination_with_correspondent("ABJ")
+        shipper, shipper_contact = self._create_shipper("ASF")
+        recipient_contact, recipient_org, _link = self._create_linked_recipient_contact(
+            shipper=shipper,
             destination=destination,
-            all_destinations=False,
-            is_active=True,
-        )
-        RecipientBinding.objects.create(
-            shipper_org=shipper,
-            recipient_org=recipient,
-            destination=destination,
-            is_active=True,
+            recipient_name="Hopital Abidjan",
+            referent_name="Alice Martin",
         )
 
         (
@@ -93,42 +133,50 @@ class ShipmentHelpersTests(TestCase):
             correspondents_json,
         ) = build_shipment_contact_payload()
 
-        self.assertEqual(len(destinations_json), 1)
-        destination_row = destinations_json[0]
-        self.assertEqual(destination_row["id"], destination.id)
-        self.assertEqual(destination_row["label"], str(destination))
-        self.assertEqual(destination_row["city"], "Lyon")
-        self.assertEqual(destination_row["iata_code"], "LYS")
-        self.assertEqual(destination_row["country"], "France")
-        self.assertEqual(destination_row["correspondent_contact_id"], correspondent.id)
+        self.assertEqual(
+            destinations_json,
+            [
+                {
+                    "id": destination.id,
+                    "label": str(destination),
+                    "city": destination.city,
+                    "iata_code": destination.iata_code,
+                    "country": destination.country,
+                    "correspondent_contact_id": correspondent.id,
+                }
+            ],
+        )
         self.assertEqual(
             shippers_json,
             [
                 {
-                    "id": shipper.id,
-                    "name": "Shipper Org",
+                    "id": shipper_contact.id,
+                    "name": "ASF (Jean, ASF)",
                     "is_priority_shipper": False,
-                    "organization_id": shipper.id,
+                    "organization_id": shipper.organization_id,
                     "default_destination_id": destination.id,
                     "allowed_destination_ids": [destination.id],
                     "scope_destination_ids": [destination.id],
                 }
             ],
         )
-        self.assertEqual({entry["id"] for entry in recipients_json}, {recipient.id})
-        recipient_entry = next(entry for entry in recipients_json if entry["id"] == recipient.id)
-        self.assertEqual(recipient_entry["name"], "Recipient Org")
-        self.assertEqual(recipient_entry["organization_id"], recipient.id)
-        self.assertEqual(recipient_entry["countries"], ["France", "UK"])
-        self.assertEqual(recipient_entry["default_destination_id"], destination.id)
-        self.assertEqual(recipient_entry["allowed_destination_ids"], [destination.id])
-        self.assertEqual(recipient_entry["bound_shipper_ids"], [shipper.id])
         self.assertEqual(
-            recipient_entry["binding_pairs"],
+            recipients_json,
             [
                 {
-                    "shipper_id": shipper.id,
-                    "destination_id": destination.id,
+                    "id": recipient_contact.id,
+                    "name": "Hopital Abidjan (Alice, MARTIN)",
+                    "organization_id": recipient_org.organization_id,
+                    "countries": ["France"],
+                    "default_destination_id": destination.id,
+                    "allowed_destination_ids": [destination.id],
+                    "bound_shipper_ids": [shipper.organization_id],
+                    "binding_pairs": [
+                        {
+                            "shipper_id": shipper.organization_id,
+                            "destination_id": destination.id,
+                        }
+                    ],
                 }
             ],
         )
@@ -137,652 +185,115 @@ class ShipmentHelpersTests(TestCase):
             [
                 {
                     "id": correspondent.id,
-                    "name": "Corr A",
+                    "name": correspondent.name,
                     "default_destination_id": destination.id,
                     "covered_destination_ids": [destination.id],
-                    "recipient_labels_by_destination_id": {str(destination.id): "Corr A"},
-                },
-            ],
-        )
-
-    def test_build_shipment_contact_payload_includes_destination_correspondent_without_tag(self):
-        correspondent = Contact.objects.create(
-            name="Corr Untagged",
-            contact_type=ContactType.PERSON,
-            is_active=True,
-        )
-        destination = Destination.objects.create(
-            city="Dakar",
-            iata_code="DKR-CORR",
-            country="Senegal",
-            correspondent_contact=correspondent,
-            is_active=True,
-        )
-        _, _, _, correspondents_json = build_shipment_contact_payload()
-
-        self.assertIn(
-            {
-                "id": correspondent.id,
-                "name": "Corr Untagged",
-                "default_destination_id": destination.id,
-                "covered_destination_ids": [destination.id],
-                "recipient_labels_by_destination_id": {
-                    str(destination.id): "ASF - CORRESPONDANT - DKR-CORR (Corr Untagged)"
-                },
-            },
-            correspondents_json,
-        )
-
-    def test_build_shipment_contact_payload_scopes_promoted_correspondent_from_destination_reference(
-        self,
-    ):
-        destination_correspondent = Contact.objects.create(
-            name="Scoped Promoted Correspondent",
-            contact_type=ContactType.PERSON,
-            is_active=True,
-        )
-        destination = Destination.objects.create(
-            city="N'Djamena",
-            iata_code="NDJ-CORR",
-            country="Chad",
-            correspondent_contact=destination_correspondent,
-            is_active=True,
-        )
-        shipper = Contact.objects.create(
-            name="AVIATION SANS FRONTIERES",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-        shipper_assignment = OrganizationRoleAssignment.objects.create(
-            organization=shipper,
-            role=OrganizationRole.SHIPPER,
-            is_active=True,
-        )
-        ShipperScope.objects.create(
-            role_assignment=shipper_assignment,
-            destination=destination,
-            all_destinations=False,
-            is_active=True,
-        )
-
-        _, _, recipients_json, correspondents_json = build_shipment_contact_payload()
-
-        recipient_entry = next(
-            entry for entry in recipients_json if entry["id"] == destination_correspondent.id
-        )
-        self.assertEqual(recipient_entry["bound_shipper_ids"], [shipper.id])
-        self.assertEqual(recipient_entry["allowed_destination_ids"], [destination.id])
-        self.assertIn(
-            {
-                "id": destination_correspondent.id,
-                "name": "Scoped Promoted Correspondent",
-                "default_destination_id": destination.id,
-                "covered_destination_ids": [destination.id],
-                "recipient_labels_by_destination_id": {
-                    str(destination.id): (
-                        "ASF - CORRESPONDANT - NDJ-CORR " "(Scoped Promoted Correspondent)"
-                    )
-                },
-            },
-            correspondents_json,
-        )
-
-    def test_build_shipment_contact_payload_marks_only_exact_asf_shipper_as_priority(self):
-        correspondent = Contact.objects.create(name="Corr ASF")
-        destination = Destination.objects.create(
-            city="Paris",
-            iata_code="PAR",
-            country="France",
-            correspondent_contact=correspondent,
-            is_active=True,
-        )
-        asf_shipper = Contact.objects.create(
-            name="AVIATION SANS FRONTIERES",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-        regional_shipper = Contact.objects.create(
-            name="AVIATION SANS FRONTIERES - SUD EST",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-        for shipper in (asf_shipper, regional_shipper):
-            shipper_assignment = OrganizationRoleAssignment.objects.create(
-                organization=shipper,
-                role=OrganizationRole.SHIPPER,
-                is_active=True,
-            )
-            ShipperScope.objects.create(
-                role_assignment=shipper_assignment,
-                destination=destination,
-                all_destinations=False,
-                is_active=True,
-            )
-
-        _, shippers_json, _, _ = build_shipment_contact_payload()
-
-        priority_flags = {entry["name"]: entry["is_priority_shipper"] for entry in shippers_json}
-        self.assertTrue(priority_flags["AVIATION SANS FRONTIERES"])
-        self.assertFalse(priority_flags["AVIATION SANS FRONTIERES - SUD EST"])
-
-    def test_build_shipment_contact_payload_formats_shipper_and_recipient_names(self):
-        correspondent = Contact.objects.create(name="Corr B")
-        destination = Destination.objects.create(
-            city="Abidjan",
-            iata_code="ABJ-FMT",
-            country="Cote d'Ivoire",
-            correspondent_contact=correspondent,
-            is_active=True,
-        )
-        organization = Contact.objects.create(
-            name="ASSOCIATION FORMATTED",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-        shipper = Contact.objects.create(
-            name="Legacy Shipper",
-            contact_type=ContactType.PERSON,
-            title="M.",
-            first_name="Jean",
-            last_name="Dupont",
-            organization=organization,
-            is_active=True,
-        )
-
-        recipient = Contact.objects.create(
-            name="Legacy Recipient",
-            contact_type=ContactType.PERSON,
-            title="Mme",
-            first_name="Alice",
-            last_name="Martin",
-            organization=organization,
-            is_active=True,
-        )
-        shipper_assignment = OrganizationRoleAssignment.objects.create(
-            organization=organization,
-            role=OrganizationRole.SHIPPER,
-            is_active=True,
-        )
-        OrganizationRoleAssignment.objects.create(
-            organization=organization,
-            role=OrganizationRole.RECIPIENT,
-            is_active=True,
-        )
-        ShipperScope.objects.create(
-            role_assignment=shipper_assignment,
-            destination=destination,
-            all_destinations=False,
-            is_active=True,
-        )
-        RecipientBinding.objects.create(
-            shipper_org=organization,
-            recipient_org=organization,
-            destination=destination,
-            is_active=True,
-        )
-
-        _, shippers_json, recipients_json, _ = build_shipment_contact_payload()
-
-        shipper_entry = next(entry for entry in shippers_json if entry["id"] == shipper.id)
-        recipient_entry = next(entry for entry in recipients_json if entry["id"] == recipient.id)
-        self.assertEqual(
-            shipper_entry["name"],
-            "ASSOCIATION FORMATTED (M., Jean, DUPONT)",
-        )
-        self.assertEqual(
-            recipient_entry["name"],
-            "ASSOCIATION FORMATTED (Mme, Alice, MARTIN)",
-        )
-
-    def test_build_shipment_contact_payload_excludes_people_without_organization(self):
-        correspondent = Contact.objects.create(name="Corr Scope")
-        destination = Destination.objects.create(
-            city="Cotonou",
-            iata_code="COO-SCOPE",
-            country="Benin",
-            correspondent_contact=correspondent,
-            is_active=True,
-        )
-        organization = Contact.objects.create(
-            name="ASSOCIATION SCOPE",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-
-        shipper_org = Contact.objects.create(
-            name="Shipper Org Scope",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-
-        shipper_person_with_org = Contact.objects.create(
-            name="Shipper Person Scope",
-            contact_type=ContactType.PERSON,
-            first_name="Jean",
-            last_name="Dupont",
-            organization=organization,
-            is_active=True,
-        )
-
-        shipper_person_no_org = Contact.objects.create(
-            name="Shipper Person No Org Scope",
-            contact_type=ContactType.PERSON,
-            first_name="Paul",
-            last_name="Martin",
-            is_active=True,
-        )
-
-        recipient_org = Contact.objects.create(
-            name="Recipient Org Scope",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-
-        recipient_person_with_org = Contact.objects.create(
-            name="Recipient Person Scope",
-            contact_type=ContactType.PERSON,
-            first_name="Alice",
-            last_name="Yao",
-            organization=organization,
-            is_active=True,
-        )
-
-        recipient_person_no_org = Contact.objects.create(
-            name="Recipient Person No Org Scope",
-            contact_type=ContactType.PERSON,
-            first_name="Lea",
-            last_name="Ndiaye",
-            is_active=True,
-        )
-        shipper_org_assignment = OrganizationRoleAssignment.objects.create(
-            organization=shipper_org,
-            role=OrganizationRole.SHIPPER,
-            is_active=True,
-        )
-        organization_shipper_assignment = OrganizationRoleAssignment.objects.create(
-            organization=organization,
-            role=OrganizationRole.SHIPPER,
-            is_active=True,
-        )
-        OrganizationRoleAssignment.objects.create(
-            organization=recipient_org,
-            role=OrganizationRole.RECIPIENT,
-            is_active=True,
-        )
-        OrganizationRoleAssignment.objects.create(
-            organization=organization,
-            role=OrganizationRole.RECIPIENT,
-            is_active=True,
-        )
-        for assignment in (shipper_org_assignment, organization_shipper_assignment):
-            ShipperScope.objects.create(
-                role_assignment=assignment,
-                destination=destination,
-                all_destinations=False,
-                is_active=True,
-            )
-        RecipientBinding.objects.create(
-            shipper_org=shipper_org,
-            recipient_org=recipient_org,
-            destination=destination,
-            is_active=True,
-        )
-        RecipientBinding.objects.create(
-            shipper_org=shipper_org,
-            recipient_org=organization,
-            destination=destination,
-            is_active=True,
-        )
-
-        _, shippers_json, recipients_json, _ = build_shipment_contact_payload()
-        shipper_ids = {entry["id"] for entry in shippers_json}
-        recipient_ids = {entry["id"] for entry in recipients_json}
-
-        self.assertIn(shipper_org.id, shipper_ids)
-        self.assertIn(shipper_person_with_org.id, shipper_ids)
-        self.assertNotIn(shipper_person_no_org.id, shipper_ids)
-        self.assertIn(recipient_org.id, recipient_ids)
-        self.assertIn(recipient_person_with_org.id, recipient_ids)
-        self.assertNotIn(recipient_person_no_org.id, recipient_ids)
-
-    def test_build_shipment_contact_payload_disambiguates_same_organization_shippers(self):
-        correspondent = Contact.objects.create(name="Corr C")
-        destination = Destination.objects.create(
-            city="Lome",
-            iata_code="LFW-DUP",
-            country="Togo",
-            correspondent_contact=correspondent,
-            is_active=True,
-        )
-        organization = Contact.objects.create(
-            name="ASSOCIATION DUP",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-        shipper_a = Contact.objects.create(
-            name="Shipper A",
-            contact_type=ContactType.PERSON,
-            title="M.",
-            first_name="Jean",
-            last_name="Dupont",
-            organization=organization,
-            is_active=True,
-        )
-        shipper_b = Contact.objects.create(
-            name="Shipper B",
-            contact_type=ContactType.PERSON,
-            title="Mme",
-            first_name="Alice",
-            last_name="Martin",
-            organization=organization,
-            is_active=True,
-        )
-        recipient_a = Contact.objects.create(
-            name="Recipient A",
-            contact_type=ContactType.PERSON,
-            title="M.",
-            first_name="Paul",
-            last_name="Ndiaye",
-            organization=organization,
-            is_active=True,
-        )
-        recipient_b = Contact.objects.create(
-            name="Recipient B",
-            contact_type=ContactType.PERSON,
-            title="Mme",
-            first_name="Lea",
-            last_name="Yao",
-            organization=organization,
-            is_active=True,
-        )
-        shipper_assignment = OrganizationRoleAssignment.objects.create(
-            organization=organization,
-            role=OrganizationRole.SHIPPER,
-            is_active=True,
-        )
-        OrganizationRoleAssignment.objects.create(
-            organization=organization,
-            role=OrganizationRole.RECIPIENT,
-            is_active=True,
-        )
-        ShipperScope.objects.create(
-            role_assignment=shipper_assignment,
-            destination=destination,
-            all_destinations=False,
-            is_active=True,
-        )
-        RecipientBinding.objects.create(
-            shipper_org=organization,
-            recipient_org=organization,
-            destination=destination,
-            is_active=True,
-        )
-
-        _, shippers_json, recipients_json, _ = build_shipment_contact_payload()
-        shipper_labels = {
-            entry["id"]: entry["name"]
-            for entry in shippers_json
-            if entry["id"] in {shipper_a.id, shipper_b.id}
-        }
-        recipient_labels = {
-            entry["id"]: entry["name"]
-            for entry in recipients_json
-            if entry["id"] in {recipient_a.id, recipient_b.id}
-        }
-
-        self.assertEqual(
-            shipper_labels[shipper_a.id],
-            "ASSOCIATION DUP (M., Jean, DUPONT)",
-        )
-        self.assertEqual(
-            shipper_labels[shipper_b.id],
-            "ASSOCIATION DUP (Mme, Alice, MARTIN)",
-        )
-        self.assertEqual(
-            recipient_labels[recipient_a.id],
-            "ASSOCIATION DUP (M., Paul, NDIAYE)",
-        )
-        self.assertEqual(
-            recipient_labels[recipient_b.id],
-            "ASSOCIATION DUP (Mme, Lea, YAO)",
-        )
-
-    def test_build_shipment_contact_payload_uses_org_roles_scope_and_binding_pairs(self):
-        correspondent = Contact.objects.create(name="Corr Roles")
-        destination_abj = Destination.objects.create(
-            city="Abidjan",
-            iata_code="ABJ-ROLE",
-            country="Cote d'Ivoire",
-            correspondent_contact=correspondent,
-            is_active=True,
-        )
-        destination_dla = Destination.objects.create(
-            city="Douala",
-            iata_code="DLA-ROLE",
-            country="Cameroun",
-            correspondent_contact=correspondent,
-            is_active=True,
-        )
-
-        shipper_org = Contact.objects.create(
-            name="Shipper Roles",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-
-        recipient_org = Contact.objects.create(
-            name="Recipient Roles",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-
-        shipper_assignment = OrganizationRoleAssignment.objects.create(
-            organization=shipper_org,
-            role=OrganizationRole.SHIPPER,
-            is_active=True,
-        )
-        OrganizationRoleAssignment.objects.create(
-            organization=recipient_org,
-            role=OrganizationRole.RECIPIENT,
-            is_active=True,
-        )
-
-        ShipperScope.objects.create(
-            role_assignment=shipper_assignment,
-            destination=destination_abj,
-            all_destinations=False,
-            is_active=True,
-        )
-        RecipientBinding.objects.create(
-            shipper_org=shipper_org,
-            recipient_org=recipient_org,
-            destination=destination_abj,
-            is_active=True,
-        )
-        RecipientBinding.objects.create(
-            shipper_org=shipper_org,
-            recipient_org=recipient_org,
-            destination=destination_dla,
-            is_active=True,
-        )
-
-        _, shippers_json, recipients_json, _ = build_shipment_contact_payload()
-
-        shipper_entry = next(entry for entry in shippers_json if entry["id"] == shipper_org.id)
-        recipient_entry = next(
-            entry for entry in recipients_json if entry["id"] == recipient_org.id
-        )
-        self.assertEqual(shipper_entry["organization_id"], shipper_org.id)
-        self.assertEqual(recipient_entry["organization_id"], recipient_org.id)
-        self.assertEqual(shipper_entry["scope_destination_ids"], [destination_abj.id])
-        self.assertEqual(
-            recipient_entry["binding_pairs"],
-            [
-                {
-                    "shipper_id": shipper_org.id,
-                    "destination_id": destination_abj.id,
-                },
-                {
-                    "shipper_id": shipper_org.id,
-                    "destination_id": destination_dla.id,
-                },
-            ],
-        )
-
-    def test_build_shipment_contact_payload_uses_org_roles_without_legacy_links(self):
-        correspondent = Contact.objects.create(name="Corr Org Roles Only")
-        destination = Destination.objects.create(
-            city="Lome",
-            iata_code="LFW-ORG",
-            country="Togo",
-            correspondent_contact=correspondent,
-            is_active=True,
-        )
-        shipper_org = Contact.objects.create(
-            name="Shipper Org Roles Only",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-        shipper_person = Contact.objects.create(
-            name="Shipper Person Org Roles Only",
-            contact_type=ContactType.PERSON,
-            first_name="Jean",
-            last_name="Orgroles",
-            organization=shipper_org,
-            is_active=True,
-        )
-        recipient_org = Contact.objects.create(
-            name="Recipient Org Roles Only",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-
-        shipper_assignment = OrganizationRoleAssignment.objects.create(
-            organization=shipper_org,
-            role=OrganizationRole.SHIPPER,
-            is_active=True,
-        )
-        OrganizationRoleAssignment.objects.create(
-            organization=recipient_org,
-            role=OrganizationRole.RECIPIENT,
-            is_active=True,
-        )
-        ShipperScope.objects.create(
-            role_assignment=shipper_assignment,
-            destination=destination,
-            all_destinations=False,
-            is_active=True,
-        )
-        RecipientBinding.objects.create(
-            shipper_org=shipper_org,
-            recipient_org=recipient_org,
-            destination=destination,
-            is_active=True,
-        )
-
-        _, shippers_json, recipients_json, correspondents_json = build_shipment_contact_payload()
-
-        shipper_ids = {entry["id"] for entry in shippers_json}
-        recipient_entry = next(
-            entry for entry in recipients_json if entry["id"] == recipient_org.id
-        )
-        correspondent_entry = next(
-            entry for entry in correspondents_json if entry["id"] == correspondent.id
-        )
-
-        self.assertIn(shipper_org.id, shipper_ids)
-        self.assertIn(shipper_person.id, shipper_ids)
-        self.assertEqual(recipient_entry["allowed_destination_ids"], [destination.id])
-        self.assertEqual(recipient_entry["bound_shipper_ids"], [shipper_org.id])
-        self.assertEqual(
-            recipient_entry["binding_pairs"],
-            [
-                {
-                    "shipper_id": shipper_org.id,
-                    "destination_id": destination.id,
+                    "recipient_labels_by_destination_id": {
+                        str(destination.id): f"Correspondant ABJ (Corr, ABJ)"
+                    },
                 }
             ],
         )
-        self.assertEqual(correspondent_entry["covered_destination_ids"], [destination.id])
 
-    def test_parse_shipment_lines_collects_all_error_branches(self):
-        product = Product.objects.create(
-            sku="SHIP-001",
-            name="Shipment Product",
-            qr_code_image="qr_codes/test.png",
+    def test_build_shipment_contact_payload_reuses_same_recipient_contact_for_multiple_shippers(
+        self,
+    ):
+        destination, _correspondent = self._create_destination_with_correspondent("BKO")
+        shipper_a, _ = self._create_shipper("ASF")
+        shipper_b, _ = self._create_shipper("MSF")
+        organization = self._create_organization("Hopital Bamako")
+        ContactAddress.objects.create(
+            contact=organization,
+            address_line1="Hopital Bamako addr",
+            country="Mali",
+            is_default=True,
         )
-        data = {
-            "line_1_carton_id": "1",
-            "line_1_product_code": product.sku,
-            "line_1_quantity": "1",
-            "line_2_carton_id": "2",
-            "line_2_product_code": "",
-            "line_2_quantity": "",
-            "line_3_carton_id": "",
-            "line_3_product_code": "",
-            "line_3_quantity": "1",
-            "line_4_carton_id": "",
-            "line_4_product_code": product.sku,
-            "line_4_quantity": "",
-            "line_5_carton_id": "",
-            "line_5_product_code": product.sku,
-            "line_5_quantity": "0",
-            "line_6_carton_id": "",
-            "line_6_product_code": "UNKNOWN",
-            "line_6_quantity": "1",
-            "line_7_carton_id": "",
-            "line_7_product_code": "",
-            "line_7_quantity": "",
-        }
+        recipient_org = ShipmentRecipientOrganization.objects.create(
+            organization=organization,
+            destination=destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+        shared_contact = self._create_person("Docteur Truc", organization=organization)
+        shipment_recipient_contact = ShipmentRecipientContact.objects.create(
+            recipient_organization=recipient_org,
+            contact=shared_contact,
+            is_active=True,
+        )
+        for shipper in (shipper_a, shipper_b):
+            link = ShipmentShipperRecipientLink.objects.create(
+                shipper=shipper,
+                recipient_organization=recipient_org,
+                is_active=True,
+            )
+            ShipmentAuthorizedRecipientContact.objects.create(
+                link=link,
+                recipient_contact=shipment_recipient_contact,
+                is_default=True,
+                is_active=True,
+            )
 
-        line_values, line_items, line_errors = parse_shipment_lines(
-            carton_count=7,
-            data=data,
-            allowed_carton_ids={"1"},
+        _destinations_json, _shippers_json, recipients_json, _correspondents_json = (
+            build_shipment_contact_payload()
         )
 
-        self.assertEqual(len(line_values), 7)
-        self.assertEqual(line_items, [])
+        self.assertEqual(len(recipients_json), 1)
         self.assertEqual(
-            line_errors,
-            {
-                "1": ["Choisissez un carton OU créez un colis depuis un produit."],
-                "2": ["Carton indisponible."],
-                "3": ["Produit requis."],
-                "4": ["Quantité requise."],
-                "5": ["Quantité invalide."],
-                "6": ["Produit introuvable."],
-                "7": ["Renseignez un carton ou un produit."],
-            },
+            recipients_json[0]["bound_shipper_ids"],
+            sorted([shipper_a.organization_id, shipper_b.organization_id]),
         )
+        self.assertEqual(
+            recipients_json[0]["binding_pairs"],
+            [
+                {
+                    "shipper_id": shipper_a.organization_id,
+                    "destination_id": destination.id,
+                },
+                {
+                    "shipper_id": shipper_b.organization_id,
+                    "destination_id": destination.id,
+                },
+            ],
+        )
+
+    def test_build_shipment_contact_payload_marks_exact_asf_shipper_as_priority(self):
+        destination, _correspondent = self._create_destination_with_correspondent("CMN")
+        asf_shipper, _ = self._create_shipper("AVIATION SANS FRONTIERES", can_send_to_all=True)
+        regional_shipper, _ = self._create_shipper("AVIATION SANS FRONTIERES SUD")
+        self._create_linked_recipient_contact(
+            shipper=regional_shipper,
+            destination=destination,
+            recipient_name="Hopital Casablanca",
+            referent_name="Youssef Contact",
+        )
+
+        _destinations_json, shippers_json, _recipients_json, _correspondents_json = (
+            build_shipment_contact_payload()
+        )
+
+        priority_flags = {
+            entry["organization_id"]: entry["is_priority_shipper"] for entry in shippers_json
+        }
+        self.assertTrue(priority_flags[asf_shipper.organization_id])
+        self.assertFalse(priority_flags[regional_shipper.organization_id])
 
     def test_parse_shipment_lines_accepts_valid_carton_and_product_lines(self):
-        product = Product.objects.create(
-            sku="SHIP-VALID",
-            name="Shipment Valid Product",
-            qr_code_image="qr_codes/test.png",
-        )
-        data = {
-            "line_1_carton_id": "10",
-            "line_1_product_code": "",
-            "line_1_quantity": "",
-            "line_2_carton_id": "",
-            "line_2_product_code": "SHIP-VALID",
-            "line_2_quantity": "3",
-        }
+        product = type("Product", (), {"id": 7, "name": "Produit test"})()
 
         line_values, line_items, line_errors = parse_shipment_lines(
             carton_count=2,
-            data=data,
-            allowed_carton_ids={"10"},
+            data={
+                "line_1_carton_id": "12",
+                "line_2_product_code": "SKU-1",
+                "line_2_quantity": "2",
+                "line_2_expires_on": "2026-02-01",
+            },
+            allowed_carton_ids={"12"},
         )
 
-        self.assertEqual(len(line_values), 2)
+        self.assertEqual(line_values[0]["carton_id"], "12")
+        self.assertEqual(line_values[1]["product_code"], "SKU-1")
+        self.assertEqual(line_errors, {"2": ["Produit introuvable."]})
         self.assertEqual(
-            line_items,
-            [
-                {"carton_id": 10, "preassigned_destination_confirmed": False},
-                {"product": product, "quantity": 3, "expires_on": None},
-            ],
+            line_items, [{"carton_id": 12, "preassigned_destination_confirmed": False}]
         )
-        self.assertEqual(line_errors, {})

@@ -3,7 +3,10 @@ from .scan_helpers import (
     build_product_options,
     build_shipment_line_values,
 )
-from .shipment_helpers import build_shipment_contact_payload
+from .shipment_helpers import (
+    build_shipment_contact_payload,
+    shipment_correspondent_contact_for_destination,
+)
 
 
 def build_shipment_order_product_options(order_lines):
@@ -115,9 +118,18 @@ def build_shipment_order_line_values(order_lines):
 def build_shipment_edit_initial(shipment, assigned_cartons, *, order_line_count=0):
     shipper_contact = getattr(shipment, "shipper_contact_ref", None)
     recipient_contact = getattr(shipment, "recipient_contact_ref", None)
-    if shipment.destination and shipment.destination.correspondent_contact_id:
-        correspondent_contact = shipment.destination.correspondent_contact
+    destination = getattr(shipment, "destination", None)
+    if destination is not None and hasattr(destination, "is_active"):
+        correspondent_contact = shipment_correspondent_contact_for_destination(destination)
     else:
+        correspondent_contact = None
+    if (
+        correspondent_contact is None
+        and destination is not None
+        and getattr(destination, "correspondent_contact_id", None)
+    ):
+        correspondent_contact = getattr(destination, "correspondent_contact", None)
+    if correspondent_contact is None:
         correspondent_contact = getattr(shipment, "correspondent_contact_ref", None)
 
     return {

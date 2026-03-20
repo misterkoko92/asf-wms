@@ -16,7 +16,13 @@ from wms.models import (
     OrganizationRoleAssignment,
     RecipientBinding,
     Shipment,
+    ShipmentAuthorizedRecipientContact,
+    ShipmentRecipientContact,
+    ShipmentRecipientOrganization,
+    ShipmentShipper,
+    ShipmentShipperRecipientLink,
     ShipmentStatus,
+    ShipmentValidationStatus,
     ShipperScope,
 )
 from wms.scan_shipment_handlers import (
@@ -55,49 +61,8 @@ class ScanShipmentHandlersTests(TestCase):
         return request
 
     def _cleaned_data(self, *, carton_count=2):
-        suffix = Destination.objects.count() + 1
-        correspondent = Contact.objects.create(
-            name=f"Correspondant {suffix}",
-            contact_type=ContactType.PERSON,
-            is_active=True,
-        )
-        destination = Destination.objects.create(
-            city=f"Paris {suffix}",
-            iata_code=f"T{suffix:03d}",
-            country="France",
-            correspondent_contact=correspondent,
-            is_active=True,
-        )
-        shipper = Contact.objects.create(
-            name="ASF",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-        recipient = Contact.objects.create(
-            name="Association Dest",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-        shipper_assignment = OrganizationRoleAssignment.objects.create(
-            organization=shipper,
-            role=OrganizationRole.SHIPPER,
-            is_active=True,
-        )
-        OrganizationRoleAssignment.objects.create(
-            organization=recipient,
-            role=OrganizationRole.RECIPIENT,
-            is_active=True,
-        )
-        ShipperScope.objects.create(
-            role_assignment=shipper_assignment,
-            destination=destination,
-            is_active=True,
-        )
-        RecipientBinding.objects.create(
-            shipper_org=shipper,
-            recipient_org=recipient,
-            destination=destination,
-            is_active=True,
+        destination, shipper, recipient, correspondent = self._create_shipment_party_triplet(
+            f"T{Destination.objects.count() + 1:03d}"
         )
         return {
             "carton_count": carton_count,
@@ -107,18 +72,152 @@ class ScanShipmentHandlersTests(TestCase):
             "correspondent_contact": correspondent,
         }
 
-    def test_handle_shipment_save_draft_translates_unavailable_correspondent_error(self):
-        linked_correspondent = Contact.objects.create(
-            name="Correspondent linked",
+    def _create_shipment_party_triplet(self, code="PAR"):
+        correspondent_org = Contact.objects.create(
+            name=f"Correspondent Org {code}",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        correspondent = Contact.objects.create(
+            name=f"Correspondent {code}",
             contact_type=ContactType.PERSON,
+            first_name="Correspondent",
+            last_name=code,
+            organization=correspondent_org,
             is_active=True,
         )
         destination = Destination.objects.create(
-            city="Paris",
-            iata_code="PAR",
+            city=f"Paris {code}",
+            iata_code=code,
             country="France",
-            correspondent_contact=linked_correspondent,
+            correspondent_contact=correspondent,
             is_active=True,
+        )
+        ShipmentRecipientOrganization.objects.create(
+            organization=correspondent_org,
+            destination=destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_correspondent=True,
+            is_active=True,
+        )
+
+        shipper_org = Contact.objects.create(
+            name=f"Shipper Org {code}",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        shipper_contact = Contact.objects.create(
+            name=f"Shipper {code}",
+            contact_type=ContactType.PERSON,
+            first_name="Shipper",
+            last_name=code,
+            organization=shipper_org,
+            is_active=True,
+        )
+        shipper = ShipmentShipper.objects.create(
+            organization=shipper_org,
+            default_contact=shipper_contact,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+
+        recipient_org_contact = Contact.objects.create(
+            name=f"Recipient Org {code}",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        recipient_org = ShipmentRecipientOrganization.objects.create(
+            organization=recipient_org_contact,
+            destination=destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+        recipient_contact = Contact.objects.create(
+            name=f"Recipient {code}",
+            contact_type=ContactType.PERSON,
+            first_name="Recipient",
+            last_name=code,
+            organization=recipient_org_contact,
+            is_active=True,
+        )
+        shipment_recipient_contact = ShipmentRecipientContact.objects.create(
+            recipient_organization=recipient_org,
+            contact=recipient_contact,
+            is_active=True,
+        )
+        link = ShipmentShipperRecipientLink.objects.create(
+            shipper=shipper,
+            recipient_organization=recipient_org,
+            is_active=True,
+        )
+        ShipmentAuthorizedRecipientContact.objects.create(
+            link=link,
+            recipient_contact=shipment_recipient_contact,
+            is_default=True,
+            is_active=True,
+        )
+        return destination, shipper_contact, recipient_contact, correspondent
+
+    def test_handle_shipment_save_draft_derives_correspondent_from_stopover(self):
+        destination, shipper_contact, recipient_contact, correspondent = (
+            self._create_shipment_party_triplet("SVD")
+        )
+        request = self._request(
+            {
+                "destination": str(destination.id),
+                "shipper_contact": str(shipper_contact.id),
+                "recipient_contact": str(recipient_contact.id),
+                "correspondent_contact": "",
+            }
+        )
+        form = _FakeForm(
+            valid=False,
+            data=request.POST,
+            fields={
+                "destination": forms.ModelChoiceField(
+                    queryset=Destination.objects.filter(pk=destination.pk)
+                ),
+                "shipper_contact": forms.ModelChoiceField(
+                    queryset=Contact.objects.filter(pk=shipper_contact.pk),
+                    required=False,
+                ),
+                "recipient_contact": forms.ModelChoiceField(
+                    queryset=Contact.objects.filter(pk=recipient_contact.pk),
+                    required=False,
+                ),
+                "correspondent_contact": forms.ModelChoiceField(
+                    queryset=Contact.objects.none(),
+                    required=False,
+                ),
+            },
+        )
+        shipment = SimpleNamespace(reference="EXP-TEMP-01", id=42)
+
+        with mock.patch(
+            "wms.scan_shipment_handlers.Shipment.objects.create",
+            return_value=shipment,
+        ) as shipment_create_mock:
+            with mock.patch("wms.scan_shipment_handlers.messages.success"):
+                with mock.patch(
+                    "wms.scan_shipment_handlers.redirect",
+                    return_value=SimpleNamespace(status_code=302, url="/draft/42"),
+                ):
+                    response = _handle_shipment_save_draft_post(request, form=form)
+
+        self.assertEqual(response.status_code, 302)
+        shipment_create_mock.assert_called_once()
+        self.assertEqual(
+            shipment_create_mock.call_args.kwargs["correspondent_contact_ref"],
+            correspondent,
+        )
+        self.assertEqual(
+            shipment_create_mock.call_args.kwargs["correspondent_name"],
+            correspondent.name,
+        )
+
+    def test_handle_shipment_save_draft_ignores_posted_unavailable_correspondent(self):
+        destination, shipper_contact, recipient_contact, linked_correspondent = (
+            self._create_shipment_party_triplet("IGN")
         )
         unavailable_correspondent = Contact.objects.create(
             name="Correspondent unavailable",
@@ -128,6 +227,8 @@ class ScanShipmentHandlersTests(TestCase):
         request = self._request(
             {
                 "destination": str(destination.id),
+                "shipper_contact": str(shipper_contact.id),
+                "recipient_contact": str(recipient_contact.id),
                 "correspondent_contact": str(unavailable_correspondent.id),
             }
         )
@@ -138,20 +239,39 @@ class ScanShipmentHandlersTests(TestCase):
                 "destination": forms.ModelChoiceField(
                     queryset=Destination.objects.filter(pk=destination.pk)
                 ),
+                "shipper_contact": forms.ModelChoiceField(
+                    queryset=Contact.objects.filter(pk=shipper_contact.pk),
+                    required=False,
+                ),
+                "recipient_contact": forms.ModelChoiceField(
+                    queryset=Contact.objects.filter(pk=recipient_contact.pk),
+                    required=False,
+                ),
                 "correspondent_contact": forms.ModelChoiceField(
                     queryset=Contact.objects.none(),
                     required=False,
                 ),
             },
         )
+        shipment = SimpleNamespace(reference="EXP-TEMP-02", id=43)
 
-        with override_language("en"):
-            response = _handle_shipment_save_draft_post(request, form=form)
+        with mock.patch(
+            "wms.scan_shipment_handlers.Shipment.objects.create",
+            return_value=shipment,
+        ) as shipment_create_mock:
+            with mock.patch("wms.scan_shipment_handlers.messages.success"):
+                with mock.patch(
+                    "wms.scan_shipment_handlers.redirect",
+                    return_value=SimpleNamespace(status_code=302, url="/draft/43"),
+                ):
+                    with override_language("en"):
+                        response = _handle_shipment_save_draft_post(request, form=form)
 
-        self.assertIsNone(response)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(form.errors, [])
         self.assertEqual(
-            form.errors,
-            [("correspondent_contact", "Contact unavailable for this destination.")],
+            shipment_create_mock.call_args.kwargs["correspondent_contact_ref"],
+            linked_correspondent,
         )
 
     def test_get_carton_count_uses_form_when_valid(self):
@@ -309,12 +429,8 @@ class ScanShipmentHandlersTests(TestCase):
             correspondent_contact=correspondent,
             is_active=True,
         )
-        target_destination = Destination.objects.create(
-            city="Conakry",
-            iata_code="CKY",
-            country="Guinee",
-            correspondent_contact=correspondent,
-            is_active=True,
+        target_destination, shipper_contact, recipient_contact, _target_correspondent = (
+            self._create_shipment_party_triplet("CKY")
         )
         carton = Carton.objects.create(
             code="MM-00001",
@@ -323,37 +439,6 @@ class ScanShipmentHandlersTests(TestCase):
         )
         request = self._request({"carton_count": "1"})
         cleaned_data = self._cleaned_data(carton_count=1)
-        shipper_contact = Contact.objects.create(
-            name="ASF mismatch create",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-        recipient_contact = Contact.objects.create(
-            name="Association mismatch create",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-        shipper_assignment = OrganizationRoleAssignment.objects.create(
-            organization=shipper_contact,
-            role=OrganizationRole.SHIPPER,
-            is_active=True,
-        )
-        OrganizationRoleAssignment.objects.create(
-            organization=recipient_contact,
-            role=OrganizationRole.RECIPIENT,
-            is_active=True,
-        )
-        ShipperScope.objects.create(
-            role_assignment=shipper_assignment,
-            destination=target_destination,
-            is_active=True,
-        )
-        RecipientBinding.objects.create(
-            shipper_org=shipper_contact,
-            recipient_org=recipient_contact,
-            destination=target_destination,
-            is_active=True,
-        )
         cleaned_data["destination"] = target_destination
         cleaned_data["shipper_contact"] = shipper_contact
         cleaned_data["recipient_contact"] = recipient_contact
@@ -410,12 +495,8 @@ class ScanShipmentHandlersTests(TestCase):
             correspondent_contact=correspondent,
             is_active=True,
         )
-        target_destination = Destination.objects.create(
-            city="Conakry",
-            iata_code="CKY",
-            country="Guinee",
-            correspondent_contact=correspondent,
-            is_active=True,
+        target_destination, shipper_contact, recipient_contact, correspondent_contact = (
+            self._create_shipment_party_triplet("CKY")
         )
         shipment = Shipment.objects.create(
             status=ShipmentStatus.DRAFT,
@@ -424,42 +505,6 @@ class ScanShipmentHandlersTests(TestCase):
             destination=target_destination,
             destination_address=str(target_destination),
             destination_country=target_destination.country,
-        )
-        shipper_contact = Contact.objects.create(
-            name="ASF shipment edit",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-        recipient_contact = Contact.objects.create(
-            name="Association shipment edit",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-        correspondent_contact = Contact.objects.create(
-            name="Correspondent shipment edit",
-            contact_type=ContactType.PERSON,
-            is_active=True,
-        )
-        shipper_assignment = OrganizationRoleAssignment.objects.create(
-            organization=shipper_contact,
-            role=OrganizationRole.SHIPPER,
-            is_active=True,
-        )
-        OrganizationRoleAssignment.objects.create(
-            organization=recipient_contact,
-            role=OrganizationRole.RECIPIENT,
-            is_active=True,
-        )
-        ShipperScope.objects.create(
-            role_assignment=shipper_assignment,
-            destination=target_destination,
-            is_active=True,
-        )
-        RecipientBinding.objects.create(
-            shipper_org=shipper_contact,
-            recipient_org=recipient_contact,
-            destination=target_destination,
-            is_active=True,
         )
         carton = Carton.objects.create(
             code="MM-00002",

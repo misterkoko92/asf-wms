@@ -25,19 +25,17 @@ from .models import (
     Warehouse,
 )
 from .organization_role_resolvers import (
-    OrganizationRoleResolutionError,
     active_organizations_for_role,
     active_organizations_for_roles,
-    resolve_recipient_binding_for_operation,
-    resolve_shipper_for_operation,
 )
 from .scan_helpers import resolve_product
-from .shipment_party_rules import (
-    active_shipper_contacts,
-    eligible_correspondent_contacts_for_destination,
-    eligible_recipient_contacts_for_shipper_destination,
-    normalize_party_contact_to_org,
-    recipient_contacts_for_destination,
+from .shipment_helpers import (
+    default_shipment_recipient_contact_for_shipper,
+    eligible_shipment_recipient_contacts_for_shipper,
+    eligible_shipment_shipper_contacts_for_destination,
+    shipment_correspondent_contact_for_destination,
+    shipment_link_for_recipient_contact,
+    shipment_shipper_from_contact,
 )
 
 
@@ -488,26 +486,32 @@ class ScanShipmentForm(forms.Form):
             destinations=destinations,
             destination_id=destination_id,
         )
-        all_shipper_contacts = active_shipper_contacts()
         shipper_contacts = (
-            all_shipper_contacts if selected_destination else all_shipper_contacts.none()
+            eligible_shipment_shipper_contacts_for_destination(selected_destination)
+            if selected_destination
+            else Contact.objects.none()
         )
         self.fields["shipper_contact"].queryset = shipper_contacts.order_by("name")
         self.fields["shipper_contact"].label_from_instance = build_contact_select_label
 
         recipients = Contact.objects.none()
         correspondents = Contact.objects.none()
-        selected_shipper = self._resolve_contact_from_raw(self._selected_value("shipper_contact"))
+        selected_shipper_contact = self._resolve_contact_from_raw(
+            self._selected_value("shipper_contact")
+        )
+        selected_shipper = shipment_shipper_from_contact(selected_shipper_contact)
 
+        if selected_destination and selected_shipper:
+            recipients = eligible_shipment_recipient_contacts_for_shipper(
+                shipper=selected_shipper,
+                destination=selected_destination,
+            )
         if selected_destination:
-            if selected_shipper:
-                recipients = eligible_recipient_contacts_for_shipper_destination(
-                    shipper_contact=selected_shipper,
-                    destination=selected_destination,
-                )
-            else:
-                recipients = recipient_contacts_for_destination(selected_destination)
-            correspondents = eligible_correspondent_contacts_for_destination(selected_destination)
+            correspondent_contact = shipment_correspondent_contact_for_destination(
+                selected_destination
+            )
+            if correspondent_contact is not None:
+                correspondents = Contact.objects.filter(pk=correspondent_contact.pk)
 
         self.fields["recipient_contact"].queryset = recipients.distinct().order_by("name")
         self.fields["correspondent_contact"].queryset = correspondents.distinct().order_by("name")
@@ -518,6 +522,18 @@ class ScanShipmentForm(forms.Form):
             )
         )
         if not self.is_bound:
+            if selected_destination and selected_shipper:
+                default_recipient_contact = default_shipment_recipient_contact_for_shipper(
+                    shipper=selected_shipper,
+                    destination=selected_destination,
+                )
+                if (
+                    default_recipient_contact is not None
+                    and self.fields["recipient_contact"]
+                    .queryset.filter(pk=default_recipient_contact.pk)
+                    .exists()
+                ):
+                    self.fields["recipient_contact"].initial = default_recipient_contact.pk
             _select_single_choice(self.fields["correspondent_contact"])
 
     def _selected_value(self, field_name, *, explicit_value=None):
@@ -590,18 +606,6 @@ class ScanShipmentForm(forms.Form):
             return None
         return Contact.objects.select_related("organization").filter(pk=contact_id).first()
 
-    @staticmethod
-    def _contact_has_active_org_role(contact, role):
-        organization = normalize_party_contact_to_org(contact)
-        if organization is None:
-            return False
-        return OrganizationRoleAssignment.objects.filter(
-            organization=organization,
-            role=role,
-            is_active=True,
-            organization__is_active=True,
-        ).exists()
-
     def _invalid_destination_message(self, raw_value):
         destination_id = self._parse_pk(raw_value)
         if destination_id is None:
@@ -643,32 +647,21 @@ class ScanShipmentForm(forms.Form):
                 "prefix": prefix
             }
 
-        if field_name == "shipper_contact" and not self._contact_has_active_org_role(
-            contact,
-            OrganizationRole.SHIPPER,
-        ):
-            return _("%(prefix)s: ce contact n'a pas de role expéditeur actif.") % {
-                "prefix": prefix
-            }
-        if field_name == "recipient_contact" and not self._contact_has_active_org_role(
-            contact,
-            OrganizationRole.RECIPIENT,
-        ):
-            return _("%(prefix)s: ce contact n'a pas de role destinataire actif.") % {
-                "prefix": prefix
-            }
+        if field_name == "shipper_contact" and shipment_shipper_from_contact(contact) is None:
+            return _("%(prefix)s: ce choix n'est plus disponible.") % {"prefix": prefix}
 
         if field_name == "recipient_contact" and destination:
-            selected_shipper = self._resolve_contact_from_raw(
+            selected_shipper_contact = self._resolve_contact_from_raw(
                 self._raw_field_value("shipper_contact")
             )
+            selected_shipper = shipment_shipper_from_contact(selected_shipper_contact)
             if selected_shipper:
-                recipients = eligible_recipient_contacts_for_shipper_destination(
-                    shipper_contact=selected_shipper,
+                recipients = eligible_shipment_recipient_contacts_for_shipper(
+                    shipper=selected_shipper,
                     destination=destination,
                 )
             else:
-                recipients = recipient_contacts_for_destination(destination)
+                recipients = Contact.objects.none()
             if not recipients.filter(pk=contact.pk).exists():
                 return _(
                     "%(prefix)s: ce contact n'est pas disponible pour la destination sélectionnée."
@@ -676,9 +669,10 @@ class ScanShipmentForm(forms.Form):
         if (
             field_name == "correspondent_contact"
             and destination
-            and not eligible_correspondent_contacts_for_destination(destination)
-            .filter(pk=contact.pk)
-            .exists()
+            and (
+                shipment_correspondent_contact_for_destination(destination) is None
+                or shipment_correspondent_contact_for_destination(destination).pk != contact.pk
+            )
         ):
             return _(
                 "%(prefix)s: ce contact n'est pas disponible pour la destination sélectionnée."
@@ -687,8 +681,8 @@ class ScanShipmentForm(forms.Form):
         if (
             field_name == "correspondent_contact"
             and destination
-            and destination.correspondent_contact_id
-            and contact.id != destination.correspondent_contact_id
+            and shipment_correspondent_contact_for_destination(destination) is not None
+            and contact.id != shipment_correspondent_contact_for_destination(destination).id
         ):
             return _(
                 "%(prefix)s: ce correspondant n'est pas lié à la destination sélectionnée."
@@ -740,33 +734,46 @@ class ScanShipmentForm(forms.Form):
         shipper = cleaned.get("shipper_contact")
         recipient = cleaned.get("recipient_contact")
         correspondent = cleaned.get("correspondent_contact")
-        shipper_org = normalize_party_contact_to_org(shipper)
-        recipient_org = normalize_party_contact_to_org(recipient)
         self._apply_invalid_choice_messages(destination=destination)
-        if destination and destination.correspondent_contact_id:
-            if correspondent and correspondent.id != destination.correspondent_contact_id:
+        expected_correspondent = shipment_correspondent_contact_for_destination(destination)
+        if expected_correspondent is not None:
+            if correspondent is None:
+                cleaned["correspondent_contact"] = expected_correspondent
+                correspondent = expected_correspondent
+            elif correspondent.id != expected_correspondent.id:
                 self.add_error(
                     "correspondent_contact",
                     _("Correspondant non lie a la destination."),
                 )
 
         if shipper:
-            try:
-                resolve_shipper_for_operation(
-                    shipper_org=shipper_org,
-                    destination=destination,
+            shipper_model = shipment_shipper_from_contact(shipper)
+            if shipper_model is None or destination is None:
+                self.add_error(
+                    "shipper_contact",
+                    _("Expéditeur invalide: ce choix n'est plus disponible."),
                 )
-            except OrganizationRoleResolutionError as exc:
-                self.add_error("shipper_contact", str(exc))
+            elif not self.fields["shipper_contact"].queryset.filter(pk=shipper.pk).exists():
+                self.add_error(
+                    "shipper_contact",
+                    _("Expéditeur non disponible pour cette destination."),
+                )
+        else:
+            shipper_model = None
         if shipper and recipient:
-            try:
-                resolve_recipient_binding_for_operation(
-                    shipper_org=shipper_org,
-                    recipient_org=recipient_org,
+            if (
+                shipper_model is None
+                or shipment_link_for_recipient_contact(
+                    shipper=shipper_model,
+                    recipient_contact=recipient,
                     destination=destination,
                 )
-            except OrganizationRoleResolutionError as exc:
-                self.add_error("recipient_contact", str(exc))
+                is None
+            ):
+                self.add_error(
+                    "recipient_contact",
+                    _("Destinataire non disponible pour cet expéditeur."),
+                )
         return cleaned
 
 
