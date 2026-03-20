@@ -622,6 +622,23 @@ class ShipmentPartyBackfillService:
             if organization is None or not organization.is_active:
                 continue
 
+            existing_correspondent = (
+                ShipmentRecipientOrganization.objects.filter(
+                    destination=destination,
+                    is_correspondent=True,
+                )
+                .order_by("-is_active", "id")
+                .first()
+            )
+            if (
+                existing_correspondent is not None
+                and existing_correspondent.organization_id != organization.id
+                and existing_correspondent.is_active
+            ):
+                existing_correspondent.is_active = False
+                existing_correspondent.save(update_fields=["is_active"])
+                self.summary["recipient_organizations_updated"] += 1
+
             recipient_organization = self._ensure_recipient_organization(
                 organization=organization,
                 destination=destination,

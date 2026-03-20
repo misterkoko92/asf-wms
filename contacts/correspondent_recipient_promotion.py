@@ -110,16 +110,20 @@ def _resolve_recipient_organization(contact):
     return support_organization, created, False
 
 
-def _has_active_shipment_correspondent_recipient_for_destination(destination_id: int) -> bool:
+def get_shipment_correspondent_recipient_for_destination(destination_id: int):
     if not destination_id:
-        return False
+        return None
     from wms.models import ShipmentRecipientOrganization
 
-    return ShipmentRecipientOrganization.objects.filter(
-        destination_id=destination_id,
-        is_correspondent=True,
-        is_active=True,
-    ).exists()
+    return (
+        ShipmentRecipientOrganization.objects.filter(
+            destination_id=destination_id,
+            is_correspondent=True,
+        )
+        .select_related("organization")
+        .order_by("-is_active", "id")
+        .first()
+    )
 
 
 def _destination_ids_from_correspondent_assignments(contact) -> list[int]:
@@ -221,10 +225,7 @@ def ensure_destination_correspondent_recipient_ready(destination):
             pk=destination.correspondent_contact_id
         ).first()
 
-    has_shipment_correspondent = _has_active_shipment_correspondent_recipient_for_destination(
-        destination.id
-    )
-    if has_shipment_correspondent:
+    if get_shipment_correspondent_recipient_for_destination(destination.id) is not None:
         return CorrespondentRecipientPromotionResult()
 
     result = promote_correspondent_to_recipient_ready(correspondent_contact)

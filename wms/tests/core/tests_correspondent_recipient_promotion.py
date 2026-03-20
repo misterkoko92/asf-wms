@@ -132,6 +132,44 @@ class CorrespondentRecipientPromotionTests(TestCase):
             ).exists()
         )
 
+    def test_ensure_destination_correspondent_recipient_ready_skips_legacy_role_when_inactive_shipment_party_exists(
+        self,
+    ):
+        from contacts.correspondent_recipient_promotion import (
+            ensure_destination_correspondent_recipient_ready,
+        )
+
+        shipment_party_organization = Contact.objects.create(
+            name="Inactive Shipment Party Correspondent Org",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        correspondent = Contact.objects.create(
+            name="Inactive Shipment Party Correspondent",
+            contact_type=ContactType.PERSON,
+            is_active=True,
+        )
+        destination = Destination.objects.create(
+            city="Bujumbura",
+            iata_code="BJM",
+            country="Burundi",
+            correspondent_contact=correspondent,
+            is_active=True,
+        )
+        ShipmentRecipientOrganization.objects.create(
+            organization=shipment_party_organization,
+            destination=destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_correspondent=True,
+            is_active=False,
+        )
+
+        result = ensure_destination_correspondent_recipient_ready(destination)
+
+        correspondent.refresh_from_db()
+        self.assertIsNone(correspondent.organization_id)
+        self.assertFalse(result.changed)
+
     def test_promote_correspondent_org_creates_recipient_role_from_destination_assignment(self):
         from contacts.correspondent_recipient_promotion import (
             promote_correspondent_to_recipient_ready,

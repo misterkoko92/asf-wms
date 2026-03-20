@@ -682,6 +682,43 @@ class BackfillShipmentPartiesCommandTests(TestCase):
             ).exists()
         )
 
+    def test_apply_backfill_reconciles_existing_shipment_party_correspondent(self):
+        correspondent = self._create_person(
+            first_name="Shipment",
+            last_name="Party",
+        )
+        existing_org = self._create_organization("Existing Shipment Party Correspondent Org")
+        destination = self._create_destination(
+            "RUN",
+            correspondent_contact=correspondent,
+        )
+        existing_row = ShipmentRecipientOrganization.objects.create(
+            organization=existing_org,
+            destination=destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_correspondent=True,
+            is_active=True,
+        )
+
+        call_command("backfill_shipment_parties_from_org_roles", "--apply")
+
+        correspondent.refresh_from_db()
+        existing_row.refresh_from_db()
+        support_org = Contact.objects.get(
+            name=SUPPORT_ORGANIZATION_NAME,
+            contact_type=ContactType.ORGANIZATION,
+        )
+        self.assertEqual(correspondent.organization, support_org)
+        self.assertFalse(existing_row.is_active)
+        self.assertEqual(
+            ShipmentRecipientOrganization.objects.get(
+                destination=destination,
+                is_correspondent=True,
+                is_active=True,
+            ).organization,
+            support_org,
+        )
+
     def test_apply_backfill_skips_source_conflict_against_existing_target_data(self):
         destination_one = self._create_destination("TGT")
         destination_two = self._create_destination("SRC")
