@@ -41,9 +41,15 @@ from wms.models import (
     ReceiptType,
     RecipientBinding,
     Shipment,
+    ShipmentAuthorizedRecipientContact,
+    ShipmentRecipientContact,
+    ShipmentRecipientOrganization,
+    ShipmentShipper,
+    ShipmentShipperRecipientLink,
     ShipmentStatus,
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
+    ShipmentValidationStatus,
     ShipperScope,
     Warehouse,
 )
@@ -146,11 +152,21 @@ class UiApiEndpointsTests(TestCase):
             "UI Correspondent",
             contact_type=ContactType.PERSON,
         )
+        self.correspondent_org = self._create_contact("UI Correspondent Org")
+        self.correspondent_contact.organization = self.correspondent_org
+        self.correspondent_contact.save(update_fields=["organization"])
         self.destination = Destination.objects.create(
             city="RUN",
             iata_code="RUN",
             country="France",
             correspondent_contact=self.correspondent_contact,
+            is_active=True,
+        )
+        ShipmentRecipientOrganization.objects.create(
+            organization=self.correspondent_org,
+            destination=self.destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_correspondent=True,
             is_active=True,
         )
         self._grant_shipper_scope(self.association_contact, self.destination)
@@ -159,11 +175,51 @@ class UiApiEndpointsTests(TestCase):
             "UI Shipper",
         )
         self._grant_shipper_scope(self.shipper_contact, self.destination)
+        self.shipper_referent = self._create_contact(
+            "UI Shipper Referent",
+            contact_type=ContactType.PERSON,
+        )
+        self.shipper_referent.organization = self.shipper_contact
+        self.shipper_referent.save(update_fields=["organization"])
+        self.shipment_shipper = ShipmentShipper.objects.create(
+            organization=self.shipper_contact,
+            default_contact=self.shipper_referent,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
 
         self.recipient_contact = self._create_contact(
             "UI Recipient",
         )
         self._bind_recipient(self.shipper_contact, self.recipient_contact, self.destination)
+        self.recipient_referent = self._create_contact(
+            "UI Recipient Referent",
+            contact_type=ContactType.PERSON,
+        )
+        self.recipient_referent.organization = self.recipient_contact
+        self.recipient_referent.save(update_fields=["organization"])
+        self.shipment_recipient_organization = ShipmentRecipientOrganization.objects.create(
+            organization=self.recipient_contact,
+            destination=self.destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+        self.shipment_recipient_contact = ShipmentRecipientContact.objects.create(
+            recipient_organization=self.shipment_recipient_organization,
+            contact=self.recipient_referent,
+            is_active=True,
+        )
+        shipment_link = ShipmentShipperRecipientLink.objects.create(
+            shipper=self.shipment_shipper,
+            recipient_organization=self.shipment_recipient_organization,
+            is_active=True,
+        )
+        ShipmentAuthorizedRecipientContact.objects.create(
+            link=shipment_link,
+            recipient_contact=self.shipment_recipient_contact,
+            is_default=True,
+            is_active=True,
+        )
 
         self.donor_contact = self._create_contact(
             "UI Donor",
@@ -279,8 +335,8 @@ class UiApiEndpointsTests(TestCase):
     def _shipment_mutation_payload(self, *, lines):
         return {
             "destination": self.destination.id,
-            "shipper_contact": self.shipper_contact.id,
-            "recipient_contact": self.recipient_contact.id,
+            "shipper_contact": self.shipper_referent.id,
+            "recipient_contact": self.recipient_referent.id,
             "correspondent_contact": self.correspondent_contact.id,
             "lines": lines,
         }
@@ -1430,10 +1486,19 @@ class UiApiEndpointsTests(TestCase):
         self.assertEqual(response.status_code, 201)
         payload = response.json()
         shipment_id = payload["shipment"]["id"]
+        shipment = Shipment.objects.get(pk=shipment_id)
         self.available_carton.refresh_from_db()
         self.assertEqual(self.available_carton.shipment_id, shipment_id)
         self.assertEqual(self.available_carton.status, CartonStatus.ASSIGNED)
         self.assertGreaterEqual(Carton.objects.filter(shipment_id=shipment_id).count(), 2)
+        self.assertEqual(
+            shipment.party_snapshot["shipper"]["contact"]["contact_id"],
+            self.shipper_referent.id,
+        )
+        self.assertEqual(
+            shipment.party_snapshot["recipient"]["contact"]["contact_id"],
+            self.recipient_referent.id,
+        )
 
     def test_ui_shipment_create_rejects_invalid_lines_with_uniform_errors(self):
         response = self.staff_client.post(
@@ -1504,6 +1569,15 @@ class UiApiEndpointsTests(TestCase):
         self.assertEqual(already_assigned.status, CartonStatus.PACKED)
         self.assertEqual(replacement.shipment_id, editable_shipment.id)
         self.assertEqual(replacement.status, CartonStatus.ASSIGNED)
+        editable_shipment.refresh_from_db()
+        self.assertEqual(
+            editable_shipment.party_snapshot["shipper"]["contact"]["contact_id"],
+            self.shipper_referent.id,
+        )
+        self.assertEqual(
+            editable_shipment.party_snapshot["recipient"]["contact"]["contact_id"],
+            self.recipient_referent.id,
+        )
 
     def test_ui_tracking_event_updates_shipment_status(self):
         track_shipment = Shipment.objects.create(

@@ -214,6 +214,10 @@ class ScanShipmentHandlersTests(TestCase):
             shipment_create_mock.call_args.kwargs["correspondent_name"],
             correspondent.name,
         )
+        self.assertEqual(
+            shipment_create_mock.call_args.kwargs["party_snapshot"]["correspondent"]["label"],
+            "Correspondent SVD, Correspondent Org SVD",
+        )
 
     def test_handle_shipment_save_draft_ignores_posted_unavailable_correspondent(self):
         destination, shipper_contact, recipient_contact, linked_correspondent = (

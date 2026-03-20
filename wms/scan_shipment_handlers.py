@@ -23,6 +23,10 @@ from .shipment_helpers import (
     shipment_link_for_recipient_contact,
     shipment_shipper_from_contact,
 )
+from .shipment_party_snapshot import (
+    apply_shipment_party_snapshot,
+    build_shipment_party_snapshot_payload,
+)
 from .shipment_status import sync_shipment_ready_state
 
 LOCKED_SHIPMENT_STATUSES = {
@@ -203,6 +207,14 @@ def _handle_shipment_save_draft_post(request, *, form, redirect_to_pack=False):
     last_error = None
     for _attempt in range(TEMP_SHIPMENT_REFERENCE_MAX_RETRIES):
         draft_reference = _next_temp_shipment_reference()
+        party_payload = build_shipment_party_snapshot_payload(
+            shipper_contact=shipper_contact,
+            recipient_contact=recipient_contact,
+            correspondent_contact=correspondent_contact,
+            shipper_name=shipper_contact.name if shipper_contact else "",
+            recipient_name=recipient_contact.name if recipient_contact else "",
+            correspondent_name=correspondent_contact.name if correspondent_contact else "",
+        )
         try:
             with transaction.atomic():
                 shipment = Shipment.objects.create(
@@ -218,6 +230,7 @@ def _handle_shipment_save_draft_post(request, *, form, redirect_to_pack=False):
                     destination_address=destination_label,
                     destination_country=destination.country,
                     created_by=request.user,
+                    **party_payload,
                 )
         except IntegrityError as exc:
             last_error = exc
@@ -268,6 +281,14 @@ def handle_shipment_create_post(request, *, form, available_carton_ids):
                     destination=destination,
                 )
                 destination_label = build_destination_label(destination)
+                party_payload = build_shipment_party_snapshot_payload(
+                    shipper_contact=shipper_contact,
+                    recipient_contact=recipient_contact,
+                    correspondent_contact=correspondent_contact,
+                    shipper_name=shipper_contact.name,
+                    recipient_name=recipient_contact.name,
+                    correspondent_name=correspondent_contact.name,
+                )
                 shipment = Shipment.objects.create(
                     status=ShipmentStatus.DRAFT,
                     shipper_name=shipper_contact.name,
@@ -280,6 +301,7 @@ def handle_shipment_create_post(request, *, form, available_carton_ids):
                     destination_address=destination_label,
                     destination_country=destination.country,
                     created_by=request.user,
+                    **party_payload,
                 )
                 for item in line_items:
                     carton_id = item.get("carton_id")
@@ -379,6 +401,15 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
                 shipment.correspondent_contact_ref = correspondent_contact
                 shipment.destination_address = destination_label
                 shipment.destination_country = destination.country
+                apply_shipment_party_snapshot(
+                    shipment,
+                    shipper_contact=shipper_contact,
+                    recipient_contact=recipient_contact,
+                    correspondent_contact=correspondent_contact,
+                    shipper_name=shipper_contact.name,
+                    recipient_name=recipient_contact.name,
+                    correspondent_name=correspondent_contact.name,
+                )
                 shipment.save(
                     update_fields=[
                         "destination",
@@ -390,6 +421,7 @@ def handle_shipment_edit_post(request, *, form, shipment, allowed_carton_ids):
                         "correspondent_contact_ref",
                         "destination_address",
                         "destination_country",
+                        "party_snapshot",
                     ]
                 )
                 related_order = _related_order_for_shipment(shipment)
