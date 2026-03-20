@@ -1,4 +1,5 @@
 from io import StringIO
+from unittest.mock import patch
 
 from django.core.management import CommandError, call_command
 from django.test import TestCase
@@ -351,7 +352,39 @@ class BackfillShipmentPartiesCommandTests(TestCase):
             ).exists()
         )
 
-    def test_apply_backfill_fails_fast_when_recipient_spans_multiple_destinations(self):
+    def test_apply_backfill_rolls_back_apply_mode_on_late_failure(self):
+        destination = self._create_destination("RBK")
+        shipper_org = self._create_organization("Rollback Shipper")
+        shipper_assignment = self._create_role_assignment(
+            organization=shipper_org,
+            role=OrganizationRole.SHIPPER,
+        )
+        self._create_role_contact(
+            role_assignment=shipper_assignment,
+            first_name="Rollback",
+            last_name="Owner",
+            email="rollback@example.org",
+            is_primary=True,
+        )
+        ShipperScope.objects.create(
+            role_assignment=shipper_assignment,
+            all_destinations=False,
+            destination=destination,
+            is_active=True,
+        )
+
+        with patch(
+            "wms.management.commands.backfill_shipment_parties_from_org_roles."
+            "ShipmentPartyBackfillService._backfill_recipient_bindings",
+            side_effect=CommandError("boom"),
+        ):
+            with self.assertRaisesMessage(CommandError, "boom"):
+                call_command("backfill_shipment_parties_from_org_roles", "--apply")
+
+        self.assertEqual(ShipmentShipper.objects.count(), 0)
+        self.assertEqual(ShipmentRecipientOrganization.objects.count(), 0)
+
+    def test_apply_backfill_skips_recipient_conflicts_and_continues(self):
         destination_one = self._create_destination("NIM")
         destination_two = self._create_destination("MRS")
 
@@ -405,13 +438,18 @@ class BackfillShipmentPartiesCommandTests(TestCase):
             is_active=True,
         )
 
-        with self.assertRaisesMessage(CommandError, "multiple destinations"):
-            call_command("backfill_shipment_parties_from_org_roles", "--apply")
+        stdout = StringIO()
+        call_command("backfill_shipment_parties_from_org_roles", "--apply", stdout=stdout)
 
-        self.assertEqual(ShipmentShipper.objects.count(), 0)
-        self.assertEqual(ShipmentRecipientOrganization.objects.count(), 0)
+        output = stdout.getvalue()
+        self.assertIn("- Conflicting recipient targets: 1", output)
+        self.assertIn("- Recipient bindings skipped: 2", output)
+        self.assertTrue(ShipmentShipper.objects.filter(organization=shipper_org).exists())
+        self.assertFalse(
+            ShipmentRecipientOrganization.objects.filter(organization=recipient_org).exists()
+        )
 
-    def test_apply_backfill_fails_fast_when_support_correspondent_spans_multiple_destinations(self):
+    def test_apply_backfill_skips_support_correspondent_conflicts(self):
         self._create_destination(
             "LBV",
             correspondent_contact=self._create_person(
@@ -427,16 +465,107 @@ class BackfillShipmentPartiesCommandTests(TestCase):
             ),
         )
 
-        with self.assertRaisesMessage(CommandError, "ASF - CORRESPONDANT"):
-            call_command("backfill_shipment_parties_from_org_roles", "--apply")
+        stdout = StringIO()
+        call_command("backfill_shipment_parties_from_org_roles", "--apply", stdout=stdout)
 
+        output = stdout.getvalue()
+        self.assertIn("- Conflicting recipient targets: 1", output)
+        self.assertIn("- Correspondent destinations skipped: 2", output)
         self.assertFalse(
             Contact.objects.filter(
                 name=SUPPORT_ORGANIZATION_NAME,
                 contact_type=ContactType.ORGANIZATION,
             ).exists()
         )
-        self.assertEqual(ShipmentRecipientOrganization.objects.count(), 0)
+
+    def test_apply_backfill_reuses_inactive_correspondent_organization(self):
+        inactive_org = self._create_organization("Dormant Correspondent Org")
+        inactive_org.is_active = False
+        inactive_org.save(update_fields=["is_active"])
+        correspondent = self._create_person(
+            first_name="Claire",
+            last_name="Dormant",
+            organization=inactive_org,
+        )
+        destination = self._create_destination(
+            "ABJ",
+            correspondent_contact=correspondent,
+        )
+
+        call_command("backfill_shipment_parties_from_org_roles", "--apply")
+
+        inactive_org.refresh_from_db()
+        self.assertTrue(inactive_org.is_active)
+        shipment_recipient = ShipmentRecipientOrganization.objects.get(
+            organization=inactive_org,
+            destination=destination,
+        )
+        self.assertTrue(shipment_recipient.is_correspondent)
+        self.assertFalse(
+            Contact.objects.filter(
+                name=SUPPORT_ORGANIZATION_NAME,
+                contact_type=ContactType.ORGANIZATION,
+            ).exists()
+        )
+
+    def test_apply_backfill_skips_source_conflict_against_existing_target_data(self):
+        destination_one = self._create_destination("TGT")
+        destination_two = self._create_destination("SRC")
+        shipper_org = self._create_organization("Existing Target Shipper")
+        shipper_assignment = self._create_role_assignment(
+            organization=shipper_org,
+            role=OrganizationRole.SHIPPER,
+        )
+        self._create_role_contact(
+            role_assignment=shipper_assignment,
+            first_name="Existing",
+            last_name="Target",
+            email="existing.target@example.org",
+            is_primary=True,
+        )
+        ShipperScope.objects.create(
+            role_assignment=shipper_assignment,
+            all_destinations=False,
+            destination=destination_two,
+            is_active=True,
+        )
+
+        recipient_org = self._create_organization("Existing Target Recipient")
+        ShipmentRecipientOrganization.objects.create(
+            organization=recipient_org,
+            destination=destination_one,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_correspondent=False,
+            is_active=True,
+        )
+        recipient_assignment = self._create_role_assignment(
+            organization=recipient_org,
+            role=OrganizationRole.RECIPIENT,
+        )
+        self._create_role_contact(
+            role_assignment=recipient_assignment,
+            first_name="Target",
+            last_name="Recipient",
+            email="target.recipient@example.org",
+            is_primary=True,
+        )
+        RecipientBinding.objects.create(
+            shipper_org=shipper_org,
+            recipient_org=recipient_org,
+            destination=destination_two,
+            is_active=True,
+        )
+
+        stdout = StringIO()
+        call_command("backfill_shipment_parties_from_org_roles", "--apply", stdout=stdout)
+
+        output = stdout.getvalue()
+        self.assertIn("- Conflicting recipient targets: 1", output)
+        self.assertIn("- Recipient bindings skipped: 1", output)
+        self.assertEqual(
+            ShipmentRecipientOrganization.objects.get(organization=recipient_org).destination,
+            destination_one,
+        )
 
     def test_dry_run_reports_without_persisting(self):
         destination = self._create_destination("CMN")

@@ -29,8 +29,8 @@ class CorrespondentRecipientOrganizationResolution:
     attached_to_support_organization: bool = False
 
 
-def _get_or_create_support_organization():
-    existing = (
+def _existing_support_organization():
+    return (
         Contact.objects.filter(
             name__iexact=SUPPORT_ORGANIZATION_NAME,
             contact_type=ContactType.ORGANIZATION,
@@ -38,6 +38,10 @@ def _get_or_create_support_organization():
         .order_by("-is_active", "id")
         .first()
     )
+
+
+def _get_or_create_support_organization():
+    existing = _existing_support_organization()
     if existing is None:
         return (
             Contact.objects.create(
@@ -64,6 +68,26 @@ def _get_or_create_support_organization():
     if updated_fields:
         existing.save(update_fields=updated_fields)
     return existing, False
+
+
+def correspondent_recipient_target_key(contact):
+    if not contact or not getattr(contact, "pk", None):
+        return None, None
+    if not contact.is_active:
+        return None, None
+    if contact.contact_type == ContactType.ORGANIZATION:
+        return ("org", contact.id), contact.name
+    if contact.contact_type != ContactType.PERSON:
+        return None, None
+    if contact.organization_id:
+        organization = contact.organization
+        if organization and organization.contact_type == ContactType.ORGANIZATION:
+            return ("org", organization.id), organization.name
+
+    support_organization = _existing_support_organization()
+    if support_organization is not None:
+        return ("org", support_organization.id), support_organization.name
+    return ("support", SUPPORT_ORGANIZATION_NAME), SUPPORT_ORGANIZATION_NAME
 
 
 def _resolve_recipient_organization(contact):
@@ -130,7 +154,11 @@ def resolve_correspondent_recipient_organization(
     )
 
 
-def promote_correspondent_to_recipient_ready(contact) -> CorrespondentRecipientPromotionResult:
+def promote_correspondent_to_recipient_ready(
+    contact,
+    *,
+    legacy_role_semantics: bool = True,
+) -> CorrespondentRecipientPromotionResult:
     if not contact or not contact.pk:
         return CorrespondentRecipientPromotionResult()
     if not contact.is_active:
@@ -142,6 +170,18 @@ def promote_correspondent_to_recipient_ready(contact) -> CorrespondentRecipientP
     organization = resolution.organization
     if organization is None:
         return CorrespondentRecipientPromotionResult()
+
+    if not legacy_role_semantics:
+        return CorrespondentRecipientPromotionResult(
+            changed=any(
+                [
+                    resolution.support_organization_created,
+                    resolution.attached_to_support_organization,
+                ]
+            ),
+            support_organization_created=resolution.support_organization_created,
+            attached_to_support_organization=resolution.attached_to_support_organization,
+        )
 
     assignment, created = OrganizationRoleAssignment.objects.get_or_create(
         organization=organization,
@@ -181,12 +221,18 @@ def ensure_destination_correspondent_recipient_ready(destination):
             pk=destination.correspondent_contact_id
         ).first()
 
-    result = promote_correspondent_to_recipient_ready(correspondent_contact)
+    has_shipment_correspondent = _has_active_shipment_correspondent_recipient_for_destination(
+        destination.id
+    )
+    result = promote_correspondent_to_recipient_ready(
+        correspondent_contact,
+        legacy_role_semantics=not has_shipment_correspondent,
+    )
     if (
-        correspondent_contact
+        not has_shipment_correspondent
+        and correspondent_contact
         and correspondent_contact.is_active
         and default_shipper_binding_sync_enabled()
-        and not _has_active_shipment_correspondent_recipient_for_destination(destination.id)
     ):
         ensure_default_shipper_bindings_for_destination_id(destination.id)
     return result

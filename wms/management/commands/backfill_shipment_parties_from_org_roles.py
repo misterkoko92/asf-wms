@@ -10,6 +10,7 @@ from django.utils import timezone
 
 from contacts.correspondent_recipient_promotion import (
     SUPPORT_ORGANIZATION_NAME,
+    correspondent_recipient_target_key,
     resolve_correspondent_recipient_organization,
 )
 from contacts.models import Contact, ContactType
@@ -55,17 +56,23 @@ class ShipmentPartyBackfillService:
             "authorized_contacts_created": 0,
             "authorized_contacts_updated": 0,
             "correspondent_recipient_organizations_created": 0,
+            "conflicting_recipient_targets": 0,
+            "recipient_bindings_skipped": 0,
+            "correspondent_destinations_skipped": 0,
         }
+        self.conflict_details: list[str] = []
         self._shippers_by_org_id: dict[int, ShipmentShipper] = {}
         self._recipient_orgs_by_org_id: dict[int, ShipmentRecipientOrganization] = {}
         self._recipient_contacts_by_key: dict[tuple[int, int], ShipmentRecipientContact] = {}
+        self._conflicting_recipient_org_ids: set[int] = set()
+        self._conflicting_correspondent_destination_ids: set[int] = set()
 
-    def run(self) -> dict[str, int]:
-        self._validate_destination_consistency()
+    def run(self) -> dict[str, object]:
+        self._collect_destination_conflicts()
         self._backfill_shippers()
         self._backfill_recipient_bindings()
         self._backfill_correspondents()
-        return self.summary
+        return {**self.summary, "conflict_details": list(self.conflict_details)}
 
     def _active_shipper_assignments(self):
         assignment_ids = (
@@ -446,64 +453,72 @@ class ShipmentPartyBackfillService:
             .order_by("id")
         )
 
-    def _destination_conflict_key_for_correspondent(self, contact: Contact | None):
-        if contact is None or not contact.is_active:
-            return None, None
-        if contact.contact_type == ContactType.ORGANIZATION:
-            return ("org", contact.id), contact.name
-
-        organization = contact.organization
-        if (
-            organization is not None
-            and organization.is_active
-            and organization.contact_type == ContactType.ORGANIZATION
-        ):
-            return ("org", organization.id), organization.name
-
-        return ("support", SUPPORT_ORGANIZATION_NAME), SUPPORT_ORGANIZATION_NAME
-
-    def _validate_destination_consistency(self) -> None:
+    def _collect_destination_conflicts(self) -> None:
         destinations_by_target: dict[tuple[str, object], set[str]] = defaultdict(set)
         labels_by_target: dict[tuple[str, object], str] = {}
+        recipient_org_ids_by_target: dict[tuple[str, object], set[int]] = defaultdict(set)
+        correspondent_destination_ids_by_target: dict[tuple[str, object], set[int]] = defaultdict(
+            set
+        )
+
+        for shipment_recipient in ShipmentRecipientOrganization.objects.select_related(
+            "organization",
+            "destination",
+        ):
+            key = ("org", shipment_recipient.organization_id)
+            destinations_by_target[key].add(str(shipment_recipient.destination))
+            labels_by_target[key] = shipment_recipient.organization.name
+            recipient_org_ids_by_target[key].add(shipment_recipient.organization_id)
 
         for binding in self._active_bindings():
             key = ("org", binding.recipient_org_id)
             destinations_by_target[key].add(str(binding.destination))
             labels_by_target[key] = binding.recipient_org.name
+            recipient_org_ids_by_target[key].add(binding.recipient_org_id)
 
         for destination in Destination.objects.filter(is_active=True).select_related(
             "correspondent_contact",
             "correspondent_contact__organization",
         ):
-            key, label = self._destination_conflict_key_for_correspondent(
-                destination.correspondent_contact
-            )
+            key, label = correspondent_recipient_target_key(destination.correspondent_contact)
             if key is None:
                 continue
             destinations_by_target[key].add(str(destination))
             labels_by_target[key] = label
+            correspondent_destination_ids_by_target[key].add(destination.id)
 
-        conflicts = [
-            (
-                labels_by_target[key],
-                sorted(destinations),
+        for key, destinations in destinations_by_target.items():
+            if len(destinations) <= 1:
+                continue
+            self._conflicting_recipient_org_ids.update(recipient_org_ids_by_target[key])
+            self._conflicting_correspondent_destination_ids.update(
+                correspondent_destination_ids_by_target[key]
             )
-            for key, destinations in destinations_by_target.items()
-            if len(destinations) > 1
-        ]
-        if not conflicts:
-            return
+            detail_parts = []
+            recipient_org_ids = sorted(recipient_org_ids_by_target[key])
+            if recipient_org_ids:
+                detail_parts.append(
+                    "recipient_org_ids=" + ",".join(str(value) for value in recipient_org_ids)
+                )
+            correspondent_destination_ids = sorted(correspondent_destination_ids_by_target[key])
+            if correspondent_destination_ids:
+                detail_parts.append(
+                    "destination_ids="
+                    + ",".join(str(value) for value in correspondent_destination_ids)
+                )
+            detail_label = labels_by_target[key]
+            detail_context = f" [{' ; '.join(detail_parts)}]" if detail_parts else ""
+            self.conflict_details.append(
+                f"{detail_label}{detail_context} -> {', '.join(sorted(destinations))}"
+            )
 
-        details = "\n".join(
-            f"- {label}: {', '.join(destinations)}" for label, destinations in conflicts
-        )
-        raise CommandError(
-            "Cannot backfill shipment parties because some recipient organizations map to "
-            f"multiple destinations:\n{details}"
-        )
+        self.summary["conflicting_recipient_targets"] = len(self.conflict_details)
 
     def _backfill_recipient_bindings(self) -> None:
         for binding in self._active_bindings():
+            if binding.recipient_org_id in self._conflicting_recipient_org_ids:
+                self.summary["recipient_bindings_skipped"] += 1
+                continue
             shipper = self._ensure_shipment_shipper(binding.shipper_org)
             if shipper is None:
                 continue
@@ -532,6 +547,9 @@ class ShipmentPartyBackfillService:
             "correspondent_contact",
             "correspondent_contact__organization",
         ):
+            if destination.id in self._conflicting_correspondent_destination_ids:
+                self.summary["correspondent_destinations_skipped"] += 1
+                continue
             resolution = resolve_correspondent_recipient_organization(
                 destination.correspondent_contact
             )
@@ -555,17 +573,15 @@ class ShipmentPartyBackfillService:
             )
 
 
-def backfill_shipment_parties_from_org_roles(*, dry_run: bool) -> dict[str, int]:
-    def _run() -> dict[str, int]:
+def backfill_shipment_parties_from_org_roles(*, dry_run: bool) -> dict[str, object]:
+    def _run() -> dict[str, object]:
         service = ShipmentPartyBackfillService()
         return service.run()
 
-    if not dry_run:
-        return _run()
-
     with transaction.atomic():
         summary = _run()
-        transaction.set_rollback(True)
+        if dry_run:
+            transaction.set_rollback(True)
         return summary
 
 
@@ -610,6 +626,16 @@ class Command(BaseCommand):
                         "- Correspondent recipient organizations created: "
                         f"{summary['correspondent_recipient_organizations_created']}"
                     ),
+                    f"- Conflicting recipient targets: {summary['conflicting_recipient_targets']}",
+                    f"- Recipient bindings skipped: {summary['recipient_bindings_skipped']}",
+                    (
+                        "- Correspondent destinations skipped: "
+                        f"{summary['correspondent_destinations_skipped']}"
+                    ),
                 ]
             )
         )
+        conflict_details = summary.get("conflict_details") or []
+        if conflict_details:
+            self.stdout.write("Conflicts skipped:")
+            self.stdout.write("\n".join(f"- {detail}" for detail in conflict_details))
