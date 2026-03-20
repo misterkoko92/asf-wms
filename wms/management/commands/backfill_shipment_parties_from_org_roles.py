@@ -95,14 +95,21 @@ class ShipmentPartyBackfillService:
         )
 
     def _active_shipper_assignment_for_org(self, organization: Contact):
-        return (
-            OrganizationRoleAssignment.objects.filter(
-                organization=organization,
-                role=OrganizationRole.SHIPPER,
+        assignment_ids = (
+            ShipperScope.objects.filter(
                 is_active=True,
-                organization__is_active=True,
-                organization__contact_type=ContactType.ORGANIZATION,
+                role_assignment__organization=organization,
+                role_assignment__role=OrganizationRole.SHIPPER,
+                role_assignment__is_active=True,
+                role_assignment__organization__is_active=True,
+                role_assignment__organization__contact_type=ContactType.ORGANIZATION,
             )
+            .filter(_current_window_q())
+            .values_list("role_assignment_id", flat=True)
+            .distinct()
+        )
+        return (
+            OrganizationRoleAssignment.objects.filter(id__in=assignment_ids)
             .select_related("organization")
             .prefetch_related("role_contacts__contact", "shipper_scopes")
             .order_by("id")

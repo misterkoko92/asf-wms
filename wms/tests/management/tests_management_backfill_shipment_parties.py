@@ -237,6 +237,51 @@ class BackfillShipmentPartiesCommandTests(TestCase):
             )
             self.assertEqual(default_authorized.recipient_contact.contact.last_name, "Truc")
 
+    def test_apply_backfill_ignores_binding_shipper_without_active_scope(self):
+        destination = self._create_destination("NOS")
+
+        shipper_org = self._create_organization("Unscoped Shipper")
+        shipper_assignment = self._create_role_assignment(
+            organization=shipper_org,
+            role=OrganizationRole.SHIPPER,
+        )
+        self._create_role_contact(
+            role_assignment=shipper_assignment,
+            first_name="No",
+            last_name="Scope",
+            email="no.scope@example.org",
+            is_primary=True,
+        )
+
+        recipient_org = self._create_organization("Scoped Recipient")
+        recipient_assignment = self._create_role_assignment(
+            organization=recipient_org,
+            role=OrganizationRole.RECIPIENT,
+        )
+        self._create_role_contact(
+            role_assignment=recipient_assignment,
+            first_name="Scoped",
+            last_name="Recipient",
+            email="scoped.recipient@example.org",
+            is_primary=True,
+        )
+        RecipientBinding.objects.create(
+            shipper_org=shipper_org,
+            recipient_org=recipient_org,
+            destination=destination,
+            is_active=True,
+        )
+
+        call_command("backfill_shipment_parties_from_org_roles", "--apply")
+
+        self.assertFalse(ShipmentShipper.objects.filter(organization=shipper_org).exists())
+        self.assertFalse(
+            ShipmentShipperRecipientLink.objects.filter(
+                shipper__organization=shipper_org,
+                recipient_organization__organization=recipient_org,
+            ).exists()
+        )
+
     def test_apply_backfill_reassigns_single_default_authorized_contact_on_rerun(self):
         destination = self._create_destination("GAO")
         shipper_org = self._create_organization("ASF Rerun")
