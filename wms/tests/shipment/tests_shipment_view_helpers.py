@@ -698,7 +698,7 @@ class ShipmentViewHelpersTests(TestCase):
 
         rows = build_shipments_ready_rows([shipment])
 
-        self.assertEqual(rows[0]["shipper_name"], "ASSOCIATION TEST")
+        self.assertEqual(rows[0]["shipper_name"], "M. Jean DUPONT, ASSOCIATION TEST")
         self.assertEqual(rows[0]["recipient_name"], "Mme Alice MARTIN")
 
     def test_build_shipments_ready_rows_does_not_resolve_contacts_from_names(self):

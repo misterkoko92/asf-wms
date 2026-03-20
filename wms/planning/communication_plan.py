@@ -130,9 +130,13 @@ def _normalize_assignment(assignment) -> CommunicationAssignmentPayload:
     return CommunicationAssignmentPayload(
         shipment_snapshot_id=shipment.pk if shipment else None,
         shipment_reference=shipment.shipment_reference if shipment else "",
-        shipper_name=shipment.shipper_name if shipment else "",
+        shipper_name=str(shipper_reference.get("contact_name") or "").strip()
+        or shipment.shipper_name
+        if shipment
+        else "",
         shipper_contact=_first_email(shipper_reference.get("notification_emails")),
-        recipient_name=str(shipment_payload.get("legacy_destinataire") or "").strip(),
+        recipient_name=str(recipient_reference.get("contact_name") or "").strip()
+        or str(shipment_payload.get("legacy_destinataire") or "").strip(),
         recipient_contact=_first_email(recipient_reference.get("notification_emails")),
         correspondent_label=str(correspondent_reference.get("contact_name") or "").strip()
         or destination_city,

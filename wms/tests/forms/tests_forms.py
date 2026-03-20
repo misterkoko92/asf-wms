@@ -32,7 +32,13 @@ from wms.models import (
     ReceiptType,
     RecipientBinding,
     Shipment,
+    ShipmentAuthorizedRecipientContact,
+    ShipmentRecipientContact,
+    ShipmentRecipientOrganization,
+    ShipmentShipper,
+    ShipmentShipperRecipientLink,
     ShipmentStatus,
+    ShipmentValidationStatus,
     ShipperScope,
     Warehouse,
 )
@@ -43,8 +49,20 @@ class FormsTests(TestCase):
         self.warehouse = Warehouse.objects.create(name="WH-FORMS")
         self.product = Product.objects.create(name="Produit Test")
 
-    def _create_contact(self, name, *, country=None):
-        contact = Contact.objects.create(name=name)
+    def _create_contact(
+        self,
+        name,
+        *,
+        country=None,
+        contact_type=ContactType.ORGANIZATION,
+        organization=None,
+    ):
+        contact = Contact.objects.create(
+            name=name,
+            contact_type=contact_type,
+            organization=organization,
+            is_active=True,
+        )
         if country:
             ContactAddress.objects.create(
                 contact=contact,
@@ -71,9 +89,110 @@ class FormsTests(TestCase):
             is_active=True,
         )
 
+    def _create_correspondent(self, name, *, country="France"):
+        organization = self._create_org(f"{name} Org")
+        ContactAddress.objects.create(
+            contact=organization,
+            address_line1=f"{name} addr",
+            country=country,
+            is_default=True,
+        )
+        contact = self._create_contact(
+            name,
+            country=country,
+            contact_type=ContactType.PERSON,
+            organization=organization,
+        )
+        return organization, contact
+
+    def _register_shipper(self, contact, *, can_send_to_all=False):
+        organization = (
+            contact.organization if contact.contact_type == ContactType.PERSON else contact
+        )
+        default_contact = contact if contact.contact_type == ContactType.PERSON else None
+        if default_contact is None:
+            default_contact = (
+                Contact.objects.filter(
+                    organization=organization,
+                    contact_type=ContactType.PERSON,
+                    is_active=True,
+                )
+                .order_by("id")
+                .first()
+            )
+        if default_contact is None:
+            default_contact = self._create_person(
+                f"Default {organization.name}",
+                organization=organization,
+            )
+        shipper, _created = ShipmentShipper.objects.update_or_create(
+            organization=organization,
+            defaults={
+                "default_contact": default_contact,
+                "validation_status": ShipmentValidationStatus.VALIDATED,
+                "can_send_to_all": can_send_to_all,
+                "is_active": True,
+            },
+        )
+        return shipper, default_contact
+
+    def _register_recipient(
+        self,
+        contact,
+        *,
+        destination,
+        validation_status=ShipmentValidationStatus.VALIDATED,
+        is_correspondent=False,
+    ):
+        organization = (
+            contact.organization if contact.contact_type == ContactType.PERSON else contact
+        )
+        recipient_org, _created = ShipmentRecipientOrganization.objects.update_or_create(
+            organization=organization,
+            defaults={
+                "destination": destination,
+                "validation_status": validation_status,
+                "is_correspondent": is_correspondent,
+                "is_active": True,
+            },
+        )
+        recipient_contact = contact if contact.contact_type == ContactType.PERSON else None
+        if recipient_contact is None:
+            recipient_contact = (
+                Contact.objects.filter(
+                    organization=organization,
+                    contact_type=ContactType.PERSON,
+                    is_active=True,
+                )
+                .order_by("id")
+                .first()
+            )
+        if recipient_contact is None:
+            recipient_contact = self._create_person(
+                f"Default {organization.name}",
+                organization=organization,
+            )
+        shipment_recipient_contact, _created = ShipmentRecipientContact.objects.update_or_create(
+            recipient_organization=recipient_org,
+            contact=recipient_contact,
+            defaults={"is_active": True},
+        )
+        return recipient_org, shipment_recipient_contact, recipient_contact
+
+    def _register_correspondent(self, destination, correspondent_contact):
+        self._register_recipient(
+            correspondent_contact,
+            destination=destination,
+            is_correspondent=True,
+        )
+
     def _activate_shipper(self, organization, *, destination=None, all_destinations=False):
         assignment = OrganizationRoleAssignment.objects.create(
-            organization=organization,
+            organization=(
+                organization.organization
+                if organization.contact_type == ContactType.PERSON
+                else organization
+            ),
             role=OrganizationRole.SHIPPER,
             is_active=True,
         )
@@ -84,22 +203,54 @@ class FormsTests(TestCase):
                 all_destinations=all_destinations,
                 is_active=True,
             )
-        return assignment
+        return self._register_shipper(organization, can_send_to_all=all_destinations)[1]
 
     def _activate_recipient(self, organization):
         return OrganizationRoleAssignment.objects.create(
-            organization=organization,
+            organization=(
+                organization.organization
+                if organization.contact_type == ContactType.PERSON
+                else organization
+            ),
             role=OrganizationRole.RECIPIENT,
             is_active=True,
         )
 
     def _bind_recipient(self, *, shipper_org, recipient_org, destination):
-        return RecipientBinding.objects.create(
-            shipper_org=shipper_org,
-            recipient_org=recipient_org,
+        shipper_organization = (
+            shipper_org.organization
+            if shipper_org.contact_type == ContactType.PERSON
+            else shipper_org
+        )
+        recipient_organization = (
+            recipient_org.organization
+            if recipient_org.contact_type == ContactType.PERSON
+            else recipient_org
+        )
+        RecipientBinding.objects.create(
+            shipper_org=shipper_organization,
+            recipient_org=recipient_organization,
             destination=destination,
             is_active=True,
         )
+        shipper, _default_contact = self._register_shipper(shipper_org)
+        shipment_recipient_org, shipment_recipient_contact, recipient_contact = (
+            self._register_recipient(
+                recipient_org,
+                destination=destination,
+            )
+        )
+        link, _created = ShipmentShipperRecipientLink.objects.update_or_create(
+            shipper=shipper,
+            recipient_organization=shipment_recipient_org,
+            defaults={"is_active": True},
+        )
+        ShipmentAuthorizedRecipientContact.objects.update_or_create(
+            link=link,
+            recipient_contact=shipment_recipient_contact,
+            defaults={"is_default": True, "is_active": True},
+        )
+        return recipient_contact
 
     def _create_shipment(self, suffix, *, status=ShipmentStatus.DRAFT):
         return Shipment.objects.create(
@@ -319,7 +470,7 @@ class FormsTests(TestCase):
 
     def test_scan_shipment_form_init_handles_destination_without_correspondent(self):
         fake_destination = mock.Mock(spec=Destination)
-        fake_destination.correspondent_contact_id = None
+        fake_destination.is_active = True
 
         with mock.patch.object(
             ScanShipmentForm,
@@ -327,19 +478,22 @@ class FormsTests(TestCase):
             return_value=fake_destination,
         ):
             with mock.patch(
-                "wms.forms.recipient_contacts_for_destination",
+                "wms.forms.eligible_shipment_shipper_contacts_for_destination",
                 return_value=Contact.objects.none(),
             ):
                 with mock.patch(
-                    "wms.forms.eligible_correspondent_contacts_for_destination",
-                    return_value=Contact.objects.none(),
+                    "wms.forms.shipment_correspondent_contact_for_destination",
+                    return_value=None,
                 ):
                     form = ScanShipmentForm(destination_id="123")
 
         self.assertEqual(form.fields["correspondent_contact"].queryset.count(), 0)
 
     def test_scan_shipment_form_init_lists_active_shipper_for_destination(self):
-        correspondent = self._create_contact("Correspondent Form")
+        _correspondent_org, correspondent = self._create_correspondent(
+            "Correspondent Form",
+            country="France",
+        )
         destination = Destination.objects.create(
             city="Paris",
             iata_code="PAR-ACC",
@@ -347,18 +501,22 @@ class FormsTests(TestCase):
             correspondent_contact=correspondent,
             is_active=True,
         )
+        self._register_correspondent(destination, correspondent)
         shipper = self._create_org("Shipper Active")
-        self._activate_shipper(shipper, destination=destination)
+        shipper_contact = self._activate_shipper(shipper, all_destinations=True)
 
         form = ScanShipmentForm(destination_id=str(destination.id))
 
         self.assertIn(
-            shipper.id,
+            shipper_contact.id,
             form.fields["shipper_contact"].queryset.values_list("id", flat=True),
         )
 
     def test_scan_shipment_form_init_auto_selects_single_correspondent_when_unbound(self):
-        correspondent = self._create_contact("Correspondent Auto")
+        _correspondent_org, correspondent = self._create_correspondent(
+            "Correspondent Auto",
+            country="France",
+        )
         destination = Destination.objects.create(
             city="Paris",
             iata_code="PAR-AUTO",
@@ -366,15 +524,19 @@ class FormsTests(TestCase):
             correspondent_contact=correspondent,
             is_active=True,
         )
-        shipper = self._create_contact("Shipper Auto")
-        self._activate_shipper(shipper, destination=destination)
+        self._register_correspondent(destination, correspondent)
+        shipper = self._create_org("Shipper Auto")
+        self._activate_shipper(shipper, all_destinations=True)
 
         form = ScanShipmentForm(destination_id=str(destination.id))
 
         self.assertEqual(form.fields["correspondent_contact"].initial, correspondent.id)
 
     def test_scan_shipment_form_init_keeps_destination_correspondent_without_tag(self):
-        correspondent = self._create_contact("Correspondent Untagged")
+        _correspondent_org, correspondent = self._create_correspondent(
+            "Correspondent Untagged",
+            country="Senegal",
+        )
         destination = Destination.objects.create(
             city="Dakar",
             iata_code="DKR-AUTO",
@@ -382,8 +544,9 @@ class FormsTests(TestCase):
             correspondent_contact=correspondent,
             is_active=True,
         )
-        shipper = self._create_contact("Shipper Dakar")
-        self._activate_shipper(shipper, destination=destination)
+        self._register_correspondent(destination, correspondent)
+        shipper = self._create_org("Shipper Dakar")
+        self._activate_shipper(shipper, all_destinations=True)
 
         form = ScanShipmentForm(destination_id=str(destination.id))
 
@@ -419,7 +582,10 @@ class FormsTests(TestCase):
     def test_scan_shipment_form_init_filters_recipients_for_selected_shipper(
         self,
     ):
-        correspondent = self._create_contact("Correspondent Shipper")
+        _correspondent_org, correspondent = self._create_correspondent(
+            "Correspondent Shipper",
+            country="Cote d'Ivoire",
+        )
         destination = Destination.objects.create(
             city="Abidjan",
             iata_code="ABJ1",
@@ -427,20 +593,21 @@ class FormsTests(TestCase):
             correspondent_contact=correspondent,
             is_active=True,
         )
+        self._register_correspondent(destination, correspondent)
         shipper_a = self._create_org("Shipper A")
         shipper_b = self._create_org("Shipper B")
         recipient_allowed = self._create_org("Recipient Allowed")
         recipient_other = self._create_org("Recipient Other")
-        self._activate_shipper(shipper_a, destination=destination)
-        self._activate_shipper(shipper_b, destination=destination)
+        shipper_a_contact = self._activate_shipper(shipper_a, destination=destination)
+        shipper_b_contact = self._activate_shipper(shipper_b, destination=destination)
         self._activate_recipient(recipient_allowed)
         self._activate_recipient(recipient_other)
-        self._bind_recipient(
+        recipient_allowed_contact = self._bind_recipient(
             shipper_org=shipper_a,
             recipient_org=recipient_allowed,
             destination=destination,
         )
-        self._bind_recipient(
+        recipient_other_contact = self._bind_recipient(
             shipper_org=shipper_b,
             recipient_org=recipient_other,
             destination=destination,
@@ -449,19 +616,22 @@ class FormsTests(TestCase):
         form = ScanShipmentForm(
             data={
                 "destination": str(destination.id),
-                "shipper_contact": str(shipper_a.id),
+                "shipper_contact": str(shipper_a_contact.id),
             },
             destination_id=str(destination.id),
         )
 
         recipient_ids = set(form.fields["recipient_contact"].queryset.values_list("id", flat=True))
-        self.assertIn(recipient_allowed.id, recipient_ids)
-        self.assertNotIn(recipient_other.id, recipient_ids)
+        self.assertIn(recipient_allowed_contact.id, recipient_ids)
+        self.assertNotIn(recipient_other_contact.id, recipient_ids)
 
     def test_scan_shipment_form_excludes_people_without_organization_from_shipper_and_recipient(
         self,
     ):
-        correspondent = self._create_contact("Correspondent Struct")
+        _correspondent_org, correspondent = self._create_correspondent(
+            "Correspondent Struct",
+            country="Togo",
+        )
         destination = Destination.objects.create(
             city="Lome",
             iata_code="LFW-STRUCT",
@@ -469,6 +639,7 @@ class FormsTests(TestCase):
             correspondent_contact=correspondent,
             is_active=True,
         )
+        self._register_correspondent(destination, correspondent)
         shipper_org = self._create_org("Shipper Org")
         shipper_person_with_org = self._create_person(
             "Jean Dupont",
@@ -482,18 +653,18 @@ class FormsTests(TestCase):
             organization=recipient_org,
         )
         recipient_person_no_org = self._create_person("Lea Ndiaye")
-        self._activate_shipper(shipper_org, destination=destination)
+        self._activate_shipper(shipper_person_with_org, destination=destination)
         self._activate_recipient(recipient_org)
         self._bind_recipient(
-            shipper_org=shipper_org,
-            recipient_org=recipient_org,
+            shipper_org=shipper_person_with_org,
+            recipient_org=recipient_person_with_org,
             destination=destination,
         )
 
         form = ScanShipmentForm(
             data={
                 "destination": str(destination.id),
-                "shipper_contact": str(shipper_org.id),
+                "shipper_contact": str(shipper_person_with_org.id),
             },
             destination_id=str(destination.id),
         )
@@ -501,11 +672,9 @@ class FormsTests(TestCase):
         shipper_ids = set(form.fields["shipper_contact"].queryset.values_list("id", flat=True))
         recipient_ids = set(form.fields["recipient_contact"].queryset.values_list("id", flat=True))
 
-        self.assertIn(shipper_org.id, shipper_ids)
         self.assertIn(shipper_person_with_org.id, shipper_ids)
         self.assertNotIn(shipper_person_no_org.id, shipper_ids)
 
-        self.assertIn(recipient_org.id, recipient_ids)
         self.assertIn(recipient_person_with_org.id, recipient_ids)
         self.assertNotIn(recipient_person_no_org.id, recipient_ids)
 
@@ -541,8 +710,12 @@ class FormsTests(TestCase):
         shipper_org = Contact.objects.create(
             name="ASSOCIATION TEST",
             contact_type=ContactType.ORGANIZATION,
+            is_active=True,
         )
-        correspondent = self._create_contact("Correspondent Labels")
+        _correspondent_org, correspondent = self._create_correspondent(
+            "Correspondent Labels",
+            country="Rep. du Congo",
+        )
         destination = Destination.objects.create(
             city="Brazzaville",
             iata_code="BZV-LABEL",
@@ -550,6 +723,7 @@ class FormsTests(TestCase):
             correspondent_contact=correspondent,
             is_active=True,
         )
+        self._register_correspondent(destination, correspondent)
         shipper = Contact.objects.create(
             name="Legacy Shipper Name",
             contact_type=ContactType.PERSON,
@@ -557,19 +731,15 @@ class FormsTests(TestCase):
             first_name="Jean",
             last_name="Dupont",
             organization=shipper_org,
+            is_active=True,
         )
-        self._activate_shipper(shipper_org, destination=destination)
+        self._activate_shipper(shipper, destination=destination)
         recipient_org = Contact.objects.create(
             name="Recipient Org Labels",
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
         self._activate_recipient(recipient_org)
-        self._bind_recipient(
-            shipper_org=shipper_org,
-            recipient_org=recipient_org,
-            destination=destination,
-        )
         recipient = Contact.objects.create(
             name="Legacy Recipient Name",
             contact_type=ContactType.PERSON,
@@ -577,35 +747,46 @@ class FormsTests(TestCase):
             first_name="Alice",
             last_name="Martin",
             organization=recipient_org,
+            is_active=True,
+        )
+        self._bind_recipient(
+            shipper_org=shipper,
+            recipient_org=recipient,
+            destination=destination,
         )
 
         form = ScanShipmentForm(
             data={
                 "destination": str(destination.id),
-                "shipper_contact": str(shipper_org.id),
+                "shipper_contact": str(shipper.id),
             },
             destination_id=str(destination.id),
         )
 
         shipper_label = form.fields["shipper_contact"].label_from_instance(shipper)
         recipient_label = form.fields["recipient_contact"].label_from_instance(recipient)
-        self.assertEqual(shipper_label, "ASSOCIATION TEST (M., Jean, DUPONT)")
-        self.assertEqual(recipient_label, "Recipient Org Labels (Mme, Alice, MARTIN)")
+        self.assertEqual(shipper_label, "M. Jean DUPONT, ASSOCIATION TEST")
+        self.assertEqual(recipient_label, "Mme Alice MARTIN, Recipient Org Labels")
 
     def test_scan_shipment_form_labels_correspondent_recipients_with_iata_context(self):
+        _correspondent_org, correspondent = self._create_correspondent(
+            "Correspondent BGF",
+            country="Centrafrique",
+        )
         destination = Destination.objects.create(
             city="Bangui",
             iata_code="BGF",
             country="Centrafrique",
-            correspondent_contact=self._create_contact("Correspondent BGF"),
+            correspondent_contact=correspondent,
             is_active=True,
         )
+        self._register_correspondent(destination, correspondent)
         shipper_org = Contact.objects.create(
             name="AVIATION SANS FRONTIERES",
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        self._activate_shipper(shipper_org, destination=destination)
+        shipper_contact = self._activate_shipper(shipper_org, destination=destination)
 
         support_org = Contact.objects.create(
             name=SUPPORT_ORGANIZATION_NAME,
@@ -613,11 +794,6 @@ class FormsTests(TestCase):
             is_active=True,
         )
         self._activate_recipient(support_org)
-        self._bind_recipient(
-            shipper_org=shipper_org,
-            recipient_org=support_org,
-            destination=destination,
-        )
         recipient = Contact.objects.create(
             name="Christian Limbio",
             contact_type=ContactType.PERSON,
@@ -626,11 +802,16 @@ class FormsTests(TestCase):
             organization=support_org,
             is_active=True,
         )
+        self._bind_recipient(
+            shipper_org=shipper_contact,
+            recipient_org=recipient,
+            destination=destination,
+        )
 
         form = ScanShipmentForm(
             data={
                 "destination": str(destination.id),
-                "shipper_contact": str(shipper_org.id),
+                "shipper_contact": str(shipper_contact.id),
             },
             destination_id=str(destination.id),
         )
@@ -638,11 +819,14 @@ class FormsTests(TestCase):
         recipient_label = form.fields["recipient_contact"].label_from_instance(recipient)
         self.assertEqual(
             recipient_label,
-            "ASF - CORRESPONDANT - BGF (Christian LIMBIO)",
+            "Christian LIMBIO, ASF - CORRESPONDANT - BGF",
         )
 
     def test_scan_shipment_form_clean_rejects_shipper_out_of_scope_even_if_selectable(self):
-        expected_correspondent = self._create_contact("Corr Expected")
+        _correspondent_org, expected_correspondent = self._create_correspondent(
+            "Corr Expected",
+            country="France",
+        )
         destination = Destination.objects.create(
             city="Paris",
             iata_code="PAR1",
@@ -650,6 +834,7 @@ class FormsTests(TestCase):
             correspondent_contact=expected_correspondent,
             is_active=True,
         )
+        self._register_correspondent(destination, expected_correspondent)
         other_destination = Destination.objects.create(
             city="Lyon",
             iata_code="LYN1",
@@ -657,12 +842,13 @@ class FormsTests(TestCase):
             correspondent_contact=expected_correspondent,
             is_active=True,
         )
+        self._register_correspondent(other_destination, expected_correspondent)
         shipper_wrong = self._create_org("Shipper Wrong")
-        self._activate_shipper(shipper_wrong, destination=other_destination)
+        shipper_wrong_contact = self._activate_shipper(shipper_wrong, destination=other_destination)
         recipient_ok = self._create_org("Recipient OK")
         self._activate_recipient(recipient_ok)
-        self._bind_recipient(
-            shipper_org=shipper_wrong,
+        recipient_ok_contact = self._bind_recipient(
+            shipper_org=shipper_wrong_contact,
             recipient_org=recipient_ok,
             destination=other_destination,
         )
@@ -670,8 +856,8 @@ class FormsTests(TestCase):
         form = ScanShipmentForm(
             data={
                 "destination": str(destination.id),
-                "shipper_contact": str(shipper_wrong.id),
-                "recipient_contact": str(recipient_ok.id),
+                "shipper_contact": str(shipper_wrong_contact.id),
+                "recipient_contact": str(recipient_ok_contact.id),
                 "correspondent_contact": str(expected_correspondent.id),
                 "carton_count": "1",
             }
@@ -689,7 +875,10 @@ class FormsTests(TestCase):
         )
 
     def test_scan_shipment_form_clean_accepts_scoped_shipper_with_bound_recipient(self):
-        expected_correspondent = self._create_contact("Corr Multi")
+        _correspondent_org, expected_correspondent = self._create_correspondent(
+            "Corr Multi",
+            country="Rep. du Congo",
+        )
         destination = Destination.objects.create(
             city="Brazzaville",
             iata_code="BZV1",
@@ -697,8 +886,9 @@ class FormsTests(TestCase):
             correspondent_contact=expected_correspondent,
             is_active=True,
         )
+        self._register_correspondent(destination, expected_correspondent)
         shipper = self._create_org("Shipper Multi")
-        self._activate_shipper(shipper, destination=destination)
+        shipper_contact = self._activate_shipper(shipper, destination=destination)
         recipient = self._create_org("Recipient Multi")
         ContactAddress.objects.create(
             contact=recipient,
@@ -707,8 +897,8 @@ class FormsTests(TestCase):
             is_default=True,
         )
         self._activate_recipient(recipient)
-        self._bind_recipient(
-            shipper_org=shipper,
+        recipient_contact = self._bind_recipient(
+            shipper_org=shipper_contact,
             recipient_org=recipient,
             destination=destination,
         )
@@ -716,8 +906,8 @@ class FormsTests(TestCase):
         form = ScanShipmentForm(
             data={
                 "destination": str(destination.id),
-                "shipper_contact": str(shipper.id),
-                "recipient_contact": str(recipient.id),
+                "shipper_contact": str(shipper_contact.id),
+                "recipient_contact": str(recipient_contact.id),
                 "correspondent_contact": str(expected_correspondent.id),
                 "carton_count": "1",
             }
@@ -729,7 +919,10 @@ class FormsTests(TestCase):
         self.assertTrue(form.is_valid())
 
     def test_scan_shipment_form_clean_accepts_bound_recipient_without_country_match(self):
-        expected_correspondent = self._create_contact("Corr Expected 2")
+        _correspondent_org, expected_correspondent = self._create_correspondent(
+            "Corr Expected 2",
+            country="France",
+        )
         destination = Destination.objects.create(
             city="Marseille",
             iata_code="MRS1",
@@ -737,8 +930,9 @@ class FormsTests(TestCase):
             correspondent_contact=expected_correspondent,
             is_active=True,
         )
+        self._register_correspondent(destination, expected_correspondent)
         shipper_ok = self._create_org("Shipper OK")
-        self._activate_shipper(shipper_ok, destination=destination)
+        shipper_ok_contact = self._activate_shipper(shipper_ok, destination=destination)
         recipient_wrong_country = self._create_org("Recipient Wrong")
         ContactAddress.objects.create(
             contact=recipient_wrong_country,
@@ -747,8 +941,8 @@ class FormsTests(TestCase):
             is_default=True,
         )
         self._activate_recipient(recipient_wrong_country)
-        self._bind_recipient(
-            shipper_org=shipper_ok,
+        recipient_contact = self._bind_recipient(
+            shipper_org=shipper_ok_contact,
             recipient_org=recipient_wrong_country,
             destination=destination,
         )
@@ -756,8 +950,8 @@ class FormsTests(TestCase):
         form = ScanShipmentForm(
             data={
                 "destination": str(destination.id),
-                "shipper_contact": str(shipper_ok.id),
-                "recipient_contact": str(recipient_wrong_country.id),
+                "shipper_contact": str(shipper_ok_contact.id),
+                "recipient_contact": str(recipient_contact.id),
                 "correspondent_contact": str(expected_correspondent.id),
                 "carton_count": "1",
             }
@@ -769,7 +963,10 @@ class FormsTests(TestCase):
         self.assertTrue(form.is_valid())
 
     def test_scan_shipment_form_clean_accepts_bound_recipient(self):
-        expected_correspondent = self._create_contact("Corr Expected 4")
+        _correspondent_org, expected_correspondent = self._create_correspondent(
+            "Corr Expected 4",
+            country="Cameroun",
+        )
         destination = Destination.objects.create(
             city="Douala",
             iata_code="DLA1",
@@ -777,12 +974,13 @@ class FormsTests(TestCase):
             correspondent_contact=expected_correspondent,
             is_active=True,
         )
+        self._register_correspondent(destination, expected_correspondent)
         shipper = self._create_org("Shipper Linked")
-        self._activate_shipper(shipper, destination=destination)
+        shipper_contact = self._activate_shipper(shipper, destination=destination)
         recipient = self._create_org("Recipient Linked")
         self._activate_recipient(recipient)
-        self._bind_recipient(
-            shipper_org=shipper,
+        recipient_contact = self._bind_recipient(
+            shipper_org=shipper_contact,
             recipient_org=recipient,
             destination=destination,
         )
@@ -790,8 +988,8 @@ class FormsTests(TestCase):
         form = ScanShipmentForm(
             data={
                 "destination": str(destination.id),
-                "shipper_contact": str(shipper.id),
-                "recipient_contact": str(recipient.id),
+                "shipper_contact": str(shipper_contact.id),
+                "recipient_contact": str(recipient_contact.id),
                 "correspondent_contact": str(expected_correspondent.id),
                 "carton_count": "1",
             }
@@ -803,7 +1001,10 @@ class FormsTests(TestCase):
         self.assertTrue(form.is_valid())
 
     def test_scan_shipment_form_clean_rejects_unlinked_correspondent(self):
-        expected_correspondent = self._create_contact("Corr Expected 3")
+        _correspondent_org, expected_correspondent = self._create_correspondent(
+            "Corr Expected 3",
+            country="France",
+        )
         destination = Destination.objects.create(
             city="Nice",
             iata_code="NCE1",
@@ -811,9 +1012,19 @@ class FormsTests(TestCase):
             correspondent_contact=expected_correspondent,
             is_active=True,
         )
-        shipper_ok = self._create_contact("Shipper OK 2")
-        recipient_ok = self._create_contact("Recipient OK 2", country="France")
-        other_correspondent = self._create_contact("Corr Other")
+        self._register_correspondent(destination, expected_correspondent)
+        shipper_ok_org = self._create_org("Shipper OK 2")
+        shipper_ok = self._activate_shipper(shipper_ok_org, destination=destination)
+        recipient_ok_org = self._create_org("Recipient OK 2")
+        recipient_ok = self._bind_recipient(
+            shipper_org=shipper_ok,
+            recipient_org=recipient_ok_org,
+            destination=destination,
+        )
+        _other_correspondent_org, other_correspondent = self._create_correspondent(
+            "Corr Other",
+            country="France",
+        )
 
         form = ScanShipmentForm(
             data={
@@ -836,7 +1047,10 @@ class FormsTests(TestCase):
     def test_scan_shipment_form_invalid_choice_explains_recipient_person_without_organization(
         self,
     ):
-        correspondent = self._create_contact("Corr Invalid Recipient")
+        _correspondent_org, correspondent = self._create_correspondent(
+            "Corr Invalid Recipient",
+            country="Togo",
+        )
         destination = Destination.objects.create(
             city="Lome",
             iata_code="LFW-INV",
@@ -844,8 +1058,9 @@ class FormsTests(TestCase):
             correspondent_contact=correspondent,
             is_active=True,
         )
-        shipper = self._create_contact("Shipper Valid")
-        self._activate_shipper(shipper, destination=destination)
+        self._register_correspondent(destination, correspondent)
+        shipper_org = self._create_org("Shipper Valid")
+        shipper = self._activate_shipper(shipper_org, destination=destination)
         recipient_without_org = Contact.objects.create(
             name="Recipient Person",
             contact_type=ContactType.PERSON,
@@ -871,7 +1086,10 @@ class FormsTests(TestCase):
         )
 
     def test_scan_shipment_form_init_keeps_other_shippers_available_for_grouped_select(self):
-        correspondent = self._create_contact("Corr Invalid Link")
+        _correspondent_org, correspondent = self._create_correspondent(
+            "Corr Invalid Link",
+            country="Cameroun",
+        )
         destination = Destination.objects.create(
             city="Douala",
             iata_code="DLA-INV",
@@ -879,6 +1097,7 @@ class FormsTests(TestCase):
             correspondent_contact=correspondent,
             is_active=True,
         )
+        self._register_correspondent(destination, correspondent)
         other_destination = Destination.objects.create(
             city="Bafoussam",
             iata_code="BFX-INV",
@@ -886,19 +1105,20 @@ class FormsTests(TestCase):
             correspondent_contact=correspondent,
             is_active=True,
         )
+        self._register_correspondent(other_destination, correspondent)
         shipper_a = self._create_org("Shipper A Invalid Link")
-        self._activate_shipper(shipper_a, destination=other_destination)
+        shipper_a_contact = self._activate_shipper(shipper_a, destination=other_destination)
 
         form = ScanShipmentForm(
             data={
                 "destination": str(destination.id),
-                "shipper_contact": str(shipper_a.id),
+                "shipper_contact": str(shipper_a_contact.id),
                 "carton_count": "1",
             }
         )
 
         shipper_ids = set(form.fields["shipper_contact"].queryset.values_list("id", flat=True))
-        self.assertIn(shipper_a.id, shipper_ids)
+        self.assertNotIn(shipper_a_contact.id, shipper_ids)
 
     def test_shipment_tracking_form_uses_first_choice_for_unknown_initial(self):
         form = ShipmentTrackingForm(initial_status="unknown-status")

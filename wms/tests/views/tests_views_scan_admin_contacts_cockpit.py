@@ -91,6 +91,9 @@ class ScanAdminContactsCockpitViewTests(TestCase):
         self.assertIsNotNone(match)
         return match.group(1)
 
+    def _normalize_html(self, value: str) -> str:
+        return re.sub(r"\s+", " ", value).strip()
+
     def _activate_english(self):
         self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = "en"
 
@@ -716,12 +719,13 @@ class ScanAdminContactsCockpitViewTests(TestCase):
             response=response,
             select_id="scan-binding-recipient-org-id",
         )
+        normalized_recipient_select = self._normalize_html(recipient_select)
         self.assertIn(f'value="{self.shipper.id}"', shipper_select)
         self.assertNotIn(f'value="{self.recipient.id}"', shipper_select)
         self.assertNotIn(f'value="{self.other_org.id}"', shipper_select)
         self.assertIn(
             f'value="{self.recipient.id}" data-default-destination-id="{self.destination.id}"',
-            recipient_select,
+            normalized_recipient_select,
         )
         self.assertNotIn(f'value="{self.shipper.id}"', recipient_select)
         self.assertNotIn(f'value="{self.other_org.id}"', recipient_select)
@@ -751,9 +755,10 @@ class ScanAdminContactsCockpitViewTests(TestCase):
             response=response,
             select_id="scan-binding-recipient-org-id",
         )
+        normalized_recipient_select = self._normalize_html(recipient_select)
         self.assertIn(
             f'value="{legacy_only_recipient.id}" data-default-destination-id=""',
-            recipient_select,
+            normalized_recipient_select,
         )
 
     def test_upsert_recipient_binding_rejects_invalid_shipper_role(self):
@@ -1083,11 +1088,12 @@ class ScanAdminContactsCockpitViewTests(TestCase):
         response = self.client.get(reverse("scan:scan_admin_contacts"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'name="action" value="assign_role"')
-        self.assertContains(response, 'name="action" value="upsert_org_contact"')
-        self.assertContains(response, 'name="action" value="upsert_shipper_scope"')
-        self.assertContains(response, 'name="action" value="upsert_recipient_binding"')
-        self.assertContains(response, 'name="action" value="create_guided_contact"')
+        html = self._normalize_html(response.content.decode("utf-8"))
+        self.assertIn('name="action" value="assign_role"', html)
+        self.assertIn('name="action" value="upsert_org_contact"', html)
+        self.assertIn('name="action" value="upsert_shipper_scope"', html)
+        self.assertIn('name="action" value="upsert_recipient_binding"', html)
+        self.assertIn('name="action" value="create_guided_contact"', html)
         self.assertNotContains(response, 'name="action" value="create_contact"')
         self.assertNotContains(response, 'name="action" value="update_contact"')
         self.assertNotContains(response, 'name="action" value="delete_contact"')

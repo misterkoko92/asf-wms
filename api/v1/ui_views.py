@@ -66,6 +66,10 @@ from wms.services import (
 )
 from wms.shipment_form_helpers import build_shipment_form_payload
 from wms.shipment_helpers import build_destination_label, parse_shipment_lines
+from wms.shipment_party_snapshot import (
+    apply_shipment_party_snapshot,
+    build_shipment_party_snapshot_payload,
+)
 from wms.shipment_status import sync_shipment_ready_state
 from wms.shipment_tracking_handlers import (
     TRACKING_TO_SHIPMENT_STATUS,
@@ -1744,6 +1748,14 @@ class UiShipmentCreateView(APIView):
                 shipper_contact = form.cleaned_data["shipper_contact"]
                 recipient_contact = form.cleaned_data["recipient_contact"]
                 correspondent_contact = form.cleaned_data["correspondent_contact"]
+                party_payload = build_shipment_party_snapshot_payload(
+                    shipper_contact=shipper_contact,
+                    recipient_contact=recipient_contact,
+                    correspondent_contact=correspondent_contact,
+                    shipper_name=shipper_contact.name,
+                    recipient_name=recipient_contact.name,
+                    correspondent_name=correspondent_contact.name,
+                )
                 shipment = Shipment.objects.create(
                     status=ShipmentStatus.DRAFT,
                     shipper_name=shipper_contact.name,
@@ -1756,6 +1768,7 @@ class UiShipmentCreateView(APIView):
                     destination_address=build_destination_label(destination),
                     destination_country=destination.country,
                     created_by=request.user,
+                    **party_payload,
                 )
                 for item in line_items:
                     carton_id = item.get("carton_id")
@@ -1893,6 +1906,15 @@ class UiShipmentUpdateView(APIView):
                 shipment.correspondent_contact_ref = correspondent_contact
                 shipment.destination_address = build_destination_label(destination)
                 shipment.destination_country = destination.country
+                apply_shipment_party_snapshot(
+                    shipment,
+                    shipper_contact=shipper_contact,
+                    recipient_contact=recipient_contact,
+                    correspondent_contact=correspondent_contact,
+                    shipper_name=shipper_contact.name,
+                    recipient_name=recipient_contact.name,
+                    correspondent_name=correspondent_contact.name,
+                )
                 shipment.save(
                     update_fields=[
                         "destination",
@@ -1904,6 +1926,7 @@ class UiShipmentUpdateView(APIView):
                         "correspondent_contact_ref",
                         "destination_address",
                         "destination_country",
+                        "party_snapshot",
                     ]
                 )
 

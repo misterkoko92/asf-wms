@@ -39,8 +39,14 @@ from wms.models import (
     ReceiptType,
     RecipientBinding,
     Shipment,
+    ShipmentAuthorizedRecipientContact,
+    ShipmentRecipientContact,
+    ShipmentRecipientOrganization,
+    ShipmentShipper,
+    ShipmentShipperRecipientLink,
     ShipmentStatus,
     ShipmentTrackingEvent,
+    ShipmentValidationStatus,
     ShipperScope,
     Warehouse,
     WmsRuntimeSettings,
@@ -88,20 +94,37 @@ class ScanViewTests(TestCase):
             location=self.location,
         )
 
-        self.shipper = self._create_contact(
-            "Shipper",
+        self.shipper_org = self._create_contact(
+            "Shipper Org",
             address_country="FRANCE",
             role=OrganizationRole.SHIPPER,
         )
-        self.recipient = self._create_contact(
-            "Recipient",
+        self.shipper = self._create_contact(
+            "Jean Shipper",
+            address_country="FRANCE",
+            contact_type=ContactType.PERSON,
+            organization=self.shipper_org,
+        )
+        self.recipient_org = self._create_contact(
+            "Recipient Org",
             address_country="COTE D'IVOIRE",
             role=OrganizationRole.RECIPIENT,
+        )
+        self.recipient = self._create_contact(
+            "Alice Recipient",
+            address_country="COTE D'IVOIRE",
+            contact_type=ContactType.PERSON,
+            organization=self.recipient_org,
+        )
+        self.correspondent_org = self._create_contact(
+            "Correspondent Org",
+            address_country="COTE D'IVOIRE",
         )
         self.correspondent = self._create_contact(
             "Correspondent",
             address_country="COTE D'IVOIRE",
             contact_type=ContactType.PERSON,
+            organization=self.correspondent_org,
         )
         self.destination = Destination.objects.create(
             city="ABIDJAN",
@@ -128,8 +151,14 @@ class ScanViewTests(TestCase):
         address_country,
         contact_type=ContactType.ORGANIZATION,
         role=None,
+        organization=None,
     ):
-        contact = Contact.objects.create(name=name, contact_type=contact_type, is_active=True)
+        contact = Contact.objects.create(
+            name=name,
+            contact_type=contact_type,
+            organization=organization,
+            is_active=True,
+        )
         ContactAddress.objects.create(
             contact=contact,
             address_line1="1 Rue Test",
@@ -140,7 +169,7 @@ class ScanViewTests(TestCase):
         )
         if role:
             OrganizationRoleAssignment.objects.create(
-                organization=contact,
+                organization=organization or contact,
                 role=role,
                 is_active=True,
             )
@@ -148,7 +177,7 @@ class ScanViewTests(TestCase):
 
     def _allow_shipments_to_destination(self, destination):
         shipper_assignment = OrganizationRoleAssignment.objects.get(
-            organization=self.shipper,
+            organization=self.shipper_org,
             role=OrganizationRole.SHIPPER,
         )
         ShipperScope.objects.get_or_create(
@@ -157,10 +186,54 @@ class ScanViewTests(TestCase):
             defaults={"is_active": True},
         )
         RecipientBinding.objects.get_or_create(
-            shipper_org=self.shipper,
-            recipient_org=self.recipient,
+            shipper_org=self.shipper_org,
+            recipient_org=self.recipient_org,
             destination=destination,
             defaults={"is_active": True},
+        )
+        ShipmentShipper.objects.update_or_create(
+            organization=self.shipper_org,
+            defaults={
+                "default_contact": self.shipper,
+                "validation_status": ShipmentValidationStatus.VALIDATED,
+                "is_active": True,
+            },
+        )
+        ShipmentRecipientOrganization.objects.update_or_create(
+            organization=self.recipient_org,
+            defaults={
+                "destination": destination,
+                "validation_status": ShipmentValidationStatus.VALIDATED,
+                "is_active": True,
+            },
+        )
+        ShipmentRecipientOrganization.objects.update_or_create(
+            organization=self.correspondent_org,
+            defaults={
+                "destination": destination,
+                "validation_status": ShipmentValidationStatus.VALIDATED,
+                "is_correspondent": True,
+                "is_active": True,
+            },
+        )
+        shipment_recipient_contact, _created = ShipmentRecipientContact.objects.update_or_create(
+            recipient_organization=ShipmentRecipientOrganization.objects.get(
+                organization=self.recipient_org,
+            ),
+            contact=self.recipient,
+            defaults={"is_active": True},
+        )
+        link, _created = ShipmentShipperRecipientLink.objects.update_or_create(
+            shipper=ShipmentShipper.objects.get(organization=self.shipper_org),
+            recipient_organization=ShipmentRecipientOrganization.objects.get(
+                organization=self.recipient_org,
+            ),
+            defaults={"is_active": True},
+        )
+        ShipmentAuthorizedRecipientContact.objects.update_or_create(
+            link=link,
+            recipient_contact=shipment_recipient_contact,
+            defaults={"is_default": True, "is_active": True},
         )
 
     def _create_shipment_with_carton(self):
@@ -1370,7 +1443,7 @@ class ScanViewTests(TestCase):
                 "carton_count": 3,
                 "hors_format_count": 1,
                 "line_1_description": "Hors format",
-                "source_contact": self.shipper.id,
+                "source_contact": self.shipper_org.id,
                 "carrier_contact": self.transporter.id,
             },
         )

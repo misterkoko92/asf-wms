@@ -149,6 +149,14 @@ from .models_domain.shipment import (
     ShipmentTrackingStatus,
     StockMovement,
 )
+from .models_domain.shipment_parties import (
+    ShipmentAuthorizedRecipientContact,
+    ShipmentRecipientContact,
+    ShipmentRecipientOrganization,
+    ShipmentShipper,
+    ShipmentShipperRecipientLink,
+    ShipmentValidationStatus,
+)
 from .models_domain.volunteer import (
     VolunteerAccountRequest,
     VolunteerAccountRequestStatus,
@@ -263,6 +271,12 @@ __all__ = [
     "OrganizationRoleContact",
     "ShipperScope",
     "RecipientBinding",
+    "ShipmentValidationStatus",
+    "ShipmentShipper",
+    "ShipmentRecipientOrganization",
+    "ShipmentRecipientContact",
+    "ShipmentShipperRecipientLink",
+    "ShipmentAuthorizedRecipientContact",
     "DocumentReviewStatus",
     "DocumentScanStatus",
     "PlanningParameterSetStatus",

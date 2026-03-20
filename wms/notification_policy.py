@@ -24,6 +24,15 @@ def _uniq_emails(values):
     return emails
 
 
+def resolve_reference_notification_emails(*references: dict | None) -> list[str]:
+    emails = []
+    for reference in references:
+        if not isinstance(reference, dict):
+            continue
+        emails.extend(reference.get("notification_emails") or [])
+    return _uniq_emails(emails)
+
+
 def resolve_notification_recipients(
     *,
     role_assignment: OrganizationRoleAssignment,

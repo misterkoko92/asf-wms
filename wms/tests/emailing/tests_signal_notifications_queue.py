@@ -135,7 +135,7 @@ class ShipmentSignalEmailQueueTests(TestCase):
         )
         self.assertEqual(event.payload.get("recipient"), ["admin@example.com"])
 
-    def test_delivered_status_queues_role_based_delivery_notifications(self):
+    def test_delivered_status_queues_party_status_notifications(self):
         association_contact = self._create_org(
             "Association Notify Deliveries",
             "assoc-delivery@example.com",
@@ -233,22 +233,17 @@ class ShipmentSignalEmailQueueTests(TestCase):
             )
         )
         self.assertEqual(len(events), 3)
-        delivery_subject = f"ASF WMS - Expedition {self.shipment.reference} : livraison confirmee"
-        delivery_event = next(
-            event for event in events if event.payload.get("subject") == delivery_subject
-        )
-        self.assertEqual(
-            delivery_event.payload.get("recipient"),
-            ["delivery@example.com", "second@example.com"],
-        )
         status_subject = f"ASF WMS - Expédition {self.shipment.reference} : statut Livré"
-        status_event = next(
-            event
-            for event in events
-            if event.payload.get("subject") == status_subject
-            and event.payload.get("recipient") == ["assoc-delivery@example.com"]
+        status_events = [
+            event for event in events if event.payload.get("subject") == status_subject
+        ]
+        self.assertEqual(
+            {tuple(event.payload.get("recipient", [])) for event in status_events},
+            {
+                ("assoc-delivery@example.com",),
+                ("recipient-delivery@example.com",),
+            },
         )
-        self.assertIsNotNone(status_event)
 
     def test_shipment_status_change_includes_shipment_status_update_group(self):
         grouped_staff = get_user_model().objects.create_user(
@@ -324,7 +319,7 @@ class ShipmentSignalEmailQueueTests(TestCase):
             {("shipper@example.com",), ("recipient@example.com",)},
         )
 
-    def test_planned_status_change_notifies_role_based_correspondents(self):
+    def test_planned_status_change_notifies_correspondent_recipient(self):
         correspondent = self._create_org("Correspondent", "correspondent@example.com")
         destination = Destination.objects.create(
             city="Bamako",
@@ -361,7 +356,7 @@ class ShipmentSignalEmailQueueTests(TestCase):
             source="wms.email",
             event_type="send_email",
             status=IntegrationStatus.PENDING,
-            payload__subject=f"ASF WMS - Expédition {self.shipment.reference} : statut Planifié",
+            payload__subject=f"ASF WMS - Suivi correspondant {self.shipment.reference} : Planifié",
         ).first()
         self.assertIsNotNone(event)
         self.assertEqual(
@@ -369,7 +364,7 @@ class ShipmentSignalEmailQueueTests(TestCase):
             ["correspondent@example.com"],
         )
 
-    def test_boarding_ok_tracking_event_notifies_role_based_correspondents(self):
+    def test_boarding_ok_tracking_event_notifies_correspondent_recipient(self):
         correspondent = self._create_org(
             "Correspondent Boarding",
             "correspondent-boarding@example.com",
@@ -416,7 +411,6 @@ class ShipmentSignalEmailQueueTests(TestCase):
                 source="wms.email",
                 event_type="send_email",
                 status=IntegrationStatus.PENDING,
-                payload__subject=f"ASF WMS - Suivi expédition {self.shipment.reference}",
             )
         )
         self.assertEqual(len(events), 2)

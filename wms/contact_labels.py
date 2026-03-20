@@ -1,33 +1,38 @@
 from contacts.correspondent_recipient_promotion import SUPPORT_ORGANIZATION_NAME
 
+from .shipment_party_snapshot import (
+    build_shipment_party_contact_label,
+    build_shipment_party_label,
+)
 
-def _build_person_label(contact):
-    title = (getattr(contact, "title", "") or "").strip()
-    first_name = (getattr(contact, "first_name", "") or "").strip()
-    last_name = (getattr(contact, "last_name", "") or "").strip()
-    if title or first_name or last_name:
-        parts = [title, first_name, last_name.upper() if last_name else ""]
-        return ", ".join(part for part in parts if part)
 
-    return (getattr(contact, "name", "") or "").strip()
+def _normalized_text(value):
+    return str(value or "").strip()
 
 
 def build_contact_select_label(contact):
     if not contact:
         return ""
-
     organization = getattr(contact, "organization", None)
-    organization_name = (getattr(organization, "name", "") or "").strip()
-    person_label = _build_person_label(contact)
-
-    if organization_name:
-        if person_label and person_label.casefold() != organization_name.casefold():
-            return f"{organization_name} ({person_label})"
-        return organization_name
-
-    if person_label:
-        return person_label
-    return str(contact)
+    organization_name = _normalized_text(getattr(organization, "name", ""))
+    contact_label = build_shipment_party_contact_label(
+        contact,
+        fallback_name=_normalized_text(getattr(contact, "name", "")) or _normalized_text(contact),
+    )
+    if (
+        organization_name
+        and contact_label
+        and organization_name.casefold() != contact_label.casefold()
+    ):
+        return f"{contact_label}, {organization_name}"
+    return (
+        organization_name
+        or contact_label
+        or build_shipment_party_label(
+            contact,
+            fallback_name=_normalized_text(contact),
+        )
+    )
 
 
 def build_shipment_recipient_select_label(contact, *, destination=None):
@@ -42,13 +47,13 @@ def build_shipment_recipient_select_label(contact, *, destination=None):
         and getattr(contact, "contact_type", "") == "person"
         and iata_code
     ):
-        first_name = (getattr(contact, "first_name", "") or "").strip()
-        last_name = (getattr(contact, "last_name", "") or "").strip().upper()
-        person_label = " ".join(part for part in [first_name, last_name] if part).strip()
-        if person_label:
-            return f"{organization_name} - {iata_code} ({person_label})"
-        fallback_name = (getattr(contact, "name", "") or "").strip()
-        if fallback_name:
-            return f"{organization_name} - {iata_code} ({fallback_name})"
+        person_label = build_shipment_party_contact_label(
+            contact,
+            fallback_name=_normalized_text(getattr(contact, "name", "")),
+        )
+        organization_label = f"{organization_name} - {iata_code}"
+        if person_label and person_label.casefold() != organization_label.casefold():
+            return f"{person_label}, {organization_label}"
+        return person_label or organization_label
 
     return build_contact_select_label(contact)

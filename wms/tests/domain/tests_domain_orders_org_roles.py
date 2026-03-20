@@ -9,11 +9,11 @@ from wms.models import (
     Order,
     OrderLine,
     OrderStatus,
-    OrganizationRole,
-    OrganizationRoleAssignment,
     Product,
-    RecipientBinding,
-    ShipperScope,
+    ShipmentRecipientOrganization,
+    ShipmentShipper,
+    ShipmentShipperRecipientLink,
+    ShipmentValidationStatus,
 )
 
 
@@ -57,6 +57,32 @@ class DomainOrdersOrgRolesTests(TestCase):
             is_active=True,
         )
 
+    def _create_shipper_record(self, organization: Contact) -> ShipmentShipper:
+        default_contact = self._create_person(
+            f"Default {organization.name}",
+            organization=organization,
+        )
+        return ShipmentShipper.objects.create(
+            organization=organization,
+            default_contact=default_contact,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+
+    def _create_recipient_record(
+        self,
+        *,
+        organization: Contact,
+        destination: Destination,
+        validation_status: str = ShipmentValidationStatus.VALIDATED,
+    ) -> ShipmentRecipientOrganization:
+        return ShipmentRecipientOrganization.objects.create(
+            organization=organization,
+            destination=destination,
+            validation_status=validation_status,
+            is_active=True,
+        )
+
     def _build_order(self, *, shipper, recipient, destination):
         order = Order.objects.create(
             status=OrderStatus.DRAFT,
@@ -78,26 +104,14 @@ class DomainOrdersOrgRolesTests(TestCase):
         shipper = self._create_org("Shipper BKO")
         recipient = self._create_org("Recipient BKO")
 
-        shipper_assignment = OrganizationRoleAssignment.objects.create(
-            organization=shipper,
-            role=OrganizationRole.SHIPPER,
-            is_active=True,
-        )
-        OrganizationRoleAssignment.objects.create(
+        shipper_record = self._create_shipper_record(shipper)
+        recipient_record = self._create_recipient_record(
             organization=recipient,
-            role=OrganizationRole.RECIPIENT,
-            is_active=True,
-        )
-        ShipperScope.objects.create(
-            role_assignment=shipper_assignment,
             destination=destination,
-            all_destinations=False,
-            is_active=True,
         )
-        RecipientBinding.objects.create(
-            shipper_org=shipper,
-            recipient_org=recipient,
-            destination=destination,
+        ShipmentShipperRecipientLink.objects.create(
+            shipper=shipper_record,
+            recipient_organization=recipient_record,
             is_active=True,
         )
 
@@ -120,26 +134,14 @@ class DomainOrdersOrgRolesTests(TestCase):
         shipper_person = self._create_person("Sam Shipper", organization=shipper_org)
         recipient_person = self._create_person("Ana Recipient", organization=recipient_org)
 
-        shipper_assignment = OrganizationRoleAssignment.objects.create(
-            organization=shipper_org,
-            role=OrganizationRole.SHIPPER,
-            is_active=True,
-        )
-        OrganizationRoleAssignment.objects.create(
+        shipper_record = self._create_shipper_record(shipper_org)
+        recipient_record = self._create_recipient_record(
             organization=recipient_org,
-            role=OrganizationRole.RECIPIENT,
-            is_active=True,
-        )
-        ShipperScope.objects.create(
-            role_assignment=shipper_assignment,
             destination=destination,
-            all_destinations=False,
-            is_active=True,
         )
-        RecipientBinding.objects.create(
-            shipper_org=shipper_org,
-            recipient_org=recipient_org,
-            destination=destination,
+        ShipmentShipperRecipientLink.objects.create(
+            shipper=shipper_record,
+            recipient_organization=recipient_record,
             is_active=True,
         )
 
@@ -160,21 +162,10 @@ class DomainOrdersOrgRolesTests(TestCase):
         shipper = self._create_org("Shipper DLA")
         recipient = self._create_org("Recipient DLA")
 
-        shipper_assignment = OrganizationRoleAssignment.objects.create(
-            organization=shipper,
-            role=OrganizationRole.SHIPPER,
-            is_active=True,
-        )
-        OrganizationRoleAssignment.objects.create(
+        self._create_shipper_record(shipper)
+        self._create_recipient_record(
             organization=recipient,
-            role=OrganizationRole.RECIPIENT,
-            is_active=True,
-        )
-        ShipperScope.objects.create(
-            role_assignment=shipper_assignment,
             destination=destination,
-            all_destinations=False,
-            is_active=True,
         )
 
         order = self._build_order(

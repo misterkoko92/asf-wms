@@ -27,15 +27,17 @@ from wms.models import (
     OrderLine,
     OrderReservation,
     OrderStatus,
-    OrganizationRole,
-    OrganizationRoleAssignment,
     Product,
     ProductLot,
     ProductLotStatus,
-    RecipientBinding,
     Shipment,
+    ShipmentAuthorizedRecipientContact,
+    ShipmentRecipientContact,
+    ShipmentRecipientOrganization,
+    ShipmentShipper,
+    ShipmentShipperRecipientLink,
     ShipmentStatus,
-    ShipperScope,
+    ShipmentValidationStatus,
     StockMovement,
     Warehouse,
 )
@@ -86,44 +88,86 @@ class DomainOrdersExtraTests(TestCase):
             is_active=True,
         )
 
-    def _create_person_contact(self, name):
+    def _create_person_contact(self, name, *, organization=None):
         first_name, last_name = name.split(" ", 1)
         return Contact.objects.create(
             name=name,
             contact_type=ContactType.PERSON,
             first_name=first_name,
             last_name=last_name,
+            organization=organization,
             is_active=True,
         )
 
-    def _assign_role(self, contact, role):
-        assignment, _ = OrganizationRoleAssignment.objects.get_or_create(
-            organization=contact,
-            role=role,
-            defaults={"is_active": True},
+    def _ensure_shipper(self, shipper_contact):
+        organization = (
+            shipper_contact.organization
+            if shipper_contact.contact_type == "person"
+            else shipper_contact
         )
-        if not assignment.is_active:
-            assignment.is_active = True
-            assignment.save(update_fields=["is_active", "updated_at"])
-        return assignment
+        default_contact = self._create_person_contact(
+            f"Default {organization.name}",
+            organization=organization,
+        )
+        shipper, _created = ShipmentShipper.objects.get_or_create(
+            organization=organization,
+            defaults={
+                "default_contact": default_contact,
+                "validation_status": ShipmentValidationStatus.VALIDATED,
+                "is_active": True,
+            },
+        )
+        updates = []
+        if shipper.default_contact_id is None:
+            shipper.default_contact = default_contact
+            updates.append("default_contact")
+        if shipper.validation_status != ShipmentValidationStatus.VALIDATED:
+            shipper.validation_status = ShipmentValidationStatus.VALIDATED
+            updates.append("validation_status")
+        if not shipper.is_active:
+            shipper.is_active = True
+            updates.append("is_active")
+        if updates:
+            shipper.save(update_fields=updates)
+        return shipper
 
     def _grant_shipper_scope(self, shipper_contact, destination):
-        assignment = self._assign_role(shipper_contact, OrganizationRole.SHIPPER)
-        ShipperScope.objects.get_or_create(
-            role_assignment=assignment,
-            destination=destination,
-            defaults={"is_active": True},
-        )
+        self._ensure_shipper(shipper_contact)
 
     def _bind_recipient(self, shipper_contact, recipient_contact, destination):
-        self._assign_role(shipper_contact, OrganizationRole.SHIPPER)
-        self._assign_role(recipient_contact, OrganizationRole.RECIPIENT)
-        RecipientBinding.objects.get_or_create(
-            shipper_org=shipper_contact,
-            recipient_org=recipient_contact,
+        shipper = self._ensure_shipper(shipper_contact)
+        recipient_org = (
+            recipient_contact.organization
+            if recipient_contact.contact_type == "person"
+            else recipient_contact
+        )
+        recipient_organization, _created = ShipmentRecipientOrganization.objects.get_or_create(
+            organization=recipient_org,
             destination=destination,
+            defaults={
+                "validation_status": ShipmentValidationStatus.VALIDATED,
+                "is_active": True,
+            },
+        )
+        ShipmentShipperRecipientLink.objects.get_or_create(
+            shipper=shipper,
+            recipient_organization=recipient_organization,
             defaults={"is_active": True},
         )
+        if recipient_contact.contact_type == ContactType.PERSON:
+            recipient_contact_record, _ = ShipmentRecipientContact.objects.get_or_create(
+                recipient_organization=recipient_organization,
+                contact=recipient_contact,
+                defaults={"is_active": True},
+            )
+            ShipmentAuthorizedRecipientContact.objects.get_or_create(
+                link=ShipmentShipperRecipientLink.objects.get(
+                    shipper=shipper,
+                    recipient_organization=recipient_organization,
+                ),
+                recipient_contact=recipient_contact_record,
+                defaults={"is_active": True, "is_default": True},
+            )
 
     def _create_order(
         self,

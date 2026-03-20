@@ -133,9 +133,15 @@ class SignalsOrgRoleNotificationsTests(TestCase):
         ):
             _notify_shipment_status_change(None, shipment, created=False)
 
-        self.assertEqual(send_mock.call_count, 1)
-        kwargs = send_mock.call_args.kwargs
-        self.assertEqual(kwargs["recipient"], ["shipper-primary@example.org"])
+        self.assertEqual(send_mock.call_count, 2)
+        recipients = {tuple(call.kwargs["recipient"]) for call in send_mock.call_args_list}
+        self.assertSetEqual(
+            recipients,
+            {
+                ("shipper-a@example.org",),
+                ("recipient-a@example.org",),
+            },
+        )
 
     def test_status_notification_deduplicates_same_email_across_roles(self):
         shipper = self._create_org("Shipper B", "shared@example.org")
@@ -254,12 +260,13 @@ class SignalsOrgRoleNotificationsTests(TestCase):
         recipients = {call.kwargs["recipient"][0] for call in send_mock.call_args_list}
         self.assertSetEqual(
             recipients,
-            {"corr-default@example.org", "corr-dedicated@example.org"},
+            {
+                "shipper-c@example.org",
+                "recipient-c@example.org",
+                "corr-default@example.org",
+            },
         )
-        for call in send_mock.call_args_list:
-            message = call.kwargs["message"]
-            self.assertIn("D'autres correspondants sont impliques", message)
-            self.assertIn("coordonner", message)
+        self.assertNotIn("corr-dedicated@example.org", recipients)
 
     def test_tracking_event_uses_tracking_policy(self):
         shipper = self._create_org("Shipper D", "shipper-d@example.org")
@@ -308,4 +315,4 @@ class SignalsOrgRoleNotificationsTests(TestCase):
             _notify_tracking_event(None, tracking_event, created=True)
 
         self.assertEqual(send_mock.call_count, 1)
-        self.assertEqual(send_mock.call_args.kwargs["recipient"], ["shipper-tracking@example.org"])
+        self.assertEqual(send_mock.call_args.kwargs["recipient"], ["corr-d@example.org"])

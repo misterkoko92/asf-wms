@@ -96,7 +96,7 @@ class PlanningSourcesTests(TestCase):
         reference = build_shipper_reference(shipment)
 
         self.assertEqual(reference["contact_id"], shipper_org.id)
-        self.assertEqual(reference["contact_name"], shipper_org.name)
+        self.assertEqual(reference["contact_name"], "Sam SHIPPER, Association Shipper")
         self.assertEqual(reference["notification_emails"], ["ops@example.com"])
         self.assertEqual(reference["association_profile_id"], profile.id)
 
@@ -112,7 +112,7 @@ class PlanningSourcesTests(TestCase):
         reference = build_recipient_reference(shipment)
 
         self.assertEqual(reference["contact_id"], recipient_org.id)
-        self.assertEqual(reference["contact_name"], recipient_org.name)
+        self.assertEqual(reference["contact_name"], "Ana RECIPIENT, Association Recipient")
 
     def test_build_correspondent_reference_normalizes_destination_person_contact(self):
         correspondent_org = self._create_org("Association Correspondent")
@@ -133,4 +133,4 @@ class PlanningSourcesTests(TestCase):
         reference = build_correspondent_reference(shipment)
 
         self.assertEqual(reference["contact_id"], correspondent_org.id)
-        self.assertEqual(reference["contact_name"], correspondent_org.name)
+        self.assertEqual(reference["contact_name"], "Cora CORRESPONDENT, Association Correspondent")

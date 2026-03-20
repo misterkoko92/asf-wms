@@ -18,14 +18,15 @@ from ..models import (
     ShipmentStatus,
     StockMovement,
 )
-from ..organization_role_resolvers import (
+from ..scan_helpers import build_packing_bins
+from ..shipment_helpers import build_destination_label
+from ..shipment_party_rules import (
     OrganizationRoleResolutionError,
+    normalize_party_contact_to_org,
     resolve_recipient_binding_for_operation,
     resolve_shipper_for_operation,
 )
-from ..scan_helpers import build_packing_bins
-from ..shipment_helpers import build_destination_label
-from ..shipment_party_rules import normalize_party_contact_to_org
+from ..shipment_party_snapshot import build_shipment_party_snapshot_payload
 from ..shipment_status import sync_shipment_ready_state
 from .stock import (
     StockConsumeResult,
@@ -160,6 +161,14 @@ def _build_shipment_defaults_from_order(order: Order):
     correspondent_name = _normalized_text(
         correspondent_contact.name if correspondent_contact else order.correspondent_name
     )
+    party_payload = build_shipment_party_snapshot_payload(
+        shipper_contact=shipper_contact,
+        recipient_contact=recipient_contact,
+        correspondent_contact=correspondent_contact,
+        shipper_name=shipper_name,
+        recipient_name=recipient_name,
+        correspondent_name=correspondent_name,
+    )
 
     return {
         "shipper_name": shipper_name,
@@ -175,12 +184,21 @@ def _build_shipment_defaults_from_order(order: Order):
         "destination_country": destination_country,
         "requested_delivery_date": order.requested_delivery_date,
         "created_by": order.created_by,
+        **party_payload,
     }
 
 
 def _sync_existing_shipment_from_order(shipment: Shipment, *, defaults):
+    snapshot_fields = {"party_snapshot"}
+    snapshot_missing = not bool(getattr(shipment, "party_snapshot", None))
     update_fields = []
     for field_name, value in defaults.items():
+        if field_name in snapshot_fields:
+            if snapshot_missing and getattr(shipment, field_name, None) != value:
+                setattr(shipment, field_name, value)
+                update_fields.append(field_name)
+            continue
+
         if field_name in {"shipper_name", "recipient_name", "correspondent_name"}:
             if value and not _normalized_text(getattr(shipment, field_name, "")):
                 setattr(shipment, field_name, value)

@@ -172,9 +172,9 @@ class PrintContextTests(SimpleTestCase):
         self.assertEqual(
             build_contact_info_mock.call_args_list,
             [
-                mock.call(shipper_ref, "ASF"),
-                mock.call(recipient_ref, "Recipient"),
-                mock.call(correspondent_ref, "Correspondent"),
+                mock.call(shipper_ref, "ASF Contact"),
+                mock.call(recipient_ref, "Recipient Contact Ref"),
+                mock.call(correspondent_ref, "Correspondent Contact Ref"),
             ],
         )
 

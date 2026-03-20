@@ -88,6 +88,7 @@ class Shipment(models.Model):
     )
     qr_code_image = models.ImageField(upload_to="qr_codes/shipments/", blank=True)
     notes = models.TextField(blank=True)
+    party_snapshot = models.JSONField(default=dict, blank=True)
 
     class Meta:
         ordering = ["-created_at"]

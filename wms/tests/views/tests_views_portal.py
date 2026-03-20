@@ -51,12 +51,16 @@ from wms.models import (
     ProductLotStatus,
     RecipientBinding,
     Shipment,
+    ShipmentRecipientOrganization,
+    ShipmentShipperRecipientLink,
     ShipmentStatus,
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
+    ShipmentValidationStatus,
     ShipperScope,
     Warehouse,
 )
+from wms.portal_recipient_sync import sync_association_recipient_to_contact
 from wms.services import StockError
 
 
@@ -607,6 +611,12 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         )
         self.profile = self._create_profile(self.user, with_address=True)
         self.delivery_recipient = self._create_delivery_recipient(self.profile)
+        sync_association_recipient_to_contact(self.delivery_recipient)
+        shipment_recipient = ShipmentRecipientOrganization.objects.get(
+            organization=self.delivery_recipient.synced_contact
+        )
+        shipment_recipient.validation_status = ShipmentValidationStatus.VALIDATED
+        shipment_recipient.save(update_fields=["validation_status"])
         self.destination = self.delivery_recipient.destination
         self.client.force_login(self.user)
         self.dashboard_url = reverse("portal:portal_dashboard")
@@ -842,16 +852,6 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertNotIn(str(other_recipient.id), recipient_ids)
 
     def test_portal_order_create_filters_recipient_options_by_shipper_binding(self):
-        allowed_contact = Contact.objects.create(
-            name="Allowed Recipient Contact",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-        blocked_contact = Contact.objects.create(
-            name="Blocked Recipient Contact",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
         blocked_recipient = AssociationRecipient.objects.create(
             association_contact=self.profile.contact,
             destination=self.destination,
@@ -861,39 +861,12 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
             country=self.destination.country,
             is_active=True,
         )
-
-        shipper_assignment = OrganizationRoleAssignment.objects.get(
-            organization=self.profile.contact,
-            role=OrganizationRole.SHIPPER,
+        sync_association_recipient_to_contact(blocked_recipient)
+        blocked_shipment_recipient = ShipmentRecipientOrganization.objects.get(
+            organization=blocked_recipient.synced_contact
         )
-        OrganizationRoleAssignment.objects.create(
-            organization=allowed_contact,
-            role=OrganizationRole.RECIPIENT,
-            is_active=True,
-        )
-        OrganizationRoleAssignment.objects.create(
-            organization=blocked_contact,
-            role=OrganizationRole.RECIPIENT,
-            is_active=True,
-        )
-        ShipperScope.objects.create(
-            role_assignment=shipper_assignment,
-            destination=self.destination,
-            all_destinations=False,
-            is_active=True,
-        )
-        RecipientBinding.objects.create(
-            shipper_org=self.profile.contact,
-            recipient_org=allowed_contact,
-            destination=self.destination,
-            is_active=True,
-        )
-
-        def _sync_contact(recipient):
-            return {
-                self.delivery_recipient.id: allowed_contact,
-                blocked_recipient.id: blocked_contact,
-            }[recipient.id]
+        blocked_shipment_recipient.validation_status = ShipmentValidationStatus.PENDING
+        blocked_shipment_recipient.save(update_fields=["validation_status"])
 
         with mock.patch(
             "wms.views_portal_orders.build_product_selection_data",
@@ -903,18 +876,14 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
                 "wms.views_portal_orders.build_order_line_items",
                 return_value=([], {}, {}),
             ):
-                with mock.patch(
-                    "wms.views_portal_orders.sync_association_recipient_to_contact",
-                    side_effect=_sync_contact,
-                ):
-                    response = self.client.post(
-                        self.order_create_url,
-                        {
-                            "destination_id": str(self.destination.id),
-                            "recipient_id": "",
-                            "notes": "",
-                        },
-                    )
+                response = self.client.post(
+                    self.order_create_url,
+                    {
+                        "destination_id": str(self.destination.id),
+                        "recipient_id": "",
+                        "notes": "",
+                    },
+                )
 
         self.assertEqual(response.status_code, 200)
         recipient_ids = {str(option["id"]) for option in response.context["recipient_options"]}
@@ -923,16 +892,6 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertNotIn(str(blocked_recipient.id), recipient_ids)
 
     def test_portal_order_create_exposes_allowed_destination_ids_for_recipient_options(self):
-        allowed_contact = Contact.objects.create(
-            name="Allowed Metadata Contact",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-        blocked_contact = Contact.objects.create(
-            name="Blocked Metadata Contact",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
         blocked_recipient = AssociationRecipient.objects.create(
             association_contact=self.profile.contact,
             destination=self.destination,
@@ -942,49 +901,18 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
             country=self.destination.country,
             is_active=True,
         )
-
-        shipper_assignment = OrganizationRoleAssignment.objects.get(
-            organization=self.profile.contact,
-            role=OrganizationRole.SHIPPER,
+        sync_association_recipient_to_contact(blocked_recipient)
+        blocked_shipment_recipient = ShipmentRecipientOrganization.objects.get(
+            organization=blocked_recipient.synced_contact
         )
-        OrganizationRoleAssignment.objects.create(
-            organization=allowed_contact,
-            role=OrganizationRole.RECIPIENT,
-            is_active=True,
-        )
-        OrganizationRoleAssignment.objects.create(
-            organization=blocked_contact,
-            role=OrganizationRole.RECIPIENT,
-            is_active=True,
-        )
-        ShipperScope.objects.create(
-            role_assignment=shipper_assignment,
-            destination=self.destination,
-            all_destinations=False,
-            is_active=True,
-        )
-        RecipientBinding.objects.create(
-            shipper_org=self.profile.contact,
-            recipient_org=allowed_contact,
-            destination=self.destination,
-            is_active=True,
-        )
-
-        def _sync_contact(recipient):
-            return {
-                self.delivery_recipient.id: allowed_contact,
-                blocked_recipient.id: blocked_contact,
-            }[recipient.id]
+        blocked_shipment_recipient.validation_status = ShipmentValidationStatus.PENDING
+        blocked_shipment_recipient.save(update_fields=["validation_status"])
 
         with mock.patch(
             "wms.views_portal_orders.build_product_selection_data",
             return_value=(self.product_options, self.product_by_id, self.available_by_id),
         ):
-            with mock.patch(
-                "wms.views_portal_orders.sync_association_recipient_to_contact",
-                side_effect=_sync_contact,
-            ):
-                response = self.client.get(self.order_create_url)
+            response = self.client.get(self.order_create_url)
 
         self.assertEqual(response.status_code, 200)
         options_by_id = {
@@ -1066,16 +994,6 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         )
 
     def test_portal_order_create_post_rejects_recipient_outside_shipper_binding(self):
-        allowed_contact = Contact.objects.create(
-            name="Allowed Binding Contact",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-        blocked_contact = Contact.objects.create(
-            name="Blocked Binding Contact",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
         blocked_recipient = AssociationRecipient.objects.create(
             association_contact=self.profile.contact,
             destination=self.destination,
@@ -1086,39 +1004,12 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
             is_active=True,
         )
         line_items = [(self.product, 1)]
-
-        shipper_assignment = OrganizationRoleAssignment.objects.get(
-            organization=self.profile.contact,
-            role=OrganizationRole.SHIPPER,
+        sync_association_recipient_to_contact(blocked_recipient)
+        blocked_shipment_recipient = ShipmentRecipientOrganization.objects.get(
+            organization=blocked_recipient.synced_contact
         )
-        OrganizationRoleAssignment.objects.create(
-            organization=allowed_contact,
-            role=OrganizationRole.RECIPIENT,
-            is_active=True,
-        )
-        OrganizationRoleAssignment.objects.create(
-            organization=blocked_contact,
-            role=OrganizationRole.RECIPIENT,
-            is_active=True,
-        )
-        ShipperScope.objects.create(
-            role_assignment=shipper_assignment,
-            destination=self.destination,
-            all_destinations=False,
-            is_active=True,
-        )
-        RecipientBinding.objects.create(
-            shipper_org=self.profile.contact,
-            recipient_org=allowed_contact,
-            destination=self.destination,
-            is_active=True,
-        )
-
-        def _sync_contact(recipient):
-            return {
-                self.delivery_recipient.id: allowed_contact,
-                blocked_recipient.id: blocked_contact,
-            }[recipient.id]
+        blocked_shipment_recipient.validation_status = ShipmentValidationStatus.PENDING
+        blocked_shipment_recipient.save(update_fields=["validation_status"])
 
         with mock.patch(
             "wms.views_portal_orders.build_product_selection_data",
@@ -1128,21 +1019,15 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
                 "wms.views_portal_orders.build_order_line_items",
                 return_value=(line_items, {}, {}),
             ):
-                with mock.patch(
-                    "wms.views_portal_orders.sync_association_recipient_to_contact",
-                    side_effect=_sync_contact,
-                ):
-                    with mock.patch(
-                        "wms.views_portal_orders.create_portal_order"
-                    ) as create_order_mock:
-                        response = self.client.post(
-                            self.order_create_url,
-                            {
-                                "destination_id": str(self.destination.id),
-                                "recipient_id": str(blocked_recipient.id),
-                                "notes": "",
-                            },
-                        )
+                with mock.patch("wms.views_portal_orders.create_portal_order") as create_order_mock:
+                    response = self.client.post(
+                        self.order_create_url,
+                        {
+                            "destination_id": str(self.destination.id),
+                            "recipient_id": str(blocked_recipient.id),
+                            "notes": "",
+                        },
+                    )
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(
@@ -1166,32 +1051,13 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         )
         line_items = [(self.product, 1)]
         fake_order = SimpleNamespace(id=456)
-        synced_recipient_contact = Contact.objects.create(
-            name="Synced Recipient",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
+        sync_association_recipient_to_contact(recipient)
+        shipment_recipient = ShipmentRecipientOrganization.objects.get(
+            organization=recipient.synced_contact
         )
-        shipper_assignment = OrganizationRoleAssignment.objects.get(
-            organization=self.profile.contact,
-            role=OrganizationRole.SHIPPER,
-        )
-        ShipperScope.objects.create(
-            role_assignment=shipper_assignment,
-            destination=destination,
-            all_destinations=False,
-            is_active=True,
-        )
-        OrganizationRoleAssignment.objects.create(
-            organization=synced_recipient_contact,
-            role=OrganizationRole.RECIPIENT,
-            is_active=True,
-        )
-        RecipientBinding.objects.create(
-            shipper_org=self.profile.contact,
-            recipient_org=synced_recipient_contact,
-            destination=destination,
-            is_active=True,
-        )
+        shipment_recipient.validation_status = ShipmentValidationStatus.VALIDATED
+        shipment_recipient.save(update_fields=["validation_status"])
+        resolved_recipient_contact = shipment_recipient.recipient_contacts.get().contact
         with mock.patch(
             "wms.views_portal_orders.build_product_selection_data",
             return_value=(self.product_options, self.product_by_id, self.available_by_id),
@@ -1201,22 +1067,18 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
                 return_value=(line_items, {}, {}),
             ):
                 with mock.patch(
-                    "wms.views_portal_orders.sync_association_recipient_to_contact",
-                    return_value=synced_recipient_contact,
-                ):
-                    with mock.patch(
-                        "wms.views_portal_orders.create_portal_order",
-                        return_value=fake_order,
-                    ) as create_order_mock:
-                        with mock.patch("wms.views_portal_orders.send_portal_order_notifications"):
-                            response = self.client.post(
-                                self.order_create_url,
-                                {
-                                    "destination_id": str(destination.id),
-                                    "recipient_id": str(recipient.id),
-                                    "notes": "External",
-                                },
-                            )
+                    "wms.views_portal_orders.create_portal_order",
+                    return_value=fake_order,
+                ) as create_order_mock:
+                    with mock.patch("wms.views_portal_orders.send_portal_order_notifications"):
+                        response = self.client.post(
+                            self.order_create_url,
+                            {
+                                "destination_id": str(destination.id),
+                                "recipient_id": str(recipient.id),
+                                "notes": "External",
+                            },
+                        )
         self.assertEqual(response.status_code, 302)
         self.assertEqual(
             response.url,
@@ -1224,13 +1086,86 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         )
         self.assertEqual(create_order_mock.call_count, 1)
         kwargs = create_order_mock.call_args.kwargs
-        self.assertEqual(kwargs["recipient_name"], recipient.name)
-        self.assertEqual(kwargs["recipient_contact"], synced_recipient_contact)
+        self.assertEqual(kwargs["recipient_contact"], resolved_recipient_contact)
+        self.assertIn("Recipient External", kwargs["recipient_name"])
         self.assertEqual(kwargs["destination_city"], "Lyon")
         self.assertEqual(kwargs["destination_country"], "France")
         self.assertEqual(
             kwargs["destination_address"],
             "10 Rue C\nBat A\n69000 Lyon\nFrance",
+        )
+
+    def test_portal_order_create_post_prefers_shared_structure_address(self):
+        destination = self._create_destination(city="Lyon", country="France")
+        recipient = AssociationRecipient.objects.create(
+            association_contact=self.profile.contact,
+            destination=destination,
+            name="Recipient External",
+            structure_name="Recipient External",
+            contact_first_name="Claire",
+            contact_last_name="Martin",
+            email="recipient@example.org",
+            emails="recipient@example.org",
+            address_line1="10 Rue Legacy",
+            address_line2="Bat Legacy",
+            postal_code="69000",
+            city="Lyon",
+            country="France",
+            is_active=True,
+        )
+        line_items = [(self.product, 1)]
+        fake_order = SimpleNamespace(id=457)
+        sync_association_recipient_to_contact(recipient)
+        shipment_recipient = ShipmentRecipientOrganization.objects.get(
+            organization=recipient.synced_contact
+        )
+        shipment_recipient.validation_status = ShipmentValidationStatus.VALIDATED
+        shipment_recipient.save(update_fields=["validation_status"])
+        shared_address = shipment_recipient.organization.addresses.get(is_default=True)
+        shared_address.address_line1 = "20 Rue Partagee"
+        shared_address.address_line2 = "Bat Shared"
+        shared_address.postal_code = "69009"
+        shared_address.city = "Lyon Nord"
+        shared_address.country = "France"
+        shared_address.save(
+            update_fields=[
+                "address_line1",
+                "address_line2",
+                "postal_code",
+                "city",
+                "country",
+            ]
+        )
+
+        with mock.patch(
+            "wms.views_portal_orders.build_product_selection_data",
+            return_value=(self.product_options, self.product_by_id, self.available_by_id),
+        ):
+            with mock.patch(
+                "wms.views_portal_orders.build_order_line_items",
+                return_value=(line_items, {}, {}),
+            ):
+                with mock.patch(
+                    "wms.views_portal_orders.create_portal_order",
+                    return_value=fake_order,
+                ) as create_order_mock:
+                    with mock.patch("wms.views_portal_orders.send_portal_order_notifications"):
+                        response = self.client.post(
+                            self.order_create_url,
+                            {
+                                "destination_id": str(destination.id),
+                                "recipient_id": str(recipient.id),
+                                "notes": "External",
+                            },
+                        )
+
+        self.assertEqual(response.status_code, 302)
+        kwargs = create_order_mock.call_args.kwargs
+        self.assertEqual(kwargs["destination_city"], "Lyon Nord")
+        self.assertEqual(kwargs["destination_country"], "France")
+        self.assertEqual(
+            kwargs["destination_address"],
+            "20 Rue Partagee\nBat Shared\n69009 Lyon Nord\nFrance",
         )
 
     def test_portal_order_create_post_handles_stock_error(self):
@@ -1902,17 +1837,11 @@ class PortalAccountViewsTests(PortalBaseTestCase):
                 is_active=True,
             ).exists()
         )
-
-        form = ScanShipmentForm(
-            data={
-                "destination": str(self.destination.id),
-                "shipper_contact": str(self.profile.contact_id),
-            },
-            destination_id=str(self.destination.id),
-        )
-        self.assertIn(
-            synced_contact.id,
-            set(form.fields["recipient_contact"].queryset.values_list("id", flat=True)),
+        shipment_recipient = ShipmentRecipientOrganization.objects.get(organization=synced_contact)
+        self.assertEqual(shipment_recipient.destination_id, self.destination.id)
+        self.assertEqual(
+            shipment_recipient.validation_status,
+            "pending",
         )
 
     def test_portal_recipients_post_creates_recipient_with_native_english_message(self):

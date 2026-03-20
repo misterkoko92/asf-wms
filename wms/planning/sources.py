@@ -1,12 +1,56 @@
 from django.utils.text import slugify
 
+from contacts.models import Contact
 from wms.models import Flight, Shipment, ShipmentStatus, VolunteerProfile
 from wms.shipment_party_rules import build_party_contact_reference, normalize_party_contact_to_org
+from wms.shipment_party_snapshot import build_shipment_party_label
 
 ELIGIBLE_SHIPMENT_STATUSES = (
     ShipmentStatus.PACKED,
     ShipmentStatus.PLANNED,
 )
+
+
+def _normalized_text(value):
+    return str(value or "").strip()
+
+
+def _shipment_party_snapshot_entry(shipment, party_key):
+    snapshot = getattr(shipment, "party_snapshot", None) or {}
+    if not isinstance(snapshot, dict):
+        return {}
+    entry = snapshot.get(party_key) or {}
+    return entry if isinstance(entry, dict) else {}
+
+
+def _snapshot_reference(entry, *, prefer):
+    if not entry:
+        return None
+    preferred = entry.get(prefer) or {}
+    alternate_key = "contact" if prefer == "organization" else "organization"
+    alternate = entry.get(alternate_key) or {}
+    source = preferred if isinstance(preferred, dict) else {}
+    if not source.get("contact_id") and not source.get("contact_name"):
+        source = alternate if isinstance(alternate, dict) else {}
+    if not source:
+        return None
+    reference = dict(source)
+    label = _normalized_text(entry.get("label"))
+    if label:
+        reference["contact_name"] = label
+    return reference
+
+
+def _party_label(contact, *, fallback_name):
+    return build_shipment_party_label(contact, fallback_name=_normalized_text(fallback_name))
+
+
+def _fallback_reference(contact, *, fallback_name):
+    normalized_contact = normalize_party_contact_to_org(contact)
+    label = _party_label(contact, fallback_name=fallback_name)
+    reference = build_party_contact_reference(normalized_contact, fallback_name=label)
+    reference["contact_name"] = label
+    return reference
 
 
 def _get_recipe_scope(run):
@@ -49,8 +93,21 @@ def get_run_shipments(run):
 
 
 def build_shipper_reference(shipment):
-    contact = normalize_party_contact_to_org(shipment.shipper_contact_ref)
-    reference = build_party_contact_reference(contact, fallback_name=shipment.shipper_name)
+    snapshot_reference = _snapshot_reference(
+        _shipment_party_snapshot_entry(shipment, "shipper"),
+        prefer="organization",
+    )
+    if snapshot_reference is not None:
+        contact_id = snapshot_reference.get("contact_id")
+        contact = Contact.objects.filter(pk=contact_id).first() if contact_id else None
+    else:
+        contact = normalize_party_contact_to_org(shipment.shipper_contact_ref)
+        snapshot_reference = _fallback_reference(
+            shipment.shipper_contact_ref,
+            fallback_name=shipment.shipper_name,
+        )
+
+    reference = dict(snapshot_reference)
     association_profile = (
         contact.association_profiles.prefetch_related("portal_contacts").order_by("id").first()
         if contact is not None
@@ -66,19 +123,30 @@ def build_shipper_reference(shipment):
 
 
 def build_recipient_reference(shipment):
-    return build_party_contact_reference(
-        normalize_party_contact_to_org(shipment.recipient_contact_ref),
+    snapshot_reference = _snapshot_reference(
+        _shipment_party_snapshot_entry(shipment, "recipient"),
+        prefer="organization",
+    )
+    if snapshot_reference is not None:
+        return snapshot_reference
+    return _fallback_reference(
+        shipment.recipient_contact_ref,
         fallback_name=shipment.recipient_name,
     )
 
 
 def build_correspondent_reference(shipment):
+    snapshot_reference = _snapshot_reference(
+        _shipment_party_snapshot_entry(shipment, "correspondent"),
+        prefer="organization",
+    )
+    if snapshot_reference is not None:
+        return snapshot_reference
     contact = shipment.correspondent_contact_ref or getattr(
         shipment.destination, "correspondent_contact", None
     )
-    normalized_contact = normalize_party_contact_to_org(contact)
     fallback_name = shipment.correspondent_name or getattr(contact, "name", "") or ""
-    return build_party_contact_reference(normalized_contact, fallback_name=fallback_name)
+    return _fallback_reference(contact, fallback_name=fallback_name)
 
 
 def get_run_volunteers(run):
