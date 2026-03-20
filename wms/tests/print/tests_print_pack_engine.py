@@ -32,6 +32,7 @@ from wms.print_pack_engine import (
     generate_pack,
     render_pack_xlsx_documents,
 )
+from wms.shipment_party_snapshot import build_shipment_party_snapshot
 
 
 class PrintPackEngineTests(TestCase):
@@ -556,6 +557,123 @@ class PrintPackEngineTests(TestCase):
         self.assertEqual(
             shipment_payload["correspondent"]["contact_primary"],
             "+223 2 22 22 22 22, bamako@example.org",
+        )
+
+    def test_build_mapping_payload_prefers_frozen_party_snapshot_labels(self):
+        shipper_org = Contact.objects.create(
+            contact_type=ContactType.ORGANIZATION,
+            name="Association Snapshot",
+            is_active=True,
+        )
+        shipper = Contact.objects.create(
+            contact_type=ContactType.PERSON,
+            title="M.",
+            first_name="Jean",
+            last_name="Dupont",
+            organization=shipper_org,
+            email="shipper-old@example.org",
+            is_active=True,
+        )
+        recipient_org = Contact.objects.create(
+            contact_type=ContactType.ORGANIZATION,
+            name="Hopital Snapshot",
+            is_active=True,
+        )
+        recipient = Contact.objects.create(
+            contact_type=ContactType.PERSON,
+            title="Dr",
+            first_name="Alice",
+            last_name="Martin",
+            organization=recipient_org,
+            email="recipient-old@example.org",
+            is_active=True,
+        )
+        correspondent_org = Contact.objects.create(
+            contact_type=ContactType.ORGANIZATION,
+            name="ASF - CORRESPONDANT",
+            is_active=True,
+        )
+        correspondent = Contact.objects.create(
+            contact_type=ContactType.PERSON,
+            title="M.",
+            first_name="Ibrahima",
+            last_name="Keita",
+            organization=correspondent_org,
+            email="correspondent-old@example.org",
+            is_active=True,
+        )
+        snapshot = build_shipment_party_snapshot(
+            shipper_contact=shipper,
+            recipient_contact=recipient,
+            correspondent_contact=correspondent,
+            shipper_name=shipper.name,
+            recipient_name=recipient.name,
+            correspondent_name=correspondent.name,
+        )
+        shipment = Shipment.objects.create(
+            shipper_name=shipper.name,
+            shipper_contact_ref=shipper,
+            recipient_name=recipient.name,
+            recipient_contact_ref=recipient,
+            correspondent_name=correspondent.name,
+            correspondent_contact_ref=correspondent,
+            destination_address="1 Rue Test",
+            destination_country="France",
+            party_snapshot=snapshot,
+            created_by=self.user,
+        )
+
+        shipper.first_name = "Noel"
+        shipper.last_name = "Martin"
+        shipper.email = "shipper-new@example.org"
+        shipper.save(update_fields=["first_name", "last_name", "email"])
+        shipper_org.name = "Association Renommee"
+        shipper_org.save(update_fields=["name"])
+        recipient.first_name = "Fatou"
+        recipient.last_name = "Diallo"
+        recipient.email = "recipient-new@example.org"
+        recipient.save(update_fields=["first_name", "last_name", "email"])
+        recipient_org.name = "Hopital Renomme"
+        recipient_org.save(update_fields=["name"])
+        correspondent.first_name = "Amadou"
+        correspondent.last_name = "Sow"
+        correspondent.email = "correspondent-new@example.org"
+        correspondent.save(update_fields=["first_name", "last_name", "email"])
+
+        payload = _build_mapping_payload(shipment=shipment)
+
+        self.assertEqual(
+            payload["shipment"]["shipper_name"],
+            "M. Jean DUPONT, Association Snapshot",
+        )
+        self.assertEqual(
+            payload["shipment"]["shipper"]["full_name"],
+            "M. Jean DUPONT, Association Snapshot",
+        )
+        self.assertEqual(payload["shipment"]["shipper"]["title_name"], "M. Jean DUPONT")
+        self.assertEqual(payload["shipment"]["shipper"]["structure_name"], "Association Snapshot")
+        self.assertEqual(payload["shipment"]["shipper"]["email_1"], "shipper-old@example.org")
+        self.assertEqual(
+            payload["shipment"]["recipient_name"],
+            "Dr Alice MARTIN, Hopital Snapshot",
+        )
+        self.assertEqual(
+            payload["shipment"]["recipient"]["full_name"],
+            "Dr Alice MARTIN, Hopital Snapshot",
+        )
+        self.assertEqual(payload["shipment"]["recipient"]["title_name"], "Dr Alice MARTIN")
+        self.assertEqual(payload["shipment"]["recipient"]["structure_name"], "Hopital Snapshot")
+        self.assertEqual(
+            payload["shipment"]["correspondent_name"],
+            "M. Ibrahima KEITA, ASF - CORRESPONDANT",
+        )
+        self.assertEqual(
+            payload["shipment"]["correspondent"]["full_name"],
+            "M. Ibrahima KEITA, ASF - CORRESPONDANT",
+        )
+        self.assertEqual(
+            payload["shipment"]["correspondent"]["email_1"],
+            "correspondent-old@example.org",
         )
 
     def test_render_document_xlsx_bytes_preserves_fixed_column_widths_and_wraps_text(self):

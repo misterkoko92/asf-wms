@@ -14,6 +14,7 @@ from .models import (
     GeneratedPrintArtifactStatus,
     PrintPack,
 )
+from .notification_policy import resolve_reference_notification_emails
 from .print_pack_excel import fill_workbook_cells
 from .print_pack_graph import convert_excel_to_pdf_via_graph
 from .print_pack_pdf import merge_pdf_documents
@@ -190,6 +191,104 @@ def _build_contact_payload(*, contact, fallback_name, default_country=""):
     return payload
 
 
+def _shipment_party_snapshot_entry(shipment, party_key):
+    snapshot = getattr(shipment, "party_snapshot", None) or {}
+    if not isinstance(snapshot, dict):
+        return {}
+    entry = snapshot.get(party_key) or {}
+    return entry if isinstance(entry, dict) else {}
+
+
+def _first_non_empty(*values):
+    for value in values:
+        text = _clean_text(value)
+        if text:
+            return text
+    return ""
+
+
+def _snapshot_phone_values(*references):
+    phones = []
+    for reference in references:
+        if not isinstance(reference, dict):
+            continue
+        phones.extend(
+            [
+                reference.get("phone", ""),
+                reference.get("phone2", ""),
+            ]
+        )
+    return _unique_non_empty(phones)
+
+
+def _apply_snapshot_party_payload(*, shipment, party_key, payload):
+    entry = _shipment_party_snapshot_entry(shipment, party_key)
+    if not entry:
+        return payload
+
+    label = _clean_text(entry.get("label"))
+    contact_label = _clean_text(entry.get("contact_label"))
+    organization_label = _clean_text(entry.get("organization_label"))
+    contact_reference = entry.get("contact") or {}
+    organization_reference = entry.get("organization") or {}
+
+    if label:
+        payload["full_name"] = label
+    if contact_label:
+        payload["title_name"] = contact_label
+    elif label:
+        payload["title_name"] = label
+    if organization_label:
+        payload["structure_name"] = organization_label
+
+    emails = resolve_reference_notification_emails(
+        contact_reference,
+        organization_reference,
+    )
+    if emails:
+        payload["email_1"] = emails[0] if len(emails) > 0 else ""
+        payload["email_2"] = emails[1] if len(emails) > 1 else ""
+        payload["email_3"] = emails[2] if len(emails) > 2 else ""
+
+    phones = _snapshot_phone_values(contact_reference, organization_reference)
+    if phones:
+        payload["phone_1"] = phones[0] if len(phones) > 0 else ""
+        payload["phone_2"] = phones[1] if len(phones) > 1 else ""
+        payload["phone_3"] = phones[2] if len(phones) > 2 else ""
+
+    payload["contact_primary"] = _join_non_empty(
+        payload["phone_1"],
+        payload["email_1"],
+        separator=", ",
+    )
+    return payload
+
+
+def _build_shipment_party_payload(
+    *,
+    shipment,
+    party_key,
+    contact,
+    fallback_name,
+    default_country="",
+):
+    payload = _build_contact_payload(
+        contact=contact,
+        fallback_name=fallback_name,
+        default_country=default_country,
+    )
+    return _apply_snapshot_party_payload(
+        shipment=shipment,
+        party_key=party_key,
+        payload=payload,
+    )
+
+
+def _shipment_party_label(shipment, *, party_key, fallback_name):
+    entry = _shipment_party_snapshot_entry(shipment, party_key)
+    return _first_non_empty(entry.get("label"), fallback_name)
+
+
 def _resolve_root_category_name(product):
     category = getattr(product, "category", None)
     if category is None:
@@ -206,7 +305,9 @@ def _resolve_root_category_name(product):
 
 
 def _build_recipient_payload(shipment):
-    return _build_contact_payload(
+    return _build_shipment_party_payload(
+        shipment=shipment,
+        party_key="recipient",
         contact=getattr(shipment, "recipient_contact_ref", None),
         fallback_name=getattr(shipment, "recipient_name", ""),
         default_country=getattr(shipment, "destination_country", ""),
@@ -281,15 +382,31 @@ def _build_mapping_payload(*, shipment=None, carton=None, document=None):
             "total_weight_g": total_weight_g,
             "total_weight_label": _format_weight_label(total_weight_g),
             "hors_format_total_count": hors_format_total_count,
-            "shipper_name": shipment.shipper_name,
-            "shipper": _build_contact_payload(
+            "shipper_name": _shipment_party_label(
+                shipment,
+                party_key="shipper",
+                fallback_name=shipment.shipper_name,
+            ),
+            "shipper": _build_shipment_party_payload(
+                shipment=shipment,
+                party_key="shipper",
                 contact=getattr(shipment, "shipper_contact_ref", None),
                 fallback_name=shipment.shipper_name,
             ),
-            "recipient_name": shipment.recipient_name,
+            "recipient_name": _shipment_party_label(
+                shipment,
+                party_key="recipient",
+                fallback_name=shipment.recipient_name,
+            ),
             "recipient": _build_recipient_payload(shipment),
-            "correspondent_name": shipment.correspondent_name,
-            "correspondent": _build_contact_payload(
+            "correspondent_name": _shipment_party_label(
+                shipment,
+                party_key="correspondent",
+                fallback_name=shipment.correspondent_name,
+            ),
+            "correspondent": _build_shipment_party_payload(
+                shipment=shipment,
+                party_key="correspondent",
                 contact=getattr(shipment, "correspondent_contact_ref", None),
                 fallback_name=shipment.correspondent_name,
                 default_country=shipment.destination_country,

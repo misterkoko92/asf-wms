@@ -201,3 +201,45 @@ class PlanningCommunicationPlanTests(TestCase):
         )
         self.assertEqual(item.change_status, "new")
         self.assertEqual(len(item.current_assignments), 2)
+
+    def test_build_version_communication_plan_prefers_reference_labels_for_partner_families(self):
+        self.shipment.payload = {
+            "legacy_destinataire": "Centre Medical Legacy",
+            "shipper_reference": {
+                "contact_name": "M. Jean DUPONT, Association A",
+                "notification_emails": ["shipper@example.com"],
+            },
+            "recipient_reference": {
+                "contact_name": "Dr Alice MARTIN, Centre Medical",
+                "notification_emails": ["recipient@example.com"],
+            },
+            "correspondent_reference": {
+                "contact_name": "M. Ibrahima KEITA, ASF - CORRESPONDANT",
+                "notification_emails": ["correspondent@example.com"],
+            },
+        }
+        self.shipment.save(update_fields=["payload"])
+        version = self.make_version()
+        self.add_assignment(version, volunteer=self.alice, flight=self.flight_1)
+
+        plan = build_version_communication_plan(version)
+
+        shipper_item = self.assert_plan_item(
+            plan,
+            family=CommunicationFamily.EMAIL_EXPEDITEUR,
+            recipient_label="M. Jean DUPONT, Association A",
+        )
+        recipient_item = self.assert_plan_item(
+            plan,
+            family=CommunicationFamily.EMAIL_DESTINATAIRE,
+            recipient_label="Dr Alice MARTIN, Centre Medical",
+        )
+
+        self.assertEqual(
+            shipper_item.current_assignments[0].shipper_name,
+            "M. Jean DUPONT, Association A",
+        )
+        self.assertEqual(
+            recipient_item.current_assignments[0].recipient_name,
+            "Dr Alice MARTIN, Centre Medical",
+        )

@@ -46,7 +46,10 @@ from .models import (
     ShipmentTrackingStatus,
     WmsChange,
 )
-from .notification_policy import resolve_notification_recipients
+from .notification_policy import (
+    resolve_notification_recipients,
+    resolve_reference_notification_emails,
+)
 from .workflow_observability import (
     log_shipment_status_transition,
     log_shipment_tracking_event,
@@ -85,7 +88,7 @@ def _uniq_emails(values):
 
 def _org_roles_notifications_enabled() -> bool:
     try:
-        return True
+        return False
     except Exception:
         # Some signal unit tests run in SimpleTestCase without DB access.
         return False
@@ -187,12 +190,54 @@ def _shipment_status_admin_recipients():
 
 
 def _shipment_party_recipients(shipment):
+    return []
+
+
+def _shipment_party_snapshot_entry(shipment, party_key):
+    snapshot = getattr(shipment, "party_snapshot", None) or {}
+    if not isinstance(snapshot, dict):
+        return {}
+    entry = snapshot.get(party_key) or {}
+    return entry if isinstance(entry, dict) else {}
+
+
+def _contact_reference_emails(contact) -> list[str]:
     return _uniq_emails(
         [
-            getattr(getattr(shipment, "shipper_contact_ref", None), "email", ""),
-            getattr(getattr(shipment, "recipient_contact_ref", None), "email", ""),
+            getattr(contact, "email", ""),
+            getattr(contact, "email2", ""),
         ]
     )
+
+
+def _shipment_party_target_recipients(shipment, *, party_key, fallback_contact=None):
+    entry = _shipment_party_snapshot_entry(shipment, party_key)
+    recipients = resolve_reference_notification_emails(
+        entry.get("contact"),
+        entry.get("organization"),
+    )
+    if recipients:
+        return recipients
+    return _contact_reference_emails(fallback_contact)
+
+
+def _shipment_party_notification_targets(shipment):
+    targets = []
+    shipper_recipients = _shipment_party_target_recipients(
+        shipment,
+        party_key="shipper",
+        fallback_contact=getattr(shipment, "shipper_contact_ref", None),
+    )
+    if shipper_recipients:
+        targets.append(shipper_recipients)
+    recipient_recipients = _shipment_party_target_recipients(
+        shipment,
+        party_key="recipient",
+        fallback_contact=getattr(shipment, "recipient_contact_ref", None),
+    )
+    if recipient_recipients:
+        targets.append(recipient_recipients)
+    return targets
 
 
 def _shipment_correspondant_recipients(shipment):
@@ -202,8 +247,17 @@ def _shipment_correspondant_recipients(shipment):
         SHIPMENT_STATUS_CORRESPONDANT_GROUP_DEFAULT,
     )
     group_recipients = get_group_emails(group_name, require_staff=True)
-    correspondent_email = getattr(getattr(shipment, "correspondent_contact_ref", None), "email", "")
-    return _uniq_emails(group_recipients + [correspondent_email])
+    live_correspondent = getattr(shipment, "correspondent_contact_ref", None) or getattr(
+        getattr(shipment, "destination", None),
+        "correspondent_contact",
+        None,
+    )
+    correspondent_recipients = _shipment_party_target_recipients(
+        shipment,
+        party_key="correspondent",
+        fallback_contact=live_correspondent,
+    )
+    return _uniq_emails(group_recipients + correspondent_recipients)
 
 
 def _active_role_assignment(*, organization, role):
@@ -412,8 +466,8 @@ def _notify_role_based_tracking_event(*, tracking_event):
 
 
 def _queue_shipment_party_notification(*, shipment, old_label, new_label):
-    recipients = _shipment_party_recipients(shipment)
-    if not recipients:
+    recipient_groups = _shipment_party_notification_targets(shipment)
+    if not recipient_groups:
         return
     message = render_to_string(
         SHIPMENT_STATUS_PARTY_TEMPLATE,
@@ -428,17 +482,18 @@ def _queue_shipment_party_notification(*, shipment, old_label, new_label):
             "tracking_url": shipment.get_tracking_url(),
         },
     )
-    transaction.on_commit(
-        lambda: send_or_enqueue_email_safe(
-            subject=_("ASF WMS - Expédition %(reference)s : statut %(status)s")
-            % {
-                "reference": shipment.reference,
-                "status": new_label,
-            },
+    dedup_registry = set()
+    subject = _("ASF WMS - Expédition %(reference)s : statut %(status)s") % {
+        "reference": shipment.reference,
+        "status": new_label,
+    }
+    for recipients in recipient_groups:
+        _queue_role_event_email(
+            subject=subject,
             message=message,
-            recipient=recipients,
+            recipients=recipients,
+            dedup_registry=dedup_registry,
         )
-    )
 
 
 def _queue_shipment_correspondant_notification(
