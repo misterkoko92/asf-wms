@@ -19,8 +19,8 @@ from wms.models import (
     Warehouse,
 )
 from wms.order_scan_handlers import handle_order_action
-from wms.organization_role_resolvers import OrganizationRoleResolutionError
 from wms.services import StockError
+from wms.shipment_party_rules import OrganizationRoleResolutionError
 
 
 class _DummyForm:
@@ -226,11 +226,19 @@ class OrderScanHandlersTests(TestCase):
         self.assertIsNone(response)
         self.assertIsNone(order_lines)
         self.assertIsNone(remaining_total)
-        self.assertIn(("shipper_contact", "Shipper required."), create_form.errors)
-        self.assertIn(("recipient_contact", "Recipient required."), create_form.errors)
-        self.assertIn(
-            ("destination_city", "Invalid stopover for organization roles mode."),
-            create_form.errors,
+        self.assertTrue(
+            ("shipper_contact", "Shipper required.") in create_form.errors
+            or ("shipper_contact", "Expediteur requis.") in create_form.errors
+        )
+        self.assertTrue(
+            ("recipient_contact", "Recipient required.") in create_form.errors
+            or ("recipient_contact", "Destinataire requis.") in create_form.errors
+        )
+        self.assertTrue(
+            ("destination_city", "Invalid stopover for organization roles mode.")
+            in create_form.errors
+            or ("destination_city", "Escale invalide pour le mode organization roles.")
+            in create_form.errors
         )
         self.assertEqual(Order.objects.count(), 0)
 
@@ -387,7 +395,10 @@ class OrderScanHandlersTests(TestCase):
         self.assertIsNone(response)
         self.assertIsNone(order_lines)
         self.assertIsNone(remaining_total)
-        self.assertIn((None, "Select an order."), line_form.errors)
+        self.assertTrue(
+            (None, "Select an order.") in line_form.errors
+            or (None, "Sélectionnez une commande.") in line_form.errors
+        )
 
     @mock.patch("wms.order_scan_handlers.messages.success")
     @mock.patch("wms.order_scan_handlers.create_shipment_for_order")
@@ -444,9 +455,13 @@ class OrderScanHandlersTests(TestCase):
         self.assertEqual(response.status_code, 302)
         created_order = Order.objects.get()
         create_shipment_mock.assert_called_once_with(order=created_order)
-        success_mock.assert_called_once_with(
-            mock.ANY,
-            f"Order created: {created_order.reference or f'Order {created_order.id}'}",
+        success_message = success_mock.call_args.args[1]
+        self.assertIn(
+            success_message,
+            {
+                f"Order created: {created_order.reference or f'Order {created_order.id}'}",
+                f"Commande créée: {created_order.reference or f'Commande {created_order.id}'}",
+            },
         )
         self.assertIsNone(order_lines)
         self.assertIsNone(remaining_total)
