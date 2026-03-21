@@ -1,23 +1,21 @@
 from __future__ import annotations
 
-from django.db.models import Q, QuerySet
-from django.utils import timezone
+from django.db.models import QuerySet
 
 from contacts.models import Contact, ContactType
 
 from .models import (
-    OrganizationRole,
-    OrganizationRoleAssignment,
-    RecipientBinding,
+    ShipmentAuthorizedRecipientContact,
+    ShipmentRecipientContact,
     ShipmentRecipientOrganization,
     ShipmentShipper,
     ShipmentShipperRecipientLink,
     ShipmentValidationStatus,
-    ShipperScope,
 )
 from .shipment_party_registry import (
     eligible_recipient_organizations_for_shipper,
     eligible_shippers_for_stopover,
+    stopover_correspondent_recipient_organization,
 )
 
 MESSAGE_DESTINATION_REQUIRED = "Escale requise."
@@ -29,7 +27,7 @@ MESSAGE_RECIPIENT_REVIEW_PENDING = "Destinataire en cours de revue ASF."
 MESSAGE_RECIPIENT_BINDING_MISSING = "Destinataire non autorise pour cet expediteur et cette escale."
 
 
-class OrganizationRoleResolutionError(Exception):
+class ShipmentPartyResolutionError(Exception):
     pass
 
 
@@ -41,123 +39,108 @@ def normalize_party_contact_to_org(contact: Contact | None) -> Contact | None:
     return contact
 
 
-def _eligible_contacts_for_org_ids(org_ids) -> QuerySet[Contact]:
-    if not org_ids:
+def _active_contacts_for_ids(contact_ids) -> QuerySet[Contact]:
+    normalized_ids = {contact_id for contact_id in contact_ids if contact_id}
+    if not normalized_ids:
         return Contact.objects.none()
     return (
-        Contact.objects.filter(is_active=True)
-        .filter(Q(pk__in=org_ids) | Q(organization_id__in=org_ids))
+        Contact.objects.filter(pk__in=normalized_ids, is_active=True)
+        .select_related("organization")
         .order_by("name", "id")
         .distinct()
     )
 
 
-def _current_window_q(prefix: str = ""):
-    now = timezone.now()
-    return Q(**{f"{prefix}valid_from__lte": now}) & (
-        Q(**{f"{prefix}valid_to__isnull": True}) | Q(**{f"{prefix}valid_to__gt": now})
-    )
+def _validated_active_shipper_queryset() -> QuerySet[ShipmentShipper]:
+    return ShipmentShipper.objects.filter(
+        is_active=True,
+        validation_status=ShipmentValidationStatus.VALIDATED,
+        organization__is_active=True,
+    ).select_related("organization", "default_contact", "default_contact__organization")
 
 
-def _active_org_ids_for_role(role: str) -> list[int]:
-    return list(
-        OrganizationRoleAssignment.objects.filter(
-            role=role,
-            is_active=True,
-            organization__is_active=True,
-            organization__contact_type=ContactType.ORGANIZATION,
-        ).values_list("organization_id", flat=True)
-    )
+def _validated_active_recipient_organization_queryset(
+    *, destination=None
+) -> QuerySet[ShipmentRecipientOrganization]:
+    queryset = ShipmentRecipientOrganization.objects.filter(
+        is_active=True,
+        validation_status=ShipmentValidationStatus.VALIDATED,
+        organization__is_active=True,
+        destination__is_active=True,
+    ).select_related("organization", "destination")
+    if destination is not None:
+        queryset = queryset.filter(destination=destination)
+    return queryset
+
+
+def _active_recipient_contact_queryset(*, destination=None) -> QuerySet[ShipmentRecipientContact]:
+    queryset = ShipmentRecipientContact.objects.filter(
+        is_active=True,
+        contact__is_active=True,
+        recipient_organization__is_active=True,
+        recipient_organization__validation_status=ShipmentValidationStatus.VALIDATED,
+        recipient_organization__organization__is_active=True,
+        recipient_organization__destination__is_active=True,
+    ).select_related("contact", "contact__organization", "recipient_organization")
+    if destination is not None:
+        queryset = queryset.filter(recipient_organization__destination=destination)
+    return queryset
 
 
 def active_shipper_contacts() -> QuerySet[Contact]:
-    return _eligible_contacts_for_org_ids(_active_org_ids_for_role(OrganizationRole.SHIPPER))
+    shippers = list(_validated_active_shipper_queryset())
+    contact_ids = {shipper.organization_id for shipper in shippers}
+    contact_ids.update(shipper.default_contact_id for shipper in shippers)
+    return _active_contacts_for_ids(contact_ids)
 
 
 def active_recipient_contacts() -> QuerySet[Contact]:
-    return _eligible_contacts_for_org_ids(_active_org_ids_for_role(OrganizationRole.RECIPIENT))
+    recipient_organizations = _validated_active_recipient_organization_queryset()
+    contact_ids = set(recipient_organizations.values_list("organization_id", flat=True))
+    contact_ids.update(_active_recipient_contact_queryset().values_list("contact_id", flat=True))
+    return _active_contacts_for_ids(contact_ids)
 
 
 def recipient_contacts_for_destination(destination) -> QuerySet[Contact]:
-    if destination is None:
+    if destination is None or not destination.is_active:
         return Contact.objects.none()
-    org_ids = list(
-        RecipientBinding.objects.filter(
-            destination=destination,
-            is_active=True,
-            shipper_org__is_active=True,
-            recipient_org__is_active=True,
-        )
-        .filter(_current_window_q())
-        .values_list("recipient_org_id", flat=True)
+    recipient_organizations = _validated_active_recipient_organization_queryset(
+        destination=destination
     )
-    return _eligible_contacts_for_org_ids(org_ids)
+    contact_ids = set(recipient_organizations.values_list("organization_id", flat=True))
+    contact_ids.update(
+        _active_recipient_contact_queryset(destination=destination).values_list(
+            "contact_id", flat=True
+        )
+    )
+    return _active_contacts_for_ids(contact_ids)
 
 
 def eligible_shipper_contacts_for_destination(destination):
-    if destination is None:
+    if destination is None or not destination.is_active:
         return Contact.objects.none()
-    assignment_ids = (
-        ShipperScope.objects.filter(
-            is_active=True,
+    shippers = list(
+        eligible_shippers_for_stopover(destination).select_related(
+            "organization",
+            "default_contact",
+            "default_contact__organization",
         )
-        .filter(_current_window_q())
-        .filter(Q(all_destinations=True) | Q(destination=destination))
-        .values_list("role_assignment_id", flat=True)
     )
-    org_ids = list(
-        OrganizationRoleAssignment.objects.filter(
-            id__in=assignment_ids,
-            role=OrganizationRole.SHIPPER,
-            is_active=True,
-            organization__is_active=True,
-            organization__contact_type=ContactType.ORGANIZATION,
-        ).values_list("organization_id", flat=True)
-    )
-    return _eligible_contacts_for_org_ids(org_ids)
-
-
-def eligible_recipient_contacts_for_shipper_destination(*, shipper_contact, destination):
-    shipper_org = normalize_party_contact_to_org(shipper_contact)
-    if shipper_org is None or destination is None:
-        return Contact.objects.none()
-    org_ids = list(
-        RecipientBinding.objects.filter(
-            shipper_org=shipper_org,
-            destination=destination,
-            is_active=True,
-            shipper_org__is_active=True,
-            recipient_org__is_active=True,
-        )
-        .filter(_current_window_q())
-        .values_list("recipient_org_id", flat=True)
-    )
-    return _eligible_contacts_for_org_ids(org_ids)
-
-
-def eligible_correspondent_contacts_for_destination(destination):
-    if destination is None or destination.correspondent_contact_id is None:
-        return Contact.objects.none()
-    return Contact.objects.filter(
-        pk=destination.correspondent_contact_id,
-        is_active=True,
-    ).order_by("name", "id")
+    contact_ids = {shipper.organization_id for shipper in shippers}
+    contact_ids.update(shipper.default_contact_id for shipper in shippers)
+    return _active_contacts_for_ids(contact_ids)
 
 
 def _shipment_shipper_record(shipper_org: Contact | None) -> ShipmentShipper | None:
     shipper_org = normalize_party_contact_to_org(shipper_org)
     if shipper_org is None:
         return None
-    return (
-        ShipmentShipper.objects.filter(
-            organization=shipper_org,
-            is_active=True,
-            organization__is_active=True,
-        )
-        .select_related("organization", "default_contact", "default_contact__organization")
-        .order_by("id")
-        .first()
-    )
+
+    queryset = _validated_active_shipper_queryset()
+    shipper = queryset.filter(default_contact=shipper_org).first()
+    if shipper is not None:
+        return shipper
+    return queryset.filter(organization=shipper_org).first()
 
 
 def _shipment_recipient_organization_record(
@@ -168,6 +151,7 @@ def _shipment_recipient_organization_record(
     recipient_org = normalize_party_contact_to_org(recipient_org)
     if recipient_org is None or destination is None:
         return None
+
     return (
         ShipmentRecipientOrganization.objects.filter(
             organization=recipient_org,
@@ -181,25 +165,90 @@ def _shipment_recipient_organization_record(
     )
 
 
+def eligible_recipient_contacts_for_shipper_destination(*, shipper_contact, destination):
+    if destination is None or not destination.is_active:
+        return Contact.objects.none()
+
+    shipper = _shipment_shipper_record(shipper_contact)
+    if shipper is None:
+        return Contact.objects.none()
+
+    recipient_organizations = eligible_recipient_organizations_for_shipper(
+        shipper=shipper,
+        destination=destination,
+    )
+    recipient_organization_ids = list(recipient_organizations.values_list("id", flat=True))
+    if not recipient_organization_ids:
+        return Contact.objects.none()
+
+    contact_ids = set(recipient_organizations.values_list("organization_id", flat=True))
+    contact_ids.update(
+        ShipmentAuthorizedRecipientContact.objects.filter(
+            link__shipper=shipper,
+            link__recipient_organization_id__in=recipient_organization_ids,
+            link__is_active=True,
+            recipient_contact__is_active=True,
+            recipient_contact__contact__is_active=True,
+            recipient_contact__recipient_organization__is_active=True,
+            recipient_contact__recipient_organization__validation_status=ShipmentValidationStatus.VALIDATED,
+            recipient_contact__recipient_organization__destination=destination,
+            is_active=True,
+        ).values_list("recipient_contact__contact_id", flat=True)
+    )
+    return _active_contacts_for_ids(contact_ids)
+
+
+def eligible_correspondent_contacts_for_destination(destination):
+    if destination is None or not destination.is_active:
+        return Contact.objects.none()
+
+    recipient_organization = stopover_correspondent_recipient_organization(destination)
+    if recipient_organization is None:
+        return Contact.objects.none()
+
+    contact_ids = {recipient_organization.organization_id}
+    contact_ids.update(
+        _active_recipient_contact_queryset(destination=destination)
+        .filter(recipient_organization=recipient_organization)
+        .values_list("contact_id", flat=True)
+    )
+
+    correspondent_contact = getattr(destination, "correspondent_contact", None)
+    if correspondent_contact is not None and correspondent_contact.is_active:
+        correspondent_org = normalize_party_contact_to_org(correspondent_contact)
+        if (
+            correspondent_org is not None
+            and correspondent_org.id == recipient_organization.organization_id
+        ):
+            contact_ids.add(correspondent_contact.id)
+
+    return _active_contacts_for_ids(contact_ids)
+
+
 def resolve_shipper_for_operation(*, shipper_org, destination):
     if destination is None:
-        raise OrganizationRoleResolutionError(MESSAGE_DESTINATION_REQUIRED)
+        raise ShipmentPartyResolutionError(MESSAGE_DESTINATION_REQUIRED)
+
     shipper_org = normalize_party_contact_to_org(shipper_org)
     if shipper_org is None:
-        raise OrganizationRoleResolutionError(MESSAGE_SHIPPER_REQUIRED)
+        raise ShipmentPartyResolutionError(MESSAGE_SHIPPER_REQUIRED)
 
     shipper = _shipment_shipper_record(shipper_org)
-    if shipper is None or shipper.validation_status != ShipmentValidationStatus.VALIDATED:
-        raise OrganizationRoleResolutionError(MESSAGE_SHIPPER_REVIEW_PENDING)
+    if shipper is None:
+        raise ShipmentPartyResolutionError(MESSAGE_SHIPPER_REVIEW_PENDING)
+    if not eligible_shippers_for_stopover(destination).filter(pk=shipper.pk).exists():
+        raise ShipmentPartyResolutionError(MESSAGE_SHIPPER_OUT_OF_SCOPE)
     return shipper
 
 
 def resolve_recipient_binding_for_operation(*, shipper_org, recipient_org, destination):
     if destination is None:
-        raise OrganizationRoleResolutionError(MESSAGE_DESTINATION_REQUIRED)
+        raise ShipmentPartyResolutionError(MESSAGE_DESTINATION_REQUIRED)
+
     recipient_org = normalize_party_contact_to_org(recipient_org)
     if recipient_org is None:
-        raise OrganizationRoleResolutionError(MESSAGE_RECIPIENT_REQUIRED)
+        raise ShipmentPartyResolutionError(MESSAGE_RECIPIENT_REQUIRED)
+
     shipper = resolve_shipper_for_operation(
         shipper_org=shipper_org,
         destination=destination,
@@ -210,9 +259,9 @@ def resolve_recipient_binding_for_operation(*, shipper_org, recipient_org, desti
         destination=destination,
     )
     if recipient_organization is None:
-        raise OrganizationRoleResolutionError(MESSAGE_RECIPIENT_BINDING_MISSING)
+        raise ShipmentPartyResolutionError(MESSAGE_RECIPIENT_BINDING_MISSING)
     if recipient_organization.validation_status != ShipmentValidationStatus.VALIDATED:
-        raise OrganizationRoleResolutionError(MESSAGE_RECIPIENT_REVIEW_PENDING)
+        raise ShipmentPartyResolutionError(MESSAGE_RECIPIENT_REVIEW_PENDING)
 
     if (
         not eligible_recipient_organizations_for_shipper(
@@ -222,7 +271,7 @@ def resolve_recipient_binding_for_operation(*, shipper_org, recipient_org, desti
         .filter(pk=recipient_organization.pk)
         .exists()
     ):
-        raise OrganizationRoleResolutionError(MESSAGE_RECIPIENT_BINDING_MISSING)
+        raise ShipmentPartyResolutionError(MESSAGE_RECIPIENT_BINDING_MISSING)
 
     return (
         ShipmentShipperRecipientLink.objects.filter(

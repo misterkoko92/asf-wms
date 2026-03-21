@@ -16,7 +16,6 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
         "email_queue_retry_max_seconds",
         "email_queue_processing_timeout_seconds",
         "enable_shipment_track_legacy",
-        "org_roles_review_max_open_percent",
     )
     MIN_ONE_FIELDS = (
         "low_stock_threshold",
@@ -47,7 +46,6 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
             "email_queue_retry_base_seconds",
             "email_queue_retry_max_seconds",
             "email_queue_processing_timeout_seconds",
-            "org_roles_review_max_open_percent",
             "enable_shipment_track_legacy",
         ]
         labels = {
@@ -61,7 +59,6 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
             "email_queue_processing_timeout_seconds": _(
                 "Queue email: timeout processing (secondes)"
             ),
-            "org_roles_review_max_open_percent": _("Migration roles org: max dossiers ouverts (%)"),
             "enable_shipment_track_legacy": _("Activer la route legacy suivi expédition"),
         }
         help_texts = {
@@ -75,9 +72,6 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
             "email_queue_processing_timeout_seconds": _(
                 "Au-delà, un événement processing est considéré bloqué."
             ),
-            "org_roles_review_max_open_percent": _(
-                "Seuil max de dossiers destinataires en revue avant alerte/go-live."
-            ),
             "enable_shipment_track_legacy": _("Permet la route /scan/shipment/track/<reference>/."),
         }
         widgets = {
@@ -90,9 +84,6 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
             "email_queue_retry_max_seconds": forms.NumberInput(attrs={"min": 1, "step": 1}),
             "email_queue_processing_timeout_seconds": forms.NumberInput(
                 attrs={"min": 1, "step": 1}
-            ),
-            "org_roles_review_max_open_percent": forms.NumberInput(
-                attrs={"min": 0, "max": 100, "step": 1}
             ),
         }
 
@@ -109,21 +100,9 @@ class ScanRuntimeSettingsForm(forms.ModelForm):
                 if not isinstance(validator, MinValueValidator)
             ]
             field.validators.append(MinValueValidator(1))
-        self.fields["org_roles_review_max_open_percent"].required = False
-        self.fields["org_roles_review_max_open_percent"].min_value = 0
-        self.fields["org_roles_review_max_open_percent"].max_value = 100
 
     def clean(self):
         cleaned_data = super().clean()
-        review_percent = cleaned_data.get("org_roles_review_max_open_percent")
-        if review_percent is None:
-            if getattr(self.instance, "pk", None):
-                cleaned_data["org_roles_review_max_open_percent"] = (
-                    self.instance.org_roles_review_max_open_percent
-                )
-            else:
-                cleaned_data["org_roles_review_max_open_percent"] = 20
-
         retry_base = cleaned_data.get("email_queue_retry_base_seconds")
         retry_max = cleaned_data.get("email_queue_retry_max_seconds")
         if retry_base is not None and retry_max is not None and retry_max < retry_base:

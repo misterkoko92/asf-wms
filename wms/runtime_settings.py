@@ -25,7 +25,6 @@ class RuntimeConfig:
     email_queue_retry_max_seconds: int
     email_queue_processing_timeout_seconds: int
     enable_shipment_track_legacy: bool
-    org_roles_review_max_open_percent: int
 
 
 @dataclass(frozen=True)
@@ -68,14 +67,6 @@ def _fallback_runtime_config() -> RuntimeConfig:
             minimum=1,
         ),
         enable_shipment_track_legacy=bool(getattr(settings, "ENABLE_SHIPMENT_TRACK_LEGACY", True)),
-        org_roles_review_max_open_percent=min(
-            100,
-            _safe_int(
-                getattr(settings, "ORG_ROLES_REVIEW_MAX_OPEN_PERCENT", 20),
-                default=20,
-                minimum=0,
-            ),
-        ),
     )
 
 
@@ -133,14 +124,6 @@ def get_runtime_config() -> RuntimeConfig:
             minimum=1,
         ),
         enable_shipment_track_legacy=bool(runtime.enable_shipment_track_legacy),
-        org_roles_review_max_open_percent=min(
-            100,
-            _safe_int(
-                runtime.org_roles_review_max_open_percent,
-                default=fallback.org_roles_review_max_open_percent,
-                minimum=0,
-            ),
-        ),
     )
 
 

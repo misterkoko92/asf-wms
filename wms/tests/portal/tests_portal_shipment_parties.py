@@ -7,8 +7,6 @@ from wms.models import (
     AssociationProfile,
     AssociationRecipient,
     Destination,
-    OrganizationRole,
-    OrganizationRoleAssignment,
     ShipmentAuthorizedRecipientContact,
     ShipmentRecipientContact,
     ShipmentRecipientOrganization,
@@ -39,11 +37,6 @@ class PortalShipmentPartyTests(TestCase):
             postal_code="75001",
             country="France",
             is_default=True,
-        )
-        OrganizationRoleAssignment.objects.create(
-            organization=self.association,
-            role=OrganizationRole.SHIPPER,
-            is_active=True,
         )
         self.profile = AssociationProfile.objects.create(
             user=self.user,

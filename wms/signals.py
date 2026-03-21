@@ -16,14 +16,10 @@ from contacts.correspondent_recipient_promotion import (
 from contacts.models import Contact
 
 from .auth_session import apply_remember_me_session_policy
-from .correspondent_routing import (
-    build_coordination_message_for_correspondent,
-    resolve_correspondent_organizations,
-)
 from .default_shipper_bindings import (
     default_shipper_binding_sync_enabled,
-    ensure_default_shipper_bindings_for_destination_id,
-    ensure_default_shipper_bindings_for_recipient_assignment_id,
+    ensure_default_shipper_links_for_destination_id,
+    ensure_default_shipper_links_for_recipient_organization_id,
 )
 from .emailing import (
     get_admin_emails,
@@ -37,19 +33,14 @@ from .models import (
     Order,
     OrderReviewStatus,
     OrderStatus,
-    OrganizationRole,
-    OrganizationRoleAssignment,
-    RoleEventType,
     Shipment,
+    ShipmentRecipientOrganization,
     ShipmentStatus,
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
     WmsChange,
 )
-from .notification_policy import (
-    resolve_notification_recipients,
-    resolve_reference_notification_emails,
-)
+from .notification_policy import resolve_reference_notification_emails
 from .workflow_observability import (
     log_shipment_status_transition,
     log_shipment_tracking_event,
@@ -84,14 +75,6 @@ def _uniq_emails(values):
         seen.add(key)
         emails.append(value)
     return emails
-
-
-def _org_roles_notifications_enabled() -> bool:
-    try:
-        return False
-    except Exception:
-        # Some signal unit tests run in SimpleTestCase without DB access.
-        return False
 
 
 def _bump_change(**kwargs) -> None:
@@ -260,21 +243,7 @@ def _shipment_correspondant_recipients(shipment):
     return _uniq_emails(group_recipients + correspondent_recipients)
 
 
-def _active_role_assignment(*, organization, role):
-    if organization is None:
-        return None
-    return (
-        OrganizationRoleAssignment.objects.filter(
-            organization=organization,
-            role=role,
-            is_active=True,
-        )
-        .order_by("id")
-        .first()
-    )
-
-
-def _queue_role_event_email(
+def _queue_deduped_email(
     *,
     subject,
     message,
@@ -303,168 +272,6 @@ def _queue_role_event_email(
     )
 
 
-def _dispatch_shipment_role_event(
-    *,
-    shipment,
-    event_type,
-    subject,
-    message,
-    shipper_org,
-    recipient_org,
-    destination,
-    include_correspondents=False,
-):
-    dedup_registry = set()
-    shipper_assignment = _active_role_assignment(
-        organization=shipper_org,
-        role=OrganizationRole.SHIPPER,
-    )
-    recipient_assignment = _active_role_assignment(
-        organization=recipient_org,
-        role=OrganizationRole.RECIPIENT,
-    )
-
-    for assignment in (shipper_assignment, recipient_assignment):
-        if assignment is None:
-            continue
-        recipients = resolve_notification_recipients(
-            role_assignment=assignment,
-            event_type=event_type,
-            destination=destination,
-            shipper_org=shipper_org,
-            recipient_org=recipient_org,
-        )
-        _queue_role_event_email(
-            subject=subject,
-            message=message,
-            recipients=recipients,
-            dedup_registry=dedup_registry,
-        )
-
-    if not include_correspondents:
-        return
-
-    correspondents = resolve_correspondent_organizations(
-        destination=destination,
-        shipper_org=shipper_org,
-        recipient_org=recipient_org,
-    )
-    for correspondent in correspondents:
-        correspondent_assignment = _active_role_assignment(
-            organization=correspondent,
-            role=OrganizationRole.CORRESPONDENT,
-        )
-        if correspondent_assignment is None:
-            continue
-        recipients = resolve_notification_recipients(
-            role_assignment=correspondent_assignment,
-            event_type=event_type,
-            destination=destination,
-            shipper_org=shipper_org,
-            recipient_org=recipient_org,
-        )
-        coordination_message = build_coordination_message_for_correspondent(
-            current_correspondent=correspondent,
-            all_correspondents=correspondents,
-        )
-        correspondent_message = message
-        if coordination_message:
-            correspondent_message = f"{correspondent_message}\n\n{coordination_message}"
-        _queue_role_event_email(
-            subject=subject,
-            message=correspondent_message,
-            recipients=recipients,
-            dedup_registry=dedup_registry,
-        )
-
-
-def _notify_role_based_shipment_status_change(*, shipment, old_label, new_label):
-    shipper_org = getattr(shipment, "shipper_contact_ref", None)
-    recipient_org = getattr(shipment, "recipient_contact_ref", None)
-    destination = getattr(shipment, "destination", None)
-    party_message = render_to_string(
-        SHIPMENT_STATUS_PARTY_TEMPLATE,
-        {
-            "shipment_reference": shipment.reference,
-            "old_status": old_label,
-            "new_status": new_label,
-            "destination_label": str(destination) if destination else shipment.destination_address,
-            "changed_at": timezone.localtime(timezone.now()),
-            "tracking_url": shipment.get_tracking_url(),
-        },
-    )
-    _dispatch_shipment_role_event(
-        shipment=shipment,
-        event_type=RoleEventType.SHIPMENT_STATUS_UPDATED,
-        subject=_("ASF WMS - Expédition %(reference)s : statut %(status)s")
-        % {
-            "reference": shipment.reference,
-            "status": new_label,
-        },
-        message=party_message,
-        shipper_org=shipper_org,
-        recipient_org=recipient_org,
-        destination=destination,
-        include_correspondents=True,
-    )
-
-    if shipment.status != ShipmentStatus.DELIVERED:
-        return
-
-    delivered_message = render_to_string(
-        "emails/shipment_delivery_notification.txt",
-        {
-            "shipment_reference": shipment.reference,
-            "destination_label": str(destination) if destination else shipment.destination_address,
-            "delivered_at": timezone.localtime(timezone.now()),
-            "tracking_url": shipment.get_tracking_url(),
-        },
-    )
-    _dispatch_shipment_role_event(
-        shipment=shipment,
-        event_type=RoleEventType.SHIPMENT_DELIVERED,
-        subject=_("ASF WMS - Expedition %(reference)s : livraison confirmee")
-        % {"reference": shipment.reference},
-        message=delivered_message,
-        shipper_org=shipper_org,
-        recipient_org=recipient_org,
-        destination=destination,
-        include_correspondents=True,
-    )
-
-
-def _notify_role_based_tracking_event(*, tracking_event):
-    shipment = tracking_event.shipment
-    shipper_org = getattr(shipment, "shipper_contact_ref", None)
-    recipient_org = getattr(shipment, "recipient_contact_ref", None)
-    destination = getattr(shipment, "destination", None)
-    tracking_label = (
-        tracking_event.get_status_display()
-        if hasattr(tracking_event, "get_status_display")
-        else tracking_event.status
-    )
-    message = "\n".join(
-        [
-            _("Expedition: %(reference)s") % {"reference": shipment.reference},
-            _("Statut suivi: %(status)s") % {"status": tracking_label},
-            _("Acteur: %(actor)s") % {"actor": tracking_event.actor_name or "-"},
-            _("Structure: %(structure)s") % {"structure": tracking_event.actor_structure or "-"},
-            _("Commentaires: %(comments)s") % {"comments": tracking_event.comments or "-"},
-            _("Tracking: %(url)s") % {"url": shipment.get_tracking_url()},
-        ]
-    )
-    _dispatch_shipment_role_event(
-        shipment=shipment,
-        event_type=RoleEventType.SHIPMENT_TRACKING_UPDATED,
-        subject=_("ASF WMS - Suivi expédition %(reference)s") % {"reference": shipment.reference},
-        message=message,
-        shipper_org=shipper_org,
-        recipient_org=recipient_org,
-        destination=destination,
-        include_correspondents=True,
-    )
-
-
 def _queue_shipment_party_notification(*, shipment, old_label, new_label):
     recipient_groups = _shipment_party_notification_targets(shipment)
     if not recipient_groups:
@@ -488,7 +295,7 @@ def _queue_shipment_party_notification(*, shipment, old_label, new_label):
         "status": new_label,
     }
     for recipients in recipient_groups:
-        _queue_role_event_email(
+        _queue_deduped_email(
             subject=subject,
             message=message,
             recipients=recipients,
@@ -586,14 +393,6 @@ def _notify_shipment_status_change(sender, instance, created, **kwargs) -> None:
             new_label = ShipmentStatus(instance.status).label
         except ValueError:
             new_label = instance.status
-    if _org_roles_notifications_enabled():
-        _notify_role_based_shipment_status_change(
-            shipment=instance,
-            old_label=old_label,
-            new_label=new_label,
-        )
-        return
-
     if instance.status in SHIPMENT_CONTACT_NOTIFICATION_STATUSES:
         _queue_shipment_party_notification(
             shipment=instance,
@@ -643,10 +442,6 @@ def _notify_tracking_event(sender, instance, created, **kwargs) -> None:
                 recipient=recipients,
             )
         )
-    if _org_roles_notifications_enabled():
-        _notify_role_based_tracking_event(tracking_event=instance)
-        return
-
     tracking_status = getattr(instance, "status", "")
     if tracking_status in SHIPMENT_CORRESPONDANT_TRACKING_STATUSES:
         tracking_status_label = tracking_status
@@ -801,30 +596,26 @@ def _sync_profile_contact_email_from_user(sender, instance, **kwargs) -> None:
     Contact.objects.filter(pk=profile.contact_id).update(email=target_email)
 
 
-def _sync_default_shipper_bindings_for_recipient_role(sender, instance, created, **kwargs) -> None:
+def _sync_default_shipper_links_for_recipient_organization(
+    sender, instance, created, **kwargs
+) -> None:
     if not default_shipper_binding_sync_enabled():
-        return
-    if instance.role != OrganizationRole.RECIPIENT:
         return
     if not instance.is_active:
         return
-
-    role_assignment_id = instance.id
     transaction.on_commit(
-        lambda: ensure_default_shipper_bindings_for_recipient_assignment_id(role_assignment_id)
+        lambda: ensure_default_shipper_links_for_recipient_organization_id(instance.id)
     )
 
 
-def _sync_default_shipper_bindings_for_destination(sender, instance, created, **kwargs) -> None:
+def _sync_default_shipper_links_for_destination(sender, instance, created, **kwargs) -> None:
     if not default_shipper_binding_sync_enabled():
         return
     if not instance.is_active:
         return
 
     destination_id = instance.id
-    transaction.on_commit(
-        lambda: ensure_default_shipper_bindings_for_destination_id(destination_id)
-    )
+    transaction.on_commit(lambda: ensure_default_shipper_links_for_destination_id(destination_id))
 
 
 def _sync_destination_correspondent_recipient_support(sender, instance, created, **kwargs) -> None:
@@ -916,14 +707,14 @@ def register_change_signals() -> None:
         dispatch_uid="wms_association_profile_sync_contact_email_from_user_post_save",
     )
     post_save.connect(
-        _sync_default_shipper_bindings_for_recipient_role,
-        sender=OrganizationRoleAssignment,
-        dispatch_uid="wms_default_shipper_bindings_recipient_role_post_save",
+        _sync_default_shipper_links_for_recipient_organization,
+        sender=ShipmentRecipientOrganization,
+        dispatch_uid="wms_default_shipper_links_recipient_org_post_save",
     )
     post_save.connect(
-        _sync_default_shipper_bindings_for_destination,
+        _sync_default_shipper_links_for_destination,
         sender=Destination,
-        dispatch_uid="wms_default_shipper_bindings_destination_post_save",
+        dispatch_uid="wms_default_shipper_links_destination_post_save",
     )
     post_save.connect(
         _sync_destination_correspondent_recipient_support,

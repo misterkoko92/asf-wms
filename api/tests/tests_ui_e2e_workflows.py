@@ -3,6 +3,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from rest_framework.test import APIClient
 
+from contacts.capabilities import ContactCapabilityType
 from contacts.models import Contact, ContactType
 from wms.carton_status_events import set_carton_status
 from wms.models import (
@@ -12,12 +13,9 @@ from wms.models import (
     CartonStatus,
     Destination,
     Location,
-    OrganizationRole,
-    OrganizationRoleAssignment,
     Product,
     ProductLot,
     ProductLotStatus,
-    RecipientBinding,
     Shipment,
     ShipmentAuthorizedRecipientContact,
     ShipmentRecipientContact,
@@ -26,7 +24,6 @@ from wms.models import (
     ShipmentShipperRecipientLink,
     ShipmentTrackingStatus,
     ShipmentValidationStatus,
-    ShipperScope,
     Warehouse,
 )
 
@@ -123,7 +120,10 @@ class UiApiE2EWorkflowsTests(TestCase):
             self.destination,
         )
         self.donor_contact = self._create_contact("E2E Donor")
-        self._assign_role(self.donor_contact, OrganizationRole.DONOR)
+        self.donor_contact.capabilities.update_or_create(
+            capability=ContactCapabilityType.DONOR,
+            defaults={"is_active": True},
+        )
 
     def _create_contact(
         self,
@@ -140,28 +140,11 @@ class UiApiE2EWorkflowsTests(TestCase):
         )
         return contact
 
-    def _assign_role(self, contact, role):
-        assignment, _ = OrganizationRoleAssignment.objects.get_or_create(
-            organization=contact,
-            role=role,
-            defaults={"is_active": True},
-        )
-        if not assignment.is_active:
-            assignment.is_active = True
-            assignment.save(update_fields=["is_active", "updated_at"])
-        return assignment
-
     def _grant_shipper_scope(self, shipper_contact, destination):
         shipper_org = (
             shipper_contact.organization
             if shipper_contact.contact_type == ContactType.PERSON
             else shipper_contact
-        )
-        assignment = self._assign_role(shipper_org, OrganizationRole.SHIPPER)
-        ShipperScope.objects.get_or_create(
-            role_assignment=assignment,
-            destination=destination,
-            defaults={"all_destinations": False, "is_active": True},
         )
         self._ensure_shipment_shipper(shipper_org)
 
@@ -175,13 +158,6 @@ class UiApiE2EWorkflowsTests(TestCase):
             recipient_contact.organization
             if recipient_contact.contact_type == ContactType.PERSON
             else recipient_contact
-        )
-        self._assign_role(recipient_org, OrganizationRole.RECIPIENT)
-        RecipientBinding.objects.get_or_create(
-            shipper_org=shipper_org,
-            recipient_org=recipient_org,
-            destination=destination,
-            defaults={"is_active": True},
         )
         shipment_shipper = self._ensure_shipment_shipper(shipper_org)
         recipient_referent = self._ensure_recipient_contact(recipient_org)

@@ -43,25 +43,23 @@ from wms.models import (
     OrderDocumentType,
     OrderReviewStatus,
     OrderStatus,
-    OrganizationRole,
-    OrganizationRoleAssignment,
     Product,
     ProductKitItem,
     ProductLot,
     ProductLotStatus,
-    RecipientBinding,
     Shipment,
     ShipmentRecipientOrganization,
+    ShipmentShipper,
     ShipmentShipperRecipientLink,
     ShipmentStatus,
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
     ShipmentValidationStatus,
-    ShipperScope,
     Warehouse,
 )
 from wms.portal_recipient_sync import sync_association_recipient_to_contact
 from wms.services import StockError
+from wms.shipment_party_setup import ensure_shipment_shipper
 
 
 class PortalBaseTestCase(TestCase):
@@ -99,16 +97,12 @@ class PortalBaseTestCase(TestCase):
             f"Association {user.username}",
             with_address=with_address,
         )
-        OrganizationRoleAssignment.objects.create(
-            organization=contact,
-            role=OrganizationRole.SHIPPER,
-            is_active=True,
-        )
         profile = AssociationProfile.objects.create(
             user=user,
             contact=contact,
             must_change_password=must_change_password,
         )
+        ensure_shipment_shipper(contact)
         return profile
 
     def _create_destination(self, *, city="Paris", country="France"):
@@ -1812,32 +1806,15 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         recipient.refresh_from_db()
         synced_contact = recipient.synced_contact
         self.assertIsNotNone(synced_contact)
-        recipient_assignment = OrganizationRoleAssignment.objects.get(
-            organization=synced_contact,
-            role=OrganizationRole.RECIPIENT,
-        )
-        shipper_assignment = OrganizationRoleAssignment.objects.get(
-            organization=self.profile.contact,
-            role=OrganizationRole.SHIPPER,
-        )
-        self.assertTrue(recipient_assignment.is_active)
-        self.assertTrue(
-            ShipperScope.objects.filter(
-                role_assignment=shipper_assignment,
-                destination=self.destination,
-                all_destinations=False,
-                is_active=True,
-            ).exists()
-        )
-        self.assertTrue(
-            RecipientBinding.objects.filter(
-                shipper_org=self.profile.contact,
-                recipient_org=synced_contact,
-                destination=self.destination,
-                is_active=True,
-            ).exists()
-        )
+        shipper = ShipmentShipper.objects.get(organization=self.profile.contact)
         shipment_recipient = ShipmentRecipientOrganization.objects.get(organization=synced_contact)
+        self.assertTrue(
+            ShipmentShipperRecipientLink.objects.filter(
+                shipper=shipper,
+                recipient_organization=shipment_recipient,
+                is_active=True,
+            ).exists()
+        )
         self.assertEqual(shipment_recipient.destination_id, self.destination.id)
         self.assertEqual(
             shipment_recipient.validation_status,

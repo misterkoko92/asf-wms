@@ -4,16 +4,12 @@ from contacts.models import Contact, ContactType
 from wms.forms import ScanOrderCreateForm, ScanShipmentForm
 from wms.models import (
     Destination,
-    OrganizationRole,
-    OrganizationRoleAssignment,
-    RecipientBinding,
     ShipmentAuthorizedRecipientContact,
     ShipmentRecipientContact,
     ShipmentRecipientOrganization,
     ShipmentShipper,
     ShipmentShipperRecipientLink,
     ShipmentValidationStatus,
-    ShipperScope,
 )
 
 
@@ -55,27 +51,9 @@ class FormsOrgRolesGateTests(TestCase):
         )
         return destination
 
-    def _assign_role(self, organization: Contact, role: str, *, is_active: bool = True):
-        assignment, created = OrganizationRoleAssignment.objects.get_or_create(
-            organization=organization,
-            role=role,
-            defaults={"is_active": is_active},
-        )
-        if not created and assignment.is_active != is_active:
-            assignment.is_active = is_active
-            assignment.save(update_fields=["is_active"])
-        return assignment
-
     def _grant_shipper_scope(self, shipper: Contact, destination: Destination):
         organization = (
             shipper.organization if shipper.contact_type == ContactType.PERSON else shipper
-        )
-        assignment = self._assign_role(organization, OrganizationRole.SHIPPER)
-        ShipperScope.objects.create(
-            role_assignment=assignment,
-            destination=destination,
-            all_destinations=False,
-            is_active=True,
         )
         shipper_record, _created = ShipmentShipper.objects.update_or_create(
             organization=organization,
@@ -100,13 +78,6 @@ class FormsOrgRolesGateTests(TestCase):
         )
         recipient_org = (
             recipient.organization if recipient.contact_type == ContactType.PERSON else recipient
-        )
-        self._assign_role(recipient_org, OrganizationRole.RECIPIENT)
-        RecipientBinding.objects.create(
-            shipper_org=shipper_org,
-            recipient_org=recipient_org,
-            destination=destination,
-            is_active=True,
         )
         recipient_organization, _created = ShipmentRecipientOrganization.objects.update_or_create(
             organization=recipient_org,

@@ -55,13 +55,13 @@
   </div>
 
   <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
-    <h2 class="ui-comp-title">{% trans "Contacts (pilotage org-role)" %}</h2>
+    <h2 class="ui-comp-title">{% trans "Contacts (registre unifié)" %}</h2>
     <ul>
-      <li>{% blocktrans trimmed %}La page <strong>Admin &gt; Contacts</strong> pilote le modèle <strong>organization roles</strong> (sans CRUD legacy dans Scan).{% endblocktrans %}</li>
-      <li>{% trans "Actions disponibles: activer/désactiver un rôle, gérer les contacts d'organisation, lier un contact à un rôle, définir le principal." %}</li>
-      <li>{% trans "Périmètre expéditeur: scopes globaux ou par destination." %}</li>
-      <li>{% trans "Périmètre destinataire: bindings expéditeur + destination." %}</li>
-      <li>{% trans "Onboarding guidé: création d'une organisation + rôle + contact principal depuis le cockpit." %}</li>
+      <li>{% blocktrans trimmed %}La page <strong>Admin &gt; Contacts</strong> pilote le référentiel unifié <strong>contacts + shipment parties</strong>.{% endblocktrans %}</li>
+      <li>{% trans "Actions disponibles: valider un expéditeur, gérer les structures destinataires, définir le référent destinataire par défaut et fusionner les doublons." %}</li>
+      <li>{% trans "Périmètre expéditeur: expéditeurs validés avec référent par défaut actif." %}</li>
+      <li>{% trans "Périmètre destinataire: liens expéditeur → structure destinataire et référents autorisés." %}</li>
+      <li>{% trans "Onboarding guidé: création d'une structure et de ses référents depuis le cockpit ou l'import BE canonique." %}</li>
       <li>{% trans "Les liens admin Django restent disponibles en secours pour les opérations de maintenance." %}</li>
     </ul>
   </div>
@@ -387,7 +387,7 @@
       <li>{% trans "Quantité initiale applique un mouvement de stock (emplacement requis)." %}</li>
       <li>{% trans "Emplacements: entrepôt/rack/étagère/bac requis, rack color optionnel." %}</li>
       <li>{% trans "Catégories: chemin possible (L1 > L2 > L3)." %}</li>
-      <li>{% trans "Contacts: import org-roles only, destinations et affectations créées depuis la source." %}</li>
+      <li>{% trans "Contacts: import canonique, structures et registres expédition créés depuis la source." %}</li>
       <li>{% trans "Utilisateurs: mot de passe obligatoire si IMPORT_DEFAULT_PASSWORD est vide." %}</li>
     </ul>
   </div>

@@ -23,8 +23,6 @@ from wms.models import (
     Order,
     OrderLine,
     OrderStatus,
-    OrganizationRole,
-    OrganizationRoleAssignment,
     Product,
     ProductKitItem,
     ProductLot,
@@ -34,14 +32,12 @@ from wms.models import (
     Receipt,
     ReceiptLine,
     ReceiptStatus,
-    RecipientBinding,
     Shipment,
     ShipmentRecipientOrganization,
     ShipmentShipper,
     ShipmentShipperRecipientLink,
     ShipmentStatus,
     ShipmentValidationStatus,
-    ShipperScope,
     StockMovement,
     Warehouse,
 )
@@ -116,35 +112,10 @@ class StockFlowTests(TestCase):
             is_active=True,
         )
 
-    def _assign_role(self, contact, role):
-        assignment, _ = OrganizationRoleAssignment.objects.get_or_create(
-            organization=contact,
-            role=role,
-            defaults={"is_active": True},
-        )
-        if not assignment.is_active:
-            assignment.is_active = True
-            assignment.save(update_fields=["is_active", "updated_at"])
-        return assignment
-
     def _grant_shipper_scope(self, shipper_contact, destination):
-        assignment = self._assign_role(shipper_contact, OrganizationRole.SHIPPER)
-        ShipperScope.objects.get_or_create(
-            role_assignment=assignment,
-            destination=destination,
-            defaults={"is_active": True},
-        )
         self._ensure_shipment_shipper(shipper_contact)
 
     def _bind_recipient(self, shipper_contact, recipient_contact, destination):
-        self._assign_role(shipper_contact, OrganizationRole.SHIPPER)
-        self._assign_role(recipient_contact, OrganizationRole.RECIPIENT)
-        RecipientBinding.objects.get_or_create(
-            shipper_org=shipper_contact,
-            recipient_org=recipient_contact,
-            destination=destination,
-            defaults={"is_active": True},
-        )
         shipper = self._ensure_shipment_shipper(shipper_contact)
         recipient_organization, _created = ShipmentRecipientOrganization.objects.get_or_create(
             organization=recipient_contact,
@@ -577,35 +548,10 @@ class OrderReservationTests(TestCase):
             is_active=True,
         )
 
-    def _assign_role(self, contact, role):
-        assignment, _ = OrganizationRoleAssignment.objects.get_or_create(
-            organization=contact,
-            role=role,
-            defaults={"is_active": True},
-        )
-        if not assignment.is_active:
-            assignment.is_active = True
-            assignment.save(update_fields=["is_active", "updated_at"])
-        return assignment
-
     def _grant_shipper_scope(self, shipper_contact, destination):
-        assignment = self._assign_role(shipper_contact, OrganizationRole.SHIPPER)
-        ShipperScope.objects.get_or_create(
-            role_assignment=assignment,
-            destination=destination,
-            defaults={"is_active": True},
-        )
         self._ensure_shipment_shipper(shipper_contact)
 
     def _bind_recipient(self, shipper_contact, recipient_contact, destination):
-        self._assign_role(shipper_contact, OrganizationRole.SHIPPER)
-        self._assign_role(recipient_contact, OrganizationRole.RECIPIENT)
-        RecipientBinding.objects.get_or_create(
-            shipper_org=shipper_contact,
-            recipient_org=recipient_contact,
-            destination=destination,
-            defaults={"is_active": True},
-        )
         shipper = self._ensure_shipment_shipper(shipper_contact)
         recipient_organization, _created = ShipmentRecipientOrganization.objects.get_or_create(
             organization=recipient_contact,

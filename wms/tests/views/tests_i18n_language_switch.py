@@ -13,12 +13,9 @@ from wms.models import (
     Order,
     OrderReviewStatus,
     OrderStatus,
-    OrganizationRole,
-    OrganizationRoleAssignment,
     PublicOrderLink,
     Shipment,
     ShipmentStatus,
-    ShipperScope,
 )
 
 
@@ -71,16 +68,6 @@ class LanguageSwitchI18nTests(TestCase):
             iata_code="I18",
             country="France",
             correspondent_contact=correspondent_contact,
-            is_active=True,
-        )
-        shipper_assignment = OrganizationRoleAssignment.objects.create(
-            organization=association_contact,
-            role=OrganizationRole.SHIPPER,
-            is_active=True,
-        )
-        ShipperScope.objects.create(
-            role_assignment=shipper_assignment,
-            destination=destination,
             is_active=True,
         )
         AssociationRecipient.objects.create(
@@ -417,7 +404,8 @@ class LanguageSwitchI18nTests(TestCase):
         self._activate_english()
 
         admin_contacts_response = self.client.get(reverse("scan:scan_admin_contacts"))
-        self.assertContains(admin_contacts_response, "Org-role contact cockpit")
+        self.assertContains(admin_contacts_response, "Shipment contacts cockpit")
+        self.assertNotContains(admin_contacts_response, "Pilotage contacts expédition")
         self.assertNotContains(admin_contacts_response, "Pilotage contacts org-role")
 
         print_templates_response = self.client.get(reverse("scan:scan_print_templates"))

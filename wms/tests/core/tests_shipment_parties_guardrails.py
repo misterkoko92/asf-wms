@@ -34,3 +34,6 @@ class ShipmentPartiesGuardrailsTests(SimpleTestCase):
 
         self.assertIn("eligible_shippers_for_stopover", contents)
         self.assertIn("eligible_recipient_organizations_for_shipper", contents)
+        self.assertNotIn("OrganizationRoleAssignment", contents)
+        self.assertNotIn("ShipperScope", contents)
+        self.assertNotIn("RecipientBinding", contents)

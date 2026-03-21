@@ -14,19 +14,17 @@ from wms.models import (
     Order,
     OrderLine,
     OrderStatus,
-    OrganizationRole,
-    OrganizationRoleAssignment,
     Product,
     ProductLot,
     ProductLotStatus,
-    RecipientBinding,
     Shipment,
+    ShipmentAuthorizedRecipientContact,
+    ShipmentRecipientContact,
     ShipmentRecipientOrganization,
     ShipmentShipper,
     ShipmentShipperRecipientLink,
     ShipmentStatus,
     ShipmentValidationStatus,
-    ShipperScope,
     StockMovement,
     Warehouse,
 )
@@ -34,7 +32,10 @@ from wms.models import (
 
 class ApiTests(TestCase):
     def setUp(self):
-        self.user = get_user_model().objects.create_user(username="api-user", password="pass1234")
+        self.user = get_user_model().objects.create_user(
+            username="api-user",
+            password="pass1234",  # pragma: allowlist secret
+        )
         self.client = APIClient()
         self.client.force_authenticate(self.user)
         self.warehouse = Warehouse.objects.create(name="API WH", code="API")
@@ -62,7 +63,7 @@ class ApiTests(TestCase):
         )
         self.shipper_contact = self._create_contact("API Shipper")
         self.recipient_contact = self._create_contact("API Recipient")
-        self._grant_shipper_scope(self.shipper_contact, self.destination)
+        self._ensure_shipment_shipper(self.shipper_contact)
         self._bind_recipient(self.shipper_contact, self.recipient_contact, self.destination)
 
     def _create_contact(self, name, *, contact_type=ContactType.ORGANIZATION):
@@ -83,36 +84,22 @@ class ApiTests(TestCase):
             is_active=True,
         )
 
-    def _assign_role(self, contact, role):
-        assignment, _ = OrganizationRoleAssignment.objects.get_or_create(
-            organization=contact,
-            role=role,
-            defaults={"is_active": True},
-        )
-        if not assignment.is_active:
-            assignment.is_active = True
-            assignment.save(update_fields=["is_active", "updated_at"])
-        return assignment
-
-    def _grant_shipper_scope(self, shipper_contact, destination):
-        assignment = self._assign_role(shipper_contact, OrganizationRole.SHIPPER)
-        ShipperScope.objects.get_or_create(
-            role_assignment=assignment,
-            destination=destination,
-            defaults={"is_active": True},
-        )
-        self._ensure_shipment_shipper(shipper_contact)
-
     def _bind_recipient(self, shipper_contact, recipient_contact, destination):
-        self._assign_role(shipper_contact, OrganizationRole.SHIPPER)
-        self._assign_role(recipient_contact, OrganizationRole.RECIPIENT)
-        RecipientBinding.objects.get_or_create(
-            shipper_org=shipper_contact,
-            recipient_org=recipient_contact,
-            destination=destination,
-            defaults={"is_active": True},
-        )
         shipper = self._ensure_shipment_shipper(shipper_contact)
+        recipient_referent = (
+            Contact.objects.filter(
+                organization=recipient_contact,
+                contact_type=ContactType.PERSON,
+                is_active=True,
+            )
+            .order_by("id")
+            .first()
+        )
+        if recipient_referent is None:
+            recipient_referent = self._create_person_contact(
+                f"Default {recipient_contact.name}",
+                organization=recipient_contact,
+            )
         recipient_organization, _created = ShipmentRecipientOrganization.objects.get_or_create(
             organization=recipient_contact,
             defaults={
@@ -133,10 +120,20 @@ class ApiTests(TestCase):
             updates.append("is_active")
         if updates:
             recipient_organization.save(update_fields=updates)
-        ShipmentShipperRecipientLink.objects.get_or_create(
+        shipment_recipient_contact, _created = ShipmentRecipientContact.objects.update_or_create(
+            recipient_organization=recipient_organization,
+            contact=recipient_referent,
+            defaults={"is_active": True},
+        )
+        link, _created = ShipmentShipperRecipientLink.objects.get_or_create(
             shipper=shipper,
             recipient_organization=recipient_organization,
             defaults={"is_active": True},
+        )
+        ShipmentAuthorizedRecipientContact.objects.update_or_create(
+            link=link,
+            recipient_contact=shipment_recipient_contact,
+            defaults={"is_default": True, "is_active": True},
         )
 
     def _ensure_shipment_shipper(self, shipper_contact):
@@ -274,7 +271,7 @@ class ApiTests(TestCase):
         line = order.lines.first()
         self.assertEqual(line.prepared_quantity, 4)
 
-    @override_settings(INTEGRATION_API_KEY="test-key")
+    @override_settings(INTEGRATION_API_KEY="test-key")  # pragma: allowlist secret
     def test_integration_shipments_with_api_key(self):
         contact = Contact.objects.create(name="Dest Contact")
         destination = Destination.objects.create(
@@ -295,13 +292,13 @@ class ApiTests(TestCase):
         self.assertEqual(response.status_code, 403)
         response = client.get(
             "/api/v1/integrations/shipments/",
-            HTTP_X_ASF_INTEGRATION_KEY="test-key",
+            HTTP_X_ASF_INTEGRATION_KEY="test-key",  # pragma: allowlist secret
         )
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(len(data), 1)
 
-    @override_settings(INTEGRATION_API_KEY="test-key")
+    @override_settings(INTEGRATION_API_KEY="test-key")  # pragma: allowlist secret
     def test_integration_shipments_filters(self):
         contact = Contact.objects.create(name="Filter Contact")
         destination_paris = Destination.objects.create(
@@ -335,7 +332,7 @@ class ApiTests(TestCase):
         client = APIClient()
         response = client.get(
             "/api/v1/integrations/shipments/?status=packed",
-            HTTP_X_ASF_INTEGRATION_KEY="test-key",
+            HTTP_X_ASF_INTEGRATION_KEY="test-key",  # pragma: allowlist secret
         )
         self.assertEqual(response.status_code, 200)
         data = response.json()
@@ -344,14 +341,14 @@ class ApiTests(TestCase):
 
         response = client.get(
             "/api/v1/integrations/shipments/?destination=PAR",
-            HTTP_X_ASF_INTEGRATION_KEY="test-key",
+            HTTP_X_ASF_INTEGRATION_KEY="test-key",  # pragma: allowlist secret
         )
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(len(data), 1)
         self.assertEqual(data[0]["id"], shipment_paris.id)
 
-    @override_settings(INTEGRATION_API_KEY="test-key")
+    @override_settings(INTEGRATION_API_KEY="test-key")  # pragma: allowlist secret
     def test_integration_event_create(self):
         client = APIClient()
         payload = {
@@ -363,7 +360,7 @@ class ApiTests(TestCase):
             "/api/v1/integrations/events/",
             payload,
             format="json",
-            HTTP_X_ASF_INTEGRATION_KEY="test-key",
+            HTTP_X_ASF_INTEGRATION_KEY="test-key",  # pragma: allowlist secret
         )
         self.assertEqual(response.status_code, 201)
         self.assertEqual(IntegrationEvent.objects.count(), 1)

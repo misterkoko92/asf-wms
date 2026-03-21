@@ -24,12 +24,10 @@ KEEP_MODEL_LABELS = frozenset(
         "wms.PrintPack",
         "wms.PrintPackDocument",
         "wms.PrintCellMapping",
-        "wms.DocumentRequirementTemplate",
         "wms.CommunicationTemplate",
         "wms.PlanningParameterSet",
         "wms.BillingComputationProfile",
         "wms.BillingServiceCatalogItem",
-        "wms.RoleEventPolicy",
         "wms.ShipmentUnitEquivalenceRule",
         "wms.WmsRuntimeSettings",
     }
@@ -116,21 +114,13 @@ DELETE_BATCHES = (
         ),
     ),
     (
-        "org_roles_and_reviews",
+        "shipment_parties_runtime",
         (
-            "wms.ContactSubscription",
-            "wms.ComplianceOverride",
             "wms.ShipmentAuthorizedRecipientContact",
             "wms.ShipmentRecipientContact",
             "wms.ShipmentShipperRecipientLink",
             "wms.ShipmentRecipientOrganization",
             "wms.ShipmentShipper",
-            "wms.OrganizationRoleDocument",
-            "wms.OrganizationRoleContact",
-            "wms.OrganizationContact",
-            "wms.RecipientBinding",
-            "wms.ShipperScope",
-            "wms.OrganizationRoleAssignment",
         ),
     ),
     (
@@ -154,6 +144,7 @@ DELETE_BATCHES = (
     (
         "contacts",
         (
+            "contacts.ContactCapability",
             "contacts.ContactAddress",
             "contacts.Contact",
         ),

@@ -12,9 +12,6 @@ from wms.models import (
     Carton,
     CartonStatus,
     Destination,
-    OrganizationRole,
-    OrganizationRoleAssignment,
-    RecipientBinding,
     Shipment,
     ShipmentAuthorizedRecipientContact,
     ShipmentRecipientContact,
@@ -23,7 +20,6 @@ from wms.models import (
     ShipmentShipperRecipientLink,
     ShipmentStatus,
     ShipmentValidationStatus,
-    ShipperScope,
 )
 from wms.scan_shipment_handlers import (
     _get_carton_count,

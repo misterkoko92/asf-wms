@@ -4,6 +4,7 @@ from django import forms as django_forms
 from django.test import TestCase
 from django.utils import timezone, translation
 
+from contacts.capabilities import ContactCapabilityType, ensure_contact_capability
 from contacts.correspondent_recipient_promotion import SUPPORT_ORGANIZATION_NAME
 from contacts.models import Contact, ContactAddress, ContactType
 from wms.forms import (
@@ -25,12 +26,9 @@ from wms.models import (
     CartonStatus,
     Destination,
     Order,
-    OrganizationRole,
-    OrganizationRoleAssignment,
     Product,
     Receipt,
     ReceiptType,
-    RecipientBinding,
     Shipment,
     ShipmentAuthorizedRecipientContact,
     ShipmentRecipientContact,
@@ -39,7 +37,6 @@ from wms.models import (
     ShipmentShipperRecipientLink,
     ShipmentStatus,
     ShipmentValidationStatus,
-    ShipperScope,
     Warehouse,
 )
 
@@ -187,33 +184,13 @@ class FormsTests(TestCase):
         )
 
     def _activate_shipper(self, organization, *, destination=None, all_destinations=False):
-        assignment = OrganizationRoleAssignment.objects.create(
-            organization=(
-                organization.organization
-                if organization.contact_type == ContactType.PERSON
-                else organization
-            ),
-            role=OrganizationRole.SHIPPER,
-            is_active=True,
-        )
-        if destination is not None or all_destinations:
-            ShipperScope.objects.create(
-                role_assignment=assignment,
-                destination=destination,
-                all_destinations=all_destinations,
-                is_active=True,
-            )
         return self._register_shipper(organization, can_send_to_all=all_destinations)[1]
 
     def _activate_recipient(self, organization):
-        return OrganizationRoleAssignment.objects.create(
-            organization=(
-                organization.organization
-                if organization.contact_type == ContactType.PERSON
-                else organization
-            ),
-            role=OrganizationRole.RECIPIENT,
-            is_active=True,
+        return (
+            organization.organization
+            if organization.contact_type == ContactType.PERSON
+            else organization
         )
 
     def _bind_recipient(self, *, shipper_org, recipient_org, destination):
@@ -226,12 +203,6 @@ class FormsTests(TestCase):
             recipient_org.organization
             if recipient_org.contact_type == ContactType.PERSON
             else recipient_org
-        )
-        RecipientBinding.objects.create(
-            shipper_org=shipper_organization,
-            recipient_org=recipient_organization,
-            destination=destination,
-            is_active=True,
         )
         shipper, _default_contact = self._register_shipper(shipper_org)
         shipment_recipient_org, shipment_recipient_contact, recipient_contact = (
@@ -409,33 +380,21 @@ class FormsTests(TestCase):
         self.assertEqual(form.errors["warehouse"], ["Entrepôt requis."])
         self.assertEqual(form.cleaned_data.get("received_on"), timezone.localdate())
 
-    def test_scan_receipt_and_stock_forms_use_active_org_role_assignments(self):
+    def test_scan_receipt_and_stock_forms_use_unified_contacts_runtime(self):
         donor = self._create_org("Donor Role")
         shipper = self._create_org("Shipper Role")
         transporter = self._create_org("Transporter Role")
         inactive_donor = self._create_org("Inactive Donor")
         legacy_contact = self._create_org("Legacy Only")
-        self._activate_recipient(legacy_contact)
-        OrganizationRoleAssignment.objects.create(
-            organization=donor,
-            role=OrganizationRole.DONOR,
-            is_active=True,
+        ensure_contact_capability(donor, ContactCapabilityType.DONOR)
+        ensure_contact_capability(transporter, ContactCapabilityType.TRANSPORTER)
+        self._register_shipper(shipper)
+        inactive_capability = ensure_contact_capability(
+            inactive_donor,
+            ContactCapabilityType.DONOR,
         )
-        OrganizationRoleAssignment.objects.create(
-            organization=shipper,
-            role=OrganizationRole.SHIPPER,
-            is_active=True,
-        )
-        OrganizationRoleAssignment.objects.create(
-            organization=transporter,
-            role=OrganizationRole.TRANSPORTER,
-            is_active=True,
-        )
-        OrganizationRoleAssignment.objects.create(
-            organization=inactive_donor,
-            role=OrganizationRole.DONOR,
-            is_active=False,
-        )
+        inactive_capability.is_active = False
+        inactive_capability.save(update_fields=["is_active"])
 
         create_form = ScanReceiptCreateForm()
         pallet_form = ScanReceiptPalletForm()

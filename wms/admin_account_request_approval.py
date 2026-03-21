@@ -13,6 +13,7 @@ from contacts.models import Contact, ContactAddress
 
 from . import models
 from .portal_permissions import assign_association_portal_group
+from .shipment_party_setup import ensure_shipment_shipper
 
 ACCOUNT_ACCESS_PENDING = gettext_lazy("Disponible après validation.")
 ACCOUNT_ACCESS_USER_NOT_FOUND = gettext_lazy("Utilisateur introuvable.")
@@ -188,14 +189,7 @@ def approve_account_request(
         profile.must_change_password = True
         profile.save(update_fields=["contact", "must_change_password"])
         assign_association_portal_group(user)
-        shipper_assignment, _created = models.OrganizationRoleAssignment.objects.get_or_create(
-            organization=contact,
-            role=models.OrganizationRole.SHIPPER,
-            defaults={"is_active": True},
-        )
-        if not shipper_assignment.is_active:
-            shipper_assignment.is_active = True
-            shipper_assignment.save(update_fields=["is_active"])
+        ensure_shipment_shipper(contact)
 
         models.AccountDocument.objects.filter(
             account_request=account_request,

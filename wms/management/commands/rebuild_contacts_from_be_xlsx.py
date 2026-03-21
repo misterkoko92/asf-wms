@@ -25,7 +25,10 @@ def _resolve_path(value: str) -> Path:
 
 
 class Command(BaseCommand):
-    help = "Normalize the BE workbook and rebuild contacts, destinations, and org-role links."
+    help = (
+        "Normalize the BE workbook and rebuild contacts, capabilities, destinations, "
+        "and shipment parties."
+    )
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -72,11 +75,13 @@ class Command(BaseCommand):
         self.stdout.write(f"Source: {source_path}")
         self.stdout.write(f"Source sheets: {', '.join(dataset.source_sheets)}")
         self.stdout.write(f"Review report: {report_path}")
+        self.stdout.write(f"Contacts: {len(dataset.contacts)}")
         self.stdout.write(f"Donors: {len(dataset.donors)}")
+        self.stdout.write(f"Transporters: {len(dataset.transporters)}")
+        self.stdout.write(f"Volunteers: {len(dataset.volunteers)}")
         self.stdout.write(f"Shippers: {len(dataset.shippers)}")
         self.stdout.write(f"Recipients: {len(dataset.recipients)}")
         self.stdout.write(f"Correspondents: {len(dataset.correspondents)}")
         self.stdout.write(f"Destinations: {len(dataset.destinations)}")
-        self.stdout.write(f"Shipper scopes: {len(dataset.shipper_scopes)}")
-        self.stdout.write(f"Recipient bindings: {len(dataset.recipient_bindings)}")
+        self.stdout.write(f"Shipment links: {len(dataset.shipment_links)}")
         self.stdout.write(f"Review items: {len(dataset.review_items)}")

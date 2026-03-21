@@ -1,29 +1,23 @@
-from datetime import timedelta
-
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.test.client import RequestFactory
 from django.urls import reverse
-from django.utils import timezone
 
 from contacts.models import Contact, ContactAddress, ContactType
 from wms.admin_account_request_approval import approve_account_request
 from wms.models import (
     AssociationProfile,
     AssociationRecipient,
-    ComplianceOverride,
     Destination,
-    DocumentRequirementTemplate,
-    OrganizationContact,
-    OrganizationRole,
-    OrganizationRoleAssignment,
-    OrganizationRoleContact,
     PublicAccountRequest,
     PublicAccountRequestStatus,
     PublicAccountRequestType,
-    RecipientBinding,
-    ShipperScope,
+    ShipmentRecipientOrganization,
+    ShipmentShipper,
+    ShipmentShipperRecipientLink,
+    ShipmentValidationStatus,
 )
+from wms.shipment_party_setup import ensure_shipment_shipper
 from wms.view_permissions import (
     BLOCKED_REASON_COMPLIANCE_REQUIRED,
     BLOCKED_REASON_QUERY_PARAM,
@@ -97,83 +91,32 @@ class PortalRoleReviewGateTests(TestCase):
             is_active=True,
         )
 
-    def _activate_shipper_assignment(self) -> OrganizationRoleAssignment:
-        assignment, _ = OrganizationRoleAssignment.objects.get_or_create(
-            organization=self.profile.contact,
-            role=OrganizationRole.SHIPPER,
-            defaults={"is_active": False},
-        )
-        contact = OrganizationContact.objects.create(
-            organization=self.profile.contact,
-            first_name="Primary",
-            last_name="Gate",
-            email="primary-gate@example.org",
-            is_active=True,
-        )
-        OrganizationRoleContact.objects.create(
-            role_assignment=assignment,
-            contact=contact,
-            is_primary=True,
-            is_active=True,
-        )
-        assignment.is_active = True
-        assignment.save(update_fields=["is_active"])
-        return assignment
+    def _activate_shipper(self, *, status=ShipmentValidationStatus.VALIDATED) -> ShipmentShipper:
+        return ensure_shipment_shipper(self.profile.contact, validation_status=status)
 
     def test_shipper_pending_review_blocks_order_creation(self):
-        OrganizationRoleAssignment.objects.create(
-            organization=self.profile.contact,
-            role=OrganizationRole.SHIPPER,
-            is_active=False,
-        )
+        self._activate_shipper(status=ShipmentValidationStatus.PENDING)
+
         response = self.client.get(self.order_create_url, follow=True)
+
         expected_redirect = (
             f"{self.account_url}?{BLOCKED_REASON_QUERY_PARAM}={BLOCKED_REASON_REVIEW_PENDING}"
         )
         self.assertRedirects(response, expected_redirect)
         self.assertContains(response, "Compte expéditeur en cours de revue ASF")
 
-    def test_non_compliant_shipper_blocks_order_creation(self):
-        assignment = self._activate_shipper_assignment()
-        DocumentRequirementTemplate.objects.create(
-            role=OrganizationRole.SHIPPER,
-            code="legal-doc",
-            label="Document légal",
-            is_required=True,
-            is_active=True,
-        )
+    def test_rejected_shipper_blocks_order_creation(self):
+        self._activate_shipper(status=ShipmentValidationStatus.REJECTED)
 
         response = self.client.get(self.order_create_url, follow=True)
+
         expected_redirect = (
             f"{self.account_url}?{BLOCKED_REASON_QUERY_PARAM}={BLOCKED_REASON_COMPLIANCE_REQUIRED}"
         )
         self.assertRedirects(response, expected_redirect)
         self.assertContains(response, "documents expéditeur non conformes")
-        self.assertTrue(
-            OrganizationRoleAssignment.objects.filter(pk=assignment.pk, is_active=True).exists()
-        )
 
-    def test_compliance_override_unblocks_order_creation(self):
-        assignment = self._activate_shipper_assignment()
-        DocumentRequirementTemplate.objects.create(
-            role=OrganizationRole.SHIPPER,
-            code="legal-doc-2",
-            label="Document légal 2",
-            is_required=True,
-            is_active=True,
-        )
-        ComplianceOverride.objects.create(
-            role_assignment=assignment,
-            reason="Override temporaire",
-            expires_at=timezone.now() + timedelta(days=2),
-            is_active=True,
-        )
-
-        response = self.client.get(self.order_create_url)
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "portal/order_create.html")
-
-    def test_recipient_creation_creates_active_recipient_role_assignment(self):
+    def test_recipient_creation_creates_shipment_party_runtime(self):
         destination = self._create_destination("DLA")
         response = self.client.post(
             self.recipients_url,
@@ -202,35 +145,22 @@ class PortalRoleReviewGateTests(TestCase):
         recipient = AssociationRecipient.objects.get(structure_name="Action contre la faim")
         self.assertIsNotNone(recipient.synced_contact_id)
         recipient_contact = recipient.synced_contact
-        assignment = OrganizationRoleAssignment.objects.filter(
+        shipper = ShipmentShipper.objects.get(organization=self.profile.contact)
+        shipment_recipient = ShipmentRecipientOrganization.objects.get(
             organization=recipient_contact,
-            role=OrganizationRole.RECIPIENT,
-        ).first()
-        shipper_assignment = OrganizationRoleAssignment.objects.filter(
-            organization=self.profile.contact,
-            role=OrganizationRole.SHIPPER,
-        ).first()
-        self.assertIsNotNone(assignment)
-        self.assertIsNotNone(shipper_assignment)
-        self.assertTrue(assignment.is_active)
-        self.assertTrue(
-            ShipperScope.objects.filter(
-                role_assignment=shipper_assignment,
-                destination=destination,
-                all_destinations=False,
-                is_active=True,
-            ).exists()
+            destination=destination,
         )
+        self.assertEqual(shipper.validation_status, ShipmentValidationStatus.VALIDATED)
+        self.assertTrue(shipment_recipient.is_active)
         self.assertTrue(
-            RecipientBinding.objects.filter(
-                shipper_org=self.profile.contact,
-                recipient_org=recipient_contact,
-                destination=destination,
+            ShipmentShipperRecipientLink.objects.filter(
+                shipper=shipper,
+                recipient_organization=shipment_recipient,
                 is_active=True,
             ).exists()
         )
 
-    def test_approve_account_request_activates_shipper_role_assignment(self):
+    def test_approve_account_request_creates_validated_shipper(self):
         admin_user = get_user_model().objects.create_user(
             username="admin-role-review",
             email="admin-role-review@example.org",
@@ -258,14 +188,11 @@ class PortalRoleReviewGateTests(TestCase):
             account_request=account_request,
             enqueue_email=lambda **kwargs: None,
         )
+
         self.assertTrue(ok)
         self.assertEqual(reason, "")
-
         account_request.refresh_from_db()
         self.assertEqual(account_request.status, PublicAccountRequestStatus.APPROVED)
-        assignment = OrganizationRoleAssignment.objects.filter(
-            organization=account_request.contact,
-            role=OrganizationRole.SHIPPER,
-        ).first()
-        self.assertIsNotNone(assignment)
-        self.assertTrue(assignment.is_active)
+        shipper = ShipmentShipper.objects.get(organization=account_request.contact)
+        self.assertTrue(shipper.is_active)
+        self.assertEqual(shipper.validation_status, ShipmentValidationStatus.VALIDATED)

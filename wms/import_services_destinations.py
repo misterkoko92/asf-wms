@@ -2,8 +2,7 @@ import re
 
 from contacts.models import Contact, ContactType
 
-from .models import Destination, OrganizationRole, OrganizationRoleAssignment
-from .organization_role_resolvers import active_organizations_for_role
+from .models import Destination, ShipmentRecipientOrganization, ShipmentValidationStatus
 
 DESTINATION_LABEL_RE = re.compile(
     r"^(?P<city>.+?)\s*\((?P<iata>[^)]+)\)\s*(?:-\s*(?P<country>.+))?$"
@@ -53,33 +52,36 @@ def _generate_destination_code(base):
     return candidate
 
 
-def _ensure_correspondent_role(contact):
+def _ensure_correspondent_contact(contact):
     if not contact or contact.contact_type != ContactType.ORGANIZATION:
         return contact
     if not contact.is_active:
         contact.is_active = True
         contact.save(update_fields=["is_active"])
-    assignment, _created = OrganizationRoleAssignment.objects.get_or_create(
-        organization=contact,
-        role=OrganizationRole.CORRESPONDENT,
-        defaults={"is_active": True},
-    )
-    if not assignment.is_active:
-        assignment.is_active = True
-        assignment.save(update_fields=["is_active"])
     return contact
 
 
 def _select_default_correspondent():
-    correspondent = active_organizations_for_role(OrganizationRole.CORRESPONDENT).first()
+    correspondent = (
+        ShipmentRecipientOrganization.objects.filter(
+            is_correspondent=True,
+            is_active=True,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            organization__is_active=True,
+            organization__contact_type=ContactType.ORGANIZATION,
+        )
+        .select_related("organization")
+        .order_by("organization__name", "id")
+        .first()
+    )
     if correspondent:
-        return correspondent
+        return correspondent.organization
     correspondent, _ = Contact.objects.get_or_create(
         name=DEFAULT_CORRESPONDENT_NAME,
         contact_type=ContactType.ORGANIZATION,
         defaults={"notes": DEFAULT_CORRESPONDENT_NOTES, "is_active": True},
     )
-    return _ensure_correspondent_role(correspondent)
+    return _ensure_correspondent_contact(correspondent)
 
 
 def _find_destination_by_iata(iata_code):
@@ -106,19 +108,20 @@ def _find_existing_destination(*, city, country):
     ).first()
 
 
-def _contact_has_correspondent_role(contact):
+def _contact_is_correspondent_organization(contact):
     if not contact or contact.contact_type != ContactType.ORGANIZATION:
         return False
-    return OrganizationRoleAssignment.objects.filter(
+    return ShipmentRecipientOrganization.objects.filter(
         organization=contact,
-        role=OrganizationRole.CORRESPONDENT,
+        is_correspondent=True,
         is_active=True,
+        validation_status=ShipmentValidationStatus.VALIDATED,
     ).exists()
 
 
 def _resolve_destination_correspondent(*, contact):
-    if contact and _contact_has_correspondent_role(contact):
-        return _ensure_correspondent_role(contact)
+    if contact and _contact_is_correspondent_organization(contact):
+        return _ensure_correspondent_contact(contact)
     return _select_default_correspondent()
 
 

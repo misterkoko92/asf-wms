@@ -1453,6 +1453,30 @@ msgstr "Product QR codes"
 msgid "Pilotage contacts org-role"
 msgstr "Org-role contact cockpit"
 
+#: templates/scan/admin_contacts.html:5
+msgid "Gestion des contacts"
+msgstr "Contacts management"
+
+#: templates/scan/admin_contacts.html:7
+msgid ""
+"Répertoire unifié des structures et personnes, avec cockpit expédition basé "
+"sur le registre canonique."
+msgstr ""
+"Unified directory of organizations and people, with a shipment cockpit "
+"backed by the canonical registry."
+
+#: templates/scan/admin_contacts.html:41
+msgid "Pilotage contacts expédition"
+msgstr "Shipment contacts cockpit"
+
+#: templates/scan/admin_contacts.html:43
+msgid ""
+"Lecture du registre expéditeurs, structures destinataires, liens autorisés "
+"et correspondants d'escale."
+msgstr ""
+"Read-only view of shippers, recipient organizations, authorized links, and "
+"stopover correspondents."
+
 #: templates/scan/admin_contacts.html:10
 msgid ""
 "Gestion centralisée des organisations, rôles, contacts et mappings métier "

@@ -23,8 +23,8 @@ def _resolve_path(value: str) -> Path:
 
 class Command(BaseCommand):
     help = (
-        "Reset operational contact runtime data, then rebuild contacts and org roles "
-        "from the canonical BE workbook."
+        "Reset operational contact runtime data, then rebuild canonical contacts, "
+        "capabilities, and shipment parties from the BE workbook."
     )
 
     def add_arguments(self, parser):
@@ -61,7 +61,7 @@ class Command(BaseCommand):
             raise CommandError(f"Workbook source not found: {source_path}")
 
         mode = "APPLY" if apply else "DRY RUN"
-        self.stdout.write(f"Canonical org-roles contact rebuild [{mode}]")
+        self.stdout.write(f"Canonical contact rebuild [{mode}]")
         self.stdout.write(f"Source: {source_path}")
         self.stdout.write(f"Review report: {report_path}")
 

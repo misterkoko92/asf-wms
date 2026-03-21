@@ -9,10 +9,10 @@ from contacts.models import Contact, ContactType
 from wms import exports
 from wms.models import (
     Destination,
-    OrganizationRole,
-    OrganizationRoleAssignment,
-    RecipientBinding,
-    ShipperScope,
+    ShipmentRecipientOrganization,
+    ShipmentShipper,
+    ShipmentShipperRecipientLink,
+    ShipmentValidationStatus,
 )
 
 
@@ -432,26 +432,26 @@ class ExportsDatabaseTests(TestCase):
             correspondent_contact=correspondent,
             is_active=True,
         )
-        shipper_assignment = OrganizationRoleAssignment.objects.create(
+        ShipmentShipper.objects.create(
             organization=shipper,
-            role=OrganizationRole.SHIPPER,
+            default_contact=Contact.objects.create(
+                name="Referent Shipper Org",
+                contact_type=ContactType.PERSON,
+                organization=shipper,
+                is_active=True,
+            ),
+            validation_status=ShipmentValidationStatus.VALIDATED,
             is_active=True,
         )
-        OrganizationRoleAssignment.objects.create(
+        shipment_recipient = ShipmentRecipientOrganization.objects.create(
             organization=recipient,
-            role=OrganizationRole.RECIPIENT,
+            destination=destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
             is_active=True,
         )
-        ShipperScope.objects.create(
-            role_assignment=shipper_assignment,
-            destination=destination,
-            all_destinations=False,
-            is_active=True,
-        )
-        RecipientBinding.objects.create(
-            shipper_org=shipper,
-            recipient_org=recipient,
-            destination=destination,
+        ShipmentShipperRecipientLink.objects.create(
+            shipper=ShipmentShipper.objects.get(organization=shipper),
+            recipient_organization=shipment_recipient,
             is_active=True,
         )
 

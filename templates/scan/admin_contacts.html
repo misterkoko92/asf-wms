@@ -3,15 +3,16 @@
 {% block title %}WMS Scan - Admin Contacts{% endblock %}
 {% block content %}
     <div class="scan-card card border-0 ui-comp-card">
-        <h2 class="ui-comp-title">{% trans "Pilotage contacts org-role" %}</h2>
+        <h2 class="ui-comp-title">{% trans "Gestion des contacts" %}</h2>
         <p class="scan-help ui-comp-note">
-            {% trans "Gestion centralisée des organisations, rôles, contacts et mappings métier depuis l'interface Scan." %}
+            {% trans "Répertoire unifié des structures et personnes, avec cockpit expédition basé sur le registre canonique." %}
         </p>
     </div>
+
     <div class="scan-card card border-0 ui-comp-card">
         <h3 class="ui-comp-title h5 mb-3">{% trans "Recherche et filtres" %}</h3>
         <form method="get" class="scan-filters row g-3 ui-comp-form">
-            <div class="scan-field col-12 col-md-4">
+            <div class="scan-field col-12 col-md-8">
                 <label class="form-label" for="scan-admin-contacts-q">{% trans "Recherche" %}</label>
                 <input id="scan-admin-contacts-q"
                        type="text"
@@ -20,36 +21,12 @@
                        class="form-control"
                        placeholder="{% trans "Nom, email, téléphone, ASF ID" %}">
             </div>
-            <div class="scan-field col-12 col-md-3">
-                <label class="form-label" for="scan-admin-contacts-type">{% trans "Filtre principal: type de contact" %}</label>
+            <div class="scan-field col-12 col-md-4">
+                <label class="form-label" for="scan-admin-contacts-type">{% trans "Type de contact" %}</label>
                 <select id="scan-admin-contacts-type" name="contact_type" class="form-select">
                     {% for value, label in contact_filter_choices %}
                         <option value="{{ value }}"
                                 {% if contact_filter == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="scan-field col-12 col-md-2">
-                <label class="form-label" for="scan-admin-contacts-role">{% trans "Rôle org" %}</label>
-                <select id="scan-admin-contacts-role" name="role" class="form-select">
-                    <option value="">{% trans "Tous" %}</option>
-                    {% for value, label in cockpit_role_choices %}
-                        <option value="{{ value }}"
-                                {% if cockpit_filters.role == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="scan-field col-12 col-md-3">
-                <label class="form-label" for="scan-admin-contacts-shipper-filter">{% trans "Destinataires d'un expéditeur" %}</label>
-                <select id="scan-admin-contacts-shipper-filter"
-                        name="shipper_org_id"
-                        class="form-select">
-                    <option value="">{% trans "Tous" %}</option>
-                    {% for organization in cockpit_binding_shipper_organizations %}
-                        <option value="{{ organization.id }}"
-                                {% if cockpit_filters.shipper_org_id == organization.id|stringformat:"s" %}selected{% endif %}>
-                            {{ organization.name }}
-                        </option>
                     {% endfor %}
                 </select>
             </div>
@@ -59,6 +36,7 @@
             </div>
         </form>
     </div>
+
     <div class="scan-card card border-0 ui-comp-card">
         <h3 class="ui-comp-title h5 mb-3">{% trans "Pilotage contacts expédition" %}</h3>
         <p class="scan-help ui-comp-note">
@@ -337,664 +315,19 @@
             </div>
         </div>
     </div>
+
     <div class="scan-card card border-0 ui-comp-card">
-        <h3 class="ui-comp-title h5 mb-3">{% trans "Actions métier" %}</h3>
-        <p class="scan-help ui-comp-note">{% trans "Actions de création et de mise à jour directement dans le cockpit." %}</p>
-        <div class="row g-3 ui-comp-form">
-            <div class="col-12 col-xl-6" style="order: 3;">
-                <div class="ui-comp-panel p-3 border rounded-3">
-                    <h4 class="h6 mb-2 d-flex align-items-center gap-2">
-                        {% trans "Activer / désactiver un rôle sur une organisation" %}
-                        <button type="button"
-                                class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
-                                data-bs-toggle="tooltip"
-                                data-bs-trigger="hover focus click"
-                                title="{% trans "Sélectionnez une organisation et un rôle métier, puis activez ou désactivez ce rôle." %}"
-                                aria-label="{% trans "Aide sur les rôles d'organisation" %}">?
-                        </button>
-                    </h4>
-                    <form method="post" class="row g-2">
-                        {% csrf_token %}
-                        <input type="hidden" name="q" value="{{ query }}">
-                        <input type="hidden" name="contact_type" value="{{ contact_filter }}">
-                        <div class="col-12 col-md-6">
-                            <label class="form-label">{% trans "Organisation" %}
-                            </label>
-                            <select name="organization_id" class="form-select" required>
-                                <option value="">{% trans "Choisir..." %}
-                                </option>
-                                {% for organization in cockpit_organizations %}
-                                    <option value="{{ organization.id }}">{{ organization.name }}
-                                    </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-12 col-md-6">
-                            <label class="form-label">{% trans "Rôle" %}
-                            </label>
-                            <select name="role" class="form-select" required>
-                                <option value="">{% trans "Choisir..." %}
-                                </option>
-                                {% for value, label in cockpit_role_choices %}
-                                    <option value="{{ value }}">{{ label }}
-                                    </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-12 d-flex flex-wrap gap-2">
-                            <button type="submit"
-                                    name="action"
-                                    value="assign_role"
-                                    class="btn btn-primary">{% trans "Activer rôle" %}
-                            </button>
-                            <button type="submit"
-                                    name="action"
-                                    value="unassign_role"
-                                    class="btn btn-warning">{% trans "Désactiver rôle" %}
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-            <div class="col-12 col-xl-6" style="order: 2;">
-                <div class="ui-comp-panel p-3 border rounded-3">
-                    <h4 class="h6 mb-2 d-flex align-items-center gap-2">
-                        {% trans "Créer ou mettre à jour une personne rattachée à une organisation" %}
-                        <button type="button"
-                                class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
-                                data-bs-toggle="tooltip"
-                                data-bs-trigger="hover focus click"
-                                title="{% trans "Créez un nouveau contact d'organisation ou mettez à jour un contact existant de la même organisation." %}"
-                                aria-label="{% trans "Aide sur les contacts organisation" %}">?</button>
-                    </h4>
-                    <form id="scan-org-contact-upsert-form" method="post" class="row g-2">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="upsert_org_contact">
-                        <input type="hidden" name="q" value="{{ query }}">
-                        <input type="hidden" name="contact_type" value="{{ contact_filter }}">
-                        <div class="col-12 col-md-6">
-                            <label class="form-label" for="scan-org-contact-organization">{% trans "Organisation" %}</label>
-                            <select id="scan-org-contact-organization"
-                                    name="organization_id"
-                                    class="form-select"
-                                    required>
-                                <option value="">{% trans "Choisir..." %}</option>
-                                {% for organization in cockpit_organizations %}
-                                    <option value="{{ organization.id }}">{{ organization.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-12 col-md-6">
-                            <label class="form-label" for="scan-org-contact-existing">{% trans "Contact existant (optionnel)" %}</label>
-                            <select id="scan-org-contact-existing"
-                                    name="organization_contact_id"
-                                    class="form-select">
-                                <option value="">{% trans "Nouveau contact" %}</option>
-                                <option value="" disabled>---</option>
-                                {# djlint:off #}
-                                <option value="" disabled>{% trans "Contacts déjà liés" %}</option>
-                                {% for org_contact in cockpit_linked_organization_contacts %}
-                                    <option value="{{ org_contact.id }}"
-                                            data-organization-id="{{ org_contact.organization_id }}"
-                                            data-title="{{ org_contact.title }}"
-                                            data-first-name="{{ org_contact.first_name }}"
-                                            data-last-name="{{ org_contact.last_name }}"
-                                            data-email="{{ org_contact.email }}"
-                                            data-phone="{{ org_contact.phone }}"
-                                            data-is-active="{% if org_contact.is_active %}1{% else %}0{% endif %}">
-                                        {{ org_contact.last_name }} {{ org_contact.first_name }} - {{ org_contact.organization.name }}{% if org_contact.email %} - {{ org_contact.email }}{% endif %}
-                                    </option>
-                                {% endfor %}
-                                <option value="" disabled>---</option>
-                                <option value="" disabled>{% trans "Tous les contacts" %}</option>
-                                {% for org_contact in cockpit_all_organization_contacts %}
-                                    <option value="{{ org_contact.id }}"
-                                            data-organization-id="{{ org_contact.organization_id }}"
-                                            data-title="{{ org_contact.title }}"
-                                            data-first-name="{{ org_contact.first_name }}"
-                                            data-last-name="{{ org_contact.last_name }}"
-                                            data-email="{{ org_contact.email }}"
-                                            data-phone="{{ org_contact.phone }}"
-                                            data-is-active="{% if org_contact.is_active %}1{% else %}0{% endif %}">
-                                        {{ org_contact.last_name }} {{ org_contact.first_name }} - {{ org_contact.organization.name }}{% if org_contact.email %} - {{ org_contact.email }}{% endif %}
-                                    </option>
-                                {% endfor %}
-                                {# djlint:on #}
-                            </select>
-                        </div>
-            <div class="col-12 col-md-4">
-                <label class="form-label" for="scan-org-contact-title">{% trans "Civilité" %}</label>
-                <select id="scan-org-contact-title" name="title" class="form-select">
-                    <option value="">{% trans "Aucune" %}</option>
-                    {% for group in cockpit_contact_title_groups %}
-                        <optgroup label="{{ group.label }}">
-                            {% for value, label in group.choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
-                        </optgroup>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-12 col-md-4">
-                <label class="form-label" for="scan-org-contact-first-name">{% trans "Prénom" %}</label>
-                <input id="scan-org-contact-first-name"
-                       type="text"
-                       name="first_name"
-                       class="form-control"
-                       maxlength="120">
-            </div>
-            <div class="col-12 col-md-4">
-                <label class="form-label" for="scan-org-contact-last-name">{% trans "Nom" %}</label>
-                <input id="scan-org-contact-last-name"
-                       type="text"
-                       name="last_name"
-                       class="form-control"
-                       maxlength="120">
-            </div>
-            <div class="col-12 col-md-6">
-                <label class="form-label" for="scan-org-contact-email">Email</label>
-                <input id="scan-org-contact-email"
-                       type="email"
-                       name="email"
-                       class="form-control">
-            </div>
-            <div class="col-12 col-md-6">
-                <label class="form-label" for="scan-org-contact-phone">{% trans "Téléphone" %}</label>
-                <input id="scan-org-contact-phone"
-                       type="text"
-                       name="phone"
-                       class="form-control"
-                       maxlength="40">
-                <div class="form-text">
-                    {% blocktrans trimmed %}
-                        Optionnel. Format international attendu: <code>+33000000000</code> ou <code>+33 6 20 20 20 20</code>.
-                    {% endblocktrans %}
-                </div>
-            </div>
-            <div class="col-12">
-                <div class="form-check form-switch">
-                    <input id="scan-org-contact-active"
-                           type="checkbox"
-                           name="is_active"
-                           class="form-check-input"
-                           checked>
-                    <label for="scan-org-contact-active" class="form-check-label">{% trans "Contact actif" %}</label>
-                </div>
-            </div>
-            <div class="col-12">
-                <button type="submit" class="btn btn-primary">{% trans "Créer / mettre à jour" %}</button>
-            </div>
-        </form>
-    </div>
-</div>
-<div class="col-12 col-xl-6" style="order: 4;">
-    <div class="ui-comp-panel p-3 border rounded-3">
-        <h4 class="h6 mb-2 d-flex align-items-center gap-2">
-            {% trans "Associer une personne à un rôle (et définir le principal)" %}
-            <button type="button"
-                    class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
-                    data-bs-toggle="tooltip"
-                    data-bs-trigger="hover focus click"
-                    title="{% trans "Utilisez cette carte pour lier ou délier un contact à un rôle existant, ou définir le contact principal pour ce rôle." %}"
-                    aria-label="{% trans "Aide sur les liaisons rôle-contact" %}">?</button>
-        </h4>
-        <form method="post" class="row g-2">
-            {% csrf_token %}
-            <input type="hidden" name="q" value="{{ query }}">
-            <input type="hidden" name="contact_type" value="{{ contact_filter }}">
-            <div class="col-12 col-md-6">
-                <label class="form-label">{% trans "Affectation de rôle" %}</label>
-                <select name="role_assignment_id" class="form-select" required>
-                    <option value="">{% trans "Choisir..." %}</option>
-                    {% for assignment in cockpit_role_assignments %}
-                        <option value="{{ assignment.id }}">
-                            {{ assignment.organization.name }} - {{ assignment.get_role_display }}
-                            {% if not assignment.is_active %}
-                                ({% trans "inactif" %})
-                            {% endif %}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-12 col-md-6">
-                <label class="form-label">{% trans "Contact organisation" %}</label>
-                <select name="organization_contact_id" class="form-select" required>
-                    <option value="">{% trans "Choisir..." %}</option>
-                    <option value="" disabled>---</option>
-                    {# djlint:off #}
-                    <option value="" disabled>{% trans "Contacts déjà liés" %}</option>
-                    {% for org_contact in cockpit_linked_organization_contacts %}
-                        <option value="{{ org_contact.id }}">
-                            {{ org_contact.last_name }} {{ org_contact.first_name }} - {{ org_contact.organization.name }}{% if org_contact.email %} - {{ org_contact.email }}{% endif %}
-                        </option>
-                    {% endfor %}
-                    <option value="" disabled>---</option>
-                    <option value="" disabled>{% trans "Tous les contacts" %}</option>
-                    {% for org_contact in cockpit_all_organization_contacts %}
-                        <option value="{{ org_contact.id }}">
-                            {{ org_contact.last_name }} {{ org_contact.first_name }} - {{ org_contact.organization.name }}{% if org_contact.email %} - {{ org_contact.email }}{% endif %}
-                        </option>
-                    {% endfor %}
-                    {# djlint:on #}
-                </select>
-            </div>
-            <div class="col-12 d-flex flex-wrap gap-2">
-    <button type="submit"
-            name="action"
-            value="link_role_contact"
-            class="btn btn-primary">{% trans "Lier" %}</button>
-    <button type="submit"
-            name="action"
-            value="set_primary_role_contact"
-            class="btn btn-secondary">{% trans "Définir principal" %}</button>
-    <button type="submit"
-            name="action"
-            value="unlink_role_contact"
-            class="btn btn-warning">{% trans "Délier" %}</button>
-</div>
-</form>
-</div>
-</div>
-<div class="col-12 col-xl-6" style="order: 5;">
-    <div class="ui-comp-panel p-3 border rounded-3">
-        <h4 class="h6 mb-2 d-flex align-items-center gap-2">
-            {% trans "Définir le périmètre d'un expéditeur (escales autorisées)" %}
-            <button type="button"
-                    class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
-                    data-bs-toggle="tooltip"
-                    data-bs-trigger="hover focus click"
-                    title="{% trans "Configurez si un expéditeur est autorisé sur toutes les escales ou uniquement sur une escale donnée, avec des dates de validité." %}"
-                    aria-label="{% trans "Aide sur les périmètres expéditeur" %}">?</button>
-        </h4>
-        <form id="scan-shipper-scope-upsert-form" method="post" class="row g-2">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="upsert_shipper_scope">
-            <input type="hidden" name="q" value="{{ query }}">
-            <input type="hidden" name="contact_type" value="{{ contact_filter }}">
-            <div class="col-12 col-md-6">
-                <label class="form-label" for="scan-shipper-scope-role-assignment">{% trans "Choisir un expéditeur" %}</label>
-                <select id="scan-shipper-scope-role-assignment"
-                        name="role_assignment_id"
-                        class="form-select"
-                        required>
-                    <option value="">{% trans "Choisir..." %}</option>
-                    {% for assignment in cockpit_shipper_role_assignments %}
-                        <option value="{{ assignment.id }}">{{ assignment.organization.name }} - {{ assignment.get_role_display }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-12 col-md-6">
-                <label class="form-label d-flex align-items-center gap-2"
-                       for="scan-shipper-scope-id">
-                    {% trans "Règle de périmètre existante (optionnel)" %}
-                    <button type="button"
-                            class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
-                            data-bs-toggle="tooltip"
-                            data-bs-trigger="hover focus click"
-                            title="{% trans "Sélectionnez une règle existante pour la modifier au lieu d'en créer une nouvelle." %}"
-                            aria-label="{% trans "Aide sur les règles de périmètre existantes" %}">?
-                    </button>
-                </label>
-                <select id="scan-shipper-scope-id" name="scope_id" class="form-select">
-                    <option value="">{% trans "Nouveau périmètre" %}
-                    </option>
-                    {% for scope in cockpit_shipper_scopes %}
-                        <option value="{{ scope.id }}">
-                            {{ scope.role_assignment.organization.name }} -
-                            {% if scope.all_destinations %}
-                                {% trans "Toutes escales" %}
-                            {% else %}
-                                {{ scope.destination.iata_code }}
-                            {% endif %}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-12 col-md-6">
-                <label class="form-label" for="scan-shipper-scope-destination">{% trans "Destination" %}
-                </label>
-                <select id="scan-shipper-scope-destination"
-                        name="destination_id"
-                        class="form-select">
-                    <option value="">{% trans "Aucune (mode global)" %}
-                    </option>
-                    {% for destination in cockpit_destinations %}
-                        <option value="{{ destination.id }}">{{ destination.iata_code }} - {{ destination.city }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-12 col-md-6 d-flex align-items-end">
-                <div class="form-check form-switch">
-                    <input id="scan-scope-all-destinations"
-                           type="checkbox"
-                           name="all_destinations"
-                           class="form-check-input">
-                    <label for="scan-scope-all-destinations" class="form-check-label">{% trans "Toutes les escales" %}
-                    </label>
-                </div>
-            </div>
-            <div class="col-12 col-md-6">
-                <label class="form-label">{% trans "Validité début" %}
-                </label>
-                <input type="datetime-local" name="valid_from" class="form-control">
-            </div>
-            <div class="col-12 col-md-6">
-                <label class="form-label">{% trans "Validité fin" %}
-                </label>
-                <input type="datetime-local" name="valid_to" class="form-control">
-            </div>
-            <div class="col-12">
-                <button type="submit" class="btn btn-primary">{% trans "Créer / mettre à jour le périmètre" %}
-                </button>
-            </div>
-        </form>
-        <hr>
-        <form method="post" class="row g-2">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="disable_shipper_scope">
-            <input type="hidden" name="q" value="{{ query }}">
-            <input type="hidden" name="contact_type" value="{{ contact_filter }}">
-            <div class="col-12 col-md-8">
-                <label class="form-label d-flex align-items-center gap-2"
-                       for="scan-shipper-scope-disable-id">
-                    {% trans "Règle de périmètre à désactiver" %}
-                    <button type="button"
-                            class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
-                            data-bs-toggle="tooltip"
-                            data-bs-trigger="hover focus click"
-                            title="{% trans "Choisissez ici la règle active à fermer pour retirer une autorisation d'escale." %}"
-                            aria-label="{% trans "Aide sur la désactivation de périmètre" %}">?</button>
-                </label>
-                <select id="scan-shipper-scope-disable-id"
-                        name="scope_id"
-                        class="form-select"
-                        required>
-                    <option value="">{% trans "Choisir..." %}</option>
-                    {% for scope in cockpit_shipper_scopes %}
-                        {% if scope.is_active %}
-                            <option value="{{ scope.id }}">
-                                {{ scope.role_assignment.organization.name }} -
-                                {% if scope.all_destinations %}
-                                    {% trans "Toutes escales" %}
-                                {% else %}
-                                    {{ scope.destination.iata_code }}
-                                {% endif %}
-                            </option>
-                        {% endif %}
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-12 col-md-4 d-flex align-items-end">
-                <button type="submit" class="btn btn-warning">{% trans "Désactiver le périmètre" %}</button>
-            </div>
-        </form>
-    </div>
-</div>
-<div class="col-12 col-xl-6" style="order: 6;">
-    <div class="ui-comp-panel p-3 border rounded-3">
-        <h4 class="h6 mb-2 d-flex align-items-center gap-2">
-            {% trans "Lier un destinataire à un expéditeur et à une escale" %}
-            <button type="button"
-                    class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
-                    data-bs-toggle="tooltip"
-                    data-bs-trigger="hover focus click"
-                    title="{% trans "Créez ou mettez à jour un lien expéditeur vers destinataire sur une escale précise, puis clôturez-le si besoin." %}"
-                    aria-label="{% trans "Aide sur les liens expéditeur-destinataire" %}">?</button>
-        </h4>
-        <form id="scan-recipient-binding-upsert-form" method="post" class="row g-2">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="upsert_recipient_binding">
-            <input type="hidden" name="q" value="{{ query }}">
-            <input type="hidden" name="contact_type" value="{{ contact_filter }}">
-            <div class="col-12 col-md-6">
-                <label class="form-label" for="scan-binding-existing">{% trans "Lien existant (optionnel)" %}</label>
-                <select id="scan-binding-existing" name="binding_id" class="form-select">
-                    <option value="">{% trans "Nouveau lien" %}</option>
-                    {% for binding in cockpit_recipient_bindings %}
-                        <option value="{{ binding.id }}"
-                                data-shipper-org-id="{{ binding.shipper_org_id }}"
-                                data-recipient-org-id="{{ binding.recipient_org_id }}"
-                                data-destination-id="{{ binding.destination_id }}"
-                                data-is-active="{% if binding.is_active %}1{% else %}0{% endif %}"
-                                data-valid-from="{% if binding.valid_from %}{{ binding.valid_from|date:'Y-m-d\\TH:i' }}{% endif %}"
-                                data-valid-to="{% if binding.valid_to %}{{ binding.valid_to|date:'Y-m-d\\TH:i' }}{% endif %}">
-                            {{ binding.shipper_org.name }} → {{ binding.recipient_org.name }} ({{ binding.destination.iata_code }})
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-12 col-md-6">
-                <label class="form-label" for="scan-binding-shipper-org-id">{% trans "Expéditeur" %}</label>
-                <select id="scan-binding-shipper-org-id"
-                        name="shipper_org_id"
-                        class="form-select"
-                        required>
-                    <option value="">{% trans "Choisir..." %}</option>
-                    {% for organization in cockpit_binding_shipper_organizations %}
-                        <option value="{{ organization.id }}">{{ organization.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-12 col-md-6">
-                <label class="form-label" for="scan-binding-recipient-org-id">{% trans "Destinataire" %}</label>
-                <select id="scan-binding-recipient-org-id"
-                        name="recipient_org_id"
-                        class="form-select"
-                        required>
-                    <option value="">{% trans "Choisir..." %}</option>
-                    {% for organization in cockpit_binding_recipient_organizations %}
-                        <option value="{{ organization.id }}"
-                                data-default-destination-id="{{ organization.default_destination_id }}">
-                            {{ organization.name }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-12 col-md-6">
-                <label class="form-label" for="scan-binding-destination-id">{% trans "Destination" %}</label>
-                <select id="scan-binding-destination-id"
-                        name="destination_id"
-                        class="form-select"
-                        required>
-                    <option value="">{% trans "Choisir..." %}</option>
-                    {% for destination in cockpit_destinations %}
-                        <option value="{{ destination.id }}">{{ destination.iata_code }} - {{ destination.city }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-12 col-md-6">
-                <label class="form-label" for="scan-binding-valid-from">{% trans "Validité début" %}</label>
-                <input id="scan-binding-valid-from"
-                       type="datetime-local"
-                       name="valid_from"
-                       class="form-control">
-            </div>
-            <div class="col-12 col-md-6">
-                <label class="form-label" for="scan-binding-valid-to">{% trans "Validité fin" %}</label>
-                <input id="scan-binding-valid-to"
-                       type="datetime-local"
-                       name="valid_to"
-                       class="form-control">
-            </div>
-            <div class="col-12">
-                <button type="submit" class="btn btn-primary">{% trans "Créer / mettre à jour le lien" %}</button>
-            </div>
-        </form>
-        <hr>
-        <form method="post" class="row g-2">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="close_recipient_binding">
-            <input type="hidden" name="q" value="{{ query }}">
-            <input type="hidden" name="contact_type" value="{{ contact_filter }}">
-            <div class="col-12 col-md-6">
-                <label class="form-label">{% trans "Lien à clôturer" %}</label>
-                <select name="binding_id" class="form-select" required>
-                    <option value="">{% trans "Choisir..." %}</option>
-                    {% for binding in cockpit_recipient_bindings %}
-                        {% if binding.is_active %}
-                            <option value="{{ binding.id }}">
-                                {{ binding.shipper_org.name }} → {{ binding.recipient_org.name }} ({{ binding.destination.iata_code }})
-                            </option>
-                        {% endif %}
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-12 col-md-6">
-                <label class="form-label">{% trans "Date de fin" %}</label>
-                <input type="datetime-local" name="valid_to" class="form-control" required>
-            </div>
-            <div class="col-12">
-                <button type="submit" class="btn btn-warning">{% trans "Clôturer le lien" %}</button>
-            </div>
-        </form>
-    </div>
-</div>
-<div class="col-12 col-xl-6" style="order: 1;">
-    <div class="ui-comp-panel p-3 border rounded-3">
-        <h4 class="h6 mb-2 d-flex align-items-center gap-2">
-            {% trans "Assistant de création rapide (organisation)" %}
-            <button type="button"
-                    class="btn btn-sm btn-tertiary rounded-pill px-2 py-0"
-                    data-bs-toggle="tooltip"
-                    data-bs-trigger="hover focus click"
-                    title="{% trans "Assistant simplifié pour créer une organisation seule, ou une organisation avec un contact principal rattaché." %}"
-                    aria-label="{% trans "Aide sur la création guidée" %}">?</button>
-        </h4>
-        <form id="scan-guided-contact-form" method="post" class="row g-2">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="create_guided_contact">
-            <input type="hidden" name="q" value="{{ query }}">
-            <input type="hidden" name="contact_type" value="{{ contact_filter }}">
-            <div class="col-12 col-md-6">
-                <label class="form-label" for="scan-guided-entity-kind">{% trans "Je crée" %}</label>
-                <select id="scan-guided-entity-kind"
-                        name="entity_kind"
-                        class="form-select"
-                        required>
-                    <option value="organization">{% trans "une organisation" %}</option>
-                    <option value="organization_with_contact">{% trans "une organisation et une personne liée" %}</option>
-                </select>
-            </div>
-            <div class="col-12 col-md-6">
-                <label class="form-label" for="scan-guided-role">{% trans "Rôle initial" %}</label>
-                <select id="scan-guided-role" name="role" class="form-select" required>
-                    <option value="">{% trans "Choisir..." %}</option>
-                    {% for value, label in cockpit_role_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
-                </select>
-            </div>
-            <div class="col-12 col-md-6">
-                <label class="form-label" for="scan-guided-organization-name">{% trans "Nom de l'organisation" %}</label>
-                <input id="scan-guided-organization-name"
-                       type="text"
-                       name="organization_name"
-                       class="form-control"
-                       maxlength="200"
-                       required>
-            </div>
-            <div class="col-12 col-md-4">
-                <label class="form-label" for="scan-guided-name">{% trans "Nom complet" %}</label>
-                <input id="scan-guided-name"
-                       type="text"
-                       name="name"
-                       class="form-control"
-                       maxlength="200">
-            </div>
-            <div class="col-12 col-md-4">
-                <label class="form-label" for="scan-guided-first-name">{% trans "Prénom" %}</label>
-                <input id="scan-guided-first-name"
-                       type="text"
-                       name="first_name"
-                       class="form-control"
-                       maxlength="120">
-            </div>
-            <div class="col-12 col-md-4">
-                <label class="form-label" for="scan-guided-last-name">{% trans "Nom" %}</label>
-                <input id="scan-guided-last-name"
-                       type="text"
-                       name="last_name"
-                       class="form-control"
-                       maxlength="120">
-            </div>
-            <div class="col-12 col-md-6">
-                <label class="form-label" for="scan-guided-email">Email</label>
-                <input id="scan-guided-email" type="email" name="email" class="form-control">
-            </div>
-            <div class="col-12 col-md-6">
-                <label class="form-label" for="scan-guided-phone">{% trans "Téléphone" %}</label>
-                <input id="scan-guided-phone"
-                       type="text"
-                       name="phone"
-                       class="form-control"
-                       maxlength="40">
-            </div>
-            <div class="col-12">
-                <div class="form-check form-switch">
-                    <input id="scan-guided-contact-active"
-                           type="checkbox"
-                           name="is_active"
-                           class="form-check-input"
-                           checked>
-                    <label for="scan-guided-contact-active" class="form-check-label">{% trans "Actif" %}</label>
-                </div>
-            </div>
-            <div class="col-12">
-                <button type="submit" class="btn btn-primary">{% trans "Créer" %}</button>
-            </div>
-        </form>
-    </div>
-</div>
-</div>
-</div>
-<div class="scan-card card border-0 ui-comp-card">
-    <h3 class="ui-comp-title h5 mb-3">{% trans "Tableau organisations (cockpit)" %}</h3>
-    <div class="scan-table-wrap table-responsive">
-        <table class="scan-table table table-sm table-hover" data-table-tools="1">
-            <thead>
-                <tr>
-                    <th>{% trans "Organisation" %}</th>
-                    <th>{% trans "Rôles actifs" %}</th>
-                    <th>{% trans "Bindings destinataire actifs" %}</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in cockpit_rows %}
-                    <tr>
-                        <td>{{ row.organization.name }}</td>
-                        <td>
-                            {% if row.active_role_labels %}
-                                {{ row.active_role_labels|join:", " }}
-                            {% else %}
-                                -
-                            {% endif %}
-                        </td>
-                        <td>{{ row.recipient_bindings_count }}</td>
-                    </tr>
-                {% empty %}
-                    <tr>
-                        <td colspan="3">{% trans "Aucune organisation ne correspond aux filtres." %}</td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-<div class="scan-card card border-0 ui-comp-card">
-    <h3 class="ui-comp-title h5 mb-3">
-        {% blocktrans trimmed with count=contacts|length %}
-            Contacts ({{ count }})
-        {% endblocktrans %}
-    </h3>
-    {% if contacts %}
+        <h3 class="ui-comp-title h5 mb-3">{% trans "Répertoire des contacts" %}</h3>
         <div class="scan-table-wrap table-responsive">
-            <table class="scan-table table table-sm table-hover" data-table-tools="1">
+            <table class="scan-table table table-sm table-hover">
                 <thead>
                     <tr>
                         <th>{% trans "Nom" %}</th>
                         <th>{% trans "Type" %}</th>
-                        <th>{% trans "ASF ID" %}</th>
+                        <th>{% trans "Organisation" %}</th>
                         <th>Email</th>
                         <th>{% trans "Téléphone" %}</th>
-                        <th>{% trans "Actif" %}</th>
-                        <th>{% trans "Actions" %}</th>
+                        <th>{% trans "Statut" %}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1002,363 +335,147 @@
                         <tr>
                             <td>{{ contact.name }}</td>
                             <td>{{ contact.get_contact_type_display }}</td>
-                            <td>{{ contact.asf_id|default:"-" }}</td>
+                            <td>{{ contact.organization|default:"-" }}</td>
                             <td>{{ contact.email|default:"-" }}</td>
                             <td>{{ contact.phone|default:"-" }}</td>
                             <td>
                                 {% if contact.is_active %}
-                                    {% trans "Oui" %}
+                                    {% trans "Actif" %}
                                 {% else %}
-                                    {% trans "Non" %}
+                                    {% trans "Inactif" %}
                                 {% endif %}
                             </td>
-                            <td>
-                                <span class="scan-help">{% trans "Édition via cockpit org-role ou admin Django." %}</span>
-                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="6">{% trans "Aucun contact trouvé." %}</td>
                         </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-    {% else %}
-        <p class="scan-help">{% trans "Aucun contact trouvé." %}</p>
-    {% endif %}
-</div>
-<div class="scan-card card border-0 ui-comp-card">
-    <h3 class="ui-comp-title h5 mb-3">
-        {% blocktrans trimmed with count=correspondents|length %}
-            Correspondants ({{ count }})
-        {% endblocktrans %}
-    </h3>
-    {% if correspondents %}
+        <div class="scan-actions d-flex flex-wrap gap-2 mt-3">
+            <a class="scan-scan-btn btn btn-tertiary"
+               href="{{ contacts_admin_url }}">{% trans "Tous les contacts (admin)" %}</a>
+            <a class="scan-scan-btn btn btn-tertiary" href="{{ contact_add_url }}">{% trans "Ajouter un contact (admin)" %}</a>
+            <a class="scan-scan-btn btn btn-tertiary"
+               href="{{ destination_admin_url }}">{% trans "Destinations (admin)" %}</a>
+            <a class="scan-scan-btn btn btn-tertiary" href="{{ destination_add_url }}">{% trans "Ajouter destination (admin)" %}</a>
+        </div>
+    </div>
+
+    <div class="scan-card card border-0 ui-comp-card">
+        <h3 class="ui-comp-title h5 mb-3">{% trans "Correspondants configurés" %}</h3>
         <div class="scan-table-wrap table-responsive">
-            <table class="scan-table table table-sm table-hover" data-table-tools="1">
+            <table class="scan-table table table-sm table-hover">
                 <thead>
                     <tr>
                         <th>{% trans "Nom" %}</th>
-                        <th>Email</th>
-                        <th>{% trans "Téléphone" %}</th>
+                        <th>{% trans "Type" %}</th>
+                        <th>{% trans "Organisation" %}</th>
+                        <th>{% trans "Escales" %}</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for contact in correspondents %}
                         <tr>
                             <td>{{ contact.name }}</td>
-                            <td>{{ contact.email|default:"-" }}</td>
-                            <td>{{ contact.phone|default:"-" }}</td>
+                            <td>{{ contact.get_contact_type_display }}</td>
+                            <td>{{ contact.organization|default:"-" }}</td>
+                            <td>
+                                {% for destination in contact.destinations_as_correspondent.all %}
+                                    {% if destination.is_active %}
+                                        {{ destination }}{% if not forloop.last %}, {% endif %}
+                                    {% endif %}
+                                {% empty %}
+                                    -
+                                {% endfor %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="4">{% trans "Aucun correspondant configuré." %}</td>
                         </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-    {% else %}
-        <p class="scan-help">{% trans "Aucun correspondant trouvé." %}</p>
-    {% endif %}
-</div>
-<div class="scan-card card border-0 ui-comp-card">
-    <h3 class="ui-comp-title h5 mb-3">{% trans "Secours admin Django" %}</h3>
-    <div class="scan-filter-actions">
-        <a class="scan-scan-btn btn btn-tertiary"
-           href="{{ contacts_admin_url }}">{% trans "Tous les contacts (admin)" %}</a>
-        <a class="scan-scan-btn btn btn-tertiary" href="{{ contact_add_url }}">{% trans "Ajouter un contact (admin)" %}</a>
-        <a class="scan-scan-btn btn btn-tertiary"
-           href="{{ destination_admin_url }}">{% trans "Destinations (admin)" %}</a>
-        <a class="scan-scan-btn btn btn-tertiary"
-           href="{{ destination_add_url }}">{% trans "Ajouter une destination (admin)" %}</a>
     </div>
-</div>
-<script>
-    window.addEventListener("load", function () {
-      if (window.bootstrap && window.bootstrap.Tooltip) {
-        document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (trigger) {
-          window.bootstrap.Tooltip.getOrCreateInstance(trigger);
-        });
-      }
 
-      var orgContactSelect = document.getElementById("scan-org-contact-existing");
-      var orgSelect = document.getElementById("scan-org-contact-organization");
-      var titleInput = document.getElementById("scan-org-contact-title");
-      var firstNameInput = document.getElementById("scan-org-contact-first-name");
-      var lastNameInput = document.getElementById("scan-org-contact-last-name");
-      var emailInput = document.getElementById("scan-org-contact-email");
-      var phoneInput = document.getElementById("scan-org-contact-phone");
-      var isActiveInput = document.getElementById("scan-org-contact-active");
-
-      function hydrateOrgContactFormFromSelection() {
-        if (!orgContactSelect) {
-          return;
-        }
-        var selectedOption = orgContactSelect.options[orgContactSelect.selectedIndex];
-        if (!selectedOption || !selectedOption.value) {
-          if (titleInput) titleInput.value = "";
-          if (firstNameInput) firstNameInput.value = "";
-          if (lastNameInput) lastNameInput.value = "";
-          if (emailInput) emailInput.value = "";
-          if (phoneInput) phoneInput.value = "";
-          if (isActiveInput) isActiveInput.checked = true;
-          return;
-        }
-        if (orgSelect && selectedOption.dataset.organizationId) {
-          orgSelect.value = selectedOption.dataset.organizationId;
-        }
-        if (titleInput) titleInput.value = selectedOption.dataset.title || "";
-        if (firstNameInput) firstNameInput.value = selectedOption.dataset.firstName || "";
-        if (lastNameInput) lastNameInput.value = selectedOption.dataset.lastName || "";
-        if (emailInput) emailInput.value = selectedOption.dataset.email || "";
-        if (phoneInput) phoneInput.value = selectedOption.dataset.phone || "";
-        if (isActiveInput) {
-          isActiveInput.checked = (selectedOption.dataset.isActive || "0") === "1";
-        }
-      }
-
-      if (orgContactSelect) {
-        orgContactSelect.addEventListener("change", hydrateOrgContactFormFromSelection);
-      }
-
-      var bindingSelect = document.getElementById("scan-binding-existing");
-      var bindingShipperSelect = document.getElementById("scan-binding-shipper-org-id");
-      var bindingRecipientSelect = document.getElementById("scan-binding-recipient-org-id");
-      var bindingDestinationSelect = document.getElementById("scan-binding-destination-id");
-      var bindingValidFromInput = document.getElementById("scan-binding-valid-from");
-      var bindingValidToInput = document.getElementById("scan-binding-valid-to");
-      var bindingActiveDestinationByPair = {};
-
-      function _bindingPairKey(shipperOrgId, recipientOrgId) {
-        return shipperOrgId + ":" + recipientOrgId;
-      }
-
-      if (bindingSelect) {
-        Array.prototype.forEach.call(bindingSelect.options, function (option) {
-          if (!option || !option.value) {
-            return;
-          }
-          if ((option.dataset.isActive || "0") !== "1") {
-            return;
-          }
-          var shipperOrgId = option.dataset.shipperOrgId || "";
-          var recipientOrgId = option.dataset.recipientOrgId || "";
-          var destinationId = option.dataset.destinationId || "";
-          if (!shipperOrgId || !recipientOrgId || !destinationId) {
-            return;
-          }
-          bindingActiveDestinationByPair[_bindingPairKey(shipperOrgId, recipientOrgId)] =
-            destinationId;
-        });
-      }
-
-      function applySuggestedDestinationFromSelection() {
-        if (!bindingRecipientSelect || !bindingDestinationSelect) {
-          return;
-        }
-        var recipientOption = bindingRecipientSelect.options[bindingRecipientSelect.selectedIndex];
-        if (!recipientOption || !recipientOption.value) {
-          return;
-        }
-        var suggestedDestinationId = "";
-        if (bindingShipperSelect && bindingShipperSelect.value) {
-          suggestedDestinationId =
-            bindingActiveDestinationByPair[
-              _bindingPairKey(bindingShipperSelect.value, recipientOption.value)
-            ] || "";
-        }
-        if (!suggestedDestinationId) {
-          suggestedDestinationId = recipientOption.dataset.defaultDestinationId || "";
-        }
-        if (!suggestedDestinationId) {
-          return;
-        }
-        var hasMatchingOption = Array.prototype.some.call(
-          bindingDestinationSelect.options,
-          function (option) {
-            return option.value === suggestedDestinationId;
-          }
+    <script>
+      (function () {
+        var shipmentLinkSelect = document.getElementById("scan-shipment-link-id");
+        var shipmentRecipientContactSelect = document.getElementById(
+          "scan-shipment-recipient-contact-id"
         );
-        if (hasMatchingOption) {
-          bindingDestinationSelect.value = suggestedDestinationId;
-        }
-      }
 
-      function hydrateBindingFormFromSelection() {
-        if (!bindingSelect) {
-          return;
+        function syncShipmentAuthorizedRecipientOptions() {
+          if (!shipmentLinkSelect || !shipmentRecipientContactSelect) {
+            return;
+          }
+          var selectedLinkId = shipmentLinkSelect.value || "";
+          shipmentRecipientContactSelect.value = "";
+          Array.prototype.forEach.call(
+            shipmentRecipientContactSelect.options,
+            function (option, index) {
+              if (!option.value) {
+                option.hidden = false;
+                option.disabled = false;
+                return;
+              }
+              var matches = option.dataset.linkId === selectedLinkId;
+              option.hidden = !matches;
+              option.disabled = !matches;
+              if (matches && index === 1) {
+                shipmentRecipientContactSelect.value = option.value;
+              }
+            }
+          );
         }
-        var selectedOption = bindingSelect.options[bindingSelect.selectedIndex];
-        if (!selectedOption || !selectedOption.value) {
-          return;
-        }
-        if (bindingShipperSelect) {
-          bindingShipperSelect.value = selectedOption.dataset.shipperOrgId || "";
-        }
-        if (bindingRecipientSelect) {
-          bindingRecipientSelect.value = selectedOption.dataset.recipientOrgId || "";
-        }
-        if (bindingDestinationSelect) {
-          bindingDestinationSelect.value = selectedOption.dataset.destinationId || "";
-        }
-        if (bindingValidFromInput) {
-          bindingValidFromInput.value = selectedOption.dataset.validFrom || "";
-        }
-        if (bindingValidToInput) {
-          bindingValidToInput.value = selectedOption.dataset.validTo || "";
-        }
-      }
 
-      if (bindingSelect) {
-        bindingSelect.addEventListener("change", hydrateBindingFormFromSelection);
-      }
-      if (bindingRecipientSelect) {
-        bindingRecipientSelect.addEventListener("change", applySuggestedDestinationFromSelection);
-      }
-      if (bindingShipperSelect) {
-        bindingShipperSelect.addEventListener("change", applySuggestedDestinationFromSelection);
-      }
-
-      var shipmentLinkSelect = document.getElementById("scan-shipment-link-id");
-      var shipmentRecipientContactSelect = document.getElementById(
-        "scan-shipment-recipient-contact-id"
-      );
-      var mergeSourceRecipientOrganizationSelect = document.getElementById(
-        "scan-merge-source-recipient-organization"
-      );
-      var mergeTargetRecipientOrganizationSelect = document.getElementById(
-        "scan-merge-target-recipient-organization"
-      );
-
-      function syncShipmentAuthorizedRecipientOptions() {
-        if (!shipmentLinkSelect || !shipmentRecipientContactSelect) {
-          return;
-        }
-        var selectedLinkId = shipmentLinkSelect.value || "";
-        shipmentRecipientContactSelect.value = "";
-        Array.prototype.forEach.call(
-          shipmentRecipientContactSelect.options,
-          function (option, index) {
-            if (index === 0 || !option.value) {
+        function syncMergeTargets() {
+          var sourceSelect = document.getElementById(
+            "scan-merge-source-recipient-organization"
+          );
+          var targetSelect = document.getElementById(
+            "scan-merge-target-recipient-organization"
+          );
+          if (!sourceSelect || !targetSelect) {
+            return;
+          }
+          var sourceOption = sourceSelect.options[sourceSelect.selectedIndex];
+          var sourceDestinationId = sourceOption ? sourceOption.dataset.destinationId : "";
+          Array.prototype.forEach.call(targetSelect.options, function (option) {
+            if (!option.value) {
               option.hidden = false;
               option.disabled = false;
               return;
             }
-            var matchesLink = !selectedLinkId || option.dataset.linkId === selectedLinkId;
-            option.hidden = !matchesLink;
-            option.disabled = !matchesLink;
+            var sameDestination = option.dataset.destinationId === sourceDestinationId;
+            var isSameRow = option.value === sourceSelect.value;
+            option.hidden = !(sameDestination && !isSameRow);
+            option.disabled = !(sameDestination && !isSameRow);
+          });
+          if (
+            targetSelect.value &&
+            (targetSelect.value === sourceSelect.value ||
+              (targetSelect.options[targetSelect.selectedIndex] || {}).disabled)
+          ) {
+            targetSelect.value = "";
           }
+        }
+
+        if (shipmentLinkSelect) {
+          shipmentLinkSelect.addEventListener("change", syncShipmentAuthorizedRecipientOptions);
+          syncShipmentAuthorizedRecipientOptions();
+        }
+        var mergeSourceSelect = document.getElementById(
+          "scan-merge-source-recipient-organization"
         );
-      }
-
-      function syncMergeTargetRecipientOptions() {
-        if (
-          !mergeSourceRecipientOrganizationSelect ||
-          !mergeTargetRecipientOrganizationSelect
-        ) {
-          return;
+        if (mergeSourceSelect) {
+          mergeSourceSelect.addEventListener("change", syncMergeTargets);
+          syncMergeTargets();
         }
-        var selectedSourceOption =
-          mergeSourceRecipientOrganizationSelect.options[
-            mergeSourceRecipientOrganizationSelect.selectedIndex
-          ];
-        var sourceId = mergeSourceRecipientOrganizationSelect.value || "";
-        var sourceDestinationId =
-          (selectedSourceOption && selectedSourceOption.dataset.destinationId) || "";
-        if (
-          mergeTargetRecipientOrganizationSelect.value === sourceId ||
-          (
-            mergeTargetRecipientOrganizationSelect.selectedOptions[0] &&
-            mergeTargetRecipientOrganizationSelect.selectedOptions[0].dataset.destinationId !==
-              sourceDestinationId
-          )
-        ) {
-          mergeTargetRecipientOrganizationSelect.value = "";
-        }
-        Array.prototype.forEach.call(
-          mergeTargetRecipientOrganizationSelect.options,
-          function (option, index) {
-            if (index === 0 || !option.value) {
-              option.hidden = false;
-              option.disabled = false;
-              return;
-            }
-            var sameDestination =
-              !sourceDestinationId || option.dataset.destinationId === sourceDestinationId;
-            var sameStructure = sourceId && option.value === sourceId;
-            option.hidden = !sameDestination || sameStructure;
-            option.disabled = !sameDestination || sameStructure;
-          }
-        );
-      }
-
-      if (shipmentLinkSelect) {
-        shipmentLinkSelect.addEventListener("change", syncShipmentAuthorizedRecipientOptions);
-        syncShipmentAuthorizedRecipientOptions();
-      }
-      if (mergeSourceRecipientOrganizationSelect) {
-        mergeSourceRecipientOrganizationSelect.addEventListener(
-          "change",
-          syncMergeTargetRecipientOptions
-        );
-        syncMergeTargetRecipientOptions();
-      }
-
-      var guidedEntityKind = document.getElementById("scan-guided-entity-kind");
-      var guidedRole = document.getElementById("scan-guided-role");
-      var guidedOrganizationName = document.getElementById("scan-guided-organization-name");
-      var guidedName = document.getElementById("scan-guided-name");
-      var guidedFirstName = document.getElementById("scan-guided-first-name");
-      var guidedLastName = document.getElementById("scan-guided-last-name");
-      var guidedEmail = document.getElementById("scan-guided-email");
-      var guidedPhone = document.getElementById("scan-guided-phone");
-
-      function applyGuidedMode() {
-        if (!guidedEntityKind) {
-          return;
-        }
-        var mode = guidedEntityKind.value;
-        var isOrganizationWithContactMode = mode === "organization_with_contact";
-        if (guidedRole) {
-          guidedRole.disabled = false;
-          guidedRole.required = true;
-        }
-        if (guidedOrganizationName) {
-          guidedOrganizationName.disabled = false;
-          guidedOrganizationName.required = true;
-        }
-
-        var personFields = [guidedName, guidedFirstName, guidedLastName, guidedEmail, guidedPhone];
-        personFields.forEach(function (field) {
-          if (!field) {
-            return;
-          }
-          field.disabled = !isOrganizationWithContactMode;
-          field.required = isOrganizationWithContactMode;
-          if (!isOrganizationWithContactMode) {
-            field.value = "";
-          }
-        });
-      }
-
-      if (guidedEntityKind) {
-        guidedEntityKind.addEventListener("change", applyGuidedMode);
-        applyGuidedMode();
-      }
-
-      var shipperScopeForm = document.getElementById("scan-shipper-scope-upsert-form");
-      var shipperScopeDestination = document.getElementById("scan-shipper-scope-destination");
-      var shipperScopeAllDestinations = document.getElementById("scan-scope-all-destinations");
-
-      function syncScopeDefaultToAllDestinations() {
-        if (!shipperScopeDestination || !shipperScopeAllDestinations) {
-          return;
-        }
-        if (!shipperScopeDestination.value) {
-          shipperScopeAllDestinations.checked = true;
-        }
-      }
-
-      if (shipperScopeDestination) {
-        shipperScopeDestination.addEventListener("change", syncScopeDefaultToAllDestinations);
-      }
-      if (shipperScopeForm) {
-        shipperScopeForm.addEventListener("submit", syncScopeDefaultToAllDestinations);
-      }
-    });
-</script>
+      })();
+    </script>
 {% endblock %}

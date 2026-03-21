@@ -517,10 +517,8 @@ class ScanBootstrapUiTests(TestCase):
         js_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan.js"
         js_content = js_path.read_text(encoding="utf-8")
 
-        self.assertIn("if (!linkedShipperIds.length) {\n        return false;\n      }", js_content)
-        self.assertNotIn(
-            "if (!linkedShipperIds.length) {\n        return true;\n      }", js_content
-        )
+        self.assertIn("if (!bindingPairs.length) {\n        return false;\n      }", js_content)
+        self.assertNotIn("if (!bindingPairs.length) {\n        return true;\n      }", js_content)
 
     def test_scan_shipment_create_places_secondary_draft_button_before_primary_submit(self):
         response = self.client.get(reverse("scan:scan_shipment_create"))

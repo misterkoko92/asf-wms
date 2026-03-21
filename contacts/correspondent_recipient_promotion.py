@@ -5,9 +5,13 @@ from django.db import transaction
 from contacts.models import Contact, ContactType
 from wms.default_shipper_bindings import (
     default_shipper_binding_sync_enabled,
-    ensure_default_shipper_bindings_for_destination_id,
+    ensure_default_shipper_links_for_destination_id,
 )
-from wms.models import Destination, OrganizationRole, OrganizationRoleAssignment
+from wms.models import (
+    Destination,
+    ShipmentRecipientOrganization,
+    ShipmentValidationStatus,
+)
 
 SUPPORT_ORGANIZATION_NAME = "ASF - CORRESPONDANT"
 SUPPORT_ORGANIZATION_NOTES_MARKER = "[system] correspondent recipient support organization"
@@ -18,8 +22,8 @@ class CorrespondentRecipientPromotionResult:
     changed: bool = False
     support_organization_created: bool = False
     attached_to_support_organization: bool = False
-    recipient_role_created: bool = False
-    recipient_role_reactivated: bool = False
+    shipment_recipient_created: bool = False
+    shipment_recipient_reactivated: bool = False
 
 
 @dataclass(frozen=True)
@@ -141,8 +145,8 @@ def resolve_correspondent_recipient_organization(
     """
     Resolve the organization that should carry a correspondent in the shipment-party model.
 
-    This path prepares the person/support-organization attachment when needed without creating
-    the legacy recipient role and binding semantics used by the transitional org-roles runtime.
+    This path prepares the person/support-organization attachment when needed and keeps the
+    correspondent flow aligned with the shipment-party registry.
     """
 
     if not contact or not getattr(contact, "pk", None):
@@ -160,8 +164,6 @@ def resolve_correspondent_recipient_organization(
 
 def promote_correspondent_to_recipient_ready(
     contact,
-    *,
-    legacy_role_semantics: bool = True,
 ) -> CorrespondentRecipientPromotionResult:
     if not contact or not contact.pk:
         return CorrespondentRecipientPromotionResult()
@@ -175,28 +177,49 @@ def promote_correspondent_to_recipient_ready(
     if organization is None:
         return CorrespondentRecipientPromotionResult()
 
-    if not legacy_role_semantics:
-        return CorrespondentRecipientPromotionResult(
-            changed=any(
-                [
-                    resolution.support_organization_created,
-                    resolution.attached_to_support_organization,
-                ]
-            ),
-            support_organization_created=resolution.support_organization_created,
-            attached_to_support_organization=resolution.attached_to_support_organization,
-        )
-
-    assignment, created = OrganizationRoleAssignment.objects.get_or_create(
-        organization=organization,
-        role=OrganizationRole.RECIPIENT,
-        defaults={"is_active": True},
-    )
+    created = False
     reactivated = False
-    if not assignment.is_active:
-        assignment.is_active = True
-        assignment.save(update_fields=["is_active"])
-        reactivated = True
+    for destination in Destination.objects.filter(
+        correspondent_contact=contact,
+        is_active=True,
+    ).order_by("id"):
+        recipient = ShipmentRecipientOrganization.objects.filter(
+            organization=organization,
+        ).first()
+        if recipient is None:
+            ShipmentRecipientOrganization.objects.create(
+                organization=organization,
+                destination=destination,
+                validation_status=ShipmentValidationStatus.VALIDATED,
+                is_correspondent=True,
+                is_active=True,
+            )
+            created = True
+            continue
+
+        updated_fields = []
+        if recipient.destination_id == destination.id:
+            if recipient.validation_status != ShipmentValidationStatus.VALIDATED:
+                recipient.validation_status = ShipmentValidationStatus.VALIDATED
+                updated_fields.append("validation_status")
+            if not recipient.is_correspondent:
+                recipient.is_correspondent = True
+                updated_fields.append("is_correspondent")
+            if not recipient.is_active:
+                recipient.is_active = True
+                updated_fields.append("is_active")
+                reactivated = True
+        elif not recipient.is_active:
+            recipient.destination = destination
+            recipient.validation_status = ShipmentValidationStatus.VALIDATED
+            recipient.is_correspondent = True
+            recipient.is_active = True
+            updated_fields.extend(
+                ["destination", "validation_status", "is_correspondent", "is_active"]
+            )
+            reactivated = True
+        if updated_fields:
+            recipient.save(update_fields=updated_fields)
     return CorrespondentRecipientPromotionResult(
         changed=any(
             [
@@ -208,8 +231,8 @@ def promote_correspondent_to_recipient_ready(
         ),
         support_organization_created=resolution.support_organization_created,
         attached_to_support_organization=resolution.attached_to_support_organization,
-        recipient_role_created=created,
-        recipient_role_reactivated=reactivated,
+        shipment_recipient_created=created,
+        shipment_recipient_reactivated=reactivated,
     )
 
 
@@ -234,7 +257,7 @@ def ensure_destination_correspondent_recipient_ready(destination):
         and correspondent_contact.is_active
         and default_shipper_binding_sync_enabled()
     ):
-        ensure_default_shipper_bindings_for_destination_id(destination.id)
+        ensure_default_shipper_links_for_destination_id(destination.id)
     return result
 
 
@@ -244,8 +267,8 @@ def _backfill_correspondent_recipients_impl():
         "changed_contacts": 0,
         "support_organizations_created": 0,
         "contacts_attached_to_support_org": 0,
-        "recipient_roles_created": 0,
-        "recipient_roles_reactivated": 0,
+        "shipment_recipients_created": 0,
+        "shipment_recipients_reactivated": 0,
     }
     correspondents = (
         Contact.objects.filter(
@@ -266,10 +289,10 @@ def _backfill_correspondent_recipients_impl():
             summary["support_organizations_created"] += 1
         if result.attached_to_support_organization:
             summary["contacts_attached_to_support_org"] += 1
-        if result.recipient_role_created:
-            summary["recipient_roles_created"] += 1
-        if result.recipient_role_reactivated:
-            summary["recipient_roles_reactivated"] += 1
+        if result.shipment_recipient_created:
+            summary["shipment_recipients_created"] += 1
+        if result.shipment_recipient_reactivated:
+            summary["shipment_recipients_reactivated"] += 1
     return summary
 
 

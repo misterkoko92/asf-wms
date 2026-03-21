@@ -5,14 +5,11 @@ from wms import portal_recipient_sync
 from wms.models import (
     AssociationRecipient,
     Destination,
-    OrganizationRole,
-    OrganizationRoleAssignment,
-    RecipientBinding,
     ShipmentAuthorizedRecipientContact,
     ShipmentRecipientOrganization,
     ShipmentShipper,
     ShipmentShipperRecipientLink,
-    ShipperScope,
+    ShipmentValidationStatus,
 )
 from wms.portal_recipient_sync import sync_association_recipient_to_contact
 
@@ -74,29 +71,17 @@ class PortalRecipientSyncTests(TestCase):
         self.assertEqual(recipient.synced_contact_id, first.id)
         self.assertEqual(Contact.objects.filter(pk=first.id).count(), 1)
         self.assertNotIn("[recipient_id=", first.notes)
-        recipient_assignment = OrganizationRoleAssignment.objects.get(
+        shipper = ShipmentShipper.objects.get(organization=self.association)
+        self.assertEqual(shipper.validation_status, ShipmentValidationStatus.VALIDATED)
+        recipient_organization = ShipmentRecipientOrganization.objects.get(
             organization=first,
-            role=OrganizationRole.RECIPIENT,
+            destination=self.destination_a,
         )
-        shipper_assignment = OrganizationRoleAssignment.objects.get(
-            organization=self.association,
-            role=OrganizationRole.SHIPPER,
-        )
-        self.assertTrue(recipient_assignment.is_active)
-        self.assertFalse(shipper_assignment.is_active)
+        self.assertTrue(recipient_organization.is_active)
         self.assertTrue(
-            ShipperScope.objects.filter(
-                role_assignment=shipper_assignment,
-                destination=self.destination_a,
-                all_destinations=False,
-                is_active=True,
-            ).exists()
-        )
-        self.assertTrue(
-            RecipientBinding.objects.filter(
-                shipper_org=self.association,
-                recipient_org=first,
-                destination=self.destination_a,
+            ShipmentShipperRecipientLink.objects.filter(
+                shipper=shipper,
+                recipient_organization=recipient_organization,
                 is_active=True,
             ).exists()
         )
@@ -123,10 +108,10 @@ class PortalRecipientSyncTests(TestCase):
             ).exists()
         )
         self.assertTrue(
-            RecipientBinding.objects.filter(
-                shipper_org=self.association,
-                recipient_org=updated,
-                destination=self.destination_b,
+            ShipmentShipperRecipientLink.objects.filter(
+                shipper__organization=self.association,
+                recipient_organization__organization=updated,
+                recipient_organization__destination=self.destination_b,
                 is_active=True,
             ).exists()
         )

@@ -17,15 +17,15 @@ from wms.models import (
 )
 
 
-class DomainOrdersOrgRolesTests(TestCase):
+class DomainOrdersShipmentPartiesTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(
-            username="domain-org-roles",
-            password="pass1234",
+            username="domain-shipment-parties",
+            password="pass1234",  # pragma: allowlist secret
         )
         self.product = Product.objects.create(
-            sku="ORG-ROLE-001",
-            name="Org Role Product",
+            sku="SHIPMENT-PARTY-001",
+            name="Shipment Party Product",
             qr_code_image="qr_codes/test.png",
         )
 
@@ -57,7 +57,12 @@ class DomainOrdersOrgRolesTests(TestCase):
             is_active=True,
         )
 
-    def _create_shipper_record(self, organization: Contact) -> ShipmentShipper:
+    def _create_shipper_record(
+        self,
+        organization: Contact,
+        *,
+        can_send_to_all: bool = False,
+    ) -> ShipmentShipper:
         default_contact = self._create_person(
             f"Default {organization.name}",
             organization=organization,
@@ -66,6 +71,7 @@ class DomainOrdersOrgRolesTests(TestCase):
             organization=organization,
             default_contact=default_contact,
             validation_status=ShipmentValidationStatus.VALIDATED,
+            can_send_to_all=can_send_to_all,
             is_active=True,
         )
 
@@ -99,7 +105,7 @@ class DomainOrdersOrgRolesTests(TestCase):
         OrderLine.objects.create(order=order, product=self.product, quantity=1)
         return order
 
-    def test_create_shipment_for_order_uses_recipient_binding_when_engine_enabled(self):
+    def test_create_shipment_for_order_uses_shipment_party_link(self):
         destination = self._create_destination("BKO")
         shipper = self._create_org("Shipper BKO")
         recipient = self._create_org("Recipient BKO")
@@ -127,7 +133,7 @@ class DomainOrdersOrgRolesTests(TestCase):
         self.assertEqual(shipment.recipient_contact_ref_id, recipient.id)
         self.assertEqual(shipment.destination_id, destination.id)
 
-    def test_create_shipment_for_order_normalizes_person_contacts_to_org_roles(self):
+    def test_create_shipment_for_order_normalizes_person_contacts_to_shipment_parties(self):
         destination = self._create_destination("RUN")
         shipper_org = self._create_org("Shipper Org RUN")
         recipient_org = self._create_org("Recipient Org RUN")
@@ -157,15 +163,25 @@ class DomainOrdersOrgRolesTests(TestCase):
         self.assertEqual(shipment.recipient_contact_ref_id, recipient_person.id)
         self.assertEqual(shipment.destination_id, destination.id)
 
-    def test_create_shipment_for_order_blocks_unbound_recipient_when_engine_enabled(self):
+    def test_create_shipment_for_order_blocks_unlinked_recipient(self):
         destination = self._create_destination("DLA")
         shipper = self._create_org("Shipper DLA")
         recipient = self._create_org("Recipient DLA")
+        allowed_recipient = self._create_org("Allowed Recipient DLA")
 
-        self._create_shipper_record(shipper)
+        shipper_record = self._create_shipper_record(shipper)
         self._create_recipient_record(
             organization=recipient,
             destination=destination,
+        )
+        allowed_recipient_record = self._create_recipient_record(
+            organization=allowed_recipient,
+            destination=destination,
+        )
+        ShipmentShipperRecipientLink.objects.create(
+            shipper=shipper_record,
+            recipient_organization=allowed_recipient_record,
+            is_active=True,
         )
 
         order = self._build_order(

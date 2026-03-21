@@ -3,6 +3,10 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from contacts.capabilities import (
+    ContactCapabilityType,
+    active_organizations_for_capability,
+)
 from contacts.models import Contact, ContactType
 
 from .contact_labels import build_contact_select_label, build_shipment_recipient_select_label
@@ -12,8 +16,6 @@ from .models import (
     Destination,
     Location,
     Order,
-    OrganizationRole,
-    OrganizationRoleAssignment,
     Product,
     ProductLot,
     ProductLotStatus,
@@ -24,12 +26,9 @@ from .models import (
     ShipmentTrackingStatus,
     Warehouse,
 )
-from .organization_role_resolvers import (
-    active_organizations_for_role,
-    active_organizations_for_roles,
-)
 from .scan_helpers import resolve_product
 from .shipment_helpers import (
+    active_shipment_shipper_organizations,
     default_shipment_recipient_contact_for_shipper,
     eligible_shipment_recipient_contacts_for_shipper,
     eligible_shipment_shipper_contacts_for_destination,
@@ -45,6 +44,24 @@ def _contact_label(contact):
 
 def _sorted_choices(choices):
     return sorted(choices, key=lambda choice: str(choice[1] or "").lower())
+
+
+def _active_donor_organizations():
+    return active_organizations_for_capability(ContactCapabilityType.DONOR)
+
+
+def _active_transporter_organizations():
+    return active_organizations_for_capability(ContactCapabilityType.TRANSPORTER)
+
+
+def _active_receipt_source_organizations():
+    donor_ids = _active_donor_organizations().values_list("id", flat=True)
+    shipper_ids = active_shipment_shipper_organizations().values_list("id", flat=True)
+    return Contact.objects.filter(
+        Q(id__in=donor_ids) | Q(id__in=shipper_ids),
+        is_active=True,
+        contact_type=ContactType.ORGANIZATION,
+    ).order_by("name")
 
 
 class ReceiveStockForm(forms.Form):
@@ -216,13 +233,8 @@ class ScanReceiptCreateForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["source_contact"].queryset = active_organizations_for_roles(
-            OrganizationRole.DONOR,
-            OrganizationRole.SHIPPER,
-        )
-        self.fields["carrier_contact"].queryset = active_organizations_for_role(
-            OrganizationRole.TRANSPORTER
-        )
+        self.fields["source_contact"].queryset = _active_receipt_source_organizations()
+        self.fields["carrier_contact"].queryset = _active_transporter_organizations()
         self.fields["source_contact"].label_from_instance = _contact_label
         self.fields["carrier_contact"].label_from_instance = _contact_label
 
@@ -257,12 +269,8 @@ class ScanReceiptPalletForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["source_contact"].queryset = active_organizations_for_role(
-            OrganizationRole.DONOR
-        )
-        self.fields["carrier_contact"].queryset = active_organizations_for_role(
-            OrganizationRole.TRANSPORTER
-        )
+        self.fields["source_contact"].queryset = _active_donor_organizations()
+        self.fields["carrier_contact"].queryset = _active_transporter_organizations()
         self.fields["source_contact"].label_from_instance = _contact_label
         self.fields["carrier_contact"].label_from_instance = _contact_label
         _select_single_choice(self.fields["source_contact"])
@@ -322,12 +330,8 @@ class ScanReceiptAssociationForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["source_contact"].queryset = active_organizations_for_role(
-            OrganizationRole.SHIPPER
-        )
-        self.fields["carrier_contact"].queryset = active_organizations_for_role(
-            OrganizationRole.TRANSPORTER
-        )
+        self.fields["source_contact"].queryset = active_shipment_shipper_organizations()
+        self.fields["carrier_contact"].queryset = _active_transporter_organizations()
         self.fields["source_contact"].label_from_instance = _contact_label
         self.fields["carrier_contact"].label_from_instance = _contact_label
         _select_single_choice(self.fields["source_contact"])
@@ -359,9 +363,7 @@ class ScanStockUpdateForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["donor_contact"].queryset = active_organizations_for_role(
-            OrganizationRole.DONOR
-        )
+        self.fields["donor_contact"].queryset = _active_donor_organizations()
         self.fields["donor_contact"].label_from_instance = _contact_label
         _select_single_choice(self.fields["donor_contact"])
 

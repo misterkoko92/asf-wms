@@ -304,4 +304,18 @@ class ShipmentFormHelpersTests(SimpleTestCase):
         self.assertEqual(context["shipper_contacts_json"], [{"id": 15}])
         self.assertEqual(context["recipient_contacts_json"], [{"id": 20}])
         self.assertEqual(context["correspondent_contacts_json"], [{"id": 30}])
-        self.assertNotIn("org_roles_engine_enabled", context)
+        self.assertEqual(
+            sorted(context),
+            [
+                "carton_count",
+                "cartons_json",
+                "correspondent_contacts_json",
+                "destinations_json",
+                "form",
+                "line_errors",
+                "line_values",
+                "products_json",
+                "recipient_contacts_json",
+                "shipper_contacts_json",
+            ],
+        )

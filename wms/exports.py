@@ -2,10 +2,9 @@ import csv
 import io
 
 from django.contrib.auth import get_user_model
-from django.db.models import F, IntegerField, Q, Sum
+from django.db.models import F, IntegerField, Sum
 from django.db.models.expressions import ExpressionWrapper
 from django.http import HttpResponse
-from django.utils import timezone
 
 from contacts.models import Contact
 
@@ -17,8 +16,10 @@ from .models import (
     ProductLot,
     ProductLotStatus,
     RackColor,
-    RecipientBinding,
-    ShipperScope,
+    ShipmentRecipientContact,
+    ShipmentRecipientOrganization,
+    ShipmentShipper,
+    ShipmentValidationStatus,
     Warehouse,
 )
 from .product_display import category_levels
@@ -41,13 +42,6 @@ def _build_csv_response(filename, header, rows):
     return response
 
 
-def _current_window_q(prefix: str = ""):
-    now = timezone.now()
-    return Q(**{f"{prefix}valid_from__lte": now}) & (
-        Q(**{f"{prefix}valid_to__isnull": True}) | Q(**{f"{prefix}valid_to__gt": now})
-    )
-
-
 def _build_contact_role_scope_maps(contact_ids):
     if not contact_ids:
         return {}, (set(), {})
@@ -62,30 +56,77 @@ def _build_contact_role_scope_maps(contact_ids):
     for contact_id, destination_id in correspondent_rows:
         destination_ids_by_contact_id.setdefault(contact_id, set()).add(destination_id)
 
-    shipper_scope_rows = (
-        ShipperScope.objects.filter(
-            role_assignment__organization_id__in=contact_ids,
-            is_active=True,
-        )
-        .filter(_current_window_q())
-        .values_list("role_assignment__organization_id", "all_destinations", "destination_id")
-    )
-    for contact_id, all_destinations, destination_id in shipper_scope_rows:
+    shipper_rows = ShipmentShipper.objects.filter(
+        organization_id__in=contact_ids,
+        is_active=True,
+        validation_status=ShipmentValidationStatus.VALIDATED,
+        organization__is_active=True,
+    ).values_list("organization_id", "can_send_to_all")
+    for contact_id, all_destinations in shipper_rows:
         if all_destinations:
             global_scope_contact_ids.add(contact_id)
-            continue
+    shipper_destination_rows = ShipmentShipper.objects.filter(
+        organization_id__in=contact_ids,
+        is_active=True,
+        validation_status=ShipmentValidationStatus.VALIDATED,
+        organization__is_active=True,
+        recipient_links__is_active=True,
+        recipient_links__recipient_organization__is_active=True,
+        recipient_links__recipient_organization__validation_status=ShipmentValidationStatus.VALIDATED,
+        recipient_links__recipient_organization__organization__is_active=True,
+        recipient_links__recipient_organization__destination__is_active=True,
+    ).values_list("organization_id", "recipient_links__recipient_organization__destination_id")
+    for contact_id, destination_id in shipper_destination_rows:
         if destination_id:
             destination_ids_by_contact_id.setdefault(contact_id, set()).add(destination_id)
-
-    recipient_binding_rows = (
-        RecipientBinding.objects.filter(
-            recipient_org_id__in=contact_ids,
-            is_active=True,
-        )
-        .filter(_current_window_q())
-        .values_list("recipient_org_id", "destination_id")
+    shipper_default_contact_rows = ShipmentShipper.objects.filter(
+        default_contact_id__in=contact_ids,
+        is_active=True,
+        validation_status=ShipmentValidationStatus.VALIDATED,
+        organization__is_active=True,
+        default_contact__is_active=True,
+    ).values_list("default_contact_id", "can_send_to_all")
+    for contact_id, all_destinations in shipper_default_contact_rows:
+        if all_destinations:
+            global_scope_contact_ids.add(contact_id)
+    shipper_default_destination_rows = ShipmentShipper.objects.filter(
+        default_contact_id__in=contact_ids,
+        is_active=True,
+        validation_status=ShipmentValidationStatus.VALIDATED,
+        organization__is_active=True,
+        default_contact__is_active=True,
+        recipient_links__is_active=True,
+        recipient_links__recipient_organization__is_active=True,
+        recipient_links__recipient_organization__validation_status=ShipmentValidationStatus.VALIDATED,
+        recipient_links__recipient_organization__organization__is_active=True,
+        recipient_links__recipient_organization__destination__is_active=True,
+    ).values_list(
+        "default_contact_id",
+        "recipient_links__recipient_organization__destination_id",
     )
-    for contact_id, destination_id in recipient_binding_rows:
+    for contact_id, destination_id in shipper_default_destination_rows:
+        if destination_id:
+            destination_ids_by_contact_id.setdefault(contact_id, set()).add(destination_id)
+    recipient_organization_rows = ShipmentRecipientOrganization.objects.filter(
+        organization_id__in=contact_ids,
+        is_active=True,
+        validation_status=ShipmentValidationStatus.VALIDATED,
+        organization__is_active=True,
+        destination__is_active=True,
+    ).values_list("organization_id", "destination_id")
+    for contact_id, destination_id in recipient_organization_rows:
+        if destination_id:
+            destination_ids_by_contact_id.setdefault(contact_id, set()).add(destination_id)
+    recipient_contact_rows = ShipmentRecipientContact.objects.filter(
+        contact_id__in=contact_ids,
+        is_active=True,
+        contact__is_active=True,
+        recipient_organization__is_active=True,
+        recipient_organization__validation_status=ShipmentValidationStatus.VALIDATED,
+        recipient_organization__organization__is_active=True,
+        recipient_organization__destination__is_active=True,
+    ).values_list("contact_id", "recipient_organization__destination_id")
+    for contact_id, destination_id in recipient_contact_rows:
         if destination_id:
             destination_ids_by_contact_id.setdefault(contact_id, set()).add(destination_id)
 

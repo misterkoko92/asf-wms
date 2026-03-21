@@ -3,23 +3,27 @@ from __future__ import annotations
 from contextlib import contextmanager
 from contextvars import ContextVar
 
-from django.utils import timezone
-
 from contacts.models import Contact, ContactType
 
 from .models import (
     Destination,
-    OrganizationRole,
-    OrganizationRoleAssignment,
-    RecipientBinding,
-    ShipperScope,
+    ShipmentRecipientContact,
+    ShipmentRecipientOrganization,
+    ShipmentShipper,
+    ShipmentValidationStatus,
+)
+from .shipment_party_setup import (
+    PRIORITY_SHIPPER_NAME,
+    ensure_authorized_recipient_contact,
+    ensure_shipment_recipient_link,
+    ensure_shipment_shipper,
 )
 
 _DEFAULT_SHIPPER_BINDING_SYNC_ENABLED = ContextVar(
     "default_shipper_binding_sync_enabled",
     default=True,
 )
-DEFAULT_RECIPIENT_SHIPPER_NAME = "AVIATION SANS FRONTIERES"
+DEFAULT_RECIPIENT_SHIPPER_NAME = PRIORITY_SHIPPER_NAME.upper()
 
 
 def default_shipper_binding_sync_enabled() -> bool:
@@ -35,166 +39,132 @@ def suppress_default_shipper_binding_sync():
         _DEFAULT_SHIPPER_BINDING_SYNC_ENABLED.reset(token)
 
 
-def _resolve_default_shipper_organization() -> Contact | None:
-    default_shipper = (
-        OrganizationRoleAssignment.objects.filter(
-            role=OrganizationRole.SHIPPER,
-            is_active=True,
+def _resolve_default_shipper() -> ShipmentShipper | None:
+    shipper = (
+        ShipmentShipper.objects.filter(
             organization__is_active=True,
             organization__name__iexact=DEFAULT_RECIPIENT_SHIPPER_NAME,
         )
-        .select_related("organization")
+        .select_related("organization", "default_contact")
         .order_by("id")
         .first()
     )
-    default_shipper = default_shipper.organization if default_shipper else None
-    if default_shipper is None:
-        default_shipper = Contact.objects.filter(
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-            name__iexact=DEFAULT_RECIPIENT_SHIPPER_NAME,
-        ).first()
-    if default_shipper is None:
-        return None
-    if default_shipper.contact_type == ContactType.ORGANIZATION:
-        return default_shipper if default_shipper.is_active else None
-
-    organization = default_shipper.organization
-    if (
-        organization
-        and organization.is_active
-        and organization.contact_type == ContactType.ORGANIZATION
-    ):
-        return organization
-    return None
-
-
-def _ensure_default_shipper_assignment_and_scope(shipper_org: Contact) -> None:
-    assignment, _created = OrganizationRoleAssignment.objects.get_or_create(
-        organization=shipper_org,
-        role=OrganizationRole.SHIPPER,
-        defaults={"is_active": True},
-    )
-    if not assignment.is_active:
-        assignment.is_active = True
-        assignment.save(update_fields=["is_active", "updated_at"])
-
-    global_scope = (
-        ShipperScope.objects.filter(
-            role_assignment=assignment,
-            all_destinations=True,
+    if shipper is not None:
+        return ensure_shipment_shipper(
+            shipper.organization,
+            validation_status=ShipmentValidationStatus.VALIDATED,
         )
-        .order_by("-is_active", "-id")
+
+    organization = Contact.objects.filter(
+        contact_type=ContactType.ORGANIZATION,
+        is_active=True,
+        name__iexact=DEFAULT_RECIPIENT_SHIPPER_NAME,
+    ).first()
+    if organization is None:
+        return None
+    return ensure_shipment_shipper(
+        organization,
+        validation_status=ShipmentValidationStatus.VALIDATED,
+    )
+
+
+def _active_recipient_organizations(*, destination_ids: list[int] | None = None):
+    queryset = ShipmentRecipientOrganization.objects.filter(
+        is_active=True,
+        validation_status=ShipmentValidationStatus.VALIDATED,
+        organization__is_active=True,
+        destination__is_active=True,
+    ).select_related("organization", "destination")
+    if destination_ids is not None:
+        queryset = queryset.filter(destination_id__in=destination_ids)
+    return queryset.order_by("destination_id", "organization__name", "id")
+
+
+def _default_recipient_contact(recipient_organization: ShipmentRecipientOrganization):
+    return (
+        ShipmentRecipientContact.objects.filter(
+            recipient_organization=recipient_organization,
+            is_active=True,
+            contact__is_active=True,
+        )
+        .select_related("contact")
+        .order_by("id")
         .first()
     )
-    if global_scope is None:
-        ShipperScope.objects.create(
-            role_assignment=assignment,
-            all_destinations=True,
-            destination=None,
-            is_active=True,
-            valid_from=timezone.now(),
-        )
-        return
-    updated_fields = []
-    if global_scope.destination_id is not None:
-        global_scope.destination = None
-        updated_fields.append("destination")
-    if not global_scope.is_active:
-        global_scope.is_active = True
-        updated_fields.append("is_active")
-    if updated_fields:
-        updated_fields.append("updated_at")
-        global_scope.save(update_fields=updated_fields)
 
 
-def _ensure_bindings_for_pairs(
+def _ensure_default_shipper_links(
     *,
-    shipper_org: Contact,
-    recipient_org_ids: list[int],
-    destination_ids: list[int],
+    shipper: ShipmentShipper,
+    recipient_organizations,
 ) -> int:
-    if not recipient_org_ids or not destination_ids:
-        return 0
-
-    existing_pairs = set(
-        RecipientBinding.objects.filter(
-            shipper_org=shipper_org,
-            recipient_org_id__in=recipient_org_ids,
-            destination_id__in=destination_ids,
-            is_active=True,
-        ).values_list("recipient_org_id", "destination_id")
-    )
-
     created = 0
-    now = timezone.now()
-    for recipient_org_id in recipient_org_ids:
-        for destination_id in destination_ids:
-            pair = (recipient_org_id, destination_id)
-            if pair in existing_pairs:
-                continue
-            RecipientBinding.objects.create(
-                shipper_org=shipper_org,
-                recipient_org_id=recipient_org_id,
-                destination_id=destination_id,
-                is_active=True,
-                valid_from=now,
-            )
-            existing_pairs.add(pair)
+    for recipient_organization in recipient_organizations:
+        link_already_exists = shipper.recipient_links.filter(
+            recipient_organization=recipient_organization
+        ).exists()
+        link = ensure_shipment_recipient_link(
+            shipper=shipper,
+            recipient_organization=recipient_organization,
+        )
+        if not link_already_exists:
             created += 1
+
+        default_contact = _default_recipient_contact(recipient_organization)
+        if default_contact is None:
+            continue
+        has_default = link.authorized_recipient_contacts.filter(
+            is_active=True,
+            is_default=True,
+        ).exists()
+        existing_authorization = link.authorized_recipient_contacts.filter(
+            recipient_contact=default_contact
+        ).first()
+        ensure_authorized_recipient_contact(
+            link=link,
+            recipient_contact=default_contact,
+            is_active=True,
+            set_as_default=not has_default
+            or bool(existing_authorization is not None and existing_authorization.is_default),
+        )
     return created
 
 
-def ensure_default_shipper_bindings_for_destination_id(destination_id: int) -> int:
+def ensure_default_shipper_links_for_destination_id(destination_id: int) -> int:
     destination = Destination.objects.filter(pk=destination_id, is_active=True).only("id").first()
     if destination is None:
         return 0
 
-    shipper_org = _resolve_default_shipper_organization()
-    if shipper_org is None:
+    shipper = _resolve_default_shipper()
+    if shipper is None:
         return 0
-    _ensure_default_shipper_assignment_and_scope(shipper_org)
-
-    recipient_org_ids = list(
-        OrganizationRoleAssignment.objects.filter(
-            role=OrganizationRole.RECIPIENT,
-            is_active=True,
-            organization__is_active=True,
-            organization__contact_type=ContactType.ORGANIZATION,
-        ).values_list("organization_id", flat=True)
-    )
-    return _ensure_bindings_for_pairs(
-        shipper_org=shipper_org,
-        recipient_org_ids=recipient_org_ids,
-        destination_ids=[destination.id],
+    return _ensure_default_shipper_links(
+        shipper=shipper,
+        recipient_organizations=_active_recipient_organizations(destination_ids=[destination.id]),
     )
 
 
-def ensure_default_shipper_bindings_for_recipient_assignment_id(
-    role_assignment_id: int,
+def ensure_default_shipper_links_for_recipient_organization_id(
+    recipient_organization_id: int,
 ) -> int:
-    role_assignment = (
-        OrganizationRoleAssignment.objects.filter(
-            pk=role_assignment_id,
-            role=OrganizationRole.RECIPIENT,
-            is_active=True,
-            organization__is_active=True,
-            organization__contact_type=ContactType.ORGANIZATION,
-        )
-        .select_related("organization")
-        .first()
+    recipient_organization = (
+        _active_recipient_organizations().filter(pk=recipient_organization_id).first()
     )
-    if role_assignment is None:
+    if recipient_organization is None:
         return 0
 
-    shipper_org = _resolve_default_shipper_organization()
-    if shipper_org is None:
+    shipper = _resolve_default_shipper()
+    if shipper is None:
         return 0
-    _ensure_default_shipper_assignment_and_scope(shipper_org)
-
-    destination_ids = list(Destination.objects.filter(is_active=True).values_list("id", flat=True))
-    return _ensure_bindings_for_pairs(
-        shipper_org=shipper_org,
-        recipient_org_ids=[role_assignment.organization_id],
-        destination_ids=destination_ids,
+    return _ensure_default_shipper_links(
+        shipper=shipper,
+        recipient_organizations=[recipient_organization],
     )
+
+
+def ensure_default_shipper_bindings_for_destination_id(destination_id: int) -> int:
+    return ensure_default_shipper_links_for_destination_id(destination_id)
+
+
+def ensure_default_shipper_bindings_for_recipient_assignment_id(role_assignment_id: int) -> int:
+    return 0
