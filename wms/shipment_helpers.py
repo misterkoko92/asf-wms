@@ -332,6 +332,7 @@ def build_shipment_contact_payload():
                 "id": entry["id"],
                 "name": entry["name"],
                 "organization_id": entry["organization_id"],
+                "organization_name": entry["organization_name"],
                 "countries": sorted(entry["countries"]),
                 "default_destination_id": (
                     destination_ids[0] if len(destination_ids) == 1 else None
