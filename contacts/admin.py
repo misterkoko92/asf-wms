@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib import admin
 
-from .models import Contact, ContactAddress, ContactType
+from .models import Contact, ContactAddress, ContactCapability, ContactType
 
 
 class ContactAddressInline(admin.TabularInline):
@@ -19,6 +19,12 @@ class ContactAddressInline(admin.TabularInline):
         "email",
         "is_default",
     )
+
+
+class ContactCapabilityInline(admin.TabularInline):
+    model = ContactCapability
+    extra = 0
+    fields = ("capability", "is_active")
 
 
 class ContactAdminForm(forms.ModelForm):
@@ -89,7 +95,7 @@ class ContactAdmin(admin.ModelAdmin):
         "siret",
         "asf_id",
     )
-    inlines = [ContactAddressInline]
+    inlines = [ContactCapabilityInline, ContactAddressInline]
     readonly_fields = ("asf_id",)
     fieldsets = (
         (

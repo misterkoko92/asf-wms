@@ -76,6 +76,16 @@ def eligible_shipment_shipper_contacts_for_destination(destination):
     ).select_related("organization")
 
 
+def active_shipment_shipper_organizations():
+    organization_ids = _validated_active_shipper_queryset().values_list(
+        "organization_id", flat=True
+    )
+    return Contact.objects.filter(
+        id__in=organization_ids,
+        is_active=True,
+    ).order_by("name")
+
+
 def shipment_shipper_from_contact(contact):
     if contact is None or not getattr(contact, "pk", None) or not contact.is_active:
         return None

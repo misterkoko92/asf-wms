@@ -9,10 +9,30 @@ from wms.import_services_destinations import (
     _parse_destination_label,
     _select_default_correspondent,
 )
-from wms.models import Destination, OrganizationRole, OrganizationRoleAssignment
+from wms.models import (
+    Destination,
+    ShipmentRecipientOrganization,
+    ShipmentValidationStatus,
+)
 
 
 class ImportDestinationsExtraTests(TestCase):
+    def _register_correspondent(self, organization, *, destination_code="CRT", city="Corr City"):
+        destination = Destination.objects.create(
+            city=city,
+            iata_code=destination_code,
+            country="France",
+            correspondent_contact=organization,
+        )
+        ShipmentRecipientOrganization.objects.create(
+            organization=organization,
+            destination=destination,
+            is_correspondent=True,
+            is_active=True,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+        )
+        return destination
+
     def test_parse_destination_label_variants(self):
         self.assertEqual(_parse_destination_label(None), (None, None, None))
         self.assertEqual(_parse_destination_label(" "), (None, None, None))
@@ -49,24 +69,15 @@ class ImportDestinationsExtraTests(TestCase):
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        OrganizationRoleAssignment.objects.create(
-            organization=existing,
-            role=OrganizationRole.CORRESPONDENT,
-            is_active=True,
-        )
+        self._register_correspondent(existing)
         self.assertEqual(_select_default_correspondent().id, existing.id)
 
-        OrganizationRoleAssignment.objects.all().delete()
+        ShipmentRecipientOrganization.objects.all().delete()
+        Destination.objects.all().delete()
         Contact.objects.all().delete()
         created = _select_default_correspondent()
         self.assertEqual(created.name, "Correspondant par défaut")
-        self.assertTrue(
-            OrganizationRoleAssignment.objects.filter(
-                organization=created,
-                role=OrganizationRole.CORRESPONDENT,
-                is_active=True,
-            ).exists()
-        )
+        self.assertTrue(created.is_active)
 
     def test_select_default_correspondent_reactivates_existing_default_contact(self):
         existing = Contact.objects.create(
@@ -80,13 +91,6 @@ class ImportDestinationsExtraTests(TestCase):
         existing.refresh_from_db()
         self.assertEqual(resolved.id, existing.id)
         self.assertTrue(existing.is_active)
-        self.assertTrue(
-            OrganizationRoleAssignment.objects.filter(
-                organization=existing,
-                role=OrganizationRole.CORRESPONDENT,
-                is_active=True,
-            ).exists()
-        )
 
     def test_get_or_create_destination_core_paths(self):
         self.assertIsNone(_get_or_create_destination(""))
@@ -96,11 +100,7 @@ class ImportDestinationsExtraTests(TestCase):
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        OrganizationRoleAssignment.objects.create(
-            organization=correspondent,
-            role=OrganizationRole.CORRESPONDENT,
-            is_active=True,
-        )
+        self._register_correspondent(correspondent)
 
         existing_iata = Destination.objects.create(
             city="Paris",

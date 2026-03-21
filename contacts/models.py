@@ -8,6 +8,12 @@ class ContactType(models.TextChoices):
     PERSON = "person", "Person"
 
 
+class ContactCapabilityType(models.TextChoices):
+    DONOR = "donor", "Donateur"
+    TRANSPORTER = "transporter", "Transporteur"
+    VOLUNTEER = "volunteer", "Benevole"
+
+
 class Contact(models.Model):
     contact_type = models.CharField(
         max_length=20, choices=ContactType.choices, default=ContactType.ORGANIZATION
@@ -98,6 +104,30 @@ class ContactAddress(models.Model):
         super().save(*args, **kwargs)
         if self.contact.contact_type == ContactType.ORGANIZATION and self.is_default:
             _sync_people_for_org(self.contact)
+
+
+class ContactCapability(models.Model):
+    contact = models.ForeignKey(Contact, on_delete=models.CASCADE, related_name="capabilities")
+    capability = models.CharField(max_length=40, choices=ContactCapabilityType.choices)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["contact__name", "capability"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["contact", "capability"],
+                name="contacts_capability_unique_per_contact_type",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["capability", "is_active"],
+                name="contacts_capability_lookup_idx",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.contact.name} / {self.get_capability_display()}"
 
 
 def _sync_contact_address_from_org(contact):
