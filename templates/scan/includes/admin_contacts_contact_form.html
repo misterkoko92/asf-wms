@@ -28,6 +28,9 @@
             <div class="scan-field col-12 col-lg-4" data-contact-entity-wrapper="1">
                 <label class="form-label" for="{{ contact_form.entity_type.id_for_label }}">
                     {{ contact_form.entity_type.label }}
+                    <span class="text-danger"
+                          data-required-marker="entity_type"
+                          hidden>*</span>
                 </label>
                 {{ contact_form.entity_type }}
                 {{ contact_form.entity_type.errors }}

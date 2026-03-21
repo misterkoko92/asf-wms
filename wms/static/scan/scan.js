@@ -3195,7 +3195,7 @@
         }
         return forcedEntityType;
       }
-      return entityField && entityField.value ? entityField.value : 'organization';
+      return entityField && entityField.value ? entityField.value : '';
     };
 
     const resolveRequiredFields = (businessType, entityType) => {
@@ -3216,10 +3216,11 @@
         required.add('last_name');
       }
       if (businessType === 'donor' || businessType === 'transporter') {
+        required.add('entity_type');
         if (entityType === 'person') {
           required.add('first_name');
           required.add('last_name');
-        } else {
+        } else if (entityType === 'organization') {
           required.add('organization_name');
         }
       }
@@ -3245,6 +3246,35 @@
       targetGroup.hidden = !needsTarget;
     };
 
+    const managedRequiredFieldNames = [
+      'entity_type',
+      'organization_name',
+      'first_name',
+      'last_name',
+      'destination_id',
+      'allowed_shipper_ids'
+    ];
+
+    const setSectionFieldsDisabled = (section, shouldHide) => {
+      section.querySelectorAll('input, select, textarea').forEach(field => {
+        if (field.type === 'hidden') {
+          return;
+        }
+        field.disabled = shouldHide;
+      });
+    };
+
+    const syncManagedRequiredState = requiredFields => {
+      managedRequiredFieldNames.forEach(fieldName => {
+        contactForm.querySelectorAll(`[name="${fieldName}"]`).forEach(field => {
+          if (field.type === 'hidden') {
+            return;
+          }
+          field.required = requiredFields.has(fieldName) && !field.disabled;
+        });
+      });
+    };
+
     const applyContactFieldVisibility = () => {
       if (!contactForm || !businessField) {
         return;
@@ -3255,20 +3285,30 @@
       if (entityWrapper) {
         entityWrapper.hidden = Boolean(lockedEntityTypes[businessType]);
       }
+      if (entityField) {
+        entityField.disabled = Boolean(entityWrapper && entityWrapper.hidden);
+      }
 
       contactForm
         .querySelectorAll('[data-contact-field-group], [data-contact-businesses], [data-contact-entities]')
         .forEach(section => {
           const supportedBusinesses = splitDatasetValues(section.dataset.contactBusinesses);
           const supportedEntities = splitDatasetValues(section.dataset.contactEntities);
+          const fieldGroup = section.dataset.contactFieldGroup || '';
           const matchesBusiness =
             !supportedBusinesses.length || supportedBusinesses.includes(businessType);
-          const matchesEntity =
+          let matchesEntity =
             !supportedEntities.length || supportedEntities.includes(entityType);
-          section.hidden = !(matchesBusiness && matchesEntity);
+          if (fieldGroup === 'person' && ['donor', 'transporter'].includes(businessType)) {
+            matchesEntity = entityType === 'person';
+          }
+          const shouldHide = !(matchesBusiness && matchesEntity);
+          section.hidden = shouldHide;
+          setSectionFieldsDisabled(section, shouldHide);
         });
 
       const requiredFields = resolveRequiredFields(businessType, entityType);
+      syncManagedRequiredState(requiredFields);
       contactForm.querySelectorAll('[data-required-marker]').forEach(marker => {
         marker.hidden = !requiredFields.has(marker.dataset.requiredMarker);
       });
@@ -3375,6 +3415,9 @@
           actionDescription.textContent = `Confirmer la désactivation de ${contactName}.`;
         }
         actionSubmit.textContent = 'Désactiver';
+        if (typeof actionPanel.scrollIntoView === 'function') {
+          actionPanel.scrollIntoView({ block: 'nearest' });
+        }
         return;
       }
 
@@ -3395,32 +3438,43 @@
         actionDescription.textContent = `Choisissez la fiche cible pour fusionner ${contactName}.`;
       }
       actionSubmit.textContent = 'Fusionner';
+      if (typeof actionPanel.scrollIntoView === 'function') {
+        actionPanel.scrollIntoView({ block: 'nearest' });
+      }
     };
 
-    root.querySelectorAll('[data-contact-action-select="1"]').forEach(select => {
-      select.addEventListener('change', () => {
-        const action = select.value;
-        if (!action) {
-          if (activeActionSelect === select) {
-            resetActionPanel();
-          }
-          return;
+    root.addEventListener('change', event => {
+      if (!(event.target instanceof Element)) {
+        return;
+      }
+      const actionSelect = event.target.closest('[data-contact-action-select="1"]');
+      if (!actionSelect) {
+        return;
+      }
+      const action = actionSelect.value;
+      if (!action) {
+        if (activeActionSelect === actionSelect) {
+          resetActionPanel();
         }
-        if (action === 'edit') {
-          const editUrl = select.dataset.editUrl;
-          select.value = '';
-          if (editUrl) {
-            window.location.assign(editUrl);
-          }
-          return;
+        return;
+      }
+      if (action === 'edit') {
+        const editUrl = actionSelect.dataset.editUrl;
+        actionSelect.value = '';
+        if (editUrl) {
+          window.location.assign(editUrl);
         }
-        activeActionSelect = select;
-        openActionPanel({
-          action,
-          contactId: select.dataset.contactId || '',
-          contactType: select.dataset.contactType || '',
-          contactName: select.dataset.contactName || ''
-        });
+        return;
+      }
+      if (activeActionSelect && activeActionSelect !== actionSelect) {
+        activeActionSelect.value = '';
+      }
+      activeActionSelect = actionSelect;
+      openActionPanel({
+        action,
+        contactId: actionSelect.dataset.contactId || '',
+        contactType: actionSelect.dataset.contactType || '',
+        contactName: actionSelect.dataset.contactName || ''
       });
     });
 

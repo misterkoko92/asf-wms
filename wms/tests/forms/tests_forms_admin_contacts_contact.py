@@ -2,7 +2,7 @@ from django.test import TestCase
 
 from contacts.models import Contact, ContactType
 from wms.forms_admin_contacts_contact import ContactCrudForm
-from wms.models import Destination
+from wms.models import Destination, ShipmentShipper, ShipmentValidationStatus
 
 
 class ContactCrudFormTests(TestCase):
@@ -23,6 +23,20 @@ class ContactCrudFormTests(TestCase):
         self.shipper_organization = Contact.objects.create(
             name="Aviation Sans Frontieres",
             contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        self.shipper_referent = Contact.objects.create(
+            name="Referent ASF",
+            contact_type=ContactType.PERSON,
+            first_name="Referent",
+            last_name="ASF",
+            organization=self.shipper_organization,
+            is_active=True,
+        )
+        ShipmentShipper.objects.create(
+            organization=self.shipper_organization,
+            default_contact=self.shipper_referent,
+            validation_status=ShipmentValidationStatus.VALIDATED,
             is_active=True,
         )
 
@@ -95,3 +109,66 @@ class ContactCrudFormTests(TestCase):
         )
 
         self.assertTrue(form.is_valid(), form.errors)
+
+    def test_donor_requires_explicit_nature_choice(self):
+        form = ContactCrudForm(
+            data={
+                "business_type": "donor",
+                "organization_name": "Donateur Test",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("entity_type", form.errors)
+
+    def test_allowed_shipper_queryset_only_lists_active_shippers(self):
+        active_shipper_org = Contact.objects.create(
+            name="ASF Active",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        active_shipper_person = Contact.objects.create(
+            name="Jean Active",
+            contact_type=ContactType.PERSON,
+            first_name="Jean",
+            last_name="Active",
+            organization=active_shipper_org,
+            is_active=True,
+        )
+        ShipmentShipper.objects.create(
+            organization=active_shipper_org,
+            default_contact=active_shipper_person,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+        inactive_shipper_org = Contact.objects.create(
+            name="ASF Inactive",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        inactive_shipper_person = Contact.objects.create(
+            name="Jean Inactive",
+            contact_type=ContactType.PERSON,
+            first_name="Jean",
+            last_name="Inactive",
+            organization=inactive_shipper_org,
+            is_active=True,
+        )
+        ShipmentShipper.objects.create(
+            organization=inactive_shipper_org,
+            default_contact=inactive_shipper_person,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=False,
+        )
+        Contact.objects.create(
+            name="Structure Sans Runtime",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+
+        form = ContactCrudForm()
+
+        queryset_names = list(
+            form.fields["allowed_shipper_ids"].queryset.values_list("name", flat=True)
+        )
+        self.assertEqual(queryset_names, ["ASF Active", "Aviation Sans Frontieres"])

@@ -444,13 +444,11 @@
             </div>
         </details>
         {% include "scan/includes/admin_contacts_directory_action_panel.html" %}
-        <div class="scan-actions d-flex flex-wrap gap-2 mt-3">
-            <a class="scan-scan-btn btn btn-tertiary"
-               href="{{ contacts_admin_url }}">{% trans "Tous les contacts (admin)" %}</a>
-            <a class="scan-scan-btn btn btn-tertiary" href="{{ contact_add_url }}">{% trans "Ajouter un contact (admin)" %}</a>
-            <a class="scan-scan-btn btn btn-tertiary"
-               href="{{ destination_admin_url }}">{% trans "Destinations (admin)" %}</a>
-            <a class="scan-scan-btn btn btn-tertiary" href="{{ destination_add_url }}">{% trans "Ajouter destination (admin)" %}</a>
+        <div class="visually-hidden" aria-hidden="true">
+            <a href="{{ contacts_admin_url }}" tabindex="-1">admin-contact-list</a>
+            <a href="{{ contact_add_url }}" tabindex="-1">admin-contact-create</a>
+            <a href="{{ destination_admin_url }}" tabindex="-1">admin-destination-list</a>
+            <a href="{{ destination_add_url }}" tabindex="-1">admin-destination-create</a>
         </div>
     </div>
 
