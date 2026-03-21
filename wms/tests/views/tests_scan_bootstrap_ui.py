@@ -469,6 +469,18 @@ class ScanBootstrapUiTests(TestCase):
         self.assertNotContains(response, 'name="action" value="update_contact"')
         self.assertNotContains(response, 'name="action" value="delete_contact"')
 
+    def test_scan_admin_contacts_js_supports_crud_cards_and_directory_actions(self):
+        js_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan.js"
+        js_content = js_path.read_text(encoding="utf-8")
+
+        self.assertIn("data-admin-contacts-crud", js_content)
+        self.assertIn("scan-admin-contact-action-panel", js_content)
+        self.assertIn("data-contact-action-select", js_content)
+        self.assertIn("data-contact-field-group", js_content)
+        self.assertIn("data-required-marker", js_content)
+        self.assertIn("merge_contact", js_content)
+        self.assertIn("deactivate_contact", js_content)
+
     def test_scan_order_page_uses_design_component_classes(self):
         response = self.client.get(reverse("scan:scan_order"))
         self.assertEqual(response.status_code, 200)

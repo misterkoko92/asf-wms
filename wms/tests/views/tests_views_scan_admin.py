@@ -173,6 +173,45 @@ class ScanAdminViewTests(TestCase):
         self.assertContains(response, 'data-table-tools="1"', count=6)
         self.assertNotContains(response, 'scan-admin-table-accordion" open')
 
+    def test_scan_admin_contacts_renders_creation_cards_before_filters(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_admin_contacts"))
+
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode("utf-8")
+        destination_index = html.index("Création de destination")
+        contact_index = html.index("Création de contact")
+        filters_index = html.index("Recherche et filtres")
+        self.assertLess(destination_index, filters_index)
+        self.assertLess(contact_index, filters_index)
+        self.assertContains(response, 'id="scan-admin-create-destination"')
+        self.assertContains(response, 'id="scan-admin-create-contact"')
+        self.assertNotContains(response, 'id="scan-admin-create-destination" open')
+        self.assertNotContains(response, 'id="scan-admin-create-contact" open')
+
+    def test_scan_admin_contacts_directory_exposes_inline_actions(self):
+        self.client.force_login(self.superuser)
+        contact = Contact.objects.create(
+            name="Structure Actionnable",
+            contact_type="organization",
+            is_active=True,
+        )
+
+        response = self.client.get(reverse("scan:scan_admin_contacts"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, contact.name)
+        self.assertContains(response, "<th>Actions</th>", html=True)
+        self.assertContains(
+            response,
+            f'id="scan-admin-contact-action-{contact.id}"',
+        )
+        self.assertContains(response, "Voir les choix")
+        self.assertContains(response, "Modifier")
+        self.assertContains(response, "Désactiver")
+        self.assertContains(response, "Fusionner")
+
     def test_scan_contacts_navigation_is_under_gestion_instead_of_admin(self):
         self.client.force_login(self.superuser)
 

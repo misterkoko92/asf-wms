@@ -1,0 +1,48 @@
+{% load i18n %}
+<div id="scan-admin-contact-action-panel"
+     class="ui-comp-panel border rounded-3 p-3 mt-3"
+     data-admin-contact-action-panel="1"
+     hidden>
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+        <div>
+            <h4 class="h6 mb-1" id="scan-admin-contact-action-title">{% trans "Action sur un contact" %}</h4>
+            <p class="scan-help mb-0" id="scan-admin-contact-action-description"></p>
+        </div>
+        <button type="button"
+                class="btn btn-tertiary btn-sm"
+                id="scan-admin-contact-action-cancel">
+            {% trans "Annuler" %}
+        </button>
+    </div>
+    <form method="post" id="scan-admin-contact-action-form" class="row g-3">
+        {% csrf_token %}
+        <input type="hidden" name="q" value="{{ query }}">
+        <input type="hidden" name="contact_type" value="{{ contact_filter }}">
+        <input type="hidden" name="destination_id" value="{{ destination_filter }}">
+        <input type="hidden" name="action" id="scan-admin-contact-action-value" value="">
+        <input type="hidden" name="contact_id" id="scan-admin-contact-action-contact-id" value="">
+        <input type="hidden" name="source_contact_id" id="scan-admin-contact-action-source-id" value="">
+        <div class="scan-field col-12 col-lg-8" id="scan-admin-contact-action-merge-target-group" hidden>
+            <label class="form-label" for="scan-admin-contact-action-target-id">
+                {% trans "Fusionner vers" %}
+            </label>
+            <select id="scan-admin-contact-action-target-id"
+                    name="target_contact_id"
+                    class="form-select">
+                <option value="">{% trans "Choisir..." %}</option>
+                {% for contact in contact_action_merge_targets %}
+                    <option value="{{ contact.id }}"
+                            data-contact-type="{{ contact.contact_type }}"
+                            data-contact-name="{{ contact.name }}">
+                        {{ contact.name }}{% if contact.organization %} - {{ contact.organization.name }}{% endif %}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-12 d-flex flex-wrap gap-2">
+            <button type="submit" class="btn btn-primary" id="scan-admin-contact-action-submit">
+                {% trans "Confirmer" %}
+            </button>
+        </div>
+    </form>
+</div>
