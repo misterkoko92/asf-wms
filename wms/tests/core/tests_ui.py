@@ -32,7 +32,7 @@ class ScanUiTests(StaticLiveServerTestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(
             username="ui-user",
-            password="pass1234",
+            password="pass1234",  # pragma: allowlist secret
             is_staff=True,
         )
         self.client.force_login(self.user)

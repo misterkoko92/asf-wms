@@ -32,7 +32,10 @@ from wms.models import (
 
 class ApiTests(TestCase):
     def setUp(self):
-        self.user = get_user_model().objects.create_user(username="api-user", password="pass1234")
+        self.user = get_user_model().objects.create_user(
+            username="api-user",
+            password="pass1234",  # pragma: allowlist secret
+        )
         self.client = APIClient()
         self.client.force_authenticate(self.user)
         self.warehouse = Warehouse.objects.create(name="API WH", code="API")
@@ -268,7 +271,7 @@ class ApiTests(TestCase):
         line = order.lines.first()
         self.assertEqual(line.prepared_quantity, 4)
 
-    @override_settings(INTEGRATION_API_KEY="test-key")
+    @override_settings(INTEGRATION_API_KEY="test-key")  # pragma: allowlist secret
     def test_integration_shipments_with_api_key(self):
         contact = Contact.objects.create(name="Dest Contact")
         destination = Destination.objects.create(
@@ -289,13 +292,13 @@ class ApiTests(TestCase):
         self.assertEqual(response.status_code, 403)
         response = client.get(
             "/api/v1/integrations/shipments/",
-            HTTP_X_ASF_INTEGRATION_KEY="test-key",
+            HTTP_X_ASF_INTEGRATION_KEY="test-key",  # pragma: allowlist secret
         )
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(len(data), 1)
 
-    @override_settings(INTEGRATION_API_KEY="test-key")
+    @override_settings(INTEGRATION_API_KEY="test-key")  # pragma: allowlist secret
     def test_integration_shipments_filters(self):
         contact = Contact.objects.create(name="Filter Contact")
         destination_paris = Destination.objects.create(
@@ -329,7 +332,7 @@ class ApiTests(TestCase):
         client = APIClient()
         response = client.get(
             "/api/v1/integrations/shipments/?status=packed",
-            HTTP_X_ASF_INTEGRATION_KEY="test-key",
+            HTTP_X_ASF_INTEGRATION_KEY="test-key",  # pragma: allowlist secret
         )
         self.assertEqual(response.status_code, 200)
         data = response.json()
@@ -338,14 +341,14 @@ class ApiTests(TestCase):
 
         response = client.get(
             "/api/v1/integrations/shipments/?destination=PAR",
-            HTTP_X_ASF_INTEGRATION_KEY="test-key",
+            HTTP_X_ASF_INTEGRATION_KEY="test-key",  # pragma: allowlist secret
         )
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(len(data), 1)
         self.assertEqual(data[0]["id"], shipment_paris.id)
 
-    @override_settings(INTEGRATION_API_KEY="test-key")
+    @override_settings(INTEGRATION_API_KEY="test-key")  # pragma: allowlist secret
     def test_integration_event_create(self):
         client = APIClient()
         payload = {
@@ -357,7 +360,7 @@ class ApiTests(TestCase):
             "/api/v1/integrations/events/",
             payload,
             format="json",
-            HTTP_X_ASF_INTEGRATION_KEY="test-key",
+            HTTP_X_ASF_INTEGRATION_KEY="test-key",  # pragma: allowlist secret
         )
         self.assertEqual(response.status_code, 201)
         self.assertEqual(IntegrationEvent.objects.count(), 1)
