@@ -1,0 +1,123 @@
+{% load i18n %}
+<form method="post" class="row g-3 ui-comp-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="save_destination">
+    <input type="hidden" name="q" value="{{ query }}">
+    <input type="hidden" name="contact_type" value="{{ contact_filter }}">
+    <input type="hidden" name="destination_id" value="{{ destination_filter }}">
+    {{ destination_form.duplicate_candidates_count }}
+    {% if destination_form.non_field_errors %}
+        <div class="col-12">
+            <div class="alert alert-danger mb-0">
+                {% for error in destination_form.non_field_errors %}
+                    <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+    <div class="scan-field col-12 col-lg-4">
+        <label class="form-label" for="{{ destination_form.city.id_for_label }}">
+            {{ destination_form.city.label }} *
+        </label>
+        {{ destination_form.city }}
+        {{ destination_form.city.errors }}
+    </div>
+    <div class="scan-field col-12 col-lg-4">
+        <label class="form-label" for="{{ destination_form.iata_code.id_for_label }}">
+            {{ destination_form.iata_code.label }} *
+        </label>
+        {{ destination_form.iata_code }}
+        {{ destination_form.iata_code.errors }}
+    </div>
+    <div class="scan-field col-12 col-lg-4">
+        <label class="form-label" for="{{ destination_form.country.id_for_label }}">
+            {{ destination_form.country.label }} *
+        </label>
+        {{ destination_form.country }}
+        {{ destination_form.country.errors }}
+    </div>
+    <div class="scan-field col-12 col-lg-8">
+        <label class="form-label" for="{{ destination_form.correspondent_contact_id.id_for_label }}">
+            {{ destination_form.correspondent_contact_id.label }} *
+        </label>
+        {{ destination_form.correspondent_contact_id }}
+        {{ destination_form.correspondent_contact_id.errors }}
+    </div>
+    <div class="scan-field col-12 col-lg-4 d-flex align-items-end">
+        <div class="form-check form-switch scan-inline-switch">
+            {{ destination_form.is_active }}
+            <label class="form-check-label" for="{{ destination_form.is_active.id_for_label }}">
+                {{ destination_form.is_active.label }}
+            </label>
+        </div>
+    </div>
+    {% if destination_duplicate_candidates %}
+        <div class="col-12">
+            <div class="ui-comp-panel border rounded-3 p-3">
+                <h4 class="h6 mb-2">{% trans "Doublons probables" %}</h4>
+                <p class="scan-help mb-3">
+                    {% trans "Une ou plusieurs destinations proches existent déjà. Choisissez explicitement comment traiter ce cas." %}
+                </p>
+                <div class="scan-table-wrap table-responsive mb-3">
+                    <table class="scan-table table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>{% trans "Ville" %}</th>
+                                <th>{% trans "IATA" %}</th>
+                                <th>{% trans "Pays" %}</th>
+                                <th>{% trans "Correspondant" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for candidate in destination_duplicate_candidates %}
+                                <tr>
+                                    <td>{{ candidate.city }}</td>
+                                    <td>{{ candidate.iata_code }}</td>
+                                    <td>{{ candidate.country }}</td>
+                                    <td>{{ candidate.correspondent_contact|default:"-" }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="row g-3">
+                    <div class="scan-field col-12 col-lg-4">
+                        <label class="form-label" for="{{ destination_form.duplicate_action.id_for_label }}">
+                            {{ destination_form.duplicate_action.label }} *
+                        </label>
+                        <select id="{{ destination_form.duplicate_action.id_for_label }}"
+                                name="duplicate_action"
+                                class="form-select"
+                                data-duplicate-action="1">
+                            {% for value, label in destination_form.fields.duplicate_action.choices %}
+                                <option value="{{ value }}"
+                                        {% if destination_form.duplicate_action.value == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                        {{ destination_form.duplicate_action.errors }}
+                    </div>
+                    <div class="scan-field col-12 col-lg-8" data-duplicate-target-group="1">
+                        <label class="form-label" for="scan-admin-destination-duplicate-target">
+                            {% trans "Destination cible" %}
+                        </label>
+                        <select id="scan-admin-destination-duplicate-target"
+                                name="duplicate_target_id"
+                                class="form-select">
+                            <option value="">{% trans "Choisir..." %}</option>
+                            {% for candidate in destination_duplicate_candidates %}
+                                <option value="{{ candidate.id }}"
+                                        {% if destination_form.duplicate_target_id.value|stringformat:"s" == candidate.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ candidate.city }} ({{ candidate.iata_code }}) - {{ candidate.country }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        {{ destination_form.duplicate_target_id.errors }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+    <div class="col-12 d-flex flex-wrap gap-2">
+        <button type="submit" class="btn btn-primary">{% trans "Enregistrer la destination" %}</button>
+    </div>
+</form>

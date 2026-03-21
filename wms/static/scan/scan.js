@@ -3163,6 +3163,282 @@
     });
   }
 
+  function setupAdminContactsCrud() {
+    const root = document.querySelector('[data-admin-contacts-crud="1"]');
+    if (!root) {
+      return;
+    }
+
+    const contactForm = root.querySelector('[data-admin-contact-form="1"]');
+    const businessField = contactForm
+      ? contactForm.querySelector('[name="business_type"]')
+      : null;
+    const entityField = contactForm
+      ? contactForm.querySelector('[name="entity_type"]')
+      : null;
+    const entityWrapper = contactForm
+      ? contactForm.querySelector('[data-contact-entity-wrapper="1"]')
+      : null;
+
+    const lockedEntityTypes = {
+      shipper: 'organization',
+      recipient: 'organization',
+      correspondent: 'organization',
+      volunteer: 'person'
+    };
+
+    const resolveContactEntityType = businessType => {
+      const forcedEntityType = lockedEntityTypes[businessType];
+      if (forcedEntityType) {
+        if (entityField) {
+          entityField.value = forcedEntityType;
+        }
+        return forcedEntityType;
+      }
+      return entityField && entityField.value ? entityField.value : 'organization';
+    };
+
+    const resolveRequiredFields = (businessType, entityType) => {
+      const required = new Set();
+      if (['shipper', 'recipient', 'correspondent'].includes(businessType)) {
+        required.add('organization_name');
+        required.add('first_name');
+        required.add('last_name');
+      }
+      if (businessType === 'recipient' || businessType === 'correspondent') {
+        required.add('destination_id');
+      }
+      if (businessType === 'recipient') {
+        required.add('allowed_shipper_ids');
+      }
+      if (businessType === 'volunteer') {
+        required.add('first_name');
+        required.add('last_name');
+      }
+      if (businessType === 'donor' || businessType === 'transporter') {
+        if (entityType === 'person') {
+          required.add('first_name');
+          required.add('last_name');
+        } else {
+          required.add('organization_name');
+        }
+      }
+      return required;
+    };
+
+    const splitDatasetValues = value =>
+      String(value || '')
+        .split(',')
+        .map(item => item.trim())
+        .filter(Boolean);
+
+    const toggleDuplicateTargetGroups = form => {
+      const actionSelect = form.querySelector('[data-duplicate-action="1"]');
+      if (!actionSelect) {
+        return;
+      }
+      const targetGroup = form.querySelector('[data-duplicate-target-group="1"]');
+      if (!targetGroup) {
+        return;
+      }
+      const needsTarget = ['replace', 'merge'].includes(actionSelect.value);
+      targetGroup.hidden = !needsTarget;
+    };
+
+    const applyContactFieldVisibility = () => {
+      if (!contactForm || !businessField) {
+        return;
+      }
+      const businessType = businessField.value || '';
+      const entityType = resolveContactEntityType(businessType);
+
+      if (entityWrapper) {
+        entityWrapper.hidden = Boolean(lockedEntityTypes[businessType]);
+      }
+
+      contactForm
+        .querySelectorAll('[data-contact-field-group], [data-contact-businesses], [data-contact-entities]')
+        .forEach(section => {
+          const supportedBusinesses = splitDatasetValues(section.dataset.contactBusinesses);
+          const supportedEntities = splitDatasetValues(section.dataset.contactEntities);
+          const matchesBusiness =
+            !supportedBusinesses.length || supportedBusinesses.includes(businessType);
+          const matchesEntity =
+            !supportedEntities.length || supportedEntities.includes(entityType);
+          section.hidden = !(matchesBusiness && matchesEntity);
+        });
+
+      const requiredFields = resolveRequiredFields(businessType, entityType);
+      contactForm.querySelectorAll('[data-required-marker]').forEach(marker => {
+        marker.hidden = !requiredFields.has(marker.dataset.requiredMarker);
+      });
+
+      toggleDuplicateTargetGroups(contactForm);
+    };
+
+    if (contactForm && businessField) {
+      businessField.addEventListener('change', applyContactFieldVisibility);
+      if (entityField) {
+        entityField.addEventListener('change', applyContactFieldVisibility);
+      }
+      applyContactFieldVisibility();
+    }
+
+    root.querySelectorAll('form').forEach(form => {
+      const duplicateActionSelect = form.querySelector('[data-duplicate-action="1"]');
+      if (!duplicateActionSelect) {
+        return;
+      }
+      duplicateActionSelect.addEventListener('change', () => {
+        toggleDuplicateTargetGroups(form);
+      });
+      toggleDuplicateTargetGroups(form);
+    });
+
+    const actionPanel = document.getElementById('scan-admin-contact-action-panel');
+    const actionForm = document.getElementById('scan-admin-contact-action-form');
+    const actionValueInput = document.getElementById('scan-admin-contact-action-value');
+    const actionContactIdInput = document.getElementById('scan-admin-contact-action-contact-id');
+    const actionSourceIdInput = document.getElementById('scan-admin-contact-action-source-id');
+    const actionTitle = document.getElementById('scan-admin-contact-action-title');
+    const actionDescription = document.getElementById('scan-admin-contact-action-description');
+    const actionSubmit = document.getElementById('scan-admin-contact-action-submit');
+    const actionCancel = document.getElementById('scan-admin-contact-action-cancel');
+    const mergeTargetGroup = document.getElementById(
+      'scan-admin-contact-action-merge-target-group'
+    );
+    const mergeTargetSelect = document.getElementById('scan-admin-contact-action-target-id');
+
+    if (!actionPanel || !actionForm || !actionValueInput || !actionSubmit) {
+      return;
+    }
+
+    let activeActionSelect = null;
+
+    const resetActionPanel = () => {
+      actionPanel.hidden = true;
+      actionValueInput.value = '';
+      actionContactIdInput.value = '';
+      actionSourceIdInput.value = '';
+      if (mergeTargetGroup) {
+        mergeTargetGroup.hidden = true;
+      }
+      if (mergeTargetSelect) {
+        mergeTargetSelect.required = false;
+        mergeTargetSelect.value = '';
+        Array.from(mergeTargetSelect.options).forEach(option => {
+          option.hidden = false;
+          option.disabled = false;
+        });
+      }
+      if (activeActionSelect) {
+        activeActionSelect.value = '';
+      }
+      activeActionSelect = null;
+    };
+
+    const filterMergeTargets = ({ sourceId, contactType }) => {
+      if (!mergeTargetSelect) {
+        return;
+      }
+      Array.from(mergeTargetSelect.options).forEach(option => {
+        if (!option.value) {
+          option.hidden = false;
+          option.disabled = false;
+          return;
+        }
+        const matchesType = option.dataset.contactType === contactType;
+        const sameContact = option.value === sourceId;
+        option.hidden = !(matchesType && !sameContact);
+        option.disabled = !(matchesType && !sameContact);
+      });
+      mergeTargetSelect.value = '';
+    };
+
+    const openActionPanel = ({ action, contactId, contactType, contactName }) => {
+      actionPanel.hidden = false;
+      if (action === 'deactivate') {
+        actionValueInput.value = 'deactivate_contact';
+        actionContactIdInput.value = contactId;
+        actionSourceIdInput.value = '';
+        if (mergeTargetGroup) {
+          mergeTargetGroup.hidden = true;
+        }
+        if (mergeTargetSelect) {
+          mergeTargetSelect.required = false;
+          mergeTargetSelect.value = '';
+        }
+        if (actionTitle) {
+          actionTitle.textContent = 'Désactiver le contact';
+        }
+        if (actionDescription) {
+          actionDescription.textContent = `Confirmer la désactivation de ${contactName}.`;
+        }
+        actionSubmit.textContent = 'Désactiver';
+        return;
+      }
+
+      actionValueInput.value = 'merge_contact';
+      actionContactIdInput.value = '';
+      actionSourceIdInput.value = contactId;
+      if (mergeTargetGroup) {
+        mergeTargetGroup.hidden = false;
+      }
+      if (mergeTargetSelect) {
+        mergeTargetSelect.required = true;
+      }
+      filterMergeTargets({ sourceId: contactId, contactType });
+      if (actionTitle) {
+        actionTitle.textContent = 'Fusionner un contact';
+      }
+      if (actionDescription) {
+        actionDescription.textContent = `Choisissez la fiche cible pour fusionner ${contactName}.`;
+      }
+      actionSubmit.textContent = 'Fusionner';
+    };
+
+    root.querySelectorAll('[data-contact-action-select="1"]').forEach(select => {
+      select.addEventListener('change', () => {
+        const action = select.value;
+        if (!action) {
+          if (activeActionSelect === select) {
+            resetActionPanel();
+          }
+          return;
+        }
+        if (action === 'edit') {
+          const editUrl = select.dataset.editUrl;
+          select.value = '';
+          if (editUrl) {
+            window.location.assign(editUrl);
+          }
+          return;
+        }
+        activeActionSelect = select;
+        openActionPanel({
+          action,
+          contactId: select.dataset.contactId || '',
+          contactType: select.dataset.contactType || '',
+          contactName: select.dataset.contactName || ''
+        });
+      });
+    });
+
+    if (actionCancel) {
+      actionCancel.addEventListener('click', resetActionPanel);
+    }
+
+    actionForm.addEventListener('submit', event => {
+      if (actionValueInput.value !== 'merge_contact' || !mergeTargetSelect) {
+        return;
+      }
+      if (!mergeTargetSelect.value) {
+        event.preventDefault();
+        mergeTargetSelect.focus();
+      }
+    });
+  }
+
   function setupLiveSync() {
     const banner = document.getElementById('scan-sync-banner');
     if (!banner) {
@@ -3397,6 +3673,7 @@
   setupPackLines();
   setupShipmentBuilder();
   setupShipmentContactFilters();
+  setupAdminContactsCrud();
   setupReceiptLines();
   setupTableTools();
   setupLiveSync();

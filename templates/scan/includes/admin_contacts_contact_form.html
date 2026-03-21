@@ -1,0 +1,357 @@
+{% load i18n %}
+<form method="post" class="row g-3 ui-comp-form" data-admin-contact-form="1">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="save_contact">
+    <input type="hidden" name="q" value="{{ query }}">
+    <input type="hidden" name="contact_type" value="{{ contact_filter }}">
+    <input type="hidden" name="destination_id" value="{{ destination_filter }}">
+    <input type="hidden" name="editing_contact_id" value="{{ editing_contact.id|default:'' }}">
+    {{ contact_form.duplicate_candidates_count }}
+    {% if contact_form.non_field_errors %}
+        <div class="col-12">
+            <div class="alert alert-danger mb-0">
+                {% for error in contact_form.non_field_errors %}
+                    <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+    <div class="col-12">
+        <div class="row g-3">
+            <div class="scan-field col-12 col-lg-4">
+                <label class="form-label" for="{{ contact_form.business_type.id_for_label }}">
+                    {{ contact_form.business_type.label }} *
+                </label>
+                {{ contact_form.business_type }}
+                {{ contact_form.business_type.errors }}
+            </div>
+            <div class="scan-field col-12 col-lg-4" data-contact-entity-wrapper="1">
+                <label class="form-label" for="{{ contact_form.entity_type.id_for_label }}">
+                    {{ contact_form.entity_type.label }}
+                </label>
+                {{ contact_form.entity_type }}
+                {{ contact_form.entity_type.errors }}
+            </div>
+            <div class="scan-field col-12 col-lg-4 d-flex align-items-end">
+                <div class="form-check form-switch scan-inline-switch">
+                    {{ contact_form.is_active }}
+                    <label class="form-check-label" for="{{ contact_form.is_active.id_for_label }}">
+                        {{ contact_form.is_active.label }}
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12">
+        <div class="row g-3">
+            <div class="scan-field col-12 col-lg-6"
+                 data-contact-field-group="organization"
+                 data-contact-businesses="shipper,recipient,correspondent,donor,transporter"
+                 data-contact-entities="organization,person">
+                <label class="form-label" for="{{ contact_form.organization_name.id_for_label }}">
+                    {{ contact_form.organization_name.label }}
+                    <span class="text-danger"
+                          data-required-marker="organization_name"
+                          hidden>*</span>
+                </label>
+                {{ contact_form.organization_name }}
+                {{ contact_form.organization_name.errors }}
+            </div>
+            <div class="scan-field col-12 col-lg-3"
+                 data-contact-field-group="person"
+                 data-contact-businesses="shipper,recipient,correspondent,donor,transporter,volunteer"
+                 data-contact-entities="person,organization">
+                <label class="form-label" for="{{ contact_form.title.id_for_label }}">
+                    {{ contact_form.title.label }}
+                </label>
+                {{ contact_form.title }}
+                {{ contact_form.title.errors }}
+            </div>
+            <div class="scan-field col-12 col-lg-3">
+                <label class="form-label" for="{{ contact_form.asf_id.id_for_label }}">
+                    {{ contact_form.asf_id.label }}
+                </label>
+                {{ contact_form.asf_id }}
+                {{ contact_form.asf_id.errors }}
+            </div>
+            <div class="scan-field col-12 col-lg-3"
+                 data-contact-field-group="person"
+                 data-contact-businesses="shipper,recipient,correspondent,donor,transporter,volunteer"
+                 data-contact-entities="person,organization">
+                <label class="form-label" for="{{ contact_form.first_name.id_for_label }}">
+                    {{ contact_form.first_name.label }}
+                    <span class="text-danger"
+                          data-required-marker="first_name"
+                          hidden>*</span>
+                </label>
+                {{ contact_form.first_name }}
+                {{ contact_form.first_name.errors }}
+            </div>
+            <div class="scan-field col-12 col-lg-3"
+                 data-contact-field-group="person"
+                 data-contact-businesses="shipper,recipient,correspondent,donor,transporter,volunteer"
+                 data-contact-entities="person,organization">
+                <label class="form-label" for="{{ contact_form.last_name.id_for_label }}">
+                    {{ contact_form.last_name.label }}
+                    <span class="text-danger"
+                          data-required-marker="last_name"
+                          hidden>*</span>
+                </label>
+                {{ contact_form.last_name }}
+                {{ contact_form.last_name.errors }}
+            </div>
+            <div class="scan-field col-12 col-lg-3">
+                <label class="form-label" for="{{ contact_form.role.id_for_label }}">
+                    {{ contact_form.role.label }}
+                </label>
+                {{ contact_form.role }}
+                {{ contact_form.role.errors }}
+            </div>
+            <div class="scan-field col-12 col-lg-3">
+                <label class="form-label" for="{{ contact_form.email.id_for_label }}">
+                    {{ contact_form.email.label }}
+                </label>
+                {{ contact_form.email }}
+                {{ contact_form.email.errors }}
+            </div>
+            <div class="scan-field col-12 col-lg-3">
+                <label class="form-label" for="{{ contact_form.email2.id_for_label }}">
+                    {{ contact_form.email2.label }}
+                </label>
+                {{ contact_form.email2 }}
+                {{ contact_form.email2.errors }}
+            </div>
+            <div class="scan-field col-12 col-lg-3">
+                <label class="form-label" for="{{ contact_form.phone.id_for_label }}">
+                    {{ contact_form.phone.label }}
+                </label>
+                {{ contact_form.phone }}
+                {{ contact_form.phone.errors }}
+            </div>
+            <div class="scan-field col-12 col-lg-3">
+                <label class="form-label" for="{{ contact_form.phone2.id_for_label }}">
+                    {{ contact_form.phone2.label }}
+                </label>
+                {{ contact_form.phone2 }}
+                {{ contact_form.phone2.errors }}
+            </div>
+        </div>
+    </div>
+    <div class="col-12">
+        <div class="row g-3">
+            <div class="scan-field col-12 col-lg-4"
+                 data-contact-field-group="registry"
+                 data-contact-businesses="donor,transporter"
+                 data-contact-entities="organization">
+                <label class="form-label" for="{{ contact_form.siret.id_for_label }}">
+                    {{ contact_form.siret.label }}
+                </label>
+                {{ contact_form.siret }}
+                {{ contact_form.siret.errors }}
+            </div>
+            <div class="scan-field col-12 col-lg-4"
+                 data-contact-field-group="registry"
+                 data-contact-businesses="donor,transporter"
+                 data-contact-entities="organization">
+                <label class="form-label" for="{{ contact_form.vat_number.id_for_label }}">
+                    {{ contact_form.vat_number.label }}
+                </label>
+                {{ contact_form.vat_number }}
+                {{ contact_form.vat_number.errors }}
+            </div>
+            <div class="scan-field col-12 col-lg-4"
+                 data-contact-field-group="registry"
+                 data-contact-businesses="donor,transporter"
+                 data-contact-entities="organization">
+                <label class="form-label" for="{{ contact_form.legal_registration_number.id_for_label }}">
+                    {{ contact_form.legal_registration_number.label }}
+                </label>
+                {{ contact_form.legal_registration_number }}
+                {{ contact_form.legal_registration_number.errors }}
+            </div>
+        </div>
+    </div>
+    <div class="col-12">
+        <div class="row g-3">
+            <div class="scan-field col-12 col-lg-6">
+                <label class="form-label" for="{{ contact_form.address_line1.id_for_label }}">
+                    {{ contact_form.address_line1.label }}
+                </label>
+                {{ contact_form.address_line1 }}
+                {{ contact_form.address_line1.errors }}
+            </div>
+            <div class="scan-field col-12 col-lg-6">
+                <label class="form-label" for="{{ contact_form.address_line2.id_for_label }}">
+                    {{ contact_form.address_line2.label }}
+                </label>
+                {{ contact_form.address_line2 }}
+                {{ contact_form.address_line2.errors }}
+            </div>
+            <div class="scan-field col-12 col-lg-3">
+                <label class="form-label" for="{{ contact_form.postal_code.id_for_label }}">
+                    {{ contact_form.postal_code.label }}
+                </label>
+                {{ contact_form.postal_code }}
+                {{ contact_form.postal_code.errors }}
+            </div>
+            <div class="scan-field col-12 col-lg-3">
+                <label class="form-label" for="{{ contact_form.city.id_for_label }}">
+                    {{ contact_form.city.label }}
+                </label>
+                {{ contact_form.city }}
+                {{ contact_form.city.errors }}
+            </div>
+            <div class="scan-field col-12 col-lg-3">
+                <label class="form-label" for="{{ contact_form.region.id_for_label }}">
+                    {{ contact_form.region.label }}
+                </label>
+                {{ contact_form.region }}
+                {{ contact_form.region.errors }}
+            </div>
+            <div class="scan-field col-12 col-lg-3">
+                <label class="form-label" for="{{ contact_form.country.id_for_label }}">
+                    {{ contact_form.country.label }}
+                </label>
+                {{ contact_form.country }}
+                {{ contact_form.country.errors }}
+            </div>
+            <div class="scan-field col-12"
+                 data-contact-field-group="use-org-address"
+                 data-contact-businesses="donor,transporter,volunteer,shipper,recipient,correspondent"
+                 data-contact-entities="person">
+                <div class="form-check form-switch scan-inline-switch">
+                    {{ contact_form.use_organization_address }}
+                    <label class="form-check-label" for="{{ contact_form.use_organization_address.id_for_label }}">
+                        {{ contact_form.use_organization_address.label }}
+                    </label>
+                </div>
+                {{ contact_form.use_organization_address.errors }}
+            </div>
+        </div>
+    </div>
+    <div class="col-12">
+        <div class="row g-3">
+            <div class="scan-field col-12 col-lg-4"
+                 data-contact-field-group="shipment-destination"
+                 data-contact-businesses="recipient,correspondent">
+                <label class="form-label" for="{{ contact_form.destination_id.id_for_label }}">
+                    {{ contact_form.destination_id.label }}
+                    <span class="text-danger"
+                          data-required-marker="destination_id"
+                          hidden>*</span>
+                </label>
+                {{ contact_form.destination_id }}
+                {{ contact_form.destination_id.errors }}
+            </div>
+            <div class="scan-field col-12 col-lg-4"
+                 data-contact-field-group="shipment-shippers"
+                 data-contact-businesses="recipient">
+                <label class="form-label" for="{{ contact_form.allowed_shipper_ids.id_for_label }}">
+                    {{ contact_form.allowed_shipper_ids.label }}
+                    <span class="text-danger"
+                          data-required-marker="allowed_shipper_ids"
+                          hidden>*</span>
+                </label>
+                {{ contact_form.allowed_shipper_ids }}
+                {{ contact_form.allowed_shipper_ids.errors }}
+            </div>
+            <div class="scan-field col-12 col-lg-4 d-flex align-items-end"
+                 data-contact-field-group="shipment-shipper-scope"
+                 data-contact-businesses="shipper">
+                <div class="form-check form-switch scan-inline-switch">
+                    {{ contact_form.can_send_to_all }}
+                    <label class="form-check-label" for="{{ contact_form.can_send_to_all.id_for_label }}">
+                        {{ contact_form.can_send_to_all.label }}
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="scan-field col-12">
+        <label class="form-label" for="{{ contact_form.notes.id_for_label }}">
+            {{ contact_form.notes.label }}
+        </label>
+        {{ contact_form.notes }}
+        {{ contact_form.notes.errors }}
+    </div>
+    {% if contact_duplicate_candidates %}
+        <div class="col-12">
+            <div class="ui-comp-panel border rounded-3 p-3">
+                <h4 class="h6 mb-2">{% trans "Doublons probables" %}</h4>
+                <p class="scan-help mb-3">
+                    {% trans "Une ou plusieurs fiches proches existent déjà. Choisissez explicitement comment traiter ce cas." %}
+                </p>
+                <div class="scan-table-wrap table-responsive mb-3">
+                    <table class="scan-table table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>{% trans "Nom" %}</th>
+                                <th>{% trans "Type" %}</th>
+                                <th>{% trans "Organisation" %}</th>
+                                <th>Email</th>
+                                <th>{% trans "Téléphone" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for candidate in contact_duplicate_candidates %}
+                                <tr>
+                                    <td>{{ candidate.name }}</td>
+                                    <td>{{ candidate.get_contact_type_display }}</td>
+                                    <td>{{ candidate.organization|default:"-" }}</td>
+                                    <td>{{ candidate.email|default:"-" }}</td>
+                                    <td>{{ candidate.phone|default:"-" }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="row g-3">
+                    <div class="scan-field col-12 col-lg-4">
+                        <label class="form-label" for="{{ contact_form.duplicate_action.id_for_label }}">
+                            {{ contact_form.duplicate_action.label }} *
+                        </label>
+                        <select id="{{ contact_form.duplicate_action.id_for_label }}"
+                                name="duplicate_action"
+                                class="form-select"
+                                data-duplicate-action="1">
+                            {% for value, label in contact_form.fields.duplicate_action.choices %}
+                                <option value="{{ value }}"
+                                        {% if contact_form.duplicate_action.value == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                        {{ contact_form.duplicate_action.errors }}
+                    </div>
+                    <div class="scan-field col-12 col-lg-8" data-duplicate-target-group="1">
+                        <label class="form-label" for="scan-admin-contact-duplicate-target">
+                            {% trans "Fiche cible" %}
+                        </label>
+                        <select id="scan-admin-contact-duplicate-target"
+                                name="duplicate_target_id"
+                                class="form-select">
+                            <option value="">{% trans "Choisir..." %}</option>
+                            {% for candidate in contact_duplicate_candidates %}
+                                <option value="{{ candidate.id }}"
+                                        {% if contact_form.duplicate_target_id.value|stringformat:"s" == candidate.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ candidate.name }}{% if candidate.organization %} - {{ candidate.organization.name }}{% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        {{ contact_form.duplicate_target_id.errors }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+    <div class="col-12 d-flex flex-wrap gap-2">
+        <button type="submit" class="btn btn-primary">
+            {% if contact_form_mode == "edit" %}
+                {% trans "Mettre à jour le contact" %}
+            {% else %}
+                {% trans "Enregistrer le contact" %}
+            {% endif %}
+        </button>
+        {% if contact_form_mode == "edit" %}
+            <a class="btn btn-tertiary" href="{% url 'scan:scan_admin_contacts' %}">{% trans "Annuler" %}</a>
+        {% endif %}
+    </div>
+</form>

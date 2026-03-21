@@ -9,6 +9,17 @@ from django.views.decorators.http import require_http_methods
 
 from contacts.models import Contact, ContactType
 
+from .admin_contacts_crud import (
+    ACTION_DEACTIVATE_CONTACT,
+    ACTION_MERGE_CONTACT,
+    ACTION_SAVE_CONTACT,
+    ACTION_SAVE_DESTINATION,
+    build_admin_contacts_forms,
+    handle_contact_deactivation,
+    handle_contact_merge,
+    handle_contact_submission,
+    handle_destination_submission,
+)
 from .kit_components import KitCycleError, get_unit_component_quantities
 from .models import Destination, Product
 from .product_label_printing import (
@@ -157,6 +168,7 @@ def _resolve_product_labels_selection(request):
 def scan_admin_contacts(request):
     _require_superuser(request)
     query = (request.GET.get("q") or request.POST.get("q") or "").strip()
+    edit_contact_id = (request.GET.get("edit") or "").strip()
     cockpit_filters = parse_cockpit_filters(
         role=request.GET.get("role") or request.POST.get("role") or "",
         shipper_org_id=request.GET.get("shipper_org_id")
@@ -190,9 +202,64 @@ def scan_admin_contacts(request):
         correspondents = correspondents.filter(destinations_as_correspondent__id=destination_filter)
     correspondents = _apply_contact_query(correspondents, query)
 
+    crud_context = build_admin_contacts_forms(edit_contact_id=edit_contact_id)
+
     if request.method == "POST":
         action = (request.POST.get("action") or "").strip()
-        if action == ACTION_SET_DEFAULT_AUTHORIZED_RECIPIENT_CONTACT:
+        if action == ACTION_SAVE_DESTINATION:
+            outcome = handle_destination_submission(request.POST)
+            if outcome.should_redirect:
+                getattr(messages, outcome.message_level or "success")(
+                    request, outcome.message or ""
+                )
+                return _build_contacts_redirect(
+                    query=query,
+                    contact_filter=contact_filter,
+                    destination_filter=destination_filter,
+                )
+            crud_context.update(
+                {
+                    "destination_form": outcome.destination_form
+                    or crud_context["destination_form"],
+                    "destination_duplicate_candidates": outcome.destination_duplicate_candidates,
+                }
+            )
+        elif action == ACTION_SAVE_CONTACT:
+            outcome = handle_contact_submission(request.POST)
+            if outcome.should_redirect:
+                getattr(messages, outcome.message_level or "success")(
+                    request, outcome.message or ""
+                )
+                return _build_contacts_redirect(
+                    query=query,
+                    contact_filter=contact_filter,
+                    destination_filter=destination_filter,
+                )
+            crud_context.update(
+                {
+                    "contact_form": outcome.contact_form or crud_context["contact_form"],
+                    "contact_duplicate_candidates": outcome.contact_duplicate_candidates,
+                    "contact_form_mode": outcome.contact_form_mode,
+                    "editing_contact": outcome.editing_contact,
+                }
+            )
+        elif action == ACTION_DEACTIVATE_CONTACT:
+            outcome = handle_contact_deactivation(request.POST)
+            getattr(messages, outcome.message_level or "success")(request, outcome.message or "")
+            return _build_contacts_redirect(
+                query=query,
+                contact_filter=contact_filter,
+                destination_filter=destination_filter,
+            )
+        elif action == ACTION_MERGE_CONTACT:
+            outcome = handle_contact_merge(request.POST)
+            getattr(messages, outcome.message_level or "success")(request, outcome.message or "")
+            return _build_contacts_redirect(
+                query=query,
+                contact_filter=contact_filter,
+                destination_filter=destination_filter,
+            )
+        elif action == ACTION_SET_DEFAULT_AUTHORIZED_RECIPIENT_CONTACT:
             ok, message = set_default_authorized_recipient_contact(data=request.POST)
             if ok:
                 messages.success(request, message)
@@ -252,6 +319,21 @@ def scan_admin_contacts(request):
             "contact_add_url": reverse("admin:contacts_contact_add"),
             "destination_admin_url": reverse("admin:wms_destination_changelist"),
             "destination_add_url": reverse("admin:wms_destination_add"),
+            "contact_action_merge_targets": list(
+                Contact.objects.filter(is_active=True)
+                .select_related("organization")
+                .order_by("name", "id")
+            ),
+            "destination_form_open": bool(
+                crud_context["destination_form"].is_bound
+                or crud_context["destination_duplicate_candidates"]
+            ),
+            "contact_form_open": bool(
+                crud_context["contact_form"].is_bound
+                or crud_context["contact_form_mode"] == "edit"
+                or crud_context["contact_duplicate_candidates"]
+            ),
+            **crud_context,
             **cockpit_context,
         },
     )

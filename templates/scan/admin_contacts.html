@@ -2,11 +2,49 @@
 {% load i18n %}
 {% block title %}WMS Scan - Admin Contacts{% endblock %}
 {% block content %}
+    <div data-admin-contacts-crud="1">
     <div class="scan-card card border-0 ui-comp-card">
         <h2 class="ui-comp-title">{% trans "Gestion des contacts" %}</h2>
         <p class="scan-help ui-comp-note">
             {% trans "Répertoire unifié des structures et personnes, avec cockpit expédition basé sur le registre canonique." %}
         </p>
+    </div>
+
+    <div class="scan-card card border-0 ui-comp-card">
+        <details class="scan-admin-table-accordion" id="scan-admin-create-destination"{% if destination_form_open %} open{% endif %}>
+            <summary class="scan-admin-table-summary">
+                <span>{% trans "Création de destination" %}</span>
+            </summary>
+            <div class="p-3">
+                {% include "scan/includes/admin_contacts_destination_form.html" %}
+            </div>
+        </details>
+    </div>
+
+    <div class="scan-card card border-0 ui-comp-card">
+        <details class="scan-admin-table-accordion" id="scan-admin-create-contact"{% if contact_form_open %} open{% endif %}>
+            <summary class="scan-admin-table-summary">
+                <span>
+                    {% if contact_form_mode == "edit" %}
+                        {% trans "Modification de contact" %}
+                    {% else %}
+                        {% trans "Création de contact" %}
+                    {% endif %}
+                </span>
+            </summary>
+            <div class="p-3">
+                {% if contact_form_mode == "edit" and editing_contact %}
+                    <p class="scan-help ui-comp-note">
+                        {% blocktrans with name=editing_contact.name %}Modification de la fiche {{ name }}.{% endblocktrans %}
+                    </p>
+                {% else %}
+                    <p class="scan-help ui-comp-note">
+                        {% trans "Création guidée des expéditeurs, destinataires, correspondants et autres contacts métier." %}
+                    </p>
+                {% endif %}
+                {% include "scan/includes/admin_contacts_contact_form.html" %}
+            </div>
+        </details>
     </div>
 
     <div class="scan-card card border-0 ui-comp-card">
@@ -360,6 +398,7 @@
                         <th>Email</th>
                         <th>{% trans "Téléphone" %}</th>
                         <th>{% trans "Statut" %}</th>
+                        <th>{% trans "Actions" %}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -377,16 +416,34 @@
                                     {% trans "Inactif" %}
                                 {% endif %}
                             </td>
+                            <td>
+                                <label class="visually-hidden" for="scan-admin-contact-action-{{ contact.id }}">
+                                    {% trans "Voir les choix" %}
+                                </label>
+                                <select id="scan-admin-contact-action-{{ contact.id }}"
+                                        class="form-select form-select-sm"
+                                        data-contact-action-select="1"
+                                        data-contact-id="{{ contact.id }}"
+                                        data-contact-type="{{ contact.contact_type }}"
+                                        data-contact-name="{{ contact.name|escapejs }}"
+                                        data-edit-url="{% url 'scan:scan_admin_contacts' %}?edit={{ contact.id }}{% if query %}&amp;q={{ query|urlencode }}{% endif %}{% if contact_filter != 'all' %}&amp;contact_type={{ contact_filter|urlencode }}{% endif %}{% if destination_filter %}&amp;destination_id={{ destination_filter|urlencode }}{% endif %}">
+                                    <option value="">{% trans "Voir les choix" %}</option>
+                                    <option value="edit">{% trans "Modifier" %}</option>
+                                    <option value="deactivate">{% trans "Désactiver" %}</option>
+                                    <option value="merge">{% trans "Fusionner" %}</option>
+                                </select>
+                            </td>
                         </tr>
                     {% empty %}
                         <tr>
-                            <td colspan="6">{% trans "Aucun contact trouvé." %}</td>
+                            <td colspan="7">{% trans "Aucun contact trouvé." %}</td>
                         </tr>
                     {% endfor %}
                 </tbody>
             </table>
             </div>
         </details>
+        {% include "scan/includes/admin_contacts_directory_action_panel.html" %}
         <div class="scan-actions d-flex flex-wrap gap-2 mt-3">
             <a class="scan-scan-btn btn btn-tertiary"
                href="{{ contacts_admin_url }}">{% trans "Tous les contacts (admin)" %}</a>
@@ -515,4 +572,5 @@
         }
       })();
     </script>
+    </div>
 {% endblock %}
