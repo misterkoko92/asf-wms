@@ -1029,6 +1029,38 @@ h3 {
   width: 100%;
 }
 
+.scan-admin-table-accordion {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.scan-admin-table-summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  font-weight: 700;
+}
+
+.scan-admin-table-summary::-webkit-details-marker {
+  display: none;
+}
+
+.scan-admin-table-summary::after {
+  content: "▾";
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.scan-admin-table-accordion[open] .scan-admin-table-summary::after {
+  content: "▴";
+}
+
 .scan-doc-btn {
   min-width: auto;
   padding: 6px 8px;

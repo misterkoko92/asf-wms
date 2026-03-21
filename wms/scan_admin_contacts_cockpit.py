@@ -380,29 +380,50 @@ def merge_shipment_recipient_organizations(*, data) -> tuple[bool, str]:
     return True, _("Structures destinataires fusionnees.")
 
 
-def _build_shipment_party_shippers():
-    shippers = list(
-        ShipmentShipper.objects.select_related("organization", "default_contact")
-        .filter(organization__is_active=True)
-        .order_by("organization__name", "id")
+def _normalize_destination_id(destination_id):
+    return _to_int(destination_id)
+
+
+def _build_shipment_party_shippers(destination_id=None):
+    queryset = ShipmentShipper.objects.select_related("organization", "default_contact").filter(
+        organization__is_active=True
     )
+    resolved_destination_id = _normalize_destination_id(destination_id)
+    if resolved_destination_id is not None:
+        queryset = queryset.filter(
+            recipient_links__is_active=True,
+            recipient_links__recipient_organization__is_active=True,
+            recipient_links__recipient_organization__organization__is_active=True,
+            recipient_links__recipient_organization__destination__is_active=True,
+            recipient_links__recipient_organization__destination_id=resolved_destination_id,
+        ).distinct()
+    shippers = list(queryset.order_by("organization__name", "id"))
     for shipper in shippers:
-        shipper.active_link_count = shipper.recipient_links.filter(
+        active_links = shipper.recipient_links.filter(
             is_active=True,
             recipient_organization__is_active=True,
             recipient_organization__organization__is_active=True,
-        ).count()
+        )
+        if resolved_destination_id is not None:
+            active_links = active_links.filter(
+                recipient_organization__destination_id=resolved_destination_id
+            )
+        shipper.active_link_count = active_links.count()
     return shippers
 
 
-def _build_shipment_party_recipient_organizations():
+def _build_shipment_party_recipient_organizations(destination_id=None):
+    queryset = ShipmentRecipientOrganization.objects.select_related(
+        "organization", "destination"
+    ).filter(
+        organization__is_active=True,
+        destination__is_active=True,
+    )
+    resolved_destination_id = _normalize_destination_id(destination_id)
+    if resolved_destination_id is not None:
+        queryset = queryset.filter(destination_id=resolved_destination_id)
     recipient_organizations = list(
-        ShipmentRecipientOrganization.objects.select_related("organization", "destination")
-        .filter(
-            organization__is_active=True,
-            destination__is_active=True,
-        )
-        .order_by("destination__city", "organization__name", "id")
+        queryset.order_by("destination__city", "organization__name", "id")
     )
     for recipient_organization in recipient_organizations:
         recipient_organization.active_recipient_contact_count = (
@@ -411,15 +432,20 @@ def _build_shipment_party_recipient_organizations():
                 contact__is_active=True,
             ).count()
         )
-        recipient_organization.active_link_count = recipient_organization.shipper_links.filter(
+        active_links = recipient_organization.shipper_links.filter(
             is_active=True,
             shipper__organization__is_active=True,
-        ).count()
+        )
+        if resolved_destination_id is not None:
+            active_links = active_links.filter(
+                recipient_organization__destination_id=resolved_destination_id
+            )
+        recipient_organization.active_link_count = active_links.count()
     return recipient_organizations
 
 
-def _build_shipment_party_links():
-    links = list(
+def _build_shipment_party_links(destination_id=None):
+    queryset = (
         ShipmentShipperRecipientLink.objects.select_related(
             "shipper",
             "shipper__organization",
@@ -427,15 +453,18 @@ def _build_shipment_party_links():
             "recipient_organization__organization",
             "recipient_organization__destination",
         )
-        .prefetch_related(
-            "authorized_recipient_contacts__recipient_contact__contact",
-        )
+        .prefetch_related("authorized_recipient_contacts__recipient_contact__contact")
         .filter(
             shipper__organization__is_active=True,
             recipient_organization__organization__is_active=True,
             recipient_organization__destination__is_active=True,
         )
-        .order_by(
+    )
+    resolved_destination_id = _normalize_destination_id(destination_id)
+    if resolved_destination_id is not None:
+        queryset = queryset.filter(recipient_organization__destination_id=resolved_destination_id)
+    links = list(
+        queryset.order_by(
             "shipper__organization__name",
             "recipient_organization__organization__name",
             "id",
@@ -502,13 +531,16 @@ def _build_shipment_party_authorization_options(links):
     return options
 
 
-def build_cockpit_context(*, query: str, filters: dict) -> dict:
-    shipment_shippers = _build_shipment_party_shippers()
-    shipment_recipient_organizations = _build_shipment_party_recipient_organizations()
-    shipment_links = _build_shipment_party_links()
+def build_cockpit_context(*, query: str, filters: dict, destination_id: str = "") -> dict:
+    shipment_shippers = _build_shipment_party_shippers(destination_id=destination_id)
+    shipment_recipient_organizations = _build_shipment_party_recipient_organizations(
+        destination_id=destination_id
+    )
+    shipment_links = _build_shipment_party_links(destination_id=destination_id)
     return {
         "cockpit_mode": "shipment_parties",
         "cockpit_filters": filters,
+        "cockpit_destination_id": destination_id,
         "cockpit_shipment_shippers": shipment_shippers,
         "cockpit_shipment_recipient_organizations": shipment_recipient_organizations,
         "cockpit_shipment_links": shipment_links,

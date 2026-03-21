@@ -724,8 +724,8 @@ class FormsTests(TestCase):
 
         shipper_label = form.fields["shipper_contact"].label_from_instance(shipper)
         recipient_label = form.fields["recipient_contact"].label_from_instance(recipient)
-        self.assertEqual(shipper_label, "M. Jean DUPONT, ASSOCIATION TEST")
-        self.assertEqual(recipient_label, "Mme Alice MARTIN, Recipient Org Labels")
+        self.assertEqual(shipper_label, "ASSOCIATION TEST, M. Jean DUPONT")
+        self.assertEqual(recipient_label, "Recipient Org Labels, Mme Alice MARTIN")
 
     def test_scan_shipment_form_labels_correspondent_recipients_with_iata_context(self):
         _correspondent_org, correspondent = self._create_correspondent(
@@ -778,7 +778,7 @@ class FormsTests(TestCase):
         recipient_label = form.fields["recipient_contact"].label_from_instance(recipient)
         self.assertEqual(
             recipient_label,
-            "Christian LIMBIO, ASF - CORRESPONDANT - BGF",
+            "Correspondant ASF - BGF - Christian LIMBIO",
         )
 
     def test_scan_shipment_form_clean_rejects_shipper_out_of_scope_even_if_selectable(self):

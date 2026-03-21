@@ -8,6 +8,7 @@ from contacts.correspondent_recipient_promotion import SUPPORT_ORGANIZATION_NAME
 from contacts.models import Contact, ContactType
 from wms.contact_labels import (
     build_contact_select_label,
+    build_shipment_contact_select_label,
     build_shipment_recipient_select_label,
 )
 from wms.models import Destination, Shipment, ShipmentStatus
@@ -69,21 +70,36 @@ class ShipmentPartyLabelFormattingTests(SimpleTestCase):
 
         self.assertEqual(label, "M. Jean DUPONT, Association Test")
 
+    def test_build_shipment_contact_select_label_formats_structure_before_referent(self):
+        organization = SimpleNamespace(name="Association Test")
+        contact = SimpleNamespace(
+            contact_type=ContactType.PERSON,
+            title="M.",
+            first_name="Jean",
+            last_name="Dupont",
+            name="Jean Dupont",
+            organization=organization,
+        )
+
+        label = build_shipment_contact_select_label(contact)
+
+        self.assertEqual(label, "Association Test, M. Jean DUPONT")
+
     def test_build_shipment_recipient_select_label_formats_support_correspondent_with_iata(self):
         organization = SimpleNamespace(name=SUPPORT_ORGANIZATION_NAME)
         contact = SimpleNamespace(
             contact_type=ContactType.PERSON,
-            title="",
-            first_name="Christian",
-            last_name="Limbio",
-            name="Christian Limbio",
+            title="Mme",
+            first_name="Marie",
+            last_name="Dupont",
+            name="Marie Dupont",
             organization=organization,
         )
         destination = SimpleNamespace(iata_code="BGF")
 
         label = build_shipment_recipient_select_label(contact, destination=destination)
 
-        self.assertEqual(label, "Christian LIMBIO, ASF - CORRESPONDANT - BGF")
+        self.assertEqual(label, "Correspondant ASF - BGF - Mme Marie DUPONT")
 
 
 class ShipmentPartyLabelReadersTests(SimpleTestCase):
