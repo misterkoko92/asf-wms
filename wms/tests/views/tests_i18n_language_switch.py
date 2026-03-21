@@ -404,7 +404,8 @@ class LanguageSwitchI18nTests(TestCase):
         self._activate_english()
 
         admin_contacts_response = self.client.get(reverse("scan:scan_admin_contacts"))
-        self.assertContains(admin_contacts_response, "Org-role contact cockpit")
+        self.assertContains(admin_contacts_response, "Shipment contacts cockpit")
+        self.assertNotContains(admin_contacts_response, "Pilotage contacts expédition")
         self.assertNotContains(admin_contacts_response, "Pilotage contacts org-role")
 
         print_templates_response = self.client.get(reverse("scan:scan_print_templates"))

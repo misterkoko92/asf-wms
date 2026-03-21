@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import re
+import unicodedata
+from difflib import SequenceMatcher
+
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils.translation import gettext as _
 
@@ -24,10 +29,100 @@ ACTION_SET_STOPOVER_CORRESPONDENT_RECIPIENT_ORGANIZATION = (
     "set_stopover_correspondent_recipient_organization"
 )
 ACTION_MERGE_SHIPMENT_RECIPIENT_ORGANIZATIONS = "merge_shipment_recipient_organizations"
+ROLE_VALUES: frozenset[str] = frozenset()
 
 
 def parse_cockpit_filters(*, role: str = "", shipper_org_id: str = "") -> dict:
-    return {}
+    normalized_role = _normalize_role(role)
+    normalized_shipper_org_id = (shipper_org_id or "").strip()
+    if normalized_shipper_org_id and not normalized_shipper_org_id.isdigit():
+        normalized_shipper_org_id = ""
+    return {
+        "role": normalized_role,
+        "shipper_org_id": normalized_shipper_org_id,
+    }
+
+
+def _to_int(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _normalize_role(role: str) -> str:
+    normalized_role = (role or "").strip().lower()
+    if normalized_role in ROLE_VALUES:
+        return normalized_role
+    return ""
+
+
+def _validation_message(exc: ValidationError) -> str:
+    if getattr(exc, "message_dict", None):
+        for messages in exc.message_dict.values():
+            if messages:
+                return str(messages[0])
+    if getattr(exc, "messages", None):
+        return str(exc.messages[0])
+    return _("Validation impossible.")
+
+
+def _normalize_match_value(value: str) -> str:
+    raw_value = (value or "").strip()
+    if not raw_value:
+        return ""
+    normalized = unicodedata.normalize("NFKD", raw_value)
+    normalized = normalized.encode("ascii", "ignore").decode("ascii")
+    normalized = normalized.lower()
+    normalized = re.sub(r"[^a-z0-9]+", " ", normalized).strip()
+    return re.sub(r"\s+", " ", normalized)
+
+
+def _is_fuzzy_match(*, source: str, candidate: str) -> bool:
+    if not source or not candidate:
+        return False
+    if source == candidate:
+        return True
+    if source in candidate or candidate in source:
+        return True
+    return SequenceMatcher(None, source, candidate).ratio() >= 0.88
+
+
+def _find_similar_organizations(*, name: str, limit: int = 3):
+    normalized_target = _normalize_match_value(name)
+    if not normalized_target:
+        return []
+    matches = []
+    for organization in Contact.objects.filter(contact_type=ContactType.ORGANIZATION).order_by(
+        "name",
+        "id",
+    ):
+        normalized_candidate = _normalize_match_value(organization.name)
+        if _is_fuzzy_match(source=normalized_target, candidate=normalized_candidate):
+            matches.append(organization)
+            if len(matches) >= limit:
+                break
+    return matches
+
+
+def _format_duplicate_message(*, prefix: str, items) -> str:
+    if not items:
+        return ""
+    labels = ", ".join((item.name or "").strip() for item in items[:3] if (item.name or "").strip())
+    if labels:
+        return f"{prefix}: {labels}."
+    return prefix
+
+
+def _resolve_active_organization(organization_id: str):
+    resolved_id = _to_int(organization_id)
+    if not resolved_id:
+        return None
+    return Contact.objects.filter(
+        pk=resolved_id,
+        contact_type=ContactType.ORGANIZATION,
+        is_active=True,
+    ).first()
 
 
 def set_default_authorized_recipient_contact(*, data) -> tuple[bool, str]:
@@ -413,7 +508,7 @@ def build_cockpit_context(*, query: str, filters: dict) -> dict:
     shipment_links = _build_shipment_party_links()
     return {
         "cockpit_mode": "shipment_parties",
-        "cockpit_filters": {},
+        "cockpit_filters": filters,
         "cockpit_shipment_shippers": shipment_shippers,
         "cockpit_shipment_recipient_organizations": shipment_recipient_organizations,
         "cockpit_shipment_links": shipment_links,
