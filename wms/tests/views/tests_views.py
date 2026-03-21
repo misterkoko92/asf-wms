@@ -8,6 +8,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from contacts.capabilities import ContactCapabilityType, ensure_contact_capability
 from contacts.models import Contact, ContactAddress, ContactType
 from wms.models import (
     AssociationProfile,
@@ -24,8 +25,6 @@ from wms.models import (
     Location,
     Order,
     OrderStatus,
-    OrganizationRole,
-    OrganizationRoleAssignment,
     Product,
     ProductKitItem,
     ProductLot,
@@ -37,7 +36,6 @@ from wms.models import (
     ReceiptLine,
     ReceiptStatus,
     ReceiptType,
-    RecipientBinding,
     Shipment,
     ShipmentAuthorizedRecipientContact,
     ShipmentRecipientContact,
@@ -47,7 +45,6 @@ from wms.models import (
     ShipmentStatus,
     ShipmentTrackingEvent,
     ShipmentValidationStatus,
-    ShipperScope,
     Warehouse,
     WmsRuntimeSettings,
 )
@@ -97,7 +94,6 @@ class ScanViewTests(TestCase):
         self.shipper_org = self._create_contact(
             "Shipper Org",
             address_country="FRANCE",
-            role=OrganizationRole.SHIPPER,
         )
         self.shipper = self._create_contact(
             "Jean Shipper",
@@ -108,7 +104,6 @@ class ScanViewTests(TestCase):
         self.recipient_org = self._create_contact(
             "Recipient Org",
             address_country="COTE D'IVOIRE",
-            role=OrganizationRole.RECIPIENT,
         )
         self.recipient = self._create_contact(
             "Alice Recipient",
@@ -136,12 +131,12 @@ class ScanViewTests(TestCase):
         self.transporter = self._create_contact(
             "Transporter",
             address_country="FRANCE",
-            role=OrganizationRole.TRANSPORTER,
+            role=ContactCapabilityType.TRANSPORTER,
         )
         self.donor = self._create_contact(
             "Donor",
             address_country="FRANCE",
-            role=OrganizationRole.DONOR,
+            role=ContactCapabilityType.DONOR,
         )
         self._allow_shipments_to_destination(self.destination)
 
@@ -168,29 +163,10 @@ class ScanViewTests(TestCase):
             is_default=True,
         )
         if role:
-            OrganizationRoleAssignment.objects.create(
-                organization=organization or contact,
-                role=role,
-                is_active=True,
-            )
+            ensure_contact_capability(contact, role)
         return contact
 
     def _allow_shipments_to_destination(self, destination):
-        shipper_assignment = OrganizationRoleAssignment.objects.get(
-            organization=self.shipper_org,
-            role=OrganizationRole.SHIPPER,
-        )
-        ShipperScope.objects.get_or_create(
-            role_assignment=shipper_assignment,
-            destination=destination,
-            defaults={"is_active": True},
-        )
-        RecipientBinding.objects.get_or_create(
-            shipper_org=self.shipper_org,
-            recipient_org=self.recipient_org,
-            destination=destination,
-            defaults={"is_active": True},
-        )
         ShipmentShipper.objects.update_or_create(
             organization=self.shipper_org,
             defaults={

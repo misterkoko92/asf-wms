@@ -440,12 +440,7 @@ class PublicAccountRequestAdminTests(_AdminTestBase):
         profile = models.AssociationProfile.objects.get(user=user)
         self.assertEqual(profile.contact_id, target_contact.id)
         self.assertTrue(profile.must_change_password)
-        self.assertTrue(
-            models.OrganizationRoleAssignment.objects.filter(
-                organization=target_contact,
-                role=models.OrganizationRole.SHIPPER,
-            ).exists()
-        )
+        self.assertTrue(models.ShipmentShipper.objects.filter(organization=target_contact).exists())
         enqueue_mock.assert_called_once()
 
     def test_approve_requests_skip_counter_and_save_model_early_returns(self):

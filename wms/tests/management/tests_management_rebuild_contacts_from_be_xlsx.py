@@ -18,14 +18,12 @@ from wms.contact_rebuild import (
 )
 from wms.models import (
     Destination,
-    OrganizationRole,
-    OrganizationRoleAssignment,
-    RecipientBinding,
     ShipmentAuthorizedRecipientContact,
     ShipmentRecipientContact,
     ShipmentRecipientOrganization,
     ShipmentShipper,
     ShipmentShipperRecipientLink,
+    ShipmentValidationStatus,
 )
 
 
@@ -596,8 +594,8 @@ class RebuildContactsFromBeXlsxPersistenceTests(TestCase):
                 is_active=True,
             ).exists()
         )
-        self.assertEqual(OrganizationRoleAssignment.objects.count(), 0)
-        self.assertEqual(RecipientBinding.objects.count(), 0)
+        self.assertEqual(ShipmentShipper.objects.count(), 1)
+        self.assertEqual(ShipmentShipperRecipientLink.objects.count(), 1)
 
     def test_apply_be_contact_dataset_keeps_correspondent_contact_separate_when_not_default(self):
         dataset = BeContactDataset(
@@ -779,8 +777,8 @@ class RebuildContactsFromBeXlsxCommandTests(BeWorkbookMixin, TestCase):
                 recipient_organization__organization__name="Recipient A",
             ).exists()
         )
-        self.assertEqual(OrganizationRoleAssignment.objects.count(), 0)
-        self.assertEqual(RecipientBinding.objects.count(), 0)
+        self.assertEqual(ShipmentShipper.objects.count(), 1)
+        self.assertEqual(ShipmentShipperRecipientLink.objects.count(), 1)
 
     def test_rebuild_contacts_from_be_xlsx_apply_handles_destination_without_correspondent(self):
         workbook_path = self._build_be_workbook(
@@ -846,7 +844,7 @@ class RebuildContactsFromBeXlsxCommandTests(BeWorkbookMixin, TestCase):
         self.assertIn("Source sheets: 2024, 2025, 2026", output)
 
 
-class RebuildContactsOrgRolesCanonicalCommandTests(BeWorkbookMixin, TestCase):
+class RebuildContactsCanonicalCommandTests(BeWorkbookMixin, TestCase):
     def setUp(self):
         super().setUp()
         self.workbook_path = self._build_be_workbook(
@@ -879,7 +877,10 @@ class RebuildContactsOrgRolesCanonicalCommandTests(BeWorkbookMixin, TestCase):
         )
         self.existing_correspondent = Contact.objects.create(
             name="Legacy Correspondent",
-            contact_type=ContactType.ORGANIZATION,
+            contact_type=ContactType.PERSON,
+            first_name="Legacy",
+            last_name="Correspondent",
+            organization=self.existing_recipient,
         )
         self.existing_destination = Destination.objects.create(
             city="Legacy City",
@@ -888,15 +889,41 @@ class RebuildContactsOrgRolesCanonicalCommandTests(BeWorkbookMixin, TestCase):
             correspondent_contact=self.existing_correspondent,
             is_active=True,
         )
-        self.existing_shipper_assignment = OrganizationRoleAssignment.objects.create(
+        self.existing_shipper_contact = Contact.objects.create(
+            name="Legacy Shipper Referent",
+            contact_type=ContactType.PERSON,
+            first_name="Legacy",
+            last_name="Shipper",
             organization=self.existing_shipper,
-            role=OrganizationRole.SHIPPER,
             is_active=True,
         )
-        RecipientBinding.objects.create(
-            shipper_org=self.existing_shipper,
-            recipient_org=self.existing_recipient,
+        self.existing_shipper_model = ShipmentShipper.objects.create(
+            organization=self.existing_shipper,
+            default_contact=self.existing_shipper_contact,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+        self.existing_recipient_model = ShipmentRecipientOrganization.objects.create(
+            organization=self.existing_recipient,
             destination=self.existing_destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_correspondent=True,
+            is_active=True,
+        )
+        self.existing_recipient_contact = ShipmentRecipientContact.objects.create(
+            recipient_organization=self.existing_recipient_model,
+            contact=self.existing_correspondent,
+            is_active=True,
+        )
+        self.existing_link = ShipmentShipperRecipientLink.objects.create(
+            shipper=self.existing_shipper_model,
+            recipient_organization=self.existing_recipient_model,
+            is_active=True,
+        )
+        ShipmentAuthorizedRecipientContact.objects.create(
+            link=self.existing_link,
+            recipient_contact=self.existing_recipient_contact,
+            is_default=True,
             is_active=True,
         )
 
@@ -904,7 +931,7 @@ class RebuildContactsOrgRolesCanonicalCommandTests(BeWorkbookMixin, TestCase):
         stdout = StringIO()
 
         call_command(
-            "rebuild_contacts_org_roles_canonical",
+            "rebuild_contacts_canonical",
             "--source",
             str(self.workbook_path),
             "--dry-run",
@@ -918,11 +945,7 @@ class RebuildContactsOrgRolesCanonicalCommandTests(BeWorkbookMixin, TestCase):
         self.assertIn("Review report:", output)
         self.assertTrue(Contact.objects.filter(pk=self.existing_shipper.pk).exists())
         self.assertTrue(Destination.objects.filter(pk=self.existing_destination.pk).exists())
-        self.assertTrue(
-            OrganizationRoleAssignment.objects.filter(
-                pk=self.existing_shipper_assignment.pk
-            ).exists()
-        )
+        self.assertTrue(ShipmentShipper.objects.filter(pk=self.existing_shipper_model.pk).exists())
         self.assertFalse(Contact.objects.filter(name="AVIATION SANS FRONTIERES").exists())
         self.assertTrue(self.report_path.exists())
 
@@ -930,7 +953,7 @@ class RebuildContactsOrgRolesCanonicalCommandTests(BeWorkbookMixin, TestCase):
         stdout = StringIO()
 
         call_command(
-            "rebuild_contacts_org_roles_canonical",
+            "rebuild_contacts_canonical",
             "--source",
             str(self.workbook_path),
             "--apply",
@@ -962,6 +985,6 @@ class RebuildContactsOrgRolesCanonicalCommandTests(BeWorkbookMixin, TestCase):
                 is_active=True,
             ).exists()
         )
-        self.assertEqual(OrganizationRoleAssignment.objects.count(), 0)
-        self.assertEqual(RecipientBinding.objects.count(), 0)
+        self.assertEqual(ShipmentShipper.objects.count(), 1)
+        self.assertEqual(ShipmentShipperRecipientLink.objects.count(), 1)
         self.assertTrue(self.report_path.exists())

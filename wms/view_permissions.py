@@ -6,9 +6,12 @@ from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect
 from django.urls import NoReverseMatch, reverse
 
-from .compliance import is_role_operation_allowed
 from .helper_install import resolve_helper_installer_access
-from .models import AssociationRecipient, OrganizationRole, OrganizationRoleAssignment
+from .models import (
+    AssociationRecipient,
+    ShipmentShipper,
+    ShipmentValidationStatus,
+)
 from .portal_helpers import get_association_profile
 from .scan_permissions import is_scan_view_allowed_for_user, user_is_preparateur
 
@@ -91,19 +94,18 @@ def volunteer_required(view):
 
 def association_required(view):
     def _resolve_shipper_access_block_reason(profile):
-        role_assignment = (
-            OrganizationRoleAssignment.objects.filter(
+        shipper = (
+            ShipmentShipper.objects.filter(
                 organization=profile.contact,
-                role=OrganizationRole.SHIPPER,
             )
             .order_by("id")
             .first()
         )
-        if role_assignment is None:
+        if shipper is None:
             return None
-        if not role_assignment.is_active:
+        if not shipper.is_active or shipper.validation_status == ShipmentValidationStatus.PENDING:
             return BLOCKED_REASON_REVIEW_PENDING
-        if not is_role_operation_allowed(role_assignment):
+        if shipper.validation_status == ShipmentValidationStatus.REJECTED:
             return BLOCKED_REASON_COMPLIANCE_REQUIRED
         return None
 

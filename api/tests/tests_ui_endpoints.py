@@ -9,6 +9,7 @@ from django.test import Client, TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
+from contacts.capabilities import ContactCapabilityType
 from contacts.models import Contact, ContactType
 from wms.models import (
     TEMP_SHIPMENT_REFERENCE_PREFIX,
@@ -29,8 +30,6 @@ from wms.models import (
     Location,
     Order,
     OrderReviewStatus,
-    OrganizationRole,
-    OrganizationRoleAssignment,
     PrintTemplate,
     PrintTemplateVersion,
     Product,
@@ -39,7 +38,6 @@ from wms.models import (
     Receipt,
     ReceiptStatus,
     ReceiptType,
-    RecipientBinding,
     Shipment,
     ShipmentAuthorizedRecipientContact,
     ShipmentRecipientContact,
@@ -50,7 +48,6 @@ from wms.models import (
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
     ShipmentValidationStatus,
-    ShipperScope,
     Warehouse,
 )
 from wms.portal_recipient_sync import sync_association_recipient_to_contact
@@ -170,62 +167,48 @@ class UiApiEndpointsTests(TestCase):
             is_correspondent=True,
             is_active=True,
         )
-        self._grant_shipper_scope(self.association_contact, self.destination)
 
         self.shipper_contact = self._create_contact(
             "UI Shipper",
         )
-        self._grant_shipper_scope(self.shipper_contact, self.destination)
         self.shipper_referent = self._create_contact(
             "UI Shipper Referent",
             contact_type=ContactType.PERSON,
         )
         self.shipper_referent.organization = self.shipper_contact
         self.shipper_referent.save(update_fields=["organization"])
-        self.shipment_shipper = ShipmentShipper.objects.create(
-            organization=self.shipper_contact,
+        self.shipment_shipper = self._ensure_shipment_shipper(
+            self.shipper_contact,
             default_contact=self.shipper_referent,
-            validation_status=ShipmentValidationStatus.VALIDATED,
-            is_active=True,
         )
 
         self.recipient_contact = self._create_contact(
             "UI Recipient",
         )
-        self._bind_recipient(self.shipper_contact, self.recipient_contact, self.destination)
         self.recipient_referent = self._create_contact(
             "UI Recipient Referent",
             contact_type=ContactType.PERSON,
         )
         self.recipient_referent.organization = self.recipient_contact
         self.recipient_referent.save(update_fields=["organization"])
-        self.shipment_recipient_organization = ShipmentRecipientOrganization.objects.create(
-            organization=self.recipient_contact,
-            destination=self.destination,
-            validation_status=ShipmentValidationStatus.VALIDATED,
-            is_active=True,
-        )
-        self.shipment_recipient_contact = ShipmentRecipientContact.objects.create(
-            recipient_organization=self.shipment_recipient_organization,
-            contact=self.recipient_referent,
-            is_active=True,
-        )
-        shipment_link = ShipmentShipperRecipientLink.objects.create(
-            shipper=self.shipment_shipper,
-            recipient_organization=self.shipment_recipient_organization,
-            is_active=True,
-        )
-        ShipmentAuthorizedRecipientContact.objects.create(
-            link=shipment_link,
-            recipient_contact=self.shipment_recipient_contact,
-            is_default=True,
-            is_active=True,
+        (
+            self.shipment_recipient_organization,
+            self.shipment_recipient_contact,
+            shipment_link,
+        ) = self._bind_recipient(
+            self.shipper_contact,
+            self.recipient_contact,
+            self.destination,
+            recipient_referent=self.recipient_referent,
         )
 
         self.donor_contact = self._create_contact(
             "UI Donor",
         )
-        self._assign_role(self.donor_contact, OrganizationRole.DONOR)
+        self.donor_contact.capabilities.update_or_create(
+            capability=ContactCapabilityType.DONOR,
+            defaults={"is_active": True},
+        )
 
         self.available_carton = Carton.objects.create(
             code="UI-CARTON-AVAILABLE",
@@ -309,33 +292,74 @@ class UiApiEndpointsTests(TestCase):
         )
         return contact
 
-    def _assign_role(self, contact, role):
-        assignment, _ = OrganizationRoleAssignment.objects.get_or_create(
-            organization=contact,
-            role=role,
+    def _ensure_shipment_shipper(self, shipper_contact, *, default_contact=None):
+        if default_contact is None:
+            default_contact = (
+                Contact.objects.filter(
+                    organization=shipper_contact,
+                    contact_type=ContactType.PERSON,
+                    is_active=True,
+                )
+                .order_by("id")
+                .first()
+            )
+        if default_contact is None:
+            default_contact = self._create_contact(
+                f"{shipper_contact.name} Referent",
+                contact_type=ContactType.PERSON,
+            )
+            default_contact.organization = shipper_contact
+            default_contact.save(update_fields=["organization"])
+        shipper, _created = ShipmentShipper.objects.update_or_create(
+            organization=shipper_contact,
+            defaults={
+                "default_contact": default_contact,
+                "validation_status": ShipmentValidationStatus.VALIDATED,
+                "is_active": True,
+            },
+        )
+        return shipper
+
+    def _bind_recipient(
+        self,
+        shipper_contact,
+        recipient_contact,
+        destination,
+        *,
+        recipient_referent=None,
+    ):
+        shipper = self._ensure_shipment_shipper(shipper_contact)
+        recipient_organization, _created = ShipmentRecipientOrganization.objects.update_or_create(
+            organization=recipient_contact,
+            defaults={
+                "destination": destination,
+                "validation_status": ShipmentValidationStatus.VALIDATED,
+                "is_active": True,
+            },
+        )
+        if recipient_referent is None:
+            recipient_referent = self._create_contact(
+                f"{recipient_contact.name} Referent",
+                contact_type=ContactType.PERSON,
+            )
+            recipient_referent.organization = recipient_contact
+            recipient_referent.save(update_fields=["organization"])
+        shipment_recipient_contact, _created = ShipmentRecipientContact.objects.update_or_create(
+            recipient_organization=recipient_organization,
+            contact=recipient_referent,
             defaults={"is_active": True},
         )
-        if not assignment.is_active:
-            assignment.is_active = True
-            assignment.save(update_fields=["is_active", "updated_at"])
-        return assignment
-
-    def _grant_shipper_scope(self, shipper_contact, destination):
-        assignment = self._assign_role(shipper_contact, OrganizationRole.SHIPPER)
-        ShipperScope.objects.get_or_create(
-            role_assignment=assignment,
-            destination=destination,
-            defaults={"all_destinations": False, "is_active": True},
-        )
-
-    def _bind_recipient(self, shipper_contact, recipient_contact, destination):
-        self._assign_role(recipient_contact, OrganizationRole.RECIPIENT)
-        RecipientBinding.objects.get_or_create(
-            shipper_org=shipper_contact,
-            recipient_org=recipient_contact,
-            destination=destination,
+        shipment_link, _created = ShipmentShipperRecipientLink.objects.update_or_create(
+            shipper=shipper,
+            recipient_organization=recipient_organization,
             defaults={"is_active": True},
         )
+        ShipmentAuthorizedRecipientContact.objects.update_or_create(
+            link=shipment_link,
+            recipient_contact=shipment_recipient_contact,
+            defaults={"is_default": True, "is_active": True},
+        )
+        return recipient_organization, shipment_recipient_contact, shipment_link
 
     def _shipment_mutation_payload(self, *, lines):
         return {

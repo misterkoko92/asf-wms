@@ -35,8 +35,11 @@ class Command(BaseCommand):
                         "- Contacts attached to support organization: "
                         f"{summary['contacts_attached_to_support_org']}"
                     ),
-                    f"- Recipient roles created: {summary['recipient_roles_created']}",
-                    f"- Recipient roles reactivated: {summary['recipient_roles_reactivated']}",
+                    f"- Shipment recipients created: {summary['shipment_recipients_created']}",
+                    (
+                        "- Shipment recipients reactivated: "
+                        f"{summary['shipment_recipients_reactivated']}"
+                    ),
                 ]
             )
         )

@@ -66,18 +66,22 @@ This document reflects the implemented product behavior as of **February 19, 202
 
 ### Contacts
 
-- Organization roles drive contact usage in shipment forms (`SHIPPER`, `RECIPIENT`, `CORRESPONDENT`).
-- `ShipperScope`: destination scoping for shipper organizations.
-- `RecipientBinding`: shipper + destination scoping for recipient organizations.
+- `contacts.Contact` is the unique backbone for organizations and people.
+- Shipment forms use the dedicated shipment-party registry:
+  - `ShipmentShipper`
+  - `ShipmentRecipientOrganization`
+  - `ShipmentRecipientContact`
+  - `ShipmentShipperRecipientLink`
+  - `ShipmentAuthorizedRecipientContact`
 - Recipient governance:
-  - recipient availability requires an explicit active binding.
-  - default shipper automation is handled through org-role services, not legacy contact links.
+  - recipient availability requires an active shipment-party authorization chain.
+  - default shipper automation is handled through shipment-party services.
 
 ## Shipment workflow (implemented)
 
 1. In `Créer une expédition`, destination is selected first.
-2. Shipper list is filtered by active scopes on the selected destination.
-3. Recipient list is filtered by active recipient bindings for the selected shipper and destination.
+2. Shipper list is filtered by validated shipment-party eligibility on the selected destination.
+3. Recipient list is filtered by active shipment-party links and authorized recipient contacts for the selected shipper and destination.
 4. Correspondent list is destination-scoped and forced to the destination configured correspondent; if destination has no configured correspondent, the list is empty.
 5. Details section appears only after destination + shipper + recipient + correspondent are selected.
 6. User can:

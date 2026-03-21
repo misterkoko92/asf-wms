@@ -2,7 +2,7 @@ from django.test import TestCase
 
 from contacts.models import Contact, ContactType
 from wms.import_services import _get_or_create_destination
-from wms.models import Destination, OrganizationRole, OrganizationRoleAssignment
+from wms.models import Destination, ShipmentRecipientOrganization, ShipmentValidationStatus
 
 
 class ImportDestinationsTests(TestCase):
@@ -19,9 +19,17 @@ class ImportDestinationsTests(TestCase):
             name="Correspondent",
             contact_type=ContactType.ORGANIZATION,
         )
-        OrganizationRoleAssignment.objects.create(
+        ShipmentRecipientOrganization.objects.create(
             organization=correspondent,
-            role=OrganizationRole.CORRESPONDENT,
+            destination=Destination.objects.create(
+                city="Default",
+                iata_code="DEF",
+                country="France",
+                correspondent_contact=correspondent,
+                is_active=True,
+            ),
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_correspondent=True,
             is_active=True,
         )
 

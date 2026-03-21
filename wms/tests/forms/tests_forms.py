@@ -26,12 +26,9 @@ from wms.models import (
     CartonStatus,
     Destination,
     Order,
-    OrganizationRole,
-    OrganizationRoleAssignment,
     Product,
     Receipt,
     ReceiptType,
-    RecipientBinding,
     Shipment,
     ShipmentAuthorizedRecipientContact,
     ShipmentRecipientContact,
@@ -40,7 +37,6 @@ from wms.models import (
     ShipmentShipperRecipientLink,
     ShipmentStatus,
     ShipmentValidationStatus,
-    ShipperScope,
     Warehouse,
 )
 
@@ -188,33 +184,13 @@ class FormsTests(TestCase):
         )
 
     def _activate_shipper(self, organization, *, destination=None, all_destinations=False):
-        assignment = OrganizationRoleAssignment.objects.create(
-            organization=(
-                organization.organization
-                if organization.contact_type == ContactType.PERSON
-                else organization
-            ),
-            role=OrganizationRole.SHIPPER,
-            is_active=True,
-        )
-        if destination is not None or all_destinations:
-            ShipperScope.objects.create(
-                role_assignment=assignment,
-                destination=destination,
-                all_destinations=all_destinations,
-                is_active=True,
-            )
         return self._register_shipper(organization, can_send_to_all=all_destinations)[1]
 
     def _activate_recipient(self, organization):
-        return OrganizationRoleAssignment.objects.create(
-            organization=(
-                organization.organization
-                if organization.contact_type == ContactType.PERSON
-                else organization
-            ),
-            role=OrganizationRole.RECIPIENT,
-            is_active=True,
+        return (
+            organization.organization
+            if organization.contact_type == ContactType.PERSON
+            else organization
         )
 
     def _bind_recipient(self, *, shipper_org, recipient_org, destination):
@@ -227,12 +203,6 @@ class FormsTests(TestCase):
             recipient_org.organization
             if recipient_org.contact_type == ContactType.PERSON
             else recipient_org
-        )
-        RecipientBinding.objects.create(
-            shipper_org=shipper_organization,
-            recipient_org=recipient_organization,
-            destination=destination,
-            is_active=True,
         )
         shipper, _default_contact = self._register_shipper(shipper_org)
         shipment_recipient_org, shipment_recipient_contact, recipient_contact = (

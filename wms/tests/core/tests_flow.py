@@ -10,16 +10,12 @@ from wms.models import (
     Order,
     OrderLine,
     OrderStatus,
-    OrganizationRole,
-    OrganizationRoleAssignment,
-    RecipientBinding,
     ShipmentAuthorizedRecipientContact,
     ShipmentRecipientContact,
     ShipmentRecipientOrganization,
     ShipmentShipper,
     ShipmentShipperRecipientLink,
     ShipmentValidationStatus,
-    ShipperScope,
 )
 from wms.services import prepare_order, reserve_stock_for_order
 
@@ -30,17 +26,6 @@ class FlowTests(TestCase):
 
     def _create_contact(self, name, *, contact_type=ContactType.ORGANIZATION):
         return Contact.objects.create(name=name, contact_type=contact_type, is_active=True)
-
-    def _assign_role(self, contact, role):
-        assignment, _ = OrganizationRoleAssignment.objects.get_or_create(
-            organization=contact,
-            role=role,
-            defaults={"is_active": True},
-        )
-        if not assignment.is_active:
-            assignment.is_active = True
-            assignment.save(update_fields=["is_active", "updated_at"])
-        return assignment
 
     def test_import_to_order_prepare_flow(self):
         row = {
@@ -91,14 +76,6 @@ class FlowTests(TestCase):
         )
         recipient_contact.organization = recipient
         recipient_contact.save(update_fields=["organization"])
-        shipper_assignment = self._assign_role(shipper, OrganizationRole.SHIPPER)
-        self._assign_role(recipient, OrganizationRole.RECIPIENT)
-        ShipperScope.objects.create(role_assignment=shipper_assignment, destination=destination)
-        RecipientBinding.objects.create(
-            shipper_org=shipper,
-            recipient_org=recipient,
-            destination=destination,
-        )
         shipment_shipper = ShipmentShipper.objects.create(
             organization=shipper,
             default_contact=shipper_contact,

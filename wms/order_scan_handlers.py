@@ -12,7 +12,7 @@ from .services import (
     reserve_stock_for_order,
 )
 from .shipment_party_rules import (
-    OrganizationRoleResolutionError,
+    ShipmentPartyResolutionError,
     resolve_recipient_binding_for_operation,
     resolve_shipper_for_operation,
 )
@@ -67,7 +67,7 @@ def handle_order_action(
         if destination is None:
             create_form.add_error(
                 "destination_city",
-                _("Escale invalide pour le mode organization roles."),
+                _("Escale invalide pour la sélection expédition."),
             )
 
         if not create_form.errors:
@@ -81,7 +81,7 @@ def handle_order_action(
                     recipient_org=recipient_contact,
                     destination=destination,
                 )
-            except OrganizationRoleResolutionError as exc:
+            except ShipmentPartyResolutionError as exc:
                 create_form.add_error(None, str(exc))
         if create_form.errors:
             return None, None, None

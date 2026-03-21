@@ -4,7 +4,7 @@ from django.core.management import call_command
 from django.test import TestCase
 
 from contacts.models import Contact, ContactType
-from wms.models import Destination, OrganizationRole, OrganizationRoleAssignment
+from wms.models import Destination, ShipmentRecipientOrganization
 
 
 class BackfillCorrespondentRecipientsCommandTests(TestCase):
@@ -39,7 +39,7 @@ class BackfillCorrespondentRecipientsCommandTests(TestCase):
         person.refresh_from_db()
         self.assertIsNone(person.organization)
         self.assertFalse(
-            OrganizationRoleAssignment.objects.filter(role=OrganizationRole.RECIPIENT).exists()
+            ShipmentRecipientOrganization.objects.filter(is_correspondent=True).exists()
         )
 
     def test_apply_updates_existing_correspondents_and_reuses_shared_support_org(self):
@@ -91,9 +91,9 @@ class BackfillCorrespondentRecipientsCommandTests(TestCase):
         self.assertEqual(first.organization, support_org)
         self.assertEqual(second.organization, support_org)
         self.assertTrue(
-            OrganizationRoleAssignment.objects.filter(
+            ShipmentRecipientOrganization.objects.filter(
                 organization=support_org,
-                role=OrganizationRole.RECIPIENT,
+                is_correspondent=True,
                 is_active=True,
             ).exists()
         )
@@ -121,3 +121,4 @@ class BackfillCorrespondentRecipientsCommandTests(TestCase):
         call_command("backfill_correspondent_recipients", "--dry-run", stdout=stdout)
         output = stdout.getvalue()
         self.assertIn("- Contacts changed: 0", output)
+        self.assertIn("- Shipment recipients created: 0", output)

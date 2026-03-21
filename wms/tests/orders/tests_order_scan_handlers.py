@@ -20,7 +20,7 @@ from wms.models import (
 )
 from wms.order_scan_handlers import handle_order_action
 from wms.services import StockError
-from wms.shipment_party_rules import OrganizationRoleResolutionError
+from wms.shipment_party_rules import ShipmentPartyResolutionError
 
 
 class _DummyForm:
@@ -177,7 +177,9 @@ class OrderScanHandlersTests(TestCase):
         self.assertIsNone(order_lines)
         self.assertIsNone(remaining_total)
 
-    def test_handle_order_action_create_order_with_org_roles_adds_required_errors(self):
+    def test_handle_order_action_create_order_with_missing_shipment_selection_adds_required_errors(
+        self,
+    ):
         create_form = self._create_order_form(
             shipper_contact=None,
             recipient_contact=None,
@@ -200,12 +202,12 @@ class OrderScanHandlersTests(TestCase):
         self.assertIn(("shipper_contact", "Expediteur requis."), create_form.errors)
         self.assertIn(("recipient_contact", "Destinataire requis."), create_form.errors)
         self.assertIn(
-            ("destination_city", "Escale invalide pour le mode organization roles."),
+            ("destination_city", "Escale invalide pour la sélection expédition."),
             create_form.errors,
         )
         self.assertEqual(Order.objects.count(), 0)
 
-    def test_handle_order_action_create_order_with_org_roles_translates_errors_in_english(self):
+    def test_handle_order_action_create_order_translates_selection_errors_in_english(self):
         create_form = self._create_order_form(
             shipper_contact=None,
             recipient_contact=None,
@@ -235,16 +237,15 @@ class OrderScanHandlersTests(TestCase):
             or ("recipient_contact", "Destinataire requis.") in create_form.errors
         )
         self.assertTrue(
-            ("destination_city", "Invalid stopover for organization roles mode.")
-            in create_form.errors
-            or ("destination_city", "Escale invalide pour le mode organization roles.")
+            ("destination_city", "Invalid stopover for shipment selection.") in create_form.errors
+            or ("destination_city", "Escale invalide pour la sélection expédition.")
             in create_form.errors
         )
         self.assertEqual(Order.objects.count(), 0)
 
     @mock.patch("wms.order_scan_handlers.resolve_recipient_binding_for_operation")
     @mock.patch("wms.order_scan_handlers.resolve_shipper_for_operation")
-    def test_handle_order_action_create_order_with_org_roles_resolution_error(
+    def test_handle_order_action_create_order_with_shipment_selection_resolution_error(
         self,
         resolve_shipper_mock,
         resolve_binding_mock,
@@ -278,7 +279,7 @@ class OrderScanHandlersTests(TestCase):
             destination_country="France",
         )
         resolve_shipper_mock.return_value = None
-        resolve_binding_mock.side_effect = OrganizationRoleResolutionError("binding failure")
+        resolve_binding_mock.side_effect = ShipmentPartyResolutionError("binding failure")
 
         response, order_lines, remaining_total = handle_order_action(
             self._request(),
@@ -299,7 +300,7 @@ class OrderScanHandlersTests(TestCase):
     @mock.patch("wms.order_scan_handlers.create_shipment_for_order")
     @mock.patch("wms.order_scan_handlers.resolve_recipient_binding_for_operation")
     @mock.patch("wms.order_scan_handlers.resolve_shipper_for_operation")
-    def test_handle_order_action_create_order_with_org_roles_success(
+    def test_handle_order_action_create_order_with_valid_shipment_selection_success(
         self,
         resolve_shipper_mock,
         resolve_binding_mock,

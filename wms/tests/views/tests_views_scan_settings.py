@@ -62,7 +62,21 @@ class ScanSettingsViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["active"], "settings")
         self.assertTrue(response.context["form"].fields)
-        self.assertNotIn("org_roles_engine_enabled", response.context["form"].fields)
+        self.assertEqual(
+            list(response.context["form"].fields),
+            [
+                "low_stock_threshold",
+                "tracking_alert_hours",
+                "workflow_blockage_hours",
+                "stale_drafts_age_days",
+                "email_queue_max_attempts",
+                "email_queue_retry_base_seconds",
+                "email_queue_retry_max_seconds",
+                "email_queue_processing_timeout_seconds",
+                "enable_shipment_track_legacy",
+                "change_note",
+            ],
+        )
 
     @override_settings(ENABLE_SHIPMENT_TRACK_LEGACY=False)
     def test_scan_settings_get_exposes_effective_legacy_flags(self):

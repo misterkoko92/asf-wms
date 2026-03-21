@@ -15,7 +15,7 @@ from wms.shipment_party_rules import (
     MESSAGE_RECIPIENT_REVIEW_PENDING,
     MESSAGE_SHIPPER_OUT_OF_SCOPE,
     MESSAGE_SHIPPER_REVIEW_PENDING,
-    OrganizationRoleResolutionError,
+    ShipmentPartyResolutionError,
     build_party_contact_reference,
     eligible_correspondent_contacts_for_destination,
     eligible_recipient_contacts_for_shipper_destination,
@@ -251,7 +251,7 @@ class ShipmentPartyRulesTests(TestCase):
         )
 
         with self.assertRaisesMessage(
-            OrganizationRoleResolutionError,
+            ShipmentPartyResolutionError,
             MESSAGE_SHIPPER_REVIEW_PENDING,
         ):
             resolve_shipper_for_operation(
@@ -259,7 +259,7 @@ class ShipmentPartyRulesTests(TestCase):
             )
 
         with self.assertRaisesMessage(
-            OrganizationRoleResolutionError,
+            ShipmentPartyResolutionError,
             MESSAGE_SHIPPER_OUT_OF_SCOPE,
         ):
             resolve_shipper_for_operation(
@@ -289,7 +289,7 @@ class ShipmentPartyRulesTests(TestCase):
         )
 
         with self.assertRaisesMessage(
-            OrganizationRoleResolutionError,
+            ShipmentPartyResolutionError,
             MESSAGE_RECIPIENT_REVIEW_PENDING,
         ):
             resolve_recipient_binding_for_operation(
@@ -300,7 +300,7 @@ class ShipmentPartyRulesTests(TestCase):
 
         other_org = self._create_org("Recipient Missing")
         with self.assertRaisesMessage(
-            OrganizationRoleResolutionError,
+            ShipmentPartyResolutionError,
             MESSAGE_RECIPIENT_BINDING_MISSING,
         ):
             resolve_recipient_binding_for_operation(

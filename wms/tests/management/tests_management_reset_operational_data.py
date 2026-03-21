@@ -13,20 +13,16 @@ from wms.models import (
     CartonSequence,
     Destination,
     Location,
-    OrganizationRole,
-    OrganizationRoleAssignment,
     PlanningDestinationRule,
     PlanningParameterSet,
     PublicAccountRequest,
     ReceiptDonorSequence,
-    RecipientBinding,
     ShipmentAuthorizedRecipientContact,
     ShipmentRecipientContact,
     ShipmentRecipientOrganization,
     ShipmentShipper,
     ShipmentShipperRecipientLink,
     ShipmentValidationStatus,
-    ShipperScope,
     Warehouse,
     WmsRuntimeSettings,
 )
@@ -121,28 +117,6 @@ class ResetOperationalDataCommandTests(TestCase):
             city="Paris",
             country="France",
         )
-        self.shipper_assignment = OrganizationRoleAssignment.objects.create(
-            organization=self.association,
-            role=OrganizationRole.SHIPPER,
-            is_active=True,
-        )
-        self.recipient_assignment = OrganizationRoleAssignment.objects.create(
-            organization=self.recipient,
-            role=OrganizationRole.RECIPIENT,
-            is_active=True,
-        )
-        self.shipper_scope = ShipperScope.objects.create(
-            role_assignment=self.shipper_assignment,
-            destination=self.destination,
-            all_destinations=False,
-            is_active=True,
-        )
-        self.recipient_binding = RecipientBinding.objects.create(
-            shipper_org=self.association,
-            recipient_org=self.recipient,
-            destination=self.destination,
-            is_active=True,
-        )
         self.shipper_referent = Contact.objects.create(
             name="Alice Shipper",
             contact_type=ContactType.PERSON,
@@ -206,11 +180,6 @@ class ResetOperationalDataCommandTests(TestCase):
         self.assertTrue(
             PublicAccountRequest.objects.filter(pk=self.public_account_request.pk).exists()
         )
-        self.assertTrue(
-            OrganizationRoleAssignment.objects.filter(pk=self.shipper_assignment.pk).exists()
-        )
-        self.assertTrue(ShipperScope.objects.filter(pk=self.shipper_scope.pk).exists())
-        self.assertTrue(RecipientBinding.objects.filter(pk=self.recipient_binding.pk).exists())
         self.assertTrue(ShipmentShipper.objects.filter(pk=self.shipment_shipper.pk).exists())
         self.assertTrue(
             ShipmentRecipientOrganization.objects.filter(
@@ -252,9 +221,6 @@ class ResetOperationalDataCommandTests(TestCase):
         self.assertFalse(AssociationPortalContact.objects.exists())
         self.assertFalse(AssociationRecipient.objects.exists())
         self.assertFalse(PublicAccountRequest.objects.exists())
-        self.assertFalse(OrganizationRoleAssignment.objects.exists())
-        self.assertFalse(ShipperScope.objects.exists())
-        self.assertFalse(RecipientBinding.objects.exists())
         self.assertFalse(ShipmentShipper.objects.exists())
         self.assertFalse(ShipmentRecipientOrganization.objects.exists())
         self.assertFalse(ShipmentRecipientContact.objects.exists())

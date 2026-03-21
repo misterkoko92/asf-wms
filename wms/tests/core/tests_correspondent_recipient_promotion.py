@@ -4,16 +4,26 @@ from contacts.models import Contact, ContactType
 from wms.default_shipper_bindings import suppress_default_shipper_binding_sync
 from wms.models import (
     Destination,
-    OrganizationRole,
-    OrganizationRoleAssignment,
-    RecipientBinding,
     ShipmentRecipientOrganization,
+    ShipmentShipperRecipientLink,
     ShipmentValidationStatus,
 )
+from wms.shipment_party_setup import ensure_shipment_shipper
 
 
 class CorrespondentRecipientPromotionTests(TestCase):
-    def test_ensure_destination_correspondent_recipient_ready_skips_asf_bindings_when_sync_suppressed(
+    def _create_default_shipper(self):
+        organization = Contact.objects.create(
+            name="AVIATION SANS FRONTIERES",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        return ensure_shipment_shipper(
+            organization,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+        )
+
+    def test_ensure_destination_correspondent_recipient_ready_skips_asf_links_when_sync_suppressed(
         self,
     ):
         from contacts.correspondent_recipient_promotion import (
@@ -21,16 +31,7 @@ class CorrespondentRecipientPromotionTests(TestCase):
             ensure_destination_correspondent_recipient_ready,
         )
 
-        default_shipper = Contact.objects.create(
-            name="AVIATION SANS FRONTIERES",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-        OrganizationRoleAssignment.objects.create(
-            organization=default_shipper,
-            role=OrganizationRole.SHIPPER,
-            is_active=True,
-        )
+        shipper = self._create_default_shipper()
         correspondent = Contact.objects.create(
             name="Suppressed Correspondent",
             contact_type=ContactType.PERSON,
@@ -45,7 +46,7 @@ class CorrespondentRecipientPromotionTests(TestCase):
         )
 
         with suppress_default_shipper_binding_sync():
-            ensure_destination_correspondent_recipient_ready(destination)
+            result = ensure_destination_correspondent_recipient_ready(destination)
 
         correspondent.refresh_from_db()
         support_organization = Contact.objects.get(
@@ -53,46 +54,38 @@ class CorrespondentRecipientPromotionTests(TestCase):
             contact_type=ContactType.ORGANIZATION,
         )
         self.assertEqual(correspondent.organization, support_organization)
+        self.assertTrue(result.shipment_recipient_created)
         self.assertTrue(
-            OrganizationRoleAssignment.objects.filter(
+            ShipmentRecipientOrganization.objects.filter(
                 organization=support_organization,
-                role=OrganizationRole.RECIPIENT,
+                destination=destination,
+                is_correspondent=True,
                 is_active=True,
             ).exists()
         )
         self.assertFalse(
-            RecipientBinding.objects.filter(
-                shipper_org=default_shipper,
-                recipient_org=support_organization,
-                destination=destination,
+            ShipmentShipperRecipientLink.objects.filter(
+                shipper=shipper,
+                recipient_organization__organization=support_organization,
+                recipient_organization__destination=destination,
                 is_active=True,
             ).exists()
         )
 
-    def test_ensure_destination_correspondent_recipient_ready_skips_legacy_role_when_shipment_party_exists(
+    def test_ensure_destination_correspondent_recipient_ready_keeps_existing_active_shipment_party(
         self,
     ):
         from contacts.correspondent_recipient_promotion import (
             ensure_destination_correspondent_recipient_ready,
         )
 
-        default_shipper = Contact.objects.create(
-            name="AVIATION SANS FRONTIERES",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-        OrganizationRoleAssignment.objects.create(
-            organization=default_shipper,
-            role=OrganizationRole.SHIPPER,
-            is_active=True,
-        )
-        shipment_party_organization = Contact.objects.create(
-            name="Shipment Party Correspondent Org",
+        organization = Contact.objects.create(
+            name="Correspondent Org",
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
         correspondent = Contact.objects.create(
-            name="Shipment Party Correspondent",
+            name="Correspondent Person",
             contact_type=ContactType.PERSON,
             is_active=True,
         )
@@ -104,7 +97,7 @@ class CorrespondentRecipientPromotionTests(TestCase):
             is_active=True,
         )
         ShipmentRecipientOrganization.objects.create(
-            organization=shipment_party_organization,
+            organization=organization,
             destination=destination,
             validation_status=ShipmentValidationStatus.VALIDATED,
             is_correspondent=True,
@@ -114,38 +107,21 @@ class CorrespondentRecipientPromotionTests(TestCase):
         result = ensure_destination_correspondent_recipient_ready(destination)
 
         correspondent.refresh_from_db()
+        self.assertFalse(result.changed)
         self.assertIsNone(correspondent.organization_id)
-        self.assertFalse(result.recipient_role_created)
-        self.assertFalse(result.recipient_role_reactivated)
-        self.assertFalse(
-            OrganizationRoleAssignment.objects.filter(
-                organization=shipment_party_organization,
-                role=OrganizationRole.RECIPIENT,
-            ).exists()
-        )
-        self.assertFalse(
-            RecipientBinding.objects.filter(
-                shipper_org=default_shipper,
-                recipient_org=shipment_party_organization,
-                destination=destination,
-                is_active=True,
-            ).exists()
-        )
 
-    def test_ensure_destination_correspondent_recipient_ready_skips_legacy_role_when_inactive_shipment_party_exists(
-        self,
-    ):
+    def test_ensure_destination_correspondent_recipient_ready_skips_inactive_existing_party(self):
         from contacts.correspondent_recipient_promotion import (
             ensure_destination_correspondent_recipient_ready,
         )
 
-        shipment_party_organization = Contact.objects.create(
-            name="Inactive Shipment Party Correspondent Org",
+        organization = Contact.objects.create(
+            name="Inactive Correspondent Org",
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
         correspondent = Contact.objects.create(
-            name="Inactive Shipment Party Correspondent",
+            name="Inactive Correspondent Person",
             contact_type=ContactType.PERSON,
             is_active=True,
         )
@@ -157,7 +133,7 @@ class CorrespondentRecipientPromotionTests(TestCase):
             is_active=True,
         )
         ShipmentRecipientOrganization.objects.create(
-            organization=shipment_party_organization,
+            organization=organization,
             destination=destination,
             validation_status=ShipmentValidationStatus.VALIDATED,
             is_correspondent=True,
@@ -167,10 +143,10 @@ class CorrespondentRecipientPromotionTests(TestCase):
         result = ensure_destination_correspondent_recipient_ready(destination)
 
         correspondent.refresh_from_db()
-        self.assertIsNone(correspondent.organization_id)
         self.assertFalse(result.changed)
+        self.assertIsNone(correspondent.organization_id)
 
-    def test_promote_correspondent_org_creates_recipient_role_from_destination_assignment(self):
+    def test_promote_correspondent_org_creates_validated_correspondent_recipient(self):
         from contacts.correspondent_recipient_promotion import (
             promote_correspondent_to_recipient_ready,
         )
@@ -180,7 +156,7 @@ class CorrespondentRecipientPromotionTests(TestCase):
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        Destination.objects.create(
+        destination = Destination.objects.create(
             city="Douala",
             iata_code="DLA",
             country="Cameroun",
@@ -188,36 +164,39 @@ class CorrespondentRecipientPromotionTests(TestCase):
             is_active=True,
         )
 
-        promote_correspondent_to_recipient_ready(organization)
+        result = promote_correspondent_to_recipient_ready(organization)
 
+        self.assertTrue(result.shipment_recipient_created)
         self.assertTrue(
-            OrganizationRoleAssignment.objects.filter(
+            ShipmentRecipientOrganization.objects.filter(
                 organization=organization,
-                role=OrganizationRole.RECIPIENT,
+                destination=destination,
+                validation_status=ShipmentValidationStatus.VALIDATED,
+                is_correspondent=True,
                 is_active=True,
             ).exists()
         )
 
-    def test_promote_person_without_org_scopes_contact_from_destination_reference(self):
+    def test_promote_person_without_org_attaches_support_org_and_creates_recipient(self):
         from contacts.correspondent_recipient_promotion import (
             SUPPORT_ORGANIZATION_NAME,
             promote_correspondent_to_recipient_ready,
         )
 
         person = Contact.objects.create(
-            name="Scoped Correspondent",
+            name="Standalone Correspondent",
             contact_type=ContactType.PERSON,
             is_active=True,
         )
         destination = Destination.objects.create(
-            city="Antananarivo",
-            iata_code="TNR",
-            country="Madagascar",
+            city="Bangui",
+            iata_code="BGF",
+            country="RCA",
             correspondent_contact=person,
             is_active=True,
         )
 
-        promote_correspondent_to_recipient_ready(person)
+        result = promote_correspondent_to_recipient_ready(person)
 
         person.refresh_from_db()
         support_organization = Contact.objects.get(
@@ -225,10 +204,14 @@ class CorrespondentRecipientPromotionTests(TestCase):
             contact_type=ContactType.ORGANIZATION,
         )
         self.assertEqual(person.organization, support_organization)
+        self.assertTrue(result.support_organization_created)
+        self.assertTrue(result.attached_to_support_organization)
+        self.assertTrue(result.shipment_recipient_created)
         self.assertTrue(
-            OrganizationRoleAssignment.objects.filter(
+            ShipmentRecipientOrganization.objects.filter(
                 organization=support_organization,
-                role=OrganizationRole.RECIPIENT,
+                destination=destination,
+                is_correspondent=True,
                 is_active=True,
             ).exists()
         )
@@ -250,7 +233,7 @@ class CorrespondentRecipientPromotionTests(TestCase):
             organization=organization,
             is_active=True,
         )
-        Destination.objects.create(
+        destination = Destination.objects.create(
             city="Bamako",
             iata_code="BKO",
             country="Mali",
@@ -258,108 +241,25 @@ class CorrespondentRecipientPromotionTests(TestCase):
             is_active=True,
         )
 
-        promote_correspondent_to_recipient_ready(person)
+        result = promote_correspondent_to_recipient_ready(person)
 
         person.refresh_from_db()
         self.assertEqual(person.organization, organization)
+        self.assertFalse(result.support_organization_created)
+        self.assertFalse(result.attached_to_support_organization)
+        self.assertTrue(
+            ShipmentRecipientOrganization.objects.filter(
+                organization=organization,
+                destination=destination,
+                is_correspondent=True,
+                is_active=True,
+            ).exists()
+        )
         self.assertFalse(
             Contact.objects.filter(
                 name=SUPPORT_ORGANIZATION_NAME,
                 contact_type=ContactType.ORGANIZATION,
             ).exists()
-        )
-        self.assertTrue(
-            OrganizationRoleAssignment.objects.filter(
-                organization=organization,
-                role=OrganizationRole.RECIPIENT,
-                is_active=True,
-            ).exists()
-        )
-
-    def test_promote_person_without_org_creates_shared_support_org(self):
-        from contacts.correspondent_recipient_promotion import (
-            SUPPORT_ORGANIZATION_NAME,
-            promote_correspondent_to_recipient_ready,
-        )
-
-        person = Contact.objects.create(
-            name="Standalone Correspondent",
-            contact_type=ContactType.PERSON,
-            is_active=True,
-        )
-        Destination.objects.create(
-            city="Bangui",
-            iata_code="BGF",
-            country="RCA",
-            correspondent_contact=person,
-            is_active=True,
-        )
-
-        promote_correspondent_to_recipient_ready(person)
-
-        person.refresh_from_db()
-        support_organization = Contact.objects.get(
-            name=SUPPORT_ORGANIZATION_NAME,
-            contact_type=ContactType.ORGANIZATION,
-        )
-        self.assertEqual(person.organization, support_organization)
-        self.assertTrue(
-            OrganizationRoleAssignment.objects.filter(
-                organization=support_organization,
-                role=OrganizationRole.RECIPIENT,
-                is_active=True,
-            ).exists()
-        )
-
-    def test_promote_person_without_org_reuses_existing_support_org(self):
-        from contacts.correspondent_recipient_promotion import (
-            SUPPORT_ORGANIZATION_NAME,
-            promote_correspondent_to_recipient_ready,
-        )
-
-        existing_support_org = Contact.objects.create(
-            name=SUPPORT_ORGANIZATION_NAME,
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-        first = Contact.objects.create(
-            name="First Correspondent",
-            contact_type=ContactType.PERSON,
-            is_active=True,
-        )
-        second = Contact.objects.create(
-            name="Second Correspondent",
-            contact_type=ContactType.PERSON,
-            is_active=True,
-        )
-        Destination.objects.create(
-            city="Lome",
-            iata_code="LFW",
-            country="Togo",
-            correspondent_contact=first,
-            is_active=True,
-        )
-        Destination.objects.create(
-            city="Ndjamena",
-            iata_code="NDJ",
-            country="Tchad",
-            correspondent_contact=second,
-            is_active=True,
-        )
-
-        promote_correspondent_to_recipient_ready(first)
-        promote_correspondent_to_recipient_ready(second)
-
-        first.refresh_from_db()
-        second.refresh_from_db()
-        self.assertEqual(first.organization, existing_support_org)
-        self.assertEqual(second.organization, existing_support_org)
-        self.assertEqual(
-            Contact.objects.filter(
-                name=SUPPORT_ORGANIZATION_NAME,
-                contact_type=ContactType.ORGANIZATION,
-            ).count(),
-            1,
         )
 
     def test_promotion_skips_contacts_without_active_destination_assignment(self):
@@ -383,9 +283,4 @@ class CorrespondentRecipientPromotionTests(TestCase):
                 contact_type=ContactType.ORGANIZATION,
             ).exists()
         )
-        self.assertFalse(
-            OrganizationRoleAssignment.objects.filter(
-                role=OrganizationRole.RECIPIENT,
-                is_active=True,
-            ).exists()
-        )
+        self.assertFalse(ShipmentRecipientOrganization.objects.exists())

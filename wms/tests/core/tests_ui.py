@@ -10,11 +10,13 @@ from contacts.models import Contact, ContactType
 from wms.models import (
     Destination,
     Location,
-    OrganizationRole,
-    OrganizationRoleAssignment,
     Product,
-    RecipientBinding,
-    ShipperScope,
+    ShipmentAuthorizedRecipientContact,
+    ShipmentRecipientContact,
+    ShipmentRecipientOrganization,
+    ShipmentShipper,
+    ShipmentShipperRecipientLink,
+    ShipmentValidationStatus,
     Warehouse,
 )
 
@@ -113,60 +115,92 @@ class ScanUiTests(StaticLiveServerTestCase):
             context.close()
             browser.close()
 
-    def test_scan_shipment_create_hides_unbound_recipients_when_org_roles_enabled(self):
-        correspondent = Contact.objects.create(
-            name="Legacy Shipment Corr",
+    def test_scan_shipment_create_hides_unbound_recipients_when_shipment_links_apply(self):
+        shipper = Contact.objects.create(
+            name="UI Shipper",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        shipper_person = Contact.objects.create(
+            name="Alice Shipper",
+            first_name="Alice",
+            last_name="Shipper",
             contact_type=ContactType.PERSON,
+            organization=shipper,
+            is_active=True,
+        )
+        recipient_allowed = Contact.objects.create(
+            name="UI Recipient Allowed",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        recipient_allowed_person = Contact.objects.create(
+            name="Leontine Rahazania",
+            first_name="Leontine",
+            last_name="Rahazania",
+            contact_type=ContactType.PERSON,
+            organization=recipient_allowed,
+            is_active=True,
+        )
+        recipient_blocked = Contact.objects.create(
+            name="UI Recipient Blocked",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        recipient_blocked_person = Contact.objects.create(
+            name="Marie Blocked",
+            first_name="Marie",
+            last_name="Blocked",
+            contact_type=ContactType.PERSON,
+            organization=recipient_blocked,
             is_active=True,
         )
         destination = Destination.objects.create(
             city="Antananarivo",
-            iata_code="TNR-LEGACY-UI",
+            iata_code="TNR-UI",
             country="Madagascar",
-            correspondent_contact=correspondent,
-            is_active=True,
-        )
-        shipper = Contact.objects.create(
-            name="Legacy UI Shipper",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-        recipient_allowed = Contact.objects.create(
-            name="Legacy UI Recipient Allowed",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-        recipient_blocked = Contact.objects.create(
-            name="Legacy UI Recipient Blocked",
-            contact_type=ContactType.ORGANIZATION,
+            correspondent_contact=recipient_allowed_person,
             is_active=True,
         )
 
-        shipper_assignment = OrganizationRoleAssignment.objects.create(
+        shipper_model = ShipmentShipper.objects.create(
             organization=shipper,
-            role=OrganizationRole.SHIPPER,
+            default_contact=shipper_person,
+            validation_status=ShipmentValidationStatus.VALIDATED,
             is_active=True,
         )
-        OrganizationRoleAssignment.objects.create(
+        recipient_allowed_model = ShipmentRecipientOrganization.objects.create(
             organization=recipient_allowed,
-            role=OrganizationRole.RECIPIENT,
+            destination=destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_correspondent=True,
             is_active=True,
         )
-        OrganizationRoleAssignment.objects.create(
+        recipient_blocked_model = ShipmentRecipientOrganization.objects.create(
             organization=recipient_blocked,
-            role=OrganizationRole.RECIPIENT,
+            destination=destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
             is_active=True,
         )
-        ShipperScope.objects.create(
-            role_assignment=shipper_assignment,
-            destination=destination,
-            all_destinations=False,
+        allowed_recipient_contact = ShipmentRecipientContact.objects.create(
+            recipient_organization=recipient_allowed_model,
+            contact=recipient_allowed_person,
             is_active=True,
         )
-        RecipientBinding.objects.create(
-            shipper_org=shipper,
-            recipient_org=recipient_allowed,
-            destination=destination,
+        ShipmentRecipientContact.objects.create(
+            recipient_organization=recipient_blocked_model,
+            contact=recipient_blocked_person,
+            is_active=True,
+        )
+        allowed_link = ShipmentShipperRecipientLink.objects.create(
+            shipper=shipper_model,
+            recipient_organization=recipient_allowed_model,
+            is_active=True,
+        )
+        ShipmentAuthorizedRecipientContact.objects.create(
+            link=allowed_link,
+            recipient_contact=allowed_recipient_contact,
+            is_default=True,
             is_active=True,
         )
 
@@ -182,23 +216,21 @@ class ScanUiTests(StaticLiveServerTestCase):
             page.locator("#id_destination").select_option(str(destination.id))
             page.locator("#id_shipper_contact").select_option(str(shipper.id))
             page.wait_for_function(
-                """
-                (allowedId) => !!document.querySelector(
-                  `#id_recipient_contact option[value="${allowedId}"]`
-                )
-                """,
-                arg=str(recipient_allowed.id),
+                "(allowedId) => !!document.querySelector("
+                ' `#id_recipient_contact option[value="${allowedId}"]`'
+                ")",
+                arg=str(recipient_allowed_person.id),
             )
 
             self.assertEqual(
                 page.locator(
-                    f'#id_recipient_contact option[value="{recipient_allowed.id}"]'
+                    f'#id_recipient_contact option[value="{recipient_allowed_person.id}"]'
                 ).count(),
                 1,
             )
             self.assertEqual(
                 page.locator(
-                    f'#id_recipient_contact option[value="{recipient_blocked.id}"]'
+                    f'#id_recipient_contact option[value="{recipient_blocked_person.id}"]'
                 ).count(),
                 0,
             )

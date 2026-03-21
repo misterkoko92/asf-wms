@@ -27,7 +27,7 @@ MESSAGE_RECIPIENT_REVIEW_PENDING = "Destinataire en cours de revue ASF."
 MESSAGE_RECIPIENT_BINDING_MISSING = "Destinataire non autorise pour cet expediteur et cette escale."
 
 
-class OrganizationRoleResolutionError(Exception):
+class ShipmentPartyResolutionError(Exception):
     pass
 
 
@@ -227,27 +227,27 @@ def eligible_correspondent_contacts_for_destination(destination):
 
 def resolve_shipper_for_operation(*, shipper_org, destination):
     if destination is None:
-        raise OrganizationRoleResolutionError(MESSAGE_DESTINATION_REQUIRED)
+        raise ShipmentPartyResolutionError(MESSAGE_DESTINATION_REQUIRED)
 
     shipper_org = normalize_party_contact_to_org(shipper_org)
     if shipper_org is None:
-        raise OrganizationRoleResolutionError(MESSAGE_SHIPPER_REQUIRED)
+        raise ShipmentPartyResolutionError(MESSAGE_SHIPPER_REQUIRED)
 
     shipper = _shipment_shipper_record(shipper_org)
     if shipper is None:
-        raise OrganizationRoleResolutionError(MESSAGE_SHIPPER_REVIEW_PENDING)
+        raise ShipmentPartyResolutionError(MESSAGE_SHIPPER_REVIEW_PENDING)
     if not eligible_shippers_for_stopover(destination).filter(pk=shipper.pk).exists():
-        raise OrganizationRoleResolutionError(MESSAGE_SHIPPER_OUT_OF_SCOPE)
+        raise ShipmentPartyResolutionError(MESSAGE_SHIPPER_OUT_OF_SCOPE)
     return shipper
 
 
 def resolve_recipient_binding_for_operation(*, shipper_org, recipient_org, destination):
     if destination is None:
-        raise OrganizationRoleResolutionError(MESSAGE_DESTINATION_REQUIRED)
+        raise ShipmentPartyResolutionError(MESSAGE_DESTINATION_REQUIRED)
 
     recipient_org = normalize_party_contact_to_org(recipient_org)
     if recipient_org is None:
-        raise OrganizationRoleResolutionError(MESSAGE_RECIPIENT_REQUIRED)
+        raise ShipmentPartyResolutionError(MESSAGE_RECIPIENT_REQUIRED)
 
     shipper = resolve_shipper_for_operation(
         shipper_org=shipper_org,
@@ -259,9 +259,9 @@ def resolve_recipient_binding_for_operation(*, shipper_org, recipient_org, desti
         destination=destination,
     )
     if recipient_organization is None:
-        raise OrganizationRoleResolutionError(MESSAGE_RECIPIENT_BINDING_MISSING)
+        raise ShipmentPartyResolutionError(MESSAGE_RECIPIENT_BINDING_MISSING)
     if recipient_organization.validation_status != ShipmentValidationStatus.VALIDATED:
-        raise OrganizationRoleResolutionError(MESSAGE_RECIPIENT_REVIEW_PENDING)
+        raise ShipmentPartyResolutionError(MESSAGE_RECIPIENT_REVIEW_PENDING)
 
     if (
         not eligible_recipient_organizations_for_shipper(
@@ -271,7 +271,7 @@ def resolve_recipient_binding_for_operation(*, shipper_org, recipient_org, desti
         .filter(pk=recipient_organization.pk)
         .exists()
     ):
-        raise OrganizationRoleResolutionError(MESSAGE_RECIPIENT_BINDING_MISSING)
+        raise ShipmentPartyResolutionError(MESSAGE_RECIPIENT_BINDING_MISSING)
 
     return (
         ShipmentShipperRecipientLink.objects.filter(

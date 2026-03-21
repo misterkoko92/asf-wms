@@ -462,20 +462,23 @@ Rules implemented in the "Créer une expédition" form:
 
 - Destination is mandatory to continue.
 - Shipper list:
-  - active `SHIPPER` organizations only
-  - scoped by active `ShipperScope` on the selected destination (or all-destinations scope when configured).
+  - active `ShipmentShipper` entries only
+  - limited to validated, active shippers with an active default contact
+  - available for the selected destination through an active shipment-party link, unless `can_send_to_all` is enabled.
 - Recipient list:
-  - active `RECIPIENT` organizations only
-  - filtered by active `RecipientBinding` for the selected shipper + destination pair.
+  - active `ShipmentRecipientOrganization` entries only
+  - filtered by active `ShipmentShipperRecipientLink` records for the selected shipper + destination pair
+  - exposes only authorized active recipient contacts linked through `ShipmentAuthorizedRecipientContact`.
 - Correspondent list:
-  - destination-linked correspondents only
-  - restricted to `Destination.correspondent_contact` when it is set.
+  - destination-linked correspondent contacts only
+  - restricted to the active correspondent recipient organization for the destination
+  - uses `Destination.correspondent_contact` only when that contact belongs to the active correspondent organization
   - if destination has no configured correspondent, the correspondent list is empty.
 
 Additional contact governance:
 
-- Recipient availability is governed by explicit `RecipientBinding` records.
-- Shipper availability is governed by explicit `ShipperScope` records.
+- Shipment authorization is governed by the dedicated shipment-party registry.
+- The contact backbone remains `contacts.Contact`; shipment-specific eligibility lives in `ShipmentShipper`, `ShipmentRecipientOrganization`, `ShipmentRecipientContact`, `ShipmentShipperRecipientLink`, and `ShipmentAuthorizedRecipientContact`.
 
 ## 13) Tracking board and case closure
 

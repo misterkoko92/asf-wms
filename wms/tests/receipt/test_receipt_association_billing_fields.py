@@ -6,15 +6,14 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from contacts.models import Contact, ContactType
+from contacts.models import Contact, ContactCapability, ContactCapabilityType, ContactType
 from wms.forms import ScanReceiptAssociationForm
 from wms.models import (
-    OrganizationRole,
-    OrganizationRoleAssignment,
     Receipt,
     ReceiptType,
     Warehouse,
 )
+from wms.shipment_party_setup import ensure_shipment_shipper
 
 
 class AssociationReceiptBillingFieldsTests(TestCase):
@@ -33,11 +32,11 @@ class AssociationReceiptBillingFieldsTests(TestCase):
         self.warehouse = Warehouse.objects.create(name="Reception", code="REC")
         self.source_contact = self._create_contact(
             "Association Billing",
-            role=OrganizationRole.SHIPPER,
+            role="shipper",
         )
         self.carrier_contact = self._create_contact(
             "Transport Billing",
-            role=OrganizationRole.TRANSPORTER,
+            role=ContactCapabilityType.TRANSPORTER,
         )
 
     def _create_contact(self, name, *, role=None):
@@ -46,10 +45,12 @@ class AssociationReceiptBillingFieldsTests(TestCase):
             contact_type=ContactType.ORGANIZATION,
             is_active=True,
         )
-        if role:
-            OrganizationRoleAssignment.objects.create(
-                organization=contact,
-                role=role,
+        if role == "shipper":
+            ensure_shipment_shipper(contact)
+        elif role is not None:
+            ContactCapability.objects.create(
+                contact=contact,
+                capability=role,
                 is_active=True,
             )
         return contact

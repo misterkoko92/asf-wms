@@ -2210,8 +2210,6 @@
 
     const asId = value => (value || value === 0 ? String(value).trim() : '');
     const selectValue = select => asId(select && select.value ? select.value : '');
-    const orgRolesEngineEnabled =
-      shipmentForm && shipmentForm.dataset.orgRolesEngineEnabled === '1';
     const asIdList = values =>
       Array.isArray(values)
         ? values
@@ -2239,9 +2237,7 @@
       if (!contact || !destinationId) {
         return false;
       }
-      const explicitDestinationIds = orgRolesEngineEnabled
-        ? asIdList(contact.scope_destination_ids)
-        : asIdList(contact.allowed_destination_ids);
+      const explicitDestinationIds = asIdList(contact.allowed_destination_ids);
       if (!explicitDestinationIds.length) {
         return false;
       }
@@ -2260,17 +2256,7 @@
       }
       return true;
     };
-    const matchesLinkedShipper = (recipient, shipperId) => {
-      if (!recipient || !shipperId) {
-        return false;
-      }
-      const linkedShipperIds = asIdList(recipient.bound_shipper_ids);
-      if (!linkedShipperIds.length) {
-        return false;
-      }
-      return linkedShipperIds.includes(String(shipperId));
-    };
-    const matchesRecipientBindingPair = (recipient, shipperId, destinationId) => {
+    const matchesRecipientPair = (recipient, shipperId, destinationId) => {
       if (!recipient || !shipperId || !destinationId) {
         return false;
       }
@@ -2432,7 +2418,7 @@
         .filter(shipper => isPriorityShipper(shipper))
         .map(shipper =>
           decorateOption(shipper, {
-            disabled: orgRolesEngineEnabled && !matchesExplicitDestination(shipper, destinationId)
+            disabled: !matchesExplicitDestination(shipper, destinationId)
           })
         );
       const destinationOptions = shippers
@@ -2445,7 +2431,7 @@
         )
         .map(shipper =>
           decorateOption(shipper, {
-            disabled: Boolean(orgRolesEngineEnabled)
+            disabled: true
           })
         );
       return renderGroupedOptions(
@@ -2522,19 +2508,8 @@
             destinationCorrespondentRecipientId
           )
         );
-        const isRecipientPairMatched = recipient => {
-          if (orgRolesEngineEnabled) {
-            return matchesRecipientBindingPair(
-              recipient,
-              resolvedShipperOrgId,
-              destinationId
-            );
-          }
-          return (
-            matchesLinkedShipper(recipient, resolvedShipper) &&
-            matchesDestination(recipient, destinationId)
-          );
-        };
+        const isRecipientPairMatched = recipient =>
+          matchesRecipientPair(recipient, resolvedShipperOrgId, destinationId);
         const priorityRecipientOptions = destinationRecipients
           .filter(
             recipient => asId(recipient.id) === destinationCorrespondentRecipientId
@@ -2544,7 +2519,7 @@
               name:
                 buildCorrespondentRecipientLabel(recipient.id, destinationId) ||
                 recipient.name,
-              disabled: orgRolesEngineEnabled && !isRecipientPairMatched(recipient)
+              disabled: !isRecipientPairMatched(recipient)
             })
           );
         const pairRecipientOptions = destinationRecipients
@@ -2558,12 +2533,14 @@
           )
           .map(recipient =>
             decorateOption(recipient, {
-              disabled: Boolean(orgRolesEngineEnabled)
+              disabled: true
             })
           );
-        recipientOptions = orgRolesEngineEnabled
-          ? [priorityRecipientOptions, pairRecipientOptions]
-          : [priorityRecipientOptions, pairRecipientOptions, otherRecipientOptions];
+        recipientOptions = [
+          priorityRecipientOptions,
+          pairRecipientOptions,
+          otherRecipientOptions
+        ];
         correspondentOptions = correspondents.filter(correspondent =>
           matchesDestination(correspondent, destinationId)
         );

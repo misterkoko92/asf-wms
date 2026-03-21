@@ -21,7 +21,7 @@ from ..models import (
 from ..scan_helpers import build_packing_bins
 from ..shipment_helpers import build_destination_label
 from ..shipment_party_rules import (
-    OrganizationRoleResolutionError,
+    ShipmentPartyResolutionError,
     normalize_party_contact_to_org,
     resolve_recipient_binding_for_operation,
     resolve_shipper_for_operation,
@@ -140,7 +140,7 @@ def _build_shipment_defaults_from_order(order: Order):
                 recipient_org=recipient_org,
                 destination=destination,
             )
-    except OrganizationRoleResolutionError as exc:
+    except ShipmentPartyResolutionError as exc:
         raise StockError(str(exc)) from exc
 
     correspondent_contact = _resolve_correspondent_contact_for_order(

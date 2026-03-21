@@ -105,5 +105,19 @@ class ScanRuntimeSettingsFormTests(TestCase):
         )
 
         self.assertTrue(form.is_valid())
-        self.assertNotIn("org_roles_engine_enabled", form.fields)
-        self.assertEqual(form.cleaned_data["org_roles_review_max_open_percent"], 20)
+        self.assertEqual(
+            list(form.fields),
+            [
+                "low_stock_threshold",
+                "tracking_alert_hours",
+                "workflow_blockage_hours",
+                "stale_drafts_age_days",
+                "email_queue_max_attempts",
+                "email_queue_retry_base_seconds",
+                "email_queue_retry_max_seconds",
+                "email_queue_processing_timeout_seconds",
+                "enable_shipment_track_legacy",
+                "change_note",
+            ],
+        )
+        self.assertEqual(form.cleaned_data["low_stock_threshold"], 20)
