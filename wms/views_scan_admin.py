@@ -10,7 +10,7 @@ from django.views.decorators.http import require_http_methods
 from contacts.models import Contact, ContactType
 
 from .kit_components import KitCycleError, get_unit_component_quantities
-from .models import Product
+from .models import Destination, Product
 from .product_label_printing import (
     render_product_labels_response,
     render_product_qr_labels_response,
@@ -75,12 +75,23 @@ def _apply_contact_filter(queryset, contact_filter):
     return queryset.filter(contact_type=contact_filter)
 
 
-def _build_contacts_redirect(*, query, contact_filter, edit_id=None):
+def _normalize_destination_filter(raw_value):
+    value = (raw_value or "").strip()
+    if not value or not value.isdigit():
+        return ""
+    if not Destination.objects.filter(pk=value, is_active=True).exists():
+        return ""
+    return value
+
+
+def _build_contacts_redirect(*, query, contact_filter, destination_filter="", edit_id=None):
     params = {}
     if query:
         params["q"] = query
     if contact_filter != CONTACT_FILTER_ALL:
         params["contact_type"] = contact_filter
+    if destination_filter:
+        params["destination_id"] = destination_filter
     if edit_id:
         params["edit"] = str(edit_id)
     url = reverse("scan:scan_admin_contacts")
@@ -152,6 +163,9 @@ def scan_admin_contacts(request):
         or request.POST.get("shipper_org_id")
         or "",
     )
+    destination_filter = _normalize_destination_filter(
+        request.GET.get("destination_id") or request.POST.get("destination_id")
+    )
     contact_filter = _normalize_contact_filter(
         request.GET.get("contact_type") or request.POST.get("contact_type")
     )
@@ -172,6 +186,8 @@ def scan_admin_contacts(request):
         .order_by("name", "id"),
         contact_filter,
     )
+    if destination_filter:
+        correspondents = correspondents.filter(destinations_as_correspondent__id=destination_filter)
     correspondents = _apply_contact_query(correspondents, query)
 
     if request.method == "POST":
@@ -182,25 +198,41 @@ def scan_admin_contacts(request):
                 messages.success(request, message)
             else:
                 messages.error(request, message)
-            return _build_contacts_redirect(query=query, contact_filter=contact_filter)
+            return _build_contacts_redirect(
+                query=query,
+                contact_filter=contact_filter,
+                destination_filter=destination_filter,
+            )
         elif action == ACTION_SET_STOPOVER_CORRESPONDENT_RECIPIENT_ORGANIZATION:
             ok, message = set_stopover_correspondent_recipient_organization(data=request.POST)
             if ok:
                 messages.success(request, message)
             else:
                 messages.error(request, message)
-            return _build_contacts_redirect(query=query, contact_filter=contact_filter)
+            return _build_contacts_redirect(
+                query=query,
+                contact_filter=contact_filter,
+                destination_filter=destination_filter,
+            )
         elif action == ACTION_MERGE_SHIPMENT_RECIPIENT_ORGANIZATIONS:
             ok, message = merge_shipment_recipient_organizations(data=request.POST)
             if ok:
                 messages.success(request, message)
             else:
                 messages.error(request, message)
-            return _build_contacts_redirect(query=query, contact_filter=contact_filter)
+            return _build_contacts_redirect(
+                query=query,
+                contact_filter=contact_filter,
+                destination_filter=destination_filter,
+            )
         else:
             messages.error(request, _("Action de contact non reconnue."))
 
-    cockpit_context = build_cockpit_context(query=query, filters=cockpit_filters)
+    cockpit_context = build_cockpit_context(
+        query=query,
+        filters=cockpit_filters,
+        destination_id=destination_filter,
+    )
 
     return render(
         request,
@@ -209,7 +241,11 @@ def scan_admin_contacts(request):
             "active": ACTIVE_SCAN_ADMIN_CONTACTS,
             "query": query,
             "contact_filter": contact_filter,
+            "destination_filter": destination_filter,
             "contact_filter_choices": CONTACT_FILTER_CHOICES,
+            "destination_filter_choices": list(
+                Destination.objects.filter(is_active=True).order_by("city", "iata_code", "id")
+            ),
             "contacts": contacts,
             "correspondents": correspondents,
             "contacts_admin_url": reverse("admin:contacts_contact_changelist"),

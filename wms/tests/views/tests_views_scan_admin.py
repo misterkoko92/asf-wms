@@ -153,6 +153,7 @@ class ScanAdminViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["active"], "admin_contacts")
         self.assertContains(response, "ui-comp-panel")
+        self.assertContains(response, 'name="destination_id"')
         self.assertContains(response, reverse("admin:contacts_contact_changelist"))
         self.assertContains(response, reverse("admin:contacts_contact_add"))
         self.assertContains(response, reverse("admin:wms_destination_changelist"))
@@ -161,6 +162,16 @@ class ScanAdminViewTests(TestCase):
         correspondents = list(response.context["correspondents"])
         self.assertEqual(correspondents, [self.correspondent])
         self.assertNotIn(self.orphan_correspondent, correspondents)
+
+    def test_scan_admin_contacts_tables_use_collapse_and_table_tools(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_admin_contacts"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "scan-admin-table-accordion")
+        self.assertContains(response, 'data-table-tools="1"', count=6)
+        self.assertNotContains(response, 'scan-admin-table-accordion" open')
 
     def test_scan_contacts_navigation_is_under_gestion_instead_of_admin(self):
         self.client.force_login(self.superuser)

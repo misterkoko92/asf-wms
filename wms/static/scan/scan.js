@@ -2209,6 +2209,12 @@
     }
 
     const asId = value => (value || value === 0 ? String(value).trim() : '');
+    const shipperSelectorGuidance =
+      (shipmentForm && shipmentForm.dataset.shipperSelectorGuidance) ||
+      "Si l'expéditeur souhaité n'apparait pas ici, vérifier la page Gestion -> Contact pour créer/modifier/ajouter un trio expéditeur - destinataire - destination";
+    const recipientSelectorGuidance =
+      (shipmentForm && shipmentForm.dataset.recipientSelectorGuidance) ||
+      "Si le destinataire souhaité n'apparait pas ici, vérifier la page Gestion -> Contact pour créer/modifier/ajouter un trio expéditeur - destinataire - destination";
     const selectValue = select => asId(select && select.value ? select.value : '');
     const asIdList = values =>
       Array.isArray(values)
@@ -2339,13 +2345,21 @@
       let hasVisibleGroup = false;
 
       groups.forEach(group => {
-        const visibleOptions = sortUniqueOptions(group)
+        const groupOptions = Array.isArray(group)
+          ? group
+          : Array.isArray(group && group.options)
+            ? group.options
+            : [];
+        const groupMessage = Array.isArray(group)
+          ? ''
+          : String((group && group.message) || '').trim();
+        const visibleOptions = sortUniqueOptions(groupOptions)
           .map(option => ({
             ...option,
             disabled: Boolean(option && option.disabled)
           }))
           .filter(option => !optionIds.has(String(option.id)));
-        if (!visibleOptions.length) {
+        if (!visibleOptions.length && !groupMessage) {
           return;
         }
         if (hasVisibleGroup) {
@@ -2354,6 +2368,15 @@
           separator.textContent = '------';
           separator.disabled = true;
           fragment.appendChild(separator);
+        }
+        if (groupMessage) {
+          const messageOption = document.createElement('option');
+          messageOption.value = '';
+          messageOption.textContent = groupMessage;
+          messageOption.disabled = true;
+          fragment.appendChild(messageOption);
+          hasVisibleGroup = true;
+          return;
         }
         visibleOptions.forEach(option => {
           const optionEl = document.createElement('option');
@@ -2422,21 +2445,18 @@
           })
         );
       const destinationOptions = shippers
-        .filter(shipper => matchesExplicitDestination(shipper, destinationId))
-        .map(shipper => decorateOption(shipper));
-      const remainingOptions = shippers
         .filter(
           shipper =>
-            !isPriorityShipper(shipper) && !matchesExplicitDestination(shipper, destinationId)
+            !isPriorityShipper(shipper) && matchesExplicitDestination(shipper, destinationId)
         )
-        .map(shipper =>
-          decorateOption(shipper, {
-            disabled: true
-          })
-        );
+        .map(shipper => decorateOption(shipper));
       return renderGroupedOptions(
         select,
-        [priorityOptions, destinationOptions, remainingOptions],
+        [
+          { options: priorityOptions },
+          { options: destinationOptions },
+          { message: shipperSelectorGuidance }
+        ],
         selectedValue
       );
     };
@@ -2523,23 +2543,16 @@
             })
           );
         const pairRecipientOptions = destinationRecipients
-          .filter(recipient => isRecipientPairMatched(recipient))
-          .map(recipient => decorateOption(recipient));
-        const otherRecipientOptions = destinationRecipients
           .filter(
             recipient =>
               asId(recipient.id) !== destinationCorrespondentRecipientId &&
-              !isRecipientPairMatched(recipient)
+              isRecipientPairMatched(recipient)
           )
-          .map(recipient =>
-            decorateOption(recipient, {
-              disabled: true
-            })
-          );
+          .map(recipient => decorateOption(recipient));
         recipientOptions = [
-          priorityRecipientOptions,
-          pairRecipientOptions,
-          otherRecipientOptions
+          { options: priorityRecipientOptions },
+          { options: pairRecipientOptions },
+          { message: recipientSelectorGuidance }
         ];
         correspondentOptions = correspondents.filter(correspondent =>
           matchesDestination(correspondent, destinationId)

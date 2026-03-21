@@ -271,3 +271,99 @@ class ScanAdminShipmentPartiesViewTests(TestCase):
                 is_active=True,
             ).exists()
         )
+
+    def test_scan_admin_contacts_destination_filter_scopes_cockpit_and_correspondents(self):
+        self.client.force_login(self.superuser)
+        other_correspondent_org = Contact.objects.create(
+            name="Correspondant Dakar",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        other_destination = Destination.objects.create(
+            city="Dakar",
+            iata_code="DKR",
+            country="Senegal",
+            correspondent_contact=other_correspondent_org,
+            is_active=True,
+        )
+        other_shipper_org = Contact.objects.create(
+            name="Shipper Dakar",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        other_shipper_person = Contact.objects.create(
+            name="Jean Dakar",
+            first_name="Jean",
+            last_name="Dakar",
+            contact_type=ContactType.PERSON,
+            organization=other_shipper_org,
+            is_active=True,
+        )
+        other_shipper = ShipmentShipper.objects.create(
+            organization=other_shipper_org,
+            default_contact=other_shipper_person,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+        )
+        other_recipient_org = Contact.objects.create(
+            name="Hopital Dakar",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        other_recipient_organization = ShipmentRecipientOrganization.objects.create(
+            organization=other_recipient_org,
+            destination=other_destination,
+            validation_status=ShipmentValidationStatus.VALIDATED,
+            is_active=True,
+            is_correspondent=True,
+        )
+        other_recipient_person = Contact.objects.create(
+            name="Dr Dakar",
+            first_name="Dr",
+            last_name="Dakar",
+            contact_type=ContactType.PERSON,
+            organization=other_recipient_org,
+            is_active=True,
+        )
+        other_recipient_contact = ShipmentRecipientContact.objects.create(
+            recipient_organization=other_recipient_organization,
+            contact=other_recipient_person,
+            is_active=True,
+        )
+        other_link = ShipmentShipperRecipientLink.objects.create(
+            shipper=other_shipper,
+            recipient_organization=other_recipient_organization,
+            is_active=True,
+        )
+        ShipmentAuthorizedRecipientContact.objects.create(
+            link=other_link,
+            recipient_contact=other_recipient_contact,
+            is_default=True,
+            is_active=True,
+        )
+
+        response = self.client.get(
+            reverse("scan:scan_admin_contacts"),
+            {"destination_id": str(self.destination.id)},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [shipper.id for shipper in response.context["cockpit_shipment_shippers"]],
+            [self.shipper.id],
+        )
+        self.assertEqual(
+            [
+                recipient.id
+                for recipient in response.context["cockpit_shipment_recipient_organizations"]
+            ],
+            [self.recipient_organization.id],
+        )
+        self.assertEqual(
+            [link.id for link in response.context["cockpit_shipment_links"]],
+            [self.link.id],
+        )
+        self.assertEqual(
+            [contact.id for contact in response.context["correspondents"]],
+            [self.correspondent_org.id],
+        )

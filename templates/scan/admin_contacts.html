@@ -12,7 +12,7 @@
     <div class="scan-card card border-0 ui-comp-card">
         <h3 class="ui-comp-title h5 mb-3">{% trans "Recherche et filtres" %}</h3>
         <form method="get" class="scan-filters row g-3 ui-comp-form">
-            <div class="scan-field col-12 col-md-8">
+            <div class="scan-field col-12 col-lg-5">
                 <label class="form-label" for="scan-admin-contacts-q">{% trans "Recherche" %}</label>
                 <input id="scan-admin-contacts-q"
                        type="text"
@@ -21,12 +21,22 @@
                        class="form-control"
                        placeholder="{% trans "Nom, email, téléphone, ASF ID" %}">
             </div>
-            <div class="scan-field col-12 col-md-4">
+            <div class="scan-field col-12 col-md-6 col-lg-3">
                 <label class="form-label" for="scan-admin-contacts-type">{% trans "Type de contact" %}</label>
                 <select id="scan-admin-contacts-type" name="contact_type" class="form-select">
                     {% for value, label in contact_filter_choices %}
                         <option value="{{ value }}"
                                 {% if contact_filter == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="scan-field col-12 col-md-6 col-lg-4">
+                <label class="form-label" for="scan-admin-contacts-destination">{% trans "Destination" %}</label>
+                <select id="scan-admin-contacts-destination" name="destination_id" class="form-select">
+                    <option value="">{% trans "Toutes destinations" %}</option>
+                    {% for destination in destination_filter_choices %}
+                        <option value="{{ destination.id }}"
+                                {% if destination_filter == destination.id|stringformat:"s" %}selected{% endif %}>{{ destination }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -44,10 +54,13 @@
         </p>
         <div class="row g-3">
             <div class="col-12 col-xl-6">
-                <div class="ui-comp-panel p-3 border rounded-3 h-100">
-                    <h4 class="h6 mb-2">{% trans "Expéditeurs" %}</h4>
+                <details class="scan-admin-table-accordion ui-comp-panel p-0 border rounded-3 h-100">
+                    <summary class="scan-admin-table-summary">
+                        <span>{% trans "Expéditeurs" %}</span>
+                    </summary>
+                    <div class="p-3">
                     <div class="scan-table-wrap table-responsive">
-                        <table class="scan-table table table-sm table-hover">
+                        <table class="scan-table table table-sm table-hover" data-table-tools="1">
                             <thead>
                                 <tr>
                                     <th>{% trans "Structure" %}</th>
@@ -72,13 +85,17 @@
                             </tbody>
                         </table>
                     </div>
-                </div>
+                    </div>
+                </details>
             </div>
             <div class="col-12 col-xl-6">
-                <div class="ui-comp-panel p-3 border rounded-3 h-100">
-                    <h4 class="h6 mb-2">{% trans "Structures destinataires" %}</h4>
+                <details class="scan-admin-table-accordion ui-comp-panel p-0 border rounded-3 h-100">
+                    <summary class="scan-admin-table-summary">
+                        <span>{% trans "Structures destinataires" %}</span>
+                    </summary>
+                    <div class="p-3">
                     <div class="scan-table-wrap table-responsive">
-                        <table class="scan-table table table-sm table-hover">
+                        <table class="scan-table table table-sm table-hover" data-table-tools="1">
                             <thead>
                                 <tr>
                                     <th>{% trans "Structure" %}</th>
@@ -108,13 +125,17 @@
                             </tbody>
                         </table>
                     </div>
-                </div>
+                    </div>
+                </details>
             </div>
             <div class="col-12 col-xl-6">
-                <div class="ui-comp-panel p-3 border rounded-3 h-100">
-                    <h4 class="h6 mb-2">{% trans "Liens expéditeur → destinataire" %}</h4>
+                <details class="scan-admin-table-accordion ui-comp-panel p-0 border rounded-3 h-100">
+                    <summary class="scan-admin-table-summary">
+                        <span>{% trans "Liens expéditeur → destinataire" %}</span>
+                    </summary>
+                    <div class="p-3">
                     <div class="scan-table-wrap table-responsive">
-                        <table class="scan-table table table-sm table-hover">
+                        <table class="scan-table table table-sm table-hover" data-table-tools="1">
                             <thead>
                                 <tr>
                                     <th>{% trans "Expéditeur" %}</th>
@@ -139,13 +160,17 @@
                             </tbody>
                         </table>
                     </div>
-                </div>
+                    </div>
+                </details>
             </div>
             <div class="col-12 col-xl-6">
-                <div class="ui-comp-panel p-3 border rounded-3 h-100">
-                    <h4 class="h6 mb-2">{% trans "Correspondants d'escale" %}</h4>
+                <details class="scan-admin-table-accordion ui-comp-panel p-0 border rounded-3 h-100">
+                    <summary class="scan-admin-table-summary">
+                        <span>{% trans "Correspondants d'escale" %}</span>
+                    </summary>
+                    <div class="p-3">
                     <div class="scan-table-wrap table-responsive">
-                        <table class="scan-table table table-sm table-hover">
+                        <table class="scan-table table table-sm table-hover" data-table-tools="1">
                             <thead>
                                 <tr>
                                     <th>{% trans "Escale" %}</th>
@@ -168,7 +193,8 @@
                             </tbody>
                         </table>
                     </div>
-                </div>
+                    </div>
+                </details>
             </div>
         </div>
         <hr>
@@ -183,6 +209,7 @@
                                value="set_default_authorized_recipient_contact">
                         <input type="hidden" name="q" value="{{ query }}">
                         <input type="hidden" name="contact_type" value="{{ contact_filter }}">
+                        <input type="hidden" name="destination_id" value="{{ destination_filter }}">
                         <div class="col-12">
                             <label class="form-label" for="scan-shipment-link-id">{% trans "Lien expéditeur → destinataire" %}</label>
                             <select id="scan-shipment-link-id"
@@ -233,6 +260,7 @@
                                value="set_stopover_correspondent_recipient_organization">
                         <input type="hidden" name="q" value="{{ query }}">
                         <input type="hidden" name="contact_type" value="{{ contact_filter }}">
+                        <input type="hidden" name="destination_id" value="{{ destination_filter }}">
                         <div class="col-12">
                             <label class="form-label" for="scan-stopover-correspondent-id">
                                 {% trans "Structure destinataire correspondante" %}
@@ -270,6 +298,7 @@
                                value="merge_shipment_recipient_organizations">
                         <input type="hidden" name="q" value="{{ query }}">
                         <input type="hidden" name="contact_type" value="{{ contact_filter }}">
+                        <input type="hidden" name="destination_id" value="{{ destination_filter }}">
                         <div class="col-12">
                             <label class="form-label" for="scan-merge-source-recipient-organization">{% trans "Structure source" %}</label>
                             <select id="scan-merge-source-recipient-organization"
@@ -317,9 +346,12 @@
     </div>
 
     <div class="scan-card card border-0 ui-comp-card">
-        <h3 class="ui-comp-title h5 mb-3">{% trans "Répertoire des contacts" %}</h3>
-        <div class="scan-table-wrap table-responsive">
-            <table class="scan-table table table-sm table-hover">
+        <details class="scan-admin-table-accordion" id="scan-admin-contacts-directory">
+            <summary class="scan-admin-table-summary">
+                <span>{% trans "Répertoire des contacts" %}</span>
+            </summary>
+            <div class="scan-table-wrap table-responsive">
+            <table class="scan-table table table-sm table-hover" data-table-tools="1">
                 <thead>
                     <tr>
                         <th>{% trans "Nom" %}</th>
@@ -353,7 +385,8 @@
                     {% endfor %}
                 </tbody>
             </table>
-        </div>
+            </div>
+        </details>
         <div class="scan-actions d-flex flex-wrap gap-2 mt-3">
             <a class="scan-scan-btn btn btn-tertiary"
                href="{{ contacts_admin_url }}">{% trans "Tous les contacts (admin)" %}</a>
@@ -365,9 +398,12 @@
     </div>
 
     <div class="scan-card card border-0 ui-comp-card">
-        <h3 class="ui-comp-title h5 mb-3">{% trans "Correspondants configurés" %}</h3>
-        <div class="scan-table-wrap table-responsive">
-            <table class="scan-table table table-sm table-hover">
+        <details class="scan-admin-table-accordion" id="scan-admin-contacts-correspondents">
+            <summary class="scan-admin-table-summary">
+                <span>{% trans "Correspondants configurés" %}</span>
+            </summary>
+            <div class="scan-table-wrap table-responsive">
+            <table class="scan-table table table-sm table-hover" data-table-tools="1">
                 <thead>
                     <tr>
                         <th>{% trans "Nom" %}</th>
@@ -399,7 +435,8 @@
                     {% endfor %}
                 </tbody>
             </table>
-        </div>
+            </div>
+        </details>
     </div>
 
     <script>

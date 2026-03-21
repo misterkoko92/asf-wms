@@ -512,6 +512,8 @@ class ScanBootstrapUiTests(TestCase):
         self.assertIn("shipper.is_priority_shipper", js_content)
         self.assertIn("recipient_labels_by_destination_id", js_content)
         self.assertIn("separator.textContent = '------';", js_content)
+        self.assertIn("Si l'expéditeur souhaité n'apparait pas ici", js_content)
+        self.assertIn("Si le destinataire souhaité n'apparait pas ici", js_content)
 
     def test_scan_shipment_create_js_keeps_unlinked_recipients_out_of_pair_group(self):
         js_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan.js"

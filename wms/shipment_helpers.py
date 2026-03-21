@@ -4,7 +4,7 @@ from django.utils.translation import gettext as _
 from contacts.models import Contact
 
 from .contact_labels import (
-    build_contact_select_label,
+    build_shipment_contact_select_label,
     build_shipment_recipient_select_label,
 )
 from .models import (
@@ -260,9 +260,10 @@ def build_shipment_contact_payload():
         shipper_contacts_json.append(
             {
                 "id": contact.id,
-                "name": build_contact_select_label(contact),
+                "name": build_shipment_contact_select_label(contact),
                 "is_priority_shipper": _is_priority_shipper_name(shipper.organization.name),
                 "organization_id": shipper.organization_id,
+                "organization_name": shipper.organization.name,
                 "default_destination_id": (
                     allowed_destination_ids[0] if len(allowed_destination_ids) == 1 else None
                 ),
@@ -305,6 +306,11 @@ def build_shipment_contact_payload():
                         destination=link.recipient_organization.destination,
                     ),
                     "organization_id": recipient_contact.recipient_organization.organization_id,
+                    "organization_name": (
+                        recipient_contact.recipient_organization.organization.name
+                        if recipient_contact.recipient_organization.organization is not None
+                        else ""
+                    ),
                     "countries": set(countries),
                     "allowed_destination_ids": set(),
                     "bound_shipper_ids": set(),
@@ -326,6 +332,7 @@ def build_shipment_contact_payload():
                 "id": entry["id"],
                 "name": entry["name"],
                 "organization_id": entry["organization_id"],
+                "organization_name": entry["organization_name"],
                 "countries": sorted(entry["countries"]),
                 "default_destination_id": (
                     destination_ids[0] if len(destination_ids) == 1 else None

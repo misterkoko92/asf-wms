@@ -9,7 +9,11 @@ from contacts.capabilities import (
 )
 from contacts.models import Contact, ContactType
 
-from .contact_labels import build_contact_select_label, build_shipment_recipient_select_label
+from .contact_labels import (
+    build_contact_select_label,
+    build_shipment_contact_select_label,
+    build_shipment_recipient_select_label,
+)
 from .models import (
     Carton,
     CartonStatus,
@@ -494,7 +498,7 @@ class ScanShipmentForm(forms.Form):
             else Contact.objects.none()
         )
         self.fields["shipper_contact"].queryset = shipper_contacts.order_by("name")
-        self.fields["shipper_contact"].label_from_instance = build_contact_select_label
+        self.fields["shipper_contact"].label_from_instance = build_shipment_contact_select_label
 
         recipients = Contact.objects.none()
         correspondents = Contact.objects.none()
