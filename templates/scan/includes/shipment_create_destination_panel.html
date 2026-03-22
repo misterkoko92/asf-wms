@@ -1,0 +1,24 @@
+{% load i18n %}
+
+<div class="scan-field ui-comp-panel">
+  <label class="form-label" for="id_destination">{% trans "Destination" %}</label>
+  <div class="scan-inline">
+    {{ form.destination }}
+    <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:wms_destination_add' %}" target="_blank" rel="noopener">
+      {% trans "Ajouter destination" %}
+    </a>
+  </div>
+  <p class="scan-help ui-comp-note">{% trans "Merci de sélectionner une destination pour poursuivre la création de l'expédition" %}</p>
+  {% for error in form.destination.errors %}
+    <div class="scan-message error">{{ error }}</div>
+  {% endfor %}
+</div>
+
+{% if not is_edit %}
+  <div class="scan-inline scan-inline-gap ui-comp-actions">
+    <button type="submit" name="action" value="save_draft" class="scan-submit secondary scan-submit-inline btn btn-secondary">
+      {% if LANGUAGE_CODE|slice:":2" == "en" %}Save draft{% else %}Enregistrer un brouillon{% endif %}
+    </button>
+  </div>
+  <p class="scan-help ui-comp-note">{% trans "Enregistre une expédition temporaire (EXP-TEMP-XX) pour la modifier ultérieurement." %}</p>
+{% endif %}
