@@ -1,0 +1,38 @@
+{% load i18n %}
+
+<div class="portal-contact-row" data-contact-row="{{ row.index }}">
+  <div class="scan-field">
+    <select class="form-select" name="contact_{{ row.index }}_title">
+      <option value="">-</option>
+      {% for value, label in contact_title_choices %}
+        <option value="{{ value }}" {% if row.title == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="scan-field">
+    <input class="form-control" type="text" name="contact_{{ row.index }}_last_name" value="{{ row.last_name }}" placeholder="{% trans "Nom" %}">
+  </div>
+  <div class="scan-field">
+    <input class="form-control" type="text" name="contact_{{ row.index }}_first_name" value="{{ row.first_name }}" placeholder="{% trans "Prénom" %}">
+  </div>
+  <div class="scan-field">
+    <input class="form-control" type="text" name="contact_{{ row.index }}_phone" value="{{ row.phone }}" placeholder="{% trans "Téléphone" %}">
+  </div>
+  <div class="scan-field">
+    <input class="form-control" type="email" name="contact_{{ row.index }}_email" value="{{ row.email }}" placeholder="email@domaine.org">
+  </div>
+  <div class="portal-contact-types ui-comp-panel">
+    <label>
+      <input class="form-check-input" type="checkbox" name="contact_{{ row.index }}_is_administrative" value="1" {% if row.is_administrative %}checked{% endif %}>
+      {% trans "Administratif" %}
+    </label>
+    <label>
+      <input class="form-check-input" type="checkbox" name="contact_{{ row.index }}_is_shipping" value="1" {% if row.is_shipping %}checked{% endif %}>
+      {% trans "Expédition" %}
+    </label>
+    <label>
+      <input class="form-check-input" type="checkbox" name="contact_{{ row.index }}_is_billing" value="1" {% if row.is_billing %}checked{% endif %}>
+      {% trans "Facturation" %}
+    </label>
+  </div>
+</div>

@@ -7381,7 +7381,7 @@ msgid "Stock mis à jour."
 msgstr "Stock updated."
 
 #: wms/views_portal_account.py:49
-msgid "Destinataire ajouté."
+msgid "Recipient added."
 msgstr "Recipient added."
 
 #: wms/views_portal_account.py:50
@@ -7524,7 +7524,7 @@ msgid "Documents disponibles après validation de la commande."
 msgstr "Documents available after order approval."
 
 #: wms/views_portal_orders.py:74
-msgid "Commande envoyée."
+msgid "Order sent."
 msgstr "Order sent."
 
 #: wms/views_portal_orders.py:148

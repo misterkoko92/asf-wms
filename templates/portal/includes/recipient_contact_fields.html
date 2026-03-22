@@ -1,0 +1,31 @@
+{% load i18n %}
+
+<div class="portal-recipient-contact-fields">
+  <div class="portal-recipient-grid-3">
+    <div class="scan-field">
+      <label class="form-label" for="contact_title">{% trans "Titre du contact" %}</label>
+      <select class="form-select" id="contact_title" name="contact_title">
+        <option value="">---------</option>
+        {% for value, label in contact_title_choices %}
+          <option value="{{ value }}" {% if form_data.contact_title == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="scan-field">
+      <label class="form-label" for="contact_last_name">{% trans "Nom du contact" %}</label>
+      <input class="form-control" type="text" id="contact_last_name" name="contact_last_name" value="{{ form_data.contact_last_name }}">
+    </div>
+    <div class="scan-field">
+      <label class="form-label" for="contact_first_name">{% trans "Prénom du contact" %}</label>
+      <input class="form-control" type="text" id="contact_first_name" name="contact_first_name" value="{{ form_data.contact_first_name }}">
+    </div>
+  </div>
+  <div class="scan-field">
+    <label class="form-label" for="phones">{% trans "Téléphone(s) (séparer par ; ou , et utiliser l'indicatif international, ex: +33102030405)" %}</label>
+    <input class="form-control" type="text" id="phones" name="phones" value="{{ form_data.phones }}">
+  </div>
+  <div class="scan-field">
+    <label class="form-label" for="emails">{% trans "Email(s) (séparer par ; ou ,)" %}</label>
+    <input class="form-control" type="text" id="emails" name="emails" value="{{ form_data.emails }}">
+  </div>
+</div>

@@ -1,0 +1,9 @@
+{% load i18n wms_ui %}
+
+{% translate "Avertir ce contact des livraisons" as notify_label %}
+{% translate "Contact utilisé pour la réception dans l'escale de livraison" as delivery_contact_label %}
+
+<div class="portal-recipient-flags ui-comp-panel">
+  {% ui_switch name="notify_deliveries" id="notify_deliveries" label=notify_label checked=form_data.notify_deliveries wide=True %}
+  {% ui_switch name="is_delivery_contact" id="is_delivery_contact" label=delivery_contact_label checked=form_data.is_delivery_contact wide=True %}
+</div>

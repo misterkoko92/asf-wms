@@ -24,3 +24,11 @@ msgstr ""
 #: asf_wms/settings.py:184
 msgid "English"
 msgstr ""
+
+#: wms/views_portal_account.py:53
+msgid "Recipient added."
+msgstr "Destinataire ajouté."
+
+#: wms/views_portal_orders.py:78
+msgid "Order sent."
+msgstr "Commande envoyée."

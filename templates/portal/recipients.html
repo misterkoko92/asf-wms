@@ -1,9 +1,17 @@
 {% extends "portal/base.html" %}
-{% load i18n %}
+{% load i18n wms_ui %}
 
 {% block title %}{% trans "Destinataires" %}{% endblock %}
 
 {% block content %}
+  {% url "portal:portal_recipients" as portal_recipients_url %}
+  {% if editing_recipient %}
+    {% translate "Enregistrer" as recipient_submit_label %}
+  {% else %}
+    {% translate "Ajouter" as recipient_submit_label %}
+  {% endif %}
+  {% translate "Annuler" as cancel_label %}
+  {% translate "Réutiliser la structure existante si elle est déjà connue sur cette escale" as reuse_existing_structure_label %}
   <div class="scan-card portal-card card border-0 ui-comp-card">
     <h2 class="ui-comp-title">{% trans "Destinataires" %}</h2>
     <p class="scan-help">{% trans "Liste privée des contacts de réception par escale." %}</p>
@@ -92,12 +100,7 @@
       <div class="scan-field">
         <label class="form-label" for="structure_name">{% trans "Nom de la structure" %}</label>
         <input class="form-control" type="text" id="structure_name" name="structure_name" value="{{ form_data.structure_name }}" required>
-        <div class="form-check form-switch scan-inline-switch scan-inline-switch-wide mt-2">
-          <input class="form-check-input" type="checkbox" id="reuse_existing_structure" name="reuse_existing_structure" value="1" {% if form_data.reuse_existing_structure %}checked{% endif %}>
-          <label class="form-check-label" for="reuse_existing_structure">
-            {% trans "Réutiliser la structure existante si elle est déjà connue sur cette escale" %}
-          </label>
-        </div>
+        {% ui_switch name="reuse_existing_structure" id="reuse_existing_structure" label=reuse_existing_structure_label checked=form_data.reuse_existing_structure wide=True extra_classes="mt-2" %}
         {% if duplicate_recipient_suggestions %}
           <div class="scan-help mt-2">
             {% trans "Structures similaires déjà connues sur cette escale :" %}
@@ -112,33 +115,7 @@
           </ul>
         {% endif %}
       </div>
-      <div class="portal-recipient-grid-3">
-        <div class="scan-field">
-          <label class="form-label" for="contact_title">{% trans "Titre du contact" %}</label>
-          <select class="form-select" id="contact_title" name="contact_title">
-            <option value="">---------</option>
-            {% for value, label in contact_title_choices %}
-              <option value="{{ value }}" {% if form_data.contact_title == value %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="scan-field">
-          <label class="form-label" for="contact_last_name">{% trans "Nom du contact" %}</label>
-          <input class="form-control" type="text" id="contact_last_name" name="contact_last_name" value="{{ form_data.contact_last_name }}">
-        </div>
-        <div class="scan-field">
-          <label class="form-label" for="contact_first_name">{% trans "Prénom du contact" %}</label>
-          <input class="form-control" type="text" id="contact_first_name" name="contact_first_name" value="{{ form_data.contact_first_name }}">
-        </div>
-      </div>
-      <div class="scan-field">
-        <label class="form-label" for="phones">{% trans "Téléphone(s) (séparer par ; ou , et utiliser l'indicatif international, ex: +33102030405)" %}</label>
-        <input class="form-control" type="text" id="phones" name="phones" value="{{ form_data.phones }}">
-      </div>
-      <div class="scan-field">
-        <label class="form-label" for="emails">{% trans "Email(s) (séparer par ; ou ,)" %}</label>
-        <input class="form-control" type="text" id="emails" name="emails" value="{{ form_data.emails }}">
-      </div>
+      {% include "portal/includes/recipient_contact_fields.html" %}
       <div class="scan-field">
         <label class="form-label" for="address_line1">{% trans "Adresse" %}</label>
         <input class="form-control" type="text" id="address_line1" name="address_line1" value="{{ form_data.address_line1 }}" required>
@@ -167,24 +144,11 @@
       </div>
       <div class="scan-field">
         <label class="form-label">{% trans "Options" %}</label>
-        <div class="portal-recipient-flags ui-comp-panel">
-          <div class="form-check form-switch scan-inline-switch scan-inline-switch-wide">
-            <input class="form-check-input" type="checkbox" id="notify_deliveries" name="notify_deliveries" value="1" {% if form_data.notify_deliveries %}checked{% endif %}>
-            <label class="form-check-label" for="notify_deliveries">
-              {% trans "Avertir ce contact des livraisons" %}
-            </label>
-          </div>
-          <div class="form-check form-switch scan-inline-switch scan-inline-switch-wide">
-            <input class="form-check-input" type="checkbox" id="is_delivery_contact" name="is_delivery_contact" value="1" {% if form_data.is_delivery_contact %}checked{% endif %}>
-            <label class="form-check-label" for="is_delivery_contact">
-              {% trans "Contact utilisé pour la réception dans l'escale de livraison" %}
-            </label>
-          </div>
-        </div>
+        {% include "portal/includes/recipient_flags.html" %}
       </div>
-      <button type="submit" class="scan-submit btn btn-primary">{% if editing_recipient %}{% trans "Enregistrer" %}{% else %}{% trans "Ajouter" %}{% endif %}</button>
+      {% ui_button label=recipient_submit_label button_type="submit" variant="primary" extra_classes="scan-submit" %}
       {% if editing_recipient %}
-        <a class="btn btn-tertiary btn-sm portal-recipient-cancel" href="{% url 'portal:portal_recipients' %}">{% trans "Annuler" %}</a>
+        {% ui_button label=cancel_label href=portal_recipients_url variant="tertiary" size="sm" extra_classes="portal-recipient-cancel" %}
       {% endif %}
     </form>
   </div>

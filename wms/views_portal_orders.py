@@ -75,7 +75,7 @@ ERROR_RECIPIENT_INVALID = _("Destinataire invalide.")
 ERROR_ORDER_UPLOAD_NOT_APPROVED = _("Documents disponibles après validation de la commande.")
 ERROR_ORDER_NO_DOCUMENT_SELECTED = _("Aucun fichier sélectionné.")
 
-MESSAGE_ORDER_SENT = _("Commande envoyée.")
+MESSAGE_ORDER_SENT = _("Order sent.")
 MESSAGE_ORDER_DOCUMENT_ADDED = _("Document ajouté.")
 MESSAGE_ORDER_DOCUMENTS_ADDED = _("Documents ajoutés.")
 
