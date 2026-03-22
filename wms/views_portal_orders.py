@@ -146,31 +146,40 @@ def _build_destination_options(destinations):
     return [{"id": str(destination.id), "label": str(destination)} for destination in destinations]
 
 
+def _split_destination_options_by_availability(destination_options, *, available_destination_ids):
+    available_ids = {str(destination_id) for destination_id in available_destination_ids}
+    available_options = []
+    disabled_options = []
+    for option in destination_options:
+        if str(option["id"]) in available_ids:
+            available_options.append(option)
+        else:
+            disabled_options.append(option)
+    return available_options, disabled_options
+
+
+def _build_portal_recipient_option_label(recipient):
+    structure_name = (recipient.structure_name or recipient.name or "").strip()
+    contact_display = recipient.get_contact_display_name()
+    if (
+        structure_name
+        and contact_display
+        and structure_name.casefold() != contact_display.casefold()
+    ):
+        label = f"{structure_name}, {contact_display}"
+    else:
+        label = structure_name or contact_display or recipient.get_display_name()
+    if recipient.destination:
+        return f"{label} - {recipient.destination.city}"
+    return label
+
+
 def _build_recipient_options(
     profile,
     recipients,
     *,
     allowed_destination_ids_by_recipient=None,
-    recipient_contacts_by_id=None,
 ):
-    def _build_recipient_label(recipient):
-        recipient_contact = (
-            recipient_contacts_by_id.get(recipient.id)
-            if recipient_contacts_by_id is not None
-            else None
-        )
-        label = (
-            build_shipment_recipient_select_label(
-                recipient_contact,
-                destination=recipient.destination,
-            )
-            if recipient_contact is not None
-            else recipient.get_shipment_party_display_name()
-        )
-        if recipient.destination:
-            return f"{label} - {recipient.destination.city}"
-        return label
-
     options = [
         {
             "id": RECIPIENT_SELF,
@@ -180,7 +189,7 @@ def _build_recipient_options(
         *[
             {
                 "id": str(recipient.id),
-                "label": _build_recipient_label(recipient),
+                "label": _build_portal_recipient_option_label(recipient),
                 "destination_id": str(recipient.destination_id or ""),
                 "allowed_destination_ids": (
                     allowed_destination_ids_by_recipient.get(str(recipient.id))
@@ -234,13 +243,10 @@ def _allowed_destination_ids_by_recipient(profile, recipients, destinations):
     allowed_destination_ids_by_recipient = {str(recipient.id): set() for recipient in recipients}
     shipper = shipment_shipper_from_contact(profile.contact)
     if shipper is None:
-        return (
-            {
-                recipient_id: sorted(destination_ids)
-                for recipient_id, destination_ids in allowed_destination_ids_by_recipient.items()
-            },
-            recipient_contact_by_id,
-        )
+        return {
+            recipient_id: sorted(destination_ids)
+            for recipient_id, destination_ids in allowed_destination_ids_by_recipient.items()
+        }
 
     for destination in destinations:
         for recipient in recipients:
@@ -259,12 +265,19 @@ def _allowed_destination_ids_by_recipient(profile, recipients, destinations):
             ):
                 allowed_destination_ids_by_recipient[str(recipient.id)].add(destination.id)
 
-    return (
+    return {
+        recipient_id: sorted(destination_ids)
+        for recipient_id, destination_ids in allowed_destination_ids_by_recipient.items()
+    }
+
+
+def _available_destination_ids(allowed_destination_ids_by_recipient):
+    return sorted(
         {
-            recipient_id: sorted(destination_ids)
-            for recipient_id, destination_ids in allowed_destination_ids_by_recipient.items()
-        },
-        recipient_contact_by_id,
+            destination_id
+            for destination_ids in allowed_destination_ids_by_recipient.values()
+            for destination_id in destination_ids
+        }
     )
 
 
@@ -407,6 +420,7 @@ def _requires_recipient_binding(*, profile, recipient_contact) -> bool:
 def _build_order_create_context(
     *,
     destination_options,
+    disabled_destination_options,
     recipient_options,
     recipient_options_all,
     form_data,
@@ -472,6 +486,7 @@ def _build_order_create_context(
 
     return {
         "destination_options": destination_options,
+        "disabled_destination_options": disabled_destination_options,
         "recipient_options": recipient_options,
         "recipient_options_all": recipient_options_all,
         "form_data": form_data,
@@ -597,21 +612,21 @@ def portal_order_create(request):
     profile = request.association_profile
     recipients = _get_active_recipients(profile)
     destinations = _get_active_destinations()
-    destination_options = _build_destination_options(destinations)
     destination_by_id = {str(destination.id): destination for destination in destinations}
-    (
-        allowed_destination_ids_by_recipient,
-        recipient_contacts_by_id,
-    ) = _allowed_destination_ids_by_recipient(
+    allowed_destination_ids_by_recipient = _allowed_destination_ids_by_recipient(
         profile,
         recipients,
         destinations,
+    )
+    destination_options_all = _build_destination_options(destinations)
+    destination_options, disabled_destination_options = _split_destination_options_by_availability(
+        destination_options_all,
+        available_destination_ids=_available_destination_ids(allowed_destination_ids_by_recipient),
     )
     recipient_options_all = _build_recipient_options(
         profile,
         recipients,
         allowed_destination_ids_by_recipient=allowed_destination_ids_by_recipient,
-        recipient_contacts_by_id=recipient_contacts_by_id,
     )
 
     product_options, product_by_id, available_by_id = build_product_selection_data()
@@ -776,6 +791,7 @@ def portal_order_create(request):
         TEMPLATE_PORTAL_ORDER_CREATE,
         _build_order_create_context(
             destination_options=destination_options,
+            disabled_destination_options=disabled_destination_options,
             recipient_options=recipient_options,
             recipient_options_all=recipient_options_all,
             form_data=form_data,
