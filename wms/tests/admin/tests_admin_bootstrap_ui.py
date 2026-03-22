@@ -56,6 +56,18 @@ class AdminBootstrapUiTests(TestCase):
         self.assertContains(response, "btn btn-primary")
         self.assertContains(response, "btn btn-outline-secondary")
 
+    def test_admin_stockmovement_form_keeps_primary_and_back_contract(self):
+        response = self.client.get(reverse("admin:wms_stockmovement_receive"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'class="default btn btn-primary"',
+        )
+        self.assertContains(
+            response,
+            f'href="{reverse("admin:wms_stockmovement_changelist")}" class="button btn btn-outline-secondary"',
+        )
+
     @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
     def test_admin_stockmovement_views_render_native_english(self):
         self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = "en"

@@ -32,7 +32,7 @@ def handle_receive_view(
     transaction_module,
     message_user,
 ):
-    title = _("Réception stock")
+    title = _("Receive stock")
     if request.method == "POST":
         form = form_class(request.POST)
         if form.is_valid():
@@ -75,7 +75,7 @@ def handle_adjust_view(
     transaction_module,
     message_user,
 ):
-    title = _("Ajuster stock")
+    title = _("Adjust stock")
     if request.method == "POST":
         form = form_class(request.POST)
         if form.is_valid():
@@ -113,7 +113,7 @@ def handle_transfer_view(
     transaction_module,
     message_user,
 ):
-    title = _("Transférer stock")
+    title = _("Transfer stock")
     if request.method == "POST":
         form = form_class(request.POST)
         if form.is_valid():
@@ -195,7 +195,7 @@ def handle_pack_view(
     transaction_module,
     message_user,
 ):
-    title = _("Préparer carton")
+    title = _("Prepare carton")
     if request.method == "POST":
         form = form_class(request.POST)
         if form.is_valid():

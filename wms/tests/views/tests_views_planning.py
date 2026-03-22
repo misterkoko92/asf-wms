@@ -335,6 +335,27 @@ class PlanningViewTests(TestCase):
         self.assertContains(response, "2026-03-09")
         self.assertEqual(response.context["active"], "planning_runs")
 
+    def test_run_create_page_keeps_primary_and_cancel_actions(self):
+        self.client.force_login(self.staff_user)
+
+        response = self.client.get(reverse("planning:run_create"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="week_start"')
+        self.assertContains(response, 'name="week_end"')
+        self.assertContains(response, 'name="parameter_set"')
+        self.assertContains(response, 'name="flight_mode"')
+        self.assertContains(
+            response,
+            '<button type="submit" class="btn btn-primary">Creer</button>',
+            html=True,
+        )
+        self.assertContains(
+            response,
+            f'<a class="btn btn-tertiary" href="{reverse("planning:run_list")}">Annuler</a>',
+            html=True,
+        )
+
     def test_staff_can_create_run(self):
         self.client.force_login(self.staff_user)
 

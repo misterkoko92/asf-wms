@@ -19,15 +19,15 @@
 {% block object-tools-items %}
   {{ block.super }}
   <li>
-    <a href="{% url 'admin:wms_stockmovement_receive' %}" class="addlink btn btn-outline-primary btn-sm">{% trans "Réception stock" %}</a>
+    <a href="{% url 'admin:wms_stockmovement_receive' %}" class="addlink btn btn-outline-primary btn-sm">{% trans "Receive stock" %}</a>
   </li>
   <li>
-    <a href="{% url 'admin:wms_stockmovement_adjust' %}" class="addlink btn btn-outline-primary btn-sm">{% trans "Ajuster stock" %}</a>
+    <a href="{% url 'admin:wms_stockmovement_adjust' %}" class="addlink btn btn-outline-primary btn-sm">{% trans "Adjust stock" %}</a>
   </li>
   <li>
-    <a href="{% url 'admin:wms_stockmovement_transfer' %}" class="addlink btn btn-outline-primary btn-sm">{% trans "Transférer stock" %}</a>
+    <a href="{% url 'admin:wms_stockmovement_transfer' %}" class="addlink btn btn-outline-primary btn-sm">{% trans "Transfer stock" %}</a>
   </li>
   <li>
-    <a href="{% url 'admin:wms_stockmovement_pack' %}" class="addlink btn btn-outline-primary btn-sm">{% trans "Préparer carton" %}</a>
+    <a href="{% url 'admin:wms_stockmovement_pack' %}" class="addlink btn btn-outline-primary btn-sm">{% trans "Prepare carton" %}</a>
   </li>
 {% endblock %}

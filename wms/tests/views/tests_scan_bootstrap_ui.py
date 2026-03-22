@@ -116,6 +116,25 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "id_include_zero")
         self.assertContains(response, "Inclure les produits avec stock")
 
+    def test_scan_stock_keeps_filter_action_contract(self):
+        response = self.client.get(reverse("scan:scan_stock"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="include_zero"')
+        self.assertContains(
+            response,
+            'class="scan-filter-actions scan-stock-filter-actions-inline col-12 d-flex flex-wrap flex-lg-nowrap gap-2 align-items-center ui-comp-actions"',
+        )
+        self.assertContains(
+            response,
+            '<button type="submit" class="scan-submit secondary scan-submit-inline btn btn-primary">Filtrer</button>',
+            html=True,
+        )
+        self.assertContains(
+            response,
+            f'<a class="btn btn-tertiary" href="{reverse("scan:scan_stock")}">Réinitialiser</a>',
+            html=True,
+        )
+
     def test_scan_bootstrap_nav_uses_title_case_for_state_pages(self):
         response = self.client.get(reverse("scan:scan_stock"))
         self.assertEqual(response.status_code, 200)
