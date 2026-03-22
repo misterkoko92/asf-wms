@@ -18,6 +18,23 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.ui-lab-governance-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ui-lab-governance-list {
+  margin: 0;
+  padding-left: 1rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.ui-lab-governance-list code {
+  font-size: 0.92em;
+}
+
 .ui-lab-preview {
   --preview-primary: #6f9a8d;
   --preview-primary-soft: #ddebe6;
@@ -257,6 +274,15 @@
 
 .ui-lab-contract-grid .ui-comp-actions {
   margin-bottom: 0;
+}
+
+@media (max-width: 991.98px) {
+  .ui-lab-governance-grid,
+  .ui-lab-contract-grid,
+  .ui-lab-typography,
+  .ui-lab-swatches {
+    grid-template-columns: 1fr;
+  }
 }
 
 .ui-lab-shipment-docs {

@@ -1163,3 +1163,22 @@ class ScanBootstrapUiTests(TestCase):
 
         self.assertEqual(design_response.status_code, 200)
         self.assertContains(design_response, reverse("scan:scan_ui_lab"))
+
+    def test_scan_ui_lab_exposes_governance_tiers_for_stable_and_converging_contracts(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_ui_lab"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="ui-lab-governance-core"')
+        self.assertContains(response, 'id="ui-lab-governance-convergence"')
+        self.assertContains(response, "Core stable")
+        self.assertContains(response, "En convergence")
+        self.assertContains(response, "ui-comp-card")
+        self.assertContains(response, "ui-comp-panel")
+        self.assertContains(response, "ui-comp-actions")
+        self.assertContains(response, "ui_button")
+        self.assertContains(response, "ui_field")
+        self.assertContains(response, "ui_alert")
+        self.assertContains(response, "ui_status_badge")
+        self.assertContains(response, "ui_switch")
