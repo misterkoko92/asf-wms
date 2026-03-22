@@ -84,6 +84,25 @@ class WmsUiTemplateTagTests(SimpleTestCase):
         self.assertIn("disabled", rendered)
         self.assertIn('aria-label="Enregistrer le brouillon"', rendered)
 
+    def test_ui_button_renders_secondary_variant_for_stable_core_examples(self):
+        template = Template(
+            "{% load wms_ui %}"
+            "{% ui_button label='Action secondaire' button_type='button' variant='secondary' size='sm' attrs=attrs %}"
+        )
+
+        rendered = template.render(
+            Context(
+                {
+                    "attrs": {
+                        "data-ui-lab-tier": "stable",
+                    }
+                }
+            )
+        )
+
+        self.assertIn('class="btn btn-secondary btn-sm"', rendered)
+        self.assertIn('data-ui-lab-tier="stable"', rendered)
+
     def test_ui_switch_renders_existing_switch_contract_and_escapes_copy(self):
         template = Template(
             "{% load wms_ui %}"
