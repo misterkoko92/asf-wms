@@ -255,6 +255,30 @@
   color: #6f572b;
 }
 
+.ui-lab-contract-grid .ui-comp-actions {
+  margin-bottom: 0;
+}
+
+.ui-lab-shipment-docs {
+  margin-top: 0.75rem;
+}
+
+.ui-lab-overlay-preview {
+  position: relative;
+  inset: auto;
+  display: flex;
+  padding: 0;
+  min-height: 0;
+  background: transparent;
+}
+
+.ui-lab-overlay-preview .scan-choice-modal {
+  max-width: none;
+  box-shadow: none;
+  border: 1px solid var(--preview-border);
+  background: var(--preview-surface);
+}
+
 @media (max-width: 900px) {
   .ui-lab-contract-grid {
     grid-template-columns: 1fr;
