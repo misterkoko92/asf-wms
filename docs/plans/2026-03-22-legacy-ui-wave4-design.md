@@ -5,7 +5,7 @@
 Les waves precedentes ont deja valide une partie utile de la gouvernance:
 - `pack` a confirme qu'un workflow dense peut rester lisible avec des partials metier et des contrats partages,
 - `public_account_request` a valide un ecran standalone/public base sur `ui_alert`, `ui_button` et `ui-comp-actions`,
-- `shipment_create` a valide les contrats de workflow expédition, les groupes documentaires et l'overlay de confirmation dans le `UI Lab`.
+- `shipment_create` a valide les contrats de workflow expedition, les groupes documentaires et l'overlay de confirmation dans le `UI Lab`.
 
 Le reste du legacy scan ne doit plus etre traite comme une simple liste de "gros fichiers". Les deux surfaces encore a fort retour sur investissement sont:
 - `templates/scan/imports.html`
@@ -13,7 +13,7 @@ Le reste du legacy scan ne doit plus etre traite comme une simple liste de "gros
 
 Elles n'ont pas le meme profil:
 - `imports` reste surtout un monolithe formulaire + tableaux de confirmation;
-- `admin_contacts` est plus couple au cockpit metier contacts, avec plus de sections deja structurees et un risque plus fort de faire fuiter la logique métier dans la library.
+- `admin_contacts` est plus couple au cockpit metier contacts, avec plus de sections deja structurees et un risque plus fort de faire fuiter la logique metier dans la library.
 
 La wave 4 doit donc prendre la gouvernance comme contrainte de conception, pas comme documentation annexe.
 
@@ -59,7 +59,7 @@ Ordre:
 Avantages:
 - `imports` offre un gain de lisibilite rapide avec un risque surtout structurel,
 - `admin_contacts` profite ensuite des contrats confirms pendant `imports`,
-- la wave reste compréhensible, testable et sans faux composants generiques.
+- la wave reste comprehensible, testable et sans faux composants generiques.
 
 Inconvenients:
 - la wave 4 doit accepter d'etre heterogene,
@@ -85,7 +85,7 @@ Pourquoi:
 - template encore monolithique,
 - nombreuses sections formulaire repetitives,
 - tableau de confirmation import produits melange au reste,
-- bon candidat pour decomposer sans bouleverser la logique métier.
+- bon candidat pour decomposer sans bouleverser la logique metier.
 
 Classification:
 - page globale: `En convergence`
@@ -107,7 +107,7 @@ En convergence a valider:
 Local au workflow a conserver:
 - les radio groups de decision de correspondance,
 - la matrice source/existant pour les matches,
-- les blocs fichier + mode de stock importé.
+- les blocs fichier + mode de stock importe.
 
 ### 2. `templates/scan/admin_contacts.html`
 
