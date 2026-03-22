@@ -1,0 +1,7 @@
+<div class="{{ wrapper_classes }}">
+  <input class="form-check-input" type="checkbox" id="{{ id }}" name="{{ name }}" value="{{ value }}"{% if checked %} checked{% endif %}{% if attrs %}{{ attrs }}{% endif %}>
+  <label class="form-check-label" for="{{ id }}">{{ label }}</label>
+  {% if help_text %}
+    <div class="form-text">{{ help_text }}</div>
+  {% endif %}
+</div>

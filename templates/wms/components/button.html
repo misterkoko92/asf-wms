@@ -1,0 +1,5 @@
+{% if href %}
+  <a class="{{ classes }}" href="{{ href }}"{% if attrs %}{{ attrs }}{% endif %}>{{ label }}</a>
+{% else %}
+  <button type="{{ button_type }}" class="{{ classes }}"{% if attrs %}{{ attrs }}{% endif %}>{{ label }}</button>
+{% endif %}

@@ -1,9 +1,14 @@
 {% extends "portal/base.html" %}
-{% load i18n wms_status %}
+{% load i18n wms_status wms_ui %}
 
 {% block title %}{% trans "Compte" %}{% endblock %}
 
 {% block content %}
+  {% translate "Ajouter un autre contact" as add_contact_label %}
+  {% translate "Enregistrer les modifications" as save_profile_label %}
+  {% translate "Envoyer une demande de changement" as billing_request_label %}
+  {% translate "Ajouter les documents" as add_documents_label %}
+  {% translate "Télécharger" as download_label %}
   <div class="portal-tight">
     <div class="scan-card portal-card card border-0 ui-comp-card">
       <h2 class="portal-section-title ui-comp-title">{% trans "Compte association" %}</h2>
@@ -130,50 +135,16 @@
         </div>
         <div id="portal-contact-rows">
           {% for row in portal_contact_rows %}
-            <div class="portal-contact-row" data-contact-row="{{ row.index }}">
-              <div class="scan-field">
-                <select class="form-select" name="contact_{{ row.index }}_title">
-                  <option value="">-</option>
-                  {% for value, label in contact_title_choices %}
-                    <option value="{{ value }}" {% if row.title == value %}selected{% endif %}>{{ label }}</option>
-                  {% endfor %}
-                </select>
-              </div>
-              <div class="scan-field">
-                <input class="form-control" type="text" name="contact_{{ row.index }}_last_name" value="{{ row.last_name }}" placeholder="{% trans "Nom" %}">
-              </div>
-              <div class="scan-field">
-                <input class="form-control" type="text" name="contact_{{ row.index }}_first_name" value="{{ row.first_name }}" placeholder="{% trans "Prénom" %}">
-              </div>
-              <div class="scan-field">
-                <input class="form-control" type="text" name="contact_{{ row.index }}_phone" value="{{ row.phone }}" placeholder="{% trans "Téléphone" %}">
-              </div>
-              <div class="scan-field">
-                <input class="form-control" type="email" name="contact_{{ row.index }}_email" value="{{ row.email }}" placeholder="email@domaine.org">
-              </div>
-              <div class="portal-contact-types">
-                <label>
-                  <input class="form-check-input" type="checkbox" name="contact_{{ row.index }}_is_administrative" value="1" {% if row.is_administrative %}checked{% endif %}>
-                  {% trans "Administratif" %}
-                </label>
-                <label>
-                  <input class="form-check-input" type="checkbox" name="contact_{{ row.index }}_is_shipping" value="1" {% if row.is_shipping %}checked{% endif %}>
-                  {% trans "Expédition" %}
-                </label>
-                <label>
-                  <input class="form-check-input" type="checkbox" name="contact_{{ row.index }}_is_billing" value="1" {% if row.is_billing %}checked{% endif %}>
-                  {% trans "Facturation" %}
-                </label>
-              </div>
-            </div>
+            {% include "portal/includes/account_contact_row.html" with row=row contact_title_choices=contact_title_choices only %}
           {% endfor %}
         </div>
+        <template id="portal-contact-row-template">
+          {% include "portal/includes/account_contact_row.html" with row=empty_portal_contact_row contact_title_choices=contact_title_choices only %}
+        </template>
 
-        <button type="button" class="scan-scan-btn btn btn-tertiary" id="add-contact-row">
-          {% trans "Ajouter un autre contact" %}
-        </button>
+        {% ui_button label=add_contact_label button_type="button" variant="tertiary" extra_classes="scan-scan-btn" attrs=portal_account_add_contact_button_attrs %}
         <div class="scan-field portal-contact-submit">
-          <button type="submit" class="scan-submit btn btn-primary">{% trans "Enregistrer les modifications" %}</button>
+          {% ui_button label=save_profile_label button_type="submit" variant="primary" extra_classes="scan-submit" %}
         </div>
       </form>
     </div>
@@ -207,9 +178,7 @@
             </select>
           </div>
         </div>
-        <button type="submit" class="scan-submit btn btn-primary">
-          {% trans "Envoyer une demande de changement" %}
-        </button>
+        {% ui_button label=billing_request_label button_type="submit" variant="primary" extra_classes="scan-submit" %}
       </form>
 
       {% if billing_change_requests %}
@@ -263,7 +232,7 @@
                   <td>{{ doc.uploaded_at|date:"d/m/Y" }}</td>
                   <td>
                     {% if doc.file and doc.scan_status == "clean" %}
-                      <a class="btn btn-tertiary btn-sm" href="{{ doc.file.url }}" target="_blank">{% trans "Télécharger" %}</a>
+                      {% ui_button label=download_label href=doc.file.url variant="tertiary" size="sm" target="_blank" %}
                     {% elif doc.scan_status == "infected" %}
                       <span class="scan-help">{% trans "Bloqué (fichier suspect)." %}</span>
                     {% elif doc.file %}
@@ -290,7 +259,7 @@
             <input class="form-control" type="file" id="id_doc_{{ value }}" name="doc_file_{{ value }}">
           </div>
         {% endfor %}
-        <button type="submit" class="scan-submit btn btn-primary">{% trans "Ajouter les documents" %}</button>
+        {% ui_button label=add_documents_label button_type="submit" variant="primary" extra_classes="scan-submit" %}
       </form>
     </div>
   </div>
@@ -298,19 +267,13 @@
   <script>
     (function() {
       const rowsContainer = document.getElementById("portal-contact-rows");
+      const rowTemplate = document.getElementById("portal-contact-row-template");
       const addButton = document.getElementById("add-contact-row");
       const countInput = document.getElementById("id_contact_count");
       const maxRows = {{ max_portal_contacts }};
-      if (!rowsContainer || !addButton || !countInput) {
+      if (!rowsContainer || !rowTemplate || !addButton || !countInput) {
         return;
       }
-
-      const titleChoicesHtml = `
-        <option value="">-</option>
-        {% for value, label in contact_title_choices %}
-          <option value="{{ value }}">{{ label }}</option>
-        {% endfor %}
-      `;
 
       const updateCount = () => {
         const count = rowsContainer.querySelectorAll("[data-contact-row]").length;
@@ -323,43 +286,8 @@
         if (count >= maxRows) {
           return;
         }
-        const row = document.createElement("div");
-        row.className = "portal-contact-row";
-        row.setAttribute("data-contact-row", String(count));
-        row.innerHTML = `
-          <div class="scan-field">
-            <select class="form-select" name="contact_${count}_title">
-              ${titleChoicesHtml}
-            </select>
-          </div>
-          <div class="scan-field">
-            <input class="form-control" type="text" name="contact_${count}_last_name" placeholder="{% trans "Nom" %}">
-          </div>
-          <div class="scan-field">
-            <input class="form-control" type="text" name="contact_${count}_first_name" placeholder="{% trans "Prénom" %}">
-          </div>
-          <div class="scan-field">
-            <input class="form-control" type="text" name="contact_${count}_phone" placeholder="{% trans "Téléphone" %}">
-          </div>
-          <div class="scan-field">
-            <input class="form-control" type="email" name="contact_${count}_email" placeholder="email@domaine.org">
-          </div>
-          <div class="portal-contact-types">
-            <label>
-              <input class="form-check-input" type="checkbox" name="contact_${count}_is_administrative" value="1">
-              {% trans "Administratif" %}
-            </label>
-            <label>
-              <input class="form-check-input" type="checkbox" name="contact_${count}_is_shipping" value="1">
-              {% trans "Expédition" %}
-            </label>
-            <label>
-              <input class="form-check-input" type="checkbox" name="contact_${count}_is_billing" value="1">
-              {% trans "Facturation" %}
-            </label>
-          </div>
-        `;
-        rowsContainer.appendChild(row);
+        const rowMarkup = rowTemplate.innerHTML.replace(/__INDEX__/g, String(count));
+        rowsContainer.insertAdjacentHTML("beforeend", rowMarkup);
         updateCount();
       });
 

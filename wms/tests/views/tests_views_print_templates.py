@@ -131,6 +131,19 @@ class PrintTemplateViewsTests(TestCase):
         self.assertContains(response, "Edit")
         self.assertNotContains(response, "Templates XLSX")
 
+    def test_scan_print_templates_list_keeps_edit_action_contract(self):
+        response = self.client.get(self._list_url())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'class="scan-table-actions ui-comp-actions"')
+        self.assertContains(
+            response,
+            '<a class="btn btn-tertiary" href="'
+            + self._edit_url(str(self.pack_document.id))
+            + '">Modifier</a>',
+            html=True,
+        )
+
     def test_scan_print_template_edit_404_for_unknown_doc_type(self):
         response = self.client.get(self._edit_url("unknown-template"))
         self.assertEqual(response.status_code, 404)

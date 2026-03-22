@@ -1,9 +1,10 @@
 {% extends "benevole/base.html" %}
-{% load i18n %}
+{% load i18n wms_ui %}
 
 {% block title %}{% trans "Profil benevole" %}{% endblock %}
 
 {% block content %}
+  {% translate "Enregistrer" as save_label %}
   <div class="scan-card portal-card card border-0 ui-comp-card">
     <h2 class="ui-comp-title">{% trans "Profil" %}</h2>
     <p class="scan-help">{% trans "Mettez a jour vos coordonnees." %}</p>
@@ -13,30 +14,18 @@
     <form method="post" novalidate class="ui-comp-form">
       {% csrf_token %}
       {% for field in account_form %}
-        <div class="scan-field">
-          <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
-          {{ field }}
-          {% for error in field.errors %}
-            <div class="scan-message error">{{ error }}</div>
-          {% endfor %}
-        </div>
+        {% ui_field field_id=field.id_for_label label=field.label field_html=field help_text=field.help_text errors=field.errors error_class="scan-message error" %}
       {% endfor %}
 
       {% for field in profile_form %}
         {% if field.is_hidden %}
           {{ field }}
         {% else %}
-          <div class="scan-field">
-            <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
-            {{ field }}
-            {% for error in field.errors %}
-              <div class="scan-message error">{{ error }}</div>
-            {% endfor %}
-          </div>
+          {% ui_field field_id=field.id_for_label label=field.label field_html=field help_text=field.help_text errors=field.errors error_class="scan-message error" %}
         {% endif %}
       {% endfor %}
 
-      <button type="submit" class="scan-submit btn btn-primary">{% trans "Enregistrer" %}</button>
+      {% ui_button label=save_label button_type="submit" variant="primary" extra_classes="scan-submit" %}
     </form>
   </div>
 {% endblock %}

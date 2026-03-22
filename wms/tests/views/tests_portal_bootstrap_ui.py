@@ -213,6 +213,39 @@ class PortalBootstrapUiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "form-check form-switch scan-inline-switch", count=3)
 
+    def test_portal_recipients_keeps_switch_and_action_contract(self):
+        response = self.client.get(reverse("portal:portal_recipients"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'class="portal-recipient-contact-fields"')
+        self.assertContains(response, 'id="reuse_existing_structure"')
+        self.assertContains(response, 'id="notify_deliveries"')
+        self.assertContains(response, 'id="is_delivery_contact"')
+        self.assertContains(response, 'class="portal-recipient-flags ui-comp-panel"')
+        self.assertContains(
+            response,
+            '<button type="submit" class="scan-submit btn btn-primary">Ajouter</button>',
+            html=True,
+        )
+        self.assertContains(
+            response,
+            '<a class="btn btn-tertiary btn-sm" href="/portal/recipients/?edit=1">Modifier</a>',
+            html=True,
+        )
+
+    def test_portal_account_keeps_contact_row_template_and_flags_contract(self):
+        response = self.client.get(reverse("portal:portal_account"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="portal-contact-row-template"')
+        self.assertContains(response, 'name="contact_0_is_administrative"')
+        self.assertContains(response, 'name="contact_0_is_shipping"')
+        self.assertContains(response, 'name="contact_0_is_billing"')
+        self.assertContains(response, 'class="portal-contact-types ui-comp-panel"')
+        self.assertContains(
+            response,
+            '<button type="button" class="scan-scan-btn btn btn-tertiary" id="add-contact-row">Ajouter un autre contact</button>',
+            html=True,
+        )
+
     def test_portal_order_detail_uses_bootstrap_tables(self):
         self.order.review_status = OrderReviewStatus.APPROVED
         self.order.save(update_fields=["review_status"])

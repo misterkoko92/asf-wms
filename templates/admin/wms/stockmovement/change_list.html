@@ -1,6 +1,6 @@
 {% extends "admin/change_list.html" %}
 
-{% load i18n static %}
+{% load i18n static wms_ui %}
 
 {% block extrastyle %}
   {{ block.super }}
@@ -18,16 +18,24 @@
 
 {% block object-tools-items %}
   {{ block.super }}
+  {% trans "Receive stock" as receive_stock_label %}
+  {% trans "Adjust stock" as adjust_stock_label %}
+  {% trans "Transfer stock" as transfer_stock_label %}
+  {% trans "Prepare carton" as prepare_carton_label %}
+  {% url 'admin:wms_stockmovement_receive' as receive_stock_url %}
+  {% url 'admin:wms_stockmovement_adjust' as adjust_stock_url %}
+  {% url 'admin:wms_stockmovement_transfer' as transfer_stock_url %}
+  {% url 'admin:wms_stockmovement_pack' as prepare_carton_url %}
   <li>
-    <a href="{% url 'admin:wms_stockmovement_receive' %}" class="addlink btn btn-outline-primary btn-sm">{% trans "Réception stock" %}</a>
+    {% ui_button label=receive_stock_label href=receive_stock_url variant="outline-primary" size="sm" extra_classes="addlink" %}
   </li>
   <li>
-    <a href="{% url 'admin:wms_stockmovement_adjust' %}" class="addlink btn btn-outline-primary btn-sm">{% trans "Ajuster stock" %}</a>
+    {% ui_button label=adjust_stock_label href=adjust_stock_url variant="outline-primary" size="sm" extra_classes="addlink" %}
   </li>
   <li>
-    <a href="{% url 'admin:wms_stockmovement_transfer' %}" class="addlink btn btn-outline-primary btn-sm">{% trans "Transférer stock" %}</a>
+    {% ui_button label=transfer_stock_label href=transfer_stock_url variant="outline-primary" size="sm" extra_classes="addlink" %}
   </li>
   <li>
-    <a href="{% url 'admin:wms_stockmovement_pack' %}" class="addlink btn btn-outline-primary btn-sm">{% trans "Préparer carton" %}</a>
+    {% ui_button label=prepare_carton_label href=prepare_carton_url variant="outline-primary" size="sm" extra_classes="addlink" %}
   </li>
 {% endblock %}

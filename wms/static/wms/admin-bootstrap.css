@@ -38,6 +38,13 @@
   margin-right: 8px;
 }
 
+.admin-bootstrap-enabled .ui-comp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
 .admin-bootstrap-enabled .btn {
   border-radius: min(var(--wms-btn-radius, 0.45rem), 0.45rem);
   border-width: var(--wms-btn-border-width, 1px);
@@ -82,10 +89,6 @@
 }
 
 .admin-bootstrap-enabled .admin-bootstrap-doc-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
   margin-top: 8px;
 }
 

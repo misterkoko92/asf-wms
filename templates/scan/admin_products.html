@@ -1,9 +1,16 @@
 {% extends "scan/base.html" %}
-{% load i18n %}
+{% load i18n wms_ui %}
 
 {% block title %}{% trans "WMS Scan - Admin Produit" %}{% endblock %}
 
 {% block content %}
+  {% url "scan:scan_admin_products" as scan_admin_products_url %}
+  {% translate "Filtrer" as filter_label %}
+  {% translate "Réinitialiser" as reset_label %}
+  {% translate "Tous les produits (admin)" as all_products_label %}
+  {% translate "Créer un kit" as create_kit_label %}
+  {% translate "Modifier" as edit_label %}
+  {% translate "Supprimer" as delete_label %}
   <div class="scan-card card border-0 ui-comp-card">
     <h2 class="ui-comp-title">{% trans "Admin - Produit" %}</h2>
     <p class="scan-help ui-comp-note">
@@ -22,17 +29,17 @@
           <input id="scan-admin-products-q" type="text" name="q" value="{{ query }}" placeholder="{% trans "Nom, SKU, code barre" %}">
         </div>
       </div>
-      <div class="scan-filter-actions">
-        <button type="submit" class="scan-submit btn btn-primary">{% trans "Filtrer" %}</button>
-        <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_admin_products' %}">{% trans "Réinitialiser" %}</a>
+      <div class="scan-filter-actions ui-comp-actions">
+        {% ui_button label=filter_label button_type="submit" variant="primary" extra_classes="scan-submit" %}
+        {% ui_button label=reset_label href=scan_admin_products_url variant="tertiary" extra_classes="scan-scan-btn" %}
       </div>
     </form>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card">
-    <div class="scan-filter-actions">
-      <a class="scan-scan-btn btn btn-tertiary" href="{{ products_admin_url }}">{% trans "Tous les produits (admin)" %}</a>
-      <a class="scan-scan-btn btn btn-tertiary" href="{{ product_add_url }}">{% trans "Créer un kit" %}</a>
+    <div class="scan-filter-actions ui-comp-actions">
+      {% ui_button label=all_products_label href=products_admin_url variant="tertiary" extra_classes="scan-scan-btn" %}
+      {% ui_button label=create_kit_label href=product_add_url variant="tertiary" extra_classes="scan-scan-btn" %}
     </div>
   </div>
 
@@ -74,8 +81,10 @@
                 {% endif %}
               </td>
               <td>
-                <a class="scan-scan-btn btn btn-tertiary" href="{{ row.edit_url }}">{% trans "Modifier" %}</a>
-                <a class="scan-scan-btn btn btn-danger" href="{{ row.delete_url }}">{% trans "Supprimer" %}</a>
+                <div class="scan-inline scan-inline-gap ui-comp-actions">
+                  {% ui_button label=edit_label href=row.edit_url variant="tertiary" extra_classes="scan-scan-btn" %}
+                  {% ui_button label=delete_label href=row.delete_url variant="danger" extra_classes="scan-scan-btn" %}
+                </div>
               </td>
             </tr>
           {% endfor %}

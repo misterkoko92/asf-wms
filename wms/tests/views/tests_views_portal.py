@@ -1998,6 +1998,10 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         response = self.client.get(self.account_url)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["association"], self.profile.contact)
+        self.assertContains(response, 'id="portal-contact-row-template"')
+        self.assertContains(response, 'name="contact_0_is_administrative"')
+        self.assertContains(response, 'name="contact_0_is_shipping"')
+        self.assertContains(response, 'name="contact_0_is_billing"')
 
     def test_portal_account_updates_profile_and_contacts(self):
         response = self.client.post(

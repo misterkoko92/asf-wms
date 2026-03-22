@@ -35,7 +35,13 @@ def _render_scan_out(request, *, form, product_options):
     return render(
         request,
         TEMPLATE_OUT,
-        {"form": form, "active": ACTIVE_OUT, "products_json": product_options},
+        {
+            "form": form,
+            "active": ACTIVE_OUT,
+            "products_json": product_options,
+            "scan_out_product_button_attrs": {"data-scan-target": "id_product_code"},
+            "scan_out_shipment_button_attrs": {"data-scan-target": "id_shipment_reference"},
+        },
     )
 
 

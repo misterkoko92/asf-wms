@@ -1,14 +1,23 @@
 {% extends "scan/base.html" %}
 {% load i18n %}
 
-{% block title %}WMS Scan - {% trans "Vue stock" %}{% endblock %}
+{% block title %}
+  {% get_current_language as current_language %}
+  WMS Scan -
+  {% if current_language == "fr" %}{% trans "Vue stock" %}{% else %}{% trans "Stock view" %}{% endif %}
+{% endblock %}
 
 {% block content %}
+  {% get_current_language as current_language %}
   <div class="scan-card card border-0 ui-comp-card">
-    <h2 class="h4 mb-3 ui-comp-title">{% trans "Vue stock" %}</h2>
+    <h2 class="h4 mb-3 ui-comp-title">
+      {% if current_language == "fr" %}{% trans "Vue stock" %}{% else %}{% trans "Stock view" %}{% endif %}
+    </h2>
     <form method="get" class="scan-filters row g-3 ui-comp-form scan-stock-filter-row">
       <div class="scan-field scan-stock-field col-12 col-md-6 col-lg-2">
-        <label class="form-label" for="id_q">{% trans "Recherche" %}</label>
+        <label class="form-label" for="id_q">
+          {% if current_language == "fr" %}{% trans "Recherche" %}{% else %}{% trans "Search" %}{% endif %}
+        </label>
         <input type="text" class="form-control" id="id_q" name="q" value="{{ query }}" placeholder='{% trans "Nom, référence, code-barres" %}'>
       </div>
 

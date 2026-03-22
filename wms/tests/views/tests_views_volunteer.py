@@ -298,6 +298,48 @@ class VolunteerProfileViewTests(TestCase):
         self.assertEqual(constraints.max_wait_hours, 4)
         self.assertEqual(constraints.max_colis_vol, 5)
 
+    def test_profile_page_keeps_field_ids_and_primary_action_contract(self):
+        response = self.client.get(reverse("volunteer:profile"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="email"')
+        self.assertContains(response, 'name="first_name"')
+        self.assertContains(response, 'name="last_name"')
+        self.assertContains(response, 'name="phone"')
+        self.assertContains(response, 'name="country"')
+        self.assertContains(
+            response,
+            '<button type="submit" class="scan-submit btn btn-primary">Enregistrer</button>',
+            html=True,
+        )
+
+    def test_constraints_page_keeps_field_names_and_primary_action_contract(self):
+        response = self.client.get(reverse("volunteer:constraints"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="max_days_per_week"')
+        self.assertContains(response, 'name="max_expeditions_per_week"')
+        self.assertContains(response, 'name="max_expeditions_per_day"')
+        self.assertContains(response, 'name="max_wait_hours"')
+        self.assertContains(response, 'name="max_colis_vol"')
+        self.assertContains(
+            response,
+            '<button type="submit" class="scan-submit btn btn-primary">Enregistrer</button>',
+            html=True,
+        )
+
+    def test_change_password_page_keeps_password_fields_and_primary_action_contract(self):
+        response = self.client.get(reverse("volunteer:change_password"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="new_password1"')
+        self.assertContains(response, 'name="new_password2"')
+        self.assertContains(
+            response,
+            '<button type="submit" class="scan-submit btn btn-primary">Enregistrer</button>',
+            html=True,
+        )
+
 
 class VolunteerAvailabilityViewTests(TestCase):
     def setUp(self):

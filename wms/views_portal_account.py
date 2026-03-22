@@ -50,7 +50,7 @@ ACTION_REQUEST_BILLING_PREFERENCES = "request_billing_preferences"
 
 DEFAULT_COUNTRY = "France"
 MAX_PORTAL_CONTACTS = 10
-MESSAGE_RECIPIENT_ADDED = _("Destinataire ajouté.")
+MESSAGE_RECIPIENT_ADDED = _("Recipient added.")
 MESSAGE_RECIPIENT_UPDATED = _("Destinataire modifié.")
 MESSAGE_PROFILE_UPDATED = _("Compte mis à jour.")
 MESSAGE_CONTACTS_UPDATED = _("Contacts emails mis à jour.")
@@ -600,8 +600,10 @@ def _build_portal_account_context(
         "profile_form_data": profile_form_data
         or _build_profile_form_data(association=association, address=address),
         "portal_contact_rows": portal_contact_rows or _build_contact_rows(profile),
+        "empty_portal_contact_row": _build_default_contact_row(index="__INDEX__"),
         "contact_title_choices": list(AssociationContactTitle.choices),
         "max_portal_contacts": MAX_PORTAL_CONTACTS,
+        "portal_account_add_contact_button_attrs": {"id": "add-contact-row"},
         "user": user,
     }
 

@@ -1,13 +1,16 @@
 {% extends "planning/base.html" %}
-{% load i18n %}
+{% load i18n wms_ui %}
 
 {% block title %}{% trans "Nouveau run planning" %}{% endblock %}
 
 {% block content %}
+  {% url "planning:run_list" as planning_run_list_url %}
+  {% translate "Creer" as create_label %}
+  {% translate "Annuler" as cancel_label %}
   <section class="scan-card portal-card card border-0 shadow-sm">
     <div class="card-body">
       <h1 class="h3 mb-3">{% trans "Nouveau run planning" %}</h1>
-      <form method="post" novalidate>
+      <form method="post" novalidate class="ui-comp-form">
         {% csrf_token %}
         {% if form.non_field_errors %}
           <div class="alert alert-danger">
@@ -19,20 +22,13 @@
         <div class="row g-3">
           {% for field in form %}
             <div class="col-md-6">
-              <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
-              {{ field }}
-              {% if field.help_text %}
-                <div class="form-text">{{ field.help_text }}</div>
-              {% endif %}
-              {% for error in field.errors %}
-                <div class="text-danger small">{{ error }}</div>
-              {% endfor %}
+              {% ui_field field_id=field.id_for_label label=field.label field_html=field help_text=field.help_text errors=field.errors %}
             </div>
           {% endfor %}
         </div>
         <div class="mt-4 d-flex gap-2">
-          <button type="submit" class="btn btn-primary">{% trans "Creer" %}</button>
-          <a class="btn btn-tertiary" href="{% url 'planning:run_list' %}">{% trans "Annuler" %}</a>
+          {% ui_button label=create_label button_type="submit" variant="primary" %}
+          {% ui_button label=cancel_label href=planning_run_list_url variant="tertiary" %}
         </div>
       </form>
     </div>
