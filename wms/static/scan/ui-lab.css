@@ -178,9 +178,26 @@
   margin-bottom: 0.75rem;
 }
 
+.ui-lab-contract-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .ui-lab-form {
   display: grid;
   gap: var(--preview-gap);
+}
+
+.ui-lab-preview .ui-comp-alert,
+.ui-lab-contract-grid .ui-comp-alert {
+  margin-bottom: 0;
+  border-color: var(--preview-border);
+  background: color-mix(in srgb, var(--preview-primary-soft) 65%, white);
+}
+
+.ui-lab-contract-grid .ui-comp-panel {
+  margin-bottom: 0;
 }
 
 .ui-lab-preview .ui-comp-toolbar {
@@ -236,6 +253,12 @@
   background: #f6eddc;
   border-color: #e3d3a9;
   color: #6f572b;
+}
+
+@media (max-width: 900px) {
+  .ui-lab-contract-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .ui-lab-preview .ui-comp-status-pill.is-info {

@@ -381,7 +381,58 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertContains(response, "scan-pack-add-line-btn")
         self.assertContains(response, "Préparer sans conditionner")
         self.assertContains(response, "Préparer et mettre en disponible")
+        self.assertContains(response, "ui-comp-actions")
         self.assertNotContains(response, "Ajouter emplacement")
+
+    def test_scan_pack_uses_shared_action_wrapper_for_generated_result_links(self):
+        session = self.client.session
+        session["pack_results"] = [10]
+        session.save()
+
+        with mock.patch(
+            "wms.views_scan_shipments.build_packing_result",
+            return_value={
+                "cartons": [
+                    {
+                        "code": "MM-20260322-01",
+                        "packing_list_url": "/docs/packing-list.pdf",
+                        "picking_url": "/docs/picking.pdf",
+                        "items": [],
+                    }
+                ],
+                "aggregate": [],
+                "show_success_modal": False,
+            },
+        ):
+            response = self.client.get(reverse("scan:scan_pack"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'class="scan-inline-actions ui-comp-actions"')
+
+    def test_scan_pack_missing_defaults_warning_uses_shared_alert_contract(self):
+        pack_state = {
+            "carton_format_id": "custom",
+            "carton_custom": {"length_cm": 30},
+            "line_count": 1,
+            "line_values": [{"line": 1}],
+            "line_errors": {},
+            "missing_defaults": ["SKU-001"],
+            "confirm_defaults": True,
+        }
+
+        with mock.patch(
+            "wms.views_scan_shipments.handle_pack_post",
+            return_value=(None, pack_state),
+        ):
+            response = self.client.post(reverse("scan:scan_pack"), {})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "SKU-001")
+        self.assertContains(response, "ui-comp-alert")
+        self.assertContains(
+            response,
+            'class="form-check form-switch scan-inline-switch scan-inline-switch-wide"',
+        )
 
     def test_scan_pack_preparateur_hides_non_essential_controls_and_reduces_navigation(self):
         preparateur = self._create_preparateur_user()

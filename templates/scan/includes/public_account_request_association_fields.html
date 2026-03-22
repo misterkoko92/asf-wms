@@ -1,0 +1,88 @@
+{% load i18n %}
+
+<section id="association-fields" data-account-section="{{ ACCOUNT_TYPE_ASSOCIATION }}">
+  <div class="scan-field">
+    <label class="form-label" for="association_name">{% trans "Nom de l'association" %}</label>
+    <input
+      class="form-control"
+      type="text"
+      id="association_name"
+      name="association_name"
+      list="association-list"
+      value="{{ form_data.association_name }}"
+      autocomplete="off"
+    >
+    <input type="hidden" id="contact_id" name="contact_id" value="{{ form_data.contact_id }}">
+  </div>
+  <div class="scan-field">
+    <label class="form-label" for="phone">{% trans "Téléphone" %}</label>
+    <input class="form-control" type="text" id="phone" name="phone" value="{{ form_data.phone }}">
+  </div>
+  <div class="scan-field">
+    <label class="form-label" for="line1">{% trans "Adresse" %}</label>
+    <input
+      class="form-control"
+      type="text"
+      id="line1"
+      name="line1"
+      value="{{ form_data.line1 }}"
+      data-address-field="line1"
+      data-address-group="account"
+      data-autocomplete-geo="1"
+    >
+  </div>
+  <div class="scan-field">
+    <label class="form-label" for="line2">{% trans "Complément adresse" %}</label>
+    <input
+      class="form-control"
+      type="text"
+      id="line2"
+      name="line2"
+      value="{{ form_data.line2 }}"
+      data-address-field="line2"
+      data-address-group="account"
+    >
+  </div>
+  <div class="scan-field">
+    <label class="form-label" for="postal_code">{% trans "Code postal" %}</label>
+    <input
+      class="form-control"
+      type="text"
+      id="postal_code"
+      name="postal_code"
+      value="{{ form_data.postal_code }}"
+      data-address-field="postal_code"
+      data-address-group="account"
+    >
+  </div>
+  <div class="scan-field">
+    <label class="form-label" for="city">{% trans "Ville" %}</label>
+    <input
+      class="form-control"
+      type="text"
+      id="city"
+      name="city"
+      value="{{ form_data.city }}"
+      data-address-field="city"
+      data-address-group="account"
+    >
+  </div>
+  <div class="scan-field">
+    <label class="form-label" for="country">{% trans "Pays" %}</label>
+    <input
+      class="form-control"
+      type="text"
+      id="country"
+      name="country"
+      value="{{ form_data.country|default:'France' }}"
+      data-address-field="country"
+      data-address-group="account"
+    >
+  </div>
+  <div class="scan-field">
+    <label class="form-label" for="notes">{% trans "Notes" %}</label>
+    <textarea class="form-control" id="notes" name="notes" rows="3">{{ form_data.notes }}</textarea>
+  </div>
+
+  {% include "scan/includes/public_account_request_documents.html" %}
+</section>

@@ -1,0 +1,8 @@
+<div class="{{ classes }}"{% if attrs %}{{ attrs }}{% endif %}>
+  {% if title %}
+    <strong class="ui-comp-alert-title">{{ title }}</strong>
+  {% endif %}
+  {% if body %}
+    <div class="ui-comp-alert-body">{{ body }}</div>
+  {% endif %}
+</div>

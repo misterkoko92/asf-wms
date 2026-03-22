@@ -1,3 +1,4 @@
+from django.utils.translation import get_language
 from django.utils.translation import gettext_lazy as _
 
 SHIPMENT_STATUS_LABELS = {
@@ -8,6 +9,16 @@ SHIPMENT_STATUS_LABELS = {
     "shipped": _("Expédié"),
     "received_correspondent": _("Reçu escale"),
     "delivered": _("Livré"),
+}
+
+SHIPMENT_STATUS_LABELS_EN = {
+    "draft": "Draft",
+    "picking": "In progress",
+    "packed": "Available",
+    "planned": "Planned",
+    "shipped": "Shipped",
+    "received_correspondent": "Received at stopover",
+    "delivered": "Delivered",
 }
 
 ORDER_STATUS_LABELS = {
@@ -50,9 +61,10 @@ def present_shipment_status(shipment_or_status, *, is_disputed=None):
     disputed_value = (
         getattr(shipment_or_status, "is_disputed", False) if is_disputed is None else is_disputed
     )
+    language_code = (get_language() or "fr")[:2]
     return _present_status(
         status_value,
-        labels=SHIPMENT_STATUS_LABELS,
+        labels=SHIPMENT_STATUS_LABELS_EN if language_code == "en" else SHIPMENT_STATUS_LABELS,
         domain="shipment",
         is_disputed=disputed_value,
     )

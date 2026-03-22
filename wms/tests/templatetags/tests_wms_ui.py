@@ -4,6 +4,38 @@ from django.utils.safestring import mark_safe
 
 
 class WmsUiTemplateTagTests(SimpleTestCase):
+    def test_ui_alert_renders_shared_contract_with_tone_copy_and_attrs(self):
+        template = Template(
+            "{% load wms_ui %}"
+            "{% ui_alert tone='warning' title=title body=body extra_classes='mb-3' attrs=attrs %}"
+        )
+
+        rendered = template.render(
+            Context(
+                {
+                    "title": "Attention <unsafe>",
+                    "body": "Produits sans dimensions <unsafe>",
+                    "attrs": {
+                        "aria-live": "polite",
+                        "data-alert-scope": "pack",
+                    },
+                }
+            )
+        )
+
+        self.assertIn('class="scan-message warning ui-comp-alert mb-3"', rendered)
+        self.assertIn('role="alert"', rendered)
+        self.assertIn('aria-live="polite"', rendered)
+        self.assertIn('data-alert-scope="pack"', rendered)
+        self.assertIn(
+            '<strong class="ui-comp-alert-title">Attention &lt;unsafe&gt;</strong>',
+            rendered,
+        )
+        self.assertIn(
+            '<div class="ui-comp-alert-body">Produits sans dimensions &lt;unsafe&gt;</div>',
+            rendered,
+        )
+
     def test_ui_button_renders_secure_link_variant_classes_and_attrs(self):
         template = Template(
             "{% load wms_ui %}"

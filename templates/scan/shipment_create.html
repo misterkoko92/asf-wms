@@ -2,7 +2,12 @@
 {% load i18n static %}
 
 {% block title %}
-  WMS Scan - {% if is_edit %}{% trans "Modifier expédition" %}{% else %}{% trans "Créer expédition" %}{% endif %}
+  WMS Scan -
+  {% if is_edit %}
+    {% if LANGUAGE_CODE|slice:":2" == "en" %}Edit shipment{% else %}{% trans "Modifier expédition" %}{% endif %}
+  {% else %}
+    {% if LANGUAGE_CODE|slice:":2" == "en" %}Create shipment{% else %}{% trans "Créer expédition" %}{% endif %}
+  {% endif %}
 {% endblock %}
 
 {% block content %}
@@ -20,9 +25,13 @@
   >
     <h2 class="ui-comp-title">
       {% if is_edit %}
-        {% blocktrans with reference=shipment.reference %}Modifier l'expédition {{ reference }}{% endblocktrans %}
+        {% if LANGUAGE_CODE|slice:":2" == "en" %}
+          Edit shipment {{ shipment.reference }}
+        {% else %}
+          {% blocktrans with reference=shipment.reference %}Modifier l'expédition {{ reference }}{% endblocktrans %}
+        {% endif %}
       {% else %}
-        {% trans "Créer une expédition" %}
+        {% if LANGUAGE_CODE|slice:":2" == "en" %}Create shipment{% else %}{% trans "Créer une expédition" %}{% endif %}
       {% endif %}
     </h2>
     {% include "wms/_local_document_helper_install_panel.html" %}
@@ -54,7 +63,7 @@
       {% if not is_edit %}
         <div class="scan-inline scan-inline-gap ui-comp-actions">
           <button type="submit" name="action" value="save_draft" class="scan-submit secondary scan-submit-inline btn btn-secondary">
-            {% if LANGUAGE_CODE|slice:":2" == "en" %}{% trans "Enregistrer en brouillon" %}{% else %}Enregistrer un brouillon{% endif %}
+            {% if LANGUAGE_CODE|slice:":2" == "en" %}Save draft{% else %}Enregistrer un brouillon{% endif %}
           </button>
         </div>
         <p class="scan-help ui-comp-note">{% trans "Enregistre une expédition temporaire (EXP-TEMP-XX) pour la modifier ultérieurement." %}</p>
@@ -156,11 +165,15 @@
 
         {% if not is_edit %}
           <button type="submit" name="action" value="save_draft" class="scan-submit secondary btn btn-secondary mt-2">
-            {% if LANGUAGE_CODE|slice:":2" == "en" %}{% trans "Enregistrer en brouillon" %}{% else %}Enregistrer un brouillon{% endif %}
+            {% if LANGUAGE_CODE|slice:":2" == "en" %}Save draft{% else %}Enregistrer un brouillon{% endif %}
           </button>
         {% endif %}
         <button type="submit" class="scan-submit btn btn-primary">
-          {% if is_edit %}{% trans "Enregistrer modifications" %}{% else %}{% trans "Créer expédition" %}{% endif %}
+          {% if is_edit %}
+            {% if LANGUAGE_CODE|slice:":2" == "en" %}Save changes{% else %}{% trans "Enregistrer modifications" %}{% endif %}
+          {% else %}
+            {% if LANGUAGE_CODE|slice:":2" == "en" %}Create shipment{% else %}{% trans "Créer expédition" %}{% endif %}
+          {% endif %}
         </button>
         {% if is_edit %}
           <p class="scan-help ui-comp-note">
@@ -185,7 +198,7 @@
         aria-labelledby="shipment-preassignment-title"
       >
         <div class="scan-choice-header">
-          <strong id="shipment-preassignment-title">{% trans "Pré-affectation destination" %}</strong>
+          <strong id="shipment-preassignment-title">{% if LANGUAGE_CODE|slice:":2" == "en" %}Destination preassignment{% else %}{% trans "Pré-affectation destination" %}{% endif %}</strong>
         </div>
         <div class="scan-choice-status" id="shipment-preassignment-message"></div>
         <div class="scan-choice-actions">
@@ -201,7 +214,7 @@
             id="shipment-preassignment-reject"
             class="scan-scan-btn btn btn-tertiary"
           >
-            {% trans "Refuser" %}
+            {% if LANGUAGE_CODE|slice:":2" == "en" %}Reject{% else %}{% trans "Refuser" %}{% endif %}
           </button>
         </div>
       </div>

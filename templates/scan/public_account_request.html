@@ -1,4 +1,4 @@
-{% load static i18n %}
+{% load static i18n wms_ui %}
 {% get_current_language as LANGUAGE_CODE %}
 <!doctype html>
 <html lang="{{ LANGUAGE_CODE|default:'fr' }}">
@@ -30,31 +30,11 @@
         </div>
       {% endif %}
 
-      <div class="scan-card card border-0 ui-comp-card">
-        <h2 class="ui-comp-title">{% trans "Création de compte" %}</h2>
-        <p class="scan-help">
-          {% blocktrans trimmed %}
-          Choisissez votre profil puis envoyez votre demande. Un administrateur ASF doit valider le compte.
-          {% endblocktrans %}
-        </p>
-        {% if link %}
-          <a class="scan-scan-btn scan-doc-btn btn btn-tertiary" href="{% url 'scan:scan_public_order' link.token %}">
-            {% trans "Retour à la commande" %}
-          </a>
-        {% else %}
-          <a class="scan-scan-btn scan-doc-btn btn btn-tertiary" href="{% url 'portal:portal_login' %}">
-            {% trans "Retour au portail" %}
-          </a>
-        {% endif %}
-      </div>
+      {% include "scan/includes/public_account_request_intro.html" %}
 
       <div class="scan-card card border-0 ui-comp-card">
         {% if errors %}
-          <div class="scan-message error">
-            {% for error in errors %}
-              <div>{{ error }}</div>
-            {% endfor %}
-          </div>
+          {% ui_alert tone="error" body=errors|join:" " %}
         {% endif %}
 
         <form method="post" enctype="multipart/form-data" novalidate class="ui-comp-form">
@@ -73,132 +53,13 @@
             <input class="form-control" type="email" id="email" name="email" value="{{ form_data.email }}" required>
           </div>
 
-          <section id="association-fields" data-account-section="{{ ACCOUNT_TYPE_ASSOCIATION }}">
-            <div class="scan-field">
-              <label class="form-label" for="association_name">{% trans "Nom de l'association" %}</label>
-              <input
-                class="form-control"
-                type="text"
-                id="association_name"
-                name="association_name"
-                list="association-list"
-                value="{{ form_data.association_name }}"
-                autocomplete="off"
-              >
-              <input type="hidden" id="contact_id" name="contact_id" value="{{ form_data.contact_id }}">
-            </div>
-            <div class="scan-field">
-              <label class="form-label" for="phone">{% trans "Téléphone" %}</label>
-              <input class="form-control" type="text" id="phone" name="phone" value="{{ form_data.phone }}">
-            </div>
-            <div class="scan-field">
-              <label class="form-label" for="line1">{% trans "Adresse" %}</label>
-              <input
-                class="form-control"
-                type="text"
-                id="line1"
-                name="line1"
-                value="{{ form_data.line1 }}"
-                data-address-field="line1"
-                data-address-group="account"
-                data-autocomplete-geo="1"
-              >
-            </div>
-            <div class="scan-field">
-              <label class="form-label" for="line2">{% trans "Complément adresse" %}</label>
-              <input
-                class="form-control"
-                type="text"
-                id="line2"
-                name="line2"
-                value="{{ form_data.line2 }}"
-                data-address-field="line2"
-                data-address-group="account"
-              >
-            </div>
-            <div class="scan-field">
-              <label class="form-label" for="postal_code">{% trans "Code postal" %}</label>
-              <input
-                class="form-control"
-                type="text"
-                id="postal_code"
-                name="postal_code"
-                value="{{ form_data.postal_code }}"
-                data-address-field="postal_code"
-                data-address-group="account"
-              >
-            </div>
-            <div class="scan-field">
-              <label class="form-label" for="city">{% trans "Ville" %}</label>
-              <input
-                class="form-control"
-                type="text"
-                id="city"
-                name="city"
-                value="{{ form_data.city }}"
-                data-address-field="city"
-                data-address-group="account"
-              >
-            </div>
-            <div class="scan-field">
-              <label class="form-label" for="country">{% trans "Pays" %}</label>
-              <input
-                class="form-control"
-                type="text"
-                id="country"
-                name="country"
-                value="{{ form_data.country|default:'France' }}"
-                data-address-field="country"
-                data-address-group="account"
-              >
-            </div>
-            <div class="scan-field">
-              <label class="form-label" for="notes">{% trans "Notes" %}</label>
-              <textarea class="form-control" id="notes" name="notes" rows="3">{{ form_data.notes }}</textarea>
-            </div>
+          {% include "scan/includes/public_account_request_association_fields.html" %}
+          {% include "scan/includes/public_account_request_user_fields.html" %}
 
-            <h3 class="ui-comp-title">{% trans "Documents de vérification" %}</h3>
-            <div class="scan-field">
-              <label class="form-label" for="doc_statutes">{% trans "Statuts de l'association" %}</label>
-              <input class="form-control" type="file" id="doc_statutes" name="doc_statutes" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.doc,.docx">
-            </div>
-            <div class="scan-field">
-              <label class="form-label" for="doc_registration">{% trans "Preuve d'enregistrement" %}</label>
-              <input class="form-control" type="file" id="doc_registration" name="doc_registration" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.doc,.docx">
-            </div>
-            <div class="scan-field">
-              <label class="form-label" for="doc_report">{% trans "Dernier rapport d'activité" %}</label>
-              <input class="form-control" type="file" id="doc_report" name="doc_report" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.doc,.docx">
-            </div>
-            <div class="scan-field">
-              <label class="form-label" for="doc_other">{% trans "Autres documents" %}</label>
-              <input class="form-control" type="file" id="doc_other" name="doc_other" multiple accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.doc,.docx">
-            </div>
-          </section>
-
-          <section id="user-fields" data-account-section="{{ ACCOUNT_TYPE_USER }}">
-            <div class="scan-field">
-              <label class="form-label" for="requested_username">{% trans "Nom d'utilisateur" %}</label>
-              <input
-                class="form-control"
-                type="text"
-                id="requested_username"
-                name="requested_username"
-                value="{{ form_data.requested_username }}"
-                autocomplete="username"
-              >
-            </div>
-            <div class="scan-field">
-              <label class="form-label" for="password1">{% trans "Mot de passe" %}</label>
-              <input class="form-control" type="password" id="password1" name="password1" autocomplete="new-password">
-            </div>
-            <div class="scan-field">
-              <label class="form-label" for="password2">{% trans "Confirmer le mot de passe" %}</label>
-              <input class="form-control" type="password" id="password2" name="password2" autocomplete="new-password">
-            </div>
-          </section>
-
-          <button type="submit" class="scan-submit btn btn-primary">{% trans "Envoyer la demande" %}</button>
+          <div class="ui-comp-actions">
+            {% translate "Envoyer la demande" as submit_request_label %}
+            {% ui_button label=submit_request_label button_type="submit" extra_classes="scan-submit" %}
+          </div>
         </form>
       </div>
     </main>

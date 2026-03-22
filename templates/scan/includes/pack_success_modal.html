@@ -1,0 +1,44 @@
+{% load i18n %}
+
+<div
+  id="pack-success-modal"
+  class="modal fade show"
+  tabindex="-1"
+  aria-modal="true"
+  role="dialog"
+  style="display: block;"
+>
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title fs-5">
+          {% if packing_result.cartons|length == 1 %}
+            {% trans "Colis créé avec succès" %}
+          {% else %}
+            {% trans "Colis créés avec succès" %}
+          {% endif %}
+        </h2>
+      </div>
+      <div class="modal-body">
+        {% for carton in packing_result.cartons %}
+          <div class="border rounded-3 p-3{% if not forloop.last %} mb-3{% endif %}">
+            {% if carton.family %}
+              <div class="small text-muted text-uppercase mb-2">{{ carton.family }}</div>
+            {% endif %}
+            <p class="mb-1">{% blocktrans with zone=carton.zone_label %}Ranger le colis dans la zone {{ zone }}{% endblocktrans %}</p>
+            <p class="mb-0">{% blocktrans with code=carton.code %}Écrire le numéro {{ code }}{% endblocktrans %}</p>
+          </div>
+        {% endfor %}
+      </div>
+      <div class="modal-footer">
+        <button
+          type="button"
+          class="btn btn-primary"
+          onclick="document.getElementById('pack-success-modal').style.display='none';document.getElementById('pack-success-modal').classList.remove('show');"
+        >
+          {% trans "Fermer" %}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

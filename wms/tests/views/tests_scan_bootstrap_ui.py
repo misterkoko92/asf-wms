@@ -744,6 +744,11 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(ui_lab_response, "ui-comp-chip-list")
         self.assertContains(ui_lab_response, "ui-comp-status-pill")
         self.assertContains(ui_lab_response, "ui-comp-kpi-card")
+        self.assertContains(ui_lab_response, 'id="ui-lab-contract-alert"')
+        self.assertContains(ui_lab_response, 'id="ui-lab-contract-panel"')
+        self.assertContains(ui_lab_response, 'id="ui-lab-contract-toolbar"')
+        self.assertContains(ui_lab_response, 'id="ui-lab-contract-actions"')
+        self.assertContains(ui_lab_response, "ui-comp-alert")
 
         public_link = PublicOrderLink.objects.create(label="Public UI Test")
 
@@ -762,6 +767,29 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(public_account_response, "ui-comp-card")
         self.assertContains(public_account_response, "ui-comp-title")
         self.assertContains(public_account_response, "ui-comp-form")
+
+    def test_scan_public_account_request_uses_shared_actions_and_alert_contract(self):
+        public_link = PublicOrderLink.objects.create(label="Public UI Contract")
+
+        response = self.client.get(
+            reverse("scan:scan_public_account_request", args=[public_link.token])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "ui-comp-actions")
+        self.assertContains(response, reverse("scan:scan_public_order", args=[public_link.token]))
+        self.assertContains(response, 'class="btn btn-tertiary scan-scan-btn scan-doc-btn"')
+        self.assertContains(response, 'class="btn btn-primary scan-submit"')
+
+        error_response = self.client.post(
+            reverse("scan:scan_public_account_request", args=[public_link.token]),
+            {},
+        )
+
+        self.assertEqual(error_response.status_code, 200)
+        self.assertContains(error_response, "ui-comp-alert")
+        self.assertContains(error_response, "Nom de l&#x27;association requis.")
+        self.assertContains(error_response, "Adresse requise.")
 
     def test_scan_dashboard_uses_bootstrap_filters(self):
         response = self.client.get(reverse("scan:scan_dashboard"))
@@ -995,7 +1023,7 @@ class ScanBootstrapUiTests(TestCase):
         self.assertEqual(public_account_response.status_code, 200)
         self.assertContains(
             public_account_response,
-            'class="scan-scan-btn scan-doc-btn btn btn-tertiary"',
+            'class="btn btn-tertiary scan-scan-btn scan-doc-btn"',
         )
         self.assertContains(
             public_account_response,
@@ -1067,11 +1095,16 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, reverse("scan:scan_admin_design"))
         self.assertContains(response, 'id="ui-lab-component-name"')
         self.assertContains(response, 'name="ui_lab_catalog_live_preview"')
+        self.assertContains(response, 'id="ui-lab-contract-alert"')
+        self.assertContains(response, 'id="ui-lab-contract-panel"')
+        self.assertContains(response, 'id="ui-lab-contract-toolbar"')
+        self.assertContains(response, 'id="ui-lab-contract-actions"')
         self.assertContains(
             response,
             'class="form-check form-switch scan-inline-switch scan-inline-switch-wide"',
         )
         self.assertContains(response, 'class="ui-comp-status-pill is-ready"')
+        self.assertContains(response, "ui-comp-alert")
         self.assertNotContains(response, 'name="action" value="save"')
         self.assertNotContains(response, 'name="action" value="reset"')
 

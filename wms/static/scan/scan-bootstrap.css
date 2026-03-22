@@ -615,6 +615,30 @@ body.scan-bootstrap-enabled {
   background: var(--wms-status-warning-bg);
 }
 
+.scan-bootstrap-enabled .scan-message.info {
+  background: var(--wms-status-info-bg);
+}
+
+.scan-bootstrap-enabled .ui-comp-alert {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+  padding: 0.8rem 0.9rem;
+}
+
+.scan-bootstrap-enabled .ui-comp-alert-title {
+  color: var(--ds-text);
+  font-size: var(--wms-font-size-small);
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.scan-bootstrap-enabled .ui-comp-alert-body {
+  color: var(--ds-text);
+  line-height: 1.45;
+}
+
 .scan-bootstrap-enabled .ui-comp-card {
   position: relative;
   overflow: hidden;

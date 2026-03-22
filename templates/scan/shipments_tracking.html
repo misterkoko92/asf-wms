@@ -1,18 +1,18 @@
 {% extends "scan/base.html" %}
 {% load i18n %}
 
-{% block title %}{% trans "WMS Scan - Suivi des expéditions" %}{% endblock %}
+{% block title %}{% if LANGUAGE_CODE|slice:":2" == "en" %}WMS Scan - Shipment tracking{% else %}{% trans "WMS Scan - Suivi des expéditions" %}{% endif %}{% endblock %}
 
 {% block content %}
   <div class="scan-card card border-0 ui-comp-card">
     <h2 class="h4 mb-3 ui-comp-title d-flex align-items-center gap-2 flex-wrap">
-      <span>{% trans "Suivi des expéditions" %}</span>
+      <span>{% if LANGUAGE_CODE|slice:":2" == "en" %}Shipment tracking{% else %}{% trans "Suivi des expéditions" %}{% endif %}</span>
       <span class="badge text-bg-light ui-comp-count-badge">{{ shipments|length }}</span>
     </h2>
 
     <form method="get" class="scan-filters row g-3 ui-comp-form">
       <div class="scan-field col-12 col-md-6">
-        <label class="form-label" for="id_planned_week">{% trans "Semaine planifiée" %}</label>
+        <label class="form-label" for="id_planned_week">{% if LANGUAGE_CODE|slice:":2" == "en" %}Planned week{% else %}{% trans "Semaine planifiée" %}{% endif %}</label>
         <input
           type="week"
           id="id_planned_week"

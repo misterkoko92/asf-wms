@@ -1,0 +1,57 @@
+{% load i18n %}
+
+<div class="scan-card card border-0 ui-comp-card">
+  <h2 class="ui-comp-title">{% trans "Liste de colisage" %}</h2>
+  <h3 class="scan-subtitle">{% trans "Par carton" %}</h3>
+  {% for carton in packing_result.cartons %}
+    <div class="pack-list">
+      <div class="scan-inline scan-inline-gap">
+        <strong>{% blocktrans with carton_code=carton.code %}Carton {{ carton_code }}{% endblocktrans %}</strong>
+        <div class="scan-inline-actions ui-comp-actions">
+          <a class="scan-scan-btn btn btn-tertiary" href="{{ carton.packing_list_url }}" target="_blank" rel="noopener" data-local-document-helper-link="1">
+            {% trans "Imprimer / télécharger" %}
+          </a>
+          <a class="scan-scan-btn btn btn-tertiary" href="{{ carton.picking_url }}" target="_blank" rel="noopener" data-local-document-helper-link="1">
+            Picking
+          </a>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>{% trans "Produit" %}</th>
+            <th>{% trans "Quantité" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in carton.items %}
+            <tr>
+              <td>{{ item.label }}</td>
+              <td>{{ item.quantity }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endfor %}
+
+  <h3 class="scan-subtitle">{% trans "Liste generale" %}</h3>
+  <div class="pack-list">
+    <table>
+      <thead>
+        <tr>
+          <th>{% trans "Produit" %}</th>
+          <th>{% trans "Quantité" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in packing_result.aggregate %}
+          <tr>
+            <td>{{ item.label }}</td>
+            <td>{{ item.quantity }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>

@@ -1,5 +1,5 @@
 {% extends "scan/base.html" %}
-{% load i18n static %}
+{% load i18n static wms_ui %}
 
 {% block title %}WMS Scan - {% trans "Préparer des colis" %}{% endblock %}
 
@@ -23,105 +23,10 @@
       {% include "wms/_local_document_helper_install_panel.html" %}
     {% endif %}
     {% if packing_result and not request.scan_is_preparateur %}
-      <div class="scan-card card border-0 ui-comp-card">
-        <h2 class="ui-comp-title">{% trans "Liste de colisage" %}</h2>
-        <h3 class="scan-subtitle">{% trans "Par carton" %}</h3>
-        {% for carton in packing_result.cartons %}
-          <div class="pack-list">
-            <div class="scan-inline scan-inline-gap">
-              <strong>{% blocktrans with carton_code=carton.code %}Carton {{ carton_code }}{% endblocktrans %}</strong>
-              <div class="scan-inline-actions">
-                <a class="scan-scan-btn btn btn-tertiary" href="{{ carton.packing_list_url }}" target="_blank" rel="noopener" data-local-document-helper-link="1">
-                  {% trans "Imprimer / télécharger" %}
-                </a>
-                <a class="scan-scan-btn btn btn-tertiary" href="{{ carton.picking_url }}" target="_blank" rel="noopener" data-local-document-helper-link="1">
-                  Picking
-                </a>
-              </div>
-            </div>
-            <table>
-              <thead>
-                <tr>
-                  <th>{% trans "Produit" %}</th>
-                  <th>{% trans "Quantité" %}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for item in carton.items %}
-                  <tr>
-                    <td>{{ item.label }}</td>
-                    <td>{{ item.quantity }}</td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        {% endfor %}
-
-        <h3 class="scan-subtitle">{% trans "Liste generale" %}</h3>
-        <div class="pack-list">
-          <table>
-            <thead>
-              <tr>
-                <th>{% trans "Produit" %}</th>
-                <th>{% trans "Quantité" %}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for item in packing_result.aggregate %}
-                <tr>
-                  <td>{{ item.label }}</td>
-                  <td>{{ item.quantity }}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {% include "scan/includes/pack_result_lists.html" %}
     {% endif %}
     {% if request.scan_is_preparateur and packing_result and packing_result.show_success_modal %}
-      <div
-        id="pack-success-modal"
-        class="modal fade show"
-        tabindex="-1"
-        aria-modal="true"
-        role="dialog"
-        style="display: block;"
-      >
-        <div class="modal-dialog modal-dialog-centered">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h2 class="modal-title fs-5">
-                {% if packing_result.cartons|length == 1 %}
-                  {% trans "Colis créé avec succès" %}
-                {% else %}
-                  {% trans "Colis créés avec succès" %}
-                {% endif %}
-              </h2>
-            </div>
-            <div class="modal-body">
-              {% for carton in packing_result.cartons %}
-                <div class="border rounded-3 p-3{% if not forloop.last %} mb-3{% endif %}">
-                  {% if carton.family %}
-                    <div class="small text-muted text-uppercase mb-2">{{ carton.family }}</div>
-                  {% endif %}
-                  <p class="mb-1">{% blocktrans with zone=carton.zone_label %}Ranger le colis dans la zone {{ zone }}{% endblocktrans %}</p>
-                  <p class="mb-0">{% blocktrans with code=carton.code %}Écrire le numéro {{ code }}{% endblocktrans %}</p>
-                </div>
-              {% endfor %}
-            </div>
-            <div class="modal-footer">
-              <button
-                type="button"
-                class="btn btn-primary"
-                onclick="document.getElementById('pack-success-modal').style.display='none';document.getElementById('pack-success-modal').classList.remove('show');"
-              >
-                {% trans "Fermer" %}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      {% include "scan/includes/pack_success_modal.html" %}
       <div class="modal-backdrop fade show"></div>
     {% endif %}
     <div class="scan-card card border-0 ui-comp-card">
@@ -133,7 +38,7 @@
         {% endif %}
       </h2>
       {% if form.non_field_errors %}
-        <div class="scan-message error">{{ form.non_field_errors }}</div>
+        {% ui_alert tone="error" body=form.non_field_errors|join:" " %}
       {% endif %}
       <form method="post" novalidate class="ui-comp-form">
         {% csrf_token %}
@@ -174,81 +79,7 @@
       <div class="pack-lines" id="pack-lines"></div>
       <button type="button" class="scan-submit secondary btn btn-secondary scan-pack-add-line-btn mb-3" id="pack-add-line">+ {% trans "Ajouter un produit" %}</button>
       <input type="hidden" id="pack_line_count" name="line_count" value="{{ line_count }}">
-
-      <div class="row g-3 align-items-end scan-pack-shipping-row">
-        <div class="scan-field scan-pack-shipping-field col-12 {% if request.scan_is_preparateur %}col-lg-6{% else %}col-lg-3{% endif %}">
-          <label class="form-label" for="id_preassigned_destination">{% trans "Destination pre-affectee" %}</label>
-          {{ form.preassigned_destination }}
-          {% for error in form.preassigned_destination.errors %}
-            <div class="scan-message error">{{ error }}</div>
-          {% endfor %}
-        </div>
-        {% if not request.scan_is_preparateur %}
-          <div class="scan-field scan-pack-shipping-field col-12 col-lg-3">
-            <label class="form-label" for="id_shipment_reference">{% trans "Référence expédition (optionnel)" %}</label>
-            {{ form.shipment_reference }}
-            {% for error in form.shipment_reference.errors %}
-              <div class="scan-message error">{{ error }}</div>
-            {% endfor %}
-          </div>
-
-          <div class="scan-field scan-pack-shipping-field col-12 col-lg-3">
-            <label class="form-label" for="id_current_location">{% trans "Choisir un emplacement de rangement du colis prêt (optionnel)" %}</label>
-            {{ form.current_location }}
-          </div>
-        {% endif %}
-
-        <div class="scan-field scan-pack-shipping-field col-12 {% if request.scan_is_preparateur %}col-lg-6{% else %}col-lg-3{% endif %}">
-          <div class="form-check form-switch scan-inline-switch scan-inline-switch-wide">
-            <input
-              type="checkbox"
-              id="id_confirm_defaults"
-              name="confirm_defaults"
-              value="1"
-              class="form-check-input"
-              {% if confirm_defaults %}checked{% endif %}
-            >
-            <label class="form-check-label" for="id_confirm_defaults">
-              {% trans "Autoriser l'ajout avec valeurs standard (1 x 1 x 1 cm et 5 g) pour les produits sans dimensions/poids." %}
-            </label>
-          </div>
-        </div>
-      </div>
-
-      {% if missing_defaults %}
-        <div class="scan-message warning">
-          {% blocktrans with products=missing_defaults|join:", " %}
-            Attention : les produits suivants n'ont pas de dimensions ni de poids enregistrés :
-            {{ products }}.
-            Si vous validez ces ajouts, des valeurs par défaut seront appliquées (1cm x 1cm x 1cm et 5g).
-          {% endblocktrans %}
-        </div>
-      {% endif %}
-      <div class="scan-filter-actions scan-pack-shipping-actions-inline d-flex flex-wrap flex-lg-nowrap gap-2 align-items-center">
-        {% if not request.scan_is_preparateur and not editing_carton %}
-          <button
-            type="submit"
-            name="action"
-            value="prepare_without_conditioning"
-            class="scan-submit btn btn-secondary"
-          >
-            {% trans "Préparer sans conditionner" %}
-          </button>
-          <button
-            type="submit"
-            name="action"
-            value="prepare_available"
-            class="scan-submit btn btn-success"
-          >
-            {% trans "Préparer et mettre en disponible" %}
-          </button>
-        {% else %}
-          <button type="submit" class="scan-submit btn btn-primary">{% trans "Préparer" %}</button>
-        {% endif %}
-      </div>
-      {% if not request.scan_is_preparateur %}
-        <p class="scan-help ui-comp-note">{% trans "Si la référence d'expédition est vide, les cartons sont pré-conditionnés." %}</p>
-      {% endif %}
+      {% include "scan/includes/pack_shipping_section.html" %}
       </form>
       {{ products_json|json_script:"product-data" }}
       {{ carton_formats|json_script:"carton-format-data" }}
