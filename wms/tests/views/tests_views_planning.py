@@ -341,6 +341,8 @@ class PlanningViewTests(TestCase):
         response = self.client.get(reverse("planning:run_create"))
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'class="ui-comp-form"')
+        self.assertContains(response, 'class="scan-field"')
         self.assertContains(response, 'name="week_start"')
         self.assertContains(response, 'name="week_end"')
         self.assertContains(response, 'name="parameter_set"')

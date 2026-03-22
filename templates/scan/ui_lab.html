@@ -1,5 +1,5 @@
 {% extends "scan/base.html" %}
-{% load i18n static %}
+{% load i18n static wms_ui %}
 
 {% block title %}UI Lab{% endblock %}
 
@@ -9,6 +9,18 @@
 {% endblock %}
 
 {% block content %}
+  {% url "scan:scan_admin_design" as scan_admin_design_url %}
+  {% translate "Modifier les tokens live" as edit_tokens_label %}
+  {% translate "Action principale" as primary_action_label %}
+  {% translate "Action tertiaire" as tertiary_action_label %}
+  {% translate "Nom du composant" as component_name_label %}
+  {% translate "Point d'entrée partagé pour les pages legacy." as component_name_help %}
+  {% translate "Prévisualisation live du catalogue partagé" as live_preview_label %}
+  {% translate "Validé" as ready_status_label %}
+  {% translate "En test" as info_status_label %}
+  {% translate "Catalogue des composants" as catalog_title %}
+  {% translate "Zone en lecture seule: la page référence les primitives partagées, mais ne persiste aucun réglage." as catalog_help %}
+
   <section class="scan-card card border-0 ui-comp-card ui-lab-hero">
     <div class="ui-lab-hero-head">
       <div>
@@ -16,6 +28,26 @@
         <p class="scan-help">{% trans "Bac à sable visuel pour tester les composants, couleurs, typographies et densité." %}</p>
       </div>
       <span class="badge text-bg-warning">{% trans "Sandbox uniquement" %}</span>
+    </div>
+  </section>
+
+  <section class="scan-card card border-0 ui-comp-card">
+    <div class="ui-lab-hero-head">
+      <div>
+        <h3 class="ui-comp-title">{{ catalog_title }}</h3>
+        <p class="scan-help">{{ catalog_help }}</p>
+      </div>
+      {% ui_button label=edit_tokens_label href=scan_admin_design_url variant="tertiary" size="sm" %}
+    </div>
+    <div class="ui-lab-row">
+      {% ui_button label=primary_action_label button_type="button" variant="primary" %}
+      {% ui_button label=tertiary_action_label href=scan_admin_design_url variant="tertiary" %}
+    </div>
+    {% ui_field field_id="ui-lab-component-name" label=component_name_label field_html=ui_lab_component_name_field help_text=component_name_help %}
+    {% ui_switch name="ui_lab_catalog_live_preview" id="ui-lab-catalog-live-preview" label=live_preview_label checked=True wide=True %}
+    <div class="ui-lab-row">
+      {% ui_status_badge label=ready_status_label status_value="ready" domain="order" %}
+      {% ui_status_badge label=info_status_label status_value="shipped" domain="shipment" %}
     </div>
   </section>
 
@@ -94,10 +126,12 @@
     <section class="scan-card card border-0 ui-comp-card">
       <h3 class="ui-comp-title">{% trans "Boutons et états" %}</h3>
       <div class="ui-lab-row">
-        <button type="button" class="btn btn-primary">{% trans "Action principale" %}</button>
-        <button type="button" class="btn btn-secondary">{% trans "Action secondaire" %}</button>
-        <button type="button" class="btn btn-tertiary">{% trans "Action tertiaire" %}</button>
-        <button type="button" class="btn btn-primary" disabled>{% trans "Désactivé" %}</button>
+        {% translate "Action secondaire" as secondary_action_label %}
+        {% translate "Désactivé" as disabled_action_label %}
+        {% ui_button label=primary_action_label button_type="button" variant="primary" %}
+        {% ui_button label=secondary_action_label button_type="button" variant="secondary" %}
+        {% ui_button label=tertiary_action_label button_type="button" variant="tertiary" %}
+        {% ui_button label=disabled_action_label button_type="button" variant="primary" attrs=ui_lab_disabled_button_attrs %}
       </div>
       <div class="ui-lab-row">
         <span class="badge text-bg-success">{% trans "Succès" %}</span>

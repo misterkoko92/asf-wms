@@ -1,5 +1,5 @@
 {% extends "scan/base.html" %}
-{% load i18n %}
+{% load i18n wms_ui %}
 
 {% block title %}{% trans "WMS Scan - Admin Design" %}{% endblock %}
 
@@ -478,14 +478,21 @@
 {% endblock %}
 
 {% block content %}
+  {% url "scan:scan_ui_lab" as scan_ui_lab_url %}
+  {% translate "Voir le catalogue composants" as component_catalog_label %}
   <div class="scan-card card border-0 ui-comp-card">
-    <h2 class="ui-comp-title">{% trans "Admin - Design" %}</h2>
-    <p class="scan-help ui-comp-note">
-      {% blocktrans trimmed %}
-        Cette page est réservée aux superusers. Les variables sont regroupées par famille pour éviter les erreurs.
-        Survolez les pastilles <strong>i</strong> pour comprendre l'impact de chaque réglage.
-      {% endblocktrans %}
-    </p>
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+      <div>
+        <h2 class="ui-comp-title">{% trans "Admin - Design" %}</h2>
+        <p class="scan-help ui-comp-note">
+          {% blocktrans trimmed %}
+            Cette page est réservée aux superusers. Les variables sont regroupées par famille pour éviter les erreurs.
+            Survolez les pastilles <strong>i</strong> pour comprendre l'impact de chaque réglage.
+          {% endblocktrans %}
+        </p>
+      </div>
+      {% ui_button label=component_catalog_label href=scan_ui_lab_url variant="tertiary" size="sm" %}
+    </div>
   </div>
 
   <div class="scan-card card border-0 ui-comp-card scan-design-editor-card">

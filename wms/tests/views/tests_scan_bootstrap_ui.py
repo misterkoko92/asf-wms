@@ -994,3 +994,25 @@ class ScanBootstrapUiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Action tertiaire")
         self.assertContains(response, "btn btn-tertiary p-0")
+
+    def test_scan_ui_lab_exposes_shared_component_catalog_without_runtime_actions(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_ui_lab"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse("scan:scan_admin_design"))
+        self.assertContains(response, 'id="ui-lab-component-name"')
+        self.assertContains(response, 'name="ui_lab_catalog_live_preview"')
+        self.assertContains(
+            response,
+            'class="form-check form-switch scan-inline-switch scan-inline-switch-wide"',
+        )
+        self.assertContains(response, 'class="ui-comp-status-pill is-ready"')
+        self.assertNotContains(response, 'name="action" value="save"')
+        self.assertNotContains(response, 'name="action" value="reset"')
+
+        design_response = self.client.get(reverse("scan:scan_admin_design"))
+
+        self.assertEqual(design_response.status_code, 200)
+        self.assertContains(design_response, reverse("scan:scan_ui_lab"))

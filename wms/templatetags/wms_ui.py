@@ -85,6 +85,9 @@ def ui_field(
     errors=None,
     extra_classes="",
     attrs=None,
+    label_class="form-label",
+    help_class="form-text",
+    error_class="text-danger small",
 ):
     return {
         "field_id": field_id,
@@ -94,6 +97,9 @@ def ui_field(
         "errors": errors or [],
         "wrapper_classes": _join_classes("scan-field", extra_classes),
         "attrs": _normalize_attrs(attrs),
+        "label_class": label_class,
+        "help_class": help_class,
+        "error_class": error_class,
     }
 
 

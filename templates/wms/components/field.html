@@ -1,12 +1,12 @@
 <div class="{{ wrapper_classes }}"{% if attrs %}{{ attrs }}{% endif %}>
   {% if label %}
-    <label class="form-label" for="{{ field_id }}">{{ label }}</label>
+    <label class="{{ label_class }}" for="{{ field_id }}">{{ label }}</label>
   {% endif %}
   {{ field_html }}
   {% if help_text %}
-    <div class="form-text">{{ help_text }}</div>
+    <div class="{{ help_class }}">{{ help_text }}</div>
   {% endif %}
   {% for error in errors %}
-    <div class="text-danger small">{{ error }}</div>
+    <div class="{{ error_class }}">{{ error }}</div>
   {% endfor %}
 </div>

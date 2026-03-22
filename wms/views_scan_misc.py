@@ -1,5 +1,7 @@
 from django.http import HttpResponse
 from django.shortcuts import render
+from django.utils.html import format_html
+from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_http_methods
 
 from .view_permissions import scan_staff_required
@@ -66,6 +68,11 @@ def _build_ui_lab_context():
     return {
         "active": ACTIVE_UI_LAB,
         "shell_class": SHELL_CLASS_WIDE,
+        "ui_lab_component_name_field": format_html(
+            '<input class="form-control" id="ui-lab-component-name" type="text" placeholder="{}">',
+            _("Ex: Table commandes"),
+        ),
+        "ui_lab_disabled_button_attrs": {"disabled": True},
     }
 
 
