@@ -48,6 +48,45 @@
     </div>
   </section>
 
+  <section class="scan-card card border-0 ui-comp-card ui-lab-governance">
+    <div class="ui-lab-hero-head">
+      <div>
+        <h3 class="ui-comp-title">{% trans "Gouvernance des contrats" %}</h3>
+        <p class="scan-help">{% trans "Référence en lecture seule pour distinguer le noyau gelé des patterns encore en convergence." %}</p>
+      </div>
+      <span class="badge text-bg-light">{% trans "Sans action runtime" %}</span>
+    </div>
+    <div class="ui-lab-governance-grid">
+      <article id="ui-lab-governance-core" class="ui-lab-surface">
+        <h4>{% trans "Core stable" %}</h4>
+        <p class="scan-help">{% trans "Contrats gelés à réutiliser directement dans les prochaines waves." %}</p>
+        <ul class="ui-lab-governance-list">
+          <li><code>ui_button</code></li>
+          <li><code>ui_field</code></li>
+          <li><code>ui_alert</code></li>
+          <li><code>ui_status_badge</code></li>
+          <li><code>ui_switch</code></li>
+          <li><code>ui-comp-card</code></li>
+          <li><code>ui-comp-panel</code></li>
+          <li><code>ui-comp-actions</code></li>
+        </ul>
+      </article>
+      <article id="ui-lab-governance-convergence" class="ui-lab-surface">
+        <h4>{% trans "En convergence" %}</h4>
+        <p class="scan-help">{% trans "Patterns utiles mais encore validés par usage réel avant promotion." %}</p>
+        <ul class="ui-lab-governance-list">
+          <li><code>Toolbar</code></li>
+          <li><code>Table</code></li>
+          <li><code>EmptyState</code></li>
+          <li><code>ConfirmModal</code></li>
+          <li><code>PageHeader</code></li>
+          <li><code>WorkflowActionBar</code></li>
+          <li><code>DocumentActions</code></li>
+        </ul>
+      </article>
+    </div>
+  </section>
+
   <section class="scan-card card border-0 ui-comp-card">
     <div class="ui-lab-hero-head">
       <div>
