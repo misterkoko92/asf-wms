@@ -189,6 +189,7 @@ class ScanAdminViewTests(TestCase):
         self.assertContains(response, 'id="scan-admin-create-contact"')
         self.assertNotContains(response, 'id="scan-admin-create-destination" open')
         self.assertNotContains(response, 'id="scan-admin-create-contact" open')
+        self.assertContains(response, 'data-required-marker="entity_type"')
 
     def test_scan_admin_contacts_directory_exposes_inline_actions(self):
         self.client.force_login(self.superuser)
@@ -211,6 +212,10 @@ class ScanAdminViewTests(TestCase):
         self.assertContains(response, "Modifier")
         self.assertContains(response, "Désactiver")
         self.assertContains(response, "Fusionner")
+        self.assertNotContains(response, "Tous les contacts (admin)")
+        self.assertNotContains(response, "Ajouter un contact (admin)")
+        self.assertNotContains(response, "Destinations (admin)")
+        self.assertNotContains(response, "Ajouter destination (admin)")
 
     def test_scan_contacts_navigation_is_under_gestion_instead_of_admin(self):
         self.client.force_login(self.superuser)

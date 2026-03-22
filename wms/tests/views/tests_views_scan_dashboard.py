@@ -458,7 +458,7 @@ class ScanDashboardViewTests(TestCase):
 
     def test_scan_dashboard_computes_kpis_from_custom_date_window(self):
         target_at = timezone.now() - timedelta(days=10)
-        target_date = target_at.date().isoformat()
+        target_date = timezone.localtime(target_at).date().isoformat()
 
         reserved = Order.objects.create(
             status=OrderStatus.RESERVED,
@@ -531,7 +531,7 @@ class ScanDashboardViewTests(TestCase):
 
     def test_scan_dashboard_builds_destination_chart_with_status_filter_and_equivalent_units(self):
         target_at = timezone.now() - timedelta(days=12)
-        target_date = target_at.date().isoformat()
+        target_date = timezone.localtime(target_at).date().isoformat()
 
         category = ProductCategory.objects.create(name="Chart Category")
         product = Product.objects.create(

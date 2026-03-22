@@ -6,7 +6,7 @@ from django.utils.translation import gettext_lazy as _
 from contacts.models import Contact, ContactType
 
 from .forms_admin_contacts_destination import DUPLICATE_ACTION_CHOICES
-from .models import Destination
+from .models import Destination, ShipmentShipper
 
 BUSINESS_TYPE_CHOICES = (
     ("", _("Choisir...")),
@@ -89,9 +89,13 @@ class ContactCrudForm(forms.Form):
         self.fields["destination_id"].queryset = Destination.objects.filter(
             is_active=True
         ).order_by("city", "iata_code", "id")
-        self.fields["allowed_shipper_ids"].queryset = Contact.objects.filter(
-            contact_type=ContactType.ORGANIZATION,
+        active_shipper_ids = ShipmentShipper.objects.filter(
             is_active=True,
+            organization__contact_type=ContactType.ORGANIZATION,
+            organization__is_active=True,
+        ).values_list("organization_id", flat=True)
+        self.fields["allowed_shipper_ids"].queryset = Contact.objects.filter(
+            pk__in=active_shipper_ids,
         ).order_by("name", "id")
         for name, field in self.fields.items():
             widget = field.widget
@@ -135,7 +139,9 @@ class ContactCrudForm(forms.Form):
             if entity_type == ContactType.ORGANIZATION:
                 self.add_error("entity_type", _("Un bénévole doit être une personne."))
         elif business_type in {"donor", "transporter"}:
-            if entity_type == ContactType.PERSON:
+            if not entity_type:
+                self.add_error("entity_type", _("Choisissez une nature de contact."))
+            elif entity_type == ContactType.PERSON:
                 self._require_fields(cleaned_data, "first_name", "last_name")
             else:
                 self._require_fields(cleaned_data, "organization_name")

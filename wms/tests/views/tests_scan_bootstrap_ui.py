@@ -478,6 +478,9 @@ class ScanBootstrapUiTests(TestCase):
         self.assertIn("data-contact-action-select", js_content)
         self.assertIn("data-contact-field-group", js_content)
         self.assertIn("data-required-marker", js_content)
+        self.assertIn("required.add('entity_type')", js_content)
+        self.assertIn("field.disabled = shouldHide", js_content)
+        self.assertIn("event.target.closest('[data-contact-action-select=\"1\"]')", js_content)
         self.assertIn("merge_contact", js_content)
         self.assertIn("deactivate_contact", js_content)
 
