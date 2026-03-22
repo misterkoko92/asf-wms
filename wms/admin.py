@@ -234,7 +234,7 @@ class ProductAdmin(admin.ModelAdmin):
 
     def print_product_labels(self, request, queryset):
         if not queryset.exists():
-            self.message_user(request, _("Aucun produit sélectionné."), level=messages.WARNING)
+            self.message_user(request, _("No product selected."), level=messages.WARNING)
             return None
         return render_product_labels_response(request, queryset)
 
@@ -242,7 +242,7 @@ class ProductAdmin(admin.ModelAdmin):
 
     def print_product_qr_labels(self, request, queryset):
         if not queryset.exists():
-            self.message_user(request, _("Aucun produit sélectionné."), level=messages.WARNING)
+            self.message_user(request, _("No product selected."), level=messages.WARNING)
             return None
         return render_product_qr_labels_response(request, queryset)
 

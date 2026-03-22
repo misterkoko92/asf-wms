@@ -1,11 +1,18 @@
 {% extends "scan/base.html" %}
 {% load i18n %}
 
-{% block title %}WMS Scan - {% trans "MAJ stock" %}{% endblock %}
+{% block title %}
+  {% get_current_language as current_language %}
+  WMS Scan -
+  {% if current_language == "fr" %}{% trans "MAJ stock" %}{% else %}{% trans "Stock update" %}{% endif %}
+{% endblock %}
 
 {% block content %}
+  {% get_current_language as current_language %}
   <div class="scan-card card border-0 ui-comp-card">
-    <h2 class="ui-comp-title">{% trans "MAJ stock" %}</h2>
+    <h2 class="ui-comp-title">
+      {% if current_language == "fr" %}{% trans "MAJ stock" %}{% else %}{% trans "Stock update" %}{% endif %}
+    </h2>
     {% if create_form.non_field_errors %}
       <div class="scan-message error">{{ create_form.non_field_errors }}</div>
     {% endif %}

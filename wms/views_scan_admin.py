@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.db.models import Q
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils.translation import get_language
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods
 
@@ -38,6 +39,11 @@ from .scan_admin_contacts_cockpit import (
 )
 from .view_permissions import require_superuser as _require_superuser
 from .view_permissions import scan_staff_required
+
+
+def _select_scan_copy(*, french, english):
+    return english if (get_language() or "").startswith("en") else french
+
 
 TEMPLATE_SCAN_ADMIN_CONTACTS = "scan/admin_contacts.html"
 TEMPLATE_SCAN_ADMIN_PRODUCTS = "scan/admin_products.html"
@@ -454,7 +460,13 @@ def scan_product_labels_print_labels(request):
     _require_superuser(request)
     products, query, selection_mode = _resolve_product_labels_selection(request)
     if not products:
-        messages.warning(request, _("Aucun produit sélectionné."))
+        messages.warning(
+            request,
+            _select_scan_copy(
+                french="Aucun produit sélectionné.",
+                english="No product selected.",
+            ),
+        )
         return _build_product_labels_redirect(query=query, selection_mode=selection_mode)
     return render_product_labels_response(request, products)
 
@@ -465,6 +477,12 @@ def scan_product_labels_print_qr(request):
     _require_superuser(request)
     products, query, selection_mode = _resolve_product_labels_selection(request)
     if not products:
-        messages.warning(request, _("Aucun produit sélectionné."))
+        messages.warning(
+            request,
+            _select_scan_copy(
+                french="Aucun produit sélectionné.",
+                english="No product selected.",
+            ),
+        )
         return _build_product_labels_redirect(query=query, selection_mode=selection_mode)
     return render_product_qr_labels_response(request, products)

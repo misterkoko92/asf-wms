@@ -1,9 +1,11 @@
 {% extends "scan/base.html" %}
-{% load i18n %}
+{% load i18n wms_ui %}
 
 {% block title %}{% trans "WMS Scan - Supprimer produit" %}{% endblock %}
 
 {% block content %}
+  {% translate "Scan" as scan_label %}
+  {% translate "Enregistrer suppression" as save_label %}
   <div class="scan-card card border-0 ui-comp-card">
     <h2 class="ui-comp-title">{% trans "Supprimer produit" %}</h2>
     {% if form.non_field_errors %}
@@ -16,43 +18,33 @@
         <label class="form-label" for="id_product_code">{% trans "Code produit" %}</label>
         <div class="scan-inline">
           {{ form.product_code }}
-          <button type="button" class="scan-scan-btn btn btn-tertiary" data-scan-target="id_product_code">{% trans "Scan" %}</button>
+          {% ui_button label=scan_label button_type="button" variant="tertiary" extra_classes="scan-scan-btn" attrs=scan_out_product_button_attrs %}
         </div>
         {% for error in form.product_code.errors %}
           <div class="scan-message error">{{ error }}</div>
         {% endfor %}
       </div>
 
-      <div class="scan-field">
-        <label class="form-label" for="id_quantity">{% trans "Quantité" %}</label>
-        {{ form.quantity }}
-        {% for error in form.quantity.errors %}
-          <div class="scan-message error">{{ error }}</div>
-        {% endfor %}
-      </div>
+      {% ui_field field_id=form.quantity.id_for_label label=form.quantity.label field_html=form.quantity errors=form.quantity.errors error_class="scan-message error" %}
 
       <div class="scan-field">
         <label class="form-label" for="id_shipment_reference">{% trans "Référence expédition (optionnel)" %}</label>
         <div class="scan-inline">
           {{ form.shipment_reference }}
-          <button type="button" class="scan-scan-btn btn btn-tertiary" data-scan-target="id_shipment_reference">{% trans "Scan" %}</button>
+          {% ui_button label=scan_label button_type="button" variant="tertiary" extra_classes="scan-scan-btn" attrs=scan_out_shipment_button_attrs %}
         </div>
         {% for error in form.shipment_reference.errors %}
           <div class="scan-message error">{{ error }}</div>
         {% endfor %}
       </div>
 
-      <div class="scan-field">
-        <label class="form-label" for="id_reason_code">{% trans "Motif" %}</label>
-        {{ form.reason_code }}
-      </div>
+      {% ui_field field_id=form.reason_code.id_for_label label=form.reason_code.label field_html=form.reason_code errors=form.reason_code.errors error_class="scan-message error" %}
 
-      <div class="scan-field">
-        <label class="form-label" for="id_reason_notes">{% trans "Notes" %}</label>
-        {{ form.reason_notes }}
-      </div>
+      {% ui_field field_id=form.reason_notes.id_for_label label=form.reason_notes.label field_html=form.reason_notes errors=form.reason_notes.errors error_class="scan-message error" %}
 
-      <button type="submit" class="scan-submit btn btn-danger">{% trans "Enregistrer suppression" %}</button>
+      <div class="scan-out-actions ui-comp-actions">
+        {% ui_button label=save_label button_type="submit" variant="danger" extra_classes="scan-submit" %}
+      </div>
       <p class="scan-help ui-comp-note">{% trans "Utilisez la suppression rapide pour des flux sans carton." %}</p>
     </form>
   </div>

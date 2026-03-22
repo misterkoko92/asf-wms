@@ -1,6 +1,7 @@
 from django import forms
 from django.db.models import Q
 from django.utils import timezone
+from django.utils.translation import get_language
 from django.utils.translation import gettext_lazy as _
 
 from contacts.capabilities import (
@@ -348,7 +349,7 @@ class ScanReceiptAssociationForm(forms.Form):
 
 class ScanStockUpdateForm(forms.Form):
     product_code = forms.CharField(
-        label=_("Nom du produit"),
+        label=_("Product name"),
         required=True,
         widget=forms.TextInput(attrs={"list": "product-options", "autocomplete": "off"}),
     )
@@ -367,6 +368,9 @@ class ScanStockUpdateForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["product_code"].label = (
+            "Product name" if (get_language() or "").startswith("en") else "Nom du produit"
+        )
         self.fields["donor_contact"].queryset = _active_donor_organizations()
         self.fields["donor_contact"].label_from_instance = _contact_label
         _select_single_choice(self.fields["donor_contact"])

@@ -135,6 +135,64 @@ class ScanBootstrapUiTests(TestCase):
             html=True,
         )
 
+    def test_scan_admin_products_keeps_filter_and_row_action_contract(self):
+        self.client.force_login(self.superuser)
+        component = Product.objects.create(
+            sku="SCAN-KIT-COMP",
+            name="Composant scan kit",
+            qr_code_image="qr_codes/scan_kit_comp.png",
+        )
+        kit = Product.objects.create(
+            sku="SCAN-KIT-001",
+            name="Kit scan",
+            qr_code_image="qr_codes/scan_kit.png",
+        )
+        ProductKitItem.objects.create(kit=kit, component=component, quantity=3)
+
+        response = self.client.get(reverse("scan:scan_admin_products"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'class="scan-filter-actions ui-comp-actions"')
+        self.assertContains(response, 'id="scan-admin-products-q"')
+        self.assertContains(
+            response,
+            '<button type="submit" class="scan-submit btn btn-primary">Filtrer</button>',
+            html=True,
+        )
+        self.assertContains(
+            response,
+            '<a class="btn btn-tertiary scan-scan-btn" href="'
+            + reverse("scan:scan_admin_products")
+            + '">Réinitialiser</a>',
+            html=True,
+        )
+        self.assertContains(response, 'class="scan-inline scan-inline-gap ui-comp-actions"')
+        self.assertContains(
+            response,
+            '<a class="btn btn-danger scan-scan-btn" href="'
+            + reverse("admin:wms_product_delete", args=[kit.id])
+            + '">Supprimer</a>',
+            html=True,
+        )
+
+    def test_scan_out_keeps_scan_shortcuts_and_danger_action_contract(self):
+        response = self.client.get(reverse("scan:scan_out"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-scan-target="id_product_code"')
+        self.assertContains(response, 'data-scan-target="id_shipment_reference"')
+        self.assertContains(response, 'class="scan-out-actions ui-comp-actions"')
+        self.assertContains(
+            response,
+            '<button type="button" class="btn btn-tertiary scan-scan-btn" data-scan-target="id_product_code">Scan</button>',
+            html=True,
+        )
+        self.assertContains(
+            response,
+            '<button type="submit" class="scan-submit btn btn-danger">Enregistrer suppression</button>',
+            html=True,
+        )
+
     def test_scan_bootstrap_nav_uses_title_case_for_state_pages(self):
         response = self.client.get(reverse("scan:scan_stock"))
         self.assertEqual(response.status_code, 200)
@@ -876,7 +934,7 @@ class ScanBootstrapUiTests(TestCase):
         )
         self.assertContains(
             admin_products_response,
-            'class="scan-scan-btn btn btn-danger"',
+            'class="btn btn-danger scan-scan-btn"',
         )
         self.assertContains(
             admin_products_response,
@@ -922,6 +980,11 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(
             out_response,
             '<button type="submit" class="scan-submit btn btn-danger">Enregistrer suppression</button>',
+            html=True,
+        )
+        self.assertContains(
+            out_response,
+            '<button type="button" class="btn btn-tertiary scan-scan-btn" data-scan-target="id_product_code">Scan</button>',
             html=True,
         )
 

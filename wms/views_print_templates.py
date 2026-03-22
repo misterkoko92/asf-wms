@@ -503,7 +503,7 @@ def _validate_and_normalize_rows(parsed_rows, workbook):
         source_key = row_data["source_key"]
         if not is_allowed_source_key(source_key):
             errors.append(
-                _("Ligne %(line_number)s: champ source invalide (%(source_key)s).")
+                _("Row %(line_number)s: invalid source field (%(source_key)s).")
                 % {"line_number": index, "source_key": source_key}
             )
             continue
@@ -647,7 +647,7 @@ def _handle_pack_document_save(request, pack_document):
         )
     finally:
         workbook.close()
-    messages.success(request, _("Template XLSX et mappings enregistrés."))
+    messages.success(request, _("XLSX template and mappings saved."))
 
 
 def _handle_pack_document_restore(request, pack_document):

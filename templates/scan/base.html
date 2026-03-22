@@ -66,7 +66,16 @@
                     <ul class="dropdown-menu">
                       <li><a href="{% url 'scan:scan_receive_pallet' %}" class="dropdown-item{% if active == 'receive_pallet' %} active{% endif %}">{% trans "Réception palette" %}</a></li>
                       <li><a href="{% url 'scan:scan_receive_association' %}" class="dropdown-item{% if active == 'receive_association' %} active{% endif %}">{% trans "Réception association" %}</a></li>
-                      <li><a href="{% url 'scan:scan_stock_update' %}" class="dropdown-item{% if active == 'stock_update' %} active{% endif %}">{% trans "MAJ stock" %}</a></li>
+                      <li>
+                        <a href="{% url 'scan:scan_stock_update' %}" class="dropdown-item{% if active == 'stock_update' %} active{% endif %}">
+                          {% get_current_language as current_language %}
+                          {% if current_language == "fr" %}
+                            {% trans "MAJ stock" %}
+                          {% else %}
+                            {% trans "Stock update" %}
+                          {% endif %}
+                        </a>
+                      </li>
                     </ul>
                   </li>
                   <li class="nav-item dropdown">

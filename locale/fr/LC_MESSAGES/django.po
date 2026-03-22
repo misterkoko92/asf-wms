@@ -32,3 +32,67 @@ msgstr "Destinataire ajouté."
 #: wms/views_portal_orders.py:78
 msgid "Order sent."
 msgstr "Commande envoyée."
+
+#: wms/views_scan_admin.py:457 wms/views_scan_admin.py:468 wms/admin.py:237
+#: wms/admin.py:245
+msgid "No product selected."
+msgstr "Aucun produit sélectionné."
+
+#: templates/scan/stock.html:4 templates/scan/stock.html:8
+msgid "Stock view"
+msgstr "Vue stock"
+
+#: templates/scan/stock.html:12
+msgid "Search"
+msgstr "Recherche"
+
+#: templates/scan/base.html:69 templates/scan/stock_update.html:4
+#: templates/scan/stock_update.html:8
+msgid "Stock update"
+msgstr "MAJ stock"
+
+#: wms/forms.py:351
+msgid "Product name"
+msgstr "Nom du produit"
+
+#: templates/scan/print_template_list.html:4
+#: templates/scan/print_template_list.html:9
+msgid "XLSX templates"
+msgstr "Templates XLSX"
+
+#: templates/scan/print_template_list.html:10
+msgid "Manage Print Pack templates and mappings (superuser only)."
+msgstr "Gestion des templates et mappings Print Pack (superuser uniquement)."
+
+#: templates/scan/print_template_list.html:7
+msgid "Edit"
+msgstr "Modifier"
+
+#: templates/scan/print_template_list.html:21
+msgid "Last updated"
+msgstr "Dernière maj"
+
+#: templates/scan/print_template_list.html:22
+msgid "By"
+msgstr "Par"
+
+#: templates/scan/print_template_list.html:37
+msgid "Uploaded"
+msgstr "Uploadé"
+
+#: templates/scan/print_template_list.html:39
+msgid "Source file"
+msgstr "Fichier source"
+
+#: templates/scan/print_template_list.html:77
+msgid "No templates available."
+msgstr "Aucun template disponible."
+
+#: wms/views_print_templates.py:506
+#, python-format
+msgid "Row %(line_number)s: invalid source field (%(source_key)s)."
+msgstr "Ligne %(line_number)s: champ source invalide (%(source_key)s)."
+
+#: wms/views_print_templates.py:650
+msgid "XLSX template and mappings saved."
+msgstr "Template XLSX et mappings enregistrés."

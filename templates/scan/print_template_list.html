@@ -1,12 +1,24 @@
 {% extends "scan/base.html" %}
-{% load i18n %}
+{% load i18n wms_ui %}
 
-{% block title %}{% trans "Templates XLSX" %}{% endblock %}
+{% block title %}
+  {% get_current_language as current_language %}
+  {% if current_language == "fr" %}{% trans "Templates XLSX" %}{% else %}{% trans "XLSX templates" %}{% endif %}
+{% endblock %}
 
 {% block content %}
+  {% get_current_language as current_language %}
   <div class="scan-card card border-0 ui-comp-card">
-    <h2 class="ui-comp-title">{% trans "Templates XLSX" %}</h2>
-    <p>{% trans "Gestion des templates et mappings Print Pack (superuser uniquement)." %}</p>
+    <h2 class="ui-comp-title">
+      {% if current_language == "fr" %}{% trans "Templates XLSX" %}{% else %}{% trans "XLSX templates" %}{% endif %}
+    </h2>
+    <p>
+      {% if current_language == "fr" %}
+        {% trans "Gestion des templates et mappings Print Pack (superuser uniquement)." %}
+      {% else %}
+        {% trans "Manage Print Pack templates and mappings (superuser only)." %}
+      {% endif %}
+    </p>
 
     <div class="scan-table-wrap">
       <table class="scan-table">
@@ -18,8 +30,8 @@
             <th>{% trans "Template XLSX" %}</th>
             <th>Mappings</th>
             <th>Version</th>
-            <th>{% trans "Dernière maj" %}</th>
-            <th>{% trans "Par" %}</th>
+            <th>{% if current_language == "fr" %}{% trans "Dernière maj" %}{% else %}{% trans "Last updated" %}{% endif %}</th>
+            <th>{% if current_language == "fr" %}{% trans "Par" %}{% else %}{% trans "By" %}{% endif %}</th>
             <th></th>
           </tr>
         </thead>
@@ -38,9 +50,9 @@
                   <small>{{ item.template_filename }}</small>
                   <br>
                   {% if item.template_is_uploaded %}
-                    {% trans "Uploadé" %}
+                    {% if current_language == "fr" %}{% trans "Uploadé" %}{% else %}{% trans "Uploaded" %}{% endif %}
                   {% else %}
-                    {% trans "Fichier source" %}
+                    {% if current_language == "fr" %}{% trans "Fichier source" %}{% else %}{% trans "Source file" %}{% endif %}
                   {% endif %}
                 {% else %}
                   -
@@ -69,14 +81,26 @@
                 {% endif %}
               </td>
               <td>
-                <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_print_template_edit' doc_type=item.route_key %}">
-                  {% trans "Modifier" %}
-                </a>
+                <div class="scan-table-actions ui-comp-actions">
+                  {% url "scan:scan_print_template_edit" doc_type=item.route_key as scan_print_template_edit_url %}
+                  {% if current_language == "fr" %}
+                    {% translate "Modifier" as edit_label %}
+                  {% else %}
+                    {% translate "Edit" as edit_label %}
+                  {% endif %}
+                  {% ui_button label=edit_label href=scan_print_template_edit_url variant="tertiary" %}
+                </div>
               </td>
             </tr>
           {% empty %}
             <tr>
-              <td colspan="9">{% trans "Aucun template disponible." %}</td>
+              <td colspan="9">
+                {% if current_language == "fr" %}
+                  {% trans "Aucun template disponible." %}
+                {% else %}
+                  {% trans "No templates available." %}
+                {% endif %}
+              </td>
             </tr>
           {% endfor %}
         </tbody>

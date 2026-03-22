@@ -2264,7 +2264,7 @@ msgstr "View statuses"
 
 #: templates/scan/base.html:49 templates/scan/faq.html:90
 #: templates/scan/stock.html:4 templates/scan/stock.html:8
-msgid "Vue stock"
+msgid "Stock view"
 msgstr "Stock view"
 
 #: templates/scan/base.html:50 templates/scan/kits_view.html:9
@@ -4548,11 +4548,11 @@ msgstr "No versions available."
 
 #: templates/scan/print_template_list.html:4
 #: templates/scan/print_template_list.html:8
-msgid "Templates XLSX"
+msgid "XLSX templates"
 msgstr "XLSX templates"
 
 #: templates/scan/print_template_list.html:9
-msgid "Gestion des templates et mappings Print Pack (superuser uniquement)."
+msgid "Manage Print Pack templates and mappings (superuser only)."
 msgstr "Manage Print Pack templates and mappings (superuser only)."
 
 #: templates/scan/print_template_list.html:21
@@ -5928,7 +5928,7 @@ msgid "Générer les QR codes"
 msgstr "Generate QR codes"
 
 #: wms/admin.py:228 wms/admin.py:236
-msgid "Aucun produit sélectionné."
+msgid "No product selected."
 msgstr "No product selected."
 
 #: wms/admin.py:232
@@ -7571,7 +7571,7 @@ msgstr "Row %(line_number)s: invalid column (%(column)s)."
 
 #: wms/views_print_templates.py:491
 #, python-format
-msgid "Ligne %(line_number)s: champ source invalide (%(source_key)s)."
+msgid "Row %(line_number)s: invalid source field (%(source_key)s)."
 msgstr "Row %(line_number)s: invalid source field (%(source_key)s)."
 
 #: wms/views_print_templates.py:498
@@ -7598,7 +7598,7 @@ msgid "Aucun template XLSX disponible. Uploadez un fichier avant de mapper."
 msgstr "No XLSX template available. Upload a file before mapping."
 
 #: wms/views_print_templates.py:635
-msgid "Template XLSX et mappings enregistrés."
+msgid "XLSX template and mappings saved."
 msgstr "XLSX template and mappings saved."
 
 #: wms/views_print_templates.py:641
