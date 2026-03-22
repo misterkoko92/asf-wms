@@ -504,6 +504,12 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertContains(response, 'id="shipment-correspondent-select-wrap"')
         self.assertContains(response, 'id="shipment-correspondent-single"')
 
+    def test_scan_shipment_create_uses_shared_hidden_alerts_for_empty_party_states(self):
+        response = self.client.get(reverse("scan:scan_shipment_create"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "scan-message error ui-comp-alert scan-hidden", count=3)
+
     def test_scan_prepare_kits_groups_top_controls_in_single_panel(self):
         response = self.client.get(reverse("scan:scan_prepare_kits"))
 

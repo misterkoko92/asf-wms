@@ -309,6 +309,14 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, 'id="shipment-details-section"')
         self.assertContains(response, "scan-shipment-contact-slot")
 
+    def test_scan_shipment_create_uses_wave3_workflow_contracts(self):
+        response = self.client.get(reverse("scan:scan_shipment_create"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="shipment-details-actions"')
+        self.assertContains(response, 'class="scan-choice-actions ui-comp-actions"')
+        self.assertContains(response, "scan-message error ui-comp-alert scan-hidden")
+
     def test_scan_stock_and_shipment_create_use_design_component_classes(self):
         stock_response = self.client.get(reverse("scan:scan_stock"))
         self.assertEqual(stock_response.status_code, 200)
@@ -1099,6 +1107,9 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, 'id="ui-lab-contract-panel"')
         self.assertContains(response, 'id="ui-lab-contract-toolbar"')
         self.assertContains(response, 'id="ui-lab-contract-actions"')
+        self.assertContains(response, 'id="ui-lab-contract-shipment-workflow"')
+        self.assertContains(response, 'id="ui-lab-contract-shipment-docs"')
+        self.assertContains(response, 'id="ui-lab-contract-shipment-overlay"')
         self.assertContains(
             response,
             'class="form-check form-switch scan-inline-switch scan-inline-switch-wide"',
