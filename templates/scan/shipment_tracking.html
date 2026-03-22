@@ -5,7 +5,7 @@
 <html lang="{{ LANGUAGE_CODE|default:'fr' }}">
 <head>
   <meta charset="utf-8">
-  <title>{% trans "Suivi expédition" %}</title>
+  <title>{% if LANGUAGE_CODE|slice:":2" == "en" %}Shipment tracking{% else %}{% trans "Suivi expédition" %}{% endif %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -32,7 +32,13 @@
       {% endif %}
 
       <div class="scan-card card border-0 ui-comp-card">
-        <h2 class="ui-comp-title">{% blocktrans with reference=shipment.reference %}Suivi expédition {{ reference }}{% endblocktrans %}</h2>
+        <h2 class="ui-comp-title">
+          {% if LANGUAGE_CODE|slice:":2" == "en" %}
+            Shipment tracking {{ shipment.reference }}
+          {% else %}
+            {% blocktrans with reference=shipment.reference %}Suivi expédition {{ reference }}{% endblocktrans %}
+          {% endif %}
+        </h2>
 
         {% if show_back_to_list %}
           <div class="scan-field">
@@ -47,7 +53,7 @@
         {% endif %}
 
         <div class="scan-field">
-          <label class="form-label">{% trans "Statut actuel" %}</label>
+          <label class="form-label">{% if LANGUAGE_CODE|slice:":2" == "en" %}Current status{% else %}{% trans "Statut actuel" %}{% endif %}</label>
           <div class="scan-help">
             <span class="{% status_pill_class shipment.status 'shipment' shipment.is_disputed %}">
               {{ shipment.get_status_display }}

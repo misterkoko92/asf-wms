@@ -1,7 +1,7 @@
 {% extends "scan/base.html" %}
 {% load i18n static %}
 
-{% block title %}{% trans "WMS Scan - Vue Expéditions" %}{% endblock %}
+{% block title %}{% if LANGUAGE_CODE|slice:":2" == "en" %}WMS Scan - Shipments view{% else %}{% trans "WMS Scan - Vue Expéditions" %}{% endif %}{% endblock %}
 
 {% block content %}
   <div
@@ -17,7 +17,7 @@
     data-local-document-helper-latest-version="{{ helper_install.latest_helper_version }}"
   >
     <h2 class="h4 mb-3 ui-comp-title d-flex align-items-center gap-2 flex-wrap">
-      <span>{% trans "Vue Expéditions" %}</span>
+      <span>{% if LANGUAGE_CODE|slice:":2" == "en" %}Shipments view{% else %}{% trans "Vue Expéditions" %}{% endif %}</span>
       <span class="badge text-bg-light ui-comp-count-badge">{{ shipments|length }}</span>
     </h2>
     {% include "wms/_local_document_helper_install_panel.html" %}

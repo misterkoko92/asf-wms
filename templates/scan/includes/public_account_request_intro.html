@@ -1,0 +1,20 @@
+{% load i18n wms_ui %}
+
+<div class="scan-card card border-0 ui-comp-card">
+  <h2 class="ui-comp-title">{% trans "Création de compte" %}</h2>
+  <p class="scan-help">
+    {% blocktrans trimmed %}
+    Choisissez votre profil puis envoyez votre demande. Un administrateur ASF doit valider le compte.
+    {% endblocktrans %}
+  </p>
+  <div class="ui-comp-actions">
+    {% if link %}
+      {% translate "Retour à la commande" as public_account_back_label %}
+      {% url "scan:scan_public_order" link.token as public_account_back_url %}
+    {% else %}
+      {% translate "Retour au portail" as public_account_back_label %}
+      {% url "portal:portal_login" as public_account_back_url %}
+    {% endif %}
+    {% ui_button label=public_account_back_label href=public_account_back_url variant="tertiary" extra_classes="scan-scan-btn scan-doc-btn" %}
+  </div>
+</div>

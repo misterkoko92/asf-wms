@@ -20,6 +20,10 @@
   {% translate "En test" as info_status_label %}
   {% translate "Catalogue des composants" as catalog_title %}
   {% translate "Zone en lecture seule: la page référence les primitives partagées, mais ne persiste aucun réglage." as catalog_help %}
+  {% translate "Message partagé" as contract_alert_title %}
+  {% translate "Même contrat pour les messages info, warning, error et success sur les pages legacy." as contract_alert_body %}
+  {% translate "Actions groupées" as actions_group_label %}
+  {% translate "Réinitialiser" as reset_action_label %}
 
   <section class="scan-card card border-0 ui-comp-card ui-lab-hero">
     <div class="ui-lab-hero-head">
@@ -48,6 +52,50 @@
     <div class="ui-lab-row">
       {% ui_status_badge label=ready_status_label status_value="ready" domain="order" %}
       {% ui_status_badge label=info_status_label status_value="shipped" domain="shipment" %}
+    </div>
+  </section>
+
+  <section class="scan-card card border-0 ui-comp-card">
+    <h3 class="ui-comp-title">{% trans "Contrats structurels" %}</h3>
+    <div class="ui-lab-contract-grid">
+      <article id="ui-lab-contract-alert" class="ui-lab-surface">
+        <h4>{% trans "Alert" %}</h4>
+        {% ui_alert title=contract_alert_title body=contract_alert_body tone="info" %}
+      </article>
+      <article id="ui-lab-contract-panel" class="ui-lab-surface">
+        <h4>{% trans "Panel" %}</h4>
+        <div class="scan-field ui-comp-panel">
+          <label class="form-label" for="ui-lab-panel-input">{% trans "Libellé" %}</label>
+          <input class="form-control" id="ui-lab-panel-input" type="text" value="{% trans "Bloc structurant" %}">
+          <div class="scan-help ui-comp-note">{% trans "Wrapper HTML/CSS partagé pour les sous-zones d'un écran dense." %}</div>
+        </div>
+      </article>
+      <article id="ui-lab-contract-toolbar" class="ui-lab-surface">
+        <h4>{% trans "Toolbar" %}</h4>
+        <form class="ui-comp-toolbar" onsubmit="return false;">
+          <div class="scan-field ui-comp-filter">
+            <label class="form-label" for="ui-lab-toolbar-query">{% trans "Recherche" %}</label>
+            <input class="form-control" id="ui-lab-toolbar-query" type="text" placeholder="{% trans "Référence, nom, lot" %}">
+          </div>
+          <div class="scan-field ui-comp-filter">
+            <label class="form-label" for="ui-lab-toolbar-status">{% trans "État" %}</label>
+            <select class="form-select" id="ui-lab-toolbar-status">
+              <option>{% trans "Tous" %}</option>
+              <option>{% trans "Prêt" %}</option>
+            </select>
+          </div>
+          <div class="ui-comp-filter-actions">
+            <button type="button" class="btn btn-tertiary btn-sm ui-comp-sort-btn">{% trans "Filtrer" %}</button>
+          </div>
+        </form>
+      </article>
+      <article id="ui-lab-contract-actions" class="ui-lab-surface">
+        <h4>{{ actions_group_label }}</h4>
+        <div class="ui-comp-actions ui-lab-row">
+          {% ui_button label=primary_action_label button_type="button" variant="primary" %}
+          {% ui_button label=reset_action_label button_type="button" variant="tertiary" %}
+        </div>
+      </article>
     </div>
   </section>
 

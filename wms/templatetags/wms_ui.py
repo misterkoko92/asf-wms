@@ -76,6 +76,22 @@ def ui_button(
     }
 
 
+@register.inclusion_tag("wms/components/alert.html")
+def ui_alert(
+    title="",
+    body="",
+    tone="info",
+    extra_classes="",
+    attrs=None,
+):
+    return {
+        "title": title,
+        "body": body,
+        "classes": _join_classes("scan-message", tone or "info", "ui-comp-alert", extra_classes),
+        "attrs": _normalize_attrs(attrs, role="alert"),
+    }
+
+
 @register.inclusion_tag("wms/components/field.html")
 def ui_field(
     field_id="",

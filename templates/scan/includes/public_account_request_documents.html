@@ -1,0 +1,19 @@
+{% load i18n %}
+
+<h3 class="ui-comp-title">{% trans "Documents de vérification" %}</h3>
+<div class="scan-field">
+  <label class="form-label" for="doc_statutes">{% trans "Statuts de l'association" %}</label>
+  <input class="form-control" type="file" id="doc_statutes" name="doc_statutes" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.doc,.docx">
+</div>
+<div class="scan-field">
+  <label class="form-label" for="doc_registration">{% trans "Preuve d'enregistrement" %}</label>
+  <input class="form-control" type="file" id="doc_registration" name="doc_registration" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.doc,.docx">
+</div>
+<div class="scan-field">
+  <label class="form-label" for="doc_report">{% trans "Dernier rapport d'activité" %}</label>
+  <input class="form-control" type="file" id="doc_report" name="doc_report" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.doc,.docx">
+</div>
+<div class="scan-field">
+  <label class="form-label" for="doc_other">{% trans "Autres documents" %}</label>
+  <input class="form-control" type="file" id="doc_other" name="doc_other" multiple accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,.doc,.docx">
+</div>

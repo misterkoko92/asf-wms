@@ -54,7 +54,7 @@
                       <li><a href="{% url 'scan:scan_stock' %}" class="dropdown-item{% if active == 'stock' %} active{% endif %}">{% trans "Vue Stock" %}</a></li>
                       <li><a href="{% url 'scan:scan_kits_view' %}" class="dropdown-item{% if active == 'kits_view' %} active{% endif %}">{% trans "Vue Kits" %}</a></li>
                       <li><a href="{% url 'scan:scan_cartons_ready' %}" class="dropdown-item{% if active == 'cartons_ready' %} active{% endif %}">{% trans "Vue Colis" %}</a></li>
-                      <li><a href="{% url 'scan:scan_shipments_ready' %}" class="dropdown-item{% if active == 'shipments_ready' %} active{% endif %}">{% trans "Vue Expéditions" %}</a></li>
+                      <li><a href="{% url 'scan:scan_shipments_ready' %}" class="dropdown-item{% if active == 'shipments_ready' %} active{% endif %}">{% if LANGUAGE_CODE|slice:":2" == "en" %}Shipments view{% else %}{% trans "Vue Expéditions" %}{% endif %}</a></li>
                       <li><a href="{% url 'scan:scan_orders_view' %}" class="dropdown-item{% if active == 'orders_view' %} active{% endif %}">{% trans "Vue Commande" %}</a></li>
                       <li><a href="{% url 'scan:scan_receipts_view' %}" class="dropdown-item{% if active == 'receipts_view' %} active{% endif %}">{% trans "Vue Réception" %}</a></li>
                     </ul>
@@ -92,7 +92,7 @@
                     <a href="{% url 'planning:run_list' %}" class="nav-link">{% trans "Planning" %}</a>
                   </li>
                   <li class="nav-item">
-                    <a href="{% url 'scan:scan_shipments_tracking' %}" class="nav-link{% if active == 'shipments_tracking' %} active{% endif %}">{% trans "Suivi Des Expéditions" %}</a>
+                    <a href="{% url 'scan:scan_shipments_tracking' %}" class="nav-link{% if active == 'shipments_tracking' %} active{% endif %}">{% if LANGUAGE_CODE|slice:":2" == "en" %}Shipment tracking{% else %}{% trans "Suivi Des Expéditions" %}{% endif %}</a>
                   </li>
                   {% if scan_billing_visible %}
                     <li class="nav-item dropdown">
