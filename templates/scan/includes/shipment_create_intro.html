@@ -1,0 +1,17 @@
+{% load i18n %}
+
+<h2 class="ui-comp-title">
+  {% if is_edit %}
+    {% if LANGUAGE_CODE|slice:":2" == "en" %}
+      Edit shipment {{ shipment.reference }}
+    {% else %}
+      {% blocktrans with reference=shipment.reference %}Modifier l'expédition {{ reference }}{% endblocktrans %}
+    {% endif %}
+  {% else %}
+    {% if LANGUAGE_CODE|slice:":2" == "en" %}Create shipment{% else %}{% trans "Créer une expédition" %}{% endif %}
+  {% endif %}
+</h2>
+{% include "wms/_local_document_helper_install_panel.html" %}
+{% if form.non_field_errors %}
+  <div class="scan-message error ui-comp-alert">{{ form.non_field_errors }}</div>
+{% endif %}

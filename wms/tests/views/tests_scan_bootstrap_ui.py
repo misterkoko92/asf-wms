@@ -8,6 +8,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 
+from contacts.models import Contact, ContactType
 from wms.billing_permissions import BILLING_STAFF_GROUP_NAME
 from wms.models import (
     Document,
@@ -308,6 +309,53 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "btn btn-primary")
         self.assertContains(response, 'id="shipment-details-section"')
         self.assertContains(response, "scan-shipment-contact-slot")
+
+    def test_scan_shipment_create_uses_wave3_workflow_contracts(self):
+        response = self.client.get(reverse("scan:scan_shipment_create"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="shipment-details-actions"')
+        self.assertContains(response, 'class="scan-choice-actions ui-comp-actions"')
+        self.assertContains(response, "scan-message error ui-comp-alert scan-hidden")
+
+    def test_scan_shipment_edit_uses_wave3_follow_up_contracts(self):
+        association = Contact.objects.create(
+            name="Association Wave 3 UI",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        shipment = Shipment.objects.create(
+            shipper_name=association.name,
+            shipper_contact_ref=association,
+            recipient_name="Recipient UI",
+            destination_address="1 Rue UI",
+            status=ShipmentStatus.DRAFT,
+        )
+        Document.objects.create(
+            shipment=shipment,
+            doc_type="additional",
+            file=SimpleUploadedFile("wave3-ui.txt", b"wave3"),
+        )
+
+        response = self.client.get(
+            reverse("scan:scan_shipment_edit", kwargs={"shipment_id": shipment.id})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="shipment-tracking-actions"')
+        self.assertContains(response, 'id="shipment-generated-document-actions"')
+        self.assertContains(response, 'id="shipment-additional-document-upload-actions"')
+        self.assertContains(response, 'id="shipment-additional-document-list"')
+        self.assertContains(response, 'data-local-document-helper-link="1"', count=4)
+        self.assertContains(
+            response,
+            '<button type="submit" class="scan-scan-btn btn btn-secondary">Uploader</button>',
+            html=True,
+        )
+        self.assertContains(
+            response,
+            'class="scan-scan-btn btn btn-danger scan-doc-btn">Supprimer</button>',
+        )
 
     def test_scan_stock_and_shipment_create_use_design_component_classes(self):
         stock_response = self.client.get(reverse("scan:scan_stock"))
@@ -1099,6 +1147,9 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, 'id="ui-lab-contract-panel"')
         self.assertContains(response, 'id="ui-lab-contract-toolbar"')
         self.assertContains(response, 'id="ui-lab-contract-actions"')
+        self.assertContains(response, 'id="ui-lab-contract-shipment-workflow"')
+        self.assertContains(response, 'id="ui-lab-contract-shipment-docs"')
+        self.assertContains(response, 'id="ui-lab-contract-shipment-overlay"')
         self.assertContains(
             response,
             'class="form-check form-switch scan-inline-switch scan-inline-switch-wide"',

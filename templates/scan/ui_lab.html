@@ -24,6 +24,19 @@
   {% translate "Même contrat pour les messages info, warning, error et success sur les pages legacy." as contract_alert_body %}
   {% translate "Actions groupées" as actions_group_label %}
   {% translate "Réinitialiser" as reset_action_label %}
+  {% translate "Workflow expédition" as shipment_workflow_label %}
+  {% translate "Actions documentaires" as shipment_doc_actions_label %}
+  {% translate "Overlay confirmation" as shipment_overlay_label %}
+  {% translate "Préparer l'expédition" as shipment_prepare_label %}
+  {% translate "Vérifiez la destination, les parties et les colis avant validation finale." as shipment_prepare_help %}
+  {% translate "Créer expédition" as shipment_create_label %}
+  {% translate "Enregistrer un brouillon" as shipment_save_draft_label %}
+  {% translate "Bon d'expédition" as shipment_note_label %}
+  {% translate "Liste colisage (lot)" as shipment_pack_list_label %}
+  {% translate "Étiquettes colis" as shipment_labels_label %}
+  {% translate "Ce colis est déjà pré-affecté à NKC. Souhaitez-vous confirmer le changement de destination ?" as shipment_overlay_status %}
+  {% translate "Valider" as shipment_accept_label %}
+  {% translate "Refuser" as shipment_reject_label %}
 
   <section class="scan-card card border-0 ui-comp-card ui-lab-hero">
     <div class="ui-lab-hero-head">
@@ -94,6 +107,43 @@
         <div class="ui-comp-actions ui-lab-row">
           {% ui_button label=primary_action_label button_type="button" variant="primary" %}
           {% ui_button label=reset_action_label button_type="button" variant="tertiary" %}
+        </div>
+      </article>
+      <article id="ui-lab-contract-shipment-workflow" class="ui-lab-surface">
+        <h4>{{ shipment_workflow_label }}</h4>
+        <div class="scan-field ui-comp-panel">
+          <label class="form-label" for="ui-lab-shipment-destination">{% trans "Destination" %}</label>
+          <select class="form-select" id="ui-lab-shipment-destination">
+            <option>{% trans "Nouakchott (NKC)" %}</option>
+          </select>
+          <p class="scan-help ui-comp-note">{{ shipment_prepare_help }}</p>
+          <div class="ui-comp-actions ui-lab-row" id="ui-lab-shipment-workflow-actions">
+            {% ui_button label=shipment_create_label button_type="button" variant="primary" %}
+            {% ui_button label=shipment_save_draft_label button_type="button" variant="secondary" %}
+          </div>
+        </div>
+      </article>
+      <article id="ui-lab-contract-shipment-docs" class="ui-lab-surface">
+        <h4>{{ shipment_doc_actions_label }}</h4>
+        <div class="scan-docs ui-comp-actions ui-lab-shipment-docs">
+          {% ui_button label=shipment_note_label href=scan_admin_design_url variant="tertiary" attrs=ui_lab_external_link_attrs %}
+          {% ui_button label=shipment_pack_list_label href=scan_admin_design_url variant="tertiary" attrs=ui_lab_external_link_attrs %}
+          {% ui_button label=shipment_labels_label href=scan_admin_design_url variant="tertiary" attrs=ui_lab_external_link_attrs %}
+        </div>
+      </article>
+      <article id="ui-lab-contract-shipment-overlay" class="ui-lab-surface">
+        <h4>{{ shipment_overlay_label }}</h4>
+        <div class="scan-choice-overlay ui-lab-overlay-preview active" aria-hidden="false">
+          <div class="scan-choice-modal" role="dialog" aria-modal="true" aria-labelledby="ui-lab-shipment-overlay-title">
+            <div class="scan-choice-header">
+              <strong id="ui-lab-shipment-overlay-title">{% trans "Pré-affectation destination" %}</strong>
+            </div>
+            <div class="scan-choice-status">{{ shipment_overlay_status }}</div>
+            <div class="scan-choice-actions ui-comp-actions">
+              {% ui_button label=shipment_accept_label button_type="button" variant="primary" %}
+              {% ui_button label=shipment_reject_label button_type="button" variant="tertiary" %}
+            </div>
+          </div>
         </div>
       </article>
     </div>

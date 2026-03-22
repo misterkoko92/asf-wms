@@ -1,0 +1,60 @@
+{% load i18n %}
+
+<div id="shipment-shipper-section" class="scan-hidden ui-comp-panel" hidden>
+  <div class="scan-field">
+    <label class="form-label" for="id_shipper_contact">{% trans "Expéditeur" %}</label>
+    <div class="scan-inline">
+      {{ form.shipper_contact }}
+      <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+        {% trans "Ajouter expéditeur" %}
+      </a>
+    </div>
+    <p class="scan-help ui-comp-note">{% trans "Merci de sélectionner un expéditeur pour poursuivre la création de l'expédition" %}</p>
+    <div id="shipper-empty-message" class="scan-message error ui-comp-alert scan-hidden" hidden>
+      {% trans "Aucun expéditeur disponible pour cette escale. Vérifiez les affectations expéditeur actives et recommencez." %}
+    </div>
+    {% for error in form.shipper_contact.errors %}
+      <div class="scan-message error">{{ error }}</div>
+    {% endfor %}
+  </div>
+</div>
+
+<div id="shipment-recipient-section" class="scan-hidden ui-comp-panel" hidden>
+  <div class="scan-field">
+    <label class="form-label" for="id_recipient_contact">{% trans "Destinataire" %}</label>
+    <div class="scan-inline">
+      {{ form.recipient_contact }}
+      <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+        {% trans "Ajouter destinataire" %}
+      </a>
+    </div>
+    <div id="recipient-empty-message" class="scan-message error ui-comp-alert scan-hidden" hidden>
+      {% trans "Aucun destinataire disponible pour cette combinaison escale/expéditeur. Vérifiez les bindings destinataire actifs et recommencez." %}
+    </div>
+    {% for error in form.recipient_contact.errors %}
+      <div class="scan-message error">{{ error }}</div>
+    {% endfor %}
+  </div>
+</div>
+
+<div id="shipment-correspondent-section" class="scan-hidden ui-comp-panel" hidden>
+  <div class="scan-field">
+    <label class="form-label" for="id_correspondent_contact">{% trans "Correspondant" %}</label>
+    <div class="scan-inline">
+      <div id="shipment-correspondent-select-wrap" class="scan-shipment-contact-slot">
+        {{ form.correspondent_contact }}
+      </div>
+      <div id="shipment-correspondent-single" class="scan-hidden scan-shipment-contact-fixed scan-shipment-contact-slot" hidden></div>
+      <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+        {% trans "Ajouter correspondant" %}
+      </a>
+    </div>
+    <p class="scan-help ui-comp-note">{% trans "Merci de sélectionner un destinataire et un correspondant pour poursuivre la création de l'expédition" %}</p>
+    <div id="correspondent-empty-message" class="scan-message error ui-comp-alert scan-hidden" hidden>
+      {% trans "Aucun correspondant trouvé dans la base, vérifier les correspondants dans les contacts et recommencez" %}
+    </div>
+    {% for error in form.correspondent_contact.errors %}
+      <div class="scan-message error">{{ error }}</div>
+    {% endfor %}
+  </div>
+</div>

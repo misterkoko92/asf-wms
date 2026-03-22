@@ -1,0 +1,60 @@
+{% load i18n %}
+
+<div id="shipment-details-section" class="scan-hidden ui-comp-panel" hidden>
+  <div class="scan-field">
+    <label class="form-label" for="id_carton_count">{% trans "Nombre de colis" %}</label>
+    {{ form.carton_count }}
+    {% for error in form.carton_count.errors %}
+      <div class="scan-message error">{{ error }}</div>
+    {% endfor %}
+    <p class="scan-help ui-comp-note">
+      {% trans "Sélectionner ci-dessous des colis déjà préparés ou créer des colis mono-produit. Pour des colis multi-produits, passer par l'onglet Préparation avant de créer l'expédition." %}
+    </p>
+  </div>
+
+  <div class="shipment-lines" id="shipment-lines"></div>
+
+  <div class="scan-field">
+    <label class="form-label" for="id_total_weight">{% trans "Poids total (g)" %}</label>
+    <input type="text" id="id_total_weight" readonly>
+  </div>
+
+  <div class="scan-field">
+    <label class="form-label">{% trans "Colis multi-produits" %}</label>
+    {% if is_edit %}
+      <a class="scan-scan-btn btn btn-secondary" href="{% url 'scan:scan_pack' %}?shipment_reference={{ shipment.reference|urlencode }}">
+        {% trans "Créer des colis multi-produits" %}
+      </a>
+    {% else %}
+      <button type="submit" name="action" value="save_draft_pack" class="scan-scan-btn btn btn-secondary">
+        {% trans "Créer des colis multi-produits" %}
+      </button>
+    {% endif %}
+    <p class="scan-help ui-comp-note">
+      {% trans "Utilisez l'onglet Préparation pour créer des colis multi-produits, puis revenez ici pour les ajouter à l'expédition." %}
+    </p>
+  </div>
+
+  <div id="shipment-details-actions" class="ui-comp-actions">
+    {% if not is_edit %}
+      <button type="submit" name="action" value="save_draft" class="scan-submit secondary btn btn-secondary mt-2">
+        {% if LANGUAGE_CODE|slice:":2" == "en" %}Save draft{% else %}Enregistrer un brouillon{% endif %}
+      </button>
+    {% endif %}
+    <button type="submit" class="scan-submit btn btn-primary">
+      {% if is_edit %}
+        {% if LANGUAGE_CODE|slice:":2" == "en" %}Save changes{% else %}{% trans "Enregistrer modifications" %}{% endif %}
+      {% else %}
+        {% if LANGUAGE_CODE|slice:":2" == "en" %}Create shipment{% else %}{% trans "Créer expédition" %}{% endif %}
+      {% endif %}
+    </button>
+  </div>
+
+  {% if is_edit %}
+    <p class="scan-help ui-comp-note">
+      {% trans "Chaque ligne: sélectionnez un colis préparé ou créez-en un depuis un produit. Pour retirer un colis, réduisez le nombre de lignes." %}
+    </p>
+  {% else %}
+    <p class="scan-help ui-comp-note">{% trans "Chaque ligne: sélectionnez un colis préparé ou créez-en un depuis un produit." %}</p>
+  {% endif %}
+</div>

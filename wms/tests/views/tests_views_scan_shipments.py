@@ -8,16 +8,20 @@ from django.http import HttpResponse
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 
-from contacts.models import Contact
+from contacts.models import Contact, ContactType
 from wms.helper_install import build_helper_install_context
 from wms.models import (
     Carton,
     CartonStatus,
     Destination,
+    Receipt,
+    ReceiptShipmentAllocation,
+    ReceiptType,
     Shipment,
     ShipmentStatus,
     ShipmentTrackingEvent,
     ShipmentTrackingStatus,
+    Warehouse,
 )
 
 
@@ -503,6 +507,52 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'id="shipment-correspondent-select-wrap"')
         self.assertContains(response, 'id="shipment-correspondent-single"')
+
+    def test_scan_shipment_create_uses_shared_hidden_alerts_for_empty_party_states(self):
+        response = self.client.get(reverse("scan:scan_shipment_create"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "scan-message error ui-comp-alert scan-hidden", count=3)
+
+    def test_scan_shipment_edit_renders_wave3_edit_panels(self):
+        association = Contact.objects.create(
+            name="Association Edit Panels",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        warehouse = Warehouse.objects.create(name="Wave 3 Alloc", code="W3A")
+        receipt = Receipt.objects.create(
+            receipt_type=ReceiptType.ASSOCIATION,
+            source_contact=association,
+            carton_count=3,
+            warehouse=warehouse,
+        )
+        shipment = Shipment.objects.create(
+            reference="EXP-WAVE3-EDIT",
+            shipper_name=association.name,
+            shipper_contact_ref=association,
+            recipient_name="Association Dest",
+            destination_address="1 Rue Test",
+            status=ShipmentStatus.DRAFT,
+            created_by=self.staff_user,
+        )
+        Carton.objects.create(code="C-WAVE3-001", shipment=shipment)
+        ReceiptShipmentAllocation.objects.create(
+            receipt=receipt,
+            shipment=shipment,
+            allocated_received_units=7,
+            note="Wave 3 allocation",
+            created_by=self.staff_user,
+        )
+
+        response = self.client.get(reverse("scan:scan_shipment_edit", args=[shipment.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="shipment-carton-packing-list-actions"')
+        self.assertContains(response, 'id="shipment-carton-label-actions"')
+        self.assertContains(response, 'id="shipment-receipt-allocations-table"')
+        self.assertContains(response, receipt.reference)
+        self.assertContains(response, "Wave 3 allocation")
 
     def test_scan_prepare_kits_groups_top_controls_in_single_panel(self):
         response = self.client.get(reverse("scan:scan_prepare_kits"))

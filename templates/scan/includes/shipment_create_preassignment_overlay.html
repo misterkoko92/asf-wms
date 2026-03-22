@@ -1,0 +1,36 @@
+{% load i18n %}
+
+<div
+  id="shipment-preassignment-overlay"
+  class="scan-choice-overlay"
+  aria-hidden="true"
+  hidden
+>
+  <div
+    class="scan-choice-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="shipment-preassignment-title"
+  >
+    <div class="scan-choice-header">
+      <strong id="shipment-preassignment-title">{% if LANGUAGE_CODE|slice:":2" == "en" %}Destination preassignment{% else %}{% trans "Pré-affectation destination" %}{% endif %}</strong>
+    </div>
+    <div class="scan-choice-status" id="shipment-preassignment-message"></div>
+    <div class="scan-choice-actions ui-comp-actions">
+      <button
+        type="button"
+        id="shipment-preassignment-accept"
+        class="scan-submit scan-submit-inline btn btn-primary"
+      >
+        {% if LANGUAGE_CODE|slice:":2" == "en" %}Accept{% else %}Valider{% endif %}
+      </button>
+      <button
+        type="button"
+        id="shipment-preassignment-reject"
+        class="scan-scan-btn btn btn-tertiary"
+      >
+        {% if LANGUAGE_CODE|slice:":2" == "en" %}Reject{% else %}{% trans "Refuser" %}{% endif %}
+      </button>
+    </div>
+  </div>
+</div>
