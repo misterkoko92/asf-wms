@@ -208,6 +208,11 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "form-select")
         self.assertContains(response, "btn btn-primary")
 
+    def test_portal_recipients_uses_bootstrap_switch_controls(self):
+        response = self.client.get(reverse("portal:portal_recipients"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "form-check form-switch scan-inline-switch", count=3)
+
     def test_portal_order_detail_uses_bootstrap_tables(self):
         self.order.review_status = OrderReviewStatus.APPROVED
         self.order.save(update_fields=["review_status"])

@@ -742,6 +742,68 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         )
         self.assertContains(response, "colis prêts +")
 
+    def test_portal_order_create_groups_destinations_by_recipient_availability(self):
+        unavailable_destination = self._create_destination(city="Abidjan", country="Cote d'Ivoire")
+
+        with mock.patch(
+            "wms.views_portal_orders.build_product_selection_data",
+            return_value=(self.product_options, self.product_by_id, self.available_by_id),
+        ):
+            response = self.client.get(self.order_create_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [option["id"] for option in response.context["destination_options"]],
+            [str(self.destination.id)],
+        )
+        self.assertEqual(
+            [option["id"] for option in response.context["disabled_destination_options"]],
+            [str(unavailable_destination.id)],
+        )
+
+    def test_portal_order_create_prefers_portal_recipient_fields_for_option_label(self):
+        recipient = AssociationRecipient.objects.create(
+            association_contact=self.profile.contact,
+            destination=self.destination,
+            name="Hopital Portail",
+            structure_name="Hopital Portail",
+            contact_title="dr",
+            contact_last_name="Martin",
+            contact_first_name="Claire",
+            email="claire.martin@example.org",
+            emails="claire.martin@example.org",
+            address_line1="20 Rue Portail",
+            city=self.destination.city,
+            country=self.destination.country,
+            is_active=True,
+        )
+        sync_association_recipient_to_contact(recipient)
+        synced_person = Contact.objects.get(
+            organization=recipient.synced_contact,
+            contact_type=ContactType.PERSON,
+            email="claire.martin@example.org",
+        )
+        synced_person.first_name = "Jean"
+        synced_person.last_name = "Dupont"
+        synced_person.name = "Jean Dupont"
+        synced_person.save(update_fields=["first_name", "last_name", "name"])
+
+        with mock.patch(
+            "wms.views_portal_orders.build_product_selection_data",
+            return_value=(self.product_options, self.product_by_id, self.available_by_id),
+        ):
+            response = self.client.get(self.order_create_url)
+
+        self.assertEqual(response.status_code, 200)
+        option = next(
+            option
+            for option in response.context["recipient_options_all"]
+            if str(option["id"]) == str(recipient.id)
+        )
+        self.assertIn("Hopital Portail", option["label"])
+        self.assertIn("Claire MARTIN", option["label"])
+        self.assertNotIn("Jean DUPONT", option["label"])
+
     def test_portal_order_create_get_exposes_ready_cartons_rows(self):
         warehouse = Warehouse.objects.create(name="Portal Ready Carton Warehouse")
         location = Location.objects.create(

@@ -24,11 +24,24 @@
         <label class="form-label" for="destination_id">{% trans "Destination" %}</label>
         <select class="form-select" id="destination_id" name="destination_id" required>
           <option value="">---------</option>
-          {% for option in destination_options %}
-            <option value="{{ option.id }}" {% if option.id|stringformat:"s" == form_data.destination_id %}selected{% endif %}>
-              {{ option.label }}
-            </option>
-          {% endfor %}
+          {% if destination_options %}
+            <optgroup label="{% trans "Destinations disponibles" %}">
+              {% for option in destination_options %}
+                <option value="{{ option.id }}" {% if option.id|stringformat:"s" == form_data.destination_id %}selected{% endif %}>
+                  {{ option.label }}
+                </option>
+              {% endfor %}
+            </optgroup>
+          {% endif %}
+          {% if disabled_destination_options %}
+            <optgroup label="{% trans "Autres destinations" %}">
+              {% for option in disabled_destination_options %}
+                <option value="{{ option.id }}" disabled {% if option.id|stringformat:"s" == form_data.destination_id %}selected{% endif %}>
+                  {{ option.label }}
+                </option>
+              {% endfor %}
+            </optgroup>
+          {% endif %}
         </select>
       </div>
 
