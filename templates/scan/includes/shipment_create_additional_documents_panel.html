@@ -1,0 +1,45 @@
+{% load i18n %}
+
+{% trans "Document" as default_document_label %}
+<div class="scan-field">
+  <label class="form-label">{% trans "Ajouter un document" %}</label>
+  <form method="post" enctype="multipart/form-data" action="{% url 'scan:scan_shipment_document_upload' shipment.id %}">
+    {% csrf_token %}
+    <div id="shipment-additional-document-upload-actions" class="scan-inline ui-comp-actions">
+      <input type="file" name="document_file" required>
+      <button type="submit" class="scan-scan-btn btn btn-secondary">{% trans "Uploader" %}</button>
+    </div>
+    <div class="scan-help">{% trans "Formats autorises: PDF, JPG, PNG, XLSX, DOCX." %}</div>
+  </form>
+</div>
+
+<div class="scan-field">
+  <label class="form-label">{% trans "Documents additionnels" %}</label>
+  <div id="shipment-additional-document-list">
+    {% if documents %}
+      <div class="scan-docs">
+        {% for document in documents %}
+          <div class="scan-inline ui-comp-actions">
+            {% if document.file and document.scan_status == "clean" %}
+              <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{{ document.file.url }}" target="_blank" rel="noopener">
+                {{ document.file.name|default:default_document_label }}
+              </a>
+            {% elif document.scan_status == "infected" %}
+              <span class="scan-help">{% trans "Document bloque (fichier suspect)" %}</span>
+            {% elif document.file %}
+              <span class="scan-help">{% trans "Document en quarantaine (scan antivirus en cours)" %}</span>
+            {% else %}
+              <span class="scan-help">{% trans "Document indisponible (fichier manquant)" %}</span>
+            {% endif %}
+            <form method="post" action="{% url 'scan:scan_shipment_document_delete' shipment.id document.id %}">
+              {% csrf_token %}
+              <button type="submit" class="scan-scan-btn btn btn-danger scan-doc-btn">{% trans "Supprimer" %}</button>
+            </form>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="scan-help">{% trans "Aucun document additionnel." %}</div>
+    {% endif %}
+  </div>
+</div>

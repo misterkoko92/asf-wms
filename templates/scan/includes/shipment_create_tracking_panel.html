@@ -1,0 +1,21 @@
+{% load i18n %}
+
+<div class="scan-field">
+  <label class="form-label">{% trans "Suivi expédition" %}</label>
+  <div id="shipment-tracking-actions" class="scan-inline ui-comp-actions">
+    {% if shipment.qr_code_image %}
+      <img src="{{ shipment.qr_code_image.url }}" alt="{% blocktrans with reference=shipment.reference %}QR expédition {{ reference }}{% endblocktrans %}" style="height: 120px; border: 1px solid #ccc;">
+    {% else %}
+      <span class="scan-help">{% trans "QR code non disponible." %}</span>
+    {% endif %}
+    <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_shipment_track' shipment.tracking_token %}">
+      {% trans "Ouvrir suivi" %}
+    </a>
+  </div>
+  {% if tracking_url %}
+    <div class="scan-help">
+      {% trans "Lien suivi:" %}
+      <a href="{{ tracking_url }}" target="_blank" rel="noopener">{{ tracking_url }}</a>
+    </div>
+  {% endif %}
+</div>

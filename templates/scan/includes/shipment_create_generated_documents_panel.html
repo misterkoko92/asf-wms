@@ -1,0 +1,49 @@
+{% load i18n %}
+
+<div class="scan-field">
+  <label class="form-label">{% trans "Documents générés" %}</label>
+  <div id="shipment-generated-document-actions" class="scan-docs ui-comp-actions">
+    <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'shipment_note' %}" target="_blank" rel="noopener" data-local-document-helper-link="1">
+      {% trans "Bon d'expédition" %}
+    </a>
+    <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'packing_list_shipment' %}" target="_blank" rel="noopener" data-local-document-helper-link="1">
+      {% trans "Liste colisage (lot)" %}
+    </a>
+    <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'donation_certificate' %}" target="_blank" rel="noopener" data-local-document-helper-link="1">
+      {% trans "Attestation donation" %}
+    </a>
+    <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_labels' shipment.id %}" target="_blank" rel="noopener" data-local-document-helper-link="1">
+      {% trans "Étiquettes colis" %}
+    </a>
+  </div>
+</div>
+
+<div class="scan-field">
+  <label class="form-label">{% trans "Liste colisage par carton" %}</label>
+  <div id="shipment-carton-packing-list-actions" class="scan-docs ui-comp-actions">
+    {% if carton_docs %}
+      {% for carton in carton_docs %}
+        <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_carton_document' shipment.id carton.id %}" target="_blank" rel="noopener" data-local-document-helper-link="1">
+          {{ carton.code }}
+        </a>
+      {% endfor %}
+    {% else %}
+      <span class="scan-help">{% trans "Aucun colis associé." %}</span>
+    {% endif %}
+  </div>
+</div>
+
+<div class="scan-field">
+  <label class="form-label">{% trans "Étiquettes par carton" %}</label>
+  <div id="shipment-carton-label-actions" class="scan-docs ui-comp-actions">
+    {% if carton_docs %}
+      {% for carton in carton_docs %}
+        <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_label' shipment.id carton.id %}" target="_blank" rel="noopener" data-local-document-helper-link="1">
+          {{ carton.code }}
+        </a>
+      {% endfor %}
+    {% else %}
+      <span class="scan-help">{% trans "Aucun colis associé." %}</span>
+    {% endif %}
+  </div>
+</div>
