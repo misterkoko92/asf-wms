@@ -65,7 +65,29 @@ class AdminBootstrapUiTests(TestCase):
         )
         self.assertContains(
             response,
-            f'href="{reverse("admin:wms_stockmovement_changelist")}" class="button btn btn-outline-secondary"',
+            'class="submit-row admin-bootstrap-actions ui-comp-actions"',
+        )
+        self.assertContains(
+            response,
+            f'href="{reverse("admin:wms_stockmovement_changelist")}" class="btn btn-outline-secondary button"',
+        )
+
+    def test_admin_stockmovement_changelist_keeps_action_button_contract(self):
+        response = self.client.get(reverse("admin:wms_stockmovement_changelist"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            '<a class="btn btn-outline-primary btn-sm addlink" href="'
+            + reverse("admin:wms_stockmovement_receive")
+            + '">Receive stock</a>',
+            html=True,
+        )
+        self.assertContains(
+            response,
+            '<a class="btn btn-outline-primary btn-sm addlink" href="'
+            + reverse("admin:wms_stockmovement_adjust")
+            + '">Adjust stock</a>',
+            html=True,
         )
 
     @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
@@ -93,6 +115,19 @@ class AdminBootstrapUiTests(TestCase):
         self.assertContains(response, "admin-bootstrap-docs")
         self.assertContains(response, "btn btn-outline-primary btn-sm")
         self.assertContains(response, "Impression A5")
+
+    def test_admin_shipment_change_form_keeps_document_action_group_contract(self):
+        response = self.client.get(reverse("admin:wms_shipment_change", args=[self.shipment.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'class="block admin-bootstrap-doc-links ui-comp-actions"')
+        self.assertContains(
+            response,
+            'class="btn btn-outline-primary btn-sm"',
+        )
+        self.assertContains(
+            response,
+            reverse("admin:wms_shipment_print_doc", args=[self.shipment.id, "shipment_note"]),
+        )
 
     def test_admin_bootstrap_css_centers_button_text(self):
         css_path = Path(settings.BASE_DIR) / "wms" / "static" / "wms" / "admin-bootstrap.css"
