@@ -1794,6 +1794,7 @@
       }
       mismatchOverlay.hidden = !visible;
       mismatchOverlay.setAttribute('aria-hidden', visible ? 'false' : 'true');
+      mismatchOverlay.classList.toggle('active', visible);
       mismatchOverlay.classList.toggle('scan-hidden', !visible);
     };
 
