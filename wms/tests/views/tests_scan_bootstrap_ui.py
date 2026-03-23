@@ -655,6 +655,12 @@ class ScanBootstrapUiTests(TestCase):
         self.assertIn("Si l'expéditeur souhaité n'apparait pas ici", js_content)
         self.assertIn("Si le destinataire souhaité n'apparait pas ici", js_content)
 
+    def test_scan_shipment_create_js_marks_preassignment_overlay_active_when_visible(self):
+        js_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan.js"
+        js_content = js_path.read_text(encoding="utf-8")
+
+        self.assertIn("mismatchOverlay.classList.toggle('active', visible);", js_content)
+
     def test_scan_shipment_create_js_keeps_unlinked_recipients_out_of_pair_group(self):
         js_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan.js"
         js_content = js_path.read_text(encoding="utf-8")
