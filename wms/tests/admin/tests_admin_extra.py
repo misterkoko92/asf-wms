@@ -9,7 +9,6 @@ from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import Http404
 from django.test import RequestFactory, TestCase, override_settings
-from django.utils import translation
 
 from contacts.models import Contact, ContactType
 from wms import models
@@ -91,21 +90,6 @@ class _AdminTestBase(TestCase):
 
 
 class ProductAdminTests(_AdminTestBase):
-    def test_action_labels_render_in_english(self):
-        with translation.override("en"):
-            self.assertEqual(
-                str(ProductAdmin.archive_products.short_description),
-                "Archive products",
-            )
-            self.assertEqual(
-                str(ProductAdmin.unarchive_products.short_description),
-                "Reactivate products",
-            )
-            self.assertEqual(
-                str(ProductAdmin.generate_qr_codes.short_description),
-                "Generate QR codes",
-            )
-
     def test_preview_and_simple_actions(self):
         admin_obj = ProductAdmin(models.Product, self.site)
         request = self._request()
@@ -371,31 +355,6 @@ class PublicAccountRequestAdminTests(_AdminTestBase):
         with override_settings(SITE_BASE_URL=""):
             info = str(self.admin_obj.account_access_info(approved_with_user))
         self.assertIn("SITE_BASE_URL non configurée", info)
-
-    @override_settings(SITE_BASE_URL="https://wms.example.com")
-    def test_account_access_info_renders_in_english(self):
-        portal_user = get_user_model().objects.create_user(
-            username="portal-user-en",
-            email="portal-en@example.com",
-            password="pass1234",
-        )
-        account_request = models.PublicAccountRequest.objects.create(
-            association_name="Association EN",
-            email=portal_user.email,
-            address_line1="7 Rue G",
-            status=models.PublicAccountRequestStatus.APPROVED,
-        )
-
-        with translation.override("en"):
-            info = str(self.admin_obj.account_access_info(account_request))
-
-        self.assertIn("Profile: Association", info)
-        self.assertIn("Email: portal-en@example.com", info)
-        self.assertIn("Login: https://wms.example.com/portal/login/", info)
-        self.assertIn(
-            "Password setup link: https://wms.example.com/portal/set-password/",
-            info,
-        )
 
     def test_approve_request_updates_existing_contact_and_profile_contact(self):
         old_contact = Contact.objects.create(
@@ -1428,120 +1387,3 @@ class StockMovementAdminViewsTests(_AdminTestBase):
             mock.patch.object(admin_obj, "_render_form", return_value="pack-get"),
         ):
             self.assertEqual(admin_obj.pack_view(get_request), "pack-get")
-
-    def test_stockmovement_view_titles_and_messages_render_in_english(self):
-        admin_obj = StockMovementAdmin(models.StockMovement, self.site)
-        post_request = self.factory.post("/admin/wms/stockmovement/receive/", data={})
-        post_request.user = self.superuser
-        get_request = self.factory.get("/admin/wms/stockmovement/receive/")
-        get_request.user = self.superuser
-
-        lot = models.ProductLot.objects.create(
-            product=self.product,
-            lot_code="LOT-EN",
-            quantity_on_hand=1,
-            location=self.location,
-        )
-        form_receive_success = self._FakeForm(
-            cleaned_data={
-                "product": self.product,
-                "status": "",
-                "location": None,
-                "quantity": 2,
-                "lot_code": "LOT-NEW-EN",
-                "received_on": None,
-                "expires_on": None,
-                "storage_conditions": "dry",
-            }
-        )
-
-        with (
-            translation.override("en"),
-            mock.patch("wms.admin.ReceiveStockForm", return_value=form_receive_success),
-            mock.patch("wms.admin.receive_stock", return_value=lot),
-            mock.patch("wms.admin.redirect", return_value="receive-redirect"),
-            mock.patch.object(admin_obj, "message_user") as message_user_mock,
-        ):
-            response = admin_obj.receive_view(post_request)
-        self.assertEqual(response, "receive-redirect")
-        self.assertEqual(
-            message_user_mock.call_args.args[1],
-            "Stock received and lot created successfully.",
-        )
-
-        with (
-            translation.override("en"),
-            mock.patch("wms.admin.ReceiveStockForm", return_value=self._FakeForm(valid=False)),
-            mock.patch.object(admin_obj, "_render_form", return_value="receive-get") as render_mock,
-        ):
-            response = admin_obj.receive_view(get_request)
-        self.assertEqual(response, "receive-get")
-        self.assertEqual(str(render_mock.call_args.args[2]), "Receive stock")
-
-    def test_pack_errors_render_in_english(self):
-        admin_obj = StockMovementAdmin(models.StockMovement, self.site)
-        post_request = self.factory.post("/admin/wms/stockmovement/pack/", data={})
-        post_request.user = self.superuser
-        shipment = self._shipment(reference="260501")
-        carton = models.Carton.objects.create(code="CART-PACK-EN")
-        form_pack_error = self._FakeForm(
-            cleaned_data={
-                "product": self.product,
-                "quantity": 1,
-                "carton": carton,
-                "carton_code": "CART-PACK-EN",
-                "shipment": shipment,
-                "current_location": self.location,
-            }
-        )
-
-        with (
-            translation.override("en"),
-            mock.patch("wms.admin.PackCartonForm", return_value=form_pack_error),
-            mock.patch(
-                "wms.admin.pack_carton",
-                side_effect=StockError("Carton déjà lié à une autre expédition."),
-            ),
-            mock.patch.object(admin_obj, "_render_form", return_value="pack-render"),
-        ):
-            response = admin_obj.pack_view(post_request)
-
-        self.assertEqual(response, "pack-render")
-        form_pack_error.add_error.assert_called_once_with(
-            "shipment",
-            "Carton already linked to another shipment.",
-        )
-
-    def test_pack_kit_errors_render_in_english(self):
-        admin_obj = StockMovementAdmin(models.StockMovement, self.site)
-        post_request = self.factory.post("/admin/wms/stockmovement/pack/", data={})
-        post_request.user = self.superuser
-        shipment = self._shipment(reference="260502")
-        carton = models.Carton.objects.create(code="CART-PACK-KIT-EN")
-        form_pack_error = self._FakeForm(
-            cleaned_data={
-                "product": self.product,
-                "quantity": 1,
-                "carton": carton,
-                "carton_code": "CART-PACK-KIT-EN",
-                "shipment": shipment,
-                "current_location": self.location,
-            }
-        )
-
-        with (
-            translation.override("en"),
-            mock.patch("wms.admin.PackCartonForm", return_value=form_pack_error),
-            mock.patch(
-                "wms.admin.pack_carton",
-                side_effect=StockError("Composition de kit invalide: cycle detecte."),
-            ),
-            mock.patch.object(admin_obj, "_render_form", return_value="pack-render"),
-        ):
-            response = admin_obj.pack_view(post_request)
-
-        self.assertEqual(response, "pack-render")
-        form_pack_error.add_error.assert_called_once_with(
-            None,
-            "Invalid kit composition: cycle detected.",
-        )

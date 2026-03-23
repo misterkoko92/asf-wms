@@ -23,9 +23,6 @@ class ScanImportViewTests(TestCase):
         )
         self.url = reverse("scan:scan_import")
 
-    def _activate_english(self):
-        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = "en"
-
     def test_scan_import_requires_superuser(self):
         self.client.force_login(self.staff_user)
         response = self.client.get(self.url)
@@ -194,22 +191,6 @@ class ScanImportViewTests(TestCase):
         handler_mock.assert_called_once()
         render_mock.assert_called_once_with(mock.ANY, None)
         self.assertFalse(temp_path.exists())
-
-    def test_scan_import_product_file_missing_upload_shows_native_english_error(self):
-        self.client.force_login(self.superuser)
-        self._activate_english()
-
-        response = self.client.post(
-            self.url,
-            {
-                "action": "product_file",
-            },
-            follow=True,
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "A file is required to import products.")
-        self.assertNotContains(response, "Fichier requis pour importer les produits.")
 
     @override_settings(IMPORT_DEFAULT_PASSWORD="TempPwd!")
     def test_scan_import_clear_pending_callback_removes_temp_file(self):

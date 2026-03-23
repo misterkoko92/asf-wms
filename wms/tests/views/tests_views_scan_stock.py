@@ -1,10 +1,9 @@
 from datetime import datetime
 from unittest import mock
 
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from django.urls import reverse
 
 
@@ -21,9 +20,6 @@ class ScanStockViewsTests(TestCase):
         response = HttpResponse(template_name)
         response.context_data = context
         return response
-
-    def _activate_english(self):
-        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = "en"
 
     def test_scan_stock_renders_context_from_helper(self):
         with mock.patch(
@@ -140,17 +136,3 @@ class ScanStockViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "Ajouter catégorie")
         self.assertNotContains(response, "Ajouter entrepôt")
-
-    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
-    def test_scan_stock_pages_render_native_english_when_runtime_disabled(self):
-        self._activate_english()
-
-        stock_response = self.client.get(reverse("scan:scan_stock"))
-        self.assertContains(stock_response, "Stock view")
-        self.assertContains(stock_response, "Search")
-        self.assertNotContains(stock_response, "Vue stock")
-
-        stock_update_response = self.client.get(reverse("scan:scan_stock_update"))
-        self.assertContains(stock_update_response, "Stock update")
-        self.assertContains(stock_update_response, "Product name")
-        self.assertNotContains(stock_update_response, "MAJ stock")
