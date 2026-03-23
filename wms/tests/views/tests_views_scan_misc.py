@@ -77,7 +77,7 @@ class ScanMiscViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(
             response,
-            f'{reverse("scan:scan_service_worker")}?v=52',
+            f'{reverse("scan:scan_service_worker")}?v=53',
         )
 
     @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
