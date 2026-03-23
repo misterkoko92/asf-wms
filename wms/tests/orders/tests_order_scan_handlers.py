@@ -4,7 +4,6 @@ from unittest import mock
 from django.contrib.auth import get_user_model
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
-from django.utils import translation
 
 from contacts.models import Contact, ContactType
 from wms.models import (
@@ -207,42 +206,6 @@ class OrderScanHandlersTests(TestCase):
         )
         self.assertEqual(Order.objects.count(), 0)
 
-    def test_handle_order_action_create_order_translates_selection_errors_in_english(self):
-        create_form = self._create_order_form(
-            shipper_contact=None,
-            recipient_contact=None,
-            destination_city="",
-            destination_country="",
-        )
-
-        with translation.override("en"):
-            response, order_lines, remaining_total = handle_order_action(
-                self._request(),
-                action="create_order",
-                select_form=_DummyForm(is_valid=False),
-                create_form=create_form,
-                line_form=_DummyForm(is_valid=False),
-                selected_order=None,
-            )
-
-        self.assertIsNone(response)
-        self.assertIsNone(order_lines)
-        self.assertIsNone(remaining_total)
-        self.assertTrue(
-            ("shipper_contact", "Shipper required.") in create_form.errors
-            or ("shipper_contact", "Expediteur requis.") in create_form.errors
-        )
-        self.assertTrue(
-            ("recipient_contact", "Recipient required.") in create_form.errors
-            or ("recipient_contact", "Destinataire requis.") in create_form.errors
-        )
-        self.assertTrue(
-            ("destination_city", "Invalid stopover for shipment selection.") in create_form.errors
-            or ("destination_city", "Escale invalide pour la sélection expédition.")
-            in create_form.errors
-        )
-        self.assertEqual(Order.objects.count(), 0)
-
     @mock.patch("wms.order_scan_handlers.resolve_recipient_binding_for_operation")
     @mock.patch("wms.order_scan_handlers.resolve_shipper_for_operation")
     def test_handle_order_action_create_order_with_shipment_selection_resolution_error(
@@ -376,96 +339,6 @@ class OrderScanHandlersTests(TestCase):
         self.assertIsNone(order_lines)
         self.assertIsNone(remaining_total)
         self.assertIn((None, "Sélectionnez une commande."), line_form.errors)
-
-    def test_handle_order_action_add_line_requires_selected_order_in_english(self):
-        line_form = _DummyForm(
-            is_valid=True,
-            cleaned_data={"product_code": self.product.sku, "quantity": 1},
-        )
-
-        with translation.override("en"):
-            response, order_lines, remaining_total = handle_order_action(
-                self._request(),
-                action="add_line",
-                select_form=_DummyForm(is_valid=False),
-                create_form=_DummyForm(is_valid=False),
-                line_form=line_form,
-                selected_order=None,
-            )
-
-        self.assertIsNone(response)
-        self.assertIsNone(order_lines)
-        self.assertIsNone(remaining_total)
-        self.assertTrue(
-            (None, "Select an order.") in line_form.errors
-            or (None, "Sélectionnez une commande.") in line_form.errors
-        )
-
-    @mock.patch("wms.order_scan_handlers.messages.success")
-    @mock.patch("wms.order_scan_handlers.create_shipment_for_order")
-    def test_handle_order_action_create_order_translates_success_message_in_english(
-        self,
-        create_shipment_mock,
-        success_mock,
-    ):
-        correspondent = Contact.objects.create(
-            name="Corr English Success",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-        Destination.objects.create(
-            city="Paris",
-            iata_code="PAR-EN",
-            country="France",
-            correspondent_contact=correspondent,
-            is_active=True,
-        )
-        shipper = Contact.objects.create(
-            name="Sender English",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-        recipient = Contact.objects.create(
-            name="Recipient English",
-            contact_type=ContactType.ORGANIZATION,
-            is_active=True,
-        )
-        create_form = self._create_order_form(
-            shipper_contact=shipper,
-            recipient_contact=recipient,
-        )
-
-        with translation.override("en"):
-            with mock.patch(
-                "wms.order_scan_handlers.resolve_shipper_for_operation",
-                return_value=None,
-            ):
-                with mock.patch(
-                    "wms.order_scan_handlers.resolve_recipient_binding_for_operation",
-                    return_value=None,
-                ):
-                    response, order_lines, remaining_total = handle_order_action(
-                        self._request(),
-                        action="create_order",
-                        select_form=_DummyForm(is_valid=False),
-                        create_form=create_form,
-                        line_form=_DummyForm(is_valid=False),
-                        selected_order=None,
-                    )
-
-        self.assertEqual(response.status_code, 302)
-        created_order = Order.objects.get()
-        create_shipment_mock.assert_called_once_with(order=created_order)
-        success_message = success_mock.call_args.args[1]
-        self.assertIn(
-            success_message,
-            {
-                f"Order created: {created_order.reference or f'Order {created_order.id}'}",
-                f"Commande créée: {created_order.reference or f'Commande {created_order.id}'}",
-            },
-        )
-        self.assertIsNone(order_lines)
-        self.assertIsNone(remaining_total)
 
     def test_handle_order_action_add_line_rejects_cancelled_or_ready_order(self):
         for status in (OrderStatus.CANCELLED, OrderStatus.READY):

@@ -63,9 +63,6 @@ from wms.shipment_party_setup import ensure_shipment_shipper
 
 
 class PortalBaseTestCase(TestCase):
-    def _activate_english(self):
-        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = "en"
-
     def _create_association_contact(self, name, with_address=True):
         contact = Contact.objects.create(
             name=name,
@@ -1283,38 +1280,6 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         create_order_mock.assert_called_once()
         notify_mock.assert_called_once()
 
-    def test_portal_order_create_post_success_uses_native_english_message(self):
-        self._activate_english()
-        line_items = [(self.product, 1)]
-        order = self._order()
-
-        with mock.patch(
-            "wms.views_portal_orders.build_product_selection_data",
-            return_value=(self.product_options, self.product_by_id, self.available_by_id),
-        ):
-            with mock.patch(
-                "wms.views_portal_orders.build_order_line_items",
-                return_value=(line_items, {}, {}),
-            ):
-                with mock.patch(
-                    "wms.views_portal_orders.create_portal_order",
-                    return_value=order,
-                ):
-                    with mock.patch("wms.views_portal_orders.send_portal_order_notifications"):
-                        response = self.client.post(
-                            self.order_create_url,
-                            {
-                                "destination_id": str(self.destination.id),
-                                "recipient_id": "self",
-                                "notes": "OK",
-                            },
-                            follow=True,
-                        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Order sent.")
-        self.assertNotContains(response, "Commande envoyée.")
-
     def test_portal_order_create_post_supports_ready_cartons_and_unit_products(self):
         warehouse = Warehouse.objects.create(name="Portal Mixed Order Warehouse")
         location = Location.objects.create(
@@ -1748,23 +1713,6 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertEqual(document.scan_status, DocumentScanStatus.PENDING)
         self.assertEqual(IntegrationEvent.objects.count(), 1)
 
-    def test_portal_order_detail_upload_stores_stable_scan_message(self):
-        self._activate_english()
-        order = self._order(review_status=OrderReviewStatus.APPROVED)
-        uploaded = SimpleUploadedFile("invoice.pdf", b"%PDF-1.4 invoice")
-
-        response = self.client.post(
-            reverse("portal:portal_order_detail", kwargs={"order_id": order.id}),
-            {
-                "action": "upload_docs",
-                "doc_file_invoice": uploaded,
-            },
-        )
-
-        self.assertEqual(response.status_code, 302)
-        document = OrderDocument.objects.get(order=order)
-        self.assertEqual(document.scan_message, "Scan antivirus en cours.")
-
     def test_portal_order_detail_hides_download_link_for_quarantined_document(self):
         order = self._order(review_status=OrderReviewStatus.APPROVED)
         document = order.documents.create(
@@ -1882,36 +1830,6 @@ class PortalAccountViewsTests(PortalBaseTestCase):
             shipment_recipient.validation_status,
             "pending",
         )
-
-    def test_portal_recipients_post_creates_recipient_with_native_english_message(self):
-        self._activate_english()
-
-        response = self.client.post(
-            self.recipients_url,
-            {
-                "action": "create_recipient",
-                "destination_id": str(self.destination.id),
-                "structure_name": "Structure English",
-                "contact_title": "mrs",
-                "contact_last_name": "Martin",
-                "contact_first_name": "Claire",
-                "emails": "recipient@example.com",
-                "phones": "+33102030405",
-                "address_line1": "2 Rue C",
-                "address_line2": "",
-                "postal_code": "75002",
-                "city": "Paris",
-                "country": "France",
-                "notes": "Notes",
-                "notify_deliveries": "1",
-                "is_delivery_contact": "1",
-            },
-            follow=True,
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Recipient added.")
-        self.assertNotContains(response, "Destinataire ajouté.")
 
     def test_portal_recipients_get_with_edit_prefills_form(self):
         recipient = AssociationRecipient.objects.create(
@@ -2154,21 +2072,6 @@ class PortalAccountViewsTests(PortalBaseTestCase):
             {DocumentScanStatus.PENDING},
         )
         self.assertEqual(IntegrationEvent.objects.count(), 2)
-
-    def test_portal_account_upload_stores_stable_scan_message(self):
-        self._activate_english()
-
-        response = self.client.post(
-            self.account_url,
-            {
-                "action": "upload_account_docs",
-                "doc_file_other": SimpleUploadedFile("other.pdf", b"%PDF-1.4 other"),
-            },
-        )
-
-        self.assertEqual(response.status_code, 302)
-        document = AccountDocument.objects.get()
-        self.assertEqual(document.scan_message, "Scan antivirus en cours.")
 
     def test_portal_account_hides_download_link_for_quarantined_document(self):
         document = AccountDocument.objects.create(

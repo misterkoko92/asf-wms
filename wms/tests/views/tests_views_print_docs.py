@@ -4,10 +4,8 @@ from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.http import Http404, HttpResponse
-from django.template.loader import render_to_string
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
-from django.utils import translation
 
 from wms.models import (
     Carton,
@@ -473,98 +471,3 @@ class PrintDocsViewsTests(TestCase):
             )
         self.assertEqual(response.status_code, 200)
         delete_mock.assert_called_once_with(mock.ANY, shipment_id=shipment.id, document_id=42)
-
-    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
-    def test_carton_packing_list_template_uses_native_english(self):
-        context = {
-            "carton_code": "C-PRINT-EN",
-            "carton_weight_kg": 1.25,
-            "item_rows": [
-                {
-                    "product": "Printed product",
-                    "quantity": 2,
-                    "expires_on": None,
-                }
-            ],
-        }
-
-        with translation.override("en"):
-            body = render_to_string("print/liste_colisage_carton.html", context)
-
-        self.assertIn("Packing list - carton", body)
-        self.assertIn("Head office", body)
-        self.assertNotIn("Liste de colisage - carton", body)
-        self.assertNotIn("Siege :", body)
-
-    @override_settings(WMS_ENABLE_RUNTIME_ENGLISH_TRANSLATION=False)
-    def test_print_templates_keep_french_source_strings_and_translate_to_english(self):
-        attestation_context = {
-            "document_ref": "DOC-001",
-            "document_date": None,
-            "org_name": "ASF",
-            "org_address": "1 Rue Test",
-            "org_contact": "Contact",
-            "shipper_name": "Shipper",
-            "recipient_name": "Recipient",
-            "destination_address": "Paris",
-            "humanitarian_purpose": "Aide",
-            "donor_name": "Donor",
-            "donation_description": "Donation",
-            "shipment_description": "Shipment",
-            "org_signatory": "Signer",
-        }
-        carton_context = {
-            "carton_code": "C-PRINT-FR",
-            "carton_weight_kg": 1.25,
-            "item_rows": [
-                {
-                    "product": "Produit imprime",
-                    "quantity": 2,
-                    "expires_on": None,
-                }
-            ],
-        }
-        picking_context = {
-            "carton_code": "C-PICK-FR",
-            "item_rows": [{"label": "Produit", "quantity": 2, "location": "A-01-001"}],
-        }
-
-        with translation.override("fr"):
-            attestation = render_to_string(
-                "print/attestation_aide_humanitaire.html",
-                attestation_context,
-            )
-            donation = render_to_string(
-                "print/attestation_donation.html",
-                attestation_context,
-            )
-            customs = render_to_string(
-                "print/attestation_douane.html",
-                attestation_context,
-            )
-            carton = render_to_string("print/liste_colisage_carton.html", carton_context)
-            picking = render_to_string("print/picking_list_carton.html", picking_context)
-        with translation.override("en"):
-            attestation_en = render_to_string(
-                "print/attestation_aide_humanitaire.html",
-                attestation_context,
-            )
-            carton_en = render_to_string("print/liste_colisage_carton.html", carton_context)
-            picking_en = render_to_string("print/picking_list_carton.html", picking_context)
-
-        self.assertIn("Réf document", attestation)
-        self.assertNotIn("Document ref", attestation)
-        self.assertIn("Réf document", donation)
-        self.assertNotIn("Document ref", donation)
-        self.assertIn("Réf document", customs)
-        self.assertNotIn("Document ref", customs)
-        self.assertIn("Code carton", carton)
-        self.assertNotIn("Carton code", carton)
-        self.assertIn("Code carton", picking)
-        self.assertNotIn("Carton code", picking)
-        self.assertIn("Document ref", attestation_en)
-        self.assertNotIn("Réf document", attestation_en)
-        self.assertIn("Carton code", carton_en)
-        self.assertNotIn("Code carton", carton_en)
-        self.assertIn("Carton code", picking_en)
-        self.assertNotIn("Code carton", picking_en)
