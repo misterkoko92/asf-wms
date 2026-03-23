@@ -25,7 +25,6 @@ For any request that does not explicitly ask to resume translation work:
 - `locale/`
 - `wms/tests/views/tests_i18n_language_switch.py`
 - `wms/tests/management/tests_management_audit_i18n_strings.py`
-- `wms/management/commands/audit_i18n_strings.py`
 - related translation and i18n execution plans in `docs/plans/` containing `i18n` or `translation`
 
 ## Allowed by default

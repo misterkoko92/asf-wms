@@ -50,6 +50,7 @@ Check that the new policy matches the hidden-switch implementation and does not 
 ### Task 3: Remove translation-heavy regression tests from routine suites
 
 **Files:**
+- Delete: `wms/management/commands/audit_i18n_strings.py`
 - Delete: `wms/tests/management/tests_management_audit_i18n_strings.py`
 - Modify: `wms/tests/views/tests_views_imports.py`
 - Modify: `wms/tests/views/tests_views_scan_misc.py`

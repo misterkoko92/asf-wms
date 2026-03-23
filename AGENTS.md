@@ -13,7 +13,6 @@
 - `locale/`
 - `wms/tests/views/tests_i18n_language_switch.py`
 - `wms/tests/management/tests_management_audit_i18n_strings.py`
-- `wms/management/commands/audit_i18n_strings.py`
 - Any `docs/plans/*i18n*`, `docs/plans/*translation*`, or explicit FR/EN parity work items
 
 ### Default behavior for future requests

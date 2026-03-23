@@ -250,9 +250,9 @@ class VolunteerProfileViewTests(TestCase):
         self.assertContains(response, "Contraintes")
         self.assertContains(response, "Disponibilites")
         self.assertContains(response, "Recap")
-        self.assertContains(response, 'value="fr"')
-        self.assertContains(response, 'value="en"')
-        self.assertContains(response, "ENG")
+        self.assertNotContains(response, 'name="language"')
+        self.assertNotContains(response, 'value="fr"')
+        self.assertNotContains(response, 'value="en"')
 
     def test_profile_update_persists_changes(self):
         response = self.client.post(
