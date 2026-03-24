@@ -1,0 +1,42 @@
+{% load i18n %}
+<div id="scan-admin-contacts-correspondents-card" class="scan-card card border-0 ui-comp-card">
+    <details class="scan-admin-table-accordion" id="scan-admin-contacts-correspondents">
+        <summary class="scan-admin-table-summary">
+            <span>{% trans "Correspondants configurés" %}</span>
+        </summary>
+        <div class="scan-table-wrap table-responsive">
+            <table class="scan-table table table-sm table-hover" data-table-tools="1">
+                <thead>
+                    <tr>
+                        <th>{% trans "Nom" %}</th>
+                        <th>{% trans "Type" %}</th>
+                        <th>{% trans "Organisation" %}</th>
+                        <th>{% trans "Escales" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for contact in correspondents %}
+                        <tr>
+                            <td>{{ contact.name }}</td>
+                            <td>{{ contact.get_contact_type_display }}</td>
+                            <td>{{ contact.organization|default:"-" }}</td>
+                            <td>
+                                {% for destination in contact.destinations_as_correspondent.all %}
+                                    {% if destination.is_active %}
+                                        {{ destination }}{% if not forloop.last %}, {% endif %}
+                                    {% endif %}
+                                {% empty %}
+                                    -
+                                {% endfor %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="4">{% trans "Aucun correspondant configuré." %}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </details>
+</div>

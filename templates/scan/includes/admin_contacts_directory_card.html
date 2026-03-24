@@ -1,0 +1,69 @@
+{% load i18n %}
+<div id="scan-admin-contacts-directory-card" class="scan-card card border-0 ui-comp-card">
+    <details class="scan-admin-table-accordion" id="scan-admin-contacts-directory">
+        <summary class="scan-admin-table-summary">
+            <span>{% trans "Répertoire des contacts" %}</span>
+        </summary>
+        <div class="scan-table-wrap table-responsive">
+            <table class="scan-table table table-sm table-hover" data-table-tools="1">
+                <thead>
+                    <tr>
+                        <th>{% trans "Nom" %}</th>
+                        <th>{% trans "Type" %}</th>
+                        <th>{% trans "Organisation" %}</th>
+                        <th>Email</th>
+                        <th>{% trans "Téléphone" %}</th>
+                        <th>{% trans "Statut" %}</th>
+                        <th>{% trans "Actions" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for contact in contacts %}
+                        <tr>
+                            <td>{{ contact.name }}</td>
+                            <td>{{ contact.get_contact_type_display }}</td>
+                            <td>{{ contact.organization|default:"-" }}</td>
+                            <td>{{ contact.email|default:"-" }}</td>
+                            <td>{{ contact.phone|default:"-" }}</td>
+                            <td>
+                                {% if contact.is_active %}
+                                    {% trans "Actif" %}
+                                {% else %}
+                                    {% trans "Inactif" %}
+                                {% endif %}
+                            </td>
+                            <td>
+                                <label class="visually-hidden" for="scan-admin-contact-action-{{ contact.id }}">
+                                    {% trans "Voir les choix" %}
+                                </label>
+                                <select id="scan-admin-contact-action-{{ contact.id }}"
+                                        class="form-select form-select-sm"
+                                        data-contact-action-select="1"
+                                        data-contact-id="{{ contact.id }}"
+                                        data-contact-type="{{ contact.contact_type }}"
+                                        data-contact-name="{{ contact.name|escapejs }}"
+                                        data-edit-url="{% url 'scan:scan_admin_contacts' %}?edit={{ contact.id }}{% if query %}&amp;q={{ query|urlencode }}{% endif %}{% if contact_filter != 'all' %}&amp;contact_type={{ contact_filter|urlencode }}{% endif %}{% if destination_filter %}&amp;destination_id={{ destination_filter|urlencode }}{% endif %}">
+                                    <option value="">{% trans "Voir les choix" %}</option>
+                                    <option value="edit">{% trans "Modifier" %}</option>
+                                    <option value="deactivate">{% trans "Désactiver" %}</option>
+                                    <option value="merge">{% trans "Fusionner" %}</option>
+                                </select>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7">{% trans "Aucun contact trouvé." %}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </details>
+    {% include "scan/includes/admin_contacts_directory_action_panel.html" %}
+    <div class="visually-hidden" aria-hidden="true">
+        <a href="{{ contacts_admin_url }}" tabindex="-1">admin-contact-list</a>
+        <a href="{{ contact_add_url }}" tabindex="-1">admin-contact-create</a>
+        <a href="{{ destination_admin_url }}" tabindex="-1">admin-destination-list</a>
+        <a href="{{ destination_add_url }}" tabindex="-1">admin-destination-create</a>
+    </div>
+</div>
