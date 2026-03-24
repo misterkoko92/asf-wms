@@ -754,6 +754,24 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(tracking_response, "ui-comp-title")
         self.assertContains(tracking_response, "ui-comp-form")
 
+    def test_scan_import_page_breaks_into_named_workflow_sections(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_import"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="scan-imports-intro"')
+        self.assertContains(response, 'id="scan-imports-products"')
+        self.assertContains(response, 'id="scan-imports-locations"')
+        self.assertContains(response, 'id="scan-imports-categories"')
+        self.assertContains(response, 'id="scan-imports-warehouses"')
+        self.assertContains(response, 'id="scan-imports-contacts"')
+        self.assertContains(response, 'id="scan-imports-users"')
+        self.assertContains(response, "ui-comp-card", count=7)
+        self.assertContains(response, "ui-comp-form")
+        self.assertContains(response, "ui-comp-actions")
+        self.assertContains(response, 'id="scan-import-selector-data"')
+
     def test_scan_remaining_pages_use_design_component_classes(self):
         stock_response = self.client.get(reverse("scan:scan_stock"))
         self.assertEqual(stock_response.status_code, 200)
