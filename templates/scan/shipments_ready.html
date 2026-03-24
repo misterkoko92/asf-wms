@@ -86,16 +86,31 @@
                   <details class="scan-doc-menu">
                     <summary class="scan-scan-btn btn btn-tertiary scan-doc-menu-toggle">{% trans "Documents" %}</summary>
                     <div class="scan-doc-menu-list">
-                      <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'shipment_note' %}" target="_blank" rel="noopener" data-local-document-helper-link="1">
+                      <button
+                        type="button"
+                        class="scan-scan-btn btn btn-tertiary scan-doc-btn"
+                        data-shipment-document-bundle-open="1"
+                        data-shipment-document-bundle-a4-url="{% url 'scan:scan_shipment_view_bundle_pdf' shipment.id 'a4' %}"
+                        data-shipment-document-bundle-a5-url="{% url 'scan:scan_shipment_view_bundle_pdf' shipment.id 'a5' %}"
+                      >
+                        {% trans "Liasse complète" %}
+                      </button>
+                      <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_view_document' shipment.id 'shipment_note' %}" target="_blank" rel="noopener" data-local-document-helper-link="1">
                         {% trans "Bon d'expédition" %}
                       </a>
-                      <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'packing_list_shipment' %}" target="_blank" rel="noopener" data-local-document-helper-link="1">
-                        {% trans "Liste colisage (lot)" %}
+                      <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_view_document' shipment.id 'customs' %}" target="_blank" rel="noopener" data-local-document-helper-link="1">
+                        {% trans "Douane" %}
                       </a>
-                      <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_document' shipment.id 'donation_certificate' %}" target="_blank" rel="noopener" data-local-document-helper-link="1">
+                      <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_view_document' shipment.id 'packing_list' %}" target="_blank" rel="noopener" data-local-document-helper-link="1">
+                        {% trans "Liste colisage" %}
+                      </a>
+                      <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_view_document' shipment.id 'donation' %}" target="_blank" rel="noopener" data-local-document-helper-link="1">
                         {% trans "Attestation donation" %}
                       </a>
-                      <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_labels' shipment.id %}" target="_blank" rel="noopener" data-local-document-helper-link="1">
+                      <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_view_document' shipment.id 'contact' %}" target="_blank" rel="noopener" data-local-document-helper-link="1">
+                        {% trans "Contact" %}
+                      </a>
+                      <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_view_document' shipment.id 'labels' %}" target="_blank" rel="noopener" data-local-document-helper-link="1">
                         {% trans "Étiquettes colis" %}
                       </a>
                     </div>
@@ -120,5 +135,21 @@
       <p class="scan-help ui-comp-note">{% trans "Aucune expédition." %}</p>
     {% endif %}
   </div>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      document.querySelectorAll("[data-shipment-document-bundle-open]").forEach(function (button) {
+        button.addEventListener("click", function () {
+          const a4Url = button.dataset.shipmentDocumentBundleA4Url;
+          const a5Url = button.dataset.shipmentDocumentBundleA5Url;
+          if (a4Url) {
+            window.open(a4Url, "_blank", "noopener");
+          }
+          if (a5Url) {
+            window.open(a5Url, "_blank", "noopener");
+          }
+        });
+      });
+    });
+  </script>
   <script src="{% static 'wms/local_document_helper.js' %}"></script>
 {% endblock %}

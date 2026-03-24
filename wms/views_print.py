@@ -7,6 +7,8 @@ from .views_print_docs import (
     scan_shipment_document,
     scan_shipment_document_delete,
     scan_shipment_document_upload,
+    scan_shipment_view_bundle_pdf,
+    scan_shipment_view_document,
 )
 from .views_print_labels import (
     scan_shipment_label,
@@ -20,6 +22,8 @@ from .views_print_templates import (
 
 DOCUMENT_EXPORTS = (
     "scan_shipment_document",
+    "scan_shipment_view_document",
+    "scan_shipment_view_bundle_pdf",
     "scan_shipment_carton_document",
     "scan_carton_document",
     "scan_carton_picking",

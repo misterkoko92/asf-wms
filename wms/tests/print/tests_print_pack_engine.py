@@ -7,6 +7,7 @@ from unittest import mock
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.files.base import ContentFile
 from django.test import TestCase, override_settings
 from openpyxl import Workbook, load_workbook
 
@@ -30,6 +31,7 @@ from wms.print_pack_engine import (
     _build_mapping_payload,
     _render_document_xlsx_bytes,
     generate_pack,
+    render_pack_document_xlsx_documents,
     render_pack_xlsx_documents,
 )
 from wms.shipment_party_snapshot import build_shipment_party_snapshot
@@ -206,6 +208,96 @@ class PrintPackEngineTests(TestCase):
         self.assertTrue(documents[1].filename.endswith("-2.xlsx"))
         self.assertEqual(documents[0].payload, b"xlsx-1")
         self.assertEqual(documents[1].payload, b"xlsx-2")
+
+    def test_render_pack_document_xlsx_documents_repeats_exact_document_for_provided_cartons(self):
+        pack = PrintPack.objects.create(code="PY", name="Pack Y")
+        PrintPackDocument.objects.create(
+            pack=pack,
+            doc_type="destination_label",
+            variant="single_label",
+            sequence=1,
+            enabled=True,
+        )
+        shipment = Shipment.objects.create(
+            shipper_name="Shipper",
+            recipient_name="Recipient",
+            destination_address="1 Rue Test",
+            destination_country="France",
+            created_by=self.user,
+        )
+        carton_one = Carton.objects.create(code="C-001", shipment=shipment)
+        carton_two = Carton.objects.create(code="C-002", shipment=shipment)
+
+        with mock.patch(
+            "wms.print_pack_engine._render_document_xlsx_bytes",
+            side_effect=[b"xlsx-1", b"xlsx-2"],
+        ) as render_mock:
+            documents = render_pack_document_xlsx_documents(
+                pack_code="PY",
+                doc_type="destination_label",
+                variant="single_label",
+                shipment=shipment,
+                cartons=[carton_one, carton_two],
+            )
+
+        self.assertEqual(render_mock.call_count, 2)
+        self.assertEqual(render_mock.call_args_list[0].kwargs["carton"], carton_one)
+        self.assertEqual(render_mock.call_args_list[1].kwargs["carton"], carton_two)
+        self.assertEqual(len(documents), 2)
+        self.assertTrue(documents[0].filename.endswith("-1.xlsx"))
+        self.assertTrue(documents[1].filename.endswith("-2.xlsx"))
+        self.assertEqual(documents[0].payload, b"xlsx-1")
+        self.assertEqual(documents[1].payload, b"xlsx-2")
+
+    def test_render_pack_document_xlsx_documents_can_override_render_doc_type_template(self):
+        pack = PrintPack.objects.create(code="TC", name="Template Canonical")
+        document = PrintPackDocument.objects.create(
+            pack=pack,
+            doc_type="shipment_note",
+            variant="shipment",
+            sequence=1,
+            enabled=True,
+            xlsx_template_file=None,
+        )
+
+        database_workbook = Workbook()
+        database_workbook.active["A1"] = "Database"
+        database_buffer = BytesIO()
+        database_workbook.save(database_buffer)
+        database_workbook.close()
+        document.xlsx_template_file.save(
+            "shipment-note.xlsx",
+            ContentFile(database_buffer.getvalue()),
+            save=True,
+        )
+
+        with TemporaryDirectory() as temp_dir:
+            shipment_note_template = Path(temp_dir) / "TC__shipment_note__shipment.xlsx"
+            customs_note_template = Path(temp_dir) / "TC__customs_note__shipment.xlsx"
+
+            shipment_note_workbook = Workbook()
+            shipment_note_workbook.active["A1"] = "Shipment"
+            shipment_note_workbook.save(shipment_note_template)
+            shipment_note_workbook.close()
+
+            customs_note_workbook = Workbook()
+            customs_note_workbook.active["A1"] = "Customs"
+            customs_note_workbook.save(customs_note_template)
+            customs_note_workbook.close()
+
+            with override_settings(PRINT_PACK_TEMPLATE_DIRS=[temp_dir]):
+                documents = render_pack_document_xlsx_documents(
+                    pack_code="TC",
+                    doc_type="shipment_note",
+                    render_doc_type="customs_note",
+                    variant="shipment",
+                )
+
+        self.assertEqual(len(documents), 1)
+        self.assertTrue(documents[0].filename.startswith("TC-customs_note-"))
+        rendered_workbook = load_workbook(BytesIO(documents[0].payload))
+        self.assertEqual(rendered_workbook.active["A1"].value, "Customs")
+        rendered_workbook.close()
 
     def test_render_pack_xlsx_documents_uses_seeded_templates_when_filefields_missing(
         self,

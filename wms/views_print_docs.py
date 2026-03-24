@@ -19,9 +19,11 @@ from .print_context import build_carton_picking_context
 from .print_pack_engine import (
     PrintPackEngineError,
     generate_pack,
+    render_pack_document_xlsx_documents,
     render_pack_xlsx_documents,
 )
-from .print_pack_graph import GraphPdfConversionError
+from .print_pack_graph import GraphPdfConversionError, convert_excel_to_pdf_via_graph
+from .print_pack_pdf import impose_two_up_pdf_on_a4, merge_pdf_documents
 from .print_pack_routing import (
     resolve_carton_packing_pack,
     resolve_carton_picking_pack,
@@ -39,6 +41,46 @@ from .view_permissions import scan_staff_required
 TEMPLATE_DYNAMIC_DOCUMENT = "print/dynamic_document.html"
 TEMPLATE_PACKING_LIST_CARTON = "print/liste_colisage_carton.html"
 TEMPLATE_PICKING_LIST_CARTON = "print/picking_list_carton.html"
+
+SHIPMENT_VIEW_DOCUMENT_CONFIG = {
+    "shipment_note": {
+        "pack_code": "C",
+        "doc_type": "shipment_note",
+        "variant": "shipment",
+        "repeat_per_carton": False,
+    },
+    "customs": {
+        "pack_code": "C",
+        "doc_type": "shipment_note",
+        "render_doc_type": "customs_note",
+        "variant": "shipment",
+        "repeat_per_carton": False,
+    },
+    "packing_list": {
+        "pack_code": "B",
+        "doc_type": "packing_list_shipment",
+        "variant": "shipment",
+        "repeat_per_carton": False,
+    },
+    "donation": {
+        "pack_code": "B",
+        "doc_type": "donation_certificate",
+        "variant": "shipment",
+        "repeat_per_carton": True,
+    },
+    "contact": {
+        "pack_code": "C",
+        "doc_type": "contact_label",
+        "variant": "shipment",
+        "repeat_per_carton": True,
+    },
+    "labels": {
+        "pack_code": "D",
+        "doc_type": "destination_label",
+        "variant": "single_label",
+        "repeat_per_carton": True,
+    },
+}
 
 
 def _get_shipment_by_id(shipment_id):
@@ -129,6 +171,139 @@ def _render_pack_xlsx_documents(*, pack_code, shipment=None, carton=None, varian
         carton=carton,
         variant=variant,
     )
+
+
+def _ordered_shipment_cartons(shipment):
+    return list(shipment.carton_set.all().order_by("code"))
+
+
+def _shipment_view_document_or_404(document_key):
+    config = SHIPMENT_VIEW_DOCUMENT_CONFIG.get((document_key or "").strip())
+    if config is None:
+        raise Http404("Document type not found")
+    return config
+
+
+def _render_shipment_view_xlsx_documents(shipment, document_key):
+    config = _shipment_view_document_or_404(document_key)
+    cartons = _ordered_shipment_cartons(shipment) if config["repeat_per_carton"] else None
+    render_kwargs = {
+        "pack_code": config["pack_code"],
+        "doc_type": config["doc_type"],
+        "variant": config["variant"],
+        "shipment": shipment,
+        "cartons": cartons,
+    }
+    if config.get("render_doc_type"):
+        render_kwargs["render_doc_type"] = config["render_doc_type"]
+    return render_pack_document_xlsx_documents(
+        **render_kwargs,
+    )
+
+
+def _build_inline_pdf_response(pdf_bytes, *, filename):
+    response = FileResponse(BytesIO(pdf_bytes), content_type="application/pdf")
+    response["Content-Disposition"] = f'inline; filename="{filename}"'
+    return response
+
+
+def _build_pdf_response_from_xlsx_documents(documents, *, filename, two_up_on_a4=False):
+    pdf_documents = []
+    for document in documents:
+        pdf_documents.append(
+            convert_excel_to_pdf_via_graph(
+                xlsx_bytes=document.payload,
+                filename=document.filename,
+            )
+        )
+    if not pdf_documents:
+        raise PrintPackEngineError("No XLSX documents were provided for PDF rendering.")
+    if two_up_on_a4:
+        merged_pdf = impose_two_up_pdf_on_a4(pdf_documents)
+    elif len(pdf_documents) == 1:
+        merged_pdf = pdf_documents[0]
+    else:
+        merged_pdf = merge_pdf_documents(pdf_documents)
+    return _build_inline_pdf_response(merged_pdf, filename=filename)
+
+
+def _build_shipment_view_bundle_a4_xlsx_documents(shipment):
+    documents = []
+    documents.extend(
+        render_pack_document_xlsx_documents(
+            pack_code="C",
+            doc_type="shipment_note",
+            variant="shipment",
+            shipment=shipment,
+            cartons=None,
+        )
+    )
+    documents.extend(
+        render_pack_document_xlsx_documents(
+            pack_code="C",
+            doc_type="shipment_note",
+            render_doc_type="customs_note",
+            variant="shipment",
+            shipment=shipment,
+            cartons=None,
+        )
+    )
+    return documents
+
+
+def _build_shipment_view_bundle_a5_xlsx_documents(shipment):
+    documents = []
+    documents.extend(
+        render_pack_document_xlsx_documents(
+            pack_code="B",
+            doc_type="packing_list_shipment",
+            variant="shipment",
+            shipment=shipment,
+            cartons=None,
+        )
+    )
+    for carton in _ordered_shipment_cartons(shipment):
+        documents.extend(
+            render_pack_document_xlsx_documents(
+                pack_code="B",
+                doc_type="donation_certificate",
+                variant="shipment",
+                shipment=shipment,
+                cartons=[carton],
+            )
+        )
+        documents.extend(
+            render_pack_document_xlsx_documents(
+                pack_code="D",
+                doc_type="destination_label",
+                variant="single_label",
+                shipment=shipment,
+                cartons=[carton],
+            )
+        )
+        documents.extend(
+            render_pack_document_xlsx_documents(
+                pack_code="C",
+                doc_type="contact_label",
+                variant="shipment",
+                shipment=shipment,
+                cartons=[carton],
+            )
+        )
+    return documents
+
+
+def _shipment_view_bundle_documents(shipment, bundle_key):
+    bundle_key = (bundle_key or "").strip()
+    if bundle_key == "a4":
+        return _build_shipment_view_bundle_a4_xlsx_documents(shipment), False
+    if bundle_key == "a5":
+        return _build_shipment_view_bundle_a5_xlsx_documents(shipment), True
+    raise Http404("Bundle type not found")
+
+
+def _shipment_view_bundle_fallback_code(bundle_key):
+    return f"SV-{(bundle_key or '').strip().upper() or 'PDF'}"
 
 
 def _try_generate_pack_pdf_response(
@@ -389,6 +564,57 @@ def scan_carton_picking(request, carton_id):
             build_carton_picking_context(carton),
         ),
     )
+
+
+@scan_staff_required
+@require_http_methods(["GET"])
+def scan_shipment_view_document(request, shipment_id, document_key):
+    shipment = _get_shipment_by_id(shipment_id)
+    config = _shipment_view_document_or_404(document_key)
+    render_documents = lambda: _render_shipment_view_xlsx_documents(shipment, document_key)
+    if get_local_helper_document_index(request) is not None:
+        return build_local_helper_document_response(
+            request,
+            render_documents=render_documents,
+        )
+    if is_local_helper_job_request(request):
+        return build_local_helper_job_response(
+            request,
+            pack_code=config["pack_code"],
+            render_documents=render_documents,
+            shipment=shipment,
+        )
+
+    documents = list(render_documents())
+    try:
+        return _build_pdf_response_from_xlsx_documents(
+            documents,
+            filename=f"shipment-view-{document_key}-{shipment.reference}.pdf",
+            two_up_on_a4=False,
+        )
+    except (GraphPdfConversionError, PrintPackEngineError):
+        return build_xlsx_fallback_response(
+            documents=documents,
+            pack_code=config["pack_code"],
+        )
+
+
+@scan_staff_required
+@require_http_methods(["GET"])
+def scan_shipment_view_bundle_pdf(request, shipment_id, bundle_key):
+    shipment = _get_shipment_by_id(shipment_id)
+    documents, two_up_on_a4 = _shipment_view_bundle_documents(shipment, bundle_key)
+    try:
+        return _build_pdf_response_from_xlsx_documents(
+            documents,
+            filename=f"shipment-view-{bundle_key}-{shipment.reference}.pdf",
+            two_up_on_a4=two_up_on_a4,
+        )
+    except (GraphPdfConversionError, PrintPackEngineError):
+        return build_xlsx_fallback_response(
+            documents=documents,
+            pack_code=_shipment_view_bundle_fallback_code(bundle_key),
+        )
 
 
 @scan_staff_required
