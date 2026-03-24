@@ -1,0 +1,17 @@
+{% load i18n %}
+
+<section id="scan-imports-intro" class="scan-card card border-0 ui-comp-card">
+  <h2 class="ui-comp-title">Imports</h2>
+  <p class="scan-help">
+    {% blocktrans trimmed %}
+      Page réservée aux superusers. Selon le bloc, vous pouvez ajouter un élément unique
+      ou importer un fichier CSV/XLS/XLSX. Les templates proposent un exemple complet.
+    {% endblocktrans %}
+  </p>
+  <p class="scan-help">
+    {% blocktrans trimmed %}
+      Conseil: privilégier le format .xlsx (meilleure gestion des accents).
+      Pour CSV, exporter en UTF-8 (avec BOM) et séparateur ';'.
+    {% endblocktrans %}
+  </p>
+</section>

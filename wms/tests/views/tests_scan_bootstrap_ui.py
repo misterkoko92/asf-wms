@@ -770,7 +770,52 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "ui-comp-card", count=7)
         self.assertContains(response, "ui-comp-form")
         self.assertContains(response, "ui-comp-actions")
+        self.assertContains(response, 'name="action" value="product_single"')
+        self.assertContains(response, 'name="action" value="product_file"')
+        self.assertContains(response, 'id="product_file"')
+        self.assertContains(response, 'name="stock_mode"')
+        self.assertContains(
+            response,
+            reverse("scan:scan_import") + "?export=products",
+        )
         self.assertContains(response, 'id="scan-import-selector-data"')
+
+    def test_scan_import_pending_review_uses_named_review_section(self):
+        self.client.force_login(self.superuser)
+        matched_product = Product.objects.create(
+            sku="IMPORT-REVIEW-001",
+            name="Produit revue import",
+            qr_code_image="qr_codes/import_review.png",
+        )
+        session = self.client.session
+        session["product_import_pending"] = {
+            "token": "pending-import-review",
+            "matches": [
+                {
+                    "row_index": 2,
+                    "match_type": "sku",
+                    "match_ids": [matched_product.id],
+                    "row_summary": {
+                        "sku": "IMPORT-REVIEW-001",
+                        "name": "Produit import revue",
+                        "brand": "ASF",
+                        "quantity": 4,
+                        "location": "Main A-01-001",
+                    },
+                }
+            ],
+            "default_action": "update",
+            "quantity_mode": "movement",
+        }
+        session.save()
+
+        response = self.client.get(reverse("scan:scan_import"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="scan-imports-product-review"')
+        self.assertContains(response, 'name="action" value="product_confirm"')
+        self.assertContains(response, 'name="pending_token" value="pending-import-review"')
+        self.assertContains(response, 'name="cancel" value="1"')
 
     def test_scan_remaining_pages_use_design_component_classes(self):
         stock_response = self.client.get(reverse("scan:scan_stock"))

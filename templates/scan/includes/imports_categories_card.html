@@ -1,0 +1,40 @@
+{% load i18n static %}
+
+<section id="scan-imports-categories" class="scan-card card border-0 ui-comp-card">
+  <h2 class="ui-comp-title">{% trans "Import catégories" %}</h2>
+  <form method="post" class="scan-filters ui-comp-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="category_single">
+    <div class="scan-inline scan-inline-equal">
+      <div class="scan-field">
+        <label class="form-label" for="cat_name">{% trans "Nom catégorie" %}</label>
+        <input type="text" id="cat_name" name="name" required>
+      </div>
+      <div class="scan-field">
+        <label class="form-label" for="cat_parent">{% trans "Parent (optionnel)" %}</label>
+        <input type="text" id="cat_parent" name="parent">
+      </div>
+    </div>
+    <button type="submit" class="scan-submit btn btn-primary">{% trans "Ajouter catégorie" %}</button>
+  </form>
+
+  <div class="scan-divider"></div>
+
+  <form method="post" enctype="multipart/form-data" class="scan-filters ui-comp-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="category_file">
+    <div class="scan-field">
+      <label class="form-label" for="category_file">{% trans "Fichier catégories (CSV/XLS/XLSX)" %}</label>
+      <input type="file" id="category_file" name="import_file" accept=".csv,.xlsx,.xls">
+    </div>
+    <div class="scan-filter-actions ui-comp-actions">
+      <button type="submit" class="scan-submit secondary btn btn-secondary">{% trans "Importer catégories" %}</button>
+      <a href="{% static 'scan/import_templates/categories.csv' %}" class="scan-scan-btn btn btn-tertiary" download>
+        {% trans "Template catégories" %}
+      </a>
+      <a href="{% url 'scan:scan_import' %}?export=categories" class="scan-scan-btn btn btn-tertiary" download>
+        {% trans "Exporter catégories" %}
+      </a>
+    </div>
+  </form>
+</section>

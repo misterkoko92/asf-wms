@@ -1,0 +1,83 @@
+{% load i18n static %}
+
+<section id="scan-imports-users" class="scan-card card border-0 ui-comp-card">
+  <h2 class="ui-comp-title">{% trans "Import utilisateurs" %}</h2>
+  <p class="scan-help">{% trans "Mot de passe obligatoire si IMPORT_DEFAULT_PASSWORD est vide." %}</p>
+  <form method="post" class="scan-filters ui-comp-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="user_single">
+    <div class="scan-inline scan-inline-equal">
+      <div class="scan-field">
+        <label class="form-label" for="user_username">Username</label>
+        <input type="text" id="user_username" name="username" required>
+      </div>
+      <div class="scan-field">
+        <label class="form-label" for="user_email">Email</label>
+        <input type="email" id="user_email" name="email">
+      </div>
+    </div>
+    <div class="scan-inline scan-inline-equal">
+      <div class="scan-field">
+        <label class="form-label" for="user_first_name">{% trans "Prenom" %}</label>
+        <input type="text" id="user_first_name" name="first_name">
+      </div>
+      <div class="scan-field">
+        <label class="form-label" for="user_last_name">{% trans "Nom" %}</label>
+        <input type="text" id="user_last_name" name="last_name">
+      </div>
+    </div>
+    <div class="scan-inline scan-inline-equal">
+      <div class="scan-field">
+        <label class="form-label" for="user_password">{% trans "Mot de passe" %}</label>
+        <input type="text" id="user_password" name="password"{% if not import_default_password_configured %} required{% endif %}>
+      </div>
+      <div class="scan-field">
+        <label class="form-label" for="user_flags">{% trans "Statut" %}</label>
+        <select id="user_flags" name="is_staff">
+          <option value="">--</option>
+          <option value="false">{% trans "Non staff" %}</option>
+          <option value="true">Staff</option>
+        </select>
+      </div>
+    </div>
+    <div class="scan-inline scan-inline-equal">
+      <div class="scan-field">
+        <label class="form-label" for="user_superuser">Superuser</label>
+        <select id="user_superuser" name="is_superuser">
+          <option value="">--</option>
+          <option value="false">{% trans "Non" %}</option>
+          <option value="true">{% trans "Oui" %}</option>
+        </select>
+      </div>
+      <div class="scan-field">
+        <label class="form-label" for="user_active">{% trans "Actif" %}</label>
+        <select id="user_active" name="is_active">
+          <option value="">--</option>
+          <option value="false">{% trans "Non" %}</option>
+          <option value="true">{% trans "Oui" %}</option>
+        </select>
+      </div>
+    </div>
+    <button type="submit" class="scan-submit btn btn-primary">{% trans "Ajouter utilisateur" %}</button>
+  </form>
+
+  <div class="scan-divider"></div>
+
+  <form method="post" enctype="multipart/form-data" class="scan-filters ui-comp-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="user_file">
+    <div class="scan-field">
+      <label class="form-label" for="user_file">{% trans "Fichier utilisateurs (CSV/XLS/XLSX)" %}</label>
+      <input type="file" id="user_file" name="import_file" accept=".csv,.xlsx,.xls">
+    </div>
+    <div class="scan-filter-actions ui-comp-actions">
+      <button type="submit" class="scan-submit secondary btn btn-secondary">{% trans "Importer utilisateurs" %}</button>
+      <a href="{% static 'scan/import_templates/users.csv' %}" class="scan-scan-btn btn btn-tertiary" download>
+        {% trans "Template utilisateurs" %}
+      </a>
+      <a href="{% url 'scan:scan_import' %}?export=users" class="scan-scan-btn btn btn-tertiary" download>
+        {% trans "Exporter utilisateurs" %}
+      </a>
+    </div>
+  </form>
+</section>

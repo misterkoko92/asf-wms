@@ -1,0 +1,163 @@
+{% load i18n static %}
+
+<section id="scan-imports-products" class="scan-card card border-0 ui-comp-card">
+  <h2 class="ui-comp-title">{% trans "Import produits" %}</h2>
+  <p class="scan-help">{% trans "Ajout rapide d'un produit ou import massif." %}</p>
+  <form method="post" class="scan-filters ui-comp-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="product_single">
+    <div class="scan-field">
+      <label class="form-label" for="product_name">{% trans "Nom produit" %}</label>
+      <input type="text" id="product_name" name="name" required>
+    </div>
+    <div class="scan-inline scan-inline-equal">
+      <div class="scan-field">
+        <label class="form-label" for="product_sku">SKU</label>
+        <input type="text" id="product_sku" name="sku">
+      </div>
+      <div class="scan-field">
+        <label class="form-label" for="product_barcode">Barcode</label>
+        <input type="text" id="product_barcode" name="barcode">
+      </div>
+    </div>
+    <div class="scan-inline scan-inline-equal">
+      <div class="scan-field">
+        <label class="form-label" for="product_ean">EAN</label>
+        <input type="text" id="product_ean" name="ean">
+      </div>
+      <div class="scan-field">
+        <label class="form-label" for="product_pu_ht">{% trans "PU HT" %}</label>
+        <input type="text" id="product_pu_ht" name="pu_ht" placeholder="{% trans "ex: 2.50" %}">
+      </div>
+    </div>
+    <div class="scan-field">
+      <label class="form-label" for="product_tva">{% trans "TVA (taux, ex: 0.2 pour 20%)" %}</label>
+      <input type="text" id="product_tva" name="tva" placeholder="{% trans "ex: 0.2" %}">
+    </div>
+    <div class="scan-inline scan-inline-equal">
+      <div class="scan-field">
+        <label class="form-label" for="product_brand">{% trans "Marque" %}</label>
+        <input type="text" id="product_brand" name="brand">
+      </div>
+      <div class="scan-field">
+        <label class="form-label" for="product_color">{% trans "Couleur" %}</label>
+        <input type="text" id="product_color" name="color">
+      </div>
+    </div>
+    <div class="scan-field">
+      <label class="form-label" for="product_tags">{% trans "Tags (séparés par |)" %}</label>
+      <input type="text" id="product_tags" name="tags" placeholder="sterile|disposable">
+    </div>
+    <div class="scan-inline scan-inline-equal">
+      <div class="scan-field">
+        <label class="form-label" for="category_l1">{% trans "Catégorie L1" %}</label>
+        <input type="text" id="category_l1" name="category_l1">
+      </div>
+      <div class="scan-field">
+        <label class="form-label" for="category_l2">{% trans "Catégorie L2" %}</label>
+        <input type="text" id="category_l2" name="category_l2">
+      </div>
+    </div>
+    <div class="scan-inline scan-inline-equal">
+      <div class="scan-field">
+        <label class="form-label" for="category_l3">{% trans "Catégorie L3" %}</label>
+        <input type="text" id="category_l3" name="category_l3">
+      </div>
+      <div class="scan-field">
+        <label class="form-label" for="category_l4">{% trans "Catégorie L4" %}</label>
+        <input type="text" id="category_l4" name="category_l4">
+      </div>
+    </div>
+    <div class="scan-inline scan-inline-equal">
+      <div class="scan-field">
+        <label class="form-label" for="product_warehouse">{% trans "Entrepôt" %}</label>
+        <input type="text" id="product_warehouse" name="warehouse">
+      </div>
+      <div class="scan-field">
+        <label class="form-label" for="product_zone">Rack</label>
+        <input type="text" id="product_zone" name="zone">
+      </div>
+    </div>
+    <div class="scan-inline scan-inline-equal">
+      <div class="scan-field">
+        <label class="form-label" for="product_aisle">{% trans "Étagère" %}</label>
+        <input type="text" id="product_aisle" name="aisle">
+      </div>
+      <div class="scan-field">
+        <label class="form-label" for="product_shelf">Bac</label>
+        <input type="text" id="product_shelf" name="shelf">
+      </div>
+    </div>
+    <div class="scan-inline scan-inline-equal">
+      <div class="scan-field">
+        <label class="form-label" for="product_rack_color">{% trans "Couleur rack" %}</label>
+        <input type="text" id="product_rack_color" name="rack_color" placeholder="#1C8BC0">
+      </div>
+      <div class="scan-field">
+        <label class="form-label" for="product_notes">{% trans "Notes" %}</label>
+        <input type="text" id="product_notes" name="notes">
+      </div>
+    </div>
+    <div class="scan-field">
+      <label class="form-label" for="product_quantity">{% trans "Quantité initiale (nécessite un emplacement)" %}</label>
+      <input type="number" id="product_quantity" name="quantity" min="1" step="1">
+    </div>
+    <button type="submit" class="scan-submit btn btn-primary">{% trans "Ajouter produit" %}</button>
+  </form>
+
+  <div class="scan-divider"></div>
+
+  <form method="post" enctype="multipart/form-data" class="scan-filters ui-comp-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="product_file">
+    <div class="scan-field">
+      <label class="form-label" for="product_file">{% trans "Fichier produits (CSV/XLS/XLSX)" %}</label>
+      <input type="file" id="product_file" name="import_file" accept=".csv,.xlsx,.xls">
+    </div>
+    <div class="scan-field">
+      <label class="form-label" for="product_update">
+        <input type="checkbox" id="product_update" name="update_existing" value="1" checked>
+        {% trans "Présélectionner \"Mettre à jour\" si un produit existe" %}
+      </label>
+    </div>
+    <div class="scan-field">
+      <span class="form-label d-block">{% trans "Gestion du stock importé (champ quantity/stock)" %}</span>
+      <div class="scan-import-radio-group">
+        <div class="form-check form-check-inline scan-import-radio-option">
+          <input
+            type="radio"
+            class="form-check-input"
+            id="stock_mode_movement"
+            name="stock_mode"
+            value="movement"
+            checked
+          >
+          <label class="form-check-label" for="stock_mode_movement">
+            {% trans "Faire des mouvements de stock (ajouter la quantité importée)" %}
+          </label>
+        </div>
+        <div class="form-check form-check-inline scan-import-radio-option">
+          <input
+            type="radio"
+            class="form-check-input"
+            id="stock_mode_overwrite"
+            name="stock_mode"
+            value="overwrite"
+          >
+          <label class="form-check-label" for="stock_mode_overwrite">
+            {% trans "Écraser la valeur du stock (remise à zéro puis valeur importée)" %}
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="scan-filter-actions ui-comp-actions">
+      <button type="submit" class="scan-submit secondary btn btn-secondary">{% trans "Importer produits" %}</button>
+      <a href="{% static 'scan/import_templates/products.csv' %}" class="scan-scan-btn btn btn-tertiary" download>
+        {% trans "Template produits" %}
+      </a>
+      <a href="{% url 'scan:scan_import' %}?export=products" class="scan-scan-btn btn btn-tertiary" download>
+        {% trans "Exporter produits" %}
+      </a>
+    </div>
+  </form>
+</section>
