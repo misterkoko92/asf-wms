@@ -1,0 +1,67 @@
+{% load i18n %}
+<div id="portal-order-create-unit-products-card" class="scan-card portal-card card border-0 ui-comp-card">
+  <div class="scan-field mb-0">
+    <label class="form-label">{% trans "Produits à l'unité" %}</label>
+    <p class="scan-help">
+      {% trans "Les stock indiqués dans ce tableau sont fictifs. Cette fonctionnalité sera bientôt activée pour afficher les stocks réels." %}
+    </p>
+    <div class="portal-products-panel">
+      <div class="scan-table-wrap portal-products-table-wrap">
+        <table class="scan-table portal-table table table-sm table-hover" data-table-tools="1">
+          <thead>
+            <tr>
+              <th>{% trans "Produit" %}</th>
+              <th>{% trans "Stock" %}</th>
+              <th>{% trans "Quantité" %}</th>
+              <th>{% trans "Cartons estimés" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for product in products %}
+              <tr
+                data-product-id="{{ product.id }}"
+                data-filter-row-key="{{ product.filter_row_key }}"
+              >
+                <td>{{ product.name }}</td>
+                <td>{{ product.available_stock }}</td>
+                <td>
+                  <input
+                    class="form-control form-control-sm"
+                    type="number"
+                    name="product_{{ product.id }}_qty"
+                    min="0"
+                    value="{{ product.quantity }}"
+                    {% if product.available_stock == 0 %}disabled{% endif %}
+                  >
+                  {% if line_errors %}
+                    {% for pid, error in line_errors.items %}
+                      {% if pid == product.id|stringformat:"s" %}
+                        <div class="scan-message error">{{ error }}</div>
+                      {% endif %}
+                    {% endfor %}
+                  {% endif %}
+                </td>
+                <td class="carton-estimate">
+                  {% if product.estimate %}
+                    {{ product.estimate }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="portal-products-actions ui-comp-actions">
+        <p class="scan-help">
+          {% trans "Total estimé" %}:
+          <span id="ready-carton-estimate-total">{{ total_selected_ready_cartons|default:0 }}</span>
+          {% trans "colis prêts +" %} <span id="carton-estimate-total">{% if total_estimated_cartons_to_prepare %}{{ total_estimated_cartons_to_prepare }}{% else %}0{% endif %}</span>
+          {% trans "carton(s) à préparer." %}
+        </p>
+        <button type="submit" class="scan-submit btn btn-primary">{% trans "Envoyer la commande" %}</button>
+      </div>
+    </div>
+  </div>
+</div>
