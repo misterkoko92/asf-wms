@@ -156,6 +156,25 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "table table-sm table-hover")
         self.assertContains(response, "btn btn-primary")
 
+    def test_portal_order_create_breaks_into_named_workflow_sections(self):
+        response = self.client.get(reverse("portal:portal_order_create"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="portal-order-create-intro"')
+        self.assertContains(response, 'id="portal-order-create-form"')
+        self.assertContains(response, 'id="portal-order-create-routing-card"')
+        self.assertContains(response, 'id="portal-order-create-ready-cartons-card"')
+        self.assertContains(response, 'id="portal-order-create-ready-kits-card"')
+        self.assertContains(response, 'id="portal-order-create-unit-products-card"')
+        self.assertContains(response, 'id="portal-category-filters"')
+        self.assertContains(response, 'id="portal-recipient-options-data"')
+        self.assertContains(response, 'id="portal-product-data"')
+        self.assertContains(response, "Colis disponibles")
+        self.assertContains(response, "Kits disponibles")
+        self.assertContains(response, "Produits à l'unité")
+        self.assertContains(response, 'id="ready-carton-estimate-total"')
+        self.assertContains(response, 'id="carton-estimate-total"')
+
     def test_portal_account_uses_bootstrap_forms_and_tables(self):
         response = self.client.get(reverse("portal:portal_account"))
         self.assertEqual(response.status_code, 200)
@@ -163,6 +182,20 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, "form-control")
         self.assertContains(response, "form-select")
         self.assertContains(response, "btn btn-primary")
+
+    def test_portal_account_breaks_into_named_workflow_sections(self):
+        response = self.client.get(reverse("portal:portal_account"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="portal-account-intro"')
+        self.assertContains(response, 'id="portal-account-profile-card"')
+        self.assertContains(response, 'id="portal-account-billing-card"')
+        self.assertContains(response, 'id="portal-account-documents-card"')
+        self.assertContains(response, 'id="portal-account-form"')
+        self.assertContains(response, 'id="portal-contact-row-template"')
+        self.assertContains(response, 'id="add-contact-row"')
+        self.assertContains(response, 'value="request_billing_preferences"')
+        self.assertContains(response, 'value="upload_account_docs"')
 
     def test_portal_base_navigation_includes_billing_link(self):
         response = self.client.get(reverse("portal:portal_dashboard"))
