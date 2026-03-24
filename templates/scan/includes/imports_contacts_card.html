@@ -1,0 +1,30 @@
+{% load i18n static %}
+
+<section id="scan-imports-contacts" class="scan-card card border-0 ui-comp-card">
+  <h2 class="ui-comp-title">{% trans "Import contacts" %}</h2>
+  {% url 'scan:scan_admin_contacts' as admin_contacts_url %}
+  <p class="scan-help">
+    {% blocktrans trimmed %}
+      Cette section sert aux imports en masse. Pour créer ou mettre à jour un contact manuellement,
+      utilisez le cockpit <a href="{{ admin_contacts_url }}">Contacts</a>.
+    {% endblocktrans %}
+  </p>
+
+  <form method="post" enctype="multipart/form-data" class="scan-filters ui-comp-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="contact_file">
+    <div class="scan-field">
+      <label class="form-label" for="contact_file">{% trans "Fichier contacts (CSV/XLS/XLSX)" %}</label>
+      <input type="file" id="contact_file" name="import_file" accept=".csv,.xlsx,.xls">
+    </div>
+    <div class="scan-filter-actions ui-comp-actions">
+      <button type="submit" class="scan-submit secondary btn btn-secondary">{% trans "Importer contacts" %}</button>
+      <a href="{% static 'scan/import_templates/contacts.csv' %}" class="scan-scan-btn btn btn-tertiary" download>
+        {% trans "Template contacts" %}
+      </a>
+      <a href="{% url 'scan:scan_import' %}?export=contacts" class="scan-scan-btn btn btn-tertiary" download>
+        {% trans "Exporter contacts" %}
+      </a>
+    </div>
+  </form>
+</section>

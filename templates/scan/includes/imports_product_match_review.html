@@ -1,0 +1,101 @@
+{% load i18n %}
+
+<section id="scan-imports-product-review" class="scan-card card border-0 ui-comp-card">
+  <h2 class="ui-comp-title">{% trans "Confirmation import produits" %}</h2>
+  <p class="scan-help">
+    {% trans "Des produits existent déjà. Confirmez l'action à appliquer pour chaque correspondance." %}
+  </p>
+  <p class="scan-help">
+    {% trans "Mode stock importé:" %}
+    {% if product_match_pending.quantity_mode == "overwrite" %}
+      <strong>{% trans "Écraser la valeur du stock" %}</strong> {% trans "(remise à zéro puis application de la quantité importée)." %}
+    {% else %}
+      <strong>{% trans "Faire des mouvements de stock" %}</strong> {% trans "(ajout de la quantité importée)." %}
+    {% endif %}
+  </p>
+  <form method="post" class="scan-filters ui-comp-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="product_confirm">
+    <input type="hidden" name="pending_token" value="{{ product_match_pending.token }}">
+    {% for item in product_match_pending.matches %}
+      <div class="scan-divider"></div>
+      <h3 class="ui-comp-title">{% blocktrans trimmed with row_index=item.row_index match_type=item.match_type %}Ligne {{ row_index }} (match {{ match_type }}){% endblocktrans %}</h3>
+      <div class="scan-table-wrap">
+        <table class="scan-table">
+          <thead>
+            <tr>
+              <th>{% trans "Source" %}</th>
+              <th>SKU</th>
+              <th>{% trans "Nom" %}</th>
+              <th>{% trans "Marque" %}</th>
+              <th>{% trans "Quantité" %}</th>
+              <th>{% trans "Emplacement" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>{% trans "Import" %}</td>
+              <td>{{ item.row.sku }}</td>
+              <td>{{ item.row.name }}</td>
+              <td>{{ item.row.brand }}</td>
+              <td>{{ item.row.quantity }}</td>
+              <td>{{ item.row.location }}</td>
+            </tr>
+            {% for product in item.products %}
+              <tr>
+                <td>{% trans "Existant" %}</td>
+                <td>{{ product.sku }}</td>
+                <td>{{ product.name }}</td>
+                <td>{{ product.brand }}</td>
+                <td>{{ product.available_stock }}</td>
+                <td>{{ product.location }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="scan-field">
+        <label class="form-label">{% trans "Action" %}</label>
+        <div class="scan-inline">
+          <label class="form-label">
+            <input
+              type="radio"
+              name="decision_{{ item.row_index }}"
+              value="update"
+              {% if product_match_pending.default_action == "update" %}checked{% endif %}
+            >
+            {% trans "Mettre à jour le produit existant" %}
+          </label>
+          <label class="form-label">
+            <input
+              type="radio"
+              name="decision_{{ item.row_index }}"
+              value="create"
+              {% if product_match_pending.default_action != "update" %}checked{% endif %}
+            >
+            {% trans "Créer un nouveau produit" %}
+          </label>
+        </div>
+      </div>
+
+      {% if item.products|length > 1 %}
+        <div class="scan-field">
+          <label class="form-label" for="match_id_{{ item.row_index }}">{% trans "Produit existant" %}</label>
+          <select id="match_id_{{ item.row_index }}" name="match_id_{{ item.row_index }}">
+            {% for product in item.products %}
+              <option value="{{ product.id }}">
+                {{ product.sku }} - {{ product.name }}{% if product.brand %} ({{ product.brand }}){% endif %}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+      {% endif %}
+    {% endfor %}
+
+    <div class="scan-filter-actions ui-comp-actions">
+      <button type="submit" class="scan-submit btn btn-primary">{% trans "Confirmer" %}</button>
+      <button type="submit" name="cancel" value="1" class="scan-submit secondary btn btn-secondary">{% trans "Annuler" %}</button>
+    </div>
+  </form>
+</section>

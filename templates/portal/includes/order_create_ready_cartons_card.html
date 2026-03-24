@@ -1,0 +1,54 @@
+{% load i18n %}
+<div id="portal-order-create-ready-cartons-card" class="scan-card portal-card card border-0 ui-comp-card">
+  <div class="scan-field mb-0">
+    <label class="form-label">{% trans "Colis disponibles" %}</label>
+    <div class="portal-products-panel">
+      <div class="scan-table-wrap portal-products-table-wrap">
+        <table class="scan-table portal-table table table-sm table-hover" data-table-tools="1">
+          <thead>
+            <tr>
+              <th>{% trans "Produit" %}</th>
+              <th>{% trans "Stock" %}</th>
+              <th>{% trans "Quantité" %}</th>
+              <th>{% trans "Date de péremption" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in ready_cartons %}
+              <tr
+                data-ready-carton-key="{{ row.row_key }}"
+                data-ready-carton-stock="{{ row.available_stock }}"
+                data-filter-row-key="{{ row.filter_row_key }}"
+              >
+                <td>
+                  {% for line in row.product_lines %}
+                    <div>{% blocktrans with product_name=line.product_name quantity=line.quantity %}{{ product_name }} - {{ quantity }} unités{% endblocktrans %}</div>
+                  {% endfor %}
+                </td>
+                <td>{{ row.available_stock }}</td>
+                <td>
+                  <input
+                    class="form-control form-control-sm"
+                    type="number"
+                    name="ready_carton_{{ row.row_key }}_qty"
+                    min="0"
+                    value="{{ row.quantity }}"
+                    {% if row.available_stock == 0 %}disabled{% endif %}
+                  >
+                  {% if row.line_error %}
+                    <div class="scan-message error">{{ row.line_error }}</div>
+                  {% endif %}
+                </td>
+                <td>{% if row.expires_on %}{{ row.expires_on|date:"d/m/Y" }}{% endif %}</td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="4">{% trans "Aucun colis prêt disponible." %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

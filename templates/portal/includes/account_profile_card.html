@@ -1,0 +1,134 @@
+{% load i18n wms_ui %}
+<div id="portal-account-profile-card" class="scan-card portal-card card border-0 ui-comp-card">
+  {% if account_form_errors %}
+    <div class="scan-message error">
+      {% for error in account_form_errors %}
+        <div>{{ error }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <form method="post" novalidate id="portal-account-form" class="ui-comp-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="update_profile">
+    <input type="hidden" name="contact_count" id="id_contact_count" value="{{ portal_contact_rows|length }}">
+
+    <h3 class="portal-section-title ui-comp-title">{% trans "Informations principales" %}</h3>
+    <div class="portal-grid-2">
+      <div class="scan-field">
+        <label class="form-label" for="id_association_name">{% trans "Association" %}</label>
+        <input
+          class="form-control"
+          type="text"
+          id="id_association_name"
+          name="association_name"
+          value="{{ profile_form_data.association_name }}"
+          required
+        >
+      </div>
+      <div class="scan-field">
+        <label class="form-label" for="id_association_email">Email</label>
+        <input
+          class="form-control"
+          type="email"
+          id="id_association_email"
+          name="association_email"
+          value="{{ profile_form_data.association_email }}"
+        >
+      </div>
+      <div class="scan-field">
+        <label class="form-label" for="id_association_phone">{% trans "Téléphone" %}</label>
+        <input
+          class="form-control"
+          type="text"
+          id="id_association_phone"
+          name="association_phone"
+          value="{{ profile_form_data.association_phone }}"
+        >
+      </div>
+    </div>
+
+    <h3 class="portal-section-title ui-comp-title">{% trans "Adresse" %}</h3>
+    <div class="portal-grid-2">
+      <div class="scan-field">
+        <label class="form-label" for="id_address_line1">{% trans "Adresse" %}</label>
+        <input
+          class="form-control"
+          type="text"
+          id="id_address_line1"
+          name="address_line1"
+          value="{{ profile_form_data.address_line1 }}"
+          required
+        >
+      </div>
+      <div class="scan-field">
+        <label class="form-label" for="id_address_line2">{% trans "Complément" %}</label>
+        <input
+          class="form-control"
+          type="text"
+          id="id_address_line2"
+          name="address_line2"
+          value="{{ profile_form_data.address_line2 }}"
+        >
+      </div>
+    </div>
+    <div class="portal-grid-3">
+      <div class="scan-field">
+        <label class="form-label" for="id_postal_code">{% trans "Code postal" %}</label>
+        <input
+          class="form-control"
+          type="text"
+          id="id_postal_code"
+          name="postal_code"
+          value="{{ profile_form_data.postal_code }}"
+        >
+      </div>
+      <div class="scan-field">
+        <label class="form-label" for="id_city">{% trans "Ville" %}</label>
+        <input
+          class="form-control"
+          type="text"
+          id="id_city"
+          name="city"
+          value="{{ profile_form_data.city }}"
+        >
+      </div>
+      <div class="scan-field">
+        <label class="form-label" for="id_country">{% trans "Pays" %}</label>
+        <input
+          class="form-control"
+          type="text"
+          id="id_country"
+          name="country"
+          value="{{ profile_form_data.country|default:'France' }}"
+        >
+      </div>
+    </div>
+
+    <h3 class="portal-section-title ui-comp-title">{% trans "Contacts emails" %}</h3>
+    <p class="scan-help">
+      {% blocktrans with max_portal_contacts=max_portal_contacts %}1 ligne = 1 contact. Maximum {{ max_portal_contacts }} lignes. Cochez au moins un type par ligne.{% endblocktrans %}
+    </p>
+    <div class="portal-contact-head">
+      <span>{% trans "Titre" %}</span>
+      <span>{% trans "Nom" %}</span>
+      <span>{% trans "Prénom" %}</span>
+      <span>{% trans "Téléphone" %}</span>
+      <span>{% trans "Mail" %}</span>
+      <span>{% trans "Type" %}</span>
+    </div>
+    <div id="portal-contact-rows">
+      {% for row in portal_contact_rows %}
+        {% include "portal/includes/account_contact_row.html" with row=row contact_title_choices=contact_title_choices only %}
+      {% endfor %}
+    </div>
+    <template id="portal-contact-row-template">
+      {% include "portal/includes/account_contact_row.html" with row=empty_portal_contact_row contact_title_choices=contact_title_choices only %}
+    </template>
+
+    {% ui_button label=add_contact_label button_type="button" variant="tertiary" extra_classes="scan-scan-btn" attrs=portal_account_add_contact_button_attrs %}
+    <div class="scan-field portal-contact-submit">
+      {% ui_button label=save_profile_label button_type="submit" variant="primary" extra_classes="scan-submit" %}
+    </div>
+  </form>
+</div>

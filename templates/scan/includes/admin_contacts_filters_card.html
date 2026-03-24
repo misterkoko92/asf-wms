@@ -1,0 +1,38 @@
+{% load i18n %}
+<div id="scan-admin-contacts-filters" class="scan-card card border-0 ui-comp-card">
+    <h3 class="ui-comp-title h5 mb-3">{% trans "Recherche et filtres" %}</h3>
+    <form method="get" class="scan-filters row g-3 ui-comp-form">
+        <div class="scan-field col-12 col-lg-5">
+            <label class="form-label" for="scan-admin-contacts-q">{% trans "Recherche" %}</label>
+            <input id="scan-admin-contacts-q"
+                   type="text"
+                   name="q"
+                   value="{{ query }}"
+                   class="form-control"
+                   placeholder="{% trans "Nom, email, téléphone, ASF ID" %}">
+        </div>
+        <div class="scan-field col-12 col-md-6 col-lg-3">
+            <label class="form-label" for="scan-admin-contacts-type">{% trans "Type de contact" %}</label>
+            <select id="scan-admin-contacts-type" name="contact_type" class="form-select">
+                {% for value, label in contact_filter_choices %}
+                    <option value="{{ value }}"
+                            {% if contact_filter == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="scan-field col-12 col-md-6 col-lg-4">
+            <label class="form-label" for="scan-admin-contacts-destination">{% trans "Destination" %}</label>
+            <select id="scan-admin-contacts-destination" name="destination_id" class="form-select">
+                <option value="">{% trans "Toutes destinations" %}</option>
+                {% for destination in destination_filter_choices %}
+                    <option value="{{ destination.id }}"
+                            {% if destination_filter == destination.id|stringformat:"s" %}selected{% endif %}>{{ destination }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="scan-filter-actions col-12 d-flex flex-wrap gap-2 align-items-end">
+            <button type="submit" class="scan-submit scan-submit-inline btn btn-primary">{% trans "Filtrer" %}</button>
+            <a class="btn btn-tertiary" href="{% url 'scan:scan_admin_contacts' %}">{% trans "Réinitialiser" %}</a>
+        </div>
+    </form>
+</div>

@@ -1,0 +1,298 @@
+{% load i18n %}
+<div id="scan-admin-contacts-cockpit" class="scan-card card border-0 ui-comp-card">
+    <h3 class="ui-comp-title h5 mb-3">{% trans "Pilotage contacts expédition" %}</h3>
+    <p class="scan-help ui-comp-note">
+        {% trans "Lecture du registre expéditeurs, structures destinataires, liens autorisés et correspondants d'escale." %}
+    </p>
+    <div class="row g-3">
+        <div class="col-12 col-xl-6">
+            <details class="scan-admin-table-accordion ui-comp-panel p-0 border rounded-3 h-100">
+                <summary class="scan-admin-table-summary">
+                    <span>{% trans "Expéditeurs" %}</span>
+                </summary>
+                <div class="p-3">
+                    <div class="scan-table-wrap table-responsive">
+                        <table class="scan-table table table-sm table-hover" data-table-tools="1">
+                            <thead>
+                                <tr>
+                                    <th>{% trans "Structure" %}</th>
+                                    <th>{% trans "Référent par défaut" %}</th>
+                                    <th>{% trans "Statut ASF" %}</th>
+                                    <th>{% trans "Liens actifs" %}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for shipper in cockpit_shipment_shippers %}
+                                    <tr>
+                                        <td>{{ shipper.organization.name }}</td>
+                                        <td>{{ shipper.default_contact|default:"-" }}</td>
+                                        <td>{{ shipper.get_validation_status_display }}</td>
+                                        <td>{{ shipper.active_link_count }}</td>
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="4">{% trans "Aucun expéditeur enregistré." %}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </details>
+        </div>
+        <div class="col-12 col-xl-6">
+            <details class="scan-admin-table-accordion ui-comp-panel p-0 border rounded-3 h-100">
+                <summary class="scan-admin-table-summary">
+                    <span>{% trans "Structures destinataires" %}</span>
+                </summary>
+                <div class="p-3">
+                    <div class="scan-table-wrap table-responsive">
+                        <table class="scan-table table table-sm table-hover" data-table-tools="1">
+                            <thead>
+                                <tr>
+                                    <th>{% trans "Structure" %}</th>
+                                    <th>{% trans "Escale" %}</th>
+                                    <th>{% trans "Statut ASF" %}</th>
+                                    <th>{% trans "Référents actifs" %}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for recipient in cockpit_shipment_recipient_organizations %}
+                                    <tr>
+                                        <td>
+                                            {{ recipient.organization.name }}
+                                            {% if recipient.is_correspondent %}
+                                                <div class="scan-help">{% trans "Correspondant actif" %}</div>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ recipient.destination }}</td>
+                                        <td>{{ recipient.get_validation_status_display }}</td>
+                                        <td>{{ recipient.active_recipient_contact_count }}</td>
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="4">{% trans "Aucune structure destinataire enregistrée." %}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </details>
+        </div>
+        <div class="col-12 col-xl-6">
+            <details class="scan-admin-table-accordion ui-comp-panel p-0 border rounded-3 h-100">
+                <summary class="scan-admin-table-summary">
+                    <span>{% trans "Liens expéditeur → destinataire" %}</span>
+                </summary>
+                <div class="p-3">
+                    <div class="scan-table-wrap table-responsive">
+                        <table class="scan-table table table-sm table-hover" data-table-tools="1">
+                            <thead>
+                                <tr>
+                                    <th>{% trans "Expéditeur" %}</th>
+                                    <th>{% trans "Destinataire" %}</th>
+                                    <th>{% trans "Référent par défaut" %}</th>
+                                    <th>{% trans "Référents autorisés" %}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for link in cockpit_shipment_links %}
+                                    <tr>
+                                        <td>{{ link.shipper.organization.name }}</td>
+                                        <td>{{ link.recipient_organization.organization.name }}</td>
+                                        <td>{{ link.default_authorized_contact|default:"-" }}</td>
+                                        <td>{{ link.active_authorized_contact_count }}</td>
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="4">{% trans "Aucun lien expéditeur destinataire enregistré." %}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </details>
+        </div>
+        <div class="col-12 col-xl-6">
+            <details class="scan-admin-table-accordion ui-comp-panel p-0 border rounded-3 h-100">
+                <summary class="scan-admin-table-summary">
+                    <span>{% trans "Correspondants d'escale" %}</span>
+                </summary>
+                <div class="p-3">
+                    <div class="scan-table-wrap table-responsive">
+                        <table class="scan-table table table-sm table-hover" data-table-tools="1">
+                            <thead>
+                                <tr>
+                                    <th>{% trans "Escale" %}</th>
+                                    <th>{% trans "Structure" %}</th>
+                                    <th>{% trans "Statut ASF" %}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for correspondent in cockpit_shipment_correspondents %}
+                                    <tr>
+                                        <td>{{ correspondent.destination }}</td>
+                                        <td>{{ correspondent.organization.name }}</td>
+                                        <td>{{ correspondent.get_validation_status_display }}</td>
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="3">{% trans "Aucun correspondant d'escale enregistré." %}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </details>
+        </div>
+    </div>
+    <hr>
+    <div class="row g-3 ui-comp-form">
+        <div class="col-12 col-xl-4">
+            <div class="ui-comp-panel p-3 border rounded-3 h-100">
+                <h4 class="h6 mb-2">{% trans "Définir le référent destinataire par défaut" %}</h4>
+                <form method="post" class="row g-2">
+                    {% csrf_token %}
+                    <input type="hidden"
+                           name="action"
+                           value="set_default_authorized_recipient_contact">
+                    <input type="hidden" name="q" value="{{ query }}">
+                    <input type="hidden" name="contact_type" value="{{ contact_filter }}">
+                    <input type="hidden" name="destination_id" value="{{ destination_filter }}">
+                    <div class="col-12">
+                        <label class="form-label" for="scan-shipment-link-id">{% trans "Lien expéditeur → destinataire" %}</label>
+                        <select id="scan-shipment-link-id"
+                                name="link_id"
+                                class="form-select"
+                                required>
+                            <option value="">{% trans "Choisir..." %}</option>
+                            {% for link in cockpit_shipment_links %}
+                                {% if link.is_active %}
+                                    <option value="{{ link.id }}">
+                                        {{ link.shipper.organization.name }} → {{ link.recipient_organization.organization.name }}
+                                    </option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="scan-shipment-recipient-contact-id">{% trans "Référent autorisé" %}</label>
+                        <select id="scan-shipment-recipient-contact-id"
+                                name="recipient_contact_id"
+                                class="form-select"
+                                required>
+                            <option value="">{% trans "Choisir..." %}</option>
+                            {% for option in cockpit_shipment_authorization_options %}
+                                <option value="{{ option.recipient_contact_id }}"
+                                        data-link-id="{{ option.link_id }}">
+                                    {{ option.label }}
+                                    {% if option.is_default %}
+                                        ({% trans "défaut actuel" %})
+                                    {% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">{% trans "Mettre à jour le défaut" %}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div class="col-12 col-xl-4">
+            <div class="ui-comp-panel p-3 border rounded-3 h-100">
+                <h4 class="h6 mb-2">{% trans "Changer le correspondant actif d'une escale" %}</h4>
+                <form method="post" class="row g-2">
+                    {% csrf_token %}
+                    <input type="hidden"
+                           name="action"
+                           value="set_stopover_correspondent_recipient_organization">
+                    <input type="hidden" name="q" value="{{ query }}">
+                    <input type="hidden" name="contact_type" value="{{ contact_filter }}">
+                    <input type="hidden" name="destination_id" value="{{ destination_filter }}">
+                    <div class="col-12">
+                        <label class="form-label" for="scan-stopover-correspondent-id">
+                            {% trans "Structure destinataire correspondante" %}
+                        </label>
+                        <select id="scan-stopover-correspondent-id"
+                                name="recipient_organization_id"
+                                class="form-select"
+                                required>
+                            <option value="">{% trans "Choisir..." %}</option>
+                            {% for recipient in cockpit_shipment_recipient_organizations %}
+                                {% if recipient.is_active %}
+                                    <option value="{{ recipient.id }}">
+                                        {{ recipient.destination }} - {{ recipient.organization.name }}
+                                        {% if recipient.is_correspondent %}
+                                            ({% trans "actuel" %})
+                                        {% endif %}
+                                    </option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-secondary">{% trans "Activer ce correspondant" %}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div class="col-12 col-xl-4">
+            <div class="ui-comp-panel p-3 border rounded-3 h-100">
+                <h4 class="h6 mb-2">{% trans "Fusionner deux structures destinataires" %}</h4>
+                <form method="post" class="row g-2">
+                    {% csrf_token %}
+                    <input type="hidden"
+                           name="action"
+                           value="merge_shipment_recipient_organizations">
+                    <input type="hidden" name="q" value="{{ query }}">
+                    <input type="hidden" name="contact_type" value="{{ contact_filter }}">
+                    <input type="hidden" name="destination_id" value="{{ destination_filter }}">
+                    <div class="col-12">
+                        <label class="form-label" for="scan-merge-source-recipient-organization">{% trans "Structure source" %}</label>
+                        <select id="scan-merge-source-recipient-organization"
+                                name="source_recipient_organization_id"
+                                class="form-select"
+                                required>
+                            <option value="">{% trans "Choisir..." %}</option>
+                            {% for recipient in cockpit_shipment_recipient_organizations %}
+                                {% if recipient.is_active %}
+                                    <option value="{{ recipient.id }}"
+                                            data-destination-id="{{ recipient.destination_id }}">
+                                        {{ recipient.destination }} - {{ recipient.organization.name }}
+                                    </option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="scan-merge-target-recipient-organization">{% trans "Structure cible" %}</label>
+                        <select id="scan-merge-target-recipient-organization"
+                                name="target_recipient_organization_id"
+                                class="form-select"
+                                required>
+                            <option value="">{% trans "Choisir..." %}</option>
+                            {% for recipient in cockpit_shipment_recipient_organizations %}
+                                {% if recipient.is_active %}
+                                    <option value="{{ recipient.id }}"
+                                            data-destination-id="{{ recipient.destination_id }}">
+                                        {{ recipient.destination }} - {{ recipient.organization.name }}
+                                    </option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">
+                            {% trans "La fusion doit rester sur la même escale. Les référents et autorisations sont transférés vers la cible." %}
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-warning">{% trans "Fusionner" %}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

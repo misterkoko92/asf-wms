@@ -1,0 +1,77 @@
+{% load i18n %}
+<div id="portal-order-create-routing-card" class="scan-card portal-card card border-0 ui-comp-card">
+  {% if errors %}
+    <div class="scan-message error">
+      {% for error in errors %}
+        <div>{{ error }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="scan-field">
+    <label class="form-label" for="destination_id">{% trans "Destination" %}</label>
+    <select class="form-select" id="destination_id" name="destination_id" required>
+      <option value="">---------</option>
+      {% if destination_options %}
+        <optgroup label="{% trans "Destinations disponibles" %}">
+          {% for option in destination_options %}
+            <option value="{{ option.id }}" {% if option.id|stringformat:"s" == form_data.destination_id %}selected{% endif %}>
+              {{ option.label }}
+            </option>
+          {% endfor %}
+        </optgroup>
+      {% endif %}
+      {% if disabled_destination_options %}
+        <optgroup label="{% trans "Autres destinations" %}">
+          {% for option in disabled_destination_options %}
+            <option value="{{ option.id }}" disabled {% if option.id|stringformat:"s" == form_data.destination_id %}selected{% endif %}>
+              {{ option.label }}
+            </option>
+          {% endfor %}
+        </optgroup>
+      {% endif %}
+    </select>
+  </div>
+
+  <div class="scan-field">
+    <label class="form-label" for="recipient_id">{% trans "Destinataire" %}</label>
+    <select class="form-select" id="recipient_id" name="recipient_id" required>
+      <option value="">---------</option>
+      {% for option in recipient_options %}
+        <option value="{{ option.id }}" {% if option.id|stringformat:"s" == form_data.recipient_id %}selected{% endif %}>
+          {{ option.label }}
+        </option>
+      {% endfor %}
+    </select>
+    <p class="scan-help">
+      {% trans "Le destinataire est filtré selon la destination choisie." %}
+    </p>
+    <p class="scan-help">
+      {% trans "Besoin d'un nouveau destinataire ?" %}
+      <a href="{% url 'portal:portal_recipients' %}">{% trans "Ajouter" %}</a>
+    </p>
+  </div>
+
+  <div class="scan-field">
+    <label class="form-label" for="notes">{% trans "Notes" %}</label>
+    <textarea class="form-control" id="notes" name="notes" rows="3">{{ form_data.notes }}</textarea>
+  </div>
+
+  <div class="scan-field">
+    <label class="form-label">{% trans "Filtrer produits" %}</label>
+    <div id="portal-category-filters" class="scan-filter-actions ui-comp-actions">
+      <select class="form-select form-select-sm" id="portal-filter-category-l1" data-filter-level="0">
+        <option value="">{% trans "Toutes catégories" %}</option>
+      </select>
+      <select class="form-select form-select-sm" id="portal-filter-category-l2" data-filter-level="1" hidden>
+        <option value="">{% trans "Toutes sous-catégories (L2)" %}</option>
+      </select>
+      <select class="form-select form-select-sm" id="portal-filter-category-l3" data-filter-level="2" hidden>
+        <option value="">{% trans "Toutes sous-catégories (L3)" %}</option>
+      </select>
+      <select class="form-select form-select-sm" id="portal-filter-category-l4" data-filter-level="3" hidden>
+        <option value="">{% trans "Toutes sous-catégories (L4)" %}</option>
+      </select>
+    </div>
+  </div>
+</div>

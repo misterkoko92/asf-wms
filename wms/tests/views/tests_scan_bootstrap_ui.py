@@ -20,6 +20,8 @@ from wms.models import (
     ProductLot,
     ProductLotStatus,
     PublicOrderLink,
+    Receipt,
+    ReceiptType,
     Shipment,
     ShipmentStatus,
     Warehouse,
@@ -39,9 +41,9 @@ class ScanBootstrapUiTests(TestCase):
             email="scan-bootstrap-admin@example.com",
         )
         self.client.force_login(self.staff_user)
-        warehouse = Warehouse.objects.create(name="Main", code="MAIN")
+        self.warehouse = Warehouse.objects.create(name="Main", code="MAIN")
         location = Location.objects.create(
-            warehouse=warehouse,
+            warehouse=self.warehouse,
             zone="A",
             aisle="01",
             shelf="001",
@@ -609,6 +611,31 @@ class ScanBootstrapUiTests(TestCase):
         self.assertIn("merge_contact", js_content)
         self.assertIn("deactivate_contact", js_content)
 
+    def test_scan_admin_contacts_breaks_into_named_workflow_sections(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_admin_contacts"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="scan-admin-contacts-intro"')
+        self.assertContains(response, 'id="scan-admin-contacts-create-destination"')
+        self.assertContains(response, 'id="scan-admin-contacts-create-contact"')
+        self.assertContains(response, 'id="scan-admin-contacts-filters"')
+        self.assertContains(response, 'id="scan-admin-contacts-cockpit"')
+        self.assertContains(response, 'id="scan-admin-contacts-directory-card"')
+        self.assertContains(response, 'id="scan-admin-contacts-correspondents-card"')
+        self.assertContains(response, "ui-comp-card", count=7)
+        self.assertContains(response, 'data-admin-contacts-crud="1"')
+        self.assertContains(response, 'data-table-tools="1"', count=6)
+        self.assertContains(response, 'id="scan-admin-contact-action-panel"')
+        self.assertContains(response, 'value="set_default_authorized_recipient_contact"')
+        self.assertContains(response, 'value="set_stopover_correspondent_recipient_organization"')
+        self.assertContains(response, 'value="merge_shipment_recipient_organizations"')
+        self.assertContains(response, 'id="scan-shipment-link-id"')
+        self.assertContains(response, 'id="scan-merge-target-recipient-organization"')
+        self.assertContains(response, reverse("admin:contacts_contact_changelist"))
+        self.assertContains(response, reverse("admin:wms_destination_changelist"))
+
     def test_scan_order_page_uses_design_component_classes(self):
         response = self.client.get(reverse("scan:scan_order"))
         self.assertEqual(response.status_code, 200)
@@ -706,12 +733,71 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "scan-radio-inline-group-tight", count=2)
         self.assertContains(response, "scan-radio-inline-choice", count=5)
 
+    def test_scan_receive_pallet_breaks_into_named_workflow_sections(self):
+        response = self.client.get(reverse("scan:scan_receive_pallet"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="scan-receive-pallet-create-card"')
+        self.assertContains(response, 'id="scan-receive-pallet-listing-upload-card"')
+        self.assertContains(response, "scan-receive-pallet-primary-row")
+        self.assertContains(response, "scan-receive-pallet-actions-inline")
+        self.assertContains(response, 'id="listing_file"')
+        self.assertContains(response, 'id="id_listing_file_type_pdf"')
+        self.assertContains(response, 'id="id_listing_file_type_excel"')
+        self.assertContains(response, 'id="id_listing_file_type_csv"')
+
     def test_scan_receive_association_page_uses_design_component_classes(self):
         response = self.client.get(reverse("scan:scan_receive_association"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "ui-comp-card")
         self.assertContains(response, "ui-comp-title")
         self.assertContains(response, "ui-comp-form")
+
+    def test_scan_receive_surfaces_break_into_named_workflow_sections(self):
+        receive_response = self.client.get(reverse("scan:scan_receive"))
+        self.assertEqual(receive_response.status_code, 200)
+        self.assertContains(receive_response, 'id="scan-receive-select-card"')
+        self.assertContains(receive_response, 'id="scan-receive-create-card"')
+        self.assertContains(receive_response, 'id="scan-receive-empty-card"')
+        self.assertContains(receive_response, 'value="select_receipt"')
+        self.assertContains(receive_response, 'value="create_receipt"')
+
+        active_receipt = Receipt.objects.create(
+            receipt_type=ReceiptType.PALLET,
+            warehouse=self.warehouse,
+            received_on=date(2026, 2, 1),
+        )
+        active_response = self.client.get(
+            reverse("scan:scan_receive"),
+            {"receipt": str(active_receipt.id)},
+        )
+        self.assertEqual(active_response.status_code, 200)
+        self.assertContains(active_response, 'id="scan-receive-active-card"')
+        self.assertContains(active_response, 'id="scan-receive-add-line-card"')
+        self.assertContains(active_response, 'id="scan-receive-lines-card"')
+
+        association_response = self.client.get(reverse("scan:scan_receive_association"))
+        self.assertEqual(association_response.status_code, 200)
+        self.assertContains(association_response, 'id="scan-receive-association-create-card"')
+        self.assertContains(association_response, "scan-receive-association-primary-row")
+        self.assertContains(association_response, "scan-receive-association-actions-inline")
+        self.assertContains(association_response, 'id="association-lines-data"')
+        self.assertContains(association_response, 'id="association-lines-errors"')
+
+        association_receipt = Receipt.objects.create(
+            receipt_type=ReceiptType.ASSOCIATION,
+            warehouse=self.warehouse,
+            received_on=date(2026, 2, 2),
+        )
+        association_active_response = self.client.get(
+            reverse("scan:scan_receive_association"),
+            {"receipt_id": str(association_receipt.id)},
+        )
+        self.assertEqual(association_active_response.status_code, 200)
+        self.assertContains(
+            association_active_response,
+            'id="scan-receive-association-allocations-card"',
+        )
 
     def test_scan_misc_pages_use_design_component_classes(self):
         self.client.force_login(self.superuser)
@@ -753,6 +839,69 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(tracking_response, "ui-comp-card")
         self.assertContains(tracking_response, "ui-comp-title")
         self.assertContains(tracking_response, "ui-comp-form")
+
+    def test_scan_import_page_breaks_into_named_workflow_sections(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_import"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="scan-imports-intro"')
+        self.assertContains(response, 'id="scan-imports-products"')
+        self.assertContains(response, 'id="scan-imports-locations"')
+        self.assertContains(response, 'id="scan-imports-categories"')
+        self.assertContains(response, 'id="scan-imports-warehouses"')
+        self.assertContains(response, 'id="scan-imports-contacts"')
+        self.assertContains(response, 'id="scan-imports-users"')
+        self.assertContains(response, "ui-comp-card", count=7)
+        self.assertContains(response, "ui-comp-form")
+        self.assertContains(response, "ui-comp-actions")
+        self.assertContains(response, 'name="action" value="product_single"')
+        self.assertContains(response, 'name="action" value="product_file"')
+        self.assertContains(response, 'id="product_file"')
+        self.assertContains(response, 'name="stock_mode"')
+        self.assertContains(
+            response,
+            reverse("scan:scan_import") + "?export=products",
+        )
+        self.assertContains(response, 'id="scan-import-selector-data"')
+
+    def test_scan_import_pending_review_uses_named_review_section(self):
+        self.client.force_login(self.superuser)
+        matched_product = Product.objects.create(
+            sku="IMPORT-REVIEW-001",
+            name="Produit revue import",
+            qr_code_image="qr_codes/import_review.png",
+        )
+        session = self.client.session
+        session["product_import_pending"] = {
+            "token": "pending-import-review",
+            "matches": [
+                {
+                    "row_index": 2,
+                    "match_type": "sku",
+                    "match_ids": [matched_product.id],
+                    "row_summary": {
+                        "sku": "IMPORT-REVIEW-001",
+                        "name": "Produit import revue",
+                        "brand": "ASF",
+                        "quantity": 4,
+                        "location": "Main A-01-001",
+                    },
+                }
+            ],
+            "default_action": "update",
+            "quantity_mode": "movement",
+        }
+        session.save()
+
+        response = self.client.get(reverse("scan:scan_import"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="scan-imports-product-review"')
+        self.assertContains(response, 'name="action" value="product_confirm"')
+        self.assertContains(response, 'name="pending_token" value="pending-import-review"')
+        self.assertContains(response, 'name="cancel" value="1"')
 
     def test_scan_remaining_pages_use_design_component_classes(self):
         stock_response = self.client.get(reverse("scan:scan_stock"))

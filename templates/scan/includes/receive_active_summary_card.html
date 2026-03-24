@@ -1,0 +1,37 @@
+{% load i18n wms_status %}
+
+<div id="scan-receive-active-card" class="scan-card card border-0 ui-comp-card">
+  <h2 class="ui-comp-title">{% trans "Réception active" %}</h2>
+  <div class="scan-meta-grid">
+    <div class="scan-meta-item">
+      <strong>{% trans "Référence" %}</strong>
+      {{ selected_receipt.reference|default:"-" }}
+    </div>
+    <div class="scan-meta-item">
+      <strong>{% trans "Type" %}</strong>
+      {{ selected_receipt.get_receipt_type_display }}
+    </div>
+    <div class="scan-meta-item">
+      <strong>{% trans "Statut" %}</strong>
+      <span class="{% status_pill_class selected_receipt.status 'receipt' %}">
+        {{ selected_receipt.get_status_display }}
+      </span>
+    </div>
+    <div class="scan-meta-item">
+      <strong>{% trans "Date réception" %}</strong>
+      {{ selected_receipt.received_on|date:"d/m/Y" }}
+    </div>
+    <div class="scan-meta-item">
+      <strong>{% trans "Entrepôt" %}</strong>
+      {{ selected_receipt.warehouse }}
+    </div>
+    <div class="scan-meta-item">
+      <strong>{% trans "Provenance" %}</strong>
+      {{ selected_receipt.source_contact|default:"-" }}
+    </div>
+    <div class="scan-meta-item">
+      <strong>{% trans "Transporteur" %}</strong>
+      {{ selected_receipt.carrier_contact|default:"-" }}
+    </div>
+  </div>
+</div>

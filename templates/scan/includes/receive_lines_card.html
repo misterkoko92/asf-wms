@@ -1,0 +1,51 @@
+{% load i18n %}
+
+<div id="scan-receive-lines-card" class="scan-card card border-0 ui-comp-card">
+  <h2 class="ui-comp-title">{% trans "Lignes de réception" %}</h2>
+  {% if receipt_lines %}
+    <div class="scan-table-wrap table-responsive">
+      <table class="scan-table table table-sm table-hover">
+        <thead>
+          <tr>
+            <th>{% trans "Produit" %}</th>
+            <th>{% trans "Quantité" %}</th>
+            <th>{% trans "Lot" %}</th>
+            <th>{% trans "Péremption" %}</th>
+            <th>{% trans "Emplacement" %}</th>
+            <th>{% trans "Statut" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for line in receipt_lines %}
+            <tr>
+              <td>{{ line.product.name }}</td>
+              <td class="qty">{{ line.quantity }}</td>
+              <td>{{ line.lot_code|default:"-" }}</td>
+              <td>{% if line.expires_on %}{{ line.expires_on|date:"d/m/Y" }}{% else %}-{% endif %}</td>
+              <td>{{ line.location|default:"-" }}</td>
+              <td class="status">
+                {% if line.received_lot_id %}
+                  <span class="ui-comp-status-pill is-ready">{% trans "Réceptionné" %}</span>
+                {% else %}
+                  <span class="ui-comp-status-pill is-progress">{% trans "En attente" %}</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if pending_count %}
+      <form method="post" class="scan-field">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="receive_lines">
+        <input type="hidden" name="receipt_id" value="{{ selected_receipt.id }}">
+        <button type="submit" class="scan-submit secondary scan-submit-inline btn btn-secondary">
+          {% blocktrans %}Réceptionner {{ pending_count }} ligne(s){% endblocktrans %}
+        </button>
+      </form>
+    {% endif %}
+  {% else %}
+    <p class="scan-help">{% trans "Aucune ligne pour cette réception." %}</p>
+  {% endif %}
+</div>

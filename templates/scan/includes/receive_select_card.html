@@ -1,0 +1,22 @@
+{% load i18n %}
+
+<div id="scan-receive-select-card" class="scan-card card border-0 ui-comp-card">
+  <h2 class="ui-comp-title">{% trans "Réception don/palette" %}</h2>
+  <form method="post" novalidate class="ui-comp-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="select_receipt">
+    <div class="scan-field">
+      <label class="form-label" for="id_receipt">{{ select_form.receipt.label }}</label>
+      <div class="scan-inline">
+        {{ select_form.receipt }}
+        <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:wms_receipt_add' %}" target="_blank" rel="noopener">
+          {% trans "Ajouter réception" %}
+        </a>
+      </div>
+      {% for error in select_form.receipt.errors %}
+        <div class="scan-message error">{{ error }}</div>
+      {% endfor %}
+    </div>
+    <button type="submit" class="scan-submit secondary scan-submit-inline btn btn-secondary">{% trans "Ouvrir réception" %}</button>
+  </form>
+</div>

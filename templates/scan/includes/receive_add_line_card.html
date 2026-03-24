@@ -1,0 +1,85 @@
+{% load i18n %}
+
+<div id="scan-receive-add-line-card" class="scan-card card border-0 ui-comp-card">
+  <h2 class="ui-comp-title">{% trans "Ajouter une ligne" %}</h2>
+  {% if line_form.non_field_errors %}
+    <div class="scan-message error">{{ line_form.non_field_errors }}</div>
+  {% endif %}
+  <form method="post" novalidate class="ui-comp-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="add_line">
+    {{ line_form.receipt_id }}
+
+    <div class="scan-field">
+      <label class="form-label" for="id_product_code">{{ line_form.product_code.label }}</label>
+      <div class="scan-inline">
+        {{ line_form.product_code }}
+        <button type="button" class="scan-scan-btn btn btn-tertiary" data-scan-target="id_product_code">{% trans "Scan" %}</button>
+      </div>
+      {% for error in line_form.product_code.errors %}
+        <div class="scan-message error">{{ error }}</div>
+      {% endfor %}
+      {% if line_form.product_code.errors %}
+        <a class="scan-submit secondary btn btn-secondary" href="{% url 'admin:wms_product_add' %}">{% trans "Ajouter un nouveau produit" %}</a>
+      {% endif %}
+    </div>
+
+    <div class="scan-field">
+      <label class="form-label" for="id_quantity">{{ line_form.quantity.label }}</label>
+      {{ line_form.quantity }}
+      {% for error in line_form.quantity.errors %}
+        <div class="scan-message error">{{ error }}</div>
+      {% endfor %}
+    </div>
+
+    <div class="scan-field">
+      <label class="form-label" for="id_lot_code">{{ line_form.lot_code.label }}</label>
+      {{ line_form.lot_code }}
+    </div>
+
+    <div class="scan-field">
+      <label class="form-label" for="id_expires_on">{{ line_form.expires_on.label }}</label>
+      {{ line_form.expires_on }}
+    </div>
+
+    <div class="scan-field">
+      <label class="form-label" for="id_lot_status">{{ line_form.lot_status.label }}</label>
+      {{ line_form.lot_status }}
+    </div>
+
+    <div class="scan-field">
+      <label class="form-label" for="id_location">{{ line_form.location.label }}</label>
+      <div class="scan-inline">
+        {{ line_form.location }}
+        <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:wms_location_add' %}" target="_blank" rel="noopener">
+          {% trans "Ajouter emplacement" %}
+        </a>
+      </div>
+      {% for error in line_form.location.errors %}
+        <div class="scan-message error">{{ error }}</div>
+      {% endfor %}
+      <p class="scan-help">{{ line_form.location.help_text }}</p>
+    </div>
+
+    <div class="scan-field">
+      <label class="form-label" for="id_storage_conditions">{{ line_form.storage_conditions.label }}</label>
+      {{ line_form.storage_conditions }}
+    </div>
+
+    <div class="scan-field">
+      <label class="form-label">
+        {{ line_form.receive_now }}
+        {{ line_form.receive_now.label }}
+      </label>
+    </div>
+
+    <button type="submit" class="scan-submit btn btn-primary">{% trans "Ajouter la ligne" %}</button>
+    <p class="scan-help">{% trans "Astuce: le statut auto applique la quarantaine par défaut du produit." %}</p>
+  </form>
+  {{ products_json|json_script:"product-data" }}
+  <datalist id="product-options">
+    {% for product in products_json %}
+      <option value="{{ product.name }}" label="{{ product.sku }}{% if product.barcode %} | {{ product.barcode }}{% endif %}{% if product.ean %} | {{ product.ean }}{% endif %}"></option>
+    {% endfor %}
+  </datalist>
+</div>

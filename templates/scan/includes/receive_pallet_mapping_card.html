@@ -1,0 +1,102 @@
+{% load i18n %}
+
+<div id="scan-receive-pallet-mapping-card" class="scan-card card border-0 ui-comp-card">
+  <h2 class="ui-comp-title">{% trans "Mapping colonnes" %}</h2>
+  <p class="scan-help">
+    {% trans "Assignez les colonnes du fichier aux champs WMS. Champs requis: nom + quantité." %}
+  </p>
+  {% if listing_meta %}
+    <div class="scan-meta-grid">
+      <div class="scan-meta-item">
+        <strong>{% trans "Date réception" %}</strong>
+        {{ listing_meta.received_on }}
+      </div>
+      <div class="scan-meta-item">
+        <strong>{% trans "Palettes" %}</strong>
+        {{ listing_meta.pallet_count }}
+      </div>
+      <div class="scan-meta-item">
+        <strong>{% trans "Donateur" %}</strong>
+        {{ listing_meta.source_contact }}
+      </div>
+      <div class="scan-meta-item">
+        <strong>{% trans "Transporteur" %}</strong>
+        {{ listing_meta.carrier_contact }}
+      </div>
+      <div class="scan-meta-item">
+        <strong>{% trans "Demande transport" %}</strong>
+        {{ listing_meta.transport_request_date }}
+      </div>
+      {% if listing_meta.sheet_name %}
+        <div class="scan-meta-item">
+          <strong>{% trans "Feuille" %}</strong>
+          {{ listing_meta.sheet_name }}
+        </div>
+      {% endif %}
+      {% if listing_meta.header_row %}
+        <div class="scan-meta-item">
+          <strong>{% trans "Ligne titres" %}</strong>
+          {{ listing_meta.header_row }}
+        </div>
+      {% endif %}
+      {% if listing_meta.sheet_names %}
+        <div class="scan-meta-item">
+          <strong>{% trans "Feuilles detectees" %}</strong>
+          {{ listing_meta.sheet_names }}
+        </div>
+      {% endif %}
+      {% if listing_meta.pdf_pages %}
+        <div class="scan-meta-item">
+          <strong>{% trans "Pages PDF" %}</strong>
+          {{ listing_meta.pdf_pages }}
+        </div>
+      {% endif %}
+      {% if listing_meta.pdf_total_pages %}
+        <div class="scan-meta-item">
+          <strong>{% trans "Pages totales" %}</strong>
+          {{ listing_meta.pdf_total_pages }}
+        </div>
+      {% endif %}
+    </div>
+  {% endif %}
+  <form method="post" class="scan-filters ui-comp-form" style="grid-template-columns: 1fr;">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="listing_map">
+    <input type="hidden" name="pending_token" value="{{ listing_token }}">
+    <div class="scan-table-wrap" style="width: 100%; grid-column: 1 / -1;">
+      <table class="scan-table" style="width: 100%">
+        <thead>
+          <tr>
+            <th>{% trans "Colonne" %}</th>
+            <th>{% trans "Exemple" %}</th>
+            <th>{% trans "Champ WMS" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for column in listing_columns %}
+            <tr>
+              <td>{{ column.name }}</td>
+              <td>{{ column.sample }}</td>
+              <td>
+                <select name="map_{{ column.index }}">
+                  <option value="">{% trans "Ignorer" %}</option>
+                  {% for value, label in mapping_fields %}
+                    <option value="{{ value }}" {% if column.mapped == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="scan-filter-actions ui-comp-actions">
+      <button type="submit" class="scan-submit btn btn-primary">{% trans "Valider mapping" %}</button>
+    </div>
+  </form>
+  <form method="post" class="scan-filters ui-comp-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="listing_cancel">
+    <button type="submit" class="scan-submit secondary btn btn-secondary">{% trans "Annuler import" %}</button>
+  </form>
+</div>

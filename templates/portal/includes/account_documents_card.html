@@ -1,0 +1,56 @@
+{% load i18n wms_status wms_ui %}
+<div id="portal-account-documents-card" class="scan-card portal-card card border-0 ui-comp-card">
+  <h3 class="portal-section-title ui-comp-title">{% trans "Documents de vérification" %}</h3>
+  {% if account_documents %}
+    <div class="scan-table-wrap table-responsive">
+      <table class="portal-table scan-table table table-sm table-hover">
+        <thead>
+          <tr>
+            <th>{% trans "Type" %}</th>
+            <th>{% trans "Statut" %}</th>
+            <th>{% trans "Ajouté le" %}</th>
+            <th>{% trans "Fichier" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for doc in account_documents %}
+            <tr>
+              <td>{{ doc.get_doc_type_display }}</td>
+              <td>
+                <span class="{% status_portal_badge_class doc.status 'document_review' %}">
+                  {{ doc.get_status_display }}
+                </span>
+              </td>
+              <td>{{ doc.uploaded_at|date:"d/m/Y" }}</td>
+              <td>
+                {% if doc.file and doc.scan_status == "clean" %}
+                  {% ui_button label=download_label href=doc.file.url variant="tertiary" size="sm" target="_blank" %}
+                {% elif doc.scan_status == "infected" %}
+                  <span class="scan-help">{% trans "Bloqué (fichier suspect)." %}</span>
+                {% elif doc.file %}
+                  <span class="scan-help">{% trans "Quarantaine (scan antivirus en cours)." %}</span>
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p>{% trans "Aucun document pour le moment." %}</p>
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data" novalidate class="ui-comp-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="upload_account_docs">
+    {% for value, label in account_doc_types %}
+      <div class="portal-doc-upload-row">
+        <label class="form-label" for="id_doc_{{ value }}">{{ label }}</label>
+        <input class="form-control" type="file" id="id_doc_{{ value }}" name="doc_file_{{ value }}">
+      </div>
+    {% endfor %}
+    {% ui_button label=add_documents_label button_type="submit" variant="primary" extra_classes="scan-submit" %}
+  </form>
+</div>
