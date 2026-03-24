@@ -20,6 +20,8 @@ from wms.models import (
     ProductLot,
     ProductLotStatus,
     PublicOrderLink,
+    Receipt,
+    ReceiptType,
     Shipment,
     ShipmentStatus,
     Warehouse,
@@ -39,9 +41,9 @@ class ScanBootstrapUiTests(TestCase):
             email="scan-bootstrap-admin@example.com",
         )
         self.client.force_login(self.staff_user)
-        warehouse = Warehouse.objects.create(name="Main", code="MAIN")
+        self.warehouse = Warehouse.objects.create(name="Main", code="MAIN")
         location = Location.objects.create(
-            warehouse=warehouse,
+            warehouse=self.warehouse,
             zone="A",
             aisle="01",
             shelf="001",
@@ -731,12 +733,71 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "scan-radio-inline-group-tight", count=2)
         self.assertContains(response, "scan-radio-inline-choice", count=5)
 
+    def test_scan_receive_pallet_breaks_into_named_workflow_sections(self):
+        response = self.client.get(reverse("scan:scan_receive_pallet"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="scan-receive-pallet-create-card"')
+        self.assertContains(response, 'id="scan-receive-pallet-listing-upload-card"')
+        self.assertContains(response, "scan-receive-pallet-primary-row")
+        self.assertContains(response, "scan-receive-pallet-actions-inline")
+        self.assertContains(response, 'id="listing_file"')
+        self.assertContains(response, 'id="id_listing_file_type_pdf"')
+        self.assertContains(response, 'id="id_listing_file_type_excel"')
+        self.assertContains(response, 'id="id_listing_file_type_csv"')
+
     def test_scan_receive_association_page_uses_design_component_classes(self):
         response = self.client.get(reverse("scan:scan_receive_association"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "ui-comp-card")
         self.assertContains(response, "ui-comp-title")
         self.assertContains(response, "ui-comp-form")
+
+    def test_scan_receive_surfaces_break_into_named_workflow_sections(self):
+        receive_response = self.client.get(reverse("scan:scan_receive"))
+        self.assertEqual(receive_response.status_code, 200)
+        self.assertContains(receive_response, 'id="scan-receive-select-card"')
+        self.assertContains(receive_response, 'id="scan-receive-create-card"')
+        self.assertContains(receive_response, 'id="scan-receive-empty-card"')
+        self.assertContains(receive_response, 'value="select_receipt"')
+        self.assertContains(receive_response, 'value="create_receipt"')
+
+        active_receipt = Receipt.objects.create(
+            receipt_type=ReceiptType.PALLET,
+            warehouse=self.warehouse,
+            received_on=date(2026, 2, 1),
+        )
+        active_response = self.client.get(
+            reverse("scan:scan_receive"),
+            {"receipt": str(active_receipt.id)},
+        )
+        self.assertEqual(active_response.status_code, 200)
+        self.assertContains(active_response, 'id="scan-receive-active-card"')
+        self.assertContains(active_response, 'id="scan-receive-add-line-card"')
+        self.assertContains(active_response, 'id="scan-receive-lines-card"')
+
+        association_response = self.client.get(reverse("scan:scan_receive_association"))
+        self.assertEqual(association_response.status_code, 200)
+        self.assertContains(association_response, 'id="scan-receive-association-create-card"')
+        self.assertContains(association_response, "scan-receive-association-primary-row")
+        self.assertContains(association_response, "scan-receive-association-actions-inline")
+        self.assertContains(association_response, 'id="association-lines-data"')
+        self.assertContains(association_response, 'id="association-lines-errors"')
+
+        association_receipt = Receipt.objects.create(
+            receipt_type=ReceiptType.ASSOCIATION,
+            warehouse=self.warehouse,
+            received_on=date(2026, 2, 2),
+        )
+        association_active_response = self.client.get(
+            reverse("scan:scan_receive_association"),
+            {"receipt_id": str(association_receipt.id)},
+        )
+        self.assertEqual(association_active_response.status_code, 200)
+        self.assertContains(
+            association_active_response,
+            'id="scan-receive-association-allocations-card"',
+        )
 
     def test_scan_misc_pages_use_design_component_classes(self):
         self.client.force_login(self.superuser)
