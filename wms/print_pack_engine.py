@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
+from types import SimpleNamespace
 
 from django.conf import settings
 from django.core.files.base import ContentFile
@@ -631,6 +632,59 @@ def render_pack_xlsx_documents(*, pack_code, shipment=None, carton=None, variant
             )
             filename_suffix = f"-{target_index}" if len(targets) > 1 else ""
             xlsx_name = f"{pack.code}-{document.doc_type}-{document.id}{filename_suffix}.xlsx"
+            xlsx_documents.append(PackXlsxDocument(filename=xlsx_name, payload=xlsx_bytes))
+    return xlsx_documents
+
+
+def render_pack_document_xlsx_documents(
+    *,
+    pack_code,
+    doc_type,
+    variant,
+    shipment=None,
+    cartons=None,
+    render_doc_type=None,
+):
+    pack, documents = _resolve_pack_and_documents(pack_code=pack_code, variant=variant)
+    selected_documents = [
+        document
+        for document in documents
+        if _clean_text(getattr(document, "doc_type", "")) == doc_type
+    ]
+    if not selected_documents:
+        raise PrintPackEngineError(
+            f"No enabled document configured for pack {pack_code}, doc_type={doc_type}, variant={variant}."
+        )
+
+    target_cartons = list(cartons) if cartons is not None else [None]
+    if cartons is not None and not target_cartons:
+        return []
+
+    xlsx_documents = []
+    total_targets = len(selected_documents) * len(target_cartons)
+    target_index = 0
+    for document in selected_documents:
+        render_document = document
+        if render_doc_type:
+            render_document = SimpleNamespace(
+                id=document.id,
+                pack=document.pack,
+                doc_type=render_doc_type,
+                variant=document.variant,
+                xlsx_template_file=None,
+                cell_mappings=document.cell_mappings,
+            )
+        for target_carton in target_cartons:
+            target_index += 1
+            xlsx_bytes = _render_document_xlsx_bytes(
+                document=render_document,
+                shipment=shipment,
+                carton=target_carton,
+            )
+            filename_suffix = f"-{target_index}" if total_targets > 1 else ""
+            xlsx_name = (
+                f"{pack.code}-{render_document.doc_type}-{render_document.id}{filename_suffix}.xlsx"
+            )
             xlsx_documents.append(PackXlsxDocument(filename=xlsx_name, payload=xlsx_bytes))
     return xlsx_documents
 

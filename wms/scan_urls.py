@@ -65,6 +65,16 @@ urlpatterns = [
         name="scan_shipment_document",
     ),
     path(
+        "shipment/<int:shipment_id>/view-doc/<str:document_key>/",
+        views.scan_shipment_view_document,
+        name="scan_shipment_view_document",
+    ),
+    path(
+        "shipment/<int:shipment_id>/view-bundle/<str:bundle_key>/",
+        views.scan_shipment_view_bundle_pdf,
+        name="scan_shipment_view_bundle_pdf",
+    ),
+    path(
         "shipment/<int:shipment_id>/carton/<int:carton_id>/doc/",
         views.scan_shipment_carton_document,
         name="scan_shipment_carton_document",

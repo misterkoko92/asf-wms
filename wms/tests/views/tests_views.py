@@ -271,6 +271,18 @@ class ScanViewTests(TestCase):
                 None,
             ),
             (
+                "scan:scan_shipment_view_document",
+                "get",
+                {"shipment_id": shipment.id, "document_key": "shipment_note"},
+                None,
+            ),
+            (
+                "scan:scan_shipment_view_bundle_pdf",
+                "get",
+                {"shipment_id": shipment.id, "bundle_key": "a4"},
+                None,
+            ),
+            (
                 "scan:scan_shipment_carton_document",
                 "get",
                 {"shipment_id": shipment.id, "carton_id": carton.id},
@@ -1170,6 +1182,57 @@ class ScanViewTests(TestCase):
         self.assertIsNotNone(stale.archived_at)
         self.assertIsNone(fresh.archived_at)
         self.assertIsNone(regular_draft.archived_at)
+
+    def test_scan_shipments_ready_exposes_shipment_view_document_buttons_in_requested_order(self):
+        shipment, _carton = self._create_shipment_with_carton()
+
+        response = self.client.get(reverse("scan:scan_shipments_ready"))
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        expected_labels = [
+            "Liasse complète",
+            "Bon d'expédition",
+            "Douane",
+            "Liste colisage",
+            "Attestation donation",
+            "Contact",
+            "Étiquettes colis",
+        ]
+        label_positions = [content.index(label) for label in expected_labels]
+        self.assertEqual(label_positions, sorted(label_positions))
+        self.assertContains(
+            response,
+            f'data-shipment-document-bundle-a4-url="{reverse("scan:scan_shipment_view_bundle_pdf", args=[shipment.id, "a4"])}"',
+        )
+        self.assertContains(
+            response,
+            f'data-shipment-document-bundle-a5-url="{reverse("scan:scan_shipment_view_bundle_pdf", args=[shipment.id, "a5"])}"',
+        )
+        self.assertContains(
+            response,
+            f'href="{reverse("scan:scan_shipment_view_document", args=[shipment.id, "shipment_note"])}"',
+        )
+        self.assertContains(
+            response,
+            f'href="{reverse("scan:scan_shipment_view_document", args=[shipment.id, "customs"])}"',
+        )
+        self.assertContains(
+            response,
+            f'href="{reverse("scan:scan_shipment_view_document", args=[shipment.id, "packing_list"])}"',
+        )
+        self.assertContains(
+            response,
+            f'href="{reverse("scan:scan_shipment_view_document", args=[shipment.id, "donation"])}"',
+        )
+        self.assertContains(
+            response,
+            f'href="{reverse("scan:scan_shipment_view_document", args=[shipment.id, "contact"])}"',
+        )
+        self.assertContains(
+            response,
+            f'href="{reverse("scan:scan_shipment_view_document", args=[shipment.id, "labels"])}"',
+        )
 
     def test_scan_shipment_edit_updates_destination(self):
         shipment = Shipment.objects.create(

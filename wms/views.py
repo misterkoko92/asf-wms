@@ -29,6 +29,8 @@ from .views_print import (
     scan_shipment_document_upload,
     scan_shipment_label,
     scan_shipment_labels,
+    scan_shipment_view_bundle_pdf,
+    scan_shipment_view_document,
 )
 from .views_public import (
     scan_public_account_request,
@@ -168,6 +170,8 @@ SCAN_FLOW_EXPORTS = (
 
 PRINT_EXPORTS = (
     "scan_shipment_document",
+    "scan_shipment_view_document",
+    "scan_shipment_view_bundle_pdf",
     "scan_shipment_carton_document",
     "scan_carton_document",
     "scan_carton_picking",
