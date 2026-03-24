@@ -1,0 +1,199 @@
+{% load i18n %}
+
+<div id="scan-receive-pallet-review-card" class="scan-card card border-0 ui-comp-card">
+  <h2 class="ui-comp-title">{% trans "Récap import listing" %}</h2>
+  <p class="scan-help">
+    {% trans "Vérifiez les correspondances. Si un produit existe, seules quantité et emplacement seront mis à jour." %}
+  </p>
+  {% if listing_meta %}
+    <div class="scan-meta-grid">
+      <div class="scan-meta-item">
+        <strong>{% trans "Date réception" %}</strong>
+        {{ listing_meta.received_on }}
+      </div>
+      <div class="scan-meta-item">
+        <strong>{% trans "Palettes" %}</strong>
+        {{ listing_meta.pallet_count }}
+      </div>
+      <div class="scan-meta-item">
+        <strong>{% trans "Donateur" %}</strong>
+        {{ listing_meta.source_contact }}
+      </div>
+      <div class="scan-meta-item">
+        <strong>{% trans "Transporteur" %}</strong>
+        {{ listing_meta.carrier_contact }}
+      </div>
+      <div class="scan-meta-item">
+        <strong>{% trans "Demande transport" %}</strong>
+        {{ listing_meta.transport_request_date }}
+      </div>
+      {% if listing_meta.sheet_name %}
+        <div class="scan-meta-item">
+          <strong>{% trans "Feuille" %}</strong>
+          {{ listing_meta.sheet_name }}
+        </div>
+      {% endif %}
+      {% if listing_meta.header_row %}
+        <div class="scan-meta-item">
+          <strong>{% trans "Ligne titres" %}</strong>
+          {{ listing_meta.header_row }}
+        </div>
+      {% endif %}
+      {% if listing_meta.sheet_names %}
+        <div class="scan-meta-item">
+          <strong>{% trans "Feuilles detectees" %}</strong>
+          {{ listing_meta.sheet_names }}
+        </div>
+      {% endif %}
+      {% if listing_meta.pdf_pages %}
+        <div class="scan-meta-item">
+          <strong>{% trans "Pages PDF" %}</strong>
+          {{ listing_meta.pdf_pages }}
+        </div>
+      {% endif %}
+      {% if listing_meta.pdf_total_pages %}
+        <div class="scan-meta-item">
+          <strong>{% trans "Pages totales" %}</strong>
+          {{ listing_meta.pdf_total_pages }}
+        </div>
+      {% endif %}
+    </div>
+  {% endif %}
+  <form method="post" class="scan-filters ui-comp-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="listing_confirm">
+    <input type="hidden" name="pending_token" value="{{ listing_token }}">
+    <div class="scan-table-wrap table-responsive">
+      <table class="scan-table table table-sm table-hover">
+        <thead>
+          <tr>
+            <th>{% trans "Valider" %}</th>
+            <th>{% trans "Match" %}</th>
+            <th>SKU</th>
+            {% for field in review_fields %}
+              <th>{{ field.1 }}</th>
+            {% endfor %}
+            {% for location in location_fields %}
+              <th>{{ location.1 }}</th>
+            {% endfor %}
+            <th>{% trans "Couleur rack" %}</th>
+            <th>{% trans "Quantité" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in listing_rows %}
+            <tr data-row-index="{{ row.index }}">
+              <td>
+                <input type="checkbox" name="row_{{ row.index }}_apply" value="1" checked>
+              </td>
+              <td>
+                <div><strong>{{ row.match_type }}</strong></div>
+                <select name="row_{{ row.index }}_match" class="listing-match" data-row-index="{{ row.index }}">
+                  <option value="new" {% if row.default_match == "new" %}selected{% endif %}>{% trans "Nouveau produit" %}</option>
+                  {% for option in row.match_options %}
+                    <option
+                      value="{{ option.value }}"
+                      {% if row.default_match == option.value %}selected{% endif %}
+                      data-sku="{{ option.data.sku }}"
+                      data-name="{{ option.data.name }}"
+                      data-brand="{{ option.data.brand }}"
+                      data-color="{{ option.data.color }}"
+                      data-category_l1="{{ option.data.category_l1 }}"
+                      data-category_l2="{{ option.data.category_l2 }}"
+                      data-category_l3="{{ option.data.category_l3 }}"
+                      data-category_l4="{{ option.data.category_l4 }}"
+                      data-barcode="{{ option.data.barcode }}"
+                      data-tags="{{ option.data.tags }}"
+                      data-length_cm="{{ option.data.length_cm }}"
+                      data-width_cm="{{ option.data.width_cm }}"
+                      data-height_cm="{{ option.data.height_cm }}"
+                      data-weight_g="{{ option.data.weight_g }}"
+                      data-volume_cm3="{{ option.data.volume_cm3 }}"
+                      data-storage_conditions="{{ option.data.storage_conditions }}"
+                      data-perishable="{{ option.data.perishable }}"
+                      data-quarantine_default="{{ option.data.quarantine_default }}"
+                      data-notes="{{ option.data.notes }}"
+                      data-warehouse="{{ option.data.warehouse }}"
+                      data-zone="{{ option.data.zone }}"
+                      data-aisle="{{ option.data.aisle }}"
+                      data-shelf="{{ option.data.shelf }}"
+                    >
+                      {{ option.label }}
+                    </option>
+                  {% endfor %}
+                </select>
+                <input
+                  type="text"
+                  name="row_{{ row.index }}_match_override"
+                  placeholder='{% trans "SKU / barcode / nom" %}'
+                  class="scan-inline-gap"
+                >
+              </td>
+              <td>
+                <span class="listing-sku" data-sku>
+                  {% if row.default_match == "new" %}AUTO{% else %}{{ row.existing.sku }}{% endif %}
+                </span>
+              </td>
+              {% for field in row.fields %}
+                <td>
+                  <input
+                    type="text"
+                    name="row_{{ row.index }}_{{ field.name }}"
+                    value="{% if row.default_match == "new" %}{{ field.value }}{% else %}{{ field.existing }}{% endif %}"
+                    data-field="{{ field.name }}"
+                    data-import="{{ field.value }}"
+                    data-lock="product"
+                    {% if row.default_match != "new" %}readonly{% endif %}
+                  >
+                  {% if row.existing %}
+                    <small>{% blocktrans %}Import: {{ field.value }}{% endblocktrans %}</small>
+                  {% endif %}
+                </td>
+              {% endfor %}
+              {% for location in row.locations %}
+                <td>
+                  <input
+                    type="text"
+                    name="row_{{ row.index }}_{{ location.name }}"
+                    value="{{ location.value }}"
+                    data-field="{{ location.name }}"
+                    data-import="{{ location.value }}"
+                  >
+                  {% if row.existing and location.existing %}
+                    <small>{% blocktrans %}BDD: {{ location.existing }}{% endblocktrans %}</small>
+                  {% endif %}
+                </td>
+              {% endfor %}
+              <td>
+                <input
+                  type="text"
+                  name="row_{{ row.index }}_rack_color"
+                  value="{{ row.values.rack_color }}"
+                  data-field="rack_color"
+                  data-import="{{ row.values.rack_color }}"
+                >
+              </td>
+              <td>
+                <input
+                  type="number"
+                  name="row_{{ row.index }}_quantity"
+                  value="{{ row.values.quantity }}"
+                  min="1"
+                  step="1"
+                >
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="scan-filter-actions ui-comp-actions">
+      <button type="submit" class="scan-submit btn btn-primary">{% trans "Valider tous les imports coches" %}</button>
+    </div>
+  </form>
+  <form method="post" class="scan-filters ui-comp-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="listing_cancel">
+    <button type="submit" class="scan-submit secondary btn btn-secondary">{% trans "Annuler import" %}</button>
+  </form>
+</div>

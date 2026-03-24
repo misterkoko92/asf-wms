@@ -1,0 +1,75 @@
+{% load i18n %}
+
+<div id="scan-receive-create-card" class="scan-card card border-0 ui-comp-card">
+  <h2 class="ui-comp-title">{% trans "Créer une réception" %}</h2>
+  <form method="post" novalidate class="ui-comp-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="create_receipt">
+    <div class="scan-field">
+      <label class="form-label" for="id_receipt_type">{{ create_form.receipt_type.label }}</label>
+      {{ create_form.receipt_type }}
+      {% for error in create_form.receipt_type.errors %}
+        <div class="scan-message error">{{ error }}</div>
+      {% endfor %}
+    </div>
+
+    <div class="scan-field">
+      <label class="form-label" for="id_source_contact">{{ create_form.source_contact.label }}</label>
+      <div class="scan-inline">
+        {{ create_form.source_contact }}
+        <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+          {% trans "Ajouter provenance" %}
+        </a>
+      </div>
+    </div>
+
+    <div class="scan-field">
+      <label class="form-label" for="id_carrier_contact">{{ create_form.carrier_contact.label }}</label>
+      <div class="scan-inline">
+        {{ create_form.carrier_contact }}
+        <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+          {% trans "Ajouter transporteur" %}
+        </a>
+      </div>
+    </div>
+
+    <div class="scan-field">
+      <label class="form-label" for="id_origin_reference">{{ create_form.origin_reference.label }}</label>
+      {{ create_form.origin_reference }}
+    </div>
+
+    <div class="scan-field">
+      <label class="form-label" for="id_carrier_reference">{{ create_form.carrier_reference.label }}</label>
+      {{ create_form.carrier_reference }}
+    </div>
+
+    <div class="scan-field">
+      <label class="form-label" for="id_received_on">{{ create_form.received_on.label }}</label>
+      {{ create_form.received_on }}
+      {% for error in create_form.received_on.errors %}
+        <div class="scan-message error">{{ error }}</div>
+      {% endfor %}
+    </div>
+
+    <div class="scan-field">
+      <label class="form-label" for="id_warehouse">{{ create_form.warehouse.label }}</label>
+      <div class="scan-inline">
+        {{ create_form.warehouse }}
+        <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:wms_warehouse_add' %}" target="_blank" rel="noopener">
+          {% trans "Ajouter entrepôt" %}
+        </a>
+      </div>
+      {% for error in create_form.warehouse.errors %}
+        <div class="scan-message error">{{ error }}</div>
+      {% endfor %}
+    </div>
+
+    <div class="scan-field">
+      <label class="form-label" for="id_notes">{{ create_form.notes.label }}</label>
+      {{ create_form.notes }}
+    </div>
+
+    <button type="submit" class="scan-submit btn btn-primary">{% trans "Créer réception" %}</button>
+    <p class="scan-help">{% trans "Contacts gérés dans l'admin." %}</p>
+  </form>
+</div>

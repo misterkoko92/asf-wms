@@ -1,0 +1,63 @@
+{% load i18n %}
+
+<div id="scan-receive-pallet-create-card" class="scan-card card border-0 ui-comp-card">
+  <h2 class="ui-comp-title">{% trans "Réception palette" %}</h2>
+  {% if create_form.non_field_errors %}
+    <div class="scan-message error">{{ create_form.non_field_errors }}</div>
+  {% endif %}
+  <form method="post" novalidate class="scan-filters row g-3 ui-comp-form scan-receive-pallet-primary-row">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="pallet_create">
+
+    <div class="scan-field scan-receive-pallet-field col-12 col-md-6 col-lg-2">
+      <label class="form-label" for="{{ create_form.received_on.id_for_label }}">{{ create_form.received_on.label }}</label>
+      {{ create_form.received_on }}
+      {% for error in create_form.received_on.errors %}
+        <div class="scan-message error">{{ error }}</div>
+      {% endfor %}
+    </div>
+
+    <div class="scan-field scan-receive-pallet-field col-12 col-md-6 col-lg-2">
+      <label class="form-label" for="{{ create_form.pallet_count.id_for_label }}">{{ create_form.pallet_count.label }}</label>
+      {{ create_form.pallet_count }}
+      {% for error in create_form.pallet_count.errors %}
+        <div class="scan-message error">{{ error }}</div>
+      {% endfor %}
+    </div>
+
+    <div class="scan-field scan-receive-pallet-field col-12 col-md-6 col-lg-3">
+      <label class="form-label" for="{{ create_form.source_contact.id_for_label }}">{{ create_form.source_contact.label }}</label>
+      {{ create_form.source_contact }}
+      {% for error in create_form.source_contact.errors %}
+        <div class="scan-message error">{{ error }}</div>
+      {% endfor %}
+    </div>
+
+    <div class="scan-field scan-receive-pallet-field col-12 col-md-6 col-lg-3">
+      <label class="form-label" for="{{ create_form.carrier_contact.id_for_label }}">{{ create_form.carrier_contact.label }}</label>
+      {{ create_form.carrier_contact }}
+      {% for error in create_form.carrier_contact.errors %}
+        <div class="scan-message error">{{ error }}</div>
+      {% endfor %}
+    </div>
+
+    <div class="scan-field scan-receive-pallet-field col-12 col-md-6 col-lg-2">
+      <label class="form-label" for="{{ create_form.transport_request_date.id_for_label }}">{{ create_form.transport_request_date.label }}</label>
+      {{ create_form.transport_request_date }}
+      {% for error in create_form.transport_request_date.errors %}
+        <div class="scan-message error">{{ error }}</div>
+      {% endfor %}
+    </div>
+
+    <div class="scan-filter-actions scan-receive-pallet-actions-inline col-12 d-flex flex-wrap flex-lg-nowrap gap-2 align-items-center ui-comp-actions">
+      <button type="submit" class="scan-submit btn btn-primary">{% trans "Enregistrer la réception palette" %}</button>
+      <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+        {% trans "Ajouter donateur" %}
+      </a>
+      <a class="scan-scan-btn btn btn-tertiary" href="{% url 'admin:contacts_contact_add' %}" target="_blank" rel="noopener">
+        {% trans "Ajouter transporteur" %}
+      </a>
+    </div>
+  </form>
+  <p class="scan-help">{% trans "La référence est générée automatiquement (format YY-XX-WWW-ZZ)." %}</p>
+</div>
