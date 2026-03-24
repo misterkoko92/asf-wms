@@ -33,6 +33,7 @@ def build_local_helper_job_response(
     render_documents,
     shipment=None,
     carton=None,
+    output_filename=None,
 ) -> JsonResponse:
     documents = list(render_documents())
     merge = len(documents) > 1
@@ -44,7 +45,8 @@ def build_local_helper_job_response(
             }
             for index, entry in enumerate(documents)
         ],
-        "output_filename": _helper_output_filename(
+        "output_filename": output_filename
+        or _helper_output_filename(
             pack_code=pack_code,
             shipment=shipment,
             carton=carton,

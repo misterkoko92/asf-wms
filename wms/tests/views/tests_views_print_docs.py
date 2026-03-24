@@ -534,6 +534,60 @@ class PrintDocsViewsTests(TestCase):
             two_up_on_a4=False,
         )
 
+    def test_scan_shipment_view_bundle_pdf_returns_helper_job_payload_for_a4_bundle(self):
+        shipment = self._create_shipment()
+        documents = [
+            SimpleNamespace(filename="a4-1.xlsx", payload=b"xlsx-a4-1"),
+            SimpleNamespace(filename="a4-2.xlsx", payload=b"xlsx-a4-2"),
+        ]
+        with mock.patch(
+            "wms.views_print_docs._build_shipment_view_bundle_a4_xlsx_documents",
+            return_value=documents,
+        ):
+            response = self.client.get(
+                reverse(
+                    "scan:scan_shipment_view_bundle_pdf",
+                    kwargs={"shipment_id": shipment.id, "bundle_key": "a4"},
+                ),
+                {"helper": "1"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["output_filename"], f"shipment-view-a4-{shipment.reference}.pdf")
+        self.assertTrue(payload["merge"])
+        self.assertEqual(len(payload["documents"]), 2)
+        self.assertIn("helper_document=0", payload["documents"][0]["download_url"])
+        self.assertEqual(
+            payload["required_capabilities"],
+            ["pdf_render", "excel_render", "pdf_merge"],
+        )
+
+    def test_scan_shipment_view_bundle_pdf_returns_helper_document_when_requested(self):
+        shipment = self._create_shipment()
+        documents = [
+            SimpleNamespace(filename="a4-1.xlsx", payload=b"xlsx-a4-1"),
+            SimpleNamespace(filename="a4-2.xlsx", payload=b"xlsx-a4-2"),
+        ]
+        with mock.patch(
+            "wms.views_print_docs._build_shipment_view_bundle_a4_xlsx_documents",
+            return_value=documents,
+        ):
+            response = self.client.get(
+                reverse(
+                    "scan:scan_shipment_view_bundle_pdf",
+                    kwargs={"shipment_id": shipment.id, "bundle_key": "a4"},
+                ),
+                {"helper_document": "1"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response["Content-Type"],
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        self.assertEqual(response.content, b"xlsx-a4-2")
+
     def test_scan_shipment_view_bundle_pdf_routes_a5_bundle_to_two_up_pdf_builder(self):
         shipment = self._create_shipment()
         documents = [SimpleNamespace(filename="a5.xlsx", payload=b"xlsx-a5")]

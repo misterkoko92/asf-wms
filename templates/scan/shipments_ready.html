@@ -138,7 +138,28 @@
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       document.querySelectorAll("[data-shipment-document-bundle-open]").forEach(function (button) {
-        button.addEventListener("click", function () {
+        button.addEventListener("click", function (event) {
+          const helperApi = window.asfLocalDocumentHelper;
+          if (helperApi && typeof helperApi.renderBundleFromButton === "function") {
+            event.preventDefault();
+            const previousAriaDisabled = button.getAttribute("aria-disabled");
+            button.setAttribute("aria-disabled", "true");
+            button.classList.add("disabled");
+            helperApi
+              .renderBundleFromButton(button)
+              .catch(function (error) {
+                window.console.error(error);
+              })
+              .finally(function () {
+                if (previousAriaDisabled === null) {
+                  button.removeAttribute("aria-disabled");
+                } else {
+                  button.setAttribute("aria-disabled", previousAriaDisabled);
+                }
+                button.classList.remove("disabled");
+              });
+            return;
+          }
           const a4Url = button.dataset.shipmentDocumentBundleA4Url;
           const a5Url = button.dataset.shipmentDocumentBundleA5Url;
           if (a4Url) {

@@ -603,6 +603,20 @@ def scan_shipment_view_document(request, shipment_id, document_key):
 @require_http_methods(["GET"])
 def scan_shipment_view_bundle_pdf(request, shipment_id, bundle_key):
     shipment = _get_shipment_by_id(shipment_id)
+    render_documents = lambda: _shipment_view_bundle_documents(shipment, bundle_key)[0]
+    if get_local_helper_document_index(request) is not None:
+        return build_local_helper_document_response(
+            request,
+            render_documents=render_documents,
+        )
+    if is_local_helper_job_request(request):
+        return build_local_helper_job_response(
+            request,
+            pack_code=_shipment_view_bundle_fallback_code(bundle_key),
+            render_documents=render_documents,
+            shipment=shipment,
+            output_filename=f"shipment-view-{bundle_key}-{shipment.reference}.pdf",
+        )
     documents, two_up_on_a4 = _shipment_view_bundle_documents(shipment, bundle_key)
     try:
         return _build_pdf_response_from_xlsx_documents(

@@ -293,8 +293,8 @@
     }
   }
 
-  async function renderPdfFromLink(root, link) {
-    const jobUrl = appendQueryParam(link.href, "helper", "1");
+  async function renderPdfFromUrl(root, url) {
+    const jobUrl = appendQueryParam(url, "helper", "1");
     const jobPayload = await fetchJson(jobUrl);
     const compatibility = await fetchHelperCompatibility(
       root,
@@ -304,12 +304,12 @@
       showInstallAssistant(
         root,
         function () {
-          renderPdfFromLink(root, link).catch((retryError) => {
+          renderPdfFromUrl(root, url).catch((retryError) => {
             if (isHelperUnavailableError(retryError)) {
               showInstallAssistant(
                 root,
                 function () {
-                  renderPdfFromLink(root, link).catch((nestedRetryError) => {
+                  renderPdfFromUrl(root, url).catch((nestedRetryError) => {
                     showError(root, nestedRetryError.message || "Une erreur est survenue.");
                   });
                 },
@@ -339,6 +339,29 @@
       return;
     }
     clearAlert(root);
+  }
+
+  async function renderPdfFromLink(root, link) {
+    return renderPdfFromUrl(root, link.href);
+  }
+
+  async function renderBundleFromButton(button) {
+    const root = button.closest("[data-local-document-helper-root]");
+    if (!root) {
+      throw new Error("Configuration helper introuvable.");
+    }
+    const urls = [
+      button.dataset.shipmentDocumentBundleA4Url,
+      button.dataset.shipmentDocumentBundleA5Url,
+    ]
+      .map((url) => String(url || "").trim())
+      .filter((url) => url);
+    if (!urls.length) {
+      throw new Error("Aucun document a generer.");
+    }
+    for (const url of urls) {
+      await renderPdfFromUrl(root, url);
+    }
   }
 
   function attachInstallControls(root) {
@@ -412,5 +435,9 @@
       attachInstallControls(root);
       attachDocumentLinks(root);
     });
+  });
+
+  window.asfLocalDocumentHelper = Object.assign({}, window.asfLocalDocumentHelper, {
+    renderBundleFromButton,
   });
 })();
