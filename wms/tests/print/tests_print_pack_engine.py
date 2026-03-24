@@ -379,6 +379,7 @@ class PrintPackEngineTests(TestCase):
 
         recipient_payload = payload["shipment"]["recipient"]
         self.assertEqual(recipient_payload["title_name"], "M. Jean DUPONT")
+        self.assertEqual(recipient_payload["display_name"], "M. Jean DUPONT")
         self.assertEqual(recipient_payload["title"], "M.")
         self.assertEqual(recipient_payload["first_name"], "Jean")
         self.assertEqual(recipient_payload["last_name"], "DUPONT")
@@ -400,6 +401,10 @@ class PrintPackEngineTests(TestCase):
         self.assertEqual(
             recipient_payload["postal_address_full"],
             "10 Rue du Test, 75010 Paris, France",
+        )
+        self.assertEqual(
+            recipient_payload["postal_address_display"],
+            "10 Rue du Test, 75010 Paris - France",
         )
         self.assertEqual(
             recipient_payload["contact_primary"],
@@ -533,10 +538,15 @@ class PrintPackEngineTests(TestCase):
         self.assertEqual(shipment_payload["hors_format_total_count"], 2)
 
         self.assertEqual(shipment_payload["shipper"]["title_name"], "M. Jean DUPONT")
+        self.assertEqual(shipment_payload["shipper"]["display_name"], "M. Jean DUPONT")
         self.assertEqual(shipment_payload["shipper"]["structure_name"], "MSF Paris")
         self.assertEqual(
             shipment_payload["shipper"]["postal_address_full"],
             "1 Rue de Paris, 75001 Paris, France",
+        )
+        self.assertEqual(
+            shipment_payload["shipper"]["postal_address_display"],
+            "1 Rue de Paris, 75001 Paris - France",
         )
         self.assertEqual(
             shipment_payload["shipper"]["contact_primary"],
@@ -545,6 +555,7 @@ class PrintPackEngineTests(TestCase):
 
         self.assertEqual(shipment_payload["recipient"]["structure_name"], "MSF Abidjan")
         self.assertEqual(shipment_payload["recipient"]["title_name"], "MSF Abidjan")
+        self.assertEqual(shipment_payload["recipient"]["display_name"], "")
         self.assertEqual(
             shipment_payload["recipient"]["contact_primary"],
             "+225 1 11 11 11 11, abidjan@example.org",
@@ -651,6 +662,7 @@ class PrintPackEngineTests(TestCase):
             "M. Jean DUPONT, Association Snapshot",
         )
         self.assertEqual(payload["shipment"]["shipper"]["title_name"], "M. Jean DUPONT")
+        self.assertEqual(payload["shipment"]["shipper"]["display_name"], "M. Jean DUPONT")
         self.assertEqual(payload["shipment"]["shipper"]["structure_name"], "Association Snapshot")
         self.assertEqual(payload["shipment"]["shipper"]["email_1"], "shipper-old@example.org")
         self.assertEqual(
@@ -662,6 +674,7 @@ class PrintPackEngineTests(TestCase):
             "Dr Alice MARTIN, Hopital Snapshot",
         )
         self.assertEqual(payload["shipment"]["recipient"]["title_name"], "Dr Alice MARTIN")
+        self.assertEqual(payload["shipment"]["recipient"]["display_name"], "Dr Alice MARTIN")
         self.assertEqual(payload["shipment"]["recipient"]["structure_name"], "Hopital Snapshot")
         self.assertEqual(
             payload["shipment"]["correspondent_name"],

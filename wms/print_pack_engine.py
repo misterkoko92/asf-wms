@@ -72,6 +72,26 @@ def _format_weight_label(total_weight_g):
     return f"{weight_kg:.2f}".rstrip("0").rstrip(".") + " kg"
 
 
+def _resolve_display_name(*, title_name, structure_name):
+    title_text = _clean_text(title_name)
+    structure_text = _clean_text(structure_name)
+    if not title_text:
+        return ""
+    if structure_text and title_text == structure_text:
+        return ""
+    return title_text
+
+
+def _format_postal_address_display(*, postal_address, postal_code, city, country):
+    street = _clean_text(postal_address)
+    locality = _join_non_empty(postal_code, city)
+    main = _join_non_empty(street, locality, separator=", ")
+    country_text = _clean_text(country)
+    if main and country_text:
+        return f"{main} - {country_text}"
+    return main or country_text
+
+
 def _build_contact_payload(*, contact, fallback_name, default_country=""):
     base_name = _clean_text(fallback_name)
     first_name = ""
@@ -96,6 +116,8 @@ def _build_contact_payload(*, contact, fallback_name, default_country=""):
         "email_2": "",
         "email_3": "",
         "emergency_contact": "",
+        "display_name": "",
+        "postal_address_display": "",
         "postal_address_full": "",
         "contact_primary": "",
     }
@@ -183,6 +205,16 @@ def _build_contact_payload(*, contact, fallback_name, default_country=""):
         payload["country"],
         separator=", ",
     )
+    payload["postal_address_display"] = _format_postal_address_display(
+        postal_address=payload["postal_address"],
+        postal_code=payload["postal_code"],
+        city=payload["city"],
+        country=payload["country"],
+    )
+    payload["display_name"] = _resolve_display_name(
+        title_name=payload["title_name"],
+        structure_name=payload["structure_name"],
+    )
     payload["contact_primary"] = _join_non_empty(
         payload["phone_1"],
         payload["email_1"],
@@ -260,6 +292,10 @@ def _apply_snapshot_party_payload(*, shipment, party_key, payload):
         payload["phone_1"],
         payload["email_1"],
         separator=", ",
+    )
+    payload["display_name"] = _resolve_display_name(
+        title_name=payload["title_name"],
+        structure_name=payload["structure_name"],
     )
     return payload
 
