@@ -609,6 +609,31 @@ class ScanBootstrapUiTests(TestCase):
         self.assertIn("merge_contact", js_content)
         self.assertIn("deactivate_contact", js_content)
 
+    def test_scan_admin_contacts_breaks_into_named_workflow_sections(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_admin_contacts"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="scan-admin-contacts-intro"')
+        self.assertContains(response, 'id="scan-admin-contacts-create-destination"')
+        self.assertContains(response, 'id="scan-admin-contacts-create-contact"')
+        self.assertContains(response, 'id="scan-admin-contacts-filters"')
+        self.assertContains(response, 'id="scan-admin-contacts-cockpit"')
+        self.assertContains(response, 'id="scan-admin-contacts-directory-card"')
+        self.assertContains(response, 'id="scan-admin-contacts-correspondents-card"')
+        self.assertContains(response, "ui-comp-card", count=7)
+        self.assertContains(response, 'data-admin-contacts-crud="1"')
+        self.assertContains(response, 'data-table-tools="1"', count=6)
+        self.assertContains(response, 'id="scan-admin-contact-action-panel"')
+        self.assertContains(response, 'value="set_default_authorized_recipient_contact"')
+        self.assertContains(response, 'value="set_stopover_correspondent_recipient_organization"')
+        self.assertContains(response, 'value="merge_shipment_recipient_organizations"')
+        self.assertContains(response, 'id="scan-shipment-link-id"')
+        self.assertContains(response, 'id="scan-merge-target-recipient-organization"')
+        self.assertContains(response, reverse("admin:contacts_contact_changelist"))
+        self.assertContains(response, reverse("admin:wms_destination_changelist"))
+
     def test_scan_order_page_uses_design_component_classes(self):
         response = self.client.get(reverse("scan:scan_order"))
         self.assertEqual(response.status_code, 200)
