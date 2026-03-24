@@ -1,5 +1,30 @@
 # Agent Guardrails (asf-wms)
 
+## GitHub network access policy
+
+- By default, do not assume GitHub network access outside the sandbox is authorized for the current thread.
+- At the beginning of each new thread, before any substantial work starts, explicitly ask whether GitHub-related commands should be allowed outside the sandbox for that thread.
+- In the same question, explicitly ask whether the authorization applies only to the work directly related to the current request, or should remain in effect until explicit revocation.
+- This per-thread question is mandatory at least once in every new thread, even if a broader or previously remembered authorization may already exist.
+- Until the user answers for the current thread, avoid starting work that depends on GitHub network access outside the sandbox.
+
+### Commands covered by this policy
+
+- `git push`
+- `git pull`
+- `git fetch`
+- `git ls-remote`
+- `gh pr create`
+- `gh pr view`
+- `gh pr checks`
+- Any similar `gh` command or GitHub API/network operation that requires access outside the sandbox
+
+### Default behavior after the answer
+
+- If the user authorizes only the current request, use escalated GitHub network access only for work directly tied to that request.
+- If the user authorizes until explicit revocation, treat that as a standing preference, but still re-ask at least once at the start of each new thread before substantial work begins.
+- If the user does not authorize GitHub network access for the current thread, continue with sandbox-safe work and stop before any blocked GitHub network step.
+
 ## Scope policy: Translation paused
 
 - By default, exclude French / English translation scope from analysis, planning, code changes, tests, and verification.
