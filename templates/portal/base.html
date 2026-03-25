@@ -17,37 +17,143 @@
   {% include "includes/design_vars_style.html" %}
 </head>
 <body class="scan-bootstrap-enabled portal-bootstrap-enabled">
-  <div class="scan-shell">
-    <header class="scan-card portal-card portal-header card border-0 ui-comp-panel">
-      <div>
-        <strong class="ui-comp-title">ASF WMS</strong><br>
-        {% trans "Portail association" %}
-      </div>
-      <div class="portal-actions ui-comp-actions">
-        {% include "includes/language_switch.html" %}
-        <nav class="portal-nav">
-          <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_dashboard' %}">{% trans "Commandes" %}</a>
-          <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_order_create' %}">{% trans "Nouvelle commande" %}</a>
-          <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_billing' %}">{% trans "Facturation" %}</a>
-          <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_recipients' %}">{% trans "Destinataires" %}</a>
-          <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_account' %}">{% trans "Compte" %}</a>
-          <a class="btn btn-danger btn-sm" href="{% url 'portal:portal_logout' %}">{% trans "Déconnexion" %}</a>
-        </nav>
-      </div>
-    </header>
-
-    <main class="scan-main">
-      {% if messages %}
-        <div class="scan-messages">
-          {% for message in messages %}
-            <div class="scan-message {% if message.tags %}{{ message.tags }}{% endif %}">{{ message }}</div>
-          {% endfor %}
+  {% with current=request.resolver_match.url_name %}
+    <div class="scan-shell portal-shell">
+      <header id="portal-masthead" class="portal-masthead ui-comp-panel">
+        <div class="portal-masthead-top">
+          <div class="portal-masthead-brand">
+            <button
+              type="button"
+              id="portal-nav-toggle"
+              class="btn btn-tertiary btn-sm portal-nav-toggle d-lg-none"
+              data-bs-toggle="offcanvas"
+              data-bs-target="#portal-nav-offcanvas"
+              aria-controls="portal-nav-offcanvas"
+              aria-label="{% trans "Afficher la navigation du portail" %}"
+            >
+              Menu
+            </button>
+            <a href="{% url 'portal:portal_dashboard' %}" class="portal-brand-link" aria-label="Aviation Sans Frontières France">
+              <img src="{% static 'scan/logo.jpg' %}" alt="" class="portal-brand-mark">
+              <span class="portal-brand-copy">
+                <span class="portal-brand-eyebrow">Aviation Sans Frontières</span>
+                <span class="portal-brand-title">{% trans "Portail association" %}</span>
+              </span>
+            </a>
+          </div>
+          <div id="portal-masthead-utility" class="portal-masthead-utility ui-comp-actions" aria-label="{% trans "Navigation utilitaire portail" %}">
+            <a
+              id="portal-account-link"
+              class="portal-utility-link{% if current == 'portal_account' %} is-active{% endif %}"
+              href="{% url 'portal:portal_account' %}"
+            >
+              {% trans "Compte" %}
+            </a>
+            <a
+              id="portal-logout-link"
+              class="portal-utility-link"
+              href="{% url 'portal:portal_logout' %}"
+            >
+              {% trans "Déconnexion" %}
+            </a>
+          </div>
         </div>
-      {% endif %}
+        <div class="portal-masthead-bottom d-none d-lg-flex">
+          <nav id="portal-primary-nav" class="portal-primary-nav" aria-label="{% trans "Navigation principale du portail" %}">
+            <a
+              class="portal-primary-link{% if current == 'portal_dashboard' or current == 'portal_order_detail' %} is-active{% endif %}"
+              href="{% url 'portal:portal_dashboard' %}"
+            >
+              {% trans "Commandes" %}
+            </a>
+            <a
+              class="portal-primary-link{% if current == 'portal_billing' or current == 'portal_billing_detail' %} is-active{% endif %}"
+              href="{% url 'portal:portal_billing' %}"
+            >
+              {% trans "Facturation" %}
+            </a>
+            <a
+              class="portal-primary-link{% if current == 'portal_recipients' %} is-active{% endif %}"
+              href="{% url 'portal:portal_recipients' %}"
+            >
+              {% trans "Destinataires" %}
+            </a>
+            <a
+              class="portal-primary-link{% if current == 'portal_account' %} is-active{% endif %}"
+              href="{% url 'portal:portal_account' %}"
+            >
+              {% trans "Compte" %}
+            </a>
+          </nav>
+          <a
+            id="portal-order-create-cta"
+            class="btn btn-primary btn-sm portal-order-create-cta{% if current == 'portal_order_create' %} is-active{% endif %}"
+            href="{% url 'portal:portal_order_create' %}"
+          >
+            {% trans "Nouvelle commande" %}
+          </a>
+        </div>
+      </header>
 
-      {% block content %}{% endblock %}
-    </main>
-  </div>
+      <div
+        id="portal-nav-offcanvas"
+        class="offcanvas offcanvas-start portal-nav-offcanvas"
+        tabindex="-1"
+        aria-labelledby="portal-nav-offcanvas-title"
+      >
+        <div class="offcanvas-header">
+          <h2 id="portal-nav-offcanvas-title" class="offcanvas-title">{% trans "Navigation portail" %}</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{% trans "Fermer" %}"></button>
+        </div>
+        <div class="offcanvas-body">
+          <nav class="portal-offcanvas-nav" aria-label="{% trans "Navigation mobile du portail" %}">
+            <a
+              class="portal-offcanvas-link{% if current == 'portal_dashboard' or current == 'portal_order_detail' %} is-active{% endif %}"
+              href="{% url 'portal:portal_dashboard' %}"
+            >
+              {% trans "Commandes" %}
+            </a>
+            <a
+              class="portal-offcanvas-link{% if current == 'portal_billing' or current == 'portal_billing_detail' %} is-active{% endif %}"
+              href="{% url 'portal:portal_billing' %}"
+            >
+              {% trans "Facturation" %}
+            </a>
+            <a
+              class="portal-offcanvas-link{% if current == 'portal_recipients' %} is-active{% endif %}"
+              href="{% url 'portal:portal_recipients' %}"
+            >
+              {% trans "Destinataires" %}
+            </a>
+            <a
+              class="portal-offcanvas-link{% if current == 'portal_account' %} is-active{% endif %}"
+              href="{% url 'portal:portal_account' %}"
+            >
+              {% trans "Compte" %}
+            </a>
+          </nav>
+          <a
+            class="btn btn-primary portal-offcanvas-cta{% if current == 'portal_order_create' %} is-active{% endif %}"
+            href="{% url 'portal:portal_order_create' %}"
+          >
+            {% trans "Nouvelle commande" %}
+          </a>
+        </div>
+      </div>
+
+      <main class="scan-main">
+        {% if messages %}
+          <div class="scan-messages">
+            {% for message in messages %}
+              <div class="scan-message {% if message.tags %}{{ message.tags }}{% endif %}">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  {% endwith %}
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
   <script defer src="{% static 'portal/portal_tables.js' %}"></script>
 </body>

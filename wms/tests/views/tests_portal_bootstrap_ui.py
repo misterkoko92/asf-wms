@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 from django.conf import settings
@@ -201,6 +202,33 @@ class PortalBootstrapUiTests(TestCase):
         response = self.client.get(reverse("portal:portal_dashboard"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, reverse("portal:portal_billing"))
+
+    def test_portal_shell_separates_primary_navigation_from_utility_and_cta(self):
+        response = self.client.get(reverse("portal:portal_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="portal-masthead"')
+        self.assertContains(response, 'id="portal-masthead-utility"')
+        self.assertContains(response, 'id="portal-primary-nav"')
+        self.assertContains(response, 'id="portal-order-create-cta"')
+        self.assertContains(response, 'id="portal-account-link"')
+        self.assertContains(response, 'id="portal-logout-link"')
+        self.assertNotContains(response, 'name="language"')
+
+        content = response.content.decode()
+        nav_match = re.search(
+            r'<nav id="portal-primary-nav"[^>]*>(.*?)</nav>',
+            content,
+            re.S,
+        )
+        self.assertIsNotNone(nav_match)
+        nav_content = nav_match.group(1)
+        self.assertIn(reverse("portal:portal_dashboard"), nav_content)
+        self.assertIn(reverse("portal:portal_billing"), nav_content)
+        self.assertIn(reverse("portal:portal_recipients"), nav_content)
+        self.assertIn(reverse("portal:portal_account"), nav_content)
+        self.assertNotIn(reverse("portal:portal_order_create"), nav_content)
+        self.assertNotIn(reverse("portal:portal_logout"), nav_content)
 
     def test_portal_billing_pages_use_bootstrap_tables(self):
         billing_document = BillingDocument.objects.create(

@@ -1,37 +1,152 @@
-.portal-bootstrap-enabled .portal-header {
+.portal-bootstrap-enabled .portal-shell {
+  min-height: 100vh;
+}
+
+.portal-bootstrap-enabled .portal-masthead {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
   gap: var(--wms-field-gap);
   border: 1px solid var(--border-strong);
   background: linear-gradient(170deg, var(--wms-card-bg) 0%, var(--wms-color-background) 100%);
   box-shadow: var(--wms-card-shadow);
+  margin-bottom: var(--wms-field-gap);
 }
 
-.portal-bootstrap-enabled .portal-nav {
+.portal-bootstrap-enabled .portal-masthead-top {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--wms-field-gap);
   flex-wrap: wrap;
-  gap: var(--wms-space-unit);
 }
 
-.portal-bootstrap-enabled .portal-nav .btn {
-  font-weight: 700;
-}
-
-.portal-bootstrap-enabled .portal-nav a.btn {
-  border-radius: min(var(--wms-btn-radius), 0.45rem);
-}
-
-.portal-bootstrap-enabled .portal-nav a {
-  text-decoration: none;
-  font-weight: var(--wms-nav-item-font-weight);
-}
-
-.portal-bootstrap-enabled .portal-actions {
+.portal-bootstrap-enabled .portal-masthead-brand {
   display: flex;
   align-items: center;
   gap: var(--wms-space-unit);
+  min-width: 0;
+}
+
+.portal-bootstrap-enabled .portal-nav-toggle {
+  flex-shrink: 0;
+}
+
+.portal-bootstrap-enabled .portal-brand-link {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--wms-space-unit) * 1.5);
+  color: var(--wms-color-text);
+  text-decoration: none;
+  min-width: 0;
+}
+
+.portal-bootstrap-enabled .portal-brand-mark {
+  width: 88px;
+  height: 40px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.portal-bootstrap-enabled .portal-brand-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.portal-bootstrap-enabled .portal-brand-eyebrow {
+  font-size: var(--wms-font-size-small);
+  font-weight: 700;
+  color: var(--wms-color-text-soft);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.portal-bootstrap-enabled .portal-brand-title {
+  font-family: var(--wms-font-heading);
+  font-size: var(--wms-font-size-h3);
+  line-height: 1.1;
+  font-weight: 700;
+  color: var(--wms-color-text);
+}
+
+.portal-bootstrap-enabled .portal-masthead-utility {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--wms-space-unit) * 1.5);
+  flex-wrap: wrap;
+}
+
+.portal-bootstrap-enabled .portal-utility-link {
+  color: var(--wms-color-link);
+  text-decoration: none;
+  font-weight: 700;
+  font-size: var(--wms-nav-item-font-size);
+}
+
+.portal-bootstrap-enabled .portal-utility-link:hover,
+.portal-bootstrap-enabled .portal-utility-link:focus-visible,
+.portal-bootstrap-enabled .portal-utility-link.is-active {
+  color: var(--wms-color-link-hover);
+}
+
+.portal-bootstrap-enabled .portal-masthead-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--wms-field-gap);
+  padding-top: var(--wms-space-unit);
+  border-top: 1px solid var(--wms-card-border-color);
+}
+
+.portal-bootstrap-enabled .portal-primary-nav {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--wms-space-unit) * 0.75);
+  flex-wrap: wrap;
+}
+
+.portal-bootstrap-enabled .portal-primary-link,
+.portal-bootstrap-enabled .portal-offcanvas-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0.45rem 0.9rem;
+  border-radius: min(var(--wms-nav-item-radius), 0.6rem);
+  color: var(--wms-nav-item-text);
+  text-decoration: none;
+  font-size: var(--wms-nav-item-font-size);
+  font-weight: var(--wms-nav-item-font-weight);
+  letter-spacing: var(--wms-nav-item-letter-spacing);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.portal-bootstrap-enabled .portal-primary-link:hover,
+.portal-bootstrap-enabled .portal-primary-link:focus-visible,
+.portal-bootstrap-enabled .portal-offcanvas-link:hover,
+.portal-bootstrap-enabled .portal-offcanvas-link:focus-visible {
+  background: var(--wms-nav-item-hover-bg);
+  color: var(--wms-nav-item-hover-text);
+}
+
+.portal-bootstrap-enabled .portal-primary-link.is-active,
+.portal-bootstrap-enabled .portal-offcanvas-link.is-active {
+  background: var(--wms-nav-item-active-bg);
+  color: var(--wms-nav-item-active-text);
+}
+
+.portal-bootstrap-enabled .portal-order-create-cta,
+.portal-bootstrap-enabled .portal-offcanvas-cta {
+  white-space: nowrap;
+}
+
+.portal-bootstrap-enabled .portal-nav-offcanvas {
+  max-width: 320px;
+}
+
+.portal-bootstrap-enabled .portal-offcanvas-nav {
+  display: grid;
+  gap: calc(var(--wms-space-unit) * 0.5);
+  margin-bottom: var(--wms-field-gap);
 }
 
 .portal-bootstrap-enabled .portal-card.card {
