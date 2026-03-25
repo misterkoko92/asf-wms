@@ -101,6 +101,36 @@
     </div>
   </section>
 
+  <section id="ui-lab-core-stable-rules" class="scan-card card border-0 ui-comp-card">
+    <div class="ui-lab-hero-head">
+      <div>
+        <h3 class="ui-comp-title">{% trans "Règles d'usage du Core stable" %}</h3>
+        <p class="scan-help">{% trans "Réutiliser directement ces contrats; composer localement si le besoin dépasse leur responsabilité." %}</p>
+      </div>
+      <span class="badge text-bg-light">{% trans "Réutilisation directe" %}</span>
+    </div>
+    <div class="ui-lab-governance-grid">
+      <article class="ui-lab-surface">
+        <h4>{% trans "Primitives" %}</h4>
+        <ul class="ui-lab-governance-list">
+          <li><code>ui_button</code>: {% trans "Un seul primary par zone d'action." %}</li>
+          <li><code>ui_field</code>: {% trans "Label, contrôle, aide et erreur restent groupés." %}</li>
+          <li><code>ui_alert</code>: {% trans "Feedback de section, pas erreur inline." %}</li>
+          <li><code>ui_status_badge</code>: {% trans "Statut court, jamais action." %}</li>
+          <li><code>ui_switch</code>: {% trans "Booléen simple, jamais navigation." %}</li>
+        </ul>
+      </article>
+      <article class="ui-lab-surface">
+        <h4>{% trans "Structure" %}</h4>
+        <ul class="ui-lab-governance-list">
+          <li><code>ui-comp-card</code>: {% trans "Conteneur principal d'une zone cohérente." %}</li>
+          <li><code>ui-comp-panel</code>: {% trans "Sous-zone structurante dans un écran dense." %}</li>
+          <li><code>ui-comp-actions</code>: {% trans "Groupe d'actions cohérent, sans mélange filtre + documents + validation." %}</li>
+        </ul>
+      </article>
+    </div>
+  </section>
+
   <section class="scan-card card border-0 ui-comp-card">
     <div class="ui-lab-hero-head">
       <div>

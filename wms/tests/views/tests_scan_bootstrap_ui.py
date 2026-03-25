@@ -1428,3 +1428,15 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "ui_alert")
         self.assertContains(response, "ui_status_badge")
         self.assertContains(response, "ui_switch")
+
+    def test_scan_ui_lab_exposes_core_stable_usage_rules_block(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_ui_lab"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="ui-lab-core-stable-rules"')
+        self.assertContains(response, "Règles d'usage du Core stable")
+        self.assertContains(response, "ui_button")
+        self.assertContains(response, "ui-comp-actions")
+        self.assertContains(response, "Un seul primary par zone d'action")
