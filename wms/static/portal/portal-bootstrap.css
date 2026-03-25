@@ -175,6 +175,26 @@ body.portal-bootstrap-enabled {
   margin-bottom: var(--wms-field-gap);
 }
 
+.portal-bootstrap-enabled .volunteer-page-intro .scan-help {
+  margin-bottom: 0;
+}
+
+.portal-bootstrap-enabled .volunteer-page-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: calc(var(--wms-space-unit) * 0.75);
+  margin-bottom: var(--wms-space-unit);
+}
+
+.portal-bootstrap-enabled .volunteer-page-actions-form {
+  align-items: end;
+}
+
+.portal-bootstrap-enabled .volunteer-page-actions:last-child {
+  margin-bottom: 0;
+}
+
 .portal-bootstrap-enabled .portal-table {
   width: 100%;
   border-collapse: collapse;
