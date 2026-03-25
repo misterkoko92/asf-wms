@@ -221,11 +221,18 @@ class ScanAdminViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         html = response.content.decode("utf-8")
-        imports_index = html.index(reverse("scan:scan_import"))
-        contacts_index = html.index(reverse("scan:scan_admin_contacts"))
-        settings_index = html.index(reverse("scan:scan_settings"))
-        self.assertLess(imports_index, contacts_index)
-        self.assertLess(contacts_index, settings_index)
+        management_start = html.index('id="scan-primary-nav-management"')
+        management_end = html.index("</ul>", management_start)
+        management_html = html[management_start:management_end]
+        admin_start = html.index('id="scan-admin-toggle"')
+        admin_end = html.index("</ul>", admin_start)
+        admin_html = html[admin_start:admin_end]
+
+        self.assertIn(reverse("scan:scan_import"), management_html)
+        self.assertIn(reverse("scan:scan_admin_contacts"), management_html)
+        self.assertNotIn(reverse("scan:scan_settings"), management_html)
+        self.assertIn(reverse("scan:scan_settings"), admin_html)
+        self.assertNotIn(reverse("scan:scan_admin_contacts"), admin_html)
 
     def test_scan_admin_contacts_filters_by_contact_type(self):
         self.client.force_login(self.superuser)
