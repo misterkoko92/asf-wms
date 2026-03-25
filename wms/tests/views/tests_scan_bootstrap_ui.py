@@ -1410,6 +1410,26 @@ class ScanBootstrapUiTests(TestCase):
         self.assertNotContains(response, 'id="ui-lab-workflow-action-bar-demo-search"')
         self.assertNotContains(response, 'id="ui-lab-workflow-action-bar-demo-document-action"')
 
+    def test_scan_ui_lab_exposes_recommended_global_navigation_demo_contract(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_ui_lab"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="ui-lab-demo-global-navigation"')
+        self.assertContains(response, 'id="ui-lab-demo-global-navigation-utility"')
+        self.assertContains(response, 'id="ui-lab-demo-global-navigation-primary"')
+        self.assertContains(response, 'id="ui-lab-demo-global-navigation-menu-toggle"')
+        self.assertContains(response, "Navigation globale recommandée")
+        self.assertContains(response, "Tableau de bord")
+        self.assertContains(response, "Stocks")
+        self.assertContains(response, "Réception")
+        self.assertContains(response, "Préparation")
+        self.assertContains(response, "Expéditions")
+        self.assertContains(response, "Gestion")
+        self.assertContains(response, "Compte")
+        self.assertNotContains(response, 'name="action" value="logout"')
+
     def test_scan_ui_lab_exposes_governance_tiers_for_stable_and_converging_contracts(self):
         self.client.force_login(self.superuser)
 
