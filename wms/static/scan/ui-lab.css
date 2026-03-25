@@ -353,6 +353,31 @@
   min-width: 4.2rem;
 }
 
+.ui-lab-empty-state-demo-shell {
+  display: grid;
+  gap: var(--preview-gap);
+}
+
+.ui-lab-empty-state-demo-card {
+  margin-bottom: 0;
+  max-width: 44rem;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.ui-lab-empty-state-demo-card .ui-comp-title {
+  margin-bottom: 0;
+}
+
+.ui-lab-empty-state-demo-card .scan-help {
+  margin-bottom: 0;
+  color: var(--preview-text-soft);
+}
+
+.ui-lab-empty-state-demo-card .ui-comp-actions {
+  margin-bottom: 0;
+}
+
 .ui-lab-preview .ui-comp-data-table thead .btn-link {
   font-family: var(--preview-heading-font);
   color: var(--preview-text);
@@ -402,6 +427,10 @@
     margin-left: 0;
     width: 100%;
     justify-content: space-between;
+  }
+
+  .ui-lab-empty-state-demo-card {
+    max-width: none;
   }
 }
 

@@ -1354,6 +1354,20 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "Action")
         self.assertNotContains(response, 'id="ui-lab-table-demo-select-all"')
 
+    def test_scan_ui_lab_exposes_recommended_empty_state_demo_contract(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_ui_lab"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="ui-lab-empty-state-demo"')
+        self.assertContains(response, 'id="ui-lab-empty-state-demo-title"')
+        self.assertContains(response, 'id="ui-lab-empty-state-demo-body"')
+        self.assertContains(response, 'id="ui-lab-empty-state-demo-action"')
+        self.assertContains(response, "Aucune réception sélectionnée")
+        self.assertNotContains(response, 'id="ui-lab-empty-state-demo-error"')
+        self.assertNotContains(response, 'name="action" value="retry"')
+
     def test_scan_ui_lab_exposes_governance_tiers_for_stable_and_converging_contracts(self):
         self.client.force_login(self.superuser)
 
