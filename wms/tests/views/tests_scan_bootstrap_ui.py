@@ -1396,6 +1396,20 @@ class ScanBootstrapUiTests(TestCase):
         self.assertNotContains(response, 'id="ui-lab-document-actions-demo-primary-action"')
         self.assertNotContains(response, 'id="ui-lab-document-actions-demo-upload"')
 
+    def test_scan_ui_lab_exposes_recommended_workflow_action_bar_demo_contract(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_ui_lab"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="ui-lab-workflow-action-bar-demo"')
+        self.assertContains(response, 'id="ui-lab-workflow-action-bar-demo-body"')
+        self.assertContains(response, 'id="ui-lab-workflow-action-bar-demo-primary-action"')
+        self.assertContains(response, 'id="ui-lab-workflow-action-bar-demo-secondary-action"')
+        self.assertContains(response, "Valider l'étape")
+        self.assertNotContains(response, 'id="ui-lab-workflow-action-bar-demo-search"')
+        self.assertNotContains(response, 'id="ui-lab-workflow-action-bar-demo-document-action"')
+
     def test_scan_ui_lab_exposes_governance_tiers_for_stable_and_converging_contracts(self):
         self.client.force_login(self.superuser)
 
