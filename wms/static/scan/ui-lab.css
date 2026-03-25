@@ -298,6 +298,61 @@
   padding-bottom: 0.55rem;
 }
 
+.ui-lab-table-demo-shell {
+  display: grid;
+  gap: var(--preview-gap);
+}
+
+.ui-lab-table-demo-table-wrap {
+  margin-top: 0.15rem;
+}
+
+.ui-lab-table-demo-table {
+  min-width: 58rem;
+}
+
+.ui-lab-table-demo-table caption {
+  caption-side: top;
+  color: var(--preview-text-soft);
+  font-family: var(--preview-body-font);
+  padding-bottom: 0.55rem;
+}
+
+.ui-lab-table-demo-table tbody td {
+  vertical-align: middle;
+}
+
+.ui-lab-table-demo-meta {
+  display: grid;
+  gap: 0.08rem;
+}
+
+.ui-lab-table-demo-meta strong {
+  color: var(--preview-text);
+  font-family: var(--preview-heading-font);
+  font-size: 0.96rem;
+}
+
+.ui-lab-table-demo-meta .scan-help {
+  margin-bottom: 0;
+  color: var(--preview-text-soft);
+}
+
+.ui-lab-table-demo-priority-cell,
+.ui-lab-table-demo-status-cell,
+.ui-lab-table-demo-action-cell {
+  white-space: nowrap;
+}
+
+.ui-lab-table-demo-status-cell,
+.ui-lab-table-demo-action-cell {
+  width: 1%;
+}
+
+.ui-lab-table-demo-action {
+  min-width: 4.2rem;
+}
+
 .ui-lab-preview .ui-comp-data-table thead .btn-link {
   font-family: var(--preview-heading-font);
   color: var(--preview-text);
