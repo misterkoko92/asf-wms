@@ -1319,6 +1319,23 @@ class ScanBootstrapUiTests(TestCase):
         self.assertEqual(design_response.status_code, 200)
         self.assertContains(design_response, reverse("scan:scan_ui_lab"))
 
+    def test_scan_ui_lab_exposes_recommended_toolbar_demo_contract(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_ui_lab"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="ui-lab-toolbar-demo"')
+        self.assertContains(response, 'id="ui-lab-toolbar-demo-query"')
+        self.assertContains(response, 'id="ui-lab-toolbar-demo-status"')
+        self.assertContains(response, 'id="ui-lab-toolbar-demo-toggle"')
+        self.assertContains(response, 'id="ui-lab-toolbar-demo-primary-action"')
+        self.assertContains(response, 'id="ui-lab-toolbar-demo-panel"')
+        self.assertContains(response, 'id="ui-lab-toolbar-demo-chips"')
+        self.assertContains(response, 'id="ui-lab-toolbar-demo-table"')
+        self.assertContains(response, 'id="ui-lab-toolbar-demo-table-caption"')
+        self.assertNotContains(response, 'name="action" value="filter"')
+
     def test_scan_ui_lab_exposes_governance_tiers_for_stable_and_converging_contracts(self):
         self.client.force_login(self.superuser)
 

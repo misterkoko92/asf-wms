@@ -27,6 +27,20 @@
   {% translate "Workflow expédition" as shipment_workflow_label %}
   {% translate "Actions documentaires" as shipment_doc_actions_label %}
   {% translate "Overlay confirmation" as shipment_overlay_label %}
+  {% translate "Toolbar recommandé" as recommended_toolbar_label %}
+  {% translate "Contrat enrichi pour piloter une liste sur desktop et mobile sans lier la démo à la prod." as recommended_toolbar_help %}
+  {% translate "Filtres" as filters_toggle_label %}
+  {% translate "Nouvelle commande" as toolbar_demo_primary_label %}
+  {% translate "Exporter" as export_action_label %}
+  {% translate "Réinitialiser" as reset_filters_label %}
+  {% translate "Entrepôt" as warehouse_label %}
+  {% translate "Principal" as owner_label %}
+  {% translate "Tri" as sort_label %}
+  {% translate "Par priorité" as sort_priority_label %}
+  {% translate "Par date" as sort_date_label %}
+  {% translate "Filtres actifs" as active_filters_label %}
+  {% translate "Commandes démonstration" as demo_orders_label %}
+  {% translate "Actions neutres, action primaire visible, et filtres secondaires repliables." as demo_orders_help %}
   {% translate "Préparer l'expédition" as shipment_prepare_label %}
   {% translate "Vérifiez la destination, les parties et les colis avant validation finale." as shipment_prepare_help %}
   {% translate "Créer expédition" as shipment_create_label %}
@@ -298,6 +312,109 @@
           <textarea class="form-control" id="ui-lab-notes" rows="3" placeholder="{% trans "Commentaires design" %}"></textarea>
         </div>
       </form>
+    </section>
+
+    <section class="scan-card card border-0 ui-comp-card">
+      <div id="ui-lab-toolbar-demo" class="ui-lab-toolbar-demo-shell">
+        <div class="ui-lab-hero-head">
+          <div>
+            <h3 class="ui-comp-title">{{ recommended_toolbar_label }}</h3>
+            <p class="scan-help">{{ recommended_toolbar_help }}</p>
+          </div>
+          <span class="badge text-bg-light">{% trans "Liste pilotée" %}</span>
+        </div>
+        <form class="ui-comp-toolbar ui-lab-toolbar-demo-main" onsubmit="return false;">
+          <div class="scan-field ui-comp-filter ui-lab-toolbar-demo-search">
+            <label class="form-label" for="ui-lab-toolbar-demo-query">{% trans "Recherche" %}</label>
+            <input class="form-control" id="ui-lab-toolbar-demo-query" type="text" placeholder="{% trans "Référence, association, destination" %}">
+          </div>
+          <div class="scan-field ui-comp-filter">
+            <label class="form-label" for="ui-lab-toolbar-demo-status">{% trans "État" %}</label>
+            <select class="form-select" id="ui-lab-toolbar-demo-status">
+              <option>{% trans "Tous" %}</option>
+              <option>{% trans "À préparer" %}</option>
+              <option>{% trans "Prêt" %}</option>
+              <option>{% trans "En transit" %}</option>
+            </select>
+          </div>
+          <div class="ui-lab-toolbar-demo-actions">
+            <button type="button" id="ui-lab-toolbar-demo-toggle" class="btn btn-tertiary btn-sm" data-bs-toggle="collapse" data-bs-target="#ui-lab-toolbar-demo-panel" aria-expanded="false" aria-controls="ui-lab-toolbar-demo-panel">{{ filters_toggle_label }}</button>
+            <button type="button" class="btn btn-tertiary btn-sm">{{ export_action_label }}</button>
+            <button type="button" class="btn btn-tertiary btn-sm">{{ reset_filters_label }}</button>
+            <button type="button" id="ui-lab-toolbar-demo-primary-action" class="btn btn-primary btn-sm">{{ toolbar_demo_primary_label }}</button>
+          </div>
+        </form>
+        <div id="ui-lab-toolbar-demo-panel" class="collapse ui-lab-toolbar-demo-panel">
+          <div class="ui-comp-panel ui-lab-toolbar-demo-panel-body">
+            <div class="ui-lab-toolbar-demo-panel-grid">
+              <div class="scan-field">
+                <label class="form-label" for="ui-lab-toolbar-demo-warehouse">{{ warehouse_label }}</label>
+                <select class="form-select" id="ui-lab-toolbar-demo-warehouse">
+                  <option>{% trans "Tous les entrepôts" %}</option>
+                  <option>{% trans "Paris" %}</option>
+                  <option>{% trans "Marseille" %}</option>
+                </select>
+              </div>
+              <div class="scan-field">
+                <label class="form-label" for="ui-lab-toolbar-demo-owner">{{ owner_label }}</label>
+                <select class="form-select" id="ui-lab-toolbar-demo-owner">
+                  <option>{% trans "Toutes les associations" %}</option>
+                  <option>Secours Med</option>
+                  <option>ASF Lyon</option>
+                </select>
+              </div>
+              <div class="scan-field">
+                <label class="form-label" for="ui-lab-toolbar-demo-sort">{{ sort_label }}</label>
+                <select class="form-select" id="ui-lab-toolbar-demo-sort">
+                  <option>{{ sort_priority_label }}</option>
+                  <option>{{ sort_date_label }}</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <p class="scan-help mb-2">{{ active_filters_label }}</p>
+          <div id="ui-lab-toolbar-demo-chips" class="ui-comp-chip-list">
+            <span class="ui-comp-chip">{% trans "État: Prêt" %}</span>
+            <span class="ui-comp-chip">{% trans "Entrepôt: Paris" %}</span>
+            <span class="ui-comp-chip">Secours Med</span>
+          </div>
+        </div>
+        <div id="ui-lab-toolbar-demo-table" class="scan-table-wrap table-responsive ui-lab-toolbar-demo-table-wrap">
+          <table class="scan-table table table-sm table-hover align-middle ui-comp-data-table mb-0">
+            <caption id="ui-lab-toolbar-demo-table-caption" class="scan-help">{{ demo_orders_label }}. {{ demo_orders_help }}</caption>
+            <thead>
+              <tr>
+                <th scope="col">{% trans "Commande" %}</th>
+                <th scope="col">{% trans "Association" %}</th>
+                <th scope="col">{% trans "Destination" %}</th>
+                <th scope="col">{% trans "État" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>CMD-24031</td>
+                <td>Secours Med</td>
+                <td>Nouakchott</td>
+                <td><span class="ui-comp-status-pill is-ready">{% trans "Prêt" %}</span></td>
+              </tr>
+              <tr>
+                <td>CMD-24027</td>
+                <td>ASF Lyon</td>
+                <td>Dakar</td>
+                <td><span class="ui-comp-status-pill is-progress">{% trans "En préparation" %}</span></td>
+              </tr>
+              <tr>
+                <td>CMD-24014</td>
+                <td>Secours Med</td>
+                <td>Bamako</td>
+                <td><span class="ui-comp-status-pill is-info">{% trans "En test" %}</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </section>
 
     <section class="scan-card card border-0 ui-comp-card">

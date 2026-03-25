@@ -251,6 +251,53 @@
   font-family: var(--preview-body-font);
 }
 
+.ui-lab-toolbar-demo-shell {
+  display: grid;
+  gap: var(--preview-gap);
+}
+
+.ui-lab-toolbar-demo-main {
+  align-items: flex-end;
+}
+
+.ui-lab-toolbar-demo-search {
+  flex: 1 1 20rem;
+}
+
+.ui-lab-toolbar-demo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-left: auto;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.ui-lab-toolbar-demo-panel {
+  margin-top: -0.2rem;
+}
+
+.ui-lab-toolbar-demo-panel-body {
+  margin-bottom: 0;
+}
+
+.ui-lab-toolbar-demo-panel-grid {
+  display: grid;
+  gap: var(--preview-gap);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ui-lab-toolbar-demo-table-wrap {
+  margin-top: 0.15rem;
+}
+
+.ui-lab-toolbar-demo-table-wrap caption {
+  caption-side: top;
+  color: var(--preview-text-soft);
+  font-family: var(--preview-body-font);
+  padding-bottom: 0.55rem;
+}
+
 .ui-lab-preview .ui-comp-data-table thead .btn-link {
   font-family: var(--preview-heading-font);
   color: var(--preview-text);
@@ -280,13 +327,27 @@
   .ui-lab-governance-grid,
   .ui-lab-contract-grid,
   .ui-lab-typography,
-  .ui-lab-swatches {
+  .ui-lab-swatches,
+  .ui-lab-toolbar-demo-panel-grid {
     grid-template-columns: 1fr;
   }
 }
 
 .ui-lab-shipment-docs {
   margin-top: 0.75rem;
+}
+
+@media (max-width: 767.98px) {
+  .ui-lab-toolbar-demo-main .ui-comp-filter {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+
+  .ui-lab-toolbar-demo-actions {
+    margin-left: 0;
+    width: 100%;
+    justify-content: space-between;
+  }
 }
 
 .ui-lab-overlay-preview {
