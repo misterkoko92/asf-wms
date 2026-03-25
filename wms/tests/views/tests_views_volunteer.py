@@ -1,3 +1,4 @@
+import re
 from unittest import mock
 
 from django.conf import settings
@@ -253,6 +254,32 @@ class VolunteerProfileViewTests(TestCase):
         self.assertNotContains(response, 'name="language"')
         self.assertNotContains(response, 'value="fr"')
         self.assertNotContains(response, 'value="en"')
+
+    def test_dashboard_uses_lighter_navigation_shell_with_utility_logout(self):
+        response = self.client.get(reverse("volunteer:dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="volunteer-masthead"')
+        self.assertContains(response, 'id="volunteer-masthead-utility"')
+        self.assertContains(response, 'id="volunteer-primary-nav"')
+        self.assertContains(response, 'id="volunteer-account-link"')
+        self.assertContains(response, 'id="volunteer-logout-link"')
+        self.assertNotContains(response, 'name="language"')
+
+        content = response.content.decode()
+        nav_match = re.search(
+            r'<nav id="volunteer-primary-nav"[^>]*>(.*?)</nav>',
+            content,
+            re.S,
+        )
+        self.assertIsNotNone(nav_match)
+        nav_content = nav_match.group(1)
+        self.assertIn(reverse("volunteer:dashboard"), nav_content)
+        self.assertIn(reverse("volunteer:profile"), nav_content)
+        self.assertIn(reverse("volunteer:constraints"), nav_content)
+        self.assertIn(reverse("volunteer:availability_list"), nav_content)
+        self.assertIn(reverse("volunteer:availability_recap"), nav_content)
+        self.assertNotIn(reverse("volunteer:logout"), nav_content)
 
     def test_profile_update_persists_changes(self):
         response = self.client.post(
