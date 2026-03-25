@@ -221,11 +221,11 @@ class ScanAdminViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         html = response.content.decode("utf-8")
-        management_start = html.index('id="scan-primary-nav-management"')
-        management_end = html.index("</ul>", management_start)
+        management_start = html.index('id="scan-sidebar-management-toggle"')
+        management_end = html.index("</nav>", management_start)
         management_html = html[management_start:management_end]
         admin_start = html.index('id="scan-admin-toggle"')
-        admin_end = html.index("</ul>", admin_start)
+        admin_end = html.index("</nav>", admin_start)
         admin_html = html[admin_start:admin_end]
 
         self.assertIn(reverse("scan:scan_import"), management_html)

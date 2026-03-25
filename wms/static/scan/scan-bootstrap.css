@@ -242,6 +242,12 @@ body.scan-bootstrap-enabled {
   flex-wrap: wrap;
 }
 
+.scan-bootstrap-enabled .scan-header-brand {
+  display: flex;
+  align-items: center;
+  gap: calc(0.6rem * var(--wms-density-factor));
+}
+
 .scan-bootstrap-enabled .scan-header-utility {
   display: flex;
   align-items: center;
@@ -289,6 +295,136 @@ body.scan-bootstrap-enabled {
 .scan-bootstrap-enabled .scan-utility-nav .scan-nav-account .dropdown-header {
   font-size: var(--wms-font-size-small);
   color: var(--ink-soft);
+}
+
+.scan-bootstrap-enabled .scan-sidebar-toggle {
+  min-height: 2.1rem;
+  border-radius: 999px;
+}
+
+.scan-bootstrap-enabled .scan-workspace {
+  display: block;
+}
+
+.scan-bootstrap-enabled .scan-sidebar-offcanvas {
+  --bs-offcanvas-width: min(20rem, 88vw);
+  background: color-mix(in srgb, var(--scan-boot-surface) 96%, var(--wms-color-surface-alt));
+  border-right: 1px solid var(--scan-boot-border-strong);
+}
+
+.scan-bootstrap-enabled .scan-sidebar-offcanvas .offcanvas-header {
+  border-bottom: 1px solid color-mix(in srgb, var(--scan-boot-border-strong) 84%, white);
+  padding: 0.85rem 1rem;
+}
+
+.scan-bootstrap-enabled .scan-sidebar-offcanvas .offcanvas-body {
+  padding: 0.9rem;
+}
+
+.scan-bootstrap-enabled .scan-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.scan-bootstrap-enabled .scan-sidebar-link,
+.scan-bootstrap-enabled .scan-sidebar-group-toggle,
+.scan-bootstrap-enabled .scan-sidebar-child-link {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  text-decoration: none;
+  box-shadow: none;
+}
+
+.scan-bootstrap-enabled .scan-sidebar-link,
+.scan-bootstrap-enabled .scan-sidebar-group-toggle {
+  border: 1px solid transparent;
+  border-left: 3px solid transparent;
+  border-radius: 0.8rem;
+  background: transparent;
+  color: var(--wms-nav-item-text);
+  font-size: var(--wms-nav-item-font-size);
+  font-weight: var(--wms-nav-item-font-weight);
+  line-height: var(--wms-nav-item-line-height);
+  letter-spacing: var(--wms-nav-item-letter-spacing);
+  padding: 0.72rem 0.85rem;
+  text-align: left;
+  transition: border-color 0.12s ease, background-color 0.12s ease, color 0.12s ease;
+}
+
+.scan-bootstrap-enabled .scan-sidebar-link:hover,
+.scan-bootstrap-enabled .scan-sidebar-group-toggle:hover {
+  background: color-mix(in srgb, var(--wms-nav-item-hover-bg) 74%, white);
+  color: var(--wms-nav-item-hover-text);
+}
+
+.scan-bootstrap-enabled .scan-sidebar-link.active,
+.scan-bootstrap-enabled .scan-sidebar-group-toggle.active {
+  background: color-mix(in srgb, var(--wms-nav-item-active-bg) 88%, white);
+  border-color: color-mix(in srgb, var(--wms-color-primary) 24%, var(--wms-nav-item-border));
+  border-left-color: color-mix(in srgb, var(--wms-color-primary) 75%, white);
+  color: var(--wms-nav-item-active-text);
+}
+
+.scan-bootstrap-enabled .scan-sidebar-group-toggle {
+  justify-content: space-between;
+}
+
+.scan-bootstrap-enabled .scan-sidebar-group-toggle::after {
+  content: "▾";
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  transition: transform 0.12s ease;
+}
+
+.scan-bootstrap-enabled .scan-sidebar-group-toggle[aria-expanded="false"]::after {
+  transform: rotate(-90deg);
+}
+
+.scan-bootstrap-enabled .scan-sidebar-group-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-left: 0.45rem;
+  padding: 0.2rem 0 0.35rem 0.95rem;
+}
+
+.scan-bootstrap-enabled .scan-sidebar-child-link {
+  border-left: 2px solid transparent;
+  border-radius: 0.55rem;
+  color: var(--ink-soft);
+  font-size: 0.93rem;
+  font-weight: 600;
+  padding: 0.45rem 0.75rem;
+}
+
+.scan-bootstrap-enabled .scan-sidebar-child-link:hover {
+  background: color-mix(in srgb, var(--wms-nav-item-hover-bg) 70%, white);
+  color: var(--wms-nav-item-hover-text);
+}
+
+.scan-bootstrap-enabled .scan-sidebar-child-link.active {
+  background: color-mix(in srgb, var(--wms-nav-item-active-bg) 84%, white);
+  border-left-color: color-mix(in srgb, var(--wms-color-primary) 68%, white);
+  color: var(--wms-nav-item-active-text);
+}
+
+.scan-bootstrap-enabled .scan-sidebar-section-label {
+  color: var(--ink-soft);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 0.55rem 0.75rem 0.15rem;
+  text-transform: uppercase;
+}
+
+.scan-bootstrap-enabled .scan-body {
+  min-width: 0;
+}
+
+.scan-bootstrap-enabled .scan-main {
+  min-width: 0;
 }
 
 .scan-bootstrap-enabled .scan-header-actions {
@@ -1382,31 +1518,46 @@ body.scan-bootstrap-enabled[data-btn-style-mode="outlined"] .btn-tertiary {
     justify-content: flex-start;
   }
 
-  .scan-bootstrap-enabled .scan-nav {
-    margin-bottom: 1rem;
+  .scan-bootstrap-enabled .scan-sidebar-offcanvas .offcanvas-body {
+    padding: 0.85rem;
   }
 
-  .scan-bootstrap-enabled .scan-nav.scan-nav-bootstrap .navbar-nav {
-    align-items: stretch;
-    padding-top: 0.55rem;
-  }
-
-  .scan-bootstrap-enabled .scan-nav.scan-nav-bootstrap .nav-link {
-    width: 100%;
-    justify-content: flex-start;
-  }
-
-  .scan-bootstrap-enabled .scan-nav.scan-nav-bootstrap .dropdown-menu {
-    border: 0;
-    border-top: 1px solid var(--scan-boot-border-strong);
-    border-radius: 0;
-    margin-top: 0.35rem;
-    padding-left: 0;
-    padding-right: 0;
+  .scan-bootstrap-enabled .scan-body {
+    margin-top: 0.85rem;
   }
 
   .scan-bootstrap-enabled .scan-card.card {
     padding: 0.9rem;
+  }
+}
+
+@media (min-width: 992px) {
+  .scan-bootstrap-enabled .scan-workspace {
+    display: grid;
+    grid-template-columns: minmax(240px, 270px) minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+  }
+
+  .scan-bootstrap-enabled .scan-sidebar-offcanvas {
+    position: sticky;
+    top: clamp(14px, 1.8vw, 28px);
+    display: block;
+    visibility: visible !important;
+    transform: none !important;
+    height: fit-content;
+    border: 1px solid var(--scan-boot-border-strong);
+    border-radius: 0.9rem;
+    background: color-mix(in srgb, var(--scan-boot-surface) 95%, var(--wms-color-surface-alt));
+    box-shadow: none;
+  }
+
+  .scan-bootstrap-enabled .scan-sidebar-offcanvas .offcanvas-body {
+    padding: 0.9rem;
+  }
+
+  .scan-bootstrap-enabled .scan-body {
+    margin-top: 0;
   }
 }
 

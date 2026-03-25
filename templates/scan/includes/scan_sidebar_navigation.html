@@ -1,0 +1,140 @@
+{% load i18n %}
+<nav id="scan-sidebar-nav" class="scan-sidebar-nav" aria-label="{% trans "Navigation Scan" %}">
+  {% if request.scan_is_preparateur %}
+    <a
+      id="scan-sidebar-preparation"
+      href="{% url 'scan:scan_pack' %}"
+      class="scan-sidebar-link{% if active == 'pack' %} active{% endif %}"
+    >
+      Préparation
+    </a>
+  {% else %}
+    <a
+      id="scan-sidebar-dashboard"
+      href="{% url 'scan:scan_dashboard' %}"
+      class="scan-sidebar-link{% if active == 'dashboard' %} active{% endif %}"
+    >
+      Tableau de bord
+    </a>
+
+    <div class="scan-sidebar-group">
+      <button
+        id="scan-sidebar-stocks-toggle"
+        class="scan-sidebar-group-toggle{% if active == 'stock' or active == 'kits_view' or active == 'cartons_ready' or active == 'shipments_ready' or active == 'orders_view' or active == 'receipts_view' or active == 'stock_update' %} active{% endif %}"
+        type="button"
+        data-bs-toggle="collapse"
+        data-bs-target="#scan-sidebar-stocks-group"
+        aria-expanded="{% if active == 'stock' or active == 'kits_view' or active == 'cartons_ready' or active == 'shipments_ready' or active == 'orders_view' or active == 'receipts_view' or active == 'stock_update' %}true{% else %}false{% endif %}"
+        aria-controls="scan-sidebar-stocks-group"
+      >
+        <span>Stocks</span>
+      </button>
+      <div
+        id="scan-sidebar-stocks-group"
+        class="collapse scan-sidebar-group-links{% if active == 'stock' or active == 'kits_view' or active == 'cartons_ready' or active == 'shipments_ready' or active == 'orders_view' or active == 'receipts_view' or active == 'stock_update' %} show{% endif %}"
+      >
+        <a href="{% url 'scan:scan_stock' %}" class="scan-sidebar-child-link{% if active == 'stock' %} active{% endif %}">{% trans "Vue Stock" %}</a>
+        <a href="{% url 'scan:scan_kits_view' %}" class="scan-sidebar-child-link{% if active == 'kits_view' %} active{% endif %}">{% trans "Vue Kits" %}</a>
+        <a href="{% url 'scan:scan_cartons_ready' %}" class="scan-sidebar-child-link{% if active == 'cartons_ready' %} active{% endif %}">{% trans "Vue Colis" %}</a>
+        <a href="{% url 'scan:scan_shipments_ready' %}" class="scan-sidebar-child-link{% if active == 'shipments_ready' %} active{% endif %}">{% if LANGUAGE_CODE|slice:":2" == "en" %}Shipments view{% else %}{% trans "Vue Expéditions" %}{% endif %}</a>
+        <a href="{% url 'scan:scan_orders_view' %}" class="scan-sidebar-child-link{% if active == 'orders_view' %} active{% endif %}">{% trans "Vue Commande" %}</a>
+        <a href="{% url 'scan:scan_receipts_view' %}" class="scan-sidebar-child-link{% if active == 'receipts_view' %} active{% endif %}">{% trans "Vue Réception" %}</a>
+        <a href="{% url 'scan:scan_stock_update' %}" class="scan-sidebar-child-link{% if active == 'stock_update' %} active{% endif %}">
+          {% get_current_language as current_language %}
+          {% if current_language == "fr" %}
+            {% trans "MAJ stock" %}
+          {% else %}
+            {% trans "Stock update" %}
+          {% endif %}
+        </a>
+      </div>
+    </div>
+
+    <div class="scan-sidebar-group">
+      <button
+        id="scan-sidebar-receiving-toggle"
+        class="scan-sidebar-group-toggle{% if active == 'receive_pallet' or active == 'receive_association' %} active{% endif %}"
+        type="button"
+        data-bs-toggle="collapse"
+        data-bs-target="#scan-sidebar-receiving-group"
+        aria-expanded="{% if active == 'receive_pallet' or active == 'receive_association' %}true{% else %}false{% endif %}"
+        aria-controls="scan-sidebar-receiving-group"
+      >
+        <span>Réception</span>
+      </button>
+      <div
+        id="scan-sidebar-receiving-group"
+        class="collapse scan-sidebar-group-links{% if active == 'receive_pallet' or active == 'receive_association' %} show{% endif %}"
+      >
+        <a href="{% url 'scan:scan_receive_pallet' %}" class="scan-sidebar-child-link{% if active == 'receive_pallet' %} active{% endif %}">{% trans "Réception palette" %}</a>
+        <a href="{% url 'scan:scan_receive_association' %}" class="scan-sidebar-child-link{% if active == 'receive_association' %} active{% endif %}">{% trans "Réception association" %}</a>
+      </div>
+    </div>
+
+    <div class="scan-sidebar-group">
+      <button
+        id="scan-sidebar-preparation-toggle"
+        class="scan-sidebar-group-toggle{% if active == 'prepare_kits' or active == 'pack' or active == 'shipment' %} active{% endif %}"
+        type="button"
+        data-bs-toggle="collapse"
+        data-bs-target="#scan-sidebar-preparation-group"
+        aria-expanded="{% if active == 'prepare_kits' or active == 'pack' or active == 'shipment' %}true{% else %}false{% endif %}"
+        aria-controls="scan-sidebar-preparation-group"
+      >
+        <span>Préparation</span>
+      </button>
+      <div
+        id="scan-sidebar-preparation-group"
+        class="collapse scan-sidebar-group-links{% if active == 'prepare_kits' or active == 'pack' or active == 'shipment' %} show{% endif %}"
+      >
+        <a href="{% url 'scan:scan_prepare_kits' %}" class="scan-sidebar-child-link{% if active == 'prepare_kits' %} active{% endif %}">{% trans "Préparer des kits" %}</a>
+        <a href="{% url 'scan:scan_pack' %}" class="scan-sidebar-child-link{% if active == 'pack' %} active{% endif %}">{% trans "Préparer des colis" %}</a>
+        <a href="{% url 'scan:scan_shipment_create' %}" class="scan-sidebar-child-link{% if active == 'shipment' %} active{% endif %}">{% trans "Préparation expédition" %}</a>
+      </div>
+    </div>
+
+    <a
+      id="scan-sidebar-shipments"
+      href="{% url 'scan:scan_shipments_tracking' %}"
+      class="scan-sidebar-link{% if active == 'shipments_tracking' %} active{% endif %}"
+    >
+      Expéditions
+    </a>
+
+    <div class="scan-sidebar-group">
+      <button
+        id="scan-sidebar-management-toggle"
+        class="scan-sidebar-group-toggle{% if active == 'out' or active == 'faq' or active == 'imports' or active == 'admin_contacts' or active == 'print_templates' or active == 'product_labels' or active == 'billing_settings' or active == 'billing_equivalence' or active == 'billing_editor' %} active{% endif %}"
+        type="button"
+        data-bs-toggle="collapse"
+        data-bs-target="#scan-sidebar-management-group"
+        aria-expanded="{% if active == 'out' or active == 'faq' or active == 'imports' or active == 'admin_contacts' or active == 'print_templates' or active == 'product_labels' or active == 'billing_settings' or active == 'billing_equivalence' or active == 'billing_editor' %}true{% else %}false{% endif %}"
+        aria-controls="scan-sidebar-management-group"
+      >
+        <span>Gestion</span>
+      </button>
+      <div
+        id="scan-sidebar-management-group"
+        class="collapse scan-sidebar-group-links{% if active == 'out' or active == 'faq' or active == 'imports' or active == 'admin_contacts' or active == 'print_templates' or active == 'product_labels' or active == 'billing_settings' or active == 'billing_equivalence' or active == 'billing_editor' %} show{% endif %}"
+      >
+        <a href="{% url 'scan:scan_out' %}" class="scan-sidebar-child-link{% if active == 'out' %} active{% endif %}">{% trans "Supprimer produit" %}</a>
+        <a href="{% url 'scan:scan_faq' %}" class="scan-sidebar-child-link{% if active == 'faq' %} active{% endif %}">{% trans "FAQ / Documentation" %}</a>
+        {% if scan_billing_visible %}
+          <div class="scan-sidebar-section-label">Facturation</div>
+          {% if scan_billing_admin_visible %}
+            <a href="{% url 'scan:scan_billing_settings' %}" class="scan-sidebar-child-link{% if active == 'billing_settings' %} active{% endif %}">{% trans "Paramètres" %}</a>
+            <a href="{% url 'scan:scan_billing_equivalence' %}" class="scan-sidebar-child-link{% if active == 'billing_equivalence' %} active{% endif %}">{% trans "Equivalence" %}</a>
+          {% endif %}
+          <a href="{% url 'scan:scan_billing_editor' %}" class="scan-sidebar-child-link{% if active == 'billing_editor' %} active{% endif %}">{% trans "Edition Devis/Facture" %}</a>
+        {% endif %}
+        {% if request.user.is_superuser %}
+          <div class="scan-sidebar-section-label">Administration</div>
+          <a href="{% url 'scan:scan_import' %}" class="scan-sidebar-child-link{% if active == 'imports' %} active{% endif %}">{% trans "Imports" %}</a>
+          <a href="{% url 'scan:scan_admin_contacts' %}" class="scan-sidebar-child-link{% if active == 'admin_contacts' %} active{% endif %}">{% trans "Contacts" %}</a>
+          <a href="{% url 'scan:scan_print_templates' %}" class="scan-sidebar-child-link{% if active == 'print_templates' %} active{% endif %}">{% trans "Templates" %}</a>
+          <a href="{% url 'scan:scan_product_labels' %}" class="scan-sidebar-child-link{% if active == 'product_labels' %} active{% endif %}">{% trans "Etiquette Produit" %}</a>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+</nav>
