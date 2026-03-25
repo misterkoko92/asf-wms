@@ -27,6 +27,20 @@
   {% translate "Workflow expédition" as shipment_workflow_label %}
   {% translate "Actions documentaires" as shipment_doc_actions_label %}
   {% translate "Overlay confirmation" as shipment_overlay_label %}
+  {% translate "Toolbar recommandé" as recommended_toolbar_label %}
+  {% translate "Contrat enrichi pour piloter une liste sur desktop et mobile sans lier la démo à la prod." as recommended_toolbar_help %}
+  {% translate "Filtres" as filters_toggle_label %}
+  {% translate "Nouvelle commande" as toolbar_demo_primary_label %}
+  {% translate "Exporter" as export_action_label %}
+  {% translate "Réinitialiser" as reset_filters_label %}
+  {% translate "Entrepôt" as warehouse_label %}
+  {% translate "Principal" as owner_label %}
+  {% translate "Tri" as sort_label %}
+  {% translate "Par priorité" as sort_priority_label %}
+  {% translate "Par date" as sort_date_label %}
+  {% translate "Filtres actifs" as active_filters_label %}
+  {% translate "Commandes démonstration" as demo_orders_label %}
+  {% translate "Actions neutres, action primaire visible, et filtres secondaires repliables." as demo_orders_help %}
   {% translate "Préparer l'expédition" as shipment_prepare_label %}
   {% translate "Vérifiez la destination, les parties et les colis avant validation finale." as shipment_prepare_help %}
   {% translate "Créer expédition" as shipment_create_label %}
@@ -298,6 +312,316 @@
           <textarea class="form-control" id="ui-lab-notes" rows="3" placeholder="{% trans "Commentaires design" %}"></textarea>
         </div>
       </form>
+    </section>
+
+    <section class="scan-card card border-0 ui-comp-card">
+      <div id="ui-lab-page-header-demo" class="ui-lab-page-header-demo-shell">
+        <div class="ui-lab-hero-head">
+          <div>
+            <h3 class="ui-comp-title">{% trans "Page header recommandé" %}</h3>
+            <p class="scan-help">{% trans "Titre, contexte et actions de haut niveau, sans toolbar ni breadcrumbs." %}</p>
+          </div>
+          <span class="badge text-bg-light">{% trans "Actions de page" %}</span>
+        </div>
+        <div class="ui-comp-panel ui-lab-page-header-demo-card">
+          <div class="ui-lab-page-header-demo-copy">
+            <h3 id="ui-lab-page-header-demo-title" class="ui-comp-title">Gestion des expéditions</h3>
+            <p id="ui-lab-page-header-demo-body" class="scan-help">Préparez les départs, vérifiez les destinataires et lancez les actions de haut niveau avant de passer au détail du suivi.</p>
+          </div>
+          <div class="ui-comp-actions ui-lab-page-header-demo-actions">
+            <button type="button" class="btn btn-tertiary btn-sm">Exporter</button>
+            <button type="button" class="btn btn-tertiary btn-sm">Archiver</button>
+            <button type="button" id="ui-lab-page-header-demo-primary-action" class="btn btn-primary btn-sm">Nouvelle expédition</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scan-card card border-0 ui-comp-card">
+      <div id="ui-lab-document-actions-demo" class="ui-lab-document-actions-demo-shell">
+        <div class="ui-lab-hero-head">
+          <div>
+            <h3 class="ui-comp-title">Document actions recommandé</h3>
+            <p class="scan-help">Grappe homogène de liens documentaires, sans action primaire ni logique de workflow.</p>
+          </div>
+          <span class="badge text-bg-light">Documents liés</span>
+        </div>
+        <div class="ui-comp-panel ui-lab-document-actions-demo-card">
+          <div class="ui-lab-document-actions-demo-copy">
+            <h3 id="ui-lab-document-actions-demo-title" class="ui-comp-title">Documents d'expédition</h3>
+            <p id="ui-lab-document-actions-demo-body" class="scan-help">Ouvrez les sorties générées pour le même départ, sans quitter le contexte de préparation.</p>
+          </div>
+          <div class="scan-docs ui-comp-actions ui-lab-document-actions-demo-actions">
+            <button type="button" id="ui-lab-document-actions-demo-action-1" class="btn btn-tertiary btn-sm">Bon d'expédition</button>
+            <button type="button" class="btn btn-tertiary btn-sm">Liste colisage</button>
+            <button type="button" class="btn btn-tertiary btn-sm">Étiquettes colis</button>
+            <button type="button" class="btn btn-tertiary btn-sm">Récapitulatif PDF</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scan-card card border-0 ui-comp-card">
+      <div id="ui-lab-workflow-action-bar-demo" class="ui-lab-workflow-action-bar-demo-shell">
+        <div class="ui-lab-hero-head">
+          <div>
+            <h3 class="ui-comp-title">Workflow action bar recommandé</h3>
+            <p class="scan-help">Clôture d'étape avec hiérarchie claire entre action primaire, secondaire et repli.</p>
+          </div>
+          <span class="badge text-bg-light">Fin de workflow</span>
+        </div>
+        <div class="ui-comp-panel ui-lab-workflow-action-bar-demo-card">
+          <div class="ui-lab-workflow-action-bar-demo-copy">
+            <p id="ui-lab-workflow-action-bar-demo-body" class="scan-help">Vérifiez les colis, la destination et les parties avant de confirmer la préparation du départ.</p>
+          </div>
+          <div class="ui-comp-actions ui-lab-workflow-action-bar-demo-actions">
+            <button type="button" class="btn btn-tertiary btn-sm">Revenir</button>
+            <button type="button" id="ui-lab-workflow-action-bar-demo-secondary-action" class="btn btn-secondary btn-sm">Enregistrer un brouillon</button>
+            <button type="button" id="ui-lab-workflow-action-bar-demo-primary-action" class="btn btn-primary btn-sm">Valider l'étape</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scan-card card border-0 ui-comp-card">
+      <div id="ui-lab-toolbar-demo" class="ui-lab-toolbar-demo-shell">
+        <div class="ui-lab-hero-head">
+          <div>
+            <h3 class="ui-comp-title">{{ recommended_toolbar_label }}</h3>
+            <p class="scan-help">{{ recommended_toolbar_help }}</p>
+          </div>
+          <span class="badge text-bg-light">{% trans "Liste pilotée" %}</span>
+        </div>
+        <form class="ui-comp-toolbar ui-lab-toolbar-demo-main" onsubmit="return false;">
+          <div class="scan-field ui-comp-filter ui-lab-toolbar-demo-search">
+            <label class="form-label" for="ui-lab-toolbar-demo-query">{% trans "Recherche" %}</label>
+            <input class="form-control" id="ui-lab-toolbar-demo-query" type="text" placeholder="{% trans "Référence, association, destination" %}">
+          </div>
+          <div class="scan-field ui-comp-filter">
+            <label class="form-label" for="ui-lab-toolbar-demo-status">{% trans "État" %}</label>
+            <select class="form-select" id="ui-lab-toolbar-demo-status">
+              <option>{% trans "Tous" %}</option>
+              <option>{% trans "À préparer" %}</option>
+              <option>{% trans "Prêt" %}</option>
+              <option>{% trans "En transit" %}</option>
+            </select>
+          </div>
+          <div class="ui-lab-toolbar-demo-actions">
+            <button type="button" id="ui-lab-toolbar-demo-toggle" class="btn btn-tertiary btn-sm" data-bs-toggle="collapse" data-bs-target="#ui-lab-toolbar-demo-panel" aria-expanded="false" aria-controls="ui-lab-toolbar-demo-panel">{{ filters_toggle_label }}</button>
+            <button type="button" class="btn btn-tertiary btn-sm">{{ export_action_label }}</button>
+            <button type="button" class="btn btn-tertiary btn-sm">{{ reset_filters_label }}</button>
+            <button type="button" id="ui-lab-toolbar-demo-primary-action" class="btn btn-primary btn-sm">{{ toolbar_demo_primary_label }}</button>
+          </div>
+        </form>
+        <div id="ui-lab-toolbar-demo-panel" class="collapse ui-lab-toolbar-demo-panel">
+          <div class="ui-comp-panel ui-lab-toolbar-demo-panel-body">
+            <div class="ui-lab-toolbar-demo-panel-grid">
+              <div class="scan-field">
+                <label class="form-label" for="ui-lab-toolbar-demo-warehouse">{{ warehouse_label }}</label>
+                <select class="form-select" id="ui-lab-toolbar-demo-warehouse">
+                  <option>{% trans "Tous les entrepôts" %}</option>
+                  <option>{% trans "Paris" %}</option>
+                  <option>{% trans "Marseille" %}</option>
+                </select>
+              </div>
+              <div class="scan-field">
+                <label class="form-label" for="ui-lab-toolbar-demo-owner">{{ owner_label }}</label>
+                <select class="form-select" id="ui-lab-toolbar-demo-owner">
+                  <option>{% trans "Toutes les associations" %}</option>
+                  <option>Secours Med</option>
+                  <option>ASF Lyon</option>
+                </select>
+              </div>
+              <div class="scan-field">
+                <label class="form-label" for="ui-lab-toolbar-demo-sort">{{ sort_label }}</label>
+                <select class="form-select" id="ui-lab-toolbar-demo-sort">
+                  <option>{{ sort_priority_label }}</option>
+                  <option>{{ sort_date_label }}</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <p class="scan-help mb-2">{{ active_filters_label }}</p>
+          <div id="ui-lab-toolbar-demo-chips" class="ui-comp-chip-list">
+            <span class="ui-comp-chip">{% trans "État: Prêt" %}</span>
+            <span class="ui-comp-chip">{% trans "Entrepôt: Paris" %}</span>
+            <span class="ui-comp-chip">Secours Med</span>
+          </div>
+        </div>
+        <div id="ui-lab-toolbar-demo-table" class="scan-table-wrap table-responsive ui-lab-toolbar-demo-table-wrap">
+          <table class="scan-table table table-sm table-hover align-middle ui-comp-data-table mb-0">
+            <caption id="ui-lab-toolbar-demo-table-caption" class="scan-help">{{ demo_orders_label }}. {{ demo_orders_help }}</caption>
+            <thead>
+              <tr>
+                <th scope="col">{% trans "Commande" %}</th>
+                <th scope="col">{% trans "Association" %}</th>
+                <th scope="col">{% trans "Destination" %}</th>
+                <th scope="col">{% trans "État" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>CMD-24031</td>
+                <td>Secours Med</td>
+                <td>Nouakchott</td>
+                <td><span class="ui-comp-status-pill is-ready">{% trans "Prêt" %}</span></td>
+              </tr>
+              <tr>
+                <td>CMD-24027</td>
+                <td>ASF Lyon</td>
+                <td>Dakar</td>
+                <td><span class="ui-comp-status-pill is-progress">{% trans "En préparation" %}</span></td>
+              </tr>
+              <tr>
+                <td>CMD-24014</td>
+                <td>Secours Med</td>
+                <td>Bamako</td>
+                <td><span class="ui-comp-status-pill is-info">{% trans "En test" %}</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="scan-card card border-0 ui-comp-card">
+      <div id="ui-lab-empty-state-demo" class="ui-lab-empty-state-demo-shell">
+        <div class="ui-lab-hero-head">
+          <div>
+            <h3 class="ui-comp-title">Empty state recommandé</h3>
+            <p class="scan-help">Contrat sobre pour un contexte manquant, sans confusion avec une erreur ou un no-results.</p>
+          </div>
+          <span class="badge text-bg-light">Contexte manquant</span>
+        </div>
+        <div class="ui-comp-panel ui-lab-empty-state-demo-card">
+          <h4 id="ui-lab-empty-state-demo-title" class="ui-comp-title">Aucune réception sélectionnée</h4>
+          <p id="ui-lab-empty-state-demo-body" class="scan-help">Choisissez une réception dans la liste pour afficher ses lignes, allocations et actions associées.</p>
+          <div class="ui-comp-actions">
+            <button type="button" id="ui-lab-empty-state-demo-action" class="btn btn-tertiary btn-sm">Voir la liste</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scan-card card border-0 ui-comp-card">
+      <div id="ui-lab-table-demo" class="ui-lab-table-demo-shell">
+        <div class="ui-lab-hero-head">
+          <div>
+            <h3 class="ui-comp-title">Table dense recommandée</h3>
+            <p class="scan-help">Contrat de table métier dense, lisible sur desktop et consultable sur mobile via overflow maîtrisé.</p>
+          </div>
+          <span class="badge text-bg-light">Table métier dense</span>
+        </div>
+        <div class="scan-table-wrap table-responsive ui-lab-table-demo-table-wrap">
+          <table id="ui-lab-table-demo-table" class="scan-table table table-sm table-hover align-middle ui-comp-data-table ui-lab-table-demo-table mb-0">
+            <caption id="ui-lab-table-demo-caption" class="scan-help">Commandes expédition. Priorités, statuts et action légère, sans sélection ni édition inline.</caption>
+            <thead>
+              <tr>
+                <th scope="col">Référence</th>
+                <th scope="col">Association</th>
+                <th scope="col">Destination</th>
+                <th scope="col">Priorité</th>
+                <th scope="col">État</th>
+                <th scope="col">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <div class="ui-lab-table-demo-meta">
+                    <strong>CMD-24031</strong>
+                    <span class="scan-help">3 palettes · 24 colis</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="ui-lab-table-demo-meta">
+                    <strong>Secours Med</strong>
+                    <span class="scan-help">Compte portail validé</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="ui-lab-table-demo-meta">
+                    <strong>Nouakchott</strong>
+                    <span class="scan-help">Vol du jeudi</span>
+                  </div>
+                </td>
+                <td class="ui-lab-table-demo-priority-cell">
+                  <div class="ui-lab-table-demo-meta">
+                    <strong>Urgent</strong>
+                    <span class="scan-help">12,4 m³</span>
+                  </div>
+                </td>
+                <td class="ui-lab-table-demo-status-cell"><span class="ui-comp-status-pill is-ready">Prêt</span></td>
+                <td class="ui-lab-table-demo-action-cell">
+                  <button type="button" id="ui-lab-table-demo-action-1" class="btn btn-tertiary btn-sm ui-lab-table-demo-action">Voir</button>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="ui-lab-table-demo-meta">
+                    <strong>CMD-24027</strong>
+                    <span class="scan-help">1 palette · 8 colis</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="ui-lab-table-demo-meta">
+                    <strong>ASF Lyon</strong>
+                    <span class="scan-help">Complément matériel</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="ui-lab-table-demo-meta">
+                    <strong>Dakar</strong>
+                    <span class="scan-help">Regroupement semaine 14</span>
+                  </div>
+                </td>
+                <td class="ui-lab-table-demo-priority-cell">
+                  <div class="ui-lab-table-demo-meta">
+                    <strong>Standard</strong>
+                    <span class="scan-help">4,2 m³</span>
+                  </div>
+                </td>
+                <td class="ui-lab-table-demo-status-cell"><span class="ui-comp-status-pill is-progress">En préparation</span></td>
+                <td class="ui-lab-table-demo-action-cell">
+                  <button type="button" class="btn btn-tertiary btn-sm ui-lab-table-demo-action">Voir</button>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="ui-lab-table-demo-meta">
+                    <strong>CMD-24014</strong>
+                    <span class="scan-help">2 palettes · 16 colis</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="ui-lab-table-demo-meta">
+                    <strong>Secours Med</strong>
+                    <span class="scan-help">Réassort kit hygiène</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="ui-lab-table-demo-meta">
+                    <strong>Bamako</strong>
+                    <span class="scan-help">Départ à confirmer</span>
+                  </div>
+                </td>
+                <td class="ui-lab-table-demo-priority-cell">
+                  <div class="ui-lab-table-demo-meta">
+                    <strong>Sensible</strong>
+                    <span class="scan-help">9,8 m³</span>
+                  </div>
+                </td>
+                <td class="ui-lab-table-demo-status-cell"><span class="ui-comp-status-pill is-info">En test</span></td>
+                <td class="ui-lab-table-demo-action-cell">
+                  <button type="button" class="btn btn-tertiary btn-sm ui-lab-table-demo-action">Voir</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </section>
 
     <section class="scan-card card border-0 ui-comp-card">

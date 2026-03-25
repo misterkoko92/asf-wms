@@ -1319,6 +1319,97 @@ class ScanBootstrapUiTests(TestCase):
         self.assertEqual(design_response.status_code, 200)
         self.assertContains(design_response, reverse("scan:scan_ui_lab"))
 
+    def test_scan_ui_lab_exposes_recommended_toolbar_demo_contract(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_ui_lab"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="ui-lab-toolbar-demo"')
+        self.assertContains(response, 'id="ui-lab-toolbar-demo-query"')
+        self.assertContains(response, 'id="ui-lab-toolbar-demo-status"')
+        self.assertContains(response, 'id="ui-lab-toolbar-demo-toggle"')
+        self.assertContains(response, 'id="ui-lab-toolbar-demo-primary-action"')
+        self.assertContains(response, 'id="ui-lab-toolbar-demo-panel"')
+        self.assertContains(response, 'id="ui-lab-toolbar-demo-chips"')
+        self.assertContains(response, 'id="ui-lab-toolbar-demo-table"')
+        self.assertContains(response, 'id="ui-lab-toolbar-demo-table-caption"')
+        self.assertNotContains(response, 'name="action" value="filter"')
+
+    def test_scan_ui_lab_exposes_recommended_table_demo_contract(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_ui_lab"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="ui-lab-table-demo"')
+        self.assertContains(response, 'id="ui-lab-table-demo-table"')
+        self.assertContains(response, 'id="ui-lab-table-demo-caption"')
+        self.assertContains(response, 'id="ui-lab-table-demo-action-1"')
+        self.assertContains(response, "ui-comp-status-pill")
+        self.assertContains(response, "Référence")
+        self.assertContains(response, "Association")
+        self.assertContains(response, "Destination")
+        self.assertContains(response, "Priorité")
+        self.assertContains(response, "Action")
+        self.assertNotContains(response, 'id="ui-lab-table-demo-select-all"')
+
+    def test_scan_ui_lab_exposes_recommended_empty_state_demo_contract(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_ui_lab"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="ui-lab-empty-state-demo"')
+        self.assertContains(response, 'id="ui-lab-empty-state-demo-title"')
+        self.assertContains(response, 'id="ui-lab-empty-state-demo-body"')
+        self.assertContains(response, 'id="ui-lab-empty-state-demo-action"')
+        self.assertContains(response, "Aucune réception sélectionnée")
+        self.assertNotContains(response, 'id="ui-lab-empty-state-demo-error"')
+        self.assertNotContains(response, 'name="action" value="retry"')
+
+    def test_scan_ui_lab_exposes_recommended_page_header_demo_contract(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_ui_lab"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="ui-lab-page-header-demo"')
+        self.assertContains(response, 'id="ui-lab-page-header-demo-title"')
+        self.assertContains(response, 'id="ui-lab-page-header-demo-body"')
+        self.assertContains(response, 'id="ui-lab-page-header-demo-primary-action"')
+        self.assertContains(response, "Gestion des expéditions")
+        self.assertNotContains(response, 'id="ui-lab-page-header-demo-breadcrumbs"')
+        self.assertNotContains(response, 'id="ui-lab-page-header-demo-search"')
+
+    def test_scan_ui_lab_exposes_recommended_document_actions_demo_contract(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_ui_lab"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="ui-lab-document-actions-demo"')
+        self.assertContains(response, 'id="ui-lab-document-actions-demo-title"')
+        self.assertContains(response, 'id="ui-lab-document-actions-demo-body"')
+        self.assertContains(response, 'id="ui-lab-document-actions-demo-action-1"')
+        self.assertContains(response, "Documents d'expédition")
+        self.assertNotContains(response, 'id="ui-lab-document-actions-demo-primary-action"')
+        self.assertNotContains(response, 'id="ui-lab-document-actions-demo-upload"')
+
+    def test_scan_ui_lab_exposes_recommended_workflow_action_bar_demo_contract(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_ui_lab"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="ui-lab-workflow-action-bar-demo"')
+        self.assertContains(response, 'id="ui-lab-workflow-action-bar-demo-body"')
+        self.assertContains(response, 'id="ui-lab-workflow-action-bar-demo-primary-action"')
+        self.assertContains(response, 'id="ui-lab-workflow-action-bar-demo-secondary-action"')
+        self.assertContains(response, "Valider l'étape")
+        self.assertNotContains(response, 'id="ui-lab-workflow-action-bar-demo-search"')
+        self.assertNotContains(response, 'id="ui-lab-workflow-action-bar-demo-document-action"')
+
     def test_scan_ui_lab_exposes_governance_tiers_for_stable_and_converging_contracts(self):
         self.client.force_login(self.superuser)
 
