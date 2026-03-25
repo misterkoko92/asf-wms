@@ -63,11 +63,15 @@ class ScanBootstrapUiTests(TestCase):
             location=location,
         )
 
-    def _scan_nav_html(self, response):
+    def _scan_sidebar_html(self, response):
         content = response.content.decode()
-        nav_start = content.index(
-            '<nav class="scan-nav scan-nav-bootstrap navbar navbar-expand-xl ui-comp-panel"'
-        )
+        nav_start = content.index('id="scan-sidebar-nav"')
+        nav_end = content.index("</nav>", nav_start)
+        return content[nav_start:nav_end]
+
+    def _scan_utility_nav_html(self, response):
+        content = response.content.decode()
+        nav_start = content.index('id="scan-utility-nav"')
         nav_end = content.index("</nav>", nav_start)
         return content[nav_start:nav_end]
 
@@ -202,35 +206,66 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "Vue Stock")
         self.assertContains(response, "Vue Réception")
 
-    def test_scan_nav_includes_planning_link(self):
+    def test_scan_nav_places_planning_under_management_group(self):
         response = self.client.get(reverse("scan:scan_dashboard"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Planning")
-        self.assertContains(response, reverse("planning:run_list"))
+        utility_nav_html = self._scan_utility_nav_html(response)
+        self.assertNotIn(reverse("planning:run_list"), utility_nav_html)
+        nav_html = self._scan_sidebar_html(response)
+        self.assertIn("Planning", nav_html)
+        self.assertIn(reverse("planning:run_list"), nav_html)
 
-    def test_scan_nav_orders_top_level_tabs_for_standard_staff(self):
+    def test_scan_nav_renders_expandable_sidebar_shell(self):
+        self.client.force_login(self.superuser)
         response = self.client.get(reverse("scan:scan_stock"))
 
         self.assertEqual(response.status_code, 200)
-        nav_html = self._scan_nav_html(response)
+        self.assertContains(response, 'id="scan-brand-desktop"')
+        self.assertContains(response, 'id="scan-brand-mobile"')
+        self.assertContains(response, 'id="scan-sidebar-toggle"')
+        self.assertContains(response, 'id="scan-sidebar-offcanvas"')
+        self.assertContains(response, 'id="scan-sidebar-nav"')
+        self.assertContains(response, 'id="scan-faq-link"')
+        self.assertContains(response, 'id="scan-masthead-settings-toggle"')
+        self.assertContains(response, 'id="scan-masthead-account-toggle"')
+        self.assertContains(response, 'id="scan-sidebar-stocks-toggle"')
+        self.assertContains(response, 'id="scan-sidebar-receiving-toggle"')
+        self.assertContains(response, 'id="scan-sidebar-preparation-toggle"')
+        self.assertContains(response, 'id="scan-sidebar-management-toggle"')
+        self.assertContains(response, 'id="scan-sidebar-stocks-group"')
+        self.assertContains(response, 'id="scan-sidebar-management-group"')
+        self.assertContains(
+            response,
+            'id="scan-sidebar-management-group"',
+        )
+        self.assertNotContains(
+            response,
+            'class="scan-nav scan-nav-bootstrap navbar navbar-expand-xl"',
+        )
+
+    def test_scan_nav_orders_primary_sections_for_standard_staff(self):
+        response = self.client.get(reverse("scan:scan_stock"))
+
+        self.assertEqual(response.status_code, 200)
+        nav_html = self._scan_sidebar_html(response)
         self._assert_nav_labels_in_order(
             nav_html,
             [
-                "Tableau De Bord",
-                "Voir Les États",
-                "Réception",
-                "Préparation",
-                "Planning",
-                "Suivi Des Expéditions",
-                "Gestion",
-                "Compte",
+                'id="scan-sidebar-dashboard"',
+                'id="scan-sidebar-stocks-toggle"',
+                'id="scan-sidebar-receiving-toggle"',
+                'id="scan-sidebar-preparation-toggle"',
+                'id="scan-sidebar-shipments"',
+                'id="scan-sidebar-management-toggle"',
             ],
         )
-        self.assertNotIn("Facturation", nav_html)
-        self.assertNotRegex(nav_html, r">\s*Admin\s*</button>")
+        self.assertNotIn("Compte", nav_html)
+        self.assertNotIn('id="scan-masthead-settings-toggle"', nav_html)
+        self.assertNotIn('id="scan-sidebar-billing"', nav_html)
+        self.assertContains(response, 'id="scan-masthead-account-toggle"')
 
-    def test_scan_nav_orders_top_level_tabs_for_billing_staff(self):
+    def test_scan_nav_orders_primary_sections_for_billing_staff(self):
         billing_group, _ = Group.objects.get_or_create(name=BILLING_STAFF_GROUP_NAME)
         self.staff_user.groups.add(billing_group)
         self.client.force_login(self.staff_user)
@@ -238,53 +273,63 @@ class ScanBootstrapUiTests(TestCase):
         response = self.client.get(reverse("scan:scan_stock"))
 
         self.assertEqual(response.status_code, 200)
-        nav_html = self._scan_nav_html(response)
+        nav_html = self._scan_sidebar_html(response)
         self._assert_nav_labels_in_order(
             nav_html,
             [
-                "Tableau De Bord",
-                "Voir Les États",
-                "Réception",
-                "Préparation",
-                "Planning",
-                "Suivi Des Expéditions",
-                "Facturation",
-                "Gestion",
-                "Compte",
+                'id="scan-sidebar-dashboard"',
+                'id="scan-sidebar-stocks-toggle"',
+                'id="scan-sidebar-receiving-toggle"',
+                'id="scan-sidebar-preparation-toggle"',
+                'id="scan-sidebar-shipments"',
+                'id="scan-sidebar-management-toggle"',
             ],
         )
-        self.assertNotRegex(nav_html, r">\s*Admin\s*</button>")
+        self.assertNotIn("Compte", nav_html)
+        self.assertNotIn('id="scan-masthead-settings-toggle"', nav_html)
+        self.assertNotIn('id="scan-sidebar-billing"', nav_html)
+        self.assertContains(response, reverse("planning:run_list"))
+        self.assertContains(response, "Edition Devis/Facture")
+        self.assertNotContains(response, "Paramètres")
+        self.assertNotContains(response, "Equivalence")
 
-    def test_scan_nav_orders_top_level_tabs_for_superuser(self):
+    def test_scan_nav_orders_primary_sections_for_superuser(self):
         self.client.force_login(self.superuser)
 
         response = self.client.get(reverse("scan:scan_stock"))
 
         self.assertEqual(response.status_code, 200)
-        nav_html = self._scan_nav_html(response)
+        nav_html = self._scan_sidebar_html(response)
         self._assert_nav_labels_in_order(
             nav_html,
             [
-                "Tableau De Bord",
-                "Voir Les États",
-                "Réception",
-                "Préparation",
-                "Planning",
-                "Suivi Des Expéditions",
-                "Facturation",
-                "Gestion",
-                "Admin",
-                "Compte",
+                'id="scan-sidebar-dashboard"',
+                'id="scan-sidebar-stocks-toggle"',
+                'id="scan-sidebar-receiving-toggle"',
+                'id="scan-sidebar-preparation-toggle"',
+                'id="scan-sidebar-shipments"',
+                'id="scan-sidebar-management-toggle"',
             ],
         )
-        self.assertRegex(nav_html, r">\s*Admin\s*</button>")
+        self.assertNotIn("Compte", nav_html)
+        self.assertNotIn('id="scan-masthead-settings-toggle"', nav_html)
+        self.assertNotIn('id="scan-sidebar-billing"', nav_html)
+        self.assertContains(response, 'id="scan-masthead-settings-toggle"')
+        self.assertContains(response, 'id="scan-masthead-account-toggle"')
 
-    def test_scan_nav_shows_billing_dropdown_for_superuser(self):
+    def test_scan_nav_shows_billing_entries_under_management_for_superuser(self):
         self.client.force_login(self.superuser)
 
         response = self.client.get(reverse("scan:scan_dashboard"))
 
         self.assertEqual(response.status_code, 200)
+        nav_html = self._scan_sidebar_html(response)
+        self.assertIn("Planning", nav_html)
+        self.assertIn("Edition Devis/Facture", nav_html)
+        self.assertNotIn("Paramètres", nav_html)
+        self.assertNotIn("Equivalence", nav_html)
+        self.assertContains(response, "Général")
+        self.assertContains(response, "Produit")
         self.assertContains(response, "Facturation")
         self.assertContains(response, "Paramètres")
         self.assertContains(response, "Equivalence")
@@ -298,7 +343,9 @@ class ScanBootstrapUiTests(TestCase):
         response = self.client.get(reverse("scan:scan_dashboard"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Facturation")
+        nav_html = self._scan_sidebar_html(response)
+        self.assertIn("Planning", nav_html)
+        self.assertIn("Edition Devis/Facture", nav_html)
         self.assertContains(response, "Edition Devis/Facture")
         self.assertNotContains(response, "Paramètres")
         self.assertNotContains(response, "Equivalence")
@@ -907,15 +954,19 @@ class ScanBootstrapUiTests(TestCase):
         stock_response = self.client.get(reverse("scan:scan_stock"))
         self.assertEqual(stock_response.status_code, 200)
         self.assertContains(stock_response, 'class="scan-header ui-comp-panel"')
-        self.assertContains(stock_response, 'class="scan-title ui-comp-title">ASF WMS')
+        self.assertContains(stock_response, 'id="scan-brand-desktop"')
+        self.assertContains(stock_response, 'id="scan-brand-mobile"')
         self.assertNotContains(stock_response, "ASF WMS Scan")
         self.assertNotContains(stock_response, "Flux rapides pour mobile et scanner.")
         self.assertContains(
             stock_response,
-            'class="scan-nav scan-nav-bootstrap navbar navbar-expand-xl ui-comp-panel"',
+            'id="scan-sidebar-nav"',
         )
+        self.assertContains(stock_response, 'id="scan-utility-nav"')
+        self.assertContains(stock_response, 'id="scan-sidebar-dashboard"')
+        self.assertContains(stock_response, 'id="scan-sidebar-stocks-toggle"')
         self.assertContains(stock_response, 'data-bs-toggle="dropdown"')
-        self.assertContains(stock_response, "scan-nav-account")
+        self.assertContains(stock_response, 'id="scan-masthead-account-toggle"')
         self.assertContains(stock_response, "dropdown-header")
         self.assertNotContains(stock_response, "Essayer interface Next")
         self.assertNotContains(stock_response, 'id="ui-toggle"')
@@ -925,11 +976,11 @@ class ScanBootstrapUiTests(TestCase):
         content = stock_response.content.decode()
         header_start = content.index('<header class="scan-header ui-comp-panel">')
         header_end = content.index("</header>", header_start)
-        nav_index = content.index(
-            'class="scan-nav scan-nav-bootstrap navbar navbar-expand-xl ui-comp-panel"'
-        )
-        self.assertGreater(nav_index, header_start)
-        self.assertLess(nav_index, header_end)
+        utility_index = content.index('id="scan-utility-nav"')
+        nav_index = content.index('id="scan-sidebar-nav"')
+        self.assertGreater(utility_index, header_start)
+        self.assertLess(utility_index, header_end)
+        self.assertGreater(nav_index, header_end)
 
         ui_lab_response = self.client.get(reverse("scan:scan_ui_lab"))
         self.assertEqual(ui_lab_response.status_code, 200)
@@ -1267,10 +1318,17 @@ class ScanBootstrapUiTests(TestCase):
         )
 
     def test_scan_base_bootstrap_neutral_controls_use_tertiary_or_secondary_levels(self):
+        self.client.force_login(self.superuser)
         response = self.client.get(reverse("scan:scan_stock"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "navbar-toggler border-0 px-2 btn-tertiary")
-        self.assertContains(response, "nav-link dropdown-toggle btn-tertiary")
+        self.assertContains(response, 'id="scan-sidebar-toggle"')
+        self.assertContains(response, "btn btn-tertiary btn-sm scan-sidebar-toggle")
+        self.assertContains(response, 'id="scan-faq-link"')
+        self.assertContains(response, 'id="scan-masthead-settings-toggle"')
+        self.assertContains(response, 'id="scan-masthead-account-toggle"')
+        self.assertContains(
+            response, "btn btn-tertiary btn-sm dropdown-toggle scan-utility-trigger"
+        )
         self.assertContains(
             response,
             '<button type="button" id="scan-sync-reload" class="btn btn-tertiary btn-sm">Recharger</button>',
@@ -1409,6 +1467,26 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "Valider l'étape")
         self.assertNotContains(response, 'id="ui-lab-workflow-action-bar-demo-search"')
         self.assertNotContains(response, 'id="ui-lab-workflow-action-bar-demo-document-action"')
+
+    def test_scan_ui_lab_exposes_recommended_global_navigation_demo_contract(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_ui_lab"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="ui-lab-demo-global-navigation"')
+        self.assertContains(response, 'id="ui-lab-demo-global-navigation-utility"')
+        self.assertContains(response, 'id="ui-lab-demo-global-navigation-primary"')
+        self.assertContains(response, 'id="ui-lab-demo-global-navigation-menu-toggle"')
+        self.assertContains(response, "Navigation globale recommandée")
+        self.assertContains(response, "Tableau de bord")
+        self.assertContains(response, "Stocks")
+        self.assertContains(response, "Réception")
+        self.assertContains(response, "Préparation")
+        self.assertContains(response, "Expéditions")
+        self.assertContains(response, "Gestion")
+        self.assertContains(response, "Compte")
+        self.assertNotContains(response, 'name="action" value="logout"')
 
     def test_scan_ui_lab_exposes_governance_tiers_for_stable_and_converging_contracts(self):
         self.client.force_login(self.superuser)
