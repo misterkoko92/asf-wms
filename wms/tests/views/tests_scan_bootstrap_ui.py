@@ -1382,6 +1382,20 @@ class ScanBootstrapUiTests(TestCase):
         self.assertNotContains(response, 'id="ui-lab-page-header-demo-breadcrumbs"')
         self.assertNotContains(response, 'id="ui-lab-page-header-demo-search"')
 
+    def test_scan_ui_lab_exposes_recommended_document_actions_demo_contract(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_ui_lab"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="ui-lab-document-actions-demo"')
+        self.assertContains(response, 'id="ui-lab-document-actions-demo-title"')
+        self.assertContains(response, 'id="ui-lab-document-actions-demo-body"')
+        self.assertContains(response, 'id="ui-lab-document-actions-demo-action-1"')
+        self.assertContains(response, "Documents d'expédition")
+        self.assertNotContains(response, 'id="ui-lab-document-actions-demo-primary-action"')
+        self.assertNotContains(response, 'id="ui-lab-document-actions-demo-upload"')
+
     def test_scan_ui_lab_exposes_governance_tiers_for_stable_and_converging_contracts(self):
         self.client.force_login(self.superuser)
 
