@@ -14,7 +14,9 @@ from .models import VolunteerAccountRequestStatus
 TEMPLATE_REQUEST_ACCOUNT = "benevole/request_account.html"
 TEMPLATE_REQUEST_ACCOUNT_DONE = "benevole/request_account_done.html"
 ADMIN_NOTIFICATION_TEMPLATE = "emails/volunteer_account_request_received.txt"
+REQUESTER_CONFIRMATION_TEMPLATE = "emails/volunteer_account_request_confirmation.txt"
 ADMIN_NOTIFICATION_SUBJECT = _("ASF WMS - Nouvelle demande benevole")
+REQUESTER_CONFIRMATION_SUBJECT = _("ASF WMS - Demande de compte benevole recue")
 ERROR_THROTTLE_LIMIT = _(
     "Une demande recente a deja ete envoyee. Merci de patienter quelques minutes."
 )
@@ -91,6 +93,20 @@ def _notify_admins_of_request(*, request, account_request):
     )
 
 
+def _notify_requester_of_request(*, account_request):
+    message = render_to_string(
+        REQUESTER_CONFIRMATION_TEMPLATE,
+        {
+            "account_request": account_request,
+        },
+    )
+    return enqueue_email_safe(
+        subject=REQUESTER_CONFIRMATION_SUBJECT,
+        message=message,
+        recipient=[account_request.email],
+    )
+
+
 @require_http_methods(["GET", "POST"])
 def volunteer_account_request(request):
     if request.method == "POST":
@@ -109,9 +125,10 @@ def volunteer_account_request(request):
                     _release_throttle_slot(email=email, client_ip=client_ip)
                     raise
                 _notify_admins_of_request(request=request, account_request=account_request)
+                _notify_requester_of_request(account_request=account_request)
                 return redirect("volunteer:request_account_done")
     else:
-        form = VolunteerAccountRequestForm(initial={"country": "France"})
+        form = VolunteerAccountRequestForm()
     return render(request, TEMPLATE_REQUEST_ACCOUNT, {"form": form})
 
 

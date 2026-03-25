@@ -246,6 +246,15 @@ class PortalAuthViewsTests(PortalBaseTestCase):
         self.assertContains(response, 'name="remember_me"')
         self.assertContains(response, "Rester connect")
 
+    def test_portal_login_get_checks_remember_me_by_default(self):
+        response = self.client.get(self.login_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertRegex(
+            response.content.decode(),
+            r'<input[^>]+id="remember_me"[^>]+name="remember_me"[^>]+checked',
+        )
+
     def test_portal_forgot_password_get_renders_form(self):
         response = self.client.get(reverse("portal:portal_forgot_password"))
         self.assertEqual(response.status_code, 200)

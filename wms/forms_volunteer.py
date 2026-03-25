@@ -179,37 +179,26 @@ class VolunteerAccountRequestForm(forms.ModelForm):
             "last_name",
             "email",
             "phone",
-            "address_line1",
-            "postal_code",
-            "city",
-            "country",
-            "notes",
         )
         labels = {
             "first_name": _("Prenom"),
             "last_name": _("Nom"),
             "email": _("Mail"),
             "phone": _("Telephone"),
-            "address_line1": _("Rue"),
-            "postal_code": _("Code postal"),
-            "city": _("Ville"),
-            "country": _("Pays"),
-            "notes": _("Notes"),
         }
         widgets = {
             "email": forms.EmailInput(attrs={"type": "email"}),
-            "notes": forms.Textarea(attrs={"rows": 4}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["first_name"].required = True
         self.fields["email"].required = True
-        self.fields["address_line1"].required = True
-        self.fields["postal_code"].required = True
-        self.fields["city"].required = True
-        self.fields["country"].required = True
-        self.fields["country"].initial = self.initial.get("country") or "France"
+        for field in self.fields.values():
+            existing_class = field.widget.attrs.get("class", "").strip()
+            field.widget.attrs["class"] = (
+                f"{existing_class} form-control".strip() if existing_class else "form-control"
+            )
 
     def clean_email(self):
         email = (self.cleaned_data.get("email") or "").strip().lower()

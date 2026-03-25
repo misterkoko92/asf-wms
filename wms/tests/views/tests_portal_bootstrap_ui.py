@@ -373,9 +373,22 @@ class PortalBootstrapUiTests(TestCase):
         response = self.client.get(reverse("portal:portal_account_request"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "scan-bootstrap.css")
-        self.assertContains(response, "form-select")
         self.assertContains(response, "form-control")
         self.assertContains(response, "btn btn-primary")
+
+    def test_portal_account_request_locks_profile_to_association(self):
+        self.client.logout()
+        response = self.client.get(reverse("portal:portal_account_request"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            '<input type="hidden" name="account_type" value="association">',
+            html=True,
+        )
+        self.assertContains(response, "Association")
+        self.assertNotContains(response, 'id="account_type"')
+        self.assertNotContains(response, "Utilisateur WMS")
 
     def test_portal_pages_use_design_component_classes(self):
         dashboard_response = self.client.get(reverse("portal:portal_dashboard"))
@@ -435,6 +448,14 @@ class PortalBootstrapUiTests(TestCase):
             "border: var(--wms-card-border-width) solid var(--wms-card-border-color) !important;",
             css_content,
         )
+
+    def test_portal_shell_css_allows_page_scroll_outside_scan_fixed_height_shell(self):
+        css_path = Path(settings.BASE_DIR) / "wms" / "static" / "portal" / "portal-bootstrap.css"
+        css_content = css_path.read_text(encoding="utf-8")
+        self.assertIn(".portal-bootstrap-enabled body,", css_content)
+        self.assertIn("overflow-y: auto;", css_content)
+        self.assertIn(".portal-bootstrap-enabled .scan-shell {", css_content)
+        self.assertIn("height: auto;", css_content)
 
     def test_portal_button_levels_follow_intended_semantics(self):
         self.client.logout()

@@ -9,6 +9,21 @@ from wms.views_volunteer_account_request import REQUEST_THROTTLE_SECONDS_DEFAULT
 
 
 class VolunteerAccountRequestViewTests(TestCase):
+    def test_request_account_get_shows_only_requested_contact_fields(self):
+        response = self.client.get(reverse("volunteer:request_account"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Demande de compte bénévole")
+        self.assertContains(response, 'name="first_name"')
+        self.assertContains(response, 'name="last_name"')
+        self.assertContains(response, 'name="email"')
+        self.assertContains(response, 'name="phone"')
+        self.assertNotContains(response, 'name="address_line1"')
+        self.assertNotContains(response, 'name="postal_code"')
+        self.assertNotContains(response, 'name="city"')
+        self.assertNotContains(response, 'name="country"')
+        self.assertNotContains(response, 'name="notes"')
+
     def test_public_request_creates_pending_request(self):
         response = self.client.post(
             reverse("volunteer:request_account"),
@@ -17,10 +32,6 @@ class VolunteerAccountRequestViewTests(TestCase):
                 "last_name": "Durand",
                 "email": "lou@example.com",
                 "phone": "+33601020304",
-                "address_line1": "10 rue Test",
-                "postal_code": "75001",
-                "city": "Paris",
-                "country": "France",
             },
         )
 
@@ -28,7 +39,35 @@ class VolunteerAccountRequestViewTests(TestCase):
         account_request = VolunteerAccountRequest.objects.get()
         self.assertEqual(account_request.status, VolunteerAccountRequestStatus.PENDING)
         self.assertEqual(account_request.first_name, "Lou")
-        self.assertEqual(account_request.city, "Paris")
+        self.assertEqual(account_request.phone, "+33601020304")
+
+    @mock.patch(
+        "wms.views_volunteer_account_request.get_admin_emails", return_value=["admin@example.com"]
+    )
+    @mock.patch("wms.views_volunteer_account_request._reserve_throttle_slot", return_value=True)
+    @mock.patch("wms.views_volunteer_account_request.enqueue_email_safe", return_value=True)
+    def test_public_request_sends_admin_and_requester_notifications(
+        self,
+        enqueue_mock,
+        _reserve_mock,
+        _get_admin_emails_mock,
+    ):
+        requester_email = "lou-notify@example.com"
+        response = self.client.post(
+            reverse("volunteer:request_account"),
+            {
+                "first_name": "Lou",
+                "last_name": "Durand",
+                "email": requester_email,
+                "phone": "+33601020304",
+            },
+        )
+
+        self.assertRedirects(response, reverse("volunteer:request_account_done"))
+        self.assertEqual(enqueue_mock.call_count, 2)
+        recipients = [call.kwargs["recipient"] for call in enqueue_mock.call_args_list]
+        self.assertIn(["admin@example.com"], recipients)
+        self.assertIn([requester_email], recipients)
 
     def test_request_account_done_page_renders(self):
         response = self.client.get(reverse("volunteer:request_account_done"))
@@ -45,10 +84,6 @@ class VolunteerAccountRequestViewTests(TestCase):
                 "last_name": "Durand",
                 "email": "lou@example.com",
                 "phone": "+33601020304",
-                "address_line1": "10 rue Test",
-                "postal_code": "75001",
-                "city": "Paris",
-                "country": "France",
             },
         )
 
@@ -68,10 +103,6 @@ class VolunteerAccountRequestViewTests(TestCase):
             "last_name": "Durand",
             "email": "lou@example.com",
             "phone": "+33601020304",
-            "address_line1": "10 rue Test",
-            "postal_code": "75001",
-            "city": "Paris",
-            "country": "France",
         }
 
         with mock.patch(
@@ -197,8 +228,11 @@ class VolunteerAccountRequestHelperTests(TestCase):
         self.assertEqual(kwargs["recipient"], ["admin@example.com"])
         self.assertIn("lou@example.com", kwargs["message"])
 
-    def test_get_request_view_prefills_france(self):
+    def test_get_request_view_renders_volunteer_form(self):
         response = self.client.get(reverse("volunteer:request_account"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["form"].fields["country"].initial, "France")
+        self.assertEqual(
+            list(response.context["form"].fields.keys()),
+            ["first_name", "last_name", "email", "phone"],
+        )
