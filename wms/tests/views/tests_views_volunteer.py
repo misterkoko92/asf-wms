@@ -281,6 +281,14 @@ class VolunteerProfileViewTests(TestCase):
         self.assertNotContains(response, 'value="fr"')
         self.assertNotContains(response, 'value="en"')
 
+    def test_dashboard_offers_add_availability_action_in_recent_section(self):
+        response = self.client.get(reverse("volunteer:dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="volunteer-dashboard-recent-actions"')
+        self.assertContains(response, reverse("volunteer:availability_create"))
+        self.assertContains(response, "Ajouter des disponibilit")
+
     def test_dashboard_uses_lighter_navigation_shell_with_utility_logout(self):
         response = self.client.get(reverse("volunteer:dashboard"))
 
@@ -444,6 +452,16 @@ class VolunteerAvailabilityViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "09:00")
 
+    def test_availability_list_uses_profile_like_intro_and_compact_actions(self):
+        response = self.client.get(reverse("volunteer:availability_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="volunteer-availability-list-intro"')
+        self.assertContains(response, 'id="volunteer-availability-list-actions"')
+        self.assertContains(response, reverse("volunteer:availability_recap"))
+        self.assertContains(response, reverse("volunteer:availability_create"))
+        self.assertNotContains(response, "justify-content-between align-items-start gap-3")
+
     def test_create_weekly_availability_redirects_to_list(self):
         response = self.client.post(
             reverse("volunteer:availability_create"),
@@ -564,3 +582,14 @@ class VolunteerAvailabilityViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Semaine")
         self.assertContains(response, self.user.email)
+
+    def test_recap_uses_profile_like_intro_and_compact_actions(self):
+        response = self.client.get(
+            reverse("volunteer:availability_recap"),
+            {"week": "11", "year": "2026"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="volunteer-availability-recap-intro"')
+        self.assertContains(response, 'id="volunteer-availability-recap-actions"')
+        self.assertNotContains(response, "justify-content-between align-items-start gap-3")
