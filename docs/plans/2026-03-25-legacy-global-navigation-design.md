@@ -4,12 +4,18 @@
 
 ## Goal
 
-Improve the legacy global navigation so it is easier to scan, more visually appropriate, and more responsive across `scan`, `portal`, and `benevole`.
+Improve the legacy global navigation with a `scan-first` direction grounded in `PatternFly`.
 
 The target is not a cosmetic navbar repaint. The target is a clearer navigation model with:
 - a lighter utility layer,
 - a calmer primary navigation layer,
 - and explicit separation between navigation, page actions, and local workflow controls.
+
+The immediate source design is:
+- `PatternFly Masthead` for the utility/header split
+- `PatternFly Navigation` for the primary section rail and depth control
+
+`portal` and `benevole` remain follow-up adaptations once the `scan` contract is validated.
 
 ## Context
 
@@ -26,20 +32,25 @@ Navigation is now the main remaining cross-surface weakness:
 - `benevole` is clearer than `portal` on active state, but still reads as a button strip more than a navigation system,
 - `admin` uses a separate Django admin shell and should not be forced into the same product navigation model.
 
+The design choice for this sequence is therefore:
+- take `PatternFly` as the reference source for `scan`,
+- translate its logic into legacy Django + Bootstrap markup,
+- and avoid copying the full enterprise shell literally.
+
 ## Scope
 
 ### In Scope
 
 - legacy navigation design for `templates/scan/base.html`
-- legacy navigation design for `templates/portal/base.html`
-- legacy navigation design for `templates/benevole/base.html`
-- a future `UI Lab` demonstration for the recommended global navigation contract
+- a future `UI Lab` demonstration for the recommended `scan` navigation contract
 - responsive behavior for desktop and mobile
 - visual and structural rules that distinguish navigation from actions
+- follow-up adaptation notes for `portal` and `benevole`
 
 ### Out of Scope
 
 - Django admin shell redesign
+- production implementation on `portal` and `benevole` in this first sequence
 - Next/React work
 - translation or wording parity work
 - workflow-local toolbars and action bars
@@ -86,16 +97,17 @@ Cons:
 - leaves `scan` overloaded,
 - and treats a structural issue like a paint issue.
 
-### 2. Three-layer legacy navigation, recommended
+### 2. Three-layer legacy navigation with PatternFly-inspired scan shell, recommended
 
 Idea:
 - define three distinct layers:
   - utility,
   - primary navigation,
   - local page controls.
-- validate the pattern in `UI Lab`,
-- then apply it first to `scan`,
-- and adapt it to `portal` and `benevole`.
+- use `PatternFly` masthead and navigation principles as the source design for `scan`,
+- validate that contract in `UI Lab`,
+- then apply it to `scan`,
+- and only after validation adapt the same language to `portal` and `benevole`.
 
 Pros:
 - solves the real hierarchy problem,
@@ -123,7 +135,7 @@ Cons:
 
 Take approach 2.
 
-The repository should adopt a three-layer navigation model across legacy shells:
+The repository should adopt a three-layer navigation model, with `scan` as the source shell:
 
 1. Utility layer
    - brand
@@ -180,17 +192,19 @@ Recommended second-level treatment:
 - `Stocks` contains the current "view state" pages
 - `Reception` contains receiving flows
 - `Preparation` contains kit, carton, and shipment preparation
-- `Expeditions` contains tracking and related shipment-oriented follow-up
+- `Expeditions` contains tracking and shipment-oriented follow-up
 - `Gestion` contains operator/support back-office pages
 
 Recommended utility treatment:
 - `Compte` stays in the utility layer
 - `Admin` stays in utility for superusers only
-- `Planning` can remain a utility or adjacent jump link if it must stay globally reachable
+- `Planning` can remain a utility jump link if it must stay globally reachable
 
 ### Portal
 
-Recommended primary sections:
+`portal` is not the source design surface for this effort.
+
+If adopted later, recommended primary sections are:
 - `Commandes`
 - `Facturation`
 - `Destinataires`
@@ -203,7 +217,9 @@ Logout should move to the utility layer.
 
 ### Benevole
 
-Recommended primary sections:
+`benevole` is also a follow-up adaptation, not the driver for this design.
+
+If adopted later, recommended primary sections are:
 - `Accueil`
 - `Profil`
 - `Contraintes`
@@ -237,10 +253,15 @@ Recommended distinctions:
 - action = buttons
 - utility = compact, secondary controls
 
+PatternFly translation note:
+- take the structural calm,
+- not the literal enterprise chrome.
+
 Not recommended:
 - dark admin-style navbar shells,
 - over-decorated nav items,
 - identical emphasis for navigation, CTAs, and logout,
+- the persistent sidebar model,
 - or new visual primitives outside the current legacy design language.
 
 ## Responsive Rules
@@ -263,14 +284,10 @@ Mobile:
 
 ### Portal And Benevole
 
-Desktop:
-- compact horizontal primary navigation,
-- CTA separated from main sections.
-
-Mobile:
-- allow a clean wrap if the item count remains low,
-- otherwise move to the same dedicated menu approach as `scan`,
-- never collapse into two rows of equally weighted mini-buttons.
+Later adaptations should:
+- keep a compact horizontal section navigation on desktop,
+- separate CTAs from navigation,
+- and avoid collapsing into two rows of equally weighted mini-buttons on mobile.
 
 ## Implementation Strategy
 
@@ -280,7 +297,6 @@ The rollout should happen in three phases.
 
 Add a dedicated `Global navigation` demo to `scan/ui-lab/`:
 - one recommended `scan` shell demo,
-- optional lighter `portal` and `benevole` variants,
 - no runtime business actions,
 - desktop and mobile review target.
 
@@ -291,11 +307,11 @@ This keeps navigation design review out of production templates while the contra
 `scan` is the highest-value adoption target:
 - it has the strongest hierarchy problem,
 - it exercises both density and responsive constraints,
-- and it can act as the source shell for later adaptations.
+- and it acts as the source shell for later adaptations.
 
 ### Phase 3: Adapt To Portal And Benevole
 
-After `scan` stabilizes:
+Only after `scan` stabilizes:
 - move `portal` from button-strip navigation to section navigation plus CTA,
 - move `benevole` to the same calmer model, with a lighter authenticated shell.
 
@@ -304,8 +320,7 @@ After `scan` stabilizes:
 ### Automated
 
 - update `wms/tests/views/tests_scan_bootstrap_ui.py` for the `UI Lab` demo and `scan` shell
-- update `wms/tests/views/tests_portal_bootstrap_ui.py` for `portal` shell expectations
-- update `wms/tests/views/tests_views_volunteer.py` or another volunteer-facing shell test module for `benevole`
+- leave `portal` and `benevole` test updates for a later follow-up once the `scan` contract is validated
 
 ### Manual
 
@@ -325,8 +340,8 @@ Focus checks:
 ## Success Criteria
 
 The design is successful if:
-- the legacy product gains a shared navigation model across `scan`, `portal`, and `benevole`
+- `scan` gains a clear PatternFly-inspired legacy navigation contract
 - `scan` no longer overloads the first-level navigation
-- `portal` and `benevole` stop reading as rows of action buttons
 - mobile navigation becomes clearer instead of denser
+- the contract can later be adapted to `portal` and `benevole`
 - and the rollout happens incrementally, starting with `UI Lab` and `scan`, without opening another speculative full-repo wave

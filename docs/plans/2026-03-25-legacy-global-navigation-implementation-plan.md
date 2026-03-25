@@ -2,11 +2,11 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Validate and roll out the recommended three-layer legacy navigation model through `UI Lab` first, then `scan`, then lighter adaptations in `portal` and `benevole`.
+**Goal:** Validate and roll out a `scan-first` three-layer legacy navigation model inspired by `PatternFly`, using `UI Lab` first and then `scan`.
 
-**Architecture:** Keep the work on the legacy Django stack. Use `UI Lab` as the proving ground for the navigation contract, then refactor shell templates and existing Bootstrap bridge styles without inventing a second navigation library. Preserve the `Core stable` / `En convergence` governance split by treating global navigation as a documented contract first and only then as local shell markup.
+**Architecture:** Keep the work on the legacy Django stack. Use `PatternFly` masthead and navigation guidance as the structural source for `scan`, but translate that guidance into local Django/Bootstrap markup instead of copying a full enterprise shell. Use `UI Lab` as the proving ground, then refactor the `scan` shell templates and existing Bootstrap bridge styles without inventing a second navigation library. Preserve the `Core stable` / `En convergence` governance split by treating global navigation as a documented contract first and only then as local shell markup.
 
-**Tech Stack:** Django templates, legacy Bootstrap 5 shell markup, `scan-bootstrap.css`, `portal-bootstrap.css`, `UI Lab`, Django view tests.
+**Tech Stack:** Django templates, legacy Bootstrap 5 shell markup, `scan-bootstrap.css`, `UI Lab`, Django view tests.
 
 ---
 
@@ -62,9 +62,8 @@ git commit -m "test: add ui lab global navigation demo contract"
 Add a new article with:
 - `id="ui-lab-demo-global-navigation"`
 - a compact utility row
-- a recommended primary `scan` section rail
+- a recommended `scan` section rail inspired by PatternFly
 - a lightweight mobile-toggle representation if needed
-- optional lighter `portal` and `benevole` mini variants if they strengthen the comparison without bloating the page
 
 **Step 2: Keep it demo-only**
 
@@ -104,6 +103,7 @@ Add styles for:
 - active item treatment
 - demo-only mobile menu block or collapsed state
 - clear separation of navigation versus CTA
+- a lighter PatternFly-inspired shell balance without copying its visual chrome
 
 Keep all selectors local to the demo block.
 
@@ -208,7 +208,8 @@ Adjust `scan-bootstrap.css` so:
 - the nav stops looking like a wall of action buttons,
 - the active state is more explicit,
 - utility and primary layers are clearly separated,
-- mobile gets a dedicated menu treatment rather than a long stacked dropdown list.
+- mobile gets a dedicated menu treatment rather than a long stacked dropdown list,
+- the shell follows the selected PatternFly logic without becoming a sidebar app shell.
 
 **Step 4: Run focused scan verification**
 
@@ -228,99 +229,45 @@ git add templates/scan/base.html wms/static/scan/scan-bootstrap.css wms/tests/vi
 git commit -m "feat: refresh scan global navigation"
 ```
 
-### Task 6: Add failing portal and benevole shell tests
+### Task 6: Record follow-up scope for portal and benevole
 
 **Files:**
-- Modify: `wms/tests/views/tests_portal_bootstrap_ui.py`
-- Modify: `wms/tests/views/tests_views_volunteer.py`
-- Reference: `templates/portal/base.html`
-- Reference: `templates/benevole/base.html`
+- Modify: `docs/plans/2026-03-25-legacy-global-navigation-design.md`
+- Modify: `docs/plans/2026-03-25-legacy-global-navigation-implementation-plan.md`
 
-**Step 1: Add portal shell assertions**
+**Step 1: Confirm deferred scope**
 
-Add a portal test that checks:
-- a real navigation region exists
-- `Nouvelle commande` is separated from the primary section list
-- logout is not styled as a peer navigation item
+After the `scan` implementation is complete, update the docs only if needed so they still explicitly say:
+- `portal` is a follow-up adaptation,
+- `benevole` is a follow-up adaptation,
+- no production implementation on those shells is part of this first execution.
 
-**Step 2: Add benevole shell assertions**
+**Step 2: Record follow-up triggers**
 
-Add a volunteer test that checks:
-- the authenticated shell shows a primary navigation group
-- the active section remains clear
-- logout is separated from the main section group
+Capture concise triggers for the later follow-up:
+- reuse the validated `scan` structure,
+- separate navigation from CTA in `portal`,
+- separate primary sections from logout in `benevole`.
 
-**Step 3: Run the focused tests**
+**Step 3: Run diff hygiene**
 
 Run:
 
 ```bash
-.venv/bin/python manage.py test wms.tests.views.tests_portal_bootstrap_ui wms.tests.views.tests_views_volunteer -v 1
+git diff --check
 ```
 
 Expected:
-- FAIL until the shells are updated.
+- no whitespace or formatting errors.
 
 **Step 4: Commit**
 
 ```bash
-git add wms/tests/views/tests_portal_bootstrap_ui.py wms/tests/views/tests_views_volunteer.py
-git commit -m "test: add portal and volunteer navigation shell coverage"
+git add docs/plans/2026-03-25-legacy-global-navigation-design.md docs/plans/2026-03-25-legacy-global-navigation-implementation-plan.md
+git commit -m "docs: confirm deferred navigation follow-ups"
 ```
 
-### Task 7: Implement the portal and benevole shell refresh
-
-**Files:**
-- Modify: `templates/portal/base.html`
-- Modify: `templates/benevole/base.html`
-- Modify: `wms/static/portal/portal-bootstrap.css`
-- Test: `wms/tests/views/tests_portal_bootstrap_ui.py`
-- Test: `wms/tests/views/tests_views_volunteer.py`
-
-**Step 1: Refactor portal shell**
-
-Turn the header into:
-- utility controls
-- primary section navigation
-- distinct CTA for `Nouvelle commande`
-
-Move logout to the utility layer.
-
-**Step 2: Refactor benevole shell**
-
-Keep the authenticated shell light, but:
-- use the same section-versus-utility separation
-- keep the active section clear
-- avoid the all-buttons-equal look
-
-**Step 3: Extend portal bridge styling**
-
-Update `portal-bootstrap.css` so both shells share:
-- calmer section navigation treatment
-- distinct CTA behavior
-- cleaner wrap behavior on small screens
-
-Do not add a separate new navigation library.
-
-**Step 4: Run focused portal and volunteer verification**
-
-Run:
-
-```bash
-.venv/bin/python manage.py test wms.tests.views.tests_portal_bootstrap_ui wms.tests.views.tests_views_volunteer -v 1
-```
-
-Expected:
-- PASS
-
-**Step 5: Commit**
-
-```bash
-git add templates/portal/base.html templates/benevole/base.html wms/static/portal/portal-bootstrap.css wms/tests/views/tests_portal_bootstrap_ui.py wms/tests/views/tests_views_volunteer.py
-git commit -m "feat: refresh portal and volunteer navigation"
-```
-
-### Task 8: Run final verification and prepare review
+### Task 7: Run final verification and prepare review
 
 **Files:**
 - Verify only
@@ -330,7 +277,7 @@ git commit -m "feat: refresh portal and volunteer navigation"
 Run:
 
 ```bash
-.venv/bin/python manage.py test wms.tests.views.tests_views_scan_misc wms.tests.views.tests_scan_bootstrap_ui wms.tests.views.tests_portal_bootstrap_ui wms.tests.views.tests_views_volunteer -v 1
+.venv/bin/python manage.py test wms.tests.views.tests_views_scan_misc wms.tests.views.tests_scan_bootstrap_ui -v 1
 ```
 
 Expected:
@@ -354,8 +301,8 @@ Expected:
 Summarize:
 - `UI Lab` contract added
 - `scan` shell simplified
-- `portal` and `benevole` aligned with the same navigation language
 - mobile handling adjusted without touching Django admin or translation scope
+- `portal` and `benevole` explicitly deferred until the `scan` contract is validated
 
 **Step 4: Commit if needed**
 
@@ -363,5 +310,5 @@ If any final doc or cleanup change remains:
 
 ```bash
 git add -A
-git commit -m "chore: finalize legacy navigation refresh"
+git commit -m "chore: finalize scan-first navigation refresh"
 ```
