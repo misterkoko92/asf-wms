@@ -65,9 +65,7 @@ class ScanBootstrapUiTests(TestCase):
 
     def _scan_nav_html(self, response):
         content = response.content.decode()
-        nav_start = content.index(
-            '<nav class="scan-nav scan-nav-bootstrap navbar navbar-expand-xl ui-comp-panel"'
-        )
+        nav_start = content.index('<nav class="scan-nav scan-nav-bootstrap navbar')
         nav_end = content.index("</nav>", nav_start)
         return content[nav_start:nav_end]
 
@@ -202,14 +200,16 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, "Vue Stock")
         self.assertContains(response, "Vue Réception")
 
-    def test_scan_nav_includes_planning_link(self):
+    def test_scan_nav_includes_planning_link_in_utility_actions(self):
         response = self.client.get(reverse("scan:scan_dashboard"))
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="scan-utility-nav"')
         self.assertContains(response, "Planning")
         self.assertContains(response, reverse("planning:run_list"))
+        self.assertNotIn("Planning", self._scan_nav_html(response))
 
-    def test_scan_nav_orders_top_level_tabs_for_standard_staff(self):
+    def test_scan_nav_orders_primary_sections_for_standard_staff(self):
         response = self.client.get(reverse("scan:scan_stock"))
 
         self.assertEqual(response.status_code, 200)
@@ -217,20 +217,21 @@ class ScanBootstrapUiTests(TestCase):
         self._assert_nav_labels_in_order(
             nav_html,
             [
-                "Tableau De Bord",
-                "Voir Les États",
-                "Réception",
-                "Préparation",
-                "Planning",
-                "Suivi Des Expéditions",
-                "Gestion",
-                "Compte",
+                'id="scan-primary-nav-dashboard"',
+                'id="scan-primary-nav-stocks"',
+                'id="scan-primary-nav-receiving"',
+                'id="scan-primary-nav-preparation"',
+                'id="scan-primary-nav-shipments"',
+                'id="scan-primary-nav-management"',
             ],
         )
-        self.assertNotIn("Facturation", nav_html)
-        self.assertNotRegex(nav_html, r">\s*Admin\s*</button>")
+        self.assertNotIn("Planning", nav_html)
+        self.assertNotIn("Compte", nav_html)
+        self.assertNotIn("Admin", nav_html)
+        self.assertNotIn('id="scan-primary-nav-billing"', nav_html)
+        self.assertContains(response, 'id="scan-account-toggle"')
 
-    def test_scan_nav_orders_top_level_tabs_for_billing_staff(self):
+    def test_scan_nav_orders_primary_sections_for_billing_staff(self):
         billing_group, _ = Group.objects.get_or_create(name=BILLING_STAFF_GROUP_NAME)
         self.staff_user.groups.add(billing_group)
         self.client.force_login(self.staff_user)
@@ -242,20 +243,23 @@ class ScanBootstrapUiTests(TestCase):
         self._assert_nav_labels_in_order(
             nav_html,
             [
-                "Tableau De Bord",
-                "Voir Les États",
-                "Réception",
-                "Préparation",
-                "Planning",
-                "Suivi Des Expéditions",
-                "Facturation",
-                "Gestion",
-                "Compte",
+                'id="scan-primary-nav-dashboard"',
+                'id="scan-primary-nav-stocks"',
+                'id="scan-primary-nav-receiving"',
+                'id="scan-primary-nav-preparation"',
+                'id="scan-primary-nav-shipments"',
+                'id="scan-primary-nav-management"',
             ],
         )
-        self.assertNotRegex(nav_html, r">\s*Admin\s*</button>")
+        self.assertNotIn("Planning", nav_html)
+        self.assertNotIn("Compte", nav_html)
+        self.assertNotIn("Admin", nav_html)
+        self.assertNotIn('id="scan-primary-nav-billing"', nav_html)
+        self.assertContains(response, "Edition Devis/Facture")
+        self.assertNotContains(response, "Paramètres")
+        self.assertNotContains(response, "Equivalence")
 
-    def test_scan_nav_orders_top_level_tabs_for_superuser(self):
+    def test_scan_nav_orders_primary_sections_for_superuser(self):
         self.client.force_login(self.superuser)
 
         response = self.client.get(reverse("scan:scan_stock"))
@@ -265,27 +269,27 @@ class ScanBootstrapUiTests(TestCase):
         self._assert_nav_labels_in_order(
             nav_html,
             [
-                "Tableau De Bord",
-                "Voir Les États",
-                "Réception",
-                "Préparation",
-                "Planning",
-                "Suivi Des Expéditions",
-                "Facturation",
-                "Gestion",
-                "Admin",
-                "Compte",
+                'id="scan-primary-nav-dashboard"',
+                'id="scan-primary-nav-stocks"',
+                'id="scan-primary-nav-receiving"',
+                'id="scan-primary-nav-preparation"',
+                'id="scan-primary-nav-shipments"',
+                'id="scan-primary-nav-management"',
             ],
         )
-        self.assertRegex(nav_html, r">\s*Admin\s*</button>")
+        self.assertNotIn("Planning", nav_html)
+        self.assertNotIn("Compte", nav_html)
+        self.assertNotIn("Admin", nav_html)
+        self.assertNotIn('id="scan-primary-nav-billing"', nav_html)
+        self.assertContains(response, 'id="scan-admin-toggle"')
+        self.assertContains(response, 'id="scan-account-toggle"')
 
-    def test_scan_nav_shows_billing_dropdown_for_superuser(self):
+    def test_scan_nav_shows_billing_entries_under_management_for_superuser(self):
         self.client.force_login(self.superuser)
 
         response = self.client.get(reverse("scan:scan_dashboard"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Facturation")
         self.assertContains(response, "Paramètres")
         self.assertContains(response, "Equivalence")
         self.assertContains(response, "Edition Devis/Facture")
@@ -298,7 +302,6 @@ class ScanBootstrapUiTests(TestCase):
         response = self.client.get(reverse("scan:scan_dashboard"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Facturation")
         self.assertContains(response, "Edition Devis/Facture")
         self.assertNotContains(response, "Paramètres")
         self.assertNotContains(response, "Equivalence")
@@ -912,10 +915,13 @@ class ScanBootstrapUiTests(TestCase):
         self.assertNotContains(stock_response, "Flux rapides pour mobile et scanner.")
         self.assertContains(
             stock_response,
-            'class="scan-nav scan-nav-bootstrap navbar navbar-expand-xl ui-comp-panel"',
+            'class="scan-nav scan-nav-bootstrap navbar navbar-expand-xl"',
         )
+        self.assertContains(stock_response, 'id="scan-utility-nav"')
+        self.assertContains(stock_response, 'id="scan-primary-nav-dashboard"')
+        self.assertContains(stock_response, 'id="scan-primary-nav-stocks"')
         self.assertContains(stock_response, 'data-bs-toggle="dropdown"')
-        self.assertContains(stock_response, "scan-nav-account")
+        self.assertContains(stock_response, 'id="scan-account-toggle"')
         self.assertContains(stock_response, "dropdown-header")
         self.assertNotContains(stock_response, "Essayer interface Next")
         self.assertNotContains(stock_response, 'id="ui-toggle"')
@@ -925,9 +931,10 @@ class ScanBootstrapUiTests(TestCase):
         content = stock_response.content.decode()
         header_start = content.index('<header class="scan-header ui-comp-panel">')
         header_end = content.index("</header>", header_start)
-        nav_index = content.index(
-            'class="scan-nav scan-nav-bootstrap navbar navbar-expand-xl ui-comp-panel"'
-        )
+        utility_index = content.index('id="scan-utility-nav"')
+        nav_index = content.index('class="scan-nav scan-nav-bootstrap navbar navbar-expand-xl"')
+        self.assertGreater(utility_index, header_start)
+        self.assertLess(utility_index, header_end)
         self.assertGreater(nav_index, header_start)
         self.assertLess(nav_index, header_end)
 
@@ -1270,7 +1277,10 @@ class ScanBootstrapUiTests(TestCase):
         response = self.client.get(reverse("scan:scan_stock"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "navbar-toggler border-0 px-2 btn-tertiary")
-        self.assertContains(response, "nav-link dropdown-toggle btn-tertiary")
+        self.assertContains(response, 'id="scan-account-toggle"')
+        self.assertContains(
+            response, "btn btn-tertiary btn-sm dropdown-toggle scan-utility-trigger"
+        )
         self.assertContains(
             response,
             '<button type="button" id="scan-sync-reload" class="btn btn-tertiary btn-sm">Recharger</button>',
