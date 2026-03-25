@@ -1,5 +1,23 @@
+.portal-bootstrap-enabled body,
+body.portal-bootstrap-enabled {
+  height: auto;
+  min-height: 100dvh;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.portal-bootstrap-enabled .scan-shell {
+  min-height: 100dvh;
+  height: auto;
+  overflow: visible;
+}
+
 .portal-bootstrap-enabled .portal-shell {
-  min-height: 100vh;
+  grid-template-rows: auto auto;
+}
+
+.portal-bootstrap-enabled .scan-main {
+  min-height: 0;
 }
 
 .portal-bootstrap-enabled .portal-masthead {

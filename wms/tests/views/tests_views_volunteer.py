@@ -1,4 +1,5 @@
 import re
+from pathlib import Path
 from unittest import mock
 
 from django.conf import settings
@@ -61,6 +62,7 @@ class VolunteerAuthViewTests(TestCase):
         response = self.client.get(reverse("volunteer:login"))
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Connexion Bénévole")
         self.assertContains(response, reverse("volunteer:forgot_password"))
         self.assertContains(response, "Mot de passe oubli")
         self.assertContains(response, "Première connexion")
@@ -72,6 +74,22 @@ class VolunteerAuthViewTests(TestCase):
         self.assertContains(response, 'name="remember_me_supported"')
         self.assertContains(response, 'name="remember_me"')
         self.assertContains(response, "Rester connect")
+
+    def test_login_get_checks_remember_me_by_default(self):
+        response = self.client.get(reverse("volunteer:login"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertRegex(
+            response.content.decode(),
+            r'<input[^>]+id="remember_me"[^>]+name="remember_me"[^>]+checked',
+        )
+
+    def test_login_get_shows_account_request_link(self):
+        response = self.client.get(reverse("volunteer:login"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse("volunteer:request_account"))
+        self.assertContains(response, "Demander un compte")
 
     def test_dashboard_requires_login(self):
         response = self.client.get(reverse("volunteer:dashboard"))
@@ -216,6 +234,14 @@ class VolunteerAuthViewTests(TestCase):
             "ASF WMS - Mot de passe oublié / Première connexion bénévole",
         )
         self.assertEqual(event.payload["recipient"], [self.user.email])
+
+    def test_benevole_shared_shell_css_allows_scroll_on_auth_pages(self):
+        css_path = Path(settings.BASE_DIR) / "wms" / "static" / "portal" / "portal-bootstrap.css"
+        css_content = css_path.read_text(encoding="utf-8")
+
+        self.assertIn(".portal-bootstrap-enabled .scan-shell {", css_content)
+        self.assertIn("height: auto;", css_content)
+        self.assertIn("overflow: visible;", css_content)
 
 
 class VolunteerProfileViewTests(TestCase):

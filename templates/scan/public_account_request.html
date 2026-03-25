@@ -40,13 +40,28 @@
         <form method="post" enctype="multipart/form-data" novalidate class="ui-comp-form">
           {% csrf_token %}
 
-          <div class="scan-field">
-            <label class="form-label" for="account_type">{% trans "Profil" %}</label>
-            <select class="form-select" id="account_type" name="account_type">
-              <option value="{{ ACCOUNT_TYPE_ASSOCIATION }}" {% if form_data.account_type == ACCOUNT_TYPE_ASSOCIATION %}selected{% endif %}>{% trans "Association" %}</option>
-              <option value="{{ ACCOUNT_TYPE_USER }}" {% if form_data.account_type == ACCOUNT_TYPE_USER %}selected{% endif %}>{% trans "Utilisateur WMS" %}</option>
-            </select>
-          </div>
+          {% if lock_account_type_to_association %}
+            <input type="hidden" name="account_type" value="{{ ACCOUNT_TYPE_ASSOCIATION }}">
+            <div class="scan-field">
+              <label class="form-label" for="account_type_display">{% trans "Profil" %}</label>
+              <input
+                class="form-control"
+                type="text"
+                id="account_type_display"
+                value="{% trans "Association" %}"
+                readonly
+                aria-readonly="true"
+              >
+            </div>
+          {% else %}
+            <div class="scan-field">
+              <label class="form-label" for="account_type">{% trans "Profil" %}</label>
+              <select class="form-select" id="account_type" name="account_type">
+                <option value="{{ ACCOUNT_TYPE_ASSOCIATION }}" {% if form_data.account_type == ACCOUNT_TYPE_ASSOCIATION %}selected{% endif %}>{% trans "Association" %}</option>
+                <option value="{{ ACCOUNT_TYPE_USER }}" {% if form_data.account_type == ACCOUNT_TYPE_USER %}selected{% endif %}>{% trans "Utilisateur WMS" %}</option>
+              </select>
+            </div>
+          {% endif %}
 
           <div class="scan-field">
             <label class="form-label" for="email">Email</label>

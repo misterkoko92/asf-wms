@@ -278,6 +278,7 @@ def _render_account_request_form(request, *, link, contact_payload, form_data, e
             "contacts": contact_payload,
             "form_data": form_data,
             "errors": errors,
+            "lock_account_type_to_association": link is None,
             "ACCOUNT_TYPE_ASSOCIATION": PublicAccountRequestType.ASSOCIATION,
             "ACCOUNT_TYPE_USER": PublicAccountRequestType.USER,
         },

@@ -1,0 +1,7 @@
+Votre demande de compte bénévole a bien été reçue.
+
+Nom: {{ account_request.first_name }} {{ account_request.last_name }}
+Email: {{ account_request.email }}
+Telephone: {{ account_request.phone|default:"-" }}
+
+Un administrateur ASF va vérifier votre demande avant activation.

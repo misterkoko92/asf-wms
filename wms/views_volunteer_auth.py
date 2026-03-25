@@ -218,7 +218,7 @@ def volunteer_login(request):
 
     errors = []
     identifier = ""
-    remember_me = False
+    remember_me = True
     next_url = _safe_next_url(request, request.GET.get("next"))
     if request.method == "POST":
         identifier = (request.POST.get("identifier") or "").strip()

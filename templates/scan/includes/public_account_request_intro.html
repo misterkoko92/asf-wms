@@ -3,9 +3,15 @@
 <div class="scan-card card border-0 ui-comp-card">
   <h2 class="ui-comp-title">{% trans "Création de compte" %}</h2>
   <p class="scan-help">
-    {% blocktrans trimmed %}
-    Choisissez votre profil puis envoyez votre demande. Un administrateur ASF doit valider le compte.
-    {% endblocktrans %}
+    {% if lock_account_type_to_association %}
+      {% blocktrans trimmed %}
+      Envoyez votre demande. Un administrateur ASF doit valider le compte association.
+      {% endblocktrans %}
+    {% else %}
+      {% blocktrans trimmed %}
+      Choisissez votre profil puis envoyez votre demande. Un administrateur ASF doit valider le compte.
+      {% endblocktrans %}
+    {% endif %}
   </p>
   <div class="ui-comp-actions">
     {% if link %}
