@@ -214,7 +214,7 @@ class ScanAdminViewTests(TestCase):
         self.assertNotContains(response, "Destinations (admin)")
         self.assertNotContains(response, "Ajouter destination (admin)")
 
-    def test_scan_contacts_navigation_is_under_gestion_instead_of_admin(self):
+    def test_scan_settings_menu_holds_admin_tools_while_management_keeps_workflow_links(self):
         self.client.force_login(self.superuser)
 
         response = self.client.get(reverse("scan:scan_import"))
@@ -224,15 +224,20 @@ class ScanAdminViewTests(TestCase):
         management_start = html.index('id="scan-sidebar-management-toggle"')
         management_end = html.index("</nav>", management_start)
         management_html = html[management_start:management_end]
-        admin_start = html.index('id="scan-admin-toggle"')
+        admin_start = html.index('id="scan-masthead-settings-toggle"')
         admin_end = html.index("</nav>", admin_start)
         admin_html = html[admin_start:admin_end]
 
-        self.assertIn(reverse("scan:scan_import"), management_html)
-        self.assertIn(reverse("scan:scan_admin_contacts"), management_html)
-        self.assertNotIn(reverse("scan:scan_settings"), management_html)
-        self.assertIn(reverse("scan:scan_settings"), admin_html)
-        self.assertNotIn(reverse("scan:scan_admin_contacts"), admin_html)
+        self.assertIn(reverse("planning:run_list"), management_html)
+        self.assertIn(reverse("scan:scan_billing_editor"), management_html)
+        self.assertNotIn(reverse("scan:scan_import"), management_html)
+        self.assertNotIn(reverse("scan:scan_admin_contacts"), management_html)
+        self.assertIn(reverse("scan:scan_import"), admin_html)
+        self.assertIn(reverse("scan:scan_admin_contacts"), admin_html)
+        self.assertIn(reverse("scan:scan_product_labels"), admin_html)
+        self.assertIn(reverse("scan:scan_out"), admin_html)
+        self.assertIn(reverse("scan:scan_billing_settings"), admin_html)
+        self.assertIn(reverse("scan:scan_billing_equivalence"), admin_html)
 
     def test_scan_admin_contacts_filters_by_contact_type(self):
         self.client.force_login(self.superuser)

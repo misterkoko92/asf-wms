@@ -35,7 +35,21 @@
           >
             Menu
           </button>
-          <h1 class="scan-title ui-comp-title">ASF WMS</h1>
+          <a href="{% url 'scan:scan_dashboard' %}" class="scan-brand-link" aria-label="Aviation Sans Frontières France">
+            <img
+              id="scan-brand-desktop"
+              src="{% static 'scan/logo.jpg' %}"
+              alt=""
+              class="scan-brand-desktop d-none d-md-block"
+            >
+            <img
+              id="scan-brand-mobile"
+              src="{% static 'scan/logo.jpg' %}"
+              alt=""
+              class="scan-brand-mobile d-md-none"
+            >
+            <span class="scan-brand-title">Messagerie Médicale</span>
+          </a>
         </div>
         <div class="scan-header-tools">
           {% include "includes/language_switch.html" %}
@@ -43,27 +57,57 @@
       </div>
       <div class="scan-header-utility">
         <nav id="scan-utility-nav" class="scan-utility-nav" aria-label="{% trans "Navigation utilitaire scan" %}">
-          {% if not request.scan_is_preparateur %}
-            <a href="{% url 'planning:run_list' %}" class="btn btn-tertiary btn-sm scan-utility-link">Planning</a>
-          {% endif %}
+          <a
+            id="scan-faq-link"
+            href="{% url 'scan:scan_faq' %}"
+            class="btn btn-tertiary btn-sm scan-utility-link scan-utility-icon-link"
+            aria-label="{% trans "FAQ" %}"
+            title="{% trans "FAQ" %}"
+          >
+            <span aria-hidden="true">?</span>
+          </a>
           {% if request.user.is_superuser and not request.scan_is_preparateur %}
             <div class="dropdown">
-              <button id="scan-admin-toggle" class="btn btn-tertiary btn-sm dropdown-toggle scan-utility-trigger" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                Admin
+              <button
+                id="scan-masthead-settings-toggle"
+                class="btn btn-tertiary btn-sm dropdown-toggle scan-utility-trigger scan-utility-icon-link"
+                type="button"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+                aria-label="{% trans "Outils de gestion" %}"
+                title="{% trans "Outils de gestion" %}"
+              >
+                <span aria-hidden="true">&#9881;</span>
               </button>
               <ul class="dropdown-menu dropdown-menu-end">
-                <li><a href="{% url 'scan:scan_settings' %}" class="dropdown-item{% if active == 'settings' %} active{% endif %}">{% trans "Paramètres" %}</a></li>
-                <li><a href="{% url 'scan:scan_ui_lab' %}" class="dropdown-item{% if active == 'ui_lab' %} active{% endif %}">UI Lab</a></li>
+                <li><h6 class="dropdown-header">Général</h6></li>
+                <li><a href="{% url 'scan:scan_import' %}" class="dropdown-item{% if active == 'imports' %} active{% endif %}">{% trans "Imports" %}</a></li>
+                <li><a href="{% url 'scan:scan_admin_contacts' %}" class="dropdown-item{% if active == 'admin_contacts' %} active{% endif %}">{% trans "Contacts" %}</a></li>
+                <li><a href="{% url 'scan:scan_print_templates' %}" class="dropdown-item{% if active == 'print_templates' %} active{% endif %}">{% trans "Templates" %}</a></li>
                 <li><hr class="dropdown-divider"></li>
-                <li><a href="{% url 'scan:scan_admin_products' %}" class="dropdown-item{% if active == 'admin_products' %} active{% endif %}">{% trans "Produit" %}</a></li>
+                <li><h6 class="dropdown-header">Produit</h6></li>
                 <li><a href="{% url 'scan:scan_product_labels' %}" class="dropdown-item{% if active == 'product_labels' %} active{% endif %}">{% trans "Etiquette Produit" %}</a></li>
-                <li><a href="{% url 'scan:scan_admin_design' %}" class="dropdown-item{% if active == 'admin_design' %} active{% endif %}">{% trans "Design" %}</a></li>
+                <li><a href="{% url 'scan:scan_out' %}" class="dropdown-item{% if active == 'out' %} active{% endif %}">{% trans "Supprimer produit" %}</a></li>
+                {% if scan_billing_admin_visible %}
+                  <li><hr class="dropdown-divider"></li>
+                  <li><h6 class="dropdown-header">Facturation</h6></li>
+                  <li><a href="{% url 'scan:scan_billing_settings' %}" class="dropdown-item{% if active == 'billing_settings' %} active{% endif %}">{% trans "Paramètres" %}</a></li>
+                  <li><a href="{% url 'scan:scan_billing_equivalence' %}" class="dropdown-item{% if active == 'billing_equivalence' %} active{% endif %}">{% trans "Equivalence" %}</a></li>
+                {% endif %}
               </ul>
             </div>
           {% endif %}
           <div class="dropdown scan-nav-account">
-            <button id="scan-account-toggle" class="btn btn-tertiary btn-sm dropdown-toggle scan-utility-trigger" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-              {% trans "Compte" %}
+            <button
+              id="scan-masthead-account-toggle"
+              class="btn btn-tertiary btn-sm dropdown-toggle scan-utility-trigger scan-utility-icon-link"
+              type="button"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+              aria-label="{% trans "Compte" %}"
+              title="{% trans "Compte" %}"
+            >
+              <span aria-hidden="true">&#9711;</span>
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
               <li><h6 class="dropdown-header">{{ request.user.email|default:request.user.username }}</h6></li>

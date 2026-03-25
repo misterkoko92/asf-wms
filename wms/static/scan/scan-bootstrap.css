@@ -212,23 +212,30 @@
 .scan-bootstrap-enabled body,
 body.scan-bootstrap-enabled {
   background: var(--bg);
+  height: 100dvh;
+  overflow: hidden;
 }
 
 .scan-bootstrap-enabled .scan-shell {
-  max-width: min(var(--wms-container-max-width), 100%);
+  width: min(var(--wms-container-max-width), 100%);
+  height: 100dvh;
   padding: clamp(14px, 1.8vw, 28px) clamp(12px, 1.8vw, 24px) clamp(22px, 2.4vw, 34px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.7rem;
+  margin: 0 auto;
 }
 
 .scan-bootstrap-enabled .scan-header {
-  margin-bottom: 0.7rem;
   border: 1px solid var(--scan-boot-border-strong);
   border-radius: 0.9rem;
   background: var(--scan-boot-surface);
   box-shadow: none;
-  padding: calc(0.8rem * var(--wms-density-factor)) calc(0.95rem * var(--wms-density-factor));
-  display: flex;
-  flex-direction: column;
-  gap: calc(0.55rem * var(--wms-density-factor));
+  padding: calc(0.7rem * var(--wms-density-factor)) calc(0.95rem * var(--wms-density-factor));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: calc(0.65rem * var(--wms-density-factor));
   overflow: visible;
   position: relative;
   z-index: 40;
@@ -237,15 +244,83 @@ body.scan-bootstrap-enabled {
 .scan-bootstrap-enabled .scan-header-top {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: calc(0.5rem * var(--wms-density-factor));
-  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .scan-bootstrap-enabled .scan-header-brand {
   display: flex;
   align-items: center;
   gap: calc(0.6rem * var(--wms-density-factor));
+  min-width: 0;
+}
+
+.scan-bootstrap-enabled .scan-brand-link {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  color: inherit;
+  min-width: 0;
+  text-decoration: none;
+}
+
+.scan-bootstrap-enabled .scan-brand-title {
+  color: var(--ink);
+  font-family: var(--ds-font-heading-h2);
+  font-size: clamp(0.98rem, 1.4vw, 1.26rem);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.scan-bootstrap-enabled .scan-brand-desktop {
+  display: block;
+  width: auto;
+  height: clamp(2.5rem, 3vw, 3.3rem);
+  max-width: min(34vw, 18rem);
+  object-fit: contain;
+}
+
+.scan-bootstrap-enabled .scan-brand-mobile {
+  display: block;
+  width: auto;
+  height: 2.9rem;
+  max-width: 3.3rem;
+  object-fit: contain;
+}
+
+.scan-bootstrap-enabled .scan-header-tools .language-switch,
+.scan-bootstrap-enabled .scan-header-tools .language-switch-short {
+  margin: 0;
+}
+
+.scan-bootstrap-enabled .scan-utility-nav .scan-utility-link,
+.scan-bootstrap-enabled .scan-utility-nav .scan-utility-trigger {
+  min-height: 2.1rem;
+  border: 1px solid transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.scan-bootstrap-enabled .scan-utility-nav .scan-utility-link:hover,
+.scan-bootstrap-enabled .scan-utility-nav .scan-utility-link:focus,
+.scan-bootstrap-enabled .scan-utility-nav .scan-utility-trigger:hover,
+.scan-bootstrap-enabled .scan-utility-nav .scan-utility-trigger:focus,
+.scan-bootstrap-enabled .scan-utility-nav .scan-utility-trigger.show {
+  background: color-mix(in srgb, var(--wms-nav-item-hover-bg) 70%, white);
+  border-color: transparent;
+}
+
+.scan-bootstrap-enabled .scan-utility-nav .dropdown-toggle::after {
+  display: none;
+}
+
+.scan-bootstrap-enabled .scan-utility-nav .scan-nav-account .dropdown-header {
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .scan-bootstrap-enabled .scan-header-utility {
@@ -264,10 +339,10 @@ body.scan-bootstrap-enabled {
   width: 100%;
 }
 
-.scan-bootstrap-enabled .scan-utility-link,
-.scan-bootstrap-enabled .scan-utility-trigger {
-  min-height: 2.1rem;
+.scan-bootstrap-enabled .scan-utility-icon-link {
   border-radius: 999px;
+  min-width: 2.1rem;
+  padding-inline: 0.7rem;
 }
 
 .scan-bootstrap-enabled .scan-utility-nav .dropdown-menu {
@@ -304,12 +379,14 @@ body.scan-bootstrap-enabled {
 
 .scan-bootstrap-enabled .scan-workspace {
   display: block;
+  min-height: 0;
 }
 
 .scan-bootstrap-enabled .scan-sidebar-offcanvas {
   --bs-offcanvas-width: min(20rem, 88vw);
   background: color-mix(in srgb, var(--scan-boot-surface) 96%, var(--wms-color-surface-alt));
   border-right: 1px solid var(--scan-boot-border-strong);
+  min-height: 0;
 }
 
 .scan-bootstrap-enabled .scan-sidebar-offcanvas .offcanvas-header {
@@ -319,6 +396,8 @@ body.scan-bootstrap-enabled {
 
 .scan-bootstrap-enabled .scan-sidebar-offcanvas .offcanvas-body {
   padding: 0.9rem;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .scan-bootstrap-enabled .scan-sidebar-nav {
@@ -383,11 +462,19 @@ body.scan-bootstrap-enabled {
 }
 
 .scan-bootstrap-enabled .scan-sidebar-group-links {
-  display: flex;
   flex-direction: column;
   gap: 0.15rem;
   margin-left: 0.45rem;
   padding: 0.2rem 0 0.35rem 0.95rem;
+}
+
+.scan-bootstrap-enabled .scan-sidebar-group-links:not(.show) {
+  display: none;
+}
+
+.scan-bootstrap-enabled .scan-sidebar-group-links.show,
+.scan-bootstrap-enabled .scan-sidebar-group-links.collapsing {
+  display: flex;
 }
 
 .scan-bootstrap-enabled .scan-sidebar-child-link {
@@ -421,10 +508,14 @@ body.scan-bootstrap-enabled {
 
 .scan-bootstrap-enabled .scan-body {
   min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.15rem;
 }
 
 .scan-bootstrap-enabled .scan-main {
   min-width: 0;
+  min-height: 100%;
 }
 
 .scan-bootstrap-enabled .scan-header-actions {
@@ -1510,6 +1601,12 @@ body.scan-bootstrap-enabled[data-btn-style-mode="outlined"] .btn-tertiary {
 }
 
 @media (max-width: 992px) {
+  .scan-bootstrap-enabled .scan-shell {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
   .scan-bootstrap-enabled .scan-header-utility {
     justify-content: flex-start;
   }
@@ -1518,12 +1615,22 @@ body.scan-bootstrap-enabled[data-btn-style-mode="outlined"] .btn-tertiary {
     justify-content: flex-start;
   }
 
+  .scan-bootstrap-enabled .scan-header {
+    grid-template-columns: 1fr;
+  }
+
+  .scan-bootstrap-enabled .scan-header-top {
+    justify-content: space-between;
+  }
+
   .scan-bootstrap-enabled .scan-sidebar-offcanvas .offcanvas-body {
     padding: 0.85rem;
   }
 
   .scan-bootstrap-enabled .scan-body {
     margin-top: 0.85rem;
+    overflow-y: visible;
+    padding-right: 0;
   }
 
   .scan-bootstrap-enabled .scan-card.card {
@@ -1536,24 +1643,25 @@ body.scan-bootstrap-enabled[data-btn-style-mode="outlined"] .btn-tertiary {
     display: grid;
     grid-template-columns: minmax(240px, 270px) minmax(0, 1fr);
     gap: 1rem;
-    align-items: start;
+    align-items: stretch;
+    min-height: 0;
   }
 
   .scan-bootstrap-enabled .scan-sidebar-offcanvas {
-    position: sticky;
-    top: clamp(14px, 1.8vw, 28px);
     display: block;
     visibility: visible !important;
     transform: none !important;
-    height: fit-content;
+    height: 100%;
     border: 1px solid var(--scan-boot-border-strong);
     border-radius: 0.9rem;
     background: color-mix(in srgb, var(--scan-boot-surface) 95%, var(--wms-color-surface-alt));
     box-shadow: none;
+    overflow: hidden;
   }
 
   .scan-bootstrap-enabled .scan-sidebar-offcanvas .offcanvas-body {
     padding: 0.9rem;
+    height: 100%;
   }
 
   .scan-bootstrap-enabled .scan-body {

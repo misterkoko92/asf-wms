@@ -104,35 +104,24 @@
     <div class="scan-sidebar-group">
       <button
         id="scan-sidebar-management-toggle"
-        class="scan-sidebar-group-toggle{% if active == 'out' or active == 'faq' or active == 'imports' or active == 'admin_contacts' or active == 'print_templates' or active == 'product_labels' or active == 'billing_settings' or active == 'billing_equivalence' or active == 'billing_editor' %} active{% endif %}"
+        class="scan-sidebar-group-toggle{% if active == 'billing_editor' %} active{% endif %}"
         type="button"
         data-bs-toggle="collapse"
         data-bs-target="#scan-sidebar-management-group"
-        aria-expanded="{% if active == 'out' or active == 'faq' or active == 'imports' or active == 'admin_contacts' or active == 'print_templates' or active == 'product_labels' or active == 'billing_settings' or active == 'billing_equivalence' or active == 'billing_editor' %}true{% else %}false{% endif %}"
+        aria-expanded="{% if active == 'billing_editor' %}true{% else %}false{% endif %}"
         aria-controls="scan-sidebar-management-group"
       >
         <span>Gestion</span>
       </button>
       <div
         id="scan-sidebar-management-group"
-        class="collapse scan-sidebar-group-links{% if active == 'out' or active == 'faq' or active == 'imports' or active == 'admin_contacts' or active == 'print_templates' or active == 'product_labels' or active == 'billing_settings' or active == 'billing_equivalence' or active == 'billing_editor' %} show{% endif %}"
+        class="collapse scan-sidebar-group-links{% if active == 'billing_editor' %} show{% endif %}"
       >
-        <a href="{% url 'scan:scan_out' %}" class="scan-sidebar-child-link{% if active == 'out' %} active{% endif %}">{% trans "Supprimer produit" %}</a>
-        <a href="{% url 'scan:scan_faq' %}" class="scan-sidebar-child-link{% if active == 'faq' %} active{% endif %}">{% trans "FAQ / Documentation" %}</a>
-        {% if scan_billing_visible %}
-          <div class="scan-sidebar-section-label">Facturation</div>
-          {% if scan_billing_admin_visible %}
-            <a href="{% url 'scan:scan_billing_settings' %}" class="scan-sidebar-child-link{% if active == 'billing_settings' %} active{% endif %}">{% trans "Paramètres" %}</a>
-            <a href="{% url 'scan:scan_billing_equivalence' %}" class="scan-sidebar-child-link{% if active == 'billing_equivalence' %} active{% endif %}">{% trans "Equivalence" %}</a>
-          {% endif %}
-          <a href="{% url 'scan:scan_billing_editor' %}" class="scan-sidebar-child-link{% if active == 'billing_editor' %} active{% endif %}">{% trans "Edition Devis/Facture" %}</a>
+        {% if not request.scan_is_preparateur %}
+          <a href="{% url 'planning:run_list' %}" class="scan-sidebar-child-link">Planning</a>
         {% endif %}
-        {% if request.user.is_superuser %}
-          <div class="scan-sidebar-section-label">Administration</div>
-          <a href="{% url 'scan:scan_import' %}" class="scan-sidebar-child-link{% if active == 'imports' %} active{% endif %}">{% trans "Imports" %}</a>
-          <a href="{% url 'scan:scan_admin_contacts' %}" class="scan-sidebar-child-link{% if active == 'admin_contacts' %} active{% endif %}">{% trans "Contacts" %}</a>
-          <a href="{% url 'scan:scan_print_templates' %}" class="scan-sidebar-child-link{% if active == 'print_templates' %} active{% endif %}">{% trans "Templates" %}</a>
-          <a href="{% url 'scan:scan_product_labels' %}" class="scan-sidebar-child-link{% if active == 'product_labels' %} active{% endif %}">{% trans "Etiquette Produit" %}</a>
+        {% if scan_billing_visible %}
+          <a href="{% url 'scan:scan_billing_editor' %}" class="scan-sidebar-child-link{% if active == 'billing_editor' %} active{% endif %}">{% trans "Edition Devis/Facture" %}</a>
         {% endif %}
       </div>
     </div>
