@@ -411,16 +411,22 @@ class ScanDashboardViewTests(TestCase):
         self.assertNotContains(response, reverse("scan:scan_admin_products"))
         self.assertNotContains(response, reverse("scan:scan_admin_design"))
 
-    def test_scan_dashboard_shows_settings_link_for_superuser(self):
+    def test_scan_dashboard_shows_management_tools_for_superuser(self):
         self.client.force_login(self.superuser)
         response = self.client.get(reverse("scan:scan_dashboard"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, reverse("scan:scan_kits_view"))
         self.assertContains(response, reverse("scan:scan_prepare_kits"))
-        self.assertContains(response, reverse("scan:scan_settings"))
         self.assertContains(response, reverse("scan:scan_admin_contacts"))
-        self.assertContains(response, reverse("scan:scan_admin_products"))
-        self.assertContains(response, reverse("scan:scan_admin_design"))
+        self.assertContains(response, reverse("scan:scan_import"))
+        self.assertContains(response, reverse("scan:scan_print_templates"))
+        self.assertContains(response, reverse("scan:scan_product_labels"))
+        self.assertContains(response, reverse("scan:scan_out"))
+        self.assertContains(response, reverse("scan:scan_billing_settings"))
+        self.assertContains(response, reverse("scan:scan_billing_equivalence"))
+        self.assertNotContains(response, reverse("scan:scan_settings"))
+        self.assertNotContains(response, reverse("scan:scan_admin_products"))
+        self.assertNotContains(response, reverse("scan:scan_admin_design"))
 
     def test_scan_dashboard_uses_runtime_settings_values(self):
         runtime = WmsRuntimeSettings.get_solo()
