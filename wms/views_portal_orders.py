@@ -357,17 +357,27 @@ def _resolve_recipient_destination(profile, recipient_id, errors, *, selected_de
     recipient_address = get_contact_address(recipient_contact) or get_contact_address(
         getattr(recipient, "synced_contact", None)
     )
+    resolved_destination = selected_destination or recipient.destination
     destination_city = (
-        (recipient_address.city if recipient_address else "")
+        (resolved_destination.city if resolved_destination else "")
         or recipient.city
-        or (recipient.destination.city if recipient.destination else "")
-        or (selected_destination.city if selected_destination else "")
+        or (recipient_address.city if recipient_address else "")
     )
     destination_country = (
+        (resolved_destination.country if resolved_destination else "")
+        or recipient.country
+        or (recipient_address.country if recipient_address else "")
+        or DEFAULT_COUNTRY
+    )
+    address_city = (
+        (recipient_address.city if recipient_address else "")
+        or recipient.city
+        or (resolved_destination.city if resolved_destination else "")
+    )
+    address_country = (
         (recipient_address.country if recipient_address else "")
         or recipient.country
-        or (recipient.destination.country if recipient.destination else "")
-        or (selected_destination.country if selected_destination else "")
+        or (resolved_destination.country if resolved_destination else "")
         or DEFAULT_COUNTRY
     )
 
@@ -392,8 +402,8 @@ def _resolve_recipient_destination(profile, recipient_id, errors, *, selected_de
             or recipient.address_line2,
             postal_code=(recipient_address.postal_code if recipient_address else "")
             or recipient.postal_code,
-            city=destination_city,
-            country=destination_country,
+            city=address_city,
+            country=address_country,
         ),
     }
 

@@ -1157,7 +1157,9 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
             "10 Rue C\nBat A\n69000 Lyon\nFrance",
         )
 
-    def test_portal_order_create_post_prefers_shared_structure_address(self):
+    def test_portal_order_create_post_keeps_selected_destination_when_shared_structure_address_differs(
+        self,
+    ):
         destination = self._create_destination(city="Lyon", country="France")
         recipient = AssociationRecipient.objects.create(
             association_contact=self.profile.contact,
@@ -1187,8 +1189,8 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         shared_address.address_line1 = "20 Rue Partagee"
         shared_address.address_line2 = "Bat Shared"
         shared_address.postal_code = "69009"
-        shared_address.city = "Lyon Nord"
-        shared_address.country = "France"
+        shared_address.city = "Beyrouth"
+        shared_address.country = "Liban"
         shared_address.save(
             update_fields=[
                 "address_line1",
@@ -1223,11 +1225,11 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
 
         self.assertEqual(response.status_code, 302)
         kwargs = create_order_mock.call_args.kwargs
-        self.assertEqual(kwargs["destination_city"], "Lyon Nord")
+        self.assertEqual(kwargs["destination_city"], "Lyon")
         self.assertEqual(kwargs["destination_country"], "France")
         self.assertEqual(
             kwargs["destination_address"],
-            "20 Rue Partagee\nBat Shared\n69009 Lyon Nord\nFrance",
+            "20 Rue Partagee\nBat Shared\n69009 Beyrouth\nLiban",
         )
 
     def test_portal_order_create_post_handles_stock_error(self):

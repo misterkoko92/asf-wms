@@ -367,6 +367,10 @@ class PortalBootstrapUiTests(TestCase):
         response = self.client.get(reverse("portal:portal_recipients"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'class="portal-recipient-contact-fields"')
+        self.assertRegex(
+            response.content.decode(),
+            r'<select[^>]+id="destination_id"[^>]+name="destination_id"[^>]+required',
+        )
         self.assertContains(response, 'id="reuse_existing_structure"')
         self.assertContains(response, 'id="notify_deliveries"')
         self.assertContains(response, 'id="is_delivery_contact"')
