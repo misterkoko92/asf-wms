@@ -1,3 +1,4 @@
+import re
 from datetime import date
 from pathlib import Path
 
@@ -720,6 +721,25 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, 'id="scan-merge-target-recipient-organization"')
         self.assertContains(response, reverse("admin:contacts_contact_changelist"))
         self.assertContains(response, reverse("admin:wms_destination_changelist"))
+
+    def test_scan_admin_contacts_cockpit_stacks_read_only_tables_one_per_line(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_admin_contacts"))
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        cockpit_match = re.search(
+            r'(<div id="scan-admin-contacts-cockpit".*?)<div id="scan-admin-contacts-directory-card"',
+            content,
+            re.S,
+        )
+        self.assertIsNotNone(cockpit_match)
+        cockpit_content = cockpit_match.group(1)
+        tables_section, actions_section = cockpit_content.split("<hr>", 1)
+        self.assertNotIn('class="col-12 col-xl-6"', tables_section)
+        self.assertEqual(tables_section.count('class="col-12">'), 4)
+        self.assertEqual(actions_section.count('class="col-12 col-xl-4">'), 3)
 
     def test_scan_order_page_uses_design_component_classes(self):
         response = self.client.get(reverse("scan:scan_order"))
