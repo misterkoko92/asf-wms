@@ -55,7 +55,7 @@
               return false;
             }
             if (!selectedDestinationId) {
-              return optionId === 'self';
+              return false;
             }
             const optionDestinationId = normalizeId(option.destination_id);
             const allowedDestinationIds = Array.isArray(option.allowed_destination_ids)
@@ -63,12 +63,7 @@
               : null;
             const matchesAllowedDestination =
               !allowedDestinationIds || allowedDestinationIds.includes(selectedDestinationId);
-            return (
-              (optionId === 'self' ||
-                !optionDestinationId ||
-                optionDestinationId === selectedDestinationId) &&
-              (optionId === 'self' || matchesAllowedDestination)
-            );
+            return optionDestinationId === selectedDestinationId && matchesAllowedDestination;
           })
         );
 
