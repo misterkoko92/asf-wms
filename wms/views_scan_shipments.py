@@ -425,6 +425,7 @@ def scan_shipments_ready(request):
                 messages.info(request, _("Aucun brouillon temporaire ancien à archiver."))
         return redirect("scan:scan_shipments_ready")
 
+    search_query = (request.GET.get("q") or "").strip()
     shipments_qs = (
         Shipment.objects.filter(archived_at__isnull=True)
         .select_related(
@@ -443,6 +444,15 @@ def scan_shipments_ready(request):
         )
         .order_by("-created_at")
     )
+    if search_query:
+        shipments_qs = shipments_qs.filter(
+            Q(reference__icontains=search_query)
+            | Q(shipper_name__icontains=search_query)
+            | Q(recipient_name__icontains=search_query)
+            | Q(destination__city__icontains=search_query)
+            | Q(destination__country__icontains=search_query)
+            | Q(destination__iata_code__icontains=search_query)
+        ).distinct()
     shipments = build_shipments_ready_rows(shipments_qs)
     stale_draft_count = _stale_drafts_queryset().count()
 
@@ -452,6 +462,7 @@ def scan_shipments_ready(request):
         {
             "active": ACTIVE_SHIPMENTS_DOSSIERS,
             "shipments": shipments,
+            "search_query": search_query,
             "stale_draft_count": stale_draft_count,
             "stale_draft_days": _stale_drafts_age_days(),
             **_build_local_document_helper_context(request),

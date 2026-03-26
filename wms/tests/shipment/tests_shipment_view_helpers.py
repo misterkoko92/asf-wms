@@ -175,6 +175,22 @@ class ShipmentViewHelpersTests(TestCase):
         )
         self.assertEqual(additional_docs.count(), 1)
 
+    def test_build_shipments_ready_rows_exposes_document_summary_counts(self):
+        shipment = self._create_shipment()
+        carton = Carton.objects.create(code="C-200", shipment=shipment)
+        Document.objects.create(
+            shipment=shipment,
+            doc_type=DocumentType.ADDITIONAL,
+        )
+
+        rows = build_shipments_ready_rows([shipment])
+
+        self.assertEqual(rows[0]["carton_count"], 1)
+        self.assertEqual(rows[0]["additional_document_count"], 1)
+        self.assertGreater(rows[0]["generated_document_count"], 0)
+        self.assertIn("doc", rows[0]["documents_summary"])
+        self.assertEqual(carton.code, "C-200")
+
     def test_next_tracking_status_handles_empty_choices(self):
         with mock.patch(
             "wms.shipment_view_helpers.ShipmentTrackingStatus",

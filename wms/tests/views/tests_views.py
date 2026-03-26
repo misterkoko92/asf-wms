@@ -1183,56 +1183,68 @@ class ScanViewTests(TestCase):
         self.assertIsNone(fresh.archived_at)
         self.assertIsNone(regular_draft.archived_at)
 
-    def test_scan_shipments_ready_exposes_shipment_view_document_buttons_in_requested_order(self):
+    def test_scan_shipments_ready_filters_by_reference_shipper_recipient_and_destination(self):
+        dakar = Destination.objects.create(
+            city="Dakar",
+            iata_code="DKR",
+            country="SENEGAL",
+            correspondent_contact=self.correspondent,
+        )
+        matching = Shipment.objects.create(
+            reference="EXP-SEARCH-01",
+            status=ShipmentStatus.DRAFT,
+            shipper_name="ASF Paris",
+            recipient_name="Dispensaire Dakar",
+            correspondent_name=self.correspondent.name,
+            destination=dakar,
+            destination_address=str(dakar),
+            destination_country=dakar.country,
+            created_by=self.user,
+        )
+        other = Shipment.objects.create(
+            reference="EXP-SEARCH-02",
+            status=ShipmentStatus.DRAFT,
+            shipper_name="ASF Lyon",
+            recipient_name="Hopital Abidjan",
+            correspondent_name=self.correspondent.name,
+            destination=self.destination,
+            destination_address=str(self.destination),
+            destination_country=self.destination.country,
+            created_by=self.user,
+        )
+
+        response = self.client.get(reverse("scan:scan_shipments_ready"), {"q": "SEARCH-01"})
+        self.assertContains(response, matching.reference)
+        self.assertNotContains(response, other.reference)
+
+        response = self.client.get(reverse("scan:scan_shipments_ready"), {"q": "ASF Paris"})
+        self.assertContains(response, matching.reference)
+        self.assertNotContains(response, other.reference)
+
+        response = self.client.get(reverse("scan:scan_shipments_ready"), {"q": "Hopital Abidjan"})
+        self.assertContains(response, other.reference)
+        self.assertNotContains(response, matching.reference)
+
+        response = self.client.get(reverse("scan:scan_shipments_ready"), {"q": "DKR"})
+        self.assertContains(response, matching.reference)
+        self.assertNotContains(response, other.reference)
+
+        self.assertEqual(response.context["search_query"], "DKR")
+
+    def test_scan_shipments_ready_uses_single_open_action_per_row(self):
         shipment, _carton = self._create_shipment_with_carton()
 
         response = self.client.get(reverse("scan:scan_shipments_ready"))
 
         self.assertEqual(response.status_code, 200)
-        content = response.content.decode()
-        expected_labels = [
-            "Liasse complète",
-            "Bon d'expédition",
-            "Douane",
-            "Liste colisage",
-            "Attestation donation",
-            "Contact",
-            "Étiquettes colis",
-        ]
-        label_positions = [content.index(label) for label in expected_labels]
-        self.assertEqual(label_positions, sorted(label_positions))
         self.assertContains(
             response,
-            f'data-shipment-document-bundle-a4-url="{reverse("scan:scan_shipment_view_bundle_pdf", args=[shipment.id, "a4"])}"',
+            f'href="{reverse("scan:scan_shipment_edit", args=[shipment.id])}"',
         )
-        self.assertContains(
-            response,
-            f'data-shipment-document-bundle-a5-url="{reverse("scan:scan_shipment_view_bundle_pdf", args=[shipment.id, "a5"])}"',
-        )
-        self.assertContains(
-            response,
-            f'href="{reverse("scan:scan_shipment_view_document", args=[shipment.id, "shipment_note"])}"',
-        )
-        self.assertContains(
-            response,
-            f'href="{reverse("scan:scan_shipment_view_document", args=[shipment.id, "customs"])}"',
-        )
-        self.assertContains(
-            response,
-            f'href="{reverse("scan:scan_shipment_view_document", args=[shipment.id, "packing_list"])}"',
-        )
-        self.assertContains(
-            response,
-            f'href="{reverse("scan:scan_shipment_view_document", args=[shipment.id, "donation"])}"',
-        )
-        self.assertContains(
-            response,
-            f'href="{reverse("scan:scan_shipment_view_document", args=[shipment.id, "contact"])}"',
-        )
-        self.assertContains(
-            response,
-            f'href="{reverse("scan:scan_shipment_view_document", args=[shipment.id, "labels"])}"',
-        )
+        self.assertContains(response, "Ouvrir")
+        self.assertNotContains(response, ">Suivi<")
+        self.assertNotContains(response, ">Modifier<")
+        self.assertNotContains(response, "scan-doc-menu")
 
     def test_scan_shipment_edit_updates_destination(self):
         shipment = Shipment.objects.create(

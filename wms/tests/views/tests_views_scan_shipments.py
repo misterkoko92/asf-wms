@@ -237,6 +237,14 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertContains(response, 'data-local-document-helper-minimum-version="0.1.2"')
         self.assertContains(response, 'data-local-document-helper-latest-version="0.1.2"')
 
+    def test_scan_shipments_ready_renders_dossiers_title_and_search_form(self):
+        response = self.client.get(reverse("scan:scan_shipments_ready"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Dossiers")
+        self.assertContains(response, 'name="q"')
+        self.assertContains(response, "Rechercher une expédition")
+
     def test_scan_shipments_ready_uses_updated_headers_and_status_markup(self):
         with mock.patch(
             "wms.views_scan_shipments.build_shipments_ready_rows",
@@ -255,7 +263,7 @@ class ScanShipmentsViewsTests(TestCase):
                     "status_label": "Planifié",
                     "status_tone": "progress",
                     "status_variant": "planned",
-                    "can_edit": True,
+                    "documents_summary": "6 docs",
                 }
             ],
         ):
@@ -265,6 +273,7 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertContains(response, "scan-shipment-reference-col")
         self.assertContains(response, "Nb Colis Equivalent")
         self.assertContains(response, "scan-shipment-ready-col")
+        self.assertContains(response, "6 docs")
         self.assertContains(
             response,
             'class="ui-comp-status-pill scan-shipment-status-pill scan-shipment-status--planned is-progress"',
