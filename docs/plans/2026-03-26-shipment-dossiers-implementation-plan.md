@@ -103,7 +103,7 @@ def test_build_shipments_ready_rows_exposes_document_summary_counts(self):
     Document.objects.create(shipment=shipment, doc_type=DocumentType.ADDITIONAL)
     rows = build_shipments_ready_rows([shipment])
     self.assertEqual(rows[0]["additional_document_count"], 1)
-    self.assertEqual(rows[0]["generated_document_count"], 6)
+    self.assertGreater(rows[0]["generated_document_count"], 0)
 ```
 
 **Step 2: Run test to verify it fails**
@@ -141,7 +141,13 @@ In `wms/shipment_view_helpers.py`:
   - `additional_document_count`
   - a compact `documents_summary` string or equivalent display value
 
-Use the current generated-document contract, not the row dropdown order, as the source of truth.
+Use the current generated-document contract as the source of truth, not a hardcoded legacy list or the old row dropdown order.
+After merge `79145519`, that source of truth now includes the current shipment document helpers and print strategy:
+- `build_shipment_document_links(...)`
+- `SHIPMENT_DOCUMENT_TEMPLATES`
+- `wms/print_document_strategy.py`
+
+Do not hardcode a static document count in the final implementation, because the current contract now includes the HTML-first contact sheet path and can evolve independently of the dossier UI.
 
 **Step 4: Run test to verify it passes**
 
@@ -296,6 +302,11 @@ In the new dossier template:
   - `Clore le dossier` only when eligible or a clear blocked state if not
 - reuse current tracking, generated-document, additional-document, and receipt-allocation panels
 - place shipment form controls in an explicit edit section so the page remains consultation-first
+
+Document-link constraint after merge `79145519`:
+- do not introduce dossier-specific document endpoints
+- reuse the current print routes and helpers so the new HTML-vs-PDF delivery behavior in `wms/views_print_docs.py` and `wms/views_print_labels.py` remains intact
+- if a dossier action needs browser-print behavior, pass through the existing route contract instead of rendering documents directly from the dossier view
 
 Update `templates/scan/includes/shipment_create_intro.html` so creation keeps `Créer une expédition` wording and dossier pages no longer inherit the old `Modifier l'expédition` page title.
 
