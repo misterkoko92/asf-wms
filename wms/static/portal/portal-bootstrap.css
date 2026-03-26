@@ -110,7 +110,7 @@ body.portal-bootstrap-enabled {
 .portal-bootstrap-enabled .portal-masthead-bottom {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: var(--wms-field-gap);
   padding-top: var(--wms-space-unit);
   border-top: 1px solid var(--wms-card-border-color);
@@ -176,6 +176,10 @@ body.portal-bootstrap-enabled {
 }
 
 .portal-bootstrap-enabled .volunteer-page-intro .scan-help {
+  margin-bottom: 0;
+}
+
+.portal-bootstrap-enabled .portal-page-intro .scan-help {
   margin-bottom: 0;
 }
 

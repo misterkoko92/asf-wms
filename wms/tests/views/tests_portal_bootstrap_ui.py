@@ -26,8 +26,11 @@ from wms.models import (
     OrderReviewStatus,
     OrderStatus,
     Shipment,
+    ShipmentRecipientOrganization,
     ShipmentStatus,
+    ShipmentValidationStatus,
 )
+from wms.portal_recipient_sync import sync_association_recipient_to_contact
 
 
 class PortalBootstrapUiTests(TestCase):
@@ -230,6 +233,23 @@ class PortalBootstrapUiTests(TestCase):
         self.assertNotIn(reverse("portal:portal_order_create"), nav_content)
         self.assertNotIn(reverse("portal:portal_logout"), nav_content)
 
+    def test_portal_shell_places_order_create_cta_before_primary_navigation(self):
+        response = self.client.get(reverse("portal:portal_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        masthead_bottom_match = re.search(
+            r'<div class="portal-masthead-bottom d-none d-lg-flex">(.*?)</div>',
+            content,
+            re.S,
+        )
+        self.assertIsNotNone(masthead_bottom_match)
+        masthead_bottom = masthead_bottom_match.group(1)
+        self.assertLess(
+            masthead_bottom.index('id="portal-order-create-cta"'),
+            masthead_bottom.index('id="portal-primary-nav"'),
+        )
+
     def test_portal_billing_pages_use_bootstrap_tables(self):
         billing_document = BillingDocument.objects.create(
             association_profile=self.profile,
@@ -261,6 +281,36 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(detail_response, "table table-sm table-hover")
         self.assertContains(detail_response, "btn btn-primary")
 
+    def test_portal_intro_cards_use_portal_page_intro_spacing_contract(self):
+        billing_document = BillingDocument.objects.create(
+            association_profile=self.profile,
+            kind=BillingDocumentKind.INVOICE,
+            status="issued",
+            invoice_number="FAC-2026-778",
+            currency="EUR",
+        )
+        BillingDocumentLine.objects.create(
+            document=billing_document,
+            line_number=1,
+            label="Ligne intro",
+            quantity=1,
+            unit_price="25.00",
+            total_amount="25.00",
+        )
+
+        dashboard_response = self.client.get(reverse("portal:portal_dashboard"))
+        self.assertEqual(dashboard_response.status_code, 200)
+        self.assertContains(dashboard_response, "portal-page-intro")
+
+        billing_response = self.client.get(reverse("portal:portal_billing"))
+        self.assertEqual(billing_response.status_code, 200)
+        self.assertContains(billing_response, "portal-page-intro")
+
+        css_path = Path(settings.BASE_DIR) / "wms" / "static" / "portal" / "portal-bootstrap.css"
+        css_content = css_path.read_text(encoding="utf-8")
+        self.assertIn(".portal-bootstrap-enabled .portal-page-intro .scan-help {", css_content)
+        self.assertIn("margin-bottom: 0;", css_content)
+
     def test_portal_recipients_uses_bootstrap_forms_and_tables(self):
         response = self.client.get(reverse("portal:portal_recipients"))
         self.assertEqual(response.status_code, 200)
@@ -273,6 +323,45 @@ class PortalBootstrapUiTests(TestCase):
         response = self.client.get(reverse("portal:portal_recipients"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "form-check form-switch scan-inline-switch", count=3)
+
+    def test_portal_recipients_page_shows_recipient_status_column(self):
+        pending_recipient = AssociationRecipient.objects.create(
+            association_contact=self.profile.contact,
+            destination=Destination.objects.get(city="Paris"),
+            name="Recipient Pending",
+            structure_name="Recipient Pending",
+            address_line1="2 Rue Pending",
+            city="Paris",
+            country="France",
+            is_active=True,
+        )
+        validated_recipient = AssociationRecipient.objects.create(
+            association_contact=self.profile.contact,
+            destination=Destination.objects.get(city="Paris"),
+            name="Recipient Validated",
+            structure_name="Recipient Validated",
+            address_line1="3 Rue Validated",
+            city="Paris",
+            country="France",
+            is_active=True,
+        )
+        sync_association_recipient_to_contact(pending_recipient)
+        sync_association_recipient_to_contact(validated_recipient)
+        validated_org = ShipmentRecipientOrganization.objects.get(
+            organization=validated_recipient.synced_contact,
+            destination=validated_recipient.destination,
+        )
+        validated_org.validation_status = ShipmentValidationStatus.VALIDATED
+        validated_org.save(update_fields=["validation_status"])
+
+        response = self.client.get(reverse("portal:portal_recipients"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Statut destinataire")
+        self.assertContains(response, "portal-badge is-info")
+        self.assertContains(response, "portal-badge is-ready")
+        self.assertContains(response, "En attente validation")
+        self.assertContains(response, "Validé")
 
     def test_portal_recipients_keeps_switch_and_action_contract(self):
         response = self.client.get(reverse("portal:portal_recipients"))

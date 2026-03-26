@@ -12,7 +12,7 @@
   {% endif %}
   {% translate "Annuler" as cancel_label %}
   {% translate "Réutiliser la structure existante si elle est déjà connue sur cette escale" as reuse_existing_structure_label %}
-  <div class="scan-card portal-card card border-0 ui-comp-card">
+  <div class="scan-card portal-card card border-0 ui-comp-card portal-page-intro">
     <h2 class="ui-comp-title">{% trans "Destinataires" %}</h2>
     <p class="scan-help">{% trans "Liste privée des contacts de réception par escale." %}</p>
     {% if blocked_popup_message %}
@@ -32,6 +32,7 @@
               <th>{% trans "Adresse" %}</th>
               <th>{% trans "Coordonnées" %}</th>
               <th>{% trans "Options" %}</th>
+              <th>{% trans "Statut destinataire" %}</th>
               <th>{% trans "Actions" %}</th>
             </tr>
           </thead>
@@ -56,6 +57,11 @@
                   {% if recipient.is_delivery_contact %}
                     <br>{% trans "Contact réception escale" %}
                   {% endif %}
+                </td>
+                <td>
+                  <span class="{{ recipient.validation_status_display.badge_class }}">
+                    {{ recipient.validation_status_display.label }}
+                  </span>
                 </td>
                 <td class="portal-recipient-actions ui-comp-actions">
                   <a class="btn btn-tertiary btn-sm" href="{% url 'portal:portal_recipients' %}?edit={{ recipient.id }}">{% trans "Modifier" %}</a>

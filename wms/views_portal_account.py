@@ -25,6 +25,7 @@ from .models import (
     Destination,
     DocumentReviewStatus,
     ShipmentRecipientOrganization,
+    ShipmentValidationStatus,
 )
 from .portal_helpers import get_contact_address
 from .portal_recipient_sync import sync_association_recipient_to_contact
@@ -77,6 +78,8 @@ ERROR_CONTACT_REQUIRED = _("Ajoutez au moins un contact email.")
 ERROR_BILLING_PREFERENCES_INVALID = _(
     "Choisissez une périodicité et un mode de regroupement valides."
 )
+RECIPIENT_STATUS_PENDING_LABEL = _("En attente validation")
+RECIPIENT_STATUS_VALIDATED_LABEL = _("Validé")
 
 
 def _split_multi_values(value):
@@ -265,9 +268,48 @@ def _get_active_recipients(profile):
             association_contact=profile.contact,
             is_active=True,
         )
-        .select_related("destination")
+        .select_related("destination", "synced_contact")
         .order_by("structure_name", "name", "contact_last_name", "contact_first_name")
     )
+
+
+def _build_recipient_validation_status_display(validation_status):
+    if validation_status == ShipmentValidationStatus.VALIDATED:
+        return {
+            "value": ShipmentValidationStatus.VALIDATED,
+            "label": RECIPIENT_STATUS_VALIDATED_LABEL,
+            "badge_class": "portal-badge is-ready",
+        }
+    return {
+        "value": ShipmentValidationStatus.PENDING,
+        "label": RECIPIENT_STATUS_PENDING_LABEL,
+        "badge_class": "portal-badge is-info",
+    }
+
+
+def _decorate_recipient_validation_statuses(recipients):
+    recipients = list(recipients)
+    recipient_keys = {
+        (recipient.synced_contact_id, recipient.destination_id)
+        for recipient in recipients
+        if recipient.synced_contact_id and recipient.destination_id
+    }
+    recipient_orgs_by_key = {
+        (recipient_org.organization_id, recipient_org.destination_id): recipient_org
+        for recipient_org in ShipmentRecipientOrganization.objects.filter(
+            organization_id__in={key[0] for key in recipient_keys},
+            destination_id__in={key[1] for key in recipient_keys},
+            is_active=True,
+        ).only("organization_id", "destination_id", "validation_status", "is_active")
+    }
+    for recipient in recipients:
+        recipient_org = recipient_orgs_by_key.get(
+            (recipient.synced_contact_id, recipient.destination_id)
+        )
+        recipient.validation_status_display = _build_recipient_validation_status_display(
+            recipient_org.validation_status if recipient_org is not None else None
+        )
+    return recipients
 
 
 def _build_duplicate_recipient_suggestions(*, form_data, editing_recipient=None):
@@ -660,7 +702,7 @@ def portal_recipients(request):
                     editing_recipient=editing_recipient,
                 )
 
-    recipients = _get_active_recipients(profile)
+    recipients = _decorate_recipient_validation_statuses(_get_active_recipients(profile))
     return render(
         request,
         TEMPLATE_RECIPIENTS,

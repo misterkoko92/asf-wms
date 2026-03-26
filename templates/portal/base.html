@@ -59,6 +59,13 @@
           </div>
         </div>
         <div class="portal-masthead-bottom d-none d-lg-flex">
+          <a
+            id="portal-order-create-cta"
+            class="btn btn-primary btn-sm portal-order-create-cta{% if current == 'portal_order_create' %} is-active{% endif %}"
+            href="{% url 'portal:portal_order_create' %}"
+          >
+            {% trans "Nouvelle commande" %}
+          </a>
           <nav id="portal-primary-nav" class="portal-primary-nav" aria-label="{% trans "Navigation principale du portail" %}">
             <a
               class="portal-primary-link{% if current == 'portal_dashboard' or current == 'portal_order_detail' %} is-active{% endif %}"
@@ -85,13 +92,6 @@
               {% trans "Compte" %}
             </a>
           </nav>
-          <a
-            id="portal-order-create-cta"
-            class="btn btn-primary btn-sm portal-order-create-cta{% if current == 'portal_order_create' %} is-active{% endif %}"
-            href="{% url 'portal:portal_order_create' %}"
-          >
-            {% trans "Nouvelle commande" %}
-          </a>
         </div>
       </header>
 

@@ -345,6 +345,16 @@ body.scan-bootstrap-enabled {
   padding-inline: 0.7rem;
 }
 
+.scan-bootstrap-enabled .scan-utility-count-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.scan-bootstrap-enabled .scan-utility-count-link .ui-comp-count-badge {
+  min-width: 1.5rem;
+}
+
 .scan-bootstrap-enabled .scan-utility-nav .dropdown-menu {
   border: 1px solid var(--wms-dropdown-border);
   border-radius: 0.72rem;
