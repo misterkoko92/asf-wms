@@ -1,7 +1,7 @@
 {% extends "scan/base.html" %}
 {% load i18n static %}
 
-{% block title %}{% if LANGUAGE_CODE|slice:":2" == "en" %}WMS Scan - Shipments view{% else %}{% trans "WMS Scan - Vue Expéditions" %}{% endif %}{% endblock %}
+{% block title %}{% if LANGUAGE_CODE|slice:":2" == "en" %}WMS Scan - Shipment dossiers{% else %}{% trans "WMS Scan - Dossiers" %}{% endif %}{% endblock %}
 
 {% block content %}
   <div
@@ -17,10 +17,27 @@
     data-local-document-helper-latest-version="{{ helper_install.latest_helper_version }}"
   >
     <h2 class="h4 mb-3 ui-comp-title d-flex align-items-center gap-2 flex-wrap">
-      <span>{% if LANGUAGE_CODE|slice:":2" == "en" %}Shipments view{% else %}{% trans "Vue Expéditions" %}{% endif %}</span>
+      <span>{% if LANGUAGE_CODE|slice:":2" == "en" %}Shipment dossiers{% else %}{% trans "Dossiers" %}{% endif %}</span>
       <span class="badge text-bg-light ui-comp-count-badge">{{ shipments|length }}</span>
     </h2>
     {% include "wms/_local_document_helper_install_panel.html" %}
+    <form method="get" class="scan-filters row g-3 ui-comp-form mb-3">
+      <div class="scan-field col-12 col-lg-8">
+        <label class="form-label" for="id_q">{% trans "Rechercher une expédition" %}</label>
+        <input
+          type="text"
+          id="id_q"
+          name="q"
+          class="form-control"
+          value="{{ search_query }}"
+          placeholder="{% trans "Numéro, expéditeur, destinataire, destination" %}"
+        >
+      </div>
+      <div class="scan-filter-actions col-12 col-lg-4 d-flex flex-wrap gap-2 align-items-end">
+        <button type="submit" class="scan-scan-btn btn btn-primary">{% trans "Rechercher" %}</button>
+        <a class="btn btn-tertiary" href="{% url 'scan:scan_shipments_ready' %}">{% trans "Réinitialiser" %}</a>
+      </div>
+    </form>
     {% if stale_draft_count %}
       <div class="scan-message error">
         {% blocktrans with stale_count=stale_draft_count stale_days=stale_draft_days %}{{ stale_count }} brouillon(s) temporaire(s) de plus de {{ stale_days }} jours.{% endblocktrans %}
@@ -40,6 +57,7 @@
                 <span>NUMERO</span><br>
                 <span>EXPEDITION</span>
               </th>
+              <th>{% trans "Statut" %}</th>
               <th>{% trans "Nb colis" %}</th>
               <th>{% trans "Nb Colis Equivalent" %}</th>
               <th>{% trans "Destination (IATA)" %}</th>
@@ -47,7 +65,6 @@
               <th>{% trans "Destinataire" %}</th>
               <th>{% trans "Date création" %}</th>
               <th class="scan-shipment-ready-col">{% trans "Date mise en disponible" %}</th>
-              <th>{% trans "Statut" %}</th>
               <th>{% trans "Documents" %}</th>
               <th class="scan-shipment-actions-col">{% trans "Actions" %}</th>
             </tr>
@@ -56,6 +73,9 @@
             {% for shipment in shipments %}
               <tr>
                 <td>{{ shipment.reference }}</td>
+                <td class="status">
+                  <span class="ui-comp-status-pill scan-shipment-status-pill scan-shipment-status--{{ shipment.status_variant }} is-{{ shipment.status_tone }}">{{ shipment.status_label }}</span>
+                </td>
                 <td class="qty">{{ shipment.carton_count }}</td>
                 <td class="qty">{{ shipment.equivalent_carton_count }}</td>
                 <td>{{ shipment.destination_iata|default:"-" }}</td>
@@ -79,51 +99,10 @@
                     -
                   {% endif %}
                 </td>
-                <td class="status">
-                  <span class="ui-comp-status-pill scan-shipment-status-pill scan-shipment-status--{{ shipment.status_variant }} is-{{ shipment.status_tone }}">{{ shipment.status_label }}</span>
-                </td>
-                <td>
-                  <details class="scan-doc-menu">
-                    <summary class="scan-scan-btn btn btn-tertiary scan-doc-menu-toggle">{% trans "Documents" %}</summary>
-                    <div class="scan-doc-menu-list">
-                      <button
-                        type="button"
-                        class="scan-scan-btn btn btn-tertiary scan-doc-btn"
-                        data-shipment-document-bundle-open="1"
-                        data-shipment-document-bundle-a4-url="{% url 'scan:scan_shipment_view_bundle_pdf' shipment.id 'a4' %}"
-                        data-shipment-document-bundle-a5-url="{% url 'scan:scan_shipment_view_bundle_pdf' shipment.id 'a5' %}"
-                      >
-                        {% trans "Liasse complète" %}
-                      </button>
-                      <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_view_document' shipment.id 'shipment_note' %}" target="_blank" rel="noopener" data-local-document-helper-link="1">
-                        {% trans "Bon d'expédition" %}
-                      </a>
-                      <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_view_document' shipment.id 'customs' %}" target="_blank" rel="noopener" data-local-document-helper-link="1">
-                        {% trans "Douane" %}
-                      </a>
-                      <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_view_document' shipment.id 'packing_list' %}" target="_blank" rel="noopener" data-local-document-helper-link="1">
-                        {% trans "Liste colisage" %}
-                      </a>
-                      <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_view_document' shipment.id 'donation' %}" target="_blank" rel="noopener" data-local-document-helper-link="1">
-                        {% trans "Attestation donation" %}
-                      </a>
-                      <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_view_document' shipment.id 'contact' %}" target="_blank" rel="noopener" data-local-document-helper-link="1">
-                        {% trans "Contact" %}
-                      </a>
-                      <a class="scan-scan-btn btn btn-tertiary scan-doc-btn" href="{% url 'scan:scan_shipment_view_document' shipment.id 'labels' %}" target="_blank" rel="noopener" data-local-document-helper-link="1">
-                        {% trans "Étiquettes colis" %}
-                      </a>
-                    </div>
-                  </details>
-                </td>
+                <td>{{ shipment.documents_summary|default:"-" }}</td>
                 <td class="scan-shipment-actions-col">
                   <div class="scan-inline ui-comp-actions">
-                    <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_shipment_track' shipment.tracking_token %}?return_to=shipments_ready">
-                      {% trans "Suivi" %}
-                    </a>
-                    {% if shipment.can_edit %}
-                      <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_shipment_edit' shipment.id %}">{% trans "Modifier" %}</a>
-                    {% endif %}
+                    <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_shipment_edit' shipment.id %}">{% trans "Ouvrir" %}</a>
                   </div>
                 </td>
               </tr>
@@ -135,42 +114,4 @@
       <p class="scan-help ui-comp-note">{% trans "Aucune expédition." %}</p>
     {% endif %}
   </div>
-  <script>
-    document.addEventListener("DOMContentLoaded", function () {
-      document.querySelectorAll("[data-shipment-document-bundle-open]").forEach(function (button) {
-        button.addEventListener("click", function (event) {
-          const helperApi = window.asfLocalDocumentHelper;
-          if (helperApi && typeof helperApi.renderBundleFromButton === "function") {
-            event.preventDefault();
-            const previousAriaDisabled = button.getAttribute("aria-disabled");
-            button.setAttribute("aria-disabled", "true");
-            button.classList.add("disabled");
-            helperApi
-              .renderBundleFromButton(button)
-              .catch(function (error) {
-                window.console.error(error);
-              })
-              .finally(function () {
-                if (previousAriaDisabled === null) {
-                  button.removeAttribute("aria-disabled");
-                } else {
-                  button.setAttribute("aria-disabled", previousAriaDisabled);
-                }
-                button.classList.remove("disabled");
-              });
-            return;
-          }
-          const a4Url = button.dataset.shipmentDocumentBundleA4Url;
-          const a5Url = button.dataset.shipmentDocumentBundleA5Url;
-          if (a4Url) {
-            window.open(a4Url, "_blank", "noopener");
-          }
-          if (a5Url) {
-            window.open(a5Url, "_blank", "noopener");
-          }
-        });
-      });
-    });
-  </script>
-  <script src="{% static 'wms/local_document_helper.js' %}"></script>
 {% endblock %}

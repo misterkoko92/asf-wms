@@ -1,0 +1,83 @@
+{% load wms_status %}
+
+{% status_pill_class shipment.status "shipment" shipment.is_disputed as shipment_status_class %}
+
+<section id="shipment-dossier-header" class="scan-field ui-comp-panel">
+  <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3">
+    <div>
+      <h2 class="ui-comp-title mb-2">Dossier expédition {{ shipment.reference }}</h2>
+      <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+        <span class="{{ shipment_status_class }}">{{ status_display.label }}</span>
+        {% if shipment.destination %}
+          <span class="scan-help">{{ shipment.destination }}</span>
+        {% elif shipment.destination_address %}
+          <span class="scan-help">{{ shipment.destination_address }}</span>
+        {% endif %}
+      </div>
+      {% if shipment.closed_at %}
+        <p class="scan-help ui-comp-note mb-1">
+          Dossier clôturé le {{ shipment.closed_at|date:"d/m/Y H\\hi" }}
+          {% if shipment.closed_by %}par {{ shipment.closed_by.username }}{% endif %}
+        </p>
+      {% elif shipment.is_disputed %}
+        <p class="scan-help ui-comp-note mb-1">Expédition en litige.</p>
+      {% elif is_locked %}
+        <p class="scan-help ui-comp-note mb-1">Expédition verrouillée.</p>
+      {% else %}
+        <p class="scan-help ui-comp-note mb-1">Synthèse du dossier et pilotage de l'expédition.</p>
+      {% endif %}
+      <div class="scan-help">
+        Créée le {{ shipment.created_at|date:"d/m/Y H\\hi" }}
+        {% if shipment.ready_at %} · Disponible le {{ shipment.ready_at|date:"d/m/Y H\\hi" }}{% endif %}
+        {% if shipment.requested_delivery_date %} · Livraison souhaitée le {{ shipment.requested_delivery_date|date:"d/m/Y" }}{% endif %}
+      </div>
+    </div>
+    <div id="shipment-dossier-actions" class="ui-comp-actions d-flex flex-wrap justify-content-lg-end gap-2">
+      {% if can_edit %}
+        <a
+          class="scan-scan-btn btn btn-primary"
+          href="?mode=edit#shipment-dossier-edit-panel"
+        >
+          Modifier
+        </a>
+      {% endif %}
+      <a
+        class="scan-scan-btn btn btn-tertiary"
+        href="{% url 'scan:scan_shipment_track' shipment.tracking_token %}?return_to={{ tracking_return_to }}"
+      >
+        Ouvrir suivi
+      </a>
+      {% if is_closed %}
+        <button
+          type="button"
+          class="scan-scan-btn btn btn-secondary scan-shipment-close-btn is-closed"
+          disabled
+        >
+          Dossier clôturé
+        </button>
+      {% elif can_close %}
+        <form method="post" class="d-inline-flex">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="close_shipment_case">
+          <button
+            type="submit"
+            class="scan-scan-btn btn btn-secondary scan-shipment-close-btn is-ready"
+          >
+            Clore le dossier
+          </button>
+        </form>
+      {% else %}
+        <button
+          type="button"
+          class="scan-scan-btn btn btn-secondary scan-shipment-close-btn is-blocked"
+          onclick="window.alert('{{ close_inactive_message }}'); return false;"
+        >
+          Clore le dossier
+        </button>
+      {% endif %}
+      <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_shipments_ready' %}">
+        Retour aux dossiers
+      </a>
+    </div>
+  </div>
+</section>

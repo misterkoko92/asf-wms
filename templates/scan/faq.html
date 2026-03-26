@@ -132,7 +132,7 @@
         contacts proposés. 3. Ajouter les colis <strong>Prêt</strong> non affectés. 4.
         Utiliser <strong>Enregistrer un brouillon</strong> si le dossier n'est pas finalisé
         ou <strong>Créer Expédition</strong> pour générer la référence finale. 5. Étiqueter
-        les colis puis suivre l'avancement dans <strong>Vue Expéditions</strong> et
+        les colis puis suivre l'avancement dans <strong>Dossiers</strong> et
         <strong>Suivi expéditions</strong>.
       {% endblocktrans %}
     </p>
@@ -172,7 +172,7 @@
   <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
     <h2 class="ui-comp-title">{% trans "Référence scan" %}</h2>
     <ul>
-      <li>{% blocktrans trimmed %}<strong>Voir les états</strong> regroupe les pages de consultation: <strong>Vue Stock</strong>, <strong>Vue Kits</strong>, <strong>Vue Colis</strong>, <strong>Vue Expéditions</strong>, <strong>Vue Commande</strong> et <strong>Vue Réception</strong>. Leur objectif est de contrôler l'état courant et d'utiliser les actions rapides de tableau.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}<strong>Voir les états</strong> regroupe les pages de consultation: <strong>Vue Stock</strong>, <strong>Vue Kits</strong>, <strong>Vue Colis</strong>, <strong>Dossiers</strong>, <strong>Vue Commande</strong> et <strong>Vue Réception</strong>. Leur objectif est de contrôler l'état courant et d'utiliser les actions rapides de tableau.{% endblocktrans %}</li>
       <li>{% blocktrans trimmed %}<strong>Réception</strong> sert à faire entrer un don, tracer une réception palette, importer un listing ou corriger le stock. Les boutons principaux créent soit un dossier logistique, soit un véritable mouvement de stock selon la page.{% endblocktrans %}</li>
       <li>{% blocktrans trimmed %}<strong>Préparation</strong> transforme le stock en kits, colis et expéditions. Les boutons d'ajout créent des lignes, le bouton <strong>Scan</strong> remplit un champ, et les boutons principaux enregistrent un brouillon, préparent les colis ou créent l'expédition.{% endblocktrans %}</li>
       <li>{% blocktrans trimmed %}<strong>Gestion</strong> couvre la sortie de stock, la documentation, les imports, les templates et le suivi après préparation. Les pages admin et superuser modifient les référentiels utilisés par tout le reste du WMS.{% endblocktrans %}</li>
@@ -264,8 +264,10 @@
   </div>
 
   <div class="scan-card card border-0 ui-comp-card" data-faq-section="true">
-    <h2 class="ui-comp-title">{% trans "Vue Expéditions" %}</h2>
+    <h2 class="ui-comp-title">{% trans "Dossiers" %}</h2>
     <ul>
+      <li>{% blocktrans trimmed %}Cette vue sert à rechercher une expédition existante par numéro, expéditeur, destinataire ou destination.{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}Le bouton <strong>Ouvrir</strong> mène vers le <strong>Dossier expédition</strong>, qui centralise l'administratif, les documents, le suivi et les actions autorisées.{% endblocktrans %}</li>
       <li>{% blocktrans trimmed %}<strong>Brouillon</strong> : expédition temporaire (référence <strong>EXP-TEMP-XX</strong>) sauvegardée pour reprise ultérieure.{% endblocktrans %}</li>
       <li>{% blocktrans trimmed %}<strong>Création</strong> : expédition active sans colis étiqueté (référence finale).{% endblocktrans %}</li>
       <li>{% blocktrans trimmed %}<strong>En cours</strong> : tant que tous les colis ne sont pas étiquetés.{% endblocktrans %}</li>
@@ -281,7 +283,7 @@
       {% endblocktrans %}
     </p>
     <p>
-      {% blocktrans trimmed %}Le bouton <strong>Suivi</strong> ouvre la page publique de suivi via QR.{% endblocktrans %}
+      {% blocktrans trimmed %}Le suivi détaillé et les modifications passent désormais par le <strong>Dossier expédition</strong>.{% endblocktrans %}
     </p>
     <p>
       {% blocktrans trimmed %}Les brouillons temporaires anciens peuvent être archivés via l'action <strong>Archiver brouillons anciens</strong>.{% endblocktrans %}
@@ -417,7 +419,7 @@
       <li>{% trans "Le sélecteur propose automatiquement l'étape suivante." %}</li>
       <li>{% trans "Étapes : OK pour planification, Planifié, Déplacé au magasin export, OK mise à bord, Reçu correspondant, Reçu destinataire." %}</li>
       <li>{% trans "Passage de statut expédition : Planifié/Déplacé => Planifié, Mise à bord => Expédié, Reçu correspondant => Reçu escale, Reçu destinataire => Livré." %}</li>
-      <li>{% blocktrans trimmed %}Depuis la page de suivi staff, le bouton <strong>Revenir à la liste</strong> revient vers la dernière vue (Vue Expéditions ou Suivi des expéditions).{% endblocktrans %}</li>
+      <li>{% blocktrans trimmed %}Depuis la page de suivi staff, le bouton <strong>Revenir à la liste</strong> revient vers la dernière vue (Dossiers ou Suivi des expéditions).{% endblocktrans %}</li>
       <li>{% blocktrans trimmed %}Si des champs de suivi sont modifiés non enregistrés, une confirmation propose <strong>OUI</strong> (enregistrer) ou <strong>NON</strong> (quitter sans enregistrer).{% endblocktrans %}</li>
       <li>{% blocktrans trimmed %}Depuis le suivi, vous pouvez <strong>Déclarer litige</strong> puis <strong>Résoudre litige et remettre Prêt</strong>.{% endblocktrans %}</li>
     </ul>

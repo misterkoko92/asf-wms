@@ -1,0 +1,68 @@
+<div id="shipment-dossier-summary" class="row g-3">
+  <div class="col-12 col-md-6 col-xl-4">
+    <div class="scan-field">
+      <div class="form-label">Expéditeur</div>
+      <div>{{ shipment.shipper_name|default:"-" }}</div>
+    </div>
+  </div>
+  <div class="col-12 col-md-6 col-xl-4">
+    <div class="scan-field">
+      <div class="form-label">Destinataire</div>
+      <div>{{ shipment.recipient_name|default:"-" }}</div>
+    </div>
+  </div>
+  <div class="col-12 col-md-6 col-xl-4">
+    <div class="scan-field">
+      <div class="form-label">Correspondant</div>
+      <div>{{ shipment.correspondent_name|default:"-" }}</div>
+    </div>
+  </div>
+  <div class="col-12 col-md-6 col-xl-4">
+    <div class="scan-field">
+      <div class="form-label">Destination</div>
+      <div>
+        {% if shipment.destination %}
+          {{ shipment.destination }}
+        {% else %}
+          {{ shipment.destination_address|default:"-" }}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-6 col-xl-4">
+    <div class="scan-field">
+      <div class="form-label">Pays destination</div>
+      <div>{{ shipment.destination_country|default:"-" }}</div>
+    </div>
+  </div>
+  <div class="col-12 col-md-6 col-xl-4">
+    <div class="scan-field">
+      <div class="form-label">Colis associés</div>
+      <div>{{ carton_doc_count }}</div>
+    </div>
+  </div>
+  <div class="col-12 col-md-6 col-xl-4">
+    <div class="scan-field">
+      <div class="form-label">Documents additionnels</div>
+      <div>{{ additional_document_count }}</div>
+    </div>
+  </div>
+  <div class="col-12 col-md-6 col-xl-4">
+    <div class="scan-field">
+      <div class="form-label">Réceptions liées</div>
+      <div>{{ receipt_allocation_count }}</div>
+    </div>
+  </div>
+  <div class="col-12 col-md-6 col-xl-4">
+    <div class="scan-field">
+      <div class="form-label">Lien de suivi</div>
+      <div>
+        {% if tracking_url %}
+          <a href="{{ tracking_url }}" target="_blank" rel="noopener">{{ tracking_url }}</a>
+        {% else %}
+          -
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>

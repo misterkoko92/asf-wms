@@ -260,6 +260,16 @@ class ScanBootstrapUiTests(TestCase):
             'class="scan-nav scan-nav-bootstrap navbar navbar-expand-xl"',
         )
 
+    def test_scan_nav_renders_shipments_group_instead_of_single_link(self):
+        response = self.client.get(reverse("scan:scan_shipments_ready"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="scan-sidebar-shipments-toggle"')
+        self.assertContains(response, 'id="scan-sidebar-shipments-group"')
+        self.assertContains(response, "Dossiers")
+        self.assertContains(response, "Suivi des expéditions")
+        self.assertNotContains(response, 'id="scan-sidebar-shipments"')
+
     def test_scan_masthead_shows_pending_recipient_validation_notification(self):
         self.client.force_login(self.superuser)
         pending_contact = Contact.objects.create(
@@ -295,7 +305,7 @@ class ScanBootstrapUiTests(TestCase):
                 'id="scan-sidebar-stocks-toggle"',
                 'id="scan-sidebar-receiving-toggle"',
                 'id="scan-sidebar-preparation-toggle"',
-                'id="scan-sidebar-shipments"',
+                'id="scan-sidebar-shipments-toggle"',
                 'id="scan-sidebar-management-toggle"',
             ],
         )
@@ -320,7 +330,7 @@ class ScanBootstrapUiTests(TestCase):
                 'id="scan-sidebar-stocks-toggle"',
                 'id="scan-sidebar-receiving-toggle"',
                 'id="scan-sidebar-preparation-toggle"',
-                'id="scan-sidebar-shipments"',
+                'id="scan-sidebar-shipments-toggle"',
                 'id="scan-sidebar-management-toggle"',
             ],
         )
@@ -346,7 +356,7 @@ class ScanBootstrapUiTests(TestCase):
                 'id="scan-sidebar-stocks-toggle"',
                 'id="scan-sidebar-receiving-toggle"',
                 'id="scan-sidebar-preparation-toggle"',
-                'id="scan-sidebar-shipments"',
+                'id="scan-sidebar-shipments-toggle"',
                 'id="scan-sidebar-management-toggle"',
             ],
         )
@@ -430,6 +440,8 @@ class ScanBootstrapUiTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="shipment-dossier-header"')
+        self.assertContains(response, 'id="shipment-dossier-edit-panel"')
         self.assertContains(response, 'id="shipment-tracking-actions"')
         self.assertContains(response, 'id="shipment-generated-document-actions"')
         self.assertContains(response, 'id="shipment-additional-document-upload-actions"')
@@ -599,6 +611,13 @@ class ScanBootstrapUiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "<span>NUMERO</span><br>", html=True)
         self.assertContains(response, "<span>EXPEDITION</span>", html=True)
+
+    def test_scan_faq_uses_dossiers_vocabulary_for_shipment_list(self):
+        response = self.client.get(reverse("scan:scan_faq"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Dossiers")
+        self.assertNotContains(response, "Vue Expéditions")
 
     def test_scan_bootstrap_css_scopes_shipment_status_variants_with_higher_specificity(self):
         css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"

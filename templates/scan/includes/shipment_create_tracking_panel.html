@@ -1,5 +1,7 @@
 {% load i18n %}
 
+{% url 'scan:scan_shipment_track' shipment.tracking_token as shipment_tracking_path %}
+
 <div class="scan-field">
   <label class="form-label">{% trans "Suivi expédition" %}</label>
   <div id="shipment-tracking-actions" class="scan-inline ui-comp-actions">
@@ -8,7 +10,10 @@
     {% else %}
       <span class="scan-help">{% trans "QR code non disponible." %}</span>
     {% endif %}
-    <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_shipment_track' shipment.tracking_token %}">
+    <a
+      class="scan-scan-btn btn btn-tertiary"
+      href="{{ shipment_tracking_path }}{% if tracking_return_to %}?return_to={{ tracking_return_to }}{% endif %}"
+    >
       {% trans "Ouvrir suivi" %}
     </a>
   </div>

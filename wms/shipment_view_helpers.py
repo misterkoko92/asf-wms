@@ -144,11 +144,13 @@ def _build_dynamic_label_context(label):
 
 def _shipment_carton_totals(shipment):
     total = (
-        shipment.carton_count if shipment.carton_count is not None else shipment.carton_set.count()
+        getattr(shipment, "carton_count", None)
+        if getattr(shipment, "carton_count", None) is not None
+        else shipment.carton_set.count()
     )
     ready = (
-        shipment.ready_count
-        if shipment.ready_count is not None
+        getattr(shipment, "ready_count", None)
+        if getattr(shipment, "ready_count", None) is not None
         else shipment.carton_set.filter(status__in=STATUS_READY_CARTON).count()
     )
     return total, ready
@@ -261,6 +263,14 @@ def _resolve_shipment_party_contact(shipment, *, ref_attr):
     return getattr(shipment, ref_attr, None)
 
 
+def _shipment_document_counts(shipment):
+    shipment_pk = getattr(shipment, "pk", None)
+    if shipment_pk is None:
+        return len(SHIPMENT_DOCUMENT_LINKS) + 1, 0
+    documents, _carton_docs, additional_docs = build_shipment_document_links(shipment)
+    return len(documents), additional_docs.count()
+
+
 def build_carton_options(cartons):
     return [_build_carton_option(carton) for carton in cartons]
 
@@ -358,10 +368,17 @@ def build_shipments_ready_rows(shipments_qs):
     shipments = []
     for shipment in shipments_qs:
         total, ready = _shipment_carton_totals(shipment)
+        generated_document_count, additional_document_count = _shipment_document_counts(shipment)
         progress_label = _shipment_progress_label(total=total, ready=ready)
         status_label = _shipment_status_label(shipment, progress_label)
         status_tone = _shipment_status_tone(shipment, total=total, ready=ready)
         status_variant = _shipment_status_variant(shipment, total=total, ready=ready)
+        documents_summary = _("%(generated)s docs") % {"generated": generated_document_count}
+        if additional_document_count:
+            documents_summary = _("%(generated)s docs + %(additional)s ajoutés") % {
+                "generated": generated_document_count,
+                "additional": additional_document_count,
+            }
         shipments.append(
             {
                 "id": shipment.id,
@@ -391,6 +408,9 @@ def build_shipments_ready_rows(shipments_qs):
                 "status_tone": status_tone,
                 "status_variant": status_variant,
                 "can_edit": shipment.status not in STATUS_LOCKED_SHIPMENT,
+                "generated_document_count": generated_document_count,
+                "additional_document_count": additional_document_count,
+                "documents_summary": documents_summary,
             }
         )
     return shipments
