@@ -14,7 +14,7 @@ from .local_document_helper import (
 )
 from .models import Shipment
 from .print_context import build_label_context
-from .print_delivery import wants_external_pdf
+from .print_delivery import wants_browser_print
 from .print_pack_engine import (
     PrintPackEngineError,
     generate_pack,
@@ -147,7 +147,7 @@ def scan_shipment_labels(request, shipment_id):
             render_documents=render_documents,
             shipment=shipment,
         )
-    if not wants_external_pdf(request):
+    if wants_browser_print(request, default=False):
         return render_shipment_labels(request, shipment)
     try:
         artifact = generate_pack(
@@ -241,7 +241,7 @@ def scan_shipment_label(request, shipment_id, carton_id):
             shipment=shipment,
             carton=carton,
         )
-    if not wants_external_pdf(request):
+    if wants_browser_print(request, default=False):
         return _render_single_shipment_label_response(request, shipment, carton_id)
     try:
         artifact = generate_pack(

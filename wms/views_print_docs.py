@@ -16,7 +16,7 @@ from .local_document_helper import (
 )
 from .models import Carton, Shipment
 from .print_context import build_carton_picking_context
-from .print_delivery import wants_external_pdf
+from .print_delivery import wants_browser_print
 from .print_pack_engine import (
     PrintPackEngineError,
     generate_pack,
@@ -361,7 +361,7 @@ def scan_shipment_document(request, shipment_id, doc_type):
                 render_documents=render_documents,
                 shipment=shipment,
             )
-        if not wants_external_pdf(request):
+        if wants_browser_print(request, default=False):
             return render_shipment_document(request, shipment, doc_type)
         return _try_generate_pack_pdf_response(
             request,
@@ -432,7 +432,7 @@ def scan_shipment_carton_document(request, shipment_id, carton_id):
             shipment=shipment,
             carton=carton,
         )
-    if not wants_external_pdf(request):
+    if wants_browser_print(request, default=False):
         return render_carton_document(request, shipment, carton)
     return _try_generate_pack_pdf_response(
         request,
@@ -517,7 +517,7 @@ def scan_carton_document(request, carton_id):
             shipment=carton.shipment if carton.shipment_id else None,
             carton=carton,
         )
-    if not wants_external_pdf(request):
+    if wants_browser_print(request, default=False):
         if carton.shipment_id:
             return render_carton_document(
                 request,
