@@ -16,6 +16,7 @@ from .local_document_helper import (
 )
 from .models import Carton, Shipment
 from .print_context import build_carton_picking_context
+from .print_delivery import wants_browser_print
 from .print_pack_engine import (
     PrintPackEngineError,
     generate_pack,
@@ -360,6 +361,8 @@ def scan_shipment_document(request, shipment_id, doc_type):
                 render_documents=render_documents,
                 shipment=shipment,
             )
+        if wants_browser_print(request, default=False):
+            return render_shipment_document(request, shipment, doc_type)
         return _try_generate_pack_pdf_response(
             request,
             pack_code=pack_route.pack_code,
@@ -429,6 +432,8 @@ def scan_shipment_carton_document(request, shipment_id, carton_id):
             shipment=shipment,
             carton=carton,
         )
+    if wants_browser_print(request, default=False):
+        return render_carton_document(request, shipment, carton)
     return _try_generate_pack_pdf_response(
         request,
         pack_code=pack_route.pack_code,
@@ -512,6 +517,17 @@ def scan_carton_document(request, carton_id):
             shipment=carton.shipment if carton.shipment_id else None,
             carton=carton,
         )
+    if wants_browser_print(request, default=False):
+        if carton.shipment_id:
+            return render_carton_document(
+                request,
+                carton.shipment,
+                carton,
+            )
+        return _render_carton_document_with_layout(
+            request,
+            _build_standalone_carton_context(carton),
+        )
     return _try_generate_pack_pdf_response(
         request,
         pack_code=pack_route.pack_code,
@@ -570,6 +586,8 @@ def scan_carton_picking(request, carton_id):
 @require_http_methods(["GET"])
 def scan_shipment_view_document(request, shipment_id, document_key):
     shipment = _get_shipment_by_id(shipment_id)
+    if (document_key or "").strip() == "contact":
+        return render_shipment_document(request, shipment, "contact_label")
     config = _shipment_view_document_or_404(document_key)
     render_documents = lambda: _render_shipment_view_xlsx_documents(shipment, document_key)
     if get_local_helper_document_index(request) is not None:

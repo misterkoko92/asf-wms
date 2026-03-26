@@ -320,6 +320,20 @@ def build_carton_document_context(shipment, carton):
     }
 
 
+def build_contact_sheet_context(shipment):
+    context = build_shipment_document_context(shipment, "contact_label")
+    return {
+        "document_date": context["document_date"],
+        "shipment_ref": context["shipment_ref"],
+        "destination_address": context["destination_address"],
+        "destination_label": context["destination_label"],
+        "shipper_info": context["shipper_info"],
+        "recipient_info": context["recipient_info"],
+        "correspondent_info": context["correspondent_info"],
+        "hide_footer": True,
+    }
+
+
 def build_carton_picking_context(carton):
     rows_by_key = {}
     for item in carton.cartonitem_set.select_related(

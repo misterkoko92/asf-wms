@@ -1,22 +1,123 @@
-{% extends "print/base_a5.html" %}
-{% load i18n %}
+{% extends "print/base_document.html" %}
+{% load i18n static %}
 
 {% block title %}{% trans "Attestation de donation" %}{% endblock %}
 
+{% block extra_style %}
+  .certificate {
+    display: grid;
+    gap: 4mm;
+  }
+  .certificate-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 6mm;
+    align-items: flex-start;
+  }
+  .certificate-title {
+    font-size: 15pt;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+  }
+  .certificate-meta {
+    display: grid;
+    gap: 1mm;
+    text-align: right;
+  }
+  .contact-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4mm;
+  }
+  .contact-block {
+    border: 1px solid #000;
+    padding: 3mm;
+    font-size: 9pt;
+  }
+  .contact-title {
+    font-weight: 800;
+    margin-bottom: 2mm;
+  }
+  .contact-grid {
+    display: grid;
+    grid-template-columns: 18mm 1fr;
+    gap: 1mm 2mm;
+  }
+  .contact-label {
+    font-weight: 700;
+  }
+  .contact-value {
+    white-space: pre-line;
+  }
+  .certificate-body {
+    font-size: 10pt;
+    line-height: 1.35;
+    white-space: pre-line;
+  }
+  .certificate-signoff {
+    display: flex;
+    align-items: center;
+    gap: 6mm;
+  }
+  .certificate-stamp {
+    height: 18mm;
+  }
+{% endblock %}
+
 {% block body %}
-  <h1>{% trans "Attestation de donation" %}</h1>
+  <div class="certificate">
+    <div class="certificate-header">
+      <div id="donation-certificate-title" class="certificate-title">
+        {% trans "ATTESTATION DE DONATION" %}
+      </div>
+      <div class="certificate-meta">
+        <div class="meta">{% trans "Réf document" %}: {{ document_ref }}</div>
+        <div class="meta">{% trans "Date" %}: {{ document_date|date:"d/m/Y" }}</div>
+      </div>
+    </div>
 
-  <div class="meta">{% trans "Réf document" %}: {{ document_ref }}</div>
-  <div class="meta">{% trans "Date" %}: {{ document_date|date:"d/m/Y" }}</div>
+    <div class="contact-row">
+      <div class="contact-block">
+        <div class="contact-title">{% trans "EXPÉDITEUR" %}</div>
+        <div class="contact-grid">
+          <div class="contact-label">{% trans "Société" %}</div>
+          <div class="contact-value">{{ shipper_info.company|default:"-" }}</div>
+          <div class="contact-label">{% trans "Nom" %}</div>
+          <div class="contact-value">{{ shipper_info.person|default:donor_name|default:"-" }}</div>
+          <div class="contact-label">{% trans "Adresse" %}</div>
+          <div class="contact-value">{{ shipper_info.address|default:"-" }}</div>
+          <div class="contact-label">{% trans "Tel" %}</div>
+          <div class="contact-value">{{ shipper_info.phone|default:"-" }}</div>
+          <div class="contact-label">{% trans "Mail" %}</div>
+          <div class="contact-value">{{ shipper_info.email|default:"-" }}</div>
+        </div>
+      </div>
+      <div class="contact-block">
+        <div class="contact-title">{% trans "DESTINATAIRE" %}</div>
+        <div class="contact-grid">
+          <div class="contact-label">{% trans "Société" %}</div>
+          <div class="contact-value">{{ recipient_info.company|default:"-" }}</div>
+          <div class="contact-label">{% trans "Nom" %}</div>
+          <div class="contact-value">{{ recipient_info.person|default:recipient_name|default:"-" }}</div>
+          <div class="contact-label">{% trans "Adresse" %}</div>
+          <div class="contact-value">{{ recipient_info.address|default:destination_address|default:"-" }}</div>
+          <div class="contact-label">{% trans "Tel" %}</div>
+          <div class="contact-value">{{ recipient_info.phone|default:"-" }}</div>
+          <div class="contact-label">{% trans "Mail" %}</div>
+          <div class="contact-value">{{ recipient_info.email|default:"-" }}</div>
+        </div>
+      </div>
+    </div>
 
-  <div class="block">{% trans "Organisation" %}: {{ org_name }}</div>
-  <div class="block">{% trans "Adresse" %}: {{ org_address }}</div>
-  <div class="block">{% trans "Contact" %}: {{ org_contact }}</div>
-  <div class="block">{% trans "Donateur" %}: {{ donor_name }}</div>
-  <div class="block">{% trans "Destinataire" %}: {{ recipient_name }}</div>
-  <div class="block">{% trans "Destination" %}: {{ destination_address }}</div>
-  <div class="block">{% trans "Description du don" %}: {{ donation_description }}</div>
+    <div id="donation-certificate-body" class="certificate-body">
+      {% blocktrans trimmed %}Je soussigné, M. Edouard Gonnu, Responsable de la Messagerie Médicale, de l'association Aviation Sans Frontières Atteste que le(s) colis faisant l'objet de la présente expédition par l'intermédiaire d'Aviation Sans Frontières est (sont) un (des) don(s) de l'Expéditeur au Destinataire mentionnés ci-dessous. Le correspondant est le seul autorisé à récupérer ces colis pour le compte du Destinataire. Ces colis ne contiennent que du matériel médical et chirurgical envoyés à titre humanitaire. Ces articles médicaux sont pour la santé humaine et ne sont pas destinés à être revendus. Ils ne sont pas soumis aux biens à double usage - sans valeur commerciale. Valeur uniquement pour la douane : 1.00 euro -{% endblocktrans %}
+    </div>
 
-  <div class="signature">{% trans "Signataire" %}: {{ org_signatory }}</div>
-  <div class="signature">{% trans "Signature" %}: ________________________________</div>
+    <div class="certificate-signoff">
+      <div class="certificate-body">
+        {% blocktrans with document_date=document_date|date:"d/m/y" trimmed %}Fait à Roissy, France, le {{ document_date }}{% endblocktrans %}
+      </div>
+      <img class="certificate-stamp" src="{% static 'scan/cachet.png' %}" alt="{% trans "Cachet" %}">
+    </div>
+  </div>
 {% endblock %}
