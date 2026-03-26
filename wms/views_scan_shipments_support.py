@@ -26,9 +26,11 @@ CLOSED_FILTER_EXCLUDE = "exclude"
 CLOSED_FILTER_ALL = "all"
 PLANNED_WEEK_RE = re.compile(r"^(?P<year>\d{4})-(?:W)?(?P<week>\d{2})$")
 RETURN_TO_SHIPMENTS_READY = "shipments_ready"
+RETURN_TO_SHIPMENTS_DOSSIERS = "shipments_dossiers"
 RETURN_TO_SHIPMENTS_TRACKING = "shipments_tracking"
 RETURN_TO_VIEW_NAMES = {
     RETURN_TO_SHIPMENTS_READY: "scan:scan_shipments_ready",
+    RETURN_TO_SHIPMENTS_DOSSIERS: "scan:scan_shipments_ready",
     RETURN_TO_SHIPMENTS_TRACKING: "scan:scan_shipments_tracking",
 }
 
@@ -146,7 +148,12 @@ def _build_shipments_tracking_redirect_url(*, planned_week_value, closed_filter)
 
 
 def _shipment_can_be_closed(shipment):
-    rows = build_shipments_tracking_rows([shipment])
+    tracking_shipment = shipment
+    if getattr(shipment, "pk", None) and not hasattr(shipment, "carton_count"):
+        tracking_shipment = _build_shipments_tracking_queryset().filter(pk=shipment.pk).first()
+        if tracking_shipment is None:
+            return False
+    rows = build_shipments_tracking_rows([tracking_shipment])
     if not rows:
         return False
     return bool(rows[0]["can_close"])

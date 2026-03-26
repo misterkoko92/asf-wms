@@ -910,13 +910,34 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertContains(response, "Valider")
         self.assertContains(response, "Refuser")
 
-    def test_scan_shipment_edit_redirects_when_shipment_is_not_editable(self):
+    def test_scan_shipment_edit_renders_read_only_dossier_when_shipment_is_locked(self):
         shipment = self._create_shipment(status=ShipmentStatus.SHIPPED)
+
         response = self.client.get(
             reverse("scan:scan_shipment_edit", kwargs={"shipment_id": shipment.id})
         )
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse("scan:scan_shipments_ready"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "scan/shipment_dossier.html")
+        self.assertContains(response, shipment.reference)
+        self.assertContains(response, "Dossier expédition")
+        self.assertContains(response, "Expédition verrouillée")
+        self.assertNotContains(response, 'id="shipment-form"')
+
+    def test_scan_shipment_edit_renders_dossier_sections_and_primary_actions(self):
+        shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
+
+        response = self.client.get(
+            reverse("scan:scan_shipment_edit", kwargs={"shipment_id": shipment.id})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "scan/shipment_dossier.html")
+        self.assertContains(response, f"Dossier expédition {shipment.reference}")
+        self.assertContains(response, "Administratif")
+        self.assertContains(response, "Documents")
+        self.assertContains(response, "Suivi")
+        self.assertContains(response, "Modifier")
 
     def test_scan_shipment_edit_get_renders_context(self):
         shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
@@ -969,10 +990,12 @@ class ScanShipmentsViewsTests(TestCase):
                                                     )
                                                 )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content.decode(), "scan/shipment_create.html")
+        self.assertEqual(response.content.decode(), "scan/shipment_dossier.html")
         self.assertEqual(response.context_data["context_key"], "edit-get")
         self.assertEqual(response.context_data["helper_install"], helper_install)
         self.assertTrue(response.context_data["is_edit"])
+        self.assertFalse(response.context_data["is_locked"])
+        self.assertTrue(response.context_data["can_edit"])
         self.assertEqual(response.context_data["shipment"].id, shipment.id)
         self.assertIn("tracking_url", response.context_data)
         self.assertEqual(
@@ -1070,7 +1093,7 @@ class ScanShipmentsViewsTests(TestCase):
                                                     {},
                                                 )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content.decode(), "scan/shipment_create.html")
+        self.assertEqual(response.content.decode(), "scan/shipment_dossier.html")
         self.assertEqual(response.context_data["context_key"], "edit-post")
         self.assertEqual(response.context_data["helper_install"], helper_install)
         self.assertTrue(response.context_data["is_edit"])

@@ -440,6 +440,8 @@ class ScanBootstrapUiTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="shipment-dossier-header"')
+        self.assertContains(response, 'id="shipment-dossier-edit-panel"')
         self.assertContains(response, 'id="shipment-tracking-actions"')
         self.assertContains(response, 'id="shipment-generated-document-actions"')
         self.assertContains(response, 'id="shipment-additional-document-upload-actions"')
@@ -609,6 +611,13 @@ class ScanBootstrapUiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "<span>NUMERO</span><br>", html=True)
         self.assertContains(response, "<span>EXPEDITION</span>", html=True)
+
+    def test_scan_faq_uses_dossiers_vocabulary_for_shipment_list(self):
+        response = self.client.get(reverse("scan:scan_faq"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Dossiers")
+        self.assertNotContains(response, "Vue Expéditions")
 
     def test_scan_bootstrap_css_scopes_shipment_status_variants_with_higher_specificity(self):
         css_path = Path(settings.BASE_DIR) / "wms" / "static" / "scan" / "scan-bootstrap.css"

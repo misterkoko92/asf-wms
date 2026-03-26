@@ -1,0 +1,84 @@
+{% extends "scan/base.html" %}
+{% load static %}
+
+{% block title %}WMS Scan - Dossier expédition {{ shipment.reference }}{% endblock %}
+
+{% block content %}
+  <div
+    class="scan-card card border-0 ui-comp-card"
+    data-local-document-helper-root="1"
+    data-local-document-helper-origin="{{ local_document_helper_origin }}"
+    data-local-document-helper-install-url="{{ helper_install.install_url }}"
+    data-local-document-helper-install-command="{{ helper_install.command }}"
+    data-local-document-helper-install-label="{{ helper_install.download_label }}"
+    data-local-document-helper-install-platform="{{ helper_install.platform_label }}"
+    data-local-document-helper-install-available="{{ helper_install.available|yesno:'1,0' }}"
+    data-local-document-helper-minimum-version="{{ helper_install.minimum_helper_version }}"
+    data-local-document-helper-latest-version="{{ helper_install.latest_helper_version }}"
+  >
+    {% include "scan/includes/shipment_dossier_header.html" %}
+    {% include "wms/_local_document_helper_install_panel.html" %}
+
+    <section id="shipment-dossier-admin-section" class="scan-field ui-comp-panel">
+      <h3 class="ui-comp-title h5 mb-3">Administratif</h3>
+      {% include "scan/includes/shipment_dossier_summary.html" %}
+      <hr class="scan-divider">
+      {% include "scan/includes/shipment_create_receipt_allocations_panel.html" %}
+    </section>
+
+    <section id="shipment-dossier-documents" class="scan-field ui-comp-panel">
+      <h3 class="ui-comp-title h5 mb-3">Documents</h3>
+      {% include "scan/includes/shipment_create_generated_documents_panel.html" %}
+      <hr class="scan-divider">
+      {% include "scan/includes/shipment_create_additional_documents_panel.html" %}
+    </section>
+
+    <section id="shipment-dossier-tracking" class="scan-field ui-comp-panel">
+      <h3 class="ui-comp-title h5 mb-3">Suivi</h3>
+      {% include "scan/includes/shipment_create_tracking_panel.html" %}
+    </section>
+
+    {% if can_edit %}
+      <details id="shipment-dossier-edit-panel" class="scan-field ui-comp-panel"{% if edit_mode %} open{% endif %}>
+        <summary class="ui-comp-title h5 mb-0">Modifier</summary>
+        <div class="mt-3">
+          {% if form.non_field_errors %}
+            <div class="scan-message error ui-comp-alert">{{ form.non_field_errors }}</div>
+          {% endif %}
+          <form
+            method="post"
+            novalidate
+            class="ui-comp-form"
+            id="shipment-form"
+            data-shipment-edit="1"
+            data-form-bound="{% if form.is_bound %}1{% else %}0{% endif %}"
+            data-preassignment-mismatch-template="Ce colis est déjà affecté pour __EXPECTED__. Souhaitez vous vraiment l'affecter à cette expédition pour __CURRENT__ ?"
+            data-shipper-selector-guidance="Si l'expéditeur souhaité n'apparait pas ici, vérifier la page Gestion -> Contact pour créer/modifier/ajouter un trio expéditeur - destinataire - destination"
+            data-recipient-selector-guidance="Si le destinataire souhaité n'apparait pas ici, vérifier la page Gestion -> Contact pour créer/modifier/ajouter un trio expéditeur - destinataire - destination"
+          >
+            {% csrf_token %}
+            {% include "scan/includes/shipment_create_destination_panel.html" %}
+            {% include "scan/includes/shipment_create_party_sections.html" %}
+            {% include "scan/includes/shipment_create_details_panel.html" %}
+          </form>
+          {% include "scan/includes/shipment_create_preassignment_overlay.html" %}
+        </div>
+      </details>
+
+      {{ products_json|json_script:"product-data" }}
+      {{ cartons_json|json_script:"carton-data" }}
+      {{ line_values|json_script:"shipment-lines-data" }}
+      {{ line_errors|json_script:"shipment-lines-errors" }}
+      {{ destinations_json|json_script:"destination-data" }}
+      {{ shipper_contacts_json|json_script:"shipper-contacts-data" }}
+      {{ recipient_contacts_json|json_script:"recipient-contacts-data" }}
+      {{ correspondent_contacts_json|json_script:"correspondent-contacts-data" }}
+      <datalist id="product-options">
+        {% for product in products_json %}
+          <option value="{{ product.name }}" label="{{ product.sku }}{% if product.barcode %} | {{ product.barcode }}{% endif %}{% if product.ean %} | {{ product.ean }}{% endif %}"></option>
+        {% endfor %}
+      </datalist>
+    {% endif %}
+  </div>
+  <script src="{% static 'wms/local_document_helper.js' %}"></script>
+{% endblock %}

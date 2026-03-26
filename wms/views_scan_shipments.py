@@ -68,6 +68,7 @@ from .shipment_view_helpers import (
     build_shipments_tracking_rows,
     next_tracking_status,
 )
+from .status_presenters import present_shipment_status
 from .view_permissions import (
     scan_staff_or_helper_installer_token_required,
     scan_staff_required,
@@ -81,6 +82,7 @@ from .views_scan_shipments_support import (
     ARCHIVE_STALE_DRAFTS_ACTION,
     CLOSE_SHIPMENT_ACTION,
     CLOSED_FILTER_EXCLUDE,
+    RETURN_TO_SHIPMENTS_DOSSIERS,
     RETURN_TO_SHIPMENTS_TRACKING,
     _build_shipments_tracking_queryset,
     _build_shipments_tracking_redirect_url,
@@ -104,6 +106,7 @@ TEMPLATE_SHIPMENTS_READY = "scan/shipments_ready.html"
 TEMPLATE_SHIPMENTS_TRACKING = "scan/shipments_tracking.html"
 TEMPLATE_PACK = "scan/pack.html"
 TEMPLATE_SHIPMENT_FORM = "scan/shipment_create.html"
+TEMPLATE_SHIPMENT_DOSSIER = "scan/shipment_dossier.html"
 TEMPLATE_SHIPMENT_TRACKING = "scan/shipment_tracking.html"
 TEMPLATE_PICKING_LIST_KITS = "print/picking_list_kits.html"
 
@@ -115,6 +118,13 @@ LOCAL_DOCUMENT_HELPER_APP_LABEL = "asf-wms"
 LOCAL_DOCUMENT_HELPER_INSTALL_ROUTE = "scan:scan_local_document_helper_installer"
 
 EDIT_BLOCKED_SHIPMENT_STATUSES = {
+    ShipmentStatus.SHIPPED,
+    ShipmentStatus.RECEIVED_CORRESPONDENT,
+    ShipmentStatus.DELIVERED,
+}
+
+DOSSIER_LOCKED_SHIPMENT_STATUSES = {
+    ShipmentStatus.PLANNED,
     ShipmentStatus.SHIPPED,
     ShipmentStatus.RECEIVED_CORRESPONDENT,
     ShipmentStatus.DELIVERED,
@@ -216,6 +226,7 @@ def _render_shipment_form(
     line_values,
     line_errors,
     active,
+    template_name=None,
     extra_context=None,
 ):
     context = build_shipment_form_context(
@@ -234,7 +245,7 @@ def _render_shipment_form(
     context.update(_build_local_document_helper_context(request))
     if extra_context:
         context.update(extra_context)
-    return render(request, TEMPLATE_SHIPMENT_FORM, context)
+    return render(request, template_name or TEMPLATE_SHIPMENT_FORM, context)
 
 
 def _build_receipt_allocation_summary(shipment):
@@ -253,6 +264,71 @@ def _build_tracking_page_data(shipment):
     documents, carton_docs, additional_docs = build_shipment_document_links(shipment, public=True)
     events = shipment.tracking_events.select_related("created_by").all()
     return documents, carton_docs, additional_docs, events
+
+
+def _shipment_dossier_is_locked(shipment):
+    return shipment.status in DOSSIER_LOCKED_SHIPMENT_STATUSES
+
+
+def _shipment_dossier_can_edit(shipment):
+    return not _shipment_dossier_is_locked(shipment) and not getattr(shipment, "is_disputed", False)
+
+
+def _shipment_dossier_extra_context(
+    *,
+    request,
+    shipment,
+    documents,
+    carton_docs,
+    receipt_allocations,
+    can_edit,
+    is_locked,
+    edit_mode,
+):
+    return {
+        "is_edit": True,
+        "shipment": shipment,
+        "tracking_url": shipment.get_tracking_url(request=request),
+        "documents": documents,
+        "carton_docs": carton_docs,
+        "receipt_allocations": receipt_allocations,
+        "status_display": present_shipment_status(shipment),
+        "is_locked": is_locked,
+        "is_closed": bool(shipment.closed_at),
+        "can_edit": can_edit,
+        "can_close": _shipment_can_be_closed(shipment),
+        "return_to": RETURN_TO_SHIPMENTS_DOSSIERS,
+        "tracking_return_to": RETURN_TO_SHIPMENTS_DOSSIERS,
+        "edit_mode": bool(edit_mode),
+        "close_inactive_message": _("Il reste des étapes à valider, vérifier avant de clore"),
+        "additional_document_count": documents.count(),
+        "receipt_allocation_count": len(receipt_allocations),
+        "carton_doc_count": len(carton_docs),
+    }
+
+
+def _close_shipment_case(request, shipment):
+    if shipment is None:
+        messages.error(request, _("Expédition introuvable."))
+        return
+    if shipment.closed_at:
+        messages.info(request, _("Dossier déjà clôturé."))
+        return
+    if not _shipment_can_be_closed(shipment):
+        messages.warning(
+            request,
+            _("Il reste des étapes à valider, vérifier avant de clore."),
+        )
+        return
+
+    shipment.closed_at = timezone.now()
+    shipment.closed_by = request.user if request.user.is_authenticated else None
+    shipment.save(update_fields=["closed_at", "closed_by"])
+    log_shipment_case_closed(
+        shipment=shipment,
+        user=request.user if request.user.is_authenticated else None,
+    )
+    messages.success(request, _("Dossier clôturé."))
 
 
 def _render_shipment_tracking(
@@ -493,24 +569,7 @@ def scan_shipments_tracking(request):
                 .filter(pk=request.POST.get("shipment_id"))
                 .first()
             )
-            if shipment is None:
-                messages.error(request, _("Expédition introuvable."))
-            elif shipment.closed_at:
-                messages.info(request, _("Dossier déjà clôturé."))
-            elif not _shipment_can_be_closed(shipment):
-                messages.warning(
-                    request,
-                    _("Il reste des étapes à valider, vérifier avant de clore."),
-                )
-            else:
-                shipment.closed_at = timezone.now()
-                shipment.closed_by = request.user if request.user.is_authenticated else None
-                shipment.save(update_fields=["closed_at", "closed_by"])
-                log_shipment_case_closed(
-                    shipment=shipment,
-                    user=request.user if request.user.is_authenticated else None,
-                )
-                messages.success(request, _("Dossier clôturé."))
+            _close_shipment_case(request, shipment)
         return redirect(
             _build_shipments_tracking_redirect_url(
                 planned_week_value=planned_week_value,
@@ -718,21 +777,57 @@ def scan_shipment_edit(request, shipment_id):
         pk=shipment_id,
         archived_at__isnull=True,
     )
-    if shipment.status in {
-        ShipmentStatus.PLANNED,
-        ShipmentStatus.SHIPPED,
-        ShipmentStatus.RECEIVED_CORRESPONDENT,
-        ShipmentStatus.DELIVERED,
-    }:
-        messages.error(request, _("Expédition non modifiable."))
-        return redirect("scan:scan_shipments_ready")
-
     shipment.ensure_qr_code(request=request)
 
     assigned_cartons_qs = shipment.carton_set.prefetch_related(
         "cartonitem_set__product_lot__product"
     ).order_by("code")
     assigned_cartons = list(assigned_cartons_qs)
+    documents = Document.objects.filter(
+        shipment=shipment, doc_type=DocumentType.ADDITIONAL
+    ).order_by("-generated_at")
+    carton_docs = [{"id": carton.id, "code": carton.code} for carton in assigned_cartons]
+    receipt_allocations = _build_receipt_allocation_summary(shipment)
+    is_locked = _shipment_dossier_is_locked(shipment)
+    can_edit = _shipment_dossier_can_edit(shipment)
+    edit_mode = can_edit and (
+        request.method == "POST" or (request.GET.get("mode") or "").strip() == "edit"
+    )
+
+    if (
+        request.method == "POST"
+        and (request.POST.get("action") or "").strip() == CLOSE_SHIPMENT_ACTION
+    ):
+        _close_shipment_case(request, shipment)
+        return redirect("scan:scan_shipment_edit", shipment_id=shipment.id)
+
+    if request.method == "POST" and not can_edit:
+        if getattr(shipment, "is_disputed", False):
+            messages.error(request, _("Expédition en litige: modification des colis impossible."))
+        else:
+            messages.error(request, _("Expédition verrouillée: modification des colis impossible."))
+        return redirect("scan:scan_shipment_edit", shipment_id=shipment.id)
+
+    if not can_edit:
+        return render(
+            request,
+            TEMPLATE_SHIPMENT_DOSSIER,
+            {
+                "active": ACTIVE_SHIPMENTS_DOSSIERS,
+                **_build_local_document_helper_context(request),
+                **_shipment_dossier_extra_context(
+                    request=request,
+                    shipment=shipment,
+                    documents=documents,
+                    carton_docs=carton_docs,
+                    receipt_allocations=receipt_allocations,
+                    can_edit=False,
+                    is_locked=is_locked,
+                    edit_mode=False,
+                ),
+            },
+        )
+
     assigned_carton_options = build_carton_options(assigned_cartons)
     related_order = None
     try:
@@ -783,11 +878,6 @@ def scan_shipment_edit(request, shipment_id):
             order_line_values=order_line_values,
         )
 
-    documents = Document.objects.filter(
-        shipment=shipment, doc_type=DocumentType.ADDITIONAL
-    ).order_by("-generated_at")
-    carton_docs = [{"id": carton.id, "code": carton.code} for carton in assigned_cartons]
-
     return _render_shipment_form(
         request,
         form=form,
@@ -796,14 +886,17 @@ def scan_shipment_edit(request, shipment_id):
         line_values=line_values,
         line_errors=line_errors,
         active=ACTIVE_SHIPMENTS_DOSSIERS,
-        extra_context={
-            "is_edit": True,
-            "shipment": shipment,
-            "tracking_url": shipment.get_tracking_url(request=request),
-            "documents": documents,
-            "carton_docs": carton_docs,
-            "receipt_allocations": _build_receipt_allocation_summary(shipment),
-        },
+        template_name=TEMPLATE_SHIPMENT_DOSSIER,
+        extra_context=_shipment_dossier_extra_context(
+            request=request,
+            shipment=shipment,
+            documents=documents,
+            carton_docs=carton_docs,
+            receipt_allocations=receipt_allocations,
+            can_edit=can_edit,
+            is_locked=is_locked,
+            edit_mode=edit_mode,
+        ),
     )
 
 

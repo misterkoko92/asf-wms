@@ -1611,6 +1611,19 @@ class ScanViewTests(TestCase):
             f'href="{reverse("scan:scan_shipments_ready")}"',
         )
 
+    def test_scan_shipment_track_uses_dossiers_return_target_in_link(self):
+        shipment, _carton = self._create_shipment_with_carton()
+
+        response = self.client.get(
+            f"{reverse('scan:scan_shipment_track', args=[shipment.tracking_token])}?return_to=shipments_dossiers"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            f'href="{reverse("scan:scan_shipments_ready")}"',
+        )
+
     def test_scan_shipment_track_post_return_to_list_redirects_to_shipments_tracking(self):
         shipment, carton = self._create_shipment_with_carton()
         carton.status = CartonStatus.LABELED
