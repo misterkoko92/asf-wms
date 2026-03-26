@@ -1,0 +1,21 @@
+{% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+<!doctype html>
+<html lang="{{ LANGUAGE_CODE }}">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}{% trans "Label" %}{% endblock %}</title>
+  <style>
+    @page { margin: 10mm; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      color: #000;
+    }
+    {% block extra_style %}{% endblock %}
+  </style>
+</head>
+<body data-print-surface="label">
+  {% block body %}{% endblock %}
+</body>
+</html>

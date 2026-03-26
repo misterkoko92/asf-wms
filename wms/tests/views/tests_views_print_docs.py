@@ -87,7 +87,8 @@ class PrintDocsViewsTests(TestCase):
                 reverse(
                     "scan:scan_shipment_document",
                     kwargs={"shipment_id": shipment.id, "doc_type": "shipment_note"},
-                )
+                ),
+                {"delivery": "pdf"},
             )
         self.assertEqual(response.status_code, 200)
         pack_mock.assert_called_once_with(
@@ -205,7 +206,8 @@ class PrintDocsViewsTests(TestCase):
                 reverse(
                     "scan:scan_shipment_document",
                     kwargs={"shipment_id": shipment.id, "doc_type": "shipment_note"},
-                )
+                ),
+                {"delivery": "pdf"},
             )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "legacy")
@@ -227,7 +229,8 @@ class PrintDocsViewsTests(TestCase):
                 reverse(
                     "scan:scan_shipment_document",
                     kwargs={"shipment_id": shipment.id, "doc_type": "shipment_note"},
-                )
+                ),
+                {"delivery": "pdf"},
             )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "legacy")
@@ -256,7 +259,8 @@ class PrintDocsViewsTests(TestCase):
                 reverse(
                     "scan:scan_shipment_document",
                     kwargs={"shipment_id": shipment.id, "doc_type": "shipment_note"},
-                )
+                ),
+                {"delivery": "pdf"},
             )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "xlsx-fallback")
@@ -355,17 +359,13 @@ class PrintDocsViewsTests(TestCase):
             cartons=[cartons[1], cartons[0]],
         )
 
-    def test_scan_shipment_view_document_routes_contact_per_carton(self):
-        shipment, cartons = self._create_shipment_with_cartons("C-002", "C-001")
+    def test_scan_shipment_view_document_routes_contact_to_html_template(self):
+        shipment = self._create_shipment()
         with (
             mock.patch(
-                "wms.views_print_docs.render_pack_document_xlsx_documents",
-                return_value=[SimpleNamespace(filename="contact-1.xlsx", payload=b"xlsx-1")],
+                "wms.views_print_docs.render_shipment_document",
+                return_value=HttpResponse("contact-html"),
             ) as render_mock,
-            mock.patch(
-                "wms.views_print_docs._build_pdf_response_from_xlsx_documents",
-                return_value=HttpResponse("pdf"),
-            ),
         ):
             response = self.client.get(
                 reverse(
@@ -376,12 +376,11 @@ class PrintDocsViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         render_mock.assert_called_once_with(
-            pack_code="C",
-            doc_type="contact_label",
-            variant="shipment",
-            shipment=shipment,
-            cartons=[cartons[1], cartons[0]],
+            mock.ANY,
+            shipment,
+            "contact_label",
         )
+        self.assertEqual(response.content.decode(), "contact-html")
 
     def test_scan_shipment_view_document_routes_single_labels_per_carton(self):
         shipment, cartons = self._create_shipment_with_cartons("C-020", "C-010")
@@ -637,7 +636,8 @@ class PrintDocsViewsTests(TestCase):
                 reverse(
                     "scan:scan_shipment_carton_document",
                     kwargs={"shipment_id": shipment.id, "carton_id": carton.id},
-                )
+                ),
+                {"delivery": "pdf"},
             )
         self.assertEqual(response.status_code, 200)
         pack_mock.assert_called_once_with(
@@ -689,7 +689,8 @@ class PrintDocsViewsTests(TestCase):
                 reverse(
                     "scan:scan_carton_document",
                     kwargs={"carton_id": carton.id},
-                )
+                ),
+                {"delivery": "pdf"},
             )
         self.assertEqual(response.status_code, 200)
         pack_mock.assert_called_once_with(
@@ -707,7 +708,8 @@ class PrintDocsViewsTests(TestCase):
             return_value=HttpResponse("ok"),
         ) as pack_mock:
             response = self.client.get(
-                reverse("scan:scan_carton_document", kwargs={"carton_id": carton.id})
+                reverse("scan:scan_carton_document", kwargs={"carton_id": carton.id}),
+                {"delivery": "pdf"},
             )
         self.assertEqual(response.status_code, 200)
         pack_mock.assert_called_once_with(

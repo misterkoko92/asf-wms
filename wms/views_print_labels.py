@@ -14,6 +14,7 @@ from .local_document_helper import (
 )
 from .models import Shipment
 from .print_context import build_label_context
+from .print_delivery import wants_external_pdf
 from .print_pack_engine import (
     PrintPackEngineError,
     generate_pack,
@@ -62,6 +63,22 @@ def _render_shipment_label(request, *, label_context):
         )
     labels = _build_default_label_payload(label_context, label_context["carton_id"])
     return render(request, TEMPLATE_SHIPMENT_LABEL, {"labels": labels})
+
+
+def _render_single_shipment_label_response(request, shipment, carton_id):
+    shipment.ensure_qr_code(request=request)
+    cartons = list(shipment.carton_set.order_by("code"))
+    position = _find_carton_position(cartons, carton_id)
+    if position is None:
+        raise Http404(_("Carton introuvable pour cette expédition."))
+    label_context = build_label_context(
+        shipment,
+        position=position,
+        total=len(cartons),
+    )
+    label_context["label_qr_url"] = label_context.get("label_qr_url") or ""
+    label_context["carton_id"] = carton_id
+    return _render_shipment_label(request, label_context=label_context)
 
 
 def _base_shipment_queryset():
@@ -130,6 +147,8 @@ def scan_shipment_labels(request, shipment_id):
             render_documents=render_documents,
             shipment=shipment,
         )
+    if not wants_external_pdf(request):
+        return render_shipment_labels(request, shipment)
     try:
         artifact = generate_pack(
             pack_code=pack_route.pack_code,
@@ -222,6 +241,8 @@ def scan_shipment_label(request, shipment_id, carton_id):
             shipment=shipment,
             carton=carton,
         )
+    if not wants_external_pdf(request):
+        return _render_single_shipment_label_response(request, shipment, carton_id)
     try:
         artifact = generate_pack(
             pack_code=pack_route.pack_code,
@@ -238,31 +259,7 @@ def scan_shipment_label(request, shipment_id, carton_id):
                 carton=carton,
                 variant=pack_route.variant,
             )
-        shipment.ensure_qr_code(request=request)
-        cartons = list(shipment.carton_set.order_by("code"))
-        position = _find_carton_position(cartons, carton_id)
-        if position is None:
-            raise Http404(_("Carton introuvable pour cette expédition."))
-        label_context = build_label_context(
-            shipment,
-            position=position,
-            total=len(cartons),
-        )
-        label_context["label_qr_url"] = label_context.get("label_qr_url") or ""
-        label_context["carton_id"] = carton_id
-        return _render_shipment_label(request, label_context=label_context)
+        return _render_single_shipment_label_response(request, shipment, carton_id)
     except PrintPackEngineError:
-        shipment.ensure_qr_code(request=request)
-        cartons = list(shipment.carton_set.order_by("code"))
-        position = _find_carton_position(cartons, carton_id)
-        if position is None:
-            raise Http404(_("Carton introuvable pour cette expédition."))
-        label_context = build_label_context(
-            shipment,
-            position=position,
-            total=len(cartons),
-        )
-        label_context["label_qr_url"] = label_context.get("label_qr_url") or ""
-        label_context["carton_id"] = carton_id
-        return _render_shipment_label(request, label_context=label_context)
+        return _render_single_shipment_label_response(request, shipment, carton_id)
     return _artifact_pdf_response(artifact)

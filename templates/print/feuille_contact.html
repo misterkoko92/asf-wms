@@ -1,0 +1,108 @@
+{% extends "print/base_document.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Feuille contact" %}{% endblock %}
+
+{% block extra_style %}
+  .contact-sheet {
+    display: grid;
+    gap: 4mm;
+  }
+  .contact-sheet-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3mm 8mm;
+    font-size: 10pt;
+    color: var(--wms-print-color-soft);
+  }
+  .contact-sheet-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 4mm;
+  }
+  .contact-sheet-card {
+    border: 1px solid var(--wms-print-color-border);
+    padding: 2mm 3mm;
+    font-size: 9pt;
+  }
+  .contact-sheet-title {
+    margin-bottom: 1.5mm;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+  .contact-sheet-grid {
+    display: grid;
+    grid-template-columns: 20mm 1fr;
+    gap: 1mm 2mm;
+  }
+  .contact-sheet-label {
+    font-weight: 700;
+  }
+  .contact-sheet-value {
+    border-bottom: 1px solid var(--wms-print-color-border);
+    min-height: 4mm;
+    padding-bottom: 0.5mm;
+    white-space: pre-line;
+  }
+{% endblock %}
+
+{% block body %}
+  <div class="contact-sheet">
+    <h1>{% trans "Feuille contact" %}</h1>
+
+    <div class="contact-sheet-meta">
+      <div>{% trans "Expédition" %}: {{ shipment_ref }}</div>
+      <div>{% trans "Destination" %}: {{ destination_label|default:destination_address }}</div>
+    </div>
+
+    <div class="contact-sheet-row">
+      <section class="contact-sheet-card">
+        <div class="contact-sheet-title">{% trans "Expéditeur" %}</div>
+        <div class="contact-sheet-grid">
+          <div class="contact-sheet-label">{% trans "Société" %}</div>
+          <div class="contact-sheet-value">{{ shipper_info.company|default:"-" }}</div>
+          <div class="contact-sheet-label">{% trans "Nom" %}</div>
+          <div class="contact-sheet-value">{{ shipper_info.person|default:"-" }}</div>
+          <div class="contact-sheet-label">{% trans "Adresse" %}</div>
+          <div class="contact-sheet-value">{{ shipper_info.address|default:"-" }}</div>
+          <div class="contact-sheet-label">{% trans "Tel" %}</div>
+          <div class="contact-sheet-value">{{ shipper_info.phone|default:"-" }}</div>
+          <div class="contact-sheet-label">{% trans "Mail" %}</div>
+          <div class="contact-sheet-value">{{ shipper_info.email|default:"-" }}</div>
+        </div>
+      </section>
+
+      <section class="contact-sheet-card">
+        <div class="contact-sheet-title">{% trans "Destinataire" %}</div>
+        <div class="contact-sheet-grid">
+          <div class="contact-sheet-label">{% trans "Société" %}</div>
+          <div class="contact-sheet-value">{{ recipient_info.company|default:"-" }}</div>
+          <div class="contact-sheet-label">{% trans "Nom" %}</div>
+          <div class="contact-sheet-value">{{ recipient_info.person|default:"-" }}</div>
+          <div class="contact-sheet-label">{% trans "Adresse" %}</div>
+          <div class="contact-sheet-value">{{ recipient_info.address|default:"-" }}</div>
+          <div class="contact-sheet-label">{% trans "Tel" %}</div>
+          <div class="contact-sheet-value">{{ recipient_info.phone|default:"-" }}</div>
+          <div class="contact-sheet-label">{% trans "Mail" %}</div>
+          <div class="contact-sheet-value">{{ recipient_info.email|default:"-" }}</div>
+        </div>
+      </section>
+
+      <section class="contact-sheet-card">
+        <div class="contact-sheet-title">{% trans "Correspondant" %}</div>
+        <div class="contact-sheet-grid">
+          <div class="contact-sheet-label">{% trans "Société" %}</div>
+          <div class="contact-sheet-value">{{ correspondent_info.company|default:"-" }}</div>
+          <div class="contact-sheet-label">{% trans "Nom" %}</div>
+          <div class="contact-sheet-value">{{ correspondent_info.person|default:"-" }}</div>
+          <div class="contact-sheet-label">{% trans "Adresse" %}</div>
+          <div class="contact-sheet-value">{{ correspondent_info.address|default:"-" }}</div>
+          <div class="contact-sheet-label">{% trans "Tel" %}</div>
+          <div class="contact-sheet-value">{{ correspondent_info.phone|default:"-" }}</div>
+          <div class="contact-sheet-label">{% trans "Mail" %}</div>
+          <div class="contact-sheet-value">{{ correspondent_info.email|default:"-" }}</div>
+        </div>
+      </section>
+    </div>
+  </div>
+{% endblock %}

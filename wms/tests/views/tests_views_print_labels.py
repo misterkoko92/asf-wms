@@ -78,7 +78,8 @@ class PrintLabelsViewsTests(TestCase):
                 reverse(
                     "scan:scan_shipment_labels",
                     kwargs={"shipment_id": shipment.id},
-                )
+                ),
+                {"delivery": "pdf"},
             )
         self.assertEqual(response.status_code, 200)
         generate_mock.assert_called_once_with(
@@ -151,7 +152,8 @@ class PrintLabelsViewsTests(TestCase):
                 reverse(
                     "scan:scan_shipment_labels",
                     kwargs={"shipment_id": shipment.id},
-                )
+                ),
+                {"delivery": "pdf"},
             )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "legacy-labels")
@@ -173,7 +175,8 @@ class PrintLabelsViewsTests(TestCase):
                 reverse(
                     "scan:scan_shipment_labels",
                     kwargs={"shipment_id": shipment.id},
-                )
+                ),
+                {"delivery": "pdf"},
             )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "legacy-labels")
@@ -202,7 +205,8 @@ class PrintLabelsViewsTests(TestCase):
                 reverse(
                     "scan:scan_shipment_labels",
                     kwargs={"shipment_id": shipment.id},
-                )
+                ),
+                {"delivery": "pdf"},
             )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "xlsx-fallback")
@@ -244,7 +248,8 @@ class PrintLabelsViewsTests(TestCase):
                         "shipment_id": shipment.id,
                         "carton_id": carton.id,
                     },
-                )
+                ),
+                {"delivery": "pdf"},
             )
         self.assertEqual(response.status_code, 200)
         generate_mock.assert_called_once_with(
@@ -276,7 +281,8 @@ class PrintLabelsViewsTests(TestCase):
                 reverse(
                     "scan:scan_shipment_label",
                     kwargs={"shipment_id": shipment.id, "carton_id": carton.id},
-                )
+                ),
+                {"delivery": "pdf"},
             )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "xlsx-fallback")

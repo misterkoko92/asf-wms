@@ -14,6 +14,7 @@ from .models import (
 )
 from .print_context import (
     build_carton_document_context,
+    build_contact_sheet_context,
     build_label_context,
     build_shipment_document_context,
 )
@@ -33,6 +34,7 @@ DOC_ROUTE_LABELS = "scan:scan_shipment_labels"
 DOC_ROUTE_CARTON = "scan:scan_shipment_carton_document"
 
 SHIPMENT_DOCUMENT_TEMPLATES = {
+    "contact_label": "print/feuille_contact.html",
     "donation_certificate": "print/attestation_donation.html",
     "humanitarian_certificate": "print/attestation_aide_humanitaire.html",
     "customs": "print/attestation_douane.html",
@@ -297,7 +299,10 @@ def render_shipment_document(request, shipment, doc_type):
     template = SHIPMENT_DOCUMENT_TEMPLATES.get(doc_type)
     if template is None:
         raise Http404("Document type not found")
-    context = build_shipment_document_context(shipment, doc_type)
+    if doc_type == "contact_label":
+        context = build_contact_sheet_context(shipment)
+    else:
+        context = build_shipment_document_context(shipment, doc_type)
     return _render_document_with_layout(
         request,
         doc_type=doc_type,

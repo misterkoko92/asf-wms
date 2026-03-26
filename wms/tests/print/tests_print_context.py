@@ -8,6 +8,7 @@ from wms.print_context import (
     _build_destination_info,
     build_carton_document_context,
     build_carton_picking_context,
+    build_contact_sheet_context,
     build_label_context,
     build_preview_context,
     build_product_label_context,
@@ -311,6 +312,31 @@ class PrintContextTests(SimpleTestCase):
                 context = build_carton_document_context(shipment, carton)
 
         self.assertEqual(context["item_rows"][0]["expires_on"], date(2026, 4, 1))
+
+    def test_build_contact_sheet_context_uses_shipment_contact_payload(self):
+        shipment = SimpleNamespace(reference="SHP-42")
+        with mock.patch(
+            "wms.print_context.build_shipment_document_context",
+            return_value={
+                "document_date": date(2026, 3, 26),
+                "shipment_ref": "SHP-42",
+                "destination_address": "1 Rue Test",
+                "destination_label": "ABIDJAN (ABJ)",
+                "shipper_info": {"company": "ASF"},
+                "recipient_info": {"company": "Hopital"},
+                "correspondent_info": {"company": "Correspondant"},
+                "hide_footer": False,
+            },
+        ) as shipment_context_mock:
+            context = build_contact_sheet_context(shipment)
+
+        shipment_context_mock.assert_called_once_with(shipment, "contact_label")
+        self.assertEqual(context["shipment_ref"], "SHP-42")
+        self.assertEqual(context["destination_label"], "ABIDJAN (ABJ)")
+        self.assertEqual(context["shipper_info"]["company"], "ASF")
+        self.assertEqual(context["recipient_info"]["company"], "Hopital")
+        self.assertEqual(context["correspondent_info"]["company"], "Correspondant")
+        self.assertTrue(context["hide_footer"])
 
     def test_build_carton_picking_context_groups_and_sorts(self):
         product = SimpleNamespace(id=1, name="Mask", brand="Brand")
