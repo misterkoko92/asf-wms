@@ -457,6 +457,13 @@ class PortalBootstrapUiTests(TestCase):
         self.assertIn(".portal-bootstrap-enabled .scan-shell {", css_content)
         self.assertIn("height: auto;", css_content)
 
+    def test_portal_shell_css_keeps_masthead_row_auto_without_stretching_it(self):
+        css_path = Path(settings.BASE_DIR) / "wms" / "static" / "portal" / "portal-bootstrap.css"
+        css_content = css_path.read_text(encoding="utf-8")
+
+        self.assertIn(".portal-bootstrap-enabled .portal-shell {", css_content)
+        self.assertIn("grid-template-rows: auto minmax(0, 1fr);", css_content)
+
     def test_portal_button_levels_follow_intended_semantics(self):
         self.client.logout()
         login_response = self.client.get(reverse("portal:portal_login"))

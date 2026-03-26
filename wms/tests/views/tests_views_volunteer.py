@@ -383,6 +383,10 @@ class VolunteerProfileViewTests(TestCase):
         self.assertContains(response, 'name="max_expeditions_per_day"')
         self.assertContains(response, 'name="max_wait_hours"')
         self.assertContains(response, 'name="max_colis_vol"')
+        self.assertContains(response, "Nombre de jours affectés max / semaine")
+        self.assertContains(response, "Nombre de vols affectés max / semaine")
+        self.assertContains(response, "Nombre de vols affectés max / jour")
+        self.assertContains(response, "Attente max en heures entre 2 vols (minimum 2h)")
         self.assertContains(
             response,
             '<button type="submit" class="scan-submit btn btn-primary">Enregistrer</button>',

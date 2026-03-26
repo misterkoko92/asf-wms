@@ -90,11 +90,11 @@ class VolunteerConstraintForm(forms.ModelForm):
             "max_wait_hours",
         )
         labels = {
-            "max_days_per_week": _("Nombre de jours max / semaine"),
-            "max_expeditions_per_week": _("Nombre d'expeditions max / semaine"),
-            "max_expeditions_per_day": _("Nombre d'expeditions max / jour"),
+            "max_days_per_week": _("Nombre de jours affectés max / semaine"),
+            "max_expeditions_per_week": _("Nombre de vols affectés max / semaine"),
+            "max_expeditions_per_day": _("Nombre de vols affectés max / jour"),
             "max_colis_vol": _("Nombre de colis max / vol"),
-            "max_wait_hours": _("Attente max (heures)"),
+            "max_wait_hours": _("Attente max en heures entre 2 vols (minimum 2h)"),
         }
 
 
