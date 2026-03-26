@@ -173,6 +173,8 @@ class PortalBootstrapUiTests(TestCase):
         self.assertContains(response, 'id="portal-category-filters"')
         self.assertContains(response, 'id="portal-recipient-options-data"')
         self.assertContains(response, 'id="portal-product-data"')
+        self.assertNotContains(response, "(association)")
+        self.assertNotContains(response, '"id": "self"')
         self.assertContains(response, "Colis disponibles")
         self.assertContains(response, "Kits disponibles")
         self.assertContains(response, "Produits à l'unité")

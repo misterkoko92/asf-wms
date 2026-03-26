@@ -60,7 +60,6 @@ TEMPLATE_PORTAL_ORDER_DETAIL = "portal/order_detail.html"
 
 ACTION_UPLOAD_DOCUMENT = "upload_doc"
 ACTION_UPLOAD_DOCUMENTS = "upload_docs"
-RECIPIENT_SELF = "self"
 DEFAULT_COUNTRY = "France"
 
 ERROR_RECIPIENT_REQUIRED = _("Destinataire requis.")
@@ -175,30 +174,22 @@ def _build_portal_recipient_option_label(recipient):
 
 
 def _build_recipient_options(
-    profile,
     recipients,
     *,
     allowed_destination_ids_by_recipient=None,
 ):
     options = [
         {
-            "id": RECIPIENT_SELF,
-            "label": _("%(name)s (association)") % {"name": profile.contact.name},
-            "destination_id": "",
-        },
-        *[
-            {
-                "id": str(recipient.id),
-                "label": _build_portal_recipient_option_label(recipient),
-                "destination_id": str(recipient.destination_id or ""),
-                "allowed_destination_ids": (
-                    allowed_destination_ids_by_recipient.get(str(recipient.id))
-                    if allowed_destination_ids_by_recipient is not None
-                    else None
-                ),
-            }
-            for recipient in recipients
-        ],
+            "id": str(recipient.id),
+            "label": _build_portal_recipient_option_label(recipient),
+            "destination_id": str(recipient.destination_id or ""),
+            "allowed_destination_ids": (
+                allowed_destination_ids_by_recipient.get(str(recipient.id))
+                if allowed_destination_ids_by_recipient is not None
+                else None
+            ),
+        }
+        for recipient in recipients
     ]
     return sorted(options, key=lambda item: str(item["label"] or "").lower())
 
@@ -206,22 +197,16 @@ def _build_recipient_options(
 def _filter_recipient_options(recipient_options, destination_id, *, allowed_recipient_ids=None):
     selected_destination_id = (destination_id or "").strip()
     if not selected_destination_id:
-        return [option for option in recipient_options if option["id"] == RECIPIENT_SELF]
+        return []
 
     filtered_options = [
         option
         for option in recipient_options
-        if option["id"] == RECIPIENT_SELF
-        or not option.get("destination_id")
-        or option.get("destination_id") == selected_destination_id
+        if option.get("destination_id") == selected_destination_id
     ]
     if allowed_recipient_ids is None:
         return filtered_options
-    return [
-        option
-        for option in filtered_options
-        if option["id"] == RECIPIENT_SELF or option["id"] in allowed_recipient_ids
-    ]
+    return [option for option in filtered_options if option["id"] in allowed_recipient_ids]
 
 
 def _allowed_recipient_option_ids(*, selected_destination, allowed_destination_ids_by_recipient):
@@ -283,41 +268,6 @@ def _available_destination_ids(allowed_destination_ids_by_recipient):
 
 def _build_order_create_defaults():
     return {"destination_id": "", "recipient_id": "", "notes": ""}
-
-
-def _resolve_self_destination(profile, errors, *, selected_destination):
-    address = get_contact_address(profile.contact)
-    if not address:
-        errors.append(ERROR_ASSOCIATION_ADDRESS_REQUIRED)
-        return {
-            "recipient_name": profile.contact.name,
-            "recipient_contact": profile.contact,
-            "destination_city": selected_destination.city if selected_destination else "",
-            "destination_country": selected_destination.country
-            if selected_destination
-            else DEFAULT_COUNTRY,
-            "destination_address": "",
-        }
-
-    destination_city = selected_destination.city if selected_destination else (address.city or "")
-    destination_country = (
-        selected_destination.country
-        if selected_destination
-        else (address.country or DEFAULT_COUNTRY)
-    )
-    return {
-        "recipient_name": profile.contact.name,
-        "recipient_contact": profile.contact,
-        "destination_city": destination_city,
-        "destination_country": destination_country,
-        "destination_address": build_destination_address(
-            line1=address.address_line1,
-            line2=address.address_line2,
-            postal_code=address.postal_code,
-            city=address.city,
-            country=address.country,
-        ),
-    }
 
 
 def _resolve_recipient_destination(profile, recipient_id, errors, *, selected_destination):
@@ -409,12 +359,6 @@ def _resolve_recipient_destination(profile, recipient_id, errors, *, selected_de
 
 
 def _resolve_destination(profile, recipient_id, errors, *, selected_destination):
-    if recipient_id == RECIPIENT_SELF:
-        return _resolve_self_destination(
-            profile,
-            errors,
-            selected_destination=selected_destination,
-        )
     return _resolve_recipient_destination(
         profile,
         parse_int_safe(recipient_id),
@@ -634,7 +578,6 @@ def portal_order_create(request):
         available_destination_ids=_available_destination_ids(allowed_destination_ids_by_recipient),
     )
     recipient_options_all = _build_recipient_options(
-        profile,
         recipients,
         allowed_destination_ids_by_recipient=allowed_destination_ids_by_recipient,
     )
@@ -681,7 +624,7 @@ def portal_order_create(request):
         )
         if not form_data["recipient_id"]:
             errors.append(ERROR_RECIPIENT_REQUIRED)
-        elif form_data["recipient_id"] != RECIPIENT_SELF:
+        else:
             allowed_recipient_ids = {option["id"] for option in recipient_options}
             if form_data["recipient_id"] not in allowed_recipient_ids:
                 errors.append(ERROR_RECIPIENT_UNAVAILABLE_FOR_DESTINATION)

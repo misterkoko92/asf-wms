@@ -905,12 +905,8 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
                     },
                 )
         self.assertEqual(response.status_code, 200)
-        recipient_ids = {
-            str(option["id"])
-            for option in response.context["recipient_options"]
-            if option["id"] != "self"
-        }
-        self.assertIn(str(self.delivery_recipient.id), recipient_ids)
+        recipient_ids = {str(option["id"]) for option in response.context["recipient_options"]}
+        self.assertEqual(recipient_ids, {str(self.delivery_recipient.id)})
         self.assertNotIn(str(other_recipient.id), recipient_ids)
 
     def test_portal_order_create_filters_recipient_options_by_shipper_binding(self):
@@ -949,7 +945,6 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
 
         self.assertEqual(response.status_code, 200)
         recipient_ids = {str(option["id"]) for option in response.context["recipient_options"]}
-        self.assertIn("self", recipient_ids)
         self.assertIn(str(self.delivery_recipient.id), recipient_ids)
         self.assertNotIn(str(blocked_recipient.id), recipient_ids)
 
@@ -978,9 +973,7 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
 
         self.assertEqual(response.status_code, 200)
         options_by_id = {
-            str(option["id"]): option
-            for option in response.context["recipient_options_all"]
-            if option["id"] != "self"
+            str(option["id"]): option for option in response.context["recipient_options_all"]
         }
         self.assertEqual(
             options_by_id[str(self.delivery_recipient.id)]["allowed_destination_ids"],
@@ -1009,8 +1002,7 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
         self.assertIn("Destinataire requis.", response.context["errors"])
         self.assertIn("Ajoutez au moins un produit.", response.context["errors"])
 
-    def test_portal_order_create_post_self_requires_address(self):
-        self.profile.contact.addresses.all().delete()
+    def test_portal_order_create_post_rejects_self_recipient(self):
         line_items = [(self.product, 1)]
         with mock.patch(
             "wms.views_portal_orders.build_product_selection_data",
@@ -1020,16 +1012,21 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
                 "wms.views_portal_orders.build_order_line_items",
                 return_value=(line_items, {}, {}),
             ):
-                response = self.client.post(
-                    self.order_create_url,
-                    {
-                        "destination_id": str(self.destination.id),
-                        "recipient_id": "self",
-                        "notes": "",
-                    },
-                )
+                with mock.patch("wms.views_portal_orders.create_portal_order") as create_order_mock:
+                    response = self.client.post(
+                        self.order_create_url,
+                        {
+                            "destination_id": str(self.destination.id),
+                            "recipient_id": "self",
+                            "notes": "",
+                        },
+                    )
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Adresse association manquante.", response.context["errors"])
+        self.assertIn(
+            "Destinataire non disponible pour cette destination.",
+            response.context["errors"],
+        )
+        create_order_mock.assert_not_called()
 
     def test_portal_order_create_post_invalid_recipient(self):
         line_items = [(self.product, 1)]
@@ -1250,7 +1247,7 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
                         self.order_create_url,
                         {
                             "destination_id": str(self.destination.id),
-                            "recipient_id": "self",
+                            "recipient_id": str(self.delivery_recipient.id),
                             "notes": "",
                         },
                     )
@@ -1279,7 +1276,7 @@ class PortalOrdersViewsTests(PortalBaseTestCase):
                             self.order_create_url,
                             {
                                 "destination_id": str(self.destination.id),
-                                "recipient_id": "self",
+                                "recipient_id": str(self.delivery_recipient.id),
                                 "notes": "OK",
                             },
                         )
