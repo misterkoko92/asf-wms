@@ -1,3 +1,4 @@
+import re
 from datetime import date
 from pathlib import Path
 
@@ -11,6 +12,7 @@ from django.urls import reverse
 from contacts.models import Contact, ContactType
 from wms.billing_permissions import BILLING_STAFF_GROUP_NAME
 from wms.models import (
+    Destination,
     Document,
     Location,
     Order,
@@ -23,7 +25,9 @@ from wms.models import (
     Receipt,
     ReceiptType,
     Shipment,
+    ShipmentRecipientOrganization,
     ShipmentStatus,
+    ShipmentValidationStatus,
     Warehouse,
 )
 
@@ -41,7 +45,19 @@ class ScanBootstrapUiTests(TestCase):
             email="scan-bootstrap-admin@example.com",
         )
         self.client.force_login(self.staff_user)
+        self.correspondent = Contact.objects.create(
+            name="Correspondant Bootstrap",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
         self.warehouse = Warehouse.objects.create(name="Main", code="MAIN")
+        self.destination = Destination.objects.create(
+            city="BRAZZAVILLE",
+            iata_code="BZV",
+            country="REP. DU CONGO",
+            correspondent_contact=self.correspondent,
+            is_active=True,
+        )
         location = Location.objects.create(
             warehouse=self.warehouse,
             zone="A",
@@ -243,6 +259,29 @@ class ScanBootstrapUiTests(TestCase):
             response,
             'class="scan-nav scan-nav-bootstrap navbar navbar-expand-xl"',
         )
+
+    def test_scan_masthead_shows_pending_recipient_validation_notification(self):
+        self.client.force_login(self.superuser)
+        pending_contact = Contact.objects.create(
+            name="Destinataire en attente",
+            contact_type=ContactType.ORGANIZATION,
+            is_active=True,
+        )
+        ShipmentRecipientOrganization.objects.create(
+            organization=pending_contact,
+            destination=self.destination,
+            validation_status=ShipmentValidationStatus.PENDING,
+            is_active=True,
+        )
+
+        response = self.client.get(reverse("scan:scan_import"))
+
+        self.assertEqual(response.status_code, 200)
+        utility_nav_html = self._scan_utility_nav_html(response)
+        self.assertIn('id="scan-masthead-notifications"', utility_nav_html)
+        self.assertIn(reverse("scan:scan_admin_contacts"), utility_nav_html)
+        self.assertIn("ui-comp-count-badge", utility_nav_html)
+        self.assertIn(">1</span>", utility_nav_html)
 
     def test_scan_nav_orders_primary_sections_for_standard_staff(self):
         response = self.client.get(reverse("scan:scan_stock"))
@@ -682,6 +721,25 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, 'id="scan-merge-target-recipient-organization"')
         self.assertContains(response, reverse("admin:contacts_contact_changelist"))
         self.assertContains(response, reverse("admin:wms_destination_changelist"))
+
+    def test_scan_admin_contacts_cockpit_stacks_read_only_tables_one_per_line(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(reverse("scan:scan_admin_contacts"))
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        cockpit_match = re.search(
+            r'(<div id="scan-admin-contacts-cockpit".*?)<div id="scan-admin-contacts-directory-card"',
+            content,
+            re.S,
+        )
+        self.assertIsNotNone(cockpit_match)
+        cockpit_content = cockpit_match.group(1)
+        tables_section, actions_section = cockpit_content.split("<hr>", 1)
+        self.assertNotIn('class="col-12 col-xl-6"', tables_section)
+        self.assertEqual(tables_section.count('class="col-12">'), 4)
+        self.assertEqual(actions_section.count('class="col-12 col-xl-4">'), 3)
 
     def test_scan_order_page_uses_design_component_classes(self):
         response = self.client.get(reverse("scan:scan_order"))

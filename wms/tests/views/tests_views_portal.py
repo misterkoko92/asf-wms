@@ -1773,6 +1773,55 @@ class PortalAccountViewsTests(PortalBaseTestCase):
         recipients = list(response.context["recipients"])
         self.assertEqual(recipients, [active])
 
+    def test_portal_recipients_get_shows_recipient_validation_status(self):
+        pending_recipient = AssociationRecipient.objects.create(
+            association_contact=self.profile.contact,
+            destination=self.destination,
+            name="Recipient Pending",
+            structure_name="Recipient Pending",
+            address_line1="1 Rue Pending",
+            city="Paris",
+            country="France",
+            is_active=True,
+        )
+        validated_recipient = AssociationRecipient.objects.create(
+            association_contact=self.profile.contact,
+            destination=self.destination,
+            name="Recipient Validated",
+            structure_name="Recipient Validated",
+            address_line1="1 Rue Validated",
+            city="Paris",
+            country="France",
+            is_active=True,
+        )
+        sync_association_recipient_to_contact(pending_recipient)
+        sync_association_recipient_to_contact(validated_recipient)
+        validated_org = ShipmentRecipientOrganization.objects.get(
+            organization=validated_recipient.synced_contact,
+            destination=self.destination,
+        )
+        validated_org.validation_status = ShipmentValidationStatus.VALIDATED
+        validated_org.save(update_fields=["validation_status"])
+
+        response = self.client.get(self.recipients_url)
+
+        self.assertEqual(response.status_code, 200)
+        recipients_by_name = {
+            recipient.structure_name or recipient.name: recipient
+            for recipient in response.context["recipients"]
+        }
+        self.assertEqual(
+            recipients_by_name["Recipient Pending"].validation_status_display["label"],
+            "En attente validation",
+        )
+        self.assertEqual(
+            recipients_by_name["Recipient Validated"].validation_status_display["label"],
+            "Validé",
+        )
+        self.assertContains(response, "Statut destinataire")
+        self.assertContains(response, "En attente validation")
+        self.assertContains(response, "Validé")
+
     def test_portal_recipients_post_validates_required_fields(self):
         response = self.client.post(
             self.recipients_url,

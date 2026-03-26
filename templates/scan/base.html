@@ -66,6 +66,18 @@
           >
             <span aria-hidden="true">?</span>
           </a>
+          {% if request.user.is_superuser and not request.scan_is_preparateur and admin_pending_recipient_validations %}
+            <a
+              id="scan-masthead-notifications"
+              href="{% url 'scan:scan_admin_contacts' %}"
+              class="btn btn-warning btn-sm scan-utility-link scan-utility-icon-link scan-utility-count-link"
+              aria-label="{% blocktrans with pending_count=admin_pending_recipient_validations %}Destinataires en attente de validation : {{ pending_count }}{% endblocktrans %}"
+              title="{% blocktrans with pending_count=admin_pending_recipient_validations %}Destinataires en attente de validation : {{ pending_count }}{% endblocktrans %}"
+            >
+              <span aria-hidden="true">&#128276;</span>
+              <span class="badge text-bg-light ui-comp-count-badge">{{ admin_pending_recipient_validations }}</span>
+            </a>
+          {% endif %}
           {% if request.user.is_superuser and not request.scan_is_preparateur %}
             <div class="dropdown">
               <button

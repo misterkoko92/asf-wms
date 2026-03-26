@@ -6,7 +6,12 @@ from .design_tokens import (
     density_factor_for_mode,
     normalize_priority_one_tokens,
 )
-from .models import PublicAccountRequest, PublicAccountRequestStatus
+from .models import (
+    PublicAccountRequest,
+    PublicAccountRequestStatus,
+    ShipmentRecipientOrganization,
+    ShipmentValidationStatus,
+)
 from .runtime_settings import get_runtime_settings_instance
 
 
@@ -85,8 +90,17 @@ def admin_notifications(request):
     user = getattr(request, "user", None)
     if not user or not user.is_authenticated or not user.is_superuser:
         return {}
-    pending = PublicAccountRequest.objects.filter(status=PublicAccountRequestStatus.PENDING).count()
-    return {"admin_pending_account_requests": pending}
+    pending_account_requests = PublicAccountRequest.objects.filter(
+        status=PublicAccountRequestStatus.PENDING
+    ).count()
+    pending_recipient_validations = ShipmentRecipientOrganization.objects.filter(
+        validation_status=ShipmentValidationStatus.PENDING,
+        is_active=True,
+    ).count()
+    return {
+        "admin_pending_account_requests": pending_account_requests,
+        "admin_pending_recipient_validations": pending_recipient_validations,
+    }
 
 
 def ui_context(request):

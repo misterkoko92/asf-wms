@@ -4,6 +4,16 @@
 {% block content %}
     <div data-admin-contacts-crud="1">
     {% include "scan/includes/admin_contacts_intro_card.html" %}
+    {% if admin_pending_recipient_validations %}
+    <div class="scan-message warning ui-comp-alert mb-3" role="alert">
+        <strong class="ui-comp-alert-title">
+            {% blocktrans with pending_count=admin_pending_recipient_validations %}Destinataires en attente de validation : {{ pending_count }}{% endblocktrans %}
+        </strong>
+        <div class="ui-comp-alert-body">
+            {% trans "Pour lever cette alerte, ouvrez la fiche du destinataire depuis le répertoire ci-dessous, vérifiez le Type métier \"Destinataire\", la destination et les Expéditeurs autorisés, puis cliquez sur \"Mettre à jour le contact\"." %}
+        </div>
+    </div>
+    {% endif %}
 
     <div id="scan-admin-contacts-create-destination" class="scan-card card border-0 ui-comp-card">
         <details class="scan-admin-table-accordion" id="scan-admin-create-destination"{% if destination_form_open %} open{% endif %}>

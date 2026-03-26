@@ -7,7 +7,14 @@ from django.test import TestCase
 from django.urls import reverse
 
 from contacts.models import Contact
-from wms.models import Destination, Product, ProductKitItem, WmsRuntimeSettings
+from wms.models import (
+    Destination,
+    Product,
+    ProductKitItem,
+    ShipmentRecipientOrganization,
+    ShipmentValidationStatus,
+    WmsRuntimeSettings,
+)
 
 
 class ScanAdminViewTests(TestCase):
@@ -187,6 +194,31 @@ class ScanAdminViewTests(TestCase):
         self.assertNotContains(response, 'id="scan-admin-create-destination" open')
         self.assertNotContains(response, 'id="scan-admin-create-contact" open')
         self.assertContains(response, 'data-required-marker="entity_type"')
+
+    def test_scan_admin_contacts_explains_how_to_resolve_pending_recipient_alerts(self):
+        self.client.force_login(self.superuser)
+        pending_contact = Contact.objects.create(
+            name="Destinataire en attente",
+            contact_type="organization",
+            is_active=True,
+        )
+        ShipmentRecipientOrganization.objects.create(
+            organization=pending_contact,
+            destination=self.destination,
+            validation_status=ShipmentValidationStatus.PENDING,
+            is_active=True,
+        )
+
+        response = self.client.get(reverse("scan:scan_admin_contacts"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Destinataires en attente de validation")
+        self.assertContains(response, "Pour lever cette alerte")
+        self.assertContains(response, "ouvrez la fiche")
+        self.assertContains(response, "Type métier")
+        self.assertContains(response, "Destinataire")
+        self.assertContains(response, "Expéditeurs autorisés")
+        self.assertContains(response, "Mettre à jour le contact")
 
     def test_scan_admin_contacts_directory_exposes_inline_actions(self):
         self.client.force_login(self.superuser)
