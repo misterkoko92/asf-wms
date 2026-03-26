@@ -172,7 +172,7 @@ class ScanShipmentsViewsTests(TestCase):
                     response = self.client.get(reverse("scan:scan_shipments_ready"))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "scan/shipments_ready.html")
-        self.assertEqual(response.context_data["active"], "shipments_ready")
+        self.assertEqual(response.context_data["active"], "shipments_dossiers")
         self.assertEqual(
             response.context_data["shipments"],
             [{"id": 1, "reference": "S-001"}],

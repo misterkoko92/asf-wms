@@ -17,6 +17,7 @@ from .shipment_view_helpers import build_shipments_tracking_rows
 
 ACTIVE_SHIPMENT = "shipment"
 ACTIVE_SHIPMENTS_READY = "shipments_ready"
+ACTIVE_SHIPMENTS_DOSSIERS = "shipments_dossiers"
 ACTIVE_SHIPMENTS_TRACKING = "shipments_tracking"
 
 ARCHIVE_STALE_DRAFTS_ACTION = "archive_stale_drafts"

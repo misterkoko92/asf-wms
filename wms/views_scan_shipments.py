@@ -75,6 +75,7 @@ from .view_permissions import (
 from .view_utils import sorted_choices
 from .views_scan_shipments_support import (
     ACTIVE_SHIPMENT,
+    ACTIVE_SHIPMENTS_DOSSIERS,
     ACTIVE_SHIPMENTS_READY,
     ACTIVE_SHIPMENTS_TRACKING,
     ARCHIVE_STALE_DRAFTS_ACTION,
@@ -449,7 +450,7 @@ def scan_shipments_ready(request):
         request,
         TEMPLATE_SHIPMENTS_READY,
         {
-            "active": ACTIVE_SHIPMENTS_READY,
+            "active": ACTIVE_SHIPMENTS_DOSSIERS,
             "shipments": shipments,
             "stale_draft_count": stale_draft_count,
             "stale_draft_days": _stale_drafts_age_days(),
@@ -783,7 +784,7 @@ def scan_shipment_edit(request, shipment_id):
         carton_count=carton_count,
         line_values=line_values,
         line_errors=line_errors,
-        active=ACTIVE_SHIPMENTS_READY,
+        active=ACTIVE_SHIPMENTS_DOSSIERS,
         extra_context={
             "is_edit": True,
             "shipment": shipment,

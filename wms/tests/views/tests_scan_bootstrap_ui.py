@@ -260,6 +260,16 @@ class ScanBootstrapUiTests(TestCase):
             'class="scan-nav scan-nav-bootstrap navbar navbar-expand-xl"',
         )
 
+    def test_scan_nav_renders_shipments_group_instead_of_single_link(self):
+        response = self.client.get(reverse("scan:scan_shipments_ready"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="scan-sidebar-shipments-toggle"')
+        self.assertContains(response, 'id="scan-sidebar-shipments-group"')
+        self.assertContains(response, "Dossiers")
+        self.assertContains(response, "Suivi des expéditions")
+        self.assertNotContains(response, 'id="scan-sidebar-shipments"')
+
     def test_scan_masthead_shows_pending_recipient_validation_notification(self):
         self.client.force_login(self.superuser)
         pending_contact = Contact.objects.create(
@@ -295,7 +305,7 @@ class ScanBootstrapUiTests(TestCase):
                 'id="scan-sidebar-stocks-toggle"',
                 'id="scan-sidebar-receiving-toggle"',
                 'id="scan-sidebar-preparation-toggle"',
-                'id="scan-sidebar-shipments"',
+                'id="scan-sidebar-shipments-toggle"',
                 'id="scan-sidebar-management-toggle"',
             ],
         )
@@ -320,7 +330,7 @@ class ScanBootstrapUiTests(TestCase):
                 'id="scan-sidebar-stocks-toggle"',
                 'id="scan-sidebar-receiving-toggle"',
                 'id="scan-sidebar-preparation-toggle"',
-                'id="scan-sidebar-shipments"',
+                'id="scan-sidebar-shipments-toggle"',
                 'id="scan-sidebar-management-toggle"',
             ],
         )
@@ -346,7 +356,7 @@ class ScanBootstrapUiTests(TestCase):
                 'id="scan-sidebar-stocks-toggle"',
                 'id="scan-sidebar-receiving-toggle"',
                 'id="scan-sidebar-preparation-toggle"',
-                'id="scan-sidebar-shipments"',
+                'id="scan-sidebar-shipments-toggle"',
                 'id="scan-sidebar-management-toggle"',
             ],
         )
