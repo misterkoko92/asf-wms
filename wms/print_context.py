@@ -163,6 +163,35 @@ def _build_destination_info(shipment):
     return destination_city, destination_iata, destination_label
 
 
+def _normalize_inline_text(value):
+    return " ".join(_normalized_text(value).split())
+
+
+def _build_donation_recipient_address(
+    recipient_info,
+    *,
+    destination_address="",
+    destination_city="",
+    destination_country="",
+):
+    base_address = _normalized_text((recipient_info or {}).get("address")) or _normalized_text(
+        destination_address
+    )
+    if not base_address:
+        return "-"
+
+    normalized_base = _normalize_inline_text(base_address).casefold()
+    missing_parts = []
+    for part in (destination_city, destination_country):
+        normalized_part = _normalize_inline_text(part)
+        if normalized_part and normalized_part.casefold() not in normalized_base:
+            missing_parts.append(normalized_part)
+
+    if missing_parts:
+        return f"{base_address} - {' - '.join(missing_parts)}"
+    return base_address
+
+
 def build_shipment_document_context(shipment, doc_type):
     cartons = list(shipment.carton_set.all().order_by("code"))
     carton_labels = {carton.id: f"Colis N°{index}" for index, carton in enumerate(cartons, start=1)}
@@ -280,11 +309,18 @@ def build_shipment_document_context(shipment, doc_type):
         "shipper_info": shipper_info,
         "recipient_info": recipient_info,
         "correspondent_info": correspondent_info,
+        "recipient_donation_address": _build_donation_recipient_address(
+            recipient_info,
+            destination_address=shipment.destination_address,
+            destination_city=destination_city,
+            destination_country=shipment.destination_country,
+        ),
         "donor_name": shipper_name,
         "donation_description": shipment.notes or description,
         "humanitarian_purpose": shipment.notes or "Aide humanitaire",
         "shipment_description": description,
-        "hide_footer": doc_type == "packing_list_shipment",
+        "hide_footer": doc_type
+        in {"packing_list_shipment", "shipment_note", "customs", "donation_certificate"},
         "show_carton_column": doc_type == "packing_list_shipment",
     }
 
@@ -485,11 +521,24 @@ def build_sample_document_context(doc_type):
         "shipper_info": shipper_info,
         "recipient_info": recipient_info,
         "correspondent_info": correspondent_info,
+        "recipient_donation_address": _build_donation_recipient_address(
+            recipient_info,
+            destination_address="ABIDJAN - COTE D'IVOIRE",
+            destination_city="ABIDJAN",
+            destination_country="COTE D'IVOIRE",
+        ),
         "donor_name": "ASF",
         "donation_description": "Materiel medical",
         "humanitarian_purpose": "Aide humanitaire",
         "shipment_description": "Exemple de description",
-        "hide_footer": doc_type in {"packing_list_shipment", "packing_list_carton"},
+        "hide_footer": doc_type
+        in {
+            "packing_list_shipment",
+            "packing_list_carton",
+            "shipment_note",
+            "customs",
+            "donation_certificate",
+        },
         "show_carton_column": doc_type == "packing_list_shipment",
     }
 

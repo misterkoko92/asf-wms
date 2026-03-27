@@ -1,11 +1,30 @@
 {% extends "print/base_document.html" %}
+{% load static %}
 {% block title %}Liste colisage carton{% endblock %}
 
 {% block extra_style %}
+  @page { size: landscape; margin: 8mm; }
+  .print-header { display: none; }
   .print-body { padding-bottom: 0; }
   .packing-sheet {
     display: grid;
     gap: 4mm;
+  }
+  .packing-sheet-header {
+    display: grid;
+    grid-template-columns: 18mm 1fr 18mm;
+    gap: 4mm;
+    align-items: center;
+  }
+  .packing-sheet-logo {
+    width: 18mm;
+    max-height: 18mm;
+    object-fit: contain;
+  }
+  .packing-sheet-heading {
+    display: grid;
+    gap: 0.6mm;
+    text-align: center;
   }
   .packing-sheet-title {
     font-family: Arial, sans-serif;
@@ -28,19 +47,52 @@
   .packing-ref-label {
     font-weight: 700;
   }
+  .packing-table {
+    table-layout: fixed;
+  }
+  .packing-col-product {
+    width: auto;
+  }
+  .packing-col-quantity {
+    width: 70mm;
+  }
+  .packing-col-expiry {
+    width: 70mm;
+  }
+  .packing-table th:nth-child(2),
+  .packing-table th:nth-child(3) {
+    white-space: nowrap;
+  }
+  .packing-table td:first-child,
+  .packing-table th:first-child {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
 {% endblock %}
 
 {% block body %}
   <div id="packing-list-carton-sheet" class="packing-sheet">
-    <div class="packing-sheet-title">LISTE DE COLISAGE</div>
-    <div class="packing-sheet-subtitle">Dons humanitaires non destinés à être revendus
-Produits non dangereux</div>
+    <div id="packing-list-carton-header" class="packing-sheet-header">
+      <img class="packing-sheet-logo" src="{% static 'scan/logo.jpg' %}" alt="Logo ASF">
+      <div class="packing-sheet-heading">
+        <div class="packing-sheet-title">LISTE DE COLISAGE</div>
+        <div class="packing-sheet-subtitle">Dons humanitaires non destinés à être revendus</div>
+        <div class="packing-sheet-subtitle">Produits non dangereux</div>
+      </div>
+      <div aria-hidden="true"></div>
+    </div>
     <div class="packing-ref-row">
       <span class="packing-ref-label">Référence du colis :</span>
       <span>{{ carton_code }}</span>
     </div>
 
-    <table>
+    <table id="packing-list-carton-table" class="packing-table">
+      <colgroup>
+        <col class="packing-col-product">
+        <col class="packing-col-quantity">
+        <col class="packing-col-expiry">
+      </colgroup>
       <thead>
         <tr>
           <th>PRODUIT</th>

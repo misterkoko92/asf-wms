@@ -274,10 +274,18 @@ class PrintLabelsViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'id="contact-label"')
-        self.assertContains(response, "EXPEDITEUR / Shipper")
-        self.assertContains(response, "DESTINATAIRE / Consignee")
-        self.assertContains(response, "CORRESPONDANT / Local Agent")
-        self.assertContains(response, "TELEPHONE / Phone")
+        self.assertContains(response, "@page { size: A5 landscape; margin: 8mm; }")
+        self.assertContains(response, 'id="contact-label-parties"')
+        self.assertContains(response, "sheet-party-grid")
+        self.assertContains(response, "sheet-party-table")
+        self.assertContains(response, "EXPEDITEUR /")
+        self.assertContains(response, "Shipper")
+        self.assertContains(response, "DESTINATAIRE /")
+        self.assertContains(response, "Consignee")
+        self.assertContains(response, "CORRESPONDANT /")
+        self.assertContains(response, "Local Agent")
+        self.assertContains(response, "TELEPHONE /")
+        self.assertContains(response, "Phone")
         self.assertContains(response, carton.code)
 
     def test_scan_shipment_contact_label_returns_404_when_carton_missing(self):

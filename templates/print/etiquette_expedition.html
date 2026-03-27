@@ -31,12 +31,26 @@
       font-size: 54pt;
       font-weight: 900;
       letter-spacing: 4px;
-    }
-    .label-iata-row {
-      display: flex;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
+    }
+    .label-iata-row {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
       gap: 8mm;
+    }
+    .label-iata-wrap {
+      grid-column: 2;
+      display: flex;
+      justify-content: center;
+    }
+    .label-qr-wrap {
+      grid-column: 3;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
     }
     .label-qr {
       border: 3px solid #333;
@@ -64,6 +78,17 @@
       max-width: 45%;
       letter-spacing: 2px;
     }
+    .label-box-text {
+      display: inline-flex;
+      gap: 0.35em;
+      align-items: baseline;
+      font-weight: 800;
+    }
+    .label-box-text em {
+      font-style: italic;
+      font-weight: 800;
+      text-transform: none;
+    }
 {% endblock %}
 
 {% block body %}
@@ -74,20 +99,28 @@
         id="shipment-label-city-{{ label.carton_id|default:forloop.counter }}"
       >{{ label.city|default:"" }}</div>
       <div class="label-iata-row">
-        <div
-          class="label-iata"
-          id="shipment-label-iata-{{ label.carton_id|default:forloop.counter }}"
-        >{{ label.iata|default:"" }}</div>
+        <div class="label-iata-wrap">
+          <div
+            class="label-iata"
+            id="shipment-label-iata-{{ label.carton_id|default:forloop.counter }}"
+          >{{ label.iata|default:"" }}</div>
+        </div>
         {% if label.qr_url %}
-          <img class="label-qr" src="{{ label.qr_url }}" alt="{% blocktrans with shipment_ref=label.shipment_ref|default:'' %}QR expédition {{ shipment_ref }}{% endblocktrans %}">
+          <div class="label-qr-wrap">
+            <img class="label-qr" src="{{ label.qr_url }}" alt="{% blocktrans with shipment_ref=label.shipment_ref|default:'' %}QR expédition {{ shipment_ref }}{% endblocktrans %}">
+          </div>
         {% endif %}
       </div>
       <div
         class="label-footer"
         id="shipment-label-footer-{{ label.carton_id|default:forloop.counter }}"
       >
-        <div class="label-box">{{ label.shipment_ref }}</div>
-        <div class="label-box small">{{ label.position }} / {{ label.total }}</div>
+        <div class="label-box">
+          <span class="label-box-text">EXP N° {{ label.shipment_ref }}</span>
+        </div>
+        <div class="label-box small">
+          <span class="label-box-text">Colis / <em>Parcel</em> N° {{ label.position }} / {{ label.total }}</span>
+        </div>
       </div>
     </div>
   {% endfor %}

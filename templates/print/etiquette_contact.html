@@ -3,10 +3,12 @@
 {% block title %}Étiquette contact{% endblock %}
 
 {% block extra_style %}
-  @page { margin: 8mm; }
+  @page { size: A5 landscape; margin: 8mm; }
   .contact-label {
     display: grid;
     gap: 4mm;
+    font-size: 9.5pt;
+    line-height: 1.25;
   }
   .contact-label-meta {
     display: flex;
@@ -15,31 +17,67 @@
     font-size: 10pt;
     font-weight: 700;
   }
-  .contact-section {
-    display: grid;
-    gap: 1mm;
-  }
-  .contact-section-title {
-    font-size: 10pt;
-    font-weight: 800;
-  }
-  .contact-table {
+  .sheet-table {
+    width: 100%;
     margin-top: 0;
+    border-collapse: collapse;
   }
-  .contact-table th,
-  .contact-table td {
-    border: 1px solid #000;
-    padding: 2mm 2.5mm;
-    font-size: 9pt;
-    text-align: left;
+  .sheet-table th,
+  .sheet-table td {
+    border-left: 1px solid #000;
+    border-right: 1px solid #000;
+    border-top: 0;
+    border-bottom: 0;
+    padding: 1.5mm 1.8mm;
     vertical-align: top;
+    font-size: 7.8pt;
+    line-height: 1.15;
+    text-align: left;
   }
-  .contact-table th {
-    width: 34mm;
+  .sheet-table th {
     background: #fff;
     font-weight: 700;
+    white-space: normal;
   }
-  .contact-value { white-space: pre-line; }
+  .sheet-table tr:first-child > * {
+    border-top: 1px solid #000;
+  }
+  .sheet-table tr:last-child > * {
+    border-bottom: 1px solid #000;
+  }
+  .sheet-table .sheet-section-row > th,
+  .sheet-table .sheet-section-row > td {
+    border-bottom: 1px solid #000;
+  }
+  .sheet-section-title {
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 8pt;
+    white-space: nowrap;
+  }
+  .sheet-en {
+    font-style: italic;
+    font-weight: 400;
+  }
+  .sheet-party-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 3mm;
+    align-items: start;
+  }
+  .sheet-party-table {
+    width: 100%;
+    table-layout: fixed;
+  }
+  .sheet-party-table tr > * + * {
+    border-left: 1px solid #000;
+  }
+  .sheet-col-label {
+    width: 40%;
+  }
+  .contact-value {
+    white-space: pre-line;
+  }
 {% endblock %}
 
 {% block body %}
@@ -50,37 +88,45 @@
       <div>Destination: {{ destination_label|default:destination_address }}</div>
     </div>
 
-    <section id="contact-label-shipper" class="contact-section">
-      <div class="contact-section-title">EXPEDITEUR / Shipper</div>
-      <table class="contact-table">
-        <tr><th>Nom / Name</th><td class="contact-value">{% firstof shipper_info.person shipper_info.name "-" %}</td></tr>
-        <tr><th>Organisation / Organization</th><td class="contact-value">{{ shipper_info.company|default:"-" }}</td></tr>
-        <tr><th>Adresse / Address</th><td class="contact-value">{{ shipper_info.address|default:"-" }}</td></tr>
+    <div id="contact-label-parties" class="sheet-party-grid">
+      <table id="contact-label-shipper" class="sheet-table sheet-party-table">
+        <colgroup>
+          <col class="sheet-col-label">
+          <col>
+        </colgroup>
+        <tr class="sheet-section-row"><th colspan="2" class="sheet-section-title">EXPEDITEUR / <span class="sheet-en">Shipper</span></th></tr>
+        <tr><th>Nom / <span class="sheet-en">Name</span></th><td class="contact-value">{% firstof shipper_info.person shipper_info.name "-" %}</td></tr>
+        <tr><th>Organisation / <span class="sheet-en">Organization</span></th><td class="contact-value">{{ shipper_info.company|default:"-" }}</td></tr>
+        <tr><th>Adresse / <span class="sheet-en">Address</span></th><td class="contact-value">{{ shipper_info.address|default:"-" }}</td></tr>
         <tr><th>Contact</th><td class="contact-value">{{ shipper_info.email|default:"-" }}</td></tr>
-        <tr><th>TELEPHONE / Phone</th><td class="contact-value">{{ shipper_info.phone|default:"-" }}</td></tr>
+        <tr><th>TELEPHONE / <span class="sheet-en">Phone</span></th><td class="contact-value">{{ shipper_info.phone|default:"-" }}</td></tr>
       </table>
-    </section>
 
-    <section id="contact-label-recipient" class="contact-section">
-      <div class="contact-section-title">DESTINATAIRE / Consignee</div>
-      <table class="contact-table">
-        <tr><th>Nom / Name</th><td class="contact-value">{% firstof recipient_info.person recipient_info.name "-" %}</td></tr>
-        <tr><th>Organisation / Organization</th><td class="contact-value">{{ recipient_info.company|default:"-" }}</td></tr>
-        <tr><th>Adresse / Address</th><td class="contact-value">{{ recipient_info.address|default:destination_address|default:"-" }}</td></tr>
+      <table id="contact-label-recipient" class="sheet-table sheet-party-table">
+        <colgroup>
+          <col class="sheet-col-label">
+          <col>
+        </colgroup>
+        <tr class="sheet-section-row"><th colspan="2" class="sheet-section-title">DESTINATAIRE / <span class="sheet-en">Consignee</span></th></tr>
+        <tr><th>Nom / <span class="sheet-en">Name</span></th><td class="contact-value">{% firstof recipient_info.person recipient_info.name "-" %}</td></tr>
+        <tr><th>Organisation / <span class="sheet-en">Organization</span></th><td class="contact-value">{{ recipient_info.company|default:"-" }}</td></tr>
+        <tr><th>Adresse / <span class="sheet-en">Address</span></th><td class="contact-value">{{ recipient_info.address|default:destination_address|default:"-" }}</td></tr>
         <tr><th>Contact</th><td class="contact-value">{{ recipient_info.email|default:"-" }}</td></tr>
-        <tr><th>TELEPHONE / Phone</th><td class="contact-value">{{ recipient_info.phone|default:"-" }}</td></tr>
+        <tr><th>TELEPHONE / <span class="sheet-en">Phone</span></th><td class="contact-value">{{ recipient_info.phone|default:"-" }}</td></tr>
       </table>
-    </section>
 
-    <section id="contact-label-correspondent" class="contact-section">
-      <div class="contact-section-title">CORRESPONDANT / Local Agent</div>
-      <table class="contact-table">
-        <tr><th>Nom / Name</th><td class="contact-value">{% firstof correspondent_info.person correspondent_info.name "-" %}</td></tr>
-        <tr><th>Organisation / Organization</th><td class="contact-value">{{ correspondent_info.company|default:"-" }}</td></tr>
-        <tr><th>Adresse / Address</th><td class="contact-value">{{ correspondent_info.address|default:"-" }}</td></tr>
+      <table id="contact-label-correspondent" class="sheet-table sheet-party-table">
+        <colgroup>
+          <col class="sheet-col-label">
+          <col>
+        </colgroup>
+        <tr class="sheet-section-row"><th colspan="2" class="sheet-section-title">CORRESPONDANT / <span class="sheet-en">Local Agent</span></th></tr>
+        <tr><th>Nom / <span class="sheet-en">Name</span></th><td class="contact-value">{% firstof correspondent_info.person correspondent_info.name "-" %}</td></tr>
+        <tr><th>Organisation / <span class="sheet-en">Organization</span></th><td class="contact-value">{{ correspondent_info.company|default:"-" }}</td></tr>
+        <tr><th>Adresse / <span class="sheet-en">Address</span></th><td class="contact-value">{{ correspondent_info.address|default:"-" }}</td></tr>
         <tr><th>Contact</th><td class="contact-value">{{ correspondent_info.email|default:"-" }}</td></tr>
-        <tr><th>TELEPHONE / Phone</th><td class="contact-value">{{ correspondent_info.phone|default:"-" }}</td></tr>
+        <tr><th>TELEPHONE / <span class="sheet-en">Phone</span></th><td class="contact-value">{{ correspondent_info.phone|default:"-" }}</td></tr>
       </table>
-    </section>
+    </div>
   </div>
 {% endblock %}

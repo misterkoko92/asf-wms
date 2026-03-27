@@ -4,10 +4,29 @@
 {% block title %}Attestation de donation{% endblock %}
 
 {% block extra_style %}
+  @page { size: A5 landscape; margin: 8mm; }
+  .print-header { display: none; }
+  .print-body { padding-bottom: 0; }
   .certificate {
     display: grid;
     gap: 4mm;
-    font-size: 9.5pt;
+    font-size: 9pt;
+  }
+  .certificate-header {
+    display: grid;
+    grid-template-columns: 18mm 1fr 18mm;
+    gap: 4mm;
+    align-items: center;
+  }
+  .certificate-logo {
+    width: 18mm;
+    max-height: 18mm;
+    object-fit: contain;
+  }
+  .certificate-heading {
+    display: grid;
+    gap: 0.5mm;
+    text-align: center;
   }
   .certificate-title {
     font-size: 16pt;
@@ -16,7 +35,11 @@
   }
   .certificate-city {
     text-align: center;
-    font-size: 10pt;
+    font-size: 16pt;
+    font-weight: 700;
+  }
+  .certificate-accent {
+    color: #c20000;
   }
   .certificate-table {
     margin-top: 0;
@@ -25,11 +48,11 @@
   .certificate-table td {
     border: 0;
     padding: 1.2mm 0;
-    font-size: 10pt;
+    font-size: 9pt;
     vertical-align: top;
   }
   .certificate-table th {
-    width: 42mm;
+    width: 34mm;
     background: transparent;
     text-align: left;
     font-weight: 700;
@@ -38,15 +61,33 @@
     border-bottom: 1px solid #000;
     min-height: 5mm;
   }
+  .certificate-value--single-line {
+    white-space: normal;
+  }
   .certificate-line {
     white-space: pre-line;
-    font-size: 10pt;
-    line-height: 1.35;
+    font-size: 9pt;
+    line-height: 1;
+  }
+  .certificate-body-intro {
+    white-space: normal;
+  }
+  .certificate-notes {
+    display: grid;
+    gap: 1mm;
+  }
+  .certificate-emphasis {
+    font-weight: 700;
   }
   .certificate-signoff {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr auto;
     align-items: center;
     gap: 6mm;
+  }
+  .certificate-signoff-lines {
+    display: grid;
+    gap: 1mm;
   }
   .certificate-stamp {
     height: 18mm;
@@ -55,8 +96,14 @@
 
 {% block body %}
   <div id="donation-certificate-sheet" class="certificate">
-    <div id="donation-certificate-title" class="certificate-title">ATTESTATION DE DONATION</div>
-    <div class="certificate-city">({{ destination_city|default:"ville" }})</div>
+    <div id="donation-certificate-header" class="certificate-header">
+      <img class="certificate-logo" src="{% static 'scan/logo.jpg' %}" alt="Logo ASF">
+      <div class="certificate-heading">
+        <div id="donation-certificate-title" class="certificate-title">ATTESTATION DE DONATION</div>
+        <div class="certificate-city certificate-accent">{{ destination_city|default:"VILLE"|upper }}</div>
+      </div>
+      <div aria-hidden="true"></div>
+    </div>
 
     <table class="certificate-table">
       <tr><th>Je soussigné :</th><td class="certificate-value">M. Edouard Gonnu</td></tr>
@@ -65,28 +112,27 @@
       <tr><th>Adresse :</th><td class="certificate-value">Orly Fret 768 - 94 398 Orly Aérogare Cedex</td></tr>
     </table>
 
-    <div id="donation-certificate-body" class="certificate-line">Atteste que le(s) colis faisant l’objet de la présente expédition par l’intermédiaire
-d’Aviation Sans Frontières est (sont) un (des) don(s) de notre association à :</div>
+    <div id="donation-certificate-body" class="certificate-line certificate-body-intro">Atteste que le(s) colis faisant l’objet de la présente expédition par l’intermédiaire d’Aviation Sans Frontières est (sont) un (des) don(s) de notre association à :</div>
 
     <table class="certificate-table">
       <tr><th>Nom :</th><td class="certificate-value">{% firstof recipient_info.person recipient_info.company "-" %}</td></tr>
       <tr><th>Structure :</th><td class="certificate-value">{{ recipient_info.company|default:"-" }}</td></tr>
-      <tr><th>Adresse :</th><td class="certificate-value">{{ recipient_info.address|default:destination_address|default:"-" }}</td></tr>
-      <tr><th>Code Postal :</th><td class="certificate-value">&nbsp;</td></tr>
-      <tr><th>Ville :</th><td class="certificate-value">{{ destination_city|default:"-" }}</td></tr>
-      <tr><th>Pays :</th><td class="certificate-value">{{ destination_country|default:"-" }}</td></tr>
+      <tr><th>Adresse :</th><td class="certificate-value certificate-value--single-line">{{ recipient_donation_address }}</td></tr>
       <tr><th>Téléphone :</th><td class="certificate-value">{{ recipient_info.phone|default:"-" }}</td></tr>
       <tr><th>Mail :</th><td class="certificate-value">{{ recipient_info.email|default:"-" }}</td></tr>
       <tr><th>En cas d'urgence :</th><td class="certificate-value">{% firstof correspondent_info.person correspondent_info.company "-" %}</td></tr>
     </table>
 
-    <div class="certificate-line">Ces colis ne contient (nent) que du matériel médical et chirurgical envoyés à titre humanitaire.</div>
-    <div class="certificate-line">Ces articles médicaux sont pour la santé humaine et ne sont pas destinés à être revendus.</div>
-    <div class="certificate-line">Ils ne sont pas soumis aux biens à double usage- sans valeur commerciale :</div>
-    <div class="certificate-line">Valeur uniquement pour la douane : 1.00 euro -</div>
-
-    <div class="certificate-signoff">
-      <div class="certificate-line">Fait à Orly, France le : {{ document_date|date:"d/m/Y" }}</div>
+    <div id="donation-certificate-notes" class="certificate-notes">
+      <div class="certificate-line">Ces colis ne contient (nent) que du matériel médical et chirurgical envoyés à titre humanitaire.</div>
+      <div class="certificate-line">Ces articles médicaux sont pour la santé humaine et ne sont pas destinés à être revendus.</div>
+      <div class="certificate-line">Ils ne sont pas soumis aux biens à double usage- sans valeur commerciale :</div>
+    </div>
+    <div id="donation-certificate-signoff" class="certificate-signoff">
+      <div id="donation-certificate-signoff-lines" class="certificate-signoff-lines">
+        <div id="donation-certificate-customs-value" class="certificate-line certificate-emphasis">Valeur uniquement pour la douane : 1.00 euro -</div>
+        <div class="certificate-line">Fait à Orly, France le : {{ document_date|date:"d/m/Y" }}</div>
+      </div>
       <img class="certificate-stamp" src="{% static 'scan/cachet.png' %}" alt="Cachet">
     </div>
   </div>

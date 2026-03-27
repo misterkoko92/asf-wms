@@ -241,7 +241,7 @@ class PrintContextTests(SimpleTestCase):
                                                 shipment, "shipment_note"
                                             )
 
-        self.assertFalse(context["hide_footer"])
+        self.assertTrue(context["hide_footer"])
         self.assertFalse(context["show_carton_column"])
         self.assertEqual(context["destination_label"], "Abidjan Airport")
         self.assertEqual(context["weight_total_kg"], 1.5)
@@ -251,6 +251,100 @@ class PrintContextTests(SimpleTestCase):
         self.assertIsNone(context["carton_rows"][0]["dimensions_cm"])
         self.assertEqual(context["donation_description"], "Specific note")
         self.assertIn("livraison souhaitee 15/01/2026", context["shipment_description"])
+
+    def test_build_shipment_document_context_deduplicates_donation_recipient_address(self):
+        cartons = [SimpleNamespace(id=31)]
+        shipment = SimpleNamespace(
+            reference="SHP-31",
+            shipper_name="ASF",
+            shipper_contact="",
+            recipient_name="Hospital",
+            recipient_contact="",
+            correspondent_name="Corr",
+            destination=SimpleNamespace(city="Paris", iata_code="CDG"),
+            destination_address="2 Rue 75001 Paris France",
+            destination_country="France",
+            requested_delivery_date=None,
+            notes="",
+            carton_set=_FakeCartonSet(cartons),
+        )
+        cart_rows = [
+            {
+                "weight_g": 1000,
+                "volume_cm3": 100000,
+                "length_cm": None,
+                "width_cm": None,
+                "height_cm": None,
+            }
+        ]
+        carton_items_qs = mock.MagicMock()
+        carton_items_qs.select_related.return_value = []
+        build_contact_info_mock = mock.Mock(
+            side_effect=[
+                {
+                    "address": "",
+                    "phone": "",
+                    "email": "",
+                    "name": "ASF",
+                    "person": "",
+                    "company": "",
+                },
+                {
+                    "address": "2 Rue 75001 Paris France",
+                    "phone": "",
+                    "email": "",
+                    "name": "Hospital",
+                    "person": "",
+                    "company": "Hospital",
+                },
+                {
+                    "address": "",
+                    "phone": "",
+                    "email": "",
+                    "name": "Corr",
+                    "person": "",
+                    "company": "",
+                },
+            ]
+        )
+
+        with mock.patch("wms.print_context.build_shipment_item_rows", return_value=[]):
+            with mock.patch(
+                "wms.print_context.build_shipment_aggregate_rows",
+                return_value=[{"product": "Mask"}],
+            ):
+                with mock.patch(
+                    "wms.print_context.CartonFormat.objects.filter",
+                    return_value=SimpleNamespace(first=lambda: SimpleNamespace(id=9)),
+                ):
+                    with mock.patch("wms.print_context.build_carton_rows", return_value=cart_rows):
+                        with mock.patch(
+                            "wms.print_context.CartonItem.objects.filter",
+                            return_value=carton_items_qs,
+                        ):
+                            with mock.patch(
+                                "wms.print_context.compute_weight_total_g", return_value=1000
+                            ):
+                                with mock.patch(
+                                    "wms.print_context.build_shipment_type_labels",
+                                    return_value="TypeY",
+                                ):
+                                    with mock.patch(
+                                        "wms.print_context.build_contact_info",
+                                        build_contact_info_mock,
+                                    ):
+                                        with mock.patch(
+                                            "wms.print_context.build_org_context",
+                                            return_value={"org": "ASF"},
+                                        ):
+                                            context = build_shipment_document_context(
+                                                shipment, "donation_certificate"
+                                            )
+
+        self.assertEqual(
+            context["recipient_donation_address"],
+            "2 Rue 75001 Paris France",
+        )
 
     def test_build_carton_document_context_handles_missing_defaults_and_weight(self):
         shipment = SimpleNamespace(reference="SHP-40")
