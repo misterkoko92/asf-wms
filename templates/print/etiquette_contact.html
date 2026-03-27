@@ -1,7 +1,6 @@
 {% extends "print/base_label.html" %}
-{% load i18n %}
 
-{% block title %}{% trans "Étiquette contact" %}{% endblock %}
+{% block title %}Étiquette contact{% endblock %}
 
 {% block extra_style %}
   @page { margin: 8mm; }
@@ -16,84 +15,72 @@
     font-size: 10pt;
     font-weight: 700;
   }
-  .contact-label-row {
+  .contact-section {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 4mm;
+    gap: 1mm;
   }
-  .contact-label-card {
-    border: 1px solid #000;
-    padding: 3mm;
-    font-size: 9pt;
-  }
-  .contact-label-title {
-    margin-bottom: 2mm;
+  .contact-section-title {
+    font-size: 10pt;
     font-weight: 800;
-    text-transform: uppercase;
   }
-  .contact-label-grid {
-    display: grid;
-    grid-template-columns: 14mm 1fr;
-    gap: 1mm 2mm;
+  .contact-table {
+    margin-top: 0;
   }
-  .contact-label-key {
+  .contact-table th,
+  .contact-table td {
+    border: 1px solid #000;
+    padding: 2mm 2.5mm;
+    font-size: 9pt;
+    text-align: left;
+    vertical-align: top;
+  }
+  .contact-table th {
+    width: 34mm;
+    background: #fff;
     font-weight: 700;
   }
-  .contact-label-value {
-    white-space: pre-line;
-  }
+  .contact-value { white-space: pre-line; }
 {% endblock %}
 
 {% block body %}
   <div id="contact-label" class="contact-label">
     <div class="contact-label-meta">
-      <div>{% trans "Expédition" %}: {{ shipment_ref }}</div>
-      <div>{% trans "Colis" %}: {{ carton_code }}</div>
-      <div>{% trans "Destination" %}: {{ destination_label|default:destination_address }}</div>
+      <div>Expédition: {{ shipment_ref }}</div>
+      <div>Colis: {{ carton_code }}</div>
+      <div>Destination: {{ destination_label|default:destination_address }}</div>
     </div>
 
-    <div class="contact-label-row">
-      <section class="contact-label-card">
-        <div class="contact-label-title">{% trans "Expéditeur" %}</div>
-        <div class="contact-label-grid">
-          <div class="contact-label-key">{% trans "Nom" %}</div>
-          <div class="contact-label-value">{{ shipper_info.person|default:"-" }}</div>
-          <div class="contact-label-key">{% trans "Société" %}</div>
-          <div class="contact-label-value">{{ shipper_info.company|default:"-" }}</div>
-          <div class="contact-label-key">{% trans "Tel" %}</div>
-          <div class="contact-label-value">{{ shipper_info.phone|default:"-" }}</div>
-          <div class="contact-label-key">{% trans "Mail" %}</div>
-          <div class="contact-label-value">{{ shipper_info.email|default:"-" }}</div>
-        </div>
-      </section>
+    <section id="contact-label-shipper" class="contact-section">
+      <div class="contact-section-title">EXPEDITEUR / Shipper</div>
+      <table class="contact-table">
+        <tr><th>Nom / Name</th><td class="contact-value">{% firstof shipper_info.person shipper_info.name "-" %}</td></tr>
+        <tr><th>Organisation / Organization</th><td class="contact-value">{{ shipper_info.company|default:"-" }}</td></tr>
+        <tr><th>Adresse / Address</th><td class="contact-value">{{ shipper_info.address|default:"-" }}</td></tr>
+        <tr><th>Contact</th><td class="contact-value">{{ shipper_info.email|default:"-" }}</td></tr>
+        <tr><th>TELEPHONE / Phone</th><td class="contact-value">{{ shipper_info.phone|default:"-" }}</td></tr>
+      </table>
+    </section>
 
-      <section class="contact-label-card">
-        <div class="contact-label-title">{% trans "Destinataire" %}</div>
-        <div class="contact-label-grid">
-          <div class="contact-label-key">{% trans "Nom" %}</div>
-          <div class="contact-label-value">{{ recipient_info.person|default:"-" }}</div>
-          <div class="contact-label-key">{% trans "Société" %}</div>
-          <div class="contact-label-value">{{ recipient_info.company|default:"-" }}</div>
-          <div class="contact-label-key">{% trans "Tel" %}</div>
-          <div class="contact-label-value">{{ recipient_info.phone|default:"-" }}</div>
-          <div class="contact-label-key">{% trans "Mail" %}</div>
-          <div class="contact-label-value">{{ recipient_info.email|default:"-" }}</div>
-        </div>
-      </section>
+    <section id="contact-label-recipient" class="contact-section">
+      <div class="contact-section-title">DESTINATAIRE / Consignee</div>
+      <table class="contact-table">
+        <tr><th>Nom / Name</th><td class="contact-value">{% firstof recipient_info.person recipient_info.name "-" %}</td></tr>
+        <tr><th>Organisation / Organization</th><td class="contact-value">{{ recipient_info.company|default:"-" }}</td></tr>
+        <tr><th>Adresse / Address</th><td class="contact-value">{{ recipient_info.address|default:destination_address|default:"-" }}</td></tr>
+        <tr><th>Contact</th><td class="contact-value">{{ recipient_info.email|default:"-" }}</td></tr>
+        <tr><th>TELEPHONE / Phone</th><td class="contact-value">{{ recipient_info.phone|default:"-" }}</td></tr>
+      </table>
+    </section>
 
-      <section class="contact-label-card">
-        <div class="contact-label-title">{% trans "Correspondant" %}</div>
-        <div class="contact-label-grid">
-          <div class="contact-label-key">{% trans "Nom" %}</div>
-          <div class="contact-label-value">{{ correspondent_info.person|default:"-" }}</div>
-          <div class="contact-label-key">{% trans "Société" %}</div>
-          <div class="contact-label-value">{{ correspondent_info.company|default:"-" }}</div>
-          <div class="contact-label-key">{% trans "Tel" %}</div>
-          <div class="contact-label-value">{{ correspondent_info.phone|default:"-" }}</div>
-          <div class="contact-label-key">{% trans "Mail" %}</div>
-          <div class="contact-label-value">{{ correspondent_info.email|default:"-" }}</div>
-        </div>
-      </section>
-    </div>
+    <section id="contact-label-correspondent" class="contact-section">
+      <div class="contact-section-title">CORRESPONDANT / Local Agent</div>
+      <table class="contact-table">
+        <tr><th>Nom / Name</th><td class="contact-value">{% firstof correspondent_info.person correspondent_info.name "-" %}</td></tr>
+        <tr><th>Organisation / Organization</th><td class="contact-value">{{ correspondent_info.company|default:"-" }}</td></tr>
+        <tr><th>Adresse / Address</th><td class="contact-value">{{ correspondent_info.address|default:"-" }}</td></tr>
+        <tr><th>Contact</th><td class="contact-value">{{ correspondent_info.email|default:"-" }}</td></tr>
+        <tr><th>TELEPHONE / Phone</th><td class="contact-value">{{ correspondent_info.phone|default:"-" }}</td></tr>
+      </table>
+    </section>
   </div>
 {% endblock %}

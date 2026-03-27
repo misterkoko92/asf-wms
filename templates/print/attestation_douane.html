@@ -1,22 +1,139 @@
 {% extends "print/base_document.html" %}
-{% load i18n %}
 
-{% block title %}{% trans "Attestation douane" %}{% endblock %}
+{% block title %}Attestation douane{% endblock %}
+
+{% block extra_style %}
+  @page { margin: 8mm; }
+  .sheet {
+    display: grid;
+    gap: 4mm;
+    font-size: 9.5pt;
+    line-height: 1.25;
+  }
+  .sheet-org {
+    width: 72mm;
+    border: 1px solid #000;
+    padding: 3mm;
+    font-size: 8.75pt;
+    white-space: pre-line;
+  }
+  .sheet-table {
+    width: 100%;
+    margin-top: 0;
+  }
+  .sheet-table th,
+  .sheet-table td {
+    border: 1px solid #000;
+    padding: 2.2mm 2.5mm;
+    vertical-align: top;
+    font-size: 9pt;
+  }
+  .sheet-table th {
+    background: #fff;
+    text-align: left;
+    font-weight: 700;
+  }
+  .sheet-section-title {
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .customs-note {
+    border: 1px solid #000;
+    padding: 4mm;
+    white-space: pre-line;
+    font-size: 9pt;
+  }
+{% endblock %}
 
 {% block body %}
-  <h1>{% trans "Attestation de douane" %}</h1>
+  <div id="customs-note-sheet" class="sheet">
+    <div class="sheet-org">Aviation Sans Frontieres - Bat. 7200, Rue de la remise - 95700 Roissy En France
+messmed@aviation-sans-frontieres-fr.org
++33 6 50 03 72 36
+Association reconnue d'utilité publique depuis 1993</div>
 
-  <div class="meta">{% trans "Réf document" %}: {{ document_ref }}</div>
-  <div class="meta">{% trans "Date" %}: {{ document_date|date:"d/m/Y" }}</div>
+    <table class="sheet-table">
+      <tr>
+        <th>ORIGINE</th>
+        <td>FRANCE</td>
+        <th>DESTINATION</th>
+        <td>{{ destination_city|default:destination_address|default:"-" }}</td>
+      </tr>
+      <tr>
+        <th>DEP. IATA CODE</th>
+        <td>CDG</td>
+        <th>DEST. IATA CODE</th>
+        <td>{{ destination_iata|default:"-" }}</td>
+      </tr>
+      <tr>
+        <th>NUMERO D'EXPEDITION / Expedition number</th>
+        <td>{{ shipment_ref }}</td>
+        <th>NUMERO DE VOL / Flight Nb</th>
+        <td>&nbsp;</td>
+      </tr>
+      <tr>
+        <th>POIDS TOTAL / Total Weight</th>
+        <td>
+          {% if weight_total_kg %}
+            {{ weight_total_kg|floatformat:2 }} kg
+          {% else %}
+            -
+          {% endif %}
+        </td>
+        <th>DATE DE VOL / Flight Date</th>
+        <td>&nbsp;</td>
+      </tr>
+      <tr>
+        <th>NOMBRE DE COLIS / Nb of parcels</th>
+        <td>{{ carton_count }}</td>
+        <th>&nbsp;</th>
+        <td>&nbsp;</td>
+      </tr>
+      <tr>
+        <th>TRANSITAIRE / Forwarding Agent</th>
+        <td>&nbsp;</td>
+        <th>VISA DOUANE / Customs date</th>
+        <td>&nbsp;</td>
+      </tr>
+      <tr>
+        <th>NUMERO EX / Export. Nb</th>
+        <td>&nbsp;</td>
+        <th>RESP. DOUANE ASF / ASF Customs agent</th>
+        <td>&nbsp;</td>
+      </tr>
+    </table>
 
-  <div class="block">{% trans "Organisation" %}: {{ org_name }}</div>
-  <div class="block">{% trans "Adresse" %}: {{ org_address }}</div>
-  <div class="block">{% trans "Contact" %}: {{ org_contact }}</div>
-  <div class="block">{% trans "Expéditeur" %}: {{ shipper_name }}</div>
-  <div class="block">{% trans "Destinataire" %}: {{ recipient_name }}</div>
-  <div class="block">{% trans "Destination" %}: {{ destination_address }}</div>
-  <div class="block">{% trans "Description du lot" %}: {{ shipment_description }}</div>
+    <table class="sheet-table">
+      <tr><th colspan="2" class="sheet-section-title">EXPEDITEUR / Shipper</th></tr>
+      <tr><th>Nom / Name</th><td>{% firstof shipper_info.person shipper_info.company "-" %}</td></tr>
+      <tr><th>Organisation / Organization</th><td>{{ shipper_info.company|default:"-" }}</td></tr>
+      <tr><th>Adresse / Address</th><td>{{ shipper_info.address|default:"-" }}</td></tr>
+      <tr><th>Contact</th><td>{{ shipper_info.email|default:"-" }}</td></tr>
+      <tr><th>TELEPHONE / Phone</th><td>{{ shipper_info.phone|default:"-" }}</td></tr>
+    </table>
 
-  <div class="signature">{% trans "Signataire" %}: {{ org_signatory }}</div>
-  <div class="signature">{% trans "Signature" %}: ________________________________</div>
+    <table class="sheet-table">
+      <tr><th colspan="2" class="sheet-section-title">DESTINATAIRE / Consignee</th></tr>
+      <tr><th>Nom / Name</th><td>{% firstof recipient_info.person recipient_info.company "-" %}</td></tr>
+      <tr><th>Organisation / Organization</th><td>{{ recipient_info.company|default:"-" }}</td></tr>
+      <tr><th>Adresse / Address</th><td>{{ recipient_info.address|default:destination_address|default:"-" }}</td></tr>
+      <tr><th>Contact</th><td>{{ recipient_info.email|default:"-" }}</td></tr>
+      <tr><th>TELEPHONE / Phone</th><td>{{ recipient_info.phone|default:"-" }}</td></tr>
+    </table>
+
+    <table class="sheet-table">
+      <tr><th colspan="2" class="sheet-section-title">CORRESPONDANT / Local Agent</th></tr>
+      <tr><th>Nom / Name</th><td>{% firstof correspondent_info.person correspondent_info.company "-" %}</td></tr>
+      <tr><th>Organisation / Organization</th><td>{{ correspondent_info.company|default:"-" }}</td></tr>
+      <tr><th>Adresse / Address</th><td>{{ correspondent_info.address|default:"-" }}</td></tr>
+      <tr><th>Contact</th><td>{{ correspondent_info.email|default:"-" }}</td></tr>
+      <tr><th>TELEPHONE / Phone</th><td>{{ correspondent_info.phone|default:"-" }}</td></tr>
+    </table>
+
+    <div class="customs-note">CES COLIS SONT TOUS VERIFIES AUX RAYONS X PAR LES SERVICES
+DE LA SURETE D'AIR FRANCE D'ORLY OU DE ROISSY CHARLES DE GAULLE.
+
+These parcels have all been verified by X-ray by the Air France safety department in Orly
+or Roissy Charles de Gaulle airport.</div>
+  </div>
 {% endblock %}

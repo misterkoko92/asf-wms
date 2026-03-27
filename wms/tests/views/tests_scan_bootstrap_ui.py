@@ -446,6 +446,18 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, 'id="shipment-dossier-grouped-print-actions"')
         self.assertContains(response, 'id="shipment-dossier-paper-print-actions"')
         self.assertContains(response, 'id="shipment-dossier-pdf-export-actions"')
+        self.assertContains(
+            response,
+            'id="shipment-dossier-grouped-print-actions" class="ui-comp-actions"',
+        )
+        self.assertContains(
+            response,
+            'id="shipment-dossier-paper-print-actions" class="ui-comp-actions"',
+        )
+        self.assertContains(
+            response,
+            'id="shipment-dossier-pdf-export-actions" class="ui-comp-actions"',
+        )
         self.assertContains(response, 'id="shipment-additional-document-upload-actions"')
         self.assertContains(response, 'id="shipment-additional-document-list"')
         self.assertContains(response, 'data-local-document-helper-link="1"', count=5)

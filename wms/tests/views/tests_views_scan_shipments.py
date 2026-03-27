@@ -553,7 +553,18 @@ class ScanShipmentsViewsTests(TestCase):
         response = self.client.get(reverse("scan:scan_shipment_edit", args=[shipment.id]))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'id="shipment-dossier-grouped-print-actions"')
+        self.assertContains(
+            response,
+            'id="shipment-dossier-grouped-print-actions" class="ui-comp-actions"',
+        )
+        self.assertContains(
+            response,
+            'id="shipment-dossier-paper-print-actions" class="ui-comp-actions"',
+        )
+        self.assertContains(
+            response,
+            'id="shipment-dossier-pdf-export-actions" class="ui-comp-actions"',
+        )
         self.assertContains(response, 'id="shipment-dossier-carton-print-actions"')
         self.assertContains(response, 'id="shipment-receipt-allocations-table"')
         self.assertContains(response, receipt.reference)
