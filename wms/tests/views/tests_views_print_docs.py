@@ -272,18 +272,12 @@ class PrintDocsViewsTests(TestCase):
         )
         legacy_mock.assert_not_called()
 
-    def test_scan_shipment_view_document_routes_shipment_note_to_exact_pack_document(self):
+    def test_scan_shipment_view_document_routes_shipment_note_to_html_template(self):
         shipment = self._create_shipment()
-        with (
-            mock.patch(
-                "wms.views_print_docs.render_pack_document_xlsx_documents",
-                return_value=[SimpleNamespace(filename="shipment-note.xlsx", payload=b"xlsx-data")],
-            ) as render_mock,
-            mock.patch(
-                "wms.views_print_docs._build_pdf_response_from_xlsx_documents",
-                return_value=HttpResponse("pdf"),
-            ) as pdf_mock,
-        ):
+        with mock.patch(
+            "wms.views_print_docs.render_shipment_document",
+            return_value=HttpResponse("shipment-note-html"),
+        ) as render_mock:
             response = self.client.get(
                 reverse(
                     "scan:scan_shipment_view_document",
@@ -293,26 +287,18 @@ class PrintDocsViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         render_mock.assert_called_once_with(
-            pack_code="C",
-            doc_type="shipment_note",
-            variant="shipment",
-            shipment=shipment,
-            cartons=None,
+            mock.ANY,
+            shipment,
+            "shipment_note",
         )
-        pdf_mock.assert_called_once()
+        self.assertEqual(response.content.decode(), "shipment-note-html")
 
-    def test_scan_shipment_view_document_routes_customs_to_exact_pack_document(self):
+    def test_scan_shipment_view_document_routes_customs_to_html_template(self):
         shipment = self._create_shipment()
-        with (
-            mock.patch(
-                "wms.views_print_docs.render_pack_document_xlsx_documents",
-                return_value=[SimpleNamespace(filename="customs-note.xlsx", payload=b"xlsx-data")],
-            ) as render_mock,
-            mock.patch(
-                "wms.views_print_docs._build_pdf_response_from_xlsx_documents",
-                return_value=HttpResponse("pdf"),
-            ) as pdf_mock,
-        ):
+        with mock.patch(
+            "wms.views_print_docs.render_shipment_document",
+            return_value=HttpResponse("customs-html"),
+        ) as render_mock:
             response = self.client.get(
                 reverse(
                     "scan:scan_shipment_view_document",
@@ -322,14 +308,32 @@ class PrintDocsViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         render_mock.assert_called_once_with(
-            pack_code="C",
-            doc_type="shipment_note",
-            render_doc_type="customs_note",
-            variant="shipment",
-            shipment=shipment,
-            cartons=None,
+            mock.ANY,
+            shipment,
+            "customs",
         )
-        pdf_mock.assert_called_once()
+        self.assertEqual(response.content.decode(), "customs-html")
+
+    def test_scan_shipment_view_document_routes_packing_list_to_html_template(self):
+        shipment = self._create_shipment()
+        with mock.patch(
+            "wms.views_print_docs.render_shipment_document",
+            return_value=HttpResponse("packing-list-html"),
+        ) as render_mock:
+            response = self.client.get(
+                reverse(
+                    "scan:scan_shipment_view_document",
+                    kwargs={"shipment_id": shipment.id, "document_key": "packing_list"},
+                )
+            )
+
+        self.assertEqual(response.status_code, 200)
+        render_mock.assert_called_once_with(
+            mock.ANY,
+            shipment,
+            "packing_list_shipment",
+        )
+        self.assertEqual(response.content.decode(), "packing-list-html")
 
     def test_scan_shipment_view_document_routes_donation_per_carton_in_code_order(self):
         shipment, cartons = self._create_shipment_with_cartons("C-020", "C-010")
@@ -381,6 +385,100 @@ class PrintDocsViewsTests(TestCase):
             "contact_label",
         )
         self.assertEqual(response.content.decode(), "contact-html")
+
+    def test_scan_shipment_view_bundle_routes_paper_to_html_bundle_page(self):
+        shipment = self._create_shipment()
+
+        response = self.client.get(
+            reverse(
+                "scan:scan_shipment_view_bundle",
+                kwargs={"shipment_id": shipment.id, "bundle_key": "paper"},
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="shipment-paper-bundle"')
+        self.assertContains(response, "Lot papier A4")
+        self.assertContains(response, "Bon d")
+        self.assertContains(response, "Document douane")
+        self.assertContains(response, "Liste générale")
+
+    def test_scan_shipment_view_bundle_routes_carton_lists_to_html_bundle_page(self):
+        shipment, cartons = self._create_shipment_with_cartons("C-020", "C-010")
+
+        response = self.client.get(
+            reverse(
+                "scan:scan_shipment_view_bundle",
+                kwargs={"shipment_id": shipment.id, "bundle_key": "carton_lists"},
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="shipment-carton-lists-bundle"')
+        self.assertContains(response, "Lot rouleau continu")
+        self.assertContains(response, cartons[0].code)
+        self.assertContains(response, cartons[1].code)
+        self.assertContains(response, "Liste colisage")
+
+    def test_scan_shipment_view_bundle_routes_standard_labels_to_html_bundle_page(self):
+        shipment, _cartons = self._create_shipment_with_cartons("C-020", "C-010")
+
+        response = self.client.get(
+            reverse(
+                "scan:scan_shipment_view_bundle",
+                kwargs={"shipment_id": shipment.id, "bundle_key": "standard_labels"},
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="shipment-standard-labels-bundle"')
+        self.assertContains(response, "Lot étiquettes standard")
+        content = response.content.decode()
+        self.assertLess(content.index("Étiquette colis"), content.index("Étiquette contact"))
+        self.assertLess(content.index("Étiquette contact"), content.index("Attestation donation"))
+
+    def test_scan_shipment_view_bundle_routes_all_to_orchestrator_page(self):
+        shipment = self._create_shipment()
+
+        response = self.client.get(
+            reverse(
+                "scan:scan_shipment_view_bundle",
+                kwargs={"shipment_id": shipment.id, "bundle_key": "all"},
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="shipment-print-bundle"')
+        self.assertContains(response, "Lot papier A4")
+        self.assertContains(response, "Lot rouleau continu")
+        self.assertContains(response, "Lot étiquettes standard")
+
+    def test_scan_shipment_donation_certificate_renders_locked_template(self):
+        shipment = self._create_shipment()
+        carton = Carton.objects.create(code="C-DON-001", shipment=shipment)
+
+        response = self.client.get(
+            reverse(
+                "scan:scan_shipment_donation_certificate",
+                kwargs={"shipment_id": shipment.id, "carton_id": carton.id},
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="donation-certificate-title"')
+        self.assertContains(response, "ATTESTATION DE DONATION")
+
+    def test_scan_shipment_donation_certificate_returns_404_when_carton_missing(self):
+        shipment = self._create_shipment()
+
+        response = self.client.get(
+            reverse(
+                "scan:scan_shipment_donation_certificate",
+                kwargs={"shipment_id": shipment.id, "carton_id": 999999},
+            )
+        )
+
+        self.assertEqual(response.status_code, 404)
 
     def test_scan_shipment_view_document_routes_single_labels_per_carton(self):
         shipment, cartons = self._create_shipment_with_cartons("C-020", "C-010")

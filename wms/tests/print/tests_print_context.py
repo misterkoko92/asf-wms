@@ -6,6 +6,7 @@ from django.test import SimpleTestCase
 
 from wms.print_context import (
     _build_destination_info,
+    build_carton_contact_label_context,
     build_carton_document_context,
     build_carton_picking_context,
     build_contact_sheet_context,
@@ -336,6 +337,29 @@ class PrintContextTests(SimpleTestCase):
         self.assertEqual(context["shipper_info"]["company"], "ASF")
         self.assertEqual(context["recipient_info"]["company"], "Hopital")
         self.assertEqual(context["correspondent_info"]["company"], "Correspondant")
+        self.assertTrue(context["hide_footer"])
+
+    def test_build_carton_contact_label_context_adds_carton_code(self):
+        shipment = SimpleNamespace(reference="SHP-43")
+        carton = SimpleNamespace(code="C-43")
+        with mock.patch(
+            "wms.print_context.build_contact_sheet_context",
+            return_value={
+                "shipment_ref": "SHP-43",
+                "destination_address": "1 Rue Test",
+                "destination_label": "ABIDJAN (ABJ)",
+                "shipper_info": {"company": "ASF"},
+                "recipient_info": {"company": "Hopital"},
+                "correspondent_info": {"company": "Correspondant"},
+                "hide_footer": True,
+            },
+        ):
+            context = build_carton_contact_label_context(shipment, carton)
+
+        self.assertEqual(context["shipment_ref"], "SHP-43")
+        self.assertEqual(context["carton_code"], "C-43")
+        self.assertEqual(context["shipper_info"]["company"], "ASF")
+        self.assertEqual(context["recipient_info"]["company"], "Hopital")
         self.assertTrue(context["hide_footer"])
 
     def test_build_carton_picking_context_groups_and_sorts(self):

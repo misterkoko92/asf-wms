@@ -166,3 +166,57 @@ class PrintDeliveryRouteTests(TestCase):
         render_mock.assert_called_once_with(mock.ANY, shipment)
         generate_mock.assert_not_called()
         pdf_mock.assert_not_called()
+
+    def test_scan_shipment_view_document_defaults_to_html_for_dossier_route(self):
+        shipment = self._create_shipment()
+        with (
+            mock.patch(
+                "wms.views_print_docs.render_shipment_document",
+                return_value=HttpResponse("html-document"),
+            ) as render_mock,
+            mock.patch(
+                "wms.views_print_docs.render_pack_document_xlsx_documents",
+                return_value=[mock.Mock(filename="doc.xlsx", payload=b"xlsx-data")],
+            ) as pack_mock,
+        ):
+            response = self.client.get(
+                reverse(
+                    "scan:scan_shipment_view_document",
+                    kwargs={"shipment_id": shipment.id, "document_key": "shipment_note"},
+                )
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.decode(), "html-document")
+        render_mock.assert_called_once_with(mock.ANY, shipment, "shipment_note")
+        pack_mock.assert_not_called()
+
+    def test_scan_shipment_view_document_honors_explicit_pdf_delivery(self):
+        shipment = self._create_shipment()
+        with (
+            mock.patch(
+                "wms.views_print_docs.render_shipment_document",
+                return_value=HttpResponse("html-document"),
+            ) as render_mock,
+            mock.patch(
+                "wms.views_print_docs.render_pack_document_xlsx_documents",
+                return_value=[mock.Mock(filename="doc.xlsx", payload=b"xlsx-data")],
+            ) as pack_mock,
+            mock.patch(
+                "wms.views_print_docs._build_pdf_response_from_xlsx_documents",
+                return_value=HttpResponse("pdf-document"),
+            ) as pdf_mock,
+        ):
+            response = self.client.get(
+                reverse(
+                    "scan:scan_shipment_view_document",
+                    kwargs={"shipment_id": shipment.id, "document_key": "shipment_note"},
+                ),
+                {"delivery": "pdf"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content.decode(), "pdf-document")
+        render_mock.assert_not_called()
+        pack_mock.assert_called_once()
+        pdf_mock.assert_called_once()

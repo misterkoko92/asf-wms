@@ -1310,39 +1310,53 @@ class ScanViewTests(TestCase):
         self.assertContains(
             response,
             (
-                f'href="{reverse("scan:scan_shipment_document", args=[shipment.id, "shipment_note"])}" '
+                f'href="{reverse("scan:scan_shipment_view_bundle_pdf", args=[shipment.id, "a4"])}" '
                 'target="_blank" rel="noopener" data-local-document-helper-link="1"'
             ),
         )
         self.assertContains(
             response,
             (
-                f'href="{reverse("scan:scan_shipment_document", args=[shipment.id, "packing_list_shipment"])}" '
+                f'href="{reverse("scan:scan_shipment_view_document", args=[shipment.id, "shipment_note"])}?delivery=pdf" '
                 'target="_blank" rel="noopener" data-local-document-helper-link="1"'
             ),
         )
         self.assertContains(
             response,
             (
-                f'href="{reverse("scan:scan_shipment_document", args=[shipment.id, "donation_certificate"])}" '
+                f'href="{reverse("scan:scan_shipment_view_document", args=[shipment.id, "customs"])}?delivery=pdf" '
                 'target="_blank" rel="noopener" data-local-document-helper-link="1"'
             ),
         )
         self.assertContains(
             response,
             (
-                f'href="{reverse("scan:scan_shipment_labels", args=[shipment.id])}" '
+                f'href="{reverse("scan:scan_shipment_view_document", args=[shipment.id, "packing_list"])}?delivery=pdf" '
                 'target="_blank" rel="noopener" data-local-document-helper-link="1"'
             ),
         )
-        self.assertContains(
+        self.assertNotContains(
+            response,
+            (
+                f'href="{reverse("scan:scan_shipment_view_bundle", args=[shipment.id, "paper"])}" '
+                'target="_blank" rel="noopener" data-local-document-helper-link="1"'
+            ),
+        )
+        self.assertNotContains(
+            response,
+            (
+                f'href="{reverse("scan:scan_shipment_view_document", args=[shipment.id, "shipment_note"])}" '
+                'target="_blank" rel="noopener" data-local-document-helper-link="1"'
+            ),
+        )
+        self.assertNotContains(
             response,
             (
                 f'href="{reverse("scan:scan_shipment_carton_document", args=[shipment.id, carton.id])}" '
                 'target="_blank" rel="noopener" data-local-document-helper-link="1"'
             ),
         )
-        self.assertContains(
+        self.assertNotContains(
             response,
             (
                 f'href="{reverse("scan:scan_shipment_label", args=[shipment.id, carton.id])}" '

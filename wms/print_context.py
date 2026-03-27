@@ -334,6 +334,15 @@ def build_contact_sheet_context(shipment):
     }
 
 
+def build_carton_contact_label_context(shipment, carton):
+    context = build_contact_sheet_context(shipment)
+    return {
+        **context,
+        "carton_code": carton.code,
+        "hide_footer": True,
+    }
+
+
 def build_carton_picking_context(carton):
     rows_by_key = {}
     for item in carton.cartonitem_set.select_related(

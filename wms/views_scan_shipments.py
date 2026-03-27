@@ -64,6 +64,7 @@ from .shipment_tracking_handlers import (
 from .shipment_view_helpers import (
     build_carton_options,
     build_shipment_document_links,
+    build_shipment_dossier_print_actions,
     build_shipments_ready_rows,
     build_shipments_tracking_rows,
     next_tracking_status,
@@ -289,6 +290,7 @@ def _shipment_dossier_extra_context(
         "is_edit": True,
         "shipment": shipment,
         "tracking_url": shipment.get_tracking_url(request=request),
+        "dossier_print_actions": build_shipment_dossier_print_actions(shipment),
         "documents": documents,
         "carton_docs": carton_docs,
         "receipt_allocations": receipt_allocations,

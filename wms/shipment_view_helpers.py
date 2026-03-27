@@ -30,8 +30,10 @@ TEMPLATE_CARTON_PACKING_LIST = "print/liste_colisage_carton.html"
 TEMPLATE_SHIPMENT_LABELS = "print/etiquette_expedition.html"
 
 DOC_ROUTE_SHIPMENT = "scan:scan_shipment_document"
+DOC_ROUTE_SHIPMENT_VIEW = "scan:scan_shipment_view_document"
 DOC_ROUTE_LABELS = "scan:scan_shipment_labels"
 DOC_ROUTE_CARTON = "scan:scan_shipment_carton_document"
+DOC_ROUTE_SHIPMENT_BUNDLE_PDF = "scan:scan_shipment_view_bundle_pdf"
 
 SHIPMENT_DOCUMENT_TEMPLATES = {
     "contact_label": "print/feuille_contact.html",
@@ -139,6 +141,127 @@ def _build_dynamic_label_context(label):
         "label_position": label["position"],
         "label_total": label["total"],
         "label_qr_url": label.get("qr_url", ""),
+    }
+
+
+def _build_future_shipment_bundle_url(shipment, bundle_key):
+    return f"/scan/shipment/{shipment.id}/print-bundle/{bundle_key}/"
+
+
+def _build_future_carton_action_url(shipment, carton, action_key):
+    if action_key == "contact_label":
+        return reverse("scan:scan_shipment_contact_label", args=[shipment.id, carton.id])
+    if action_key == "donation_certificate":
+        return reverse("scan:scan_shipment_donation_certificate", args=[shipment.id, carton.id])
+    raise ValueError(f"Unknown carton action: {action_key}")
+
+
+def _pdf_delivery_url(url):
+    separator = "&" if "?" in url else "?"
+    return f"{url}{separator}delivery=pdf"
+
+
+def build_shipment_dossier_print_actions(shipment):
+    grouped_print_actions = [
+        {
+            "label": _("Imprimer tous les documents d'expédition"),
+            "url": _build_future_shipment_bundle_url(shipment, "all"),
+        },
+        {
+            "label": _("Imprimer dossier papier"),
+            "url": _build_future_shipment_bundle_url(shipment, "paper"),
+        },
+        {
+            "label": _("Imprimer toutes les listes colisage carton"),
+            "url": _build_future_shipment_bundle_url(shipment, "carton_lists"),
+        },
+        {
+            "label": _("Imprimer toutes les étiquettes standard"),
+            "url": _build_future_shipment_bundle_url(shipment, "standard_labels"),
+        },
+    ]
+    paper_print_actions = [
+        {
+            "label": _("Imprimer bon d'expédition"),
+            "url": reverse(DOC_ROUTE_SHIPMENT_VIEW, args=[shipment.id, "shipment_note"]),
+        },
+        {
+            "label": _("Imprimer document douane"),
+            "url": reverse(DOC_ROUTE_SHIPMENT_VIEW, args=[shipment.id, "customs"]),
+        },
+        {
+            "label": _("Imprimer liste générale"),
+            "url": reverse(DOC_ROUTE_SHIPMENT_VIEW, args=[shipment.id, "packing_list"]),
+        },
+    ]
+    carton_print_rows = []
+    for carton in shipment.carton_set.all().order_by("code"):
+        carton_print_rows.append(
+            {
+                "code": carton.code,
+                "actions": [
+                    {
+                        "label": _("Liste colisage"),
+                        "url": reverse(DOC_ROUTE_CARTON, args=[shipment.id, carton.id]),
+                    },
+                    {
+                        "label": _("Étiquette colis"),
+                        "url": reverse("scan:scan_shipment_label", args=[shipment.id, carton.id]),
+                    },
+                    {
+                        "label": _("Étiquette contact"),
+                        "url": _build_future_carton_action_url(
+                            shipment,
+                            carton,
+                            "contact_label",
+                        ),
+                    },
+                    {
+                        "label": _("Attestation donation"),
+                        "url": _build_future_carton_action_url(
+                            shipment,
+                            carton,
+                            "donation_certificate",
+                        ),
+                    },
+                ],
+            }
+        )
+    pdf_export_actions = [
+        {
+            "label": _("Télécharger dossier papier (PDF)"),
+            "url": reverse(DOC_ROUTE_SHIPMENT_BUNDLE_PDF, args=[shipment.id, "a4"]),
+        },
+        {
+            "label": _("Télécharger bon d'expédition (PDF)"),
+            "url": _pdf_delivery_url(
+                reverse(DOC_ROUTE_SHIPMENT_VIEW, args=[shipment.id, "shipment_note"])
+            ),
+        },
+        {
+            "label": _("Télécharger document douane (PDF)"),
+            "url": _pdf_delivery_url(
+                reverse(DOC_ROUTE_SHIPMENT_VIEW, args=[shipment.id, "customs"])
+            ),
+        },
+        {
+            "label": _("Télécharger liste générale (PDF)"),
+            "url": _pdf_delivery_url(
+                reverse(DOC_ROUTE_SHIPMENT_VIEW, args=[shipment.id, "packing_list"])
+            ),
+        },
+        {
+            "label": _("Télécharger attestation donation (PDF)"),
+            "url": _pdf_delivery_url(
+                reverse(DOC_ROUTE_SHIPMENT_VIEW, args=[shipment.id, "donation"])
+            ),
+        },
+    ]
+    return {
+        "grouped_print_actions": grouped_print_actions,
+        "paper_print_actions": paper_print_actions,
+        "carton_print_rows": carton_print_rows,
+        "pdf_export_actions": pdf_export_actions,
     }
 
 

@@ -3,6 +3,7 @@ from io import BytesIO
 from django.conf import settings
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, render
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods
@@ -16,7 +17,7 @@ from .local_document_helper import (
 )
 from .models import Carton, Shipment
 from .print_context import build_carton_picking_context
-from .print_delivery import wants_browser_print
+from .print_delivery import wants_browser_print, wants_external_pdf
 from .print_pack_engine import (
     PrintPackEngineError,
     generate_pack,
@@ -42,6 +43,8 @@ from .view_permissions import scan_staff_required
 TEMPLATE_DYNAMIC_DOCUMENT = "print/dynamic_document.html"
 TEMPLATE_PACKING_LIST_CARTON = "print/liste_colisage_carton.html"
 TEMPLATE_PICKING_LIST_CARTON = "print/picking_list_carton.html"
+TEMPLATE_SHIPMENT_PRINT_BUNDLE = "scan/shipment_print_bundle.html"
+TEMPLATE_SHIPMENT_PRINT_BUNDLE_LOT = "scan/shipment_print_bundle_lot.html"
 
 SHIPMENT_VIEW_DOCUMENT_CONFIG = {
     "shipment_note": {
@@ -305,6 +308,128 @@ def _shipment_view_bundle_documents(shipment, bundle_key):
 
 def _shipment_view_bundle_fallback_code(bundle_key):
     return f"SV-{(bundle_key or '').strip().upper() or 'PDF'}"
+
+
+def _shipment_bundle_action(label, url):
+    return {"label": label, "url": url}
+
+
+def _shipment_view_bundle_context(shipment, bundle_key):
+    ordered_cartons = _ordered_shipment_cartons(shipment)
+    bundle_key = (bundle_key or "").strip()
+    if bundle_key == "all":
+        return {
+            "template_name": TEMPLATE_SHIPMENT_PRINT_BUNDLE,
+            "context": {
+                "shipment": shipment,
+                "bundle_id": "shipment-print-bundle",
+                "bundle_title": _("Imprimer tous les documents d'expédition"),
+                "lot_actions": [
+                    _shipment_bundle_action(
+                        _("Lot papier A4"),
+                        f"/scan/shipment/{shipment.id}/print-bundle/paper/",
+                    ),
+                    _shipment_bundle_action(
+                        _("Lot rouleau continu"),
+                        f"/scan/shipment/{shipment.id}/print-bundle/carton_lists/",
+                    ),
+                    _shipment_bundle_action(
+                        _("Lot étiquettes standard"),
+                        f"/scan/shipment/{shipment.id}/print-bundle/standard_labels/",
+                    ),
+                ],
+            },
+        }
+    if bundle_key == "paper":
+        return {
+            "template_name": TEMPLATE_SHIPMENT_PRINT_BUNDLE_LOT,
+            "context": {
+                "shipment": shipment,
+                "bundle_id": "shipment-paper-bundle",
+                "bundle_title": _("Lot papier A4"),
+                "bundle_actions": [
+                    _shipment_bundle_action(
+                        _("Bon d'expédition"),
+                        reverse(
+                            "scan:scan_shipment_view_document", args=[shipment.id, "shipment_note"]
+                        ),
+                    ),
+                    _shipment_bundle_action(
+                        _("Document douane"),
+                        reverse("scan:scan_shipment_view_document", args=[shipment.id, "customs"]),
+                    ),
+                    _shipment_bundle_action(
+                        _("Liste générale"),
+                        reverse(
+                            "scan:scan_shipment_view_document", args=[shipment.id, "packing_list"]
+                        ),
+                    ),
+                ],
+                "bundle_rows": [],
+            },
+        }
+    if bundle_key == "carton_lists":
+        return {
+            "template_name": TEMPLATE_SHIPMENT_PRINT_BUNDLE_LOT,
+            "context": {
+                "shipment": shipment,
+                "bundle_id": "shipment-carton-lists-bundle",
+                "bundle_title": _("Lot rouleau continu"),
+                "bundle_actions": [],
+                "bundle_rows": [
+                    {
+                        "code": carton.code,
+                        "actions": [
+                            _shipment_bundle_action(
+                                _("Liste colisage"),
+                                reverse(
+                                    "scan:scan_shipment_carton_document",
+                                    args=[shipment.id, carton.id],
+                                ),
+                            )
+                        ],
+                    }
+                    for carton in ordered_cartons
+                ],
+            },
+        }
+    if bundle_key == "standard_labels":
+        return {
+            "template_name": TEMPLATE_SHIPMENT_PRINT_BUNDLE_LOT,
+            "context": {
+                "shipment": shipment,
+                "bundle_id": "shipment-standard-labels-bundle",
+                "bundle_title": _("Lot étiquettes standard"),
+                "bundle_actions": [],
+                "bundle_rows": [
+                    {
+                        "code": carton.code,
+                        "actions": [
+                            _shipment_bundle_action(
+                                _("Étiquette colis"),
+                                reverse("scan:scan_shipment_label", args=[shipment.id, carton.id]),
+                            ),
+                            _shipment_bundle_action(
+                                _("Étiquette contact"),
+                                reverse(
+                                    "scan:scan_shipment_contact_label",
+                                    args=[shipment.id, carton.id],
+                                ),
+                            ),
+                            _shipment_bundle_action(
+                                _("Attestation donation"),
+                                reverse(
+                                    "scan:scan_shipment_donation_certificate",
+                                    args=[shipment.id, carton.id],
+                                ),
+                            ),
+                        ],
+                    }
+                    for carton in ordered_cartons
+                ],
+            },
+        }
+    raise Http404("Bundle type not found")
 
 
 def _try_generate_pack_pdf_response(
@@ -586,7 +711,16 @@ def scan_carton_picking(request, carton_id):
 @require_http_methods(["GET"])
 def scan_shipment_view_document(request, shipment_id, document_key):
     shipment = _get_shipment_by_id(shipment_id)
-    if (document_key or "").strip() == "contact":
+    normalized_key = (document_key or "").strip()
+    html_doc_types = {
+        "shipment_note": "shipment_note",
+        "customs": "customs",
+        "packing_list": "packing_list_shipment",
+        "contact": "contact_label",
+    }
+    if normalized_key in html_doc_types and not wants_external_pdf(request):
+        return render_shipment_document(request, shipment, html_doc_types[normalized_key])
+    if normalized_key == "contact":
         return render_shipment_document(request, shipment, "contact_label")
     config = _shipment_view_document_or_404(document_key)
     render_documents = lambda: _render_shipment_view_xlsx_documents(shipment, document_key)
@@ -615,6 +749,26 @@ def scan_shipment_view_document(request, shipment_id, document_key):
             documents=documents,
             pack_code=config["pack_code"],
         )
+
+
+@scan_staff_required
+@require_http_methods(["GET"])
+def scan_shipment_view_bundle(request, shipment_id, bundle_key):
+    shipment = _get_shipment_by_id(shipment_id)
+    bundle = _shipment_view_bundle_context(shipment, bundle_key)
+    return render(
+        request,
+        bundle["template_name"],
+        bundle["context"],
+    )
+
+
+@scan_staff_required
+@require_http_methods(["GET"])
+def scan_shipment_donation_certificate(request, shipment_id, carton_id):
+    shipment = _get_shipment_by_id(shipment_id)
+    _get_shipment_carton_or_404(shipment, carton_id)
+    return render_shipment_document(request, shipment, "donation_certificate")
 
 
 @scan_staff_required

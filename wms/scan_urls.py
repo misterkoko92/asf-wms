@@ -70,6 +70,11 @@ urlpatterns = [
         name="scan_shipment_view_document",
     ),
     path(
+        "shipment/<int:shipment_id>/print-bundle/<str:bundle_key>/",
+        views.scan_shipment_view_bundle,
+        name="scan_shipment_view_bundle",
+    ),
+    path(
         "shipment/<int:shipment_id>/view-bundle/<str:bundle_key>/",
         views.scan_shipment_view_bundle_pdf,
         name="scan_shipment_view_bundle_pdf",
@@ -78,6 +83,16 @@ urlpatterns = [
         "shipment/<int:shipment_id>/carton/<int:carton_id>/doc/",
         views.scan_shipment_carton_document,
         name="scan_shipment_carton_document",
+    ),
+    path(
+        "shipment/<int:shipment_id>/carton/<int:carton_id>/donation-certificate/",
+        views.scan_shipment_donation_certificate,
+        name="scan_shipment_donation_certificate",
+    ),
+    path(
+        "shipment/<int:shipment_id>/carton/<int:carton_id>/contact-label/",
+        views.scan_shipment_contact_label,
+        name="scan_shipment_contact_label",
     ),
     path(
         "carton/<int:carton_id>/doc/",

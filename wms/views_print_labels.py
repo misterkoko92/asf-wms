@@ -13,7 +13,7 @@ from .local_document_helper import (
     is_local_helper_job_request,
 )
 from .models import Shipment
-from .print_context import build_label_context
+from .print_context import build_carton_contact_label_context, build_label_context
 from .print_delivery import wants_browser_print
 from .print_pack_engine import (
     PrintPackEngineError,
@@ -29,6 +29,7 @@ from .view_permissions import scan_staff_required
 
 TEMPLATE_DYNAMIC_LABELS = "print/dynamic_labels.html"
 TEMPLATE_SHIPMENT_LABEL = "print/etiquette_expedition.html"
+TEMPLATE_CONTACT_LABEL = "print/etiquette_contact.html"
 
 
 def _find_carton_position(cartons, carton_id):
@@ -79,6 +80,14 @@ def _render_single_shipment_label_response(request, shipment, carton_id):
     label_context["label_qr_url"] = label_context.get("label_qr_url") or ""
     label_context["carton_id"] = carton_id
     return _render_shipment_label(request, label_context=label_context)
+
+
+def _render_contact_label_response(request, shipment, carton):
+    return render(
+        request,
+        TEMPLATE_CONTACT_LABEL,
+        build_carton_contact_label_context(shipment, carton),
+    )
 
 
 def _base_shipment_queryset():
@@ -263,3 +272,13 @@ def scan_shipment_label(request, shipment_id, carton_id):
     except PrintPackEngineError:
         return _render_single_shipment_label_response(request, shipment, carton_id)
     return _artifact_pdf_response(artifact)
+
+
+@scan_staff_required
+@require_http_methods(["GET"])
+def scan_shipment_contact_label(request, shipment_id, carton_id):
+    shipment = _get_shipment_by_id(shipment_id)
+    carton = shipment.carton_set.filter(pk=carton_id).first()
+    if carton is None:
+        raise Http404(_("Carton introuvable pour cette expédition."))
+    return _render_contact_label_response(request, shipment, carton)
