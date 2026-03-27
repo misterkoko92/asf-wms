@@ -553,8 +553,19 @@ class ScanShipmentsViewsTests(TestCase):
         response = self.client.get(reverse("scan:scan_shipment_edit", args=[shipment.id]))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'id="shipment-carton-packing-list-actions"')
-        self.assertContains(response, 'id="shipment-carton-label-actions"')
+        self.assertContains(
+            response,
+            'id="shipment-dossier-grouped-print-actions" class="ui-comp-actions"',
+        )
+        self.assertContains(
+            response,
+            'id="shipment-dossier-paper-print-actions" class="ui-comp-actions"',
+        )
+        self.assertContains(
+            response,
+            'id="shipment-dossier-pdf-export-actions" class="ui-comp-actions"',
+        )
+        self.assertContains(response, 'id="shipment-dossier-carton-print-actions"')
         self.assertContains(response, 'id="shipment-receipt-allocations-table"')
         self.assertContains(response, receipt.reference)
         self.assertContains(response, "Wave 3 allocation")
@@ -926,6 +937,7 @@ class ScanShipmentsViewsTests(TestCase):
 
     def test_scan_shipment_edit_renders_dossier_sections_and_primary_actions(self):
         shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
+        Carton.objects.create(code="C-DOS-1", shipment=shipment)
 
         response = self.client.get(
             reverse("scan:scan_shipment_edit", kwargs={"shipment_id": shipment.id})
@@ -938,6 +950,17 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertContains(response, "Documents")
         self.assertContains(response, "Suivi")
         self.assertContains(response, "Modifier")
+        self.assertContains(response, "Impression groupée")
+        self.assertContains(response, "Documents papier")
+        self.assertContains(response, "Par colis")
+        self.assertContains(response, "Exports PDF")
+        self.assertContains(response, "Imprimer tous les documents")
+        self.assertContains(response, "Imprimer dossier papier")
+        self.assertContains(response, "Imprimer toutes les listes colisage carton")
+        self.assertContains(response, "Imprimer toutes les étiquettes standard")
+        self.assertContains(response, "Étiquette contact")
+        self.assertNotContains(response, "Documents générés")
+        self.assertNotContains(response, "Feuille contact")
 
     def test_scan_shipment_edit_get_renders_context(self):
         shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
@@ -998,6 +1021,7 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertTrue(response.context_data["can_edit"])
         self.assertEqual(response.context_data["shipment"].id, shipment.id)
         self.assertIn("tracking_url", response.context_data)
+        self.assertIn("dossier_print_actions", response.context_data)
         self.assertEqual(
             response.context_data["carton_docs"], [{"id": carton.id, "code": carton.code}]
         )

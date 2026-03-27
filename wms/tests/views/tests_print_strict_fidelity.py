@@ -3,7 +3,11 @@ from unittest import mock
 from django.test import RequestFactory, TestCase
 
 from wms.models import Carton, Shipment
-from wms.shipment_view_helpers import render_shipment_document, render_shipment_labels
+from wms.shipment_view_helpers import (
+    render_carton_document,
+    render_shipment_document,
+    render_shipment_labels,
+)
 
 
 class PrintStrictFidelityTests(TestCase):
@@ -26,9 +30,60 @@ class PrintStrictFidelityTests(TestCase):
 
         content = response.content.decode()
         self.assertIn("ATTESTATION DE DONATION", content)
+        self.assertIn("Je soussigné :", content)
+        self.assertIn("De l'Association :", content)
         self.assertIn("Valeur uniquement pour la douane : 1.00 euro", content)
         self.assertIn('id="donation-certificate-title"', content)
         self.assertIn('id="donation-certificate-body"', content)
+
+    def test_render_shipment_note_preserves_legacy_sheet_sections(self):
+        shipment = self._create_shipment()
+
+        response = render_shipment_document(self.request, shipment, "shipment_note")
+
+        content = response.content.decode()
+        self.assertIn('id="shipment-note-sheet"', content)
+        self.assertIn("NUMERO D'EXPEDITION / Expedition number", content)
+        self.assertIn("EXPEDITEUR / Shipper", content)
+        self.assertIn("CORRESPONDANT / Local Agent", content)
+        self.assertIn("RESPONSABLE VOL ASF / ASF Flight Manager", content)
+
+    def test_render_customs_note_preserves_legacy_sheet_sections(self):
+        shipment = self._create_shipment()
+
+        response = render_shipment_document(self.request, shipment, "customs")
+
+        content = response.content.decode()
+        self.assertIn('id="customs-note-sheet"', content)
+        self.assertIn("VISA DOUANE / Customs date", content)
+        self.assertIn("RESP. DOUANE ASF / ASF Customs agent", content)
+        self.assertIn("These parcels have all been verified by X-ray", content)
+
+    def test_render_shipment_packing_list_preserves_legacy_sheet_sections(self):
+        shipment = self._create_shipment()
+
+        response = render_shipment_document(self.request, shipment, "packing_list_shipment")
+
+        content = response.content.decode()
+        self.assertIn('id="packing-list-shipment-sheet"', content)
+        self.assertIn("LISTE DE COLISAGE", content)
+        self.assertIn(
+            "Dons humanitaires non destinés à être revendus - Produits non dangereux", content
+        )
+        self.assertIn("N° DE LOT", content)
+        self.assertIn("COLIS N°", content)
+
+    def test_render_carton_packing_list_preserves_legacy_sheet_sections(self):
+        shipment = self._create_shipment()
+        carton = Carton.objects.create(code="C-PL-001", shipment=shipment)
+
+        response = render_carton_document(self.request, shipment, carton)
+
+        content = response.content.decode()
+        self.assertIn('id="packing-list-carton-sheet"', content)
+        self.assertIn("LISTE DE COLISAGE", content)
+        self.assertIn("Référence du colis :", content)
+        self.assertIn("DATE LIMITE", content)
 
     def test_render_shipment_label_preserves_stable_visual_slots(self):
         shipment = self._create_shipment()

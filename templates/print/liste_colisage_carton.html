@@ -1,47 +1,68 @@
 {% extends "print/base_document.html" %}
-{% load i18n %}
-
-{% block title %}{% trans "Liste colisage carton" %}{% endblock %}
+{% block title %}Liste colisage carton{% endblock %}
 
 {% block extra_style %}
   .print-body { padding-bottom: 0; }
+  .packing-sheet {
+    display: grid;
+    gap: 4mm;
+  }
+  .packing-sheet-title {
+    font-family: Arial, sans-serif;
+    font-size: 16pt;
+    font-weight: 700;
+    text-align: center;
+    margin: 0;
+  }
+  .packing-sheet-subtitle {
+    text-align: center;
+    font-size: 10pt;
+    white-space: pre-line;
+  }
+  .packing-ref-row {
+    display: flex;
+    gap: 4mm;
+    align-items: baseline;
+    font-size: 10pt;
+  }
+  .packing-ref-label {
+    font-weight: 700;
+  }
 {% endblock %}
 
 {% block body %}
-  <h1>{% trans "Liste de colisage - carton" %}</h1>
+  <div id="packing-list-carton-sheet" class="packing-sheet">
+    <div class="packing-sheet-title">LISTE DE COLISAGE</div>
+    <div class="packing-sheet-subtitle">Dons humanitaires non destinés à être revendus
+Produits non dangereux</div>
+    <div class="packing-ref-row">
+      <span class="packing-ref-label">Référence du colis :</span>
+      <span>{{ carton_code }}</span>
+    </div>
 
-  <div class="meta">{% trans "Code carton" %}: {{ carton_code }}</div>
-  <div class="meta">
-    {% trans "Poids" %}:
-    {% if carton_weight_kg is not None %}
-      {{ carton_weight_kg|floatformat:2 }} kg
-    {% else %}
-      -
-    {% endif %}
-  </div>
-
-  <table>
-    <thead>
-      <tr>
-        <th>{% trans "Produit" %}</th>
-        <th>{% trans "Quantité" %}</th>
-        <th>{% trans "Date de péremption" %}</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in item_rows %}
+    <table>
+      <thead>
         <tr>
-          <td>{{ row.product }}</td>
-          <td>{{ row.quantity }}</td>
-          <td>
-            {% if row.expires_on %}
-              {{ row.expires_on|date:"d/m/Y" }}
-            {% else %}
-              -
-            {% endif %}
-          </td>
+          <th>PRODUIT</th>
+          <th>QUANTITE</th>
+          <th>DATE LIMITE</th>
         </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        {% for row in item_rows %}
+          <tr>
+            <td>{{ row.product }}</td>
+            <td>{{ row.quantity }}</td>
+            <td>
+              {% if row.expires_on %}
+                {{ row.expires_on|date:"d/m/Y" }}
+              {% else %}
+                -
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 {% endblock %}

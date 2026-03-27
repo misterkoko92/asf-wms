@@ -18,6 +18,7 @@ from wms.models import (
 from wms.shipment_view_helpers import (
     build_carton_options,
     build_shipment_document_links,
+    build_shipment_dossier_print_actions,
     build_shipments_ready_rows,
     build_shipments_tracking_rows,
     next_tracking_status,
@@ -174,6 +175,54 @@ class ShipmentViewHelpersTests(TestCase):
             ],
         )
         self.assertEqual(additional_docs.count(), 1)
+
+    def test_build_shipment_dossier_print_actions_groups_actions_by_workflow(self):
+        shipment = self._create_shipment()
+        carton = Carton.objects.create(code="C-101", shipment=shipment)
+
+        actions = build_shipment_dossier_print_actions(shipment)
+
+        self.assertEqual(
+            [item["label"] for item in actions["grouped_print_actions"]],
+            [
+                "Imprimer tous les documents d'expédition",
+                "Imprimer dossier papier",
+                "Imprimer toutes les listes colisage carton",
+                "Imprimer toutes les étiquettes standard",
+            ],
+        )
+        self.assertEqual(
+            [item["label"] for item in actions["paper_print_actions"]],
+            [
+                "Imprimer bon d'expédition",
+                "Imprimer document douane",
+                "Imprimer liste générale",
+            ],
+        )
+        self.assertEqual(len(actions["carton_print_rows"]), 1)
+        self.assertEqual(actions["carton_print_rows"][0]["code"], carton.code)
+        self.assertEqual(
+            [item["label"] for item in actions["carton_print_rows"][0]["actions"]],
+            [
+                "Liste colisage",
+                "Étiquette colis",
+                "Étiquette contact",
+                "Attestation donation",
+            ],
+        )
+        self.assertEqual(
+            actions["grouped_print_actions"][0]["url"],
+            f"/scan/shipment/{shipment.id}/print-bundle/all/",
+        )
+        self.assertEqual(
+            actions["carton_print_rows"][0]["actions"][2]["url"],
+            f"/scan/shipment/{shipment.id}/carton/{carton.id}/contact-label/",
+        )
+        self.assertEqual(
+            actions["pdf_export_actions"][0]["label"],
+            "Télécharger dossier papier (PDF)",
+        )
+        self.assertTrue(actions["pdf_export_actions"][1]["url"].endswith("delivery=pdf"))
 
     def test_build_shipments_ready_rows_exposes_document_summary_counts(self):
         shipment = self._create_shipment()

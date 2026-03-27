@@ -443,10 +443,24 @@ class ScanBootstrapUiTests(TestCase):
         self.assertContains(response, 'id="shipment-dossier-header"')
         self.assertContains(response, 'id="shipment-dossier-edit-panel"')
         self.assertContains(response, 'id="shipment-tracking-actions"')
-        self.assertContains(response, 'id="shipment-generated-document-actions"')
+        self.assertContains(response, 'id="shipment-dossier-grouped-print-actions"')
+        self.assertContains(response, 'id="shipment-dossier-paper-print-actions"')
+        self.assertContains(response, 'id="shipment-dossier-pdf-export-actions"')
+        self.assertContains(
+            response,
+            'id="shipment-dossier-grouped-print-actions" class="ui-comp-actions"',
+        )
+        self.assertContains(
+            response,
+            'id="shipment-dossier-paper-print-actions" class="ui-comp-actions"',
+        )
+        self.assertContains(
+            response,
+            'id="shipment-dossier-pdf-export-actions" class="ui-comp-actions"',
+        )
         self.assertContains(response, 'id="shipment-additional-document-upload-actions"')
         self.assertContains(response, 'id="shipment-additional-document-list"')
-        self.assertContains(response, 'data-local-document-helper-link="1"', count=4)
+        self.assertContains(response, 'data-local-document-helper-link="1"', count=5)
         self.assertContains(
             response,
             '<button type="submit" class="scan-scan-btn btn btn-secondary">Uploader</button>',

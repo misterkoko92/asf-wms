@@ -261,6 +261,37 @@ class PrintLabelsViewsTests(TestCase):
         )
         response_mock.assert_called_once()
 
+    def test_scan_shipment_contact_label_renders_carton_contact_template(self):
+        shipment = self._create_shipment()
+        carton = Carton.objects.create(code="C-CONTACT-001", shipment=shipment)
+
+        response = self.client.get(
+            reverse(
+                "scan:scan_shipment_contact_label",
+                kwargs={"shipment_id": shipment.id, "carton_id": carton.id},
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="contact-label"')
+        self.assertContains(response, "EXPEDITEUR / Shipper")
+        self.assertContains(response, "DESTINATAIRE / Consignee")
+        self.assertContains(response, "CORRESPONDANT / Local Agent")
+        self.assertContains(response, "TELEPHONE / Phone")
+        self.assertContains(response, carton.code)
+
+    def test_scan_shipment_contact_label_returns_404_when_carton_missing(self):
+        shipment = self._create_shipment()
+
+        response = self.client.get(
+            reverse(
+                "scan:scan_shipment_contact_label",
+                kwargs={"shipment_id": shipment.id, "carton_id": 999999},
+            )
+        )
+
+        self.assertEqual(response.status_code, 404)
+
     @override_settings(PRINT_PACK_XLSX_FALLBACK_ENABLED=True)
     def test_scan_shipment_label_returns_xlsx_fallback_on_graph_failure_when_enabled(
         self,
