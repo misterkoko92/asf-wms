@@ -78,6 +78,12 @@
       <a class="scan-scan-btn btn btn-tertiary" href="{% url 'scan:scan_shipments_ready' %}">
         Retour aux dossiers
       </a>
+      <a
+        class="scan-scan-btn btn btn-tertiary"
+        href="{% url 'scan:scan_cartons_ready' %}?shipment_reference={{ shipment.reference|urlencode }}"
+      >
+        Voir les colis
+      </a>
     </div>
   </div>
 </section>

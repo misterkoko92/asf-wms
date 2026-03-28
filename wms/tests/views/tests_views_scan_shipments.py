@@ -11,8 +11,12 @@ from contacts.models import Contact, ContactType
 from wms.helper_install import build_helper_install_context
 from wms.models import (
     Carton,
+    CartonItem,
     CartonStatus,
     Destination,
+    Location,
+    Product,
+    ProductLot,
     Receipt,
     ReceiptShipmentAllocation,
     ReceiptType,
@@ -58,6 +62,38 @@ class ScanShipmentsViewsTests(TestCase):
         group, _ = Group.objects.get_or_create(name="Preparateur")
         user.groups.add(group)
         return user
+
+    def _get_test_product_lot(self):
+        if hasattr(self, "_test_product_lot"):
+            return self._test_product_lot
+        warehouse = Warehouse.objects.create(name="Main test warehouse")
+        location = Location.objects.create(
+            warehouse=warehouse,
+            zone="A",
+            aisle="01",
+            shelf="001",
+        )
+        product = Product.objects.create(
+            sku="SKU-SHIPMENTS-1",
+            name="Compresses",
+            brand="ACME",
+        )
+        self._test_product_lot = ProductLot.objects.create(
+            product=product,
+            lot_code="LOT-SHIPMENTS-1",
+            quantity_on_hand=20,
+            location=location,
+        )
+        return self._test_product_lot
+
+    def _create_carton_with_item(self, *, code, shipment=None, status=CartonStatus.PACKED):
+        carton = Carton.objects.create(code=code, shipment=shipment, status=status)
+        CartonItem.objects.create(
+            carton=carton,
+            product_lot=self._get_test_product_lot(),
+            quantity=1,
+        )
+        return carton
 
     def test_scan_cartons_ready_short_circuits_when_handler_returns_response(self):
         with mock.patch(
@@ -385,6 +421,23 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertNotContains(response, "scan-carton-status-select-wrap")
         self.assertNotContains(response, "Imprimer / télécharger")
         self.assertNotContains(response, 'class="scan-scan-btn btn btn-danger"')
+
+    def test_scan_cartons_ready_filters_by_shipment_reference_querystring(self):
+        matched_shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
+        other_shipment = self._create_shipment(status=ShipmentStatus.DRAFT)
+        self._create_carton_with_item(code="C-MATCH", shipment=matched_shipment)
+        self._create_carton_with_item(code="C-OTHER", shipment=other_shipment)
+
+        response = self.client.get(
+            reverse("scan:scan_cartons_ready"),
+            {"shipment_reference": matched_shipment.reference},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "C-MATCH")
+        self.assertNotContains(response, "C-OTHER")
+        self.assertContains(response, f"Expédition filtrée : {matched_shipment.reference}")
+        self.assertContains(response, "Voir tous les colis")
 
     def test_scan_cartons_ready_bulk_picking_redirects_to_grouped_route(self):
         carton = Carton.objects.create(code="C-BULK-PICK", status=CartonStatus.PICKING)
@@ -1087,6 +1140,11 @@ class ScanShipmentsViewsTests(TestCase):
         self.assertContains(response, "Imprimer toutes les listes colisage carton")
         self.assertContains(response, "Imprimer toutes les étiquettes standard")
         self.assertContains(response, "Étiquette contact")
+        self.assertContains(response, "Voir les colis")
+        self.assertContains(
+            response,
+            f'{reverse("scan:scan_cartons_ready")}?shipment_reference={shipment.reference}',
+        )
         self.assertNotContains(response, "Documents générés")
         self.assertNotContains(response, "Feuille contact")
 
